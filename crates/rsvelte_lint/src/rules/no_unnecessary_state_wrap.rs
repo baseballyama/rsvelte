@@ -1,10 +1,12 @@
+//! `svelte/no-unnecessary-state-wrap`.
+//!
 //! `svelte/no-unnecessary-state-wrap` — disallow wrapping an already-reactive
 //! class instance in `$state(...)`. The reactive classes from `svelte/reactivity`
 //! (`SvelteSet`, `SvelteMap`, `SvelteURL`, `SvelteURLSearchParams`, `SvelteDate`,
 //! `MediaQuery`) are deeply reactive on their own, so `$state(new SvelteSet())`
 //! is redundant. Port of the eslint-plugin-svelte rule.
 //!
-//! Runs over the `<script>` ESTree program via the [`ScriptRule`] hook. Built-in
+//! Runs over the `<script>` `ESTree` program via the [`ScriptRule`] hook. Built-in
 //! reactive classes are matched through the `svelte/reactivity` import (alias
 //! aware — `import { SvelteSet as S }` then `$state(new S())` reports
 //! `SvelteSet`); the `additionalReactiveClasses` option matches by callee name
@@ -52,7 +54,7 @@ const REACTIVE_CLASSES: &[&str] = &[
 /// The callee Identifier name of a `new X()` / `X()` argument, if any.
 fn ctor_callee_name(arg: &Value) -> Option<&str> {
     match node_type(arg) {
-        Some("NewExpression") | Some("CallExpression") => arg
+        Some("NewExpression" | "CallExpression") => arg
             .get("callee")
             .filter(|c| node_type(c) == Some("Identifier"))
             .and_then(|c| c.get("name"))
@@ -81,149 +83,178 @@ impl ScriptRule for NoUnnecessaryStateWrap {
     }
 
     fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
-        let opts = ctx.option0();
-        let additional: HashSet<String> = opts
-            .and_then(|o| o.get("additionalReactiveClasses"))
-            .and_then(Value::as_array)
+        let options = StateWrapOptions::from_value(ctx.option0());
+        let import_map = collect_reactivity_imports(program);
+
+        let reassigned = reassigned_bindings(ctx, options.allow_reassign);
+
+        report_unnecessary_wraps(ctx, program, &options.additional, &import_map, &reassigned);
+    }
+}
+
+#[derive(Default)]
+struct StateWrapOptions {
+    additional: HashSet<String>,
+    allow_reassign: bool,
+}
+
+impl StateWrapOptions {
+    fn from_value(value: Option<&Value>) -> Self {
+        Self {
+            additional: value
+                .and_then(|option| option.get("additionalReactiveClasses"))
+                .and_then(Value::as_array)
+                .map_or_else(HashSet::new, |classes| {
+                    classes
+                        .iter()
+                        .filter_map(|class| class.as_str().map(str::to_string))
+                        .collect()
+                }),
+            allow_reassign: value
+                .and_then(|option| option.get("allowReassign"))
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+        }
+    }
+}
+
+fn collect_reactivity_imports(program: &ProgramView<'_>) -> HashMap<String, String> {
+    let mut import_map = HashMap::new();
+    program.walk(|node, _| {
+        if node_type(node) != Some("ImportDeclaration") {
+            return;
+        }
+        if node
+            .get("source")
+            .and_then(|s| s.get("value"))
+            .and_then(Value::as_str)
+            != Some("svelte/reactivity")
+        {
+            return;
+        }
+        let Some(specs) = node.get("specifiers").and_then(Value::as_array) else {
+            return;
+        };
+        for spec in specs {
+            if node_type(spec) != Some("ImportSpecifier") {
+                continue;
+            }
+            let imported = spec
+                .get("imported")
+                .and_then(|i| i.get("name"))
+                .and_then(Value::as_str);
+            let local = spec
+                .get("local")
+                .and_then(|l| l.get("name"))
+                .and_then(Value::as_str);
+            if let (Some(imported), Some(local)) = (imported, local)
+                && REACTIVE_CLASSES.contains(&imported)
+            {
+                import_map.insert(local.to_string(), imported.to_string());
+            }
+        }
+    });
+    import_map
+}
+
+fn reassigned_bindings(ctx: &LintContext, allow_reassign: bool) -> HashSet<String> {
+    // Reassignment set (only needed when `allowReassign` is on). Covers
+    // `x = ...` and `bind:` getter/setter writes via the analyzed scope, plus
+    // shorthand `bind:x` two-way bindings detected from the source.
+    if allow_reassign {
+        let mut set: HashSet<String> = ctx
+            .scope_analysis()
             .map(|a| {
-                a.iter()
-                    .filter_map(|v| v.as_str().map(str::to_string))
+                a.root
+                    .bindings
+                    .iter()
+                    .filter(|b| b.reassigned)
+                    .map(|b| b.name.clone())
                     .collect()
             })
             .unwrap_or_default();
-        let allow_reassign = opts
-            .and_then(|o| o.get("allowReassign"))
-            .and_then(Value::as_bool)
-            .unwrap_or(false);
+        collect_shorthand_bind_names(ctx.source(), &mut set);
+        set
+    } else {
+        HashSet::new()
+    }
+}
 
-        // `svelte/reactivity` imports: local name → exported (canonical) name,
-        // restricted to the known reactive classes.
-        let mut import_map: HashMap<String, String> = HashMap::new();
-        program.walk(|node, _| {
-            if node_type(node) != Some("ImportDeclaration") {
-                return;
-            }
-            if node
-                .get("source")
-                .and_then(|s| s.get("value"))
-                .and_then(Value::as_str)
-                != Some("svelte/reactivity")
-            {
-                return;
-            }
-            let Some(specs) = node.get("specifiers").and_then(Value::as_array) else {
-                return;
-            };
-            for spec in specs {
-                if node_type(spec) != Some("ImportSpecifier") {
-                    continue;
-                }
-                let imported = spec
-                    .get("imported")
-                    .and_then(|i| i.get("name"))
-                    .and_then(Value::as_str);
-                let local = spec
-                    .get("local")
-                    .and_then(|l| l.get("name"))
-                    .and_then(Value::as_str);
-                if let (Some(imported), Some(local)) = (imported, local)
-                    && REACTIVE_CLASSES.contains(&imported)
-                {
-                    import_map.insert(local.to_string(), imported.to_string());
-                }
-            }
-        });
-
-        // Reassignment set (only needed when `allowReassign` is on). Covers
-        // `x = ...` and `bind:` getter/setter writes via the analyzed scope, plus
-        // shorthand `bind:x` two-way bindings detected from the source.
-        let reassigned: HashSet<String> = if allow_reassign {
-            let mut set: HashSet<String> = ctx
-                .scope_analysis()
-                .map(|a| {
-                    a.root
-                        .bindings
-                        .iter()
-                        .filter(|b| b.reassigned)
-                        .map(|b| b.name.clone())
-                        .collect()
-                })
-                .unwrap_or_default();
-            collect_shorthand_bind_names(ctx.source(), &mut set);
-            set
-        } else {
-            HashSet::new()
-        };
-
-        // Each `$state(...)` must sit in a `const/let x = $state(...)` declarator
-        // (VariableDeclarator with an Identifier id); associate the wrap with that
-        // binding so the allow-reassign skip can apply.
-        // (report-position start, class-name, $state-call start, $state-call
-        // end, arg start, arg end). The suggestion replaces the whole
-        // `$state(...)` call with the inner argument's source text.
-        let mut valid_reports: Vec<(u32, String, u32, u32, u32, u32)> = Vec::new();
-        program.walk(|node, _| {
-            if node_type(node) != Some("VariableDeclarator") {
-                return;
-            }
-            let id_name = node
-                .get("id")
-                .filter(|i| node_type(i) == Some("Identifier"))
-                .and_then(|i| i.get("name"))
-                .and_then(Value::as_str);
-            let Some(id_name) = id_name else { return };
-            let Some(init) = node.get("init").filter(|i| !i.is_null()) else {
-                return;
-            };
-            if !is_state_call(init) {
-                return;
-            }
-            if allow_reassign && reassigned.contains(id_name) {
-                return;
-            }
-            let Some(args) = init.get("arguments").and_then(Value::as_array) else {
-                return;
-            };
-            // The `$state(...)` call node itself — the suggestion replaces it.
-            let (Some(state_start), Some(state_end)) = (node_start(init), node_end(init)) else {
-                return;
-            };
-            for arg in args {
-                let Some(name) = ctor_callee_name(arg) else {
-                    continue;
-                };
-                let class_name = if let Some(canonical) = import_map.get(name) {
-                    canonical.clone()
-                } else if additional.contains(name) {
-                    name.to_string()
-                } else {
-                    continue;
-                };
-                if let (Some(s), Some(ae)) = (node_start(arg), node_end(arg)) {
-                    valid_reports.push((s, class_name, state_start, state_end, s, ae));
-                }
-            }
-        });
-
-        for (_start, class_name, state_start, state_end, arg_start, arg_end) in valid_reports {
-            let arg_text = ctx.slice(arg_start, arg_end).to_string();
-            ctx.report_with_suggestions(
-                arg_start,
-                arg_end,
-                format!("{class_name} is already reactive, $state wrapping is unnecessary."),
-                vec![Suggestion {
-                    desc: "Remove unnecessary $state wrapping".to_string(),
-                    fix: Fix {
-                        message: "Remove unnecessary $state wrapping".to_string(),
-                        edits: vec![TextEdit {
-                            start: state_start,
-                            end: state_end,
-                            new_text: arg_text,
-                        }],
-                    },
-                }],
-            );
+fn report_unnecessary_wraps(
+    ctx: &mut LintContext,
+    program: &ProgramView<'_>,
+    additional: &HashSet<String>,
+    import_map: &HashMap<String, String>,
+    reassigned: &HashSet<String>,
+) {
+    // Each `$state(...)` must sit in a `const/let x = $state(...)` declarator
+    // (VariableDeclarator with an Identifier id); associate the wrap with that
+    // binding so the allow-reassign skip can apply.
+    // (report-position start, class-name, $state-call start, $state-call
+    // end, arg start, arg end). The suggestion replaces the whole
+    // `$state(...)` call with the inner argument's source text.
+    let mut valid_reports: Vec<(u32, String, u32, u32, u32, u32)> = Vec::new();
+    program.walk(|node, _| {
+        if node_type(node) != Some("VariableDeclarator") {
+            return;
         }
+        let id_name = node
+            .get("id")
+            .filter(|i| node_type(i) == Some("Identifier"))
+            .and_then(|i| i.get("name"))
+            .and_then(Value::as_str);
+        let Some(id_name) = id_name else { return };
+        let Some(init) = node.get("init").filter(|i| !i.is_null()) else {
+            return;
+        };
+        if !is_state_call(init) {
+            return;
+        }
+        if !reassigned.is_empty() && reassigned.contains(id_name) {
+            return;
+        }
+        let Some(args) = init.get("arguments").and_then(Value::as_array) else {
+            return;
+        };
+        // The `$state(...)` call node itself — the suggestion replaces it.
+        let (Some(state_start), Some(state_end)) = (node_start(init), node_end(init)) else {
+            return;
+        };
+        for arg in args {
+            let Some(name) = ctor_callee_name(arg) else {
+                continue;
+            };
+            let class_name = if let Some(canonical) = import_map.get(name) {
+                canonical.clone()
+            } else if additional.contains(name) {
+                name.to_string()
+            } else {
+                continue;
+            };
+            if let (Some(s), Some(ae)) = (node_start(arg), node_end(arg)) {
+                valid_reports.push((s, class_name, state_start, state_end, s, ae));
+            }
+        }
+    });
+
+    for (_start, class_name, state_start, state_end, arg_start, arg_end) in valid_reports {
+        let arg_text = ctx.slice(arg_start, arg_end).to_string();
+        ctx.report_with_suggestions(
+            arg_start,
+            arg_end,
+            format!("{class_name} is already reactive, $state wrapping is unnecessary."),
+            vec![Suggestion {
+                desc: "Remove unnecessary $state wrapping".to_string(),
+                fix: Fix {
+                    message: "Remove unnecessary $state wrapping".to_string(),
+                    edits: vec![TextEdit {
+                        start: state_start,
+                        end: state_end,
+                        new_text: arg_text,
+                    }],
+                },
+            }],
+        );
     }
 }
 

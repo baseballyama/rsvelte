@@ -11,10 +11,14 @@ use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_express
 
 use super::snippet_block::hoist_snippet_blocks;
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("template source offsets are represented as u32")
+}
+
 /// Handle an if block: `{#if condition}...{:else if}...{:else}...{/if}`.
 ///
 /// Generates: `if(show){...} else {...}`
-pub(crate) fn handle_if_block(
+pub fn handle_if_block(
     block: &IfBlock,
     source: &str,
     options: &Svelte2TsxOptions,
@@ -35,18 +39,16 @@ pub(crate) fn handle_if_block(
     // `indexOf('}', expressionEnd) + 1`. Using `block.end` here (the position
     // after `{/if}`) made the header overwrite swallow the entire `{:else …}`
     // / `{/if}` tail, corrupting the output.
-    let consequent_start = if !block.consequent.nodes.is_empty() {
-        block.consequent.nodes[0].start()
-    } else {
-        let test_end = get_expression_range(&block.test)
-            .map(|(_, e)| e)
-            .unwrap_or(block.start);
+    let consequent_start = if block.consequent.nodes.is_empty() {
+        let test_end = get_expression_range(&block.test).map_or(block.start, |(_, e)| e);
         let bytes = source.as_bytes();
         let mut p = test_end as usize;
         while p < bytes.len() && bytes[p] != b'}' {
             p += 1;
         }
-        ((p + 1).min(bytes.len())) as u32
+        source_offset((p + 1).min(bytes.len()))
+    } else {
+        block.consequent.nodes[0].start()
     };
 
     // Mirror `htmlxtojsx_v2/nodes/IfElseBlock.ts::handleIf`: an IfBlock that
@@ -63,14 +65,14 @@ pub(crate) fn handle_if_block(
             brace_open -= 1;
         }
         brace_open = brace_open.saturating_sub(1);
-        str.overwrite(brace_open as u32, test_start, "} else if (");
+        str.overwrite(source_offset(brace_open), test_start, "} else if (");
 
         let mut close_brace = test_end as usize;
         while close_brace < bytes.len() && bytes[close_brace] != b'}' {
             close_brace += 1;
         }
         if close_brace < bytes.len() {
-            str.overwrite(test_end, (close_brace + 1) as u32, "){");
+            str.overwrite(test_end, source_offset(close_brace + 1), "){");
         }
     } else {
         // Split the `{#if EXPR}` rewrite so the test expression stays as
@@ -93,7 +95,7 @@ pub(crate) fn handle_if_block(
             str.overwrite_fmt(
                 block.start,
                 consequent_start,
-                format_args!("if({})", test_text),
+                format_args!("if({test_text})"),
             );
         }
         // Insert opening brace
@@ -115,78 +117,34 @@ pub(crate) fn handle_if_block(
         depth,
     );
 
-    // Handle alternate
     if let Some(ref alternate) = block.alternate {
-        hoist_snippet_blocks(alternate, source, str);
-        // Find the {:else} or {:else if} tag position
-        // The alternate fragment starts after the {:else} tag
-        let alternate_start = if !alternate.nodes.is_empty() {
-            alternate.nodes[0].start()
-        } else {
-            block.end
-        };
-
-        // Check if the alternate is an elseif. `{:else}{#if …}{/if}` also nests a
-        // lone IfBlock, so the node's own `elseif` flag decides (upstream reads
-        // `ifBlock.elseif`), not the shape of the alternate.
-        let has_elseif = alternate.nodes.len() == 1
-            && matches!(&alternate.nodes[0], TemplateNode::IfBlock(nested) if nested.elseif);
-
-        if has_elseif {
-            // Don't insert anything between consequent end and the nested
-            // IfBlock — the nested IfBlock with `block.elseif == true`
-            // owns the `} else if (EXPR){` rewrite (see branch above).
-            // Process the elseif block (which will handle its own
-            // `} else if(...) {` rewrite).
-            process_fragment_trimmed(&alternate.nodes, source, options, str, counter, depth);
-
-            // No closing `}` needed since the inner if block handles `{/if}`
-        } else {
+        if !handle_elseif_alternate(alternate, source, options, str, counter, depth) {
             // Find where the consequent content ends. For an empty consequent
             // this is the body-open position (right after `{#if EXPR}`), NOT
             // `block.start` — otherwise the `} else {` overwrite would clobber
             // the `if(EXPR){` header we just emitted.
-            let consequent_end = if !block.consequent.nodes.is_empty() {
-                block.consequent.nodes.last().unwrap().end()
-            } else {
+            let consequent_end = if block.consequent.nodes.is_empty() {
                 consequent_start
+            } else {
+                block.consequent.nodes.last().unwrap().end()
             };
 
             // For an empty `{:else}` body, the else block opens right after the
             // `}` that closes the `{:else}` tag — NOT at `block.end` (after
             // `{/if}`), which would make the `} else {` overwrite swallow the
             // `{/if}` and leave the else body unclosed.
-            let alternate_start = if !alternate.nodes.is_empty() {
-                alternate_start
-            } else {
+            let alternate_start = if alternate.nodes.is_empty() {
                 let bytes = source.as_bytes();
                 let mut p = consequent_end as usize;
                 while p < bytes.len() && bytes[p] != b'}' {
                     p += 1;
                 }
-                ((p + 1).min(bytes.len())) as u32
+                source_offset((p + 1).min(bytes.len()))
+            } else {
+                alternate.nodes[0].start()
             };
 
-            // Mirror `htmlxtojsx_v2/nodes/IfElseBlock.ts::handleElse`: unlike the
-            // `elseif` header (which uses the literal `} else if (`, spaces
-            // included), the plain `{:else}` tag is rewritten character-by-character
-            // — the opening `{` becomes `}`, the closing `}` becomes `{`, and the
-            // `:` is dropped — leaving `else` (and any surrounding source
-            // whitespace) untouched in between. For the common `{:else}` spelling
-            // this produces `}else{`, with no inserted spaces.
-            //
-            // The three positions are found by scanning *backwards* from the else
-            // branch's start, as upstream does: a forward scan from the consequent
-            // would run into a nested block's own braces first.
-            let else_close = source[..alternate_start as usize].rfind('}');
-            let colon = else_close.and_then(|end| source[..end].rfind(":else"));
-            let else_open = colon.and_then(|word| source[..word].rfind('{'));
-            if let (Some(else_open), Some(colon), Some(else_close)) = (else_open, colon, else_close)
-            {
-                str.overwrite(else_open as u32, else_open as u32 + 1, "}");
-                str.overwrite(else_close as u32, else_close as u32 + 1, "{");
-                str.remove(colon as u32, colon as u32 + 1);
-            }
+            rewrite_plain_else_tag(source, alternate_start, str);
 
             // Hoist alternate-branch snippets above sibling declarations too.
             hoist_snippet_blocks(alternate, source, str);
@@ -194,10 +152,10 @@ pub(crate) fn handle_if_block(
             process_fragment_trimmed(&alternate.nodes, source, options, str, counter, depth);
 
             // Overwrite `{/if}` with `}`
-            let alternate_end = if !alternate.nodes.is_empty() {
-                alternate.nodes.last().unwrap().end()
-            } else {
+            let alternate_end = if alternate.nodes.is_empty() {
                 alternate_start
+            } else {
+                alternate.nodes.last().unwrap().end()
             };
             if alternate_end < block.end {
                 str.overwrite(alternate_end, block.end, "}");
@@ -205,13 +163,44 @@ pub(crate) fn handle_if_block(
         }
     } else {
         // No alternate - just close with `}`
-        let consequent_end = if !block.consequent.nodes.is_empty() {
-            block.consequent.nodes.last().unwrap().end()
-        } else {
+        let consequent_end = if block.consequent.nodes.is_empty() {
             consequent_start
+        } else {
+            block.consequent.nodes.last().unwrap().end()
         };
         if consequent_end < block.end {
             str.overwrite(consequent_end, block.end, "}");
         }
     }
+}
+
+fn rewrite_plain_else_tag(source: &str, alternate_start: u32, str: &mut MagicString<'_>) {
+    let else_close = source[..alternate_start as usize].rfind('}');
+    let colon = else_close.and_then(|end| source[..end].rfind(":else"));
+    let else_open = colon.and_then(|word| source[..word].rfind('{'));
+    if let (Some(else_open), Some(colon), Some(else_close)) = (else_open, colon, else_close) {
+        let else_open = source_offset(else_open);
+        let else_close = source_offset(else_close);
+        let colon = source_offset(colon);
+        str.overwrite(else_open, else_open + 1, "}");
+        str.overwrite(else_close, else_close + 1, "{");
+        str.remove(colon, colon + 1);
+    }
+}
+
+fn handle_elseif_alternate(
+    alternate: &crate::ast::template::Fragment<'_>,
+    source: &str,
+    options: &Svelte2TsxOptions,
+    str: &mut MagicString<'_>,
+    counter: &mut Counter,
+    depth: u32,
+) -> bool {
+    let is_elseif = alternate.nodes.len() == 1
+        && matches!(&alternate.nodes[0], TemplateNode::IfBlock(nested) if nested.elseif);
+    if is_elseif {
+        hoist_snippet_blocks(alternate, source, str);
+        process_fragment_trimmed(&alternate.nodes, source, options, str, counter, depth);
+    }
+    is_elseif
 }

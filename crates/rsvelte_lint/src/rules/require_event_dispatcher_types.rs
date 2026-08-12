@@ -38,6 +38,12 @@ pub static META: RuleMeta = RuleMeta {
     options_schema: None,
 };
 
+/// Return diagnostics for dispatcher type parameters in TypeScript scripts.
+///
+/// # Panics
+///
+/// Panics when a source offset cannot be represented as `u32`.
+#[must_use]
 pub fn diagnostics(source: &str, file: &Path, config: &LintConfig) -> Vec<Diagnostic> {
     let severity = config.resolve_code(META.name, META.default_severity);
     if severity == Severity::Off || !script_is_ts(source) {
@@ -69,11 +75,12 @@ pub fn diagnostics(source: &str, file: &Path, config: &LintConfig) -> Vec<Diagno
     let mut out = Vec::new();
     for (content_start, content) in &blanked {
         for off in call_sites_without_type_args(content, &locals) {
-            let abs = (content_start + off) as u32;
+            let abs =
+                u32::try_from(content_start + off).expect("source offsets are represented as u32");
             out.push(Diagnostic {
                 file: file.to_path_buf(),
                 severity: to_dsev(severity),
-                range: range_from_byte(&li, abs, abs),
+                range: Some(range_from_byte(&li, abs, abs)),
                 message: "Type parameters missing for the `createEventDispatcher` function call."
                     .to_string(),
                 code: Some(META.name.to_string()),

@@ -58,7 +58,7 @@ enum Matcher {
 }
 
 impl Matcher {
-    fn from_option(s: &str) -> Matcher {
+    fn from_option(s: &str) -> Self {
         if let Some(rest) = s.strip_prefix('/')
             && let Some(slash) = rest.rfind('/')
         {
@@ -75,16 +75,16 @@ impl Matcher {
                 builder.multi_line(true);
             }
             if let Ok(re) = builder.build() {
-                return Matcher::Re(re);
+                return Self::Re(re);
             }
         }
-        Matcher::Exact(s.to_string())
+        Self::Exact(s.to_string())
     }
 
     fn test(&self, name: &str) -> bool {
         match self {
-            Matcher::Exact(e) => e == name,
-            Matcher::Re(re) => re.is_match(name),
+            Self::Exact(e) => e == name,
+            Self::Re(re) => re.is_match(name),
         }
     }
 }
@@ -127,10 +127,13 @@ impl Rule for NoUnknownStyleDirectiveProperty {
             return;
         }
         // Report at the property name (after the `style:` prefix).
-        let name_start = d.start + "style:".len() as u32;
+        let name_start = d.start
+            + u32::try_from("style:".len())
+                .expect("directive prefix widths are represented as u32");
         ctx.report(
             name_start,
-            name_start + prop.len() as u32,
+            name_start
+                + u32::try_from(prop.len()).expect("property-name widths are represented as u32"),
             format!("Unexpected unknown style directive property '{prop}'."),
         );
     }

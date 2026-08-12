@@ -1,7 +1,7 @@
 //! Parity tests for `svelte/comment-directive`.
 //!
 //! Upstream tests this rule inline (`tests/src/rules/comment-directive.ts`),
-//! not via the fixture corpus, and most of its cases lean on ESLint *core* JS
+//! not via the fixture corpus, and most of its cases lean on `ESLint` *core* JS
 //! rules (`no-undef`, `space-infix-ops`, `no-unused-vars`) that rsvelte does not
 //! implement. We therefore port the subset that exercises the rule's own logic
 //! using the Svelte rules rsvelte *does* have — `svelte/no-at-html-tags` and

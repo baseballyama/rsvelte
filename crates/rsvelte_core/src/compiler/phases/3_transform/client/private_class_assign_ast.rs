@@ -335,7 +335,7 @@ fn single_pass(
             ast_rewrite::dual_run::current_or(file!()),
             source.len(),
         );
-        let _pt = super::super::profile::timer_start();
+        let parse_timer = super::super::profile::timer_start();
         let parser_ret = Parser::new(&allocator, source, SourceType::mjs())
             .with_options(ParseOptions {
                 allow_return_outside_function: true,
@@ -343,15 +343,18 @@ fn single_pass(
             })
             .parse();
         super::super::profile::record_direct_parse(
-            super::super::profile::timer_elapsed(_pt),
+            super::super::profile::timer_elapsed(parse_timer),
             source.len(),
         );
 
         const CLASS_PREFIX: &str = "class _Dummy_ {\n";
         let (parse_str_owned, span_offset): (Option<String>, u32) =
             if !parser_ret.diagnostics.is_empty() {
-                let wrapped = format!("{}{}\n}}", CLASS_PREFIX, source);
-                (Some(wrapped), CLASS_PREFIX.len() as u32)
+                let wrapped = format!("{CLASS_PREFIX}{source}\n}}");
+                (
+                    Some(wrapped),
+                    u32::try_from(CLASS_PREFIX.len()).expect("source positions are limited to u32"),
+                )
             } else {
                 (None, 0u32)
             };
@@ -366,7 +369,7 @@ fn single_pass(
                 ast_rewrite::dual_run::current_or(file!()),
                 parse_str.len(),
             );
-            let _pt = super::super::profile::timer_start();
+            let parse_timer = super::super::profile::timer_start();
             let ret = Parser::new(&allocator, parse_str, SourceType::mjs())
                 .with_options(ParseOptions {
                     allow_return_outside_function: true,
@@ -374,7 +377,7 @@ fn single_pass(
                 })
                 .parse();
             super::super::profile::record_direct_parse(
-                super::super::profile::timer_elapsed(_pt),
+                super::super::profile::timer_elapsed(parse_timer),
                 parse_str.len(),
             );
             if !ret.diagnostics.is_empty() {
@@ -414,7 +417,7 @@ fn single_pass(
                 *end = end.saturating_sub(span_offset);
             }
             // Drop any replacement that fell outside the original source range.
-            let src_len = source.len() as u32;
+            let src_len = u32::try_from(source.len()).expect("source positions are limited to u32");
             replacements.retain(|(_, e, _)| *e <= src_len);
         }
 
@@ -438,9 +441,9 @@ struct PrivateClassAssignCollector<'a> {
 /// `MemberExpression.js`.
 fn field_read_text(qualified: &str, dot_v: bool) -> String {
     if dot_v {
-        format!("{}.v", qualified)
+        format!("{qualified}.v")
     } else {
-        format!("$.get({})", qualified)
+        format!("$.get({qualified})")
     }
 }
 
@@ -450,7 +453,7 @@ fn reads_dot_v(qualified: &str, v_read_qualified: &[String], function_depth: u32
     function_depth == 0 && v_read_qualified.iter().any(|q| q.as_str() == qualified)
 }
 
-impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
+impl<'ast> Visit<'ast> for PrivateClassAssignCollector<'_> {
     fn visit_function(&mut self, func: &Function<'ast>, flags: oxc_syntax::scope::ScopeFlags) {
         self.function_depth += 1;
         walk::walk_function(self, func, flags);
@@ -491,9 +494,9 @@ impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
             }
         };
         let rewrite = if needs_proxy {
-            format!("$.set({}, {}, true)", qualified, value)
+            format!("$.set({qualified}, {value}, true)")
         } else {
-            format!("$.set({}, {})", qualified, value)
+            format!("$.set({qualified}, {value})")
         };
 
         self.replacements
@@ -521,9 +524,9 @@ impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
         // `$.get(q)++`, so we keep the valid form for every receiver.
         let (callee, decrement) = update_call(expr.operator, expr.prefix);
         let rewrite = if decrement {
-            format!("{}({}, -1)", callee, qualified)
+            format!("{callee}({qualified}, -1)")
         } else {
-            format!("{}({})", callee, qualified)
+            format!("{callee}({qualified})")
         };
 
         self.replacements
@@ -890,7 +893,7 @@ thread_local! {
 /// In-place equivalent of [`transform_private_class_assign_ast`]. Class method
 /// bodies reach this pass without their enclosing `class`, so the driver parses
 /// them inside a synthetic one and strips it back off what it prints.
-pub(crate) fn transform_private_class_assign_in_place(
+pub fn transform_private_class_assign_in_place(
     source: &str,
     state_qualified: &[String],
     other_qualified: &[String],
@@ -942,7 +945,7 @@ struct PrivateClassAssignRewriter<'a, 'b> {
     changed: bool,
 }
 
-impl<'a, 'b> PrivateClassAssignRewriter<'a, 'b> {
+impl<'a> PrivateClassAssignRewriter<'a, '_> {
     fn rewrite_assignment(&mut self, expr: &mut Expression<'a>) {
         let Expression::AssignmentExpression(assign) = &*expr else {
             return;
@@ -1044,7 +1047,7 @@ impl<'a, 'b> PrivateClassAssignRewriter<'a, 'b> {
     }
 }
 
-impl<'a, 'b> oxc_ast_visit::VisitMut<'a> for PrivateClassAssignRewriter<'a, 'b> {
+impl<'a> oxc_ast_visit::VisitMut<'a> for PrivateClassAssignRewriter<'a, '_> {
     fn visit_function(&mut self, func: &mut Function<'a>, flags: oxc_syntax::scope::ScopeFlags) {
         self.function_depth += 1;
         oxc_ast_visit::walk_mut::walk_function(self, func, flags);

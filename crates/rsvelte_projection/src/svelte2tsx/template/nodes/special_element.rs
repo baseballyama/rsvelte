@@ -45,10 +45,16 @@ const LITERAL_NAME_TAGS: [&str; 5] = [
 /// trimmed while keeping its source range.
 #[derive(Clone, Copy, Default)]
 struct SurroundingWhitespace {
-    drop_first: bool,
-    trim_first: bool,
-    drop_last: bool,
-    trim_last: bool,
+    first: EdgeWhitespace,
+    last: EdgeWhitespace,
+}
+
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+enum EdgeWhitespace {
+    #[default]
+    Keep,
+    Drop,
+    Trim,
 }
 
 impl SurroundingWhitespace {
@@ -63,30 +69,29 @@ impl SurroundingWhitespace {
                         .get(text.start as usize..text.end as usize)
                         .unwrap_or_default();
                     if raw.chars().all(char::is_whitespace) {
-                        (true, false)
+                        EdgeWhitespace::Drop
                     } else {
-                        (false, false)
+                        EdgeWhitespace::Keep
                     }
                 } else {
-                    (false, true)
+                    EdgeWhitespace::Trim
                 }
             }
-            _ => (false, false),
+            _ => EdgeWhitespace::Keep,
         };
-        let (drop_first, trim_first) = classify(nodes.first());
-        let (drop_last, trim_last) = classify(nodes.last());
-        Self {
-            drop_first,
-            trim_first,
-            drop_last,
-            trim_last,
-        }
+        let first = classify(nodes.first());
+        let last = classify(nodes.last());
+        Self { first, last }
     }
 
     /// Start of the first child that survives, i.e. upstream
     /// `computeStartTagEnd`'s `children[0].start`.
     fn first_kept_start(&self, nodes: &[TemplateNode]) -> Option<u32> {
-        let kept = if self.drop_first { &nodes[1..] } else { nodes };
+        let kept = if self.first == EdgeWhitespace::Drop {
+            &nodes[1..]
+        } else {
+            nodes
+        };
         kept.first().map(node_start)
     }
 }
@@ -138,7 +143,7 @@ fn node_start(node: &TemplateNode) -> u32 {
 ///
 /// For all other special elements the snippet children remain standalone
 /// declarations (the default behaviour for elements/blocks).
-pub(crate) fn handle_svelte_special_element(
+pub fn handle_svelte_special_element(
     el: &SvelteElement,
     source: &str,
     options: &Svelte2TsxOptions,
@@ -176,13 +181,13 @@ pub(crate) fn handle_svelte_special_element(
     // a `Text` child that starts right after the `>`.
     let opening_tag_end = whitespace
         .first_kept_start(&el.fragment.nodes)
-        .filter(|_| whitespace.drop_first)
+        .filter(|_| whitespace.first == EdgeWhitespace::Drop)
         .unwrap_or_else(|| {
             find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes)
         });
     // In a named-slot context the `slot` attribute is consumed by the wrapper
     // block, so build the attributes without it.
-    let mut attrs_str = if named_slot.is_some() {
+    let attrs_str = if named_slot.is_some() {
         build_named_slot_element_attrs(&el.attributes, source)
     } else {
         build_attributes_string(
@@ -194,40 +199,16 @@ pub(crate) fn handle_svelte_special_element(
         )
     };
 
-    // Only the `LITERAL_NAME_TAGS` name themselves with a string in the start
-    // transformation; the rest keep the tag name as a source range.
-    let head = (!LITERAL_NAME_TAGS.contains(&el.name.as_str()))
-        .then(|| (el.start + 1, el.start + 1 + el.name.len() as u32));
-    let spacing = opener_spacing(
+    let (attrs_str, indent) = special_element_opening_layout(
+        el,
         source,
-        el.start,
-        &el.name,
+        counter,
         opening_tag_end,
-        head,
-        &el.attributes,
-        &counter.element_opener_comments,
-        OpenerCtx {
-            is_element: true,
-            in_component_slot: saved_slot.is_some(),
-            tag_name: &el.name,
-            is_slot_tag: false,
-        },
+        attrs_str,
+        saved_slot.is_some(),
+        named_slot_block.as_ref().or(default_slot_let.as_ref()),
+        str,
     );
-    if spacing.in_attr_object > 0 {
-        let mut padded = " ".repeat(spacing.in_attr_object);
-        padded.push_str(&attrs_str);
-        attrs_str = padded;
-    }
-    // The slot-let destructure sits *after* the opening tag's leading gap, so
-    // emit the gap with it and leave the createElement block unindented.
-    let indent = " ".repeat(spacing.before_block);
-    let indent = match named_slot_block.as_ref().or(default_slot_let.as_ref()) {
-        Some(block) => {
-            str.append_left_fmt(el.start, format_args!("{}{}", indent, block));
-            String::new()
-        }
-        None => indent,
-    };
 
     // `svelte:boundary` treats direct {#snippet} children as implicit props on
     // the `createElement` attrs object — exactly like InlineComponent in the
@@ -240,162 +221,226 @@ pub(crate) fn handle_svelte_special_element(
             .any(|n| matches!(n, TemplateNode::SnippetBlock(s) if s.start < s.end));
 
     if has_snippet_children {
-        // Emit the opener with the attrs object left OPEN so we can append the
-        // implicit snippet props into it before closing. Any regular element
-        // attributes (e.g. `onerror`) come first as normal.
-        //
-        // Result shape:
-        //   { svelteHTML.createElement("svelte:boundary", { <regular-attrs>
-        //     <snippet-name>: (params) => { … return __sveltets_2_any(0) },
-        //   });
-        //   <non-snippet children>
-        // }
-        let opener = format!(
-            "{}{{ svelteHTML.createElement(\"{}\", {{{}",
-            indent, el.name, attrs_str
-        );
-        str.overwrite(el.start, opening_tag_end, &opener);
-
-        // Process each direct child: transform snippet blocks as implicit props
-        // and move them to anchor (just after the opening tag), then process
-        // non-snippet children in-place (they will appear after the `});`).
-        // Mirrors the `use_snippet_props` branch in `handle_component`.
-        let mut anchor = opening_tag_end;
-        let mut last_snippet_end: Option<u32> = None;
-
-        for (index, node) in el.fragment.nodes.iter().enumerate() {
-            if let TemplateNode::SnippetBlock(s) = node {
-                if s.start >= s.end {
-                    continue;
-                }
-                // Transform the snippet as an implicit attr prop of this
-                // element (same form as a component implicit snippet prop):
-                //   name: (params) => { … return __sveltets_2_any(0) },
-                handle_snippet_block_as_component_prop(s, source, options, str, counter, depth + 1);
-                if s.start == anchor {
-                    anchor = s.end;
-                } else {
-                    str.move_range(s.start, s.end, anchor);
-                }
-                last_snippet_end = Some(s.end);
-            } else {
-                // Non-snippet children live AFTER the createElement call;
-                // svelte:boundary is an ancestor element → depth+1.
-                process_child(
-                    node,
-                    index,
-                    &el.fragment.nodes,
-                    whitespace,
-                    source,
-                    options,
-                    str,
-                    counter,
-                    depth + 1,
-                );
-            }
-        }
-
-        // Close the attrs object and the `createElement(...)` call right
-        // after the last relocated snippet prop.
-        let close_create_element = "});";
-        match last_snippet_end {
-            Some(end) => {
-                str.append_left(end, close_create_element);
-            }
-            None => {
-                // No usable snippet found (shouldn't happen given the guard
-                // above, but guard defensively): close immediately.
-                str.prepend_right(opening_tag_end, close_create_element);
-            }
-        }
-
-        // Close the outer `{ … }` block.
-        let closing_tag_start = find_closing_tag_start(source, el.end);
-        if closing_tag_start < el.end {
-            str.overwrite(closing_tag_start, el.end, " }");
-        } else {
-            str.append_left(el.end, "}");
-        }
-    } else {
-        // `bind:` directives on a special element use the same lowering as a
-        // regular element: `bind:this` and one-way bindings (`clientWidth`, …)
-        // need a `const $$_<name><depth> = createElement(...)` so the binding
-        // assignment (`foo = $$_<name><depth>.clientWidth;` / `target =
-        // $$_<name><depth>;`) can reference it; other two-way bindings get the
-        // generic `() => expr = __sveltets_2_any(null)` widener. Mirrors
-        // upstream Element.ts + Binding.ts.
-        let needs_element_var = any_bind_needs_element_var(&el.attributes, source);
-        let element_var = if needs_element_var {
-            Some(format!("$$_{}{}", element_var_base_name(&el.name), depth))
-        } else {
-            None
-        };
-        let bind_suffix = build_bind_directive_suffix(
-            &el.attributes,
+        handle_boundary_snippet_props(
+            el,
             source,
-            element_var.as_deref(),
-            &el.name,
-            options.is_ts_file || !options.emit_jsdoc,
+            options,
+            str,
+            counter,
+            depth,
+            opening_tag_end,
+            &indent,
+            &attrs_str,
+            whitespace,
         );
-        let element_var_decl = element_var
-            .as_ref()
-            .map(|v| format!("const {} = ", v))
-            .unwrap_or_default();
-        // `use:` / `transition:` / `animate:` directives on a special element
-        // (e.g. `<svelte:body use:tooltip={…}>`) become the same V4-style
-        // action/transition emission as on a regular element: an
-        // `const $$action_N = __sveltets_2_ensureAction(…);` prefix, a
-        // `__sveltets_2_union($$action_N)` second argument to `createElement`,
-        // and transition/animate suffixes. The action's `mapElementTag` uses the
-        // mapped tag name (`svelte:body` → `body`, per official Element.ts).
-        let action_tag = if el.name == "svelte:body" {
-            "body"
-        } else {
-            el.name.as_str()
-        };
-        let (directive_prefix, directive_suffix, action_count) =
-            build_directive_prefix_suffix(&el.attributes, source, action_tag);
-        let actions_arg = if action_count > 0 {
-            let mut args = String::from(", __sveltets_2_union(");
-            for i in 0..action_count {
-                if i > 0 {
-                    args.push(',');
-                }
-                let _ = write!(args, "$$action_{}", i);
+    } else {
+        handle_standard_special_element(
+            el,
+            source,
+            options,
+            str,
+            counter,
+            depth,
+            opening_tag_end,
+            &indent,
+            &attrs_str,
+            whitespace,
+        );
+    }
+
+    if named_slot.is_some() || default_slot_let.is_some() {
+        str.append_left(el.end, "}");
+    }
+    counter.slot_inst = saved_slot;
+}
+
+fn special_element_opening_layout(
+    el: &SvelteElement,
+    source: &str,
+    counter: &Counter,
+    opening_tag_end: u32,
+    attrs: String,
+    in_component_slot: bool,
+    slot_let_block: Option<&String>,
+    str: &mut MagicString<'_>,
+) -> (String, String) {
+    let head = (!LITERAL_NAME_TAGS.contains(&el.name.as_str())).then(|| {
+        (
+            el.start + 1,
+            el.start + 1 + u32::try_from(el.name.len()).expect("tag name length fits in u32"),
+        )
+    });
+    let spacing = opener_spacing(
+        source,
+        el.start,
+        &el.name,
+        opening_tag_end,
+        head,
+        &el.attributes,
+        &counter.element_opener_comments,
+        OpenerCtx {
+            is_element: true,
+            in_component_slot,
+            tag_name: &el.name,
+            is_slot_tag: false,
+        },
+    );
+    let attrs = if spacing.in_attr_object > 0 {
+        format!("{}{}", " ".repeat(spacing.in_attr_object), attrs)
+    } else {
+        attrs
+    };
+    let indent = " ".repeat(spacing.before_block);
+    let indent = if let Some(block) = slot_let_block {
+        str.append_left_fmt(el.start, format_args!("{indent}{block}"));
+        String::new()
+    } else {
+        indent
+    };
+    (attrs, indent)
+}
+
+fn handle_standard_special_element(
+    el: &SvelteElement,
+    source: &str,
+    options: &Svelte2TsxOptions,
+    str: &mut MagicString<'_>,
+    counter: &mut Counter,
+    depth: u32,
+    opening_tag_end: u32,
+    indent: &str,
+    attrs: &str,
+    whitespace: SurroundingWhitespace,
+) {
+    let (opener, has_directives) =
+        standard_special_element_opener(el, source, options, depth, indent, attrs);
+    str.overwrite(el.start, opening_tag_end, &opener);
+
+    for (index, node) in el.fragment.nodes.iter().enumerate() {
+        process_child(
+            node,
+            index,
+            &el.fragment.nodes,
+            whitespace,
+            source,
+            options,
+            str,
+            counter,
+            depth + 1,
+        );
+    }
+
+    let extra_close = if has_directives { "}" } else { "" };
+    let closing_tag_start = find_closing_tag_start(source, el.end);
+    if closing_tag_start < el.end {
+        str.overwrite_fmt(closing_tag_start, el.end, format_args!(" }}{extra_close}"));
+    } else {
+        str.append_left_fmt(el.end, format_args!("}}{extra_close}"));
+    }
+}
+
+fn standard_special_element_opener(
+    el: &SvelteElement,
+    source: &str,
+    options: &Svelte2TsxOptions,
+    depth: u32,
+    indent: &str,
+    attrs: &str,
+) -> (String, bool) {
+    let element_var = any_bind_needs_element_var(&el.attributes, source)
+        .then(|| format!("$$_{}{}", element_var_base_name(&el.name), depth));
+    let bind_suffix = build_bind_directive_suffix(
+        &el.attributes,
+        source,
+        element_var.as_deref(),
+        &el.name,
+        options.is_ts_file || !options.emit_jsdoc,
+    );
+    let element_var_decl = element_var
+        .as_ref()
+        .map(|value| format!("const {value} = "))
+        .unwrap_or_default();
+    let action_tag = if el.name == "svelte:body" {
+        "body"
+    } else {
+        el.name.as_str()
+    };
+    let (directive_prefix, directive_suffix, action_count) =
+        build_directive_prefix_suffix(&el.attributes, source, action_tag);
+    let actions_arg = action_arguments(action_count);
+    let has_directives = !directive_prefix.is_empty();
+    let opener = if has_directives {
+        format!(
+            "{indent}{{{directive_prefix}{{ {element_var_decl}svelteHTML.createElement(\"{}\"{actions_arg}, {{{attrs}}});{bind_suffix}{directive_suffix}",
+            el.name,
+        )
+    } else {
+        format!(
+            "{indent}{{ {element_var_decl}svelteHTML.createElement(\"{}\", {{{attrs}}});{bind_suffix}{directive_suffix}",
+            el.name,
+        )
+    };
+    (opener, has_directives)
+}
+
+fn action_arguments(action_count: usize) -> String {
+    if action_count == 0 {
+        return String::new();
+    }
+
+    let mut args = String::from(", __sveltets_2_union(");
+    for index in 0..action_count {
+        if index > 0 {
+            args.push(',');
+        }
+        let _ = write!(args, "$$action_{index}");
+    }
+    args.push(')');
+    args
+}
+
+fn handle_boundary_snippet_props(
+    el: &SvelteElement,
+    source: &str,
+    options: &Svelte2TsxOptions,
+    str: &mut MagicString<'_>,
+    counter: &mut Counter,
+    depth: u32,
+    opening_tag_end: u32,
+    indent: &str,
+    attrs: &str,
+    whitespace: SurroundingWhitespace,
+) {
+    str.overwrite(
+        el.start,
+        opening_tag_end,
+        &format!(
+            "{indent}{{ svelteHTML.createElement(\"{}\", {{{attrs}",
+            el.name
+        ),
+    );
+    let mut anchor = opening_tag_end;
+    let mut last_snippet_end = None;
+    for (index, node) in el.fragment.nodes.iter().enumerate() {
+        if let TemplateNode::SnippetBlock(snippet) = node {
+            if snippet.start >= snippet.end {
+                continue;
             }
-            args.push(')');
-            args
+            handle_snippet_block_as_component_prop(
+                snippet,
+                source,
+                options,
+                str,
+                counter,
+                depth + 1,
+            );
+            if snippet.start == anchor {
+                anchor = snippet.end;
+            } else {
+                str.move_range(snippet.start, snippet.end, anchor);
+            }
+            last_snippet_end = Some(snippet.end);
         } else {
-            String::new()
-        };
-
-        // Default path: all children (including any snippets) are processed
-        // as standalone declarations inside the block. When `directive_prefix`
-        // is present it opens an extra outer block scope (for the action
-        // declarations), closed by a matching extra `}` after the children.
-        let opener = if directive_prefix.is_empty() {
-            format!(
-                "{}{{ {}svelteHTML.createElement(\"{}\", {{{}}});{}{}",
-                indent, element_var_decl, el.name, attrs_str, bind_suffix, directive_suffix
-            )
-        } else {
-            format!(
-                "{}{{{}{{ {}svelteHTML.createElement(\"{}\"{}, {{{}}});{}{}",
-                indent,
-                directive_prefix,
-                element_var_decl,
-                el.name,
-                actions_arg,
-                attrs_str,
-                bind_suffix,
-                directive_suffix
-            )
-        };
-        str.overwrite(el.start, opening_tag_end, &opener);
-
-        // Special svelte elements (svelte:head, svelte:body, etc.) are element
-        // nodes → children at depth+1, consistent with RegularElement treatment.
-        for (index, node) in el.fragment.nodes.iter().enumerate() {
             process_child(
                 node,
                 index,
@@ -408,24 +453,18 @@ pub(crate) fn handle_svelte_special_element(
                 depth + 1,
             );
         }
-
-        let extra_close = if directive_prefix.is_empty() { "" } else { "}" };
-        let closing_tag_start = find_closing_tag_start(source, el.end);
-        if closing_tag_start < el.end {
-            str.overwrite_fmt(
-                closing_tag_start,
-                el.end,
-                format_args!(" }}{}", extra_close),
-            );
-        } else {
-            str.append_left_fmt(el.end, format_args!("}}{}", extra_close));
-        }
     }
-
-    if named_slot.is_some() || default_slot_let.is_some() {
+    if let Some(end) = last_snippet_end {
+        str.append_left(end, "});");
+    } else {
+        str.prepend_right(opening_tag_end, "});");
+    }
+    let closing_start = find_closing_tag_start(source, el.end);
+    if closing_start < el.end {
+        str.overwrite(closing_start, el.end, " }");
+    } else {
         str.append_left(el.end, "}");
     }
-    counter.slot_inst = saved_slot;
 }
 
 /// Walk a fragment whose surrounding whitespace `legacy.js` removes.
@@ -463,11 +502,13 @@ fn process_child(
     if let TemplateNode::Text(text) = node {
         let is_first = index == 0;
         let is_last = index + 1 == nodes.len();
-        if (is_first && whitespace.drop_first) || (is_last && whitespace.drop_last) {
+        if (is_first && whitespace.first == EdgeWhitespace::Drop)
+            || (is_last && whitespace.last == EdgeWhitespace::Drop)
+        {
             return;
         }
-        let trim_start = is_first && whitespace.trim_first;
-        let trim_end = is_last && whitespace.trim_last;
+        let trim_start = is_first && whitespace.first == EdgeWhitespace::Trim;
+        let trim_end = is_last && whitespace.last == EdgeWhitespace::Trim;
         if trim_start || trim_end {
             handle_text_trimmed(text, str, trim_start, trim_end);
             return;

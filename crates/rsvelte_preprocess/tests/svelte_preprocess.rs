@@ -54,7 +54,7 @@ fn replace_string_patterns_in_markup() {
         rule(r"(?im)@html\s*\((.*?)\)$", "{@html ${1}}"),
     ];
 
-    let template = r#"<script>
+    let template = r"<script>
   let foo = 1
 </script>
 
@@ -81,10 +81,10 @@ fn replace_string_patterns_in_markup() {
     then value
 @catch
     catch
-@endawait"#
+@endawait"
         .repeat(2);
 
-    let expected = r#"<script>
+    let expected = r"<script>
   let foo = 1
 </script>
 
@@ -138,7 +138,7 @@ fn replace_string_patterns_in_markup() {
     then value
 {:catch }
     catch
-{/await}"#;
+{/await}";
 
     let opts = AutoOptions {
         replace: rules,

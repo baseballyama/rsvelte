@@ -11,11 +11,8 @@ use super::utils::error::Svelte2TsxError;
 
 /// Validate that every `{@debug …}` argument is a plain identifier, returning a
 /// template error otherwise — mirrors svelte's parse-time check (rsvelte's lives
-/// in the analyze DebugTag visitor, which svelte2tsx doesn't run).
-pub(crate) fn validate_debug_tag_arguments(
-    ast: &Root,
-    source: &str,
-) -> Result<(), Svelte2TsxError> {
+/// in the analyze `DebugTag` visitor, which svelte2tsx doesn't run).
+pub fn validate_debug_tag_arguments(ast: &Root, source: &str) -> Result<(), Svelte2TsxError> {
     use crate::ast::template::{Fragment, TemplateNode as N};
 
     fn arg_is_identifier(expr: &crate::ast::js::Expression, source: &str) -> bool {
@@ -126,142 +123,139 @@ fn component_has_invalid_directive(attributes: &[crate::ast::Attribute<'_>]) -> 
 /// official svelte2tsx parses with svelte and so rejects these at parse. Each
 /// of these five "root-only meta tags" must appear at most once and only as a
 /// direct child of the component root (not inside any element or block).
-pub(crate) fn validate_meta_element_placement(
+pub fn validate_meta_element_placement(
     ast: &Root<'_>,
     source: &str,
 ) -> Result<(), Svelte2TsxError> {
-    use crate::ast::template::{Fragment, TemplateNode as N};
     use std::collections::HashSet;
 
-    // `<svelte:element>` requires a `this` attribute with a value. svelte's
-    // parser stores it as the element's `tag` expression; a missing / valueless
-    // `this` leaves an empty span. Official svelte2tsx rejects it.
-    fn dynamic_element_tag_is_empty(tag: &crate::ast::js::Expression<'_>, source: &str) -> bool {
-        match (tag.start(), tag.end()) {
-            (Some(s), Some(e)) if (s as usize) < (e as usize) && (e as usize) <= source.len() => {
-                slice_src(source, s as usize, e as usize).trim().is_empty()
+    let mut seen = HashSet::new();
+    check_meta_fragment(&ast.fragment, true, &mut seen, source)
+}
+
+fn validate_component_directives(
+    node: &crate::ast::template::TemplateNode<'_>,
+) -> Result<(), Svelte2TsxError> {
+    use crate::ast::template::TemplateNode as N;
+
+    let attributes = match node {
+        N::Component(component) => &component.attributes,
+        N::SvelteComponent(component) => &component.attributes,
+        _ => return Ok(()),
+    };
+    if component_has_invalid_directive(attributes) {
+        return Err(Svelte2TsxError::Template(
+            "This type of directive is not valid on components".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+fn check_meta_fragment(
+    fragment: &crate::ast::template::Fragment<'_>,
+    root: bool,
+    seen: &mut std::collections::HashSet<String>,
+    source: &str,
+) -> Result<(), Svelte2TsxError> {
+    for node in &fragment.nodes {
+        check_meta_node(node, root, seen, source)?;
+    }
+    Ok(())
+}
+
+fn check_meta_node(
+    node: &crate::ast::template::TemplateNode<'_>,
+    root: bool,
+    seen: &mut std::collections::HashSet<String>,
+    source: &str,
+) -> Result<(), Svelte2TsxError> {
+    use crate::ast::template::TemplateNode as N;
+    if let N::SvelteElement(element) = node
+        && match (element.tag.start(), element.tag.end()) {
+            (Some(start), Some(end))
+                if (start as usize) < (end as usize) && (end as usize) <= source.len() =>
+            {
+                slice_src(source, start as usize, end as usize)
+                    .trim()
+                    .is_empty()
             }
             _ => true,
         }
+    {
+        return Err(Svelte2TsxError::Template(
+            "`<svelte:element>` must have a 'this' attribute with a value".to_string(),
+        ));
     }
-
-    fn meta_name<'b>(node: &'b N<'_>) -> Option<&'b str> {
-        match node {
-            N::SvelteWindow(e)
-            | N::SvelteBody(e)
-            | N::SvelteDocument(e)
-            | N::SvelteHead(e)
-            | N::SvelteOptions(e) => Some(e.name.as_str()),
-            _ => None,
+    let name = match node {
+        N::SvelteWindow(e)
+        | N::SvelteBody(e)
+        | N::SvelteDocument(e)
+        | N::SvelteHead(e)
+        | N::SvelteOptions(e) => Some(e.name.as_str()),
+        _ => None,
+    };
+    if let Some(name) = name {
+        if !root {
+            return Err(Svelte2TsxError::Template(format!(
+                "`<{name}>` tags cannot be inside elements or blocks"
+            )));
+        }
+        if !seen.insert(name.to_string()) {
+            return Err(Svelte2TsxError::Template(format!(
+                "A component can only have one `<{name}>` element"
+            )));
         }
     }
+    validate_component_directives(node)?;
+    check_meta_children(node, seen, source)
+}
 
-    fn check_fragment(
-        frag: &Fragment,
-        at_root: bool,
-        seen: &mut HashSet<String>,
-        source: &str,
-    ) -> Result<(), Svelte2TsxError> {
-        for node in &frag.nodes {
-            check_node(node, at_root, seen, source)?;
-        }
-        Ok(())
+fn check_meta_children(
+    node: &crate::ast::template::TemplateNode<'_>,
+    seen: &mut std::collections::HashSet<String>,
+    source: &str,
+) -> Result<(), Svelte2TsxError> {
+    use crate::ast::template::TemplateNode as N;
+    macro_rules! child {
+        ($value:expr) => {
+            check_meta_fragment(&$value.fragment, false, seen, source)?
+        };
     }
-
-    fn check_node(
-        node: &N,
-        at_root: bool,
-        seen: &mut HashSet<String>,
-        source: &str,
-    ) -> Result<(), Svelte2TsxError> {
-        if let N::SvelteElement(e) = node
-            && dynamic_element_tag_is_empty(&e.tag, source)
-        {
-            return Err(Svelte2TsxError::Template(
-                "`<svelte:element>` must have a 'this' attribute with a value".to_string(),
-            ));
-        }
-        if let Some(name) = meta_name(node) {
-            if !at_root {
-                return Err(Svelte2TsxError::Template(format!(
-                    "`<{}>` tags cannot be inside elements or blocks",
-                    name
-                )));
-            }
-            if !seen.insert(name.to_string()) {
-                return Err(Svelte2TsxError::Template(format!(
-                    "A component can only have one `<{}>` element",
-                    name
-                )));
+    match node {
+        N::RegularElement(e) => child!(e),
+        N::Component(e) => child!(e),
+        N::SvelteComponent(e) => child!(e),
+        N::SvelteElement(e) => child!(e),
+        N::SvelteHead(e)
+        | N::SvelteFragment(e)
+        | N::SvelteBody(e)
+        | N::SvelteWindow(e)
+        | N::SvelteDocument(e)
+        | N::SvelteBoundary(e)
+        | N::SvelteOptions(e)
+        | N::SvelteSelf(e) => child!(e),
+        N::TitleElement(e) => child!(e),
+        N::SlotElement(e) => child!(e),
+        N::IfBlock(b) => {
+            check_meta_fragment(&b.consequent, false, seen, source)?;
+            if let Some(f) = &b.alternate {
+                check_meta_fragment(f, false, seen, source)?;
             }
         }
-        // `use:` / `transition:` / `in:` / `out:` / `animate:` / `class:` /
-        // `style:` directives are not valid on a component — svelte raises
-        // `component_invalid_directive` (2-analyze). Official svelte2tsx skips
-        // analyze and instead CRASHES on these (`element.addAction is not a
-        // function`); either way it produces an error, so raise one here for
-        // error-parity. (`bind:` / `on:` / `let:` / spread / `@attach` are OK.)
-        if let N::Component(c) = node
-            && component_has_invalid_directive(&c.attributes)
-        {
-            return Err(Svelte2TsxError::Template(
-                "This type of directive is not valid on components".to_string(),
-            ));
-        }
-        if let N::SvelteComponent(c) = node
-            && component_has_invalid_directive(&c.attributes)
-        {
-            return Err(Svelte2TsxError::Template(
-                "This type of directive is not valid on components".to_string(),
-            ));
-        }
-        // Recurse into children — anything nested below this node is no longer
-        // at root level.
-        match node {
-            N::RegularElement(e) => check_fragment(&e.fragment, false, seen, source)?,
-            N::Component(c) => check_fragment(&c.fragment, false, seen, source)?,
-            N::SvelteComponent(c) => check_fragment(&c.fragment, false, seen, source)?,
-            N::SvelteElement(e) => check_fragment(&e.fragment, false, seen, source)?,
-            N::SvelteHead(e)
-            | N::SvelteFragment(e)
-            | N::SvelteBody(e)
-            | N::SvelteWindow(e)
-            | N::SvelteDocument(e)
-            | N::SvelteBoundary(e)
-            | N::SvelteOptions(e)
-            | N::SvelteSelf(e) => check_fragment(&e.fragment, false, seen, source)?,
-            N::TitleElement(e) => check_fragment(&e.fragment, false, seen, source)?,
-            N::SlotElement(e) => check_fragment(&e.fragment, false, seen, source)?,
-            N::IfBlock(b) => {
-                check_fragment(&b.consequent, false, seen, source)?;
-                if let Some(alt) = &b.alternate {
-                    check_fragment(alt, false, seen, source)?;
-                }
+        N::EachBlock(b) => {
+            check_meta_fragment(&b.body, false, seen, source)?;
+            if let Some(f) = &b.fallback {
+                check_meta_fragment(f, false, seen, source)?;
             }
-            N::EachBlock(b) => {
-                check_fragment(&b.body, false, seen, source)?;
-                if let Some(fb) = &b.fallback {
-                    check_fragment(fb, false, seen, source)?;
-                }
-            }
-            N::KeyBlock(b) => check_fragment(&b.fragment, false, seen, source)?,
-            N::SnippetBlock(b) => check_fragment(&b.body, false, seen, source)?,
-            N::AwaitBlock(b) => {
-                if let Some(f) = &b.pending {
-                    check_fragment(f, false, seen, source)?;
-                }
-                if let Some(f) = &b.then {
-                    check_fragment(f, false, seen, source)?;
-                }
-                if let Some(f) = &b.catch {
-                    check_fragment(f, false, seen, source)?;
-                }
-            }
-            _ => {}
         }
-        Ok(())
+        N::KeyBlock(b) => check_meta_fragment(&b.fragment, false, seen, source)?,
+        N::SnippetBlock(b) => check_meta_fragment(&b.body, false, seen, source)?,
+        N::AwaitBlock(b) => {
+            for f in [&b.pending, &b.then, &b.catch].into_iter().flatten() {
+                check_meta_fragment(f, false, seen, source)?;
+            }
+        }
+        _ => {}
     }
-
-    let mut seen = HashSet::new();
-    check_fragment(&ast.fragment, true, &mut seen, source)
+    Ok(())
 }

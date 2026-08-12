@@ -86,7 +86,7 @@ fn main() {
         if let Some(ref mut ast) = asts[i] {
             // SAFETY: `ast` is in `asts[i]` for the whole iteration; the
             // serialize arena pointer is cleared before this borrow ends.
-            unsafe { rsvelte_core::ast::arena::set_serialize_arena(&ast.arena as *const _) };
+            unsafe { rsvelte_core::ast::arena::set_serialize_arena(&raw const ast.arena) };
             let _ = resolve_lazy_expressions(ast, content);
             rsvelte_core::ast::arena::clear_serialize_arena();
         }
@@ -105,7 +105,7 @@ fn main() {
         if let Some(ref mut ast) = asts[i] {
             let line_offsets = compute_line_offsets(content, false);
             // SAFETY: same lifetime invariant as 2a.
-            unsafe { rsvelte_core::ast::arena::set_serialize_arena(&ast.arena as *const _) };
+            unsafe { rsvelte_core::ast::arena::set_serialize_arena(&raw const ast.arena) };
             if let Some(ref mut instance) = ast.instance {
                 let _ = ensure_script_parsed(&ast.arena, instance, content, &line_offsets);
             }
@@ -126,7 +126,7 @@ fn main() {
         let file_start = Instant::now();
         if let Some(ref mut ast) = asts[i] {
             // SAFETY: same lifetime invariant as 2a.
-            unsafe { rsvelte_core::ast::arena::set_serialize_arena(&ast.arena as *const _) };
+            unsafe { rsvelte_core::ast::arena::set_serialize_arena(&raw const ast.arena) };
             let analysis = analyze_component(ast, content, &compile_opts).ok();
             rsvelte_core::ast::arena::clear_serialize_arena();
             analyses.push(analysis);
@@ -170,7 +170,7 @@ fn main() {
             // loop iteration; the serialize arena pointer is cleared before
             // we move to the next iteration so the pointer never outlives
             // its referent.
-            unsafe { rsvelte_core::ast::arena::set_serialize_arena(&ast.arena as *const _) };
+            unsafe { rsvelte_core::ast::arena::set_serialize_arena(&raw const ast.arena) };
             let _ = transform_component(analysis, ast, content, &compile_opts);
             rsvelte_core::ast::arena::clear_serialize_arena();
         }
@@ -248,7 +248,7 @@ fn main() {
     // program Phase 1 retained, which only `compile()` threads through.
     let _ = profile::take_script_text_breakdown();
     let compile_start = Instant::now();
-    for (_, content) in files.iter() {
+    for (_, content) in &files {
         let _ = rsvelte_core::compile(content, compile_opts.clone());
     }
     let compile_total = compile_start.elapsed();
@@ -780,7 +780,7 @@ fn log_slope(points: &[(f64, f64)]) -> (f64, usize) {
     let used: Vec<(f64, f64)> = points
         .iter()
         .filter(|&&(x, y)| x > 0.0 && y > 0.0)
-        .map(|&(x, y)| ((x + 1.0).ln(), y.ln()))
+        .map(|&(x, y)| (x.ln_1p(), y.ln()))
         .collect();
     let n = used.len();
     if n < 3 {

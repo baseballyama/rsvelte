@@ -22,13 +22,18 @@
 use std::collections::HashMap;
 
 use rsvelte_core::ast::template::{
-    Attribute, AwaitBlock, EachBlock, Fragment, IfBlock, KeyBlock, SnippetBlock, TemplateNode,
+    Attribute, AwaitBlock, EachBlock, Fragment, IfBlock, KeyBlock, RegularElement, SnippetBlock,
+    TemplateNode,
 };
 
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
 use crate::line_index::LineIndex;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("source offsets are represented as u32")
+}
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/indent",
@@ -56,15 +61,15 @@ enum IndentUnit {
 }
 
 impl IndentUnit {
-    fn is_tab(self) -> bool {
-        matches!(self, IndentUnit::Tab)
+    const fn is_tab(self) -> bool {
+        matches!(self, Self::Tab)
     }
 
     /// Number of raw characters per indent level.
-    fn chars_per_level(self) -> u32 {
+    const fn chars_per_level(self) -> u32 {
         match self {
-            IndentUnit::Spaces(n) => n,
-            IndentUnit::Tab => 1,
+            Self::Spaces(n) => n,
+            Self::Tab => 1,
         }
     }
 }
@@ -120,7 +125,7 @@ impl Rule for Indent {
         // Now scan source line by line and report mismatches.
         let source_lines: Vec<&str> = source.split('\n').collect();
         for (idx, raw_line) in source_lines.iter().enumerate() {
-            let line_num = (idx + 1) as u32;
+            let line_num = source_offset(idx + 1);
             let line = raw_line.trim_end_matches('\r');
 
             // Skip blank lines.
@@ -150,7 +155,10 @@ impl Rule for Indent {
             }
 
             // Compute byte offset of the start of this line.
-            let line_start: u32 = source_lines[..idx].iter().map(|l| l.len() as u32 + 1).sum();
+            let line_start: u32 = source_lines[..idx]
+                .iter()
+                .map(|line| source_offset(line.len()).saturating_add(1))
+                .sum();
 
             // The actual leading-whitespace run spans [line_start, line_start + leading_len).
             let leading_len: u32 = match &actual_kind {
@@ -228,7 +236,7 @@ fn parse_indent_unit(ctx: &LintContext) -> IndentUnit {
             return IndentUnit::Tab;
         }
         if let Some(n) = indent_val.as_u64() {
-            return IndentUnit::Spaces(n as u32);
+            return IndentUnit::Spaces(u32::try_from(n).expect("indent width fits u32"));
         }
     }
     IndentUnit::Spaces(2)
@@ -279,12 +287,7 @@ fn format_message(expected_level: u32, actual: &IndentKind, unit: IndentUnit) ->
                 IndentKind::None => {
                     format!("Expected indentation of {expected_spaces} spaces but found 0 spaces.")
                 }
-                IndentKind::Space(found) => {
-                    format!(
-                        "Expected indentation of {expected_spaces} spaces but found {found} spaces."
-                    )
-                }
-                IndentKind::Mixed(found) => {
+                IndentKind::Space(found) | IndentKind::Mixed(found) => {
                     format!(
                         "Expected indentation of {expected_spaces} spaces but found {found} spaces."
                     )
@@ -321,24 +324,8 @@ fn walk_node(
         TemplateNode::AwaitBlock(b) => walk_await_block(b, base, source, li, expected),
         TemplateNode::KeyBlock(b) => walk_key_block(b, base, source, li, expected),
         TemplateNode::SnippetBlock(b) => walk_snippet_block(b, base, source, li, expected),
-        TemplateNode::RegularElement(el) => {
-            // Inline `<style>` and `<script>` elements (nested inside other
-            // elements, as opposed to the top-level Svelte `<style>` / `<script>`
-            // special blocks) contain raw CSS / JS text that follows its own
-            // indentation conventions.  Skip their children to avoid false
-            // positives, matching eslint-plugin-svelte's own behaviour.
-            let skip_children = matches!(el.name.as_str(), "style" | "script");
-            walk_element_maybe_skip_children(
-                el.start,
-                el.end,
-                &el.attributes,
-                &el.fragment,
-                base,
-                source,
-                li,
-                expected,
-                skip_children,
-            )
+        TemplateNode::RegularElement(element) => {
+            walk_regular_element(element, base, source, li, expected);
         }
         TemplateNode::Component(c) => walk_element(
             c.start,
@@ -408,35 +395,65 @@ fn walk_node(
             expected,
         ),
         TemplateNode::ExpressionTag(tag) => {
-            walk_mustache_block(tag.start, tag.end, base, source, li, expected);
+            walk_tag(tag.start, tag.end, base, source, li, expected);
         }
-        TemplateNode::HtmlTag(tag) => {
-            walk_mustache_block(tag.start, tag.end, base, source, li, expected);
-        }
-        TemplateNode::ConstTag(tag) => {
-            walk_mustache_block(tag.start, tag.end, base, source, li, expected);
-        }
+        TemplateNode::HtmlTag(tag) => walk_tag(tag.start, tag.end, base, source, li, expected),
+        TemplateNode::ConstTag(tag) => walk_tag(tag.start, tag.end, base, source, li, expected),
         TemplateNode::DeclarationTag(tag) => {
-            walk_mustache_block(tag.start, tag.end, base, source, li, expected);
+            walk_tag(tag.start, tag.end, base, source, li, expected);
         }
-        TemplateNode::DebugTag(tag) => {
-            walk_mustache_block(tag.start, tag.end, base, source, li, expected);
-        }
-        TemplateNode::RenderTag(tag) => {
-            walk_mustache_block(tag.start, tag.end, base, source, li, expected);
-        }
-        TemplateNode::AttachTag(tag) => {
-            walk_mustache_block(tag.start, tag.end, base, source, li, expected);
-        }
-        TemplateNode::Text(text) => {
-            walk_text_node(text.start, text.end, base, source, li, expected);
-        }
-        TemplateNode::Comment(c) => {
-            // HTML comments (`<!-- ... -->`) are indented at the same level as
-            // sibling nodes — they must be at `base` on their opening line.
-            walk_text_node(c.start, c.end, base, source, li, expected);
+        TemplateNode::DebugTag(tag) => walk_tag(tag.start, tag.end, base, source, li, expected),
+        TemplateNode::RenderTag(tag) => walk_tag(tag.start, tag.end, base, source, li, expected),
+        TemplateNode::AttachTag(tag) => walk_tag(tag.start, tag.end, base, source, li, expected),
+        TemplateNode::Text(text) => walk_text(text.start, text.end, base, source, li, expected),
+        TemplateNode::Comment(comment) => {
+            walk_text(comment.start, comment.end, base, source, li, expected);
         }
     }
+}
+
+fn walk_regular_element(
+    element: &RegularElement,
+    base: u32,
+    source: &str,
+    line_index: &LineIndex,
+    expected: &mut HashMap<u32, u32>,
+) {
+    // Inline `<style>` and `<script>` elements contain raw CSS / JS text.
+    let skip_children = matches!(element.name.as_str(), "style" | "script");
+    walk_element_maybe_skip_children(
+        element.start,
+        element.end,
+        &element.attributes,
+        &element.fragment,
+        base,
+        source,
+        line_index,
+        expected,
+        skip_children,
+    );
+}
+
+fn walk_text(
+    start: u32,
+    end: u32,
+    base: u32,
+    source: &str,
+    line_index: &LineIndex,
+    expected: &mut HashMap<u32, u32>,
+) {
+    walk_text_node(start, end, base, source, line_index, expected);
+}
+
+fn walk_tag(
+    start: u32,
+    end: u32,
+    base: u32,
+    source: &str,
+    line_index: &LineIndex,
+    expected: &mut HashMap<u32, u32>,
+) {
+    walk_mustache_block(start, end, base, source, line_index, expected);
 }
 
 /// Walk a `{#if}...{:else if}...{:else}...{/if}` block.
@@ -577,8 +594,7 @@ fn walk_await_block(
             .pending
             .as_ref()
             .and_then(|f| f.nodes.last())
-            .map(node_end)
-            .unwrap_or(open_end);
+            .map_or(open_end, node_end);
         if let Some(then_pos) = find_keyword_in_range(search_from, block.end, source, ":then") {
             let then_open_end = find_matching_brace_end(then_pos, source);
             walk_mustache_block(then_pos, then_open_end, base, source, li, expected);
@@ -668,42 +684,15 @@ fn walk_mustache_block(
     li: &LineIndex,
     expected: &mut HashMap<u32, u32>,
 ) {
-    if start >= end || end as usize > source.len() {
+    let Some(start_line) = prepare_multiline_mustache(start, end, base, source, li, expected)
+    else {
         return;
-    }
-
-    let start_line = li.line(start);
-
-    // Only mark the start line if the `{` is the first non-whitespace on the line.
-    if is_first_nonws_on_line(start, source) {
-        mark_line_once(start_line, base, expected);
-    }
-
-    let end_line = li.line(end.saturating_sub(1));
-    if start_line == end_line {
-        return; // single-line, done
-    }
+    };
 
     // Multi-line mustache: scan character-by-character.
     let text = &source[start as usize..end as usize];
 
-    // Determine the tag kind for the `{` block we're scanning.
-    // Peek at the first non-`{` non-whitespace character after `{`.
-    let first_inner_char = text
-        .as_bytes()
-        .iter()
-        .skip(1)
-        .find(|&&b| b != b' ' && b != b'\t' && b != b'\r' && b != b'\n')
-        .copied();
-    let is_block_or_branch = matches!(first_inner_char, Some(b'#') | Some(b':'));
-
-    // Determine: is the primary keyword `#await`? (`{#await …}` open tag)
-    // We need this to handle `then`/`catch` as sub-keywords at base+1.
-    // Similarly, is it `{:else}` so `if` is a sub-keyword?
-    // Read the first "word" at depth=1 in the tag.
-    let primary_keyword = extract_primary_keyword(text);
-    let is_await_open = primary_keyword == "#await";
-    let is_else_branch = primary_keyword == ":else";
+    let mustache_kind = MustacheKind::from_text(text);
 
     // `depth`: brace/paren/bracket nesting depth (starts at 0, goes to 1 at the outer `{`).
     let mut depth: i32 = 0;
@@ -724,7 +713,7 @@ fn walk_mustache_block(
     let mut cur_line = start_line;
 
     for (i, ch) in text.char_indices() {
-        let byte_pos = start + i as u32;
+        let byte_pos = start + source_offset(i);
         let line = li.line(byte_pos);
 
         // Update first-on-line tracking.
@@ -741,23 +730,21 @@ fn walk_mustache_block(
 
             let level = if is_closing {
                 // Closing bracket: use the level stored when this depth was opened.
-                let close_depth = depth.max(0) as usize;
+                let close_depth =
+                    usize::try_from(depth.max(0)).expect("non-negative bracket depth fits usize");
                 level_stack.get(close_depth).copied().unwrap_or(base)
             } else if depth <= 0 {
                 base
             } else if depth == 1 {
-                if !is_block_or_branch {
-                    // Inline tags ({expr}, {@html ...}, {/close}): all content at base+1.
-                    base + 1
-                } else {
+                if mustache_kind.is_block_or_branch {
                     // Block/branch tags: keyword at base+1, expression at base+2.
                     // Sub-keywords (e.g. `if` after `:else`, `then`/`catch` in `#await`) at base+1.
                     let word_at_pos = peek_word_at(source, byte_pos);
-                    let is_sub_keyword = if is_await_open && d1_in_expr {
+                    let is_sub_keyword = if mustache_kind.is_await_open && d1_in_expr {
                         // After the primary `#await` and its expression,
                         // `then` or `catch` resets to keyword level.
                         word_at_pos == "then" || word_at_pos == "catch"
-                    } else if is_else_branch && d1_words == 1 && !d1_in_expr {
+                    } else if mustache_kind.is_else_branch && d1_words == 1 && !d1_in_expr {
                         // Second word after `:else` in `{:else if}` is `if`.
                         word_at_pos == "if"
                     } else {
@@ -787,10 +774,13 @@ fn walk_mustache_block(
                         // Expression mode: base+2.
                         base + 2
                     }
+                } else {
+                    // Inline tags ({expr}, {@html ...}, {/close}): all content at base+1.
+                    base + 1
                 }
             } else {
                 // depth >= 2: simple nesting
-                base + depth as u32
+                base + u32::try_from(depth).expect("indent depth is nonnegative")
             };
 
             if is_first_nonws_on_line(byte_pos, source) {
@@ -798,11 +788,11 @@ fn walk_mustache_block(
             }
 
             // Update depth-1 state tracking after we've computed the level.
-            if depth == 1 && !is_closing && is_block_or_branch {
+            if depth == 1 && !is_closing && mustache_kind.is_block_or_branch {
                 let word_at_pos = peek_word_at(source, byte_pos);
-                let is_sub_keyword = if is_await_open && d1_in_expr {
+                let is_sub_keyword = if mustache_kind.is_await_open && d1_in_expr {
                     word_at_pos == "then" || word_at_pos == "catch"
-                } else if is_else_branch && d1_words == 1 && !d1_in_expr {
+                } else if mustache_kind.is_else_branch && d1_words == 1 && !d1_in_expr {
                     word_at_pos == "if"
                 } else {
                     false
@@ -822,7 +812,7 @@ fn walk_mustache_block(
                     d1_in_expr = true;
                     // Exception: if this IS the `else` keyword in `{:else if}`,
                     // the next line might be `if` — handled by is_sub_keyword check above.
-                    if is_else_branch {
+                    if mustache_kind.is_else_branch {
                         // Don't mark in_expr yet — let the `if` sub-keyword check handle it.
                         d1_in_expr = false;
                     }
@@ -837,33 +827,84 @@ fn walk_mustache_block(
             first_on_line = false;
         }
 
-        // Update depth and stack.
-        match ch {
-            '{' | '(' | '[' => {
-                // When this bracket opens (becomes depth+1), the matching close
-                // should return to the level of this bracket's line.
-                let open_level = current_line_level;
-                depth += 1;
-                // Store the level for the closing bracket.
-                if depth as usize >= level_stack.len() {
-                    level_stack.resize(depth as usize + 1, open_level);
-                } else {
-                    level_stack[depth as usize] = open_level;
-                }
-                // Opening a bracket in depth=1 means we've entered expression territory.
-                if depth == 2 && is_block_or_branch {
-                    d1_in_expr = true;
-                    d1_after_then_catch = false;
-                }
-            }
-            '}' | ')' | ']' => {
-                depth -= 1;
-                if depth < 0 {
-                    depth = 0;
-                }
-            }
-            _ => {}
+        update_mustache_depth(
+            ch,
+            current_line_level,
+            mustache_kind.is_block_or_branch,
+            &mut depth,
+            &mut level_stack,
+            &mut d1_in_expr,
+            &mut d1_after_then_catch,
+        );
+    }
+}
+
+fn prepare_multiline_mustache(
+    start: u32,
+    end: u32,
+    base: u32,
+    source: &str,
+    line_index: &LineIndex,
+    expected: &mut HashMap<u32, u32>,
+) -> Option<u32> {
+    if start >= end || end as usize > source.len() {
+        return None;
+    }
+    let start_line = line_index.line(start);
+    if is_first_nonws_on_line(start, source) {
+        mark_line_once(start_line, base, expected);
+    }
+    (start_line != line_index.line(end.saturating_sub(1))).then_some(start_line)
+}
+
+struct MustacheKind {
+    is_block_or_branch: bool,
+    is_await_open: bool,
+    is_else_branch: bool,
+}
+
+impl MustacheKind {
+    fn from_text(text: &str) -> Self {
+        let first_inner_char = text
+            .as_bytes()
+            .iter()
+            .skip(1)
+            .find(|&&byte| !matches!(byte, b' ' | b'\t' | b'\r' | b'\n'))
+            .copied();
+        let keyword = extract_primary_keyword(text);
+        Self {
+            is_block_or_branch: matches!(first_inner_char, Some(b'#' | b':')),
+            is_await_open: keyword == "#await",
+            is_else_branch: keyword == ":else",
         }
+    }
+}
+
+fn update_mustache_depth(
+    character: char,
+    current_line_level: u32,
+    is_block_or_branch: bool,
+    depth: &mut i32,
+    level_stack: &mut Vec<u32>,
+    d1_in_expr: &mut bool,
+    d1_after_then_catch: &mut bool,
+) {
+    match character {
+        '{' | '(' | '[' => {
+            *depth += 1;
+            let depth_index = usize::try_from(*depth).expect("opened bracket depth is positive");
+            if depth_index >= level_stack.len() {
+                level_stack.resize(depth_index + 1, current_line_level);
+            } else {
+                level_stack[depth_index] = current_line_level;
+            }
+            if *depth == 2 && is_block_or_branch {
+                *d1_in_expr = true;
+                *d1_after_then_catch = false;
+            }
+        }
+        '}' | ')' | ']' => *depth = (*depth - 1).max(0),
+        _ => {}
     }
 }
 
@@ -943,14 +984,11 @@ fn walk_text_node(
     // Helper: find the byte offset of the first nonws char on the line that
     // contains `pos`.  Returns `None` if the line is all-whitespace.
     let first_nonws_on_same_line = |pos: u32| -> Option<u32> {
-        let line_start = source[..pos as usize]
-            .rfind('\n')
-            .map(|i| i + 1)
-            .unwrap_or(0);
+        let line_start = source[..pos as usize].rfind('\n').map_or(0, |i| i + 1);
         let line_content = &source[line_start..];
         line_content
             .find(|c: char| c != ' ' && c != '\t' && c != '\r' && c != '\n')
-            .map(|rel| line_start as u32 + rel as u32)
+            .map(|relative| source_offset(line_start) + source_offset(relative))
     };
 
     // First line of the text node — mark only if the first nonws of that line
@@ -974,7 +1012,7 @@ fn walk_text_node(
                 }
             }
         }
-        byte_offset += ch.len_utf8() as u32;
+        byte_offset += source_offset(ch.len_utf8());
     }
 }
 
@@ -1032,8 +1070,7 @@ fn walk_element_maybe_skip_children(
         // Find the first nonws on open_tag_end_line.
         let line_start_byte = source[..open_tag_end.saturating_sub(1) as usize]
             .rfind('\n')
-            .map(|i| i + 1)
-            .unwrap_or(0);
+            .map_or(0, |i| i + 1);
         let first_nonws_byte = source[line_start_byte..]
             .find(|c: char| !c.is_ascii_whitespace())
             .map(|rel| line_start_byte + rel);
@@ -1120,7 +1157,7 @@ fn walk_attribute_lines(
     let mut past_equals = false;
 
     for (i, ch) in text.char_indices() {
-        let byte_pos = start + i as u32;
+        let byte_pos = start + source_offset(i);
         let line = li.line(byte_pos);
 
         if line != cur_line {
@@ -1208,7 +1245,7 @@ fn walk_attribute_lines(
 // ============================================================================
 
 /// Get the `(start, end)` byte span of an attribute.
-fn attr_span(attr: &Attribute) -> (u32, u32) {
+const fn attr_span(attr: &Attribute) -> (u32, u32) {
     match attr {
         Attribute::Attribute(a) => (a.start, a.end),
         Attribute::SpreadAttribute(s) => (s.start, s.end),
@@ -1255,13 +1292,13 @@ fn find_open_tag_end(start: u32, source: &str) -> u32 {
                 }
             }
             '>' if depth == 0 => {
-                return start + i as u32 + 1;
+                return start + source_offset(i) + 1;
             }
             _ => {}
         }
         i += 1;
     }
-    start + src.len() as u32
+    start + source_offset(src.len())
 }
 
 /// Find the position of `</` (close tag start) in source[from..to].
@@ -1270,7 +1307,9 @@ fn find_close_tag_start(from: u32, to: u32, source: &str) -> Option<u32> {
         return None;
     }
     let range = &source[from as usize..to as usize];
-    range.rfind("</").map(|rel| from + rel as u32)
+    range
+        .rfind("</")
+        .map(|relative| from + source_offset(relative))
 }
 
 /// Find the end of the matching `}` for `{` at `start`.
@@ -1299,7 +1338,7 @@ fn find_matching_brace_end(start: u32, source: &str) -> u32 {
             '}' => {
                 depth -= 1;
                 if depth == 0 {
-                    return start + i as u32 + 1;
+                    return start + source_offset(i) + 1;
                 }
             }
             _ => {}
@@ -1331,7 +1370,7 @@ fn find_close_tag(block_end: u32, source: &str) -> u32 {
                 j += 1;
             }
             if j < bytes.len() && bytes[j] == b'/' {
-                return i as u32;
+                return source_offset(i);
             }
         }
     }
@@ -1390,9 +1429,9 @@ fn find_branch_keyword_in_range(
                     let after = if kw_end < to { bytes[kw_end] } else { 0 };
                     if !after.is_ascii_alphanumeric() && after != b'_' {
                         if find_last {
-                            result = Some(i as u32);
+                            result = Some(source_offset(i));
                         } else {
-                            return Some(i as u32);
+                            return Some(source_offset(i));
                         }
                     }
                 }
@@ -1405,7 +1444,7 @@ fn find_branch_keyword_in_range(
 
 /// Get the end byte position of the last node in a list, or `default` if empty.
 fn last_node_end(nodes: &[TemplateNode], default: u32) -> u32 {
-    nodes.last().map(node_end).unwrap_or(default)
+    nodes.last().map_or(default, node_end)
 }
 
 /// Get the end byte position of a template node.
@@ -1449,7 +1488,7 @@ fn is_first_nonws_on_line(pos: u32, source: &str) -> bool {
     if pos > source.len() {
         return false;
     }
-    let line_start = source[..pos].rfind('\n').map(|i| i + 1).unwrap_or(0);
+    let line_start = source[..pos].rfind('\n').map_or(0, |i| i + 1);
     source[line_start..pos]
         .chars()
         .all(|c| c == ' ' || c == '\t')

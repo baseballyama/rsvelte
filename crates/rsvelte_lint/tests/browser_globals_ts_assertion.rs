@@ -22,7 +22,7 @@ fn findings(source: &str) -> Vec<(u32, u32)> {
             (line, col + 1)
         })
         .collect();
-    out.sort();
+    out.sort_unstable();
     out
 }
 

@@ -10,7 +10,7 @@ use crate::native_css::{CssOptionsResolver, run_native_css};
 use crate::native_js::{JsOptionsResolver, run_native_js};
 use crate::native_json::{JsonOptionsResolver, run_native_json};
 use crate::options::{OptionFlags, build_css_options, build_format_options, build_json_options};
-use crate::oxfmt::run_oxfmt;
+use crate::oxfmt::{NativeExclusions, OxfmtRunOptions, run_oxfmt};
 use crate::oxfmt_ignore;
 use crate::status::{Mode, PipelineStatus, combine};
 use crate::stdin::run_stdin;
@@ -37,6 +37,11 @@ fn fmt_thread_pool() -> rayon::ThreadPool {
         .expect("build rsvelte-fmt's rayon pool")
 }
 
+/// Run the `rsvelte-fmt` command-line formatter.
+///
+/// # Errors
+///
+/// Returns an error when configuration resolution, file discovery, or formatting fails.
 pub fn run() -> Result<ExitCode> {
     let mut cli = Cli::parse();
 
@@ -50,8 +55,7 @@ pub fn run() -> Result<ExitCode> {
         .stdin_filepath
         .as_deref()
         .filter(|_| cli.stdin)
-        .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| cwd.clone());
+        .map_or_else(|| cwd.clone(), std::path::Path::to_path_buf);
     let cfg = OxfmtConfig::resolve(cli.config.as_deref(), &config_start).map_err(|e| anyhow!(e))?;
 
     let flags = OptionFlags::from_cli(&cli);
@@ -183,16 +187,20 @@ pub fn run() -> Result<ExitCode> {
                         &oxfmt_paths,
                         &cli.oxfmt_bin,
                         mode,
-                        exclude_native,
-                        exclude_native_json,
-                        exclude_native_css,
-                        // A Svelte-only or CSS-only tree legitimately leaves oxfmt's
-                        // own share empty, so suppress its unmatched-pattern error —
-                        // but not when every in-process pass is *also* empty: oxfmt
-                        // is then the only thing that can tell (via its own ignore
-                        // rules and supported-extension set) whether anything really
-                        // exists to format, so it must be allowed to error for real.
-                        !in_process_empty,
+                        OxfmtRunOptions {
+                            native_exclusions: NativeExclusions {
+                                js: exclude_native,
+                                json: exclude_native_json,
+                                css: exclude_native_css,
+                            },
+                            // A Svelte-only or CSS-only tree legitimately leaves oxfmt's
+                            // own share empty, so suppress its unmatched-pattern error —
+                            // but not when every in-process pass is *also* empty: oxfmt
+                            // is then the only thing that can tell (via its own ignore
+                            // rules and supported-extension set) whether anything really
+                            // exists to format, so it must be allowed to error for real.
+                            suppress_unmatched: !in_process_empty,
+                        },
                     )
                 },
             )
@@ -203,20 +211,20 @@ pub fn run() -> Result<ExitCode> {
     let json_status = json_result?;
     let css_status = css_result?;
     let oxfmt_status = oxfmt_result?;
-    let combined = svelte_status
-        .merge(native_status)
-        .merge(json_status)
-        .merge(css_status);
+    let mut combined = svelte_status;
+    combined.merge(&native_status);
+    combined.merge(&json_status);
+    combined.merge(&css_status);
 
     // oxfmt ran unsuppressed above and genuinely found nothing — its own
     // "no target file" message already went to stderr (inherited), so don't
     // also print our summary line; just propagate the error exit code.
     if in_process_empty && oxfmt_status.had_errors {
-        return Ok(combine(combined, oxfmt_status, mode));
+        return Ok(combine(&combined, &oxfmt_status, mode));
     }
 
     print_summary(&combined, &oxfmt_status, mode);
-    Ok(combine(combined, oxfmt_status, mode))
+    Ok(combine(&combined, &oxfmt_status, mode))
 }
 
 fn print_summary(svelte: &PipelineStatus, oxfmt: &PipelineStatus, mode: Mode) {

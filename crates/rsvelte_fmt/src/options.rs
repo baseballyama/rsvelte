@@ -6,8 +6,8 @@ use std::sync::Arc;
 use oxc_formatter::JsFormatOptions;
 use oxc_formatter_core::{IndentStyle, IndentWidth, LineWidth};
 use rsvelte_formatter::{
-    CssFormatOptions, CssSingleQuote, CssTrailingCommas, FormatOptions, JsonFormatOptions,
-    JsonVariant, SortOrderSpec,
+    AttributeFormatOptions, CssFormatOptions, CssSingleQuote, CssTrailingCommas, FormatOptions,
+    JsonFormatOptions, JsonVariant, SortOrderSpec,
 };
 
 use crate::cli::Cli;
@@ -21,7 +21,7 @@ use crate::tailwind_sort::{PendingJsSort, js_sort_env};
 /// [`Cli`] so an in-process embedder (the language server) resolves options
 /// through exactly the same layering as the CLI instead of reimplementing it.
 #[derive(Debug, Clone)]
-pub(crate) struct OptionFlags {
+pub struct OptionFlags {
     pub(crate) print_width: Option<u16>,
     pub(crate) tab_width: Option<u8>,
     pub(crate) use_tabs: bool,
@@ -58,7 +58,7 @@ impl OptionFlags {
 /// keys that exist in both places (`--print-width`/`--tab-width`/`--use-tabs`):
 /// CLI flag > `.oxfmtrc` > built-in default. Keys with no CLI equivalent
 /// (`singleQuote`, `semi`, `trailingComma`, …) come straight from `.oxfmtrc`.
-pub(crate) fn build_format_options(
+pub fn build_format_options(
     cli: &OptionFlags,
     cfg: &OxfmtConfig,
 ) -> (FormatOptions, Option<PendingJsSort>) {
@@ -70,8 +70,8 @@ pub(crate) fn build_format_options(
     };
     let tab_width = cli.tab_width.or(cfg.tab_width).unwrap_or(2);
     let print_width = cli.print_width.or(cfg.print_width).unwrap_or(80);
-    let indent_width = IndentWidth::try_from(tab_width).unwrap_or(IndentWidth::default());
-    let line_width = LineWidth::try_from(print_width).unwrap_or(LineWidth::default());
+    let indent_width = IndentWidth::try_from(tab_width).unwrap_or_else(|_| IndentWidth::default());
+    let line_width = LineWidth::try_from(print_width).unwrap_or_else(|_| LineWidth::default());
 
     let mut js = JsFormatOptions {
         indent_style,
@@ -88,16 +88,16 @@ pub(crate) fn build_format_options(
 
     // Resolve `svelteSortOrder`; an unrecognised value falls back to the default
     // and warns, mirroring oxfmt rejecting it (we warn rather than hard-fail).
-    let sort_order = match &cfg.svelte_sort_order {
-        Some(s) => SortOrderSpec::parse(s).unwrap_or_else(|| {
+    let sort_order = cfg.svelte_sort_order.as_ref().map_or_else(
+        SortOrderSpec::default,
+        |sort_order| SortOrderSpec::parse(sort_order).unwrap_or_else(|| {
             eprintln!(
-                "rsvelte-fmt: warning: unrecognised svelteSortOrder \"{s}\"; using the default \
+                "rsvelte-fmt: warning: unrecognised svelteSortOrder \"{sort_order}\"; using the default \
                  \"options-scripts-markup-styles\""
             );
             SortOrderSpec::default()
         }),
-        None => SortOrderSpec::default(),
-    };
+    );
 
     // `sortTailwindcss` orders class names by the project's tailwind stylesheet.
     // A stock, zero-config setup sorts natively (byte-for-byte). A custom
@@ -162,8 +162,10 @@ pub(crate) fn build_format_options(
         style_formatter: Some(style_formatter),
         // `format` derives this per-document from `<script lang="ts">`.
         typescript: false,
-        single_attribute_per_line: cfg.single_attribute_per_line.unwrap_or(false),
-        allow_shorthand: cfg.svelte_allow_shorthand.unwrap_or(true),
+        attributes: AttributeFormatOptions {
+            single_attribute_per_line: cfg.single_attribute_per_line.unwrap_or(false),
+            allow_shorthand: cfg.svelte_allow_shorthand.unwrap_or(true),
+        },
         indent_script_and_style: cfg.svelte_indent_script_and_style.unwrap_or(true),
         sort_order,
         bracket_same_line: cfg.bracket_same_line.unwrap_or(false),
@@ -178,7 +180,7 @@ pub(crate) fn build_format_options(
 /// resolved exactly as the JS path, plus `bracketSpacing`. `objectWrap` is left
 /// at oxc's default (`Expand::Auto` = Prettier `preserve`), matching `oxfmt`.
 /// `variant` is set per file by [`json_variant`].
-pub(crate) fn build_json_options(cli: &OptionFlags, cfg: &OxfmtConfig) -> JsonFormatOptions {
+pub fn build_json_options(cli: &OptionFlags, cfg: &OxfmtConfig) -> JsonFormatOptions {
     let use_tabs = cli.use_tabs || cfg.use_tabs.unwrap_or(false);
     let indent_style = if use_tabs {
         IndentStyle::Tab
@@ -207,7 +209,7 @@ pub(crate) fn build_json_options(cli: &OptionFlags, cfg: &OxfmtConfig) -> JsonFo
 
 /// The `oxc_formatter_json` variant for a file extension, mirroring how `oxfmt`
 /// picks a JSON parser/printer per extension.
-pub(crate) fn json_variant(ext: &str) -> JsonVariant {
+pub fn json_variant(ext: &str) -> JsonVariant {
     match ext {
         "jsonc" => JsonVariant::Jsonc,
         "json5" => JsonVariant::Json5,
@@ -220,7 +222,7 @@ pub(crate) fn json_variant(ext: &str) -> JsonVariant {
 /// (the only Prettier keys the CSS languages consume). `variant` is set per
 /// file/block by the caller; `line_width` is narrowed per embedded `<style>`
 /// block to its column.
-pub(crate) fn build_css_options(cli: &OptionFlags, cfg: &OxfmtConfig) -> CssFormatOptions {
+pub fn build_css_options(cli: &OptionFlags, cfg: &OxfmtConfig) -> CssFormatOptions {
     let use_tabs = cli.use_tabs || cfg.use_tabs.unwrap_or(false);
     let indent_style = if use_tabs {
         IndentStyle::Tab
@@ -263,7 +265,7 @@ pub(crate) fn build_css_options(cli: &OptionFlags, cfg: &OxfmtConfig) -> CssForm
 /// renders at. Returns the temp config path, or the base config (no override) for
 /// a non-JSON / unreadable base. Configs are cached by width under a per-process
 /// temp dir.
-pub(crate) fn css_config_for_width(base: Option<&Path>, width: usize) -> Option<PathBuf> {
+pub fn css_config_for_width(base: Option<&Path>, width: usize) -> Option<PathBuf> {
     let json = css_options_for_width(base, width);
     if !json.is_object() {
         return base.map(Path::to_path_buf);
@@ -283,7 +285,7 @@ pub(crate) fn css_config_for_width(base: Option<&Path>, width: usize) -> Option<
 /// `.oxfmtrc` (if any) with `printWidth` forced to the block's column. Returned
 /// as a JSON value so the daemon path can send it inline as `format()`'s options
 /// and the spawn path can serialize it to a temp config — both at byte parity.
-pub(crate) fn css_options_for_width(base: Option<&Path>, width: usize) -> serde_json::Value {
+pub fn css_options_for_width(base: Option<&Path>, width: usize) -> serde_json::Value {
     let mut json: serde_json::Value = base
         .and_then(|p| std::fs::read_to_string(p).ok())
         .and_then(|s| serde_json::from_str(&s).ok())

@@ -107,7 +107,7 @@ pub(super) fn push_close_tag(
                 .take_while(|&&b| matches!(b, b' ' | b'\t' | b'\n' | b'\r'))
                 .count();
             if trailing_ws_only > 0 {
-                let content_end = (end_idx - trailing_ws_only) as u32;
+                let content_end = crate::source_offset(end_idx - trailing_ws_only);
                 // Replace trailing whitespace with `\n{indent}</tag>`.
                 // The indent pass may also emit an edit on this same span
                 // (normalising `\n\t` to `\n{child_indent}`) — the overlap
@@ -160,10 +160,18 @@ pub(super) fn push_close_tag(
         }
         let raw_text_glues_close = tag_name == "textarea" && !options.bracket_same_line;
         if raw_text_glues_close {
-            edits.push((content_end as u32, end, format!("</{tag_name}>")));
+            edits.push((
+                crate::source_offset(content_end),
+                end,
+                format!("</{tag_name}>"),
+            ));
         } else {
             let indent = indent_str(depth, &options.js);
-            edits.push((content_end as u32, end, format!("\n{indent}</{tag_name}>")));
+            edits.push((
+                crate::source_offset(content_end),
+                end,
+                format!("\n{indent}</{tag_name}>"),
+            ));
         }
     } else if hug_close {
         let indent = indent_str(depth, &options.js);
@@ -188,7 +196,11 @@ pub(super) fn push_close_tag(
             content_end -= 1;
         }
         let indent = indent_str(depth, &options.js);
-        edits.push((content_end as u32, end, format!("\n{indent}</{tag_name}>")));
+        edits.push((
+            crate::source_offset(content_end),
+            end,
+            format!("\n{indent}</{tag_name}>"),
+        ));
     } else if open_wrapped && is_empty && options.bracket_same_line {
         // An empty element's wrapped open `>` dedents onto its own line (see the
         // `!empty_element` guard in `push_open_tag`), so `>` and `</tag` glue as
@@ -226,8 +238,7 @@ pub(super) fn push_close_tag(
 fn can_omit_softline_before_closing_tag(source: &str, element_end: u32) -> bool {
     let rest = &source[element_end as usize..];
     match rest.chars().next() {
-        None => true,
-        Some(' ' | '\t' | '\n' | '\u{0C}' | '\r') => true,
+        None | Some(' ' | '\t' | '\n' | '\u{0C}' | '\r') => true,
         Some(_) => rest.strip_prefix("</").is_some_and(|after| {
             let name: String = after
                 .chars()
@@ -281,7 +292,7 @@ pub(super) fn find_close_tag_span(
         return None;
     }
 
-    Some((lt as u32, end as u32))
+    Some((crate::source_offset(lt), crate::source_offset(end)))
 }
 
 /// Fallback: locate ANY `</name>` close tag that ends at `element_end`.
@@ -311,5 +322,5 @@ fn find_any_close_tag_span(source: &str, element_end: u32) -> Option<(u32, u32)>
     if bytes[slash] != b'/' || bytes[lt] != b'<' {
         return None;
     }
-    Some((lt as u32, end as u32))
+    Some((crate::source_offset(lt), crate::source_offset(end)))
 }

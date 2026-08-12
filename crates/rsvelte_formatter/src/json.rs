@@ -14,9 +14,14 @@ use crate::error::FormatError;
 pub use oxc_formatter_json::JsonVariant;
 
 /// Format `source` as JSON of the given `variant` (`json` / `jsonc` / `json5`)
-/// with `options`. `variant` overrides any value already on `options`. Returns a
-/// parse error for input the JSON parser rejects (the caller falls back to
+/// with `options`. `variant` overrides any value already on `options`.
+///
+/// Returns a parse error for input the JSON parser rejects (the caller falls back to
 /// `oxfmt`, mirroring the native-JS path).
+///
+/// # Errors
+///
+/// Returns [`FormatError`] when the JSON parser rejects `source`.
 pub fn format_json_source(
     source: &str,
     variant: JsonVariant,

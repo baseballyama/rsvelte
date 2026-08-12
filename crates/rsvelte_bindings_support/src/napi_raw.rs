@@ -75,7 +75,9 @@ const WARN_HAS_START: u8 = 1 << 1;
 const WARN_HAS_END: u8 = 1 << 2;
 const WARN_HAS_FRAME: u8 = 1 << 3;
 
-/// Largest envelope that can address its own fields. Every header
+/// Largest envelope that can address its own fields.
+///
+/// Every header
 /// offset/length is a `u32` (little-endian), so an envelope whose total
 /// size exceeds this can't encode its own offsets without truncating
 /// them — the JS decoder would then read garbage. Only reachable for
@@ -84,18 +86,29 @@ const WARN_HAS_FRAME: u8 = 1 << 3;
 /// letting the internal `usize as u32` casts silently wrap (M-012).
 pub const MAX_ENVELOPE_SIZE: usize = u32::MAX as usize;
 
-/// Returns `Err(size)` when an envelope of `size` bytes would overflow
+/// Returns `Err(size)` when an envelope of `size` bytes would overflow the
+/// header fields.
+///
+/// Call this at the NAPI boundary before any
 /// the `u32` header fields. Call this at the NAPI boundary before any
 /// `encode_*`; once it returns `Ok`, every offset/length in the
 /// envelope is `<= size <= u32::MAX` and so every internal `as u32`
 /// cast in [`encode_into`] is lossless.
+///
+/// # Errors
+/// Returns `Err(size)` when `size` cannot be represented in the envelope.
 #[inline]
-pub fn check_envelope_size(size: usize) -> Result<(), usize> {
+pub const fn check_envelope_size(size: usize) -> Result<(), usize> {
     if size > MAX_ENVELOPE_SIZE {
         Err(size)
     } else {
         Ok(())
     }
+}
+
+#[inline]
+fn envelope_u32(value: usize) -> u32 {
+    u32::try_from(value).expect("envelope size checked before encoding")
 }
 
 /// Trait abstracting over the backing buffer. Step 2 implements this
@@ -127,6 +140,7 @@ impl Writer for Vec<u8> {
 /// Estimate the byte size of an encoded `CompileResult`. Used by
 /// Step 3 to pre-allocate the bumpalo arena in one go, avoiding
 /// reallocations entirely.
+#[must_use]
 pub fn estimate_size(result: &CompileResult) -> usize {
     let mut n = HEADER_LEN;
     n += result.js.code.len();
@@ -145,7 +159,7 @@ pub fn estimate_size(result: &CompileResult) -> usize {
     n
 }
 
-fn warning_size(w: &Warning) -> usize {
+const fn warning_size(w: &Warning) -> usize {
     let mut n = 4 + w.code.len() + 4 + w.message.len() + 1; // code+msg+flags
     if let Some(s) = &w.filename {
         n += 4 + s.len();
@@ -192,28 +206,28 @@ pub fn encode_into<W: Writer>(writer: &mut W, result: &CompileResult) {
     // js.code
     let js_code_off = writer.position();
     writer.write_bytes(result.js.code.as_bytes());
-    writer.patch_u32(16, js_code_off as u32);
-    writer.patch_u32(20, result.js.code.len() as u32);
+    writer.patch_u32(16, envelope_u32(js_code_off));
+    writer.patch_u32(20, envelope_u32(result.js.code.len()));
 
     // js.map (optional)
     if let Some(map) = &result.js.map {
         let off = writer.position();
         writer.write_bytes(map.as_bytes());
-        writer.patch_u32(24, off as u32);
-        writer.patch_u32(28, map.len() as u32);
+        writer.patch_u32(24, envelope_u32(off));
+        writer.patch_u32(28, envelope_u32(map.len()));
     }
 
     // css.code / css.map (optional)
     if let Some(css) = &result.css {
         let off = writer.position();
         writer.write_bytes(css.code.as_bytes());
-        writer.patch_u32(32, off as u32);
-        writer.patch_u32(36, css.code.len() as u32);
+        writer.patch_u32(32, envelope_u32(off));
+        writer.patch_u32(36, envelope_u32(css.code.len()));
         if let Some(map) = &css.map {
             let off = writer.position();
             writer.write_bytes(map.as_bytes());
-            writer.patch_u32(40, off as u32);
-            writer.patch_u32(44, map.len() as u32);
+            writer.patch_u32(40, envelope_u32(off));
+            writer.patch_u32(44, envelope_u32(map.len()));
         }
     }
 
@@ -223,13 +237,13 @@ pub fn encode_into<W: Writer>(writer: &mut W, result: &CompileResult) {
         write_warning(writer, w);
     }
     let warnings_end = writer.position();
-    writer.patch_u32(48, warnings_off as u32);
-    writer.patch_u32(52, result.warnings.len() as u32);
-    writer.patch_u32(56, (warnings_end - warnings_off) as u32);
+    writer.patch_u32(48, envelope_u32(warnings_off));
+    writer.patch_u32(52, envelope_u32(result.warnings.len()));
+    writer.patch_u32(56, envelope_u32(warnings_end - warnings_off));
 
     // Total length (for the JS-side sanity check)
     let total = writer.position();
-    writer.patch_u32(8, total as u32);
+    writer.patch_u32(8, envelope_u32(total));
 }
 
 fn write_warning<W: Writer>(w: &mut W, warning: &Warning) {
@@ -267,18 +281,19 @@ fn write_warning<W: Writer>(w: &mut W, warning: &Warning) {
 
 #[inline]
 fn write_str<W: Writer>(w: &mut W, s: &str) {
-    w.write_bytes(&(s.len() as u32).to_le_bytes());
+    w.write_bytes(&envelope_u32(s.len()).to_le_bytes());
     w.write_bytes(s.as_bytes());
 }
 
 #[inline]
 fn write_position<W: Writer>(w: &mut W, p: &Position) {
-    w.write_bytes(&(p.line as u32).to_le_bytes());
-    w.write_bytes(&(p.column as u32).to_le_bytes());
-    w.write_bytes(&(p.character as u32).to_le_bytes());
+    w.write_bytes(&envelope_u32(p.line).to_le_bytes());
+    w.write_bytes(&envelope_u32(p.column).to_le_bytes());
+    w.write_bytes(&envelope_u32(p.character).to_le_bytes());
 }
 
 /// Encode a `CompileResult` into a fresh `Vec<u8>`. Step 2 entry point.
+#[must_use]
 pub fn encode_to_vec(result: &CompileResult) -> Vec<u8> {
     let mut buf = Vec::with_capacity(estimate_size(result));
     encode_into(&mut buf, result);
@@ -319,6 +334,7 @@ pub enum BatchEntry<'a> {
 
 /// Estimate the byte size of an encoded batch envelope. Used to
 /// pre-size the backing buffer in one shot.
+#[must_use]
 pub fn estimate_batch_size(entries: &[BatchEntry<'_>]) -> usize {
     let mut n = BATCH_HEADER_LEN + entries.len() * BATCH_ENTRY_LEN;
     for entry in entries {
@@ -342,7 +358,7 @@ pub fn encode_batch_into<W: Writer>(writer: &mut W, entries: &[BatchEntry<'_>]) 
     writer.write_bytes(&BATCH_MAGIC.to_le_bytes());
     writer.write_bytes(&BATCH_VERSION.to_le_bytes());
     writer.write_bytes(&[0u8; 4]); // total_len — patched at the end
-    writer.write_bytes(&(entries.len() as u32).to_le_bytes());
+    writer.write_bytes(&envelope_u32(entries.len()).to_le_bytes());
 
     // Reserve the entry table — 12 bytes per entry, patched as
     // payloads land below.
@@ -369,24 +385,25 @@ pub fn encode_batch_into<W: Writer>(writer: &mut W, entries: &[BatchEntry<'_>]) 
                 writer.write_bytes(&inner);
                 let entry_off = entry_table_start + i * BATCH_ENTRY_LEN;
                 writer.patch_u32(entry_off, BATCH_STATUS_OK);
-                writer.patch_u32(entry_off + 4, off as u32);
-                writer.patch_u32(entry_off + 8, inner.len() as u32);
+                writer.patch_u32(entry_off + 4, envelope_u32(off));
+                writer.patch_u32(entry_off + 8, envelope_u32(inner.len()));
             }
             BatchEntry::Err(msg) => {
                 writer.write_bytes(msg.as_bytes());
                 let entry_off = entry_table_start + i * BATCH_ENTRY_LEN;
                 writer.patch_u32(entry_off, BATCH_STATUS_ERR);
-                writer.patch_u32(entry_off + 4, off as u32);
-                writer.patch_u32(entry_off + 8, msg.len() as u32);
+                writer.patch_u32(entry_off + 4, envelope_u32(off));
+                writer.patch_u32(entry_off + 8, envelope_u32(msg.len()));
             }
         }
     }
 
     let total = writer.position();
-    writer.patch_u32(8, total as u32);
+    writer.patch_u32(8, envelope_u32(total));
 }
 
 /// Encode a batch of results into a fresh `Vec<u8>`.
+#[must_use]
 pub fn encode_batch_to_vec(entries: &[BatchEntry<'_>]) -> Vec<u8> {
     let mut buf = Vec::with_capacity(estimate_batch_size(entries));
     encode_batch_into(&mut buf, entries);
@@ -413,12 +430,13 @@ pub struct SliceWriter<'a> {
 
 impl<'a> SliceWriter<'a> {
     #[inline]
-    pub fn new(buf: &'a mut [u8]) -> Self {
+    pub const fn new(buf: &'a mut [u8]) -> Self {
         Self { buf, pos: 0 }
     }
 
     #[inline]
-    pub fn finished_len(&self) -> usize {
+    #[must_use]
+    pub const fn finished_len(&self) -> usize {
         self.pos
     }
 }

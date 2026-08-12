@@ -1,4 +1,6 @@
-//! Incremental-build manifest. Persisted at
+//! Incremental-build manifest.
+//!
+//! Persisted at
 //! `<cacheDir>/manifest.json` (alongside the overlay tsconfig) and used
 //! by `super::overlay::materialize_overlay` to skip rewriting `.tsx`
 //! shadows when the source `.svelte` hasn't changed since the last run.
@@ -22,13 +24,17 @@ use serde::{Deserialize, Serialize};
 
 use super::diagnostic::{Diagnostic, DiagnosticSeverity, Range};
 
-/// On-disk schema version. Bump on any breaking change — including one to the
+/// On-disk schema version.
+///
+/// Bump on any breaking change — including one to the
 /// *content* an entry stands for, which `(mtime, size)` cannot detect: a cache
 /// written before v2 holds shadows that still carry svelte's ambient `*.svelte`
 /// wildcard into the program through their type reference (#2061).
 pub const MANIFEST_VERSION: u32 = 2;
 
-/// Sidecar cache of per-file `Diagnostic`s, persisted alongside the
+/// Sidecar cache of per-file `Diagnostic`s.
+///
+/// Persisted alongside the
 /// overlay manifest at `<cacheDir>/warnings.json`. On the next
 /// incremental run, files whose `(mtime_ms, size)` matches the cached
 /// stats skip recompilation and emit the cached diagnostics directly,
@@ -73,6 +79,7 @@ pub struct Manifest {
 }
 
 impl Manifest {
+    #[must_use]
     pub fn empty() -> Self {
         Self {
             version: MANIFEST_VERSION,
@@ -85,6 +92,11 @@ impl Manifest {
 /// Load a manifest from disk, returning an empty manifest if the file
 /// is missing, malformed, or stamped with a different schema version.
 /// All paths are resolved to absolute via `workspace`.
+#[must_use]
+#[allow(
+    clippy::items_after_statements,
+    reason = "the deserialize-only wire schemas remain next to their sole reader"
+)]
 pub fn load(manifest_path: &Path, workspace: &Path) -> Manifest {
     let Ok(text) = fs::read_to_string(manifest_path) else {
         return Manifest::empty();
@@ -141,9 +153,15 @@ pub fn load(manifest_path: &Path, workspace: &Path) -> Manifest {
     }
 }
 
-/// Persist `manifest` to disk. All absolute paths in entries are
-/// converted to workspace-relative POSIX strings so the manifest stays
-/// portable. The parent directory is created if missing.
+/// Persists a portable, workspace-relative manifest.
+///
+/// # Errors
+///
+/// Returns a filesystem or serialization error.
+#[allow(
+    clippy::items_after_statements,
+    reason = "the serialize-only wire schemas remain next to their sole writer"
+)]
 pub fn save(manifest_path: &Path, manifest: &Manifest, workspace: &Path) -> std::io::Result<()> {
     if let Some(parent) = manifest_path.parent() {
         fs::create_dir_all(parent)?;
@@ -187,12 +205,14 @@ pub fn save(manifest_path: &Path, manifest: &Manifest, workspace: &Path) -> std:
     fs::write(manifest_path, json)
 }
 
-/// Drop manifest entries whose source `.svelte` no longer appears in
-/// `current_sources`, and unlink the now-orphaned `.tsx` / `.d.ts` /
-/// `.d.svelte.ts` shadows so the cache directory doesn't grow without bound.
+/// Drops entries for sources absent from `current_sources`.
+///
+/// Also unlinks their orphaned overlay artifacts.
 pub fn prune_deleted(manifest: &mut Manifest, current_sources: &[PathBuf]) {
-    let live: std::collections::HashSet<&Path> =
-        current_sources.iter().map(|p| p.as_path()).collect();
+    let live: std::collections::HashSet<&Path> = current_sources
+        .iter()
+        .map(std::path::PathBuf::as_path)
+        .collect();
     let mut stale_keys = Vec::new();
     for key in manifest.entries.keys() {
         if !live.contains(key.as_path()) {
@@ -213,6 +233,7 @@ pub fn prune_deleted(manifest: &mut Manifest, current_sources: &[PathBuf]) {
 /// `(mtime_ms, size)` for `path`, or `None` when the file is missing or
 /// inaccessible. Mirrors the JS reference's `fs.statSync(...).mtimeMs`
 /// + `.size` cache key.
+#[must_use]
 pub fn current_stats(path: &Path) -> Option<(i64, u64)> {
     let meta = fs::metadata(path).ok()?;
     let modified = meta.modified().ok()?;
@@ -222,8 +243,8 @@ pub fn current_stats(path: &Path) -> Option<(i64, u64)> {
 
 fn system_time_to_millis(t: SystemTime) -> i64 {
     match t.duration_since(SystemTime::UNIX_EPOCH) {
-        Ok(d) => d.as_millis() as i64,
-        Err(e) => -(e.duration().as_millis() as i64),
+        Ok(duration) => i64::try_from(duration.as_millis()).unwrap_or(i64::MAX),
+        Err(error) => -i64::try_from(error.duration().as_millis()).unwrap_or(i64::MAX),
     }
 }
 
@@ -268,6 +289,7 @@ pub struct SerializableDiagnostic {
 }
 
 impl SerializableDiagnostic {
+    #[must_use]
     pub fn from_live(d: &Diagnostic) -> Self {
         Self {
             file: d.file.clone(),
@@ -283,6 +305,7 @@ impl SerializableDiagnostic {
     /// `&'static str` via the known set of sources — anything outside
     /// the set falls back to `"svelte"` (the safe default — these are
     /// rsvelte compile warnings, not foreign diagnostics).
+    #[must_use]
     pub fn into_live(self) -> Diagnostic {
         let source: &'static str = match self.source.as_str() {
             "ts" => "ts",
@@ -315,6 +338,7 @@ pub struct WarningCache {
 }
 
 impl WarningCache {
+    #[must_use]
     pub fn empty() -> Self {
         Self {
             version: WARNINGS_VERSION,
@@ -324,6 +348,11 @@ impl WarningCache {
     }
 }
 
+#[must_use]
+#[allow(
+    clippy::items_after_statements,
+    reason = "the deserialize-only wire schemas remain next to their sole reader"
+)]
 pub fn load_warnings(path: &Path, workspace: &Path) -> WarningCache {
     let Ok(text) = fs::read_to_string(path) else {
         return WarningCache::empty();
@@ -392,6 +421,15 @@ pub fn load_warnings(path: &Path, workspace: &Path) -> WarningCache {
     }
 }
 
+/// Persists cached compiler warnings.
+///
+/// # Errors
+///
+/// Returns a filesystem or serialization error.
+#[allow(
+    clippy::items_after_statements,
+    reason = "the serialize-only wire schemas remain next to their sole writer"
+)]
 pub fn save_warnings(path: &Path, cache: &WarningCache, workspace: &Path) -> std::io::Result<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
@@ -455,8 +493,10 @@ pub fn save_warnings(path: &Path, cache: &WarningCache, workspace: &Path) -> std
 /// `current_sources`. Unlike the manifest, we don't unlink artifacts —
 /// the cache itself is the only sidecar.
 pub fn prune_warnings(cache: &mut WarningCache, current_sources: &[PathBuf]) {
-    let live: std::collections::HashSet<&Path> =
-        current_sources.iter().map(|p| p.as_path()).collect();
+    let live: std::collections::HashSet<&Path> = current_sources
+        .iter()
+        .map(std::path::PathBuf::as_path)
+        .collect();
     cache.entries.retain(|k, _| live.contains(k.as_path()));
 }
 

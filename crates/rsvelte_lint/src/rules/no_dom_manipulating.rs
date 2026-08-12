@@ -1,9 +1,10 @@
 //! `svelte/no-dom-manipulating` — disallow directly manipulating a DOM element
 //! that Svelte owns (one captured via `bind:this`). Mutating it behind Svelte's
-//! back desyncs the runtime's view of the DOM. Port of the eslint-plugin-svelte
-//! rule.
+//! back desyncs the runtime's view of the DOM.
 //!
-//! Runs over the `<script>` ESTree program via the [`ScriptRule`] hook, but also
+//! Port of the eslint-plugin-svelte rule.
+//!
+//! Runs over the `<script>` `ESTree` program via the [`ScriptRule`] hook, but also
 //! re-parses the template to find the DOM variables: an identifier captured by
 //! `bind:this` on an HTML element (`RegularElement`) or `<svelte:element>`
 //! (`SvelteElement`) — not on components — that resolves to a module/instance
@@ -84,7 +85,7 @@ fn collect_toplevel_decls(program: &Value, out: &mut HashSet<String>) {
                     }
                 }
             }
-            Some("FunctionDeclaration") | Some("ClassDeclaration") => {
+            Some("FunctionDeclaration" | "ClassDeclaration") => {
                 if let Some(n) = decl
                     .get("id")
                     .and_then(|i| i.get("name"))
@@ -248,8 +249,11 @@ impl ScriptRule for NoDomManipulating {
                 }
                 _ => false,
             };
-            if manipulates && let Some((s, e)) = pos(node) {
-                reports.push((s as u32, e as u32));
+            if manipulates
+                && let Some((s, e)) = pos(node)
+                && let (Ok(s), Ok(e)) = (u32::try_from(s), u32::try_from(e))
+            {
+                reports.push((s, e));
             }
         });
 

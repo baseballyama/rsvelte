@@ -1,7 +1,7 @@
 //! `svelte/no-trailing-spaces` — disallow trailing whitespace at the end of
 //! lines.
 //!
-//! Extension of the core ESLint `no-trailing-spaces` rule, taught about Svelte
+//! Extension of the core `ESLint` `no-trailing-spaces` rule, taught about Svelte
 //! template HTML comments. This is a **whole-source** rule: it scans every
 //! physical line of `ctx.source()` and reports each line whose end carries
 //! trailing whitespace (space / tab / form-feed / vertical-tab — anything the
@@ -48,6 +48,14 @@ static META: RuleMeta = RuleMeta {
         r#"[{"type":"object","properties":{"skipBlankLines":{"type":"boolean"},"ignoreComments":{"type":"boolean"}},"additionalProperties":false}]"#,
     ),
 };
+
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("source offsets are represented as u32")
+}
+
+fn json_offset(value: u64) -> Option<u32> {
+    u32::try_from(value).ok()
+}
 
 #[derive(Default)]
 pub struct NoTrailingSpaces;
@@ -119,9 +127,10 @@ fn collect_template_elements(node: &Value, li: &LineIndex, set: &mut HashSet<u32
                     map.get("start").and_then(Value::as_u64),
                     map.get("end").and_then(Value::as_u64),
                 )
+                && let (Some(start), Some(end)) = (json_offset(start), json_offset(end))
             {
-                let s = li.line(start as u32);
-                let e = li.line(end as u32);
+                let s = li.line(start);
+                let e = li.line(end);
                 if e >= 1 {
                     collect_range(set, s, e - 1);
                 }
@@ -209,10 +218,10 @@ impl Rule for NoTrailingSpaces {
             }
             let line = &source[line_start_byte..content_end];
 
-            self.check_line(
+            Self::check_line(
                 ctx,
                 line,
-                line_start_byte as u32,
+                source_offset(line_start_byte),
                 line_number,
                 skip_blank_lines,
                 &ignore_lines,
@@ -235,7 +244,6 @@ impl Rule for NoTrailingSpaces {
 
 impl NoTrailingSpaces {
     fn check_line(
-        &self,
         ctx: &mut LintContext,
         line: &str,
         line_start_byte: u32,
@@ -254,8 +262,8 @@ impl NoTrailingSpaces {
             return;
         }
         // Byte offset where the trailing whitespace run starts / ends.
-        let trim_byte = line_start_byte + trimmed.len() as u32;
-        let line_end_byte = line_start_byte + line.len() as u32;
+        let trim_byte = line_start_byte + source_offset(trimmed.len());
+        let line_end_byte = line_start_byte + source_offset(line.len());
         ctx.report_with_fix(
             trim_byte,
             line_end_byte,

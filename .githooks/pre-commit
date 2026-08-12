@@ -6,7 +6,7 @@ echo "Running pre-commit checks..."
 
 # Run cargo fmt
 echo "Checking formatting with cargo fmt..."
-cargo fmt -- --check
+cargo fmt --all -- --check
 if [ $? -ne 0 ]; then
     echo ""
     echo "ERROR: Code is not formatted. Run 'cargo fmt' to fix."

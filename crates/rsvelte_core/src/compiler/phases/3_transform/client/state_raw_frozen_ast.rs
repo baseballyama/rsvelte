@@ -63,7 +63,7 @@ struct StateRawFrozenCollector<'a, 'src> {
     replacements: Vec<Edit>,
 }
 
-impl<'a, 'src, 'ast> Visit<'ast> for StateRawFrozenCollector<'a, 'src> {
+impl<'ast> Visit<'ast> for StateRawFrozenCollector<'_, '_> {
     fn visit_variable_declarator(&mut self, decl: &VariableDeclarator<'ast>) {
         let saved = self.current_var.take();
         // Only single binding identifiers — destructuring patterns
@@ -112,7 +112,7 @@ impl<'a, 'src, 'ast> Visit<'ast> for StateRawFrozenCollector<'a, 'src> {
         let rewrite = if is_non_reactive {
             value_text
         } else {
-            format!("$.state({})", value_text)
+            format!("$.state({value_text})")
         };
 
         self.replacements

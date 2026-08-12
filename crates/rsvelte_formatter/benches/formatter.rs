@@ -5,7 +5,7 @@
 //! in-repo corpus** at `benches/corpus/` plus a couple of deterministic
 //! synthetic stress files. Inputs are committed to the repo (never read from
 //! the `svelte` submodule) so the workload and benchmark IDs stay stable
-//! across submodule bumps — the precondition for a meaningful CodSpeed diff.
+//! across submodule bumps — the precondition for a meaningful `CodSpeed` diff.
 
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use std::fmt::Write as _;

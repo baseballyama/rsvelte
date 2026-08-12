@@ -78,35 +78,144 @@ fn has_top_level_arrow(src: &str) -> bool {
     false
 }
 
+fn format_overflowing_arrow(
+    source: &str,
+    options: &FormatOptions,
+    attr_depth: usize,
+    prefix: usize,
+    indent_cols: usize,
+    formatted: &str,
+    tab_width: usize,
+) -> Result<String, FormatError> {
+    let line_width = options.js.line_width.value() as usize;
+    let base_width = line_width.saturating_sub(indent_cols);
+    let inline_len = formatted.visual_width(tab_width);
+    let inline_total = indent_cols + prefix + 1 + inline_len + 1;
+    let extra_lead = if inline_total > line_width + 1 {
+        base_width.saturating_sub(inline_len) + 1
+    } else {
+        prefix.saturating_sub(options.js.indent_width.value() as usize)
+    };
+    format_attribute_value_expression(source, options, attr_depth, extra_lead)
+}
+
+fn format_overflowing_block(
+    source: &str,
+    options: &FormatOptions,
+    attr_depth: usize,
+    indent_cols: usize,
+    formatted: &str,
+    tab_width: usize,
+) -> Result<String, FormatError> {
+    let base_width = (options.js.line_width.value() as usize).saturating_sub(indent_cols);
+    let extra_lead = base_width.saturating_sub(formatted.visual_width(tab_width).saturating_sub(1));
+    format_attribute_value_expression(source, options, attr_depth, extra_lead)
+}
+
+fn sorted_attribute_expression(
+    node: &AttributeNode,
+    source: &str,
+    options: &FormatOptions,
+) -> Option<String> {
+    (options.class_sorter.is_some()
+        && options
+            .class_attributes
+            .iter()
+            .any(|attribute| attribute == node.name.as_str()))
+    .then(|| crate::tailwind_sort::sort_class_expression(source, options))?
+}
+
+fn attribute_expression_source<'a>(
+    node: &AttributeNode,
+    source: &'a str,
+    options: &FormatOptions,
+) -> std::borrow::Cow<'a, str> {
+    sorted_attribute_expression(node, source, options).map_or_else(
+        || std::borrow::Cow::Borrowed(source),
+        std::borrow::Cow::Owned,
+    )
+}
+
+fn render_expression_attribute(name: &str, formatted: &str, allow_shorthand: bool) -> String {
+    let valid_identifier =
+        name.chars().next().is_some_and(|character| {
+            character.is_alphabetic() || character == '_' || character == '$'
+        }) && name
+            .chars()
+            .all(|character| character.is_alphanumeric() || character == '_' || character == '$');
+    if allow_shorthand && valid_identifier && formatted == name {
+        format!("{{{formatted}}}")
+    } else {
+        format!("{name}={{{formatted}}}")
+    }
+}
+
+fn narrow_multiline_shallow_value(
+    source: &str,
+    options: &FormatOptions,
+    attr_depth: usize,
+    prefix: usize,
+    indent_cols: usize,
+    line_width: usize,
+    formatted: String,
+    tab_width: usize,
+) -> Result<String, FormatError> {
+    let first_line = formatted.lines().next().unwrap_or("").trim_end();
+    let total = indent_cols + prefix + first_line.visual_width(tab_width) + 1;
+    if total > line_width {
+        let tighter = format_attribute_value_expression(
+            source,
+            options,
+            attr_depth,
+            prefix + (total - line_width) + 1,
+        )?;
+        if tighter.lines().next().unwrap_or("").trim_end() != first_line {
+            return Ok(tighter);
+        }
+    }
+    if first_line.ends_with(['{', '[', '(']) {
+        return Ok(formatted);
+    }
+    let prefixed = format_attribute_value_expression(source, options, attr_depth, prefix)?;
+    if prefixed.lines().next().unwrap_or("").trim_end() == first_line {
+        Ok(formatted)
+    } else {
+        Ok(prefixed)
+    }
+}
+
+fn attribute_value_layout(
+    node: &AttributeNode,
+    options: &FormatOptions,
+    attr_depth: usize,
+    tab_width: usize,
+) -> (usize, usize, usize) {
+    let indent_width = options.js.indent_width.value() as usize;
+    (
+        node.name.as_str().visual_width(tab_width) + 2,
+        attr_depth * indent_width,
+        options.js.line_width.value() as usize,
+    )
+}
+
 /// Render an attribute whose value is a single `{expr}` mustache (whether the
 /// source wrote it bare `attr={expr}` or quoted `attr="{expr}"` — prettier
 /// renders both unquoted). Applies the `name={name}` → `{name}` shorthand.
 fn render_single_expression_value(
     node: &AttributeNode,
     inner_src: &str,
-    _source: &str,
     options: &FormatOptions,
     attr_depth: usize,
     narrow_value: bool,
 ) -> Result<String, FormatError> {
-    let tw = tab_width(options);
     if inner_src.is_empty() {
         return Ok(format!("{}={{}}", node.name));
     }
+    let tw = tab_width(options);
     // Tailwind class sort for a `class={expr}` (or configured attribute) mustache:
     // reorder every class literal in the expression before formatting. Unlike the
     // static path, this is not function-gated — mirrors oxfmt's `transformSvelte`.
-    let sorted_expr = if options.class_sorter.is_some()
-        && options
-            .class_attributes
-            .iter()
-            .any(|a| a == node.name.as_str())
-    {
-        crate::tailwind_sort::sort_class_expression(inner_src, options)
-    } else {
-        None
-    };
-    let inner_src = sorted_expr.as_deref().unwrap_or(inner_src);
+    let inner_src = attribute_expression_source(node, inner_src, options);
     // When the open tag wraps, attribute values are narrowed so OXC breaks them
     // at the right column.  Two cases:
     //
@@ -141,12 +250,10 @@ fn render_single_expression_value(
     //     Using `prefix - indent_width` as extra_lead would over-narrow the budget
     //     and wrongly break inner expressions for deep objects like
     //     `classes={{ input: styles.fn({ prop: clsx(a, b) }) }}`.
-    let prefix = node.name.as_str().visual_width(tw) + 2;
-    let indent_width = options.js.indent_width.value() as usize;
-    let formatted = format_attribute_value_expression(inner_src, options, attr_depth, 0)?;
+    let formatted = format_attribute_value_expression(&inner_src, options, attr_depth, 0)?;
     let formatted = if narrow_value {
-        let indent_cols = attr_depth * indent_width;
-        let line_width = options.js.line_width.value() as usize;
+        let (prefix, indent_cols, line_width) =
+            attribute_value_layout(node, options, attr_depth, tw);
         if !formatted.contains('\n') {
             // Single-line: check if the full rendered line `indent + name={value}`
             // overflows. `prefix` (`name.len() + 2`) already covers `name={`
@@ -155,7 +262,7 @@ fn render_single_expression_value(
             // the width by one and wrongly break a value that fills exactly to the
             // print width (an 80-column `disabledDates={[…]}` line).
             if indent_cols + prefix + formatted.visual_width(tw) + 1 > line_width {
-                if is_shallow_value(inner_src) {
+                if is_shallow_value(&inner_src) {
                     // For a shallow expression (call / ternary / binary / logical chain),
                     // first try re-formatting with `extra_lead = prefix`.  If that
                     // produces a single-line result (i.e., the expression still fits
@@ -172,7 +279,7 @@ fn render_single_expression_value(
                     // narrowed=44 (= single_line_len) keeps the argument on one line
                     // (arg=44 ≤ 44).
                     let prefix_result =
-                        format_attribute_value_expression(inner_src, options, attr_depth, prefix)?;
+                        format_attribute_value_expression(&inner_src, options, attr_depth, prefix)?;
                     if prefix_result.contains('\n') {
                         let has_chain_break = prefix_result.lines().skip(1).any(|line| {
                             let line = line.trim_start();
@@ -188,7 +295,7 @@ fn render_single_expression_value(
                             }
                             let overflow = prefix_total - line_width;
                             let tighter = format_attribute_value_expression(
-                                inner_src,
+                                &inner_src,
                                 options,
                                 attr_depth,
                                 prefix + overflow + 1,
@@ -203,7 +310,7 @@ fn render_single_expression_value(
                         if extra_lead < prefix {
                             // Widening would give more room — try the wider result.
                             let wider = format_attribute_value_expression(
-                                inner_src, options, attr_depth, extra_lead,
+                                &inner_src, options, attr_depth, extra_lead,
                             )?;
                             // Only use the wider result if it is still multi-line
                             // (ensures the break happened — single-line would mean we
@@ -219,7 +326,7 @@ fn render_single_expression_value(
                     } else {
                         prefix_result
                     }
-                } else if has_top_level_arrow(inner_src) {
+                } else if has_top_level_arrow(&inner_src) {
                     // Arrow function: narrow so the arrow body breaks when the
                     // attribute line overflows.
                     //
@@ -238,97 +345,55 @@ fn render_single_expression_value(
                     // narrowing).  Do NOT take max with `prefix - indent_width` because
                     // that over-narrows the body when `prefix` is large (e.g. a
                     // 15-char attribute name like `onValueChange`).
-                    let base_width = line_width.saturating_sub(indent_cols);
-                    let inline_len = formatted.visual_width(tw);
-                    let inline_total = indent_cols + prefix + 1 + inline_len + 1;
-                    let arrow_extra = if inline_total > line_width + 1 {
-                        // Overflow >= 2: use tight narrowing to force the arrow break
-                        // while giving the body maximum room.
-                        base_width.saturating_sub(inline_len) + 1
-                    } else {
-                        // Overflow == 1: oracle allows it to stay single-line.
-                        prefix.saturating_sub(indent_width)
-                    };
-                    format_attribute_value_expression(inner_src, options, attr_depth, arrow_extra)?
+                    format_overflowing_arrow(
+                        &inner_src,
+                        options,
+                        attr_depth,
+                        prefix,
+                        indent_cols,
+                        &formatted,
+                        tw,
+                    )?
                 } else {
                     // Block-body (object / array / function): force expansion by
                     // formatting at exactly one char narrower than the inline form.
                     // The `format_attribute_value_expression` API uses extra_lead,
                     // so convert: narrowed = full_width − indent_cols − extra_lead,
                     // meaning extra_lead = full_width − indent_cols − (inline_len − 1).
-                    let inline_len = formatted.visual_width(tw);
-                    // full_width − indent_cols is the budget without extra_lead
-                    let base_width = line_width.saturating_sub(indent_cols);
-                    // extra_lead that yields narrowed = inline_len − 1
-                    let extra_lead = base_width.saturating_sub(inline_len.saturating_sub(1));
-                    format_attribute_value_expression(inner_src, options, attr_depth, extra_lead)?
+                    format_overflowing_block(
+                        &inner_src,
+                        options,
+                        attr_depth,
+                        indent_cols,
+                        &formatted,
+                        tw,
+                    )?
                 }
             } else {
                 formatted
             }
-        } else if is_shallow_value(inner_src) {
-            // Multi-line shallow: check the first line to decide whether to
-            // re-format with extra_lead.
-            let first_line = formatted.lines().next().unwrap_or("").trim_end();
-            let first_line_total = indent_cols + prefix + first_line.visual_width(tw) + 1;
-            if first_line_total > line_width {
-                let overflow = first_line_total - line_width;
-                let tighter = format_attribute_value_expression(
-                    inner_src,
-                    options,
-                    attr_depth,
-                    prefix + overflow + 1,
-                )?;
-                if tighter.lines().next().unwrap_or("").trim_end() != first_line {
-                    return Ok(format!("{}={{{tighter}}}", node.name));
-                }
-            }
-            // If the first line ends with `{` or `[`, an inner block/array is
-            // being expanded — the continuation lines are inside that block and
-            // do NOT start at the attribute column with the `name={` prefix.
-            // Keep the wider-width result to avoid over-constraining inner exprs.
-            if first_line.ends_with('{') || first_line.ends_with('[') || first_line.ends_with('(') {
-                formatted
-            } else {
-                // The `name={` prefix only narrows the FIRST line; continuation
-                // lines sit at the attribute indent (already measured). Adopt the
-                // prefix-narrowed result only when it changes the first line, else
-                // keep the indent-only one so nested interiors aren't over-broken.
-                let prefixed =
-                    format_attribute_value_expression(inner_src, options, attr_depth, prefix)?;
-                let prefixed_first = prefixed.lines().next().unwrap_or("").trim_end();
-                if prefixed_first == first_line {
-                    formatted
-                } else {
-                    prefixed
-                }
-            }
+        } else if is_shallow_value(&inner_src) {
+            narrow_multiline_shallow_value(
+                &inner_src,
+                options,
+                attr_depth,
+                prefix,
+                indent_cols,
+                line_width,
+                formatted,
+                tw,
+            )?
         } else {
             formatted
         }
     } else {
         formatted
     };
-    // Svelte attribute shorthand: `name={name}` → `{name}`.
-    // Only apply shorthand when the attribute name is a valid JS identifier
-    // (starts with a letter, `_`, or `$`; remainder is alphanumeric / `_` / `$`).
-    // Names like `0` or `my-attr` are not valid identifiers and must keep the
-    // full `name={expr}` form to avoid producing invalid Svelte syntax.
-    let name = node.name.as_str();
-    let is_valid_js_identifier = name
-        .chars()
-        .next()
-        .is_some_and(|c| c.is_alphabetic() || c == '_' || c == '$')
-        && name
-            .chars()
-            .all(|c| c.is_alphanumeric() || c == '_' || c == '$');
-    // `name={name}` → `{name}` only when shorthand is allowed
-    // (`svelteAllowShorthand`, default true).
-    if options.allow_shorthand && is_valid_js_identifier && formatted == name {
-        Ok(format!("{{{formatted}}}"))
-    } else {
-        Ok(format!("{}={{{formatted}}}", name))
-    }
+    Ok(render_expression_attribute(
+        node.name.as_str(),
+        &formatted,
+        options.attributes.allow_shorthand,
+    ))
 }
 
 pub(super) fn render_attribute_node(
@@ -343,14 +408,7 @@ pub(super) fn render_attribute_node(
         AttributeValue::True(_) => Ok(node.name.to_string()),
         AttributeValue::Expression(tag) => {
             let inner_src = expression_tag_inner(tag, source).trim();
-            render_single_expression_value(
-                node,
-                inner_src,
-                source,
-                options,
-                attr_depth,
-                narrow_value,
-            )
+            render_single_expression_value(node, inner_src, options, attr_depth, narrow_value)
         }
         // prettier-plugin-svelte strips the quotes around a value that is a
         // single mustache and nothing else: `attr="{expr}"` → `attr={expr}`
@@ -366,14 +424,7 @@ pub(super) fn render_attribute_node(
                 unreachable!()
             };
             let inner_src = expression_tag_inner(tag, source).trim();
-            render_single_expression_value(
-                node,
-                inner_src,
-                source,
-                options,
-                attr_depth,
-                narrow_value,
-            )
+            render_single_expression_value(node, inner_src, options, attr_depth, narrow_value)
         }
         AttributeValue::Sequence(parts) => {
             // Tailwind class sort: a fully static value (no `{expr}`) of a

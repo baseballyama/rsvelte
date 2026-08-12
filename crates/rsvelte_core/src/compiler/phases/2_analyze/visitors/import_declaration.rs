@@ -1,4 +1,4 @@
-//! ImportDeclaration visitor.
+//! `ImportDeclaration` visitor.
 //!
 //! Analyzes import declarations.
 //!
@@ -9,7 +9,7 @@ use super::VisitorContext;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
-/// Visit an import declaration (typed JsNode path).
+/// Visit an import declaration (typed `JsNode` path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     if let JsNode::ImportDeclaration {
         source, specifiers, ..

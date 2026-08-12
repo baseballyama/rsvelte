@@ -1,9 +1,10 @@
 //! `svelte/no-immutable-reactive-statements` — disallow a `$:` reactive
 //! statement whose every referenced variable is immutable, because such a
-//! statement never re-runs (it isn't actually reactive). Port of the
-//! eslint-plugin-svelte rule.
+//! statement never re-runs (it isn't actually reactive).
 //!
-//! Runs over the `<script>` ESTree program via the [`ScriptRule`] hook. A
+//! Port of the eslint-plugin-svelte rule.
+//!
+//! Runs over the `<script>` `ESTree` program via the [`ScriptRule`] hook. A
 //! variable is **mutable** when it is a prop (`export let`), a reactive store
 //! reference (`$store`), reassigned, or mutated — and `analyze_scope` already
 //! folds template-side writes (two-way `bind:`, `{#each}` context writes, member
@@ -21,6 +22,7 @@
 
 use std::collections::HashSet;
 
+use rsvelte_core::compiler::ComponentAnalysis;
 use serde_json::Value;
 
 use crate::context::LintContext;
@@ -40,6 +42,32 @@ static META: RuleMeta = RuleMeta {
     docs: "Disallow reactive statements that don't reference reactive values",
     options_schema: None,
 };
+
+fn scope_binding_sets(analysis: Option<&ComponentAnalysis>) -> (HashSet<&str>, HashSet<&str>) {
+    analysis.map_or_else(
+        || (HashSet::new(), HashSet::new()),
+        |analysis| {
+            let names = analysis
+                .root
+                .bindings
+                .iter()
+                .map(|binding| binding.name.as_str())
+                .collect();
+            let mutable = analysis
+                .root
+                .bindings
+                .iter()
+                .filter(|binding| binding.reassigned || binding.mutated)
+                .map(|binding| binding.name.as_str())
+                .collect();
+            (names, mutable)
+        },
+    )
+}
+
+fn json_offset(value: u64) -> Option<u32> {
+    u32::try_from(value).ok()
+}
 
 const MESSAGE: &str = "This statement is not reactive because all variables referenced in the reactive statement are immutable.";
 
@@ -298,11 +326,11 @@ fn collect_write_only_lhs_spans(node: &Value, out: &mut Vec<(u32, u32)>) {
         let start = left
             .and_then(|l| l.get("start"))
             .and_then(Value::as_u64)
-            .map(|v| v as u32);
+            .and_then(json_offset);
         let end = left
             .and_then(|l| l.get("end"))
             .and_then(Value::as_u64)
-            .map(|v| v as u32);
+            .and_then(json_offset);
         if let (Some(s), Some(e)) = (start, end) {
             out.push((s, e));
         }
@@ -315,7 +343,7 @@ fn collect_write_only_lhs_spans(node: &Value, out: &mut Vec<(u32, u32)>) {
 /// Svelte but may not appear in `analyze_scope`'s `binding_names` when the
 /// scope builder doesn't handle the destructuring reactive-declaration pattern.
 /// Treating them as "known" ensures write-only refs in the LHS are skipped
-/// rather than triggering the "undeclared → should_skip" path.
+/// rather than triggering the "undeclared → `should_skip`" path.
 fn collect_reactive_decl_names(program: &Value, out: &mut HashSet<String>) {
     let Some(body) = program.get("body").and_then(Value::as_array) else {
         return;
@@ -412,20 +440,7 @@ impl ScriptRule for NoImmutableReactiveStatements {
         // only report structurally obvious non-reactive statements.
         let analysis = ctx.scope_analysis();
 
-        let (binding_names, mutable_bindings): (HashSet<&str>, HashSet<&str>) =
-            if let Some(ref a) = analysis {
-                let names = a.root.bindings.iter().map(|b| b.name.as_str()).collect();
-                let mutable = a
-                    .root
-                    .bindings
-                    .iter()
-                    .filter(|b| b.reassigned || b.mutated)
-                    .map(|b| b.name.as_str())
-                    .collect();
-                (names, mutable)
-            } else {
-                (HashSet::new(), HashSet::new())
-            };
+        let (binding_names, mutable_bindings) = scope_binding_sets(analysis.as_deref());
 
         let mut props: HashSet<String> = HashSet::new();
         collect_export_let_props(program, &mut props);
@@ -565,8 +580,8 @@ impl ScriptRule for NoImmutableReactiveStatements {
                 }
             });
 
-            if !should_skip {
-                reports.push((ts as u32, te as u32));
+            if !should_skip && let (Some(ts), Some(te)) = (json_offset(ts), json_offset(te)) {
+                reports.push((ts, te));
             }
         });
 

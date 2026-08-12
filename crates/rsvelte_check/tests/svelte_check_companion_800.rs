@@ -9,7 +9,7 @@
 //! exports. The same fixture pins #751 (named imports resolved *from* the
 //! companion via `./Foo.svelte.js`) so neither direction regresses.
 //!
-//! Real-compiler e2e; skipped without TSGO_BIN or @typescript/native-preview.
+//! Real-compiler e2e; skipped without `TSGO_BIN` or @typescript/native-preview.
 
 use std::fs;
 use std::path::{Path, PathBuf};

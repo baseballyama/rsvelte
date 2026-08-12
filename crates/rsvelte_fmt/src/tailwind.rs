@@ -89,8 +89,7 @@ pub fn decide(
 
     let base_dir = config_path
         .and_then(Path::parent)
-        .map(Path::to_path_buf)
-        .unwrap_or_else(|| PathBuf::from("."));
+        .map_or_else(|| PathBuf::from("."), Path::to_path_buf);
 
     let strategy = parse_strategy(value);
     let attributes = attribute_names(value);
@@ -103,9 +102,7 @@ pub fn decide(
     match (strategy, classify(value, &base_dir)) {
         (_, Class::Unresolvable { reason }) => Decision::Skip { reason },
 
-        (Strategy::Native, Class::Default { .. }) | (Strategy::Auto, Class::Default { .. }) => {
-            native_sort(attributes)
-        }
+        (Strategy::Native | Strategy::Auto, Class::Default { .. }) => native_sort(attributes),
         (Strategy::Native, Class::Custom { reason, .. }) => Decision::Skip {
             reason: format!(
                 "{reason}; `strategy: \"native\"` cannot sort a custom Tailwind config"
@@ -113,7 +110,7 @@ pub fn decide(
         },
 
         (
-            Strategy::Auto,
+            Strategy::Auto | Strategy::Js,
             Class::Custom {
                 stylesheet,
                 config,
@@ -127,7 +124,7 @@ pub fn decide(
             attributes,
             preserve_whitespace,
             preserve_duplicates,
-            reason,
+            &reason,
         ),
 
         (Strategy::Js, Class::Default { stylesheet }) => {
@@ -144,23 +141,6 @@ pub fn decide(
                 native_sort(attributes)
             }
         }
-        (
-            Strategy::Js,
-            Class::Custom {
-                stylesheet,
-                config,
-                reason,
-            },
-        ) => sort_via_js_or_skip(
-            js_available,
-            filepath,
-            stylesheet,
-            config,
-            attributes,
-            preserve_whitespace,
-            preserve_duplicates,
-            reason,
-        ),
     }
 }
 
@@ -180,7 +160,7 @@ fn sort_via_js_or_skip(
     attributes: Vec<String>,
     preserve_whitespace: bool,
     preserve_duplicates: bool,
-    detect_reason: String,
+    detect_reason: &str,
 ) -> Decision {
     if js_available() {
         Decision::SortViaJs {
@@ -333,7 +313,7 @@ fn find_default_stylesheet(dir: &Path) -> Option<PathBuf> {
 /// package imports (`@import "tailwindcss"`) are left as-is.
 fn read_resolved(path: &Path) -> Option<String> {
     let src = std::fs::read_to_string(path).ok()?;
-    let dir = path.parent().unwrap_or(Path::new("."));
+    let dir = path.parent().unwrap_or_else(|| Path::new("."));
     let mut out = String::with_capacity(src.len());
     for line in src.lines() {
         if let Some(rel) = relative_import_target(line)

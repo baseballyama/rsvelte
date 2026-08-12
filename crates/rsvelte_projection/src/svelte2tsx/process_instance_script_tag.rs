@@ -25,7 +25,7 @@ use super::svelte2tsx::slice_src;
     clippy::too_many_arguments,
     reason = "mirrors the JS reference's processInstanceScriptContent(params) inputs"
 )]
-pub(crate) fn process_instance_script_tag(
+pub fn process_instance_script_tag(
     ast: &Root,
     instance_program: &oxc_ast::ast::Program,
     source: &str,
@@ -90,7 +90,7 @@ pub(crate) fn process_instance_script_tag(
         generics_param
             .as_ref()
             .filter(|g| !g.is_empty())
-            .map(|g| format!("\n/** @template {} */\n", g))
+            .map(|g| format!("\n/** @template {g} */\n"))
             .unwrap_or_default()
     } else {
         String::new()
@@ -109,13 +109,10 @@ pub(crate) fn process_instance_script_tag(
             .map(|g| {
                 if options.is_ts_file {
                     // TS files: no ignore markers around generics
-                    format!("<{}>", g)
+                    format!("<{g}>")
                 } else {
                     // JS files (non-JSDoc): wrap content in ignore markers
-                    format!(
-                        "</*\u{03A9}ignore_start\u{03A9}*/{}>/*\u{03A9}ignore_end\u{03A9}*/",
-                        g
-                    )
+                    format!("</*\u{03A9}ignore_start\u{03A9}*/{g}>/*\u{03A9}ignore_end\u{03A9}*/")
                 }
             })
             .unwrap_or_default()
@@ -134,9 +131,9 @@ pub(crate) fn process_instance_script_tag(
     // - `typeof x` (runtime value dependency on instance variables)
     // - generic type parameters from the `generics` attribute on <script>
     // - types that shadow module-level types
-    let force_inside_render = exported_names.has_component_props_typedef
+    let force_inside_render = exported_names.has_component_props_typedef()
         && exported_names.props_type_text.is_some()
-        && !exported_names.type_already_inserted
+        && !exported_names.type_already_inserted()
         && {
             let type_text = exported_names.props_type_text.as_ref().unwrap();
             // Check if type references an instance-local value via
@@ -150,15 +147,12 @@ pub(crate) fn process_instance_script_tag(
             );
             // Check if type references generics from $$render
             let has_generic_dep = !render_generics.is_empty()
-                && generics_param
-                    .as_ref()
-                    .map(|g| {
-                        // Extract generic param names and check if any appear in the type
-                        split_generic_param_names(g)
-                            .iter()
-                            .any(|name| type_text.contains(name.as_str()))
-                    })
-                    .unwrap_or(false);
+                && generics_param.as_ref().is_some_and(|g| {
+                    // Extract generic param names and check if any appear in the type
+                    split_generic_param_names(g)
+                        .iter()
+                        .any(|name| type_text.contains(name.as_str()))
+                });
             // Check if type references a type/interface name that is
             // declared at the top level of the instance script AND
             // *isn't* also slated for hoisting. References to a
@@ -175,15 +169,12 @@ pub(crate) fn process_instance_script_tag(
             has_typeof || has_generic_dep || has_shadowed_type
         };
 
-    let ts_component_props_before_render = if exported_names.has_component_props_typedef
-        && !exported_names.type_already_inserted
+    let ts_component_props_before_render = if exported_names.has_component_props_typedef()
+        && !exported_names.type_already_inserted()
         && !force_inside_render
         && let Some(type_text) = exported_names.props_type_text.as_ref()
     {
-        format!(
-            "{};type $$ComponentProps =  {};",
-            type_decl_prefix, type_text
-        )
+        format!("{type_decl_prefix};type $$ComponentProps =  {type_text};")
     } else {
         String::new()
     };
@@ -196,20 +187,19 @@ pub(crate) fn process_instance_script_tag(
     // `let { ... } = $props()` statement, matching the JS reference's
     // `preprendStr(node.parent.pos + astOffset, ...)` /
     // `move(generic_arg.pos, generic_arg.end, node.parent.pos)`.
-    let inline_type_at_let = (force_inside_render || exported_names.type_already_inserted)
+    let inline_type_at_let = (force_inside_render || exported_names.type_already_inserted())
         && exported_names.props_let_abs_pos.is_some()
         && exported_names.props_type_text.is_some();
-    let ts_component_props_inside_render = if (exported_names.type_already_inserted
+    let ts_component_props_inside_render = if (exported_names.type_already_inserted()
         || force_inside_render)
         && !inline_type_at_let
         && let Some(type_text) = exported_names.props_type_text.as_ref()
     {
         if force_inside_render {
-            format!("\n;type $$ComponentProps =  {};", type_text)
+            format!("\n;type $$ComponentProps =  {type_text};")
         } else {
             format!(
-                "\n/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
-                type_text
+                "\n/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {type_text};/*\u{03A9}ignore_end\u{03A9}*/"
             )
         }
     } else {
@@ -265,15 +255,7 @@ pub(crate) fn process_instance_script_tag(
         &ts_component_props_before_render
     };
     let part_b = format!(
-        "{}{}{}{}function $$render{}() {{{}{}{}",
-        part_b_prefix,
-        part_b_component_props,
-        template_comment,
-        async_prefix,
-        render_generics,
-        dollar_decls,
-        ts_component_props_inside_render,
-        trailing_newline
+        "{part_b_prefix}{part_b_component_props}{template_comment}{async_prefix}function $$render{render_generics}() {{{dollar_decls}{ts_component_props_inside_render}{trailing_newline}"
     );
 
     // Split position: right after the `<` of `<script>`. This matches
@@ -299,7 +281,7 @@ pub(crate) fn process_instance_script_tag(
         if ts_component_props_in_part_a && let Some(last) = imports.last() {
             str.append_left_fmt(
                 content_start + last.end,
-                format_args!("\n{}", ts_component_props_before_render),
+                format_args!("\n{ts_component_props_before_render}"),
             );
         }
         // Move hoistable type/interface declarations first so they
@@ -354,7 +336,7 @@ pub(crate) fn process_instance_script_tag(
                 str.move_range(s, e, sp);
             }
         }
-        for (s, e) in hoistable_snippet_ranges.iter() {
+        for (s, e) in hoistable_snippet_ranges {
             str.move_range(*s, *e, sp);
         }
         str.overwrite(sp, content_start, &part_b);
@@ -362,7 +344,7 @@ pub(crate) fn process_instance_script_tag(
         str.overwrite_fmt(
             script_start,
             content_start,
-            format_args!("{}{}", part_a, part_b),
+            format_args!("{part_a}{part_b}"),
         );
     }
 
@@ -373,13 +355,12 @@ pub(crate) fn process_instance_script_tag(
         )
     {
         let decl = if force_inside_render {
-            format!(";type $$ComponentProps =  {};", type_text)
+            format!(";type $$ComponentProps =  {type_text};")
         } else {
             // type_already_inserted (auto-generated SvelteKit / fallback type).
             // JS reference wraps in surroundWithIgnoreComments.
             format!(
-                "/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {};/*\u{03A9}ignore_end\u{03A9}*/",
-                type_text
+                "/*\u{03A9}ignore_start\u{03A9}*/;type $$ComponentProps = {type_text};/*\u{03A9}ignore_end\u{03A9}*/"
             )
         };
         // The JS reference relocates the annotation itself, so the alias is a
@@ -405,7 +386,7 @@ pub(crate) fn process_instance_script_tag(
     if content_end < script_end {
         let emit_slot_decl = has_slot_elements && !matches!(options.mode, Svelte2TsxMode::Dts);
         if emit_slot_decl {
-            let slot_generic = if exported_names.has_slots_type {
+            let slot_generic = if exported_names.has_slots_type() {
                 "<$$Slots>"
             } else {
                 ""
@@ -414,8 +395,7 @@ pub(crate) fn process_instance_script_tag(
                 content_end,
                 script_end,
                 format_args!(
-                    "\n/*\u{03A9}ignore_start\u{03A9}*/;const __sveltets_createSlot = __sveltets_2_createCreateSlot{}();/*\u{03A9}ignore_end\u{03A9}*/;\nasync () => {{",
-                    slot_generic
+                    "\n/*\u{03A9}ignore_start\u{03A9}*/;const __sveltets_createSlot = __sveltets_2_createCreateSlot{slot_generic}();/*\u{03A9}ignore_end\u{03A9}*/;\nasync () => {{"
                 ),
             );
         } else {
@@ -507,5 +487,8 @@ fn last_char_of(source: &str, end: u32) -> (u32, &str) {
     while !source.is_char_boundary(start) {
         start -= 1;
     }
-    (start as u32, &source[start..end as usize])
+    (
+        u32::try_from(start).expect("script offset fits in u32"),
+        &source[start..end as usize],
+    )
 }

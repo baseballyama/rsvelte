@@ -173,8 +173,7 @@ mod tests {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status()
-            .map(|s| s.success())
-            .unwrap_or(false)
+            .is_ok_and(|s| s.success())
             .then_some(node)
     }
 
@@ -198,7 +197,10 @@ mod tests {
     }
 
     fn req(classes: &[&str]) -> Vec<String> {
-        classes.iter().map(|s| s.to_string()).collect()
+        classes
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect()
     }
 
     /// Run `sort` against a fake sidecar `script_body`. `None` return means "no

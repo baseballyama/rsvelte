@@ -29,9 +29,12 @@ use rustc_hash::FxHashMap;
 use super::typed_expr::JsNode;
 
 /// Leading + trailing comment arrays attached to a node, keyed by the node's
-/// absolute `start` offset. Stored as raw ESTree `serde_json::Value`s (the same
-/// shape the parser emits), so they round-trip byte-identically through
-/// `parse()` output. Kept in a per-arena side table rather than on every
+/// absolute `start` offset.
+///
+/// Stored as raw `ESTree` `serde_json::Value`s (the same shape the parser emits), so they
+/// round-trip byte-identically through `parse()` output.
+///
+/// Kept in a per-arena side table rather than on every
 /// `JsNode` variant: comments are rare, and a side table avoids bloating every
 /// node by 32 bytes (mirrors the `ignore_comment_map` side-channel on `Program`).
 pub type NodeComments = (
@@ -44,7 +47,7 @@ pub type NodeComments = (
 pub struct JsNodeId(pub u32);
 
 /// A contiguous range of `JsNode` children stored in the arena.
-/// Replaces `Vec<JsNode>` with (start_index, length).
+/// Replaces `Vec<JsNode>` with (`start_index`, length).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct IdRange {
     pub start: u32,
@@ -53,12 +56,14 @@ pub struct IdRange {
 
 impl IdRange {
     #[inline(always)]
-    pub fn empty() -> Self {
+    #[must_use]
+    pub const fn empty() -> Self {
         IdRange { start: 0, len: 0 }
     }
 
     #[inline(always)]
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.len == 0
     }
 }
@@ -89,7 +94,7 @@ struct ChildStore {
 
 impl ChildStore {
     #[inline]
-    fn new() -> Self {
+    const fn new() -> Self {
         ChildStore {
             slots: Vec::new(),
             blocks: Vec::new(),
@@ -185,7 +190,7 @@ struct NodeStore {
 
 impl NodeStore {
     #[inline]
-    fn new() -> Self {
+    const fn new() -> Self {
         NodeStore {
             chunks: Vec::new(),
             len: 0,
@@ -209,7 +214,7 @@ impl NodeStore {
         // it without dropping the old value is correct.
         unsafe { self.ptr(index).write(node) };
         self.len = index + 1;
-        index as u32
+        u32::try_from(index).expect("arena indices are limited to u32")
     }
 
     /// Raw pointer to the node slot at `index`.
@@ -249,13 +254,13 @@ impl Drop for NodeStore {
 /// Allocation takes `&self` (not `&mut self`) so that builder functions
 /// can nest calls without borrow-checker conflicts.
 pub struct ParseArena {
-    /// All standalone JsNode instances (referenced by JsNodeId).
+    /// All standalone `JsNode` instances (referenced by `JsNodeId`).
     js_nodes: UnsafeCell<NodeStore>,
-    /// JsNode children for `Vec<JsNode>` fields (arguments, body, properties, etc.).
+    /// `JsNode` children for `Vec<JsNode>` fields (arguments, body, properties, etc.).
     /// `IdRange::start` is the physical index of the first child.
     js_children: UnsafeCell<ChildStore>,
     /// Bump arena reserved for subsequent migration phases. Currently unused —
-    /// Phase 0 adds it to ParseArena without changing public APIs so that
+    /// Phase 0 adds it to `ParseArena` without changing public APIs so that
     /// Phase 1+ have a place to allocate from.
     bump: Bump,
     /// Side table of `leadingComments`/`trailingComments` keyed by a node's
@@ -284,6 +289,7 @@ unsafe impl Send for ParseArena {}
 impl ParseArena {
     /// Create a new arena with minimal initial capacity.
     /// Capacity grows on demand during parsing.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             js_nodes: UnsafeCell::new(NodeStore::new()),
@@ -331,13 +337,13 @@ impl ParseArena {
     /// Returns a shared reference; the `Bump`'s own allocation APIs take
     /// `&self`, so callers can append without taking `&mut self`.
     #[inline]
-    pub fn bump(&self) -> &Bump {
+    pub const fn bump(&self) -> &Bump {
         &self.bump
     }
 
     // -- JsNode allocation ---------------------------------------------------
 
-    /// Allocate a JsNode and return its handle.
+    /// Allocate a `JsNode` and return its handle.
     #[inline(always)]
     pub fn alloc_js_node(&self, node: JsNode) -> JsNodeId {
         // SAFETY: ParseArena is `!Sync` (single-threaded). `UnsafeCell` is used
@@ -350,7 +356,7 @@ impl ParseArena {
         }
     }
 
-    /// Get a shared reference to a JsNode by handle.
+    /// Get a shared reference to a `JsNode` by handle.
     #[inline(always)]
     pub fn get_js_node(&self, id: JsNodeId) -> &JsNode {
         // SAFETY: Single-threaded read. The returned reference points into a
@@ -367,11 +373,15 @@ impl ParseArena {
         }
     }
 
-    /// Get a mutable reference to a JsNode by handle.
+    /// Get a mutable reference to a `JsNode` by handle.
     ///
     /// # Safety
     /// The caller must ensure no shared or mutable references to the same node
     /// are live for the duration of the returned borrow.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `id` does not identify an allocated node.
     #[inline(always)]
     #[allow(clippy::mut_from_ref)]
     pub unsafe fn get_js_node_mut(&self, id: JsNodeId) -> &mut JsNode {
@@ -386,7 +396,7 @@ impl ParseArena {
 
     // -- JsNode children (for Vec<JsNode> fields) ----------------------------
 
-    /// Get a slice of JsNode children by range.
+    /// Get a slice of `JsNode` children by range.
     #[inline(always)]
     pub fn get_js_children(&self, range: IdRange) -> &[JsNode] {
         if range.is_empty() {
@@ -406,11 +416,15 @@ impl ParseArena {
         }
     }
 
-    /// Get a mutable slice of JsNode children by range.
+    /// Get a mutable slice of `JsNode` children by range.
     ///
     /// # Safety
     /// The caller must ensure no shared or mutable references to the same child
     /// range are live for the duration of the returned borrow.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `range` is outside the allocated child nodes.
     #[inline(always)]
     #[allow(clippy::mut_from_ref)]
     pub unsafe fn get_js_children_mut(&self, range: IdRange) -> &mut [JsNode] {
@@ -429,6 +443,10 @@ impl ParseArena {
 
     /// Bulk-allocate children from a Vec and return the range.
     /// Used when children can't be allocated contiguously during parsing.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the child allocation's start or length exceeds `u32`.
     #[inline]
     pub fn alloc_js_children(&self, nodes: Vec<JsNode>) -> IdRange {
         let len = nodes.len();
@@ -447,8 +465,8 @@ impl ParseArena {
             }
             store.len = index;
             IdRange {
-                start: start as u32,
-                len: len as u32,
+                start: u32::try_from(start).expect("arena indices are limited to u32"),
+                len: u32::try_from(len).expect("arena lengths are limited to u32"),
             }
         }
     }
@@ -620,18 +638,21 @@ thread_local! {
 /// Whether node-comment capture is currently active (the `parse()` AST path).
 #[inline(always)]
 pub fn comment_capture_active() -> bool {
-    COMMENT_CAPTURE.with(|c| c.get())
+    COMMENT_CAPTURE.with(std::cell::Cell::get)
 }
 
 /// RAII guard that enables [`comment_capture_active`] for its lifetime,
 /// restoring the previous value on drop (so a comment-capturing `parse()`
-/// nested under a non-capturing one — or vice versa — leaves no residue).
+/// nested under a non-capturing one — or vice versa).
+///
+/// It leaves no residue.
 pub struct CommentCaptureGuard {
     prev: bool,
 }
 
 impl CommentCaptureGuard {
     #[inline]
+    #[must_use]
     pub fn new() -> Self {
         let prev = COMMENT_CAPTURE.with(|c| c.replace(true));
         CommentCaptureGuard { prev }
@@ -725,7 +746,11 @@ pub fn try_with_current_serialize_arena<R>(f: impl FnOnce(&ParseArena) -> R) -> 
     })
 }
 
-/// Run `f` with the current serialize arena. Panics if no arena is set.
+/// Run `f` with the current serialize arena.
+///
+/// # Panics
+///
+/// Panics if no serialize arena is set for the current thread.
 #[inline]
 pub fn with_current_serialize_arena<R>(f: impl FnOnce(&ParseArena) -> R) -> R {
     try_with_current_serialize_arena(f).expect("serialize arena not set")
@@ -740,6 +765,7 @@ pub fn clear_serialize_arena() {
 
 /// Check if a serialize arena is currently set.
 #[inline(always)]
+#[must_use]
 pub fn has_serialize_arena() -> bool {
     SERIALIZE_ARENA.with(|cell| cell.get().is_some())
 }

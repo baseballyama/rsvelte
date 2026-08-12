@@ -22,7 +22,7 @@ use crate::width::{VisualWidth, tab_width};
 ///
 /// Falls back to `None` (caller uses the bare-node path) when the value
 /// braces can't be located, so non-`{expr}` values stay on the old path.
-pub(crate) fn format_directive_value(
+pub fn format_directive_value(
     source: &str,
     expr: &Expression,
     value_end: u32,
@@ -32,7 +32,7 @@ pub(crate) fn format_directive_value(
     format_directive_value_extra(source, expr, value_end, options, attr_depth, 0)
 }
 
-pub(crate) fn format_directive_value_extra(
+pub fn format_directive_value_extra(
     source: &str,
     expr: &Expression,
     value_end: u32,
@@ -106,7 +106,7 @@ fn directive_brace_inner<'a>(
     while i > 0 {
         i -= 1;
         match bytes[i] {
-            b' ' | b'\t' | b'\n' | b'\r' => continue,
+            b' ' | b'\t' | b'\n' | b'\r' => {}
             b'{' => {
                 open = Some(i);
                 break;
@@ -129,9 +129,6 @@ fn directive_brace_inner<'a>(
                     }
                 }
                 // `i` is now at the `/` of `/*` (or we hit the start of string).
-                // Continue the outer loop which will decrement `i` again, skipping
-                // the `/*` open.
-                continue;
             }
             _ => {
                 // This byte might be part of a `//` line comment.  Scan backward
@@ -153,10 +150,10 @@ fn directive_brace_inner<'a>(
                     // just before `//` (or wrap-underflow if at 0, but that
                     // terminates the loop).
                     i = line_start + rel;
-                    continue;
+                } else {
+                    // Not a line-comment line — stop scanning.
+                    break;
                 }
-                // Not a line-comment line — stop scanning.
-                break;
             }
         }
     }
@@ -190,7 +187,50 @@ fn directive_brace_inner<'a>(
 /// falls back to the normal single-expression directive path. `lead_cols` is the
 /// visual column at which the value's opening `{` lands once the open tag wraps
 /// (`attr_depth` indent + `bind:name=` prefix), used for the inline-fit check.
-pub(crate) fn format_function_binding(
+#[derive(Clone, Copy)]
+enum LeadingBlockComment<'a> {
+    Absent,
+    Present(&'a str, &'a str),
+}
+
+fn leading_block_comment(inner: &str) -> Option<LeadingBlockComment<'_>> {
+    if !inner.starts_with("/*") {
+        return Some(LeadingBlockComment::Absent);
+    }
+    let rel = inner.find("*/")?;
+    let comment = &inner[..rel + 2];
+    let rest = inner[rel + 2..].trim();
+    (!rest.is_empty()).then_some(LeadingBlockComment::Present(comment, rest))
+}
+
+fn inline_sequence_binding(
+    members: &[String],
+    leading_comment: LeadingBlockComment<'_>,
+    lead_cols: usize,
+    line_width: usize,
+    tab_width: usize,
+) -> Option<String> {
+    if members.iter().any(|member| member.contains('\n')) {
+        return None;
+    }
+    let inline = members.join(", ");
+    let (comment_prefix_cols, outer_parens_cols) = match leading_comment {
+        LeadingBlockComment::Present(comment, _) => (comment.visual_width(tab_width) + 1, 2),
+        LeadingBlockComment::Absent => (0, 0),
+    };
+    let inline_cols = lead_cols
+        + 1
+        + comment_prefix_cols
+        + outer_parens_cols
+        + inline.visual_width(tab_width)
+        + 1;
+    (inline_cols <= line_width).then(|| match leading_comment {
+        LeadingBlockComment::Present(comment, _) => format!("{{{comment} ({inline})}}"),
+        LeadingBlockComment::Absent => format!("{{{inline}}}"),
+    })
+}
+
+pub fn format_function_binding(
     source: &str,
     expr: &Expression,
     value_end: u32,
@@ -216,29 +256,15 @@ pub(crate) fn format_function_binding(
     // single-line (no multi-line attribute value that would force the tag to
     // wrap).  If the comment extraction or sequence parse fails we fall back to
     // `None` so the caller uses the normal directive-value path.
-    let leading_block_comment = if inner.starts_with("/*") {
-        // Find the end of the `/* … */` comment.
-        if let Some(rel) = inner.find("*/") {
-            let comment = &inner[..rel + 2]; // e.g. `/** ( */`
-            let rest = inner[rel + 2..].trim();
-            if rest.is_empty() {
-                // Comment-only value: fall back to normal path.
-                return Ok(None);
-            }
-            Some((comment, rest))
-        } else {
-            // Unclosed block comment: fall back.
-            return Ok(None);
-        }
-    } else {
-        None
+    let Some(leading_block_comment) = leading_block_comment(inner) else {
+        return Ok(None);
     };
 
     // The source to parse as a sequence: either the full `inner` (no leading
     // comment) or the rest after the comment.
     let seq_src = match leading_block_comment {
-        Some((_, rest)) => rest,
-        None => inner,
+        LeadingBlockComment::Present(_, rest) => rest,
+        LeadingBlockComment::Absent => inner,
     };
 
     // Detect a top-level sequence and recover each member's source span.
@@ -280,36 +306,11 @@ pub(crate) fn format_function_binding(
 
     let indent_width = options.js.indent_width.value() as usize;
     let line_width = options.js.line_width.value() as usize;
-    let any_multiline = members.iter().any(|m| m.contains('\n'));
-
-    // Inline candidate: keep it inline only when no member is multi-line and
-    // the whole value fits at its rendered column.
-    // When there is a leading block comment, prettier wraps the sequence in
-    // outer parens — e.g. `{/** comment */ (m1, m2)}` — so we account for the
-    // extra `comment + 2` columns (2 for the parens) in the width check.
     let inline = members.join(", ");
-    let comment_prefix_cols = leading_block_comment
-        .map(|(c, _)| c.visual_width(tw) + 1 /* space */)
-        .unwrap_or(0);
-    // +2 for outer parens when there is a comment, +0 otherwise.
-    let outer_parens_cols = if leading_block_comment.is_some() {
-        2
-    } else {
-        0
-    };
-    let inline_cols = lead_cols
-        + 1  // opening `{`
-        + comment_prefix_cols
-        + outer_parens_cols
-        + inline.visual_width(tw)
-        + 1; // closing `}`
-    if !any_multiline && inline_cols <= line_width {
-        return Ok(Some(if let Some((comment, _)) = leading_block_comment {
-            // `{/** comment */ (m1, m2)}`
-            format!("{{{comment} ({inline})}}")
-        } else {
-            format!("{{{inline}}}")
-        }));
+    if let Some(formatted) =
+        inline_sequence_binding(&members, leading_block_comment, lead_cols, line_width, tw)
+    {
+        return Ok(Some(formatted));
     }
 
     // Broken form: braces on their own lines.  prettier-plugin-svelte first tries
@@ -323,16 +324,16 @@ pub(crate) fn format_function_binding(
         " ".repeat(indent_width)
     };
     let inner_indent_cols = (attr_depth + 1) * indent_width;
-    let inline_on_one_line =
-        !any_multiline && inner_indent_cols + inline.visual_width(tw) <= line_width;
+    let inline_on_one_line = !members.iter().any(|member| member.contains('\n'))
+        && inner_indent_cols + inline.visual_width(tw) <= line_width;
 
     // When there is a leading block comment, include it on the first line.
-    let mut out = if let Some((comment, _)) = leading_block_comment {
+    let mut out = if let LeadingBlockComment::Present(comment, _) = leading_block_comment {
         format!("{{{comment}\n")
     } else {
         String::from("{\n")
     };
-    if inline_on_one_line && leading_block_comment.is_none() {
+    if inline_on_one_line && matches!(leading_block_comment, LeadingBlockComment::Absent) {
         // All members fit on one line inside the braces.
         out.push_str(&crate::reindent::reindent(&inline, &one_level, false));
         out.push('\n');

@@ -1,7 +1,5 @@
 //! Regular HTML elements and `<title>`. Mirrors `htmlxtojsx_v2/nodes/Element.ts`.
 
-use std::fmt::Write as _;
-
 use crate::ast::template::{RegularElement, SlotElement, TitleElement};
 use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, slice_src};
@@ -30,9 +28,9 @@ use super::snippet_block::hoist_snippet_blocks;
 /// Generates `{ svelteHTML.createElement("tagName", { ...attributes }); children }`.
 ///
 /// The opening tag `<h1 class="foo">` is overwritten with
-/// `{ svelteHTML.createElement("h1", {"class":\`foo\`,});`
+/// `{ svelteHTML.createElement("h1", {"class": "foo",});`
 /// and the closing tag `</h1>` is overwritten with ` }`.
-pub(crate) fn handle_regular_element(
+pub fn handle_regular_element(
     el: &RegularElement,
     source: &str,
     options: &Svelte2TsxOptions,
@@ -44,36 +42,7 @@ pub(crate) fn handle_regular_element(
         return;
     }
 
-    // A nested `<style>` element is removed entirely from the output,
-    // mirroring official svelte2tsx's `handleStyleTag` (the `case 'Style'`
-    // arm), which does `str.remove(node.start, node.end)` for every verbatim
-    // style node at any nesting depth. (A top-level `<style>` becomes
-    // `root.css` and never reaches this fragment walk, so any `style`
-    // RegularElement here is necessarily nested.) Note: nested `<script>`
-    // elements are NOT removed — official emits `createElement("script", {})`
-    // for them (only the JS content is blanked, which `handle_text` already
-    // does), so they fall through to the normal element path.
-    if el.name == "style" {
-        str.remove(el.start, el.end);
-        return;
-    }
-
-    // Official svelte2tsx switches the opener on the *tag name*, not the AST node
-    // type: any element named `slot` emits `__sveltets_createSlot(...)`. The parser
-    // only produces a `SlotElement` for `<slot>` outside a `<template
-    // shadowrootmode>`; inside one it is a `RegularElement` (mirroring upstream's
-    // `parent_is_shadowroot_template` check), yet svelte2tsx still lowers it to a
-    // slot. Route those through the same slot handler.
-    if el.name == "slot" {
-        let slot = SlotElement {
-            start: el.start,
-            end: el.end,
-            name: el.name.clone(),
-            name_loc: el.name_loc,
-            attributes: el.attributes.clone(),
-            fragment: el.fragment.clone(),
-        };
-        handle_slot_element(&slot, source, options, str, counter, depth);
+    if handle_special_regular_element(el, source, options, str, counter, depth) {
         return;
     }
 
@@ -84,10 +53,15 @@ pub(crate) fn handle_regular_element(
     // children do NOT inherit it (a nested element owns its own slot scope);
     // restore it afterwards for the following siblings.
     let saved_slot = counter.slot_inst.take();
-    if let Some(ref inst) = saved_slot
-        && slot_attr_static_name(&el.attributes).is_some()
-    {
-        handle_named_slot_element(el, inst, source, options, str, counter, depth);
+    if try_handle_named_slot(
+        el,
+        saved_slot.as_ref(),
+        source,
+        options,
+        str,
+        counter,
+        depth,
+    ) {
         counter.slot_inst = saved_slot;
         return;
     }
@@ -99,79 +73,13 @@ pub(crate) fn handle_regular_element(
     // (block included) is wiped by `handleStyleTag`.
     let default_slot_let = default_slot_let_block(&el.attributes, saved_slot.as_ref(), source);
 
-    // Find the end of the opening tag (after the `>`)
-    let opening_tag_end =
-        find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
+    let (opening_tag_end, attr_segs, before_block) =
+        regular_opener_attributes(el, source, options, counter, saved_slot.is_some());
 
-    // Build attribute segments. Source-bearing expressions become
-    // `Seg::Src` so the resulting overwrite leaves them as unedited
-    // MagicString chunks — which `generate_mappings` then maps
-    // per-character back to the original `.svelte` columns. Element-
-    // opener attribute expressions previously baked into a single
-    // edited chunk and collapsed to a single source-map segment.
-    // `saved_slot` (taken from `counter.slot_inst` above) is Some when this
-    // element is a slot-context child of a component — then `let:` is a slot-let,
-    // not a regular attribute.
-    // The opener content (where attributes + comments live) starts right after
-    // `<tagname`, so leading comments before the first attribute are recovered.
-    let opener_content_start = el.start + 1 + el.name.len() as u32;
-    let mut attr_segs = build_attribute_segments(
-        &el.attributes,
-        source,
-        &counter.element_opener_comments,
-        &el.name,
-        saved_slot.is_some(),
-        Some(opener_content_start),
-        options.namespace.preserves_attribute_case(),
-    );
-
-    let spacing = opener_spacing(
-        source,
-        el.start,
-        &el.name,
-        opening_tag_end,
-        Some((el.start + 1, opener_content_start)),
-        &el.attributes,
-        &counter.element_opener_comments,
-        OpenerCtx {
-            is_element: true,
-            in_component_slot: saved_slot.is_some(),
-            tag_name: &el.name,
-            is_slot_tag: false,
-        },
-    );
-    if spacing.in_attr_object > 0 {
-        let mut padded: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 1);
-        padded.push(Seg::Lit(" ".repeat(spacing.in_attr_object)));
-        padded.extend(attr_segs);
-        attr_segs = padded;
-    }
-
-    // V4-style action / transition / animate directive emission. Action
-    // becomes `const $$action_N = __sveltets_2_ensureAction(…);` BEFORE
-    // the createElement; transition / animate become
-    // `__sveltets_2_ensureTransition(…);` appended AFTER it. The
-    // createElement's second argument also needs to wrap any actions
-    // with `__sveltets_2_union(...)`. Mirrors
-    // `htmlxtojsx_v2/nodes/{Action,Transition,Animation}.ts`.
-    // Only the action PREFIX (`const $$action_N = …`) and the action count are
-    // taken here; the transition/animate suffix is emitted in source order by
-    // `build_element_directive_suffix_segments` below.
+    // Actions precede the element; other directive suffixes retain source order.
     let (directive_prefix, _directive_suffix, action_count) =
         build_directive_prefix_suffix(&el.attributes, source, &el.name);
-    let actions_arg = if action_count > 0 {
-        let mut args = String::from(", __sveltets_2_union(");
-        for i in 0..action_count {
-            if i > 0 {
-                args.push(',');
-            }
-            let _ = write!(args, "$$action_{}", i);
-        }
-        args.push(')');
-        args
-    } else {
-        String::new()
-    };
+    let actions_arg = action_arguments(action_count);
 
     // `bind:` directives generate a suffix appended right after the
     // createElement call. Mirrors `htmlxtojsx_v2/nodes/Binding.ts::handleBinding`.
@@ -184,7 +92,7 @@ pub(crate) fn handle_regular_element(
         // upstream Element.ts `computeDepth()`), not a per-tag counter — same
         // rule as component instance names.
         let sanitized = sanitize_tag_for_var(&el.name);
-        Some(format!("$$_{}{}", sanitized, depth))
+        Some(format!("$$_{sanitized}{depth}"))
     } else {
         None
     };
@@ -207,31 +115,29 @@ pub(crate) fn handle_regular_element(
     // (if any) are emitted *before* the inner `{ … createElement(…); … }`
     // block so they're in scope for `__sveltets_2_union(...)`. The inner
     // `{` opens a separate block scope.
-    let element_var_decl = if let Some(ref var) = element_var {
-        format!("const {} = ", var)
-    } else {
-        String::new()
-    };
+    let element_var_decl = element_var
+        .as_ref()
+        .map_or_else(String::new, |element_var| format!("const {element_var} = "));
     // The slot-let destructure sits *after* the opening tag's leading gap (the
     // gap is part of the same official `transform()` call), so emit the gap with
     // it and leave the createElement block unindented.
-    let indent = " ".repeat(spacing.before_block);
+    let indent = " ".repeat(before_block);
     let indent = match &default_slot_let {
         Some(block) => {
-            str.append_left_fmt(el.start, format_args!("{}{}", indent, block));
+            str.append_left_fmt(el.start, format_args!("{indent}{block}"));
             String::new()
         }
         None => indent,
     };
-    let header_lit = if !directive_prefix.is_empty() {
-        format!(
-            "{}{{{}{{ {}svelteHTML.createElement(\"{}\"{}, {{",
-            indent, directive_prefix, element_var_decl, el.name, actions_arg,
-        )
-    } else {
+    let header_lit = if directive_prefix.is_empty() {
         format!(
             "{}{{ {}svelteHTML.createElement(\"{}\"{}, {{",
             indent, element_var_decl, el.name, actions_arg,
+        )
+    } else {
+        format!(
+            "{}{{{}{{ {}svelteHTML.createElement(\"{}\"{}, {{",
+            indent, directive_prefix, element_var_decl, el.name, actions_arg,
         )
     };
     // The trailer closes the props object + createElement call (`}});`), then
@@ -251,60 +157,164 @@ pub(crate) fn handle_regular_element(
     let opener_segs = bake_out_of_order_src(opener_segs, source);
     emit_segmented_overwrite(str, el.start, opening_tag_end, &opener_segs);
 
-    // Process children at depth+1: this element is now an ancestor.
-    // Mirrors official computeDepth which counts all ancestor element/component nodes.
-    // Hoist snippet blocks to the top of the element's children first, mirroring
-    // hoistSnippetBlock in the JS reference (pendingSnippetHoistCheck walk).
+    finish_regular_element(
+        el,
+        source,
+        options,
+        str,
+        counter,
+        depth,
+        !directive_prefix.is_empty(),
+        default_slot_let.is_some(),
+        saved_slot,
+    );
+}
+
+fn regular_opener_attributes(
+    el: &RegularElement,
+    source: &str,
+    options: &Svelte2TsxOptions,
+    counter: &Counter,
+    in_component_slot: bool,
+) -> (u32, Vec<Seg>, usize) {
+    let opening_end =
+        find_opening_tag_end(source, el.start, el.end, el.name.as_str(), &el.attributes);
+    let content_start =
+        el.start + 1 + u32::try_from(el.name.len()).expect("tag name length fits in u32");
+    let mut segments = build_attribute_segments(
+        &el.attributes,
+        source,
+        &counter.element_opener_comments,
+        &el.name,
+        in_component_slot,
+        Some(content_start),
+        options.namespace.preserves_attribute_case(),
+    );
+    let spacing = opener_spacing(
+        source,
+        el.start,
+        &el.name,
+        opening_end,
+        Some((el.start + 1, content_start)),
+        &el.attributes,
+        &counter.element_opener_comments,
+        OpenerCtx {
+            is_element: true,
+            in_component_slot,
+            tag_name: &el.name,
+            is_slot_tag: false,
+        },
+    );
+    if spacing.in_attr_object > 0 {
+        let mut padded = Vec::with_capacity(segments.len() + 1);
+        padded.push(Seg::Lit(" ".repeat(spacing.in_attr_object)));
+        padded.extend(segments);
+        segments = padded;
+    }
+    (opening_end, segments, spacing.before_block)
+}
+
+fn try_handle_named_slot(
+    el: &RegularElement,
+    slot_instance: Option<&String>,
+    source: &str,
+    options: &Svelte2TsxOptions,
+    str: &mut MagicString<'_>,
+    counter: &mut Counter,
+    depth: u32,
+) -> bool {
+    let Some(instance) = slot_instance else {
+        return false;
+    };
+    if slot_attr_static_name(&el.attributes).is_none() {
+        return false;
+    }
+    handle_named_slot_element(el, instance, source, options, str, counter, depth);
+    true
+}
+
+fn handle_special_regular_element(
+    el: &RegularElement,
+    source: &str,
+    options: &Svelte2TsxOptions,
+    str: &mut MagicString<'_>,
+    counter: &mut Counter,
+    depth: u32,
+) -> bool {
+    if el.name == "style" {
+        str.remove(el.start, el.end);
+        return true;
+    }
+    if el.name != "slot" {
+        return false;
+    }
+    let slot = SlotElement {
+        start: el.start,
+        end: el.end,
+        name: el.name.clone(),
+        name_loc: el.name_loc,
+        attributes: el.attributes.clone(),
+        fragment: el.fragment.clone(),
+    };
+    handle_slot_element(&slot, source, options, str, counter, depth);
+    true
+}
+
+fn finish_regular_element(
+    el: &RegularElement,
+    source: &str,
+    options: &Svelte2TsxOptions,
+    str: &mut MagicString<'_>,
+    counter: &mut Counter,
+    depth: u32,
+    has_directive_prefix: bool,
+    has_default_slot_let: bool,
+    saved_slot: Option<String>,
+) {
     hoist_snippet_blocks(&el.fragment, source, str);
     process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
-
-    // Find and overwrite the closing tag.
-    // HTML void elements (`<input>`, `<br>`, …) and source-level self-closing
-    // tags (`<x />`) have no `</tag>` in the source, so we must NOT call
-    // `find_closing_tag_start` on them — it scans backwards for `</` and would
-    // wrongly match a preceding sibling's closing tag, blanking it (and the
-    // void element itself) on overwrite. Mirrors the JS reference's
-    // `prependLeft(node.end, '}')` for void/self-closing tags.
-    //
-    // When `directive_prefix` opened an extra outer block for the action
-    // declarations, emit a matching extra `}` to close it.
-    let extra_close = if directive_prefix.is_empty() { "" } else { "}" };
-    let is_self_closing_source = slice_src(source, el.start as usize, el.end as usize)
-        .trim_end()
-        .ends_with("/>");
-    let is_void = crate::compiler::utils::is_void_element(&el.name);
-    if is_void || is_self_closing_source {
-        str.append_left_fmt(el.end, format_args!("}}{}", extra_close));
-    } else {
-        let closing_tag_start = find_closing_tag_start(source, el.end);
-        // An auto-closed element (`<p><p>`, `<li><li>`, …) has NO `</name>` at
-        // `el.end`; `find_closing_tag_start` then wrongly matches the last
-        // child's `</…>`. Only overwrite when the found tag actually closes
-        // THIS element; otherwise append `}` at `el.end` like a void element
-        // (matching official's `prependLeft(node.end, '}')` for such cases).
-        if closing_tag_start < el.end
-            && closing_tag_name_matches(source, closing_tag_start, &el.name)
-        {
-            // Non-self-closing: preserve space before closing brace
-            str.overwrite_fmt(
-                closing_tag_start,
-                el.end,
-                format_args!(" }}{}", extra_close),
-            );
-        } else {
-            str.append_left_fmt(el.end, format_args!("}}{}", extra_close));
-        }
-    }
-    if default_slot_let.is_some() {
+    close_regular_element(el, source, has_directive_prefix, str);
+    if has_default_slot_let {
         str.append_left(el.end, "}");
     }
-    // Restore the slot context for following siblings (this element's own
-    // children were processed with it cleared, via the `take()` above).
     counter.slot_inst = saved_slot;
 }
 
+fn action_arguments(action_count: usize) -> String {
+    if action_count == 0 {
+        return String::new();
+    }
+    let names = (0..action_count)
+        .map(|index| format!("$$action_{index}"))
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(", __sveltets_2_union({names})")
+}
+
+fn close_regular_element(
+    el: &RegularElement,
+    source: &str,
+    has_directive_prefix: bool,
+    str: &mut MagicString<'_>,
+) {
+    let extra_close = if has_directive_prefix { "}" } else { "" };
+    let self_closing = slice_src(source, el.start as usize, el.end as usize)
+        .trim_end()
+        .ends_with("/>");
+    let closing_start = find_closing_tag_start(source, el.end);
+    if crate::compiler::utils::is_void_element(&el.name)
+        || self_closing
+        || closing_start >= el.end
+        || !closing_tag_name_matches(source, closing_start, &el.name)
+    {
+        str.append_left_fmt(el.end, format_args!("}}{extra_close}"));
+    } else {
+        str.overwrite_fmt(closing_start, el.end, format_args!(" }}{extra_close}"));
+    }
+}
+
 /// Handle `<title>` element.
-pub(crate) fn handle_title_element(
+pub fn handle_title_element(
     el: &TitleElement,
     source: &str,
     options: &Svelte2TsxOptions,
@@ -337,7 +347,10 @@ pub(crate) fn handle_title_element(
         el.start,
         &el.name,
         opening_tag_end,
-        Some((el.start + 1, el.start + 1 + el.name.len() as u32)),
+        Some((
+            el.start + 1,
+            el.start + 1 + u32::try_from(el.name.len()).expect("tag name length fits in u32"),
+        )),
         &el.attributes,
         &counter.element_opener_comments,
         OpenerCtx {
@@ -350,7 +363,7 @@ pub(crate) fn handle_title_element(
     let indent = " ".repeat(spacing.before_block);
     let indent = match &default_slot_let {
         Some(block) => {
-            str.append_left_fmt(el.start, format_args!("{}{}", indent, block));
+            str.append_left_fmt(el.start, format_args!("{indent}{block}"));
             String::new()
         }
         None => indent,

@@ -40,10 +40,10 @@ fn normalize(content: &str) -> String {
 fn find_svelte_file(sample_dir: &Path) -> Option<PathBuf> {
     let mut entries: Vec<_> = fs::read_dir(sample_dir)
         .ok()?
-        .filter_map(|e| e.ok())
+        .filter_map(std::result::Result::ok)
         .filter(|e| e.path().extension().is_some_and(|ext| ext == "svelte"))
         .collect();
-    entries.sort_by_key(|e| e.file_name());
+    entries.sort_by_key(std::fs::DirEntry::file_name);
     entries.into_iter().next().map(|e| e.path())
 }
 
@@ -423,7 +423,7 @@ fn expand_prop_shorthand(text: &str) -> String {
     re.replace_all(text, |caps: &regex::Captures| {
         let prefix = &caps[1];
         let name = &caps[2];
-        format!("{}\"{}\":{},", prefix, name, name)
+        format!("{prefix}\"{name}\":{name},")
     })
     .to_string()
 }
@@ -837,10 +837,7 @@ fn compare_error_to_expected(
     let (start, end) = match error.span() {
         Some(span) => span,
         None => {
-            return Some(format!(
-                "error has no span: {} (variant: {:?})",
-                error, error
-            ));
+            return Some(format!("error has no span: {error} (variant: {error:?})"));
         }
     };
     let actual_start = offset_to_position(source, start);
@@ -904,7 +901,7 @@ pub fn iter_svelte2tsx_outcomes() -> Option<Vec<FixtureOutcome>> {
             })
         })
         .collect();
-    entries.sort_by_key(|e| e.file_name());
+    entries.sort_by_key(std::fs::DirEntry::file_name);
 
     for entry in &entries {
         let sample_name = entry.file_name().to_string_lossy().to_string();
@@ -920,46 +917,43 @@ pub fn iter_svelte2tsx_outcomes() -> Option<Vec<FixtureOutcome>> {
         // See `compare_error_to_expected` above for the comparison details.
         let error_path = sample_dir.join("expected.error.json");
         if error_path.exists() {
-            let input_path = match find_svelte_file(&sample_dir) {
-                Some(p) => p,
-                None => {
-                    outcomes.push(FixtureOutcome {
-                        name: sample_name,
-                        status: TestStatus::Skipped,
-                        message: Some("no .svelte input file".into()),
-                    });
-                    continue;
-                }
+            let input_path = if let Some(p) = find_svelte_file(&sample_dir) {
+                p
+            } else {
+                outcomes.push(FixtureOutcome {
+                    name: sample_name,
+                    status: TestStatus::Skipped,
+                    message: Some("no .svelte input file".into()),
+                });
+                continue;
             };
             let svelte_filename = input_path
                 .file_name()
                 .unwrap()
                 .to_string_lossy()
                 .to_string();
-            let input = match fs::read_to_string(&input_path) {
-                Ok(s) => s,
-                Err(_) => {
-                    outcomes.push(FixtureOutcome {
-                        name: sample_name,
-                        status: TestStatus::Skipped,
-                        message: Some("input.svelte unreadable".into()),
-                    });
-                    continue;
-                }
+            let input = if let Ok(s) = fs::read_to_string(&input_path) {
+                s
+            } else {
+                outcomes.push(FixtureOutcome {
+                    name: sample_name,
+                    status: TestStatus::Skipped,
+                    message: Some("input.svelte unreadable".into()),
+                });
+                continue;
             };
-            let expected_json: serde_json::Value = match fs::read_to_string(&error_path)
+            let expected_json: serde_json::Value = if let Some(v) = fs::read_to_string(&error_path)
                 .ok()
                 .and_then(|s| serde_json::from_str(&s).ok())
             {
-                Some(v) => v,
-                None => {
-                    outcomes.push(FixtureOutcome {
-                        name: sample_name,
-                        status: TestStatus::Skipped,
-                        message: Some("expected.error.json unreadable".into()),
-                    });
-                    continue;
-                }
+                v
+            } else {
+                outcomes.push(FixtureOutcome {
+                    name: sample_name,
+                    status: TestStatus::Skipped,
+                    message: Some("expected.error.json unreadable".into()),
+                });
+                continue;
             };
 
             let options = build_options(&sample_name, &sample_dir, &svelte_filename);
@@ -1001,39 +995,37 @@ pub fn iter_svelte2tsx_outcomes() -> Option<Vec<FixtureOutcome>> {
                     outcomes.push(FixtureOutcome {
                         name: sample_name,
                         status: TestStatus::Error,
-                        message: Some(format!("PANIC: {}", msg)),
+                        message: Some(format!("PANIC: {msg}")),
                     });
                 }
             }
             continue;
         }
 
-        let input_path = match find_svelte_file(&sample_dir) {
-            Some(p) => p,
-            None => {
-                outcomes.push(FixtureOutcome {
-                    name: sample_name,
-                    status: TestStatus::Skipped,
-                    message: Some("no .svelte input file".into()),
-                });
-                continue;
-            }
+        let input_path = if let Some(p) = find_svelte_file(&sample_dir) {
+            p
+        } else {
+            outcomes.push(FixtureOutcome {
+                name: sample_name,
+                status: TestStatus::Skipped,
+                message: Some("no .svelte input file".into()),
+            });
+            continue;
         };
         let svelte_filename = input_path
             .file_name()
             .unwrap()
             .to_string_lossy()
             .to_string();
-        let input = match fs::read_to_string(&input_path) {
-            Ok(s) => s,
-            Err(_) => {
-                outcomes.push(FixtureOutcome {
-                    name: sample_name,
-                    status: TestStatus::Skipped,
-                    message: Some("input.svelte unreadable".into()),
-                });
-                continue;
-            }
+        let input = if let Ok(s) = fs::read_to_string(&input_path) {
+            s
+        } else {
+            outcomes.push(FixtureOutcome {
+                name: sample_name,
+                status: TestStatus::Skipped,
+                message: Some("input.svelte unreadable".into()),
+            });
+            continue;
         };
 
         let is_v5_sample = sample_name.ends_with(".v5");
@@ -1085,7 +1077,7 @@ pub fn iter_svelte2tsx_outcomes() -> Option<Vec<FixtureOutcome>> {
                 outcomes.push(FixtureOutcome {
                     name: sample_name,
                     status: TestStatus::Error,
-                    message: Some(format!("{}", e)),
+                    message: Some(format!("{e}")),
                 });
             }
             Err(panic_info) => {
@@ -1099,7 +1091,7 @@ pub fn iter_svelte2tsx_outcomes() -> Option<Vec<FixtureOutcome>> {
                 outcomes.push(FixtureOutcome {
                     name: sample_name,
                     status: TestStatus::Error,
-                    message: Some(format!("PANIC: {}", msg)),
+                    message: Some(format!("PANIC: {msg}")),
                 });
             }
         }

@@ -1,6 +1,7 @@
 //! Deterministic counters for the SSR comment carry-over, gated by
-//! `RSVELTE_SERVER_COMMENT_DEBUG`. Counting work items is load-independent, so
-//! the reach rate it produces is comparable across runs and machines.
+//! `RSVELTE_SERVER_COMMENT_DEBUG`.
+//!
+//! Counting work items is load-independent, so the reach rate is comparable across runs and machines.
 
 use std::cell::Cell;
 
@@ -45,17 +46,17 @@ counters! {
     NON_REPARSE_SITES,
 }
 
+#[must_use]
 pub fn enabled() -> bool {
     thread_local! {
         static ON: Cell<Option<bool>> = const { Cell::new(None) };
     }
-    ON.with(|c| match c.get() {
-        Some(v) => v,
-        None => {
+    ON.with(|c| {
+        c.get().unwrap_or_else(|| {
             let v = std::env::var_os("RSVELTE_SERVER_COMMENT_DEBUG").is_some();
             c.set(Some(v));
             v
-        }
+        })
     })
 }
 

@@ -77,7 +77,7 @@ pub(super) fn segs_to_string(segs: &[Seg], source: &str) -> String {
 }
 
 /// Reorder-safe pre-pass for [`emit_segmented_overwrite`], which requires
-/// `Seg::Src` ranges to appear in ascending source order (a MagicString can
+/// `Seg::Src` ranges to appear in ascending source order (a `MagicString` can
 /// only overwrite left-to-right). When a later segment references an earlier
 /// source position — e.g. a `class:` / `style:` directive expression that #750
 /// hoisted into the opener *suffix*, emitted *after* a following shorthand
@@ -105,10 +105,10 @@ pub(super) fn bake_out_of_order_src(segs: Vec<Seg>, source: &str) -> Vec<Seg> {
     out
 }
 
-/// Apply a list of segments to a MagicString, overwriting `[start, end)`
+/// Apply a list of segments to a `MagicString`, overwriting `[start, end)`
 /// while preserving every `Seg::Src(s, e)` chunk as an unedited region —
 /// the cornerstone of the structured bake. The unedited chunks survive
-/// MagicString's per-character `generate_mappings` pass intact, so
+/// `MagicString`'s per-character `generate_mappings` pass intact, so
 /// diagnostics inside `<Component a={x} />` resolve to the exact column.
 ///
 /// Invariants on `segments` (debug-asserted):
@@ -145,11 +145,7 @@ pub(super) fn emit_segmented_overwrite(
             Seg::Src(s, e) => {
                 debug_assert!(
                     *s >= cursor && *e <= range_end && *s < *e,
-                    "emit_segmented_overwrite: bad Src ({}, {}) for cursor {} range_end {}",
-                    s,
-                    e,
-                    cursor,
-                    range_end
+                    "emit_segmented_overwrite: bad Src ({s}, {e}) for cursor {cursor} range_end {range_end}"
                 );
                 if cursor < *s {
                     str.overwrite(cursor, *s, &pending);

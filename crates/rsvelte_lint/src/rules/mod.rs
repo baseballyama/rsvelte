@@ -160,7 +160,7 @@ pub(crate) fn find_this_attr_span(
     {
         return None;
     }
-    let attr_start = (pos - 4) as u32;
+    let attr_start = u32::try_from(pos - 4).expect("source offsets are represented as u32");
     // The closing `}` is right after expr_end.
     let attr_end = expr_end + 1;
     Some((attr_start, attr_end))

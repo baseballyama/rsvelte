@@ -10,13 +10,17 @@
 
 use crate::width::{IndentUnit, VisualWidth};
 
+fn signed_width(width: usize) -> isize {
+    isize::try_from(width).expect("document width exceeds isize range")
+}
+
 // Several variants below (`Literalline`, `ForcedGroup`, `Dedent`, `BreakParent`)
 // and `propagate_breaks` are the IR scaffolding for the prettier-plugin-svelte
 // child-layout port; they are exercised by unit tests here and consumed by the
 // markup child-printer.
 #[derive(Clone)]
 #[allow(dead_code)]
-pub(crate) enum Doc {
+pub enum Doc {
     Text(String),
     /// flat: a space; break: newline + indent.
     Line,
@@ -27,18 +31,18 @@ pub(crate) enum Doc {
     /// always a raw newline with NO indentation (prettier's `literalline`) —
     /// for verbatim content such as `<pre>` bodies.
     Literalline,
-    Group(Vec<Doc>),
+    Group(Vec<Self>),
     /// A group already forced into break mode (prettier's broken group, produced
     /// by [`propagate_breaks`] from a group containing a [`Doc::BreakParent`] or a
     /// hard break). Never measured with `fits`.
-    ForcedGroup(Vec<Doc>),
-    Indent(Vec<Doc>),
+    ForcedGroup(Vec<Self>),
+    Indent(Vec<Self>),
     /// `-1` indent level for its contents (prettier's `dedent`) — puts a wrapped
     /// open tag's trailing `>` back at the outer column.
-    Dedent(Vec<Doc>),
+    Dedent(Vec<Self>),
     /// Alternating `[content, sep, content, sep, …]` greedily packed.
-    Fill(Vec<Doc>),
-    Concat(Vec<Doc>),
+    Fill(Vec<Self>),
+    Concat(Vec<Self>),
     /// A pre-formatted embedded expression (`{expr}`) whose JS was formatted by
     /// the external engine (oxc) into a string, not a Doc. In `Flat` mode it
     /// prints `flat`; in `Break` mode it prints `broken` — the multi-line form,
@@ -68,7 +72,7 @@ enum Mode {
 /// line begins at (so `fits` measures correctly when the output is spliced after
 /// a prefix). The first line is NOT prefixed with indentation — the caller owns
 /// that.
-pub(crate) fn print(
+pub fn print(
     doc: &Doc,
     width: usize,
     unit: IndentUnit,
@@ -81,7 +85,7 @@ pub(crate) fn print(
 /// Like [`print`] but starts in flat mode — the byte-for-byte equivalent of
 /// printing `Group([doc])` at infinite width, without cloning `doc` into a
 /// wrapper group. Used by the collapse pass's one-line fit test.
-pub(crate) fn print_flat(
+pub fn print_flat(
     doc: &Doc,
     width: usize,
     unit: IndentUnit,
@@ -181,7 +185,7 @@ fn print_inner(
             }
             Doc::BreakParent => {} // consumed by propagate_breaks; prints nothing
             Doc::Group(ps) => {
-                let flat = fits(width as isize - pos as isize, &cmds, ps, unit);
+                let flat = fits(signed_width(width) - signed_width(pos), &cmds, ps, unit);
                 let m = if flat { Mode::Flat } else { Mode::Break };
                 for p in ps.iter().rev() {
                     cmds.push(Cmd::Doc(ind, m, p));
@@ -221,7 +225,7 @@ fn print_fill<'a>(
     // the whole rest of the document — otherwise a large sibling after the fill
     // (an element) would make every word "not fit" and break the prose one word
     // per line.
-    let remaining = width as isize - pos as isize;
+    let remaining = signed_width(width) - signed_width(pos);
     let content_fits = fits(remaining, &[], &ps[..1], unit);
     if ps.len() <= 2 {
         let m = if content_fits {
@@ -269,23 +273,22 @@ fn fits(mut remaining: isize, rest_stack: &[Cmd], next: &[Doc], unit: IndentUnit
         if remaining < 0 {
             return false;
         }
-        let (mode, d) = match local.pop() {
-            Some(x) => x,
-            None => {
-                if rest_idx == 0 {
-                    return true;
-                }
-                rest_idx -= 1;
-                match &rest_stack[rest_idx] {
-                    Cmd::Doc(_, m, dd) => (*m, *dd),
-                    Cmd::Fill(_, m, ps) => {
-                        // A pending fill measures like its items in the fill's own
-                        // mode (front first, so push in reverse).
-                        for p in ps.iter().rev() {
-                            local.push((*m, p));
-                        }
-                        continue;
+        let (mode, d) = if let Some(x) = local.pop() {
+            x
+        } else {
+            if rest_idx == 0 {
+                return true;
+            }
+            rest_idx -= 1;
+            match &rest_stack[rest_idx] {
+                Cmd::Doc(_, m, dd) => (*m, *dd),
+                Cmd::Fill(_, m, ps) => {
+                    // A pending fill measures like its items in the fill's own
+                    // mode (front first, so push in reverse).
+                    for p in ps.iter().rev() {
+                        local.push((*m, p));
                     }
+                    continue;
                 }
             }
         };
@@ -296,7 +299,7 @@ fn fits(mut remaining: isize, rest_stack: &[Cmd], next: &[Doc], unit: IndentUnit
                         remaining -= 1;
                         has_pending_space = false;
                     }
-                    remaining -= s.visual_width(unit.tab_width()) as isize;
+                    remaining -= signed_width(s.visual_width(unit.tab_width()));
                 }
             }
             // A pre-formatted interpolation. In `Flat` mode it is measured by
@@ -315,7 +318,7 @@ fn fits(mut remaining: isize, rest_stack: &[Cmd], next: &[Doc], unit: IndentUnit
                         if has_pending_space {
                             remaining -= 1;
                         }
-                        remaining -= head.visual_width(unit.tab_width()) as isize;
+                        remaining -= signed_width(head.visual_width(unit.tab_width()));
                     }
                     return remaining >= 0;
                 }
@@ -324,7 +327,7 @@ fn fits(mut remaining: isize, rest_stack: &[Cmd], next: &[Doc], unit: IndentUnit
                         remaining -= 1;
                         has_pending_space = false;
                     }
-                    remaining -= flat.visual_width(unit.tab_width()) as isize;
+                    remaining -= signed_width(flat.visual_width(unit.tab_width()));
                 }
             }
             Doc::Concat(ps)
@@ -386,7 +389,7 @@ fn trim_trailing_blanks(out: &mut String) {
 /// group. Run once on a Doc tree before [`print`] so groups that must break are
 /// converted to [`Doc::ForcedGroup`] (and never measured with `fits`).
 #[allow(dead_code)] // only called from tests in this module
-pub(crate) fn propagate_breaks(doc: Doc) -> Doc {
+pub fn propagate_breaks(doc: Doc) -> Doc {
     fn go(doc: Doc) -> (Doc, bool) {
         fn map_children(ps: Vec<Doc>) -> (Vec<Doc>, bool) {
             let mut forces = false;
@@ -401,10 +404,9 @@ pub(crate) fn propagate_breaks(doc: Doc) -> Doc {
             (out, forces)
         }
         match doc {
-            Doc::Text(_) | Doc::Line | Doc::Softline => (doc, false),
+            Doc::Text(_) | Doc::Line | Doc::Softline | Doc::RawExpr { .. } => (doc, false),
             // A RawExpr has a flat form, so it never forces the enclosing group
             // to break (the fill/group decides per-position).
-            Doc::RawExpr { .. } => (doc, false),
             Doc::Hardline | Doc::Literalline => (doc, true),
             // Consumed here: once the enclosing groups are forced, a surviving
             // sentinel would reach `fits` through the rest stack and wrongly veto

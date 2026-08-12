@@ -54,13 +54,13 @@ pub struct Options {
 
 impl Options {
     #[must_use]
-    pub fn with_dialect(mut self, dialect: Dialect) -> Self {
+    pub const fn with_dialect(mut self, dialect: Dialect) -> Self {
         self.dialect = dialect;
         self
     }
 
     #[must_use]
-    pub fn with_comments(mut self, comments: CommentPolicy) -> Self {
+    pub const fn with_comments(mut self, comments: CommentPolicy) -> Self {
         self.comments = comments;
         self
     }
@@ -126,7 +126,7 @@ pub enum Comparison {
 
 impl Comparison {
     #[must_use]
-    pub fn is_equivalent(&self) -> bool {
+    pub const fn is_equivalent(&self) -> bool {
         matches!(self, Self::Equivalent)
     }
 }
@@ -248,12 +248,12 @@ pub fn first_difference(left: &str, right: &str) -> Option<usize> {
         .iter()
         .zip(right)
         .position(|(a, b)| a != b)
-        .unwrap_or(left.len().min(right.len()));
+        .unwrap_or_else(|| left.len().min(right.len()));
     (common < left.len() || common < right.len()).then_some(common)
 }
 
 /// Toolchain directives that OXC does not classify itself but that change what
-/// a downstream tool does. OXC already flags legal / JSDoc / `#__PURE__` /
+/// a downstream tool does. OXC already flags legal / `JSDoc` / `#__PURE__` /
 /// `#__NO_SIDE_EFFECTS__` / webpack / vite / turbopack / coverage comments via
 /// `Comment::is_normal`, so this list only covers the rest.
 const MEANINGFUL_COMMENT_PREFIXES: &[&str] = &[
@@ -281,7 +281,7 @@ pub fn is_meaningful_comment(content: &str) -> bool {
         .any(|prefix| content.starts_with(prefix))
 }
 
-/// Collapse whitespace runs, and the leading `*` of JSDoc continuation lines,
+/// Collapse whitespace runs, and the leading `*` of `JSDoc` continuation lines,
 /// so that re-indenting or re-wrapping a comment is not a difference.
 fn normalize_comment_text(content: &str) -> String {
     let mut out = String::with_capacity(content.len());

@@ -1,4 +1,4 @@
-//! SlotElement visitor.
+//! `SlotElement` visitor.
 //!
 //! Analyzes `<slot>` elements.
 //!

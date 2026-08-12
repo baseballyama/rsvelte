@@ -15,7 +15,7 @@
 //! - `oxfmt`'s `core::config::build_ignore_glob` → the `ignorePatterns` matcher
 //! - `oxfmt`'s `cli::walk::is_ignored_dir` → [`is_ignored_dir`]
 //!
-//! Upstream: <https://github.com/oxc-project/oxc> (apps/oxfmt, crates/oxc_config).
+//! Upstream: <https://github.com/oxc-project/oxc> (apps/oxfmt, `crates/oxc_config`).
 
 use std::collections::HashMap;
 use std::ffi::OsStr;

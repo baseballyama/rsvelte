@@ -34,7 +34,7 @@ pub use super::utils::error::Svelte2TsxError;
 /// UTF-8 char boundary — instead of panicking. For any valid range this is
 /// exactly `&source[start..end]`, so it is byte-parity-preserving.
 #[inline]
-pub(crate) fn slice_src(source: &str, start: usize, end: usize) -> &str {
+pub fn slice_src(source: &str, start: usize, end: usize) -> &str {
     source.get(start..end).unwrap_or("")
 }
 
@@ -62,7 +62,7 @@ fn advance_generated_location(text: &str, line: &mut u32, column: &mut u32) {
             *line += 1;
             *column = 0;
         } else {
-            *column += character.len_utf16() as u32;
+            *column += u32::try_from(character.len_utf16()).expect("UTF-16 width fits in u32");
         }
     }
 }
@@ -124,7 +124,7 @@ struct GeneratedColumnRemapper<'a> {
 }
 
 impl<'a> GeneratedColumnRemapper<'a> {
-    fn new(edits: &'a [PositionedTextEdit]) -> Self {
+    const fn new(edits: &'a [PositionedTextEdit]) -> Self {
         Self {
             edits,
             next_edit: 0,
@@ -170,7 +170,7 @@ struct GeneratedAnchorRemapper<'a> {
 }
 
 impl<'a> GeneratedAnchorRemapper<'a> {
-    fn new(edits: &'a [PositionedTextEdit]) -> Self {
+    const fn new(edits: &'a [PositionedTextEdit]) -> Self {
         Self {
             columns: GeneratedColumnRemapper::new(edits),
         }
@@ -482,10 +482,10 @@ pub fn svelte2tsx(
     // (`{@debug user.firstname}` / `{@debug a[0]}`) at PARSE time. rsvelte does
     // this in the analyze DebugTag visitor, which svelte2tsx never runs — so
     // replicate it here to preserve error-parity with official svelte2tsx.
-    if source_features.has_debug_marker {
+    if source_features.has_debug_marker() {
         validate_debug_tag_arguments(&ast, source)?;
     }
-    if source_features.has_meta_marker {
+    if source_features.has_meta_marker() {
         validate_meta_element_placement(&ast, source)?;
     }
 
@@ -628,9 +628,9 @@ pub fn svelte2tsx(
     blank_style_tags(&ast, source, &mut str);
 
     // Step 8.5: Detect $$props, $$restProps, $$slots usage in source (before wrapping)
-    let uses_dollar_props = source_features.uses_dollar_props;
-    let uses_dollar_rest_props = source_features.uses_dollar_rest_props;
-    let uses_dollar_slots = source_features.uses_dollar_slots;
+    let uses_dollar_props = source_features.uses_dollar_props();
+    let uses_dollar_rest_props = source_features.uses_dollar_rest_props();
+    let uses_dollar_slots = source_features.uses_dollar_slots();
 
     // Step 9: Process template nodes in-place via MagicString.
     template::process_template_inplace(
@@ -664,10 +664,11 @@ pub fn svelte2tsx(
     let template_info = template::collect_template_info_if_needed(
         &ast,
         source,
-        uses_dollar_slots,
-        source_features.may_need_template_info,
-        source_features.has_await_word,
-        source_features.may_have_template_rune_global,
+        template::TemplateInfoOptions::new()
+            .collect_dollar_slot_names_if(uses_dollar_slots)
+            .may_need_info_if(source_features.may_need_template_info())
+            .check_await_if(source_features.has_await_word())
+            .check_rune_global_if(source_features.may_have_template_rune_global()),
         &exported_names.instance_value_names,
     );
     let has_slot_elements = !template_info.slots.is_empty();
@@ -841,10 +842,11 @@ pub fn svelte2tsx(
             exported_names: &exported_names,
             events: &mut events,
             generics_attribute: generics_attribute.as_deref(),
-            has_slot_elements,
-            has_top_level_await,
-            uses_dollar_props,
-            uses_dollar_rest_props,
+            features: super::add_component_export::ComponentExportFeatures::default()
+                .with_slot_elements_if(has_slot_elements)
+                .with_top_level_await_if(has_top_level_await)
+                .with_dollar_props_if(uses_dollar_props)
+                .with_dollar_rest_props_if(uses_dollar_rest_props),
         },
         &mut str,
     );

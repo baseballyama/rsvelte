@@ -113,7 +113,7 @@ fn modular_css_extracts_style_block() {
     let content = std::fs::read_to_string(&specimen).unwrap();
 
     let config = bridge_at(
-        submodule.clone(),
+        submodule,
         serde_json::json!({ "testNamer": true, "values": true }),
     );
     let out = match process(&content, Some(specimen.to_str().unwrap()), &config) {

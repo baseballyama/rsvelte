@@ -8,7 +8,7 @@ use crate::svelte2tsx::magic_string::MagicString;
 /// Upstream rewrites the two brace *positions* and nothing else, so whatever
 /// sits between them — wrapping parens, comments, a TS postfix — is kept
 /// verbatim: `{count}` → `count;`, `{(a ?? '')}` → `(a ?? '');`.
-pub(crate) fn handle_expression_tag(expr: &ExpressionTag, source: &str, str: &mut MagicString<'_>) {
+pub fn handle_expression_tag(expr: &ExpressionTag, source: &str, str: &mut MagicString<'_>) {
     if expr.start >= expr.end {
         return;
     }

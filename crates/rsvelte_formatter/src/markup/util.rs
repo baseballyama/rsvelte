@@ -18,7 +18,7 @@ pub(super) fn indent_visual_width(level: usize, js_opts: &JsFormatOptions) -> us
 
 // ─── source-scan helpers ────────────────────────────────────────────────
 
-pub(super) fn attribute_span(attr: &Attribute) -> (u32, u32) {
+pub(super) const fn attribute_span(attr: &Attribute) -> (u32, u32) {
     match attr {
         Attribute::Attribute(n) => (n.start, n.end),
         Attribute::SpreadAttribute(s) => (s.start, s.end),
@@ -42,17 +42,19 @@ pub(super) fn find_open_tag_end(
     element_start: u32,
     attributes: &[Attribute],
 ) -> Option<u32> {
-    let scan_from = if let Some(last) = attributes.last() {
-        attribute_span(last).1 as usize
-    } else {
-        // Skip the leading `<` and consume tag-name chars.
-        let bytes = source.as_bytes();
-        let mut i = element_start as usize + 1;
-        while i < bytes.len() && !matches!(bytes[i], b' ' | b'\t' | b'\n' | b'\r' | b'>' | b'/') {
-            i += 1;
-        }
-        i
-    };
+    let scan_from = attributes.last().map_or_else(
+        || {
+            // Skip the leading `<` and consume tag-name chars.
+            let bytes = source.as_bytes();
+            let mut i = element_start as usize + 1;
+            while i < bytes.len() && !matches!(bytes[i], b' ' | b'\t' | b'\n' | b'\r' | b'>' | b'/')
+            {
+                i += 1;
+            }
+            i
+        },
+        |last| attribute_span(last).1 as usize,
+    );
 
     let bytes = source.as_bytes();
     let mut i = scan_from;
@@ -76,7 +78,7 @@ pub(super) fn find_open_tag_end(
             continue;
         }
         if bytes[i] == b'>' {
-            return Some((i + 1) as u32);
+            return Some(crate::source_offset(i + 1));
         }
         i += 1;
     }
@@ -101,7 +103,7 @@ pub(super) fn is_self_closing_inner(source: &str, open_tag_end: u32, last_attr_e
                 // A `/` that is at or before the last attribute's end is part
                 // of the attribute value (e.g. `href=/` in `<a href=/>`) and
                 // does NOT indicate self-closing syntax.
-                if last_attr_end > 0 && (i as u32) < last_attr_end {
+                if last_attr_end > 0 && (crate::source_offset(i)) < last_attr_end {
                     return false;
                 }
                 return true;

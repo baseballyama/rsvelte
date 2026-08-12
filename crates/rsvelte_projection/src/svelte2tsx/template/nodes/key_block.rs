@@ -9,7 +9,7 @@ use crate::svelte2tsx::template::nodes::special_element::process_fragment_trimme
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
 
 /// Handle a key block: `{#key expression}...{/key}`.
-pub(crate) fn handle_key_block(
+pub fn handle_key_block(
     block: &KeyBlock,
     source: &str,
     options: &Svelte2TsxOptions,
@@ -27,18 +27,16 @@ pub(crate) fn handle_key_block(
     // the `}` that closes the `{#key EXPR}` tag — NOT at `block.end` (after
     // `{/key}`), which would make the header rewrite swallow `{/key}` and leave
     // the `{` unbalanced.
-    let content_start = if !block.fragment.nodes.is_empty() {
-        block.fragment.nodes[0].start()
-    } else {
-        let expr_end = get_expression_range(&block.expression)
-            .map(|(_, e)| e)
-            .unwrap_or(block.start);
+    let content_start = if block.fragment.nodes.is_empty() {
+        let expr_end = get_expression_range(&block.expression).map_or(block.start, |(_, e)| e);
         let bytes = source.as_bytes();
         let mut p = expr_end as usize;
         while p < bytes.len() && bytes[p] != b'}' {
             p += 1;
         }
-        ((p + 1).min(bytes.len())) as u32
+        u32::try_from((p + 1).min(bytes.len())).expect("template offset fits in u32")
+    } else {
+        block.fragment.nodes[0].start()
     };
 
     // Preserve the expression chunk in place so its per-character mapping
@@ -61,10 +59,10 @@ pub(crate) fn handle_key_block(
     // Process children
     process_fragment_trimmed(&block.fragment.nodes, source, options, str, counter, depth);
 
-    let content_end = if !block.fragment.nodes.is_empty() {
-        block.fragment.nodes.last().unwrap().end()
-    } else {
+    let content_end = if block.fragment.nodes.is_empty() {
         content_start
+    } else {
+        block.fragment.nodes.last().unwrap().end()
     };
 
     if content_end < block.end {

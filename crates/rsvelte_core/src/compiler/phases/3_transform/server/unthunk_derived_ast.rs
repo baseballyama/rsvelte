@@ -29,7 +29,7 @@ thread_local! {
 /// `NAME`. Returns `Some(rewritten)` when at least one call collapsed, `None`
 /// on a parse failure or when nothing matched (caller falls back to the byte
 /// scanner).
-pub(crate) fn unthunk_bare_derived_arg_ast(
+pub fn unthunk_bare_derived_arg_ast(
     script: &str,
     derived_names: &FxHashSet<String>,
 ) -> Option<String> {
@@ -63,7 +63,7 @@ struct UnthunkCollector<'a> {
     edits: Vec<ast_rewrite::Edit>,
 }
 
-impl<'a> UnthunkCollector<'a> {
+impl UnthunkCollector<'_> {
     /// If `expr` is a parameterless expression-bodied arrow `() => NAME()` whose
     /// body is a 0-arg non-optional call of a derived identifier, return that
     /// derived name.
@@ -89,7 +89,7 @@ impl<'a> UnthunkCollector<'a> {
     }
 }
 
-impl<'a, 'ast> Visit<'ast> for UnthunkCollector<'a> {
+impl<'ast> Visit<'ast> for UnthunkCollector<'_> {
     fn visit_call_expression(&mut self, call: &CallExpression<'ast>) {
         // Match `$.derived(<single arg>)`.
         if let Expression::StaticMemberExpression(member) = &call.callee

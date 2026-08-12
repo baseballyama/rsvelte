@@ -1,8 +1,8 @@
 //! JavaScript/TypeScript expression AST types.
 //!
 //! This module wraps JavaScript expressions parsed from Svelte templates.
-//! We use a typed JsNode representation for performance, with backward-compatible
-//! serde_json::Value access via lazy conversion.
+//! We use a typed `JsNode` representation for performance, with backward-compatible
+//! `serde_json::Value` access via lazy conversion.
 
 use std::marker::PhantomData;
 
@@ -13,10 +13,12 @@ use super::arena::{IdRange, JsNodeId};
 use super::span::SourceLocation;
 use super::typed_expr::{JsNode, Loc, SourcePosition};
 
-/// Wrapper for a typed JsNode with lazy JSON cache.
+/// Wrapper for a typed `JsNode` with lazy JSON cache.
 /// The cache is only populated when `as_json()` is first called (during Phase 2/3),
-/// not during parsing. This saves 40 bytes per expression during parse,
-/// while still avoiding repeated serialization during analysis/transform.
+/// not during parsing.
+///
+/// This saves 40 bytes per expression during parse, while still avoiding repeated
+/// serialization during analysis/transform.
 pub struct TypedExpr<'a> {
     pub node: JsNode,
     /// Boxed so an unpopulated cache costs one null pointer (8 B) rather than
@@ -27,9 +29,10 @@ pub struct TypedExpr<'a> {
     _marker: PhantomData<&'a ()>,
 }
 
-impl<'a> TypedExpr<'a> {
+impl TypedExpr<'_> {
     #[inline(always)]
-    pub fn new(node: JsNode) -> Self {
+    #[must_use]
+    pub const fn new(node: JsNode) -> Self {
         TypedExpr {
             node,
             json_cache: std::cell::OnceCell::new(),
@@ -58,8 +61,9 @@ impl<'a> TypedExpr<'a> {
 }
 
 /// Deterministic counters for how much `serde_json::Value` the lazy JSON cache
-/// materializes, so the cost of the JSON-backed readers can be quantified
-/// without a sampling profiler (and so without a quiet machine).
+/// materializes.
+///
+/// They quantify JSON-backed reader costs without a sampling profiler or a quiet machine.
 #[cfg(feature = "measure-json")]
 pub mod measure_json {
     use std::cell::Cell;
@@ -78,7 +82,7 @@ pub mod measure_json {
                 *entries += map.len() as u64;
                 // Each entry owns a heap `String` key; string values own one more.
                 *strings += map.len() as u64;
-                for (_, v) in map.iter() {
+                for (_, v) in map {
                     walk(v, nodes, entries, strings);
                 }
             }
@@ -104,10 +108,10 @@ pub mod measure_json {
     /// `(materializations, objects, map_entries, strings)` since the last reset.
     pub fn snapshot() -> (u64, u64, u64, u64) {
         (
-            MATERIALIZATIONS.with(|c| c.get()),
-            NODES.with(|c| c.get()),
-            MAP_ENTRIES.with(|c| c.get()),
-            STRINGS.with(|c| c.get()),
+            MATERIALIZATIONS.with(std::cell::Cell::get),
+            NODES.with(std::cell::Cell::get),
+            MAP_ENTRIES.with(std::cell::Cell::get),
+            STRINGS.with(std::cell::Cell::get),
         )
     }
 
@@ -119,7 +123,7 @@ pub mod measure_json {
     }
 }
 
-impl<'a> Clone for TypedExpr<'a> {
+impl Clone for TypedExpr<'_> {
     #[inline]
     fn clone(&self) -> Self {
         TypedExpr {
@@ -130,22 +134,23 @@ impl<'a> Clone for TypedExpr<'a> {
     }
 }
 
-impl<'a> PartialEq for TypedExpr<'a> {
+impl PartialEq for TypedExpr<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.node == other.node
     }
 }
 
-impl<'a> std::fmt::Debug for TypedExpr<'a> {
+impl std::fmt::Debug for TypedExpr<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("TypedExpr").field(&self.node).finish()
     }
 }
 
 /// How a deferred expression's parse failure must be reported, and whether the
-/// eager parser it replaces built `loc` objects. Each variant mirrors one
-/// parse-time entry point so `resolve_lazy_expressions` reproduces its
-/// diagnostics byte-for-byte.
+/// eager parser it replaces built `loc` objects.
+///
+/// Each variant mirrors one parse-time entry point so `resolve_lazy_expressions`
+/// reproduces diagnostics byte-for-byte.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
 pub enum LazyKind {
@@ -195,7 +200,7 @@ pub enum Expression<'a> {
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::<Expression<'static>>() == 16);
 
-impl<'a> Expression<'a> {
+impl Expression<'_> {
     /// Create a new identifier expression.
     pub fn identifier(
         name: impl Into<CompactString>,
@@ -228,16 +233,23 @@ impl<'a> Expression<'a> {
     }
 
     /// Create an expression from a JSON value (types it eagerly via `from_value`).
+    #[must_use]
     pub fn from_json(value: serde_json::Value) -> Self {
         Expression::from_node(JsNode::from_value(value))
     }
 
-    /// Create an expression from a typed JsNode.
+    /// Create an expression from a typed `JsNode`.
+    #[must_use]
     pub fn from_node(node: JsNode) -> Self {
         Expression::Typed(Box::new(TypedExpr::new(node)))
     }
 
     /// Get the underlying JSON value. Cached for Typed variant.
+    ///
+    /// # Panics
+    ///
+    /// Panics when called before a lazy expression has been resolved.
+    #[must_use]
     pub fn as_json(&self) -> &serde_json::Value {
         match self {
             Expression::Typed(te) => te.as_json(),
@@ -259,13 +271,19 @@ impl<'a> Expression<'a> {
     /// Always returns `None` (no variant carries a borrowable JSON value);
     /// callers should use `as_json()` or `as_node()` instead. Retained as a
     /// stable accessor for call sites that still probe for a borrowable value.
-    pub fn as_json_ref(&self) -> Option<&serde_json::Value> {
+    #[must_use]
+    pub const fn as_json_ref(&self) -> Option<&serde_json::Value> {
         match self {
             Expression::Typed(_) | Expression::Lazy { .. } => None,
         }
     }
 
-    /// Get the typed JsNode.
+    /// Get the typed `JsNode`.
+    ///
+    /// # Panics
+    ///
+    /// Panics when called before a lazy expression has been resolved.
+    #[must_use]
     pub fn as_node(&self) -> std::borrow::Cow<'_, JsNode> {
         match self {
             Expression::Typed(te) => std::borrow::Cow::Borrowed(&te.node),
@@ -274,6 +292,7 @@ impl<'a> Expression<'a> {
     }
 
     /// Get the type of the expression.
+    #[must_use]
     pub fn node_type(&self) -> Option<&str> {
         match self {
             Expression::Typed(te) => te.node.node_type(),
@@ -282,6 +301,7 @@ impl<'a> Expression<'a> {
     }
 
     /// Get the start position.
+    #[must_use]
     pub fn start(&self) -> Option<u32> {
         match self {
             Expression::Typed(te) => te.node.start(),
@@ -290,6 +310,7 @@ impl<'a> Expression<'a> {
     }
 
     /// Get the end position.
+    #[must_use]
     pub fn end(&self) -> Option<u32> {
         match self {
             Expression::Typed(te) => te.node.end(),
@@ -299,6 +320,7 @@ impl<'a> Expression<'a> {
 
     /// Check if this is an Identifier with the given name.
     #[inline]
+    #[must_use]
     pub fn is_identifier(&self, name: &str) -> bool {
         match self {
             Expression::Typed(te) => {
@@ -310,12 +332,14 @@ impl<'a> Expression<'a> {
 
     /// Check if this is an Identifier (any name).
     #[inline]
+    #[must_use]
     pub fn is_identifier_node(&self) -> bool {
         self.node_type() == Some("Identifier")
     }
 
     /// Get the identifier name if this is an Identifier node.
     #[inline]
+    #[must_use]
     pub fn identifier_name(&self) -> Option<&str> {
         match self {
             Expression::Typed(te) => match &te.node {
@@ -326,14 +350,16 @@ impl<'a> Expression<'a> {
         }
     }
 
-    /// Check if this expression is a MemberExpression.
+    /// Check if this expression is a `MemberExpression`.
     #[inline]
+    #[must_use]
     pub fn is_member_expression(&self) -> bool {
         self.node_type() == Some("MemberExpression")
     }
 
-    /// Check if this is a computed MemberExpression.
+    /// Check if this is a computed `MemberExpression`.
     #[inline]
+    #[must_use]
     pub fn is_computed(&self) -> bool {
         match self {
             Expression::Typed(te) => match &te.node {
@@ -346,10 +372,14 @@ impl<'a> Expression<'a> {
         }
     }
 
-    /// Get a direct reference to the typed JsNode.
+    /// Get a direct reference to the typed `JsNode`.
     /// For `Expression::Typed`, returns a direct reference (zero cost).
-    /// Panics on `Expression::Lazy` (must be resolved before access).
+    ///
+    /// # Panics
+    ///
+    /// Panics on `Expression::Lazy`; resolve it before access.
     #[inline]
+    #[must_use]
     pub fn as_node_ref(&self) -> &JsNode {
         match self {
             Expression::Typed(te) => &te.node,
@@ -357,9 +387,10 @@ impl<'a> Expression<'a> {
         }
     }
 
-    /// Try to get a direct reference to the typed JsNode.
-    /// Returns None for Expression::Lazy.
+    /// Try to get a direct reference to the typed `JsNode`.
+    /// Returns None for `Expression::Lazy`.
     #[inline]
+    #[must_use]
     pub fn try_as_node_ref(&self) -> Option<&JsNode> {
         match self {
             Expression::Typed(te) => Some(&te.node),
@@ -369,20 +400,23 @@ impl<'a> Expression<'a> {
 
     /// Check if this expression is a Typed variant (not legacy Value or Lazy).
     #[inline]
-    pub fn is_typed(&self) -> bool {
+    #[must_use]
+    pub const fn is_typed(&self) -> bool {
         matches!(self, Expression::Typed(_))
     }
 
     /// Check if this expression is a Lazy variant that needs resolution.
     #[inline]
-    pub fn is_lazy(&self) -> bool {
+    #[must_use]
+    pub const fn is_lazy(&self) -> bool {
         matches!(self, Expression::Lazy { .. })
     }
 
     // ── Delegating accessors to JsNode ─────────────────────────────
 
-    /// Get "name" field (delegates to JsNode::name()).
+    /// Get "name" field (delegates to `JsNode::name()`).
     #[inline]
+    #[must_use]
     pub fn name(&self) -> Option<&str> {
         match self {
             Expression::Typed(te) => te.node.name(),
@@ -390,8 +424,9 @@ impl<'a> Expression<'a> {
         }
     }
 
-    /// Get "callee" for CallExpression/NewExpression (delegates to JsNode::callee()).
+    /// Get "callee" for CallExpression/NewExpression (delegates to `JsNode::callee()`).
     #[inline]
+    #[must_use]
     pub fn callee(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.callee(),
@@ -401,6 +436,7 @@ impl<'a> Expression<'a> {
 
     /// Get "arguments" for CallExpression/NewExpression.
     #[inline]
+    #[must_use]
     pub fn call_arguments(&self) -> IdRange {
         match self {
             Expression::Typed(te) => te.node.call_arguments(),
@@ -408,8 +444,9 @@ impl<'a> Expression<'a> {
         }
     }
 
-    /// Get "object" for MemberExpression.
+    /// Get "object" for `MemberExpression`.
     #[inline]
+    #[must_use]
     pub fn object(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.object(),
@@ -417,8 +454,9 @@ impl<'a> Expression<'a> {
         }
     }
 
-    /// Get "property" for MemberExpression.
+    /// Get "property" for `MemberExpression`.
     #[inline]
+    #[must_use]
     pub fn property(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.property(),
@@ -426,8 +464,9 @@ impl<'a> Expression<'a> {
         }
     }
 
-    /// Get "left" for BinaryExpression, etc.
+    /// Get "left" for `BinaryExpression`, etc.
     #[inline]
+    #[must_use]
     pub fn left(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.left(),
@@ -435,8 +474,9 @@ impl<'a> Expression<'a> {
         }
     }
 
-    /// Get "right" for BinaryExpression, etc.
+    /// Get "right" for `BinaryExpression`, etc.
     #[inline]
+    #[must_use]
     pub fn right(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.right(),
@@ -446,6 +486,7 @@ impl<'a> Expression<'a> {
 
     /// Get "operator" for binary/logical/assignment/update expressions.
     #[inline]
+    #[must_use]
     pub fn operator(&self) -> Option<&str> {
         match self {
             Expression::Typed(te) => te.node.operator(),
@@ -453,8 +494,9 @@ impl<'a> Expression<'a> {
         }
     }
 
-    /// Get "argument" for UnaryExpression, etc.
+    /// Get "argument" for `UnaryExpression`, etc.
     #[inline]
+    #[must_use]
     pub fn argument(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.argument(),
@@ -464,6 +506,7 @@ impl<'a> Expression<'a> {
 
     /// Get "properties" for ObjectExpression/ObjectPattern.
     #[inline]
+    #[must_use]
     pub fn properties(&self) -> IdRange {
         match self {
             Expression::Typed(te) => te.node.properties(),
@@ -473,6 +516,7 @@ impl<'a> Expression<'a> {
 
     /// Get "elements" for ArrayExpression/ArrayPattern.
     #[inline]
+    #[must_use]
     pub fn elements(&self) -> &[Option<JsNode>] {
         match self {
             Expression::Typed(te) => te.node.elements(),
@@ -482,6 +526,7 @@ impl<'a> Expression<'a> {
 
     /// Get "expressions" for SequenceExpression/TemplateLiteral.
     #[inline]
+    #[must_use]
     pub fn expressions(&self) -> IdRange {
         match self {
             Expression::Typed(te) => te.node.expressions(),
@@ -491,6 +536,7 @@ impl<'a> Expression<'a> {
 
     /// Get "params" for function-like nodes.
     #[inline]
+    #[must_use]
     pub fn params(&self) -> IdRange {
         match self {
             Expression::Typed(te) => te.node.params(),
@@ -498,8 +544,9 @@ impl<'a> Expression<'a> {
         }
     }
 
-    /// Get "test" for ConditionalExpression, IfStatement, etc.
+    /// Get "test" for `ConditionalExpression`, `IfStatement`, etc.
     #[inline]
+    #[must_use]
     pub fn test(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.test(),
@@ -507,8 +554,9 @@ impl<'a> Expression<'a> {
         }
     }
 
-    /// Get "consequent" for ConditionalExpression, IfStatement.
+    /// Get "consequent" for `ConditionalExpression`, `IfStatement`.
     #[inline]
+    #[must_use]
     pub fn consequent(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.consequent(),
@@ -516,8 +564,9 @@ impl<'a> Expression<'a> {
         }
     }
 
-    /// Get "alternate" for ConditionalExpression, IfStatement.
+    /// Get "alternate" for `ConditionalExpression`, `IfStatement`.
     #[inline]
+    #[must_use]
     pub fn alternate(&self) -> Option<JsNodeId> {
         match self {
             Expression::Typed(te) => te.node.alternate(),
@@ -527,6 +576,7 @@ impl<'a> Expression<'a> {
 
     /// Check if the node is a function-like type.
     #[inline]
+    #[must_use]
     pub fn is_function(&self) -> bool {
         match self {
             Expression::Typed(te) => te.node.is_function(),
@@ -535,7 +585,7 @@ impl<'a> Expression<'a> {
     }
 }
 
-impl<'a> Clone for Expression<'a> {
+impl Clone for Expression<'_> {
     fn clone(&self) -> Self {
         match self {
             Expression::Typed(te) => Expression::Typed(Box::new((**te).clone())),
@@ -554,7 +604,7 @@ impl<'a> Clone for Expression<'a> {
     }
 }
 
-impl<'a> PartialEq for Expression<'a> {
+impl PartialEq for Expression<'_> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Expression::Typed(a), Expression::Typed(b)) => a == b,
@@ -578,7 +628,7 @@ impl<'a> PartialEq for Expression<'a> {
     }
 }
 
-impl<'a> std::fmt::Debug for Expression<'a> {
+impl std::fmt::Debug for Expression<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Expression::Typed(te) => f.debug_tuple("Expression::Typed").field(&te.node).finish(),
@@ -598,7 +648,7 @@ impl<'a> std::fmt::Debug for Expression<'a> {
     }
 }
 
-impl<'a> Serialize for Expression<'a> {
+impl Serialize for Expression<'_> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match self {
             Expression::Typed(te) => te.node.serialize(serializer),
@@ -609,7 +659,7 @@ impl<'a> Serialize for Expression<'a> {
     }
 }
 
-impl<'de, 'a> Deserialize<'de> for Expression<'a> {
+impl<'de> Deserialize<'de> for Expression<'_> {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value = serde_json::Value::deserialize(deserializer)?;
         // Only a real ESTree node (a JSON object with a non-empty `type`) can
@@ -632,7 +682,7 @@ impl<'de, 'a> Deserialize<'de> for Expression<'a> {
     }
 }
 
-impl<'a> Default for Expression<'a> {
+impl Default for Expression<'_> {
     fn default() -> Self {
         Expression::from_node(JsNode::Null)
     }

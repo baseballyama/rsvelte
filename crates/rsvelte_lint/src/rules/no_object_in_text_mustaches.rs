@@ -1,3 +1,5 @@
+//! `svelte/no-object-in-text-mustaches`.
+//!
 //! `svelte/no-object-in-text-mustaches` — flag an object/array/function/class
 //! expression used directly in a text-position mustache (`{{ a }}`, `{[a]}`,
 //! `{() => a}`, `{class A {}}`), which stringifies to `[object Object]` etc.
@@ -33,7 +35,7 @@ fn phrase(tag: &ExpressionTag) -> Option<&'static str> {
     match tag.expression.node_type() {
         Some("ObjectExpression") => Some("object"),
         Some("ArrayExpression") => Some("array"),
-        Some("ArrowFunctionExpression") | Some("FunctionExpression") => Some("function"),
+        Some("ArrowFunctionExpression" | "FunctionExpression") => Some("function"),
         Some("ClassExpression") => Some("class"),
         _ => None,
     }
@@ -43,7 +45,7 @@ fn phrase(tag: &ExpressionTag) -> Option<&'static str> {
 pub struct NoObjectInTextMustaches;
 
 impl NoObjectInTextMustaches {
-    fn check_tag(&self, ctx: &mut LintContext, tag: &ExpressionTag) {
+    fn check_tag(ctx: &mut LintContext, tag: &ExpressionTag) {
         if let Some(p) = phrase(tag) {
             ctx.report(
                 tag.start,
@@ -60,7 +62,7 @@ impl Rule for NoObjectInTextMustaches {
     }
 
     fn check_expression_tag(&self, ctx: &mut LintContext, tag: &ExpressionTag) {
-        self.check_tag(ctx, tag);
+        Self::check_tag(ctx, tag);
     }
 
     fn check_attribute(&self, ctx: &mut LintContext, attr: &Attribute) {
@@ -73,7 +75,7 @@ impl Rule for NoObjectInTextMustaches {
         {
             for part in parts {
                 if let AttributeValuePart::ExpressionTag(tag) = part {
-                    self.check_tag(ctx, tag);
+                    Self::check_tag(ctx, tag);
                 }
             }
         }

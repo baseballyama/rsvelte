@@ -1,4 +1,6 @@
-//! `svelte/no-navigation-without-resolve` — disallow SvelteKit navigation
+//! `svelte/no-navigation-without-resolve`.
+//!
+//! `svelte/no-navigation-without-resolve` — disallow `SvelteKit` navigation
 //! (links, `goto`, `pushState`, `replaceState`) with a URL that isn't wrapped
 //! in a `resolve()` or `asset()` call from `$app/paths`. Port of the
 //! eslint-plugin-svelte rule.
@@ -160,10 +162,46 @@ fn collect_var_inits(json: &Value) -> HashMap<String, Value> {
 /// Config controlling what URLs are allowed beyond the resolve/asset check.
 #[derive(Clone, Copy, Default)]
 struct AllowConfig {
-    allow_absolute: bool,
-    allow_empty: bool,
-    allow_fragment: bool,
+    urls: AllowedUrls,
     allow_nullish: bool,
+}
+
+#[derive(Clone, Copy, Default)]
+struct AllowedUrls {
+    absolute: bool,
+    empty: bool,
+    fragment: bool,
+}
+
+#[derive(Clone, Copy, Default)]
+struct NavigationIgnores(u8);
+
+impl NavigationIgnores {
+    const GOTO: u8 = 1;
+    const LINKS: u8 = 1 << 1;
+    const PUSH_STATE: u8 = 1 << 2;
+    const REPLACE_STATE: u8 = 1 << 3;
+
+    const fn contains(self, flag: u8) -> bool {
+        self.0 & flag != 0
+    }
+
+    fn from_option(read_option: impl Fn(&str) -> bool) -> Self {
+        let mut flags = 0;
+        if read_option("ignoreGoto") {
+            flags |= Self::GOTO;
+        }
+        if read_option("ignoreLinks") {
+            flags |= Self::LINKS;
+        }
+        if read_option("ignorePushState") {
+            flags |= Self::PUSH_STATE;
+        }
+        if read_option("ignoreReplaceState") {
+            flags |= Self::REPLACE_STATE;
+        }
+        Self(flags)
+    }
 }
 
 /// Whether a call expression node (JSON) is a `resolve()` or `asset()` call
@@ -202,18 +240,16 @@ fn expression_is_resolve_call(
                         .and_then(|p| p.get("name"))
                         .and_then(Value::as_str);
                     obj_name.is_some_and(|n| im.paths_ns.contains(n))
-                        && matches!(prop_name, Some("resolve") | Some("asset"))
+                        && matches!(prop_name, Some("resolve" | "asset"))
                 }
                 _ => false,
             }
         }
         Some("Identifier") => {
             let name = expr.get("name").and_then(Value::as_str).unwrap_or("");
-            if let Some(init) = var_inits.get(name) {
-                expression_is_resolve_call(init, im, var_inits, depth + 1)
-            } else {
-                false
-            }
+            var_inits
+                .get(name)
+                .is_some_and(|init| expression_is_resolve_call(init, im, var_inits, depth + 1))
         }
         _ => false,
     }
@@ -227,20 +263,18 @@ fn expression_is_empty(expr: &Value) -> bool {
             let no_exprs = expr
                 .get("expressions")
                 .and_then(Value::as_array)
-                .map(|a| a.is_empty())
-                .unwrap_or(true);
+                .is_none_or(std::vec::Vec::is_empty);
             let one_empty_quasi = expr
                 .get("quasis")
                 .and_then(Value::as_array)
-                .map(|a| {
+                .is_some_and(|a| {
                     a.len() == 1
                         && a[0]
                             .get("value")
                             .and_then(|v| v.get("raw"))
                             .and_then(Value::as_str)
                             == Some("")
-                })
-                .unwrap_or(false);
+                });
             no_exprs && one_empty_quasi
         }
         _ => false,
@@ -251,7 +285,7 @@ fn expression_is_empty(expr: &Value) -> bool {
 fn expression_is_nullish(expr: &Value) -> bool {
     match node_type(expr) {
         Some("Identifier") => expr.get("name").and_then(Value::as_str) == Some("undefined"),
-        Some("Literal") => expr.get("value").is_some_and(|v| v.is_null()),
+        Some("Literal") => expr.get("value").is_some_and(serde_json::Value::is_null),
         _ => false,
     }
 }
@@ -290,8 +324,8 @@ fn expression_is_absolute(expr: &Value) -> bool {
 }
 
 /// Whether a node's start represents a fragment URL (`#…`).
-/// For BinaryExpression, only the LEFT side is checked (start-position).
-/// For TemplateLiteral, checks first expression OR first quasi.
+/// For `BinaryExpression`, only the LEFT side is checked (start-position).
+/// For `TemplateLiteral`, checks first expression OR first quasi.
 fn expression_starts_with_fragment(expr: &Value) -> bool {
     match node_type(expr) {
         Some("Literal") => expr
@@ -381,13 +415,13 @@ fn is_value_allowed(
     }
 
     // Remaining checks (mirrors the big `if` in upstream):
-    if config.allow_absolute && expression_is_absolute(expr) {
+    if config.urls.absolute && expression_is_absolute(expr) {
         return true;
     }
-    if config.allow_empty && expression_is_empty(expr) {
+    if config.urls.empty && expression_is_empty(expr) {
         return true;
     }
-    if config.allow_fragment && expression_starts_with_fragment(expr) {
+    if config.urls.fragment && expression_starts_with_fragment(expr) {
         return true;
     }
     if config.allow_nullish && expression_is_nullish(expr) {
@@ -402,8 +436,8 @@ fn is_value_allowed(
 
 fn span(node: &Value) -> Option<(u32, u32)> {
     Some((
-        node.get("start").and_then(Value::as_u64)? as u32,
-        node.get("end").and_then(Value::as_u64)? as u32,
+        u32::try_from(node.get("start").and_then(Value::as_u64)?).ok()?,
+        u32::try_from(node.get("end").and_then(Value::as_u64)?).ok()?,
     ))
 }
 
@@ -532,8 +566,8 @@ fn check_href(
                 .and_then(Value::as_str)
                 .unwrap_or("");
             // Static text: not allowed if not absolute and not fragment.
-            let text_allowed = (config.allow_absolute && url_is_absolute(data))
-                || (config.allow_fragment && url_is_fragment(data));
+            let text_allowed = (config.urls.absolute && url_is_absolute(data))
+                || (config.urls.fragment && url_is_fragment(data));
             return !text_allowed;
         }
         if node_type(first) == Some("ExpressionTag") {
@@ -569,10 +603,7 @@ fn check_href_expr_tag(
 /// checker-backed).
 fn collect_nav_reports(
     json: &Value,
-    ignore_goto: bool,
-    ignore_links: bool,
-    ignore_push: bool,
-    ignore_replace: bool,
+    ignores: NavigationIgnores,
     allowed_type: &AllowedTypeFn,
 ) -> Vec<(u32, u32, &'static str)> {
     let im = collect_imports(json);
@@ -583,17 +614,17 @@ fn collect_nav_reports(
         Some("CallExpression") => {
             let kind = call_kind(node, &im);
             let Some(kind) = kind else { return };
-            let args = node.get("arguments").and_then(Value::as_array);
-            let Some(arg0) = args.and_then(|a| a.first()) else {
+            let arguments = node.get("arguments").and_then(Value::as_array);
+            let Some(first_argument) = arguments.and_then(|arguments| arguments.first()) else {
                 return;
             };
-            let is_spread = node_type(arg0) == Some("SpreadElement");
+            let is_spread = node_type(first_argument) == Some("SpreadElement");
             // goto: no allowEmpty; pushState/replaceState: allowEmpty.
             let (not_allowed_goto, not_allowed_shallow) = if is_spread {
                 (true, true)
             } else {
                 let basic = !is_value_allowed(
-                    arg0,
+                    first_argument,
                     AllowConfig::default(),
                     &im,
                     &var_inits,
@@ -601,9 +632,12 @@ fn collect_nav_reports(
                     0,
                 );
                 let shallow = !is_value_allowed(
-                    arg0,
+                    first_argument,
                     AllowConfig {
-                        allow_empty: true,
+                        urls: AllowedUrls {
+                            empty: true,
+                            ..AllowedUrls::default()
+                        },
                         ..AllowConfig::default()
                     },
                     &im,
@@ -614,34 +648,41 @@ fn collect_nav_reports(
                 (basic, shallow)
             };
             let hit = match kind {
-                NavKind::Goto if !ignore_goto => not_allowed_goto.then_some(GOTO_MSG),
-                NavKind::Push if !ignore_push => not_allowed_shallow.then_some(PUSH_MSG),
-                NavKind::Replace if !ignore_replace => not_allowed_shallow.then_some(REPLACE_MSG),
+                NavKind::Goto if !ignores.contains(NavigationIgnores::GOTO) => {
+                    not_allowed_goto.then_some(GOTO_MSG)
+                }
+                NavKind::Push if !ignores.contains(NavigationIgnores::PUSH_STATE) => {
+                    not_allowed_shallow.then_some(PUSH_MSG)
+                }
+                NavKind::Replace if !ignores.contains(NavigationIgnores::REPLACE_STATE) => {
+                    not_allowed_shallow.then_some(REPLACE_MSG)
+                }
                 _ => None,
             };
             if let Some(msg) = hit
-                && let Some((s, e)) = span(arg0)
+                && let Some((s, e)) = span(first_argument)
             {
                 reports.push((s, e, msg));
             }
         }
-        Some("RegularElement") if !ignore_links => {
+        Some("RegularElement") if !ignores.contains(NavigationIgnores::LINKS) => {
             if node.get("name").and_then(Value::as_str) != Some("a") {
                 return;
             }
             let attrs = node
                 .get("attributes")
                 .and_then(Value::as_array)
-                .map(|a| a.as_slice())
-                .unwrap_or(&[]);
+                .map_or(&[] as &[Value], std::vec::Vec::as_slice);
             if has_rel_external(attrs, &var_inits) {
                 return;
             }
             let link_config = AllowConfig {
-                allow_absolute: true,
-                allow_fragment: true,
+                urls: AllowedUrls {
+                    absolute: true,
+                    empty: false,
+                    fragment: true,
+                },
                 allow_nullish: true,
-                allow_empty: false,
             };
             for attr in attrs {
                 if node_type(attr) == Some("Attribute")
@@ -659,6 +700,8 @@ fn collect_nav_reports(
     reports
 }
 
+/// Type-aware navigation variant.
+///
 /// Type-aware variant of the navigation rule: identical detection, but the
 /// `expressionIsAllowedType` predicate is backed by checker probes via
 /// `backend`, so a `goto`/`pushState`/`replaceState` argument or `<a href>`
@@ -684,20 +727,20 @@ pub fn diagnostics_typed(
     };
     let li = crate::line_index::LineIndex::new(source);
 
-    let opts = config.options_for(META.name);
+    let options = config.options_for(META.name);
     // The options are a variadic array; the conventional single options object
     // is `options[0]`.
-    let opt0 = opts.and_then(|v| match v {
+    let first_option = options.and_then(|value| match value {
         Value::Array(a) => a.first(),
         other => Some(other),
     });
     let ignore = |key: &str| -> bool {
-        opt0.and_then(|o| o.get(key)).and_then(Value::as_bool) == Some(true)
+        first_option
+            .and_then(|option| option.get(key))
+            .and_then(Value::as_bool)
+            == Some(true)
     };
-    let ignore_goto = ignore("ignoreGoto");
-    let ignore_links = ignore("ignoreLinks");
-    let ignore_push = ignore("ignorePushState");
-    let ignore_replace = ignore("ignoreReplaceState");
+    let ignores = NavigationIgnores::from_option(ignore);
 
     let backend = std::cell::RefCell::new(backend);
     let reports = with_serialize_arena(&root.arena, || {
@@ -707,10 +750,7 @@ pub fn diagnostics_typed(
         // Probe only identifier / member expressions (where a branded/nullish
         // type can live), and only the syntactic checks already failed.
         let allowed_type = |expr: &Value, cfg: AllowConfig| -> bool {
-            if !matches!(
-                node_type(expr),
-                Some("Identifier") | Some("MemberExpression")
-            ) {
+            if !matches!(node_type(expr), Some("Identifier" | "MemberExpression")) {
                 return false;
             }
             let Some((s, _)) = span(expr) else {
@@ -724,14 +764,7 @@ pub fn diagnostics_typed(
             }
             cfg.allow_nullish && facts.is_nullish()
         };
-        collect_nav_reports(
-            &json,
-            ignore_goto,
-            ignore_links,
-            ignore_push,
-            ignore_replace,
-            &allowed_type,
-        )
+        collect_nav_reports(&json, ignores, &allowed_type)
     });
 
     reports
@@ -739,7 +772,7 @@ pub fn diagnostics_typed(
         .map(|(s, e, msg)| Diagnostic {
             file: file.to_path_buf(),
             severity: crate::validator::to_dsev(severity),
-            range: crate::validator::range_from_byte(&li, s, e),
+            range: Some(crate::validator::range_from_byte(&li, s, e)),
             message: msg.to_string(),
             code: Some(META.name.to_string()),
             source: "svelte",
@@ -769,14 +802,7 @@ impl Rule for NoNavigationWithoutResolve {
         // No type backend in the native walk: `expressionIsAllowedType` is a
         // stub. The type-aware path is `diagnostics_typed`.
         let no_types = |_: &Value, _: AllowConfig| false;
-        let reports = collect_nav_reports(
-            &json,
-            ignore("ignoreGoto"),
-            ignore("ignoreLinks"),
-            ignore("ignorePushState"),
-            ignore("ignoreReplaceState"),
-            &no_types,
-        );
+        let reports = collect_nav_reports(&json, NavigationIgnores::from_option(ignore), &no_types);
 
         for (s, e, msg) in reports {
             ctx.report(s, e, msg);

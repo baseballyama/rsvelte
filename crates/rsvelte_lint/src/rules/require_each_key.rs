@@ -1,3 +1,5 @@
+//! `svelte/require-each-key`.
+//!
 //! `svelte/require-each-key` — require a key on `{#each}` blocks. Keyed each
 //! blocks let Svelte preserve component state and DOM identity across reorders.
 //! Port of the eslint-plugin-svelte rule (pure-syntactic).

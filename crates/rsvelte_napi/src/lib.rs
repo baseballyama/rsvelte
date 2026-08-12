@@ -153,10 +153,7 @@ impl NapiParseOptions {
     /// rejecting a non-boolean with the same message shape as the compile
     /// options.
     fn flag(field: Option<&LenientScalar>, keypath: &str) -> napi::Result<bool> {
-        match field {
-            Some(v) => coerce_bool(keypath, v),
-            None => Ok(false),
-        }
+        field.map_or_else(|| Ok(false), |value| coerce_bool(keypath, value))
     }
 }
 
@@ -168,6 +165,14 @@ impl NapiParseOptions {
 ///
 /// For the fastest path skip JSON entirely: see [`napi_parse_envelope`]
 /// and the matching `decodeParseEnvelope` JS decoder.
+///
+/// # Errors
+///
+/// Returns an error when parsing, option validation, or serialization fails.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "napi-rs owns JavaScript arguments at the exported ABI boundary"
+)]
 #[napi(js_name = "parse", catch_unwind)]
 pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Result<String> {
     use rsvelte_core::compiler::phases::phase1_parse::{ParseOptions, parse as rust_parse};
@@ -223,6 +228,14 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
 /// (`napi_raw_parse`). Pair with the matching JS decoder in
 /// `@rsvelte/vite-plugin-svelte-native/parse-envelope.js` to skip
 /// `JSON.parse`'s tokenization cost on the JS side.
+///
+/// # Errors
+///
+/// Returns an error when parsing or option validation fails.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "napi-rs owns JavaScript arguments at the exported ABI boundary"
+)]
 #[napi(js_name = "parseEnvelope", catch_unwind)]
 pub fn napi_parse_envelope(
     source: String,
@@ -282,7 +295,10 @@ fn compile_error_object<'env>(
     }
     if let Some(span) = diagnostic.span {
         let located = rsvelte_core::compiler::source_span(source, span);
-        let position = [located.start.character as u32, located.end.character as u32];
+        let position = [
+            napi_u32(located.start.character)?,
+            napi_u32(located.end.character)?,
+        ];
         obj.set("start", position_object(env, &located.start)?)?;
         obj.set("end", position_object(env, &located.end)?)?;
         obj.set("position", position.to_vec())?;
@@ -296,17 +312,21 @@ fn compile_error_object<'env>(
 /// it) surface the same shape. napi-rs reuses the referenced JS value verbatim
 /// on the owning thread instead of rebuilding one from `reason`.
 fn compile_error(
-    env: &Env,
+    env: Env,
     source: &str,
     filename: Option<&str>,
-    e: rsvelte_core::compiler::CompileError,
+    e: &rsvelte_core::compiler::CompileError,
 ) -> napi::Error {
     let diagnostic = e.diagnostic();
-    match compile_error_object(env, source, filename, &diagnostic) {
+    match compile_error_object(&env, source, filename, &diagnostic) {
         Ok(obj) => napi::Error::from(obj.to_unknown()),
         // Nothing was built, so the message still has to carry the failure.
         Err(_) => napi::Error::from_reason(diagnostic.message),
     }
+}
+
+fn napi_u32(value: usize) -> napi::Result<u32> {
+    u32::try_from(value).map_err(|_| napi::Error::from_reason("source position exceeds u32"))
 }
 
 fn position_object<'env>(
@@ -314,15 +334,23 @@ fn position_object<'env>(
     p: &rsvelte_core::compiler::Position,
 ) -> napi::Result<napi::bindgen_prelude::Object<'env>> {
     let mut obj = napi::bindgen_prelude::Object::new(env)?;
-    obj.set("line", p.line as u32)?;
-    obj.set("column", p.column as u32)?;
-    obj.set("character", p.character as u32)?;
+    obj.set("line", napi_u32(p.line)?)?;
+    obj.set("column", napi_u32(p.column)?)?;
+    obj.set("character", napi_u32(p.character)?)?;
     Ok(obj)
 }
 
 ///
 /// Takes source code and an options object, returns a result object
 /// matching the official `svelte/compiler` output shape.
+///
+/// # Errors
+///
+/// Returns an error when option conversion or compilation fails.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "napi-rs owns JavaScript arguments at the exported ABI boundary"
+)]
 #[napi(js_name = "compile", catch_unwind)]
 pub fn napi_compile(
     env: Env,
@@ -334,15 +362,21 @@ pub fn napi_compile(
 
     match rust_compile(&source, opts) {
         Ok(result) => Ok(compile_result_to_json(result)),
-        Err(e) => Err(compile_error(&env, &source, filename.as_deref(), e)),
+        Err(error) => Err(compile_error(env, &source, filename.as_deref(), &error)),
     }
 }
 
-/// Compile a single component to both client and server output, sharing one
-/// parse + analyze pass (see `compile_both` in rsvelte_core::compiler): a
-/// dual-output build otherwise pays for that shared work twice by calling
-/// `compile` once per target. `options.generate` is ignored; the result is
-/// `{ client, server }`, each shaped like the `compile` return value.
+/// Compile a component to both client and server output in one parse and
+/// analysis pass. `options.generate` is ignored; the result has `client` and
+/// `server` fields shaped like the `compile` return value.
+///
+/// # Errors
+///
+/// Returns an error when option conversion or compilation fails.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "napi-rs owns JavaScript arguments at the exported ABI boundary"
+)]
 #[napi(js_name = "compileBoth", catch_unwind)]
 pub fn napi_compile_both(
     env: Env,
@@ -357,7 +391,7 @@ pub fn napi_compile_both(
             "client": compile_result_to_json(client),
             "server": compile_result_to_json(server),
         })),
-        Err(e) => Err(compile_error(&env, &source, filename.as_deref(), e)),
+        Err(error) => Err(compile_error(env, &source, filename.as_deref(), &error)),
     }
 }
 
@@ -366,12 +400,12 @@ pub fn napi_compile_both(
 fn compile_result_to_json(result: rsvelte_core::compiler::CompileResult) -> Value {
     let js_obj = serde_json::json!({
         "code": result.js.code,
-        "map": result.js.map.as_deref().map(|m| serde_json::from_str::<Value>(m).unwrap_or(Value::Null)).unwrap_or(Value::Null),
+        "map": result.js.map.as_deref().map_or(Value::Null, |m| serde_json::from_str::<Value>(m).unwrap_or(Value::Null)),
     });
     let css_obj = result.css.map(|c| {
         serde_json::json!({
             "code": c.code,
-            "map": c.map.as_deref().map(|m| serde_json::from_str::<Value>(m).unwrap_or(Value::Null)).unwrap_or(Value::Null),
+            "map": c.map.as_deref().map_or(Value::Null, |m| serde_json::from_str::<Value>(m).unwrap_or(Value::Null)),
             "hasGlobal": c.has_global,
         })
     });
@@ -396,6 +430,20 @@ fn compile_result_to_json(result: rsvelte_core::compiler::CompileResult) -> Valu
 /// which the bridge awaits with `block_on`. Callers that don't pass a
 /// `cssHash` function keep using the sync `compile` path — this entry
 /// adds no overhead there.
+///
+/// # Errors
+///
+/// Returns an error when options are invalid or the JavaScript callback fails.
+///
+/// # Panics
+///
+/// Panics if the callback handle or error slot is poisoned.
+#[allow(
+    clippy::needless_pass_by_value,
+    clippy::trailing_empty_array,
+    clippy::unused_async,
+    reason = "napi-rs requires owned ABI arguments and async Promise exports; its macro emits the zero-sized array"
+)]
 #[napi(js_name = "compileWithCssHash", catch_unwind, ts_return_type = "any")]
 pub async fn napi_compile_with_css_hash(
     source: String,
@@ -423,7 +471,8 @@ pub async fn napi_compile_with_css_hash(
     // Drop the TSFN while V8 handles are still valid (see oxfmt's cleanup note).
     let _ = handle.write().unwrap().take();
 
-    if let Some(msg) = error_slot.lock().unwrap().take() {
+    let callback_error = error_slot.lock().unwrap().take();
+    if let Some(msg) = callback_error {
         return Err(napi::Error::from_reason(msg));
     }
     match result {
@@ -438,9 +487,10 @@ pub async fn napi_compile_with_css_hash(
     }
 }
 
-/// The outcome of the async entry above. A failure travels as data rather than
-/// as a `napi::Error` because the official-shaped error object can only be built
-/// on the JS thread, which an async entry reaches only in this conversion.
+/// The async entry's outcome.
+///
+/// A failure travels as data because the official-shaped error object can only
+/// be built on the JS thread during conversion.
 pub enum CssHashOutcome {
     Compiled(Box<Value>),
     Failed {
@@ -458,10 +508,10 @@ impl napi::bindgen_prelude::ToNapiValue for CssHashOutcome {
         match val {
             // SAFETY: `env` is the caller's obligation, forwarded unchanged to
             // the inner conversion, which carries the same contract.
-            CssHashOutcome::Compiled(v) => unsafe {
+            Self::Compiled(v) => unsafe {
                 napi::bindgen_prelude::ToNapiValue::to_napi_value(env, *v)
             },
-            CssHashOutcome::Failed {
+            Self::Failed {
                 source,
                 filename,
                 diagnostic,
@@ -490,7 +540,7 @@ mod css_hash_bridge {
     // fall back to the default hash) or `{ error: string }` (throw → compile
     // failure) out. `CalleeHandled = false` so the callback receives the args
     // directly.
-    pub(super) type JsCssHashCb = ThreadsafeFunction<
+    pub type JsCssHashCb = ThreadsafeFunction<
         FnArgs<(String, String, String)>,
         Promise<Value>,
         FnArgs<(String, String, String)>,
@@ -498,14 +548,10 @@ mod css_hash_bridge {
         false,
     >;
 
-    pub(super) type Handle = Arc<RwLock<Option<JsCssHashCb>>>;
-    pub(super) type ErrorSlot = Arc<Mutex<Option<String>>>;
+    pub type Handle = Arc<RwLock<Option<JsCssHashCb>>>;
+    pub type ErrorSlot = Arc<Mutex<Option<String>>>;
 
-    pub(super) fn build(
-        handle: Handle,
-        error_slot: ErrorSlot,
-        root_dir: Option<String>,
-    ) -> CssHashFn {
+    pub fn build(handle: Handle, error_slot: ErrorSlot, root_dir: Option<String>) -> CssHashFn {
         Arc::new(move |input: &CssHashInput| -> String {
             let guard = handle.read().unwrap();
             let Some(cb) = guard.as_ref() else {
@@ -534,11 +580,10 @@ mod css_hash_bridge {
                             .get_or_insert_with(|| err.to_string());
                         return default_hash(input, root_dir.as_deref());
                     }
-                    match v.get("value").and_then(Value::as_str) {
-                        Some(s) => s.to_string(),
-                        // null / unexpected shape → default hash (never rejects).
-                        None => default_hash(input, root_dir.as_deref()),
-                    }
+                    v.get("value").and_then(Value::as_str).map_or_else(
+                        || default_hash(input, root_dir.as_deref()),
+                        ToString::to_string,
+                    )
                 }
                 // Internal TSFN failure (not a user throw) → default hash.
                 Err(_) => default_hash(input, root_dir.as_deref()),
@@ -599,20 +644,20 @@ pub enum LenientScalar {
     // to `Other` instead of recursing — that depth cap is what makes a
     // self-referential object safe to decode. `undefined` children are dropped
     // (unset); everything the consumers read lives at depth 1.
-    Object(Vec<(String, LenientScalar)>),
+    Object(Vec<(String, Self)>),
     // Arrays, functions, symbols and other non-scalars — JS-truthy, but not a
     // value any option can consume.
     Other,
 }
 
 impl LenientScalar {
-    fn is_object(&self) -> bool {
-        matches!(self, LenientScalar::Object(_))
+    const fn is_object(&self) -> bool {
+        matches!(self, Self::Object(_))
     }
 
-    fn field(&self, key: &str) -> Option<&LenientScalar> {
+    fn field(&self, key: &str) -> Option<&Self> {
         match self {
-            LenientScalar::Object(fields) => fields.iter().find(|(k, _)| k == key).map(|(_, v)| v),
+            Self::Object(fields) => fields.iter().find(|(k, _)| k == key).map(|(_, v)| v),
             _ => None,
         }
     }
@@ -638,7 +683,7 @@ unsafe fn decode_scalar(
     let mut val_type = 0;
     // SAFETY: `env`/`napi_val` are valid handles from Node-API; `napi_typeof`
     // only reads them and writes the type tag.
-    let status = unsafe { napi::sys::napi_typeof(env, napi_val, &mut val_type) };
+    let status = unsafe { napi::sys::napi_typeof(env, napi_val, &raw mut val_type) };
     if status != napi::sys::Status::napi_ok {
         return Err(napi::Error::from_status(napi::Status::from(status)));
     }
@@ -671,7 +716,7 @@ impl napi::bindgen_prelude::FromNapiValue for ScalarLeaf {
         napi_val: napi::sys::napi_value,
     ) -> napi::Result<Self> {
         // SAFETY: valid handles from Node-API, forwarded to the scalar decoder.
-        Ok(ScalarLeaf(unsafe { decode_scalar(env, napi_val)? }))
+        Ok(Self(unsafe { decode_scalar(env, napi_val)? }))
     }
 }
 
@@ -683,7 +728,7 @@ impl napi::bindgen_prelude::FromNapiValue for LenientScalar {
         let mut val_type = 0;
         // SAFETY: `env`/`napi_val` are the valid handles Node-API passed in;
         // `napi_typeof` only reads them and writes the type tag.
-        let status = unsafe { napi::sys::napi_typeof(env, napi_val, &mut val_type) };
+        let status = unsafe { napi::sys::napi_typeof(env, napi_val, &raw mut val_type) };
         if status != napi::sys::Status::napi_ok {
             return Err(napi::Error::from_status(napi::Status::from(status)));
         }
@@ -693,12 +738,12 @@ impl napi::bindgen_prelude::FromNapiValue for LenientScalar {
         }
         let mut is_array = false;
         // SAFETY: valid handles; `napi_is_array` only reads them and writes the flag.
-        let st = unsafe { napi::sys::napi_is_array(env, napi_val, &mut is_array) };
+        let st = unsafe { napi::sys::napi_is_array(env, napi_val, &raw mut is_array) };
         if st != napi::sys::Status::napi_ok {
             return Err(napi::Error::from_status(napi::Status::from(st)));
         }
         if is_array {
-            return Ok(LenientScalar::Other);
+            return Ok(Self::Other);
         }
         // SAFETY: confirmed non-array object; properties are read through the
         // safe `Object` API, and each child is decoded via `ScalarLeaf`, which
@@ -710,7 +755,7 @@ impl napi::bindgen_prelude::FromNapiValue for LenientScalar {
                 fields.push((key, v));
             }
         }
-        Ok(LenientScalar::Object(fields))
+        Ok(Self::Object(fields))
     }
 }
 
@@ -725,10 +770,10 @@ impl napi::bindgen_prelude::ToNapiValue for LenientScalar {
         // type satisfy the derived `ToNapiValue` bound.
         unsafe {
             match val {
-                LenientScalar::Bool(b) => bool::to_napi_value(env, b),
-                LenientScalar::Number(n) => f64::to_napi_value(env, n),
-                LenientScalar::Str(s) => String::to_napi_value(env, s),
-                LenientScalar::Object(_) | LenientScalar::Other => {
+                Self::Bool(b) => bool::to_napi_value(env, b),
+                Self::Number(n) => f64::to_napi_value(env, n),
+                Self::Str(s) => String::to_napi_value(env, s),
+                Self::Object(_) | Self::Other => {
                     napi::bindgen_prelude::Null::to_napi_value(env, napi::bindgen_prelude::Null)
                 }
             }
@@ -858,8 +903,12 @@ fn coerce_fragments(v: &LenientScalar) -> napi::Result<rsvelte_core::compiler::F
 // `"4"` is rejected).
 fn coerce_component_api(v: &LenientScalar) -> napi::Result<rsvelte_core::compiler::ComponentApi> {
     match v {
-        LenientScalar::Number(n) if *n == 4.0 => Ok(rsvelte_core::compiler::ComponentApi::V4),
-        LenientScalar::Number(n) if *n == 5.0 => Ok(rsvelte_core::compiler::ComponentApi::V5),
+        LenientScalar::Number(n) if n.to_bits() == 4.0_f64.to_bits() => {
+            Ok(rsvelte_core::compiler::ComponentApi::V4)
+        }
+        LenientScalar::Number(n) if n.to_bits() == 5.0_f64.to_bits() => {
+            Ok(rsvelte_core::compiler::ComponentApi::V5)
+        }
         _ => Err(invalid_option(
             "compatibility.componentApi should be either \"4\" or \"5\"",
         )),
@@ -883,16 +932,16 @@ fn coerce_compatibility(v: &LenientScalar) -> napi::Result<rsvelte_core::compile
     if !v.is_object() {
         return Err(invalid_option("compatibility should be an object"));
     }
-    match v.field("componentApi") {
-        None => Ok(rsvelte_core::compiler::ComponentApi::default()),
-        Some(c) => coerce_component_api(c),
-    }
+    v.field("componentApi").map_or_else(
+        || Ok(rsvelte_core::compiler::ComponentApi::default()),
+        coerce_component_api,
+    )
 }
 
-/// Typed mirror of `CompileOptions` for the NAPI boundary. Field
-/// names follow `#[napi(object)]`'s automatic camelCase conversion,
-/// so the JS shape stays identical to the legacy `Value`-typed
-/// `options` argument (`{ dev, generate, filename, rootDir, … }`).
+/// Typed mirror of `CompileOptions` for the NAPI boundary.
+///
+/// Field names use `#[napi(object)]`'s automatic camelCase conversion, keeping
+/// the JavaScript shape identical to the legacy `Value` options argument.
 #[napi(object)]
 pub struct NapiCompileOptions {
     pub dev: Option<LenientScalar>,
@@ -909,7 +958,7 @@ pub struct NapiCompileOptions {
     pub preserve_whitespace: Option<LenientScalar>,
     pub runes: Option<LenientScalar>,
     pub disclose_version: Option<LenientScalar>,
-    /// SourceMap v3 object **or** its serialized JSON string — both
+    /// `SourceMap` v3 object **or** its serialized JSON string — both
     /// accepted. Preprocessors pass an object; the test harness
     /// sometimes passes a string. Anything else (number, array,
     /// boolean) is ignored.
@@ -946,6 +995,10 @@ impl NapiCompileOptions {
     /// Convert into the compiler's native `CompileOptions`, mirroring the
     /// upstream `validate-options.js`: an absent field keeps its default and a
     /// wrong JS type is rejected with the upstream message.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "option conversion stays contiguous to make the JavaScript-to-compiler mapping auditable"
+    )]
     fn into_compile_options(self) -> napi::Result<CompileOptions> {
         let mut opts = CompileOptions::default();
         if let Some(v) = &self.dev {
@@ -1103,22 +1156,30 @@ impl NapiModuleCompileOptions {
 /// typed surface) into `CompileOptions`. `None` and `Some(empty)`
 /// both produce the defaults.
 fn options_to_compile(opts: Option<NapiCompileOptions>) -> napi::Result<CompileOptions> {
-    match opts {
-        Some(o) => o.into_compile_options(),
-        None => Ok(CompileOptions::default()),
-    }
+    opts.map_or_else(
+        || Ok(CompileOptions::default()),
+        NapiCompileOptions::into_compile_options,
+    )
 }
 
 fn options_to_module_compile(
     opts: Option<NapiModuleCompileOptions>,
 ) -> napi::Result<ModuleCompileOptions> {
-    match opts {
-        Some(o) => o.into_module_compile_options(),
-        None => Ok(ModuleCompileOptions::default()),
-    }
+    opts.map_or_else(
+        || Ok(ModuleCompileOptions::default()),
+        NapiModuleCompileOptions::into_module_compile_options,
+    )
 }
 
 /// Compile a Svelte module (.svelte.js/.svelte.ts).
+///
+/// # Errors
+///
+/// Returns an error when option conversion or compilation fails.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "napi-rs owns JavaScript arguments at the exported ABI boundary"
+)]
 #[napi(js_name = "compileModule", catch_unwind)]
 pub fn napi_compile_module(
     env: Env,
@@ -1132,8 +1193,7 @@ pub fn napi_compile_module(
             let js_obj = serde_json::json!({
                 "code": result.js.code,
                 "map": result.js.map.as_deref()
-                    .map(|m| serde_json::from_str::<Value>(m).unwrap_or(Value::Null))
-                    .unwrap_or(Value::Null),
+                    .map_or(Value::Null, |m| serde_json::from_str::<Value>(m).unwrap_or(Value::Null)),
             });
 
             let output = serde_json::json!({
@@ -1149,7 +1209,7 @@ pub fn napi_compile_module(
 
             Ok(output)
         }
-        Err(e) => Err(compile_error(&env, &source, filename.as_deref(), e)),
+        Err(error) => Err(compile_error(env, &source, filename.as_deref(), &error)),
     }
 }
 
@@ -1157,6 +1217,14 @@ pub fn napi_compile_module(
 ///
 /// This is the NAPI binding for `svelte2tsx`, used by the Svelte language server
 /// and other tooling to get TypeScript representations of Svelte components.
+///
+/// # Errors
+///
+/// Returns an error when parsing or projection fails.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "napi-rs owns JavaScript arguments at the exported ABI boundary"
+)]
 #[napi(js_name = "svelte2tsx", catch_unwind)]
 pub fn napi_svelte2tsx(source: String, options: Value) -> napi::Result<Value> {
     let opts = parse_svelte2tsx_options(&options);
@@ -1206,7 +1274,7 @@ pub fn napi_svelte2tsx(source: String, options: Value) -> napi::Result<Value> {
     }
 }
 
-/// Parse JS options object into Svelte2TsxOptions.
+/// Parse JS options object into `Svelte2TsxOptions`.
 fn parse_svelte2tsx_options(options: &Value) -> Svelte2TsxOptions {
     let mut opts = Svelte2TsxOptions::default();
 
@@ -1218,7 +1286,7 @@ fn parse_svelte2tsx_options(options: &Value) -> Svelte2TsxOptions {
         opts.filename = v.to_string();
     }
 
-    if let Some(v) = obj.get("isTsFile").and_then(|v| v.as_bool()) {
+    if let Some(v) = obj.get("isTsFile").and_then(serde_json::Value::as_bool) {
         opts.is_ts_file = v;
     }
 
@@ -1229,7 +1297,7 @@ fn parse_svelte2tsx_options(options: &Value) -> Svelte2TsxOptions {
         };
     }
 
-    if let Some(v) = obj.get("accessors").and_then(|v| v.as_bool()) {
+    if let Some(v) = obj.get("accessors").and_then(serde_json::Value::as_bool) {
         opts.accessors = v;
     }
 
@@ -1261,10 +1329,17 @@ use rsvelte_bindings_support::vps::{
     ResolveOptions, hmr_diff as rust_hmr_diff, resolve_id as rust_resolve_id,
 };
 
-/// Diff two `.svelte` source versions. Returns `{ change, instanceChanged,
-/// moduleChanged }` so the JS shim can decide between Vite's hot-update
-/// patch and a full reload. Mirrors the JS reference's
-/// `vite-plugin-svelte/src/plugins/hot-update.js`.
+/// Diff two `.svelte` source versions.
+///
+/// The result lets the JS shim choose Vite's hot-update patch or a full reload.
+///
+/// # Errors
+///
+/// Returns an error when the diff cannot be represented for JavaScript.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "napi-rs owns JavaScript arguments at the exported ABI boundary"
+)]
 #[napi(js_name = "hmrDiff", catch_unwind)]
 pub fn napi_hmr_diff(prev: String, curr: String) -> napi::Result<Value> {
     let diff = rust_hmr_diff(&prev, &curr);
@@ -1283,6 +1358,14 @@ pub fn napi_hmr_diff(prev: String, curr: String) -> napi::Result<Value> {
 /// Resolve a relative module specifier from an importer's directory.
 /// Returns `null` for bare specifiers — the JS shim falls back to
 /// Vite's main resolver in that case.
+///
+/// # Errors
+///
+/// Returns an error when resolution cannot be represented for JavaScript.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "napi-rs owns JavaScript arguments at the exported ABI boundary"
+)]
 #[napi(js_name = "resolveId", catch_unwind)]
 pub fn napi_resolve_id(importer: Option<String>, specifier: String) -> napi::Result<Value> {
     let importer_path = importer.as_ref().map(std::path::Path::new);
@@ -1311,10 +1394,18 @@ pub struct PreprocessOptions {
 /// `svelte/preprocess`'s contract. Callbacks may be sync or `async` and
 /// may return either a `{ code, map?, dependencies?, attributes? }`
 /// object or `undefined`/`null` to skip the file. Callbacks are invoked
-/// on the JS thread via N-API's ThreadsafeFunction machinery — the
+/// on the JS thread via N-API's `ThreadsafeFunction` machinery — the
 /// heavy lifting (tag extraction, source-map chaining) stays in Rust.
 ///
 /// Shape mirrors `svelte/preprocess`: `{ code, map, dependencies }`.
+///
+/// # Errors
+///
+/// Returns an error when a JavaScript preprocessor rejects the input.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "napi-rs owns JavaScript arguments at the exported ABI boundary"
+)]
 #[napi(js_name = "preprocess", catch_unwind)]
 pub fn napi_preprocess(
     env: Env,
@@ -1381,7 +1472,7 @@ mod preprocess_bridge {
     // matters in practice the moment any user preprocessor in the chain
     // happens to be synchronous (e.g. an inline `vitePreprocess`-style
     // markup filter that just returns `{ code }` without an `async`).
-    pub(super) enum MaybePromise<T: FromNapiValue + 'static> {
+    pub enum MaybePromise<T: FromNapiValue + 'static> {
         Promise(Promise<T>),
         Value(T),
     }
@@ -1394,18 +1485,18 @@ mod preprocess_bridge {
             let mut is_promise = false;
             // SAFETY: `env`/`napi_val` are the valid handles passed by Node-API to
             // `from_napi_value`; `napi_is_promise` only reads them and writes the bool.
-            let status = unsafe { napi::sys::napi_is_promise(env, napi_val, &mut is_promise) };
+            let status = unsafe { napi::sys::napi_is_promise(env, napi_val, &raw mut is_promise) };
             if status != napi::sys::Status::napi_ok {
                 return Err(napi::Error::from_status(napi::Status::from(status)));
             }
             if is_promise {
                 // SAFETY: same valid `env`/`napi_val`; we just confirmed it is a Promise.
                 let p = unsafe { Promise::<T>::from_napi_value(env, napi_val)? };
-                Ok(MaybePromise::Promise(p))
+                Ok(Self::Promise(p))
             } else {
                 // SAFETY: same valid `env`/`napi_val`; delegating to `T`'s own decoder.
                 let v = unsafe { T::from_napi_value(env, napi_val)? };
-                Ok(MaybePromise::Value(v))
+                Ok(Self::Value(v))
             }
         }
     }
@@ -1416,18 +1507,18 @@ mod preprocess_bridge {
     // `CalleeHandled = false` const generic suppresses the legacy
     // err-as-first-arg shape that would otherwise break every preprocessor
     // that destructures `{ content, filename }`.
-    pub(super) type Tsfn =
+    pub type Tsfn =
         ThreadsafeFunction<Value, MaybePromise<Option<Value>>, Value, Status, false, false, 0>;
-    pub(super) type ArcTsfn = std::sync::Arc<Tsfn>;
+    pub type ArcTsfn = std::sync::Arc<Tsfn>;
 
-    pub(super) struct Extracted {
+    pub struct Extracted {
         pub name: Option<String>,
         pub markup: Option<Tsfn>,
         pub script: Option<Tsfn>,
         pub style: Option<Tsfn>,
     }
 
-    pub(super) fn extract_groups(groups: Vec<Object>) -> napi::Result<Vec<Extracted>> {
+    pub fn extract_groups(groups: Vec<Object>) -> napi::Result<Vec<Extracted>> {
         groups
             .into_iter()
             .map(|obj| {
@@ -1441,7 +1532,7 @@ mod preprocess_bridge {
             .collect()
     }
 
-    pub(super) fn build_groups(extracted: Vec<Extracted>) -> Vec<PreprocessorGroup> {
+    pub fn build_groups(extracted: Vec<Extracted>) -> Vec<PreprocessorGroup> {
         extracted
             .into_iter()
             .map(|g| PreprocessorGroup {
@@ -1463,7 +1554,7 @@ mod preprocess_bridge {
                         "filename": opts.filename,
                     });
                     let ret_val = await_tsfn(&tsfn, arg).await?;
-                    Ok(json_to_processed(ret_val))
+                    Ok(json_to_processed(&ret_val))
                 })
             },
         )
@@ -1480,7 +1571,7 @@ mod preprocess_bridge {
                     "filename": opts.filename,
                 });
                 let ret_val = await_tsfn(&tsfn, arg).await?;
-                Ok(json_to_processed(ret_val))
+                Ok(json_to_processed(&ret_val))
             })
         })
     }
@@ -1520,7 +1611,7 @@ mod preprocess_bridge {
         Value::Object(map)
     }
 
-    fn json_to_processed(val: Value) -> Option<Processed> {
+    fn json_to_processed(val: &Value) -> Option<Processed> {
         let obj = val.as_object()?;
 
         let code = obj.get("code").and_then(|v| v.as_str()).map(String::from)?;
@@ -1549,7 +1640,6 @@ mod preprocess_bridge {
 
     fn json_to_sourcemap_input(val: &Value) -> Option<SourceMapInput> {
         match val {
-            Value::Null => None,
             Value::String(s) => Some(SourceMapInput::Json(s.clone())),
             Value::Object(_) => {
                 // Either a decoded map or an encoded one — serialize to JSON
@@ -1579,7 +1669,7 @@ mod preprocess_bridge {
         Some(out)
     }
 
-    pub(super) fn processed_to_json(p: Processed) -> Value {
+    pub fn processed_to_json(p: Processed) -> Value {
         let map = match p.map {
             None => Value::Null,
             Some(SourceMapInput::Json(s)) => {
@@ -1691,11 +1781,7 @@ mod preprocess_bridge {
     const BASE64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
     fn vlq_encode(out: &mut String, value: i64) {
-        let mut vlq: u64 = if value < 0 {
-            ((-value as u64) << 1) | 1
-        } else {
-            (value as u64) << 1
-        };
+        let mut vlq = (value.cast_unsigned() << 1) ^ (value >> 63).cast_unsigned();
         loop {
             let mut digit = (vlq & 0x1f) as u8;
             vlq >>= 5;
@@ -1762,13 +1848,21 @@ pub struct CompileBuffersResult {
     pub runes: bool,
 }
 
-/// `compile()` variant that avoids serde_json on the Rust↔JS boundary.
+/// `compile()` variant that avoids `serde_json` on the Rust↔JS boundary.
 ///
 /// The generated code and sourcemap JSON are handed to V8 as
 /// `Buffer`s (zero-copy from the underlying `Vec<u8>`), so napi-rs
-/// performs a single ArrayBuffer wrap per payload instead of a UTF-16
+/// performs a single `ArrayBuffer` wrap per payload instead of a UTF-16
 /// string copy. Warnings stay as a structured `#[napi(object)]` since
 /// they're small and the JS side reads them eagerly.
+///
+/// # Errors
+///
+/// Returns an error when option conversion or compilation fails.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "napi-rs owns JavaScript arguments at the exported ABI boundary"
+)]
 #[napi(js_name = "compileBuffers", catch_unwind)]
 pub fn napi_compile_buffers(
     source: String,
@@ -1787,7 +1881,11 @@ pub fn napi_compile_buffers(
                 map: c.map.map(|m| Buffer::from(m.into_bytes())),
                 has_global: c.has_global,
             }),
-            warnings: result.warnings.into_iter().map(warning_to_napi).collect(),
+            warnings: result
+                .warnings
+                .into_iter()
+                .map(warning_to_napi)
+                .collect::<napi::Result<Vec<_>>>()?,
             runes: result.metadata.runes,
         }),
         Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
@@ -1795,6 +1893,14 @@ pub fn napi_compile_buffers(
 }
 
 /// `compileModule()` variant matching `compileBuffers`'s output shape.
+///
+/// # Errors
+///
+/// Returns an error when option conversion or compilation fails.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "napi-rs owns JavaScript arguments at the exported ABI boundary"
+)]
 #[napi(js_name = "compileModuleBuffers", catch_unwind)]
 pub fn napi_compile_module_buffers(
     source: String,
@@ -1816,23 +1922,23 @@ pub fn napi_compile_module_buffers(
     }
 }
 
-fn warning_to_napi(w: rsvelte_core::compiler::Warning) -> NapiWarning {
-    NapiWarning {
+fn warning_to_napi(w: rsvelte_core::compiler::Warning) -> napi::Result<NapiWarning> {
+    Ok(NapiWarning {
         code: w.code,
         message: w.message,
         filename: w.filename,
-        start: w.start.map(position_to_napi),
-        end: w.end.map(position_to_napi),
+        start: w.start.as_ref().map(position_to_napi).transpose()?,
+        end: w.end.as_ref().map(position_to_napi).transpose()?,
         frame: w.frame,
-    }
+    })
 }
 
-fn position_to_napi(p: rsvelte_core::compiler::Position) -> NapiPosition {
-    NapiPosition {
-        line: p.line as u32,
-        column: p.column as u32,
-        character: p.character as u32,
-    }
+fn position_to_napi(p: &rsvelte_core::compiler::Position) -> napi::Result<NapiPosition> {
+    Ok(NapiPosition {
+        line: napi_u32(p.line)?,
+        column: napi_u32(p.column)?,
+        character: napi_u32(p.character)?,
+    })
 }
 
 // =============================================================================
@@ -1878,6 +1984,14 @@ fn reject_modern_ast_for_binary_result(options: &CompileOptions, api: &str) -> n
 
 /// `compile()` returning a single packed envelope buffer.
 /// See `rsvelte_bindings_support::napi_raw` for the byte-level format.
+///
+/// # Errors
+///
+/// Returns an error when option conversion, compilation, or envelope encoding fails.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "napi-rs owns JavaScript arguments at the exported ABI boundary"
+)]
 #[napi(js_name = "compileEnvelope", catch_unwind)]
 pub fn napi_compile_envelope(
     env: Env,
@@ -1886,9 +2000,18 @@ pub fn napi_compile_envelope(
 ) -> napi::Result<Buffer> {
     let opts = options_to_compile(options)?;
     let filename = opts.filename.clone();
-    compile_envelope(&env, &source, filename.as_deref(), opts, false)
+    compile_envelope(env, &source, filename.as_deref(), opts, false)
 }
 
+/// Compiles with externalized source-map contents.
+///
+/// # Errors
+///
+/// Returns an error when option conversion, compilation, or envelope encoding fails.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "napi-rs owns JavaScript arguments at the exported ABI boundary"
+)]
 #[napi(js_name = "compileEnvelopeExternalSources", catch_unwind)]
 pub fn napi_compile_envelope_external_sources(
     env: Env,
@@ -1897,11 +2020,11 @@ pub fn napi_compile_envelope_external_sources(
 ) -> napi::Result<Buffer> {
     let opts = options_to_compile(options)?;
     let filename = opts.filename.clone();
-    compile_envelope(&env, &source, filename.as_deref(), opts, true)
+    compile_envelope(env, &source, filename.as_deref(), opts, true)
 }
 
 fn compile_envelope(
-    env: &Env,
+    env: Env,
     source: &str,
     filename: Option<&str>,
     options: CompileOptions,
@@ -1920,7 +2043,7 @@ fn compile_envelope(
                 rsvelte_bindings_support::napi_raw::encode_to_vec(&result),
             ))
         }
-        Err(e) => Err(compile_error(env, source, filename, e)),
+        Err(error) => Err(compile_error(env, source, filename, &error)),
     }
 }
 
@@ -1962,8 +2085,20 @@ fn compile_envelope(
 /// `create_buffer_with_borrowed_data`. The arena is leaked via `Box::into_raw`
 /// and only freed inside the finalizer callback, after V8 has agreed it's done
 /// with the buffer. No Rust code retains the pointer after this returns.
+struct BumpGuard(*mut bumpalo::Bump);
+
+impl Drop for BumpGuard {
+    fn drop(&mut self) {
+        if !self.0.is_null() {
+            // SAFETY: the pointer came from `Box::into_raw`, has not been
+            // handed to the finalizer, and is not aliased.
+            unsafe { drop(Box::from_raw(self.0)) };
+        }
+    }
+}
+
 fn create_zero_copy_envelope(
-    env: &Env,
+    env: Env,
     result: &rsvelte_core::compiler::CompileResult,
 ) -> napi::Result<JsBuffer> {
     let size = rsvelte_bindings_support::napi_raw::estimate_size(result);
@@ -1975,16 +2110,6 @@ fn create_zero_copy_envelope(
     // errors) or unwind before ownership is handed to V8's finalizer, free the
     // leaked arena instead of abandoning it (H-015). On success we disarm it so
     // only the finalizer frees the arena.
-    struct BumpGuard(*mut bumpalo::Bump);
-    impl Drop for BumpGuard {
-        fn drop(&mut self) {
-            if !self.0.is_null() {
-                // SAFETY: the pointer came from `Box::into_raw`, has not been
-                // handed to the finalizer, and is not aliased.
-                unsafe { drop(Box::from_raw(self.0)) };
-            }
-        }
-    }
     let mut guard = BumpGuard(bump_ptr);
 
     // SAFETY: bump_ptr is freshly leaked from Box::into_raw and not
@@ -2017,10 +2142,18 @@ fn create_zero_copy_envelope(
     Ok(js_buf_value.into_raw())
 }
 
-/// Zero-copy variant of {@link napi_compile_envelope}. Allocates the
-/// envelope bytes inside a `bumpalo::Bump`, hands V8 a Buffer view
-/// over the arena, and drops the arena from a finalizer when V8
-/// finalises the Buffer.
+/// Zero-copy variant of [`napi_compile_envelope`].
+///
+/// It allocates envelope bytes in a `bumpalo::Bump` and releases the arena from
+/// the V8 Buffer finalizer.
+///
+/// # Errors
+///
+/// Returns an error when option conversion, compilation, or buffer creation fails.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "napi-rs owns JavaScript arguments at the exported ABI boundary"
+)]
 #[napi(js_name = "compileEnvelopeZeroCopy", catch_unwind)]
 pub fn napi_compile_envelope_zero_copy(
     env: Env,
@@ -2033,10 +2166,18 @@ pub fn napi_compile_envelope_zero_copy(
         Ok(r) => r,
         Err(e) => return Err(napi::Error::from_reason(format!("{e:?}"))),
     };
-    create_zero_copy_envelope(&env, &result)
+    create_zero_copy_envelope(env, &result)
 }
 
 /// `compileModule` counterpart of `compileEnvelopeZeroCopy`.
+///
+/// # Errors
+///
+/// Returns an error when option conversion, compilation, or buffer creation fails.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "napi-rs owns JavaScript arguments at the exported ABI boundary"
+)]
 #[napi(js_name = "compileModuleEnvelopeZeroCopy", catch_unwind)]
 pub fn napi_compile_module_envelope_zero_copy(
     env: Env,
@@ -2055,12 +2196,20 @@ pub fn napi_compile_module_envelope_zero_copy(
         metadata: rsvelte_core::compiler::CompileMetadata { runes: true },
         ast: None,
     };
-    create_zero_copy_envelope(&env, &cr)
+    create_zero_copy_envelope(env, &cr)
 }
 
 /// `compileModule()` returning the same packed envelope. The envelope
 /// uses the empty-CSS / empty-warnings encoding, so the JS decoder is
 /// identical for both entry points.
+///
+/// # Errors
+///
+/// Returns an error when option conversion, compilation, or envelope encoding fails.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "napi-rs owns JavaScript arguments at the exported ABI boundary"
+)]
 #[napi(js_name = "compileModuleEnvelope", catch_unwind)]
 pub fn napi_compile_module_envelope(
     source: String,
@@ -2116,11 +2265,20 @@ pub struct CompileBatchInput {
 /// the results into one batch envelope. See
 /// `crates/rsvelte_bindings_support/src/napi_raw.rs` for the
 /// byte format.
+///
+/// # Errors
+///
+/// Returns an error when options or envelope encoding are invalid.
 #[napi(js_name = "compileBatch", catch_unwind)]
 pub fn napi_compile_batch(inputs: Vec<CompileBatchInput>) -> napi::Result<Buffer> {
     compile_batch_envelope(inputs, false)
 }
 
+/// Batch-compiles with externalized source-map contents.
+///
+/// # Errors
+///
+/// Returns an error when options or envelope encoding are invalid.
 #[napi(js_name = "compileBatchExternalSources", catch_unwind)]
 pub fn napi_compile_batch_external_sources(inputs: Vec<CompileBatchInput>) -> napi::Result<Buffer> {
     compile_batch_envelope(inputs, true)
@@ -2168,11 +2326,15 @@ fn compile_batch_envelope(
     let entries: Vec<rsvelte_bindings_support::napi_raw::BatchEntry<'_>> = results
         .iter()
         .zip(err_strings.iter())
-        .map(|(r, e)| match r {
-            Ok(cr) => rsvelte_bindings_support::napi_raw::BatchEntry::Ok(cr),
-            Err(_) => rsvelte_bindings_support::napi_raw::BatchEntry::Err(
-                e.as_deref().unwrap_or("unknown error"),
-            ),
+        .map(|(result, error)| {
+            result.as_ref().map_or_else(
+                |_| {
+                    rsvelte_bindings_support::napi_raw::BatchEntry::Err(
+                        error.as_deref().unwrap_or("unknown error"),
+                    )
+                },
+                rsvelte_bindings_support::napi_raw::BatchEntry::Ok,
+            )
         })
         .collect();
 
@@ -2242,10 +2404,10 @@ impl Task for CompileEnvelopeTask {
         match output {
             Ok(output) => Ok(Buffer::from(output)),
             Err(error) => Err(compile_error(
-                &env,
+                env,
                 &self.source,
                 self.filename.as_deref(),
-                error,
+                &error,
             )),
         }
     }
@@ -2254,6 +2416,14 @@ impl Task for CompileEnvelopeTask {
 /// Async variant of `compileEnvelope` — returns `Promise<Buffer>` to
 /// the JS caller, frees the JS event loop while rayon / the worker
 /// thread runs the compile.
+///
+/// # Errors
+///
+/// Returns an error when option conversion fails.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "napi-rs owns JavaScript arguments at the exported ABI boundary"
+)]
 #[napi(js_name = "compileEnvelopeAsync", catch_unwind)]
 pub fn napi_compile_envelope_async(
     source: String,
@@ -2269,6 +2439,15 @@ pub fn napi_compile_envelope_async(
     }))
 }
 
+/// Async compile with externalized source-map contents.
+///
+/// # Errors
+///
+/// Returns an error when option conversion fails.
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "napi-rs owns JavaScript arguments at the exported ABI boundary"
+)]
 #[napi(js_name = "compileEnvelopeExternalSourcesAsync", catch_unwind)]
 pub fn napi_compile_envelope_external_sources_async(
     source: String,
@@ -2316,11 +2495,15 @@ impl Task for CompileBatchTask {
         let entries: Vec<rsvelte_bindings_support::napi_raw::BatchEntry<'_>> = results
             .iter()
             .zip(err_strings.iter())
-            .map(|(r, e)| match r {
-                Ok(cr) => rsvelte_bindings_support::napi_raw::BatchEntry::Ok(cr),
-                Err(_) => rsvelte_bindings_support::napi_raw::BatchEntry::Err(
-                    e.as_deref().unwrap_or("unknown error"),
-                ),
+            .map(|(result, error)| {
+                result.as_ref().map_or_else(
+                    |_| {
+                        rsvelte_bindings_support::napi_raw::BatchEntry::Err(
+                            error.as_deref().unwrap_or("unknown error"),
+                        )
+                    },
+                    rsvelte_bindings_support::napi_raw::BatchEntry::Ok,
+                )
             })
             .collect();
         ensure_envelope_size(rsvelte_bindings_support::napi_raw::estimate_batch_size(
@@ -2336,6 +2519,11 @@ impl Task for CompileBatchTask {
     }
 }
 
+/// Starts an asynchronous batch compile.
+///
+/// # Errors
+///
+/// Returns an error when option conversion fails.
 #[napi(js_name = "compileBatchAsync", catch_unwind)]
 pub fn napi_compile_batch_async(
     inputs: Vec<CompileBatchInput>,
@@ -2343,6 +2531,11 @@ pub fn napi_compile_batch_async(
     compile_batch_async_task(inputs, false)
 }
 
+/// Starts an asynchronous batch compile with externalized source-map contents.
+///
+/// # Errors
+///
+/// Returns an error when option conversion fails.
 #[napi(js_name = "compileBatchExternalSourcesAsync", catch_unwind)]
 pub fn napi_compile_batch_external_sources_async(
     inputs: Vec<CompileBatchInput>,

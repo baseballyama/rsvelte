@@ -34,6 +34,36 @@ pub struct FormatOptions {
     /// not a user-facing knob.
     pub typescript: bool,
 
+    pub attributes: AttributeFormatOptions,
+
+    /// prettier-plugin-svelte's `svelteIndentScriptAndStyle`. When `true` (the
+    /// default), `<script>` / `<style>` bodies are indented one level under
+    /// their tag. When `false`, the body sits flush at column 0.
+    pub indent_script_and_style: bool,
+
+    /// Prettier's `bracketSameLine` (the replacement for the removed
+    /// `svelteBracketNewLine`). When `true`, the `>` (or ` />`) of a wrapped,
+    /// multi-line open tag is kept on the same line as the last attribute
+    /// instead of dropping to its own line. Default `false`.
+    pub bracket_same_line: bool,
+
+    /// prettier-plugin-svelte's `svelteSortOrder` — the print order of the
+    /// top-level sections. Defaults to `options-scripts-markup-styles`.
+    pub sort_order: crate::sort_order::SortOrderSpec,
+
+    /// Optional Tailwind class sorter (oxfmt's `sortTailwindcss`). When set, the
+    /// value of every **static** attribute named in [`Self::class_attributes`]
+    /// is passed through this callback (a space-separated class list in, sorted
+    /// list out). Values containing `{expr}` interpolation are left untouched.
+    pub class_sorter: Option<ClassSorter>,
+
+    pub class_attributes: Vec<String>,
+    pub tailwind_functions: Vec<String>,
+}
+
+/// Options that control Svelte attribute printing.
+#[derive(Clone, Debug)]
+pub struct AttributeFormatOptions {
     /// Prettier's `singleAttributePerLine`. When `true`, an element with more
     /// than one attribute always breaks its attributes onto separate lines —
     /// even when they would fit on one line. Default `false`.
@@ -45,42 +75,6 @@ pub struct FormatOptions {
     /// collapse too. When `false`, every attribute keeps its full
     /// `name={value}` form.
     pub allow_shorthand: bool,
-
-    /// prettier-plugin-svelte's `svelteIndentScriptAndStyle`. When `true` (the
-    /// default), `<script>` / `<style>` bodies are indented one level under
-    /// their tag. When `false`, the body sits flush at column 0.
-    pub indent_script_and_style: bool,
-
-    /// prettier-plugin-svelte's `svelteSortOrder` — the print order of the
-    /// top-level sections. Defaults to `options-scripts-markup-styles`.
-    pub sort_order: crate::sort_order::SortOrderSpec,
-
-    /// Prettier's `bracketSameLine` (the replacement for the removed
-    /// `svelteBracketNewLine`). When `true`, the `>` (or ` />`) of a wrapped,
-    /// multi-line open tag is kept on the same line as the last attribute
-    /// instead of dropping to its own line. Default `false`.
-    pub bracket_same_line: bool,
-
-    /// Optional Tailwind class sorter (oxfmt's `sortTailwindcss`). When set, the
-    /// value of every **static** attribute named in [`Self::class_attributes`]
-    /// is passed through this callback (a space-separated class list in, sorted
-    /// list out). Values containing `{expr}` interpolation are left untouched.
-    ///
-    /// The `rsvelte-fmt` CLI only wires this up when the project is detected to
-    /// use a stock, zero-config Tailwind setup — the one case a pure-Rust sorter
-    /// can reproduce byte-for-byte (see the CLI's default-config detection).
-    pub class_sorter: Option<ClassSorter>,
-
-    /// Attribute names whose static value [`Self::class_sorter`] sorts. Empty by
-    /// default; the CLI sets it from `sortTailwindcss.attributes` (default
-    /// `["class"]`).
-    pub class_attributes: Vec<String>,
-
-    /// Wrapper function names (`sortTailwindcss.functions`, e.g. `["cn", "cva"]`)
-    /// whose string / template-literal class arguments [`Self::class_sorter`]
-    /// sorts inside `<script>` bodies. Empty by default. Independent of the
-    /// `class`-mustache sort, which is always on when `class_sorter` is set.
-    pub tailwind_functions: Vec<String>,
 }
 
 /// Callback that sorts a space-separated class attribute value. See
@@ -88,6 +82,7 @@ pub struct FormatOptions {
 pub type ClassSorter = Arc<dyn Fn(&str) -> String + Send + Sync + 'static>;
 
 /// Callback used to format the body of a `<style>` block: `(css, lang, width)`.
+///
 /// `width` is the print width the CSS should be formatted at — the global print
 /// width minus the `<style>` body's indentation — so embedded CSS wraps where
 /// the oracle (which formats it at its real column) does. See
@@ -96,13 +91,13 @@ pub type StyleFormatter =
     Arc<dyn Fn(&str, &str, usize) -> Result<String, String> + Send + Sync + 'static>;
 
 impl FormatOptions {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             js: JsFormatOptions::default(),
             style_formatter: None,
             typescript: false,
-            single_attribute_per_line: false,
-            allow_shorthand: true,
+            attributes: AttributeFormatOptions::default(),
             indent_script_and_style: true,
             sort_order: crate::sort_order::SortOrderSpec::default(),
             bracket_same_line: false,
@@ -113,6 +108,7 @@ impl FormatOptions {
     }
 
     /// Builder-style setter for the style formatter callback.
+    #[must_use]
     pub fn with_style_formatter(mut self, formatter: StyleFormatter) -> Self {
         self.style_formatter = Some(formatter);
         self
@@ -125,6 +121,15 @@ impl Default for FormatOptions {
     }
 }
 
+impl Default for AttributeFormatOptions {
+    fn default() -> Self {
+        Self {
+            single_attribute_per_line: false,
+            allow_shorthand: true,
+        }
+    }
+}
+
 impl std::fmt::Debug for FormatOptions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FormatOptions")
@@ -134,8 +139,7 @@ impl std::fmt::Debug for FormatOptions {
                 &self.style_formatter.as_ref().map(|_| "<callback>"),
             )
             .field("typescript", &self.typescript)
-            .field("single_attribute_per_line", &self.single_attribute_per_line)
-            .field("allow_shorthand", &self.allow_shorthand)
+            .field("attributes", &self.attributes)
             .field("indent_script_and_style", &self.indent_script_and_style)
             .field("sort_order", &self.sort_order)
             .field("bracket_same_line", &self.bracket_same_line)

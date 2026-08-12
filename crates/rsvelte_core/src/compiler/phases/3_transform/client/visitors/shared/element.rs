@@ -21,11 +21,11 @@ use crate::compiler::phases::phase3_transform::shared::template::sanitize_templa
 
 use super::utils::build_expression;
 
-/// Check if a class attribute value needs to be wrapped in $.clsx().
+/// Check if a class attribute value needs to be wrapped in $.`clsx()`.
 ///
-/// Corresponds to the condition in Attribute.js for setting needs_clsx:
+/// Corresponds to the condition in Attribute.js for setting `needs_clsx`:
 /// - The value is a single Expression (not a Sequence or True)
-/// - The expression type is NOT Literal, TemplateLiteral, or BinaryExpression
+/// - The expression type is NOT Literal, `TemplateLiteral`, or `BinaryExpression`
 ///
 /// This is needed for class={x} where x is a variable, array, or object,
 /// because Svelte's clsx function normalizes these to proper class strings.
@@ -301,10 +301,10 @@ where
     }
 }
 
-/// Extract the JavaScript expression from an ExpressionTag.
+/// Extract the JavaScript expression from an `ExpressionTag`.
 ///
-/// This function converts the parsed ExpressionTag to a JsExpr using the
-/// expression_converter module.
+/// This function converts the parsed `ExpressionTag` to a `JsExpr` using the
+/// `expression_converter` module.
 fn extract_expression_from_tag_with_context(
     expr_tag: &ExpressionTag,
     context: &mut ComponentContext,
@@ -315,12 +315,12 @@ fn extract_expression_from_tag_with_context(
     convert_expression(&expr_tag.expression, context)
 }
 
-/// Extract metadata from an ExpressionTag.
+/// Extract metadata from an `ExpressionTag`.
 ///
 /// Compute Phase-3 metadata flags by walking the expression's JSON.
 ///
 /// `expr_tag.metadata.expression` (set by Phase 2) is **not** reliable
-/// for the ExpressionTags that live inside attribute / style-directive
+/// for the `ExpressionTags` that live inside attribute / style-directive
 /// `AttributeValue::Sequence` parts, because the parent visitors only
 /// walk the inner expression with a scratch `ExpressionMetadata` and
 /// throw it away. Reading the field would yield all-default flags and
@@ -329,7 +329,7 @@ fn extract_expression_from_tag_with_context(
 /// untrack wrapper.
 ///
 /// The cheaper "use the cached metadata" path is fine for the
-/// standalone-expression call sites (where the ExpressionTag visitor
+/// standalone-expression call sites (where the `ExpressionTag` visitor
 /// did run in Phase 2) but we don't currently distinguish those, so do
 /// the broad walk here for every consumer.
 ///
@@ -414,12 +414,11 @@ fn walk_metadata_flags_typed(node: &JsNode, arena: &ParseArena, flags: &mut Meta
         return;
     }
     match node {
-        JsNode::CallExpression { .. } => flags.has_call = true,
         // A spread counts as a call — see `walk_metadata_flags`.
         JsNode::SpreadElement { .. } => flags.has_call = true,
         JsNode::MemberExpression { .. } => flags.has_member = true,
         JsNode::AssignmentExpression { .. } | JsNode::UpdateExpression { .. } => {
-            flags.has_assignment = true
+            flags.has_assignment = true;
         }
         JsNode::AwaitExpression { .. } => flags.has_await = true,
         JsNode::ArrowFunctionExpression { .. }
@@ -461,7 +460,6 @@ fn walk_metadata_flags(
         serde_json::Value::Object(obj) => {
             if let Some(t) = obj.get("type").and_then(|t| t.as_str()) {
                 match t {
-                    "CallExpression" => *has_call = true,
                     // A spread `...x` is treated like `...x.values()` — it may
                     // invoke a getter/iterator — so it counts as a call. Mirrors
                     // upstream `2-analyze/visitors/SpreadElement.js`, which sets
@@ -497,12 +495,14 @@ fn walk_metadata_flags(
     }
 }
 
-/// True when the ExpressionTag contains a `CallExpression` somewhere in
-/// its tree (excluding nested function bodies). Phase 3 uses this broad
-/// definition for memoisation decisions; the cached
+/// True when the `ExpressionTag` contains a `CallExpression` somewhere in
+/// its tree (excluding nested function bodies).
+///
+/// Phase 3 uses this broad definition for memoisation decisions; the cached
 /// `expr_tag.metadata.expression.has_call()` set by Phase 2 follows the
 /// official compiler's narrower "non-pure callee" semantics, which is
 /// not yet what the rest of Phase 3 expects.
+#[must_use]
 pub fn expression_tag_has_call(expr_tag: &ExpressionTag) -> bool {
     let val = expr_tag.expression.as_json();
     if is_literal_value(val) {
@@ -545,10 +545,10 @@ fn json_contains_call(val: &serde_json::Value) -> bool {
 /// the JSON looking for `CallExpression`.
 fn is_literal_value(val: &serde_json::Value) -> bool {
     match val {
-        serde_json::Value::Null => true,
-        serde_json::Value::Bool(_) => true,
-        serde_json::Value::Number(_) => true,
-        serde_json::Value::String(_) => true,
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::String(_) => true,
         serde_json::Value::Object(obj) => {
             // Check if this is a Literal AST node
             if let Some(serde_json::Value::String(node_type)) = obj.get("type") {
@@ -577,7 +577,7 @@ fn is_literal_value(val: &serde_json::Value) -> bool {
 /// if they reference props (e.g., `foo` becomes `foo()`).
 ///
 /// When the directives contain function calls or reactive state, the resulting object
-/// is memoized via `context.state.memoizer.add_memoized()`, which causes the template_effect
+/// is memoized via `context.state.memoizer.add_memoized()`, which causes the `template_effect`
 /// to use `($0) => ...` parameter syntax with `[() => object]` as the values array.
 pub fn build_class_directives_object(
     class_directives: &[&ClassDirective],
@@ -757,7 +757,7 @@ pub fn build_style_directives_object_with_memoizer(
     }
 }
 
-/// Check if an AttributeValue contains an await expression.
+/// Check if an `AttributeValue` contains an await expression.
 fn attr_has_await_expr(attr_value: &AttributeValue) -> bool {
     match attr_value {
         AttributeValue::True(_) => false,
@@ -909,7 +909,7 @@ pub fn build_set_class(
                 if s.is_empty() {
                     class_value = b::string(css_hash);
                 } else {
-                    class_value = b::string(format!("{} {}", s, css_hash));
+                    class_value = b::string(format!("{s} {css_hash}"));
                 }
             }
             // A quote-preserving string literal (`class={"draggable"}`) is just as
@@ -925,7 +925,7 @@ pub fn build_set_class(
                 if value.is_empty() {
                     class_value = b::string(css_hash);
                 } else {
-                    class_value = b::string(format!("{} {}", value, css_hash));
+                    class_value = b::string(format!("{value} {css_hash}"));
                 }
             }
             _ => {
@@ -1128,12 +1128,12 @@ pub fn build_set_style(
 /// Build a style attribute value with proper memoization of inner expressions.
 ///
 /// This function builds the style value while memoizing expressions that contain
-/// function calls. Unlike build_attribute_value which uses a closure, this function
+/// function calls. Unlike `build_attribute_value` which uses a closure, this function
 /// directly accesses the memoizer to avoid borrow checker issues.
 ///
 /// For example, `style="background-color: {getColor()};"` produces:
 /// - Value: `\`background-color: ${$0 ?? ''};\``
-/// - The expression `getColor()` is added to memoizer's sync_values
+/// - The expression `getColor()` is added to memoizer's `sync_values`
 fn build_style_attribute_value_with_memoization(
     attr_value: &AttributeValue,
     context: &mut ComponentContext,

@@ -5,7 +5,7 @@ use crate::common::{bin, run_stdin, tempdir};
 /// #693: inline `<script>` formatting must honor the project `.oxfmtrc`.
 /// The script body is formatted in-process (no `oxfmt` needed), so a config
 /// with `singleQuote: true` should keep the string single-quoted instead of
-/// flipping it to oxc_formatter's double-quote default.
+/// flipping it to `oxc_formatter`'s double-quote default.
 #[test]
 fn inline_script_respects_oxfmtrc_single_quote() {
     let dir = tempdir();
@@ -33,7 +33,7 @@ fn inline_script_respects_oxfmtrc_single_quote() {
     );
 }
 
-/// Without a config, the in-process default is oxc_formatter's double quotes —
+/// Without a config, the in-process default is `oxc_formatter`'s double quotes —
 /// confirms the config layer is what flips quote style, not something else.
 #[test]
 fn inline_script_defaults_to_double_quote_without_config() {
@@ -216,7 +216,7 @@ fn conflicting_json_and_ts_configs_in_one_directory_is_an_error() {
 }
 
 /// An explicit `--config foo.cjs` must be accepted and its `module.exports =
-/// {...}` (CommonJS's equivalent of an ESM default export) statically
+/// {...}` (`CommonJS`'s equivalent of an ESM default export) statically
 /// evaluated, mirroring oxfmt's own `is_js_config_path` accepting
 /// `.js`/`.mjs`/`.cjs` (not just `.ts`/`.mts`) for an explicit `--config`.
 /// Auto-discovery still only ever finds `oxfmt.config.ts`/`.mts`, so this
@@ -305,7 +305,7 @@ fn inline_script_respects_explicit_js_config_esm_form() {
 /// through) and stamps every formatted file with the parsed `singleQuote`
 /// value, so the test can assert the evaluated TS config's content actually
 /// reached the child process.
-const CONFIG_ECHO_OXFMT: &str = r#"const fs = require('node:fs');
+const CONFIG_ECHO_OXFMT: &str = r"const fs = require('node:fs');
 const path = require('node:path');
 const args = process.argv.slice(2);
 const cIdx = args.indexOf('-c');
@@ -326,7 +326,7 @@ for (const p of args) {
     }
   }
 }
-"#;
+";
 
 /// End-to-end: `--no-native-css` delegates inline `<style>` bodies to a child
 /// `oxfmt` via the batched staging-directory path

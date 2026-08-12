@@ -77,10 +77,9 @@ fn strip_generated_header(source: &str) -> &str {
     let Some(rest) = source.strip_prefix("/*") else {
         return source;
     };
-    match rest.find("*/") {
-        Some(end) => rest[end + 2..].strip_prefix('\n').unwrap_or(source),
-        None => source,
-    }
+    rest.find("*/").map_or(source, |end| {
+        rest[end + 2..].strip_prefix('\n').unwrap_or(source)
+    })
 }
 
 fn reprint(source: &str) -> Option<Reprint> {
@@ -128,7 +127,7 @@ fn golden_roundtrip_ratchet() {
     let mut parseable = 0usize;
     let mut covered = 0usize;
     let mut exact = 0usize;
-    let mut miss_kinds: std::collections::BTreeMap<String, usize> = Default::default();
+    let mut miss_kinds = std::collections::BTreeMap::<String, usize>::default();
     let mut sample_diffs: Vec<String> = Vec::new();
     let verbose = std::env::var("ESRAP_GOLDEN_VERBOSE").is_ok();
 
@@ -145,20 +144,19 @@ fn golden_roundtrip_ratchet() {
         };
         parseable += 1;
 
-        match &result.missing {
-            Some(kind) => *miss_kinds.entry(kind.clone()).or_default() += 1,
-            None => {
-                covered += 1;
-                if result.output == source {
-                    exact += 1;
-                } else if verbose && sample_diffs.len() < 5 {
-                    sample_diffs.push(format!(
-                        "DIFF {}\n  expected: {:?}\n  actual:   {:?}",
-                        path.strip_prefix(&dir).unwrap_or(path).display(),
-                        first_diff_window(&source, &result.output).0,
-                        first_diff_window(&source, &result.output).1,
-                    ));
-                }
+        if let Some(kind) = &result.missing {
+            *miss_kinds.entry(kind.clone()).or_default() += 1;
+        } else {
+            covered += 1;
+            if result.output == source {
+                exact += 1;
+            } else if verbose && sample_diffs.len() < 5 {
+                sample_diffs.push(format!(
+                    "DIFF {}\n  expected: {:?}\n  actual:   {:?}",
+                    path.strip_prefix(&dir).unwrap_or(path).display(),
+                    first_diff_window(&source, &result.output).0,
+                    first_diff_window(&source, &result.output).1,
+                ));
             }
         }
     }
@@ -191,7 +189,7 @@ fn first_diff_window(a: &str, b: &str) -> (String, String) {
         .bytes()
         .zip(b.bytes())
         .position(|(x, y)| x != y)
-        .unwrap_or(a.len().min(b.len()));
+        .unwrap_or_else(|| a.len().min(b.len()));
     let start = i.saturating_sub(20);
     let win = |s: &str| {
         let end = (i + 20).min(s.len());

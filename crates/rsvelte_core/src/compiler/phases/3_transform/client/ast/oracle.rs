@@ -28,7 +28,7 @@ thread_local! {
 /// The env var is read once per process; the thread-local override exists so a
 /// test can enable the harness without racing other tests through the process
 /// environment.
-pub(crate) fn enabled() -> bool {
+pub fn enabled() -> bool {
     *ENV_ENABLED || FORCED.with(Cell::get)
 }
 
@@ -43,7 +43,7 @@ pub(crate) fn force(on: bool) -> bool {
 
 /// Outcome of one component compiled down both pipelines.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Verdict {
+pub enum Verdict {
     /// The AST pipeline produced the oracle's bytes.
     Matched,
     /// The AST pipeline produced different bytes — a port bug.
@@ -52,7 +52,7 @@ pub(crate) enum Verdict {
     FellBack,
 }
 
-pub(crate) fn record(verdict: Verdict) {
+pub fn record(verdict: Verdict) {
     match verdict {
         Verdict::Matched => MATCHED.with(|c| c.set(c.get() + 1)),
         Verdict::Mismatched => MISMATCHED.with(|c| c.set(c.get() + 1)),

@@ -358,7 +358,7 @@ fn emit_element_body<'a>(
 /// Emit the dev-mode `$.push_element($$renderer, '<name>', <line>, <col>)`
 /// statement into the template buffer. The location is the 1-based line /
 /// 0-based column of `node.start`, computed via the shared `locate_in_source`.
-fn push_element_dev<'a>(node: &RegularElement, name: &str, state: &mut ServerTransformState<'a>) {
+fn push_element_dev(node: &RegularElement, name: &str, state: &mut ServerTransformState<'_>) {
     let (line, col) = crate::compiler::phases::phase3_transform::utils::locate_in_source(
         state.source,
         node.start as usize,
@@ -648,7 +648,7 @@ fn has_class_directive_or_spread(node: &RegularElement) -> bool {
     })
 }
 
-/// 写经 upstream `is_custom_element_node` (`phases/nodes.js`): a RegularElement is
+/// 写经 upstream `is_custom_element_node` (`phases/nodes.js`): a `RegularElement` is
 /// a custom element if its name contains `-` OR it has a static `is` attribute
 /// (`<button is="x-button">`). The shared string-only `is_custom_element_node`
 /// helper only sees the name, so the `is=`-attribute case is checked here to set
@@ -856,7 +856,9 @@ fn build_bind_directive<'a>(
 /// / `this` / server-omitted binds that emit no SSR attribute — those are
 /// filtered identically by [`build_bind_directive`] returning `None`.
 fn bind_value_source(bind: &BindDirective, state: &ServerTransformState<'_>) -> Option<String> {
-    state.expr_source(&bind.expression).map(|s| s.to_string())
+    state
+        .expr_source(&bind.expression)
+        .map(std::string::ToString::to_string)
 }
 
 /// Lowercase the bind name for non-svg/mathml elements (the `get_attribute_name`
@@ -875,10 +877,10 @@ fn get_bind_attribute_name(element: &RegularElement, name: &str) -> String {
 /// `pub(super)` so the `<svelte:element>` visitor can reuse the exact attribute
 /// machinery (static / dynamic / `class:` / `style:` / spread / css-scope-hash),
 /// mirroring upstream `SvelteElement.js` calling the same `build_element_attributes`.
-pub(super) fn build_element_attributes<'a>(
+pub(super) fn build_element_attributes(
     node: &RegularElement,
     css_hash: Option<&str>,
-    state: &mut ServerTransformState<'a>,
+    state: &mut ServerTransformState<'_>,
 ) {
     // When the element carries ANY spread attribute (`{...obj}`), upstream's
     // `build_element_attributes` abandons the per-attribute emission and instead
@@ -1307,7 +1309,9 @@ fn build_element_spread_attributes<'a>(
                 // 写经 `optimiser.transform`: an awaited spread (`{...await x}`) is
                 // `$.save`-wrapped then hoisted into a `$$N` const, so the merged
                 // object reads `{ ...$$N }`.
-                let spread_text = state.expr_source(&spread.expression).map(|s| s.to_string());
+                let spread_text = state
+                    .expr_source(&spread.expression)
+                    .map(std::string::ToString::to_string);
                 let mut expr = if let Some(t) = &spread_text
                     && super::shared::text_has_await(t)
                     && state.attr_optimiser.is_some()
@@ -1432,7 +1436,7 @@ fn build_element_spread_attributes<'a>(
         flags |= ELEMENT_IS_INPUT;
     }
     let flags_arg = if flags != 0 {
-        Some(state.b.number(flags as f64))
+        Some(state.b.number(f64::from(flags)))
     } else {
         None
     };
@@ -1481,13 +1485,13 @@ fn is_select_special(node: &RegularElement) -> bool {
 /// Whether a `<select>` body has "rich content" → the SPECIAL
 /// `$$renderer.select(...)` wrapper's trailing `true` flag. Faithful port of the
 /// oracle's `element.rs::has_component_or_render_tag`: a Component /
-/// SvelteComponent / RenderTag / HtmlTag, recursing into IfBlock (both branches),
-/// EachBlock body, KeyBlock, SvelteBoundary — but NOT AwaitBlock, NOT EachBlock
-/// fallback, and NOT counting a RegularElement.
+/// `SvelteComponent` / `RenderTag` / `HtmlTag`, recursing into `IfBlock` (both branches),
+/// `EachBlock` body, `KeyBlock`, `SvelteBoundary` — but NOT `AwaitBlock`, NOT `EachBlock`
+/// fallback, and NOT counting a `RegularElement`.
 ///
 /// NOTE: this is INTENTIONALLY narrower than upstream's
 /// `is_customizable_select_element` (which also counts a non-option/optgroup
-/// RegularElement / text child) — we mirror the `transform_server` oracle
+/// `RegularElement` / text child) — we mirror the `transform_server` oracle
 /// byte-for-byte, which the corpus harness compares against.
 fn select_special_is_rich(nodes: &[TemplateNode]) -> bool {
     is_customizable_select(nodes)
@@ -1508,15 +1512,8 @@ fn is_customizable_select(nodes: &[TemplateNode]) -> bool {
         match node {
             // `find_descendants` does not yield these (so they never make a
             // select rich): see upstream `nodes.js`.
-            TemplateNode::SnippetBlock(_)
-            | TemplateNode::DebugTag(_)
-            | TemplateNode::ConstTag(_)
-            | TemplateNode::DeclarationTag(_)
-            | TemplateNode::Comment(_)
-            | TemplateNode::ExpressionTag(_) => {}
             // Text is rich only when it has non-whitespace content.
             TemplateNode::Text(t) if !t.data.trim().is_empty() => return true,
-            TemplateNode::Text(_) => {}
             // Block branches are recursed into (their contents are descendants).
             TemplateNode::IfBlock(b)
                 if is_customizable_select(&b.consequent.nodes)
@@ -1526,7 +1523,6 @@ fn is_customizable_select(nodes: &[TemplateNode]) -> bool {
             {
                 return true;
             }
-            TemplateNode::IfBlock(_) => {}
             TemplateNode::EachBlock(b)
                 if is_customizable_select(&b.body.nodes)
                     || b.fallback
@@ -1535,9 +1531,7 @@ fn is_customizable_select(nodes: &[TemplateNode]) -> bool {
             {
                 return true;
             }
-            TemplateNode::EachBlock(_) => {}
             TemplateNode::KeyBlock(b) if is_customizable_select(&b.fragment.nodes) => return true,
-            TemplateNode::KeyBlock(_) => {}
             TemplateNode::AwaitBlock(b)
                 if [&b.pending, &b.then, &b.catch]
                     .into_iter()
@@ -1546,7 +1540,6 @@ fn is_customizable_select(nodes: &[TemplateNode]) -> bool {
             {
                 return true;
             }
-            TemplateNode::AwaitBlock(_) => {}
             TemplateNode::SvelteBoundary(b) if is_customizable_select(&b.fragment.nodes) => {
                 return true;
             }
@@ -1565,9 +1558,9 @@ fn is_customizable_select(nodes: &[TemplateNode]) -> bool {
 
 /// Whether an `<option>` body has "rich content" → the `$$renderer.option(...)`
 /// wrapper's trailing `true` flag. Faithful port of the oracle's
-/// `select_element.rs::is_rich_option_content`: ALSO counts a RegularElement, and
-/// recurses into AwaitBlock (pending/then/catch) in addition to IfBlock / EachBlock
-/// body / KeyBlock / SvelteBoundary.
+/// `select_element.rs::is_rich_option_content`: ALSO counts a `RegularElement`, and
+/// recurses into `AwaitBlock` (pending/then/catch) in addition to `IfBlock` / `EachBlock`
+/// body / `KeyBlock` / `SvelteBoundary`.
 fn option_is_rich(nodes: &[TemplateNode]) -> bool {
     select_body_is_rich(nodes, true, true)
 }
@@ -1575,7 +1568,7 @@ fn option_is_rich(nodes: &[TemplateNode]) -> bool {
 /// Shared rich-content scan for the select / option wrappers (see the two
 /// callers for the oracle predicates each mirrors). `count_regular_element`
 /// makes a bare `RegularElement` rich (option only); `recurse_await` recurses
-/// into AwaitBlock branches (option only).
+/// into `AwaitBlock` branches (option only).
 fn select_body_is_rich(
     nodes: &[TemplateNode],
     count_regular_element: bool,
@@ -1882,7 +1875,7 @@ fn prepare_element_spread_object<'a>(
         flags |= ELEMENT_IS_INPUT;
     }
     let flags_arg = if flags != 0 {
-        Some(state.b.number(flags as f64))
+        Some(state.b.number(f64::from(flags)))
     } else {
         None
     };
@@ -2197,7 +2190,7 @@ fn build_attribute_value<'a>(
             if exprs.is_empty() {
                 return state.b.string(&quasis[0]);
             }
-            let quasi_refs: Vec<&str> = quasis.iter().map(|s| s.as_str()).collect();
+            let quasi_refs: Vec<&str> = quasis.iter().map(std::string::String::as_str).collect();
             state.b.template(quasi_refs, exprs)
         }
     }
@@ -2212,13 +2205,13 @@ fn attribute_value_source(
     state: &ServerTransformState<'_>,
 ) -> Option<String> {
     match value {
-        AttributeValue::Expression(tag) => {
-            state.expr_source(&tag.expression).map(|s| s.to_string())
-        }
+        AttributeValue::Expression(tag) => state
+            .expr_source(&tag.expression)
+            .map(std::string::ToString::to_string),
         AttributeValue::Sequence(parts) if parts.len() == 1 => match &parts[0] {
-            AttributeValuePart::ExpressionTag(tag) => {
-                state.expr_source(&tag.expression).map(|s| s.to_string())
-            }
+            AttributeValuePart::ExpressionTag(tag) => state
+                .expr_source(&tag.expression)
+                .map(std::string::ToString::to_string),
             AttributeValuePart::Text(_) => None,
         },
         _ => None,
@@ -2236,7 +2229,9 @@ fn attr_expr_value<'a>(
     state: &mut ServerTransformState<'a>,
 ) -> OxcExpression<'a> {
     if state.attr_optimiser.is_some()
-        && let Some(text) = state.expr_source(expr).map(|s| s.to_string())
+        && let Some(text) = state
+            .expr_source(expr)
+            .map(std::string::ToString::to_string)
         && super::shared::text_has_await(&text)
     {
         return super::shared::save_wrap_expr_text(state, &text);
@@ -2305,10 +2300,10 @@ fn collapse_ws_no_trim(s: &str) -> String {
 /// or `None` if any expression is not statically known. Mirrors the oracle's
 /// `build_attribute_value` all-inline branch (no per-part HTML escape — the
 /// caller escapes the whole value with `escape_attr`).
-fn fold_sequence_static<'a>(
+fn fold_sequence_static(
     parts: &[AttributeValuePart],
     trim_ws: bool,
-    state: &ServerTransformState<'a>,
+    state: &ServerTransformState<'_>,
 ) -> Option<String> {
     use crate::compiler::phases::phase3_transform::server::evaluate::{
         EvalValue, js_display_string,
@@ -2321,7 +2316,7 @@ fn fold_sequence_static<'a>(
             // upstream `build_attribute_value`'s `replace(regex_whitespaces_strict, ' ')`.
             // The trailing trim only happens at the css-hash join in the caller.
             AttributeValuePart::Text(t) if trim_ws => {
-                out.push_str(&collapse_ws_no_trim(t.data.as_ref()))
+                out.push_str(&collapse_ws_no_trim(t.data.as_ref()));
             }
             AttributeValuePart::Text(t) => out.push_str(t.data.as_ref()),
             AttributeValuePart::ExpressionTag(tag) => {

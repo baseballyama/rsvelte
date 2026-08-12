@@ -1,4 +1,6 @@
-//! `svelte/no-navigation-without-base` — disallow SvelteKit navigation (links,
+//! `svelte/no-navigation-without-base`.
+//!
+//! `svelte/no-navigation-without-base` — disallow `SvelteKit` navigation (links,
 //! `goto`, `pushState`, `replaceState`) with a URL that isn't prefixed with the
 //! configured `base` path. Port of the eslint-plugin-svelte rule (deprecated
 //! upstream in favour of `no-navigation-without-resolve`).
@@ -190,10 +192,8 @@ impl Ctx<'_> {
                     .is_some_and(|n| self.im.paths_ns.contains(n));
                 prop_is_base && obj_is_paths_ns
             }
-            Some("TemplateLiteral") => match template_first_expr(expr) {
-                Some(part) => self.starts_with_base(&part, depth + 1),
-                None => false,
-            },
+            Some("TemplateLiteral") => template_first_expr(expr)
+                .is_some_and(|part| self.starts_with_base(&part, depth + 1)),
             _ => false,
         }
     }
@@ -211,8 +211,7 @@ fn template_first_expr(tpl: &Value) -> Option<Value> {
             .get("value")
             .and_then(|v| v.get("raw"))
             .and_then(Value::as_str)
-            .map(|r| r.is_empty())
-            .unwrap_or(false);
+            .is_some_and(str::is_empty);
         parts.push((start, raw_empty, Value::Null));
     }
     for e in exprs {
@@ -322,20 +321,18 @@ fn is_empty_url(node: &Value) -> bool {
             let no_expr = node
                 .get("expressions")
                 .and_then(Value::as_array)
-                .map(|a| a.is_empty())
-                .unwrap_or(true);
+                .is_none_or(std::vec::Vec::is_empty);
             let one_empty_quasi = node
                 .get("quasis")
                 .and_then(Value::as_array)
-                .map(|a| {
+                .is_some_and(|a| {
                     a.len() == 1
                         && a[0]
                             .get("value")
                             .and_then(|v| v.get("raw"))
                             .and_then(Value::as_str)
                             == Some("")
-                })
-                .unwrap_or(false);
+                });
             no_expr && one_empty_quasi
         }
         _ => false,
@@ -344,8 +341,8 @@ fn is_empty_url(node: &Value) -> bool {
 
 fn span(node: &Value) -> Option<(u32, u32)> {
     Some((
-        node.get("start").and_then(Value::as_u64)? as u32,
-        node.get("end").and_then(Value::as_u64)? as u32,
+        u32::try_from(node.get("start").and_then(Value::as_u64)?).ok()?,
+        u32::try_from(node.get("end").and_then(Value::as_u64)?).ok()?,
     ))
 }
 
@@ -384,14 +381,14 @@ impl Rule for NoNavigationWithoutBase {
             Some("CallExpression") => {
                 let kind = call_kind(node, &im);
                 let Some(kind) = kind else { return };
-                let args = node.get("arguments").and_then(Value::as_array);
-                let Some(arg0) = args.and_then(|a| a.first()) else {
+                let arguments = node.get("arguments").and_then(Value::as_array);
+                let Some(first_argument) = arguments.and_then(|arguments| arguments.first()) else {
                     return;
                 };
-                let is_spread = node_type(arg0) == Some("SpreadElement");
-                let bad_goto = is_spread || !cx.starts_with_base(arg0, 0);
-                let bad_shallow =
-                    is_spread || (!is_empty_url(arg0) && !cx.starts_with_base(arg0, 0));
+                let is_spread = node_type(first_argument) == Some("SpreadElement");
+                let bad_goto = is_spread || !cx.starts_with_base(first_argument, 0);
+                let bad_shallow = is_spread
+                    || (!is_empty_url(first_argument) && !cx.starts_with_base(first_argument, 0));
                 let hit = match kind {
                     NavKind::Goto if !ignore_goto => bad_goto.then_some(GOTO_MSG),
                     NavKind::Push if !ignore_push => bad_shallow.then_some(PUSH_MSG),
@@ -399,7 +396,7 @@ impl Rule for NoNavigationWithoutBase {
                     _ => None,
                 };
                 if let Some(msg) = hit
-                    && let Some((s, e)) = span(arg0)
+                    && let Some((s, e)) = span(first_argument)
                 {
                     reports.push((s, e, msg));
                 }
@@ -412,7 +409,7 @@ impl Rule for NoNavigationWithoutBase {
                     for attr in attrs {
                         if node_type(attr) == Some("Attribute")
                             && attr.get("name").and_then(Value::as_str) == Some("href")
-                            && let Some(r) = self.check_href(&cx, attr)
+                            && let Some(r) = Self::check_href(&cx, attr)
                         {
                             reports.push((r.0, r.1, LINK_MSG));
                         }
@@ -477,7 +474,7 @@ fn call_kind(node: &Value, im: &Imports) -> Option<NavKind> {
 }
 
 impl NoNavigationWithoutBase {
-    fn check_href(&self, cx: &Ctx, attr: &Value) -> Option<(u32, u32)> {
+    fn check_href(cx: &Ctx, attr: &Value) -> Option<(u32, u32)> {
         let value = attr.get("value")?;
         // Static string value: `href="..."` → value is `[Text]`.
         if let Some(arr) = value.as_array() {
@@ -495,7 +492,7 @@ impl NoNavigationWithoutBase {
             }
             // First part is an expression tag.
             if node_type(first) == Some("ExpressionTag") {
-                return self.check_href_expr(cx, first);
+                return Self::check_href_expr(cx, first);
             }
             return None;
         }
@@ -513,12 +510,12 @@ impl NoNavigationWithoutBase {
             if attr_start + 1 == val_start {
                 return None;
             }
-            return self.check_href_expr(cx, value);
+            return Self::check_href_expr(cx, value);
         }
         None
     }
 
-    fn check_href_expr(&self, cx: &Ctx, expr_tag: &Value) -> Option<(u32, u32)> {
+    fn check_href_expr(cx: &Ctx, expr_tag: &Value) -> Option<(u32, u32)> {
         let expr = expr_tag.get("expression")?;
         if !cx.starts_with_base(expr, 0)
             && !url_value_is_absolute(expr)

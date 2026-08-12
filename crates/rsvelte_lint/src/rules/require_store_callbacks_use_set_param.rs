@@ -1,6 +1,8 @@
+//! `svelte/require-store-callbacks-use-set-param`.
+//!
 //! `svelte/require-store-callbacks-use-set-param` — the start callback passed to
 //! `readable` / `writable` must name its first parameter `set`. Port of the
-//! eslint-plugin-svelte rule. Runs over the script ESTree program via the
+//! eslint-plugin-svelte rule. Runs over the script `ESTree` program via the
 //! [`ScriptRule`] hook.
 //!
 //! Two suggestion variants (mirroring upstream):
@@ -17,7 +19,7 @@ use serde_json::Value;
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, Suggestion, TextEdit};
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::rules::store_refs::{collect_store_creators, is_function_expr};
+use crate::rules::store_refs::{StoreCreators, collect_store_creators, is_function_expr};
 use crate::script::{
     ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js,
 };
@@ -99,18 +101,17 @@ fn collect_refs_inner(node: &Value, target_name: &str, refs: &mut Vec<(u32, u32)
         return;
     }
     match node_type(node) {
-        Some("FunctionExpression") | Some("ArrowFunctionExpression") => {
+        Some("FunctionExpression" | "ArrowFunctionExpression") => {
             // Check if target_name is a param of this nested function.
-            let shadowed_by_param = node
-                .get("params")
-                .and_then(Value::as_array)
-                .map(|params| {
-                    params.iter().any(|p| {
-                        node_type(p) == Some("Identifier")
-                            && p.get("name").and_then(Value::as_str) == Some(target_name)
-                    })
-                })
-                .unwrap_or(false);
+            let shadowed_by_param =
+                node.get("params")
+                    .and_then(Value::as_array)
+                    .is_some_and(|params| {
+                        params.iter().any(|p| {
+                            node_type(p) == Some("Identifier")
+                                && p.get("name").and_then(Value::as_str) == Some(target_name)
+                        })
+                    });
             if shadowed_by_param {
                 return; // entirely skip this subtree
             }
@@ -248,7 +249,7 @@ fn find_open_paren(source: &str, body_start: u32) -> Option<u32> {
     let src = &source[..before];
     // Scan right-to-left for the `(`.
     let pos = src.rfind('(')?;
-    Some(pos as u32)
+    Some(u32::try_from(pos).expect("source offsets are represented as u32"))
 }
 
 #[derive(Default)]
@@ -265,163 +266,168 @@ impl ScriptRule for RequireStoreCallbacksUseSetParam {
             return;
         }
 
-        let source = ctx.source().to_string();
-        let mut reports: Vec<ReportInfo> = Vec::new();
+        let mut reports = collect_callback_reports(program, &creators, ctx.source());
+        reports.sort_by_key(|report| report.fn_start);
+        emit_callback_reports(ctx, reports);
+    }
+}
 
-        program.walk(|node, _| {
-            if node_type(node) != Some("CallExpression") {
-                return;
+fn collect_callback_reports(
+    program: &ProgramView<'_>,
+    creators: &StoreCreators,
+    source: &str,
+) -> Vec<ReportInfo> {
+    let mut reports = Vec::new();
+    program.walk(|node, _| {
+        if node_type(node) != Some("CallExpression") {
+            return;
+        }
+        let Some(callee) = node.get("callee") else {
+            return;
+        };
+        // Only `readable` / `writable` take a `set`-style start callback.
+        match creators.creator_of(callee) {
+            Some("readable" | "writable") => {}
+            _ => return,
+        }
+        let Some(args) = node.get("arguments").and_then(Value::as_array) else {
+            return;
+        };
+        let Some(fn_arg) = args.get(1) else {
+            return;
+        };
+        if !is_function_expr(fn_arg) {
+            return;
+        }
+
+        let parameters = fn_arg.get("params").and_then(Value::as_array);
+        let first_parameter = parameters.and_then(|parameters| parameters.first());
+
+        // Report when there is no first param, or it is an Identifier not
+        // named `set`. A destructuring/other pattern param is left alone.
+        let bad = match first_parameter {
+            None => true,
+            Some(p) if node_type(p) == Some("Identifier") => {
+                p.get("name").and_then(Value::as_str) != Some("set")
             }
-            let Some(callee) = node.get("callee") else {
+            Some(_) => false,
+        };
+
+        if !bad {
+            return;
+        }
+
+        let Some(fn_start) = node_start(fn_arg) else {
+            return;
+        };
+
+        // Determine the suggestion kind.
+        let body = fn_arg.get("body");
+        let body_start = body.and_then(node_start);
+
+        // Conflict: does `set` appear anywhere in the fn_arg subtree?
+        let has_conflict = has_any_identifier(fn_arg, "set");
+
+        let kind = if has_conflict {
+            ReportKind::NoSuggestion
+        } else if let Some(p) = first_parameter {
+            // updateParam: param exists but is misnamed Identifier
+            let Some(old_name) = p.get("name").and_then(Value::as_str).map(str::to_string) else {
                 return;
             };
-            // Only `readable` / `writable` take a `set`-style start callback.
-            match creators.creator_of(callee) {
-                Some("readable") | Some("writable") => {}
-                _ => return,
+            let Some(param_start) = node_start(p) else {
+                return;
+            };
+            let Some(param_end) = node_end(p) else {
+                return;
+            };
+            // Collect references to old_name in the body (not the param itself).
+            let mut refs: Vec<(u32, u32)> = Vec::new();
+            if let Some(body_node) = body {
+                collect_refs(body_node, &old_name, &mut refs);
             }
-            let Some(args) = node.get("arguments").and_then(Value::as_array) else {
-                return;
-            };
-            let Some(fn_arg) = args.get(1) else {
-                return;
-            };
-            if !is_function_expr(fn_arg) {
-                return;
+            ReportKind::UpdateParam {
+                old_name,
+                param_start,
+                param_end,
+                refs,
             }
-
-            let params = fn_arg.get("params").and_then(Value::as_array);
-            let param0 = params.and_then(|p| p.first());
-
-            // Report when there is no first param, or it is an Identifier not
-            // named `set`. A destructuring/other pattern param is left alone.
-            let bad = match param0 {
-                None => true,
-                Some(p) if node_type(p) == Some("Identifier") => {
-                    p.get("name").and_then(Value::as_str) != Some("set")
-                }
-                Some(_) => false,
-            };
-
-            if !bad {
+        } else {
+            // addParam: no params at all — find the `(` before the body.
+            let Some(paren_pos) = body_start.and_then(|bs| find_open_paren(source, bs)) else {
                 return;
+            };
+            ReportKind::AddParam { paren_pos }
+        };
+
+        reports.push(ReportInfo { fn_start, kind });
+    });
+
+    reports
+}
+
+fn emit_callback_reports(ctx: &mut LintContext, reports: Vec<ReportInfo>) {
+    for report in reports {
+        let fn_start = report.fn_start;
+        match report.kind {
+            ReportKind::NoSuggestion => {
+                ctx.report(fn_start, fn_start, MESSAGE);
             }
-
-            let Some(fn_start) = node_start(fn_arg) else {
-                return;
-            };
-
-            // Determine the suggestion kind.
-            let body = fn_arg.get("body");
-            let body_start = body.and_then(node_start);
-
-            // Conflict: does `set` appear anywhere in the fn_arg subtree?
-            let has_conflict = has_any_identifier(fn_arg, "set");
-
-            let kind = if has_conflict {
-                ReportKind::NoSuggestion
-            } else if let Some(p) = param0 {
-                // updateParam: param exists but is misnamed Identifier
-                let old_name = match p.get("name").and_then(Value::as_str) {
-                    Some(n) => n.to_string(),
-                    None => return,
-                };
-                let param_start = match node_start(p) {
-                    Some(s) => s,
-                    None => return,
-                };
-                let param_end = match node_end(p) {
-                    Some(e) => e,
-                    None => return,
-                };
-                // Collect references to old_name in the body (not the param itself).
-                let mut refs: Vec<(u32, u32)> = Vec::new();
-                if let Some(body_node) = body {
-                    collect_refs(body_node, &old_name, &mut refs);
-                }
-                ReportKind::UpdateParam {
-                    old_name,
-                    param_start,
-                    param_end,
-                    refs,
-                }
-            } else {
-                // addParam: no params at all — find the `(` before the body.
-                let paren_pos = match body_start.and_then(|bs| find_open_paren(&source, bs)) {
-                    Some(p) => p,
-                    None => return,
-                };
-                ReportKind::AddParam { paren_pos }
-            };
-
-            reports.push(ReportInfo { fn_start, kind });
-        });
-
-        // Sort by fn_start to report in source order.
-        reports.sort_by_key(|r| r.fn_start);
-
-        for report in reports {
-            let fn_start = report.fn_start;
-            match report.kind {
-                ReportKind::NoSuggestion => {
-                    ctx.report(fn_start, fn_start, MESSAGE);
-                }
-                ReportKind::AddParam { paren_pos } => {
-                    // Insert `set` immediately after the `(`.
-                    let insert_pos = paren_pos + 1;
-                    let desc = "Add a `set` parameter.".to_string();
-                    ctx.report_with_suggestions(
-                        fn_start,
-                        fn_start,
-                        MESSAGE,
-                        vec![Suggestion {
-                            desc: desc.clone(),
-                            fix: Fix {
-                                message: desc,
-                                edits: vec![TextEdit {
-                                    start: insert_pos,
-                                    end: insert_pos,
-                                    new_text: "set".to_string(),
-                                }],
-                            },
-                        }],
-                    );
-                }
-                ReportKind::UpdateParam {
-                    old_name,
-                    param_start,
-                    param_end,
-                    refs,
-                } => {
-                    let desc = format!("Rename parameter from {old_name} to `set`.");
-                    let mut edits: Vec<TextEdit> = Vec::new();
-                    // Replace the param identifier itself.
+            ReportKind::AddParam { paren_pos } => {
+                // Insert `set` immediately after the `(`.
+                let insert_pos = paren_pos + 1;
+                let desc = "Add a `set` parameter.".to_string();
+                ctx.report_with_suggestions(
+                    fn_start,
+                    fn_start,
+                    MESSAGE,
+                    vec![Suggestion {
+                        desc: desc.clone(),
+                        fix: Fix {
+                            message: desc,
+                            edits: vec![TextEdit {
+                                start: insert_pos,
+                                end: insert_pos,
+                                new_text: "set".to_string(),
+                            }],
+                        },
+                    }],
+                );
+            }
+            ReportKind::UpdateParam {
+                old_name,
+                param_start,
+                param_end,
+                refs,
+            } => {
+                let desc = format!("Rename parameter from {old_name} to `set`.");
+                let mut edits: Vec<TextEdit> = Vec::new();
+                // Replace the param identifier itself.
+                edits.push(TextEdit {
+                    start: param_start,
+                    end: param_end,
+                    new_text: "set".to_string(),
+                });
+                // Replace all free references in the body.
+                for (rs, re) in refs {
                     edits.push(TextEdit {
-                        start: param_start,
-                        end: param_end,
+                        start: rs,
+                        end: re,
                         new_text: "set".to_string(),
                     });
-                    // Replace all free references in the body.
-                    for (rs, re) in refs {
-                        edits.push(TextEdit {
-                            start: rs,
-                            end: re,
-                            new_text: "set".to_string(),
-                        });
-                    }
-                    ctx.report_with_suggestions(
-                        fn_start,
-                        fn_start,
-                        MESSAGE,
-                        vec![Suggestion {
-                            desc: desc.clone(),
-                            fix: Fix {
-                                message: desc,
-                                edits,
-                            },
-                        }],
-                    );
                 }
+                ctx.report_with_suggestions(
+                    fn_start,
+                    fn_start,
+                    MESSAGE,
+                    vec![Suggestion {
+                        desc: desc.clone(),
+                        fix: Fix {
+                            message: desc,
+                            edits,
+                        },
+                    }],
+                );
             }
         }
     }

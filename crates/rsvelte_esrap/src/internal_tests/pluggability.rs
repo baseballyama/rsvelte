@@ -2,7 +2,7 @@
 //!
 //! esrap's `print(node, visitors)` dispatches through a `visitors[node.type]`
 //! map, so a caller can register a printer for an arbitrary node type and drive
-//! output via `context.write(...)`. rsvelte_esrap is deliberately NOT a generic
+//! output via `context.write(...)`. `rsvelte_esrap` is deliberately NOT a generic
 //! visitor framework: it is a specialized printer whose dispatch is a `match`
 //! over concrete **oxc** node kinds (there is no synthetic `CustomType` node to
 //! hand it). The extension surface that esrap's pluggable visitors are built on

@@ -28,6 +28,7 @@ use crate::compiler::utils::can_delegate_event;
 ///     return is_expression_attribute(attribute) && attribute.name.startsWith('on');
 /// }
 /// ```
+#[must_use]
 pub fn is_event_attribute<'a>(attribute: &'a Attribute<'a>) -> Option<&'a AttributeNode<'a>> {
     match attribute {
         Attribute::Attribute(attr_node) => {
@@ -50,8 +51,8 @@ pub fn is_event_attribute<'a>(attribute: &'a Attribute<'a>) -> Option<&'a Attrib
 /// Check if an attribute value is an expression.
 ///
 /// An expression attribute contains:
-/// - A single ExpressionTag (not wrapped in array), OR
-/// - A single-element array containing an ExpressionTag
+/// - A single `ExpressionTag` (not wrapped in array), OR
+/// - A single-element array containing an `ExpressionTag`
 ///
 /// Corresponds to `is_expression_attribute` in
 /// `svelte/packages/svelte/src/compiler/utils/ast.js`:
@@ -220,7 +221,12 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
 
 /// Extract the expression tag from an attribute value.
 ///
-/// Handles both direct ExpressionTag and single-element Sequence cases.
+/// Handles both direct `ExpressionTag` and single-element Sequence cases.
+///
+/// # Panics
+///
+/// Panics if `value` is not one of the supported expression-tag shapes.
+#[must_use]
 pub fn extract_expression_tag<'a>(
     value: &'a crate::ast::template::AttributeValue<'a>,
 ) -> &'a crate::ast::template::ExpressionTag<'a> {
@@ -413,7 +419,7 @@ fn is_capture_event(name: &str) -> bool {
 
 /// Check if an event should use passive listeners.
 ///
-/// Passive events are touch events that should not call preventDefault().
+/// Passive events are touch events that should not call `preventDefault()`.
 ///
 /// # Corresponds to
 ///
@@ -425,6 +431,7 @@ fn is_capture_event(name: &str) -> bool {
 ///     return PASSIVE_EVENTS.includes(name);
 /// }
 /// ```
+#[must_use]
 pub fn is_passive_event(name: &str) -> Option<bool> {
     if matches!(name, "touchstart" | "touchmove") {
         Some(true)
@@ -466,7 +473,7 @@ fn json_has_side_effects(value: &serde_json::Value) -> bool {
     false
 }
 
-/// Check if expression is a call with no arguments to an identifier (for remove_parens).
+/// Check if expression is a call with no arguments to an identifier (for `remove_parens`).
 /// Matches the `remove_parens` check in events.js.
 pub(super) fn expression_is_removable_call(
     expr: &crate::ast::js::Expression,
@@ -478,8 +485,7 @@ pub(super) fn expression_is_removable_call(
     let args_empty = expr.call_arguments().is_empty();
     let callee_is_identifier = expr
         .callee()
-        .map(|c| arena.get_js_node(c).node_type() == Some("Identifier"))
-        .unwrap_or(false);
+        .is_some_and(|c| arena.get_js_node(c).node_type() == Some("Identifier"));
     args_empty && callee_is_identifier
 }
 

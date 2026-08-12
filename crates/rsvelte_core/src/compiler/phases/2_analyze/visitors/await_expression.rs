@@ -1,4 +1,4 @@
-//! AwaitExpression visitor.
+//! `AwaitExpression` visitor.
 //!
 //! Analyzes await expressions in JavaScript code.
 //!
@@ -11,7 +11,7 @@ use serde_json::Value;
 
 /// Returns true when the JS path between the current node and the enclosing
 /// template expression contains a function boundary (Arrow/FunctionExpression/
-/// FunctionDeclaration). Mirrors `is_reactive_expression`'s function-boundary
+/// `FunctionDeclaration`). Mirrors `is_reactive_expression`'s function-boundary
 /// short-circuit in the official `AwaitExpression.js`.
 fn crosses_function_boundary(js_path: &[JsPathEntry]) -> bool {
     for entry in js_path.iter().rev() {
@@ -30,7 +30,7 @@ fn crosses_function_boundary(js_path: &[JsPathEntry]) -> bool {
     false
 }
 
-/// Visit an await expression (typed JsNode path).
+/// Visit an await expression (typed `JsNode` path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     let tla = context.ast_type == super::AstType::Instance && context.function_depth == 1;
 
@@ -140,7 +140,7 @@ fn is_last_evaluated_expression_js(js_path: &[JsPathEntry], node: &Value) -> boo
             Some("MemberExpression") => {
                 if parent
                     .get("computed")
-                    .and_then(|c| c.as_bool())
+                    .and_then(serde_json::Value::as_bool)
                     .unwrap_or(false)
                     && is_same_node(parent.get("object"), current)
                 {
@@ -179,14 +179,6 @@ fn is_last_evaluated_expression_js(js_path: &[JsPathEntry], node: &Value) -> boo
                 }
             }
 
-            Some("TemplateLiteral") => {
-                if let Some(Value::Array(exprs)) = parent.get("expressions")
-                    && !is_same_node(exprs.last(), current)
-                {
-                    return false;
-                }
-            }
-
             Some("VariableDeclarator") => {
                 return true;
             }
@@ -204,14 +196,11 @@ fn is_last_evaluated_expression_js(js_path: &[JsPathEntry], node: &Value) -> boo
 
 /// Check if two JSON nodes are the same by comparing start/end positions.
 fn is_same_node(a: Option<&Value>, b: &Value) -> bool {
-    match a {
-        Some(a_val) => {
-            let a_start = a_val.get("start").and_then(|s| s.as_u64());
-            let b_start = b.get("start").and_then(|s| s.as_u64());
-            let a_end = a_val.get("end").and_then(|s| s.as_u64());
-            let b_end = b.get("end").and_then(|s| s.as_u64());
-            a_start.is_some() && a_start == b_start && a_end == b_end
-        }
-        None => false,
-    }
+    a.is_some_and(|a_val| {
+        let a_start = a_val.get("start").and_then(serde_json::Value::as_u64);
+        let b_start = b.get("start").and_then(serde_json::Value::as_u64);
+        let a_end = a_val.get("end").and_then(serde_json::Value::as_u64);
+        let b_end = b.get("end").and_then(serde_json::Value::as_u64);
+        a_start.is_some() && a_start == b_start && a_end == b_end
+    })
 }

@@ -1,6 +1,6 @@
 //! Leading whitespace of the generated attribute/props object literal.
 //!
-//! Official svelte2tsx rewrites an opening tag with MagicString moves
+//! Official svelte2tsx rewrites an opening tag with `MagicString` moves
 //! (`htmlxtojsx_v2/utils/node-utils.ts::transform`): every kept source range is
 //! moved to the end of the opener, and each run of source characters *between*
 //! two kept ranges is collapsed to a single space that is moved there too —
@@ -25,6 +25,10 @@ use crate::svelte2tsx::template::utils::expr::{
 };
 
 type Range = (u32, u32);
+
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("template source offsets are represented as u32")
+}
 
 /// `oneWayBindingAttributes` in `htmlxtojsx_v2/nodes/Binding.ts`.
 const ONE_WAY_BINDINGS: [&str; 10] = [
@@ -53,7 +57,7 @@ const ONE_WAY_BINDINGS_NOT_ON_ELEMENT: [&str; 7] = [
 
 /// The lowering context that decides how individual attributes are emitted.
 #[derive(Clone, Copy)]
-pub(crate) struct OpenerCtx<'a> {
+pub struct OpenerCtx<'a> {
     /// `Element` (HTML tag, `svelte:head`/`window`/…, `slot`, `svelte:element`)
     /// as opposed to `InlineComponent` (component, `svelte:component`,
     /// `svelte:self`). Several attribute handlers branch on this.
@@ -69,7 +73,7 @@ pub(crate) struct OpenerCtx<'a> {
 
 /// The two space runs an opening tag leaves behind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct OpenerSpacing {
+pub struct OpenerSpacing {
     /// Gaps that stay where they were, ahead of the generated `{ …createElement`.
     pub before_block: usize,
     /// Gaps moved to the end of the opener, which land right after the `{` that
@@ -85,7 +89,7 @@ pub(crate) struct OpenerSpacing {
 /// `svelte:head`/`window`/`body`/`options`/`fragment` elements and
 /// `svelte:self`, which emit a pure string there.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn opener_spacing(
+pub fn opener_spacing(
     source: &str,
     node_start: u32,
     tag_name: &str,
@@ -95,7 +99,7 @@ pub(crate) fn opener_spacing(
     comments: &ElementOpenerCommentIndex,
     ctx: OpenerCtx,
 ) -> OpenerSpacing {
-    let tag_name_end = node_start + 1 + tag_name.len() as u32;
+    let tag_name_end = node_start + 1 + source_offset(tag_name.len());
     let mut ranges: Vec<Range> = Vec::with_capacity(attributes.len() * 2 + 2);
     if let Some(range) = head {
         ranges.push(range);
@@ -127,7 +131,7 @@ pub(crate) fn opener_spacing(
 /// ever moved and all of them land before the generated `}`. `name_range` is the
 /// `</Component>` → `Component}` mapping an `InlineComponent` keeps; elements and
 /// the `svelte:` tags keep nothing and always collapse to a single space.
-pub(crate) fn closing_tag_spacing(
+pub fn closing_tag_spacing(
     closing_tag_start: u32,
     node_end: u32,
     name_range: Option<Range>,
@@ -146,7 +150,7 @@ fn count_gaps(start: u32, end: u32, delete_dest: Option<u32>, ranges: &[Range]) 
     // decides whether a range swallows the character after it.
     let starts: Vec<u32> = ranges.iter().map(|&(s, _)| s).collect();
     let mut moves: Vec<Range> = Vec::with_capacity(ranges.len());
-    for &(t_start, t_end) in ranges.iter() {
+    for &(t_start, t_end) in ranges {
         if t_start == t_end {
             continue;
         }
@@ -233,52 +237,7 @@ fn push_attribute_ranges(
     );
 
     match attr {
-        Attribute::Attribute(node) => {
-            if let AttributeValue::Expression(tag) = &node.value
-                && tag.start == node.start + 1
-            {
-                // Shorthand `{name}`: the name IS the mapped expression.
-                if let Some((s, e)) = get_expression_range(&tag.expression) {
-                    out.push(if s == e {
-                        (s.saturating_sub(1), e)
-                    } else {
-                        (s, e)
-                    });
-                }
-                return;
-            }
-            out.push((node.start, node.start + node.name.len() as u32));
-            match &node.value {
-                AttributeValue::True(_) => {}
-                AttributeValue::Expression(tag) => {
-                    if let Some((s, e)) = get_expression_range(&tag.expression) {
-                        let e = extend_expr_end_with_ts_postfix(source, e, node.end);
-                        out.push(with_trailing_property_access(source, s, e));
-                    }
-                }
-                AttributeValue::Sequence(parts) => match parts.as_slice() {
-                    [] => {}
-                    [AttributeValuePart::Text(text)] => {
-                        if text.start == text.end {
-                            // `attr=""` maps onto the quotes so the position stays.
-                            out.push((text.start.saturating_sub(1), text.end + 1));
-                        } else {
-                            out.push((text.start, text.end));
-                        }
-                    }
-                    [AttributeValuePart::ExpressionTag(tag)] => {
-                        if let Some((s, e)) = get_expression_range(&tag.expression) {
-                            out.push(with_trailing_property_access(source, s, e));
-                        }
-                    }
-                    parts => {
-                        let first = value_part_start(&parts[0]);
-                        let last = value_part_end(&parts[parts.len() - 1]);
-                        out.push((first, last));
-                    }
-                },
-            }
-        }
+        Attribute::Attribute(node) => push_plain_attribute_ranges(out, node, source),
         Attribute::SpreadAttribute(spread) => {
             out.push((spread.start + 1, spread.end - 1));
         }
@@ -289,13 +248,7 @@ fn push_attribute_ranges(
         }
         Attribute::BindDirective(bind) => push_binding_ranges(out, bind, source, ctx),
         Attribute::OnDirective(on) => {
-            let name_start = directive_name_start(source, on.start);
-            out.push((name_start, name_start + on.name.len() as u32));
-            if let Some(expr) = &on.expression
-                && let Some((s, e)) = get_expression_range(expr)
-            {
-                out.push(with_trailing_property_access(source, s, e));
-            }
+            push_named_directive_ranges(out, on.start, &on.name, on.expression.as_ref(), source);
         }
         Attribute::ClassDirective(class) => {
             if let Some((s, e)) = get_expression_range(&class.expression) {
@@ -319,42 +272,39 @@ fn push_attribute_ranges(
                 )),
             },
         },
-        Attribute::TransitionDirective(transition) => {
-            let name_start = directive_name_start(source, transition.start);
-            out.push((name_start, name_start + transition.name.len() as u32));
-            if let Some(expr) = &transition.expression
-                && let Some((s, e)) = get_expression_range(expr)
-            {
-                out.push(with_trailing_property_access(source, s, e));
-            }
-        }
-        Attribute::AnimateDirective(animate) => {
-            let name_start = directive_name_start(source, animate.start);
-            out.push((name_start, name_start + animate.name.len() as u32));
-            if let Some(expr) = &animate.expression
-                && let Some((s, e)) = get_expression_range(expr)
-            {
-                out.push(with_trailing_property_access(source, s, e));
-            }
-        }
-        Attribute::UseDirective(use_dir) => {
-            let name_start = directive_name_start(source, use_dir.start);
-            out.push((name_start, name_start + use_dir.name.len() as u32));
-            if let Some(expr) = &use_dir.expression
-                && let Some((s, e)) = get_expression_range(expr)
-            {
-                out.push(with_trailing_property_access(source, s, e));
-            }
-        }
+        Attribute::TransitionDirective(directive) => push_named_directive_ranges(
+            out,
+            directive.start,
+            &directive.name,
+            directive.expression.as_ref(),
+            source,
+        ),
+        Attribute::AnimateDirective(directive) => push_named_directive_ranges(
+            out,
+            directive.start,
+            &directive.name,
+            directive.expression.as_ref(),
+            source,
+        ),
+        Attribute::UseDirective(directive) => push_named_directive_ranges(
+            out,
+            directive.start,
+            &directive.name,
+            directive.expression.as_ref(),
+            source,
+        ),
         Attribute::LetDirective(let_dir) => {
             let name_start = let_dir.start + 4; // `let:`
             let is_slot_let = !ctx.is_element || ctx.in_component_slot;
             if is_slot_let {
-                out.push((name_start, name_start + let_dir.name.len() as u32));
+                out.push((name_start, name_start + source_offset(let_dir.name.len())));
             } else {
                 // A `let:` outside a component is lowered as a plain attribute,
                 // whose name range covers the `let:` prefix too.
-                out.push((let_dir.start, name_start + let_dir.name.len() as u32));
+                out.push((
+                    let_dir.start,
+                    name_start + source_offset(let_dir.name.len()),
+                ));
             }
             if let Some(expr) = &let_dir.expression
                 && let Some(range) = get_expression_range(expr)
@@ -362,6 +312,71 @@ fn push_attribute_ranges(
                 out.push(range);
             }
         }
+    }
+}
+
+fn push_named_directive_ranges(
+    out: &mut Vec<Range>,
+    start: u32,
+    name: &str,
+    expression: Option<&crate::ast::js::Expression<'_>>,
+    source: &str,
+) {
+    let name_start = directive_name_start(source, start);
+    out.push((name_start, name_start + source_offset(name.len())));
+    if let Some(expression) = expression
+        && let Some((start, end)) = get_expression_range(expression)
+    {
+        out.push(with_trailing_property_access(source, start, end));
+    }
+}
+
+fn push_plain_attribute_ranges(
+    out: &mut Vec<Range>,
+    node: &crate::ast::AttributeNode<'_>,
+    source: &str,
+) {
+    if let AttributeValue::Expression(tag) = &node.value
+        && tag.start == node.start + 1
+    {
+        if let Some((s, e)) = get_expression_range(&tag.expression) {
+            out.push(if s == e {
+                (s.saturating_sub(1), e)
+            } else {
+                (s, e)
+            });
+        }
+        return;
+    }
+    out.push((node.start, node.start + source_offset(node.name.len())));
+    match &node.value {
+        AttributeValue::True(_) => {}
+        AttributeValue::Expression(tag) => {
+            if let Some((s, e)) = get_expression_range(&tag.expression) {
+                out.push(with_trailing_property_access(
+                    source,
+                    s,
+                    extend_expr_end_with_ts_postfix(source, e, node.end),
+                ));
+            }
+        }
+        AttributeValue::Sequence(parts) => match parts.as_slice() {
+            [] => {}
+            [AttributeValuePart::Text(text)] => out.push(if text.start == text.end {
+                (text.start.saturating_sub(1), text.end + 1)
+            } else {
+                (text.start, text.end)
+            }),
+            [AttributeValuePart::ExpressionTag(tag)] => {
+                if let Some((s, e)) = get_expression_range(&tag.expression) {
+                    out.push(with_trailing_property_access(source, s, e));
+                }
+            }
+            parts => out.push((
+                value_part_start(&parts[0]),
+                value_part_end(&parts[parts.len() - 1]),
+            )),
+        },
     }
 }
 
@@ -419,7 +434,7 @@ fn push_binding_ranges(out: &mut Vec<Range>, bind: &BindDirective, source: &str,
         }
         return;
     }
-    let equals = source[..=expr_start as usize].rfind('=').unwrap_or(0) as u32;
+    let equals = source_offset(source[..=expr_start as usize].rfind('=').unwrap_or(0));
     out.push((
         if preserve_bind {
             bind.start
@@ -463,7 +478,7 @@ fn push_comment_ranges(
 fn directive_name_start(source: &str, node_start: u32) -> u32 {
     source[node_start as usize..]
         .find(':')
-        .map_or(node_start, |offset| node_start + offset as u32 + 1)
+        .map_or(node_start, |offset| node_start + source_offset(offset) + 1)
 }
 
 /// `withTrailingPropertyAccess`: a member access left dangling behind the parsed
@@ -478,31 +493,31 @@ fn with_trailing_property_access(source: &str, start: u32, end: u32) -> Range {
             continue;
         }
         if ch == b'.' {
-            return (start, i as u32 + 1);
+            return (start, source_offset(i) + 1);
         }
         if ch == b'?' && bytes.get(i + 1) == Some(&b'.') {
-            return (start, i as u32 + 2);
+            return (start, source_offset(i) + 2);
         }
         break;
     }
     (start, end)
 }
 
-fn value_part_start(part: &AttributeValuePart) -> u32 {
+const fn value_part_start(part: &AttributeValuePart) -> u32 {
     match part {
         AttributeValuePart::Text(text) => text.start,
         AttributeValuePart::ExpressionTag(tag) => tag.start,
     }
 }
 
-fn value_part_end(part: &AttributeValuePart) -> u32 {
+const fn value_part_end(part: &AttributeValuePart) -> u32 {
     match part {
         AttributeValuePart::Text(text) => text.end,
         AttributeValuePart::ExpressionTag(tag) => tag.end,
     }
 }
 
-fn attribute_start(attr: &Attribute) -> u32 {
+const fn attribute_start(attr: &Attribute) -> u32 {
     match attr {
         Attribute::Attribute(node) => node.start,
         Attribute::SpreadAttribute(spread) => spread.start,
@@ -518,7 +533,7 @@ fn attribute_start(attr: &Attribute) -> u32 {
     }
 }
 
-fn attribute_end(attr: &Attribute) -> u32 {
+const fn attribute_end(attr: &Attribute) -> u32 {
     match attr {
         Attribute::Attribute(node) => node.end,
         Attribute::SpreadAttribute(spread) => spread.end,

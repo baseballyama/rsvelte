@@ -1,4 +1,4 @@
-//! VariableDeclarator visitor.
+//! `VariableDeclarator` visitor.
 //!
 //! Analyzes variable declarators, detects runes ($state, $derived, $props),
 //! and validates patterns.
@@ -10,6 +10,10 @@ use super::VisitorContext;
 use super::shared::utils;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::BindingKind;
+
+fn source_pos(value: u64) -> Option<u32> {
+    u32::try_from(value).ok()
+}
 /// The global functions whose return value is always a defined number/string —
 /// mirrors `is_known_defined_global_call` in the client transform.
 fn is_known_defined_global_call(keypath: &str) -> bool {
@@ -21,8 +25,8 @@ fn is_known_defined_global_call(keypath: &str) -> bool {
         || keypath == "String.fromCodePoint"
         || keypath == "BigInt"
 }
-/// Collect svelte-ignore codes from the parent VariableDeclaration's or
-/// ExportNamedDeclaration's leading comments.
+/// Collect svelte-ignore codes from the parent `VariableDeclaration`'s or
+/// `ExportNamedDeclaration`'s leading comments.
 fn collect_ignore_codes_from_parent(context: &VisitorContext) -> Vec<String> {
     // Look for the parent VariableDeclaration or ExportNamedDeclaration in the js_path.
     // For `export let x`, the AST is:
@@ -47,7 +51,8 @@ fn collect_ignore_codes_from_parent(context: &VisitorContext) -> Vec<String> {
                 // a typed node into a Value.
                 let before = codes.len();
                 if let Some(start) = node.get_field_u64("start")
-                    && let Some(values) = context.script_ignore_comments.get(&(start as u32))
+                    && let Some(start) = source_pos(start)
+                    && let Some(values) = context.script_ignore_comments.get(&start)
                 {
                     for value in values {
                         codes.extend(
@@ -90,7 +95,7 @@ fn collect_ignore_codes_from_parent(context: &VisitorContext) -> Vec<String> {
 // Typed (JsNode) path — avoids `node.to_value()` on the hot path
 // ---------------------------------------------------------------------------
 
-/// Visit a variable declarator (typed JsNode path).
+/// Visit a variable declarator (typed `JsNode` path).
 /// The instance scope's own declaration of `name`, for an instance-script
 /// declarator whose position lookup missed. `context.scope` is the root scope
 /// there, so the chain lookup would otherwise answer with a same-named
@@ -171,14 +176,14 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
     Ok(())
 }
 
-/// A lightweight path entry extracted from JsNode patterns.
+/// A lightweight path entry extracted from `JsNode` patterns.
 struct PathEntry {
     name: String,
     is_rest: bool,
     start: u32,
 }
 
-/// Extract paths from a JsNode pattern (Identifier, ArrayPattern, ObjectPattern).
+/// Extract paths from a `JsNode` pattern (Identifier, `ArrayPattern`, `ObjectPattern`).
 fn extract_paths_typed(pattern: &JsNode, arena: &crate::ast::arena::ParseArena) -> Vec<PathEntry> {
     let mut paths = Vec::new();
     extract_paths_typed_recursive(pattern, &mut paths, false, arena);
@@ -224,7 +229,7 @@ fn extract_paths_typed_recursive(
     }
 }
 
-/// Extract a literal string representation from a JsNode.
+/// Extract a literal string representation from a `JsNode`.
 fn extract_literal_string_typed(node: &JsNode) -> Option<String> {
     match node {
         JsNode::Literal { raw, value, .. } => {
@@ -232,10 +237,10 @@ fn extract_literal_string_typed(node: &JsNode) -> Option<String> {
                 return Some(raw.to_string());
             }
             match value {
-                crate::ast::typed_expr::LiteralValue::String(s) => Some(format!("'{}'", s)),
+                crate::ast::typed_expr::LiteralValue::String(s) => Some(format!("'{s}'")),
                 crate::ast::typed_expr::LiteralValue::Number(n) => {
                     if n.fract() == 0.0 && n.abs() < i64::MAX as f64 {
-                        Some(format!("{}", *n as i64))
+                        Some(format!("{n:.0}"))
                     } else {
                         Some(n.to_string())
                     }
@@ -263,7 +268,7 @@ fn extract_literal_string_typed(node: &JsNode) -> Option<String> {
     }
 }
 
-/// Check if a JsNode expression is guaranteed to produce a defined value.
+/// Check if a `JsNode` expression is guaranteed to produce a defined value.
 fn is_expression_defined_typed(node: &JsNode, arena: &crate::ast::arena::ParseArena) -> bool {
     match node {
         JsNode::Literal { value, raw, .. } => match value {
@@ -319,7 +324,6 @@ fn is_expression_defined_typed(node: &JsNode, arena: &crate::ast::arena::ParseAr
         // `new SomeClass()` as not-provably-string, so we report it as
         // not-provably-defined for the template-literal coercion path that
         // consumes this signal via `binding.initial_is_defined`.
-        JsNode::NewExpression { .. } => false,
         JsNode::AssignmentExpression { right, .. } => {
             is_expression_defined_typed(arena.get_js_node(*right), arena)
         }
@@ -327,8 +331,7 @@ fn is_expression_defined_typed(node: &JsNode, arena: &crate::ast::arena::ParseAr
             let exprs = arena.get_js_children(*expressions);
             exprs
                 .last()
-                .map(|last| is_expression_defined_typed(last, arena))
-                .unwrap_or(false)
+                .is_some_and(|last| is_expression_defined_typed(last, arena))
         }
         // Mirror the Value-path `CallExpression` arm: upstream `scope.evaluate`
         // knows the global `Math.*` / `Number` / `String` / `BigInt` functions
@@ -338,8 +341,7 @@ fn is_expression_defined_typed(node: &JsNode, arena: &crate::ast::arena::ParseAr
         // spuriously adds `?? ''` for TS scripts now walked typed.
         JsNode::CallExpression { callee, .. } => {
             js_node_member_keypath(arena.get_js_node(*callee), arena)
-                .map(|kp| is_known_defined_global_call(&kp))
-                .unwrap_or(false)
+                .is_some_and(|kp| is_known_defined_global_call(&kp))
         }
         _ => false,
     }
@@ -566,9 +568,8 @@ fn update_binding_kinds_typed(
                 })
         };
 
-        let binding_idx = match binding_idx {
-            Some(idx) => idx,
-            None => continue,
+        let Some(binding_idx) = binding_idx else {
+            continue;
         };
         let binding = &mut context.analysis.root.bindings[binding_idx];
 
@@ -603,7 +604,7 @@ fn update_binding_kinds_typed(
                         JsNode::Literal { value, .. } => match value {
                             crate::ast::typed_expr::LiteralValue::String(s) => Some(s.to_string()),
                             crate::ast::typed_expr::LiteralValue::Number(n) => {
-                                Some((*n as i64).to_string())
+                                Some(format!("{n:.0}"))
                             }
                             _ => None,
                         },
@@ -622,7 +623,7 @@ fn update_binding_kinds_typed(
     Ok(())
 }
 
-/// Process $props() declaration (typed).
+/// Process $`props()` declaration (typed).
 fn process_props_declaration_typed(
     id_node: &JsNode,
     context: &mut VisitorContext,
@@ -682,7 +683,7 @@ fn process_props_declaration_typed(
     Ok(())
 }
 
-/// Process ObjectPattern in $props() declaration (typed).
+/// Process `ObjectPattern` in $`props()` declaration (typed).
 fn process_props_object_pattern_typed(
     pattern: &JsNode,
     context: &mut VisitorContext,
@@ -752,7 +753,7 @@ fn process_props_object_pattern_typed(
             JsNode::Identifier { name, .. } => Some(name.to_string()),
             JsNode::Literal { value, .. } => match value {
                 crate::ast::typed_expr::LiteralValue::String(s) => Some(s.to_string()),
-                crate::ast::typed_expr::LiteralValue::Number(n) => Some((*n as i64).to_string()),
+                crate::ast::typed_expr::LiteralValue::Number(n) => Some(format!("{n:.0}")),
                 _ => None,
             },
             _ => None,
@@ -843,7 +844,7 @@ fn process_props_object_pattern_typed(
     Ok(())
 }
 
-/// Store ignore codes on all bindings using JsNode traversal.
+/// Store ignore codes on all bindings using `JsNode` traversal.
 fn store_ignore_codes_on_bindings_typed(
     id_node: &JsNode,
     ignore_codes: &[String],
@@ -921,8 +922,7 @@ fn visit_non_runes_mode_typed(
                 .declarations
                 .get(name.as_str())
                 .and_then(|&idx| context.analysis.root.bindings.get(idx))
-                .map(|binding| binding.kind == BindingKind::StoreSub)
-                .unwrap_or(false);
+                .is_some_and(|binding| binding.kind == BindingKind::StoreSub);
 
             if !is_store_sub {
                 return Err(errors::rune_invalid_usage(name));

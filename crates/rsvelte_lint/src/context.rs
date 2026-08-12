@@ -26,7 +26,7 @@ pub struct LintContext<'a> {
     config: &'a LintConfig,
     source: &'a str,
     /// The file name (base name only, e.g. `+page.svelte`), used by rules that
-    /// need to gate on the SvelteKit route file type.
+    /// need to gate on the `SvelteKit` route file type.
     filename: &'a str,
     /// Path of the file being linted, when known. `None` in contexts with no
     /// filesystem (the wasm playground, or linting an in-memory string). Rules
@@ -47,11 +47,11 @@ pub struct LintContext<'a> {
     /// used to re-parse the whole source to recover them.
     script_spans: Vec<(u32, u32)>,
     scope_analysis: OnceCell<Option<Rc<ComponentAnalysis>>>,
-    /// The template fragment as ESTree JSON (default parse options), built on
+    /// The template fragment as `ESTree` JSON (default parse options), built on
     /// first use — several script rules scan template expressions and would
     /// otherwise each re-parse and re-serialize the whole source.
     template_fragment_json: OnceCell<Rc<Value>>,
-    /// The component's template AST as ESTree JSON, serialized on first use.
+    /// The component's template AST as `ESTree` JSON, serialized on first use.
     /// Several rules walk the whole tree generically; serializing it is one of
     /// the most expensive things a lint pass does, so they share one value.
     /// `Value::Null` records a serialization failure (rules bail on it).
@@ -59,7 +59,8 @@ pub struct LintContext<'a> {
 }
 
 impl<'a> LintContext<'a> {
-    pub fn new(config: &'a LintConfig, source: &'a str, filename: &'a str) -> Self {
+    #[must_use]
+    pub const fn new(config: &'a LintConfig, source: &'a str, filename: &'a str) -> Self {
         Self {
             diagnostics: Vec::new(),
             cur_rule: "",
@@ -78,12 +79,14 @@ impl<'a> LintContext<'a> {
 
     /// Attach the path of the file being linted (builder style). Left `None` by
     /// default so string / wasm callers are unaffected.
-    pub fn with_path(mut self, path: Option<&'a Path>) -> Self {
+    #[must_use]
+    pub const fn with_path(mut self, path: Option<&'a Path>) -> Self {
         self.path = path;
         self
     }
 
     /// Attach the component's `<script>` spans (builder style).
+    #[must_use]
     pub fn with_script_spans(mut self, spans: Vec<(u32, u32)>) -> Self {
         self.script_spans = spans;
         self
@@ -95,7 +98,8 @@ impl<'a> LintContext<'a> {
     }
 
     /// Attach the script-scope resolver (builder style). Left `None` by default.
-    pub fn with_scope_resolver(
+    #[must_use]
+    pub const fn with_scope_resolver(
         mut self,
         resolver: Option<&'a crate::scope::ScopeResolver>,
     ) -> Self {
@@ -112,7 +116,7 @@ impl<'a> LintContext<'a> {
             .clone()
     }
 
-    /// The component's template AST as ESTree JSON, serialized once per file
+    /// The component's template AST as `ESTree` JSON, serialized once per file
     /// and shared by every rule that asks for it. Returns `Value::Null` if the
     /// tree could not be serialized. The `Rc` handout keeps the borrow off
     /// `self`, so a rule can report while holding the JSON.
@@ -137,7 +141,7 @@ impl<'a> LintContext<'a> {
         json.get("fragment").is_some().then_some(json)
     }
 
-    /// The template fragment as ESTree JSON, parsed with the *default* options
+    /// The template fragment as `ESTree` JSON, parsed with the *default* options
     /// (not the lenient lint options — a script rule scanning template
     /// expressions must see what the strict parse produces) and cached per
     /// file. Script rules reach the template through this instead of
@@ -160,23 +164,23 @@ impl<'a> LintContext<'a> {
     }
 
     /// The script-scope resolver for this file, when one was built.
-    pub fn scope_resolver(&self) -> Option<&'a crate::scope::ScopeResolver> {
+    pub const fn scope_resolver(&self) -> Option<&'a crate::scope::ScopeResolver> {
         self.scope_resolver
     }
 
     /// The path of the file being linted, when known. `None` for in-memory /
     /// wasm linting (no filesystem).
-    pub fn path(&self) -> Option<&'a Path> {
+    pub const fn path(&self) -> Option<&'a Path> {
         self.path
     }
 
     /// The base file name of the file being linted (e.g. `+page.svelte`).
-    pub fn filename(&self) -> &'a str {
+    pub const fn filename(&self) -> &'a str {
         self.filename
     }
 
     /// The full source text of the file being linted.
-    pub fn source(&self) -> &'a str {
+    pub const fn source(&self) -> &'a str {
         self.source
     }
 
@@ -191,13 +195,13 @@ impl<'a> LintContext<'a> {
     }
 
     /// Called by the visitor immediately before dispatching a hook on `meta`.
-    pub fn enter_rule(&mut self, meta: &RuleMeta, severity: Severity) {
+    pub const fn enter_rule(&mut self, meta: &RuleMeta, severity: Severity) {
         self.cur_rule = meta.name;
         self.cur_severity = severity;
     }
 
     /// The raw options for the current rule: the `[…]` array of everything
-    /// after the severity (ESLint rule options are variadic). `None` when the
+    /// after the severity (`ESLint` rule options are variadic). `None` when the
     /// rule was configured without options.
     pub fn options(&self) -> Option<&Value> {
         self.config.options_for(self.cur_rule)
@@ -262,7 +266,7 @@ impl<'a> LintContext<'a> {
     }
 
     /// Report with editor suggestions (code actions never applied by `--fix`).
-    /// Mirrors ESLint's `suggest`: the finding itself has no autofix, but offers
+    /// Mirrors `ESLint`'s `suggest`: the finding itself has no autofix, but offers
     /// one or more named suggestions.
     pub fn report_with_suggestions(
         &mut self,

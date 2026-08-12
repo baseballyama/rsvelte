@@ -1,4 +1,6 @@
-//! Sourcemap-based mapping from generated `.tsx` positions back to the
+//! Sourcemap-based mapping from generated `.tsx` positions.
+//!
+//! Maps them back to the
 //! original `.svelte` line / column. Used to translate tsgo's textual
 //! diagnostics into `Diagnostic` records that point at the user's
 //! Svelte source.
@@ -40,9 +42,9 @@ impl EntryMap {
     ///
     /// Inserted text carries no segments at all, so a greatest-lower-bound
     /// lookup silently answers with the segment before the gap — which is how
-    /// a diagnostic about the SvelteKit `$types` annotation svelte2tsx injects
+    /// a diagnostic about the `SvelteKit` `$types` annotation svelte2tsx injects
     /// ends up pinned to the author's `export let form`. Official svelte-check
-    /// drops it instead (`hasNoNegativeLines`), because MagicString gives it a
+    /// drops it instead (`hasNoNegativeLines`), because `MagicString` gives it a
     /// source-less segment there and `originalPositionFor` returns null.
     ///
     /// rsvelte's map has no such segment, so the gap is identified by its
@@ -102,11 +104,11 @@ const SEMANTIC_TS_1XXX_CODES: &[u32] = &[
 /// syntactic error. So a single generated `.tsx` overlay that fails to
 /// parse silently drops every real type error in the whole project — the
 /// dangerous false-negative this module guards against (#728).
+#[must_use]
 pub fn is_syntactic_ts_code(code: &str) -> bool {
     code.strip_prefix("TS")
         .and_then(|n| n.parse::<u32>().ok())
-        .map(|n| (1000..2000).contains(&n) && !SEMANTIC_TS_1XXX_CODES.contains(&n))
-        .unwrap_or(false)
+        .is_some_and(|n| (1000..2000).contains(&n) && !SEMANTIC_TS_1XXX_CODES.contains(&n))
 }
 
 /// The numeric part of a `TS1234` diagnostic code.
@@ -147,8 +149,7 @@ fn last_index_of(text: &str, needle: &str, from: usize) -> isize {
     text.match_indices(needle)
         .take_while(|(i, _)| *i <= from)
         .last()
-        .map(|(i, _)| i as isize)
-        .unwrap_or(-1)
+        .map_or(-1, |(index, _)| isize::try_from(index).unwrap_or(-1))
 }
 
 /// `str.indexOf(needle, from)` — first occurrence at or after byte index
@@ -157,8 +158,7 @@ fn index_of_from(text: &str, needle: &str, from: usize) -> isize {
     let from = from.min(text.len());
     text[from..]
         .find(needle)
-        .map(|i| (i + from) as isize)
-        .unwrap_or(-1)
+        .map_or(-1, |index| isize::try_from(index + from).unwrap_or(-1))
 }
 
 /// Port of svelte-check's `isInGeneratedCode`: is the `[start, end)` span
@@ -185,11 +185,7 @@ fn line_col_to_byte_offset(text: &str, line: usize, column: usize) -> usize {
             // `index_of_from`) panics mid-codepoint. Past the line end clamps
             // to the line's end (also a boundary).
             let target = column.saturating_sub(1);
-            let byte_in_line = l
-                .char_indices()
-                .nth(target)
-                .map(|(b, _)| b)
-                .unwrap_or(l.len());
+            let byte_in_line = l.char_indices().nth(target).map_or(l.len(), |(b, _)| b);
             return offset + byte_in_line;
         }
         offset += l.len();
@@ -212,10 +208,18 @@ pub struct MappedTsDiagnostics {
     pub overlay_syntax_sources: Vec<PathBuf>,
 }
 
-/// Map every tsgo diagnostic to a `Diagnostic` whose `file` / `range`
-/// point at the original `.svelte` source. Diagnostics on `.tsx` files
-/// without a sourcemap are passed through unchanged (file points at the
-/// `.tsx` so the user can still see them).
+/// Maps tsgo diagnostics to source `Diagnostic` values.
+///
+/// Unmapped `.tsx` diagnostics pass through unchanged.
+///
+/// # Panics
+///
+/// Panics if a source map inserted for an overlay entry is removed during mapping.
+#[must_use]
+#[allow(
+    clippy::too_many_lines,
+    reason = "mapping variants share one ordered pass so diagnostic ownership remains explicit"
+)]
 pub fn map_tsgo_diagnostics(
     raw: &[RawTsDiagnostic],
     overlay: &OverlayLayout,
@@ -423,17 +427,16 @@ pub fn map_tsgo_diagnostics(
             }
             let entry_map = match maps.get(&entry.tsx_path) {
                 Some(em) => em,
-                None => match build_entry_map(entry) {
-                    Some(em) => {
+                None => {
+                    if let Some(em) = build_entry_map(entry) {
                         maps.insert(entry.tsx_path.clone(), em);
                         maps.get(&entry.tsx_path).expect("just inserted")
-                    }
-                    None => {
+                    } else {
                         // No source map → pass through unchanged.
                         out.push(passthrough(diag, &entry.tsx_path, workspace));
                         continue;
                     }
-                },
+                }
             };
             // sourcemap crate uses 0-indexed line/col; tsgo emits
             // 1-indexed.
@@ -499,7 +502,7 @@ pub fn map_tsgo_diagnostics(
 /// For augmentations that fit on a single line and contain no newlines
 /// this collapses to "shift the column by the inserted lengths on the
 /// same source line". For multi-line insertions (none of which the
-/// current addedCode emits, but the JS reference's `kitType` JSDoc
+/// current addedCode emits, but the JS reference's `kitType` `JSDoc`
 /// blocks could) the line table walk keeps things correct.
 fn map_kit_diagnostic(
     diag: &RawTsDiagnostic,
@@ -512,7 +515,7 @@ fn map_kit_diagnostic(
         original,
         &entry.added_code,
     )
-    .unwrap_or((diag.line.saturating_sub(1), diag.column.saturating_sub(1)));
+    .unwrap_or_else(|| (diag.line.saturating_sub(1), diag.column.saturating_sub(1)));
     Diagnostic {
         file: entry.source_path.clone(),
         severity: severity_from_str(&diag.severity),
@@ -619,7 +622,6 @@ fn build_entry_map(entry: &OverlayEntry) -> Option<EntryMap> {
 
 fn severity_from_str(s: &str) -> DiagnosticSeverity {
     match s {
-        "error" => DiagnosticSeverity::Error,
         "warning" => DiagnosticSeverity::Warning,
         "info" => DiagnosticSeverity::Info,
         _ => DiagnosticSeverity::Error,
@@ -680,7 +682,7 @@ mod tests {
         assert!(!is_in_generated_code("plain text", 2, 4));
     }
 
-    /// The SvelteKit `$types` annotation svelte2tsx injects for an untyped
+    /// The `SvelteKit` `$types` annotation svelte2tsx injects for an untyped
     /// route prop is pure insertion, so a diagnostic in it belongs to nobody.
     /// The author's own identifier, two columns further along the same line,
     /// must stay mapped — an insertion test that swallowed the line would pass
@@ -723,10 +725,14 @@ mod tests {
                 .code
                 .find(needle)
                 .unwrap_or_else(|| panic!("{needle} not in:\n{}", result.code));
-            let line = result.code[..off].matches('\n').count() as u32;
-            let col = result.code[..off]
-                .rsplit_once('\n')
-                .map_or(off, |(_, tail)| tail.chars().count()) as u32;
+            let line = u32::try_from(result.code[..off].matches('\n').count())
+                .expect("fixture line fits u32");
+            let col = u32::try_from(
+                result.code[..off]
+                    .rsplit_once('\n')
+                    .map_or(off, |(_, tail)| tail.chars().count()),
+            )
+            .expect("fixture column fits u32");
             (line, col)
         };
 
@@ -881,7 +887,7 @@ mod tests {
 
         let overlay = OverlayLayout {
             kit_entries: vec![KitOverlayEntry {
-                source_path: source_path.clone(),
+                source_path: source_path,
                 out_path: out_path.clone(),
                 added_code: adds,
             }],

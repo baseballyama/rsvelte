@@ -64,14 +64,13 @@ pub fn ensure_fixtures_exist() {
         panic!(
             "\n\n\
             ╔══════════════════════════════════════════════════════════════════╗\n\
-            ║  Fixtures not found for Svelte commit: {}                 ║\n\
+            ║  Fixtures not found for Svelte commit: {short_hash}                 ║\n\
             ║                                                                  ║\n\
             ║  Please run:  pnpm run generate-fixtures                         ║\n\
             ║                                                                  ║\n\
             ║  This will generate expected outputs from the official Svelte    ║\n\
             ║  compiler for comparison with the Rust implementation.           ║\n\
-            ╚══════════════════════════════════════════════════════════════════╝\n\n",
-            short_hash
+            ╚══════════════════════════════════════════════════════════════════╝\n\n"
         );
     }
 
@@ -122,20 +121,18 @@ pub fn ensure_fixtures_fresh() {
         .unwrap_or("");
     let head_commit = get_svelte_commit_hash();
 
-    if manifest_commit != head_commit {
-        panic!(
-            "\n\n\
-            ╔══════════════════════════════════════════════════════════════════╗\n\
-            ║  Fixtures are stale.                                             ║\n\
-            ║                                                                  ║\n\
-            ║  Manifest commit: {:.12}                                   ║\n\
-            ║  Svelte HEAD:     {:.12}                                   ║\n\
-            ║                                                                  ║\n\
-            ║  Run:  pnpm run generate-fixtures --force                        ║\n\
-            ╚══════════════════════════════════════════════════════════════════╝\n\n",
-            manifest_commit, head_commit
-        );
-    }
+    assert!(
+        manifest_commit == head_commit,
+        "\n\n\
+        ╔══════════════════════════════════════════════════════════════════╗\n\
+        ║  Fixtures are stale.                                             ║\n\
+        ║                                                                  ║\n\
+        ║  Manifest commit: {manifest_commit:.12}                                   ║\n\
+        ║  Svelte HEAD:     {head_commit:.12}                                   ║\n\
+        ║                                                                  ║\n\
+        ║  Run:  pnpm run generate-fixtures --force                        ║\n\
+        ╚══════════════════════════════════════════════════════════════════╝\n\n"
+    )
 }
 
 // ============================================================================
@@ -184,14 +181,9 @@ pub fn get_fixture_samples(category: &str) -> Vec<PathBuf> {
         .ok()
         .map(|entries| {
             entries
-                .filter_map(|e| e.ok())
-                .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
-                .filter(|e| {
-                    e.file_name()
-                        .to_str()
-                        .map(|s| !s.starts_with('_'))
-                        .unwrap_or(false)
-                })
+                .filter_map(std::result::Result::ok)
+                .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
+                .filter(|e| e.file_name().to_str().is_some_and(|s| !s.starts_with('_')))
                 .map(|e| e.path())
                 .collect()
         })
@@ -210,14 +202,9 @@ pub fn get_svelte_test_samples(category: &str) -> Vec<PathBuf> {
         .ok()
         .map(|entries| {
             entries
-                .filter_map(|e| e.ok())
-                .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
-                .filter(|e| {
-                    e.file_name()
-                        .to_str()
-                        .map(|s| !s.starts_with('.'))
-                        .unwrap_or(false)
-                })
+                .filter_map(std::result::Result::ok)
+                .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
+                .filter(|e| e.file_name().to_str().is_some_and(|s| !s.starts_with('.')))
                 .map(|e| e.path())
                 .collect()
         })
@@ -311,13 +298,13 @@ impl FixtureCoverage {
     }
 
     /// Record a sample that was actually compared against its expected output.
-    pub fn ran(&mut self) {
+    pub const fn ran(&mut self) {
         self.ran += 1;
     }
 
     /// Record final run / justified-skip counts in one go, for callers that
     /// already tally their own results and only report missing inputs inline.
-    pub fn tally(&mut self, ran: usize, justified: usize) {
+    pub const fn tally(&mut self, ran: usize, justified: usize) {
         self.ran += ran;
         self.justified += justified;
     }
@@ -528,7 +515,7 @@ pub fn runtime_skip_names(category: &str) -> &'static [&'static str] {
 ///
 /// Comments are excluded. The comparator's default is to compare the ones a
 /// downstream tool acts on, and turning that on here fails 14 fixtures: rsvelte
-/// drops the user's JSDoc / `@ts-expect-error` / `svelte-ignore` comments on the
+/// drops the user's `JSDoc` / `@ts-expect-error` / `svelte-ignore` comments on the
 /// server path, and keeps one on the client path that the official compiler
 /// drops. That is a real gap, tracked separately in
 /// `compatibility/ast-equivalence.md`, not something this suite can absorb one
@@ -578,7 +565,7 @@ pub fn compare_js_with_debug(actual: &str, expected: &str, test_name: &str) -> b
         let target_match = std::env::var("DEBUG_TEST").ok().as_deref() == Some(test_name);
         let debug_all = std::env::var("DEBUG_ALL").is_ok();
         if target_match || debug_all {
-            eprintln!("=== {} canonical diff ===", test_name);
+            eprintln!("=== {test_name} canonical diff ===");
             eprintln!("{}", format_diff(&canonical_expected, &canonical_actual));
         }
 
@@ -625,7 +612,7 @@ pub fn format_diff(expected: &str, actual: &str) -> String {
 /// for the same input file.
 pub fn canonicalize_css(code: &str) -> String {
     code.lines()
-        .map(|line| line.trim())
+        .map(str::trim)
         .filter(|line| !line.is_empty())
         .collect::<Vec<_>>()
         .join("\n")
@@ -683,7 +670,7 @@ fn remove_internal_fields(value: &mut serde_json::Value) {
 // ============================================================================
 
 /// Warning structure for comparison.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct FixtureWarning {
     pub code: String,
     pub message: String,
@@ -694,7 +681,7 @@ pub struct FixtureWarning {
 }
 
 /// Error structure for comparison.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct FixtureError {
     pub code: String,
     pub message: String,
@@ -712,7 +699,7 @@ pub struct FixtureError {
 
 /// Does a rendered compiler error name the expected Svelte error code?
 ///
-/// `\b<code>(_[a-z_]+)?\b` — the exact code or a more specific snake_case
+/// `\b<code>(_[a-z_]+)?\b` — the exact code or a more specific `snake_case`
 /// sub-code (`element_invalid_closing_tag` → `…_autoclosed`), never an
 /// unrelated code that merely contains the expected one as a substring.
 pub fn error_code_matches(expected_code: &str, rendered: &[&str]) -> bool {
@@ -891,7 +878,7 @@ pub const VALIDATOR_MESSAGE_DIVERGENCES: &[&str] = &[
 ];
 
 /// Compare a resolved `(line, column)` against the fixture's pinned position.
-fn position_matches(actual: (usize, usize), expected: &ExpectedPosition) -> bool {
+const fn position_matches(actual: (usize, usize), expected: &ExpectedPosition) -> bool {
     actual.0 as u32 == expected.line && actual.1 as u32 == expected.column
 }
 
@@ -1074,7 +1061,7 @@ impl CategoryStats {
     }
 
     /// Get run count (total - skipped).
-    pub fn run_count(&self) -> usize {
+    pub const fn run_count(&self) -> usize {
         self.total - self.skipped
     }
 }
@@ -1237,105 +1224,105 @@ pub enum TestCategory {
 
 impl TestCategory {
     /// Get all test categories.
-    pub fn all() -> &'static [TestCategory] {
+    pub const fn all() -> &'static [Self] {
         &[
-            TestCategory::ParserModern,
-            TestCategory::ParserLegacy,
-            TestCategory::Snapshot,
-            TestCategory::Css,
-            TestCategory::Validator,
-            TestCategory::CompilerErrors,
-            TestCategory::RuntimeRunes,
-            TestCategory::RuntimeLegacy,
-            TestCategory::RuntimeBrowser,
-            TestCategory::Hydration,
-            TestCategory::ServerSideRendering,
-            TestCategory::Sourcemaps,
-            TestCategory::Preprocess,
-            TestCategory::Print,
-            TestCategory::Migrate,
+            Self::ParserModern,
+            Self::ParserLegacy,
+            Self::Snapshot,
+            Self::Css,
+            Self::Validator,
+            Self::CompilerErrors,
+            Self::RuntimeRunes,
+            Self::RuntimeLegacy,
+            Self::RuntimeBrowser,
+            Self::Hydration,
+            Self::ServerSideRendering,
+            Self::Sourcemaps,
+            Self::Preprocess,
+            Self::Print,
+            Self::Migrate,
         ]
     }
 
     /// Get the directory name for this category in Svelte tests.
-    pub fn svelte_dir(&self) -> &'static str {
+    pub const fn svelte_dir(&self) -> &'static str {
         match self {
-            TestCategory::ParserModern => "parser-modern",
-            TestCategory::ParserLegacy => "parser-legacy",
-            TestCategory::Snapshot => "snapshot",
-            TestCategory::Css => "css",
-            TestCategory::Validator => "validator",
-            TestCategory::CompilerErrors => "compiler-errors",
-            TestCategory::RuntimeRunes => "runtime-runes",
-            TestCategory::RuntimeLegacy => "runtime-legacy",
-            TestCategory::RuntimeBrowser => "runtime-browser",
-            TestCategory::Hydration => "hydration",
-            TestCategory::ServerSideRendering => "server-side-rendering",
-            TestCategory::Sourcemaps => "sourcemaps",
-            TestCategory::Preprocess => "preprocess",
-            TestCategory::Print => "print",
-            TestCategory::Migrate => "migrate",
+            Self::ParserModern => "parser-modern",
+            Self::ParserLegacy => "parser-legacy",
+            Self::Snapshot => "snapshot",
+            Self::Css => "css",
+            Self::Validator => "validator",
+            Self::CompilerErrors => "compiler-errors",
+            Self::RuntimeRunes => "runtime-runes",
+            Self::RuntimeLegacy => "runtime-legacy",
+            Self::RuntimeBrowser => "runtime-browser",
+            Self::Hydration => "hydration",
+            Self::ServerSideRendering => "server-side-rendering",
+            Self::Sourcemaps => "sourcemaps",
+            Self::Preprocess => "preprocess",
+            Self::Print => "print",
+            Self::Migrate => "migrate",
         }
     }
 
     /// Get the main input file name for this category.
-    pub fn main_file(&self) -> &'static str {
+    pub const fn main_file(&self) -> &'static str {
         match self {
-            TestCategory::ParserModern
-            | TestCategory::ParserLegacy
-            | TestCategory::Css
-            | TestCategory::Validator
-            | TestCategory::Sourcemaps
-            | TestCategory::Preprocess
-            | TestCategory::Print => "input.svelte",
-            TestCategory::Snapshot => "index.svelte",
-            TestCategory::CompilerErrors
-            | TestCategory::RuntimeRunes
-            | TestCategory::RuntimeLegacy
-            | TestCategory::RuntimeBrowser
-            | TestCategory::Hydration
-            | TestCategory::ServerSideRendering => "main.svelte",
-            TestCategory::Migrate => "input.svelte",
+            Self::ParserModern
+            | Self::ParserLegacy
+            | Self::Css
+            | Self::Validator
+            | Self::Sourcemaps
+            | Self::Preprocess
+            | Self::Print => "input.svelte",
+            Self::Snapshot => "index.svelte",
+            Self::CompilerErrors
+            | Self::RuntimeRunes
+            | Self::RuntimeLegacy
+            | Self::RuntimeBrowser
+            | Self::Hydration
+            | Self::ServerSideRendering => "main.svelte",
+            Self::Migrate => "input.svelte",
         }
     }
 
     /// Get human-readable display name.
-    pub fn display_name(&self) -> &'static str {
+    pub const fn display_name(&self) -> &'static str {
         match self {
-            TestCategory::ParserModern => "Parser (Modern)",
-            TestCategory::ParserLegacy => "Parser (Legacy)",
-            TestCategory::Snapshot => "Compiler Snapshot",
-            TestCategory::Css => "CSS Scoping",
-            TestCategory::Validator => "Validator",
-            TestCategory::CompilerErrors => "Compiler Errors",
-            TestCategory::RuntimeRunes => "Runtime (Runes)",
-            TestCategory::RuntimeLegacy => "Runtime (Legacy)",
-            TestCategory::RuntimeBrowser => "Runtime (Browser)",
-            TestCategory::Hydration => "Hydration",
-            TestCategory::ServerSideRendering => "Server-Side Rendering",
-            TestCategory::Sourcemaps => "Sourcemaps",
-            TestCategory::Preprocess => "Preprocess",
-            TestCategory::Print => "Print",
-            TestCategory::Migrate => "Migrate",
+            Self::ParserModern => "Parser (Modern)",
+            Self::ParserLegacy => "Parser (Legacy)",
+            Self::Snapshot => "Compiler Snapshot",
+            Self::Css => "CSS Scoping",
+            Self::Validator => "Validator",
+            Self::CompilerErrors => "Compiler Errors",
+            Self::RuntimeRunes => "Runtime (Runes)",
+            Self::RuntimeLegacy => "Runtime (Legacy)",
+            Self::RuntimeBrowser => "Runtime (Browser)",
+            Self::Hydration => "Hydration",
+            Self::ServerSideRendering => "Server-Side Rendering",
+            Self::Sourcemaps => "Sourcemaps",
+            Self::Preprocess => "Preprocess",
+            Self::Print => "Print",
+            Self::Migrate => "Migrate",
         }
     }
 
     /// Check if this category is currently implemented.
-    pub fn is_implemented(&self) -> bool {
+    pub const fn is_implemented(&self) -> bool {
         matches!(
             self,
-            TestCategory::ParserModern
-                | TestCategory::ParserLegacy
-                | TestCategory::Snapshot
-                | TestCategory::Css
-                | TestCategory::Validator
-                | TestCategory::CompilerErrors
-                | TestCategory::RuntimeRunes
-                | TestCategory::RuntimeLegacy
-                | TestCategory::RuntimeBrowser
-                | TestCategory::Hydration
-                | TestCategory::ServerSideRendering
-                | TestCategory::Sourcemaps
+            Self::ParserModern
+                | Self::ParserLegacy
+                | Self::Snapshot
+                | Self::Css
+                | Self::Validator
+                | Self::CompilerErrors
+                | Self::RuntimeRunes
+                | Self::RuntimeLegacy
+                | Self::RuntimeBrowser
+                | Self::Hydration
+                | Self::ServerSideRendering
+                | Self::Sourcemaps
         )
     }
 
@@ -1402,7 +1389,7 @@ impl TestSummary {
 
     /// Print a one-shot summary line in the format every existing suite uses.
     pub fn print(&self, suite: &str) {
-        println!("\n=== {} ===", suite);
+        println!("\n=== {suite} ===");
         println!(
             "Total: {}/{} passed ({} skipped, {:.1}%)",
             self.passed,

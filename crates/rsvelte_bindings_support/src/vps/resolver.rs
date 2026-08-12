@@ -13,7 +13,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Component, Path, PathBuf};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct ResolveOptions<'a> {
     pub importer: Option<&'a Path>,
     pub specifier: &'a str,
@@ -28,6 +28,7 @@ pub struct ResolveResult {
 /// Try to resolve `specifier` against `importer`. Returns `None` for
 /// bare specifiers or anything that doesn't exist on disk; the JS shim
 /// falls back to Vite's resolver for those cases.
+#[must_use]
 pub fn resolve_id(opts: ResolveOptions<'_>) -> Option<ResolveResult> {
     // Split off any `?query` / `#hash` suffix before touching the filesystem.
     // Vite passes specifiers like `./Foo.svelte?raw` / `./styles.css?url`; the
@@ -58,10 +59,7 @@ fn split_query_hash(spec: &str) -> (&str, &str) {
         (None, Some(b)) => Some(b),
         (None, None) => None,
     };
-    match cut {
-        Some(i) => (&spec[..i], &spec[i..]),
-        None => (spec, ""),
-    }
+    cut.map_or((spec, ""), |index| (&spec[..index], &spec[index..]))
 }
 
 fn is_relative(spec: &str) -> bool {

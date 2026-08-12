@@ -4,8 +4,12 @@
 
 use super::super::interfaces::RewriteExternalImportsOptions;
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("rewrite source offsets are represented as u32")
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct TextEdit {
+pub struct TextEdit {
     pub(crate) start: u32,
     pub(crate) end: u32,
     pub(crate) replacement_len: u32,
@@ -13,7 +17,7 @@ pub(crate) struct TextEdit {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct TextRewrite {
+pub struct TextRewrite {
     pub(crate) replacement: Option<String>,
     pub(crate) edits: Vec<TextEdit>,
 }
@@ -218,18 +222,18 @@ fn split_specifier(spec: &str) -> usize {
 }
 
 #[inline]
-fn is_ws_byte(b: u8) -> bool {
+const fn is_ws_byte(b: u8) -> bool {
     matches!(b, b' ' | b'\t' | b'\n' | b'\r')
 }
 
 #[inline]
-fn is_ident_byte_local(b: u8) -> bool {
+const fn is_ident_byte_local(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
 }
 
 /// String-level version of `rewrite_external_imports` — same scanner, but
 /// returns replacement text only when at least one specifier changes.
-pub(crate) fn rewrite_external_specifiers_in_text(
+pub fn rewrite_external_specifiers_in_text(
     text: &str,
     opts: &RewriteExternalImportsOptions,
 ) -> TextRewrite {
@@ -257,10 +261,10 @@ pub(crate) fn rewrite_external_specifiers_in_text(
             out.push_str(&scratch.rewritten);
             out.push_str(suffix);
             edits.push(TextEdit {
-                start: spec_start as u32,
-                end: spec_end as u32,
-                replacement_len: replacement_len as u32,
-                replacement_utf16_len: replacement_utf16_len as u32,
+                start: source_offset(spec_start),
+                end: source_offset(spec_end),
+                replacement_len: source_offset(replacement_len),
+                replacement_utf16_len: source_offset(replacement_utf16_len),
             });
             *copied = spec_end;
         }
@@ -270,16 +274,7 @@ pub(crate) fn rewrite_external_specifiers_in_text(
         let b = bytes[i];
 
         if b == b'\'' || b == b'"' {
-            let q = b;
-            i += 1;
-            while i < len && bytes[i] != q {
-                if bytes[i] == b'\\' && i + 1 < len {
-                    i += 2;
-                    continue;
-                }
-                i += 1;
-            }
-            i = (i + 1).min(len);
+            i = skip_quoted_string(bytes, i);
             continue;
         }
 
@@ -344,6 +339,19 @@ pub(crate) fn rewrite_external_specifiers_in_text(
         out.push_str(&text[copied..]);
     }
     TextRewrite { replacement, edits }
+}
+
+fn skip_quoted_string(bytes: &[u8], start: usize) -> usize {
+    let quote = bytes[start];
+    let mut index = start + 1;
+    while index < bytes.len() && bytes[index] != quote {
+        index += if bytes[index] == b'\\' && index + 1 < bytes.len() {
+            2
+        } else {
+            1
+        };
+    }
+    (index + 1).min(bytes.len())
 }
 
 #[cfg(test)]

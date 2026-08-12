@@ -9,10 +9,7 @@ use super::super::template;
 ///
 /// An instance-script `interface`/`type $$Slots` declaration replaces the
 /// computed shape entirely so the user's own type is what gets checked.
-pub(crate) fn build_slots_str(
-    template_info: &template::TemplateInfo<'_>,
-    has_slots_type: bool,
-) -> String {
+pub fn build_slots_str(template_info: &template::TemplateInfo<'_>, has_slots_type: bool) -> String {
     if has_slots_type {
         "{} as unknown as $$Slots".to_string()
     } else if template_info.slots.is_empty() {
@@ -22,7 +19,7 @@ pub(crate) fn build_slots_str(
         for (name, props) in &template_info.slots {
             let escaped_name = escape_js_single_quoted(name);
             if props.is_empty() {
-                slot_parts.push(format!("'{}': {{}}", escaped_name));
+                slot_parts.push(format!("'{escaped_name}': {{}}"));
             } else {
                 // Slot prop keys (the `props` strings) may also carry hyphens /
                 // spaces / quotes when they come from arbitrary `slot="…"`
@@ -40,7 +37,7 @@ pub(crate) fn build_slots_str(
 /// Used to interpolate slot names / slot prop keys into the generated TS output
 /// without producing invalid JS when a name carries `'`, `\\`, or control
 /// characters (issue #455, H-092).
-pub(crate) fn escape_js_single_quoted(s: &str) -> String {
+pub fn escape_js_single_quoted(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for c in s.chars() {
         match c {

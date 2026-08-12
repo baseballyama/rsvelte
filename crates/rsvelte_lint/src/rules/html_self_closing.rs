@@ -7,7 +7,7 @@
 //! - `void` (default `"always"`) — HTML void elements (`<img>`, `<br>`, …).
 //! - `normal` (default `"never"`) — ordinary HTML elements.
 //! - `svg` (default `"always"`) — SVG elements.
-//! - `math` (default `"never"`) — MathML elements.
+//! - `math` (default `"never"`) — `MathML` elements.
 //! - `component` (default `"always"`) — Svelte components (`<Foo>`, `<a.b.C>`).
 //! - `svelte` (default `"always"`) — Svelte special elements (`<svelte:head>`,
 //!   `<svelte:element>`, …).
@@ -185,9 +185,9 @@ enum Setting {
 impl Setting {
     fn parse(s: &str) -> Option<Self> {
         match s {
-            "always" => Some(Setting::Always),
-            "never" => Some(Setting::Never),
-            "ignore" => Some(Setting::Ignore),
+            "always" => Some(Self::Always),
+            "never" => Some(Self::Never),
+            "ignore" => Some(Self::Ignore),
             _ => None,
         }
     }
@@ -206,7 +206,7 @@ struct Options {
 impl Options {
     fn resolve(ctx: &LintContext) -> Self {
         // Defaults.
-        let mut opts = Options {
+        let mut opts = Self {
             void: Setting::Always,
             normal: Setting::Never,
             svg: Setting::Always,
@@ -222,7 +222,7 @@ impl Options {
         if let Some(preset) = opt.as_str() {
             match preset {
                 "all" => {
-                    opts = Options {
+                    opts = Self {
                         void: Setting::Always,
                         normal: Setting::Always,
                         svg: Setting::Always,
@@ -232,7 +232,7 @@ impl Options {
                     }
                 }
                 "html" => {
-                    opts = Options {
+                    opts = Self {
                         void: Setting::Always,
                         normal: Setting::Never,
                         svg: Setting::Always,
@@ -242,7 +242,7 @@ impl Options {
                     }
                 }
                 "none" => {
-                    opts = Options {
+                    opts = Self {
                         void: Setting::Never,
                         normal: Setting::Never,
                         svg: Setting::Never,
@@ -287,25 +287,25 @@ enum ElementType {
 }
 
 impl ElementType {
-    fn message(self) -> &'static str {
+    const fn message(self) -> &'static str {
         match self {
-            ElementType::Normal => "HTML elements",
-            ElementType::Void => "HTML void elements",
-            ElementType::Svg => "SVG elements",
-            ElementType::Math => "MathML elements",
-            ElementType::Component => "Svelte custom components",
-            ElementType::Svelte => "Svelte special elements",
+            Self::Normal => "HTML elements",
+            Self::Void => "HTML void elements",
+            Self::Svg => "SVG elements",
+            Self::Math => "MathML elements",
+            Self::Component => "Svelte custom components",
+            Self::Svelte => "Svelte special elements",
         }
     }
 
-    fn setting(self, opts: &Options) -> Setting {
+    const fn setting(self, opts: Options) -> Setting {
         match self {
-            ElementType::Normal => opts.normal,
-            ElementType::Void => opts.void,
-            ElementType::Svg => opts.svg,
-            ElementType::Math => opts.math,
-            ElementType::Component => opts.component,
-            ElementType::Svelte => opts.svelte,
+            Self::Normal => opts.normal,
+            Self::Void => opts.void,
+            Self::Svg => opts.svg,
+            Self::Math => opts.math,
+            Self::Component => opts.component,
+            Self::Svelte => opts.svelte,
         }
     }
 }
@@ -331,14 +331,14 @@ fn start_tag_end(src: &[u8], scan_from: u32) -> Option<u32> {
     let mut i = scan_from as usize;
     while i < src.len() {
         if src[i] == b'>' {
-            return Some((i + 1) as u32);
+            return Some(u32::try_from(i + 1).expect("source offsets are represented as u32"));
         }
         i += 1;
     }
     None
 }
 
-fn attr_end(a: &Attribute) -> u32 {
+const fn attr_end(a: &Attribute) -> u32 {
     match a {
         Attribute::Attribute(n) => n.end,
         Attribute::SpreadAttribute(n) => n.end,
@@ -364,7 +364,6 @@ fn is_empty(children: &[TemplateNode]) -> bool {
 
 impl HtmlSelfClosing {
     fn check(
-        &self,
         ctx: &mut LintContext,
         el_start: u32,
         el_end: u32,
@@ -372,7 +371,7 @@ impl HtmlSelfClosing {
         attributes: &[Attribute],
         children: &[TemplateNode],
         ty: ElementType,
-        opts: &Options,
+        opts: Options,
     ) {
         if !is_empty(children) {
             return;
@@ -384,24 +383,25 @@ impl HtmlSelfClosing {
         let should_be_closed = setting == Setting::Always;
 
         let src = ctx.source().as_bytes();
-        let name_end = el_start + 1 + name.len() as u32;
-        let scan_from = attributes.last().map(attr_end).unwrap_or(name_end);
+        let name_end = el_start
+            + 1
+            + u32::try_from(name.len()).expect("element-name widths are represented as u32");
+        let scan_from = attributes.last().map_or(name_end, attr_end);
         let Some(stag_end) = start_tag_end(src, scan_from) else {
             return;
         };
         let self_closing = stag_end >= 2 && src[(stag_end - 2) as usize] == b'/';
 
         if should_be_closed && !self_closing {
-            self.report(ctx, el_end, stag_end, false, name, ty, true);
+            Self::report(ctx, el_end, stag_end, false, name, ty, true);
         } else if !should_be_closed && self_closing {
-            self.report(ctx, el_end, stag_end, true, name, ty, false);
+            Self::report(ctx, el_end, stag_end, true, name, ty, false);
         }
     }
 
     /// `self_closing` is the element's current state; `should_be_closed` is the
     /// desired direction.
     fn report(
-        &self,
         ctx: &mut LintContext,
         el_end: u32,
         stag_end: u32,
@@ -470,7 +470,7 @@ impl Rule for HtmlSelfClosing {
     fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
         let opts = Options::resolve(ctx);
         let ty = html_element_type(el.name.as_str());
-        self.check(
+        Self::check(
             ctx,
             el.start,
             el.end,
@@ -478,13 +478,13 @@ impl Rule for HtmlSelfClosing {
             &el.attributes,
             &el.fragment.nodes,
             ty,
-            &opts,
+            opts,
         );
     }
 
     fn check_component(&self, ctx: &mut LintContext, c: &Component) {
         let opts = Options::resolve(ctx);
-        self.check(
+        Self::check(
             ctx,
             c.start,
             c.end,
@@ -492,7 +492,7 @@ impl Rule for HtmlSelfClosing {
             &c.attributes,
             &c.fragment.nodes,
             ElementType::Component,
-            &opts,
+            opts,
         );
     }
 
@@ -502,7 +502,7 @@ impl Rule for HtmlSelfClosing {
         // to the rule like any other non-void element.
         let opts = Options::resolve(ctx);
         let ty = html_element_type(el.name.as_str());
-        self.check(
+        Self::check(
             ctx,
             el.start,
             el.end,
@@ -510,13 +510,13 @@ impl Rule for HtmlSelfClosing {
             &el.attributes,
             &el.fragment.nodes,
             ty,
-            &opts,
+            opts,
         );
     }
 
     fn check_svelte_element(&self, ctx: &mut LintContext, el: &SvelteElement) {
         let opts = Options::resolve(ctx);
-        self.check(
+        Self::check(
             ctx,
             el.start,
             el.end,
@@ -524,13 +524,13 @@ impl Rule for HtmlSelfClosing {
             &el.attributes,
             &el.fragment.nodes,
             ElementType::Svelte,
-            &opts,
+            opts,
         );
     }
 
     fn check_svelte_component(&self, ctx: &mut LintContext, c: &SvelteComponentElement) {
         let opts = Options::resolve(ctx);
-        self.check(
+        Self::check(
             ctx,
             c.start,
             c.end,
@@ -538,13 +538,13 @@ impl Rule for HtmlSelfClosing {
             &c.attributes,
             &c.fragment.nodes,
             ElementType::Svelte,
-            &opts,
+            opts,
         );
     }
 
     fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, e: &SvelteDynamicElement) {
         let opts = Options::resolve(ctx);
-        self.check(
+        Self::check(
             ctx,
             e.start,
             e.end,
@@ -552,7 +552,7 @@ impl Rule for HtmlSelfClosing {
             &e.attributes,
             &e.fragment.nodes,
             ElementType::Svelte,
-            &opts,
+            opts,
         );
     }
 
@@ -563,7 +563,7 @@ impl Rule for HtmlSelfClosing {
             "style" => ElementType::Normal,
             _ => return, // script: skip
         };
-        self.check(
+        Self::check(
             ctx,
             el.start,
             el.end,
@@ -571,7 +571,7 @@ impl Rule for HtmlSelfClosing {
             &el.attributes,
             &[],
             ty,
-            &opts,
+            opts,
         );
     }
 }

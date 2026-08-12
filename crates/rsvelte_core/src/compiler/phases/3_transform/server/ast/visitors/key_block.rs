@@ -15,7 +15,7 @@
 //! }
 //! ```
 //!
-//! KeyBlock just re-renders its body verbatim, wrapped in two `<!---->` anchor
+//! `KeyBlock` just re-renders its body verbatim, wrapped in two `<!---->` anchor
 //! comments. The async path (`is_async` → extra `<!--[-->` / `<!--]-->`
 //! wrappers) is KNOWN GAP: it needs the `PromiseOptimiser` / blocker plumbing,
 //! which is not ported in the AST pipeline yet.

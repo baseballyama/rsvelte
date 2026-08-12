@@ -4,7 +4,7 @@
 /// Extract `@component` documentation from HTML comments in the template.
 ///
 /// Looks for comments like `<!-- @component This is documentation -->` and
-/// converts them to JSDoc format: `/** This is documentation */`.
+/// converts them to `JSDoc` format: `/** This is documentation */`.
 ///
 /// Also handles multiline comments:
 /// ```html
@@ -13,7 +13,7 @@
 ///   Multi-line documentation
 /// -->
 /// ```
-pub(crate) fn extract_component_documentation(
+pub fn extract_component_documentation(
     fragment: &crate::ast::template::Fragment,
 ) -> Option<String> {
     use crate::ast::template::TemplateNode;
@@ -76,9 +76,8 @@ pub(crate) fn extract_component_documentation(
                     }
                     result.push_str(" */");
                     return Some(result);
-                } else {
-                    return Some(format!("/** {} */", content));
                 }
+                return Some(format!("/** {content} */"));
             }
         }
     }

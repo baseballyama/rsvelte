@@ -908,21 +908,19 @@ pub(super) fn strip_async_noop_placeholders(s: &str) -> String {
     result
 }
 
-/// Extract variable names from a $props() destructuring pattern.
-/// e.g., "const { name, age } = $props()" -> ["name", "age"]
-/// e.g., "let { a: b, c = 1 } = $props()" -> ["b", "c"]
+/// Extract variable names from a $`props()` destructuring pattern.
+/// e.g., "const { name, age } = $`props()`" -> ["name", "age"]
+/// e.g., "let { a: b, c = 1 } = $`props()`" -> ["b", "c"]
 pub(super) fn extract_destructured_prop_names(statement: &str) -> Vec<String> {
     let trimmed = statement.trim();
 
     // Look for pattern: (const|let|var) { ... } = $props(...)
-    let brace_start = match trimmed.find('{') {
-        Some(pos) => pos,
-        None => return vec![],
+    let Some(brace_start) = trimmed.find('{') else {
+        return vec![];
     };
 
-    let brace_end = match trimmed.find('}') {
-        Some(pos) => pos,
-        None => return vec![],
+    let Some(brace_end) = trimmed.find('}') else {
+        return vec![];
     };
 
     if brace_start >= brace_end {
@@ -948,11 +946,9 @@ pub(super) fn extract_destructured_prop_names(statement: &str) -> Vec<String> {
         if let Some(colon_pos) = part.find(':') {
             let after_colon = part[colon_pos + 1..].trim();
             // May have default: "alias = default"
-            let alias = if let Some(eq_pos) = after_colon.find('=') {
-                after_colon[..eq_pos].trim()
-            } else {
-                after_colon
-            };
+            let alias = after_colon
+                .find('=')
+                .map_or(after_colon, |eq_pos| after_colon[..eq_pos].trim());
             names.push(alias.to_string());
             continue;
         }
@@ -973,9 +969,9 @@ pub(super) fn extract_destructured_prop_names(statement: &str) -> Vec<String> {
 /// Normalize raw JavaScript formatting using OXC parser and codegen.
 ///
 /// Detect the common base indentation shared by all non-empty, non-first lines.
-/// Skips the first line because normalize_js_with_oxc doesn't add indent to it
-/// (the codegen's emit_statement handles first-line indentation).
-/// After trim(), the first line often has 0 indent which would defeat detection.
+/// Skips the first line because `normalize_js_with_oxc` doesn't add indent to it
+/// (the codegen's `emit_statement` handles first-line indentation).
+/// After `trim()`, the first line often has 0 indent which would defeat detection.
 fn detect_base_indent(code: &str) -> usize {
     let mut min_indent: Option<usize> = None;
     for (i, line) in code.lines().enumerate() {
@@ -1013,7 +1009,7 @@ fn restore_pre_effect_thunk_parens<'a>(
     use oxc_ast::ast::{Argument, Expression, SequenceExpression, Statement};
 
     let ab = oxc_ast::builder::AstBuilder::new(allocator);
-    for stmt in program.body.iter_mut() {
+    for stmt in &mut program.body {
         let Statement::ExpressionStatement(es) = stmt else {
             continue;
         };
@@ -1063,7 +1059,7 @@ fn restore_pre_effect_thunk_parens<'a>(
 /// If parsing fails, returns the original input unchanged.
 /// The output uses single quotes, tab indentation, and strips comments
 /// (matching esrap/Svelte compiler behavior).
-pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
+pub fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
     // Fast path: skip OXC parse+codegen for scripts without JSDoc or await.
     // JSDoc comments need OXC to fix indentation (tab+space before *).
     // await scripts go through async_body transform which needs OXC formatting.
@@ -1152,19 +1148,21 @@ pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
 
     // Use thread-local allocator to avoid repeated allocation overhead
     let code = with_normalize_allocator(|allocator| {
-        let _pt = super::super::profile::timer_start();
+        let parse_timer = super::super::profile::timer_start();
         let mut parsed = Parser::new(allocator, &protected, SourceType::mjs()).parse();
         super::super::profile::record_direct_parse(
-            super::super::profile::timer_elapsed(_pt),
+            super::super::profile::timer_elapsed(parse_timer),
             protected.len(),
         );
         if !parsed.diagnostics.is_empty() {
             return js.to_string();
         }
         restore_pre_effect_thunk_parens(&mut parsed.program, allocator);
-        let _t = super::super::profile::timer_start();
+        let print_timer = super::super::profile::timer_start();
         let printed = rsvelte_esrap::print(&parsed.program, &protected);
-        super::super::profile::record_esrap_normalize(super::super::profile::timer_elapsed(_t));
+        super::super::profile::record_esrap_normalize(super::super::profile::timer_elapsed(
+            print_timer,
+        ));
         printed
     });
 
@@ -1209,7 +1207,7 @@ pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
         } else {
             // Subsequent lines need the source-level indentation prefix
             update_template_literal_stack(line, &mut stack);
-            result_lines.push(format!("{}{}", indent_str, line));
+            result_lines.push(format!("{indent_str}{line}"));
         }
     }
     result_lines.join("\n")
@@ -1400,7 +1398,7 @@ pub(super) fn update_template_literal_stack(line: &str, stack: &mut Vec<Template
 ///
 /// OXC sometimes emits standalone semicolons that the Svelte compiler doesn't produce.
 /// This removes lines that consist only of whitespace followed by `;`.
-/// Lines with `;;` (from $inspect() removal) are kept as-is.
+/// Lines with `;;` (from $`inspect()` removal) are kept as-is.
 pub(super) fn strip_empty_statements_from_js(code: &str) -> String {
     // Quick pre-check: if there's no standalone `;` possibility (no newline followed by
     // optional whitespace and `;`), skip the expensive line-by-line processing.
@@ -1425,10 +1423,10 @@ pub(super) fn strip_empty_statements_from_js(code: &str) -> String {
     result.join("\n")
 }
 
-/// Rejoin consecutive `;` lines that OXC split from `;;` (from $inspect() removal).
+/// Rejoin consecutive `;` lines that OXC split from `;;` (from $`inspect()` removal).
 ///
-/// When $inspect() is removed in non-dev mode, it produces `;;`. OXC then parses this
-/// as two EmptyStatements and outputs them as two separate `;` lines. We rejoin them
+/// When $`inspect()` is removed in non-dev mode, it produces `;;`. OXC then parses this
+/// as two `EmptyStatements` and outputs them as two separate `;` lines. We rejoin them
 /// back to `;;` so they survive the empty-statement stripping.
 pub(super) fn rejoin_inspect_empty_stmts(code: &str) -> String {
     // Quick pre-check: if there's no `;\n` pattern, there can't be consecutive `;` lines
@@ -1443,7 +1441,7 @@ pub(super) fn rejoin_inspect_empty_stmts(code: &str) -> String {
         if lines[i].trim() == ";" && i + 1 < lines.len() && lines[i + 1].trim() == ";" {
             // Rejoin consecutive `;` lines into `;;`
             let indent = &lines[i][..lines[i].len() - lines[i].trim_start().len()];
-            result.push(format!("{};;", indent));
+            result.push(format!("{indent};;"));
             i += 2;
         } else {
             result.push(lines[i].to_string());

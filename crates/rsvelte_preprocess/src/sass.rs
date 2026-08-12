@@ -29,6 +29,10 @@ pub struct SassOptions {
 ///
 /// Returns `Ok(None)` when the block's `type`/`lang` does not select Sass/SCSS
 /// (matching the upstream `return null`).
+///
+/// # Errors
+///
+/// Returns an error when compiling a selected Sass or SCSS block fails.
 pub fn preprocess_sass(
     sass_options: &SassOptions,
     filter_options: &FilterOptions,
@@ -98,6 +102,7 @@ pub fn preprocess_sass(
 ///
 /// Mirrors the upstream `sass(sassOptions, filterOptions)` factory, which binds
 /// the options and returns the `<style>` preprocessor.
+#[must_use]
 pub fn sass(sass_options: SassOptions, filter_options: FilterOptions) -> PreprocessorGroup {
     PreprocessorGroup {
         name: Some("svelte-preprocess-sass".to_string()),

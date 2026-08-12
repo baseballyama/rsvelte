@@ -1,8 +1,12 @@
+//! `svelte/no-dupe-on-directives`.
+//!
 //! `svelte/no-dupe-on-directives` — disallow duplicate `on:` directives on the
 //! same start tag. Two `on:event` directives are duplicates when they share the
 //! same event type AND a token-equal handler expression (modifiers are
 //! irrelevant; a bare `on:event` with no expression only matches another bare
-//! `on:event`). Port of the eslint-plugin-svelte rule.
+//! `on:event`).
+//!
+//! Port of the eslint-plugin-svelte rule.
 //!
 //! Detection is per start-tag, so the same helper runs for both elements
 //! (`check_element`) and components (`check_component`).
@@ -103,7 +107,7 @@ fn line_of(source: &str, offset: u32) -> usize {
 pub struct NoDupeOnDirectives;
 
 impl NoDupeOnDirectives {
-    fn check_attributes(&self, ctx: &mut LintContext, attributes: &[Attribute]) {
+    fn check_attributes(ctx: &mut LintContext, attributes: &[Attribute]) {
         // Group on:directives by event type (in source order), then sub-group
         // by token-equal handler expression. Each sub-group keeps the indices
         // of its directives (into a flat list of OnDirective refs).
@@ -122,17 +126,19 @@ impl NoDupeOnDirectives {
 
         for (idx, on) in directives.iter().enumerate() {
             let ty = on.name.as_str();
-            let norm: Option<String> = match &on.expression {
-                None => None,
-                Some(expr) => match (expr.start(), expr.end()) {
-                    (Some(s), Some(e)) => Some(normalize(ctx.slice(s, e))),
-                    // No usable span: treat as its own un-matchable bucket by
-                    // using the raw (unique) index marker. Fall back to None is
-                    // wrong (would match bare); use a sentinel that never
-                    // equals another. Encode the index into the string.
-                    _ => Some(format!("\0__nospan_{idx}")),
+            let norm: Option<String> = on.expression.as_ref().map_or_else(
+                || None,
+                |expr| {
+                    match (expr.start(), expr.end()) {
+                        (Some(s), Some(e)) => Some(normalize(ctx.slice(s, e))),
+                        // No usable span: treat as its own un-matchable bucket by
+                        // using the raw (unique) index marker. Fall back to None is
+                        // wrong (would match bare); use a sentinel that never
+                        // equals another. Encode the index into the string.
+                        _ => Some(format!("\0__nospan_{idx}")),
+                    }
                 },
-            };
+            );
 
             if let Some(group) = groups
                 .iter_mut()
@@ -152,15 +158,17 @@ impl NoDupeOnDirectives {
                 let on = directives[m];
                 // lineNo: the line of the FIRST member if this is not the
                 // first member, otherwise the line of the SECOND member.
-                let other_idx = if members[0] != m {
-                    members[0]
-                } else {
+                let other_idx = if members[0] == m {
                     members[1]
+                } else {
+                    members[0]
                 };
                 let line_no = line_of(ctx.source(), directives[other_idx].start);
                 let ty = on.name.as_str();
                 let start = on.start;
-                let end = on.start + 3 + ty.len() as u32; // covers `on:name`
+                let end = on.start
+                    + 3
+                    + u32::try_from(ty.len()).expect("event-name widths are represented as u32"); // covers `on:name`
                 ctx.report(
                     start,
                     end,
@@ -179,11 +187,11 @@ impl Rule for NoDupeOnDirectives {
     }
 
     fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
-        self.check_attributes(ctx, &el.attributes);
+        Self::check_attributes(ctx, &el.attributes);
     }
 
     fn check_component(&self, ctx: &mut LintContext, c: &Component) {
-        self.check_attributes(ctx, &c.attributes);
+        Self::check_attributes(ctx, &c.attributes);
     }
 }
 

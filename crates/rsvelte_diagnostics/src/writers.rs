@@ -25,19 +25,22 @@ pub enum OutputFormat {
 }
 
 impl OutputFormat {
+    #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
         Some(match s {
-            "human" => OutputFormat::Human,
-            "human-verbose" => OutputFormat::HumanVerbose,
-            "machine" => OutputFormat::Machine,
-            "machine-verbose" => OutputFormat::MachineVerbose,
-            "github" | "github-actions" => OutputFormat::GithubActions,
+            "human" => Self::Human,
+            "human-verbose" => Self::HumanVerbose,
+            "machine" => Self::Machine,
+            "machine-verbose" => Self::MachineVerbose,
+            "github" | "github-actions" => Self::GithubActions,
             _ => return None,
         })
     }
 }
 
-/// Diagnostic display threshold — mirrors the JS reference's
+/// Diagnostic display threshold.
+///
+/// Mirrors the JS reference's
 /// `--threshold` (`getThreshold` in `options.ts` + `createFilter` in
 /// `index.ts`). It filters which diagnostics are *printed*; it never
 /// changes the error/warning counts or the exit code, which the JS
@@ -55,10 +58,11 @@ impl Threshold {
     /// The JS reference only accepts `warning` / `error`; anything else
     /// warns and falls back to `warning`. `parse` returns `None` for the
     /// unknown case so the caller can emit that warning.
+    #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
         Some(match s {
-            "warning" => Threshold::Warning,
-            "error" => Threshold::Error,
+            "warning" => Self::Warning,
+            "error" => Self::Error,
             _ => return None,
         })
     }
@@ -66,10 +70,11 @@ impl Threshold {
     /// Whether a diagnostic of `severity` should be displayed. `error`
     /// keeps only errors; `warning` keeps errors and warnings (dropping
     /// info/hint, matching the JS `createFilter`).
+    #[must_use]
     pub fn includes(self, severity: DiagnosticSeverity) -> bool {
         match self {
-            Threshold::Error => severity == DiagnosticSeverity::Error,
-            Threshold::Warning => matches!(
+            Self::Error => severity == DiagnosticSeverity::Error,
+            Self::Warning => matches!(
                 severity,
                 DiagnosticSeverity::Error | DiagnosticSeverity::Warning
             ),
@@ -87,7 +92,7 @@ pub fn write_diagnostic(
     match format {
         OutputFormat::Human | OutputFormat::HumanVerbose => write_human(out, diag, workspace_root),
         OutputFormat::Machine | OutputFormat::MachineVerbose => {
-            write_machine(out, diag, workspace_root, format)
+            write_machine(out, diag, workspace_root, format);
         }
         OutputFormat::GithubActions => write_github_actions(out, diag, workspace_root),
     }
@@ -166,7 +171,11 @@ fn write_machine(
 }
 
 /// Converts rsvelte's 1-based-line/0-based-column `Range` to the 0-based-on-both-axes LSP shape `machine-verbose` needs; a missing range falls back to the file start.
-fn zero_based_range(range: Option<Range>) -> ((u32, u32), (u32, u32)) {
+#[allow(
+    clippy::option_if_let_else,
+    reason = "Option::map_or is not const on the project's minimum Rust version"
+)]
+const fn zero_based_range(range: Option<Range>) -> ((u32, u32), (u32, u32)) {
     match range {
         Some(r) => (
             (r.start.line.saturating_sub(1), r.start.column),
@@ -239,8 +248,7 @@ fn json_quoted(s: &str) -> String {
 fn epoch_ms() -> u128 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis())
-        .unwrap_or(0)
+        .map_or(0, |d| d.as_millis())
 }
 
 fn write_epoch_line(out: &mut String, payload: &str) {
@@ -278,6 +286,7 @@ pub fn write_completion(
 }
 
 /// Computed over the full diagnostic set, not the threshold-filtered subset that gets printed — matching the JS reference's `fileCountWithProblems`.
+#[must_use]
 pub fn count_files_with_problems(diagnostics: &[Diagnostic]) -> usize {
     let mut files = std::collections::HashSet::new();
     for d in diagnostics {
@@ -303,8 +312,8 @@ fn write_github_actions(out: &mut String, diag: &Diagnostic, workspace_root: &st
         DiagnosticSeverity::Warning => "warning",
         DiagnosticSeverity::Info | DiagnosticSeverity::Hint => "notice",
     };
-    let line = diag.range.map(|r| r.start.line).unwrap_or(1);
-    let col = diag.range.map(|r| r.start.column).unwrap_or(1);
+    let line = diag.range.map_or(1, |r| r.start.line);
+    let col = diag.range.map_or(1, |r| r.start.column);
     let mut message = format!("({}) {}", diag.source, diag.message);
     if let Some(code) = diag.code.as_deref() {
         message = format!("{message} [{code}]");
@@ -317,8 +326,7 @@ fn write_github_actions(out: &mut String, diag: &Diagnostic, workspace_root: &st
     let file = escape_workflow_property(&rel.display().to_string());
     let _ = writeln!(
         out,
-        "::{} file={},line={},col={}::{}",
-        level, file, line, col, escaped
+        "::{level} file={file},line={line},col={col}::{escaped}",
     );
 }
 
@@ -495,7 +503,7 @@ mod tests {
     /// Strip the epoch-ms prefix every `machine` / `machine-verbose` line
     /// carries, returning the payload after the first space.
     fn strip_epoch(line: &str) -> &str {
-        line.split_once(' ').map(|(_, rest)| rest).unwrap_or(line)
+        line.split_once(' ').map_or(line, |(_, rest)| rest)
     }
 
     #[test]

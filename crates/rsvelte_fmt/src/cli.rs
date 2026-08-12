@@ -5,7 +5,7 @@ use clap::Parser;
 /// rsvelte-fmt: fast Svelte + JS/TS/CSS formatter.
 #[derive(Debug, Parser)]
 #[command(version, about, long_about = None)]
-pub(crate) struct Cli {
+pub struct Cli {
     /// Files or directories to format. `.svelte` files are formatted in
     /// process; every other path is delegated to `oxfmt`, so directories cover
     /// the full oxfmt-supported set (`.ts`/`.js`/`.css`/`.json` and also

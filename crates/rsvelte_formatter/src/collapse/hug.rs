@@ -1,4 +1,11 @@
-use super::*;
+use crate::doc::Doc;
+
+use super::{
+    FormatOptions, Fragment, IndentUnit, TemplateNode, VisualWidth, attribute_span,
+    build_children_doc, child_fragments, current_column, indent_config, is_block_display,
+    is_component_tag, is_inline_block, is_inline_node, is_whitespace_preserving, node_end,
+    node_start, tab_width, trims_edge_whitespace,
+};
 
 /// Pass 1.7: targeted `try_hug_mixed` sweep for elements that have a
 /// non-whitespace prefix (indent ending with `>`). This can occur when pass 1
@@ -329,13 +336,11 @@ pub(super) fn try_hug_mixed(
     // case the text between the last `\n` in `open` and the trailing `>` is the
     // last attribute content (non-whitespace), whereas `hug_open=false` leaves only
     // whitespace (the outer indent) between the last `\n` and `>`.
-    let open_hug_form = if let Some(nl_pos) = open.rfind('\n') {
+    let open_hug_form = open.rfind('\n').is_some_and(|nl_pos| {
         // `after_last_nl` = text between last newline and trailing `>`.
         let after_last_nl = &open[nl_pos + 1..open.len().saturating_sub(1)];
         !after_last_nl.bytes().all(|b| b == b' ' || b == b'\t')
-    } else {
-        false
-    };
+    });
     let adj_raw: Option<&str> = if is_component_tag(tag)
         && open_hug_form // `>` glued to last attribute (hug_open=true from markup)
         && raw.starts_with('\n')
@@ -644,7 +649,6 @@ pub(super) fn try_hug_mixed(
     // fits (only the outer `>` drops to its own line, e.g. `<text …>…</text`\n`>`)
     // and otherwise moves `>{body}</tag` to its own indented line (e.g. `<title`\n
     // `  >…</title`\n`>`).
-    use crate::doc::Doc;
     let body_opt = build_children_doc(out, fragment);
     let body = body_opt?;
     let open_no_bracket = open[..open.len() - 1].to_string();

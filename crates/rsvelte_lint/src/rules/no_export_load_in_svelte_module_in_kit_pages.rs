@@ -1,7 +1,7 @@
 //! `svelte/no-export-load-in-svelte-module-in-kit-pages` — disallow exporting
-//! `load` functions in `*.svelte` module scripts in SvelteKit page components.
+//! `load` functions in `*.svelte` module scripts in `SvelteKit` page components.
 //!
-//! The rule only applies to SvelteKit route files (`+page.svelte`,
+//! The rule only applies to `SvelteKit` route files (`+page.svelte`,
 //! `+layout.svelte`, `+error.svelte`) and only to `<script context="module">`
 //! blocks. Within those it flags top-level exports whose declared name is
 //! exactly `load`:
@@ -35,7 +35,7 @@ static META: RuleMeta = RuleMeta {
 const MESSAGE: &str =
     "disallow exporting load functions in `*.svelte` module in SvelteKit page components.";
 
-/// Whether this file is a SvelteKit route file that the rule should run on.
+/// Whether this file is a `SvelteKit` route file that the rule should run on.
 ///
 /// Mirrors upstream's `svelteKitFileType` check: only applies when the file
 /// is under a `routes` directory inside an `src` folder (default `src/routes`).

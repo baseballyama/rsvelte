@@ -1,5 +1,5 @@
 //! Development utility for comparing two JS files using OXC canonicalization.
-//! Usage: canonicalize_and_compare `<file1>` `<file2>`
+//! Usage: `canonicalize_and_compare` `<file1>` `<file2>`
 //! Exits 0 if semantically equal, 1 if different, prints first diff.
 
 // Defined per-bin rather than once in the lib so that linking the `rsvelte_core`
@@ -372,11 +372,11 @@ fn main() {
     if args.len() >= 4 {
         match args[3].as_str() {
             "--dump1" => {
-                println!("{}", c1);
+                println!("{c1}");
                 return;
             }
             "--dump2" => {
-                println!("{}", c2);
+                println!("{c2}");
                 return;
             }
             _ => {}
@@ -556,7 +556,7 @@ fn strip_trailing_commas_multiline(code: &str) -> String {
     let mut result = Vec::with_capacity(lines.len());
     for (i, line) in lines.iter().enumerate() {
         let trimmed = line.trim();
-        let next_trimmed = lines.get(i + 1).map(|l| l.trim()).unwrap_or("");
+        let next_trimmed = lines.get(i + 1).map_or("", |l| l.trim());
         if trimmed.ends_with(',')
             && (next_trimmed.starts_with('}') || next_trimmed.starts_with(')'))
         {
@@ -569,12 +569,12 @@ fn strip_trailing_commas_multiline(code: &str) -> String {
     result.join("\n")
 }
 
-/// Normalize $$body variable names: $$body_1, $$body_2 → $$body
+/// Normalize $$body variable names: $$`body_1`, $$`body_2` → $$body
 /// The official compiler may use different numbering for body variables.
 fn normalize_body_var_names(code: &str) -> String {
     let mut result = code.to_string();
     for i in 1..=10 {
-        result = result.replace(&format!("$$body_{}", i), "$$body");
+        result = result.replace(&format!("$$body_{i}"), "$$body");
     }
     result
 }

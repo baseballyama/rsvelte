@@ -1,13 +1,21 @@
-//! A Rust implementation of MagicString, a string manipulation library that tracks
+//! A Rust implementation of `MagicString`, a string manipulation library that tracks
 //! source positions for source map generation.
 //!
-//! MagicString works by maintaining a linked list of "chunks" representing segments
+//! `MagicString` works by maintaining a linked list of "chunks" representing segments
 //! of the original string. Chunks can be modified (overwrite, remove, prepend, append)
 //! while preserving position information for accurate source mapping.
 
 use std::fmt;
 use std::fmt::Write as _;
 use std::num::{NonZeroU16, NonZeroU32};
+
+fn u32_length(value: usize) -> u32 {
+    u32::try_from(value).expect("MagicString source lengths are represented as u32")
+}
+
+fn i64_count(value: usize) -> i64 {
+    i64::try_from(value).expect("source-map counts fit in i64")
+}
 
 // ---------------------------------------------------------------------------
 // Chunk
@@ -29,7 +37,7 @@ impl ChunkId {
     }
 
     #[inline]
-    fn index(self) -> usize {
+    const fn index(self) -> usize {
         (self.0.get() - 1) as usize
     }
 }
@@ -65,7 +73,7 @@ const _: () = assert!(std::mem::size_of::<Chunk>() == 52);
 const _: () = assert!(std::mem::size_of::<Option<ChunkId>>() == 4);
 
 impl Chunk {
-    fn new(start: u32, end: u32) -> Self {
+    const fn new(start: u32, end: u32) -> Self {
         Self {
             start,
             end,
@@ -78,7 +86,7 @@ impl Chunk {
     }
 
     #[inline]
-    fn is_edited(&self) -> bool {
+    const fn is_edited(&self) -> bool {
         self.content.is_some()
     }
 
@@ -96,7 +104,7 @@ impl Chunk {
     /// chunk that covers `[index, self.end)`. `self` is trimmed to `[self.start, index)`.
     ///
     /// Panics if `index` is not strictly inside `(self.start, self.end)`.
-    fn split(&mut self, index: u32) -> Chunk {
+    fn split(&mut self, index: u32) -> Self {
         assert!(
             index > self.start && index < self.end,
             "split index {} out of range [{}, {})",
@@ -108,12 +116,12 @@ impl Chunk {
         // If the chunk was edited, the replacement text can't be meaningfully
         // split — keep it all in the first half and leave the second half as
         // an empty edited chunk. Mirrors the JS MagicString semantics.
-        let (content_before, content_after) = match self.content.take() {
-            Some(s) => (Some(s), Some(String::new())),
-            None => (None, None),
-        };
+        let (content_before, content_after) = self
+            .content
+            .take()
+            .map_or((None, None), |content| (Some(content), Some(String::new())));
 
-        let new_chunk = Chunk {
+        let new_chunk = Self {
             start: index,
             end: self.end,
             next: self.next,
@@ -174,7 +182,7 @@ impl DenseSlot {
     }
 
     #[inline]
-    fn index(self) -> usize {
+    const fn index(self) -> usize {
         (self.0.get() - 1) as usize
     }
 }
@@ -520,11 +528,12 @@ fn vlq_encode(encoded: &mut String, value: i64) {
 
     let mut vlq = (value.unsigned_abs() << 1) | u64::from(value < 0);
     while vlq >= u64::from(VLQ_BASE) {
-        let digit = (vlq as u32 & VLQ_BASE_MASK) | VLQ_CONTINUATION_BIT;
+        let digit = (u32::try_from(vlq).expect("VLQ digit fits in u32") & VLQ_BASE_MASK)
+            | VLQ_CONTINUATION_BIT;
         encoded.push(BASE64_CHARS[digit as usize] as char);
         vlq >>= VLQ_BASE_SHIFT;
     }
-    encoded.push(BASE64_CHARS[vlq as usize] as char);
+    encoded.push(BASE64_CHARS[usize::try_from(vlq).expect("VLQ digit indexes base64")] as char);
 }
 
 #[inline]
@@ -552,12 +561,12 @@ struct OutputEstimate {
 
 impl OutputEstimate {
     #[inline]
-    fn add_code_bytes(&mut self, bytes: usize) {
+    const fn add_code_bytes(&mut self, bytes: usize) {
         self.code_bytes = self.code_bytes.saturating_add(bytes);
     }
 
     #[inline]
-    fn add_mapping_bytes(&mut self, bytes: usize) {
+    const fn add_mapping_bytes(&mut self, bytes: usize) {
         self.mapping_bytes = self.mapping_bytes.saturating_add(bytes);
     }
 
@@ -643,7 +652,7 @@ impl<'a, const CAPACITY_GUARANTEED: bool> MappingState<'a, CAPACITY_GUARANTEED> 
         } else {
             column_source.chars().map(char::len_utf16).sum::<usize>()
         };
-        (line as i64, column as i64)
+        (i64_count(line), i64_count(column))
     }
 
     #[inline]
@@ -711,7 +720,7 @@ impl<'a, const CAPACITY_GUARANTEED: bool> MappingState<'a, CAPACITY_GUARANTEED> 
                 if ch == '\n' {
                     self.advance_line();
                 } else {
-                    self.generated_column += ch.len_utf16() as i64;
+                    self.generated_column += i64_count(ch.len_utf16());
                 }
             }
             return;
@@ -745,16 +754,16 @@ impl<'a, const CAPACITY_GUARANTEED: bool> MappingState<'a, CAPACITY_GUARANTEED> 
                 // the cursor, so the two columns must coincide here.
                 debug_assert_eq!(self.segment_column, self.generated_column);
                 push_ascii_hires_segments::<CAPACITY_GUARANTEED>(self.mappings, run_len);
-                self.generated_column += run_len as i64;
+                self.generated_column += i64_count(run_len);
                 self.segment_column = self.generated_column;
-                current_source_column += run_len as i64;
+                current_source_column += i64_count(run_len);
                 self.original_column = current_source_column;
             } else {
                 let ch = body[byte_index..]
                     .chars()
                     .next()
                     .expect("non-ASCII byte starts a character");
-                let width = ch.len_utf16() as i64;
+                let width = i64_count(ch.len_utf16());
                 current_source_column += width;
                 // Anchored past the character, like the ASCII run's segments; the cursor
                 // moves with it inside `emit_segment`.
@@ -841,10 +850,10 @@ impl<'source> MagicString<'source> {
     #[inline]
     fn chunk_content(&self, ci: usize) -> &str {
         let chunk = &self.chunks[ci];
-        match &chunk.content {
-            Some(s) => s.as_str(),
-            None => &self.original[chunk.start as usize..chunk.end as usize],
-        }
+        chunk
+            .content
+            .as_deref()
+            .unwrap_or_else(|| &self.original[chunk.start as usize..chunk.end as usize])
     }
 
     // -----------------------------------------------------------------
@@ -1027,9 +1036,8 @@ impl<'source> MagicString<'source> {
         // overwrite.
         let mut cur_end = self.chunks[first].end;
         while cur_end < end {
-            let ci = match self.chunk_starting_at(cur_end) {
-                Some(i) => i,
-                None => break,
+            let Some(ci) = self.chunk_starting_at(cur_end) else {
+                break;
             };
             self.chunks[ci].content = Some(String::new());
             self.chunks[ci].intro.clear();
@@ -1172,7 +1180,7 @@ impl<'source> MagicString<'source> {
             "prepend_right: index out of range"
         );
 
-        if index == self.original.len() as u32 {
+        if index == u32_length(self.original.len()) {
             self.outro.insert_str(0, content);
             return self;
         }
@@ -1215,7 +1223,7 @@ impl<'source> MagicString<'source> {
             "append_right: index out of range"
         );
 
-        if index == self.original.len() as u32 {
+        if index == u32_length(self.original.len()) {
             self.outro.push_str(content);
             return self;
         }
@@ -1272,7 +1280,7 @@ impl<'source> MagicString<'source> {
             self.link(Some(last_in_range), Some(old_first));
             self.chunks[first_in_range].previous = None;
             self.first_chunk = ChunkId::from_index(first_in_range);
-        } else if index == self.original.len() as u32 {
+        } else if index == u32_length(self.original.len()) {
             // Insert after the current last chunk.
             let old_last = self.last_chunk.index();
             self.link(Some(old_last), Some(first_in_range));
@@ -1339,7 +1347,7 @@ impl<'source> MagicString<'source> {
         SourceMap {
             version: 3,
             file: options.file,
-            sources: vec![source_name.clone()],
+            sources: vec![source_name],
             sources_content: if options.include_content {
                 vec![self.original.to_string()]
             } else {
@@ -1447,7 +1455,7 @@ impl<'source> MagicString<'source> {
             mapping.advance_unmapped(&self.intro);
         }
 
-        let mut generated_bytes = self.intro.len() as u32;
+        let mut generated_bytes = u32_length(self.intro.len());
         let mut cur = Some(self.first_chunk.index());
         while let Some(ci) = cur {
             let chunk = &self.chunks[ci];
@@ -1464,12 +1472,12 @@ impl<'source> MagicString<'source> {
                 mapping.advance_unmapped(&chunk.outro);
             }
             if let Some(segments) = &mut forward_segments {
-                generated_bytes += chunk.intro.len() as u32;
+                generated_bytes += u32_length(chunk.intro.len());
                 if !chunk.is_edited() && chunk.end > chunk.start {
                     segments.push((chunk.start, chunk.end, generated_bytes));
                 }
-                generated_bytes += body.len() as u32;
-                generated_bytes += chunk.outro.len() as u32;
+                generated_bytes += u32_length(body.len());
+                generated_bytes += u32_length(chunk.outro.len());
             }
             cur = chunk.next_index();
         }

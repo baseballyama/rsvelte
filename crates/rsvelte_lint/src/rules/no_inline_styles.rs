@@ -1,7 +1,11 @@
+//! `svelte/no-inline-styles`.
+//!
 //! `svelte/no-inline-styles` — disallow attributes and directives that produce
 //! inline styles on HTML elements: a `style="…"` attribute, a `style:…`
 //! directive, and (when `allowTransitions` is `false`) a `transition:` / `in:` /
-//! `out:` directive. Port of the eslint-plugin-svelte rule.
+//! `out:` directive.
+//!
+//! Port of the eslint-plugin-svelte rule.
 //!
 //! A template-walk rule (`check_element`): only HTML elements are inspected,
 //! mirroring upstream's `node.kind === 'html'` guard (components and

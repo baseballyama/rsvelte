@@ -4,7 +4,7 @@
 //! Port of `eslint-plugin-svelte/src/rules/prefer-class-directive.ts`.
 //!
 //! Category: Stylistic Issues. Type: suggestion. fixable=code.
-//! Not recommended (default_severity = Off).
+//! Not recommended (`default_severity` = Off).
 //!
 //! Option: `[{ "prefer": "always" | "empty" }]` (default `"empty"`).
 //! - `"always"`: flag every ternary in a class attribute.
@@ -92,13 +92,7 @@ fn process_branch(
         // Nested conditional: recurse but swap the `not` logic for the sub-entries.
         let sub = parse_conditional(branch)?;
         for sub_entry in sub {
-            entries.push(MapEntry {
-                test_start: sub_entry.test_start,
-                test_end: sub_entry.test_end,
-                test_json: sub_entry.test_json,
-                not: sub_entry.not,
-                class_name: sub_entry.class_name,
-            });
+            entries.push(sub_entry);
         }
     } else {
         let s = get_string_if_constant(branch)?;
@@ -114,7 +108,7 @@ fn process_branch(
 }
 
 /// Mirror of `getStringIfConstant`: get the constant string value of a Literal
-/// or TemplateLiteral (simple no-expression case).
+/// or `TemplateLiteral` (simple no-expression case).
 fn get_string_if_constant(node: &Value) -> Option<String> {
     match node_type(node)? {
         "Literal" => {
@@ -214,10 +208,10 @@ fn expr_to_string(ctx: &LintContext, entry: &MapEntry) -> String {
 /// Get all possible constant string values for a part (mirrors upstream `getStrings`).
 ///
 /// - Text part: returns `Some(vec![text_value])`.
-/// - ExpressionTag with a ConditionalExpression: returns all leaf strings from
+/// - `ExpressionTag` with a `ConditionalExpression`: returns all leaf strings from
 ///   `parse_conditional`. Returns `None` if any leaf is non-constant (unknown).
-/// - ExpressionTag with another constant expression: returns `Some(vec![val])`.
-/// - ExpressionTag with an unknown expression: returns `None`.
+/// - `ExpressionTag` with another constant expression: returns `Some(vec![val])`.
+/// - `ExpressionTag` with an unknown expression: returns `None`.
 fn get_strings(part: &AttributeValuePart) -> Option<Vec<String>> {
     match part {
         AttributeValuePart::Text(t) => Some(vec![t.data.to_string()]),
@@ -243,12 +237,12 @@ fn get_strings(part: &AttributeValuePart) -> Option<Vec<String>> {
 ///
 /// Returns `true` if the boundary ends with a non-word (i.e. NOT a word char).
 fn ends_with_non_word(parts: &[AttributeValuePart], check_index: usize) -> bool {
-    let mut i = check_index as isize;
+    let mut i = check_index.cast_signed();
     while i >= 0 {
-        let part = &parts[i as usize];
-        let strings = match get_strings(part) {
-            None => return false, // unknown → conservative: not safe to merge
-            Some(ss) => ss,
+        let part_index = usize::try_from(i).expect("loop condition ensures a non-negative index");
+        let part = &parts[part_index];
+        let Some(strings) = get_strings(part) else {
+            return false; // unknown → conservative: not safe to merge
         };
         for s in &strings {
             if !s.is_empty() {
@@ -272,9 +266,8 @@ fn ends_with_non_word(parts: &[AttributeValuePart], check_index: usize) -> bool 
 fn starts_with_non_word(parts: &[AttributeValuePart], check_index: usize) -> bool {
     let mut i = check_index;
     while i < parts.len() {
-        let strings = match get_strings(&parts[i]) {
-            None => return false,
-            Some(ss) => ss,
+        let Some(strings) = get_strings(&parts[i]) else {
+            return false;
         };
         for s in &strings {
             if !s.is_empty() {
@@ -382,7 +375,15 @@ fn verify_sequence_attr(
         let mut space: Option<String> = None;
         for entry in &entries {
             let trimmed = entry.class_name.trim();
-            if !entry.class_name.is_empty() {
+            if entry.class_name.is_empty() {
+                // Truly empty class_name ("").
+                if prev_is_word && next_is_word {
+                    can_transform = false;
+                    break;
+                }
+                // Capture as space separator.
+                space = Some(entry.class_name.clone());
+            } else {
                 // class_name is non-empty (may be all whitespace like " ").
                 if !trimmed.is_empty() && !is_valid_class_name(trimmed) {
                     can_transform = false;
@@ -409,14 +410,6 @@ fn verify_sequence_attr(
                     // Whitespace-only class_name → treat as the space separator.
                     space = Some(entry.class_name.clone());
                 }
-            } else {
-                // Truly empty class_name ("").
-                if prev_is_word && next_is_word {
-                    can_transform = false;
-                    break;
-                }
-                // Capture as space separator.
-                space = Some(entry.class_name.clone());
             }
         }
         if !can_transform {
@@ -426,158 +419,173 @@ fn verify_sequence_attr(
         let class_directives = build_class_directives(ctx, &entries);
         let directive_text = class_directives.join(" ");
 
-        // Determine the parts before and after this expression tag (after trimming
-        // adjacent whitespace-only text parts).
-        let before_parts = &parts[..index];
-        let after_parts = &parts[index + 1..];
-
-        // Trim trailing whitespace-only text from before parts and leading from after.
-        let effective_before: Vec<&AttributeValuePart> = {
-            let mut bp: Vec<&AttributeValuePart> = before_parts.iter().collect();
-            // Pop trailing whitespace-only text parts.
-            while let Some(last) = bp.last() {
-                if let AttributeValuePart::Text(t) = last {
-                    if t.data.trim().is_empty() {
-                        bp.pop();
-                    } else {
-                        break;
-                    }
-                } else {
-                    break;
-                }
-            }
-            bp
-        };
-        let effective_after: Vec<&AttributeValuePart> = {
-            let mut ap: Vec<&AttributeValuePart> = after_parts.iter().collect();
-            while !ap.is_empty() {
-                if let AttributeValuePart::Text(t) = ap[0] {
-                    if t.data.trim().is_empty() {
-                        ap.remove(0);
-                    } else {
-                        break;
-                    }
-                } else {
-                    break;
-                }
-            }
-            ap
-        };
-
-        // Build fix edits.
-        if effective_before.is_empty() && effective_after.is_empty() {
-            // Entire attribute is this one expression → replace whole attribute.
-            ctx.report_with_fix(
-                tag.start,
-                tag.end,
-                "Unexpected class using the ternary operator.",
-                Fix {
-                    message: "Replace with class directive".to_string(),
-                    edits: vec![TextEdit {
-                        start: attr_start,
-                        end: attr_end,
-                        new_text: directive_text,
-                    }],
-                },
-            );
-        } else {
-            // Complex case: multiple parts. We need to:
-            // 1. Trim trailing whitespace from last before-text part.
-            // 2. Trim leading whitespace from first after-text part.
-            // 3. Replace/remove the expression tag.
-            // 4. Insert class directives after the attribute.
-            let mut edits: Vec<TextEdit> = Vec::new();
-
-            // Trim the last text part before the tag (remove trailing whitespace).
-            // We look at the actual parts (not effective_before which already dropped them).
-            if index > 0
-                && let Some(AttributeValuePart::Text(t)) = parts[..index].iter().next_back()
-            {
-                let trimmed_end = t.data.trim_end();
-                if trimmed_end != t.data.as_ref() {
-                    // Trim trailing whitespace: shorten the text node.
-                    let new_end = t.start + trimmed_end.len() as u32;
-                    if new_end < t.end {
-                        if t.data.trim().is_empty() {
-                            // Fully remove the whitespace-only text node.
-                            edits.push(TextEdit {
-                                start: t.start,
-                                end: t.end,
-                                new_text: String::new(),
-                            });
-                        } else {
-                            // Trim trailing whitespace only.
-                            edits.push(TextEdit {
-                                start: new_end,
-                                end: t.end,
-                                new_text: String::new(),
-                            });
-                        }
-                    }
-                }
-            }
-
-            // Trim the first text part after the tag (remove leading whitespace).
-            if index + 1 < parts.len()
-                && let Some(AttributeValuePart::Text(t)) = parts[index + 1..].iter().next()
-            {
-                let trimmed_start = t.data.trim_start();
-                if trimmed_start != t.data.as_ref() {
-                    let removed_len = t.data.len() - trimmed_start.len();
-                    let new_start = t.start + removed_len as u32;
-                    if t.data.trim().is_empty() {
-                        edits.push(TextEdit {
-                            start: t.start,
-                            end: t.end,
-                            new_text: String::new(),
-                        });
-                    } else {
-                        edits.push(TextEdit {
-                            start: t.start,
-                            end: new_start,
-                            new_text: String::new(),
-                        });
-                    }
-                }
-            }
-
-            // Replace or remove the expression tag.
-            let sep = space.as_deref().unwrap_or(" ");
-            let sep_or_space = if sep.is_empty() { " " } else { sep };
-            if !effective_before.is_empty() && !effective_after.is_empty() {
-                // Both sides have content → replace with separator.
-                edits.push(TextEdit {
-                    start: tag.start,
-                    end: tag.end,
-                    new_text: sep_or_space.to_string(),
-                });
-            } else {
-                // Only one side → remove the tag.
-                edits.push(TextEdit {
-                    start: tag.start,
-                    end: tag.end,
-                    new_text: String::new(),
-                });
-            }
-
-            // Insert class directives after the attribute.
-            edits.push(TextEdit {
-                start: attr_end,
-                end: attr_end,
-                new_text: format!(" {directive_text}"),
-            });
-
-            ctx.report_with_fix(
-                tag.start,
-                tag.end,
-                "Unexpected class using the ternary operator.",
-                Fix {
-                    message: "Replace with class directive".to_string(),
-                    edits,
-                },
-            );
-        }
+        report_sequence_fix(
+            ctx,
+            parts,
+            index,
+            tag,
+            attr_start,
+            attr_end,
+            space.as_deref(),
+            &directive_text,
+        );
     }
+}
+
+fn report_sequence_fix(
+    ctx: &mut LintContext,
+    parts: &[AttributeValuePart],
+    index: usize,
+    tag: &rsvelte_core::ast::template::ExpressionTag,
+    attr_start: u32,
+    attr_end: u32,
+    space: Option<&str>,
+    directive_text: &str,
+) {
+    // Determine the parts before and after this expression tag (after trimming
+    // adjacent whitespace-only text parts).
+    let before_parts = &parts[..index];
+    let after_parts = &parts[index + 1..];
+
+    // Trim trailing whitespace-only text from before parts and leading from after.
+    let effective_before: Vec<&AttributeValuePart> = {
+        let mut bp: Vec<&AttributeValuePart> = before_parts.iter().collect();
+        // Pop trailing whitespace-only text parts.
+        while let Some(last) = bp.last() {
+            if let AttributeValuePart::Text(t) = last {
+                if t.data.trim().is_empty() {
+                    bp.pop();
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        bp
+    };
+    let effective_after: Vec<&AttributeValuePart> = {
+        let mut ap: Vec<&AttributeValuePart> = after_parts.iter().collect();
+        while !ap.is_empty() {
+            if let AttributeValuePart::Text(t) = ap[0] {
+                if t.data.trim().is_empty() {
+                    ap.remove(0);
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        ap
+    };
+
+    if effective_before.is_empty() && effective_after.is_empty() {
+        ctx.report_with_fix(
+            tag.start,
+            tag.end,
+            "Unexpected class using the ternary operator.",
+            Fix {
+                message: "Replace with class directive".to_string(),
+                edits: vec![TextEdit {
+                    start: attr_start,
+                    end: attr_end,
+                    new_text: directive_text.to_string(),
+                }],
+            },
+        );
+    } else {
+        let mut edits: Vec<TextEdit> = Vec::new();
+
+        trim_before_expression(parts, index, &mut edits);
+
+        trim_after_expression(parts, index, &mut edits);
+
+        // Replace or remove the expression tag.
+        let sep = space.unwrap_or(" ");
+        let sep_or_space = if sep.is_empty() { " " } else { sep };
+        if !effective_before.is_empty() && !effective_after.is_empty() {
+            // Both sides have content → replace with separator.
+            edits.push(TextEdit {
+                start: tag.start,
+                end: tag.end,
+                new_text: sep_or_space.to_string(),
+            });
+        } else {
+            // Only one side → remove the tag.
+            edits.push(TextEdit {
+                start: tag.start,
+                end: tag.end,
+                new_text: String::new(),
+            });
+        }
+
+        // Insert class directives after the attribute.
+        edits.push(TextEdit {
+            start: attr_end,
+            end: attr_end,
+            new_text: format!(" {directive_text}"),
+        });
+
+        ctx.report_with_fix(
+            tag.start,
+            tag.end,
+            "Unexpected class using the ternary operator.",
+            Fix {
+                message: "Replace with class directive".to_string(),
+                edits,
+            },
+        );
+    }
+}
+
+fn trim_before_expression(parts: &[AttributeValuePart], index: usize, edits: &mut Vec<TextEdit>) {
+    if index == 0 {
+        return;
+    }
+    let Some(AttributeValuePart::Text(text)) = parts[..index].iter().next_back() else {
+        return;
+    };
+    let trimmed = text.data.trim_end();
+    if trimmed == text.data.as_ref() {
+        return;
+    }
+    let new_end =
+        text.start + u32::try_from(trimmed.len()).expect("source offsets are represented as u32");
+    if new_end >= text.end {
+        return;
+    }
+    edits.push(TextEdit {
+        start: if text.data.trim().is_empty() {
+            text.start
+        } else {
+            new_end
+        },
+        end: text.end,
+        new_text: String::new(),
+    });
+}
+
+fn trim_after_expression(parts: &[AttributeValuePart], index: usize, edits: &mut Vec<TextEdit>) {
+    let Some(AttributeValuePart::Text(text)) = parts.get(index + 1) else {
+        return;
+    };
+    let trimmed = text.data.trim_start();
+    if trimmed == text.data.as_ref() {
+        return;
+    }
+    let new_start = text.start
+        + u32::try_from(text.data.len() - trimmed.len())
+            .expect("source offsets are represented as u32");
+    edits.push(TextEdit {
+        start: text.start,
+        end: if text.data.trim().is_empty() {
+            text.end
+        } else {
+            new_start
+        },
+        new_text: String::new(),
+    });
 }
 
 /// Build the `class:name={expr}` directive strings from map entries.

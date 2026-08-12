@@ -13,7 +13,12 @@ pub struct LineIndex<'a> {
     line_starts: Vec<u32>,
 }
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("source offsets are represented as u32")
+}
+
 impl<'a> LineIndex<'a> {
+    #[must_use]
     pub fn new(source: &'a str) -> Self {
         let bytes = source.as_bytes();
         let mut line_starts = Vec::with_capacity(bytes.len() / 32 + 1);
@@ -21,13 +26,13 @@ impl<'a> LineIndex<'a> {
         let mut i = 0;
         while i < bytes.len() {
             match bytes[i] {
-                b'\n' => line_starts.push(i as u32 + 1),
+                b'\n' => line_starts.push(source_offset(i) + 1),
                 // A lone `\r` also terminates a line, matching ESLint/the LSP text model.
                 b'\r' => {
                     if bytes.get(i + 1) == Some(&b'\n') {
                         i += 1;
                     }
-                    line_starts.push(i as u32 + 1);
+                    line_starts.push(source_offset(i) + 1);
                 }
                 _ => {}
             }
@@ -41,10 +46,12 @@ impl<'a> LineIndex<'a> {
 
     /// Returns `(line, column)` where line is 1-indexed and column is the
     /// 0-indexed UTF-16 code-unit offset from the line start.
+    #[must_use]
     pub fn position(&self, offset: u32) -> (u32, u32) {
         let offset = (offset as usize).min(self.source.len());
         // Index of the last line start <= offset.
-        let line_idx = match self.line_starts.binary_search(&(offset as u32)) {
+        let offset_u32 = source_offset(offset);
+        let line_idx = match self.line_starts.binary_search(&offset_u32) {
             Ok(i) => i,
             Err(i) => i - 1,
         };
@@ -52,13 +59,14 @@ impl<'a> LineIndex<'a> {
         // UTF-16 width of the text between the line start and the offset.
         let column: usize = self.source[line_start..offset]
             .chars()
-            .map(|c| c.len_utf16())
+            .map(char::len_utf16)
             .sum();
-        (line_idx as u32 + 1, column as u32)
+        (source_offset(line_idx) + 1, source_offset(column))
     }
 
     /// The 1-indexed line number containing `offset`. Cheap helper used by the
     /// suppression scanner.
+    #[must_use]
     pub fn line(&self, offset: u32) -> u32 {
         self.position(offset).0
     }
@@ -87,7 +95,7 @@ mod tests {
         // "💡x" — the bulb is 4 UTF-8 bytes, 2 UTF-16 units.
         let src = "💡x";
         let idx = LineIndex::new(src);
-        let x_off = "💡".len() as u32;
+        let x_off = source_offset("💡".len());
         assert_eq!(idx.position(x_off), (1, 2));
     }
 
@@ -123,7 +131,7 @@ mod tests {
         // must land on line 3, not be swallowed into line 1.
         let src = "<p>aaa</p>\r<p>bbb</p>\r<div>{@html v}</div>\r";
         let idx = LineIndex::new(src);
-        let html_offset = src.find("{@html").unwrap() as u32;
+        let html_offset = source_offset(src.find("{@html").unwrap());
         assert_eq!(idx.position(html_offset), (3, 5));
     }
 }

@@ -33,6 +33,10 @@ use crate::rule::{
     Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity, SpecialElement,
 };
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("source offsets are represented as u32")
+}
+
 static META: RuleMeta = RuleMeta {
     name: "svelte/html-closing-bracket-new-line",
     category: RuleCategory::Formatting,
@@ -50,7 +54,7 @@ static META: RuleMeta = RuleMeta {
 };
 
 /// Helper to get `end` from an `Attribute`.
-fn attr_end(a: &Attribute) -> u32 {
+const fn attr_end(a: &Attribute) -> u32 {
     match a {
         Attribute::Attribute(n) => n.end,
         Attribute::SpreadAttribute(n) => n.end,
@@ -103,13 +107,11 @@ fn load_options(ctx: &LintContext) -> Options {
     let singleline = opt
         .and_then(|v| v.get("singleline"))
         .and_then(|v| v.as_str())
-        .map(parse_expect)
-        .unwrap_or(Expect::Never);
+        .map_or(Expect::Never, parse_expect);
     let multiline = opt
         .and_then(|v| v.get("multiline"))
         .and_then(|v| v.as_str())
-        .map(parse_expect)
-        .unwrap_or(Expect::Always);
+        .map_or(Expect::Always, parse_expect);
     let sc = opt.and_then(|v| v.get("selfClosingTag"));
     let self_closing_singleline = sc
         .and_then(|v| v.get("singleline"))
@@ -134,7 +136,7 @@ fn find_start_bracket(src: &[u8], scan_from: u32, el_end: u32) -> Option<(u32, b
     while i < el_end as usize && i < src.len() {
         if src[i] == b'>' {
             let self_closing = i > 0 && src[i - 1] == b'/';
-            return Some(((i + 1) as u32, self_closing));
+            return Some((source_offset(i + 1), self_closing));
         }
         i += 1;
     }
@@ -148,7 +150,7 @@ fn count_newlines(src: &[u8], from: u32, to: u32) -> u32 {
     if from >= to {
         return 0;
     }
-    src[from..to].iter().filter(|&&b| b == b'\n').count() as u32
+    source_offset(bytecount::count(&src[from..to], b'\n'))
 }
 
 #[derive(Default)]
@@ -157,7 +159,6 @@ pub struct HtmlClosingBracketNewLine;
 impl HtmlClosingBracketNewLine {
     /// Check the start-tag bracket (`>` or `/>`).
     fn check_start_tag(
-        &self,
         ctx: &mut LintContext,
         el_start: u32,
         el_end: u32,
@@ -165,7 +166,7 @@ impl HtmlClosingBracketNewLine {
         attributes: &[Attribute],
     ) {
         let src = ctx.source().as_bytes();
-        let scan_from = attributes.last().map(attr_end).unwrap_or(el_name_end);
+        let scan_from = attributes.last().map_or(el_name_end, attr_end);
         let Some((bracket_end, is_self_closing)) = find_start_bracket(src, scan_from, el_end)
         else {
             return;
@@ -196,7 +197,7 @@ impl HtmlClosingBracketNewLine {
                 }
                 p -= 1;
             }
-            p as u32
+            source_offset(p)
         };
 
         // Determine singleline vs multiline.
@@ -221,7 +222,7 @@ impl HtmlClosingBracketNewLine {
             opts.multiline
         };
 
-        let expected_count = if expected == Expect::Always { 1 } else { 0 };
+        let expected_count = u32::from(expected == Expect::Always);
         let actual_count = count_newlines(src, prev_end, between_end);
 
         if actual_count == expected_count {
@@ -251,9 +252,9 @@ impl HtmlClosingBracketNewLine {
     }
 
     /// Check the end-tag bracket (`>`). Only removes extra line breaks; never
-    /// adds one (upstream: "For SvelteEndTag, does not make sense to add a
+    /// adds one (upstream: "For `SvelteEndTag`, does not make sense to add a
     /// line break, so we only fix if there are extra line breaks").
-    fn check_end_tag(&self, ctx: &mut LintContext, el_end: u32, start_tag_end: u32) {
+    fn check_end_tag(ctx: &mut LintContext, el_end: u32, start_tag_end: u32) {
         // End tag runs from start_tag_end to el_end.
         // The `>` is the last char: el_end - 1.
         let src = ctx.source().as_bytes();
@@ -278,7 +279,7 @@ impl HtmlClosingBracketNewLine {
                 }
                 p -= 1;
             }
-            p as u32
+            source_offset(p)
         };
 
         // Find the end of the token before the whitespace before `>`.
@@ -292,7 +293,7 @@ impl HtmlClosingBracketNewLine {
             }
             prev_end -= 1;
         }
-        let prev_end = prev_end as u32;
+        let prev_end = source_offset(prev_end);
 
         // Use the end-tag's own `<` as the "node start" for singleline detection,
         // mirroring upstream's `node.loc.start` for the SvelteEndTag node.
@@ -307,7 +308,7 @@ impl HtmlClosingBracketNewLine {
         } else {
             opts.multiline
         };
-        let expected_count = if expected == Expect::Always { 1 } else { 0 };
+        let expected_count = u32::from(expected == Expect::Always);
         let actual_count = count_newlines(src, prev_end, between_end);
 
         if actual_count == expected_count {
@@ -342,23 +343,22 @@ impl HtmlClosingBracketNewLine {
 
     /// Shared logic for any element-like node.
     fn check_element_like(
-        &self,
         ctx: &mut LintContext,
         el_start: u32,
         el_end: u32,
         el_name: &str,
         attributes: &[Attribute],
     ) {
-        let el_name_end = el_start + 1 + el_name.len() as u32;
-        self.check_start_tag(ctx, el_start, el_end, el_name_end, attributes);
+        let el_name_end = el_start + 1 + source_offset(el_name.len());
+        Self::check_start_tag(ctx, el_start, el_end, el_name_end, attributes);
 
         // Check end tag only when one exists (start tag does not span whole element).
         let src = ctx.source().as_bytes();
-        let scan_from = attributes.last().map(attr_end).unwrap_or(el_name_end);
+        let scan_from = attributes.last().map_or(el_name_end, attr_end);
         if let Some((start_tag_end, _)) = find_start_bracket(src, scan_from, el_end)
             && start_tag_end < el_end
         {
-            self.check_end_tag(ctx, el_end, start_tag_end);
+            Self::check_end_tag(ctx, el_end, start_tag_end);
         }
     }
 }
@@ -369,30 +369,30 @@ impl Rule for HtmlClosingBracketNewLine {
     }
 
     fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
-        self.check_element_like(ctx, el.start, el.end, el.name.as_str(), &el.attributes);
+        Self::check_element_like(ctx, el.start, el.end, el.name.as_str(), &el.attributes);
     }
 
     fn check_component(&self, ctx: &mut LintContext, c: &Component) {
-        self.check_element_like(ctx, c.start, c.end, c.name.as_str(), &c.attributes);
+        Self::check_element_like(ctx, c.start, c.end, c.name.as_str(), &c.attributes);
     }
 
     fn check_svelte_element(&self, ctx: &mut LintContext, el: &SvelteElement) {
-        self.check_element_like(ctx, el.start, el.end, el.name.as_str(), &el.attributes);
+        Self::check_element_like(ctx, el.start, el.end, el.name.as_str(), &el.attributes);
     }
 
     fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
-        self.check_element_like(ctx, el.start, el.end, "svelte:component", &el.attributes);
+        Self::check_element_like(ctx, el.start, el.end, "svelte:component", &el.attributes);
     }
 
     fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
-        self.check_element_like(ctx, el.start, el.end, "svelte:element", &el.attributes);
+        Self::check_element_like(ctx, el.start, el.end, "svelte:element", &el.attributes);
     }
 
     fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
-        self.check_element_like(ctx, el.start, el.end, "slot", &el.attributes);
+        Self::check_element_like(ctx, el.start, el.end, "slot", &el.attributes);
     }
 
     fn check_special_element(&self, ctx: &mut LintContext, el: &SpecialElement<'_>) {
-        self.check_element_like(ctx, el.start, el.end, el.name, &el.attributes);
+        Self::check_element_like(ctx, el.start, el.end, el.name, &el.attributes);
     }
 }

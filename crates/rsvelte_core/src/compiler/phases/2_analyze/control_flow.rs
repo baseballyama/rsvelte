@@ -31,6 +31,7 @@ pub fn stylesheet_has_sibling_combinator(stylesheet: &crate::ast::css::StyleShee
     false
 }
 
+#[must_use]
 pub fn supports_static_sibling_relationships(fragment: &Fragment) -> bool {
     let mut pending = vec![fragment];
     while let Some(fragment) = pending.pop() {
@@ -49,7 +50,7 @@ pub fn supports_static_sibling_relationships(fragment: &Fragment) -> bool {
     true
 }
 
-/// Node existence values, mirroring Svelte's NODE_DEFINITELY_EXISTS / NODE_PROBABLY_EXISTS.
+/// Node existence values, mirroring Svelte's `NODE_DEFINITELY_EXISTS` / `NODE_PROBABLY_EXISTS`.
 const NODE_DEFINITELY_EXISTS: u8 = 1;
 const NODE_PROBABLY_EXISTS: u8 = 2;
 
@@ -60,7 +61,7 @@ enum Direction {
     Backward,
 }
 
-/// A unique identifier for a TemplateNode, based on its memory address.
+/// A unique identifier for a `TemplateNode`, based on its memory address.
 type NodePtr = usize;
 
 fn node_ptr(node: &TemplateNode) -> NodePtr {
@@ -137,7 +138,7 @@ pub fn build_static_sibling_relationships(dom_structure: &mut DomStructure) {
     dom_structure.general_siblings_linked = true;
 }
 
-/// Convert results map to Vec of (dom_idx, certainty) pairs.
+/// Convert results map to Vec of (`dom_idx`, certainty) pairs.
 fn convert_results(results: &FxHashMap<usize, u8>) -> Vec<(usize, SiblingCertainty)> {
     results
         .iter()
@@ -447,12 +448,6 @@ fn get_possible_element_siblings(
                     }
                 }
 
-                TemplateNode::RenderTag(_) => {
-                    // Render tags produce opaque content. In the official compiler,
-                    // this would add the RenderTag node as NODE_PROBABLY_EXISTS and
-                    // also look at snippet bodies. We handle this via has_opaque_sibling_boundaries.
-                }
-
                 _ => {
                     // Text, comments, expression tags - skip
                 }
@@ -642,7 +637,7 @@ fn loop_child(
     result
 }
 
-/// Check if a node is a "block" node (IfBlock, EachBlock, AwaitBlock, KeyBlock, SlotElement).
+/// Check if a node is a "block" node (`IfBlock`, `EachBlock`, `AwaitBlock`, `KeyBlock`, `SlotElement`).
 fn is_block(node: &TemplateNode) -> bool {
     matches!(
         node,
@@ -654,19 +649,19 @@ fn is_block(node: &TemplateNode) -> bool {
     )
 }
 
-/// Check if any entry in the map has NODE_DEFINITELY_EXISTS.
+/// Check if any entry in the map has `NODE_DEFINITELY_EXISTS`.
 fn has_definite_elements(map: &FxHashMap<usize, u8>) -> bool {
     map.values().any(|&v| v == NODE_DEFINITELY_EXISTS)
 }
 
-/// Add entries from `from` to `to`, using higher_existence for conflicts.
+/// Add entries from `from` to `to`, using `higher_existence` for conflicts.
 fn add_to_map(from: &FxHashMap<usize, u8>, to: &mut FxHashMap<usize, u8>) {
     for (&key, &value) in from {
         add_to_map_entry(to, key, value);
     }
 }
 
-/// Add a single entry to the map, using higher_existence for conflicts.
+/// Add a single entry to the map, using `higher_existence` for conflicts.
 fn add_to_map_entry(map: &mut FxHashMap<usize, u8>, key: usize, value: u8) {
     let entry = map.entry(key).or_insert(0);
     *entry = higher_existence(value, *entry);

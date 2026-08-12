@@ -47,6 +47,7 @@ impl Default for Settings {
 impl Settings {
     /// Read the `rsvelte` configuration section a client returned. Anything
     /// missing or of the wrong type keeps its default.
+    #[must_use]
     pub fn from_json(value: &Value) -> Self {
         let default = Self::default();
         Self {

@@ -1,5 +1,6 @@
-//! `svelte/block-lang` — disallow languages other than those specified in the
-//! configuration for the `lang` attribute of `<script>` and `<style>` blocks.
+//! `svelte/block-lang` validates `lang` attributes on component blocks.
+//!
+//! It disallows languages other than those configured for `<script>` and `<style>` blocks.
 //!
 //! Options (first element of the options array):
 //! - `enforceScriptPresent` (bool, default false): require a `<script>` block.
@@ -58,6 +59,14 @@ static META: RuleMeta = RuleMeta {
     ),
 };
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("source offsets are represented as u32")
+}
+
+fn json_offset(value: u64) -> Option<u32> {
+    u32::try_from(value).ok()
+}
+
 // ---------------------------------------------------------------------------
 // Option parsing
 // ---------------------------------------------------------------------------
@@ -67,13 +76,10 @@ static META: RuleMeta = RuleMeta {
 fn parse_lang_option(opts: Option<&Value>, key: &str) -> Vec<Option<String>> {
     let raw = opts.and_then(|o| o.get(key));
     match raw {
-        None => vec![None],
-        Some(Value::Null) => vec![None],
         Some(Value::String(s)) => vec![Some(s.clone())],
         Some(Value::Array(arr)) => arr
             .iter()
             .map(|v| match v {
-                Value::Null => None,
                 Value::String(s) => Some(s.clone()),
                 _ => None,
             })
@@ -91,7 +97,7 @@ fn parse_lang_option(opts: Option<&Value>, key: &str) -> Vec<Option<String>> {
 /// as an empty string).
 fn get_script_lang(script: &Script) -> Option<String> {
     find_script_lang_attr(script).map(|attr| match &attr.value {
-        AttributeValue::True(_) => String::new(),
+        AttributeValue::True(_) | AttributeValue::Expression(_) => String::new(),
         AttributeValue::Sequence(parts) => parts
             .iter()
             .filter_map(|p| {
@@ -103,7 +109,6 @@ fn get_script_lang(script: &Script) -> Option<String> {
             })
             .collect::<String>()
             .to_lowercase(),
-        AttributeValue::Expression(_) => String::new(),
     })
 }
 
@@ -145,7 +150,7 @@ fn style_lang_attr_range(css: &StyleSheet) -> Option<(u32, u32)> {
         if attr.get("name").and_then(Value::as_str) == Some("lang") {
             let start = attr.get("start").and_then(Value::as_u64)?;
             let end = attr.get("end").and_then(Value::as_u64)?;
-            return Some((start as u32, end as u32));
+            return Some((json_offset(start)?, json_offset(end)?));
         }
     }
     None
@@ -156,7 +161,7 @@ fn style_lang_attr_range(css: &StyleSheet) -> Option<(u32, u32)> {
 // ---------------------------------------------------------------------------
 
 fn pretty_print_langs(langs: &[Option<String>]) -> String {
-    let has_null = langs.iter().any(|l| l.is_none());
+    let has_null = langs.iter().any(std::option::Option::is_none);
     let non_null: Vec<String> = langs
         .iter()
         .filter_map(|l| l.as_ref())
@@ -186,7 +191,7 @@ fn build_replace_script_lang_suggestions(
     script: &Script,
 ) -> Vec<Suggestion> {
     let lang_attr = find_script_lang_attr(script);
-    let has_null = allowed.iter().any(|l| l.is_none());
+    let has_null = allowed.iter().any(std::option::Option::is_none);
     let non_null: Vec<&str> = allowed
         .iter()
         .filter_map(|l| l.as_deref())
@@ -217,8 +222,26 @@ fn build_replace_script_lang_suggestions(
 
     for lang in &non_null {
         let new_attr_text = format!("lang=\"{lang}\"");
-        let suggestion = if let Some(attr) = lang_attr {
-            Suggestion {
+        let suggestion = lang_attr.map_or_else(
+            || {
+                // No existing lang attr — insert.
+                // `<script` is 7 bytes; insert after the tag name, before ` lang`.
+                let insert_at = script.start + 7;
+                Suggestion {
+                    desc: format!(
+                        "Add lang attribute to a <script> block with the value \"{lang}\"."
+                    ),
+                    fix: Fix {
+                        message: format!("Add lang=\"{lang}\""),
+                        edits: vec![TextEdit {
+                            start: insert_at,
+                            end: insert_at,
+                            new_text: format!(" lang=\"{lang}\""),
+                        }],
+                    },
+                }
+            },
+            |attr| Suggestion {
                 desc: format!(
                     "Replace a <script> block with the lang attribute set to \"{lang}\"."
                 ),
@@ -230,23 +253,8 @@ fn build_replace_script_lang_suggestions(
                         new_text: new_attr_text,
                     }],
                 },
-            }
-        } else {
-            // No existing lang attr — insert.
-            // `<script` is 7 bytes; insert after the tag name, before ` lang`.
-            let insert_at = script.start + 7;
-            Suggestion {
-                desc: format!("Add lang attribute to a <script> block with the value \"{lang}\"."),
-                fix: Fix {
-                    message: format!("Add lang=\"{lang}\""),
-                    edits: vec![TextEdit {
-                        start: insert_at,
-                        end: insert_at,
-                        new_text: format!(" lang=\"{lang}\""),
-                    }],
-                },
-            }
-        };
+            },
+        );
         suggestions.push(suggestion);
     }
     suggestions
@@ -259,7 +267,7 @@ fn build_replace_style_lang_suggestions(
     css: &StyleSheet,
 ) -> Vec<Suggestion> {
     let attr_range = style_lang_attr_range(css);
-    let has_null = allowed.iter().any(|l| l.is_none());
+    let has_null = allowed.iter().any(std::option::Option::is_none);
     let non_null: Vec<&str> = allowed
         .iter()
         .filter_map(|l| l.as_deref())
@@ -374,11 +382,10 @@ impl Rule for BlockLang {
             let actual_lang = get_script_lang(script);
             // Compare the actual lang (or None when absent) against allowed.
             let actual_opt: Option<String> = actual_lang.map(|s| s.to_lowercase());
-            let allowed_lc: Vec<Option<String>> = allowed_script
+            let is_allowed = allowed_script
                 .iter()
-                .map(|l| l.as_ref().map(|s| s.to_lowercase()))
-                .collect();
-            if !allowed_lc.contains(&actual_opt) {
+                .any(|language| language.as_ref().map(|value| value.to_lowercase()) == actual_opt);
+            if !is_allowed {
                 let msg = format!(
                     "The lang attribute of the <script> block should be {}.",
                     pretty_print_langs(&allowed_script)
@@ -402,11 +409,10 @@ impl Rule for BlockLang {
         if let Some(css) = css {
             let actual_lang = get_style_lang(css);
             let actual_opt: Option<String> = actual_lang.map(|s| s.to_lowercase());
-            let allowed_lc: Vec<Option<String>> = allowed_style
+            let is_allowed = allowed_style
                 .iter()
-                .map(|l| l.as_ref().map(|s| s.to_lowercase()))
-                .collect();
-            if !allowed_lc.contains(&actual_opt) {
+                .any(|language| language.as_ref().map(|value| value.to_lowercase()) == actual_opt);
+            if !is_allowed {
                 let msg = format!(
                     "The lang attribute of the <style> block should be {}.",
                     pretty_print_langs(&allowed_style)
@@ -450,7 +456,7 @@ fn build_enforce_script_suggestions(allowed: &[Option<String>]) -> Vec<Suggestio
 /// `enforceStylePresent` is true.  Appends `\n<style lang="…">\n</style>\n`
 /// at the end of the source.
 fn build_enforce_style_suggestions(allowed: &[Option<String>], source: &str) -> Vec<Suggestion> {
-    let src_len = source.len() as u32;
+    let src_len = source_offset(source.len());
     allowed
         .iter()
         .filter_map(|lang| lang.as_ref())
@@ -476,6 +482,8 @@ fn build_enforce_style_suggestions(allowed: &[Option<String>], source: &str) -> 
 // Source-scan fallback for parse-failure files
 // ---------------------------------------------------------------------------
 
+/// Emit block-language diagnostics through source scanning.
+///
 /// Emit block-lang diagnostics via source scanning for files that the Svelte
 /// parser cannot fully parse (e.g. files with invalid CSS or TypeScript errors).
 /// When the parser succeeds, [`BlockLang::check_root`] handles the rule via the
@@ -484,6 +492,7 @@ fn build_enforce_style_suggestions(allowed: &[Option<String>], source: &str) -> 
 /// Native-only: it produces `rsvelte_check::Diagnostic`s and is
 /// only invoked from the native `runner`, so it is excluded from the wasm build.
 #[cfg(feature = "native")]
+#[must_use]
 pub fn block_lang_source_scan_diagnostics(
     source: &str,
     file: &Path,
@@ -517,16 +526,15 @@ pub fn block_lang_source_scan_diagnostics(
         let attrs = &block.open_tag_attrs;
         let lang = crate::svelte_scan::attr_value(attrs, "lang");
         let actual_opt: Option<String> = lang.map(|s| s.to_lowercase());
-        let allowed_lc: Vec<Option<String>> = allowed_script
+        let is_allowed = allowed_script
             .iter()
-            .map(|l| l.as_ref().map(|s| s.to_lowercase()))
-            .collect();
-        if !allowed_lc.contains(&actual_opt) {
+            .any(|language| language.as_ref().map(|value| value.to_lowercase()) == actual_opt);
+        if !is_allowed {
             let msg = format!(
                 "The lang attribute of the <script> block should be {}.",
                 pretty_print_langs(&allowed_script)
             );
-            let (line, column) = li.position(block.tag_start as u32);
+            let (line, column) = li.position(source_offset(block.tag_start));
             out.push(Diagnostic {
                 file: file.to_path_buf(),
                 severity: to_dsev(severity),
@@ -548,11 +556,10 @@ pub fn block_lang_source_scan_diagnostics(
         } else {
             Some(lang.to_lowercase())
         };
-        let allowed_lc: Vec<Option<String>> = allowed_style
+        let is_allowed = allowed_style
             .iter()
-            .map(|l| l.as_ref().map(|s| s.to_lowercase()))
-            .collect();
-        if !allowed_lc.contains(&actual_opt) {
+            .any(|language| language.as_ref().map(|value| value.to_lowercase()) == actual_opt);
+        if !is_allowed {
             let msg = format!(
                 "The lang attribute of the <style> block should be {}.",
                 pretty_print_langs(&allowed_style)
@@ -622,7 +629,7 @@ fn style_scan(source: &str) -> Vec<(u32, String)> {
         let Some(tag_end) = tag_end else { break };
         let lang =
             crate::svelte_scan::attr_value(&source[i + 6..tag_end], "lang").unwrap_or_default();
-        out.push((i as u32, lang));
+        out.push((source_offset(i), lang));
         i = tag_end + 1;
     }
     out

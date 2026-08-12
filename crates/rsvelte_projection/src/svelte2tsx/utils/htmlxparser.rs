@@ -10,6 +10,10 @@ use crate::ast::template::Root;
 use super::super::magic_string::MagicString;
 use super::super::svelte2tsx::slice_src;
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("HTML source offsets are represented as u32")
+}
+
 /// Case-insensitive byte search: position of the first occurrence of
 /// `needle` in `haystack[from..]` (absolute index). ASCII-only folding —
 /// exactly what `to_ascii_lowercase` matching gave, without allocating a
@@ -47,7 +51,7 @@ fn find_ci(haystack: &[u8], from: usize, needle: &[u8]) -> Option<usize> {
 /// carriage returns preserved) so the parser never CSS-parses it. Works at the
 /// BYTE level so the result is exactly the same length as `source` — every AST
 /// offset still indexes the original source. Case-insensitive on the tag name.
-pub(crate) fn blank_style_content(source: &str) -> Cow<'_, str> {
+pub fn blank_style_content(source: &str) -> Cow<'_, str> {
     let mut blanked = None;
     let sb = source.as_bytes();
     let mut search = 0usize;
@@ -56,7 +60,7 @@ pub(crate) fn blank_style_content(source: &str) -> Cow<'_, str> {
         let after = sb.get(tag_start + 6).copied();
         if !matches!(
             after,
-            Some(b'>') | Some(b' ') | Some(b'\t') | Some(b'\n') | Some(b'\r') | Some(b'/') | None
+            Some(b'>' | b' ' | b'\t' | b'\n' | b'\r' | b'/') | None
         ) {
             search = tag_start + 6;
             continue;
@@ -96,7 +100,7 @@ pub(crate) fn blank_style_content(source: &str) -> Cow<'_, str> {
 /// Overwriting their range with `""` truncates any attribute whose source span
 /// covers the range; the joined content is returned for injection into the
 /// `$$render()` body when the file has no top-level script.
-pub(crate) fn remove_orphan_scripts(ast: &Root, source: &str, str: &mut MagicString<'_>) -> String {
+pub fn remove_orphan_scripts(ast: &Root, source: &str, str: &mut MagicString<'_>) -> String {
     let orphan_scripts = find_orphan_scripts(ast, source);
     // Remove orphan scripts from the MagicString (must happen BEFORE
     // process_template_inplace so the overwrite is in place when the template
@@ -117,7 +121,7 @@ pub(crate) fn remove_orphan_scripts(ast: &Root, source: &str, str: &mut MagicStr
 /// blanks any style tag the parser captured in `ast.css`, then always runs a
 /// fallback scanner to catch style tags the parser did not capture (e.g.,
 /// `<style global>`, `<style lang="...">`).
-pub(crate) fn blank_style_tags(ast: &Root, source: &str, str: &mut MagicString<'_>) {
+pub fn blank_style_tags(ast: &Root, source: &str, str: &mut MagicString<'_>) {
     let mut blanked_style_ranges: Vec<(usize, usize)> = Vec::new();
     if let Some(ref css) = ast.css
         && css.start < css.end
@@ -196,7 +200,7 @@ pub(crate) fn blank_style_tags(ast: &Root, source: &str, str: &mut MagicString<'
                     && let Some(close_off) = source[abs_start..].find("</style>")
                 {
                     let abs_end = abs_start + close_off + 8; // 8 = len("</style>")
-                    str.overwrite(abs_start as u32, abs_end as u32, "");
+                    str.overwrite(source_offset(abs_start), source_offset(abs_end), "");
                     search_from = abs_end;
                     continue;
                 }
@@ -266,7 +270,7 @@ fn collect_script_element_starts(
 }
 
 /// Collect (start, end) ranges of every `HtmlTag` (`{@html}`) node anywhere
-/// in the fragment tree. A `<script>` inside a HtmlTag expression is NOT an
+/// in the fragment tree. A `<script>` inside a `HtmlTag` expression is NOT an
 /// orphan — it's already handled by the `{@html}` output.
 fn collect_html_tag_ranges(fragment: &crate::ast::template::Fragment, out: &mut Vec<(u32, u32)>) {
     use crate::ast::template::TemplateNode as N;
@@ -363,12 +367,12 @@ fn only_has_script_candidates_in_ranges(
         search = tag_start + 7;
         if !matches!(
             after,
-            Some(b'>') | Some(b' ') | Some(b'\t') | Some(b'\n') | Some(b'\r') | Some(b'/') | None
+            Some(b'>' | b' ' | b'\t' | b'\n' | b'\r' | b'/') | None
         ) {
             continue;
         }
 
-        let tag_start = tag_start as u32;
+        let tag_start = source_offset(tag_start);
         if ![instance, module]
             .into_iter()
             .flatten()
@@ -415,14 +419,14 @@ fn find_orphan_scripts(ast: &Root, source: &str) -> Vec<(u32, u32, String)> {
         let Some(abs) = find_ci(bytes, search, b"<script") else {
             break;
         };
-        let tag_start = abs as u32;
+        let tag_start = source_offset(abs);
 
         // Require a proper tag boundary after `<script` (6 bytes for "script").
         let after_pos = tag_start as usize + 7; // skip '<' + "script"
         let next_byte = bytes.get(after_pos).copied();
         if !matches!(
             next_byte,
-            Some(b'>') | Some(b' ') | Some(b'\t') | Some(b'\n') | Some(b'\r') | Some(b'/') | None
+            Some(b'>' | b' ' | b'\t' | b'\n' | b'\r' | b'/') | None
         ) {
             search = tag_start as usize + 7;
             continue;
@@ -458,14 +462,13 @@ fn find_orphan_scripts(ast: &Root, source: &str) -> Vec<(u32, u32, String)> {
             break; // unterminated — skip
         };
         let close_rel = close_abs - tag_start as usize;
-        let tag_end = tag_start + close_rel as u32 + 9; // 9 = len("</script>")
+        let tag_end = tag_start + source_offset(close_rel) + 9; // 9 = len("</script>")
 
         // Extract the inner content: everything between `>` of the open tag and
         // `<` of `</script>`.
         let open_gt = slice_src(source, tag_start as usize, tag_end as usize)
             .find('>')
-            .map(|p| tag_start as usize + p + 1)
-            .unwrap_or(tag_start as usize + 8); // fallback: after "<script>"
+            .map_or(tag_start as usize + 8, |p| tag_start as usize + p + 1); // fallback: after "<script>"
         let inner = source[open_gt..tag_start as usize + close_rel].to_string();
 
         result.push((tag_start, tag_end, inner));

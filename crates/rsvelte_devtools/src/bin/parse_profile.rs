@@ -1,6 +1,6 @@
 //! Targeted development profiler for parser costs.
 //!
-//! Usage: cargo run --release -p rsvelte_devtools --bin parse_profile
+//! Usage: cargo run --release -p `rsvelte_devtools` --bin `parse_profile`
 
 // Use mimalloc for this development binary. Allocator policy stays at the
 // executable boundary so compiler libraries never impose one on embedders.
@@ -73,7 +73,7 @@ fn main() {
             );
             times.push(start.elapsed().as_nanos() as u64);
         }
-        times.sort();
+        times.sort_unstable();
         let median = times[tpl_iterations / 2];
         let min = times[0];
         let throughput = content.len() as f64 / (median as f64 / 1_000_000_000.0) / 1_000_000.0;
@@ -142,7 +142,7 @@ fn main() {
             }
             total_times.push(start.elapsed().as_nanos() as u64);
         }
-        total_times.sort();
+        total_times.sort_unstable();
         let median = total_times[total_times.len() / 2];
         let throughput = total_bytes as f64 / (median as f64 / 1_000_000_000.0) / 1_000_000.0;
         println!(
@@ -174,7 +174,7 @@ fn main() {
                 }
                 times.push(start.elapsed().as_nanos() as u64);
             }
-            times.sort();
+            times.sort_unstable();
             let median = times[times.len() / 2];
             let throughput = bytes as f64 / (median as f64 / 1_000_000_000.0) / 1_000_000.0;
             println!(
@@ -224,7 +224,7 @@ fn main() {
             times.push(start.elapsed().as_nanos() as u64);
         }
 
-        times.sort();
+        times.sort_unstable();
         let median = times[iterations / 2];
         let min = times[0];
         let p95 = times[(iterations as f64 * 0.95) as usize];
@@ -271,7 +271,7 @@ fn main() {
             );
             times.push(start.elapsed().as_nanos() as u64);
         }
-        times.sort();
+        times.sort_unstable();
         let median = times[iterations / 2];
         println!(
             "{}: median={:.2}µs ({} bytes)",
@@ -354,7 +354,7 @@ fn create_large_file() -> String {
     }
 
     s.push_str(
-        r#"    </main>
+        r"    </main>
 
     <footer>
         <p>Total items: {items.length}</p>
@@ -373,7 +373,7 @@ fn create_large_file() -> String {
     .item { display: flex; justify-content: space-between; padding: 0.5rem; }
     .selected { background: #ffff00; }
     footer { padding: 1rem; background: #f0f0f0; }
-</style>"#,
+</style>",
     );
 
     s

@@ -9,7 +9,7 @@ use rsvelte_formatter::{FormatOptions, format_js_source};
 
 use crate::config::OxfmtConfig;
 use crate::output::write_atomic;
-use crate::oxfmt::run_oxfmt;
+use crate::oxfmt::{OxfmtRunOptions, run_oxfmt};
 use crate::paths::LINE_WIDTH_MAX;
 use crate::status::{Mode, NativeOutcome, PipelineStatus};
 
@@ -18,7 +18,7 @@ use crate::status::{Mode, NativeOutcome, PipelineStatus};
 /// Resolves the per-file [`JsFormatOptions`] for the native `.ts`/`.js` path:
 /// the base options layered with any matching `.oxfmtrc` `overrides`. Glob
 /// matchers are built once; `for_path` is cheap per file.
-pub(crate) struct JsOptionsResolver {
+pub struct JsOptionsResolver {
     base: JsFormatOptions,
     /// `(glob matcher rooted at the config dir, the override's option subset)`.
     overrides: Vec<(Gitignore, OxfmtConfig)>,
@@ -36,8 +36,7 @@ impl JsOptionsResolver {
     ) -> Self {
         let dir = cfg
             .config_dir()
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|| cwd.to_path_buf());
+            .map_or_else(|| cwd.to_path_buf(), Path::to_path_buf);
         let overrides = cfg
             .overrides
             .iter()
@@ -93,7 +92,7 @@ impl JsOptionsResolver {
 /// Format `.ts`/`.js` files in-process via `oxc_formatter` (the same engine
 /// `oxfmt` uses), in parallel. Files oxc can't parse fall back to a single
 /// `oxfmt` invocation so coverage matches delegation exactly.
-pub(crate) fn run_native_js(
+pub fn run_native_js(
     files: &[PathBuf],
     resolver: &JsOptionsResolver,
     cwd: &Path,
@@ -177,7 +176,15 @@ pub(crate) fn run_native_js(
     // counted in `files_total`; a parse-error file the fallback also can't
     // handle surfaces oxfmt's own diagnostics.
     if !fallback.is_empty() {
-        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false, false, true)?;
+        let fb = run_oxfmt(
+            &fallback,
+            oxfmt,
+            mode,
+            OxfmtRunOptions {
+                suppress_unmatched: true,
+                ..OxfmtRunOptions::default()
+            },
+        )?;
         status.files_changed += fb.files_changed;
         status.had_errors |= fb.had_errors;
     }

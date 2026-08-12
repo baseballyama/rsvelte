@@ -26,7 +26,8 @@ pub struct LintVisitor<'r> {
 }
 
 impl<'r> LintVisitor<'r> {
-    pub fn new(rules: Vec<EnabledRule<'r>>) -> Self {
+    #[must_use]
+    pub const fn new(rules: Vec<EnabledRule<'r>>) -> Self {
         Self { rules }
     }
 
@@ -92,8 +93,10 @@ impl<'r> LintVisitor<'r> {
                 .iter()
                 .filter_map(|v| {
                     let name = v.get("name").and_then(|n| n.as_str())?;
-                    let start = v.get("start").and_then(|s| s.as_u64())? as u32;
-                    let end = v.get("end").and_then(|e| e.as_u64())? as u32;
+                    let start =
+                        u32::try_from(v.get("start").and_then(serde_json::Value::as_u64)?).ok()?;
+                    let end =
+                        u32::try_from(v.get("end").and_then(serde_json::Value::as_u64)?).ok()?;
                     Some(Attribute::Attribute(AttributeNode {
                         start,
                         end,
@@ -156,6 +159,12 @@ impl<'r> LintVisitor<'r> {
     }
 
     fn visit_node(&self, ctx: &mut LintContext, node: &TemplateNode) {
+        if self.visit_control_flow(ctx, node) {
+            return;
+        }
+        if self.visit_template_special_elements(ctx, node) {
+            return;
+        }
         match node {
             TemplateNode::HtmlTag(t) => {
                 for er in &self.rules {
@@ -169,60 +178,11 @@ impl<'r> LintVisitor<'r> {
                     er.rule.check_expression_tag(ctx, t);
                 }
             }
-            TemplateNode::EachBlock(b) => {
-                for er in &self.rules {
-                    ctx.enter_rule(er.meta, er.severity);
-                    er.rule.check_each(ctx, b);
-                }
-                self.visit_fragment(ctx, &b.body);
-                if let Some(fallback) = &b.fallback {
-                    self.visit_fragment(ctx, fallback);
-                }
-            }
-            TemplateNode::IfBlock(b) => {
-                for er in &self.rules {
-                    ctx.enter_rule(er.meta, er.severity);
-                    er.rule.check_if(ctx, b);
-                }
-                self.visit_fragment(ctx, &b.consequent);
-                if let Some(alternate) = &b.alternate {
-                    self.visit_fragment(ctx, alternate);
-                }
-            }
-            TemplateNode::AwaitBlock(b) => {
-                for er in &self.rules {
-                    ctx.enter_rule(er.meta, er.severity);
-                    er.rule.check_await(ctx, b);
-                }
-                if let Some(f) = &b.pending {
-                    self.visit_fragment(ctx, f);
-                }
-                if let Some(f) = &b.then {
-                    self.visit_fragment(ctx, f);
-                }
-                if let Some(f) = &b.catch {
-                    self.visit_fragment(ctx, f);
-                }
-            }
-            TemplateNode::SnippetBlock(b) => {
-                for er in &self.rules {
-                    ctx.enter_rule(er.meta, er.severity);
-                    er.rule.check_snippet(ctx, b);
-                }
-                self.visit_fragment(ctx, &b.body);
-            }
             TemplateNode::DebugTag(t) => {
                 for er in &self.rules {
                     ctx.enter_rule(er.meta, er.severity);
                     er.rule.check_debug_tag(ctx, t);
                 }
-            }
-            TemplateNode::KeyBlock(b) => {
-                for er in &self.rules {
-                    ctx.enter_rule(er.meta, er.severity);
-                    er.rule.check_key(ctx, b);
-                }
-                self.visit_fragment(ctx, &b.fragment)
             }
             TemplateNode::RegularElement(el) => {
                 for er in &self.rules {
@@ -256,34 +216,6 @@ impl<'r> LintVisitor<'r> {
                 self.visit_attributes(ctx, &e.attributes);
                 self.visit_fragment(ctx, &e.fragment);
             }
-            TemplateNode::TitleElement(e) => {
-                self.visit_attributes(ctx, &e.attributes);
-                self.visit_fragment(ctx, &e.fragment);
-            }
-            TemplateNode::SlotElement(e) => {
-                for er in &self.rules {
-                    ctx.enter_rule(er.meta, er.severity);
-                    er.rule.check_slot(ctx, e);
-                }
-                self.visit_attributes(ctx, &e.attributes);
-                self.visit_fragment(ctx, &e.fragment)
-            }
-            // The `svelte:*` special elements all wrap a `SvelteElement`.
-            TemplateNode::SvelteBody(e)
-            | TemplateNode::SvelteDocument(e)
-            | TemplateNode::SvelteFragment(e)
-            | TemplateNode::SvelteBoundary(e)
-            | TemplateNode::SvelteHead(e)
-            | TemplateNode::SvelteOptions(e)
-            | TemplateNode::SvelteSelf(e)
-            | TemplateNode::SvelteWindow(e) => {
-                for er in &self.rules {
-                    ctx.enter_rule(er.meta, er.severity);
-                    er.rule.check_svelte_element(ctx, e);
-                }
-                self.visit_attributes(ctx, &e.attributes);
-                self.visit_fragment(ctx, &e.fragment);
-            }
             TemplateNode::ConstTag(t) => {
                 for er in &self.rules {
                     ctx.enter_rule(er.meta, er.severity);
@@ -308,8 +240,114 @@ impl<'r> LintVisitor<'r> {
                     er.rule.check_render_tag(ctx, t);
                 }
             }
-            // Leaf nodes with no template children and no hooks.
-            TemplateNode::Text(_) | TemplateNode::AttachTag(_) => {}
+            TemplateNode::EachBlock(_)
+            | TemplateNode::IfBlock(_)
+            | TemplateNode::AwaitBlock(_)
+            | TemplateNode::SnippetBlock(_)
+            | TemplateNode::KeyBlock(_)
+            | TemplateNode::TitleElement(_)
+            | TemplateNode::SlotElement(_)
+            | TemplateNode::SvelteBody(_)
+            | TemplateNode::SvelteDocument(_)
+            | TemplateNode::SvelteFragment(_)
+            | TemplateNode::SvelteBoundary(_)
+            | TemplateNode::SvelteHead(_)
+            | TemplateNode::SvelteOptions(_)
+            | TemplateNode::SvelteSelf(_)
+            | TemplateNode::SvelteWindow(_)
+            | TemplateNode::Text(_)
+            | TemplateNode::AttachTag(_) => {}
         }
+    }
+
+    fn visit_control_flow(&self, ctx: &mut LintContext, node: &TemplateNode) -> bool {
+        match node {
+            TemplateNode::EachBlock(block) => {
+                for rule in &self.rules {
+                    ctx.enter_rule(rule.meta, rule.severity);
+                    rule.rule.check_each(ctx, block);
+                }
+                self.visit_fragment(ctx, &block.body);
+                if let Some(fallback) = &block.fallback {
+                    self.visit_fragment(ctx, fallback);
+                }
+            }
+            TemplateNode::IfBlock(block) => {
+                for rule in &self.rules {
+                    ctx.enter_rule(rule.meta, rule.severity);
+                    rule.rule.check_if(ctx, block);
+                }
+                self.visit_fragment(ctx, &block.consequent);
+                if let Some(alternate) = &block.alternate {
+                    self.visit_fragment(ctx, alternate);
+                }
+            }
+            TemplateNode::AwaitBlock(block) => {
+                for rule in &self.rules {
+                    ctx.enter_rule(rule.meta, rule.severity);
+                    rule.rule.check_await(ctx, block);
+                }
+                for fragment in [
+                    block.pending.as_ref(),
+                    block.then.as_ref(),
+                    block.catch.as_ref(),
+                ]
+                .into_iter()
+                .flatten()
+                {
+                    self.visit_fragment(ctx, fragment);
+                }
+            }
+            TemplateNode::SnippetBlock(block) => {
+                for rule in &self.rules {
+                    ctx.enter_rule(rule.meta, rule.severity);
+                    rule.rule.check_snippet(ctx, block);
+                }
+                self.visit_fragment(ctx, &block.body);
+            }
+            TemplateNode::KeyBlock(block) => {
+                for rule in &self.rules {
+                    ctx.enter_rule(rule.meta, rule.severity);
+                    rule.rule.check_key(ctx, block);
+                }
+                self.visit_fragment(ctx, &block.fragment);
+            }
+            _ => return false,
+        }
+        true
+    }
+
+    fn visit_template_special_elements(&self, ctx: &mut LintContext, node: &TemplateNode) -> bool {
+        match node {
+            TemplateNode::TitleElement(element) => {
+                self.visit_attributes(ctx, &element.attributes);
+                self.visit_fragment(ctx, &element.fragment);
+            }
+            TemplateNode::SlotElement(element) => {
+                for rule in &self.rules {
+                    ctx.enter_rule(rule.meta, rule.severity);
+                    rule.rule.check_slot(ctx, element);
+                }
+                self.visit_attributes(ctx, &element.attributes);
+                self.visit_fragment(ctx, &element.fragment);
+            }
+            TemplateNode::SvelteBody(element)
+            | TemplateNode::SvelteDocument(element)
+            | TemplateNode::SvelteFragment(element)
+            | TemplateNode::SvelteBoundary(element)
+            | TemplateNode::SvelteHead(element)
+            | TemplateNode::SvelteOptions(element)
+            | TemplateNode::SvelteSelf(element)
+            | TemplateNode::SvelteWindow(element) => {
+                for rule in &self.rules {
+                    ctx.enter_rule(rule.meta, rule.severity);
+                    rule.rule.check_svelte_element(ctx, element);
+                }
+                self.visit_attributes(ctx, &element.attributes);
+                self.visit_fragment(ctx, &element.fragment);
+            }
+            _ => return false,
+        }
+        true
     }
 }

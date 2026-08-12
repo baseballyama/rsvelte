@@ -74,11 +74,43 @@ const TYPE_ANCHOR: &str = include_str!("../data/type_anchor.txt");
 /// sorts strictly between real `a-1` and real `a` without colliding with either.
 type BaseOrder = i64;
 
-fn real_order(index: u32) -> BaseOrder {
+const FAMILIES: &[(&str, &str)] = &[
+    ("group-has-", "group-has-*"),
+    ("group-aria-", "group-aria-*"),
+    ("group-data-", "group-data-*"),
+    ("group-", "group-*"),
+    ("peer-has-", "peer-has-*"),
+    ("peer-data-", "peer-data-*"),
+    ("peer-", "peer-*"),
+    ("not-", "not-*"),
+    ("in-", "in-*"),
+    ("has-", "has-*"),
+    ("aria-", "aria-*"),
+    ("data-", "data-*"),
+    ("supports-", "supports-*"),
+    ("nth-last-", "nth-last-*"),
+    ("nth-", "nth-*"),
+    ("min-", "min-*"),
+    ("max-", "max-*"),
+];
+
+const AXES: &[&str] = &[
+    "x", "y", "t", "r", "b", "l", "s", "e", "tl", "tr", "bl", "br", "ss", "se", "ee", "es",
+];
+
+#[allow(
+    clippy::cast_lossless,
+    reason = "i64::from is not const on the project's minimum Rust version"
+)]
+const fn real_order(index: u32) -> BaseOrder {
     2 * index as i64
 }
 
-fn anchored_order(anchor: u32) -> BaseOrder {
+#[allow(
+    clippy::cast_lossless,
+    reason = "i64::from is not const on the project's minimum Rust version"
+)]
+const fn anchored_order(anchor: u32) -> BaseOrder {
     2 * anchor as i64 - 1
 }
 
@@ -118,7 +150,7 @@ fn tables() -> &'static Tables {
         let mut root_siblings: HashMap<&'static str, Vec<(&'static str, u32)>> = HashMap::new();
         let mut real_count = 0u32;
         for (i, name) in DEFAULT_ORDER.lines().filter(|l| !l.is_empty()).enumerate() {
-            let idx = i as u32;
+            let idx = u32::try_from(i).expect("default utility table exceeds u32");
             base.insert(name, idx);
             root_siblings
                 .entry(utility_root(name))
@@ -163,7 +195,12 @@ fn tables() -> &'static Tables {
             .lines()
             .filter(|l| !l.is_empty())
             .enumerate()
-            .map(|(i, name)| (name, i as u32))
+            .map(|(i, name)| {
+                (
+                    name,
+                    u32::try_from(i).expect("container breakpoint table exceeds u32"),
+                )
+            })
             .collect();
 
         let mut type_anchor = HashMap::new();
@@ -177,8 +214,9 @@ fn tables() -> &'static Tables {
         let mut variant = HashMap::new();
         let mut n = 0u32;
         for (i, label) in VARIANT_ROOTS.lines().filter(|l| !l.is_empty()).enumerate() {
-            variant.insert(label, i as u32);
-            n = i as u32;
+            let rank = u32::try_from(i).expect("variant table exceeds u32");
+            variant.insert(label, rank);
+            n = rank;
         }
 
         Tables {
@@ -298,25 +336,6 @@ fn variant_rank(v: &str, t: &Tables) -> Option<u32> {
     }
 
     // Parametric families, longest-prefix first.
-    const FAMILIES: &[(&str, &str)] = &[
-        ("group-has-", "group-has-*"),
-        ("group-aria-", "group-aria-*"),
-        ("group-data-", "group-data-*"),
-        ("group-", "group-*"),
-        ("peer-has-", "peer-has-*"),
-        ("peer-data-", "peer-data-*"),
-        ("peer-", "peer-*"),
-        ("not-", "not-*"),
-        ("in-", "in-*"),
-        ("has-", "has-*"),
-        ("aria-", "aria-*"),
-        ("data-", "data-*"),
-        ("supports-", "supports-*"),
-        ("nth-last-", "nth-last-*"),
-        ("nth-", "nth-*"),
-        ("min-", "min-*"),
-        ("max-", "max-*"),
-    ];
     for (prefix, label) in FAMILIES {
         if v.starts_with(prefix)
             && let Some(&r) = t.variant.get(label)
@@ -435,9 +454,9 @@ fn place_among_siblings(stem: &str, t: &Tables) -> Option<u32> {
     } else {
         None
     };
-    let matches = |name: &str| match color_filter {
-        Some(want) => is_named_color_utility(name, root, &t.color_families) == want,
-        None => true,
+    let matches = |name: &str| {
+        color_filter
+            .is_none_or(|want| is_named_color_utility(name, root, &t.color_families) == want)
     };
 
     let mut idx = None;
@@ -482,7 +501,7 @@ fn stem_is_color(stem: &str, bracket: Option<usize>) -> bool {
     };
     let inner = stem[b + 2..]
         .strip_suffix([']', ')'])
-        .unwrap_or(&stem[b + 2..]);
+        .unwrap_or_else(|| &stem[b + 2..]);
     if let Some((hint, _)) = inner.split_once(':')
         && !hint.starts_with("--")
     {
@@ -523,9 +542,6 @@ fn has_numeric_tail(stem: &str) -> bool {
     // that sits between the root and the numeric value. The set is explicit:
     // a permissive "any short segment" rule would swallow plugin utility names
     // like `zoom-in-95` (`in` is not an axis) and misclassify them as known.
-    const AXES: &[&str] = &[
-        "x", "y", "t", "r", "b", "l", "s", "e", "tl", "tr", "bl", "br", "ss", "se", "ee", "es",
-    ];
     if let Some((seg, rest)) = tail.split_once('-')
         && AXES.contains(&seg)
     {
@@ -651,14 +667,23 @@ fn normalize_arbitrary_selector(inner: &str) -> String {
 /// callers that want `prettier`-style dedupe should use [`sort_class_string`].
 ///
 /// This is the callback shape oxc's formatter uses for Tailwind sorting.
+#[must_use]
 pub fn sort_classes(classes: Vec<String>) -> Vec<String> {
     let t = tables();
-    let keys: Vec<Key> = classes.iter().map(|c| key_for(c, t)).collect();
-    let mut order: Vec<usize> = (0..classes.len()).collect();
-    order.sort_by(|&a, &b| {
-        cmp_keys(&keys[a], &classes[a], &keys[b], &classes[b]).then_with(|| a.cmp(&b))
-    });
-    order.into_iter().map(|i| classes[i].clone()).collect()
+    let mut entries: Vec<_> = classes
+        .into_iter()
+        .enumerate()
+        .map(|(index, class)| {
+            let key = key_for(&class, t);
+            (class, key, index)
+        })
+        .collect();
+    entries.sort_by(
+        |(left, left_key, left_index), (right, right_key, right_index)| {
+            cmp_keys(left_key, left, right_key, right).then_with(|| left_index.cmp(right_index))
+        },
+    );
+    entries.into_iter().map(|(class, _, _)| class).collect()
 }
 
 /// Sort a whitespace-separated class attribute value, matching

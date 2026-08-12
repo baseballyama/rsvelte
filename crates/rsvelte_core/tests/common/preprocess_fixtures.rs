@@ -248,10 +248,7 @@ pub fn build_preprocessors(name: &str) -> Option<Vec<PreprocessorGroup>> {
                 ok(async move {
                     assert_eq!(opts.content, "");
                     let answer = attr_str(&opts.attributes, "the-answer").unwrap_or("");
-                    Ok(Some(processed_code(format!(
-                        "console.log(\"{}\");",
-                        answer
-                    ))))
+                    Ok(Some(processed_code(format!("console.log(\"{answer}\");"))))
                 })
             }) as PreprocessorFn),
             ..Default::default()
@@ -342,7 +339,7 @@ pub fn build_preprocessors(name: &str) -> Option<Vec<PreprocessorGroup>> {
                 ok(async move {
                     assert_eq!(opts.content, "");
                     let color = attr_str(&opts.attributes, "color").unwrap_or("");
-                    Ok(Some(processed_code(format!("div {{ color: {}; }}", color))))
+                    Ok(Some(processed_code(format!("div {{ color: {color}; }}"))))
                 })
             }) as PreprocessorFn),
             ..Default::default()

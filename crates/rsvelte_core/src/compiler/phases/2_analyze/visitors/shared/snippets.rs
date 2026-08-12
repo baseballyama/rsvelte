@@ -18,6 +18,10 @@ use crate::ast::template::SnippetBlock;
 /// applies only to a `children` snippet alongside other component
 /// content, and is handled at the component level). Re-declaration in
 /// the surrounding scope is rejected by `declare_binding` already.
+///
+/// # Errors
+///
+/// Returns an error when snippet validation fails.
 pub fn validate_snippet(
     snippet: &SnippetBlock,
     context: &mut VisitorContext,
@@ -49,8 +53,9 @@ pub fn get_snippet_name(snippet: &SnippetBlock) -> Option<String> {
 /// Returns `true` if:
 /// - The binding is None (external to component)
 /// - The binding is an import
-/// - The binding is a prop, rest_prop, or bindable_prop
-/// - The binding's initial value is a SnippetBlock
+/// - The binding is a prop, `rest_prop`, or `bindable_prop`
+/// - The binding's initial value is a `SnippetBlock`
+#[must_use]
 pub fn is_resolved_snippet(binding: Option<&Binding>) -> bool {
     match binding {
         None => true, // External to component

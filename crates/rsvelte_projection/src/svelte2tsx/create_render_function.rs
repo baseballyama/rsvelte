@@ -22,7 +22,7 @@ use super::svelte2tsx::slice_src;
     clippy::too_many_arguments,
     reason = "mirrors the JS reference's createRenderFunction(params) inputs"
 )]
-pub(crate) fn create_render_function(
+pub fn create_render_function(
     ast: &Root,
     module_program: Option<&oxc_ast::ast::Program>,
     source: &str,
@@ -62,14 +62,13 @@ pub(crate) fn create_render_function(
         if !hoistable_snippet_ranges.is_empty() {
             let module_imports =
                 find_instance_imports(module, source, module_program.expect("module script"));
-            let module_hoist_target = match module_imports.last() {
-                Some(last) => mod_content_start + last.end,
-                None => mod_content_start,
-            };
+            let module_hoist_target = module_imports
+                .last()
+                .map_or(mod_content_start, |last| mod_content_start + last.end);
             // JS reference: `str.appendLeft(snippetHoistTargetForModule, '\n')`
             // for both the imports-present and no-imports branches.
             str.append_left(module_hoist_target, "\n");
-            for (s, e) in hoistable_snippet_ranges.iter() {
+            for (s, e) in hoistable_snippet_ranges {
                 str.move_range(*s, *e, module_hoist_target);
             }
         }
@@ -90,8 +89,7 @@ pub(crate) fn create_render_function(
         // `async () => {` wrapper, not inside it. Keep module-import store
         // subscriptions inside the async wrapper.
         let render_open = format!(
-            ";function $$render() {{{}{}\nasync () => {{{}",
-            dollar_decls, slot_decl_mod, store_decls
+            ";function $$render() {{{dollar_decls}{slot_decl_mod}\nasync () => {{{store_decls}"
         );
         str.append_left(mod_end, &render_open);
 
@@ -100,7 +98,7 @@ pub(crate) fn create_render_function(
         // wrapper closes immediately for module-script-only components.
         let has_non_whitespace_template = ast.fragment.nodes.iter().any(|node| {
             !matches!(node, crate::ast::template::TemplateNode::Text(t)
-                if slice_src(source, t.start as usize, t.end as usize).chars().all(|c| c.is_whitespace()))
+                if slice_src(source, t.start as usize, t.end as usize).chars().all(char::is_whitespace))
         });
         if !has_non_whitespace_template && (mod_end as usize) < source.len() {
             let bytes = source.as_bytes();
@@ -130,14 +128,13 @@ pub(crate) fn create_render_function(
         } else {
             ""
         };
-        let embedded_injection = if !embedded_script_content.is_empty() {
-            format!("\n{}", embedded_script_content)
-        } else {
+        let embedded_injection = if embedded_script_content.is_empty() {
             String::new()
+        } else {
+            format!("\n{embedded_script_content}")
         };
         let wrapper = format!(
-            "{};function $$render() {{{}{}{}\nasync () => {{",
-            header_str, dollar_decls, embedded_injection, slot_decl_tmpl
+            "{header_str};function $$render() {{{dollar_decls}{embedded_injection}{slot_decl_tmpl}\nasync () => {{"
         );
         str.prepend_str(&wrapper);
     }
@@ -145,7 +142,7 @@ pub(crate) fn create_render_function(
 /// Build the `$$props`/`$$restProps`/`$$slots` declaration text injected into
 /// the `$$render()` header for a component that references those legacy magic
 /// variables.
-pub(crate) fn build_dollar_declarations(
+pub fn build_dollar_declarations(
     uses_dollar_props: bool,
     uses_dollar_rest_props: bool,
     uses_dollar_slots: bool,

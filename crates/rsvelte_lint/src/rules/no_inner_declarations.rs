@@ -1,10 +1,12 @@
+//! `svelte/no-inner-declarations`.
+//!
 //! `svelte/no-inner-declarations` — disallow `function` / `var` declarations in
-//! nested blocks. Port of the core ESLint `no-inner-declarations` rule (the
+//! nested blocks. Port of the core `ESLint` `no-inner-declarations` rule (the
 //! eslint-plugin-svelte extension just re-parents through `SvelteScriptElement`,
 //! which in rsvelte is already the script `Program`). Runs over the `<script>`
-//! ESTree program via the [`ScriptRule`] hook.
+//! `ESTree` program via the [`ScriptRule`] hook.
 //!
-//! Options (ESLint ≥9 shape — the plugin's `v8` fixtures are skipped by the
+//! Options (`ESLint` ≥9 shape — the plugin's `v8` fixtures are skipped by the
 //! oracle): `[ "functions" | "both", { "blockScopedFunctions": "allow" | "disallow" } ]`.
 //! `"functions"` checks only function declarations; `"both"` also checks `var`
 //! declarations. Because a `<script>` is always a module (strict mode), a
@@ -88,21 +90,19 @@ impl ScriptRule for NoInnerDeclarations {
 
 /// Whether a declaration with the given `ancestors` (nearest parent last) sits
 /// in a nested block — i.e. NOT directly in a `Program`, a function body, or a
-/// class static block. Mirrors core ESLint's `no-inner-declarations` check.
+/// class static block. Mirrors core `ESLint`'s `no-inner-declarations` check.
 fn is_inner(ancestors: &[&Value]) -> bool {
     let Some(parent) = ancestors.last() else {
         return false;
     };
     match node_type(parent) {
-        Some("Program") | Some("StaticBlock") => false,
+        Some("Program" | "StaticBlock") => false,
         Some("BlockStatement") => {
             // Valid only when the block is a function body.
             let gp = ancestors.get(ancestors.len().wrapping_sub(2));
             !matches!(
                 gp.and_then(|g| node_type(g)),
-                Some("FunctionDeclaration")
-                    | Some("FunctionExpression")
-                    | Some("ArrowFunctionExpression")
+                Some("FunctionDeclaration" | "FunctionExpression" | "ArrowFunctionExpression")
             )
         }
         _ => true,
@@ -114,9 +114,7 @@ fn body_root(ancestors: &[&Value]) -> &'static str {
     let in_function = ancestors.iter().rev().any(|n| {
         matches!(
             node_type(n),
-            Some("FunctionDeclaration")
-                | Some("FunctionExpression")
-                | Some("ArrowFunctionExpression")
+            Some("FunctionDeclaration" | "FunctionExpression" | "ArrowFunctionExpression")
         )
     });
     if in_function {

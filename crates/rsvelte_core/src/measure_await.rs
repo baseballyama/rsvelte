@@ -61,14 +61,14 @@ fn is_identifier_char(c: char) -> bool {
 /// mismatch)` since the last reset.
 pub fn snapshot() -> (u64, u64, u64, u64, u64, u64, u64, u64) {
     (
-        CALLS.with(|c| c.get()),
-        INPUT_BYTES.with(|c| c.get()),
-        WORD_ASYNC.with(|c| c.get()),
-        REST.with(|c| c.get()),
-        REST_AGAIN.with(|c| c.get()),
-        WORD_AWAIT.with(|c| c.get()),
-        ALLOC_BYTES.with(|c| c.get()),
-        MISMATCH.with(|c| c.get()),
+        CALLS.with(std::cell::Cell::get),
+        INPUT_BYTES.with(std::cell::Cell::get),
+        WORD_ASYNC.with(std::cell::Cell::get),
+        REST.with(std::cell::Cell::get),
+        REST_AGAIN.with(std::cell::Cell::get),
+        WORD_AWAIT.with(std::cell::Cell::get),
+        ALLOC_BYTES.with(std::cell::Cell::get),
+        MISMATCH.with(std::cell::Cell::get),
     )
 }
 
@@ -83,9 +83,9 @@ pub fn reset() {
     MISMATCH.with(|c| c.set(0));
 }
 
-/// Replay the pre-refactor scan of `expr`, counting every `String` it builds at
-/// the four sites the refactor removed, and compare its verdict against
-/// `new_result` so any behavior drift is counted rather than assumed absent.
+/// Replay the pre-refactor scan of `expr` and count strings at removed sites.
+///
+/// Compare its verdict against `new_result` so behavior drift is counted.
 pub fn record(expr: &str, new_result: bool) {
     CALLS.with(|c| c.set(c.get() + 1));
     INPUT_BYTES.with(|c| c.set(c.get() + expr.len() as u64));

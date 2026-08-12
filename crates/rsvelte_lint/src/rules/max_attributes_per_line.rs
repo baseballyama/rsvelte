@@ -43,8 +43,20 @@ static META: RuleMeta = RuleMeta {
     ),
 };
 
+fn option_count(value: u64) -> u32 {
+    u32::try_from(value).expect("lint option counts are represented as u32")
+}
+
+fn item_count(value: usize) -> u32 {
+    u32::try_from(value).expect("attribute counts are represented as u32")
+}
+
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("source offsets are represented as u32")
+}
+
 /// Get the start of an attribute.
-fn attr_start(a: &Attribute) -> u32 {
+const fn attr_start(a: &Attribute) -> u32 {
     match a {
         Attribute::Attribute(n) => n.start,
         Attribute::SpreadAttribute(n) => n.start,
@@ -61,7 +73,7 @@ fn attr_start(a: &Attribute) -> u32 {
 }
 
 /// Get the end of an attribute.
-fn attr_end(a: &Attribute) -> u32 {
+const fn attr_end(a: &Attribute) -> u32 {
     match a {
         Attribute::Attribute(n) => n.end,
         Attribute::SpreadAttribute(n) => n.end,
@@ -104,8 +116,7 @@ fn attr_name(src: &str, a: &Attribute) -> String {
             let slice = src.get(start..end).unwrap_or("");
             let key_end = slice
                 .find(|c: char| c == '=' || c == '{' || c.is_ascii_whitespace())
-                .map(|off| start + off)
-                .unwrap_or(end);
+                .map_or(end, |off| start + off);
             src.get(start..key_end).unwrap_or("").to_string()
         }
     }
@@ -131,7 +142,7 @@ fn prev_token_end(src: &[u8], el_start: u32, attr_start_off: u32) -> u32 {
         }
         pos -= 1;
     }
-    pos as u32
+    source_offset(pos)
 }
 
 /// One attribute (real or the spliced-in implicit `this`) in source order.
@@ -173,7 +184,6 @@ impl MaxAttributesPerLine {
     /// participates in counting, line grouping, and reporting exactly like a
     /// normal attribute.
     fn check_tag(
-        &self,
         ctx: &mut LintContext,
         el_start: u32,
         attributes: &[Attribute],
@@ -183,14 +193,12 @@ impl MaxAttributesPerLine {
         let opt = ctx.option0();
         let multiline_max: u32 = opt
             .and_then(|v| v.get("multiline"))
-            .and_then(|v| v.as_u64())
-            .map(|n| n as u32)
-            .unwrap_or(1);
+            .and_then(serde_json::Value::as_u64)
+            .map_or(1, option_count);
         let singleline_max: u32 = opt
             .and_then(|v| v.get("singleline"))
-            .and_then(|v| v.as_u64())
-            .map(|n| n as u32)
-            .unwrap_or(1);
+            .and_then(serde_json::Value::as_u64)
+            .map_or(1, option_count);
 
         let src = ctx.source();
 
@@ -204,9 +212,9 @@ impl MaxAttributesPerLine {
                 // an invalid one keeps the key-only name. `generics_name` carries
                 // the full text when valid.
                 let name = match a {
-                    Attribute::Attribute(n) if n.name == "generics" => generics_name
-                        .map(str::to_string)
-                        .unwrap_or_else(|| attr_name(src, a)),
+                    Attribute::Attribute(n) if n.name == "generics" => {
+                        generics_name.map_or_else(|| attr_name(src, a), str::to_string)
+                    }
                     _ => attr_name(src, a),
                 };
                 AttrItem {
@@ -246,7 +254,7 @@ impl MaxAttributesPerLine {
         if is_single {
             // Single-line: more than singleline_max attributes ⇒ report the
             // (singleline_max)th (0-indexed) item.
-            if items.len() as u32 > singleline_max {
+            if item_count(items.len()) > singleline_max {
                 report_item(ctx, &items[singleline_max as usize], el_start, src_bytes);
             }
         } else {
@@ -260,7 +268,7 @@ impl MaxAttributesPerLine {
             // since the directive-span fix, for shorthand directives too.)
             let mut group_start = 0;
             let finalize = |ctx: &mut LintContext, g_start: usize, g_end: usize| {
-                let count = (g_end - g_start) as u32;
+                let count = item_count(g_end - g_start);
                 if count > multiline_max {
                     report_item(
                         ctx,
@@ -288,32 +296,32 @@ impl Rule for MaxAttributesPerLine {
     }
 
     fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
-        self.check_tag(ctx, el.start, &el.attributes, None, None);
+        Self::check_tag(ctx, el.start, &el.attributes, None, None);
     }
 
     fn check_component(&self, ctx: &mut LintContext, c: &Component) {
-        self.check_tag(ctx, c.start, &c.attributes, None, None);
+        Self::check_tag(ctx, c.start, &c.attributes, None, None);
     }
 
     fn check_svelte_element(&self, ctx: &mut LintContext, el: &SvelteElement) {
-        self.check_tag(ctx, el.start, &el.attributes, None, None);
+        Self::check_tag(ctx, el.start, &el.attributes, None, None);
     }
 
     fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
         // `<svelte:component this={…}>` — the `this` expression is stored
         // separately; reconstruct its span so it counts as the leading attribute.
         let this_span = this_attr_span(ctx.source(), el.expression.start(), el.expression.end());
-        self.check_tag(ctx, el.start, &el.attributes, this_span, None);
+        Self::check_tag(ctx, el.start, &el.attributes, this_span, None);
     }
 
     fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
         // `<svelte:element this={…}>` — same as svelte:component, via `el.tag`.
         let this_span = this_attr_span(ctx.source(), el.tag.start(), el.tag.end());
-        self.check_tag(ctx, el.start, &el.attributes, this_span, None);
+        Self::check_tag(ctx, el.start, &el.attributes, this_span, None);
     }
 
     fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
-        self.check_tag(ctx, el.start, &el.attributes, None, None);
+        Self::check_tag(ctx, el.start, &el.attributes, None, None);
     }
 
     fn check_special_element(&self, ctx: &mut LintContext, el: &SpecialElement<'_>) {
@@ -322,7 +330,7 @@ impl Rule for MaxAttributesPerLine {
         // but keeps an *invalid* one as a `SvelteAttribute` (key-only message).
         // Decide which by parsing the value as TS; pass the full text when valid.
         let generics_name = generics_report_name(ctx.source(), &el.attributes);
-        self.check_tag(
+        Self::check_tag(
             ctx,
             el.start,
             &el.attributes,

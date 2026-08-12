@@ -16,6 +16,7 @@ use crate::bridge::{MarkupBridge, markup_group};
 const SCRIPT: &str = include_str!("../js/sveltex-bridge.mjs");
 
 /// Build the `@nvl/sveltex` `PreprocessorGroup`.
+#[must_use]
 pub fn sveltex(config: MarkupBridge) -> PreprocessorGroup {
     markup_group("sveltex", SCRIPT, config)
 }

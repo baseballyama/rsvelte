@@ -13,6 +13,10 @@ use super::runes::excluded_rune_init;
 
 use super::super::magic_string::MagicString;
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("script source offsets are represented as u32")
+}
+
 /// Reserved names that should not be treated as store references.
 const RESERVED_STORE_NAMES: &[&str] = &["$$props", "$$restProps", "$$slots"];
 
@@ -30,7 +34,7 @@ impl StoreCandidate {
             .checked_mul(2)
             .expect("store name exceeds packed length");
         Self {
-            name_start: name_start as u32,
+            name_start: source_offset(name_start),
             name_len_and_flags: name_len_and_flags + u32::from(may_be_self_named_rune),
         }
     }
@@ -41,16 +45,16 @@ impl StoreCandidate {
         &source[start..end]
     }
 
-    fn pos(&self) -> u32 {
+    const fn pos(&self) -> u32 {
         self.name_start - 1
     }
 
-    fn may_be_self_named_rune(&self) -> bool {
+    const fn may_be_self_named_rune(&self) -> bool {
         self.name_len_and_flags & Self::SELF_NAMED_RUNE_FLAG != 0
     }
 }
 
-pub(crate) struct StoreScanContext<'s> {
+pub struct StoreScanContext<'s> {
     source: &'s str,
     script_spans: ScriptSpans,
     cache_candidates: bool,
@@ -219,12 +223,17 @@ impl ScriptSpans {
     fn pack(span: Option<(usize, usize)>) -> u64 {
         span.map_or(Self::NONE, |(start, end)| {
             debug_assert!(u32::try_from(start).is_ok() && u32::try_from(end).is_ok());
-            ((start as u64) << 32) | end as u64
+            (u64::try_from(start).expect("store offset fits in u64") << 32)
+                | u64::try_from(end).expect("store offset fits in u64")
         })
     }
 
     fn unpack(span: u64) -> Option<(usize, usize)> {
-        (span != Self::NONE).then_some(((span >> 32) as usize, span as u32 as usize))
+        (span != Self::NONE).then_some((
+            (span >> 32) as usize,
+            usize::try_from(u32::try_from(span).expect("packed span low half fits in u32"))
+                .expect("u32 fits in usize"),
+        ))
     }
 
     fn module(self) -> Option<(usize, usize)> {
@@ -315,10 +324,7 @@ fn instance_script_has_comment(source: &str, span: Option<(usize, usize)>) -> bo
 /// string is not mistaken for a comment. Mirrors the level of care in
 /// `collect_loose_dollar_names_from_script`.
 fn blank_instance_script_comments(source: &str, span: Option<(usize, usize)>, buf: &mut [u8]) {
-    let (start, end) = match span {
-        Some(s) => s,
-        None => return,
-    };
+    let Some((start, end)) = span else { return };
     let bytes = source.as_bytes();
     let mut i = start;
     while i < end {
@@ -514,8 +520,7 @@ fn collect_store_candidates(
             let start = j + rel;
             let end = source[start..]
                 .find("-->")
-                .map(|e| start + e + 3)
-                .unwrap_or(buf.len());
+                .map_or(buf.len(), |e| start + e + 3);
             for b in &mut buf[start..end] {
                 if *b != b'\n' && *b != b'\r' {
                     *b = b' ';
@@ -715,13 +720,10 @@ fn is_dollar_binding_shadowed(
     name: &str,
     pos: usize,
 ) -> bool {
-    match shadow.get(name) {
-        Some(spans) => {
-            let p = pos as u32;
-            spans.iter().any(|&(s, e)| p >= s && p < e)
-        }
-        None => false,
-    }
+    shadow.get(name).map_or(false, |spans| {
+        let p = source_offset(pos);
+        spans.iter().any(|&(s, e)| p >= s && p < e)
+    })
 }
 
 /// Create the store subscription declaration string for a list of store names.
@@ -733,7 +735,7 @@ pub(super) fn create_store_declarations(store_names: &[&str]) -> String {
     }
     let mut result = String::from("/*\u{03A9}ignore_start\u{03A9}*/");
     for name in store_names {
-        let _ = write!(result, ";let ${} = __sveltets_2_store_get({});", name, name);
+        let _ = write!(result, ";let ${name} = __sveltets_2_store_get({name});");
     }
     result.push_str("/*\u{03A9}ignore_end\u{03A9}*/");
     result
@@ -756,7 +758,7 @@ pub(super) fn collect_self_named_rune_call_positions(
     offset: u32,
 ) {
     let mut visit_var_decl = |var_decl: &oxc::VariableDeclaration| {
-        for declarator in var_decl.declarations.iter() {
+        for declarator in &var_decl.declarations {
             let Some(init) = declarator.init.as_ref() else {
                 continue;
             };
@@ -767,7 +769,7 @@ pub(super) fn collect_self_named_rune_call_positions(
             }
         }
     };
-    for stmt in program.body.iter() {
+    for stmt in &program.body {
         match stmt {
             oxc::Statement::VariableDeclaration(vd) => visit_var_decl(vd),
             oxc::Statement::ExportDeclaration(ex) => {
@@ -811,17 +813,16 @@ pub(super) fn inject_store_subscriptions_with_program(
 
     context.begin_import_collection();
 
-    for stmt in program.body.iter() {
+    for stmt in &program.body {
         match stmt {
             oxc::Statement::VariableDeclaration(var_decl) => {
                 let last_decl_end = var_decl
                     .declarations
                     .last()
-                    .map(|d| d.span.end)
-                    .unwrap_or(var_decl.span.end);
+                    .map_or(var_decl.span.end, |d| d.span.end);
                 let inject_pos = last_decl_end + offset;
 
-                for declarator in var_decl.declarations.iter() {
+                for declarator in &var_decl.declarations {
                     let names = extract_all_names_from_binding_pattern(&declarator.id);
                     let matching: Vec<String> = names
                         .into_iter()
@@ -829,7 +830,8 @@ pub(super) fn inject_store_subscriptions_with_program(
                         .collect();
 
                     if !matching.is_empty() {
-                        let name_refs: Vec<&str> = matching.iter().map(|s| s.as_str()).collect();
+                        let name_refs: Vec<&str> =
+                            matching.iter().map(std::string::String::as_str).collect();
                         let store_decls = create_store_declarations(&name_refs);
                         str.append_left(inject_pos, &store_decls);
                     }
@@ -845,11 +847,10 @@ pub(super) fn inject_store_subscriptions_with_program(
                     let last_decl_end = var_decl
                         .declarations
                         .last()
-                        .map(|d| d.span.end)
-                        .unwrap_or(var_decl.span.end);
+                        .map_or(var_decl.span.end, |d| d.span.end);
                     let inject_pos = last_decl_end + offset;
 
-                    for declarator in var_decl.declarations.iter() {
+                    for declarator in &var_decl.declarations {
                         let names = extract_all_names_from_binding_pattern(&declarator.id);
                         let matching: Vec<String> = names
                             .into_iter()
@@ -858,7 +859,7 @@ pub(super) fn inject_store_subscriptions_with_program(
 
                         if !matching.is_empty() {
                             let name_refs: Vec<&str> =
-                                matching.iter().map(|s| s.as_str()).collect();
+                                matching.iter().map(std::string::String::as_str).collect();
                             let store_decls = create_store_declarations(&name_refs);
                             str.append_left(inject_pos, &store_decls);
                         }
@@ -875,7 +876,8 @@ pub(super) fn inject_store_subscriptions_with_program(
 
                 if !matching.is_empty() {
                     let inject_pos = labeled.span.end + offset;
-                    let name_refs: Vec<&str> = matching.iter().map(|s| s.as_str()).collect();
+                    let name_refs: Vec<&str> =
+                        matching.iter().map(std::string::String::as_str).collect();
                     let store_decls = create_store_declarations(&name_refs);
                     str.append_left(inject_pos, &store_decls);
                 }
@@ -912,7 +914,7 @@ fn collect_import_store_names(import: &oxc::ImportDeclaration, context: &mut Sto
     let is_svelte_store_import = import.source.value.as_str() == "svelte/store";
 
     if let Some(ref specifiers) = import.specifiers {
-        for spec in specifiers.iter() {
+        for spec in specifiers {
             let (local_name, is_derived_import) = match spec {
                 oxc::ImportDeclarationSpecifier::ImportDefaultSpecifier(s) => {
                     (s.local.name.as_str(), false)
@@ -950,11 +952,8 @@ fn collect_module_script_import_stores(
     program: Option<&oxc::Program>,
     context: &mut StoreScanContext<'_>,
 ) {
-    let program = match program {
-        Some(program) => program,
-        None => return,
-    };
-    for stmt in program.body.iter() {
+    let Some(program) = program else { return };
+    for stmt in &program.body {
         if let oxc::Statement::ImportDeclaration(import) = stmt {
             collect_import_store_names(import, context);
         }
@@ -967,7 +966,7 @@ fn collect_module_script_import_stores(
 /// module-script import names that are used as stores (`$name`) in the source
 /// and returns the store subscription declarations string to inject at the
 /// start of the $$render async wrapper.
-pub(crate) fn collect_module_import_store_declarations(
+pub fn collect_module_import_store_declarations(
     context: &mut StoreScanContext<'_>,
     module_program: Option<&oxc::Program>,
 ) -> String {
@@ -1010,16 +1009,15 @@ pub(super) fn inject_store_subscriptions_vars_only_with_program(
         return;
     }
 
-    for stmt in program.body.iter() {
+    for stmt in &program.body {
         if let oxc::Statement::VariableDeclaration(var_decl) = stmt {
             let last_decl_end = var_decl
                 .declarations
                 .last()
-                .map(|d| d.span.end)
-                .unwrap_or(var_decl.span.end);
+                .map_or(var_decl.span.end, |d| d.span.end);
             let inject_pos = last_decl_end + offset;
 
-            for declarator in var_decl.declarations.iter() {
+            for declarator in &var_decl.declarations {
                 let names = extract_all_names_from_binding_pattern(&declarator.id);
                 let matching: Vec<String> = names
                     .into_iter()
@@ -1027,7 +1025,8 @@ pub(super) fn inject_store_subscriptions_vars_only_with_program(
                     .collect();
 
                 if !matching.is_empty() {
-                    let name_refs: Vec<&str> = matching.iter().map(|s| s.as_str()).collect();
+                    let name_refs: Vec<&str> =
+                        matching.iter().map(std::string::String::as_str).collect();
                     let store_decls = create_store_declarations(&name_refs);
                     str.append_left(inject_pos, &store_decls);
                 }

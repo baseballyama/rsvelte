@@ -1,4 +1,4 @@
-//! SvelteBody visitor.
+//! `SvelteBody` visitor.
 //!
 //! Analyzes <svelte:body> elements.
 //!

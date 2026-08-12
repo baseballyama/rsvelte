@@ -44,12 +44,14 @@ impl TypeFacts {
 
     /// Whether any rendered type text of the primary type mentions `needle`
     /// (used e.g. to detect the `$app/types` `ResolvedPathname` brand).
+    #[must_use]
     pub fn type_text_contains(&self, needle: &str) -> bool {
         self.type_texts.iter().any(|t| t.contains(needle))
     }
 
     /// Whether the primary type is exactly nullish (`null` / `undefined` /
     /// unions of only those), per the rendered type texts.
+    #[must_use]
     pub fn is_nullish(&self) -> bool {
         !self.type_texts.is_empty()
             && self.type_texts.iter().all(|t| {
@@ -65,6 +67,7 @@ impl TypeFacts {
 /// type is function-like. The checker renders function types either as an arrow
 /// (`(...) => T`) or as a call-signature object literal
 /// (`{ (...): T; ... }`), so both shapes are recognized.
+#[must_use]
 pub fn type_text_is_function(text: &str) -> bool {
     let t = text.trim();
     if t.contains("=>") {
@@ -75,6 +78,7 @@ pub fn type_text_is_function(text: &str) -> bool {
 }
 
 /// Whether a rendered function-type text returns a Promise (async-like).
+#[must_use]
 pub fn type_text_returns_promise(text: &str) -> bool {
     // The return type follows the last top-level `=>`, e.g.
     // `() => Promise<void>`. A substring check is sufficient for the rendered

@@ -23,7 +23,7 @@
 //!     indistinguishable from a pass.
 //!
 //! Run with:
-//!     cargo test --release --test svelte_check_golden -- --nocapture
+//!     cargo test --release --test `svelte_check_golden` -- --nocapture
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -152,8 +152,7 @@ fn test_success_fixture_has_no_svelte_errors() {
 
     assert!(
         svelte_errors.is_empty(),
-        "test-success fixture should compile cleanly, but the rsvelte compiler emitted errors:\n{:#?}",
-        svelte_errors
+        "test-success fixture should compile cleanly, but the rsvelte compiler emitted errors:\n{svelte_errors:#?}"
     );
     assert!(
         result.files_checked >= 1,
@@ -178,7 +177,7 @@ fn test_error_fixture_has_no_svelte_errors() {
     }
 
     let opts = RunOptions {
-        workspace: workspace.clone(),
+        workspace: workspace,
         ..RunOptions::default()
     };
     let result = run(&opts);
@@ -194,8 +193,7 @@ fn test_error_fixture_has_no_svelte_errors() {
     assert!(
         svelte_errors.is_empty(),
         "test-error fixture: every error is supposed to come from TypeScript, \
-         but the rsvelte Svelte compiler emitted these errors:\n{:#?}",
-        svelte_errors
+         but the rsvelte Svelte compiler emitted these errors:\n{svelte_errors:#?}"
     );
 }
 
@@ -229,8 +227,8 @@ fn test_error_fixture_emits_expected_ts_error_codes() {
     }
 
     let opts = RunOptions {
-        workspace: workspace.clone(),
-        tsconfig: Some(tsconfig.clone()),
+        workspace: workspace,
+        tsconfig: Some(tsconfig),
         type_check: true,
         prefer_tsgo: true,
         ..RunOptions::default()
@@ -298,8 +296,7 @@ fn test_error_fixture_emits_expected_ts_error_codes() {
         leaking.is_empty(),
         "TS diagnostics leaked overlay `.tsx` paths instead of being \
          mapped back to `.svelte` sources. svelte2tsx source-map output \
-         or mapper integration is broken. Offending:\n{:#?}",
-        leaking,
+         or mapper integration is broken. Offending:\n{leaking:#?}",
     );
 
     // For every expected TS code, ensure there is at least one actual

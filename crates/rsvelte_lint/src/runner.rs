@@ -69,7 +69,8 @@ fn svelte_rule_findings(
 }
 
 /// Lint a single source string. `file` is used for diagnostic paths and
-/// filename-gated rules (e.g. SvelteKit route file detection).
+/// filename-gated rules (e.g. `SvelteKit` route file detection).
+#[must_use]
 pub fn lint_source(
     source: &str,
     file: &Path,
@@ -82,6 +83,8 @@ pub fn lint_source(
         .collect()
 }
 
+/// Run linting with diagnostic payloads.
+///
 /// The full lint pass behind [`lint_source`]: the same diagnostics in the same
 /// order, each paired with the `fix` / `suggestions` / `help` payload of the
 /// rule that produced it. Findings from the validator wrap and the source-scan
@@ -94,26 +97,14 @@ pub fn lint_source_messages(
     config: &LintConfig,
 ) -> Vec<LintMessage> {
     let line_index = LineIndex::new(source);
-    let filename = file
-        .file_name()
-        .map(|n| n.to_string_lossy())
-        .unwrap_or_default()
-        .into_owned();
+    let filename = lint_filename(file);
 
-    // Layer any inline `/* eslint <rule>: … */` config in this file on top of the
-    // base config (ESLint per-file inline-config semantics). No-op when absent.
-    let effective = crate::inline_config::apply(source, config);
+    let effective = effective_config(source, config);
     let config = &effective;
 
     let mut diagnostics = match crate::engine::classify_source(&file.to_string_lossy()) {
-        // A standalone JS/TS module file (`*.svelte.js` / `*.svelte.ts` / `*.js`
-        // / `*.ts`): no template or compiler-warning pass — only script-AST rules
-        // run, over the whole-file module program.
         crate::engine::SourceKind::Module { ts } => {
-            crate::engine::run_script_rules_module(source, &filename, ts, config)
-                .into_iter()
-                .map(|d| LintMessage::from_lint(d, file, &line_index))
-                .collect()
+            module_lint_messages(source, &filename, ts, config, file, &line_index)
         }
         crate::engine::SourceKind::Svelte => {
             // 1. Validator wrap — compiler warnings/errors/a11y (config applied inside).
@@ -240,12 +231,38 @@ pub fn lint_source_messages(
     diagnostics.sort_by_key(|m| {
         m.diagnostic
             .range
-            .map(|r| (r.start.line, r.start.column))
-            .unwrap_or((0, 0))
+            .map_or((0, 0), |r| (r.start.line, r.start.column))
     });
     diagnostics
 }
 
+fn module_lint_messages(
+    source: &str,
+    filename: &str,
+    ts: bool,
+    config: &LintConfig,
+    file: &Path,
+    line_index: &LineIndex,
+) -> Vec<LintMessage> {
+    crate::engine::run_script_rules_module(source, filename, ts, config)
+        .into_iter()
+        .map(|diagnostic| LintMessage::from_lint(diagnostic, file, line_index))
+        .collect()
+}
+
+fn lint_filename(file: &Path) -> String {
+    file.file_name()
+        .map(|name| name.to_string_lossy())
+        .unwrap_or_default()
+        .into_owned()
+}
+
+fn effective_config(source: &str, config: &LintConfig) -> LintConfig {
+    crate::inline_config::apply(source, config)
+}
+
+/// Return raw rule diagnostics.
+///
 /// Like [`lint_source`] but returns the raw native + script + scope rule
 /// [`LintDiagnostic`]s (byte spans, carrying their `fix` and `suggestions`)
 /// before conversion to the output diagnostic. The validator/compiler wrap is
@@ -253,6 +270,7 @@ pub fn lint_source_messages(
 /// suppression directives are applied. Used by the compat oracle to assert
 /// suggestion + fix parity against eslint-plugin-svelte, whose fixtures cover
 /// the ported rules only. Editors want [`lint_source_messages`] instead.
+#[must_use]
 pub fn lint_source_raw(source: &str, file: &Path, config: &LintConfig) -> Vec<LintDiagnostic> {
     let line_index = LineIndex::new(source);
     let filename = file
@@ -287,9 +305,12 @@ pub struct FixResult {
     pub applied: usize,
 }
 
+/// Apply native-rule autofixes.
+///
 /// Apply the autofixes from native rules to `source`. Only non-suppressed
 /// findings contribute, and overlapping edits are resolved by taking the
 /// earliest and skipping any that overlap it (a second pass picks up the rest).
+#[must_use]
 pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
     let line_index = LineIndex::new(source);
     let suppressions = Suppressions::collect(source);
@@ -363,7 +384,7 @@ pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
 
 /// Whether `rule_id` names a rule rsvelte actually implements. Used by
 /// comment-directive's unused-report to avoid flagging a directive that targets
-/// a rule we cannot evaluate (e.g. core ESLint `no-undef`) as unused. In
+/// a rule we cannot evaluate (e.g. core `ESLint` `no-undef`) as unused. In
 /// non-native builds there is no rule registry, so we conservatively treat every
 /// rule as implemented (preserving the prior finding-based approximation).
 #[cfg(feature = "native")]
@@ -384,6 +405,10 @@ fn rule_is_implemented(_rule_id: &str) -> bool {
 }
 
 /// Lint a file on disk.
+///
+/// # Errors
+///
+/// Returns an error when the file cannot be read.
 pub fn lint_file(path: &Path, config: &LintConfig) -> std::io::Result<Vec<Diagnostic>> {
     let source = std::fs::read_to_string(path)?;
     let options = CompileOptions {

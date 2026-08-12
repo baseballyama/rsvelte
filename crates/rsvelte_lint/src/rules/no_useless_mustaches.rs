@@ -1,3 +1,5 @@
+//! `svelte/no-useless-mustaches`.
+//!
 //! `svelte/no-useless-mustaches` — flag a mustache interpolation whose value is
 //! a plain string literal (`{'foo'}`) or a zero-interpolation template literal
 //! (`{`foo`}`), which can be written as plain text / attribute text instead.
@@ -273,7 +275,7 @@ pub struct NoUselessMustaches;
 
 impl NoUselessMustaches {
     /// Report (and maybe fix) a text-position mustache.
-    fn check_text_tag(&self, ctx: &mut LintContext, tag: &ExpressionTag) {
+    fn check_text_tag(ctx: &mut LintContext, tag: &ExpressionTag) {
         let Some(expr_slice) = expr_slice(ctx, tag) else {
             return;
         };
@@ -302,7 +304,6 @@ impl NoUselessMustaches {
     /// directive (used to find the `key=` divider). `(first_start, last_end)`
     /// bound the whole value (for the unquoted-wrap insertion points).
     fn check_value_tag(
-        &self,
         ctx: &mut LintContext,
         tag: &ExpressionTag,
         node_start: u32,
@@ -329,19 +330,16 @@ impl NoUselessMustaches {
         // the source from the assignment `=` up to the first value part.
         // Both `expr_slice` and `head` borrow the file source, not `ctx`.
         let head = ctx.slice(node_start, first_start);
-        let quote_kind = match head.rfind('=') {
-            Some(eq) => {
-                let div = &head[eq..];
-                if div.ends_with('"') {
-                    QuoteKind::Double
-                } else if div.ends_with('\'') {
-                    QuoteKind::Single
-                } else {
-                    QuoteKind::None
-                }
+        let quote_kind = head.rfind('=').map_or(QuoteKind::None, |eq| {
+            let div = &head[eq..];
+            if div.ends_with('"') {
+                QuoteKind::Double
+            } else if div.ends_with('\'') {
+                QuoteKind::Single
+            } else {
+                QuoteKind::None
             }
-            None => QuoteKind::None,
-        };
+        });
 
         let fix = build_value_fix(tag, expr_slice, &a, quote_kind, first_start, last_end);
         match fix {
@@ -444,14 +442,14 @@ fn value_bounds(value: &AttributeValue) -> Option<(u32, u32)> {
     }
 }
 
-fn part_start(part: &AttributeValuePart) -> u32 {
+const fn part_start(part: &AttributeValuePart) -> u32 {
     match part {
         AttributeValuePart::Text(t) => t.start,
         AttributeValuePart::ExpressionTag(t) => t.start,
     }
 }
 
-fn part_end(part: &AttributeValuePart) -> u32 {
+const fn part_end(part: &AttributeValuePart) -> u32 {
     match part {
         AttributeValuePart::Text(t) => t.end,
         AttributeValuePart::ExpressionTag(t) => t.end,
@@ -459,14 +457,14 @@ fn part_end(part: &AttributeValuePart) -> u32 {
 }
 
 impl NoUselessMustaches {
-    fn check_attr_value(&self, ctx: &mut LintContext, node_start: u32, value: &AttributeValue) {
+    fn check_attr_value(ctx: &mut LintContext, node_start: u32, value: &AttributeValue) {
         let Some((first_start, last_end)) = value_bounds(value) else {
             return;
         };
         match value {
             AttributeValue::Expression(tag) => {
                 let tag = tag.clone();
-                self.check_value_tag(ctx, &tag, node_start, first_start, last_end);
+                Self::check_value_tag(ctx, &tag, node_start, first_start, last_end);
             }
             AttributeValue::Sequence(parts) => {
                 // Clone the tags up front so the borrow of `value` doesn't
@@ -479,7 +477,7 @@ impl NoUselessMustaches {
                     })
                     .collect();
                 for tag in &tags {
-                    self.check_value_tag(ctx, tag, node_start, first_start, last_end);
+                    Self::check_value_tag(ctx, tag, node_start, first_start, last_end);
                 }
             }
             AttributeValue::True(_) => {}
@@ -493,18 +491,18 @@ impl Rule for NoUselessMustaches {
     }
 
     fn check_expression_tag(&self, ctx: &mut LintContext, tag: &ExpressionTag) {
-        self.check_text_tag(ctx, tag);
+        Self::check_text_tag(ctx, tag);
     }
 
     fn check_attribute(&self, ctx: &mut LintContext, attr: &Attribute) {
         match attr {
             Attribute::Attribute(node) => {
                 let AttributeNode { start, value, .. } = node;
-                self.check_attr_value(ctx, *start, value);
+                Self::check_attr_value(ctx, *start, value);
             }
             Attribute::StyleDirective(dir) => {
                 let StyleDirective { start, value, .. } = dir;
-                self.check_attr_value(ctx, *start, value);
+                Self::check_attr_value(ctx, *start, value);
             }
             _ => {}
         }

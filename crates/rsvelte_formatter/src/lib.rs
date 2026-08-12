@@ -31,7 +31,7 @@ mod width;
 
 pub use error::FormatError;
 pub use json::{JsonVariant, format_json_source};
-pub use options::{ClassSorter, FormatOptions, StyleFormatter};
+pub use options::{AttributeFormatOptions, ClassSorter, FormatOptions, StyleFormatter};
 pub use script::format_js_source;
 pub use sort_order::SortOrderSpec;
 pub use style::reindent;
@@ -48,6 +48,18 @@ pub use oxc_formatter_json::JsonFormatOptions;
 
 use rsvelte_core::{ParseOptions, parse};
 
+/// Convert an in-memory source offset to the AST's fixed-width position type.
+///
+/// A source exceeding `u32::MAX` bytes cannot be represented by the parser's
+/// position model, so continuing would corrupt every following edit.
+pub(crate) fn source_offset(offset: usize) -> u32 {
+    u32::try_from(offset).expect("source offset exceeds the parser's u32 position range")
+}
+
+pub(crate) fn formatter_width(width: usize) -> u16 {
+    u16::try_from(width).unwrap_or(u16::MAX)
+}
+
 /// Whether a text node's (decoded) data is insignificant whitespace.
 ///
 /// Unlike `str::trim().is_empty()`, this treats only ASCII whitespace as
@@ -62,8 +74,9 @@ pub(crate) fn is_blank_text(s: &str) -> bool {
 }
 
 /// Reusable scratch buffers for [`format_with_arenas`], letting a hot loop
-/// over many files amortize the per-file allocations. Cleared (not freed) at
-/// each `format_with_arenas` entry, so a worker thread reuses one instance's
+/// over many files amortize the per-file allocations.
+///
+/// Cleared (not freed) at each `format_with_arenas` entry, so a worker thread reuses one instance's
 /// capacity across every file it formats.
 #[derive(Default)]
 pub struct Arenas {
@@ -71,6 +84,7 @@ pub struct Arenas {
 }
 
 impl Arenas {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -80,6 +94,10 @@ impl Arenas {
 ///
 /// On success returns the formatted source. On failure returns the parse
 /// or formatting error, leaving the source untouched.
+///
+/// # Errors
+///
+/// Returns [`FormatError`] when parsing or formatting the source fails.
 pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatError> {
     format_with_arenas(source, options, &mut Arenas::new())
 }
@@ -95,6 +113,10 @@ pub fn format(source: &str, options: &FormatOptions) -> Result<String, FormatErr
 /// (#682); that signal now comes from the script/expression re-parse, so a
 /// dialect-sensitive failure re-runs the whole format forcing TS — identical
 /// output, only the trigger moved.
+///
+/// # Errors
+///
+/// Returns [`FormatError`] when parsing or formatting the source fails.
 pub fn format_with_arenas(
     source: &str,
     options: &FormatOptions,
@@ -104,6 +126,42 @@ pub fn format_with_arenas(
         Err(e) if e.is_dialect_sensitive() => format_attempt(source, options, arenas, true),
         other => other,
     }
+}
+
+fn normalize_file_edges(out: &mut String) {
+    let lead = out.len() - out.trim_start_matches([' ', '\t', '\r', '\n']).len();
+    if lead > 0 {
+        out.drain(..lead);
+    }
+    let trimmed_len = out.trim_end_matches([' ', '\t', '\r', '\n']).len();
+    out.truncate(trimmed_len);
+    if !out.is_empty() {
+        out.push('\n');
+    }
+}
+
+fn formatter_parse_options(force_typescript: bool) -> ParseOptions {
+    ParseOptions {
+        skip_non_css_lang_style: true,
+        skip_expression_loc: true,
+        defer_script_parse: true,
+        force_typescript,
+        ..ParseOptions::default()
+    }
+}
+
+fn document_options(
+    root: &rsvelte_core::ast::template::Root<'_>,
+    options: &FormatOptions,
+) -> Option<FormatOptions> {
+    let typescript = [root.instance.as_deref(), root.module.as_deref()]
+        .into_iter()
+        .flatten()
+        .any(|script| script.is_typescript);
+    (typescript && !options.typescript).then(|| FormatOptions {
+        typescript: true,
+        ..options.clone()
+    })
 }
 
 fn format_attempt(
@@ -118,28 +176,7 @@ fn format_attempt(
     // Drop the previous file's memoized expression results.
     expression::clear_expr_memo();
 
-    // A `<style lang="scss|less|postcss|…">` body is not plain CSS, so parsing it
-    // as CSS would abort the whole-file parse (`css_expected_identifier` on `//`
-    // comments, `$variables`, maps, …). prettier-plugin-svelte treats these as
-    // opaque preprocessor input and leaves them untouched; mirror that by skipping
-    // the CSS parse for non-CSS `lang` blocks (the body is left verbatim below).
-    let parse_options = ParseOptions {
-        skip_non_css_lang_style: true,
-        // The formatter reformats every expression by re-parsing its source
-        // span with oxc and reads only node spans/structure from the Svelte
-        // AST — never the typed expression `loc` objects — so skip building
-        // them (and the per-parse line-offset table they need).
-        skip_expression_loc: true,
-        // `<script>` bodies and template expressions are re-parsed from source
-        // by the script/expression passes below, so the eager phase-1 oxc→JsNode
-        // parse is pure waste for the formatter.
-        defer_script_parse: true,
-        // On the retry (see `format_with_arenas`), force every `<script>` and
-        // template expression to TS — the deferred parse can no longer surface
-        // the TS-in-plain-`<script>` signal itself (#682).
-        force_typescript,
-        ..ParseOptions::default()
-    };
+    let parse_options = formatter_parse_options(force_typescript);
     let root = parse(source, &rsvelte_core::Allocator::default(), parse_options)
         .map_err(FormatError::from_parse)?;
 
@@ -148,26 +185,8 @@ fn format_attempt(
     let mut edits: Vec<(u32, u32, String)> = std::mem::take(&mut arenas.edits);
     edits.clear();
 
-    // A component is TypeScript if either `<script>` block declares
-    // `lang="ts"`. Template `{expr}` / attribute / pattern source must then
-    // be parsed in the same dialect as the script body, so `{value as
-    // string}` and friends round-trip instead of erroring as JS (#682).
-    // Thread the flag via a per-document clone — the shared `&FormatOptions`
-    // is never mutated, so parallel `format()` calls stay independent.
-    let typescript = [root.instance.as_deref(), root.module.as_deref()]
-        .into_iter()
-        .flatten()
-        .any(|script| script.is_typescript);
-    let ts_options;
-    let options = if typescript && !options.typescript {
-        ts_options = FormatOptions {
-            typescript: true,
-            ..options.clone()
-        };
-        &ts_options
-    } else {
-        options
-    };
+    let ts_options = document_options(&root, options);
+    let options = ts_options.as_ref().unwrap_or(options);
 
     for script in [root.instance.as_deref(), root.module.as_deref()]
         .into_iter()
@@ -277,12 +296,16 @@ fn format_attempt(
     let reorder_spans: Vec<(u8, usize, usize)> =
         if sections.len() > 1 || (sections.len() == 1 && has_markup) {
             let remap = |pos: u32| -> usize {
-                let delta: isize = applied
+                let delta: i128 = applied
                     .iter()
                     .filter(|(_, end, _)| *end <= pos)
-                    .map(|(start, end, repl)| repl.len() as isize - (*end - *start) as isize)
+                    .map(|(start, end, repl)| {
+                        i128::try_from(repl.len()).expect("replacement length exceeds i128 range")
+                            - i128::from(*end - *start)
+                    })
                     .sum();
-                (pos as isize + delta) as usize
+                usize::try_from(i128::from(pos) + delta)
+                    .expect("remapped section offset is outside usize range")
             };
             sections
                 .iter()
@@ -315,22 +338,9 @@ fn format_attempt(
     // reflow (checked here so the cheap gate reuses this parse instead of paying
     // collapse's own).
     let has_collapse_candidate = collapse::fragment_has_collapse_candidate(&root.fragment);
-    out = collapse::collapse_pure_text_elements(&out, options, has_collapse_candidate)?;
+    out = collapse::collapse_pure_text_elements(&out, options, has_collapse_candidate);
 
-    // Start the file at content: prettier / oxfmt strip leading blank lines and
-    // indentation before the first node (e.g. a markdown code block that begins
-    // with a blank line, or a leading newline before `<svelte:options>`).
-    let lead = out.len() - out.trim_start_matches([' ', '\t', '\r', '\n']).len();
-    if lead > 0 {
-        out.drain(..lead);
-    }
-
-    // End the file with exactly one newline (prettier / oxfmt `insertFinalNewline`).
-    let trimmed_len = out.trim_end_matches([' ', '\t', '\r', '\n']).len();
-    out.truncate(trimmed_len);
-    if !out.is_empty() {
-        out.push('\n');
-    }
+    normalize_file_edges(&mut out);
 
     Ok(out)
 }

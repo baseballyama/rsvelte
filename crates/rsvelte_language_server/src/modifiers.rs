@@ -10,6 +10,7 @@ pub struct Modifier {
 
 impl Modifier {
     /// The markdown the client renders, for both the completion item and hover.
+    #[must_use]
     pub fn documentation(&self) -> String {
         format!(
             "`{}` event modifier\n\n{}\n\nhttps://v4.svelte.dev/docs/element-directives#on-eventname",

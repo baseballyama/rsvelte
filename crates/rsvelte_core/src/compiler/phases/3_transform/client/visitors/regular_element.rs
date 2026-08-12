@@ -1,4 +1,4 @@
-//! RegularElement visitor for client-side transformation.
+//! `RegularElement` visitor for client-side transformation.
 //!
 //! Corresponds to `RegularElement.js` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/RegularElement.js`.
@@ -45,16 +45,16 @@ use rustc_hash::FxHashMap;
 /// Generates `$.derived_safe_equal` (legacy) or `$.derived` (runes) declarations
 /// and registers `$.get()` transforms for each let-bound variable.
 ///
-/// Corresponds to LetDirective handling in RegularElement.js lines 115-118 and 207.
-/// Return type for process_element_let_directives, containing
+/// Corresponds to `LetDirective` handling in RegularElement.js lines 115-118 and 207.
+/// Return type for `process_element_let_directives`, containing
 /// the bound names and saved transforms to restore after children are visited.
 struct LetDirectiveResult {
-    saved_transforms: Vec<(
+    transforms: Vec<(
         String,
         Option<crate::compiler::phases::phase3_transform::client::types::IdentifierTransform>,
     )>,
-    saved_transform_deep_read: im::HashMap<String, ()>,
-    saved_shadowed_prop_names: im::HashSet<String>,
+    transform_deep_read: im::HashMap<String, ()>,
+    shadowed_prop_names: im::HashSet<String>,
 }
 
 fn process_element_let_directives(
@@ -74,16 +74,16 @@ fn process_element_let_directives(
         let prop_name = &let_dir.name;
 
         // Check if expression is an Identifier or null (simple case)
-        let is_simple = match &let_dir.expression {
-            None => true,
-            Some(expr) => expr.node_type() == Some("Identifier"),
-        };
+        let is_simple = let_dir
+            .expression
+            .as_ref()
+            .is_none_or(|expr| expr.node_type() == Some("Identifier"));
 
         if is_simple {
-            let name = match &let_dir.expression {
-                Some(expr) => expr.name().unwrap_or(prop_name).to_string(),
-                None => prop_name.to_string(),
-            };
+            let name = let_dir.expression.as_ref().map_or_else(
+                || prop_name.to_string(),
+                |expr| expr.name().unwrap_or(prop_name).to_string(),
+            );
 
             // Save existing transform before overwriting
             saved_transforms.push((name.clone(), context.state.transform.get(&name).cloned()));
@@ -141,9 +141,9 @@ fn process_element_let_directives(
     }
 
     LetDirectiveResult {
-        saved_transforms,
-        saved_transform_deep_read,
-        saved_shadowed_prop_names,
+        transforms: saved_transforms,
+        transform_deep_read: saved_transform_deep_read,
+        shadowed_prop_names: saved_shadowed_prop_names,
     }
 }
 
@@ -153,7 +153,7 @@ fn process_element_let_directives(
 ///
 /// **Important ordering of statements:**
 /// Following the JS implementation, we use separate vectors for element-level
-/// directives (element_state) vs child processing (added directly to context.state).
+/// directives (`element_state`) vs child processing (added directly to context.state).
 /// The final order is:
 /// 1. Child processing statements ($.child, $.sibling, $.reset, etc.)
 /// 2. Element-level directive statements ($.event for on:, $.transition, etc.)
@@ -826,10 +826,7 @@ pub fn visit_regular_element(
     let child_namespace = determine_namespace_for_children(node, &context.state.metadata.namespace);
 
     // Save and update namespace for children
-    let saved_namespace = std::mem::replace(
-        &mut context.state.metadata.namespace,
-        child_namespace.clone(),
-    );
+    let saved_namespace = std::mem::replace(&mut context.state.metadata.namespace, child_namespace);
 
     // `node` itself is the `parent` argument below, so the flag handed to
     // `clean_nodes` must cover only the elements ABOVE it.
@@ -1219,7 +1216,7 @@ pub fn visit_regular_element(
             b::call(
                 &context.arena,
                 b::member_path(&context.arena, "$.append"),
-                vec![anchor_id.clone(), fragment_id.clone()],
+                vec![anchor_id, fragment_id],
             ),
         ));
 
@@ -1609,7 +1606,7 @@ pub fn visit_regular_element(
     context.state.metadata.in_text_element = saved_in_text_element;
 
     // Restore original transforms that were saved before let: directives
-    for (name, saved) in &let_directive_result.saved_transforms {
+    for (name, saved) in &let_directive_result.transforms {
         if let Some(original_transform) = saved {
             context
                 .state
@@ -1619,8 +1616,8 @@ pub fn visit_regular_element(
             context.state.transform.remove(name);
         }
     }
-    context.state.transform_deep_read = let_directive_result.saved_transform_deep_read;
-    context.state.shadowed_prop_names = let_directive_result.saved_shadowed_prop_names;
+    context.state.transform_deep_read = let_directive_result.transform_deep_read;
+    context.state.shadowed_prop_names = let_directive_result.shadowed_prop_names;
 
     context.state.template.pop_element();
     TransformResult::None
@@ -1628,11 +1625,11 @@ pub fn visit_regular_element(
 
 /// Check if any hoisted nodes produce init statements.
 ///
-/// DebugTag nodes are hoisted during clean_nodes but produce `$.template_effect` init
+/// `DebugTag` nodes are hoisted during `clean_nodes` but produce `$.template_effect` init
 /// statements when visited. In the official compiler, the Identifier visitor sets
 /// `fragment.metadata.dynamic = true` when identifiers are referenced, which ensures
-/// child_init is merged. Since our Phase 2 analysis doesn't mutate the AST to set
-/// this flag (immutable references), we check for DebugTag presence as a fallback.
+/// `child_init` is merged. Since our Phase 2 analysis doesn't mutate the AST to set
+/// this flag (immutable references), we check for `DebugTag` presence as a fallback.
 fn has_hoisted_init_producers(hoisted: &[Cow<'_, TemplateNode>]) -> bool {
     hoisted
         .iter()
@@ -1641,7 +1638,7 @@ fn has_hoisted_init_producers(hoisted: &[Cow<'_, TemplateNode>]) -> bool {
 
 /// Check if any trimmed children are dynamic (non-static, non-text).
 /// This is a fallback for when `fragment.metadata.dynamic` isn't reliably set.
-/// It mirrors the logic in the official compiler where child_state.init is only
+/// It mirrors the logic in the official compiler where `child_state.init` is only
 /// merged when the fragment is dynamic.
 fn has_dynamic_children_for_merge(
     trimmed: &[Cow<'_, TemplateNode>],
@@ -1690,7 +1687,7 @@ fn is_text_attribute(attr: &AttributeNode) -> bool {
 
 /// Get the attribute name (normalized).
 /// For HTML elements (non-SVG, non-MathML), attribute names are lowercased
-/// and mapped through ATTRIBUTE_ALIASES (e.g., ASYNC -> async, READONLY -> readOnly).
+/// and mapped through `ATTRIBUTE_ALIASES` (e.g., ASYNC -> async, READONLY -> readOnly).
 /// Reference: svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/element.js
 fn get_attribute_name(node: &RegularElementNode, attr: &AttributeNode) -> String {
     if !node.metadata.svg && !node.metadata.mathml {
@@ -1703,7 +1700,7 @@ fn get_attribute_name(node: &RegularElementNode, attr: &AttributeNode) -> String
 /// Check if an attribute cannot be set statically in the template.
 /// These attributes need special JavaScript handling at runtime.
 ///
-/// Corresponds to NON_STATIC_PROPERTIES in:
+/// Corresponds to `NON_STATIC_PROPERTIES` in:
 /// svelte/packages/svelte/src/utils.js
 fn cannot_be_set_statically(name: &str) -> bool {
     // Only these attributes are unconditionally non-static
@@ -1716,7 +1713,7 @@ fn cannot_be_set_statically(name: &str) -> bool {
 }
 
 /// Check if an element emits `load` and `error` events.
-/// Reference: svelte/src/utils.js - LOAD_ERROR_ELEMENTS
+/// Reference: svelte/src/utils.js - `LOAD_ERROR_ELEMENTS`
 fn is_load_error_element(name: &str) -> bool {
     matches!(
         name,
@@ -1725,8 +1722,8 @@ fn is_load_error_element(name: &str) -> bool {
 }
 
 /// Normalize attribute name to DOM property name (returns owned String).
-/// Lowercases the name and maps through ATTRIBUTE_ALIASES.
-/// Reference: svelte/packages/svelte/src/utils.js ATTRIBUTE_ALIASES and normalize_attribute
+/// Lowercases the name and maps through `ATTRIBUTE_ALIASES`.
+/// Reference: svelte/packages/svelte/src/utils.js `ATTRIBUTE_ALIASES` and `normalize_attribute`
 fn normalize_attribute_string(name: &str) -> String {
     // Use case-insensitive comparison to avoid allocating a lowercase copy.
     // Match on length first to minimize comparisons.
@@ -1759,8 +1756,8 @@ fn normalize_attribute_string(name: &str) -> String {
 }
 
 /// Check if a name is a DOM property (vs attribute).
-/// Reference: svelte/packages/svelte/src/utils.js DOM_PROPERTIES
-/// DOM_PROPERTIES includes all DOM_BOOLEAN_ATTRIBUTES plus additional properties.
+/// Reference: svelte/packages/svelte/src/utils.js `DOM_PROPERTIES`
+/// `DOM_PROPERTIES` includes all `DOM_BOOLEAN_ATTRIBUTES` plus additional properties.
 fn is_dom_property(name: &str) -> bool {
     matches!(
         name,
@@ -1818,7 +1815,7 @@ fn is_dom_property(name: &str) -> bool {
     )
 }
 
-/// Extract node ID from a JsExpr (identifier name or "node" as fallback).
+/// Extract node ID from a `JsExpr` (identifier name or "node" as fallback).
 fn extract_node_id(expr: &JsExpr) -> String {
     match expr {
         JsExpr::Identifier(name) => name.to_string(),
@@ -1983,7 +1980,7 @@ fn is_customizable_select_element(node: &RegularElementNode) -> bool {
 /// Iterate through descendants of a fragment, recursively descending into control flow blocks.
 ///
 /// This yields nodes that are "concrete" content - it skips control flow wrappers and returns
-/// their inner content. SnippetBlock, DebugTag, ConstTag, Comment, and ExpressionTag are skipped.
+/// their inner content. `SnippetBlock`, `DebugTag`, `ConstTag`, Comment, and `ExpressionTag` are skipped.
 ///
 /// Corresponds to `find_descendants` generator in
 /// `svelte/packages/svelte/src/compiler/phases/nodes.js`.
@@ -2055,8 +2052,8 @@ fn find_descendants_recursive<'a>(nodes: &[TemplateNode<'a>], result: &mut Vec<T
 }
 
 /// Checks if a transformed value expression is guaranteed to be defined (not undefined).
-/// Approximates scope.evaluate().is_defined from the official compiler.
-/// In the official compiler, is_defined is false when value == null (loose comparison)
+/// Approximates `scope.evaluate().is_defined` from the official compiler.
+/// In the official compiler, `is_defined` is false when value == null (loose comparison)
 /// or when value is UNKNOWN. So null and undefined are not defined, and any
 /// unresolvable expression is also not defined.
 ///
@@ -2071,20 +2068,11 @@ fn is_value_known_defined(
 ) -> bool {
     match value {
         // null and undefined literals are explicitly not defined
-        JsExpr::Literal(JsLiteral::Null) => false,
-        JsExpr::Literal(JsLiteral::Undefined) => false,
         // void expressions (void 0) are undefined
-        JsExpr::Void(_) => false,
         // Known defined literals: numbers, strings, booleans, regex
         JsExpr::Literal(JsLiteral::Number(_)) => true,
-        JsExpr::Literal(JsLiteral::String(_)) => true,
-        JsExpr::Literal(JsLiteral::Boolean(_)) => true,
-        JsExpr::Literal(JsLiteral::Regex { .. }) => true,
         // Arrays and objects are always defined
-        JsExpr::Array(_) => true,
-        JsExpr::Object(_) => true,
         // Template literals are always strings (defined)
-        JsExpr::TemplateLiteral(_) => true,
         // For identifiers: look up the binding to check if the initial value is defined.
         // This mirrors the official compiler's scope.evaluate() which, for identifiers,
         // checks if the binding is not updated, has an initial value, and is not a prop,
@@ -2244,7 +2232,7 @@ fn build_element_special_value_attribute(
         let value_id = context
             .state
             .memoizer
-            .generate_id(&format!("{}_value", node_id));
+            .generate_id(&format!("{node_id}_value"));
 
         // For option elements, use {} as initial value (a sentinel that won't equal any real value)
         // This ensures the first comparison always triggers the update
@@ -2265,7 +2253,7 @@ fn build_element_special_value_attribute(
             &context.arena,
             "!==",
             b::id(&value_id),
-            b::assign(&context.arena, b::id(&value_id), transformed_value.clone()),
+            b::assign(&context.arena, b::id(&value_id), transformed_value),
         );
 
         // Create the if statement: if (comparison) { update }

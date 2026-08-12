@@ -24,7 +24,7 @@ pub enum Svelte2TsxNamespace {
     Html,
     /// SVG element namespace.
     Svg,
-    /// MathML element namespace.
+    /// `MathML` element namespace.
     Mathml,
     /// Foreign (non-HTML/SVG/MathML) namespace: attribute names keep their
     /// source casing instead of being folded to match the intrinsic typings.
@@ -34,7 +34,7 @@ pub enum Svelte2TsxNamespace {
 impl Svelte2TsxNamespace {
     /// Whether element attribute names keep their source casing. Mirrors
     /// `htmlxtojsx_v2/index.ts`'s `options.namespace === 'foreign'`.
-    pub(crate) fn preserves_attribute_case(self) -> bool {
+    pub(crate) const fn preserves_attribute_case(self) -> bool {
         matches!(self, Self::Foreign)
     }
 }
@@ -68,7 +68,7 @@ pub struct Svelte2TsxOptions {
     /// Whether to use the new Svelte 5 runes mode.
     /// When None, auto-detected from source.
     pub runes: Option<bool>,
-    /// Whether to emit JSDoc format for component export instead of TypeScript syntax.
+    /// Whether to emit `JSDoc` format for component export instead of TypeScript syntax.
     /// When true and not a TS file, uses `export const` + `/** @typedef */` format.
     pub emit_jsdoc: bool,
     /// When set, rewrites relative import specifiers that escape the workspace
@@ -131,6 +131,7 @@ impl Svelte2TsxResult {
     /// Map an original Svelte source byte offset forward to the generated TSX
     /// byte offset, using [`Self::forward_map`]. Returns `None` when the offset
     /// falls in synthesized output (no verbatim copy) or outside every segment.
+    #[must_use]
     pub fn map_offset_forward(&self, original_offset: u32) -> Option<u32> {
         // Segments are in generated order, not sorted by original offset
         // (the emitter can move ranges), so a linear scan is required. The

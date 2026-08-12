@@ -1,4 +1,6 @@
-//! TypeScript compiler subprocess driver. Spawns the workspace's own `tsc`
+//! TypeScript compiler subprocess driver.
+//!
+//! Spawns the workspace's own `tsc`
 //! (the default) or the TypeScript 7 native compiler (with `--tsgo` /
 //! `prefer_tsgo`) against the overlay tsconfig produced by
 //! `super::overlay::materialize_overlay`, captures the textual diagnostic
@@ -56,18 +58,18 @@ pub enum TsgoError {
 impl std::fmt::Display for TsgoError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TsgoError::NotFound => write!(
+            Self::NotFound => write!(
                 f,
                 "tsc / tsgo not found (set TSGO_BIN, or install typescript in the workspace)"
             ),
             // Same wording as official svelte-check's `formatTsGoNotFoundError`.
-            TsgoError::Ts7NotFound { flag } => write!(
+            Self::Ts7NotFound { flag } => write!(
                 f,
                 "rsvelte-check {flag} requires TypeScript 7 to be installed in the workspace.\
                  You can setup TypeScript 7 with an npm alias via the following command.\n\
                  npm install --save-dev typescript@~6 @typescript/native@npm:typescript@7\n"
             ),
-            TsgoError::Spawn(e) => write!(f, "failed to spawn TypeScript compiler: {e}"),
+            Self::Spawn(e) => write!(f, "failed to spawn TypeScript compiler: {e}"),
         }
     }
 }
@@ -94,9 +96,11 @@ pub struct TsgoBinary {
 ///   1. `node_modules/.bin/tsc` in `workspace` or any ancestor, then `…/tsgo`
 ///   2. Globally on `$PATH`: `tsc`, then `tsgo`.
 ///
-/// Each name is searched across the full ancestor chain before the next, so a
-/// workspace-hoisted binary (pnpm puts it at the monorepo root, not in a
-/// deeply-nested package) still wins over a locally-resolvable fallback.
+/// Each candidate is searched across the full workspace ancestor chain.
+///
+/// # Errors
+///
+/// Returns an error when no suitable compiler binary is found.
 pub fn find_compiler(workspace: &Path, prefer_tsgo: bool) -> Result<TsgoBinary, TsgoError> {
     if let Ok(explicit) = std::env::var("TSGO_BIN")
         && !explicit.is_empty()
@@ -107,10 +111,8 @@ pub fn find_compiler(workspace: &Path, prefer_tsgo: bool) -> Result<TsgoBinary, 
         });
     }
     if prefer_tsgo {
-        return match resolve_ts7_native(workspace) {
-            Some(bin) => Ok(bin),
-            None => Err(TsgoError::Ts7NotFound { flag: "--tsgo" }),
-        };
+        return resolve_ts7_native(workspace)
+            .map_or_else(|| Err(TsgoError::Ts7NotFound { flag: "--tsgo" }), Ok);
     }
     // Binary names in preference order.
     let names: [&str; 2] = ["tsc", "tsgo"];
@@ -208,9 +210,8 @@ fn ts7_native_bin(pkg_dir: &Path) -> Option<PathBuf> {
 }
 
 fn which(program: &str) -> bool {
-    let path_var = match std::env::var_os("PATH") {
-        Some(v) => v,
-        None => return false,
+    let Some(path_var) = std::env::var_os("PATH") else {
+        return false;
     };
     for dir in std::env::split_paths(&path_var) {
         let candidate = dir.join(program);
@@ -221,10 +222,13 @@ fn which(program: &str) -> bool {
     false
 }
 
-/// Run the located compiler against `tsconfig_path` (the overlay
-/// tsconfig) and return a parsed list of diagnostics. tsgo / tsc emit
-/// non-zero exit codes when diagnostics are reported — that's NOT
-/// treated as an error here; the caller decides via the returned vec.
+/// Runs the located compiler and returns parsed diagnostics.
+///
+/// Diagnostics can produce a nonzero process status without being an error.
+///
+/// # Errors
+///
+/// Returns an error when the compiler cannot be invoked or its output is invalid.
 pub fn run_tsgo(
     binary: &TsgoBinary,
     tsconfig_path: &Path,
@@ -241,7 +245,7 @@ pub fn run_tsgo(
     let output = cmd.output().map_err(TsgoError::Spawn)?;
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
-    let combined = format!("{}\n{}", stdout, stderr);
+    let combined = format!("{stdout}\n{stderr}");
     Ok(parse_diagnostics(&combined))
 }
 

@@ -5,7 +5,7 @@
 //!
 //! Category: Stylistic Issues (not recommended). Has suggestions (`hasSuggestions`).
 //!
-//! Runs over the `<script>` ESTree program via the [`ScriptRule`] hook.
+//! Runs over the `<script>` `ESTree` program via the [`ScriptRule`] hook.
 //! A `derived` call from `svelte/store` (detected via import tracking in
 //! the `store_refs` helper module) must satisfy:
 //! - `derived(a, ($a) => …)` — single-store form: param must be `$a`.
@@ -61,8 +61,7 @@ fn collect_shadow_spans(tree: &Value, shadow_name: &str) -> Vec<(u32, u32)> {
         let param_shadow = node
             .get("params")
             .and_then(Value::as_array)
-            .map(|params| params_declare(params, shadow_name))
-            .unwrap_or(false);
+            .is_some_and(|params| params_declare(params, shadow_name));
         // Does this sub-function have a local `const`/`let`/`var` named `shadow_name`?
         let var_shadow = has_local_var_decl(node, shadow_name);
         if (param_shadow || var_shadow)
@@ -74,7 +73,7 @@ fn collect_shadow_spans(tree: &Value, shadow_name: &str) -> Vec<(u32, u32)> {
     spans
 }
 
-/// Whether any parameter in `params` (recursing into ArrayPattern) is an
+/// Whether any parameter in `params` (recursing into `ArrayPattern`) is an
 /// Identifier named `name`.
 fn params_declare(params: &[Value], name: &str) -> bool {
     params.iter().any(|p| match node_type(p) {
@@ -82,8 +81,7 @@ fn params_declare(params: &[Value], name: &str) -> bool {
         Some("ArrayPattern") => p
             .get("elements")
             .and_then(Value::as_array)
-            .map(|els| params_declare(els, name))
-            .unwrap_or(false),
+            .is_some_and(|els| params_declare(els, name)),
         _ => false,
     })
 }
@@ -91,16 +89,14 @@ fn params_declare(params: &[Value], name: &str) -> bool {
 /// Whether `fn_node` contains a `VariableDeclarator` that binds `name` at its
 /// **direct** body scope (not inside a nested function).
 fn has_local_var_decl(fn_node: &Value, name: &str) -> bool {
-    let body = match fn_node.get("body") {
-        Some(b) => b,
-        None => return false,
+    let Some(body) = fn_node.get("body") else {
+        return false;
     };
     if node_type(body) != Some("BlockStatement") {
         return false;
     }
-    let stmts = match body.get("body").and_then(Value::as_array) {
-        Some(s) => s,
-        None => return false,
+    let Some(stmts) = body.get("body").and_then(Value::as_array) else {
+        return false;
     };
     stmts.iter().any(|stmt| stmt_declares_var(stmt, name))
 }
@@ -112,15 +108,12 @@ fn stmt_declares_var(stmt: &Value, name: &str) -> bool {
             let decls = stmt
                 .get("declarations")
                 .and_then(Value::as_array)
-                .map(|d| d.as_slice())
-                .unwrap_or(&[]);
+                .map_or(&[] as &[Value], std::vec::Vec::as_slice);
             decls.iter().any(|d| {
-                d.get("id")
-                    .filter(|id| {
-                        node_type(id) == Some("Identifier")
-                            && id.get("name").and_then(Value::as_str) == Some(name)
-                    })
-                    .is_some()
+                d.get("id").as_ref().is_some_and(|id| {
+                    node_type(id) == Some("Identifier")
+                        && id.get("name").and_then(Value::as_str) == Some(name)
+                })
             })
         }
         // Recurse into block statements, if-statements etc. but not function bodies.
@@ -128,8 +121,7 @@ fn stmt_declares_var(stmt: &Value, name: &str) -> bool {
             let stmts = stmt
                 .get("body")
                 .and_then(Value::as_array)
-                .map(|b| b.as_slice())
-                .unwrap_or(&[]);
+                .map_or(&[] as &[Value], std::vec::Vec::as_slice);
             stmts.iter().any(|s| stmt_declares_var(s, name))
         }
         _ => false,
@@ -160,8 +152,7 @@ fn collect_refs_for_rename(
         || fn_node
             .get("params")
             .and_then(Value::as_array)
-            .map(|params| params_declare(params, expected_name))
-            .unwrap_or(false);
+            .is_some_and(|params| params_declare(params, expected_name));
     if conflict {
         return None;
     }
@@ -257,57 +248,48 @@ fn check_identifier(store: &Value, fn_node: &Value) -> Option<Report> {
 
 /// Check an array-store `derived([a, b], ([pa, pb]) => …)`.
 fn check_array_expression(store_arr: &Value, fn_node: &Value) -> Vec<Report> {
-    let elements = match store_arr.get("elements").and_then(Value::as_array) {
-        Some(e) => e,
-        None => return Vec::new(),
+    let Some(elements) = store_arr.get("elements").and_then(Value::as_array) else {
+        return Vec::new();
     };
-    let params = match fn_node.get("params").and_then(Value::as_array) {
-        Some(p) => p,
-        None => return Vec::new(),
+    let Some(params) = fn_node.get("params").and_then(Value::as_array) else {
+        return Vec::new();
     };
-    let pattern = match params.first() {
-        Some(p) => p,
-        None => return Vec::new(),
+    let Some(pattern) = params.first() else {
+        return Vec::new();
     };
     if node_type(pattern) != Some("ArrayPattern") {
         return Vec::new();
     }
-    let pat_elems = match pattern.get("elements").and_then(Value::as_array) {
-        Some(e) => e,
-        None => return Vec::new(),
+    let Some(pat_elems) = pattern.get("elements").and_then(Value::as_array) else {
+        return Vec::new();
     };
 
     let mut reports = Vec::new();
     for (i, pat_elem) in pat_elems.iter().enumerate() {
-        let store_elem = match elements.get(i) {
-            Some(e) => e,
-            None => continue,
+        let Some(store_elem) = elements.get(i) else {
+            continue;
         };
-        let store_name = match (
+        let (Some("Identifier"), Some(store_name)) = (
             node_type(store_elem),
             store_elem.get("name").and_then(Value::as_str),
-        ) {
-            (Some("Identifier"), Some(n)) => n,
-            _ => continue,
+        ) else {
+            continue;
         };
         if node_type(pat_elem) != Some("Identifier") {
             continue;
         }
-        let param_name = match pat_elem.get("name").and_then(Value::as_str) {
-            Some(n) => n,
-            None => continue,
+        let Some(param_name) = pat_elem.get("name").and_then(Value::as_str) else {
+            continue;
         };
         let expected = format!("${store_name}");
         if expected == param_name {
             continue;
         }
-        let ps = match node_start(pat_elem) {
-            Some(s) => s,
-            None => continue,
+        let Some(ps) = node_start(pat_elem) else {
+            continue;
         };
-        let pe = match node_end(pat_elem) {
-            Some(e) => e,
-            None => continue,
+        let Some(pe) = node_end(pat_elem) else {
+            continue;
         };
         let rename_spans =
             collect_refs_for_rename(fn_node, param_name, &expected).map(|mut refs| {
@@ -345,16 +327,14 @@ impl ScriptRule for DerivedHasSameInputsOutputs {
             if node_type(node) != Some("CallExpression") {
                 return;
             }
-            let callee = match node.get("callee") {
-                Some(c) => c,
-                None => return,
+            let Some(callee) = node.get("callee") else {
+                return;
             };
             if creators.creator_of(callee) != Some("derived") {
                 return;
             }
-            let args = match node.get("arguments").and_then(Value::as_array) {
-                Some(a) => a,
-                None => return,
+            let Some(args) = node.get("arguments").and_then(Value::as_array) else {
+                return;
             };
             if args.len() < 2 {
                 return;
@@ -367,9 +347,8 @@ impl ScriptRule for DerivedHasSameInputsOutputs {
             ) {
                 return;
             }
-            let params = match fn_arg.get("params").and_then(Value::as_array) {
-                Some(p) => p,
-                None => return,
+            let Some(params) = fn_arg.get("params").and_then(Value::as_array) else {
+                return;
             };
             if params.is_empty() {
                 return;

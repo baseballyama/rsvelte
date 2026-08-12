@@ -4,15 +4,15 @@
 //!
 //! `rsvelte-fmt` ships as a native binary with no embedded JS runtime, unlike
 //! oxfmt's own NAPI build, which `import()`s the config through Node — and,
-//! via Node's CJS/ESM interop, treats a CommonJS `module.exports` the same as
+//! via Node's CJS/ESM interop, treats a `CommonJS` `module.exports` the same as
 //! an ESM `export default` (both surface as the imported module's `.default`;
 //! see oxfmt's `apps/shared/src-js/js_config/index.ts`). We instead parse the
 //! file with `oxc_parser` and statically evaluate the object literal behind,
 //! in priority order:
 //! 1. `export default {...}` (ESM).
-//! 2. `module.exports = {...}` (a full CommonJS replacement).
+//! 2. `module.exports = {...}` (a full `CommonJS` replacement).
 //! 3. One or more `exports.foo = ...` / `exports["foo"] = ...` property
-//!    assignments (CommonJS's incremental form), accumulated in source order
+//!    assignments (`CommonJS`'s incremental form), accumulated in source order
 //!    with later assignments to the same key overwriting earlier ones —
 //!    exactly how Node would execute them. Only consulted when neither of the
 //!    above is present; see [`evaluate`] for why a file mixing
@@ -71,7 +71,7 @@ pub fn is_js_config_path(path: &Path) -> bool {
 /// `.ts`/`.cts`/`.mts` (a strict syntactic superset of JS, needed for `as` /
 /// `satisfies` / type annotations), plain JS grammar otherwise. The module
 /// kind is always [`Unambiguous`](oxc_span::ModuleKind::Unambiguous) — ESM
-/// `export default` and CommonJS `module.exports =` are both plain,
+/// `export default` and `CommonJS` `module.exports =` are both plain,
 /// unconditionally-legal syntax to `oxc_parser` (module kind only gates
 /// semantic-analysis-time concerns we never run here, e.g. top-level
 /// `await`), so which dialect a file uses is decided by *scanning its body*
@@ -90,17 +90,16 @@ fn source_type_for(path: &Path) -> SourceType {
 
 /// Parse `source` (read from `path`, used for diagnostics and source typing —
 /// see [`source_type_for`]) and statically evaluate its default export (ESM
-/// or CommonJS — see the module docs) into the JSON value oxfmt's own config
+/// or `CommonJS` — see the module docs) into the JSON value oxfmt's own config
 /// loader would produce.
 pub fn evaluate(source: &str, path: &Path) -> Result<serde_json::Value, String> {
     let allocator = Allocator::default();
     let ret = OxcParser::new(&allocator, source, source_type_for(path)).parse();
     if ret.panicked || !ret.diagnostics.is_empty() {
-        let detail = ret
-            .diagnostics
-            .first()
-            .map(std::string::ToString::to_string)
-            .unwrap_or_else(|| "unknown parse error".to_string());
+        let detail = ret.diagnostics.first().map_or_else(
+            || "unknown parse error".to_string(),
+            std::string::ToString::to_string,
+        );
         return Err(format!("failed to parse {}: {detail}", path.display()));
     }
 
@@ -130,7 +129,7 @@ pub fn evaluate(source: &str, path: &Path) -> Result<serde_json::Value, String> 
         _ => None,
     });
     if let Some(default_expr) = default_expr {
-        return eval_expr(default_expr, &locals, 0).map_err(|reason| dynamic_error(path, reason));
+        return eval_expr(default_expr, &locals, 0).map_err(|reason| dynamic_error(path, &reason));
     }
 
     // Priority 3: no replacement found — fall back to accumulating individual
@@ -153,7 +152,7 @@ pub fn evaluate(source: &str, path: &Path) -> Result<serde_json::Value, String> 
             // resolved statically (a dynamic `exports[<expr>]` key, or
             // `module.exports.foo = ...`) is a hard error, never a silent
             // drop — dropping it would diverge from oxfmt, which honors it.
-            Some(Err(reason)) => return Err(dynamic_error(path, reason)),
+            Some(Err(reason)) => return Err(dynamic_error(path, &reason)),
             None => {}
         }
     }
@@ -161,7 +160,7 @@ pub fn evaluate(source: &str, path: &Path) -> Result<serde_json::Value, String> 
         let mut map = serde_json::Map::with_capacity(exports_props.len());
         for (name, value_expr) in exports_props {
             let value =
-                eval_expr(value_expr, &locals, 0).map_err(|reason| dynamic_error(path, reason))?;
+                eval_expr(value_expr, &locals, 0).map_err(|reason| dynamic_error(path, &reason))?;
             // Later assignments to the same key overwrite earlier ones, same
             // as re-running `exports.foo = ...` in source order would.
             map.insert(name.to_string(), value);
@@ -178,7 +177,7 @@ pub fn evaluate(source: &str, path: &Path) -> Result<serde_json::Value, String> 
 
 /// Wrap an [`eval_expr`] failure with the shared "static evaluation only"
 /// explanation, prefixed with `path` so the message points at the config.
-fn dynamic_error(path: &Path, reason: String) -> String {
+fn dynamic_error(path: &Path, reason: &str) -> String {
     format!(
         "{}: {reason}\nrsvelte-fmt evaluates JS/TS oxfmt configs statically; dynamic \
          expressions are not supported. Use .oxfmtrc.json/.oxfmtrc.jsonc instead.",
@@ -186,7 +185,7 @@ fn dynamic_error(path: &Path, reason: String) -> String {
     )
 }
 
-/// Recognize `module.exports = <rhs>;` (a full CommonJS replacement,
+/// Recognize `module.exports = <rhs>;` (a full `CommonJS` replacement,
 /// equivalent to an ESM default export — see the module docs) and return
 /// `<rhs>`.
 fn module_exports_rhs<'s, 'a>(expr: &'s oxc::Expression<'a>) -> Option<&'s oxc::Expression<'a>> {
@@ -204,7 +203,7 @@ fn module_exports_rhs<'s, 'a>(expr: &'s oxc::Expression<'a>) -> Option<&'s oxc::
     Some(&assign.right)
 }
 
-/// Classify an expression statement as a CommonJS incremental export:
+/// Classify an expression statement as a `CommonJS` incremental export:
 ///
 /// - `None` — not an assignment to the `exports` object at all (an unrelated
 ///   statement to skip).
@@ -385,9 +384,17 @@ fn eval_unary<'s, 'a>(
 fn number_value(value: f64) -> Result<serde_json::Value, String> {
     if value.is_finite() && value.fract() == 0.0 && value.abs() < 1e15 {
         let n = if value >= 0.0 {
-            serde_json::Number::from(value as u64)
+            format!("{value:.0}")
+                .parse::<u64>()
+                .map(serde_json::Number::from)
+                .map_err(|_| {
+                    "whole number is outside the unsigned JSON integer range".to_string()
+                })?
         } else {
-            serde_json::Number::from(value as i64)
+            format!("{value:.0}")
+                .parse::<i64>()
+                .map(serde_json::Number::from)
+                .map_err(|_| "whole number is outside the signed JSON integer range".to_string())?
         };
         return Ok(serde_json::Value::Number(n));
     }

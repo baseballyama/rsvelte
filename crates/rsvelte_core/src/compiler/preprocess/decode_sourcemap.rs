@@ -13,7 +13,8 @@ use super::types::{Processed, SimpleDecodedMap, SourceMapInput};
 ///   (rsvelte-internal pre-decoded form)
 /// - Already-decoded maps (returns as-is)
 ///
-/// Corresponds to `decode_map` in decode_sourcemap.js.
+/// Corresponds to `decode_map` in `decode_sourcemap.js`.
+#[must_use]
 pub fn decode_map(processed: &Processed) -> Option<SimpleDecodedMap> {
     let map_input = processed.map.as_ref()?;
 
@@ -58,7 +59,7 @@ fn decode_vlq_sourcemap_json(json_str: &str) -> Option<SimpleDecodedMap> {
         sources: raw
             .sources
             .into_iter()
-            .map(|s| s.unwrap_or_default())
+            .map(std::option::Option::unwrap_or_default)
             .collect(),
         sources_content: raw.sources_content,
         names: raw.names,
@@ -82,9 +83,8 @@ fn decode_vlq_mappings(s: &str) -> Vec<Vec<Vec<i64>>> {
             if seg_str.is_empty() {
                 continue;
             }
-            let deltas = match decode_vlq_segment(seg_str) {
-                Some(d) => d,
-                None => continue,
+            let Some(deltas) = decode_vlq_segment(seg_str) else {
+                continue;
             };
             let mut segment = Vec::with_capacity(deltas.len());
             for (i, d) in deltas.into_iter().enumerate().take(5) {
@@ -100,12 +100,12 @@ fn decode_vlq_mappings(s: &str) -> Vec<Vec<Vec<i64>>> {
 
 /// Decode one VLQ-encoded segment (a base64 string) into its integer deltas.
 fn decode_vlq_segment(s: &str) -> Option<Vec<i64>> {
-    const B64: [i8; 128] = {
+    let b64: [i8; 128] = {
         let mut t = [-1i8; 128];
         let abc = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        let mut i = 0;
+        let mut i = 0usize;
         while i < abc.len() {
-            t[abc[i] as usize] = i as i8;
+            t[usize::from(abc[i])] = i8::try_from(i).expect("base64 index fits i8");
             i += 1;
         }
         t
@@ -125,11 +125,11 @@ fn decode_vlq_segment(s: &str) -> Option<Vec<i64>> {
             if b >= 128 {
                 return None;
             }
-            let digit = B64[b as usize];
+            let digit = b64[usize::from(b)];
             if digit < 0 {
                 return None;
             }
-            let digit = digit as i64;
+            let digit = i64::from(digit);
             // A well-formed VLQ value fits in 32 bits (7 base-64 groups reach
             // shift 30); anything past that is malformed. Bail before the shift
             // rather than let `<< shift` overflow-panic in debug builds.

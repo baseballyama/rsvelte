@@ -25,7 +25,7 @@ use crate::svelte2tsx::template::utils::expr::{
 /// a single dispatch loop reproduces that interleaving exactly. (`use:` actions
 /// are NOT here — they are emitted as a `const $$action_N = …` PREFIX before the
 /// createElement call.)
-pub(crate) fn build_element_directive_suffix_segments(
+pub fn build_element_directive_suffix_segments(
     attributes: &[Attribute],
     source: &str,
     element_var: Option<&str>,
@@ -93,7 +93,7 @@ pub(crate) fn build_element_directive_suffix_segments(
 /// is the number of actions — the createElement's second argument
 /// becomes `__sveltets_2_union($$action_0[, $$action_1, …])` when this
 /// is non-zero.
-pub(crate) fn build_directive_prefix_suffix(
+pub fn build_directive_prefix_suffix(
     attributes: &[Attribute],
     source: &str,
     tag: &str,
@@ -115,7 +115,7 @@ pub(crate) fn build_directive_prefix_suffix(
                         get_expression_text(e, source)
                     }
                 });
-                let id = format!("$$action_{}", action_count);
+                let id = format!("$$action_{action_count}");
                 action_count += 1;
                 if let Some(expr_text) = expr {
                     let _ = write!(
@@ -168,40 +168,39 @@ pub(crate) fn build_directive_prefix_suffix(
 /// element, so the element-tag expression is `undefined.mapElementTag("undefined")`
 /// (mirrors upstream Element wrapping a component). `use:` is intentionally not
 /// emitted — it is a compile error on a component.
-pub(crate) fn build_component_directive_suffix(attributes: &[Attribute], source: &str) -> Vec<Seg> {
+pub fn build_component_directive_suffix(attributes: &[Attribute], source: &str) -> Vec<Seg> {
     let map_tag = "undefined.mapElementTag(\"undefined\")";
     let mut out: Vec<Seg> = Vec::new();
     for attr in attributes {
         match attr {
             Attribute::TransitionDirective(t) => {
-                let s = match t
+                let s = t
                     .expression
                     .as_ref()
                     .map(|e| get_expression_text(e, source))
-                {
-                    Some(expr) => format!(
-                        "__sveltets_2_ensureTransition({}({},({})));",
-                        t.name, map_tag, expr
-                    ),
-                    None => format!("__sveltets_2_ensureTransition({}({}));", t.name, map_tag),
-                };
+                    .map_or_else(
+                        || format!("__sveltets_2_ensureTransition({}({}));", t.name, map_tag),
+                        |expr| {
+                            format!(
+                                "__sveltets_2_ensureTransition({}({},({})));",
+                                t.name, map_tag, expr
+                            )
+                        },
+                    );
                 segs_push_lit(&mut out, &s);
             }
             Attribute::AnimateDirective(a) => {
-                let s = match a
+                let s = a
                     .expression
                     .as_ref()
                     .map(|e| get_expression_text(e, source))
-                {
-                    Some(expr) => format!(
-                        "__sveltets_2_ensureAnimation({}({},__sveltets_2_AnimationMove,({})));",
-                        a.name, map_tag, expr
-                    ),
-                    None => format!(
+                    .map_or_else(|| format!(
                         "__sveltets_2_ensureAnimation({}({},__sveltets_2_AnimationMove));",
                         a.name, map_tag
-                    ),
-                };
+                    ), |expr| format!(
+                        "__sveltets_2_ensureAnimation({}({},__sveltets_2_AnimationMove,({})));",
+                        a.name, map_tag, expr
+                    ));
                 segs_push_lit(&mut out, &s);
             }
             _ => {}

@@ -21,7 +21,7 @@
 //! - Already inside `$.get(`, `$.set(`, `$.state(`, `$.update(`,
 //!   `$.update_pre(` first-arg.
 //! - Assignment LHS (`this.#count = ...`).
-//! - Argument of an UpdateExpression (`this.#count++`).
+//! - Argument of an `UpdateExpression` (`this.#count++`).
 //!
 //! `==` / `===` ARE wrapped (reads), matching text behaviour.
 //!
@@ -102,11 +102,11 @@ struct PrivateVSuffixCollector<'a> {
     /// reads inside a nested function/arrow execute *after* construction, so
     /// they must read through the signal with `$.get(...)` — mirroring upstream's
     /// `state.in_constructor` flag, which is cleared when entering a nested
-    /// function in the ClassBody visitor.
+    /// function in the `ClassBody` visitor.
     fn_depth: u32,
 }
 
-impl<'a> PrivateVSuffixCollector<'a> {
+impl PrivateVSuffixCollector<'_> {
     /// Match `$.get` / `$.set` / `$.state` / `$.update` /
     /// `$.update_pre` as a wrap-callee.
     fn is_wrap_callee(callee: &Expression<'_>) -> bool {
@@ -131,7 +131,7 @@ impl<'a> PrivateVSuffixCollector<'a> {
     }
 }
 
-impl<'a, 'ast> Visit<'ast> for PrivateVSuffixCollector<'a> {
+impl<'ast> Visit<'ast> for PrivateVSuffixCollector<'_> {
     fn visit_private_field_expression(&mut self, expr: &PrivateFieldExpression<'ast>) {
         walk::walk_private_field_expression(self, expr);
         let span_text = &self.source[expr.span.start as usize..expr.span.end as usize];
@@ -140,9 +140,9 @@ impl<'a, 'ast> Visit<'ast> for PrivateVSuffixCollector<'a> {
             // reads inside a nested function/arrow run post-construction and must
             // go through `$.get(...)`.
             let rewrite = if self.fn_depth == 0 {
-                format!("{}.v", span_text)
+                format!("{span_text}.v")
             } else {
-                format!("$.get({})", span_text)
+                format!("$.get({span_text})")
             };
             self.replacements
                 .push((expr.span.start, expr.span.end, rewrite));

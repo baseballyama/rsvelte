@@ -1,4 +1,4 @@
-//! SnippetBlock visitor.
+//! `SnippetBlock` visitor.
 //!
 //! Analyzes {#snippet} blocks.
 //!
@@ -96,7 +96,7 @@ pub fn visit<'a, 'b: 'a>(
     for parameter in &block.parameters {
         match parameter {
             Expression::Typed(expression) => {
-                visit_parameter_expressions(&expression.node, context, &mut parameter_metadata)?
+                visit_parameter_expressions(&expression.node, context, &mut parameter_metadata)?;
             }
             Expression::Lazy { .. } => panic!("Expression::Lazy must be resolved before analysis"),
         }
@@ -222,7 +222,7 @@ fn visit_parameter_expressions(
 ///
 /// A snippet can be hoisted if it only references:
 /// - Its own parameters
-/// - Module-level bindings (imports, module script declarations) at scope_index 0
+/// - Module-level bindings (imports, module script declarations) at `scope_index` 0
 /// - Globals (console, Math, etc.)
 /// - Other snippets that can also be hoisted
 ///
@@ -230,7 +230,7 @@ fn visit_parameter_expressions(
 ///
 /// This mirrors the official Svelte compiler's `can_hoist_snippet()` in
 /// `2-analyze/visitors/SnippetBlock.js`, which checks scope.references and
-/// binding.scope.function_depth to determine hoistability.
+/// `binding.scope.function_depth` to determine hoistability.
 fn can_hoist_snippet(snippet: &SnippetBlock, context: &VisitorContext) -> bool {
     // Collect ALL parameter names from the snippet (including destructured names)
     let mut param_names: FxHashSet<String> = snippet
@@ -255,7 +255,7 @@ fn can_hoist_snippet(snippet: &SnippetBlock, context: &VisitorContext) -> bool {
 
 // ── Dispatch functions: Expression → JsNode or JSON ──────────────────────────
 
-/// Dispatch to JsNode or JSON version of expression_only_uses_params.
+/// Dispatch to `JsNode` or JSON version of `expression_only_uses_params`.
 fn expr_only_uses_params(
     expr: &Expression,
     param_names: &FxHashSet<String>,
@@ -267,7 +267,7 @@ fn expr_only_uses_params(
     }
 }
 
-/// Dispatch to JsNode or JSON version of extract_pattern_names.
+/// Dispatch to `JsNode` or JSON version of `extract_pattern_names`.
 fn extract_pattern_names_for_expr(expr: &Expression) -> Option<Vec<String>> {
     // Use JSON-based approach for both variants to avoid arena dependency.
     // The Typed path converts to JSON once (cheap for pattern nodes).
@@ -276,7 +276,7 @@ fn extract_pattern_names_for_expr(expr: &Expression) -> Option<Vec<String>> {
 }
 // ── JsNode-based implementations ─────────────────────────────────────────────
 
-/// Check if an expression (as JsNode) only uses hoistable identifiers.
+/// Check if an expression (as `JsNode`) only uses hoistable identifiers.
 fn expression_only_uses_params_node(
     node: &JsNode,
     param_names: &FxHashSet<String>,
@@ -421,29 +421,6 @@ fn expression_only_uses_params_node(
             expression_only_uses_params_node(arena.get_js_node(*argument), param_names, context)
         }
 
-        JsNode::UnaryExpression { argument, .. } | JsNode::UpdateExpression { argument, .. } => {
-            expression_only_uses_params_node(arena.get_js_node(*argument), param_names, context)
-        }
-
-        JsNode::AssignmentExpression { left, right, .. } => {
-            if !expression_only_uses_params_node(arena.get_js_node(*left), param_names, context) {
-                return false;
-            }
-            if !expression_only_uses_params_node(arena.get_js_node(*right), param_names, context) {
-                return false;
-            }
-            true
-        }
-
-        JsNode::SequenceExpression { expressions, .. } => {
-            for e in arena.get_js_children(*expressions) {
-                if !expression_only_uses_params_node(e, param_names, context) {
-                    return false;
-                }
-            }
-            true
-        }
-
         JsNode::ArrowFunctionExpression { .. } | JsNode::FunctionExpression { .. } => {
             // A nested function/arrow can close over instance-level state (e.g.
             // `onclick={() => { open = false }}`), which blocks hoisting. Serialize
@@ -457,7 +434,7 @@ fn expression_only_uses_params_node(
         _ => false,
     }
 }
-/// Check if default values inside a destructuring pattern (as JsNode) are hoistable.
+/// Check if default values inside a destructuring pattern (as `JsNode`) are hoistable.
 fn check_pattern_defaults_hoistable_node(
     node: &JsNode,
     param_names: &FxHashSet<String>,
@@ -576,8 +553,6 @@ fn check_hoistable(
     for node in nodes {
         match node {
             // Static content - always OK
-            TemplateNode::Text(_) | TemplateNode::Comment(_) => {}
-
             // Expression tags - check if they only reference parameters
             TemplateNode::ExpressionTag(tag)
                 if !expr_only_uses_params(&tag.expression, param_names, context) =>
@@ -733,8 +708,6 @@ fn check_hoistable(
             }
 
             // Nested snippet - has its own scope, don't check internals
-            TemplateNode::SnippetBlock(_) => {}
-
             // Regular elements - check attributes and children
             TemplateNode::RegularElement(elem) => {
                 for attr in &elem.attributes {
@@ -959,7 +932,7 @@ fn extract_all_param_names(param: &Expression) -> Vec<String> {
     extract_pattern_names_for_expr(param).unwrap_or_default()
 }
 
-/// Extract all names from a pattern (Identifier, ObjectPattern, ArrayPattern) - JSON version.
+/// Extract all names from a pattern (Identifier, `ObjectPattern`, `ArrayPattern`) - JSON version.
 fn extract_pattern_names(val: &serde_json::Value) -> Option<Vec<String>> {
     if let serde_json::Value::Object(obj) = val {
         let expr_type = obj.get("type").and_then(|v| v.as_str())?;
@@ -1038,10 +1011,10 @@ fn extract_pattern_names(val: &serde_json::Value) -> Option<Vec<String>> {
 /// An identifier is safe if:
 /// 1. It's a snippet parameter
 /// 2. It's a well-known global
-/// 3. It has a binding at scope_index 0 (module level - imports, module script declarations)
+/// 3. It has a binding at `scope_index` 0 (module level - imports, module script declarations)
 /// 4. It has no binding at all (assumed to be a global)
 ///
-/// An identifier prevents hoisting if it has a binding at scope_index >= 1 (instance level).
+/// An identifier prevents hoisting if it has a binding at `scope_index` >= 1 (instance level).
 fn is_identifier_hoistable(
     name: &str,
     param_names: &FxHashSet<String>,
@@ -1227,7 +1200,9 @@ fn refs_hoistable(
                 {
                     return false;
                 }
-                if o.get("computed").and_then(|c| c.as_bool()).unwrap_or(false)
+                if o.get("computed")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false)
                     && let Some(prop) = o.get("property")
                     && !refs_hoistable(prop, params, context)
                 {
@@ -1236,7 +1211,9 @@ fn refs_hoistable(
                 true
             }
             Some("Property") => {
-                if o.get("computed").and_then(|c| c.as_bool()).unwrap_or(false)
+                if o.get("computed")
+                    .and_then(serde_json::Value::as_bool)
+                    .unwrap_or(false)
                     && let Some(key) = o.get("key")
                     && !refs_hoistable(key, params, context)
                 {
@@ -1291,11 +1268,6 @@ fn expression_only_uses_params(
             | Some("NullLiteral") => true,
 
             Some("CallExpression") | Some("NewExpression") => {
-                if let Some(callee) = obj.get("callee")
-                    && !expression_only_uses_params(callee, param_names, context)
-                {
-                    return false;
-                }
                 if let Some(args) = obj.get("arguments").and_then(|a| a.as_array()) {
                     for arg in args {
                         if !expression_only_uses_params(arg, param_names, context) {
@@ -1314,7 +1286,7 @@ fn expression_only_uses_params(
                 }
                 if obj
                     .get("computed")
-                    .and_then(|c| c.as_bool())
+                    .and_then(serde_json::Value::as_bool)
                     .unwrap_or(false)
                     && let Some(prop) = obj.get("property")
                     && !expression_only_uses_params(prop, param_names, context)
@@ -1379,7 +1351,7 @@ fn expression_only_uses_params(
                         if let Some(prop_obj) = prop.as_object() {
                             if prop_obj
                                 .get("computed")
-                                .and_then(|c| c.as_bool())
+                                .and_then(serde_json::Value::as_bool)
                                 .unwrap_or(false)
                                 && let Some(key) = prop_obj.get("key")
                                 && !expression_only_uses_params(key, param_names, context)
@@ -1400,27 +1372,6 @@ fn expression_only_uses_params(
             Some("SpreadElement") => {
                 if let Some(arg) = obj.get("argument") {
                     return expression_only_uses_params(arg, param_names, context);
-                }
-                true
-            }
-
-            Some("UnaryExpression") | Some("UpdateExpression") => {
-                if let Some(arg) = obj.get("argument") {
-                    return expression_only_uses_params(arg, param_names, context);
-                }
-                true
-            }
-
-            Some("AssignmentExpression") => {
-                if let Some(left) = obj.get("left")
-                    && !expression_only_uses_params(left, param_names, context)
-                {
-                    return false;
-                }
-                if let Some(right) = obj.get("right")
-                    && !expression_only_uses_params(right, param_names, context)
-                {
-                    return false;
                 }
                 true
             }

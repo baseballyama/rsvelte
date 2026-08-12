@@ -1,4 +1,4 @@
-//! AST-based server `{@const}` (ConstTag) visitor.
+//! AST-based server `{@const}` (`ConstTag`) visitor.
 //!
 //! Rust port of upstream
 //! `submodules/svelte/packages/svelte/src/compiler/phases/3-transform/server/visitors/ConstTag.js`.
@@ -15,7 +15,7 @@
 //! Upstream pushes the const onto `state.init` (hoisted to the TOP of the
 //! enclosing Fragment block). The text-based `transform_server` oracle this
 //! pipeline is compared against instead emits the const **inline** at the
-//! ConstTag's position in the child run (it does not maintain a separate `init`
+//! `ConstTag`'s position in the child run (it does not maintain a separate `init`
 //! buffer). To stay byte-compatible with that oracle, this visitor emits the
 //! const as a [`TemplateEntry::Stmt`] at the current position — which flushes
 //! the joinable text/expression run (mirroring `process_children`'s
@@ -51,9 +51,13 @@ use crate::compiler::phases::phase3_transform::server::ast::{
     AsyncConstsGroup, ServerTransformState,
 };
 
+fn source_index(value: u64) -> usize {
+    usize::try_from(value).expect("source positions must fit usize")
+}
+
 /// Visit a `{@const <pattern> = <init>}` tag — async path
 /// (`add_async_const`) when blocked, else the sync `const … = …;` statement.
-pub fn visit_const_tag<'a>(node: &ConstTag, state: &mut ServerTransformState<'a>) {
+pub fn visit_const_tag(node: &ConstTag, state: &mut ServerTransformState<'_>) {
     if try_async_const(node, state) {
         return;
     }
@@ -61,7 +65,7 @@ pub fn visit_const_tag<'a>(node: &ConstTag, state: &mut ServerTransformState<'a>
 }
 
 /// Sync `{@const}` — push a `const <pattern> = <init>;` statement.
-fn visit_const_tag_sync<'a>(node: &ConstTag, state: &mut ServerTransformState<'a>) {
+fn visit_const_tag_sync(node: &ConstTag, state: &mut ServerTransformState<'_>) {
     // `node.declaration` is the parsed `VariableDeclaration` (stored as an
     // `Expression` for AST-walker uniformity). Pull the single declarator's
     // `id` (pattern) and `init` source spans from its JSON view, mirroring the
@@ -76,8 +80,8 @@ fn visit_const_tag_sync<'a>(node: &ConstTag, state: &mut ServerTransformState<'a
 
     let span = |v: &serde_json::Value, key: &str| -> Option<(usize, usize)> {
         let obj = v.get(key)?;
-        let s = obj.get("start").and_then(|n| n.as_u64())? as usize;
-        let e = obj.get("end").and_then(|n| n.as_u64())? as usize;
+        let s = source_index(obj.get("start").and_then(serde_json::Value::as_u64)?);
+        let e = source_index(obj.get("end").and_then(serde_json::Value::as_u64)?);
         (e > s && e <= state.source.len()).then_some((s, e))
     };
 
@@ -121,7 +125,7 @@ fn visit_const_tag_sync<'a>(node: &ConstTag, state: &mut ServerTransformState<'a
 /// `<lhs> = <rhs>` declarator, decide async via `has_await ||
 /// state.async_consts.is_some() || blockers > 0`, and on the async branch build
 /// the bare `let`s + thunk(s) into [`ServerTransformState::async_consts`].
-fn try_async_const<'a>(node: &ConstTag, state: &mut ServerTransformState<'a>) -> bool {
+fn try_async_const(node: &ConstTag, state: &mut ServerTransformState<'_>) -> bool {
     // Slice the FIRST declarator's span (`x = (rhs)`), not the whole
     // `VariableDeclaration` span — the latter now starts at the `const` keyword
     // (Svelte 5.56.4 `start: start + 2`), so `node.declaration.start()` would
@@ -132,8 +136,12 @@ fn try_async_const<'a>(node: &ConstTag, state: &mut ServerTransformState<'a>) ->
         .and_then(|d| d.as_array())
         .and_then(|d| d.first())
         .and_then(|declarator| {
-            let s = declarator.get("start").and_then(|n| n.as_u64())? as usize;
-            let e = declarator.get("end").and_then(|n| n.as_u64())? as usize;
+            let s = source_index(
+                declarator
+                    .get("start")
+                    .and_then(serde_json::Value::as_u64)?,
+            );
+            let e = source_index(declarator.get("end").and_then(serde_json::Value::as_u64)?);
             Some((s, e))
         })
     else {
@@ -192,8 +200,8 @@ fn try_async_const<'a>(node: &ConstTag, state: &mut ServerTransformState<'a>) ->
 /// a bare `let <name>;` for each declared binding, push the (optional) leading
 /// blocker wait thunk and the assignment thunk, and register each binding's
 /// `promises[N]` blocker in the per-fragment [`ServerTransformState::const_blocker_map`].
-fn add_async_const<'a>(
-    state: &mut ServerTransformState<'a>,
+fn add_async_const(
+    state: &mut ServerTransformState<'_>,
     lhs: &str,
     rhs: &str,
     has_await: bool,

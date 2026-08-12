@@ -28,6 +28,9 @@ thread_local! {
     static STAGES: RefCell<Vec<Stage>> = const { RefCell::new(Vec::new()) };
 }
 
+/// # Panics
+///
+/// Panics if statement-chain measurement state is accessed reentrantly.
 pub fn record(name: &'static str, input: *const u8, value: &str) {
     let owned = !std::ptr::eq(value.as_ptr(), input);
     let len = value.len() as u64;
@@ -57,11 +60,13 @@ pub fn record(name: &'static str, input: *const u8, value: &str) {
 }
 
 /// Per-stage tallies since the last [`reset`], in first-run order.
+#[must_use]
 pub fn snapshot() -> Vec<Stage> {
     STAGES.with(|s| s.borrow().clone())
 }
 
 /// `(owned, owned_bytes, borrowed, borrowed_bytes)` across every stage.
+#[must_use]
 pub fn totals() -> (u64, u64, u64, u64) {
     snapshot().iter().fold((0, 0, 0, 0), |acc, s| {
         (

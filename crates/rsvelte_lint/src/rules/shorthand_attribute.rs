@@ -62,24 +62,7 @@ impl Rule for ShorthandAttribute {
             == Some("never");
 
         if prefer_never {
-            // never mode: flag shorthand `{name}` → report "Expected regular attribute syntax."
-            if is_shorthand(ctx, node) {
-                let name = node.name.as_str().to_string();
-                let attr_start = node.start;
-                ctx.report_with_fix(
-                    attr_start,
-                    node.end,
-                    "Expected regular attribute syntax.",
-                    Fix {
-                        message: "Replace with regular attribute syntax".to_string(),
-                        edits: vec![TextEdit {
-                            start: attr_start,
-                            end: attr_start,
-                            new_text: format!("{name}="),
-                        }],
-                    },
-                );
-            }
+            Self::report_regular_syntax(ctx, node);
         } else {
             // always mode: flag `name={ident}` or `name="{ident}"` where ident == name.
             // Skip if it's already a shorthand.
@@ -139,7 +122,9 @@ impl Rule for ShorthandAttribute {
                         i -= 1;
                         let b = src[i];
                         if b == b'"' || b == b'\'' {
-                            open_quote_pos = Some(i as u32);
+                            open_quote_pos = Some(
+                                u32::try_from(i).expect("source offsets are represented as u32"),
+                            );
                             break;
                         }
                         // Skip whitespace/equals between the key and the quote.
@@ -189,5 +174,27 @@ impl Rule for ShorthandAttribute {
                 }
             }
         }
+    }
+}
+
+impl ShorthandAttribute {
+    fn report_regular_syntax(ctx: &mut LintContext, node: &AttributeNode) {
+        if !is_shorthand(ctx, node) {
+            return;
+        }
+        let attr_start = node.start;
+        ctx.report_with_fix(
+            attr_start,
+            node.end,
+            "Expected regular attribute syntax.",
+            Fix {
+                message: "Replace with regular attribute syntax".to_string(),
+                edits: vec![TextEdit {
+                    start: attr_start,
+                    end: attr_start,
+                    new_text: format!("{}=", node.name),
+                }],
+            },
+        );
     }
 }

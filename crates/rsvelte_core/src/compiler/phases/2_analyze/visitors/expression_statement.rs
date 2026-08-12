@@ -1,4 +1,4 @@
-//! ExpressionStatement visitor.
+//! `ExpressionStatement` visitor.
 //!
 //! Analyzes expression statements.
 //!
@@ -11,7 +11,7 @@ use crate::compiler::phases::phase2_analyze::{
 };
 use serde_json::Value;
 
-/// Visit an expression statement (typed JsNode path).
+/// Visit an expression statement (typed `JsNode` path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     if let JsNode::ExpressionStatement { expression, .. } = node {
         let arena = context.parse_arena;
@@ -70,7 +70,7 @@ fn check_legacy_component_creation(
     let has_target_property = arg
         .get("properties")
         .and_then(|p| p.as_array())
-        .map(|props| {
+        .is_some_and(|props| {
             props.iter().any(|p| {
                 p.get("type").and_then(|t| t.as_str()) == Some("Property")
                     && p.get("key")
@@ -82,8 +82,7 @@ fn check_legacy_component_creation(
                         .and_then(|n| n.as_str())
                         == Some("target")
             })
-        })
-        .unwrap_or(false);
+        });
 
     if !has_target_property {
         return;

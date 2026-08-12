@@ -1,4 +1,4 @@
-//! DeclarationTag visitor.
+//! `DeclarationTag` visitor.
 //!
 //! Analyzes the new `{let x = …}` / `{const x = …}` declaration-tag template
 //! syntax introduced by Svelte 5.56.0 (#18282).
@@ -171,8 +171,14 @@ fn warn_local_state_reads(node: &serde_json::Value, context: &mut VisitorContext
                     )
                 });
             if eligible {
-                let start = node.get("start").and_then(|v| v.as_u64()).map(|v| v as u32);
-                let end = node.get("end").and_then(|v| v.as_u64()).map(|v| v as u32);
+                let start = node
+                    .get("start")
+                    .and_then(serde_json::Value::as_u64)
+                    .and_then(|v| u32::try_from(v).ok());
+                let end = node
+                    .get("end")
+                    .and_then(serde_json::Value::as_u64)
+                    .and_then(|v| u32::try_from(v).ok());
                 context
                     .analysis
                     .warnings
@@ -205,7 +211,6 @@ fn warn_local_state_reads(node: &serde_json::Value, context: &mut VisitorContext
                 warn_local_state_reads(right, context);
             }
         }
-        Some("UpdateExpression") => {}
         _ => match node {
             Value::Object(map) => {
                 for (k, v) in map {

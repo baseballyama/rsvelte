@@ -40,6 +40,14 @@ impl<'a> Parser<'a> {
     ///
     /// Note: This is called after the opening tag name and attributes have been parsed,
     /// and the `>` has already been consumed.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for invalid `svelte:options` markup or attributes.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a source position exceeds the supported `u32` range.
     pub fn parse_svelte_options(
         &mut self,
         start: usize,
@@ -86,7 +94,7 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let end = self.index as u32;
+        let end = u32::try_from(self.index).expect("source positions are limited to u32");
 
         // Extract option values from attributes
         let mut runes = None;
@@ -129,8 +137,7 @@ impl<'a> Parser<'a> {
                     return Err(ParseError::svelte(
                         "svelte_options_unknown_attribute",
                         format!(
-                            "`<svelte:options>` unknown attribute '{}'\nhttps://svelte.dev/e/svelte_options_unknown_attribute",
-                            attr_name
+                            "`<svelte:options>` unknown attribute '{attr_name}'\nhttps://svelte.dev/e/svelte_options_unknown_attribute"
                         ),
                         (attr_node.start as usize, attr_node.end as usize),
                     ));
@@ -156,10 +163,10 @@ impl<'a> Parser<'a> {
                         let value = get_static_value(attr_node)?;
                         namespace = match value.as_deref() {
                             Some("html") => Some(Namespace::Html),
-                            Some("svg") => Some(Namespace::Svg),
-                            Some("mathml") => Some(Namespace::Mathml),
-                            Some("http://www.w3.org/2000/svg") => Some(Namespace::Svg),
-                            Some("http://www.w3.org/1998/Math/MathML") => Some(Namespace::Mathml),
+                            Some("svg" | "http://www.w3.org/2000/svg") => Some(Namespace::Svg),
+                            Some("mathml" | "http://www.w3.org/1998/Math/MathML") => {
+                                Some(Namespace::Mathml)
+                            }
                             _ => {
                                 return Err(ParseError::svelte(
                                     "svelte_options_invalid_attribute_value",
@@ -229,7 +236,7 @@ impl<'a> Parser<'a> {
 
         // Store the options
         self.svelte_options = Some(SvelteOptions {
-            start: start as u32,
+            start: u32::try_from(start).expect("source positions are limited to u32"),
             end,
             runes,
             immutable,
@@ -249,9 +256,7 @@ impl<'a> Parser<'a> {
 /// Get a static value from an attribute.
 ///
 /// Returns None if the value is not static (e.g., contains expressions).
-fn get_static_value<'a>(
-    attr: &crate::ast::template::AttributeNode<'a>,
-) -> ParseResult<Option<String>> {
+fn get_static_value(attr: &crate::ast::template::AttributeNode<'_>) -> ParseResult<Option<String>> {
     match &attr.value {
         AttributeValue::True(_) => Ok(Some("true".to_string())),
         AttributeValue::Sequence(parts) => {
@@ -283,7 +288,7 @@ fn get_static_value<'a>(
 }
 
 /// Get a boolean value from an attribute.
-fn get_boolean_value<'a>(attr: &crate::ast::template::AttributeNode<'a>) -> ParseResult<bool> {
+fn get_boolean_value(attr: &crate::ast::template::AttributeNode<'_>) -> ParseResult<bool> {
     match &attr.value {
         AttributeValue::True(_) => Ok(true),
         AttributeValue::Expression(expr) => {
@@ -489,10 +494,7 @@ fn parse_custom_element_object<'a>(
 /// - Contain a hyphen
 /// - Only contain valid characters
 /// - Not be a reserved name
-fn validate_tag_name<'a>(
-    tag: &str,
-    attr: &crate::ast::template::AttributeNode<'a>,
-) -> ParseResult<()> {
+fn validate_tag_name(tag: &str, attr: &crate::ast::template::AttributeNode<'_>) -> ParseResult<()> {
     if tag.is_empty() {
         return Err(ParseError::svelte(
             "svelte_options_invalid_tagname",

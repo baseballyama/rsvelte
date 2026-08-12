@@ -1,7 +1,8 @@
 //! `svelte/no-dupe-else-if-blocks` — flag an `{:else if}` branch whose
 //! condition can never be true because an earlier branch in the same
-//! `{#if}` / `{:else if}` chain already covers it. Port of the
-//! eslint-plugin-svelte rule (which mirrors core ESLint `no-dupe-else-if`).
+//! `{#if}` / `{:else if}` chain already covers it.
+//!
+//! Port of the eslint-plugin-svelte rule (which mirrors core `ESLint` `no-dupe-else-if`).
 //!
 //! The coverage test is the standard OR-of-AND subset analysis: a condition is
 //! redundant when every `||` operand of it is a superset of some earlier
@@ -27,6 +28,10 @@ static META: RuleMeta = RuleMeta {
     docs: "Disallow duplicate conditions in `{#if}` / `{:else if}` chains",
     options_schema: None,
 };
+
+fn subslice_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("subslice offsets are represented as u32")
+}
 
 const MESSAGE: &str = "This branch can never execute. Its condition is a duplicate or covered \
 by previous conditions in the `{#if}` / `{:else if}` chain.";
@@ -85,8 +90,9 @@ impl Rule for NoDupeElseIfBlocks {
             let mut to_check: Vec<(String, u32)> = Vec::new();
 
             let stripped = strip_outer_parens(condition_src);
-            let stripped_offset =
-                (stripped.as_ptr() as usize).wrapping_sub(condition_src.as_ptr() as usize) as u32;
+            let stripped_offset = subslice_offset(
+                (stripped.as_ptr() as usize).wrapping_sub(condition_src.as_ptr() as usize),
+            );
 
             let and_parts = split_top(stripped, "&&");
             if and_parts.len() > 1 {
@@ -95,14 +101,18 @@ impl Rule for NoDupeElseIfBlocks {
                     // `part` is already `.trim()`-ed by `split_top`.
                     // Compute this part's offset within the full condition source.
                     let raw_offset = stripped_offset
-                        + (part.as_ptr() as usize).wrapping_sub(stripped.as_ptr() as usize) as u32;
+                        + subslice_offset(
+                            (part.as_ptr() as usize).wrapping_sub(stripped.as_ptr() as usize),
+                        );
                     // Upstream uses the AST node for the expression, which has
                     // outer parentheses stripped from its span (acorn/espree do
                     // not include redundant parens in a node's range).
                     // Mirror that by advancing past any enclosing parens.
                     let inner = strip_outer_parens(part);
                     let inner_offset = raw_offset
-                        + (inner.as_ptr() as usize).wrapping_sub(part.as_ptr() as usize) as u32;
+                        + subslice_offset(
+                            (inner.as_ptr() as usize).wrapping_sub(part.as_ptr() as usize),
+                        );
                     to_check.push((inner.to_string(), inner_offset));
                 }
             }
@@ -110,8 +120,9 @@ impl Rule for NoDupeElseIfBlocks {
             // (stripped of outer parens, as upstream reports at the node).
             let whole_inner = strip_outer_parens(condition_src);
             let whole_inner_offset = stripped_offset
-                + (whole_inner.as_ptr() as usize).wrapping_sub(condition_src.as_ptr() as usize)
-                    as u32;
+                + subslice_offset(
+                    (whole_inner.as_ptr() as usize).wrapping_sub(condition_src.as_ptr() as usize),
+                );
             to_check.push((whole_inner.to_string(), whole_inner_offset));
 
             let prev = &split[..i];

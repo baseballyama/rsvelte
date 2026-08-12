@@ -1,4 +1,5 @@
 //! `svelte/no-at-debug-tags` — disallow `{@debug}` tags (debugging leftovers).
+//!
 //! Port of the eslint-plugin-svelte rule. Upstream is **not** autofixable
 //! (`meta.fixable` unset); it offers a *suggestion* (`hasSuggestions: true`)
 //! that removes the tag, so we mirror that exactly — `--fix` leaves the tag in

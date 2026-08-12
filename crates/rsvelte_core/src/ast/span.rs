@@ -13,27 +13,32 @@ pub struct Span {
 
 impl Span {
     #[inline]
+    #[must_use]
     pub const fn new(start: u32, end: u32) -> Self {
         Self { start, end }
     }
 
     #[inline]
+    #[must_use]
     pub const fn empty() -> Self {
         Self { start: 0, end: 0 }
     }
 
     #[inline]
+    #[must_use]
     pub const fn len(&self) -> u32 {
         self.end - self.start
     }
 
     #[inline]
+    #[must_use]
     pub const fn is_empty(&self) -> bool {
         self.start == self.end
     }
 
     /// Merge two spans into one that covers both.
     #[inline]
+    #[must_use]
     pub const fn merge(self, other: Self) -> Self {
         Self {
             start: if self.start < other.start {
@@ -68,6 +73,7 @@ pub struct LineColumn {
 
 impl LineColumn {
     #[inline]
+    #[must_use]
     pub const fn new(line: u32, column: u32, character: u32) -> Self {
         Self {
             line,

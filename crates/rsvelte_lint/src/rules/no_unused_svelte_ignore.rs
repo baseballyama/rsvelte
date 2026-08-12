@@ -1,3 +1,5 @@
+//! `svelte/no-unused-svelte-ignore`.
+//!
 //! `svelte/no-unused-svelte-ignore` — disallow `svelte-ignore` comments that did
 //! not actually suppress a compiler warning. Port of the eslint-plugin-svelte
 //! rule (`src/rules/no-unused-svelte-ignore.ts`) together with the
@@ -55,6 +57,10 @@ use crate::line_index::LineIndex;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
 use crate::validator::{range_from_byte, to_dsev};
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("source offsets are represented as u32")
+}
+
 pub static META: RuleMeta = RuleMeta {
     name: "svelte/no-unused-svelte-ignore",
     category: RuleCategory::Correctness,
@@ -91,6 +97,7 @@ struct CodedItem {
 
 /// Compile-and-match entry point, wired into [`crate::runner::lint_source`].
 /// Returns empty when the rule is `Off`.
+#[must_use]
 pub fn no_unused_svelte_ignore_diagnostics(
     source: &str,
     file: &Path,
@@ -164,7 +171,7 @@ pub fn no_unused_svelte_ignore_diagnostics(
     let mk = |start: u32, end: u32, message: &str| Diagnostic {
         file: file.to_path_buf(),
         severity: dsev,
-        range: range_from_byte(li, start, end),
+        range: Some(range_from_byte(li, start, end)),
         message: message.to_string(),
         code: Some(META.name.to_string()),
         source: "svelte",
@@ -203,7 +210,10 @@ pub fn no_unused_svelte_ignore_diagnostics(
     let mut positionless: std::collections::HashSet<&str> = std::collections::HashSet::new();
     for w in &result.warnings {
         match w.start.as_ref().or(w.end.as_ref()) {
-            Some(p) => warnings.push((w.code.as_str(), (p.line as u32, p.column as u32))),
+            Some(position) => warnings.push((
+                w.code.as_str(),
+                (source_offset(position.line), source_offset(position.column)),
+            )),
             None => {
                 positionless.insert(w.code.as_str());
             }
@@ -327,7 +337,10 @@ fn collect_script_items(
                         st.get("start").and_then(Value::as_u64),
                         st.get("end").and_then(Value::as_u64),
                     ) {
-                        stmts.push((s as u32, e as u32));
+                        stmts.push((
+                            u32::try_from(s).expect("source offsets are represented as u32"),
+                            u32::try_from(e).expect("source offsets are represented as u32"),
+                        ));
                     }
                 }
             }
@@ -398,7 +411,7 @@ fn parse_ignore_comment(
     strip_ranges.push((comment_start, comment_end));
 
     // Absolute byte offset of `code_list`'s first char in the source.
-    let base = comment_start + prefix_len + code_list_start as u32;
+    let base = comment_start + prefix_len + source_offset(code_list_start);
 
     // Replace parenthetical notes with equal-length spaces to preserve offsets.
     let processed = blank_parentheticals(code_list);
@@ -416,7 +429,7 @@ fn parse_ignore_comment(
             push_code(
                 &processed[last_end..sep_start],
                 base,
-                last_end as u32,
+                source_offset(last_end),
                 scope,
                 coded,
             );
@@ -447,7 +460,7 @@ fn push_code(
         code_for_v5: code_for_v5(code),
         code: code.to_string(),
         code_start: base + offset,
-        code_end: base + offset + code.len() as u32,
+        code_end: base + offset + source_offset(code.len()),
         scope,
     });
 }
@@ -583,11 +596,11 @@ fn blank_ranges(source: &str, ranges: &[(u32, u32)]) -> String {
     out
 }
 
-fn is_ws(c: u8) -> bool {
+const fn is_ws(c: u8) -> bool {
     matches!(c, b' ' | b'\t' | b'\n' | b'\r' | 0x0c | 0x0b)
 }
 
-fn is_separator(c: u8) -> bool {
+const fn is_separator(c: u8) -> bool {
     is_ws(c) || c == b','
 }
 

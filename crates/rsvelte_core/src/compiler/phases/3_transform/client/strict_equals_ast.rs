@@ -47,7 +47,7 @@ fn equality_helper(op: BinaryOperator) -> Option<(&'static str, bool)> {
 /// True when the subtree still holds an equality expression this pass would
 /// rewrite. Deciding this on the AST rather than by scanning the operand text
 /// keeps `==` from matching inside `===` (and `!=` inside `!==`, `<=`, `=>`).
-fn contains_equality_expr<'a>(expr: &Expression<'a>) -> bool {
+fn contains_equality_expr(expr: &Expression<'_>) -> bool {
     struct Finder {
         found: bool,
     }
@@ -94,7 +94,7 @@ pub(super) fn collect_strict_equals_edits(program: &Program<'_>, source: &str) -
 }
 
 /// Per-call AST visitor: collects `(start, end, replacement_string)`
-/// triples for every equality BinaryExpression *whose operands are leaf*
+/// triples for every equality `BinaryExpression` *whose operands are leaf*
 /// (don't themselves contain another equality operator). Nested cases are
 /// handled by the fixed-point iteration in the caller.
 struct StrictEqualsCollector<'src> {
@@ -102,7 +102,7 @@ struct StrictEqualsCollector<'src> {
     replacements: Vec<Edit>,
 }
 
-impl<'a, 'src> Visit<'a> for StrictEqualsCollector<'src> {
+impl<'a> Visit<'a> for StrictEqualsCollector<'_> {
     fn visit_binary_expression(&mut self, expr: &BinaryExpression<'a>) {
         // Walk children first so other binary expressions deeper in
         // the tree get a chance to record themselves.

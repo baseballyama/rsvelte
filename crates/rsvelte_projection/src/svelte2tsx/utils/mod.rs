@@ -3,4 +3,4 @@
 pub mod error;
 pub mod htmlxparser;
 pub mod lexical;
-pub(crate) mod source_features;
+pub mod source_features;

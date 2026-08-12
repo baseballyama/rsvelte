@@ -224,8 +224,49 @@ thread_local! {
 
 /// Drop the previous attempt's cached expression results. Called once per format
 /// attempt (up to two per file when the #682 TS retry fires).
-pub(crate) fn clear_expr_memo() {
+pub fn clear_expr_memo() {
     EXPR_MEMO.with(|m| m.borrow_mut().clear());
+}
+
+const TS_CONST_PREFIX: &str = "const _rsvelte_x_ = ";
+const TS_CONST_PREFIX_LEN: u16 = 20;
+
+fn reflow_template_type_unions(
+    formatted: String,
+    use_const_wrapper: bool,
+    program: &Program<'_>,
+    line_width: oxc_formatter_core::LineWidth,
+    options: &FormatOptions,
+    source_type: SourceType,
+) -> String {
+    if !use_const_wrapper && program_has_as_or_satisfies_union(program) {
+        reflow_flat_as_satisfies_unions(
+            &formatted,
+            line_width.value() as usize,
+            tab_width(options),
+            source_type,
+        )
+    } else {
+        formatted
+    }
+}
+
+fn expression_wrapper(expr_source: &str, typescript: bool) -> (String, SourceType, bool) {
+    if typescript && has_leading_await(expr_source) {
+        (
+            format!("{TS_CONST_PREFIX}({expr_source});"),
+            SourceType::ts().with_module(true),
+            true,
+        )
+    } else if typescript {
+        (
+            format!("({expr_source});"),
+            SourceType::ts().with_module(true),
+            false,
+        )
+    } else {
+        (format!("({expr_source});"), SourceType::default(), false)
+    }
 }
 
 pub(super) fn format_expr_core(
@@ -261,16 +302,16 @@ pub(super) fn format_expr_core(
     //   a Script where `await` is a regular identifier.
     //
     //   The `const` wrapper (instead of the plain `(expr);`) prevents OXC from
-    //   breaking a nested-await member chain across lines.  When the same
+    //   breaking a nested-await member chain across lines. When the same
     //   expression appears as a top-level ExpressionStatement, OXC breaks it
     //   (`(await (await a.nested).one);` → multi-line); as a const initializer
-    //   OXC keeps it on one line.  The const wrapper is only used when `await`
+    //   OXC keeps it on one line. The const wrapper is only used when `await`
     //   is the outer expression; applying its width compensation to nested awaits
     //   would suppress correct inner breaking.
     //
     //   The const-wrapper prefix is exactly 20 characters (`const _rsvelte_x_ = `).
     //   We pass `line_width + 20` to the formatter so OXC's break decision is
-    //   based on `len(expr)` rather than `20 + len(expr)`.  This offset is exact
+    //   based on `len(expr)` rather than `20 + len(expr)`. This offset is exact
     //   for the single-line case (the only case that matters here — multi-line
     //   await expressions inside Svelte templates are extremely rare and the
     //   const-wrapper context keeps them inline anyway).
@@ -289,28 +330,8 @@ pub(super) fn format_expr_core(
     //   Use `(expr);` with `SourceType::default()` (Unambiguous).
     //   JavaScript template expressions cannot contain `await` as a keyword
     //   (template tags are synchronous), so no special handling is needed.
-    const TS_CONST_PREFIX: &str = "const _rsvelte_x_ = ";
-    // TS_CONST_PREFIX.len() == 20
-    const TS_CONST_PREFIX_LEN: u16 = 20;
-
-    let expr_has_await = options.typescript && has_leading_await(expr_source);
-
-    let (wrapped, source_type, use_const_wrapper) = if expr_has_await {
-        // Case A: TS + leading await — use const wrapper to avoid multi-line breaking
-        let wrapped = format!("{TS_CONST_PREFIX}({expr_source});");
-        let source_type = SourceType::ts().with_module(true);
-        (wrapped, source_type, true)
-    } else if options.typescript {
-        // Case B: TS, no leading await — plain paren wrapper, still ESM for consistency
-        let wrapped = format!("({expr_source});");
-        let source_type = SourceType::ts().with_module(true);
-        (wrapped, source_type, false)
-    } else {
-        // Case C: JS
-        let wrapped = format!("({expr_source});");
-        let source_type = SourceType::default();
-        (wrapped, source_type, false)
-    };
+    let (wrapped, source_type, use_const_wrapper) =
+        expression_wrapper(expr_source, options.typescript);
 
     let parser_ret = Parser::new(allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
@@ -405,17 +426,14 @@ pub(super) fn format_expr_core(
     // reflow's column/budget measurement would not match the final output — an
     // `as`-union inside a template `await` expression is vanishingly rare, so
     // leaving oxc's form is the safe choice.
-    let formatted = if !use_const_wrapper && program_has_as_or_satisfies_union(&parser_ret.program)
-    {
-        reflow_flat_as_satisfies_unions(
-            &formatted,
-            line_width.value() as usize,
-            tab_width(options),
-            source_type,
-        )
-    } else {
-        formatted
-    };
+    let formatted = reflow_template_type_unions(
+        formatted,
+        use_const_wrapper,
+        &parser_ret.program,
+        line_width,
+        options,
+        source_type,
+    );
 
     let s = formatted.trim_end().trim_end_matches(';').trim_end();
     // With semicolons set to "as needed", OXC prefixes expression statements
@@ -438,16 +456,13 @@ pub(super) fn format_expr_core(
         //   first continuation line (OXC indents at 2 spaces), yielding
         //   `firstLine\n  continuation` — the same shape the old `(expr);` wrapper
         //   produced after outer-paren stripping.
-        if let Some(rest) = s.strip_prefix(TS_CONST_PREFIX) {
-            // Inline case: `const _rsvelte_x_ = expr`
-            rest.to_string()
-        } else if let Some(rest) = s.strip_prefix("const _rsvelte_x_ =\n") {
-            // Multiline case: value on next line(s), indented by OXC
-            rest.trim_start().to_string()
-        } else {
-            // Fallback (shouldn't occur): return unchanged
-            s.to_string()
-        }
+        s.strip_prefix(TS_CONST_PREFIX).map_or_else(
+            || {
+                s.strip_prefix("const _rsvelte_x_ =\n")
+                    .map_or_else(|| s.to_string(), |rest| rest.trim_start().to_string())
+            },
+            str::to_string,
+        )
     } else {
         // prettier-plugin-svelte keeps exactly ONE set of outer parens around a
         // top-level sequence (comma) expression in both mustache/attribute values
@@ -577,6 +592,27 @@ fn reflow_flat_as_satisfies_unions(
 
 /// Re-parse the formatted text and collect the byte spans (into `formatted`) of
 /// every `as`/`satisfies` node's ≥2-member union type annotation.
+struct UnionSpanCollector {
+    spans: Vec<(usize, usize)>,
+}
+
+impl<'a> Visit<'a> for UnionSpanCollector {
+    fn visit_ts_as_expression(&mut self, expr: &TSAsExpression<'a>) {
+        if is_multi_member_union(&expr.type_annotation) {
+            let span = expr.type_annotation.span();
+            self.spans.push((span.start as usize, span.end as usize));
+        }
+        walk::walk_ts_as_expression(self, expr);
+    }
+    fn visit_ts_satisfies_expression(&mut self, expr: &TSSatisfiesExpression<'a>) {
+        if is_multi_member_union(&expr.type_annotation) {
+            let span = expr.type_annotation.span();
+            self.spans.push((span.start as usize, span.end as usize));
+        }
+        walk::walk_ts_satisfies_expression(self, expr);
+    }
+}
+
 fn as_satisfies_union_spans(formatted: &str, source_type: SourceType) -> Vec<(usize, usize)> {
     let allocator = crate::scratch::acquire();
     let parsed = Parser::new(allocator, formatted, source_type)
@@ -585,26 +621,7 @@ fn as_satisfies_union_spans(formatted: &str, source_type: SourceType) -> Vec<(us
     if !parsed.diagnostics.is_empty() {
         return Vec::new();
     }
-    struct Collector {
-        spans: Vec<(usize, usize)>,
-    }
-    impl<'a> Visit<'a> for Collector {
-        fn visit_ts_as_expression(&mut self, expr: &TSAsExpression<'a>) {
-            if is_multi_member_union(&expr.type_annotation) {
-                let s = expr.type_annotation.span();
-                self.spans.push((s.start as usize, s.end as usize));
-            }
-            walk::walk_ts_as_expression(self, expr);
-        }
-        fn visit_ts_satisfies_expression(&mut self, expr: &TSSatisfiesExpression<'a>) {
-            if is_multi_member_union(&expr.type_annotation) {
-                let s = expr.type_annotation.span();
-                self.spans.push((s.start as usize, s.end as usize));
-            }
-            walk::walk_ts_satisfies_expression(self, expr);
-        }
-    }
-    let mut c = Collector { spans: Vec::new() };
+    let mut c = UnionSpanCollector { spans: Vec::new() };
     c.visit_program(&parsed.program);
     c.spans
 }
@@ -704,7 +721,7 @@ fn expr_has_object_head(expr: &oxc_ast::ast::Expression) -> bool {
                 ChainElement::ComputedMemberExpression(m) => &m.object,
                 ChainElement::StaticMemberExpression(m) => &m.object,
                 ChainElement::PrivateFieldExpression(m) => &m.object,
-                _ => return false,
+                ChainElement::TSNonNullExpression(_) => return false,
             },
             _ => return false,
         };

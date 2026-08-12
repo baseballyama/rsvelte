@@ -1,4 +1,4 @@
-//! # rsvelte_lint
+//! # `rsvelte_lint`
 //!
 //! A fast, native Svelte linter built directly on the rsvelte compiler.
 //!

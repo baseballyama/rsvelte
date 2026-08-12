@@ -1,5 +1,6 @@
-//! `svelte/comment-directive` — support ESLint comment-directives in the HTML
-//! template and (with `reportUnusedDisableDirectives`) report directives that
+//! `svelte/comment-directive` supports `ESLint` comment directives.
+//!
+//! It reads directives in the HTML template and, with `reportUnusedDisableDirectives`, reports directives that
 //! never suppressed anything. Port of the eslint-plugin-svelte rule and its
 //! `CommentDirectives` helper (`src/rules/comment-directive.ts`,
 //! `src/shared/comment-directives.ts`).
@@ -39,6 +40,10 @@ use serde_json::Value;
 use crate::diagnostic::LintDiagnostic;
 use crate::line_index::LineIndex;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
+
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("source offsets are represented as u32")
+}
 
 pub static META: RuleMeta = RuleMeta {
     name: "svelte/comment-directive",
@@ -106,7 +111,7 @@ struct LineDir {
 /// A candidate "unused" report, emitted only if its directive is never used.
 struct Candidate {
     /// The report's message position used by `is_enable` — `(line, column+1)`
-    /// because ESLint's report-translator stores 1-based message columns.
+    /// because `ESLint`'s report-translator stores 1-based message columns.
     msg: Pos,
     /// The directive define key (used to test membership in the used-set).
     key: Pos,
@@ -116,7 +121,7 @@ struct Candidate {
     message: String,
     /// The rule this directive targets (`None` ⇒ wildcard / all rules). Used to
     /// suppress unused-reports for rules rsvelte does not implement — for those
-    /// the absence of a finding is uninformative (e.g. core ESLint `no-undef`),
+    /// the absence of a finding is uninformative (e.g. core `ESLint` `no-undef`),
     /// so reporting them as "unused" would be a false positive.
     target: Option<String>,
 }
@@ -125,7 +130,7 @@ struct Candidate {
 /// candidate unused-report.
 struct Msg {
     line: u32,
-    /// 1-based column (`column0 + 1`), matching ESLint message columns.
+    /// 1-based column (`column0 + 1`), matching `ESLint` message columns.
     col1: u32,
     /// `Some(rule)` for a finding / the candidate marker `svelte/comment-directive`.
     rule: String,
@@ -182,7 +187,7 @@ pub fn unused_directive_diagnostics(
                         open_enables.clear();
                     } else {
                         let mut kept = Vec::new();
-                        for e in open_enables.drain(..) {
+                        for e in open_enables {
                             if e.target == b.target || e.target.is_none() {
                                 used.insert(e.key);
                             } else {
@@ -352,8 +357,8 @@ fn parse_one_comment(
         return;
     };
 
-    let comment_pos = li.position(comment_start as u32);
-    let comment_end_pos = li.position(comment_end as u32);
+    let comment_pos = li.position(source_offset(comment_start));
+    let comment_end_pos = li.position(source_offset(comment_end));
 
     // Line directives must be single-line (upstream guard).
     let is_line = matches!(dtype, DType::DisableLine | DType::DisableNextLine);
@@ -364,119 +369,138 @@ fn parse_one_comment(
     // Extract the rule tokens (absolute byte offset → position).
     let rules = extract_rules(text, inner_start, start_index, li);
 
-    let kind_str = dtype.kind_str();
+    let context = DirectiveContext {
+        kind_str: dtype.kind_str(),
+        comment_pos,
+        comment_end_pos,
+        comment_start: source_offset(comment_start),
+        comment_end: source_offset(comment_end),
+        rules: &rules,
+    };
+    let mut directives = DirectiveLists {
+        blocks,
+        lines,
+        candidates,
+    };
     match dtype {
-        DType::Disable => {
-            if rules.is_empty() {
-                blocks.push(BlockDir {
-                    loc: comment_end_pos,
-                    target: None,
-                    kind: BlockKind::Disable,
-                    key: comment_pos,
-                });
-                candidates.push(Candidate {
-                    msg: (comment_pos.0, comment_pos.1 + 1),
-                    key: comment_pos,
-                    start: comment_start as u32,
-                    end: comment_end as u32,
-                    message: msg_unused(kind_str),
-                    target: None,
-                });
-            } else {
-                for r in &rules {
-                    blocks.push(BlockDir {
-                        loc: comment_end_pos,
-                        target: Some(r.id.clone()),
-                        kind: BlockKind::Disable,
-                        key: r.pos,
-                    });
-                    candidates.push(Candidate {
-                        msg: (r.pos.0, r.pos.1 + 1),
-                        key: r.pos,
-                        start: r.start,
-                        end: r.end,
-                        message: msg_unused_rule(kind_str, &r.id),
-                        target: Some(r.id.clone()),
-                    });
-                }
-            }
-        }
-        DType::Enable => {
-            if rules.is_empty() {
-                blocks.push(BlockDir {
-                    loc: comment_pos,
-                    target: None,
-                    kind: BlockKind::Enable,
-                    key: comment_pos,
-                });
-                candidates.push(Candidate {
-                    msg: (comment_pos.0, comment_pos.1 + 1),
-                    key: comment_pos,
-                    start: comment_start as u32,
-                    end: comment_end as u32,
-                    message: msg_unused_enable(kind_str),
-                    target: None,
-                });
-            } else {
-                for r in &rules {
-                    blocks.push(BlockDir {
-                        loc: comment_pos,
-                        target: Some(r.id.clone()),
-                        kind: BlockKind::Enable,
-                        key: r.pos,
-                    });
-                    candidates.push(Candidate {
-                        msg: (r.pos.0, r.pos.1 + 1),
-                        key: r.pos,
-                        start: r.start,
-                        end: r.end,
-                        message: msg_unused_enable_rule(kind_str, &r.id),
-                        target: Some(r.id.clone()),
-                    });
-                }
-            }
-        }
-        DType::DisableLine | DType::DisableNextLine => {
-            let target_line = comment_pos.0
-                + if matches!(dtype, DType::DisableNextLine) {
-                    1
-                } else {
-                    0
-                };
-            if rules.is_empty() {
-                lines.push(LineDir {
-                    line: target_line,
-                    target: None,
-                    key: comment_pos,
-                });
-                candidates.push(Candidate {
-                    msg: (comment_pos.0, comment_pos.1 + 1),
-                    key: comment_pos,
-                    start: comment_start as u32,
-                    end: comment_end as u32,
-                    message: msg_unused(kind_str),
-                    target: None,
-                });
-            } else {
-                for r in &rules {
-                    lines.push(LineDir {
-                        line: target_line,
-                        target: Some(r.id.clone()),
-                        key: r.pos,
-                    });
-                    candidates.push(Candidate {
-                        msg: (r.pos.0, r.pos.1 + 1),
-                        key: r.pos,
-                        start: r.start,
-                        end: r.end,
-                        message: msg_unused_rule(kind_str, &r.id),
-                        target: Some(r.id.clone()),
-                    });
-                }
-            }
-        }
+        DType::Disable => add_block_directives(&context, BlockKind::Disable, &mut directives),
+        DType::Enable => add_block_directives(&context, BlockKind::Enable, &mut directives),
+        DType::DisableLine | DType::DisableNextLine => add_line_directives(
+            &context,
+            matches!(dtype, DType::DisableNextLine),
+            &mut directives,
+        ),
     }
     let _ = source; // source already captured via byte offsets
+}
+
+struct DirectiveContext<'a> {
+    kind_str: &'static str,
+    comment_pos: Pos,
+    comment_end_pos: Pos,
+    comment_start: u32,
+    comment_end: u32,
+    rules: &'a [RuleTok],
+}
+
+struct DirectiveLists<'a> {
+    blocks: &'a mut Vec<BlockDir>,
+    lines: &'a mut Vec<LineDir>,
+    candidates: &'a mut Vec<Candidate>,
+}
+
+fn add_block_directives(
+    context: &DirectiveContext<'_>,
+    kind: BlockKind,
+    lists: &mut DirectiveLists<'_>,
+) {
+    let loc = if kind == BlockKind::Disable {
+        context.comment_end_pos
+    } else {
+        context.comment_pos
+    };
+    if context.rules.is_empty() {
+        lists.blocks.push(BlockDir {
+            loc,
+            target: None,
+            kind,
+            key: context.comment_pos,
+        });
+        let message = if kind == BlockKind::Disable {
+            msg_unused(context.kind_str)
+        } else {
+            msg_unused_enable(context.kind_str)
+        };
+        lists.candidates.push(Candidate {
+            msg: (context.comment_pos.0, context.comment_pos.1 + 1),
+            key: context.comment_pos,
+            start: context.comment_start,
+            end: context.comment_end,
+            message,
+            target: None,
+        });
+        return;
+    }
+    for rule in context.rules {
+        lists.blocks.push(BlockDir {
+            loc,
+            target: Some(rule.id.clone()),
+            kind,
+            key: rule.pos,
+        });
+        let message = if kind == BlockKind::Disable {
+            msg_unused_rule(context.kind_str, &rule.id)
+        } else {
+            msg_unused_enable_rule(context.kind_str, &rule.id)
+        };
+        lists.candidates.push(Candidate {
+            msg: (rule.pos.0, rule.pos.1 + 1),
+            key: rule.pos,
+            start: rule.start,
+            end: rule.end,
+            message,
+            target: Some(rule.id.clone()),
+        });
+    }
+}
+
+fn add_line_directives(
+    context: &DirectiveContext<'_>,
+    next_line: bool,
+    lists: &mut DirectiveLists<'_>,
+) {
+    let target_line = context.comment_pos.0 + u32::from(next_line);
+    if context.rules.is_empty() {
+        lists.lines.push(LineDir {
+            line: target_line,
+            target: None,
+            key: context.comment_pos,
+        });
+        lists.candidates.push(Candidate {
+            msg: (context.comment_pos.0, context.comment_pos.1 + 1),
+            key: context.comment_pos,
+            start: context.comment_start,
+            end: context.comment_end,
+            message: msg_unused(context.kind_str),
+            target: None,
+        });
+        return;
+    }
+    for rule in context.rules {
+        lists.lines.push(LineDir {
+            line: target_line,
+            target: Some(rule.id.clone()),
+            key: rule.pos,
+        });
+        lists.candidates.push(Candidate {
+            msg: (rule.pos.0, rule.pos.1 + 1),
+            key: rule.pos,
+            start: rule.start,
+            end: rule.end,
+            message: msg_unused_rule(context.kind_str, &rule.id),
+            target: Some(rule.id.clone()),
+        });
+    }
 }
 
 /// A parsed rule token: its id, byte span, and start position.
@@ -512,8 +536,8 @@ fn extract_rules(
             j += 1;
         }
         let id = &text[tok_start..j];
-        let abs_start = (inner_start + tok_start) as u32;
-        let abs_end = (inner_start + j) as u32;
+        let abs_start = source_offset(inner_start + tok_start);
+        let abs_end = source_offset(inner_start + j);
         out.push(RuleTok {
             id: id.to_string(),
             start: abs_start,
@@ -534,12 +558,12 @@ enum DType {
 }
 
 impl DType {
-    fn kind_str(self) -> &'static str {
+    const fn kind_str(self) -> &'static str {
         match self {
-            DType::Disable => "eslint-disable",
-            DType::Enable => "eslint-enable",
-            DType::DisableLine => "eslint-disable-line",
-            DType::DisableNextLine => "eslint-disable-next-line",
+            Self::Disable => "eslint-disable",
+            Self::Enable => "eslint-enable",
+            Self::DisableLine => "eslint-disable-line",
+            Self::DisableNextLine => "eslint-disable-next-line",
         }
     }
 }
@@ -596,11 +620,11 @@ fn leading_ws_len(b: &[u8]) -> usize {
     i
 }
 
-fn is_ws(c: u8) -> bool {
+const fn is_ws(c: u8) -> bool {
     matches!(c, b' ' | b'\t' | b'\n' | b'\r' | 0x0c | 0x0b)
 }
 
-fn is_separator(c: u8) -> bool {
+const fn is_separator(c: u8) -> bool {
     is_ws(c) || c == b','
 }
 
@@ -615,50 +639,51 @@ fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
 /// Add a synthetic "enable all" boundary at the end of each `<script …>` start
 /// tag, matching upstream's per-`SvelteScriptElement` `enableBlock`.
 fn add_script_enable_boundaries(source: &str, li: &LineIndex, blocks: &mut Vec<BlockDir>) {
-    let b = source.as_bytes();
-    let mut i = 0;
-    while i + 7 <= b.len() {
-        if &b[i..i + 7] != b"<script" {
-            i += 1;
+    let bytes = source.as_bytes();
+    let mut index = 0;
+    while index + 7 <= bytes.len() {
+        if &bytes[index..index + 7] != b"<script" {
+            index += 1;
             continue;
         }
         // Require a tag boundary after `<script` (ws, `>`, or `/`).
-        let next = b.get(i + 7).copied();
-        if !matches!(next, Some(c) if is_ws(c) || c == b'>' || c == b'/') {
-            i += 7;
+        let next = bytes.get(index + 7).copied();
+        if !matches!(next, Some(character) if is_ws(character) || character == b'>' || character == b'/')
+        {
+            index += 7;
             continue;
         }
         // Find the `>` ending the start tag, skipping quoted attribute values.
-        let mut j = i + 7;
+        let mut tag_index = index + 7;
         let mut quote: Option<u8> = None;
         let mut end = None;
-        while j < b.len() {
-            let c = b[j];
+        while tag_index < bytes.len() {
+            let character = bytes[tag_index];
             match quote {
-                Some(q) => {
-                    if c == q {
+                Some(quote_character) => {
+                    if character == quote_character {
                         quote = None;
                     }
                 }
                 None => {
-                    if c == b'"' || c == b'\'' {
-                        quote = Some(c);
-                    } else if c == b'>' {
-                        end = Some(j + 1);
+                    if character == b'"' || character == b'\'' {
+                        quote = Some(character);
+                    } else if character == b'>' {
+                        end = Some(tag_index + 1);
                         break;
                     }
                 }
             }
-            j += 1;
+            tag_index += 1;
         }
         let Some(tag_end) = end else { break };
         blocks.push(BlockDir {
-            loc: li.position(tag_end as u32),
+            loc: li.position(source_offset(tag_end)),
             target: None,
             kind: BlockKind::Enable,
-            key: li.position(i as u32),
+            key: li.position(source_offset(index)),
         });
-        i = tag_end;
+        index = tag_end;
     }
 }
 

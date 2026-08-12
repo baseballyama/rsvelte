@@ -126,7 +126,7 @@ fn parse_args() -> Result<Config, String> {
 /// Deterministic across builds/runs (fixed offset basis + prime), no dep.
 fn fnv1a(bytes: &[u8], mut hash: u64) -> u64 {
     for &b in bytes {
-        hash ^= b as u64;
+        hash ^= u64::from(b);
         hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
     }
     hash
@@ -229,7 +229,7 @@ fn main() {
     let config = match parse_args() {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("Error: {}", e);
+            eprintln!("Error: {e}");
             std::process::exit(1);
         }
     };
@@ -237,7 +237,7 @@ fn main() {
     let files = match load_files(&config.files_path) {
         Ok(f) => f,
         Err(e) => {
-            eprintln!("Error loading files: {}", e);
+            eprintln!("Error loading files: {e}");
             std::process::exit(1);
         }
     };
@@ -295,6 +295,6 @@ fn main() {
         );
     }
 
-    let times_json: Vec<String> = times.iter().map(|t| format!("{:.4}", t)).collect();
+    let times_json: Vec<String> = times.iter().map(|t| format!("{t:.4}")).collect();
     println!("{{\"times\": [{}]}}", times_json.join(", "));
 }

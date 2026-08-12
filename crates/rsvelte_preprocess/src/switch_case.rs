@@ -1,7 +1,7 @@
-//! Port of [`svelte-switch-case`](https://github.com/l-portet/svelte-switch-case)
-//! (v2.0.0) — a markup preprocessor that rewrites the non-standard
-//! `{#switch}` / `{:case}` / `{:default}` block sugar into Svelte's native
-//! `{#if}` / `{:else if}` / `{:else}` blocks.
+//! Port of [`svelte-switch-case`](https://github.com/l-portet/svelte-switch-case).
+//!
+//! It rewrites non-standard `{#switch}` / `{:case}` / `{:default}` block
+//! sugar into Svelte's native `{#if}` / `{:else if}` / `{:else}` blocks.
 //!
 //! Because `{#switch}` is not valid Svelte syntax, the input cannot be fed to
 //! rsvelte's strict Svelte parser; instead we run a focused brace-aware scanner
@@ -19,6 +19,7 @@ const COMMENT: &str = "<!-- Injected by svelte-switch-case -->";
 ///
 /// Mirrors the upstream default export `preprocess()` which returns
 /// `{ name, markup }`.
+#[must_use]
 pub fn switch_case() -> PreprocessorGroup {
     PreprocessorGroup {
         name: Some("svelte-switch-case".to_string()),
@@ -88,6 +89,10 @@ enum Frame {
 ///
 /// Returns `Err(message)` for any of the upstream `validateSyntax` failures
 /// (the JS original throws `SyntaxError`).
+///
+/// # Errors
+///
+/// Returns an error when the switch-block syntax is invalid.
 pub fn transform(code: &str) -> Result<String, String> {
     let blocks = scan(code)?;
 
@@ -156,10 +161,7 @@ fn scan(code: &str) -> Result<Vec<SwitchBlock>, String> {
     while i < bytes.len() {
         // Skip HTML comments so their contents never look like markup.
         if code[i..].starts_with("<!--") {
-            i = code[i..]
-                .find("-->")
-                .map(|p| i + p + 3)
-                .unwrap_or(bytes.len());
+            i = code[i..].find("-->").map_or(bytes.len(), |p| i + p + 3);
             continue;
         }
         // Skip <script>…</script> and <style>…</style> bodies (may contain braces).
@@ -237,11 +239,7 @@ fn scan(code: &str) -> Result<Vec<SwitchBlock>, String> {
 /// Finalize an open switch frame into a [`SwitchBlock`].
 fn finalize(b: SwitchBuilder, close_start: usize, close_end: usize, code: &str) -> SwitchBlock {
     // Content between `{#switch …}` and the first branch (or `{/switch}`).
-    let content_end = b
-        .branches
-        .first()
-        .map(|br| br.marker_start)
-        .unwrap_or(close_start);
+    let content_end = b.branches.first().map_or(close_start, |br| br.marker_start);
     let between = &code[b.open_end..content_end];
     let switch_branch_has_content = !strip_html_comments(between).trim().is_empty();
 
@@ -358,19 +356,18 @@ fn skip_raw_element(code: &str, at: usize, tag: &str) -> Option<usize> {
         return Some(at + gt + 1);
     }
     let close = format!("</{tag}>");
-    match rest[gt..].find(&close) {
-        Some(p) => Some(at + gt + p + close.len()),
-        None => Some(code.len()),
-    }
+    rest[gt..]
+        .find(&close)
+        .map_or(Some(code.len()), |position| {
+            Some(at + gt + position + close.len())
+        })
 }
 
 /// Split `keyword rest…` at the first whitespace.
 fn split_keyword(s: &str) -> (&str, &str) {
     let s = s.trim_start();
-    match s.find(char::is_whitespace) {
-        Some(idx) => (&s[..idx], s[idx..].trim()),
-        None => (s, ""),
-    }
+    s.find(char::is_whitespace)
+        .map_or((s, ""), |index| (&s[..index], s[index..].trim()))
 }
 
 /// Remove `<!-- … -->` comments from `s` (for the content-emptiness check).
@@ -379,12 +376,11 @@ fn strip_html_comments(s: &str) -> String {
     let mut rest = s;
     while let Some(start) = rest.find("<!--") {
         out.push_str(&rest[..start]);
-        match rest[start..].find("-->") {
-            Some(end) => rest = &rest[start + end + 3..],
-            None => {
-                rest = "";
-                break;
-            }
+        if let Some(end) = rest[start..].find("-->") {
+            rest = &rest[start + end + 3..];
+        } else {
+            rest = "";
+            break;
         }
     }
     out.push_str(rest);

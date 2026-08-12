@@ -1,4 +1,11 @@
-use super::*;
+use super::{
+    FormatOptions, Fragment, IndentUnit, TemplateNode, VisualWidth, attribute_span,
+    block_branch_bounds, did_self_close, element_hug_parts, element_source_empty,
+    ends_with_space_no_break, is_block_display, is_html_void_element, is_inline_block,
+    is_inline_regular_element, is_whitespace_preserving, leading_linebreaks, node_end, node_start,
+    node_to_child, omit_softline_allowed, starts_with_space_no_break, tab_width,
+    trailing_linebreaks,
+};
 
 /// prettier-plugin-svelte's `printSvelteBlockChildren`:
 /// `[indent([startline, group(printChildren(…))]), endline]`.
@@ -49,7 +56,7 @@ pub(super) fn build_block_branch_doc(
 
 /// Build an `{#if}` chain's Doc, mirroring prettier's `IfBlock` print plus
 /// `printIfBlockAlternate`: `group([def, breakParent])`. svelte desugars
-/// `{:else if}` into an alternate whose sole child is an `elseif` IfBlock, so the
+/// `{:else if}` into an alternate whose sole child is an `elseif` `IfBlock`, so the
 /// chain is walked iteratively (each branch tag is the verbatim source between
 /// the previous branch's content and the next one's).
 pub(super) fn build_if_block_doc(
@@ -75,17 +82,16 @@ pub(super) fn build_if_block_doc(
         )?);
         tok_start = ce;
         let Some(alt) = &cur.alternate else { break };
-        match crate::indent::else_if_branch(alt) {
-            Some(chained) => cur = chained,
-            None => {
-                let (as_, ae) = block_branch_bounds(out, alt)?;
-                parts.push(Doc::Text(out.get(tok_start..as_)?.to_string()));
-                parts.extend(build_block_branch_doc(
-                    out, alt, as_, ae, line_width, options,
-                )?);
-                tok_start = ae;
-                break;
-            }
+        if let Some(chained) = crate::indent::else_if_branch(alt) {
+            cur = chained;
+        } else {
+            let (as_, ae) = block_branch_bounds(out, alt)?;
+            parts.push(Doc::Text(out.get(tok_start..as_)?.to_string()));
+            parts.extend(build_block_branch_doc(
+                out, alt, as_, ae, line_width, options,
+            )?);
+            tok_start = ae;
+            break;
         }
     }
     parts.push(Doc::Text(out.get(tok_start..blk.end as usize)?.to_string()));
@@ -192,7 +198,7 @@ pub(super) fn build_attrs_concat(
     }
     // prettier's `attributeLine`: `singleAttributePerLine` joins a multi-attribute
     // tag with `hardline` instead of `line`, so the tag breaks regardless of width.
-    let sep = if options.single_attribute_per_line && attrs.len() > 1 {
+    let sep = if options.attributes.single_attribute_per_line && attrs.len() > 1 {
         Doc::Hardline
     } else {
         Doc::Line
@@ -302,6 +308,128 @@ pub(super) fn inline_ignore_atom<'a>(
     (!span.contains('\n')).then_some(span)
 }
 
+fn append_non_text_doc(
+    out: &str,
+    node: &TemplateNode,
+    options: Option<&FormatOptions>,
+    docs: &mut Vec<crate::doc::Doc>,
+    ws_prev: &mut bool,
+) -> Option<()> {
+    use crate::doc::Doc;
+    if is_inline_regular_element(node) {
+        let element = element_doc(out, node)?;
+        if *ws_prev {
+            docs.push(Doc::Group(vec![Doc::Line, element]));
+        } else {
+            docs.push(element);
+        }
+        *ws_prev = false;
+        return Some(());
+    }
+    if let Some(options) = options
+        && matches!(
+            node,
+            TemplateNode::ExpressionTag(_) | TemplateNode::RenderTag(_)
+        )
+        && let Some(doc) = content_tag_breakable_doc(out, node, options)
+    {
+        docs.push(doc);
+        *ws_prev = false;
+        return Some(());
+    }
+    let span = out.get(node_start(node) as usize..node_end(node) as usize)?;
+    if span.contains('\n') {
+        return None;
+    }
+    let element = if matches!(node, TemplateNode::Component(component) if component.fragment.nodes.is_empty())
+    {
+        build_self_closing_component_doc(out, node)
+            .or_else(|| element_doc(out, node))
+            .unwrap_or_else(|| Doc::Text(span.to_string()))
+    } else if matches!(node, TemplateNode::Component(_)) {
+        element_doc(out, node).unwrap_or_else(|| Doc::Text(span.to_string()))
+    } else {
+        build_self_closing_component_doc(out, node).unwrap_or_else(|| Doc::Text(span.to_string()))
+    };
+    if *ws_prev {
+        docs.push(Doc::Group(vec![Doc::Line, element]));
+    } else {
+        docs.push(element);
+    }
+    *ws_prev = false;
+    Some(())
+}
+
+fn append_inline_ignore_atom(atom: &str, docs: &mut Vec<crate::doc::Doc>, ws_prev: &mut bool) {
+    use crate::doc::Doc;
+    let part = Doc::Text(atom.to_string());
+    match docs.last_mut() {
+        Some(Doc::Fill(parts)) => parts.push(part),
+        _ if *ws_prev => docs.push(Doc::Fill(vec![Doc::Line, part])),
+        _ => docs.push(Doc::Fill(vec![part])),
+    }
+    *ws_prev = false;
+}
+
+fn skip_ignored_node(skip_ignored: &mut bool) -> bool {
+    std::mem::take(skip_ignored)
+}
+
+fn finish_children_docs(docs: Vec<crate::doc::Doc>) -> Option<crate::doc::Doc> {
+    (!docs.is_empty()).then_some(crate::doc::Doc::Concat(docs))
+}
+
+#[derive(Clone, Copy)]
+enum TextTrimming {
+    Neither,
+    Left,
+    Right,
+    Both,
+}
+
+impl TextTrimming {
+    const fn from_edges(left: bool, right: bool) -> Self {
+        match (left, right) {
+            (false, false) => Self::Neither,
+            (true, false) => Self::Left,
+            (false, true) => Self::Right,
+            (true, true) => Self::Both,
+        }
+    }
+
+    const fn edges(self) -> (bool, bool) {
+        match self {
+            Self::Neither => (false, false),
+            Self::Left => (true, false),
+            Self::Right => (false, true),
+            Self::Both => (true, true),
+        }
+    }
+}
+
+struct TextPartLayout {
+    trimming: TextTrimming,
+    soft_break: bool,
+    merge_previous_fill: bool,
+}
+
+fn append_text_parts(text: &str, layout: &TextPartLayout, docs: &mut Vec<crate::doc::Doc>) {
+    use crate::doc::Doc;
+    if layout.soft_break && !layout.merge_previous_fill {
+        docs.push(Doc::Line);
+        return;
+    }
+    let (trim_left, trim_right) = layout.trimming.edges();
+    let parts = split_text_to_docs(text, trim_left, trim_right);
+    if let (true, Some(Doc::Fill(previous))) = (layout.merge_previous_fill, docs.last_mut()) {
+        previous.extend(parts);
+    } else if text.split_whitespace().next().is_none() {
+        docs.extend(parts);
+    } else {
+        docs.push(Doc::Fill(parts));
+    }
+}
+
 // `use_word_first`: when true, a trailing text node that follows a non-void
 // inline element and starts with a space is converted to word-first format.
 // Only pass `true` from `try_fill_run` where the element fits flat in context.
@@ -327,18 +455,11 @@ pub(super) fn build_children_doc_nodes(
     let mut merge_into_fill = false;
 
     for (i, node) in nodes.iter().enumerate() {
-        if skip_ignored {
-            skip_ignored = false;
+        if skip_ignored_node(&mut skip_ignored) {
             continue;
         }
         if let Some(atom) = inline_ignore_atom(out, nodes, i) {
-            let part = Doc::Text(atom.to_string());
-            match docs.last_mut() {
-                Some(Doc::Fill(parts)) => parts.push(part),
-                _ if ws_prev => docs.push(Doc::Fill(vec![Doc::Line, part])),
-                _ => docs.push(Doc::Fill(vec![part])),
-            }
-            ws_prev = false;
+            append_inline_ignore_atom(atom, &mut docs, &mut ws_prev);
             skip_ignored = true;
             merge_into_fill = true;
             continue;
@@ -505,89 +626,22 @@ pub(super) fn build_children_doc_nodes(
                     && prev_is_phrasing_inline
                     && next_is_not_element
                     && txt.chars().filter(|&c| c == '\n').count() == 1;
-                if use_soft_break && !merge_prev_fill {
-                    docs.push(Doc::Line);
-                } else {
-                    let parts = split_text_to_docs(txt, tl, tr);
-                    if let (true, Some(Doc::Fill(prev))) = (merge_prev_fill, docs.last_mut()) {
-                        prev.extend(parts);
-                    } else if ws_only {
-                        // Whitespace-only separator (between mustaches / atoms): emit
-                        // the bare `line`(s) so they break with the surrounding
-                        // element group (prettier's `splitTextToDocs` returns a bare
-                        // line here, governed by the parent group's break mode) rather
-                        // than a lone `Fill` that always prints flat.
-                        //
-                        docs.extend(parts);
-                    } else {
-                        docs.push(Doc::Fill(parts));
-                    }
-                }
-            }
-            other if is_inline_regular_element(other) => {
-                let elem = element_doc(out, other)?;
-                if ws_prev {
-                    docs.push(Doc::Group(vec![Doc::Line, elem]));
-                } else {
-                    docs.push(elem);
-                }
-                ws_prev = false;
+                append_text_parts(
+                    txt,
+                    &TextPartLayout {
+                        trimming: TextTrimming::from_edges(tl, tr),
+                        soft_break: use_soft_break,
+                        merge_previous_fill: merge_prev_fill,
+                    },
+                    &mut docs,
+                );
             }
             other => {
-                // A breakable content/render tag joins the fill as `group([RawExpr])`
-                // (prettier's fill+tag+fill); gated on a caller threading options.
-                if let Some(opts) = options
-                    && matches!(
-                        other,
-                        TemplateNode::ExpressionTag(_) | TemplateNode::RenderTag(_)
-                    )
-                    && let Some(doc) = content_tag_breakable_doc(out, other, opts)
-                {
-                    // `ws_prev` is only raised before an inline *element*, never
-                    // before a content tag, so the tag is always pushed bare.
-                    docs.push(doc);
-                    ws_prev = false;
-                    continue;
-                }
-                // Expression tag / html tag / component / … : verbatim atom.
-                // For Components with text content (`<A href="/">text</A>`), try
-                // the same hug-doc treatment as RegularElement so the open tag can
-                // break its attributes when the prose line overflows (Increment 6).
-                // For self-closing Components with attributes, try to build a
-                // wrappable doc so a long `<Icon class="…" />` inside a fill
-                // can break its attributes (Increment 5).
-                let span = out.get(node_start(other) as usize..node_end(other) as usize)?;
-                if span.contains('\n') {
-                    return None;
-                }
-                let elem = if matches!(other, TemplateNode::Component(c) if c.fragment.nodes.is_empty())
-                {
-                    // Self-closing Component (`<Icon class="…" />`): build a breakable
-                    // attribute-wrapping doc first; fall back to element_doc (for the
-                    // hug-start path, though rare for self-closing) or plain text.
-                    build_self_closing_component_doc(out, other)
-                        .or_else(|| element_doc(out, other))
-                        .unwrap_or_else(|| Doc::Text(span.to_string()))
-                } else if matches!(other, TemplateNode::Component(_)) {
-                    // Non-self-closing Component (`<A href="/">text</A>`): hug doc first.
-                    element_doc(out, other).unwrap_or_else(|| Doc::Text(span.to_string()))
-                } else {
-                    build_self_closing_component_doc(out, other)
-                        .unwrap_or_else(|| Doc::Text(span.to_string()))
-                };
-                if ws_prev {
-                    docs.push(Doc::Group(vec![Doc::Line, elem]));
-                } else {
-                    docs.push(elem);
-                }
-                ws_prev = false;
+                append_non_text_doc(out, other, options, &mut docs, &mut ws_prev)?;
             }
         }
     }
-    if docs.is_empty() {
-        return None;
-    }
-    Some(Doc::Concat(docs))
+    finish_children_docs(docs)
 }
 
 /// Build a wrappable open-tag doc (`<tag` + an attribute group) for a regular
@@ -698,14 +752,14 @@ pub(super) fn build_self_closing_component_doc(
         Doc::Text("/>".to_string()), // no leading space: the `dedent(line)` provides it
     ]);
     // Guard: the flat print must match the verbatim span (trimmed).
-    let flat = crate::doc::print(&doc, 999999, IndentUnit::new("  ", 2), 0, 0);
+    let flat = crate::doc::print(&doc, 999_999, IndentUnit::new("  ", 2), 0, 0);
     if flat.trim() != span.trim() {
         return None;
     }
     Some(doc)
 }
 
-/// Build a breakable doc for a self-closing **RegularElement** (`<input … />`,
+/// Build a breakable doc for a self-closing **`RegularElement`** (`<input … />`,
 /// `<img … />`) inside a children/prose fill. Unlike
 /// [`build_self_closing_component_doc`] this reads each attribute's own span
 /// (which is single-line even when the element was already wrapped across lines
@@ -904,23 +958,22 @@ pub(super) fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::
                     && !content.ends_with([' ', '\t', '\r', '\n'])
                 {
                     let open_doc = build_open_attr_doc(out, node, tag, true)
-                        .unwrap_or(Doc::Text(open_text[..open_text.len() - 1].to_string()));
+                        .unwrap_or_else(|| Doc::Text(open_text[..open_text.len() - 1].to_string()));
                     // Build a fill doc for the content so mixed text+expr content
                     // (e.g. `count {await delay(count)} | …`) can fill-wrap when
                     // the element is inside a multi-element run and overflows.
                     // Fall back to a flat text atom when the content has no fill
                     // break points (e.g. a pure text "resolve" that fits inline).
-                    let inner_content_doc = build_children_doc(out, &e.fragment)
-                        .map(|body| {
+                    let inner_content_doc = build_children_doc(out, &e.fragment).map_or_else(
+                        || Doc::Group(vec![Doc::Text(format!(">{content}</{tag}"))]),
+                        |body| {
                             Doc::Group(vec![Doc::Concat(vec![
                                 Doc::Text(">".to_string()),
                                 body,
                                 Doc::Text(format!("</{tag}")),
                             ])])
-                        })
-                        .unwrap_or_else(|| {
-                            Doc::Group(vec![Doc::Text(format!(">{content}</{tag}"))])
-                        });
+                        },
+                    );
                     return Some(Doc::Group(vec![
                         open_doc,
                         Doc::Group(vec![Doc::Indent(vec![Doc::Softline, inner_content_doc])]),

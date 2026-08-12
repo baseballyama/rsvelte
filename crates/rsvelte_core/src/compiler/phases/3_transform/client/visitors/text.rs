@@ -28,7 +28,7 @@ use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 ///
 /// # Returns
 ///
-/// Returns a TransformResult containing the transformation output.
+/// Returns a `TransformResult` containing the transformation output.
 ///
 /// # Example
 ///

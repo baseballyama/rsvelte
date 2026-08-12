@@ -1,4 +1,4 @@
-//! StyleDirective visitor.
+//! `StyleDirective` visitor.
 //!
 //! Analyzes style: directives.
 //!

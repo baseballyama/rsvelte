@@ -41,7 +41,7 @@ fn main() {
         for _ in 0..iters {
             let _ = parse(source, &oxc_allocator::Allocator::default(), options);
         }
-        let ns = start.elapsed().as_nanos() as f64 / iters as f64;
+        let ns = start.elapsed().as_nanos() as f64 / f64::from(iters);
         println!("{:30} {:6.0}ns ({:.2}µs)", label, ns, ns / 1000.0);
     }
 
@@ -56,7 +56,7 @@ fn main() {
         for _ in 0..iters {
             let _ = parse_reuse(&mut parser, source, options);
         }
-        let ns = start.elapsed().as_nanos() as f64 / iters as f64;
+        let ns = start.elapsed().as_nanos() as f64 / f64::from(iters);
         println!("{:30} {:6.0}ns ({:.2}µs)", label, ns, ns / 1000.0);
     }
 
@@ -69,7 +69,7 @@ fn main() {
     for _ in 0..iters {
         let _p = Parser::new("", options);
     }
-    let ns = start.elapsed().as_nanos() as f64 / iters as f64;
+    let ns = start.elapsed().as_nanos() as f64 / f64::from(iters);
     println!(
         "Parser::new(empty):            {:6.0}ns ({:.2}µs)",
         ns,
@@ -84,7 +84,7 @@ fn main() {
     for _ in 0..iters {
         let _p = Parser::new(big, options);
     }
-    let ns = start.elapsed().as_nanos() as f64 / iters as f64;
+    let ns = start.elapsed().as_nanos() as f64 / f64::from(iters);
     println!(
         "Parser::new(67B with script):  {:6.0}ns ({:.2}µs)",
         ns,

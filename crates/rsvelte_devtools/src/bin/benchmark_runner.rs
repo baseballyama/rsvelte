@@ -68,7 +68,7 @@ fn parse_args() -> Result<Config, String> {
                         "compile-server" => Task::CompileServer,
                         "parse" => Task::Parse,
                         "svelte2tsx" => Task::Svelte2Tsx,
-                        other => return Err(format!("Unknown task: {}", other)),
+                        other => return Err(format!("Unknown task: {other}")),
                     };
                 }
             }
@@ -236,7 +236,7 @@ fn main() {
     let config = match parse_args() {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("Error: {}", e);
+            eprintln!("Error: {e}");
             std::process::exit(1);
         }
     };
@@ -244,7 +244,7 @@ fn main() {
     let files = match load_files(&config.files_path) {
         Ok(f) => f,
         Err(e) => {
-            eprintln!("Error loading files: {}", e);
+            eprintln!("Error loading files: {e}");
             std::process::exit(1);
         }
     };
@@ -286,6 +286,6 @@ fn main() {
     }
 
     // Output as JSON
-    let times_json: Vec<String> = times.iter().map(|t| format!("{:.4}", t)).collect();
+    let times_json: Vec<String> = times.iter().map(|t| format!("{t:.4}")).collect();
     println!("{{\"times\": [{}]}}", times_json.join(", "));
 }

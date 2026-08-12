@@ -49,7 +49,7 @@ fn key_end(source: &[u8], node_start: u32, node_end: u32) -> u32 {
         }
         pos += 1;
     }
-    pos as u32
+    u32::try_from(pos).expect("source offsets are represented as u32")
 }
 
 /// The leading `^[\s=]*` prefix of `src` (bytes while char is whitespace or `=`).
@@ -62,7 +62,7 @@ fn eq_source_len(src: &str) -> usize {
 pub struct NoSpacesAroundEqualSignsInAttribute;
 
 impl NoSpacesAroundEqualSignsInAttribute {
-    fn check(&self, ctx: &mut LintContext, node_start: u32, node_end: u32) {
+    fn check(ctx: &mut LintContext, node_start: u32, node_end: u32) {
         let src_bytes = ctx.source().as_bytes();
         let ke = key_end(src_bytes, node_start, node_end);
         // Slice from key-end to node-end.
@@ -74,10 +74,10 @@ impl NoSpacesAroundEqualSignsInAttribute {
         // inner spaces (`{ id }`) has a whitespace-only eq region (the key scan
         // stops at the space after `{`) but no `=`, so upstream — which measures
         // the gap between the key node and the value node — never reports it.
-        if !eq_src.contains('=') || !eq_src.chars().any(|c| c.is_whitespace()) {
+        if !eq_src.contains('=') || !eq_src.chars().any(char::is_whitespace) {
             return;
         }
-        let eq_end = ke + eq_len as u32;
+        let eq_end = ke + u32::try_from(eq_len).expect("source offsets are represented as u32");
         ctx.report_with_fix(
             ke,
             eq_end,
@@ -104,15 +104,15 @@ impl Rule for NoSpacesAroundEqualSignsInAttribute {
             // SpreadAttribute (`{...x}`) and AttachTag have no key=value
             // structure — skip them.
             Attribute::SpreadAttribute(_) | Attribute::AttachTag(_) => {}
-            Attribute::Attribute(node) => self.check(ctx, node.start, node.end),
-            Attribute::BindDirective(node) => self.check(ctx, node.start, node.end),
-            Attribute::OnDirective(node) => self.check(ctx, node.start, node.end),
-            Attribute::ClassDirective(node) => self.check(ctx, node.start, node.end),
-            Attribute::StyleDirective(node) => self.check(ctx, node.start, node.end),
-            Attribute::TransitionDirective(node) => self.check(ctx, node.start, node.end),
-            Attribute::AnimateDirective(node) => self.check(ctx, node.start, node.end),
-            Attribute::UseDirective(node) => self.check(ctx, node.start, node.end),
-            Attribute::LetDirective(node) => self.check(ctx, node.start, node.end),
+            Attribute::Attribute(node) => Self::check(ctx, node.start, node.end),
+            Attribute::BindDirective(node) => Self::check(ctx, node.start, node.end),
+            Attribute::OnDirective(node) => Self::check(ctx, node.start, node.end),
+            Attribute::ClassDirective(node) => Self::check(ctx, node.start, node.end),
+            Attribute::StyleDirective(node) => Self::check(ctx, node.start, node.end),
+            Attribute::TransitionDirective(node) => Self::check(ctx, node.start, node.end),
+            Attribute::AnimateDirective(node) => Self::check(ctx, node.start, node.end),
+            Attribute::UseDirective(node) => Self::check(ctx, node.start, node.end),
+            Attribute::LetDirective(node) => Self::check(ctx, node.start, node.end),
         }
     }
 }

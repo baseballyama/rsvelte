@@ -11,11 +11,15 @@ use super::super::script::ExportedNames;
 use super::super::svelte2tsx::slice_src;
 use super::super::utils::lexical::{lexical_identifiers, lexical_identifiers_in_expressions};
 
+fn snippet_index(value: usize) -> u32 {
+    u32::try_from(value).expect("snippet indexes are represented as u32")
+}
+
 fn propagate_blocked_dependencies(dependents: &[Vec<u32>], blocked: &mut [bool]) {
     let mut blocked_queue = VecDeque::new();
     for (index, &is_blocked) in blocked.iter().enumerate() {
         if is_blocked {
-            blocked_queue.push_back(index as u32);
+            blocked_queue.push_back(snippet_index(index));
         }
     }
     while let Some(dependency) = blocked_queue.pop_front() {
@@ -23,7 +27,7 @@ fn propagate_blocked_dependencies(dependents: &[Vec<u32>], blocked: &mut [bool])
             let candidate = candidate as usize;
             if !blocked[candidate] {
                 blocked[candidate] = true;
-                blocked_queue.push_back(candidate as u32);
+                blocked_queue.push_back(snippet_index(candidate));
             }
         }
     }
@@ -33,7 +37,7 @@ fn propagate_blocked_dependencies(dependents: &[Vec<u32>], blocked: &mut [bool])
 /// (those closing over instance-script values, or referencing a non-hoistable
 /// snippet) are moved to the top of the instance script; the returned ranges are
 /// the module-hoistable snippets, which the caller relocates to module scope.
-pub(crate) fn hoist_top_level_snippets(
+pub fn hoist_top_level_snippets(
     ast: &Root,
     source: &str,
     exported_names: &ExportedNames,
@@ -85,7 +89,10 @@ pub(crate) fn hoist_top_level_snippets(
             let mut snippet_indices: FxHashMap<&str, Vec<u32>> = FxHashMap::default();
             for (index, &name) in snippet_names.iter().enumerate() {
                 if let Some(name) = name {
-                    snippet_indices.entry(name).or_default().push(index as u32);
+                    snippet_indices
+                        .entry(name)
+                        .or_default()
+                        .push(snippet_index(index));
                 }
             }
 
@@ -107,9 +114,9 @@ pub(crate) fn hoist_top_level_snippets(
                     if let Some(dependencies) = snippet_indices.get(ident.as_str()) {
                         for &dependency in dependencies {
                             let dependency_index = dependency as usize;
-                            if seen_dependencies[dependency_index] != i as u32 {
-                                seen_dependencies[dependency_index] = i as u32;
-                                dependents[dependency_index].push(i as u32);
+                            if seen_dependencies[dependency_index] != snippet_index(i) {
+                                seen_dependencies[dependency_index] = snippet_index(i);
+                                dependents[dependency_index].push(snippet_index(i));
                             }
                         }
                     }
@@ -121,9 +128,7 @@ pub(crate) fn hoist_top_level_snippets(
     } else {
         // No module script => everything stays inside $$render (or stays
         // put if no instance script exists either).
-        for b in blocked.iter_mut() {
-            *b = true;
-        }
+        blocked.fill(true);
     }
 
     for (i, snippet) in snippets.iter().enumerate() {
@@ -137,7 +142,7 @@ pub(crate) fn hoist_top_level_snippets(
     // Inside-target moves require an instance script to anchor against.
     if let Some(instance) = ast.instance.as_ref() {
         let inside_target = instance.content_offset;
-        for (s, e) in nonhoistable_snippet_ranges.iter() {
+        for (s, e) in &nonhoistable_snippet_ranges {
             str.move_range(*s, *e, inside_target);
         }
     }
@@ -159,7 +164,7 @@ fn collect_snippet_component_names(fragment: &Fragment, source: &str, names: &mu
             Some(c) if c.is_ascii_uppercase() => true,
             Some(c) if c.is_ascii_alphabetic() => {
                 let head: String = std::iter::once(c)
-                    .chain(chars.clone().take_while(|c| c.is_ascii_alphabetic()))
+                    .chain(chars.clone().take_while(char::is_ascii_alphabetic))
                     .collect();
                 name[head.len()..].starts_with('.')
             }
@@ -167,7 +172,7 @@ fn collect_snippet_component_names(fragment: &Fragment, source: &str, names: &mu
         }
     }
 
-    for node in fragment.nodes.iter() {
+    for node in &fragment.nodes {
         match node {
             TemplateNode::Component(comp) => {
                 if !comp.name.starts_with("svelte:") && is_component_tag(&comp.name) {
@@ -187,16 +192,16 @@ fn collect_snippet_component_names(fragment: &Fragment, source: &str, names: &mu
                 collect_snippet_component_names(&el.fragment, source, names);
             }
             TemplateNode::RegularElement(el) => {
-                collect_snippet_component_names(&el.fragment, source, names)
+                collect_snippet_component_names(&el.fragment, source, names);
             }
             TemplateNode::SvelteElement(el) => {
-                collect_snippet_component_names(&el.fragment, source, names)
+                collect_snippet_component_names(&el.fragment, source, names);
             }
             TemplateNode::TitleElement(el) => {
-                collect_snippet_component_names(&el.fragment, source, names)
+                collect_snippet_component_names(&el.fragment, source, names);
             }
             TemplateNode::SlotElement(el) => {
-                collect_snippet_component_names(&el.fragment, source, names)
+                collect_snippet_component_names(&el.fragment, source, names);
             }
             TemplateNode::SvelteBody(el)
             | TemplateNode::SvelteDocument(el)
@@ -206,7 +211,7 @@ fn collect_snippet_component_names(fragment: &Fragment, source: &str, names: &mu
             | TemplateNode::SvelteOptions(el)
             | TemplateNode::SvelteSelf(el)
             | TemplateNode::SvelteWindow(el) => {
-                collect_snippet_component_names(&el.fragment, source, names)
+                collect_snippet_component_names(&el.fragment, source, names);
             }
             TemplateNode::IfBlock(block) => {
                 collect_snippet_component_names(&block.consequent, source, names);
@@ -229,10 +234,10 @@ fn collect_snippet_component_names(fragment: &Fragment, source: &str, names: &mu
                 }
             }
             TemplateNode::KeyBlock(block) => {
-                collect_snippet_component_names(&block.fragment, source, names)
+                collect_snippet_component_names(&block.fragment, source, names);
             }
             TemplateNode::SnippetBlock(block) => {
-                collect_snippet_component_names(&block.body, source, names)
+                collect_snippet_component_names(&block.body, source, names);
             }
             _ => {}
         }
@@ -254,7 +259,7 @@ fn is_snippet_module_hoistable(
 ) -> bool {
     // Param names shadow outer references inside the body.
     let mut params_set: std::collections::HashSet<String> = std::collections::HashSet::new();
-    for p in snippet.parameters.iter() {
+    for p in &snippet.parameters {
         if let (Some(s), Some(e)) = (p.start(), p.end()) {
             let s = s as usize;
             let e = e as usize;

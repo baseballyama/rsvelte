@@ -27,7 +27,7 @@ fn main() {
     let source = match fs::read_to_string(&path) {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("Error reading file: {}", e);
+            eprintln!("Error reading file: {e}");
             std::process::exit(1);
         }
     };
@@ -42,7 +42,7 @@ fn main() {
             println!("Parsed successfully");
         }
         Err(e) => {
-            eprintln!("Parse error: {:?}", e);
+            eprintln!("Parse error: {e:?}");
             std::process::exit(1);
         }
     }

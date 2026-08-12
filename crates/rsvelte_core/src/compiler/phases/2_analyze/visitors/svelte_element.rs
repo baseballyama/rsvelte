@@ -1,4 +1,4 @@
-//! SvelteElement visitor.
+//! `SvelteElement` visitor.
 //!
 //! Analyzes <svelte:element> elements.
 //!

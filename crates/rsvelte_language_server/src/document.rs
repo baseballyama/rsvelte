@@ -46,7 +46,7 @@ impl Document {
 
     /// A hash of the current contents, so a consumer can skip re-analysing a
     /// document whose text did not actually change.
-    pub fn content_hash(&self) -> u64 {
+    pub const fn content_hash(&self) -> u64 {
         self.hash
     }
 
@@ -105,6 +105,7 @@ impl DocumentStore {
     }
 
     /// Look a document up by the raw URI string used as the store's key.
+    #[must_use]
     pub fn get_by_key(&self, key: &str) -> Option<&Document> {
         self.docs.get(key)
     }

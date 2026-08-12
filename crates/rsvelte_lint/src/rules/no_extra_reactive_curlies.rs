@@ -1,8 +1,10 @@
 //! `svelte/no-extra-reactive-curlies` — disallow wrapping a single reactive
 //! statement in curly braces (`$: { foo = bar; }`). A reactive block with just
-//! one statement doesn't need the braces. Port of the eslint-plugin-svelte rule.
+//! one statement doesn't need the braces.
 //!
-//! Runs over the `<script>` ESTree program via the [`ScriptRule`] hook. A `$:`
+//! Port of the eslint-plugin-svelte rule.
+//!
+//! Runs over the `<script>` `ESTree` program via the [`ScriptRule`] hook. A `$:`
 //! reactive statement is a `LabeledStatement` whose label is `$`; the rule
 //! flags one whose body is a `BlockStatement` with exactly one statement,
 //! reporting at the block. The upstream fix is suggestion-only (not an autofix):
@@ -57,11 +59,11 @@ fn strip_brace_edits(source: &str, block_start: u32, block_end: u32) -> Option<V
     Some(vec![
         TextEdit {
             start: block_start,
-            end: first as u32,
+            end: u32::try_from(first).expect("source offsets are represented as u32"),
             new_text: String::new(),
         },
         TextEdit {
-            start: last_end as u32,
+            start: u32::try_from(last_end).expect("source offsets are represented as u32"),
             end: block_end,
             new_text: String::new(),
         },

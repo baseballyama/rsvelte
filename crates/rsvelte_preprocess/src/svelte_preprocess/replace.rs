@@ -19,15 +19,15 @@ pub enum Replacement {
 impl std::fmt::Debug for Replacement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Replacement::Template(s) => write!(f, "Template({s:?})"),
-            Replacement::Func(_) => write!(f, "Func(..)"),
+            Self::Template(s) => write!(f, "Template({s:?})"),
+            Self::Func(_) => write!(f, "Func(..)"),
         }
     }
 }
 
 impl From<&str> for Replacement {
     fn from(s: &str) -> Self {
-        Replacement::Template(s.to_string())
+        Self::Template(s.to_string())
     }
 }
 
@@ -40,7 +40,7 @@ pub struct ReplaceRule {
 
 impl ReplaceRule {
     pub fn new(regex: Regex, replacement: impl Into<Replacement>) -> Self {
-        ReplaceRule {
+        Self {
             regex,
             replacement: replacement.into(),
         }
@@ -49,6 +49,7 @@ impl ReplaceRule {
 
 /// Apply the rules in order, each as a global replace — mirrors the upstream
 /// `for (const [regex, replacer] of options) content = content.replace(...)`.
+#[must_use]
 pub fn apply(content: &str, rules: &[ReplaceRule]) -> String {
     let mut out = content.to_string();
     for rule in rules {

@@ -12,7 +12,7 @@ use crate::svelte2tsx::template::utils::expr::get_expression_range;
 /// declaration kind keyword and a trailing space, and the closing `}` becomes
 /// `;` so the resulting code is parseable TS at the spot where the user wrote
 /// the tag.
-pub(crate) fn handle_declaration_tag(
+pub fn handle_declaration_tag(
     tag: &crate::ast::template::DeclarationTag,
     _source: &str,
     str: &mut MagicString<'_>,

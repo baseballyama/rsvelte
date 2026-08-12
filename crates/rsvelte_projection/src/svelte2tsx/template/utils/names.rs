@@ -4,7 +4,7 @@
 use std::fmt::Write as _;
 
 /// Generate the shared constructor/instance name; constructors append `C`.
-pub(crate) fn reversed_component_name(name: &str, depth: u32) -> String {
+pub fn reversed_component_name(name: &str, depth: u32) -> String {
     #[cfg(test)]
     COMPONENT_NAME_DERIVATIONS.with(|count| count.set(count.get() + 1));
 

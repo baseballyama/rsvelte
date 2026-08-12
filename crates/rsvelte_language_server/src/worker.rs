@@ -133,6 +133,10 @@ pub struct Worker {
 }
 
 impl Worker {
+    /// # Panics
+    ///
+    /// Panics if the analysis worker thread cannot be spawned.
+    #[must_use]
     pub fn spawn(outcomes: Sender<Outcome>) -> Self {
         let (jobs, receiver) = unbounded();
         let handle = std::thread::Builder::new()
@@ -319,11 +323,10 @@ fn format(sessions: &mut FormatSessions, path: &Path, text: &str, range: Range) 
 /// Run one analysis, turning a panic into "no result" instead of the loss of
 /// every other document's diagnostics.
 fn guard<T>(what: &str, path: &Path, run: impl FnOnce() -> T) -> Option<T> {
-    match catch_unwind(AssertUnwindSafe(run)) {
-        Ok(value) => Some(value),
-        Err(_) => {
-            log::warn(format_args!("{what} panicked on {}", path.display()));
-            None
-        }
+    if let Ok(value) = catch_unwind(AssertUnwindSafe(run)) {
+        Some(value)
+    } else {
+        log::warn(format_args!("{what} panicked on {}", path.display()));
+        None
     }
 }

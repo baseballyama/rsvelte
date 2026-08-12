@@ -21,21 +21,21 @@
 //! ## Template Nodes
 //! - `fragment.rs` - Fragment visitor (container for nodes)
 //! - `text.rs` - Text node visitor (currently inline in mod.rs)
-//! - `regular_element.rs` - RegularElement visitor
+//! - `regular_element.rs` - `RegularElement` visitor
 //! - `component.rs` - Component visitor
-//! - `svelte_element.rs` - SvelteElement (dynamic element) visitor
+//! - `svelte_element.rs` - `SvelteElement` (dynamic element) visitor
 //!
 //! ## Expression/Tags
-//! - `expression_tag.rs` - ExpressionTag visitor ({expressions})
-//! - `html_tag.rs` - HtmlTag visitor ({@html})
-//! - `render_tag.rs` - RenderTag visitor ({@render})
+//! - `expression_tag.rs` - `ExpressionTag` visitor ({expressions})
+//! - `html_tag.rs` - `HtmlTag` visitor ({@html})
+//! - `render_tag.rs` - `RenderTag` visitor ({@render})
 //!
 //! ## Blocks
-//! - `if_block.rs` - IfBlock visitor ({#if})
-//! - `each_block.rs` - EachBlock visitor ({#each})
-//! - `await_block.rs` - AwaitBlock visitor ({#await})
-//! - `key_block.rs` - KeyBlock visitor ({#key})
-//! - `snippet_block.rs` - SnippetBlock visitor ({#snippet})
+//! - `if_block.rs` - `IfBlock` visitor ({#if})
+//! - `each_block.rs` - `EachBlock` visitor ({#each})
+//! - `await_block.rs` - `AwaitBlock` visitor ({#await})
+//! - `key_block.rs` - `KeyBlock` visitor ({#key})
+//! - `snippet_block.rs` - `SnippetBlock` visitor ({#snippet})
 //!
 //! ## Attributes
 //! - `attribute.rs` - Attribute visitor

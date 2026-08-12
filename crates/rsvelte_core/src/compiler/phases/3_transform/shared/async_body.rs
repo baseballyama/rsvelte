@@ -31,6 +31,7 @@ pub struct AsyncBodyResult {
 ///
 /// This should be called BEFORE template generation but doesn't need the fully
 /// transformed script - it works on the raw instance script content.
+#[must_use]
 pub fn compute_blocker_map(raw_script: &str) -> rustc_hash::FxHashMap<String, usize> {
     let trimmed = raw_script.trim();
     if trimmed.is_empty() || !has_top_level_await(trimmed) {
@@ -240,11 +241,9 @@ pub fn compute_blocker_map(raw_script: &str) -> rustc_hash::FxHashMap<String, us
     blocker_map
 }
 
-/// Map each blocker index to the set of upstream-primary binding names at
-/// that slot — i.e., names that would receive `binding.blocker = ...` in the
-/// official compiler (`phases/2-analyze/index.js` ~line 1165). These are
-/// exactly the names extracted from declarators in async-slot statements,
-/// NOT pure references.
+/// Map each blocker index to upstream-primary binding names at that slot.
+///
+/// These are names extracted from async-slot declarators, not pure references.
 ///
 /// The Fragment visitor uses this to mirror upstream's
 /// `Memoizer.#blockers = new Set<Expression>` dedup-by-binding-Expression:
@@ -255,6 +254,7 @@ pub fn compute_blocker_map(raw_script: &str) -> rustc_hash::FxHashMap<String, us
 /// `[$$promises[1], $$promises[1]]`, while a pre-await `selectedId`
 /// referenced inside an async-slot `$derived(selectedId ? await selectedId :
 /// null)` doesn't inflate the count (`selectedId` isn't primary).
+#[must_use]
 pub fn compute_blocker_primary_names(
     raw_script: &str,
 ) -> rustc_hash::FxHashMap<usize, rustc_hash::FxHashSet<String>> {
@@ -333,20 +333,20 @@ pub fn compute_blocker_primary_names(
     names
 }
 
-/// Enrich the blocker_map with transitive function dependencies.
+/// Enrich the `blocker_map` with transitive function dependencies.
 ///
-/// After `transform_async_body` produces a blocker_map mapping variable names to
+/// After `transform_async_body` produces a `blocker_map` mapping variable names to
 /// thunk indices, this function scans function/const declarations in the transformed
 /// script for references to blocked variables. If a function body references a blocked
 /// variable (directly or transitively through other functions), the function name is
-/// added to the blocker_map with the same thunk index.
+/// added to the `blocker_map` with the same thunk index.
 ///
 /// This is needed because template expressions may call functions that transitively
 /// access blocked state. For example:
 /// ```js
 /// const checkedFactory = () => { return () => $.get(checked); }
 /// ```
-/// If `checked` is in the blocker_map, `checkedFactory` should be too.
+/// If `checked` is in the `blocker_map`, `checkedFactory` should be too.
 ///
 /// Similarly, for indirect chains:
 /// ```js
@@ -393,11 +393,13 @@ pub fn enrich_blocker_map_with_transitive_deps(
 /// Transform the instance script body into a sync/async split.
 ///
 /// Returns `None` if no top-level await is found.
+#[must_use]
 pub fn transform_async_body(script: &str, runner: &str) -> Option<AsyncBodyResult> {
     transform_async_body_inner(script, runner, false)
 }
 
 /// Transform async body with dev mode support.
+#[must_use]
 pub fn transform_async_body_dev(script: &str, runner: &str, dev: bool) -> Option<AsyncBodyResult> {
     transform_async_body_inner(script, runner, dev)
 }
@@ -567,18 +569,16 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                 || memmem::find(trimmed_stmt.as_bytes(), b"$$inspect_hole").is_some()
             {
                 // Extract args if present (for blocker_map tracking)
-                let args = if let Some(colon_pos) =
-                    memmem::find(trimmed_stmt.as_bytes(), b"$$async_hole:")
-                {
-                    let start = colon_pos + 13; // "$$async_hole:".len()
-                    if let Some(end) = memmem::find(&trimmed_stmt.as_bytes()[start..], b"*/") {
-                        trimmed_stmt[start..start + end].trim().to_string()
-                    } else {
-                        String::new()
-                    }
-                } else {
-                    String::new()
-                };
+                let args = memmem::find(trimmed_stmt.as_bytes(), b"$$async_hole:").map_or_else(
+                    String::new,
+                    |colon_pos| {
+                        let start = colon_pos + 13; // "$$async_hole:".len()
+                        memmem::find(&trimmed_stmt.as_bytes()[start..], b"*/")
+                            .map_or_else(String::new, |end| {
+                                trimmed_stmt[start..start + end].trim().to_string()
+                            })
+                    },
+                );
                 async_stmts.push(AsyncStmt {
                     kind: AsyncStmtKind::Hole(args),
                     has_await: false,
@@ -714,7 +714,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                 hoisted_vars.push(class_name.clone());
                 let class_expr = trimmed_stmt.trim_end_matches(';').trim_end();
                 async_stmts.push(AsyncStmt {
-                    kind: AsyncStmtKind::Block(format!("{} = {};", class_name, class_expr)),
+                    kind: AsyncStmtKind::Block(format!("{class_name} = {class_expr};")),
                     has_await,
                     analyzer_has_await: has_await,
                 });
@@ -803,7 +803,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
     // formatting). With sync-grouping, every entry is a real thunk
     // (no array holes) so `thunks.len() <= 1` is the right test.
     if thunks.len() <= 1 && !has_multiline_thunk {
-        let _ = write!(output, "var $$promises = {}([", runner);
+        let _ = write!(output, "var $$promises = {runner}([");
         let total = thunks.len();
         for (i, thunk) in thunks.iter().enumerate() {
             output.push_str(thunk);
@@ -813,9 +813,9 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
         }
         output.push_str("]);\n");
     } else {
-        let _ = writeln!(output, "var $$promises = {}([", runner);
+        let _ = writeln!(output, "var $$promises = {runner}([");
         for (i, thunk) in thunks.iter().enumerate() {
-            let _ = write!(output, "\t{}", thunk);
+            let _ = write!(output, "\t{thunk}");
             if i < thunks.len() - 1 {
                 output.push(',');
             }
@@ -863,13 +863,13 @@ enum AsyncStmtKind {
     ExprVoid(String),
     /// Other statement -> `() => { stmt }`
     Block(String),
-    /// Empty thunk placeholder (from $props() that was removed) -> `() => {}`
+    /// Empty thunk placeholder (from $`props()` that was removed) -> `() => {}`
     Noop,
-    /// Void noop placeholder (from $effect() removed on server) -> `() => void void 0`
+    /// Void noop placeholder (from $`effect()` removed on server) -> `() => void void 0`
     VoidNoop,
-    /// Array hole placeholder (from $inspect() removed in non-dev mode).
+    /// Array hole placeholder (from $`inspect()` removed in non-dev mode).
     /// Produces an empty slot in the thunk array (no thunk, just a comma).
-    /// Contains the original args from the $inspect() call for blocker_map tracking.
+    /// Contains the original args from the $`inspect()` call for `blocker_map` tracking.
     Hole(String),
     /// Group of consecutive sync (non-await-from-analyzer) entries that share
     /// a single thunk and a single `$$promises[N]` index.
@@ -893,7 +893,7 @@ struct AsyncStmt {
     analyzer_has_await: bool,
 }
 
-/// Merge consecutive non-await entries into one SyncBlock entry, mirroring
+/// Merge consecutive non-await entries into one `SyncBlock` entry, mirroring
 /// upstream's `flush_sync_group` in `calculate_blockers` (Svelte 5.54.1).
 ///
 /// Each entry with `analyzer_has_await == true` stays on its own. Runs of
@@ -1017,8 +1017,8 @@ fn update_blocker_map_for_stmt(
     }
 }
 
-/// Emit zero or more body statements for a single sub-entry of a SyncBlock.
-/// Mirrors upstream's `transform_async_node`: VarDecls become assignments
+/// Emit zero or more body statements for a single sub-entry of a `SyncBlock`.
+/// Mirrors upstream's `transform_async_node`: `VarDecls` become assignments
 /// (or `var` for intermediate `$$d`/`$$array`), expressions become
 /// `void (expr)`, and removed-rune placeholders (Hole/Noop/VoidNoop)
 /// contribute no statements.
@@ -1045,7 +1045,7 @@ fn sync_block_body_lines(stmt: &AsyncStmt) -> Vec<String> {
                 }
                 let init = decl.init.as_deref().unwrap_or("void 0");
                 if decl.is_destructure_assignment {
-                    lines.push(format!("{};", init));
+                    lines.push(format!("{init};"));
                 } else if decl.name.starts_with("$$") {
                     lines.push(format!("var {} = {};", decl.name, init));
                 } else {
@@ -1151,9 +1151,9 @@ fn build_thunk(stmt: &AsyncStmt, dev: bool) -> String {
                 format!("{} = {}", decl.name, init)
             };
             if stmt.has_await {
-                format!("async () => {}", assignment)
+                format!("async () => {assignment}")
             } else {
-                format!("() => {}", assignment)
+                format!("() => {assignment}")
             }
         }
         AsyncStmtKind::VarDeclGroup(decls) => {
@@ -1167,7 +1167,7 @@ fn build_thunk(stmt: &AsyncStmt, dev: bool) -> String {
                 }
                 let init = decl.init.as_deref().unwrap_or("void 0");
                 if decl.is_destructure_assignment {
-                    body_lines.push(format!("{};", init));
+                    body_lines.push(format!("{init};"));
                 } else if decl.name.starts_with("$$") {
                     // Intermediate variable: use var declaration
                     body_lines.push(format!("var {} = {};", decl.name, init));
@@ -1178,19 +1178,16 @@ fn build_thunk(stmt: &AsyncStmt, dev: bool) -> String {
             }
             let body = body_lines.join("\n\t\t");
             if stmt.has_await {
-                format!("async () => {{\n\t\t{}\n\t}}", body)
+                format!("async () => {{\n\t\t{body}\n\t}}")
             } else {
-                format!("() => {{\n\t\t{}\n\t}}", body)
+                format!("() => {{\n\t\t{body}\n\t}}")
             }
         }
         AsyncStmtKind::ExprSimple(expr) => {
             if dev {
                 // In dev mode, wrap with $.track_reactivity_loss to track reactivity loss
                 // Reference: AwaitExpression.js - non-pickled awaits in dev mode
-                format!(
-                    "async () => void (await $.track_reactivity_loss({}))()",
-                    expr
-                )
+                format!("async () => void (await $.track_reactivity_loss({expr}))()")
             } else if let Some(name) = unthunk_bare_call(expr) {
                 // Upstream `b.thunk` calls `unthunk(() => name())` which collapses
                 // bare zero-arg identifier calls to just the callee. Matches
@@ -1199,27 +1196,27 @@ fn build_thunk(stmt: &AsyncStmt, dev: bool) -> String {
                 // would emit `() => name()`, but upstream emits `name`.
                 name
             } else {
-                format!("() => {}", expr)
+                format!("() => {expr}")
             }
         }
         AsyncStmtKind::ExprAwait(expr) => {
-            format!("async () => {}", expr)
+            format!("async () => {expr}")
         }
         AsyncStmtKind::ExprVoid(expr) => {
             // Always wrap the expression in parens after `void` to handle cases
             // like `void (y = await ...)` which would be invalid without parens.
             // This matches the official compiler's b.unary('void', expression) behavior.
             if stmt.has_await {
-                format!("async () => void ({})", expr)
+                format!("async () => void ({expr})")
             } else {
-                format!("() => void ({})", expr)
+                format!("() => void ({expr})")
             }
         }
         AsyncStmtKind::Block(block) => {
             if stmt.has_await {
-                format!("async () => {{\n\t\t{}\n\t}}", block)
+                format!("async () => {{\n\t\t{block}\n\t}}")
             } else {
-                format!("() => {{\n\t\t{}\n\t}}", block)
+                format!("() => {{\n\t\t{block}\n\t}}")
             }
         }
         // Upstream commit 6b33dd2a1 (Svelte 5.54.1) replaced the per-statement
@@ -1261,12 +1258,12 @@ fn build_thunk(stmt: &AsyncStmt, dev: bool) -> String {
                     || trimmed.starts_with("if(")
                     || trimmed.contains('\n');
                 if needs_block {
-                    return format!("() => {{\n\t\t{}\n\t}}", only);
+                    return format!("() => {{\n\t\t{only}\n\t}}");
                 }
-                return format!("() => {}", trimmed);
+                return format!("() => {trimmed}");
             }
             let body = body_lines.join("\n\t\t");
-            format!("() => {{\n\t\t{}\n\t}}", body)
+            format!("() => {{\n\t\t{body}\n\t}}")
         }
     }
 }
@@ -2064,11 +2061,7 @@ fn is_user_effect_call(s: &str) -> bool {
     let s = s.strip_suffix(';').unwrap_or(s).trim();
     // After transformation, $effect(...) becomes $.user_effect(...)
     // and may be wrapped in `void` e.g. `void $.user_effect(...)`
-    let check = if let Some(rest) = s.strip_prefix("void ") {
-        rest.trim()
-    } else {
-        s
-    };
+    let check = s.strip_prefix("void ").map_or(s, |rest| rest.trim());
     // Match $effect( or $.user_effect( but NOT $effect.pre( or $.user_pre_effect(
     if check.starts_with("$effect.pre(") || check.starts_with("$.user_pre_effect(") {
         return false;
@@ -2128,18 +2121,13 @@ fn is_await_expression(s: &str) -> bool {
 /// Strip `await ` prefix from an expression.
 fn strip_await_prefix(s: &str) -> &str {
     let s = s.trim();
-    if let Some(rest) = s
-        .strip_prefix("await ")
+    s.strip_prefix("await ")
         .or_else(|| s.strip_prefix("await\n"))
         .or_else(|| s.strip_prefix("await\t"))
-    {
-        rest.trim_start()
-    } else if let Some(rest) = s.strip_prefix("await") {
-        // `await(` - keep the (
-        rest
-    } else {
-        s
-    }
+        .map_or_else(
+            || s.strip_prefix("await").map_or(s, |rest| rest),
+            |rest| rest.trim_start(),
+        )
 }
 
 /// Strip trailing semicolon from a statement.
@@ -2172,10 +2160,7 @@ fn strip_base_indentation(s: &str) -> String {
             continue;
         }
         let leading_tabs = line.len() - line.trim_start_matches('\t').len();
-        min_tabs = Some(match min_tabs {
-            Some(m) => m.min(leading_tabs),
-            None => leading_tabs,
-        });
+        min_tabs = Some(min_tabs.map_or(leading_tabs, |m| m.min(leading_tabs)));
     }
 
     let strip = min_tabs.unwrap_or(0);
@@ -2213,13 +2198,11 @@ fn extract_var_declarations(stmt: &str) -> Vec<VarDecl> {
     let stmt = stmt.trim();
 
     // Strip the declaration keyword
-    let rest = if let Some(rest) = stmt
+    let Some(rest) = stmt
         .strip_prefix("let ")
         .or_else(|| stmt.strip_prefix("var "))
         .or_else(|| stmt.strip_prefix("const "))
-    {
-        rest
-    } else {
+    else {
         return vec![];
     };
 
@@ -2250,7 +2233,7 @@ fn extract_var_declarations(stmt: &str) -> Vec<VarDecl> {
                 // First name gets the full destructuring assignment as the thunk
                 result.push(VarDecl {
                     name: names[0].clone(),
-                    init: Some(format!("({} = {})", lhs, rhs)),
+                    init: Some(format!("({lhs} = {rhs})")),
                     is_destructure_assignment: true,
                     hoist_only: false,
                 });
@@ -2374,15 +2357,21 @@ fn find_assignment_in_str(s: &str) -> Option<usize> {
 /// Find the assignment `=` in a variable declaration (after the name/pattern).
 fn find_assignment_in_decl(s: &str) -> Option<usize> {
     // Skip the keyword
-    let skip = if let Some(rest) = s.strip_prefix("let ") {
-        s.len() - rest.len()
-    } else if let Some(rest) = s.strip_prefix("const ") {
-        s.len() - rest.len()
-    } else if let Some(rest) = s.strip_prefix("var ") {
-        s.len() - rest.len()
-    } else {
-        0
-    };
+    let skip = s.strip_prefix("let ").map_or_else(
+        || {
+            s.strip_prefix("const ").map_or_else(
+                || {
+                    if let Some(rest) = s.strip_prefix("var ") {
+                        s.len() - rest.len()
+                    } else {
+                        0
+                    }
+                },
+                |rest| s.len() - rest.len(),
+            )
+        },
+        |rest| s.len() - rest.len(),
+    );
 
     find_assignment_in_str(&s[skip..]).map(|pos| pos + skip)
 }
@@ -2442,7 +2431,7 @@ fn extract_identifiers_from_pattern(pattern: &str) -> Vec<String> {
 /// Extract all identifier-like tokens from a statement, excluding JS keywords,
 /// built-in globals, and Svelte rune identifiers. This is used to find references
 /// to instance-scope variables in async statements (mimicking the official compiler's
-/// `trace_references` which walks CallExpressions with `touch()` to add all referenced
+/// `trace_references` which walks `CallExpressions` with `touch()` to add all referenced
 /// bindings to `writes`).
 fn extract_all_identifiers_from_statement(stmt: &str) -> Vec<String> {
     let bytes = stmt.as_bytes();
@@ -2888,8 +2877,8 @@ fn extract_var_decl_name(s: &str) -> Option<String> {
 
 /// Resolve transitive function dependencies.
 /// When a function `foo` is called in an async thunk, all instance-scope variables
-/// referenced in `foo`'s body should be added to the blocker_map.
-/// This mimics the official compiler's trace_references behavior.
+/// referenced in `foo`'s body should be added to the `blocker_map`.
+/// This mimics the official compiler's `trace_references` behavior.
 /// Apply `blocker_index` to every instance-scope binding referenced by
 /// `source`, walking transitively through plain `let/var/const` initializers
 /// in `var_init_map` (mirrors upstream's `touch` following

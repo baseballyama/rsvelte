@@ -389,17 +389,19 @@ pub fn is_binding_valid(binding_name: &str, element_name: &str) -> bool {
 
 /// Get all valid bindings for an element, sorted like Svelte's `.sort()` on the
 /// `Possible bindings for <…> are …` enumeration.
+#[must_use]
 pub fn get_valid_bindings(element_name: &str) -> Vec<&'static str> {
     let mut names: Vec<&'static str> = BINDING_PROPERTIES_LIST
         .iter()
         .filter(|(_name, property)| {
-            if let Some(valid) = property.valid_elements {
-                valid.contains(&element_name)
-            } else if let Some(invalid) = property.invalid_elements {
-                !invalid.contains(&element_name)
-            } else {
-                true
-            }
+            property.valid_elements.map_or_else(
+                || {
+                    property
+                        .invalid_elements
+                        .is_none_or(|invalid| !invalid.contains(&element_name))
+                },
+                |valid| valid.contains(&element_name),
+            )
         })
         .map(|(name, _)| *name)
         .collect();
@@ -408,6 +410,7 @@ pub fn get_valid_bindings(element_name: &str) -> Vec<&'static str> {
 }
 
 /// All binding names, in Svelte's `Object.keys(binding_properties)` order.
+#[must_use]
 pub fn all_binding_names() -> Vec<&'static str> {
     BINDING_PROPERTIES_LIST
         .iter()

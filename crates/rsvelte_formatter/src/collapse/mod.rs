@@ -17,7 +17,6 @@
 use rsvelte_core::ast::template::{Fragment, Root, TemplateNode};
 use rsvelte_core::{ParseOptions, parse};
 
-use crate::error::FormatError;
 use crate::options::FormatOptions;
 use crate::width::{IndentUnit, VisualWidth, tab_width};
 
@@ -32,18 +31,41 @@ mod pre;
 mod state;
 mod util;
 
-use breaks::*;
-use children_port::*;
-use collect::*;
-use doc_build::*;
-use fill::*;
-use hug::*;
-use open_tag::*;
-use pre::*;
-use state::*;
-use util::*;
+use breaks::{
+    collect_break_block_non_ws_prefix, collect_content_tag_breaks,
+    try_break_block_multiline_content, try_break_block_overflow, try_break_content_tag_block,
+    try_strip_trailing_slot_space,
+};
+use children_port::{
+    ChildrenPortResult, block_branch_bounds, collect_children_port_only, node_to_child,
+    prepend_leading_to_fill, text_preceded_by_close_tag, try_children_port,
+};
+use collect::{collect, collect_try_collapse_only};
+use doc_build::{
+    build_attrs_concat, build_children_doc, build_children_doc_nodes, build_component_doc,
+    build_if_block_doc, build_inline_element_doc, build_open_attr_doc, build_simple_block_doc,
+    build_void_element_doc, content_tag_breakable_doc, inline_ignore_atom,
+};
+use fill::{fill, fill_inline_runs, try_fill_mixed};
+use hug::{
+    collect_hug_mixed_non_ws_prefix, element_hug_parts, try_hug_block_inline_body, try_hug_mixed,
+};
+use open_tag::{collect_break_inline_open_tag, collect_recollapse_open_tag, split_open_tag_attrs};
+use pre::{
+    collect_pre_block_reformats, try_break_pre_content_tag, try_break_pre_own_attrs,
+    try_fix_pre_child_open_tags,
+};
+use state::{build_orig_text_map, in_pre_content, orig_text_for, with_orig_text, with_pre_content};
+use util::{
+    apply_edits, attribute_span, child_fragments, current_column, did_self_close,
+    element_container, element_source_empty, ends_with_space_no_break, fragment_has_prose_word,
+    indent_config, is_block_display, is_component_tag, is_html_void_element, is_inline_block,
+    is_inline_node, is_inline_regular_element, is_whitespace_preserving, leading_linebreaks,
+    node_end, node_start, omit_softline_allowed, parse_formatted, starts_with_space_no_break,
+    text_end, text_start, trailing_linebreaks, trims_edge_whitespace,
+};
 
-pub(crate) use util::template_node_span;
+pub use util::template_node_span;
 
 /// Conservative necessary condition for [`collapse_pure_text_elements`] to make
 /// any edit: some element (recursively) that a collapse pass could reflow. Three
@@ -57,7 +79,7 @@ pub(crate) use util::template_node_span;
 /// would drop a real edit — so it over-approximates. Computed on the source tree,
 /// which is structurally identical to the formatted output for these shapes
 /// (formatting never adds/removes elements or turns text into elements).
-pub(crate) fn fragment_has_collapse_candidate(fragment: &Fragment) -> bool {
+pub fn fragment_has_collapse_candidate(fragment: &Fragment) -> bool {
     fragment.nodes.iter().any(|n| {
         // Prose/interpolation/raw-html reflow applies at ANY fragment level —
         // top-level text and `{@html}` runs are collapse targets too, not just
@@ -90,11 +112,11 @@ pub(crate) fn fragment_has_collapse_candidate(fragment: &Fragment) -> bool {
     })
 }
 
-pub(crate) fn collapse_pure_text_elements(
+pub fn collapse_pure_text_elements(
     out: &str,
     options: &FormatOptions,
     has_collapse_candidate: bool,
-) -> Result<String, FormatError> {
+) -> String {
     // Cheap gate: skip the whole re-parse-driven collapse pass when the output
     // provably has nothing to collapse — no structural collapse candidate, no
     // `<pre>`/`<textarea>` to reformat, and no line exceeding the print width to
@@ -108,7 +130,7 @@ pub(crate) fn collapse_pure_text_elements(
             .lines()
             .any(|l| l.visual_width(tab_width(options)) > options.js.line_width.value() as usize)
     {
-        return Ok(out.to_string());
+        return out.to_string();
     }
     // Collapse is a best-effort post-pass over the already-formatted output. If
     // that output can't be re-parsed, skip collapse and return it as-is rather
@@ -140,7 +162,7 @@ pub(crate) fn collapse_pure_text_elements(
     let _bracket_same_line_guard =
         crate::children::enter_bracket_same_line(options.bracket_same_line);
     let Ok(root) = parse(out, &rsvelte_core::Allocator::default(), parse_opts) else {
-        return Ok(out.to_string());
+        return out.to_string();
     };
     let line_width = options.js.line_width.value() as usize;
     let tw = tab_width(options);
@@ -162,7 +184,7 @@ pub(crate) fn collapse_pure_text_elements(
     if !edits.is_empty() {
         result = apply_edits(&result, edits);
         let Ok(t) = parse(&result, &rsvelte_core::Allocator::default(), parse_opts) else {
-            return Ok(result);
+            return result;
         };
         tree = Some(t);
     }
@@ -184,7 +206,7 @@ pub(crate) fn collapse_pure_text_elements(
     if !edits1c.is_empty() {
         result = apply_edits(&result, edits1c);
         let Ok(t) = parse(&result, &rsvelte_core::Allocator::default(), parse_opts) else {
-            return Ok(result);
+            return result;
         };
         tree = Some(t);
     }
@@ -195,18 +217,18 @@ pub(crate) fn collapse_pure_text_elements(
     // to gain a `    >` prefix. That child's hug was blocked by the parent-edit
     // ownership in pass 1; this targeted pass applies it without re-running the
     // full layout suite (which would disturb already-correct prose wrapping).
-    let mut edits1d: Vec<(u32, u32, String)> = Vec::new();
+    let mut hug_mixed_edits: Vec<(u32, u32, String)> = Vec::new();
     collect_hug_mixed_non_ws_prefix(
         &result,
         &tree.as_ref().unwrap_or(&root).fragment,
         line_width,
         options,
-        &mut edits1d,
+        &mut hug_mixed_edits,
     );
-    if !edits1d.is_empty() {
-        result = apply_edits(&result, edits1d);
+    if !hug_mixed_edits.is_empty() {
+        result = apply_edits(&result, hug_mixed_edits);
         let Ok(t) = parse(&result, &rsvelte_core::Allocator::default(), parse_opts) else {
-            return Ok(result);
+            return result;
         };
         tree = Some(t);
     }
@@ -217,18 +239,18 @@ pub(crate) fn collapse_pure_text_elements(
     // `try_break_block_overflow` normally requires a pure-whitespace indent, so
     // this targeted sweep extracts the ws portion from `  >` and re-applies the
     // block-break logic.
-    let mut edits1e: Vec<(u32, u32, String)> = Vec::new();
+    let mut block_prefix_edits: Vec<(u32, u32, String)> = Vec::new();
     collect_break_block_non_ws_prefix(
         &result,
         &tree.as_ref().unwrap_or(&root).fragment,
         line_width,
         options,
-        &mut edits1e,
+        &mut block_prefix_edits,
     );
-    if !edits1e.is_empty() {
-        result = apply_edits(&result, edits1e);
+    if !block_prefix_edits.is_empty() {
+        result = apply_edits(&result, block_prefix_edits);
         let Ok(t) = parse(&result, &rsvelte_core::Allocator::default(), parse_opts) else {
-            return Ok(result);
+            return result;
         };
         tree = Some(t);
     }
@@ -240,18 +262,18 @@ pub(crate) fn collapse_pure_text_elements(
     // Only fires for elements whose open tag is currently single-line and whose
     // content has leading whitespace (hug_start=false), to avoid disturbing the
     // already-correct hug layouts from earlier passes.
-    let mut edits1f: Vec<(u32, u32, String)> = Vec::new();
+    let mut inline_open_tag_edits: Vec<(u32, u32, String)> = Vec::new();
     collect_break_inline_open_tag(
         &result,
         &tree.as_ref().unwrap_or(&root).fragment,
         line_width,
         options,
-        &mut edits1f,
+        &mut inline_open_tag_edits,
     );
-    if !edits1f.is_empty() {
-        result = apply_edits(&result, edits1f);
+    if !inline_open_tag_edits.is_empty() {
+        result = apply_edits(&result, inline_open_tag_edits);
         let Ok(t) = parse(&result, &rsvelte_core::Allocator::default(), parse_opts) else {
-            return Ok(result);
+            return result;
         };
         tree = Some(t);
     }
@@ -260,18 +282,18 @@ pub(crate) fn collapse_pure_text_elements(
     // at their current column. Undoes incorrect pass-1 breaks that were caused
     // by a long preceding line; after pass 1.9 has broken inline elements to
     // shorten those lines, the previously-broken sibling open tag may now fit.
-    let mut edits1g: Vec<(u32, u32, String)> = Vec::new();
+    let mut recollapse_open_tag_edits: Vec<(u32, u32, String)> = Vec::new();
     collect_recollapse_open_tag(
         &result,
         &tree.as_ref().unwrap_or(&root).fragment,
         line_width,
         tw,
-        &mut edits1g,
+        &mut recollapse_open_tag_edits,
     );
-    if !edits1g.is_empty() {
-        result = apply_edits(&result, edits1g);
+    if !recollapse_open_tag_edits.is_empty() {
+        result = apply_edits(&result, recollapse_open_tag_edits);
         let Ok(t) = parse(&result, &rsvelte_core::Allocator::default(), parse_opts) else {
-            return Ok(result);
+            return result;
         };
         tree = Some(t);
     }
@@ -290,15 +312,16 @@ pub(crate) fn collapse_pure_text_elements(
         &mut edits2,
     );
     // `tree` is the AST of `result` unless this last pass edited the text.
-    let mut tree_is_current = true;
-    if !edits2.is_empty() {
+    let tree_is_current = if edits2.is_empty() {
+        true
+    } else {
         // `tree` borrows `result` (its parse source); drop it before reassigning
         // `result`. It is never read past here in this branch — `tree_is_current`
         // is now false, so the read below falls to the re-parsed AST.
         tree = None;
         result = apply_edits(&result, edits2);
-        tree_is_current = false;
-    }
+        false
+    };
 
     // Final children-port pass: re-assert the faithful prettier-plugin-svelte
     // layout (`children.rs`) for its gated shapes. The earlier breaking passes
@@ -316,7 +339,7 @@ pub(crate) fn collapse_pure_text_elements(
         .flatten();
     if let Some(root_cp) = reparsed
         .as_ref()
-        .or(tree_is_current.then(|| tree.as_ref().unwrap_or(&root)))
+        .or_else(|| tree_is_current.then(|| tree.as_ref().unwrap_or(&root)))
     {
         // Build the intermediate→original text map so the port classifies text
         // whitespace from the pre-collapse source (`out`). Only needed when
@@ -362,7 +385,7 @@ pub(crate) fn collapse_pure_text_elements(
             result = apply_edits(&result, edits3);
         }
     }
-    Ok(result)
+    result
 }
 
 #[cfg(test)]

@@ -91,7 +91,7 @@ pub fn visit_each_block<'a>(node: &EachBlock<'a>, state: &mut ServerTransformSta
     // Resolve the loop index name + optional alias, mirroring upstream:
     //   index = (contains_group_binding || !node.index) ? meta.index : node.index
     //   alias emitted as `let node.index = index` when index.name !== node.index
-    let user_index = node.index.as_ref().map(|s| s.to_string());
+    let user_index = node.index.as_ref().map(std::string::ToString::to_string);
     let (index_var, index_alias): (String, Option<String>) = match user_index {
         Some(idx) if !node.metadata.contains_group_binding => (idx, None),
         other => {
@@ -109,7 +109,9 @@ pub fn visit_each_block<'a>(node: &EachBlock<'a>, state: &mut ServerTransformSta
     // Async detection on the iterable (写经 `node.metadata.expression`):
     // blockers drive `$$renderer.async_block([…], …)`, an inline `await` drives a
     // `child_block(async …)` arrow + a `$.save`-wrapped collection argument.
-    let iterable_src = state.expr_source(&node.expression).map(|s| s.to_string());
+    let iterable_src = state
+        .expr_source(&node.expression)
+        .map(std::string::ToString::to_string);
     let blocker_indices: Vec<usize> = iterable_src
         .as_deref()
         .map(|s| expr_text_blockers(state, s))

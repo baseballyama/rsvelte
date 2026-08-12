@@ -1,4 +1,4 @@
-//! SpreadAttribute visitor.
+//! `SpreadAttribute` visitor.
 //!
 //! Analyzes spread attributes {...obj}.
 //!

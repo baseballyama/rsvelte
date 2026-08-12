@@ -15,12 +15,12 @@ pub(super) struct ScriptFacts {
 }
 
 impl ScriptFacts {
-    pub(super) fn collect<'s>(
+    pub(super) fn collect(
         program: &oxc::Program,
         offset: u32,
         raw_content: &str,
         is_instance_script: bool,
-        store_scan: &mut StoreScanContext<'s>,
+        store_scan: &mut StoreScanContext<'_>,
     ) -> Self {
         store_scan.begin_script_facts();
         let collect_store_facts = store_scan.has_dollar();
@@ -85,7 +85,7 @@ impl ScriptFactsCollector<'_, '_, '_> {
             return;
         }
         let src_span = (span.start + self.offset, span.end + self.offset);
-        for item in params.items.iter() {
+        for item in &params.items {
             let mut names = Vec::new();
             collect_binding_names(&item.pattern, &mut names);
             for name in names {
@@ -213,7 +213,15 @@ impl<'a> Visit<'a> for ScriptFactsCollector<'_, '_, '_> {
 }
 
 fn oxc_ast_span(ty: &oxc::TSType) -> (u32, u32) {
-    use oxc::TSType::*;
+    use oxc::TSType::{
+        TSAnyKeyword, TSArrayType, TSBigIntKeyword, TSBooleanKeyword, TSConditionalType,
+        TSConstructorType, TSFunctionType, TSImportType, TSIndexedAccessType, TSInferType,
+        TSIntersectionType, TSIntrinsicKeyword, TSLiteralType, TSMappedType, TSNamedTupleMember,
+        TSNeverKeyword, TSNullKeyword, TSNumberKeyword, TSObjectKeyword, TSStringKeyword,
+        TSSymbolKeyword, TSTemplateLiteralType, TSThisType, TSTupleType, TSTypeLiteral,
+        TSTypeOperatorType, TSTypePredicate, TSTypeQuery, TSTypeReference, TSUndefinedKeyword,
+        TSUnionType, TSUnknownKeyword, TSVoidKeyword,
+    };
     let span = match ty {
         TSAnyKeyword(t) => t.span,
         TSBigIntKeyword(t) => t.span,

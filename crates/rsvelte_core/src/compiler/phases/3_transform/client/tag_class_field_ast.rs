@@ -66,8 +66,8 @@ pub fn wrap_state_derived_with_tag_class_fields_ast(source: &str) -> Option<Stri
     )
 }
 
-fn walk_statement_for_classes<'a>(
-    stmt: &Statement<'a>,
+fn walk_statement_for_classes(
+    stmt: &Statement<'_>,
     source: &str,
     replacements: &mut Vec<(u32, u32, String)>,
 ) {
@@ -155,8 +155,8 @@ fn walk_statement_for_classes<'a>(
     }
 }
 
-fn walk_expression_for_classes<'a>(
-    expr: &Expression<'a>,
+fn walk_expression_for_classes(
+    expr: &Expression<'_>,
     source: &str,
     replacements: &mut Vec<(u32, u32, String)>,
 ) {
@@ -179,13 +179,9 @@ fn walk_expression_for_classes<'a>(
     }
 }
 
-fn handle_class<'a>(class: &Class<'a>, source: &str, replacements: &mut Vec<(u32, u32, String)>) {
+fn handle_class(class: &Class<'_>, source: &str, replacements: &mut Vec<(u32, u32, String)>) {
     // Upstream's fallback for a class with no id (`ClassBody.js:82`).
-    let class_name = class
-        .id
-        .as_ref()
-        .map(|i| i.name.as_str())
-        .unwrap_or("[class]");
+    let class_name = class.id.as_ref().map_or("[class]", |i| i.name.as_str());
 
     let originally_public = compute_originally_public(class, source);
 
@@ -226,7 +222,7 @@ fn handle_class<'a>(class: &Class<'a>, source: &str, replacements: &mut Vec<(u32
 /// therefore matched back — the generated setter body is exactly
 /// `$.set(this.#backing, value[, true])` — and its key supplies the name,
 /// including the `String(value)` spelling of a literal key.
-fn compute_originally_public<'a>(class: &Class<'a>, source: &str) -> Vec<(String, String)> {
+fn compute_originally_public(class: &Class<'_>, source: &str) -> Vec<(String, String)> {
     let mut result = Vec::new();
     for el in &class.body.body {
         let ClassElement::MethodDefinition(method) = el else {
@@ -251,7 +247,7 @@ fn compute_originally_public<'a>(class: &Class<'a>, source: &str) -> Vec<(String
 
 /// `get_name(node)` from `phases/nodes.js`: a literal key prints as
 /// `String(value)`, an identifier as its name.
-fn property_key_name<'a>(key: &PropertyKey<'a>) -> Option<String> {
+fn property_key_name(key: &PropertyKey<'_>) -> Option<String> {
     match key {
         PropertyKey::StaticIdentifier(id) => Some(id.name.to_string()),
         PropertyKey::PrivateIdentifier(id) => Some(format!("#{}", id.name)),
@@ -285,8 +281,8 @@ fn generated_setter_backing(body_text: &str) -> Option<String> {
     Some(backing.to_string())
 }
 
-fn handle_property_definition<'a>(
-    prop: &PropertyDefinition<'a>,
+fn handle_property_definition(
+    prop: &PropertyDefinition<'_>,
     class_name: &str,
     originally_public: &[(String, String)],
     source: &str,
@@ -307,8 +303,8 @@ fn handle_property_definition<'a>(
         .iter()
         .find(|(backing, _)| backing == field_name)
     {
-        Some((_, public_name)) => format!("{}.{}", class_name, public_name),
-        None => format!("{}.#{}", class_name, field_name),
+        Some((_, public_name)) => format!("{class_name}.{public_name}"),
+        None => format!("{class_name}.#{field_name}"),
     };
 
     replacements.push(tag_edit(
@@ -336,7 +332,7 @@ fn tag_edit(
     let flat = (
         init_span.start,
         init_span.end,
-        format!("{}({}, '{}')", tag_fn, init_text, label),
+        format!("{tag_fn}({init_text}, '{label}')"),
     );
     let Some(eq) = assignment_eq_offset(source, lhs_end, init_span.start) else {
         return flat;
@@ -347,12 +343,12 @@ fn tag_edit(
     }
 
     let indent = line_indent(source, stmt_start);
-    let arg_indent = format!("{}\t", indent);
+    let arg_indent = format!("{indent}\t");
     let comment = comment
         .lines()
         .map(str::trim)
         .collect::<Vec<_>>()
-        .join(&format!("\n{}", arg_indent));
+        .join(&format!("\n{arg_indent}"));
     // The value moves one level deeper, so its own continuation lines follow.
     let init_text = init_text.replace('\n', "\n\t");
     (
@@ -384,7 +380,7 @@ fn assignment_eq_offset(source: &str, from: u32, to: u32) -> Option<u32> {
                 }
                 i += 2;
             }
-            b'=' => return Some(i as u32),
+            b'=' => return Some(u32::try_from(i).expect("source positions are limited to u32")),
             _ => i += 1,
         }
     }
@@ -398,8 +394,8 @@ fn line_indent(source: &str, pos: u32) -> &str {
     &line[..width]
 }
 
-fn walk_method_stmt_for_this_assigns<'a>(
-    stmt: &Statement<'a>,
+fn walk_method_stmt_for_this_assigns(
+    stmt: &Statement<'_>,
     class_name: &str,
     originally_public: &[(String, String)],
     source: &str,
@@ -526,8 +522,8 @@ fn walk_method_stmt_for_this_assigns<'a>(
     }
 }
 
-fn walk_method_expr_for_this_assigns<'a>(
-    expr: &Expression<'a>,
+fn walk_method_expr_for_this_assigns(
+    expr: &Expression<'_>,
     class_name: &str,
     originally_public: &[(String, String)],
     source: &str,
@@ -563,8 +559,8 @@ fn walk_method_expr_for_this_assigns<'a>(
     }
 }
 
-fn handle_this_assignment<'a>(
-    a: &AssignmentExpression<'a>,
+fn handle_this_assignment(
+    a: &AssignmentExpression<'_>,
     class_name: &str,
     originally_public: &[(String, String)],
     source: &str,
@@ -600,8 +596,8 @@ fn handle_this_assignment<'a>(
             .find(|(name, _)| name == backing)
             .map(|(_, public_name)| public_name)
     }) {
-        Some(public_name) => format!("{}.{}", class_name, public_name),
-        None => format!("{}.{}", class_name, field_name),
+        Some(public_name) => format!("{class_name}.{public_name}"),
+        None => format!("{class_name}.{field_name}"),
     };
 
     replacements.push(tag_edit(
@@ -619,7 +615,7 @@ fn is_this(expr: &Expression) -> bool {
 }
 
 /// Same shape as `tag_declarator_ast::classify_tag_target`.
-fn classify_tag_target<'a>(init: &Expression<'a>) -> Option<(&'static str, Span)> {
+fn classify_tag_target(init: &Expression<'_>) -> Option<(&'static str, Span)> {
     let Expression::CallExpression(call) = init else {
         return None;
     };
@@ -634,7 +630,6 @@ fn classify_tag_target<'a>(init: &Expression<'a>) -> Option<(&'static str, Span)
     }
     let prop = member.property.name.as_str();
     let tag_fn = match prop {
-        "tag" | "tag_proxy" => return None,
         "state" | "derived" => "$.tag",
         "proxy" => "$.tag_proxy",
         _ => return None,

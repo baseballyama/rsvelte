@@ -15,6 +15,7 @@ use crate::bridge::{MarkupBridge, markup_group};
 const SCRIPT: &str = include_str!("../js/markdown-bridge.mjs");
 
 /// Build the `svelte-preprocess-markdown` `PreprocessorGroup`.
+#[must_use]
 pub fn markdown(config: MarkupBridge) -> PreprocessorGroup {
     markup_group("svelte-preprocess-markdown", SCRIPT, config)
 }

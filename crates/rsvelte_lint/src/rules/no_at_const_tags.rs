@@ -1,5 +1,6 @@
-//! `svelte/no-at-const-tags` — prefer the `{const …}` declaration tag over the
-//! legacy `{@const …}` tag. Port of the eslint-plugin-svelte rule. Only fires in
+//! `svelte/no-at-const-tags` prefers `{const …}` over `{@const …}`.
+//!
+//! It ports the eslint-plugin-svelte rule and only fires in
 //! runes mode (the upstream rule's `runes === true` gate), since preserving
 //! reactivity outside runes mode would require `$derived(...)`, unavailable
 //! there.

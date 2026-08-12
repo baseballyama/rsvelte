@@ -1,4 +1,4 @@
-//! UpdateExpression visitor.
+//! `UpdateExpression` visitor.
 //!
 //! Analyzes update expressions (++, --).
 //!
@@ -10,7 +10,7 @@ use super::shared::utils::validate_assignment_node;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
-/// Visit an update expression (typed JsNode path).
+/// Visit an update expression (typed `JsNode` path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     if let JsNode::UpdateExpression {
         argument,

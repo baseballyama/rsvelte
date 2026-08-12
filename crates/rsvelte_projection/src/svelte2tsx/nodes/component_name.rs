@@ -4,7 +4,7 @@
 
 /// Derive a safe component name from the filename.
 ///
-/// Converts "App.svelte" -> "App", "my-component.svelte" -> "MyComponent",
+/// Converts "App.svelte" -> "App", "my-component.svelte" -> "`MyComponent`",
 /// handles path separators and special characters.
 ///
 /// Port of `classNameFromFilename` from
@@ -20,7 +20,7 @@
 ///    of the string.
 /// 5. Apply scule's `pascalCase` semantics.
 /// 6. If no letter was found (`firstValidCharIdx == -1`), prepend `"A"`.
-pub(crate) fn derive_component_name(filename: &str) -> String {
+pub fn derive_component_name(filename: &str) -> String {
     let basename = filename.rsplit('/').next().unwrap_or(filename);
     let basename = basename.rsplit('\\').next().unwrap_or(basename);
     let without_extensions = basename.split('.').next().unwrap_or("");

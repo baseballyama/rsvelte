@@ -19,14 +19,14 @@ type IdentifierSet = indexmap::IndexSet<String, rustc_hash::FxBuildHasher>;
 struct PrecedingIgnores {
     /// Codes to ignore.
     ignores: Vec<String>,
-    /// Warnings generated during extraction (legacy_code, unknown_code).
+    /// Warnings generated during extraction (`legacy_code`, `unknown_code`).
     warnings: Vec<warnings::AnalysisWarning>,
 }
 
 /// Compute preceding ignores for all nodes in a single O(n) forward pass.
 ///
-/// Returns a vector of Option<(PrecedingIgnores, bool)> for each node.
-/// Comments get None. Other nodes get Some((ignores, is_text)).
+/// Returns a vector of Option<(`PrecedingIgnores`, bool)> for each node.
+/// Comments get None. Other nodes get Some((ignores, `is_text`)).
 /// The ignores are collected from consecutive comment/whitespace-text runs
 /// that immediately precede each node.
 fn compute_all_preceding_ignores(
@@ -93,6 +93,10 @@ fn compute_all_preceding_ignores(
 }
 
 /// Analyze a fragment.
+///
+/// # Errors
+///
+/// Returns an error for invalid fragment structure, including const-tag cycles.
 pub fn analyze<'a, 'b: 'a>(
     fragment: &mut Fragment<'b>,
     context: &mut VisitorContext<'a>,
@@ -163,7 +167,7 @@ pub fn analyze<'a, 'b: 'a>(
     Ok(())
 }
 
-/// Check for cyclical dependencies between ConstTag nodes.
+/// Check for cyclical dependencies between `ConstTag` nodes.
 ///
 /// This detects when {@const} declarations form a cycle, e.g.:
 /// {@const a = b}
@@ -191,32 +195,28 @@ fn check_const_tag_cycles(nodes: &[TemplateNode]) -> Result<(), AnalysisError> {
                 if let Some(declarations) = decl_json.get("declarations").and_then(|d| d.as_array())
                     && let Some(declaration) = declarations.first()
                 {
-                    let bindings = if let Some(id) = declaration.get("id") {
-                        extract_pattern_identifiers(id)
-                    } else {
-                        Vec::new()
-                    };
-                    let deps = if let Some(init) = declaration.get("init") {
-                        extract_expression_identifiers(init)
-                    } else {
-                        IdentifierSet::default()
-                    };
+                    let bindings = declaration
+                        .get("id")
+                        .map_or_else(Vec::new, |id| extract_pattern_identifiers(id));
+                    let deps = declaration
+                        .get("init")
+                        .map_or_else(IdentifierSet::default, |init| {
+                            extract_expression_identifiers(init)
+                        });
                     (bindings, deps)
                 } else {
                     (Vec::new(), IdentifierSet::default())
                 }
             } else if decl_type == Some("AssignmentExpression") {
                 // AssignmentExpression structure
-                let bindings = if let Some(left) = decl_json.get("left") {
-                    extract_pattern_identifiers(left)
-                } else {
-                    Vec::new()
-                };
-                let deps = if let Some(right) = decl_json.get("right") {
-                    extract_expression_identifiers(right)
-                } else {
-                    IdentifierSet::default()
-                };
+                let bindings = decl_json
+                    .get("left")
+                    .map_or_else(Vec::new, |left| extract_pattern_identifiers(left));
+                let deps = decl_json
+                    .get("right")
+                    .map_or_else(IdentifierSet::default, |right| {
+                        extract_expression_identifiers(right)
+                    });
                 (bindings, deps)
             } else {
                 (Vec::new(), IdentifierSet::default())
@@ -263,7 +263,7 @@ fn check_const_tag_cycles(nodes: &[TemplateNode]) -> Result<(), AnalysisError> {
     Ok(())
 }
 
-/// Extract identifier names from a pattern (id of VariableDeclarator).
+/// Extract identifier names from a pattern (id of `VariableDeclarator`).
 fn extract_pattern_identifiers(pattern: &serde_json::Value) -> Vec<String> {
     let mut names = Vec::new();
 
@@ -316,7 +316,7 @@ fn extract_expression_identifiers(expression: &serde_json::Value) -> IdentifierS
 
 /// Recursively collect identifier references from an expression.
 /// Respects scoping boundaries: does not recurse into function bodies
-/// (ArrowFunctionExpression, FunctionExpression, FunctionDeclaration)
+/// (`ArrowFunctionExpression`, `FunctionExpression`, `FunctionDeclaration`)
 /// because those create new scopes where local declarations shadow outer names.
 fn collect_expression_identifiers(expression: &serde_json::Value, identifiers: &mut IdentifierSet) {
     if let Some(expr_type) = expression.get("type").and_then(|t| t.as_str()) {
@@ -334,7 +334,7 @@ fn collect_expression_identifiers(expression: &serde_json::Value, identifiers: &
                 // If computed, also collect from property
                 if expression
                     .get("computed")
-                    .and_then(|c| c.as_bool())
+                    .and_then(serde_json::Value::as_bool)
                     .unwrap_or(false)
                     && let Some(property) = expression.get("property")
                 {
@@ -355,7 +355,7 @@ fn collect_expression_identifiers(expression: &serde_json::Value, identifiers: &
                 // For computed keys like `[expr]`, collect from the key expression
                 if expression
                     .get("computed")
-                    .and_then(|c| c.as_bool())
+                    .and_then(serde_json::Value::as_bool)
                     .unwrap_or(false)
                     && let Some(key) = expression.get("key")
                 {

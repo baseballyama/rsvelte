@@ -6,9 +6,9 @@
 //! - `dynamic.quoted`: `bool` (default `false`) — when `true`, dynamic values
 //!   (`{...}` mustache / directive expressions) are expected to be wrapped in
 //!   `prefer` quotes; when `false`, dynamic values are expected to be unquoted.
-//! - `dynamic.avoidInvalidUnquotedInHTML`: `bool` (default `false`) — when the
+//! - `dynamic.avoid_invalid_unquoted_in_html`: `bool` (default `false`) — when the
 //!   dynamic value's source text contains characters that would be invalid
-//!   unquoted in HTML (`[\s"'<=>`]`), force `prefer` quotes regardless of
+//!   unquoted in `HTML`, force `prefer` quotes regardless of
 //!   `dynamic.quoted`.
 //!
 //! For each attribute/directive value the rule reconstructs upstream's
@@ -46,6 +46,10 @@ static META: RuleMeta = RuleMeta {
     ),
 };
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("source offsets are represented as u32")
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Quote {
     Unquoted,
@@ -54,18 +58,18 @@ enum Quote {
 }
 
 impl Quote {
-    fn ch(self) -> &'static str {
+    const fn ch(self) -> &'static str {
         match self {
-            Quote::Double => "\"",
-            Quote::Single => "'",
-            Quote::Unquoted => "",
+            Self::Double => "\"",
+            Self::Single => "'",
+            Self::Unquoted => "",
         }
     }
-    fn name(self) -> &'static str {
+    const fn name(self) -> &'static str {
         match self {
-            Quote::Double => "double quotes",
-            Quote::Single => "single quotes",
-            Quote::Unquoted => "unquoted",
+            Self::Double => "double quotes",
+            Self::Single => "single quotes",
+            Self::Unquoted => "unquoted",
         }
     }
 }
@@ -78,7 +82,7 @@ struct QuoteAndRange {
     end: u32,
 }
 
-/// Whether the given text can be left unquoted in HTML (`!/[\s"'<=>`]/u`).
+/// Whether the given text can be left unquoted in `HTML`.
 fn can_be_unquoted_in_html(text: &str) -> bool {
     !text
         .chars()
@@ -104,7 +108,7 @@ fn find_eq(src: &[u8], node_start: u32, node_end: u32) -> Option<u32> {
         pos += 1;
     }
     if pos < end && src[pos] == b'=' {
-        Some(pos as u32)
+        Some(source_offset(pos))
     } else {
         None
     }
@@ -128,7 +132,7 @@ fn quote_and_range(
     }
     // Inspect the bytes between `=` and the value start.
     let between = &src[(eq + 1) as usize..inner_start as usize];
-    if between.iter().all(|b| b.is_ascii_whitespace()) {
+    if between.iter().all(u8::is_ascii_whitespace) {
         // No quotes: unquoted.
         return Some(QuoteAndRange {
             quote: Quote::Unquoted,
@@ -157,7 +161,7 @@ fn quote_and_range(
     // Only allow whitespace between the quote and the value start.
     if !src[open + 1..inner_start as usize]
         .iter()
-        .all(|b| b.is_ascii_whitespace())
+        .all(u8::is_ascii_whitespace)
     {
         return None;
     }
@@ -173,8 +177,8 @@ fn quote_and_range(
         } else {
             Quote::Single
         },
-        start: open as u32,
-        end: (close + 1) as u32,
+        start: source_offset(open),
+        end: source_offset(close + 1),
     })
 }
 
@@ -194,12 +198,12 @@ fn options(ctx: &LintContext) -> Options {
     let dynamic = opt.and_then(|v| v.get("dynamic"));
     let quoted = dynamic
         .and_then(|d| d.get("quoted"))
-        .and_then(|v| v.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
     let dynamic_quote = if quoted { prefer } else { Quote::Unquoted };
     let avoid_invalid_unquoted = dynamic
         .and_then(|d| d.get("avoidInvalidUnquotedInHTML"))
-        .and_then(|v| v.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
     Options {
         prefer,
@@ -212,7 +216,7 @@ fn options(ctx: &LintContext) -> Options {
 pub struct HtmlQuotes;
 
 impl HtmlQuotes {
-    fn verify(&self, ctx: &mut LintContext, prefer: Quote, qr: QuoteAndRange) {
+    fn verify(ctx: &mut LintContext, prefer: Quote, qr: &QuoteAndRange) {
         if qr.quote == prefer {
             return;
         }
@@ -220,18 +224,7 @@ impl HtmlQuotes {
 
         let mut expected = prefer;
         let message: &str;
-        if qr.quote != Quote::Unquoted {
-            if expected == Quote::Unquoted {
-                message = "Unexpected to be enclosed by any quotes.";
-            } else {
-                let content = ctx.slice(qr.start + 1, qr.end - 1);
-                if content.contains(expected.ch()) {
-                    // avoid escape
-                    return;
-                }
-                message = "Expected to be enclosed by {{kind}}.";
-            }
-        } else {
+        if qr.quote == Quote::Unquoted {
             let content = &src[qr.start as usize..qr.end as usize];
             let need_double = content.contains('"');
             let need_single = content.contains('\'');
@@ -247,6 +240,15 @@ impl HtmlQuotes {
             } else {
                 message = "Expected to be enclosed by {{kind}}.";
             }
+        } else if expected == Quote::Unquoted {
+            message = "Unexpected to be enclosed by any quotes.";
+        } else {
+            let content = ctx.slice(qr.start + 1, qr.end - 1);
+            if content.contains(expected.ch()) {
+                // avoid escape
+                return;
+            }
+            message = "Expected to be enclosed by {{kind}}.";
         }
 
         let final_message = message.replace("{{kind}}", expected.name());
@@ -291,12 +293,7 @@ impl HtmlQuotes {
 
     /// Verify a static attribute value (text / mixed content). The value span
     /// runs from the first part's start to the last part's end.
-    fn verify_values(
-        &self,
-        ctx: &mut LintContext,
-        node: &AttributeNode,
-        parts: &[AttributeValuePart],
-    ) {
+    fn verify_values(ctx: &mut LintContext, node: &AttributeNode, parts: &[AttributeValuePart]) {
         let Some(first) = parts.first() else {
             return;
         };
@@ -305,14 +302,13 @@ impl HtmlQuotes {
         let inner_end = part_end(last);
         let opts = options(ctx);
         if let Some(qr) = quote_and_range(ctx, node.start, node.end, inner_start, inner_end) {
-            self.verify(ctx, opts.prefer, qr);
+            Self::verify(ctx, opts.prefer, &qr);
         }
     }
 
     /// Verify a dynamic single-mustache attribute value (`name={...}` or
     /// `name="{...}"`). The inner span is the `{...}` tag.
     fn verify_dynamic(
-        &self,
         ctx: &mut LintContext,
         node: &AttributeNode,
         inner_start: u32,
@@ -326,14 +322,13 @@ impl HtmlQuotes {
             } else {
                 opts.dynamic_quote
             };
-            self.verify(ctx, prefer, qr);
+            Self::verify(ctx, prefer, &qr);
         }
     }
 
     /// Verify a directive whose value is an optional expression: skip when there
     /// is no expression, or when it is the shorthand form (no explicit `={...}`).
     fn verify_directive_expr(
-        &self,
         ctx: &mut LintContext,
         node_start: u32,
         node_end: u32,
@@ -343,14 +338,13 @@ impl HtmlQuotes {
             && let (Some(es), Some(ee)) = (expr.start(), expr.end())
             && !is_shorthand_directive(ctx, node_start, es, ee)
         {
-            self.verify_directive(ctx, node_start, node_end, es, ee);
+            Self::verify_directive(ctx, node_start, node_end, es, ee);
         }
     }
 
     /// Verify a directive value (`name={...}`). We locate the `{...}` braces by
     /// scanning out from the expression span to the enclosing `{` / `}`.
     fn verify_directive(
-        &self,
         ctx: &mut LintContext,
         node_start: u32,
         node_end: u32,
@@ -366,7 +360,7 @@ impl HtmlQuotes {
             i -= 1;
             let b = src[i];
             if b == b'{' {
-                open_brace = Some(i as u32);
+                open_brace = Some(source_offset(i));
                 break;
             }
             if !b.is_ascii_whitespace() && b != b'"' && b != b'\'' && b != b'(' {
@@ -383,7 +377,7 @@ impl HtmlQuotes {
         while j < hi {
             let b = src[j];
             if b == b'}' {
-                close_brace = Some((j + 1) as u32);
+                close_brace = Some(source_offset(j + 1));
                 break;
             }
             if !b.is_ascii_whitespace() && b != b'"' && b != b'\'' && b != b')' {
@@ -403,19 +397,19 @@ impl HtmlQuotes {
             } else {
                 opts.dynamic_quote
             };
-            self.verify(ctx, prefer, qr);
+            Self::verify(ctx, prefer, &qr);
         }
     }
 }
 
-fn part_start(p: &AttributeValuePart) -> u32 {
+const fn part_start(p: &AttributeValuePart) -> u32 {
     match p {
         AttributeValuePart::Text(t) => t.start,
         AttributeValuePart::ExpressionTag(e) => e.start,
     }
 }
 
-fn part_end(p: &AttributeValuePart) -> u32 {
+const fn part_end(p: &AttributeValuePart) -> u32 {
     match p {
         AttributeValuePart::Text(t) => t.end,
         AttributeValuePart::ExpressionTag(e) => e.end,
@@ -432,18 +426,18 @@ impl Rule for HtmlQuotes {
             Attribute::Attribute(node) => match &node.value {
                 AttributeValue::Expression(tag) => {
                     // `name={...}` — dynamic single mustache.
-                    self.verify_dynamic(ctx, node, tag.start, tag.end);
+                    Self::verify_dynamic(ctx, node, tag.start, tag.end);
                 }
                 AttributeValue::Sequence(parts) => {
                     if parts.len() == 1
                         && let AttributeValuePart::ExpressionTag(tag) = &parts[0]
                     {
                         // `name="{...}"` — dynamic single mustache.
-                        self.verify_dynamic(ctx, node, tag.start, tag.end);
+                        Self::verify_dynamic(ctx, node, tag.start, tag.end);
                         return;
                     }
                     if !parts.is_empty() {
-                        self.verify_values(ctx, node, parts);
+                        Self::verify_values(ctx, node, parts);
                     }
                 }
                 AttributeValue::True(_) => {}
@@ -454,33 +448,33 @@ impl Rule for HtmlQuotes {
                 end,
                 expression,
                 ..
-            }) => self.verify_directive_expr(ctx, *start, *end, Some(expression)),
-            Attribute::ClassDirective(ClassDirective {
+            })
+            | Attribute::ClassDirective(ClassDirective {
                 start,
                 end,
                 expression,
                 ..
-            }) => self.verify_directive_expr(ctx, *start, *end, Some(expression)),
-            Attribute::OnDirective(OnDirective {
+            })
+            | Attribute::OnDirective(OnDirective {
                 start,
                 end,
                 expression: Some(expression),
                 ..
-            }) => self.verify_directive_expr(ctx, *start, *end, Some(expression)),
-            Attribute::TransitionDirective(TransitionDirective {
+            })
+            | Attribute::TransitionDirective(TransitionDirective {
                 start,
                 end,
                 expression: Some(expression),
                 ..
-            }) => self.verify_directive_expr(ctx, *start, *end, Some(expression)),
+            }) => Self::verify_directive_expr(ctx, *start, *end, Some(expression)),
             Attribute::AnimateDirective(d) => {
-                self.verify_directive_expr(ctx, d.start, d.end, d.expression.as_ref())
+                Self::verify_directive_expr(ctx, d.start, d.end, d.expression.as_ref());
             }
             Attribute::UseDirective(d) => {
-                self.verify_directive_expr(ctx, d.start, d.end, d.expression.as_ref())
+                Self::verify_directive_expr(ctx, d.start, d.end, d.expression.as_ref());
             }
             Attribute::LetDirective(d) => {
-                self.verify_directive_expr(ctx, d.start, d.end, d.expression.as_ref())
+                Self::verify_directive_expr(ctx, d.start, d.end, d.expression.as_ref());
             }
             // StyleDirective behaves like a standard attribute (text / mustache
             // sequence value).
@@ -488,13 +482,13 @@ impl Rule for HtmlQuotes {
                 start, end, value, ..
             }) => match value {
                 AttributeValue::Expression(tag) => {
-                    self.verify_dynamic_span(ctx, *start, *end, tag.start, tag.end);
+                    Self::verify_dynamic_span(ctx, *start, *end, tag.start, tag.end);
                 }
                 AttributeValue::Sequence(parts) => {
                     if parts.len() == 1
                         && let AttributeValuePart::ExpressionTag(tag) = &parts[0]
                     {
-                        self.verify_dynamic_span(ctx, *start, *end, tag.start, tag.end);
+                        Self::verify_dynamic_span(ctx, *start, *end, tag.start, tag.end);
                         return;
                     }
                     if let (Some(first), Some(last)) = (parts.first(), parts.last()) {
@@ -502,25 +496,25 @@ impl Rule for HtmlQuotes {
                         if let Some(qr) =
                             quote_and_range(ctx, *start, *end, part_start(first), part_end(last))
                         {
-                            self.verify(ctx, opts.prefer, qr);
+                            Self::verify(ctx, opts.prefer, &qr);
                         }
                     }
                 }
                 AttributeValue::True(_) => {}
             },
-            Attribute::SpreadAttribute(_) | Attribute::AttachTag(_) => {}
-            // `on:`/`transition:` etc. without an expression (e.g. `on:click`
-            // shorthand-less, or `transition:fade` with no value) — nothing to
-            // quote.
-            Attribute::OnDirective(_) | Attribute::TransitionDirective(_) => {}
+            Attribute::SpreadAttribute(_)
+            | Attribute::AttachTag(_)
+            | Attribute::OnDirective(_)
+            | Attribute::TransitionDirective(_) => {} // `on:`/`transition:` etc. without an expression (e.g. `on:click`
+                                                      // shorthand-less, or `transition:fade` with no value) — nothing to
+                                                      // quote.
         }
     }
 }
 
 impl HtmlQuotes {
-    /// `verify_dynamic` for non-`AttributeNode` carriers (StyleDirective).
+    /// `verify_dynamic` for non-`AttributeNode` carriers (`StyleDirective`).
     fn verify_dynamic_span(
-        &self,
         ctx: &mut LintContext,
         node_start: u32,
         node_end: u32,
@@ -535,7 +529,7 @@ impl HtmlQuotes {
             } else {
                 opts.dynamic_quote
             };
-            self.verify(ctx, prefer, qr);
+            Self::verify(ctx, prefer, &qr);
         }
     }
 }

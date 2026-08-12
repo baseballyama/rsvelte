@@ -1,4 +1,5 @@
 //! `svelte/no-dynamic-slot-name` — a `<slot name=…>` must have a static name.
+//!
 //! Port of the (upstream-deprecated) eslint-plugin-svelte rule: a `name`
 //! attribute with a mustache value is "cannot be dynamic"; a valueless `name`
 //! attribute is "requires a value".
@@ -50,7 +51,9 @@ impl Rule for NoDynamicSlotName {
                 AttributeValue::True(_) => {
                     ctx.report(
                         node.start,
-                        node.start + node.name.len() as u32,
+                        node.start
+                            + u32::try_from(node.name.len())
+                                .expect("attribute-name widths are represented as u32"),
                         REQUIRE_VALUE,
                     );
                 }
@@ -62,7 +65,9 @@ impl Rule for NoDynamicSlotName {
                     if parts.is_empty() {
                         ctx.report(
                             node.start,
-                            node.start + node.name.len() as u32,
+                            node.start
+                                + u32::try_from(node.name.len())
+                                    .expect("attribute-name widths are represented as u32"),
                             REQUIRE_VALUE,
                         );
                     }

@@ -121,7 +121,7 @@ impl PhaseMetrics {
             return 0.0;
         }
         let mut sorted = self.times_ns.clone();
-        sorted.sort();
+        sorted.sort_unstable();
         let mid = sorted.len() / 2;
         if sorted.len() & 1 == 0 {
             (sorted[mid - 1] + sorted[mid]) as f64 / 2.0
@@ -265,7 +265,7 @@ fn load_files(config: &Config) -> Vec<(String, String)> {
         if dir_path.exists() {
             for entry in walkdir::WalkDir::new(&dir_path)
                 .into_iter()
-                .filter_map(|e| e.ok())
+                .filter_map(std::result::Result::ok)
             {
                 let path = entry.path();
                 if path.extension().is_some_and(|ext| ext == "svelte")
@@ -330,13 +330,13 @@ fn create_medium_file() -> String {
     }
 
     s.push_str(
-        r#"    </ul>
+        r"    </ul>
 </div>
 
 <style>
     .container { padding: 1rem; }
     .active { font-weight: bold; }
-</style>"#,
+</style>",
     );
 
     s
@@ -415,7 +415,7 @@ fn create_large_file() -> String {
     }
 
     s.push_str(
-        r#"    </main>
+        r"    </main>
 
     <footer>
         <p>Total items: {items.length}</p>
@@ -434,7 +434,7 @@ fn create_large_file() -> String {
     .item { display: flex; justify-content: space-between; padding: 0.5rem; }
     .selected { background: #ffff00; }
     footer { padding: 1rem; background: #f0f0f0; }
-</style>"#,
+</style>",
     );
 
     s
@@ -595,7 +595,7 @@ fn format_ns(ns: f64) -> String {
     } else if ns >= 1_000.0 {
         format!("{:.2}µs", ns / 1_000.0)
     } else {
-        format!("{:.0}ns", ns)
+        format!("{ns:.0}ns")
     }
 }
 
@@ -609,7 +609,7 @@ fn format_throughput(bytes: usize, ns: f64) -> String {
     } else if bytes_per_sec >= 1_000.0 {
         format!("{:.2} KB/s", bytes_per_sec / 1_000.0)
     } else {
-        format!("{:.0} B/s", bytes_per_sec)
+        format!("{bytes_per_sec:.0} B/s")
     }
 }
 
@@ -618,7 +618,7 @@ fn print_phase_metrics(name: &str, metrics: &PhaseMetrics, size_bytes: usize) {
         return;
     }
 
-    println!("  {}:", name);
+    println!("  {name}:");
     println!("    Mean:       {}", format_ns(metrics.mean_ns()));
     println!("    Median:     {}", format_ns(metrics.median_ns()));
     println!("    Min:        {}", format_ns(metrics.min_ns() as f64));
@@ -677,7 +677,7 @@ fn print_text_output(config: &Config, all_metrics: &[FileMetrics]) {
         let total_time_ns: f64 = all_metrics.iter().map(|m| m.total.mean_ns()).sum();
 
         println!("Total files: {}", all_metrics.len());
-        println!("Total size:  {} bytes", total_bytes);
+        println!("Total size:  {total_bytes} bytes");
         println!(
             "Total time:  {} (mean per iteration)",
             format_ns(total_time_ns)
@@ -766,19 +766,18 @@ fn pprof_transform(config: &Config, files: &[(String, String)]) {
         enable_sourcemap: false,
         ..Default::default()
     };
-    let mut ast = match parse(content, &oxc_allocator::Allocator::default(), parse_options) {
-        Ok(a) => a,
-        Err(_) => {
-            eprintln!("[pprof] parse failed");
-            return;
-        }
+    let mut ast = if let Ok(a) = parse(content, &oxc_allocator::Allocator::default(), parse_options)
+    {
+        a
+    } else {
+        eprintln!("[pprof] parse failed");
+        return;
     };
-    let analysis = match analyze_component(&mut ast, content, &compile_options) {
-        Ok(a) => a,
-        Err(_) => {
-            eprintln!("[pprof] analyze failed");
-            return;
-        }
+    let analysis = if let Ok(a) = analyze_component(&mut ast, content, &compile_options) {
+        a
+    } else {
+        eprintln!("[pprof] analyze failed");
+        return;
     };
     let iters = 2500usize;
     eprintln!("[pprof] sampling transform of {name} over {iters} iterations...");
@@ -795,7 +794,7 @@ fn pprof_transform(config: &Config, files: &[(String, String)]) {
     let mut incl: HashMap<String, isize> = HashMap::new();
     let mut selfc: HashMap<String, isize> = HashMap::new();
     let mut total: isize = 0;
-    for (frames, count) in report.data.iter() {
+    for (frames, count) in &report.data {
         total += *count;
         if let Some(first) = frames.frames.first().and_then(|f| f.first()) {
             *selfc.entry(format!("{first}")).or_insert(0) += *count;

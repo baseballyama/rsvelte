@@ -44,7 +44,7 @@ fn attr_text_chunk_doc(raw: &str, tw: usize) -> (Doc, usize) {
 ///  - a breakable interpolation with a block-bodied expansion (object / array /
 ///    arrow, or a call whose broken first line ends with `(` / `{` / `[`) —
 ///    its continuation lines sit at the attribute indent with full width, not
-///    the +2 relative indent this RawExpr model assumes;
+///    the +2 relative indent this `RawExpr` model assumes;
 ///  - no breakable interpolation at all (the value can only render flat, and
 ///    the legacy path's flat output is authoritative).
 fn render_value_sequence_doc(
@@ -185,6 +185,49 @@ fn render_value_sequence_doc(
     Ok(Some(out))
 }
 
+struct InterpolatedValueContext<'a> {
+    source: &'a str,
+    options: &'a FormatOptions,
+    attr_depth: usize,
+}
+
+impl InterpolatedValueContext<'_> {
+    fn initial_format(
+        &self,
+        tag: &rsvelte_core::ast::template::ExpressionTag,
+    ) -> Result<Option<(String, FormatOptions, String)>, FormatError> {
+        let inner = expression_tag_inner(tag, self.source).trim();
+        if inner.is_empty() {
+            return Ok(None);
+        }
+        let mut options = self.options.clone();
+        options.js.quote_style = QuoteStyle::Single;
+        let first_pass = format_attribute_value_expression(inner, &options, self.attr_depth, 0)?;
+        Ok(Some((inner.to_string(), options, first_pass)))
+    }
+
+    fn trailing_metrics(&self, parts: &[AttributeValuePart]) -> (usize, bool) {
+        let mut columns = 0;
+        for part in parts {
+            match part {
+                AttributeValuePart::Text(text) => {
+                    let raw = text.raw.as_ref();
+                    if let Some(newline) = raw.find('\n') {
+                        columns += raw[..newline].visual_width(tab_width(self.options));
+                        break;
+                    }
+                    columns += raw.visual_width(tab_width(self.options));
+                }
+                AttributeValuePart::ExpressionTag(_) => {}
+            }
+        }
+        let has_expression = parts
+            .iter()
+            .any(|part| matches!(part, AttributeValuePart::ExpressionTag(_)));
+        (columns, has_expression)
+    }
+}
+
 pub(super) fn render_attribute_value_sequence(
     parts: &[AttributeValuePart],
     source: &str,
@@ -195,6 +238,11 @@ pub(super) fn render_attribute_value_sequence(
     regular_attr: bool,
 ) -> Result<String, FormatError> {
     let tw = tab_width(options);
+    let context = InterpolatedValueContext {
+        source,
+        options,
+        attr_depth,
+    };
     // Whole-value Doc model, used only once the open tag is known to wrap (the
     // single-line pass renders flat anyway) and only for REGULAR attributes —
     // style/other directive values print their text as a prettier `fill` (a
@@ -224,16 +272,15 @@ pub(super) fn render_attribute_value_sequence(
                 out.push_str(t.raw.as_ref());
             }
             AttributeValuePart::ExpressionTag(tag) => {
-                let inner_src = expression_tag_inner(tag, source).trim();
-                if inner_src.is_empty() {
+                let Some((inner_src, opts, first_pass)) = context.initial_format(tag)? else {
                     out.push_str("{}");
-                } else {
+                    continue;
+                };
+                {
                     // The expression sits inside a double-quoted attribute
                     // (`class="…{expr}…"`); prettier prefers single quotes for
                     // its string literals so they don't clash with the `"`
                     // delimiter (`{x ?? ''}`, not `{x ?? ""}`).
-                    let mut opts = options.clone();
-                    opts.js.quote_style = QuoteStyle::Single;
                     // When the open tag wraps, narrow a shallow interpolated
                     // expression by the columns it can't use on its first line:
                     // everything before its `{` (the `name="` prefix plus value
@@ -272,36 +319,23 @@ pub(super) fn render_attribute_value_sequence(
                     // keeps each interpolation on its own physical line, so text on
                     // SUBSEQUENT lines must not count toward this one's width (else a
                     // trivial `{r * 2}` is force-broken to fit a phantom-long line).
-                    let mut trailing_cols = 0usize;
-                    for p in &parts[i + 1..] {
-                        match p {
-                            AttributeValuePart::Text(t) => {
-                                let raw = t.raw.as_ref();
-                                if let Some(nl) = raw.find('\n') {
-                                    trailing_cols += raw[..nl].visual_width(tw);
-                                    break;
-                                }
-                                trailing_cols += raw.visual_width(tw);
-                            }
-                            // A following interpolation continues the same line; its
-                            // width is unknown here, so (as before) count it as 0.
-                            AttributeValuePart::ExpressionTag(_) => {}
-                        }
-                    }
+                    let (trailing_cols, has_trailing_expr) =
+                        context.trailing_metrics(&parts[i + 1..]);
                     // Whether there are trailing expression tags after this one.
                     // When true, the closing `)` of an expanded-arg form would land
                     // on a line followed by the next interpolation, producing
                     // `fn(\n  {...},\n)} {expr}` which the oracle does NOT emit.
-                    let has_trailing_expr = parts[i + 1..]
-                        .iter()
-                        .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
-                    let first_pass = format_attribute_value_expression(
-                        inner_src,
-                        &opts,
-                        effective_attr_depth,
-                        0,
-                    )?;
-                    let formatted = if narrow_value && is_shallow_value(inner_src) {
+                    let first_pass = if effective_attr_depth == attr_depth {
+                        first_pass
+                    } else {
+                        format_attribute_value_expression(
+                            &inner_src,
+                            &opts,
+                            effective_attr_depth,
+                            0,
+                        )?
+                    };
+                    let formatted = if narrow_value && is_shallow_value(&inner_src) {
                         let indent_cols = attr_depth * opts.js.indent_width.value() as usize;
                         // For a multi-line string value the physical indent is already
                         // in `lead_cols`; don't add the logical attribute indent again.
@@ -325,7 +359,9 @@ pub(super) fn render_attribute_value_sequence(
                             // - Single-line `fn({ k: v })` → `fn(\n  { k: v },\n)`
                             // - Multi-line `fn({\n  k: v,\n})` → `fn(\n  {\n    k: v,\n  },\n)`
                             let indent_w = opts.js.indent_width.value() as usize;
-                            if !has_trailing_expr {
+                            if has_trailing_expr {
+                                first_pass
+                            } else {
                                 let first_line_fp =
                                     first_pass.lines().next().unwrap_or("").trim_end();
                                 // Try expansion for multi-line `fn({` form.
@@ -353,7 +389,7 @@ pub(super) fn render_attribute_value_sequence(
                                         first_pass.as_str().visual_width(tw),
                                     );
                                     let forced = format_attribute_value_expression(
-                                        inner_src,
+                                        &inner_src,
                                         &opts,
                                         effective_attr_depth,
                                         force_extra,
@@ -366,8 +402,6 @@ pub(super) fn render_attribute_value_sequence(
                                 } else {
                                     first_pass
                                 }
-                            } else {
-                                first_pass
                             }
                         } else if !first_pass.contains('\n') {
                             // Wide first-pass produced a single-line result.
@@ -393,7 +427,7 @@ pub(super) fn render_attribute_value_sequence(
                                 // still keeps the expression's first line intact.
                                 // First try start-column narrowing (the original approach).
                                 let start_result = format_attribute_value_expression(
-                                    inner_src,
+                                    &inner_src,
                                     &opts,
                                     effective_attr_depth,
                                     extra_start,
@@ -419,7 +453,7 @@ pub(super) fn render_attribute_value_sequence(
                                         first_pass.as_str().visual_width(tw),
                                     );
                                     let forced = format_attribute_value_expression(
-                                        inner_src,
+                                        &inner_src,
                                         &opts,
                                         effective_attr_depth,
                                         force_extra,
@@ -432,14 +466,12 @@ pub(super) fn render_attribute_value_sequence(
                                         // expressions, prettier-plugin-svelte expands to
                                         // `fn(\n  { key: val },\n)` — apply that.
                                         let indent_w = opts.js.indent_width.value() as usize;
-                                        if !has_trailing_expr {
-                                            if let Some(expanded) =
-                                                expand_obj_arg_call(&start_result, indent_w)
-                                            {
-                                                expanded
-                                            } else {
-                                                start_result
-                                            }
+                                        if has_trailing_expr {
+                                            start_result
+                                        } else if let Some(expanded) =
+                                            expand_obj_arg_call(&start_result, indent_w)
+                                        {
+                                            expanded
                                         } else {
                                             start_result
                                         }
@@ -456,14 +488,12 @@ pub(super) fn render_attribute_value_sequence(
                                 // when the expression is a single-object-arg call and
                                 // there are no trailing interpolations.
                                 let indent_w = opts.js.indent_width.value() as usize;
-                                if !has_trailing_expr {
-                                    if let Some(expanded) =
-                                        expand_obj_arg_call(&first_pass, indent_w)
-                                    {
-                                        expanded
-                                    } else {
-                                        first_pass
-                                    }
+                                if has_trailing_expr {
+                                    first_pass
+                                } else if let Some(expanded) =
+                                    expand_obj_arg_call(&first_pass, indent_w)
+                                {
+                                    expanded
                                 } else {
                                     first_pass
                                 }
@@ -473,7 +503,7 @@ pub(super) fn render_attribute_value_sequence(
                                 // where the brace column dictates (trailing text is on a
                                 // subsequent line, not relevant here).
                                 format_attribute_value_expression(
-                                    inner_src,
+                                    &inner_src,
                                     &opts,
                                     effective_attr_depth,
                                     extra_start,

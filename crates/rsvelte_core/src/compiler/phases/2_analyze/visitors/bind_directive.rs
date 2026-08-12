@@ -1,4 +1,4 @@
-//! BindDirective visitor.
+//! `BindDirective` visitor.
 //!
 //! Analyzes bind: directives and validates their usage.
 //!
@@ -15,7 +15,7 @@ use crate::compiler::phases::phase2_analyze::binding_properties::{
 use crate::compiler::phases::phase2_analyze::errors;
 /// Visit a bind directive with explicit element context.
 ///
-/// This is called from regular_element visitor when we have direct access to the element.
+/// This is called from `regular_element` visitor when we have direct access to the element.
 pub fn visit_with_element(
     directive: &BindDirective,
     element: &RegularElement,
@@ -30,7 +30,7 @@ pub fn visit_with_element(
 
 /// Visit a bind directive on a Svelte special element (svelte:window, svelte:document, etc).
 ///
-/// This is called from special element visitors like svelte_window.
+/// This is called from special element visitors like `svelte_window`.
 pub fn visit_with_svelte_element(
     directive: &BindDirective,
     element_name: &str,
@@ -344,7 +344,7 @@ fn find_rest_identifier(
 /// itself is an update), so with a resolved binding this effectively only
 /// fires for kinds that escape that marking; with no binding (undeclared /
 /// global identifier) it always fires. This check applies to bindings on
-/// elements AND components alike (upstream's BindDirective visitor runs for
+/// elements AND components alike (upstream's `BindDirective` visitor runs for
 /// both).
 pub(super) fn validate_bind_value_identifier(
     directive: &BindDirective,
@@ -362,7 +362,7 @@ pub(super) fn validate_bind_value_identifier(
     // In the official Svelte, if there's no binding, or the binding is not a valid type,
     // it should error with bind_invalid_value
     // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/BindDirective.js L193-207
-    let is_valid = if let Some(binding) = binding {
+    let is_valid = binding.is_some_and(|binding| {
         // In runes mode, check binding kind strictly
         // In legacy mode, `let` declarations are allowed for bindings
         // (their `updated` flag will be set during template analysis)
@@ -380,11 +380,7 @@ pub(super) fn validate_bind_value_identifier(
         );
         // Also valid if the binding has been updated (reassigned/mutated)
         valid_kind || binding.reassigned || binding.mutated
-    } else {
-        // No binding found - this is an error (undefined variable)
-        false
-    };
-
+    });
     if !is_valid {
         return Err(AnalysisError::validation_at(
             "bind_invalid_value",
@@ -476,7 +472,7 @@ fn validate_binding_for_svelte_element(
         {
             return Err(errors::bind_invalid_name(
                 binding_name,
-                Some(&format!("Did you mean '{}'?", match_name)),
+                Some(&format!("Did you mean '{match_name}'?")),
             )
             .at(start, end));
         }
@@ -560,7 +556,7 @@ fn validate_binding_for_regular_element(
         {
             return Err(errors::bind_invalid_name(
                 binding_name,
-                Some(&format!("Did you mean '{}'?", match_name)),
+                Some(&format!("Did you mean '{match_name}'?")),
             )
             .at(start, end));
         }
@@ -613,7 +609,7 @@ fn validate_input_binding(
                     };
                     return Err(errors::bind_invalid_target(
                         binding_name,
-                        &format!("`<input type=\"checkbox\">`{}", hint),
+                        &format!("`<input type=\"checkbox\">`{hint}"),
                     )
                     .at(start, end));
                 }
@@ -767,7 +763,7 @@ pub(super) fn bind_target_name(
     Ok(name)
 }
 
-/// Get the object (leftmost identifier) from a JsNode expression.
+/// Get the object (leftmost identifier) from a `JsNode` expression.
 ///
 /// Corresponds to `object()` in utils/ast.js.
 ///

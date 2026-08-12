@@ -1,4 +1,49 @@
-use super::*;
+use super::{
+    FormatOptions, Fragment, IndentUnit, TemplateNode, VisualWidth, build_attrs_concat,
+    build_component_doc, build_if_block_doc, build_inline_element_doc, build_simple_block_doc,
+    build_void_element_doc, child_fragments, content_tag_breakable_doc, current_column,
+    did_self_close, in_pre_content, indent_config, is_block_display, is_html_void_element,
+    is_inline_block, is_whitespace_preserving, node_end, node_start, omit_softline_allowed,
+    orig_text_for, tab_width,
+};
+
+pub(super) enum ChildrenPortResult {
+    Declined,
+    Claimed(Option<(u32, u32, String)>),
+}
+
+fn child_profile(fragment: &Fragment) -> (bool, bool, bool, bool) {
+    let has_prose_word = fragment.nodes.iter().any(
+        |node| matches!(node, TemplateNode::Text(text) if text.data.split_whitespace().next().is_some()),
+    );
+    let has_non_text = fragment
+        .nodes
+        .iter()
+        .any(|node| !matches!(node, TemplateNode::Text(_)));
+    let has_any_text = fragment
+        .nodes
+        .iter()
+        .any(|node| matches!(node, TemplateNode::Text(_)));
+    let block_run = has_any_text
+        && fragment.nodes.iter().all(|node| match node {
+            TemplateNode::Text(text) => text.data.split_whitespace().next().is_none(),
+            TemplateNode::IfBlock(_) | TemplateNode::RenderTag(_) => true,
+            _ => false,
+        });
+    (has_prose_word, has_non_text, has_any_text, block_run)
+}
+
+fn supports_children_port(fragment: &Fragment) -> bool {
+    let (has_prose_word, has_non_text, has_any_text, block_run) = child_profile(fragment);
+    if !has_non_text || (!has_prose_word && ((has_any_text && !block_run) || in_pre_content())) {
+        return false;
+    }
+    !has_prose_word
+        || !fragment
+            .nodes
+            .iter()
+            .any(|node| matches!(node, TemplateNode::RenderTag(_)))
+}
 
 /// Recurse the tree running ONLY `try_children_port` on each `RegularElement`.
 /// Used as the final collapse pass so the faithful children port has the last
@@ -29,7 +74,8 @@ pub(super) fn collect_children_port_only(
         if matches!(
             node,
             TemplateNode::RegularElement(_) | TemplateNode::Component(_)
-        ) && let Some(maybe_edit) = try_children_port(out, node, line_width, options)
+        ) && let ChildrenPortResult::Claimed(maybe_edit) =
+            try_children_port(out, node, line_width, options)
         {
             if let Some(edit) = maybe_edit {
                 edits.push(edit);
@@ -179,18 +225,14 @@ pub(super) fn block_branch_bounds(out: &str, frag: &Fragment) -> Option<(usize, 
 /// word glued to the preceding void element and wraps later). The gate is a strict
 /// subset of `try_fill_mixed`'s; anything else falls through unchanged.
 ///
-/// Returns `None` when the element is NOT a cut-1 shape (the caller should try
-/// the legacy passes). Returns `Some(_)` when the children port OWNS the element:
-/// `Some(Some(edit))` carries the reflow edit, `Some(None)` means the element is
-/// already correctly laid out (no edit) — but the caller must still treat it as
-/// claimed and NOT run `try_fill_mixed` / `try_hug_mixed`, which would otherwise
-/// re-break the already-correct prose with the approximate algorithm.
+/// Returns [`ChildrenPortResult::Declined`] when the element is not a cut-1
+/// shape. A claimed result owns the element even when it has no edit.
 pub(super) fn try_children_port(
     out: &str,
     node: &TemplateNode,
     line_width: usize,
     options: &FormatOptions,
-) -> Option<Option<(u32, u32, String)>> {
+) -> ChildrenPortResult {
     use crate::children::{Child, ElementLayout, build_element_doc};
 
     let tw = tab_width(options);
@@ -213,76 +255,34 @@ pub(super) fn try_children_port(
             true,
             did_self_close(out, c.end),
         ),
-        _ => return None,
+        _ => return ChildrenPortResult::Declined,
     };
     // Cut 1: inline or block elements (not pre/textarea/script/style, not
     // inline-block like button/select/input). `is_inline` follows prettier's
     // `isInlineElement` = not in the block-element list.
     if is_whitespace_preserving(tag) || is_inline_block(tag) {
-        return None;
+        return ChildrenPortResult::Declined;
     }
     let (s, ee) = (start as usize, end as usize);
-    let whole = out.get(s..ee)?;
+    let Some(whole) = out.get(s..ee) else {
+        return ChildrenPortResult::Declined;
+    };
 
-    // Gate: at least one non-text child, plus EITHER at least one prose text word
-    // (mixed content) OR no text nodes at all (an element-only children run such as
-    // `<a><span>…</span><span>…</span></a>`). Pure-text elements are
-    // `try_collapse`'s job, and the in-between shape — element children separated by
-    // whitespace-only text — stays out because its separator handling is the
-    // `try_fill_mixed` prose path. (A pure-text inline element with an overflowing
-    // open tag — `<a href="…long…">REPL</a>` — was tried as "cut 4" but cleared 0
-    // corpus files: every close-`>` cluster file is multi-diff and also needs
-    // element-only + close-`>` + expression fixes.) Per-child convertibility is
-    // enforced by `node_to_child` in the build loop below.
-    let has_prose_word = fragment
-        .nodes
-        .iter()
-        .any(|n| matches!(n, TemplateNode::Text(t) if t.data.split_whitespace().next().is_some()));
-    let has_non_text = fragment
-        .nodes
-        .iter()
-        .any(|n| !matches!(n, TemplateNode::Text(_)));
-    let has_any_text = fragment
-        .nodes
-        .iter()
-        .any(|n| matches!(n, TemplateNode::Text(_)));
-    // The element-only run is additionally barred inside `<pre>` content, where
-    // prettier's `isPreTagContent` suppresses element layout entirely.
-    // A run of flow blocks separated only by whitespace (`<svg>` wrapping a lone
-    // `{#if}`) has no prose for the fill path to own either.
-    let block_run = has_any_text
-        && fragment.nodes.iter().all(|n| match n {
-            TemplateNode::Text(t) => t.data.split_whitespace().next().is_none(),
-            // Bare atoms that `node_to_child` converts and that print one-per-line
-            // in a whitespace-separated block run (e.g. an `<svg>` body holding an
-            // `{#if}` next to a `{@render children()}`).
-            TemplateNode::IfBlock(_) | TemplateNode::RenderTag(_) => true,
-            _ => false,
-        });
-    if !has_non_text || (!has_prose_word && ((has_any_text && !block_run) || in_pre_content())) {
-        return None;
-    }
-    // A `{@render …}` inside PROSE (mixed with text words) needs the fill path's
-    // breakable-call-arg treatment; the port renders it as a verbatim single-line
-    // atom, which would leave an overflowing render call unbroken. Leave those to
-    // `try_fill_mixed`. In a block run (no prose word) the render tag prints on its
-    // own line, so the port owns it.
-    if has_prose_word
-        && fragment
-            .nodes
-            .iter()
-            .any(|n| matches!(n, TemplateNode::RenderTag(_)))
-    {
-        return None;
+    if !supports_children_port(fragment) {
+        return ChildrenPortResult::Declined;
     }
 
     // open/close sanity: content directly bounded by `>` … `</`.
-    let content_start = node_start(fragment.nodes.first()?) as usize;
-    let content_end = node_end(fragment.nodes.last()?) as usize;
-    let open = out.get(s..content_start)?;
-    let close = out.get(content_end..ee)?;
+    let (Some(first), Some(last)) = (fragment.nodes.first(), fragment.nodes.last()) else {
+        return ChildrenPortResult::Declined;
+    };
+    let content_start = node_start(first) as usize;
+    let content_end = node_end(last) as usize;
+    let (Some(open), Some(close)) = (out.get(s..content_start), out.get(content_end..ee)) else {
+        return ChildrenPortResult::Declined;
+    };
     if !open.ends_with('>') || !close.starts_with("</") {
-        return None;
+        return ChildrenPortResult::Declined;
     }
 
     // The base indent level comes from the line's leading whitespace run. A
@@ -290,14 +290,18 @@ pub(super) fn try_children_port(
     // tracked separately by `start_col`. A prefix ending at a `>` or `}` is a
     // hug/glue boundary owned by another pass, so leave those alone.
     let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
-    let full_prefix = out.get(line_start..s)?;
+    let Some(full_prefix) = out.get(line_start..s) else {
+        return ChildrenPortResult::Declined;
+    };
     let ws_len = full_prefix
         .bytes()
         .take_while(|&b| b == b' ' || b == b'\t')
         .count();
-    let indent = full_prefix.get(..ws_len)?;
+    let Some(indent) = full_prefix.get(..ws_len) else {
+        return ChildrenPortResult::Declined;
+    };
     if full_prefix[ws_len..].ends_with(['>', '}']) {
-        return None;
+        return ChildrenPortResult::Declined;
     }
     let (unit, width) = indent_config(options);
     let base_level = if options.js.indent_style.is_tab() {
@@ -309,10 +313,15 @@ pub(super) fn try_children_port(
 
     // Build the ElementLayout from the AST, recursively converting each child via
     // the faithful port (`node_to_child` bails on any unsupported child).
-    let attrs = build_attrs_concat(out, attributes, options)?;
+    let Some(attrs) = build_attrs_concat(out, attributes, options) else {
+        return ChildrenPortResult::Declined;
+    };
     let mut children: Vec<Child> = Vec::with_capacity(fragment.nodes.len());
     for n in &fragment.nodes {
-        children.push(node_to_child(out, n, line_width, options)?);
+        let Some(child) = node_to_child(out, n, line_width, options) else {
+            return ChildrenPortResult::Declined;
+        };
+        children.push(child);
     }
     let doc = build_element_doc(ElementLayout {
         name: tag.to_string(),
@@ -342,12 +351,12 @@ pub(super) fn try_children_port(
         .filter(|c| !c.is_whitespace())
         .eq(whole.chars().filter(|c| !c.is_whitespace()))
     {
-        return None;
+        return ChildrenPortResult::Declined;
     }
     // Claim the element. Emit an edit only when it changes something; a noop still
     // claims it so the caller does NOT fall through to try_fill_mixed/try_hug_mixed
     // (which would re-break the already-correct prose).
-    Some((printed != whole).then_some((start, end, printed)))
+    ChildrenPortResult::Claimed((printed != whole).then_some((start, end, printed)))
 }
 
 /// Prepend `leading` (a `Doc::Line` or `Doc::Hardline`) to the outermost
@@ -402,9 +411,8 @@ pub(super) fn text_preceded_by_close_tag(out: &str, text_start: usize) -> bool {
         search_start += 1;
     }
     let search = &before[search_start..];
-    let rel_pos = match search.rfind('<') {
-        Some(p) => p,
-        None => return false,
+    let Some(rel_pos) = search.rfind('<') else {
+        return false;
     };
     // If the char after `<` is `/`, it's a close tag.
     search.as_bytes().get(rel_pos + 1) == Some(&b'/')

@@ -4,7 +4,7 @@
 //! most importantly `experimental.async`, which gates the
 //! `experimental_async` analysis error for top-level / derived `await`.
 //! The official tooling reads these from `svelte.config.js` via dynamic
-//! import; SvelteKit projects increasingly place the Svelte plugin (and
+//! import; `SvelteKit` projects increasingly place the Svelte plugin (and
 //! its inline `compilerOptions`) in `vite.config.{js,ts}` instead
 //! (issue #1034). Before this, rsvelte-check read no `compilerOptions`
 //! at all and so wrongly emitted `experimental_async` for valid async
@@ -18,7 +18,7 @@
 //!   * `svelte({ compilerOptions })` (`@sveltejs/vite-plugin-svelte`) —
 //!     vite-plugin-svelte *merges* this over `svelte.config.js`.
 //!   * `sveltekit({ compilerOptions })` (`@sveltejs/kit/vite`, since
-//!     SvelteKit 2.62.0) — when config is passed inline, SvelteKit
+//!     `SvelteKit` 2.62.0) — when config is passed inline, `SvelteKit`
 //!     *ignores* `svelte.config.js` entirely. We mirror that suppression
 //!     so the resolved options match what the runtime would compile with.
 //!
@@ -75,6 +75,7 @@ impl CompilerOptionsSettings {
     /// alone can't notice it).
     /// Fingerprinting the whole parsed object rather than the fields read off
     /// it keeps a newly-consumed option from silently reusing a stale cache.
+    #[must_use]
     pub fn signature(&self) -> String {
         format!("{:?}", self.raw)
     }
@@ -83,6 +84,7 @@ impl CompilerOptionsSettings {
     /// `DocumentSnapshot.ts`'s `namespace: document.config?.compilerOptions
     /// ?.namespace`: the config string reaches svelte2tsx unvalidated, and
     /// only `foreign` changes what it emits (attribute case is preserved).
+    #[must_use]
     pub fn projection_namespace(&self) -> Svelte2TsxNamespace {
         match self.namespace.as_deref() {
             Some("svg") => Svelte2TsxNamespace::Svg,
@@ -95,6 +97,7 @@ impl CompilerOptionsSettings {
     /// Whether the TSX projection runs with accessors. Mirrors
     /// `DocumentSnapshot.ts`'s `accessors ?? customElement`: a custom element
     /// exposes its props as properties whether or not `accessors` is set.
+    #[must_use]
     pub fn projection_accessors(&self) -> bool {
         self.accessors.or(self.custom_element).unwrap_or(false)
     }
@@ -102,6 +105,7 @@ impl CompilerOptionsSettings {
     /// The diagnostic `svelte.compile` would raise for these options before
     /// compiling anything, which upstream therefore reports on every checked
     /// component.
+    #[must_use]
     pub fn option_diagnostic(&self) -> Option<OptionDiagnostic> {
         super::options_schema::validate_component_options(&self.raw)
     }
@@ -144,9 +148,17 @@ pub(super) fn explicit_config_is_vite(name: &str, source: &str, source_type: Sou
     !name.starts_with("svelte.config.") && declares_svelte_plugin(source, source_type)
 }
 
+#[allow(
+    clippy::case_sensitive_file_extension_comparisons,
+    reason = "Svelte and Vite recognize TypeScript config suffixes with their exact on-disk spelling"
+)]
+fn is_typescript_config_name(name: &str) -> bool {
+    name.ends_with(".ts") || name.ends_with(".mts") || name.ends_with(".cts")
+}
+
 /// The oxc `SourceType` implied by a config filename's extension.
 pub(super) fn config_source_type(name: &str) -> SourceType {
-    if name.ends_with(".ts") || name.ends_with(".mts") || name.ends_with(".cts") {
+    if is_typescript_config_name(name) {
         SourceType::ts()
     } else {
         SourceType::default()
@@ -167,20 +179,19 @@ pub(super) fn config_source_type(name: &str) -> SourceType {
 /// doesn't mention it.
 ///
 /// Exception: when `vite.config.*` passes inline config to the
-/// `sveltekit()` plugin (SvelteKit 2.62.0+), SvelteKit ignores
+/// `sveltekit()` plugin (`SvelteKit` 2.62.0+), `SvelteKit` ignores
 /// `svelte.config.js` entirely, so step 2 is skipped and only the inline
 /// `sveltekit({...})` options apply over the defaults.
+#[must_use]
 pub fn load_compiler_options(workspace: &Path) -> CompilerOptionsSettings {
     load_compiler_options_with_config(workspace, None)
 }
 
-/// Like [`load_compiler_options`], but when `config` is `Some` the
-/// diagnostic-relevant `compilerOptions` are read from that exact file
-/// instead of discovering `svelte.config.*` / `vite.config.*` under the
-/// workspace. Mirrors the JS reference's `--config` flag, which points at
-/// a `svelte.config` / `vite.config` under a non-standard name or location.
-/// Which kind it is comes from `explicit_config_is_vite`, not from the
-/// filename alone.
+/// Loads compiler options from an explicit configuration file when supplied.
+///
+/// It mirrors the JS reference's `--config` behavior without relying only on
+/// the filename to determine whether the file is a Vite configuration.
+#[must_use]
 pub fn load_compiler_options_with_config(
     workspace: &Path,
     config: Option<&Path>,
@@ -245,7 +256,7 @@ fn read_first_config(workspace: &Path, candidates: &[&str]) -> Option<(String, S
         let Ok(source) = std::fs::read_to_string(&candidate) else {
             continue;
         };
-        let is_ts = name.ends_with(".ts") || name.ends_with(".mts") || name.ends_with(".cts");
+        let is_ts = is_typescript_config_name(name);
         let source_type = if is_ts {
             SourceType::ts()
         } else {
@@ -367,14 +378,13 @@ fn find_svelte_plugin_call<'a>(expr: &'a oxc::Expression<'a>) -> Option<SveltePl
         }
         oxc::Expression::ArrayExpression(arr) => {
             for el in &arr.elements {
-                match el {
+                if !matches!(
+                    el,
                     oxc::ArrayExpressionElement::SpreadElement(_)
-                    | oxc::ArrayExpressionElement::Elision(_) => continue,
-                    _ => {
-                        if let Some(found) = find_svelte_plugin_call(el.to_expression()) {
-                            return Some(found);
-                        }
-                    }
+                        | oxc::ArrayExpressionElement::Elision(_)
+                ) && let Some(found) = find_svelte_plugin_call(el.to_expression())
+                {
+                    return Some(found);
                 }
             }
             None
@@ -385,12 +395,12 @@ fn find_svelte_plugin_call<'a>(expr: &'a oxc::Expression<'a>) -> Option<SveltePl
 
 /// Does `vite.config.*` pass inline config to the `sveltekit()` plugin?
 ///
-/// SvelteKit 2.62.0 accepts the Svelte config (`compilerOptions`,
+/// `SvelteKit` 2.62.0 accepts the Svelte config (`compilerOptions`,
 /// `preprocess`, …) as the first argument to `sveltekit()`. When that
-/// argument is present, SvelteKit ignores `svelte.config.js` entirely
+/// argument is present, `SvelteKit` ignores `svelte.config.js` entirely
 /// (it forwards `configFile: false` to vite-plugin-svelte and warns).
 /// We treat *any* argument to `sveltekit(...)` as "inline config
-/// provided" — matching SvelteKit's `config !== undefined` check — so
+/// provided" — matching `SvelteKit`'s `config !== undefined` check — so
 /// even an argument we can't read statically still suppresses the file,
 /// exactly as it would at runtime. The plain `svelte()` plugin never
 /// suppresses `svelte.config.js`.
@@ -528,6 +538,7 @@ fn read_value(expr: &oxc::Expression) -> ConfigValue {
 /// intentionally NOT supported: unlike the scalar options, importing a Vite
 /// config standalone in the sidecar would drag in the whole Vite plugin
 /// graph. Returns `None` when no such file/property is found.
+#[must_use]
 pub fn warning_filter_config_path(workspace: &Path, config: Option<&Path>) -> Option<PathBuf> {
     // `--config` wins when it is a Svelte config; a Vite config is not a
     // standalone-importable source of `warningFilter`, whatever it is named.
@@ -564,7 +575,7 @@ fn declares_function_warning_filter(path: &Path) -> bool {
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or_default();
-    let is_ts = name.ends_with(".ts") || name.ends_with(".mts") || name.ends_with(".cts");
+    let is_ts = is_typescript_config_name(name);
     let source_type = if is_ts {
         SourceType::ts()
     } else {
@@ -588,7 +599,7 @@ fn declares_function_warning_filter(path: &Path) -> bool {
 /// non-functions (a boolean, a plain object, …) are excluded so they never
 /// trigger a needless Node spawn; anything referential is accepted and the
 /// sidecar makes the final `typeof` call.
-fn is_function_shaped(expr: &oxc::Expression) -> bool {
+const fn is_function_shaped(expr: &oxc::Expression) -> bool {
     matches!(
         expr,
         oxc::Expression::ArrowFunctionExpression(_)
@@ -671,12 +682,12 @@ mod tests {
         write(
             &dir,
             "vite.config.js",
-            r#"import { sveltekit } from '@sveltejs/kit/vite';
+            r"import { sveltekit } from '@sveltejs/kit/vite';
             import { defineConfig } from 'vite';
             const config = defineConfig({
                 plugins: [sveltekit({ compilerOptions: { experimental: { async: true } } })]
             });
-            export default config;"#,
+            export default config;",
         );
         assert!(load_compiler_options(&dir).experimental_async);
         let _ = std::fs::remove_dir_all(&dir);
@@ -699,9 +710,9 @@ mod tests {
         write(
             &dir,
             "vite.config.ts",
-            r#"import { svelte } from '@sveltejs/vite-plugin-svelte';
+            r"import { svelte } from '@sveltejs/vite-plugin-svelte';
             const svelteOptions = { compilerOptions: { runes: true } };
-            export default { plugins: [svelte(svelteOptions)] };"#,
+            export default { plugins: [svelte(svelteOptions)] };",
         );
         assert_eq!(load_compiler_options(&dir).runes, Some(true));
         let _ = std::fs::remove_dir_all(&dir);
@@ -725,11 +736,11 @@ mod tests {
         write(
             &dir,
             "vite.config.ts",
-            r#"import { svelte } from '@sveltejs/vite-plugin-svelte';
+            r"import { svelte } from '@sveltejs/vite-plugin-svelte';
             import { defineConfig } from 'vite';
             export default defineConfig({
                 plugins: [svelte({ compilerOptions: { experimental: { async: true } } })]
-            });"#,
+            });",
         );
         let s = load_compiler_options(&dir);
         assert!(
@@ -751,10 +762,10 @@ mod tests {
         write(
             &dir,
             "vite.config.js",
-            r#"import { svelte } from '@sveltejs/vite-plugin-svelte';
+            r"import { svelte } from '@sveltejs/vite-plugin-svelte';
             export default {
                 plugins: [svelte({ compilerOptions: { experimental: { async: true } } })]
-            };"#,
+            };",
         );
         let s = load_compiler_options(&dir);
         assert!(s.experimental_async, "inline vite options take precedence");
@@ -774,8 +785,8 @@ mod tests {
         write(
             &dir,
             "vite.config.js",
-            r#"import { svelte } from '@sveltejs/vite-plugin-svelte';
-            export default { plugins: [svelte()] };"#,
+            r"import { svelte } from '@sveltejs/vite-plugin-svelte';
+            export default { plugins: [svelte()] };",
         );
         let s = load_compiler_options(&dir);
         assert!(s.experimental_async);
@@ -819,8 +830,8 @@ mod tests {
         write(
             &dir,
             "vite.config.ts",
-            r#"import { svelte } from '@sveltejs/vite-plugin-svelte';
-            export default { plugins: [svelte({ compilerOptions: { namespace: 'svg' } })] };"#,
+            r"import { svelte } from '@sveltejs/vite-plugin-svelte';
+            export default { plugins: [svelte({ compilerOptions: { namespace: 'svg' } })] };",
         );
         let s = load_compiler_options(&dir);
         assert_eq!(s.namespace.as_deref(), Some("svg"));
@@ -905,11 +916,11 @@ mod tests {
         write(
             &dir,
             "vite.config.ts",
-            r#"import { svelte } from '@sveltejs/vite-plugin-svelte';
+            r"import { svelte } from '@sveltejs/vite-plugin-svelte';
             import other from 'other';
             export default {
                 plugins: [other(), svelte({ compilerOptions: { experimental: { async: true } } })]
-            };"#,
+            };",
         );
         let s = load_compiler_options(&dir);
         assert!(s.experimental_async);
@@ -923,11 +934,11 @@ mod tests {
         write(
             &dir,
             "vite.config.ts",
-            r#"import { sveltekit } from '@sveltejs/kit/vite';
+            r"import { sveltekit } from '@sveltejs/kit/vite';
             import { defineConfig } from 'vite';
             export default defineConfig({
                 plugins: [sveltekit({ compilerOptions: { experimental: { async: true } } })]
-            });"#,
+            });",
         );
         let s = load_compiler_options(&dir);
         assert!(
@@ -943,8 +954,8 @@ mod tests {
         write(
             &dir,
             "vite.config.ts",
-            r#"import { sveltekit } from '@sveltejs/kit/vite';
-            export default { plugins: [sveltekit({ compilerOptions: { runes: true } })] };"#,
+            r"import { sveltekit } from '@sveltejs/kit/vite';
+            export default { plugins: [sveltekit({ compilerOptions: { runes: true } })] };",
         );
         let s = load_compiler_options(&dir);
         assert_eq!(s.runes, Some(true));
@@ -966,10 +977,10 @@ mod tests {
         write(
             &dir,
             "vite.config.ts",
-            r#"import { sveltekit } from '@sveltejs/kit/vite';
+            r"import { sveltekit } from '@sveltejs/kit/vite';
             export default {
                 plugins: [sveltekit({ compilerOptions: { experimental: { async: true } } })]
-            };"#,
+            };",
         );
         let s = load_compiler_options(&dir);
         assert!(s.experimental_async, "inline sveltekit async applies");
@@ -993,8 +1004,8 @@ mod tests {
         write(
             &dir,
             "vite.config.ts",
-            r#"import { sveltekit } from '@sveltejs/kit/vite';
-            export default { plugins: [sveltekit()] };"#,
+            r"import { sveltekit } from '@sveltejs/kit/vite';
+            export default { plugins: [sveltekit()] };",
         );
         let s = load_compiler_options(&dir);
         assert!(s.experimental_async);
@@ -1016,10 +1027,10 @@ mod tests {
         write(
             &dir,
             "vite.config.ts",
-            r#"import { svelte } from '@sveltejs/vite-plugin-svelte';
+            r"import { svelte } from '@sveltejs/vite-plugin-svelte';
             export default {
                 plugins: [svelte({ compilerOptions: { experimental: { async: true } } })]
-            };"#,
+            };",
         );
         let s = load_compiler_options(&dir);
         assert!(s.experimental_async, "inline svelte() async applies");
@@ -1037,11 +1048,11 @@ mod tests {
         write(
             &dir,
             "vite.config.ts",
-            r#"import { sveltekit } from '@sveltejs/kit/vite';
+            r"import { sveltekit } from '@sveltejs/kit/vite';
             import other from 'other';
             export default {
                 plugins: [other(), sveltekit({ compilerOptions: { experimental: { async: true } } })]
-            };"#,
+            };",
         );
         let s = load_compiler_options(&dir);
         assert!(s.experimental_async);
@@ -1128,10 +1139,10 @@ mod tests {
             write(
                 &dir,
                 name,
-                r#"import { svelte } from '@sveltejs/vite-plugin-svelte';
+                r"import { svelte } from '@sveltejs/vite-plugin-svelte';
                 export default {
                     plugins: [svelte({ compilerOptions: { experimental: { async: true } } })]
-                };"#,
+                };",
             );
             let s = load_compiler_options_with_config(&dir, Some(&dir.join(name)));
             assert!(
@@ -1176,8 +1187,8 @@ mod tests {
         write(
             &dir,
             "vite.custom.config.js",
-            r#"import { svelte } from '@sveltejs/vite-plugin-svelte';
-            export default { plugins: [svelte()] };"#,
+            r"import { svelte } from '@sveltejs/vite-plugin-svelte';
+            export default { plugins: [svelte()] };",
         );
         let s = load_compiler_options_with_config(&dir, Some(&dir.join("vite.custom.config.js")));
         assert!(
@@ -1200,11 +1211,11 @@ mod tests {
         write(
             &dir,
             "vite.custom.config.js",
-            r#"import { svelte } from '@sveltejs/vite-plugin-svelte';
+            r"import { svelte } from '@sveltejs/vite-plugin-svelte';
             export default {
                 plugins: [svelte()],
                 compilerOptions: { warningFilter: () => false }
-            };"#,
+            };",
         );
         assert_eq!(
             warning_filter_config_path(&dir, Some(&dir.join("vite.custom.config.js"))),

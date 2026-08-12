@@ -130,11 +130,9 @@ pub(crate) fn compute_eval_inputs(
                 {
                     continue;
                 }
-                let decl_trimmed = if let Some(rest) = trimmed.strip_prefix("export ") {
-                    rest.trim_start()
-                } else {
-                    trimmed
-                };
+                let decl_trimmed = trimmed
+                    .strip_prefix("export ")
+                    .map_or(trimmed, |rest| rest.trim_start());
                 let decl_start = if decl_trimmed.starts_with("const ") {
                     Some(6)
                 } else if decl_trimmed.starts_with("let ") {
@@ -441,7 +439,7 @@ fn transform_await_to_save_textual(expr: &str) -> String {
                 } else {
                     arg.to_string()
                 };
-                let _ = write!(result, "(await $.save({}))()", transformed_arg);
+                let _ = write!(result, "(await $.save({transformed_arg}))()");
                 // If the next character is a binary operator (not whitespace/end),
                 // add a space to maintain readable formatting.
                 if arg_end < len
@@ -537,22 +535,6 @@ fn find_await_arg_end(bytes: &[u8], start: usize, len: usize) -> usize {
                 return i;
             }
             b'<' if paren_depth == 0 && brace_depth == 0 && seen_primary => {
-                return i;
-            }
-            b'+' | b'-' if paren_depth == 0 && brace_depth == 0 && seen_primary => {
-                // Binary + or - (we've already seen a primary expression)
-                return i;
-            }
-            b'*' | b'/' | b'%' | b'^' | b'~'
-                if paren_depth == 0 && brace_depth == 0 && seen_primary =>
-            {
-                // `**` (exponentiation) or single `*`, `/`, `%`, etc.
-                return i;
-            }
-            b'&' if paren_depth == 0 && brace_depth == 0 && seen_primary => {
-                return i;
-            }
-            b'|' if paren_depth == 0 && brace_depth == 0 && seen_primary => {
                 return i;
             }
             b'?' if paren_depth == 0 && brace_depth == 0 && seen_primary => {
@@ -795,7 +777,7 @@ pub(crate) fn strip_ts_type_annotation(param: &str) -> String {
         if let Some(eq_pos) = default_start {
             let default_val = after_type[eq_pos + 1..].trim();
             if !default_val.is_empty() {
-                return format!("{} = {}", ident, default_val);
+                return format!("{ident} = {default_val}");
             }
         }
     }
@@ -1134,8 +1116,8 @@ pub(crate) fn try_evaluate_with_constants(
                 && (ln * rn).is_finite()
             {
                 let result = ln * rn;
-                if result == (result as i64) as f64 {
-                    return Some((result as i64).to_string());
+                if result.fract() == 0.0 {
+                    return Some(format!("{result:.0}"));
                 }
                 return Some(result.to_string());
             }
@@ -1159,13 +1141,13 @@ pub(crate) fn try_evaluate_with_constants(
                 && (ln + rn).is_finite()
             {
                 let result = ln + rn;
-                if result == (result as i64) as f64 {
-                    return Some((result as i64).to_string());
+                if result.fract() == 0.0 {
+                    return Some(format!("{result:.0}"));
                 }
                 return Some(result.to_string());
             }
             // String concatenation
-            return Some(format!("{}{}", l, r));
+            return Some(format!("{l}{r}"));
         }
     }
 
@@ -1258,15 +1240,14 @@ pub(crate) fn strip_ts_from_derived_inner(expr: &str, is_typescript: bool) -> St
         return expr.to_string();
     }
     // Wrap as a variable declaration for the TS parser
-    let wrapped = format!("var _ = {};", expr);
+    let wrapped = format!("var _ = {expr};");
     let stripped = crate::compiler::phases::phase2_analyze::types::strip_typescript(&wrapped);
     // Unwrap back: remove "var _ = " prefix and ";" suffix
     let stripped = stripped.trim();
-    if let Some(rest) = stripped.strip_prefix("var _ = ") {
-        rest.trim_end_matches(';').trim().to_string()
-    } else {
-        expr.to_string()
-    }
+    stripped.strip_prefix("var _ = ").map_or_else(
+        || expr.to_string(),
+        |rest| rest.trim_end_matches(';').trim().to_string(),
+    )
 }
 
 /// Extract the inner expression from a rune call like `$state(expr)` or `$derived(expr)`.
@@ -1325,11 +1306,9 @@ pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMa
         }
 
         let is_export = trimmed.starts_with("export ");
-        let trimmed = if let Some(rest) = trimmed.strip_prefix("export ") {
-            rest.trim_start()
-        } else {
-            trimmed
-        };
+        let trimmed = trimmed
+            .strip_prefix("export ")
+            .map_or(trimmed, |rest| rest.trim_start());
 
         let (decl_start, is_const) = if trimmed.starts_with("const ") {
             (Some(6), true)
@@ -1376,7 +1355,7 @@ pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMa
     }
 
     for var_name in &let_vars {
-        let bind_pattern = format!("bind:{}", var_name);
+        let bind_pattern = format!("bind:{var_name}");
         if full_source.contains(&bind_pattern) {
             constants.remove(var_name);
             continue;
@@ -1516,7 +1495,7 @@ fn split_declarators(s: &str) -> Vec<&str> {
 
 /// Find all blocker indices referenced by an expression.
 ///
-/// Scans an expression string for identifiers that appear in the blocker_map
+/// Scans an expression string for identifiers that appear in the `blocker_map`
 /// and returns a deduplicated, sorted list of blocker indices (for $$promises[N]).
 ///
 /// This is used to determine if an expression tag or if-block test needs to be
@@ -1589,8 +1568,8 @@ pub(crate) fn find_expression_blockers(
 }
 
 /// Find const-tag-level blocker expressions for identifiers referenced in a JS expression string.
-/// Returns a list of unique blocker expressions (e.g., "promises_2[1]") for variables
-/// referenced in the expression that have entries in the const_blocker_map.
+/// Returns a list of unique blocker expressions (e.g., "`promises_2`[1]") for variables
+/// referenced in the expression that have entries in the `const_blocker_map`.
 pub(crate) fn find_const_expression_blockers(
     expr: &str,
     const_blocker_map: &rustc_hash::FxHashMap<String, String>,
@@ -1702,7 +1681,8 @@ fn is_js_keyword_or_builtin(s: &str) -> bool {
 }
 
 /// Full template literal state tracking with brace depth for ${...} expressions.
-/// Returns (in_template, brace_depth).
+/// Returns (`in_template`, `brace_depth`).
+#[must_use]
 pub fn update_template_literal_state_full(
     line: &str,
     currently_in_template: bool,

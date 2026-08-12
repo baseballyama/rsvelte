@@ -30,8 +30,9 @@ pub enum ComponentNode<'n, 'a> {
     SvelteSelf(&'n SvelteElement<'a>),
 }
 
-impl<'a> ComponentNode<'_, 'a> {
+impl ComponentNode<'_, '_> {
     /// Get the start position of the component node.
+    #[must_use]
     pub fn start(&self) -> u32 {
         match self {
             ComponentNode::Component(c) => c.start,
@@ -61,13 +62,17 @@ struct DelayedProp {
 ///
 /// # Arguments
 ///
-/// * `node` - The component node (Component, SvelteComponent, or SvelteSelf)
+/// * `node` - The component node (Component, `SvelteComponent`, or `SvelteSelf`)
 /// * `component_name` - The name of the component function
 /// * `context` - The component context
 ///
 /// # Returns
 ///
 /// Returns a statement that instantiates the component.
+///
+/// # Panics
+///
+/// Panics if a component AST invariant required during transformation is violated.
 pub fn build_component(
     node: ComponentNode<'_, '_>,
     component_name: String,
@@ -238,7 +243,7 @@ pub fn build_component(
 
     // Add let directives to init if slot scope applies to component
     if slot_scope_applies_to_itself {
-        for let_stmt in lets.iter() {
+        for let_stmt in &lets {
             context.state.init.push(let_stmt.clone());
         }
     }
@@ -744,7 +749,7 @@ pub fn build_component(
 /// Determine slot name from a node's attributes.
 /// Matches the official `determine_slot()` in `svelte/src/compiler/utils/slot.js`.
 /// This checks for `slot="name"` attribute on element-like nodes:
-/// SvelteElement, RegularElement, SvelteFragment, Component, SvelteComponent, SvelteSelf, SlotElement
+/// `SvelteElement`, `RegularElement`, `SvelteFragment`, Component, `SvelteComponent`, `SvelteSelf`, `SlotElement`
 fn determine_slot<'n>(node: &'n TemplateNode<'_>) -> Option<&'n str> {
     let attributes = match node {
         TemplateNode::RegularElement(elem) => Some(&elem.attributes),
@@ -789,12 +794,12 @@ fn determine_slot_from_attributes(attributes: &[Attribute]) -> bool {
 /// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/LetDirective.js`.
 ///
 /// For simple `let:x`:
-///   const x = $.derived_safe_equal(() => $$slotProps.x);  // legacy mode
+///   const x = $.`derived_safe_equal`(() => $$slotProps.x);  // legacy mode
 ///   const x = $.derived(() => $$slotProps.x);              // runes mode
 ///
 /// For `let:x={{y, z}}` (destructured):
-///   const derived_x = $.derived(() => { const { y, z } = $$slotProps.x; return { y, z }; });
-///   (with transforms to read y, z from derived_x)
+///   const `derived_x` = $.derived(() => { const { y, z } = $$slotProps.x; return { y, z }; });
+///   (with transforms to read y, z from `derived_x`)
 ///
 /// NOTE: This function does NOT register transforms. Transforms are registered
 /// inside `build_slot_function` so they only apply to the correct slot scope.
@@ -810,18 +815,18 @@ fn process_let_directive(
     let prop_name = &let_dir.name;
 
     // Check if expression is an Identifier or null (simple case)
-    let is_simple = match &let_dir.expression {
-        None => true,
-        Some(expr) => expr.is_identifier_node(),
-    };
+    let is_simple = let_dir
+        .expression
+        .as_ref()
+        .is_none_or(|expr| expr.is_identifier_node());
 
     if is_simple {
         // Simple case: let:x or let:x={y}
         // Get the binding name - either the expression identifier name or the directive name
-        let name = match &let_dir.expression {
-            Some(expr) => expr.identifier_name().unwrap_or(prop_name).to_string(),
-            None => prop_name.to_string(),
-        };
+        let name = let_dir.expression.as_ref().map_or_else(
+            || prop_name.to_string(),
+            |expr| expr.identifier_name().unwrap_or(prop_name).to_string(),
+        );
 
         // Track the name for transform registration (done in build_slot_function)
         // Simple let directives have no read_source
@@ -974,7 +979,7 @@ fn process_let_directive(
     }
 }
 
-/// Process an OnDirective (event handler).
+/// Process an `OnDirective` (event handler).
 fn process_on_directive(
     on_directive: &OnDirective,
     context: &mut ComponentContext,
@@ -1015,7 +1020,7 @@ fn process_on_directive(
         .push(handler);
 }
 
-/// Process a SpreadAttribute ({...props}).
+/// Process a `SpreadAttribute` ({...props}).
 fn process_spread_attribute(
     spread: &SpreadAttribute,
     context: &mut ComponentContext,
@@ -1231,7 +1236,7 @@ fn process_regular_attribute(
     }
 }
 
-/// Extract the original AST expression from an AttributeValue.
+/// Extract the original AST expression from an `AttributeValue`.
 fn get_original_expression<'a>(value: &AttributeValue<'a>) -> crate::ast::js::Expression<'a> {
     match value {
         AttributeValue::Expression(expr_tag) => expr_tag.expression.clone(),
@@ -1257,7 +1262,7 @@ fn get_original_expression<'a>(value: &AttributeValue<'a>) -> crate::ast::js::Ex
 }
 
 /// Mirrors Svelte JS `should_wrap_in_derived` for component attribute values.
-/// Returns true if any chunk's expression is not a simple Identifier or MemberExpression.
+/// Returns true if any chunk's expression is not a simple Identifier or `MemberExpression`.
 fn attribute_has_complex_chunk(value: &AttributeValue) -> bool {
     match value {
         AttributeValue::Expression(expr_tag) => is_complex_expression(&expr_tag.expression),
@@ -1272,24 +1277,23 @@ fn attribute_has_complex_chunk(value: &AttributeValue) -> bool {
     }
 }
 
-/// Check if an expression is complex (not just Identifier or MemberExpression).
+/// Check if an expression is complex (not just Identifier or `MemberExpression`).
 ///
 /// Complex expressions that need memoization include:
-/// - ConditionalExpression (ternary): `a ? b : c`
-/// - BinaryExpression: `a + b`, `a === b`
-/// - CallExpression: `foo()`
-/// - LogicalExpression: `a && b`, `a || b`
+/// - `ConditionalExpression` (ternary): `a ? b : c`
+/// - `BinaryExpression`: `a + b`, `a === b`
+/// - `CallExpression`: `foo()`
+/// - `LogicalExpression`: `a && b`, `a || b`
 /// - etc.
 ///
 /// Simple expressions that don't need memoization include:
 /// - Identifier: `foo`
-/// - MemberExpression: `foo.bar`
+/// - `MemberExpression`: `foo.bar`
 /// - Literal: `5`, `"hello"`, `true`
-/// - ArrowFunctionExpression: `() => ...`
-/// - FunctionExpression: `function() { ... }`
+/// - `ArrowFunctionExpression`: `() => ...`
+/// - `FunctionExpression`: `function() { ... }`
 fn is_complex_expression(expression: &crate::ast::js::Expression) -> bool {
     if let Some(expr_type) = expression.node_type() {
-        // Simple expressions that don't need memoization
         !matches!(
             expr_type,
             "Identifier"
@@ -1507,8 +1511,8 @@ fn process_bind_directive<'a>(
                         // Strip the outer `($$value) => (` prefix and trailing `)`
                         let inner = &s[prefix.len()..s.len() - 1];
                         format!("(
-					{}
-				)", inner)
+					{inner}
+				)")
                     } else if let Some(stripped) = s.strip_prefix("($$value) => ") {
                         stripped.to_string()
                     } else {
@@ -1718,7 +1722,7 @@ fn process_bind_directive<'a>(
             JsExpr::Identifier(name) if is_var_store_subscribed(name, context) => b::call(
                 &context.arena,
                 b::member_path(&context.arena, "$.store_unsub"),
-                vec![set_call, b::string(format!("${}", name)), b::id("$$stores")],
+                vec![set_call, b::string(format!("${name}")), b::id("$$stores")],
             ),
             _ => set_call,
         };
@@ -2072,7 +2076,7 @@ fn get_member_expression_root(
 }
 
 /// Get the store name and store prefix ($store) from a member expression.
-/// Returns (store_name, $store_name) e.g., ("a", "$a")
+/// Returns (`store_name`, $`store_name`) e.g., ("a", "$a")
 fn get_store_info_from_member(expr: &Expression) -> Option<(String, String)> {
     let val = expr.as_json();
     if let Some(obj) = val.as_object()
@@ -2379,7 +2383,7 @@ fn build_slot_function(
 /// 1. Clean the nodes (trim whitespace, handle hoisted nodes)
 /// 2. For standalone components, just visit them directly with $$anchor
 /// 3. For single element case, create template and append
-/// 4. For other cases, use the process_children pattern
+/// 4. For other cases, use the `process_children` pattern
 fn visit_slot_children(
     children: &[&TemplateNode],
     context: &mut ComponentContext,
@@ -3094,8 +3098,8 @@ fn build_component_call(
     }
 }
 
-/// Build $.bind_this call for components.
-/// Delegates to the unified bind_this implementation which properly handles
+/// Build $.`bind_this` call for components.
+/// Delegates to the unified `bind_this` implementation which properly handles
 /// each-block context variables, sequence expressions, and all binding kinds.
 fn build_bind_this_call(
     bind_expr: &Expression,
@@ -3257,7 +3261,7 @@ fn build_props_expression(
 ///
 /// Note: Parameters removed to avoid unnecessary cloning.
 /// Build a component instantiation statement with dev-mode metadata.
-/// In dev mode, wraps with $.add_svelte_meta() for ownership tracking.
+/// In dev mode, wraps with $.`add_svelte_meta()` for ownership tracking.
 fn build_component_meta_stmt(
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
 
@@ -3300,7 +3304,7 @@ fn build_component_meta_stmt(
 
 /// Extract identifier name from an expression.
 fn extract_identifier_name(expr: &Expression) -> Option<String> {
-    expr.identifier_name().map(|s| s.to_string())
+    expr.identifier_name().map(std::string::ToString::to_string)
 }
 
 /// Get the root identifier name from an expression, traversing through member expressions.
@@ -3317,7 +3321,10 @@ fn get_binding_root_name(expr: &Expression) -> Option<String> {
 fn get_root_identifier_from_json(val: &serde_json::Value) -> Option<String> {
     let obj = val.as_object()?;
     match obj.get("type")?.as_str()? {
-        "Identifier" => obj.get("name")?.as_str().map(|s| s.to_string()),
+        "Identifier" => obj
+            .get("name")?
+            .as_str()
+            .map(std::string::ToString::to_string),
         "MemberExpression" => {
             let object = obj.get("object")?;
             get_root_identifier_from_json(object)
@@ -3344,7 +3351,7 @@ fn is_store_subscription(expr: &Expression, context: &ComponentContext) -> bool 
 fn is_var_store_subscribed(name: &str, context: &ComponentContext) -> bool {
     context
         .state
-        .get_binding(&format!("${}", name))
+        .get_binding(&format!("${name}"))
         .is_some_and(|b| {
             b.kind == crate::compiler::phases::phase2_analyze::scope::BindingKind::StoreSub
         })

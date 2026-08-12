@@ -71,14 +71,16 @@ fn find_inspect_idents(source: &str, spans: &[(u32, u32)]) -> Vec<(u32, u32)> {
             continue;
         }
         // Slice the script body and stop before any closing `</script>` tag.
-        let mut body_end = hi;
-        if let Some(close) = source[lo..hi].rfind("</script") {
-            body_end = lo + close;
-        }
+        let body_end = source[lo..hi]
+            .rfind("</script")
+            .map_or(hi, |close| lo + close);
         let body = &source[lo..body_end];
         for local in scan_body(body) {
-            let start = (lo + local) as u32;
-            out.push((start, start + TOKEN.len() as u32));
+            let start = u32::try_from(lo + local).expect("source offsets are represented as u32");
+            out.push((
+                start,
+                start + u32::try_from(TOKEN.len()).expect("token widths are represented as u32"),
+            ));
         }
     }
     out
@@ -134,11 +136,11 @@ fn scan_body(s: &str) -> Vec<usize> {
     out
 }
 
-fn is_word_start(b: u8) -> bool {
+const fn is_word_start(b: u8) -> bool {
     b.is_ascii_alphabetic() || b == b'_' || b == b'$'
 }
 
-fn is_word_char(b: u8) -> bool {
+const fn is_word_char(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
 }
 
@@ -207,7 +209,13 @@ mod tests {
     fn full_file_absolute_offsets() {
         let src = "<script>\n  $inspect(1);\n</script>";
         // `<script>` body spans as the lint pass supplies them.
-        let hits = find_inspect_idents(src, &[(8, src.len() as u32)]);
+        let hits = find_inspect_idents(
+            src,
+            &[(
+                8,
+                u32::try_from(src.len()).expect("source offsets are represented as u32"),
+            )],
+        );
         assert_eq!(hits.len(), 1);
         let (start, end) = hits[0];
         assert_eq!(&src[start as usize..end as usize], "$inspect");

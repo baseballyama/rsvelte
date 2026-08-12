@@ -2,10 +2,11 @@
 
 use std::path::PathBuf;
 
-/// The filesystem path a document URI denotes. Anything that is not a `file:`
-/// URI (an untitled buffer, a virtual document) has no path, so the URI itself
-/// is used as the "filename" — it still drives the extension-based dispatch in
-/// the formatter and linter.
+/// Return the filesystem path denoted by a document URI.
+///
+/// Non-`file:` URIs use the URI itself as the filename for extension-based
+/// formatter and linter dispatch.
+#[must_use]
 pub fn uri_to_path(uri: &str) -> PathBuf {
     let Some(rest) = uri.strip_prefix("file://") else {
         return PathBuf::from(uri);
@@ -52,7 +53,7 @@ fn percent_decode(s: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
-fn hex(b: u8) -> Option<u8> {
+const fn hex(b: u8) -> Option<u8> {
     match b {
         b'0'..=b'9' => Some(b - b'0'),
         b'a'..=b'f' => Some(b - b'a' + 10),

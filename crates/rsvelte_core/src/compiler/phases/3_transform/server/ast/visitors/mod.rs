@@ -8,8 +8,8 @@
 //!
 //! Implemented so far: the template-walk framework ([`shared`]) plus the
 //! simplest template visitors — Fragment (via [`shared::build_fragment_body`]),
-//! RegularElement static path ([`element`]), Text / Comment / ExpressionTag
-//! (coalesced inline by [`shared::process_children`]), and HtmlTag.
+//! `RegularElement` static path ([`element`]), Text / Comment / `ExpressionTag`
+//! (coalesced inline by [`shared::process_children`]), and `HtmlTag`.
 //! [`visit_node`] is the dispatch seam.
 //!
 //! Upstream visitor inventory (38 — `template_visitors` + `global_visitors`),
@@ -17,22 +17,22 @@
 //!
 //! Template visitors:
 //! - Fragment        — done (via `shared::build_fragment_body`)
-//! - RegularElement  — done (static attribute path only)
+//! - `RegularElement`  — done (static attribute path only)
 //! - Text            — done (in `process_children`)
 //! - Comment         — done (in `process_children`)
-//! - ExpressionTag   — done (sync, in `process_children`; async TODO)
-//! - HtmlTag         — done (sync; async TODO)
-//! - TODO: SvelteElement, Component, SvelteComponent, SvelteSelf,
-//!   SvelteFragment, SvelteBoundary, SvelteHead, TitleElement, SlotElement,
-//!   EachBlock, IfBlock, AwaitBlock, KeyBlock, SnippetBlock, RenderTag,
-//!   ConstTag, BindDirective, LetDirective, ClassDirective, StyleDirective,
-//!   AttachTag
+//! - `ExpressionTag`   — done (sync, in `process_children`; async TODO)
+//! - `HtmlTag`         — done (sync; async TODO)
+//! - TODO: `SvelteElement`, Component, `SvelteComponent`, `SvelteSelf`,
+//!   `SvelteFragment`, `SvelteBoundary`, `SvelteHead`, `TitleElement`, `SlotElement`,
+//!   `EachBlock`, `IfBlock`, `AwaitBlock`, `KeyBlock`, `SnippetBlock`, `RenderTag`,
+//!   `ConstTag`, `BindDirective`, `LetDirective`, `ClassDirective`, `StyleDirective`,
+//!   `AttachTag`
 //!
 //! Global (script / JS) visitors — all TODO:
-//! - VariableDeclaration, ExpressionStatement, CallExpression,
-//!   AssignmentExpression, UpdateExpression, Identifier, MemberExpression,
-//!   PropertyDefinition, ImportDeclaration (instance hoist),
-//!   ExportNamedDeclaration (instance unwrap), LabeledStatement (legacy `$:`)
+//! - `VariableDeclaration`, `ExpressionStatement`, `CallExpression`,
+//!   `AssignmentExpression`, `UpdateExpression`, Identifier, `MemberExpression`,
+//!   `PropertyDefinition`, `ImportDeclaration` (instance hoist),
+//!   `ExportNamedDeclaration` (instance unwrap), `LabeledStatement` (legacy `$:`)
 
 pub mod await_block;
 pub mod component;
@@ -60,7 +60,7 @@ use shared::TemplateEntry;
 
 /// Dispatch a single non-joinable template node to its visitor.
 ///
-/// Text / Comment / ExpressionTag are NOT routed here — they are coalesced by
+/// Text / Comment / `ExpressionTag` are NOT routed here — they are coalesced by
 /// [`shared::process_children`] directly. This handles the structural nodes
 /// (elements, html-tags, …). Unported node kinds emit nothing (a `// TODO`)
 /// so the walk stays total and the build correct for the supported subset.

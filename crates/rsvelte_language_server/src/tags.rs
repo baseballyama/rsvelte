@@ -25,7 +25,8 @@ pub const LOGIC_TAGS: [SvelteTag; 5] = [
 ];
 
 impl SvelteTag {
-    pub fn name(self) -> &'static str {
+    #[must_use]
+    pub const fn name(self) -> &'static str {
         match self {
             Self::If => "if",
             Self::Each => "each",
@@ -40,7 +41,8 @@ impl SvelteTag {
         }
     }
 
-    pub fn documentation(self) -> &'static str {
+    #[must_use]
+    pub const fn documentation(self) -> &'static str {
         match self {
             Self::If => IF,
             Self::Each => EACH,
@@ -56,7 +58,7 @@ impl SvelteTag {
     }
 }
 
-const AWAIT: &str = r#"`{#await ...}`\
+const AWAIT: &str = r"`{#await ...}`\
 Await blocks allow you to branch on the three possible states of a Promise — pending, fulfilled or rejected.
 #### Usage:
 `{#await expression}...{:then name}...{:catch name}...{/await}`\
@@ -64,9 +66,9 @@ Await blocks allow you to branch on the three possible states of a Promise — p
 `{#await expression then name}...{/await}`\
 \
 https://svelte.dev/docs/svelte/await
-"#;
+";
 
-const EACH: &str = r#"`{#each ...}`\
+const EACH: &str = r"`{#each ...}`\
 Iterating over lists of values can be done with an each block.
 #### Usage:
 `{#each expression as name}...{/each}`\
@@ -75,9 +77,9 @@ Iterating over lists of values can be done with an each block.
 `{#each expression as name}...{:else}...{/each}`\
 \
 https://svelte.dev/docs/svelte/each
-"#;
+";
 
-const IF: &str = r#"`{#if ...}`\
+const IF: &str = r"`{#if ...}`\
 Content that is conditionally rendered can be wrapped in an if block.
 #### Usage:
 `{#if expression}...{/if}`\
@@ -85,9 +87,9 @@ Content that is conditionally rendered can be wrapped in an if block.
 `{#if expression}...{:else}...{/if}`\
 \
 https://svelte.dev/docs/svelte/if
-"#;
+";
 
-const KEY: &str = r#"`{#key expression}...{/key}`\
+const KEY: &str = r"`{#key expression}...{/key}`\
 Key blocks destroy and recreate their contents when the value of an expression changes.\
 This is useful if you want an element to play its transition whenever a value changes.\
 When used around components, this will cause them to be reinstantiated and reinitialised.
@@ -95,26 +97,26 @@ When used around components, this will cause them to be reinstantiated and reini
 `{#key expression}...{/key}`\
 \
 https://svelte.dev/docs/svelte/key
-"#;
+";
 
-const SNIPPET: &str = r#"`{#snippet identifier(parameter)}...{/snippet}`\
+const SNIPPET: &str = r"`{#snippet identifier(parameter)}...{/snippet}`\
 Snippets allow you to create reusable UI blocks you can render with the {@render ...} tag.
 They also function as slot props for components.
 #### Usage:
 `{#snippet identifier(parameter)}...{/snippet}`\
 \
 https://svelte.dev/docs/svelte/snippet
-"#;
+";
 
-const RENDER: &str = r#"`{@render ...}`\
+const RENDER: &str = r"`{@render ...}`\
 Renders a snippet with the given parameters.
 #### Usage:
 `{@render identifier(parameter)}`\
 \
 https://svelte.dev/docs/svelte/@render
-"#;
+";
 
-const HTML: &str = r#"`{@html ...}`\
+const HTML: &str = r"`{@html ...}`\
 In a text expression, characters like < and > are escaped; however, with HTML expressions, they're not.
 The expression should be valid standalone HTML.
 #### Caution
@@ -124,9 +126,9 @@ If the data comes from an untrusted source, you must sanitize it, or you are exp
 `{@html expression}`\
 \
 https://svelte.dev/docs/svelte/@html
-"#;
+";
 
-const DEBUG: &str = r#"`{@debug ...}`\
+const DEBUG: &str = r"`{@debug ...}`\
 Offers an alternative to `console.log(...)`.
 It logs the values of specific variables whenever they change, and pauses code execution if you have devtools open.
 It accepts a comma-separated list of variable names (not arbitrary expressions).
@@ -135,26 +137,27 @@ It accepts a comma-separated list of variable names (not arbitrary expressions).
 `{@debug var1, var2, ..., varN}`\
 \
 https://svelte.dev/docs/svelte/@debug
-"#;
+";
 
-const CONST: &str = r#"`{@const ...}`\
+const CONST: &str = r"`{@const ...}`\
 Defines a local constant\
 #### Usage:
 `{@const a = b + c}`\
 \
 https://svelte.dev/docs/svelte/@const
-"#;
+";
 
-const ATTACH: &str = r#"`{@attach ...}`\
+const ATTACH: &str = r"`{@attach ...}`\
 Defines an attachment that is attached to an element or component\
 #### Usage:
 `<div {@attach (node) => {...}}></div>`\
 `<Component {@attach namedAttachment} />`\
 \
 https://svelte.dev/docs/svelte/@attach
-"#;
+";
 
 /// The block that is open — but not yet closed — at `offset`.
+#[must_use]
 pub fn latest_opening_tag(text: &str, offset: usize) -> Option<SvelteTag> {
     let before = text.get(..offset).unwrap_or(text);
     let content = strip_html_comments(before);
@@ -199,15 +202,12 @@ fn strip_html_comments(text: &str) -> String {
     while let Some(start) = rest.find("<!--") {
         let after = &rest[start + 4..];
         let line_end = after.find(['\n', '\r']).unwrap_or(after.len());
-        match after[..line_end].find("-->") {
-            Some(end) => {
-                out.push_str(&rest[..start]);
-                rest = &after[end + 3..];
-            }
-            None => {
-                out.push_str(&rest[..start + 4]);
-                rest = after;
-            }
+        if let Some(end) = after[..line_end].find("-->") {
+            out.push_str(&rest[..start]);
+            rest = &after[end + 3..];
+        } else {
+            out.push_str(&rest[..start + 4]);
+            rest = after;
         }
     }
     out.push_str(rest);

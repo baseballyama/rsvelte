@@ -12,7 +12,7 @@ use crate::tailwind_sidecar;
 /// A resolved custom-Tailwind `sortTailwindcss` awaiting its one sidecar call.
 /// Held until every class string across the run is collected, so the Node
 /// sidecar runs exactly once for the whole batch.
-pub(crate) struct PendingJsSort {
+pub struct PendingJsSort {
     pub(crate) env: tailwind_sidecar::SidecarEnv,
     pub(crate) filepath: PathBuf,
     pub(crate) stylesheet_path: Option<PathBuf>,
@@ -58,7 +58,7 @@ fn map_sorter(map: Arc<HashMap<String, String>>) -> ClassSorter {
 /// Format `source` with a collecting class sorter, returning the set of static
 /// class-attribute values it contains. Style formatting is skipped — only the
 /// class strings matter here.
-pub(crate) fn collect_source_classes(source: &str, options: &FormatOptions) -> HashSet<String> {
+pub fn collect_source_classes(source: &str, options: &FormatOptions) -> HashSet<String> {
     let sink: Arc<Mutex<HashSet<String>>> = Arc::default();
     let mut opts = options.clone();
     opts.class_sorter = Some(collecting_sorter(sink.clone()));
@@ -69,10 +69,7 @@ pub(crate) fn collect_source_classes(source: &str, options: &FormatOptions) -> H
 
 /// Collect every static class-attribute value across `files` in parallel, for
 /// the single batched sidecar sort.
-pub(crate) fn collect_svelte_classes(
-    files: &[PathBuf],
-    options: &FormatOptions,
-) -> HashSet<String> {
+pub fn collect_svelte_classes(files: &[PathBuf], options: &FormatOptions) -> HashSet<String> {
     let sink: Arc<Mutex<HashSet<String>>> = Arc::default();
     let mut opts = options.clone();
     opts.class_sorter = Some(collecting_sorter(sink.clone()));
@@ -88,30 +85,30 @@ pub(crate) fn collect_svelte_classes(
 /// Resolve the JS class sorter for a batch: collect all class strings, run the
 /// sidecar once, and return a map-backed sorter. On sidecar failure, warns once
 /// and returns `None` so classes are left unsorted (never wrongly reordered).
-pub(crate) fn resolve_js_class_sorter(
+pub fn resolve_js_class_sorter(
     pending: &PendingJsSort,
     classes: HashSet<String>,
 ) -> Option<ClassSorter> {
     if classes.is_empty() {
         return None;
     }
-    match pending.resolve(classes.into_iter().collect()) {
-        Some(map) => Some(map_sorter(Arc::new(map))),
-        None => {
+    pending.resolve(classes.into_iter().collect()).map_or_else(
+        || {
             eprintln!(
                 "rsvelte-fmt: warning: `sortTailwindcss` left unapplied — the Node sidecar could \
-                 not sort classes (is prettier-plugin-tailwindcss installed?)."
+             not sort classes (is prettier-plugin-tailwindcss installed?)."
             );
             None
-        }
-    }
+        },
+        |map| Some(map_sorter(Arc::new(map))),
+    )
 }
 
 /// Locate the Tailwind sidecar Node environment, requiring both the script and a
 /// runnable Node. `None` disables the JS sort path (a custom Tailwind config then
 /// warns and skips). Only called when `sortTailwindcss` is configured, so the
 /// Node probe never touches the default path.
-pub(crate) fn js_sort_env() -> Option<tailwind_sidecar::SidecarEnv> {
+pub fn js_sort_env() -> Option<tailwind_sidecar::SidecarEnv> {
     let script = tailwind_sidecar_script()?;
     let node = oxfmt_node().unwrap_or_else(|| PathBuf::from("node"));
     node_runnable(&node).then_some(tailwind_sidecar::SidecarEnv {
@@ -129,8 +126,7 @@ fn node_runnable(node: &Path) -> bool {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
+        .is_ok_and(|s| s.success())
 }
 
 /// The `tailwind-sort.mjs` sidecar: `RSVELTE_FMT_TAILWIND_SIDECAR` when set

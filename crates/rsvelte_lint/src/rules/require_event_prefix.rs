@@ -51,14 +51,20 @@ impl Options {
             .options_for(META.name)
             .and_then(|v| v.get(0))
             .and_then(|v| v.get("checkAsyncFunctions"))
-            .and_then(|v| v.as_bool())
+            .and_then(serde_json::Value::as_bool)
             .unwrap_or(false);
-        Options {
+        Self {
             check_async_functions,
         }
     }
 }
 
+/// Return diagnostics for event names in TypeScript scripts.
+///
+/// # Panics
+///
+/// Panics when a source offset cannot be represented as `u32`.
+#[must_use]
 pub fn diagnostics(source: &str, file: &Path, config: &LintConfig) -> Vec<Diagnostic> {
     let severity = config.resolve_code(META.name, META.default_severity);
     if severity == Severity::Off || !script_is_ts(source) {
@@ -109,11 +115,12 @@ pub fn diagnostics(source: &str, file: &Path, config: &LintConfig) -> Vec<Diagno
             if member.is_async && !opts.check_async_functions {
                 continue;
             }
-            let abs = member.name_abs_offset as u32;
+            let abs = u32::try_from(member.name_abs_offset)
+                .expect("source offsets are represented as u32");
             out.push(Diagnostic {
                 file: file.to_path_buf(),
                 severity: to_dsev(severity),
-                range: range_from_byte(&li, abs, abs),
+                range: Some(range_from_byte(&li, abs, abs)),
                 message: "Component event name must start with \"on\".".to_string(),
                 code: Some(META.name.to_string()),
                 source: "svelte",
@@ -168,8 +175,7 @@ fn find_props_type<'a>(
     let type_text_start = content[type_start..type_end]
         .char_indices()
         .find(|(_, c)| !c.is_whitespace())
-        .map(|(i, _)| type_start + i)
-        .unwrap_or(type_start);
+        .map_or(type_start, |(i, _)| type_start + i);
     let type_text = &content[type_text_start..type_end];
     Some((type_text, content_start + type_text_start))
 }
@@ -322,8 +328,7 @@ fn split_type_members(inner: &str, inner_abs: usize) -> Vec<TypeMember> {
             true
         } else {
             match bytes[i] {
-                b';' | b'\n' => top_level_position(bytes, i),
-                b',' => top_level_position(bytes, i),
+                b';' | b'\n' | b',' => top_level_position(bytes, i),
                 _ => false,
             }
         };
@@ -335,8 +340,7 @@ fn split_type_members(inner: &str, inner_abs: usize) -> Vec<TypeMember> {
                 let seg_start_in_inner = inner[member_start..i]
                     .char_indices()
                     .find(|(_, c)| !c.is_whitespace())
-                    .map(|(off, _)| member_start + off)
-                    .unwrap_or(member_start);
+                    .map_or(member_start, |(off, _)| member_start + off);
                 if let Some(m) = classify_member(segment, inner_abs + seg_start_in_inner) {
                     members.push(m);
                 }
@@ -387,13 +391,13 @@ fn classify_member(segment: &str, name_abs_offset: usize) -> Option<TypeMember> 
     let rest = segment[name_end..].trim_start();
 
     // Skip `?` if present.
-    let rest = rest.strip_prefix('?').map(str::trim_start).unwrap_or(rest);
+    let rest = rest.strip_prefix('?').map_or(rest, str::trim_start);
 
     // Method signature: `name(…)` — next char is `(`
     if rest.starts_with('(') {
         // Find the return type (after the closing `)` and `:`)
         let ret_type = extract_return_type_after_params(rest);
-        let is_async = ret_type.map(is_promise_type).unwrap_or(false);
+        let is_async = ret_type.is_some_and(is_promise_type);
         return Some(TypeMember {
             name: name.to_string(),
             name_abs_offset,

@@ -5,7 +5,7 @@ use std::fmt::Write;
 use crate::ast::template::{Attribute, LetDirective};
 use crate::svelte2tsx::template::utils::expr::get_expression_text;
 
-pub(crate) fn iter_let_directives<'a, 'b>(
+pub fn iter_let_directives<'a, 'b>(
     attributes: &'b [Attribute<'a>],
 ) -> impl Iterator<Item = &'b LetDirective<'a>> + Clone {
     attributes.iter().filter_map(|attr| match attr {
@@ -14,7 +14,7 @@ pub(crate) fn iter_let_directives<'a, 'b>(
     })
 }
 
-pub(crate) fn has_let_directives(attributes: &[Attribute]) -> bool {
+pub fn has_let_directives(attributes: &[Attribute]) -> bool {
     iter_let_directives(attributes).next().is_some()
 }
 
@@ -22,7 +22,7 @@ pub(crate) fn has_let_directives(attributes: &[Attribute]) -> bool {
 ///
 /// Given `let:name={n} let:thing let:whatever={{ bla }}`, produces:
 /// `name:n,thing,whatever:{ bla },`
-pub(crate) fn build_let_destructure_string(attributes: &[Attribute], source: &str) -> String {
+pub fn build_let_destructure_string(attributes: &[Attribute], source: &str) -> String {
     let mut output = String::new();
     for let_dir in iter_let_directives(attributes) {
         if let Some(ref expr) = let_dir.expression {

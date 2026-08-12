@@ -1,7 +1,7 @@
 //! Whole-word / identifier scanning over raw source text.
 
 #[inline]
-pub(crate) fn is_ascii_ident_byte(b: u8) -> bool {
+pub const fn is_ascii_ident_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
 }
 
@@ -11,7 +11,7 @@ pub(crate) fn is_ascii_ident_byte(b: u8) -> bool {
 /// a few microseconds, but false negatives must be impossible, which holds
 /// because any real `import` or `await` statement contains those exact
 /// bytes as a word.
-pub(crate) fn contains_word(haystack: &[u8], needle: &[u8]) -> bool {
+pub fn contains_word(haystack: &[u8], needle: &[u8]) -> bool {
     if needle.is_empty() || haystack.len() < needle.len() {
         return false;
     }
@@ -31,9 +31,9 @@ pub(crate) fn contains_word(haystack: &[u8], needle: &[u8]) -> bool {
 }
 
 /// Lex a string into ASCII-identifier tokens. Skips `//` and `/* */` comments
-/// and `'`, `"`, ``\``` strings so identifiers inside literals aren't picked
+/// and string literals so identifiers inside literals aren't picked
 /// up as references.
-pub(crate) fn lexical_identifiers(text: &str) -> Vec<String> {
+pub fn lexical_identifiers(text: &str) -> Vec<String> {
     let mut out = Vec::new();
     let bytes = text.as_bytes();
     let len = bytes.len();
@@ -91,7 +91,7 @@ pub(crate) fn lexical_identifiers(text: &str) -> Vec<String> {
 /// variables.  HTML attribute NAMES (e.g. the `state` in `data-state`) are
 /// outside these delimiters and therefore not returned, preventing false
 /// positives when checking `instance_script_loose_dollar_names`.
-pub(crate) fn lexical_identifiers_in_expressions(text: &str) -> Vec<String> {
+pub fn lexical_identifiers_in_expressions(text: &str) -> Vec<String> {
     let bytes = text.as_bytes();
     let len = bytes.len();
     let mut out = Vec::new();

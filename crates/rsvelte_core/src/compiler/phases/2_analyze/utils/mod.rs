@@ -9,6 +9,10 @@ pub use check_graph_for_cycles::check_graph_for_cycles;
 use lazy_static::lazy_static;
 use regex::Regex;
 
+fn source_pos(value: usize) -> u32 {
+    u32::try_from(value).expect("source positions are limited to u32")
+}
+
 use crate::compiler::phases::phase1_parse::utils::fuzzymatch::fuzzymatch;
 use crate::compiler::phases::phase2_analyze::warnings;
 
@@ -123,12 +127,13 @@ fn is_valid_code(code: &str) -> bool {
 /// `@rsvelte/oxlint-plugin` rule catalog) to enumerate the diagnostic ids that
 /// come from the compiler warning wrap rather than from a native lint
 /// [`RuleMeta`](crate::compiler) rule.
+#[must_use]
 pub fn valid_warning_codes() -> &'static [&'static str] {
     VALID_WARNING_CODES
 }
 
 /// Map of legacy warning codes to new codes.
-/// Corresponds to `replacements` in Svelte's extract_svelte_ignore.js.
+/// Corresponds to `replacements` in Svelte's `extract_svelte_ignore.js`.
 fn get_replacement(code: &str) -> Option<&'static str> {
     match code {
         "non-top-level-reactive-declaration" => Some("reactive_declaration_invalid_placement"),
@@ -148,13 +153,13 @@ fn get_replacement(code: &str) -> Option<&'static str> {
 pub struct SvelteIgnoreResult {
     /// Codes to ignore (only valid, recognized codes).
     pub ignores: Vec<String>,
-    /// Warnings generated during extraction (legacy_code, unknown_code).
+    /// Warnings generated during extraction (`legacy_code`, `unknown_code`).
     pub warnings: Vec<warnings::AnalysisWarning>,
 }
 
 /// Extract svelte-ignore codes from a comment.
 ///
-/// Corresponds to `extract_svelte_ignore` in Svelte's extract_svelte_ignore.js.
+/// Corresponds to `extract_svelte_ignore` in Svelte's `extract_svelte_ignore.js`.
 ///
 /// # Arguments
 ///
@@ -164,6 +169,7 @@ pub struct SvelteIgnoreResult {
 /// # Returns
 ///
 /// A vector of warning codes to ignore.
+#[must_use]
 pub fn extract_svelte_ignore(text: &str, runes: bool) -> Vec<String> {
     extract_svelte_ignore_with_warnings(0, text, runes).ignores
 }
@@ -175,10 +181,14 @@ pub fn extract_svelte_ignore(text: &str, runes: bool) -> Vec<String> {
 /// - Legacy codes (hyphenated) that have valid replacements emit `legacy_code` warnings
 /// - Unrecognized codes emit `unknown_code` warnings with optional fuzzy match suggestions
 ///
-/// Corresponds to `extract_svelte_ignore` in Svelte's extract_svelte_ignore.js.
+/// Corresponds to `extract_svelte_ignore` in Svelte's `extract_svelte_ignore.js`.
 ///
 /// `offset` is the source position of `text` (the comment's `start + 4`), so the
 /// `legacy_code` / `unknown_code` warnings can point at the offending code itself.
+///
+/// # Panics
+///
+/// Panics if a comment-relative source position exceeds `u32`.
 pub fn extract_svelte_ignore_with_warnings(
     offset: u32,
     text: &str,
@@ -191,7 +201,7 @@ pub fn extract_svelte_ignore_with_warnings(
         };
     };
 
-    let rest_offset = offset + captures.end() as u32;
+    let rest_offset = offset + source_pos(captures.end());
     let rest = &text[captures.end()..];
     let mut ignores = Vec::new();
     let mut emit_warnings = Vec::new();
@@ -206,8 +216,8 @@ pub fn extract_svelte_ignore_with_warnings(
         for caps in RUNES_CODE_REGEX.captures_iter(rest) {
             let code_match = caps.get(1).unwrap();
             let code = code_match.as_str();
-            let start = rest_offset + code_match.start() as u32;
-            let end = start + code.len() as u32;
+            let start = rest_offset + source_pos(code_match.start());
+            let end = start + source_pos(code.len());
 
             if is_valid_code(code) {
                 // Directly recognized code
@@ -215,8 +225,7 @@ pub fn extract_svelte_ignore_with_warnings(
             } else {
                 // Try replacement or snake_case conversion
                 let replacement = get_replacement(code)
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| code.replace('-', "_"));
+                    .map_or_else(|| code.replace('-', "_"), std::string::ToString::to_string);
 
                 if is_valid_code(&replacement) {
                     // Legacy code with a valid replacement
@@ -248,8 +257,7 @@ pub fn extract_svelte_ignore_with_warnings(
             // Also add the replacement/transformed version
             if !is_valid_code(code) {
                 let replacement = get_replacement(code)
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| code.replace('-', "_"));
+                    .map_or_else(|| code.replace('-', "_"), std::string::ToString::to_string);
 
                 if is_valid_code(&replacement) {
                     ignores.push(replacement);

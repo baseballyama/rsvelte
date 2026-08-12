@@ -4,9 +4,9 @@
 //!
 //! This module is organized to match the Svelte compiler structure.
 
-/// Pure-AST server codegen (Phase-3 rewrite). This is the ONLY server component
-/// pipeline — the legacy text `ServerCodeGenerator` / `build` / `bridge` /
-/// `visitors` modules were deleted after the switchover.
+/// Pure-AST server codegen (Phase-3 rewrite).
+///
+/// The legacy text pipeline was deleted after the switchover.
 pub mod ast;
 pub(crate) mod await_save_ast;
 pub(crate) mod derived_reads_ast;
@@ -40,10 +40,14 @@ thread_local! {
 /// * `ast` - The parsed AST from Phase 1 (to avoid re-parsing)
 /// * `_source` - The original source code (for backward compatibility)
 /// * `_options` - Compile options
+///
+/// # Errors
+///
+/// Returns an error if server-side AST construction or code generation fails.
 pub fn transform_server(
     analysis: &ComponentAnalysis,
     ast: &Root,
-    _source: &str,
+    source: &str,
     options: &CompileOptions,
 ) -> Result<String, TransformError> {
     // Pure-AST SSR pipeline (`server/ast/`): builds a real oxc AST and prints it
@@ -55,7 +59,7 @@ pub fn transform_server(
     SERVER_OXC_ALLOCATOR.with(|cell| {
         let mut allocator = cell.borrow_mut();
         allocator.reset();
-        ast::server_component_ast(analysis, ast, _source, options, &allocator)
+        ast::server_component_ast(analysis, ast, source, options, &allocator)
             .map_err(TransformError::CodeGen)
     })
 }
@@ -67,14 +71,18 @@ pub fn transform_server(
 /// the `import * as $ from 'svelte/internal/server'` import.
 ///
 /// Corresponds to `server_module()` in the official Svelte compiler.
+///
+/// # Errors
+///
+/// Returns an error if module transformation or code generation fails.
 pub fn transform_server_module(
     analysis: &ComponentAnalysis,
     source: &str,
-    _options: &CompileOptions,
+    options: &CompileOptions,
 ) -> Result<String, TransformError> {
     // For server modules, perform the same rune transformations as client modules
     // but use 'svelte/internal/server' import instead.
-    let basename = _options
+    let basename = options
         .filename
         .as_ref()
         .and_then(|f| f.rsplit('/').next().or_else(|| f.rsplit('\\').next()))
@@ -342,7 +350,7 @@ fn comment_ranges_in(source: &str, start: usize, end: usize) -> Vec<(usize, usiz
 fn kept_comments_of_removed_range(source: &str, start: usize, end: usize) -> String {
     // Only a statement on its own line can host a replayed `//` comment without
     // commenting out whatever shares the line.
-    let line_start = source[..start].rfind('\n').map(|n| n + 1).unwrap_or(0);
+    let line_start = source[..start].rfind('\n').map_or(0, |n| n + 1);
     let indent = &source[line_start..start];
     if !indent.chars().all(|c| c == ' ' || c == '\t') {
         return String::new();
@@ -406,8 +414,8 @@ fn strip_effects_from_source(source: &str) -> String {
         let expr_end = call_start + content_end + 1; // after closing paren
         // Statement position when everything from the line start to `pos` is
         // whitespace (e.g. a bare `$effect.root(...)` in a constructor body).
-        let line_start = s[..pos].rfind('\n').map(|n| n + 1).unwrap_or(0);
-        let is_statement = s[line_start..pos].chars().all(|c| c.is_whitespace());
+        let line_start = s[..pos].rfind('\n').map_or(0, |n| n + 1);
+        let is_statement = s[line_start..pos].chars().all(char::is_whitespace);
         if is_statement {
             Some(remove_statement(s, pos, expr_end))
         } else {
@@ -639,11 +647,7 @@ fn post_process_for_server(source: &str) -> String {
         let signal = content[..comma_pos].trim();
         let rest = content[comma_pos + 1..].trim();
         // Rest might be "value, flag" - take only the value (up to second comma)
-        let value = if let Some(comma2_pos) = find_first_comma(rest) {
-            rest[..comma2_pos].trim()
-        } else {
-            rest
-        };
+        let value = find_first_comma(rest).map_or(rest, |comma2_pos| rest[..comma2_pos].trim());
         let replacement = if memchr::memchr(b'.', signal.as_bytes()).is_some() {
             // A private `$state` class field is a plain value on the server, so
             // its assignment stays `this.#x = v`; only derived fields (and other
@@ -930,7 +934,7 @@ fn find_first_comma(s: &str) -> Option<usize> {
 }
 
 /// Build the server replacement for a `$.update(...)` / `$.update_pre(...)` call
-/// body. `prefix` selects `++x`/`--x` (update_pre) vs `x++`/`x--` (update).
+/// body. `prefix` selects `++x`/`--x` (`update_pre`) vs `x++`/`x--` (update).
 ///
 /// - `signal`            -> `signal++` / `++signal`
 /// - `signal, -1`        -> `signal--` / `--signal`
@@ -939,10 +943,9 @@ fn find_first_comma(s: &str) -> Option<usize> {
 /// The args are split on a string/comment-aware comma so the signal expression
 /// is never truncated (H-031).
 fn build_update_replacement(content: &str, prefix: bool) -> String {
-    let (signal, delta) = match find_first_comma(content) {
-        Some(comma) => (content[..comma].trim(), Some(content[comma + 1..].trim())),
-        None => (content, None),
-    };
+    let (signal, delta) = find_first_comma(content).map_or((content, None), |comma| {
+        (content[..comma].trim(), Some(content[comma + 1..].trim()))
+    });
     match delta {
         None => {
             if prefix {

@@ -3,7 +3,7 @@
 
 use crate::ast::template::TemplateNode;
 
-/// Extension trait for getting start/end positions from TemplateNode.
+/// Extension trait for getting start/end positions from `TemplateNode`.
 pub(super) trait TemplateNodeExt {
     fn start(&self) -> u32;
     fn end(&self) -> u32;
@@ -115,12 +115,12 @@ impl Counter {
             suppress_component_lets: false,
         }
     }
-    pub(super) fn next_slot(&mut self) -> u32 {
+    pub(super) const fn next_slot(&mut self) -> u32 {
         let v = self.slot;
         self.slot += 1;
         v
     }
-    pub(super) fn last_slot(&self) -> u32 {
+    pub(super) const fn last_slot(&self) -> u32 {
         self.slot.saturating_sub(1)
     }
 }
@@ -144,7 +144,7 @@ mod tests {
 // sibling of `template`, not a descendant, but still needs to construct an
 // empty index (via `Default`) to call `opener_spacing` outside the main walk.
 #[derive(Default)]
-pub(crate) struct ElementOpenerCommentIndex {
+pub struct ElementOpenerCommentIndex {
     ranges: Vec<(u32, u32)>,
     #[cfg(test)]
     range_visits: std::cell::Cell<usize>,
@@ -167,7 +167,7 @@ impl ElementOpenerCommentIndex {
         }
     }
 
-    pub(super) fn is_empty(&self) -> bool {
+    pub(super) const fn is_empty(&self) -> bool {
         self.ranges.is_empty()
     }
 

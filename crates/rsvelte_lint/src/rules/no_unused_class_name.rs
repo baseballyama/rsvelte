@@ -284,7 +284,7 @@ fn collect_css_node_classes(node: &Value, out: &mut Vec<String>) {
     }
 }
 
-/// Walk a selector node (any type) and extract ClassSelector names.
+/// Walk a selector node (any type) and extract `ClassSelector` names.
 fn collect_selector_classes(node: &Value, out: &mut Vec<String>) {
     let ty = node.get("type").and_then(Value::as_str).unwrap_or("");
     match ty {

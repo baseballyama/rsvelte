@@ -259,7 +259,7 @@ struct Calibration {
 const N_CLASSES: usize = 6;
 const CLASS_SIZES: [usize; N_CLASSES] = [16, 64, 256, 1024, 8192, 65536];
 
-fn size_class(size: usize) -> usize {
+const fn size_class(size: usize) -> usize {
     match size {
         0..=32 => 0,
         33..=128 => 1,
@@ -340,7 +340,8 @@ impl Row {
         self.bytes += s.size as u64;
         self.copied += s.copied as u64;
         self.classes[size_class(s.size)] += 1;
-        self.ns += cal.per_event_ns[size_class(s.size)] + s.copied as f64 * cal.per_copied_byte_ns;
+        self.ns +=
+            (s.copied as f64).mul_add(cal.per_copied_byte_ns, cal.per_event_ns[size_class(s.size)]);
     }
 }
 
@@ -509,9 +510,9 @@ fn main() {
     println!(
         "allocator events {events} ({:.0}/file), requested {:.1} MiB ({:.1} KiB/file), copied {:.1} MiB ({:.1} KiB/file)",
         events as f64 / n_files,
-        bytes as f64 / (1 << 20) as f64,
+        bytes as f64 / f64::from(1 << 20),
         bytes as f64 / n_files / 1024.0,
-        copied as f64 / (1 << 20) as f64,
+        copied as f64 / f64::from(1 << 20),
         copied as f64 / n_files / 1024.0
     );
     println!("stacks captured {}", stacks.len());

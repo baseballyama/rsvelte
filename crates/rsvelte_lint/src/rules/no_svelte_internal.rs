@@ -54,7 +54,7 @@ pub struct NoSvelteInternal;
 impl NoSvelteInternal {
     /// Scan both the instance and module script bodies of `source`, reporting at
     /// every offending `import` / `export` keyword.
-    fn scan_source(&self, ctx: &mut LintContext, source: &str, root: &Root) {
+    fn scan_source(ctx: &mut LintContext, source: &str, root: &Root) {
         // Script bounds come from the `Root` the lint pass already parsed.
         for script in [root.instance.as_ref(), root.module.as_ref()]
             .into_iter()
@@ -70,7 +70,8 @@ impl NoSvelteInternal {
                 body = &body[..close];
             }
             for offset in scan_script_body(body) {
-                let abs = (lo + offset) as u32;
+                let abs =
+                    u32::try_from(lo + offset).expect("source offsets are represented as u32");
                 ctx.report(abs, abs + 6, MESSAGE);
             }
         }
@@ -84,7 +85,7 @@ impl Rule for NoSvelteInternal {
 
     fn check_root(&self, ctx: &mut LintContext, root: &Root) {
         let source = ctx.source();
-        self.scan_source(ctx, source, root);
+        Self::scan_source(ctx, source, root);
     }
 }
 
@@ -235,11 +236,11 @@ fn skip_string(bytes: &[u8], mut i: usize) -> usize {
     i
 }
 
-fn is_word_start(b: u8) -> bool {
+const fn is_word_start(b: u8) -> bool {
     b.is_ascii_alphabetic() || b == b'_' || b == b'$'
 }
 
-fn is_word_char(b: u8) -> bool {
+const fn is_word_char(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
 }
 

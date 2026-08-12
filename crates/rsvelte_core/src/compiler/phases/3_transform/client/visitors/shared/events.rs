@@ -61,9 +61,11 @@ pub fn build_event(
     b::call(arena, b::member_path(arena, callee), args)
 }
 
-/// In dev mode, convert arrow function event handlers to named function expressions
-/// for better debugging (stack traces show the event name).
+/// In dev mode, convert arrow function event handlers to named function expressions.
+///
+/// This improves debugging because stack traces show the event name.
 /// Reference: events.js `build_event` in the official Svelte compiler.
+#[must_use]
 pub fn convert_arrow_to_named_function(handler: JsExpr, name: CompactString) -> JsExpr {
     if let JsExpr::Arrow(arrow) = handler {
         let body = match arrow.body {
@@ -154,12 +156,16 @@ fn json_walk_for_call(val: &serde_json::Value) -> bool {
 /// # Arguments
 ///
 /// * `expression` - The handler expression (None = bubble event to parent)
-/// * `node` - The OnDirective node (for metadata)
+/// * `node` - The `OnDirective` node (for metadata)
 /// * `context` - The component context
 ///
 /// # Returns
 ///
 /// Returns a function expression that will be used as the event handler.
+///
+/// # Panics
+///
+/// Panics if an event-handler AST invariant is violated during transformation.
 pub fn build_event_handler(
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
 
@@ -237,7 +243,8 @@ pub fn build_event_handler(
         // correctly resolves to the snippet — see its doc comment for why
         // `get_binding` alone can't be trusted here.
         let binding = super::utils::resolve_shadowing_snippet_binding(name, context);
-        if binding.is_some_and(|b| b.is_function()) {
+        if binding.is_some_and(crate::compiler::phases::phase2_analyze::scope::Binding::is_function)
+        {
             return handler;
         }
         if !context.state.options.dev

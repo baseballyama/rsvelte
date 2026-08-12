@@ -85,7 +85,7 @@ fn write_counting_oxfmt(dir: &std::path::Path) -> PathBuf {
     let fake = dir.join("counting-oxfmt.cjs");
     std::fs::write(
         &fake,
-        r#"const fs = require('node:fs');
+        r"const fs = require('node:fs');
 const path = require('node:path');
 let touchedFile = false;
 for (const p of process.argv.slice(2)) {
@@ -102,16 +102,14 @@ for (const p of process.argv.slice(2)) {
 if (touchedFile && process.env.FAKE_OXFMT_LOG) {
   fs.appendFileSync(process.env.FAKE_OXFMT_LOG, 'call\n');
 }
-"#,
+",
     )
     .unwrap();
     fake
 }
 
 fn oxfmt_call_count(log: &std::path::Path) -> usize {
-    std::fs::read_to_string(log)
-        .map(|s| s.lines().count())
-        .unwrap_or(0)
+    std::fs::read_to_string(log).map_or(0, |s| s.lines().count())
 }
 
 /// A warm cache serves an unchanged `<style>` body without touching oxfmt: the
@@ -297,7 +295,7 @@ fn style_cache_output_matches_uncached() {
 /// to stdout verbatim. This isolates the *re-embedding* (re-indent + trailing
 /// newline handling) the dispatcher does around oxfmt, so the batch (`--write`)
 /// path and the single-block (`--stdin`) path must produce identical output.
-const IDENTITY_OXFMT: &str = r#"const fs = require('node:fs');
+const IDENTITY_OXFMT: &str = r"const fs = require('node:fs');
 const path = require('node:path');
 const args = process.argv.slice(2);
 // Mimic the surrounding-whitespace normalization a real CSS formatter applies:
@@ -317,7 +315,7 @@ if (args.includes('--stdin-filepath')) {
     }
   }
 }
-"#;
+";
 
 /// Regression: the batched `--write` path must re-indent a multi-line `<style>`
 /// body one level under the tag — not leave lines 2..N at column 0 with a stray
@@ -418,7 +416,7 @@ fn batched_styles_format_at_per_block_width() {
     let fake = dir.join("width-oxfmt.cjs");
     std::fs::write(
         &fake,
-        r#"const fs = require('node:fs');
+        r"const fs = require('node:fs');
 const path = require('node:path');
 const args = process.argv.slice(2);
 let width = '?';
@@ -435,7 +433,7 @@ for (const p of args) {
     for (const e of fs.readdirSync(p)) { const fp = path.join(p, e); if (fs.statSync(fp).isFile()) stamp(fp); }
   }
 }
-"#,
+",
     )
     .unwrap();
 

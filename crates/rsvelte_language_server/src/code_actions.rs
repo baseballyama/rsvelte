@@ -169,7 +169,7 @@ fn enclosing_node<'b, 'a>(
 }
 
 /// Whether a node is one a `svelte-ignore` comment can be placed in front of.
-fn is_container(node: &TemplateNode) -> bool {
+const fn is_container(node: &TemplateNode) -> bool {
     !matches!(
         node,
         TemplateNode::Text(_)

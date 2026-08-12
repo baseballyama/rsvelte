@@ -17,7 +17,7 @@ use crate::options::FormatOptions;
 /// Columns a tab occupies: prettier's `tabWidth`, which doubles as the
 /// space-indent width. Zero-guarded so a degenerate config can't collapse every
 /// indent to nothing.
-pub(crate) fn tab_width(options: &FormatOptions) -> usize {
+pub fn tab_width(options: &FormatOptions) -> usize {
     match options.js.indent_width.value() as usize {
         0 => 1,
         w => w,
@@ -26,7 +26,7 @@ pub(crate) fn tab_width(options: &FormatOptions) -> usize {
 
 /// Width of `s` ignoring tabs, with a fast path for the printable-ASCII case
 /// that dominates markup (where one byte is exactly one column).
-pub(crate) fn text_width(s: &str) -> usize {
+pub fn text_width(s: &str) -> usize {
     if s.bytes().all(|b| (0x20..0x7f).contains(&b)) {
         s.len()
     } else {
@@ -34,7 +34,7 @@ pub(crate) fn text_width(s: &str) -> usize {
     }
 }
 
-pub(crate) trait VisualWidth {
+pub trait VisualWidth {
     /// Display width of `self`, charging every tab `tab_width` columns.
     fn visual_width(&self, tab_width: usize) -> usize;
 }
@@ -64,7 +64,7 @@ impl VisualWidth for str {
 /// for it. Bundled so a printer can never pair a tab unit with a one-column
 /// measurement.
 #[derive(Clone, Copy)]
-pub(crate) struct IndentUnit<'a> {
+pub struct IndentUnit<'a> {
     unit: &'a str,
     columns: usize,
     tab_width: usize,
@@ -79,15 +79,15 @@ impl<'a> IndentUnit<'a> {
         }
     }
 
-    pub(crate) fn as_str(&self) -> &'a str {
+    pub(crate) const fn as_str(&self) -> &'a str {
         self.unit
     }
 
-    pub(crate) fn columns(&self) -> usize {
+    pub(crate) const fn columns(&self) -> usize {
         self.columns
     }
 
-    pub(crate) fn tab_width(&self) -> usize {
+    pub(crate) const fn tab_width(&self) -> usize {
         self.tab_width
     }
 }

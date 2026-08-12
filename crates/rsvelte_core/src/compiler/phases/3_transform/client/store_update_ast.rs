@@ -54,7 +54,7 @@ thread_local! {
 /// version in `transform_store_assignments_client`.
 ///
 /// Returns `None` if there's nothing to rewrite (no `$<store>` in
-/// source, no UpdateExpression matched, or parse failure).
+/// source, no `UpdateExpression` matched, or parse failure).
 pub fn transform_store_update_ast(
     source: &str,
     store_sub_vars: &[String],
@@ -128,7 +128,7 @@ struct StoreUpdateCollector<'a> {
     replacements: Vec<Edit>,
 }
 
-impl<'a, 'ast> Visit<'ast> for StoreUpdateCollector<'a> {
+impl<'ast> Visit<'ast> for StoreUpdateCollector<'_> {
     fn visit_update_expression(&mut self, expr: &UpdateExpression<'ast>) {
         walk::walk_update_expression(self, expr);
 
@@ -148,27 +148,27 @@ impl<'a, 'ast> Visit<'ast> for StoreUpdateCollector<'a> {
         let store_name = &name[1..]; // `"count"`
 
         let store_access = if self.prop_vars.iter().any(|p| p == store_name) {
-            format!("{}()", store_name)
+            format!("{store_name}()")
         } else if self.state_vars.iter().any(|s| s == store_name)
             && !self.non_reactive_state_vars.iter().any(|s| s == store_name)
         {
-            format!("$.get({})", store_name)
+            format!("$.get({store_name})")
         } else {
             store_name.to_string()
         };
 
         let rewrite = match (expr.operator, expr.prefix) {
             (UpdateOperator::Increment, true) => {
-                format!("$.update_pre_store({}, {}())", store_access, store_sub)
+                format!("$.update_pre_store({store_access}, {store_sub}())")
             }
             (UpdateOperator::Decrement, true) => {
-                format!("$.update_pre_store({}, {}(), -1)", store_access, store_sub)
+                format!("$.update_pre_store({store_access}, {store_sub}(), -1)")
             }
             (UpdateOperator::Increment, false) => {
-                format!("$.update_store({}, {}())", store_access, store_sub)
+                format!("$.update_store({store_access}, {store_sub}())")
             }
             (UpdateOperator::Decrement, false) => {
-                format!("$.update_store({}, {}(), -1)", store_access, store_sub)
+                format!("$.update_store({store_access}, {store_sub}(), -1)")
             }
         };
 
@@ -310,7 +310,7 @@ thread_local! {
 }
 
 /// In-place equivalent of [`transform_store_update_ast`].
-pub(crate) fn transform_store_update_in_place(
+pub fn transform_store_update_in_place(
     source: &str,
     store_sub_vars: &[String],
     prop_vars: &[String],
@@ -356,7 +356,7 @@ struct StoreUpdateRewriter<'a, 'b> {
     changed: bool,
 }
 
-impl<'a, 'b> StoreUpdateRewriter<'a, 'b> {
+impl<'a> StoreUpdateRewriter<'a, '_> {
     /// How the store itself is read: a prop is a getter call, reactive state
     /// goes through `$.get`, anything else is the bare binding.
     fn store_access(&self, store_name: &str) -> Expression<'a> {
@@ -372,7 +372,7 @@ impl<'a, 'b> StoreUpdateRewriter<'a, 'b> {
     }
 }
 
-impl<'a, 'b> oxc_ast_visit::VisitMut<'a> for StoreUpdateRewriter<'a, 'b> {
+impl<'a> oxc_ast_visit::VisitMut<'a> for StoreUpdateRewriter<'a, '_> {
     fn visit_expression(&mut self, expr: &mut Expression<'a>) {
         oxc_ast_visit::walk_mut::walk_expression(self, expr);
 

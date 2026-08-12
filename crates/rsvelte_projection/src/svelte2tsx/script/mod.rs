@@ -44,14 +44,14 @@ use ast_utils::{
 };
 use component_events::collect_event_dispatcher_facts;
 use export_decl::{handle_export_named_decl, leading_jsdoc_comment};
-use exported_names::PossibleExport;
+use exported_names::{PossibleExport, PossibleExportFlags};
 use hoistable_types::{
     HoistCandidate, hoist_dollar_generic_referenced_types, is_ascii_ident_char,
     is_special_type_name, resolve_hoistable_type_decls, rewrite_interface_to_type_dts,
 };
 use nested_special_types::{apply_special_type_name, scan_nested_special_type_decls};
 use parse::with_parsed_script;
-pub(crate) use parse::{ParsedScript, ParsedScripts};
+pub use parse::{ParsedScript, ParsedScripts};
 use props_rune::{
     PropsRuneInfo, apply_props_typedef, collect_props_rune_info, detect_props_rune_oxc,
 };
@@ -66,10 +66,10 @@ use stores::{
 };
 use type_assertion::{disambiguate_arrow_type_params, rewrite_type_assertions};
 
-/// Classify a Svelte component basename for SvelteKit autotype injection.
+/// Classify a Svelte component basename for `SvelteKit` autotype injection.
 ///
 /// Returns:
-/// - `Some(true)` if the file is a SvelteKit `+layout.svelte` (uses
+/// - `Some(true)` if the file is a `SvelteKit` `+layout.svelte` (uses
 ///   `LayoutData` / `LayoutProps`).
 /// - `Some(false)` if it's `+page.svelte` (uses `PageData` / `ActionData` /
 ///   `PageProps`).
@@ -78,13 +78,10 @@ pub fn classify_kit_route_file(basename: &str) -> Option<bool> {
     // Strip `@anchor` then strip extension. `kitPageFiles` are:
     // `+page`, `+layout`, `+page.server`, `+layout.server`, `+server`.
     // Only `+page` and `+layout` produce `.svelte` route files in practice.
-    let trimmed = if let Some(at_pos) = basename.find('@') {
-        &basename[..at_pos]
-    } else if let Some(dot_pos) = basename.rfind('.') {
-        &basename[..dot_pos]
-    } else {
-        basename
-    };
+    let trimmed = basename
+        .find('@')
+        .or_else(|| basename.rfind('.'))
+        .map_or(basename, |position| &basename[..position]);
     match trimmed {
         "+page" => Some(false),
         "+layout" => Some(true),
@@ -153,7 +150,7 @@ pub fn process_instance_script(
                     // (`export var x` / `export { v }` where `v` is var/const go
                     // into the `exports:` return, not `props:`).
                     let is_let = matches!(var_decl.kind, oxc::VariableDeclarationKind::Let);
-                    for declarator in var_decl.declarations.iter() {
+                    for declarator in &var_decl.declarations {
                         detect_runes_call(declarator, exported_names, &declared_names);
                         detect_props_rune_oxc(declarator, exported_names, raw_content);
                         // Collect $props() info for typedef generation (one per
@@ -180,20 +177,25 @@ pub fn process_instance_script(
                                 }
                             });
                             possible_exports.insert(
-                                name.to_owned(),
-                                PossibleExport {
-                                    is_let,
-                                    has_init: declarator.init.is_some(),
-                                    has_type_annotation: declarator.type_annotation.is_some(),
-                                    has_boolean_init: declarator_has_boolean_init(declarator),
-                                    decl_end: declarator.span.end,
-                                    type_annotation_text: ta_text,
-                                    doc: leading_jsdoc_comment(
+                                name.clone(),
+                                PossibleExport::from_parts(
+                                    PossibleExportFlags::default()
+                                        .with_let_if(is_let)
+                                        .with_init_if(declarator.init.is_some())
+                                        .with_type_annotation_if(
+                                            declarator.type_annotation.is_some(),
+                                        )
+                                        .with_boolean_init_if(declarator_has_boolean_init(
+                                            declarator,
+                                        )),
+                                    declarator.span.end,
+                                    ta_text,
+                                    leading_jsdoc_comment(
                                         raw_content,
                                         var_decl.span.start as usize,
                                     )
                                     .map(str::to_string),
-                                },
+                                ),
                             );
                         } else {
                             // Destructured bindings (`let { a, c } = …`) are not a
@@ -204,15 +206,14 @@ pub fn process_instance_script(
                             for name in extract_all_names_from_binding_pattern(&declarator.id) {
                                 possible_exports.insert(
                                     name,
-                                    PossibleExport {
-                                        is_let,
-                                        has_init: declarator.init.is_some(),
-                                        has_type_annotation: false,
-                                        has_boolean_init: false,
-                                        decl_end: declarator.span.end,
-                                        type_annotation_text: None,
-                                        doc: None,
-                                    },
+                                    PossibleExport::from_parts(
+                                        PossibleExportFlags::default()
+                                            .with_let_if(is_let)
+                                            .with_init_if(declarator.init.is_some()),
+                                        declarator.span.end,
+                                        None,
+                                        None,
+                                    ),
                                 );
                             }
                         }
@@ -223,7 +224,7 @@ pub fn process_instance_script(
                         collector.push_import(import);
                     }
                     if let Some(ref specifiers) = import.specifiers {
-                        for spec in specifiers.iter() {
+                        for spec in specifiers {
                             let name = match spec {
                                 oxc::ImportDeclarationSpecifier::ImportDefaultSpecifier(s) => {
                                     s.local.name.to_string()
@@ -282,7 +283,7 @@ pub fn process_instance_script(
                                 // exports (mirror official isLet === NodeFlags.Let).
                                 let is_let =
                                     matches!(var_decl.kind, oxc::VariableDeclarationKind::Let);
-                                for declarator in var_decl.declarations.iter() {
+                                for declarator in &var_decl.declarations {
                                     if let Some(name) = binding_pattern_simple_name(&declarator.id)
                                     {
                                         let ta_text =
@@ -298,23 +299,24 @@ pub fn process_instance_script(
                                             });
                                         possible_exports.insert(
                                             name.to_owned(),
-                                            PossibleExport {
-                                                is_let,
-                                                has_init: declarator.init.is_some(),
-                                                has_type_annotation: declarator
-                                                    .type_annotation
-                                                    .is_some(),
-                                                has_boolean_init: declarator_has_boolean_init(
-                                                    declarator,
-                                                ),
-                                                decl_end: declarator.span.end,
-                                                type_annotation_text: ta_text,
-                                                doc: leading_jsdoc_comment(
+                                            PossibleExport::from_parts(
+                                                PossibleExportFlags::default()
+                                                    .with_let_if(is_let)
+                                                    .with_init_if(declarator.init.is_some())
+                                                    .with_type_annotation_if(
+                                                        declarator.type_annotation.is_some(),
+                                                    )
+                                                    .with_boolean_init_if(
+                                                        declarator_has_boolean_init(declarator),
+                                                    ),
+                                                declarator.span.end,
+                                                ta_text,
+                                                leading_jsdoc_comment(
                                                     raw_content,
                                                     var_decl.span.start as usize,
                                                 )
                                                 .map(str::to_string),
-                                            },
+                                            ),
                                         );
                                     }
                                 }
@@ -461,7 +463,7 @@ pub fn process_instance_script(
         let mut reactive_declared_names: HashSet<String> = HashSet::new();
 
         // Pass 2: handle exports
-        for stmt in program.body.iter() {
+        for stmt in &program.body {
             if let oxc::Statement::ExportDeclaration(export) = stmt {
                 handle_export_named_decl(
                     export.span,
@@ -533,7 +535,7 @@ pub fn process_instance_script(
 
         // Pass 2.5: Split multi-declarator let statements when variables are
         // exported via specifiers (e.g., `let a = 1, b;` with `export { a, b }`)
-        for stmt in program.body.iter() {
+        for stmt in &program.body {
             if let oxc::Statement::VariableDeclaration(var_decl) = stmt {
                 let is_let = matches!(
                     var_decl.kind,
@@ -543,23 +545,24 @@ pub fn process_instance_script(
                 if is_let && num_declarators > 1 {
                     // Check if any declarator in this statement is exported
                     let any_exported = var_decl.declarations.iter().any(|d| {
-                        if let Some(name) = binding_pattern_simple_name(&d.id) {
+                        binding_pattern_simple_name(&d.id).is_some_and(|name| {
                             // Match through aliases: `export { v1 as a1 }` keys
                             // the entry by `a1`, so `has(v1)` is false — check
                             // the local name too.
                             exported_names.has(name) || exported_names.has_local(name)
-                        } else {
-                            false
-                        }
+                        })
                     });
                     if any_exported {
                         for decl_idx in 0..num_declarators - 1 {
                             let decl_end_rel = var_decl.declarations[decl_idx].span.end;
                             // Find the comma after the declarator end and overwrite just it
-                            let comma_pos = raw_content[decl_end_rel as usize..]
-                                .find(',')
-                                .map(|p| decl_end_rel + p as u32)
-                                .unwrap_or(decl_end_rel);
+                            let comma_pos = raw_content[decl_end_rel as usize..].find(',').map_or(
+                                decl_end_rel,
+                                |p| {
+                                    decl_end_rel
+                                        + u32::try_from(p).expect("declaration offset fits in u32")
+                                },
+                            );
                             str.overwrite(comma_pos + offset, comma_pos + 1 + offset, ";let ");
                         }
                         // Mirror official `propTypeAssertToUserDefined`, which is
@@ -570,7 +573,7 @@ pub fn process_instance_script(
                         // are already wrapped in the export-specifier handling
                         // (Case 2), so here we only cover the non-exported
                         // siblings to avoid double-wrapping.
-                        for d in var_decl.declarations.iter() {
+                        for d in &var_decl.declarations {
                             let Some(name) = binding_pattern_simple_name(&d.id) else {
                                 continue;
                             };
@@ -606,7 +609,7 @@ pub fn process_instance_script(
         let content_end = script.start as usize + close_tag_offset;
         let raw_content = &source[content_start..content_end];
 
-        for stmt in program.body.iter() {
+        for stmt in &program.body {
             if let oxc::Statement::LabeledStatement(labeled) = stmt
                 && labeled.label.name == "$"
             {
@@ -664,18 +667,18 @@ pub fn process_instance_script(
             // hoistable — see `resolve_hoistable_type_decls`.
             // Determine the effective type source: type-arg form takes priority over
             // annotation form (mirrors upstream `typeArguments?.[0] || node.type`).
-            let effective_is_named_ref = if info.has_type_arg && !info.has_type_annotation {
-                info.type_arg_is_named_ref
+            let effective_is_named_ref = if info.has_type_arg() && !info.has_type_annotation() {
+                info.type_arg_is_named_ref()
             } else {
-                info.is_named_type_reference
+                info.is_named_type_reference()
             };
             let effective_type_text: Option<&str> =
-                if info.has_type_arg && !info.has_type_annotation {
+                if info.has_type_arg() && !info.has_type_annotation() {
                     info.type_arg_text.as_deref()
                 } else {
                     info.type_text.as_deref()
                 };
-            let effective_has_type = info.has_type_annotation || info.has_type_arg;
+            let effective_has_type = info.has_type_annotation() || info.has_type_arg();
 
             let props_named_ref: Option<String> = if effective_is_named_ref {
                 effective_type_text.map(|t| {
@@ -755,7 +758,7 @@ pub fn process_instance_script(
 ///
 /// * `script` - The parsed Script AST node
 /// * `source` - The original source code
-/// * `str` - The MagicString for source manipulation
+/// * `str` - The `MagicString` for source manipulation
 /// * `exported_names` - Accumulator for exported names
 ///
 /// # Errors
@@ -799,126 +802,146 @@ pub fn process_module_script(
         // overlay, doesn't lex a single-parameter arrow generic as JSX.
         disambiguate_arrow_type_params(&script_facts.arrow_generic_commas, str);
 
-        // Snapshot top-level module-script names for the snippet hoist analysis.
-        for stmt in program.body.iter() {
-            match stmt {
-                oxc::Statement::ImportDeclaration(import) => {
-                    if let Some(ref specifiers) = import.specifiers {
-                        for spec in specifiers.iter() {
-                            let name = match spec {
-                                oxc::ImportDeclarationSpecifier::ImportDefaultSpecifier(s) => {
-                                    s.local.name.to_string()
-                                }
-                                oxc::ImportDeclarationSpecifier::ImportNamespaceSpecifier(s) => {
-                                    s.local.name.to_string()
-                                }
-                                oxc::ImportDeclarationSpecifier::ImportSpecifier(s) => {
-                                    s.local.name.to_string()
-                                }
-                            };
-                            exported_names.module_import_names.insert(name.clone());
-                            exported_names.module_value_names.insert(name);
-                        }
-                    }
-                }
-                oxc::Statement::VariableDeclaration(var_decl) => {
-                    for declarator in var_decl.declarations.iter() {
-                        for n in extract_all_names_from_binding_pattern(&declarator.id) {
-                            exported_names.module_value_names.insert(n);
-                        }
-                    }
-                }
-                oxc::Statement::FunctionDeclaration(func) => {
-                    if let Some(ref id) = func.id {
-                        exported_names
-                            .module_value_names
-                            .insert(id.name.to_string());
-                    }
-                }
-                oxc::Statement::ClassDeclaration(class) => {
-                    if let Some(ref id) = class.id {
-                        exported_names
-                            .module_value_names
-                            .insert(id.name.to_string());
-                    }
-                }
-                oxc::Statement::ExportDeclaration(export) => match &export.declaration {
-                    oxc::Declaration::VariableDeclaration(var_decl) => {
-                        for declarator in var_decl.declarations.iter() {
-                            for n in extract_all_names_from_binding_pattern(&declarator.id) {
-                                exported_names.module_value_names.insert(n);
-                            }
-                        }
-                    }
-                    oxc::Declaration::FunctionDeclaration(func) => {
-                        if let Some(ref id) = func.id {
-                            exported_names
-                                .module_value_names
-                                .insert(id.name.to_string());
-                        }
-                    }
-                    oxc::Declaration::ClassDeclaration(class) => {
-                        if let Some(ref id) = class.id {
-                            exported_names
-                                .module_value_names
-                                .insert(id.name.to_string());
-                        }
-                    }
-                    oxc::Declaration::TSTypeAliasDeclaration(t) => {
-                        let name = t.id.name.to_string();
-                        if is_special_type_name(&name) {
-                            return Err(sentinel_type_in_module_script_error(&name));
-                        }
-                        exported_names.module_type_names.insert(name);
-                    }
-                    oxc::Declaration::TSInterfaceDeclaration(iface) => {
-                        let name = iface.id.name.to_string();
-                        if is_special_type_name(&name) {
-                            return Err(sentinel_type_in_module_script_error(&name));
-                        }
-                        exported_names.module_type_names.insert(name);
-                    }
-                    _ => {}
-                },
-                oxc::Statement::TSTypeAliasDeclaration(t) => {
-                    let name = t.id.name.to_string();
-                    if is_special_type_name(&name) {
-                        return Err(sentinel_type_in_module_script_error(&name));
-                    }
-                    exported_names.module_type_names.insert(name);
-                }
-                oxc::Statement::TSInterfaceDeclaration(iface) => {
-                    let name = iface.id.name.to_string();
-                    if is_special_type_name(&name) {
-                        return Err(sentinel_type_in_module_script_error(&name));
-                    }
-                    exported_names.module_type_names.insert(name);
-                }
-                // Module-level `namespace X { ... }` and `enum X { ... }`
-                // contribute both a value and a type binding, so an
-                // instance-script `interface X` would shadow the module
-                // declaration once hoisted.
-                oxc::Statement::TSModuleDeclaration(module_decl) => {
-                    if let oxc_ast::ast::TSModuleDeclarationName::Identifier(id) = &module_decl.id {
-                        exported_names
-                            .module_value_names
-                            .insert(id.name.to_string());
-                        exported_names.module_type_names.insert(id.name.to_string());
-                    }
-                }
-                oxc::Statement::TSEnumDeclaration(enum_decl) => {
-                    exported_names
-                        .module_value_names
-                        .insert(enum_decl.id.name.to_string());
-                    exported_names
-                        .module_type_names
-                        .insert(enum_decl.id.name.to_string());
-                }
-                _ => {}
-            }
-        }
+        collect_module_names(program, exported_names)?;
         Ok(())
     })
+}
+
+fn collect_module_names(
+    program: &oxc::Program<'_>,
+    exported_names: &mut ExportedNames,
+) -> Result<(), super::utils::error::Svelte2TsxError> {
+    for stmt in &program.body {
+        match stmt {
+            oxc::Statement::ImportDeclaration(import) => {
+                if let Some(ref specifiers) = import.specifiers {
+                    for spec in specifiers {
+                        let name = match spec {
+                            oxc::ImportDeclarationSpecifier::ImportDefaultSpecifier(s) => {
+                                s.local.name.to_string()
+                            }
+                            oxc::ImportDeclarationSpecifier::ImportNamespaceSpecifier(s) => {
+                                s.local.name.to_string()
+                            }
+                            oxc::ImportDeclarationSpecifier::ImportSpecifier(s) => {
+                                s.local.name.to_string()
+                            }
+                        };
+                        exported_names.module_import_names.insert(name.clone());
+                        exported_names.module_value_names.insert(name);
+                    }
+                }
+            }
+            oxc::Statement::VariableDeclaration(var_decl) => {
+                for declarator in &var_decl.declarations {
+                    for n in extract_all_names_from_binding_pattern(&declarator.id) {
+                        exported_names.module_value_names.insert(n);
+                    }
+                }
+            }
+            oxc::Statement::FunctionDeclaration(func) => {
+                if let Some(ref id) = func.id {
+                    exported_names
+                        .module_value_names
+                        .insert(id.name.to_string());
+                }
+            }
+            oxc::Statement::ClassDeclaration(class) => {
+                if let Some(ref id) = class.id {
+                    exported_names
+                        .module_value_names
+                        .insert(id.name.to_string());
+                }
+            }
+            oxc::Statement::ExportDeclaration(export) => {
+                collect_exported_module_declaration(&export.declaration, exported_names)?;
+            }
+            oxc::Statement::TSTypeAliasDeclaration(t) => {
+                let name = t.id.name.to_string();
+                if is_special_type_name(&name) {
+                    return Err(sentinel_type_in_module_script_error(&name));
+                }
+                exported_names.module_type_names.insert(name);
+            }
+            oxc::Statement::TSInterfaceDeclaration(iface) => {
+                let name = iface.id.name.to_string();
+                if is_special_type_name(&name) {
+                    return Err(sentinel_type_in_module_script_error(&name));
+                }
+                exported_names.module_type_names.insert(name);
+            }
+            // Module-level `namespace X { ... }` and `enum X { ... }`
+            // contribute both a value and a type binding, so an
+            // instance-script `interface X` would shadow the module
+            // declaration once hoisted.
+            oxc::Statement::TSModuleDeclaration(module_decl) => {
+                if let oxc_ast::ast::TSModuleDeclarationName::Identifier(id) = &module_decl.id {
+                    exported_names
+                        .module_value_names
+                        .insert(id.name.to_string());
+                    exported_names.module_type_names.insert(id.name.to_string());
+                }
+            }
+            oxc::Statement::TSEnumDeclaration(enum_decl) => {
+                exported_names
+                    .module_value_names
+                    .insert(enum_decl.id.name.to_string());
+                exported_names
+                    .module_type_names
+                    .insert(enum_decl.id.name.to_string());
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+fn collect_exported_module_declaration(
+    declaration: &oxc::Declaration<'_>,
+    exported_names: &mut ExportedNames,
+) -> Result<(), super::utils::error::Svelte2TsxError> {
+    match declaration {
+        oxc::Declaration::VariableDeclaration(declaration) => {
+            for declarator in &declaration.declarations {
+                for name in extract_all_names_from_binding_pattern(&declarator.id) {
+                    exported_names.module_value_names.insert(name);
+                }
+            }
+        }
+        oxc::Declaration::FunctionDeclaration(declaration) => {
+            if let Some(id) = &declaration.id {
+                exported_names
+                    .module_value_names
+                    .insert(id.name.to_string());
+            }
+        }
+        oxc::Declaration::ClassDeclaration(declaration) => {
+            if let Some(id) = &declaration.id {
+                exported_names
+                    .module_value_names
+                    .insert(id.name.to_string());
+            }
+        }
+        oxc::Declaration::TSTypeAliasDeclaration(declaration) => {
+            add_module_type_name(declaration.id.name.to_string(), exported_names)?;
+        }
+        oxc::Declaration::TSInterfaceDeclaration(declaration) => {
+            add_module_type_name(declaration.id.name.to_string(), exported_names)?;
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn add_module_type_name(
+    name: String,
+    exported_names: &mut ExportedNames,
+) -> Result<(), super::utils::error::Svelte2TsxError> {
+    if is_special_type_name(&name) {
+        return Err(sentinel_type_in_module_script_error(&name));
+    }
+    exported_names.module_type_names.insert(name);
+    Ok(())
 }
 
 /// `$$Events`/`$$Slots`/`$$Props` can only be declared in the instance

@@ -21,13 +21,15 @@ const ERROR_DOCS: &str = "https://svelte.dev/docs/svelte/compiler-errors#";
 
 /// Whether a code names a compiler warning/error rather than one of rsvelte's
 /// own rules, whose ids are always namespaced (`svelte/no-at-html-tags`).
+#[must_use]
 pub fn is_compiler_code(code: &str) -> bool {
     !code.contains('/')
 }
 
-/// Convert one lint diagnostic, or drop it when the client asked for its code
-/// to be ignored. rsvelte reports 1-based lines with 0-based UTF-16 columns
-/// (the encoding LSP uses), so only the line needs rebasing.
+/// Convert one lint diagnostic, respecting the client's ignored codes.
+///
+/// rsvelte reports 1-based lines with 0-based UTF-16 columns, so only the line
+/// needs rebasing for LSP.
 pub fn to_lsp(diagnostic: &LintDiagnostic, warnings: &CompilerWarnings) -> Option<Diagnostic> {
     let range = diagnostic.range.map_or_else(
         || Range::new(Position::new(0, 0), Position::new(0, 0)),
@@ -81,7 +83,7 @@ fn code_description(code: &str, severity: LintSeverity) -> Option<CodeDescriptio
     Some(CodeDescription { href })
 }
 
-fn severity(severity: LintSeverity) -> DiagnosticSeverity {
+const fn severity(severity: LintSeverity) -> DiagnosticSeverity {
     match severity {
         LintSeverity::Error => DiagnosticSeverity::ERROR,
         LintSeverity::Warning => DiagnosticSeverity::WARNING,

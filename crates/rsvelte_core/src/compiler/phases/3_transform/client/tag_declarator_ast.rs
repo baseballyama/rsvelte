@@ -84,15 +84,15 @@ pub(super) fn collect_tag_declarator_edits(program: &Program<'_>, source: &str) 
     replacements
 }
 
-/// Recursive top-down walk that finds VariableDeclarations anywhere
+/// Recursive top-down walk that finds `VariableDeclarations` anywhere
 /// in the program (top-level, inside function bodies, inside blocks,
 /// inside class methods, …) and emits replacements for their
 /// tag-eligible declarators.
 ///
 /// We don't reuse `oxc_ast_visit::Visit` here because we only need
 /// `VariableDeclaration` and the recursion is shallow.
-fn walk_statement_for_declarators<'a>(
-    stmt: &Statement<'a>,
+fn walk_statement_for_declarators(
+    stmt: &Statement<'_>,
     source: &str,
     replacements: &mut Vec<(u32, u32, String)>,
 ) {
@@ -156,13 +156,12 @@ fn walk_statement_for_declarators<'a>(
         // function bodies whose statements we walk just like
         // top-level. Property definitions / class fields are
         // intentionally not handled here — that's a follow-up PR.
-        Statement::ClassDeclaration(_) => {}
         _ => {}
     }
 }
 
-fn handle_variable_declaration<'a>(
-    var_decl: &VariableDeclaration<'a>,
+fn handle_variable_declaration(
+    var_decl: &VariableDeclaration<'_>,
     source: &str,
     replacements: &mut Vec<(u32, u32, String)>,
 ) {
@@ -184,7 +183,7 @@ fn handle_variable_declaration<'a>(
         };
 
         let init_text = &source[init_span.start as usize..init_span.end as usize];
-        let rewrite = format!("{}({}, '{}')", tag_fn, init_text, name);
+        let rewrite = format!("{tag_fn}({init_text}, '{name}')");
         replacements.push((init_span.start, init_span.end, rewrite));
     }
 }
@@ -194,7 +193,7 @@ fn handle_variable_declaration<'a>(
 /// `Some(("$.tag_proxy", span))` for `$.proxy(...)`. Returns `None`
 /// for anything else (including already-tagged inits — `$.tag(...)`
 /// and `$.tag_proxy(...)` calls are *not* re-wrapped).
-fn classify_tag_target<'a>(init: &Expression<'a>) -> Option<(&'static str, oxc_span::Span)> {
+fn classify_tag_target(init: &Expression<'_>) -> Option<(&'static str, oxc_span::Span)> {
     let Expression::CallExpression(call) = init else {
         return None;
     };
@@ -211,7 +210,6 @@ fn classify_tag_target<'a>(init: &Expression<'a>) -> Option<(&'static str, oxc_s
     let tag_fn = match prop {
         // Already wrapped — skip so the fixed-point isn't necessary
         // and we don't double-tag in re-runs of the helper.
-        "tag" | "tag_proxy" => return None,
         "state" | "derived" => "$.tag",
         "proxy" => "$.tag_proxy",
         _ => return None,

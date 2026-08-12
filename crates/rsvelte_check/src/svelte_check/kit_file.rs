@@ -1,13 +1,13 @@
-//! SvelteKit kit-file augmentation. Mirrors
+//! `SvelteKit` kit-file augmentation. Mirrors
 //! `submodules/language-tools/packages/svelte2tsx/src/helpers/sveltekit.ts`.
 //!
 //! When tsgo / tsc walks a `.ts` or `.js` file that lives at a known
-//! SvelteKit path (`+page.ts`, `+layout.ts`, `+server.ts`, hooks,
+//! `SvelteKit` path (`+page.ts`, `+layout.ts`, `+server.ts`, hooks,
 //! params), we want it to type-check the file *as if* the framework's
 //! type stubs were written explicitly. The JS reference parses with
 //! TypeScript and emits an `AddedCode` list of pure text insertions;
 //! we do the same with oxc. `.ts` files get inline type annotations;
-//! `.js` files get the equivalent JSDoc tag.
+//! `.js` files get the equivalent `JSDoc` tag.
 
 use std::path::Path;
 
@@ -16,16 +16,16 @@ use oxc_ast::ast as oxc;
 use oxc_parser::Parser as OxcParser;
 use oxc_span::{GetSpan, SourceType};
 
-/// A single source-text insertion. `original_pos` is a byte offset into
-/// the original source; `inserted` is the literal text injected at that
-/// position. Multiple entries are stored sorted by `original_pos`.
+/// A single source-text insertion.
+///
+/// Entries are stored by their original byte offset.
 #[derive(Debug, Clone)]
 pub struct AddedCode {
     pub original_pos: u32,
     pub inserted: String,
 }
 
-/// SvelteKit file paths (typically read from `svelte.config.js`).
+/// `SvelteKit` file paths (typically read from `svelte.config.js`).
 #[derive(Debug, Clone)]
 pub struct KitFilesSettings {
     pub params_path: String,
@@ -57,17 +57,15 @@ impl Default for KitFilesSettings {
 /// statically parse it. Dynamic expressions (env vars, function calls,
 /// re-exports) are intentionally unsupported; users with those configs
 /// should rely on defaults.
+#[must_use]
 pub fn load_kit_files_settings(workspace: &Path) -> KitFilesSettings {
     load_kit_files_settings_with_config(workspace, None)
 }
 
-/// Like [`load_kit_files_settings`], but when `config` is `Some` the
-/// `kit.files` settings are read from that exact file instead of the
-/// discovered `svelte.config.*`. Mirrors the JS reference's `--config`.
-/// `kit.files` only ever lives in a Svelte config, so a config that is not
-/// one yields defaults — under any filename, which is why the test is
-/// `config::explicit_config_is_vite` negated: it reads the file's contents,
-/// so it answers "is this a Svelte config" for a name it has never seen.
+/// Loads kit file settings from an explicit Svelte configuration file.
+///
+/// Non-Svelte configurations yield defaults regardless of filename.
+#[must_use]
 pub fn load_kit_files_settings_with_config(
     workspace: &Path,
     config: Option<&Path>,
@@ -291,24 +289,22 @@ const KIT_PAGE_BASENAMES: &[&str] = &[
 ];
 
 /// True iff `path`'s basename (extension stripped) matches one of the
-/// SvelteKit route-file basenames.
+/// `SvelteKit` route-file basenames.
+#[must_use]
 pub fn is_kit_route_file(path: &Path) -> bool {
     let Some(name) = path.file_name().and_then(|s| s.to_str()) else {
         return false;
     };
     // `+page@foo.ts` → `+page` (the `@foo` is SvelteKit's named-layout suffix).
-    let stem = if let Some(at) = name.find('@') {
-        &name[..at]
-    } else {
-        match name.rfind('.') {
-            Some(i) => &name[..i],
-            None => name,
-        }
-    };
+    let stem = name.find('@').map_or_else(
+        || name.rfind('.').map_or(name, |index| &name[..index]),
+        |index| &name[..index],
+    );
     KIT_PAGE_BASENAMES.contains(&stem)
 }
 
-/// True iff `path` lives at any of the SvelteKit special paths.
+/// True iff `path` lives at any of the `SvelteKit` special paths.
+#[must_use]
 pub fn is_kit_file(path: &Path, settings: &KitFilesSettings) -> bool {
     if is_kit_route_file(path) {
         return true;
@@ -325,13 +321,11 @@ pub fn is_kit_file(path: &Path, settings: &KitFilesSettings) -> bool {
 fn is_hooks_file(path: &Path, hooks_path: &str) -> bool {
     let Some(s) = path.to_str() else { return false };
     let normalized = s.replace('\\', "/");
-    let without_ext = match path.extension() {
-        Some(_) => match normalized.rfind('.') {
-            Some(i) => &normalized[..i],
-            None => normalized.as_str(),
-        },
-        None => normalized.as_str(),
-    };
+    let without_ext = path.extension().map_or(normalized.as_str(), |_| {
+        normalized
+            .rfind('.')
+            .map_or(normalized.as_str(), |index| &normalized[..index])
+    });
     without_ext.ends_with(hooks_path) || without_ext.ends_with(&format!("{hooks_path}/index"))
 }
 
@@ -350,10 +344,10 @@ fn is_params_file(path: &Path, params_path: &str) -> bool {
     !basename.contains(".test") && !basename.contains(".spec")
 }
 
-/// Produce a list of text insertions for a kit file. Returns `None`
-/// when the file isn't a kit file, parsing failed, or there's nothing
-/// to inject. Caller is responsible for splicing the insertions into
-/// `source` to produce the overlay text.
+/// Produces text insertions for a kit file.
+///
+/// Returns `None` when no augmentation is needed.
+#[must_use]
 pub fn build_added_code(
     path: &Path,
     source: &str,
@@ -361,8 +355,8 @@ pub fn build_added_code(
 ) -> Option<Vec<AddedCode>> {
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
     let is_ts = ext == "ts";
-    let is_js = ext == "js";
-    if !is_ts && !is_js {
+    let is_javascript = ext == "js";
+    if !is_ts && !is_javascript {
         return None;
     }
     let allocator = Allocator::default();
@@ -439,6 +433,7 @@ const IGNORE_START_COMMENT: &str = "/*\u{3a9}ignore_start\u{3a9}*/";
 const IGNORE_END_COMMENT: &str = "/*\u{3a9}ignore_end\u{3a9}*/";
 
 /// Splice an `AddedCode` list into the original source.
+#[must_use]
 pub fn apply_added_code(source: &str, adds: &[AddedCode]) -> String {
     let mut out =
         String::with_capacity(source.len() + adds.iter().map(|a| a.inserted.len()).sum::<usize>());
@@ -468,8 +463,8 @@ fn unwrap_parens<'a>(expr: &'a oxc::Expression<'a>) -> &'a oxc::Expression<'a> {
     }
 }
 
-/// Parses every top-level JSDoc tag out of a `/** ... */` comment's raw span
-/// text as `(name, remainder)` pairs, mirroring how TypeScript's JSDoc scanner
+/// Parses every top-level `JSDoc` tag out of a `/** ... */` comment's raw span
+/// text as `(name, remainder)` pairs, mirroring how TypeScript's `JSDoc` scanner
 /// delimits tags: a tag starts at an `@` that follows whitespace or the
 /// comment's `*` line decoration and is followed by a maximal run of ASCII
 /// letters — that run is the name — and its remainder runs to the next such
@@ -587,7 +582,7 @@ fn jsdoc_param_target(rest: &str) -> Option<&str> {
     (end > 0).then(|| &rest[..end])
 }
 
-/// What a JSDoc `@param` tag must target to count as already typing a given
+/// What a `JSDoc` `@param` tag must target to count as already typing a given
 /// parameter, mirroring `ts.getJSDocParameterTags`: a simple identifier
 /// parameter needs a tag whose declared name matches it exactly; a
 /// destructuring pattern has no single name to match against, so
@@ -604,10 +599,7 @@ enum ParamTarget<'a> {
 
 impl<'a> ParamTarget<'a> {
     fn for_pattern(pattern: &'a oxc::BindingPattern<'a>) -> Self {
-        match binding_pattern_name(pattern) {
-            Some(name) => ParamTarget::Named(name),
-            None => ParamTarget::Anonymous,
-        }
+        binding_pattern_name(pattern).map_or(Self::Anonymous, Self::Named)
     }
 }
 
@@ -620,7 +612,7 @@ struct FileCtx<'a> {
 }
 
 impl<'a> FileCtx<'a> {
-    fn gate(&self, stmt_start: u32) -> JsDocGate<'a> {
+    const fn gate(&self, stmt_start: u32) -> JsDocGate<'a> {
         JsDocGate {
             source: self.source,
             comments: self.comments,
@@ -674,7 +666,7 @@ impl<'a> JsDocGate<'a> {
 
     /// Mirrors the JS-only half of `hasTypedParameter` in the JS reference:
     /// `!isTsFile && (getJSDocType(node) || getJSDocParameterTags(param).length)`.
-    /// TypeScript resolves a function-like export's JSDoc host by walking from
+    /// TypeScript resolves a function-like export's `JSDoc` host by walking from
     /// the function-like node up through its variable declaration to the
     /// enclosing statement, so both the function-like node's own leading
     /// position (`fn_like_start`, meaningful for a `const x = (...) => ...`
@@ -691,7 +683,7 @@ impl<'a> JsDocGate<'a> {
 
     /// Mirrors `findExports`'s `hasTypeDefinition` for a `var`-classified
     /// export: an explicit type annotation, an initializer already wrapped in
-    /// `satisfies`, or (JS-only) a `@type`/`@satisfies` JSDoc tag on the
+    /// `satisfies`, or (JS-only) a `@type`/`@satisfies` `JSDoc` tag on the
     /// statement.
     fn var_already_typed(
         &self,
@@ -717,7 +709,7 @@ struct FnLike<'a> {
     /// Where a return-type annotation goes: an arrow's `=>`
     /// (`equalsGreaterThanToken.getStart()`), the body's `{` otherwise.
     return_pos: Option<u32>,
-    /// `node.getStart()` — the anchor a JSDoc comment is prepended at.
+    /// `node.getStart()` — the anchor a `JSDoc` comment is prepended at.
     start: u32,
     is_async: bool,
     /// `x => …` has no parentheses to hang a parameter type off; annotating it
@@ -745,7 +737,7 @@ impl<'a> FnLike<'a> {
         }
     }
 
-    /// `start` is the JSDoc anchor: the exported statement for a declaration
+    /// `start` is the `JSDoc` anchor: the exported statement for a declaration
     /// (TypeScript ignores a tag sandwiched between `export` and `function`),
     /// the expression itself for a `const` initializer.
     fn function(f: &'a oxc::Function<'a>, start: u32) -> Self {
@@ -859,20 +851,20 @@ fn add_typed_function(
             };
             adds.push(AddedCode {
                 original_pos: pos,
-                inserted: match effective {
-                    Some(t) => format!(": {t} "),
-                    None => format!(": ReturnType<{ty}> "),
-                },
+                inserted: effective.map_or_else(
+                    || format!(": ReturnType<{ty}> "),
+                    |return_type| format!(": {return_type} "),
+                ),
             });
         }
     } else {
         // Official always writes the synthetic `arg0` and the non-async return
         // type here; a function-type parameter name doesn't affect
         // assignability, so the text is all that differs.
-        let jsdoc_type = match return_type {
-            Some(rt) => format!("(arg0: {ty}) => {rt}"),
-            None => ty.to_string(),
-        };
+        let jsdoc_type = return_type.map_or_else(
+            || ty.to_string(),
+            |return_type| format!("(arg0: {ty}) => {return_type}"),
+        );
         adds.push(AddedCode {
             original_pos: fn_like.start,
             inserted: format!("/** @type {{{jsdoc_type}}} */ "),
@@ -1046,10 +1038,10 @@ fn visit_route_statement(
             match id.name.as_str() {
                 "load" => add_load_param_type(&fn_like, load_type, &gate, adds),
                 "entries" if !basename.starts_with("+layout") => {
-                    add_entries_type(&fn_like, &gate, adds)
+                    add_entries_type(&fn_like, &gate, adds);
                 }
                 name if API_METHOD_NAMES.contains(&name) => {
-                    add_api_method_types(&fn_like, &gate, adds)
+                    add_api_method_types(&fn_like, &gate, adds);
                 }
                 _ => {}
             }
@@ -1170,9 +1162,12 @@ fn add_export_type(
 /// its parameter list and the start of its body. Official anchors the return
 /// type there (`equalsGreaterThanToken.getStart()`).
 fn find_arrow_token(source: &str, from: u32, to: u32) -> Option<u32> {
-    let (from, to) = (from as usize, to as usize);
+    let from = usize::try_from(from).ok()?;
+    let to = usize::try_from(to).ok()?;
     let slice = source.get(from..to.min(source.len()))?;
-    slice.find("=>").map(|i| (from + i) as u32)
+    slice
+        .find("=>")
+        .and_then(|index| u32::try_from(from + index).ok())
 }
 
 /// Wrap a variable's initializer with `/** @type {T} */ (init)` for JS.
@@ -1258,7 +1253,7 @@ mod tests {
         let source = "export const ssr = 'invalid';\n";
         let adds = build_added_code(&path, source, &KitFilesSettings::default())
             .expect("ssr should emit an insertion");
-        assert_eq!(adds.len(), 1, "{:?}", adds);
+        assert_eq!(adds.len(), 1, "{adds:?}");
         let augmented = apply_added_code(source, &adds);
         // The augmentation must surface as a boolean annotation; the
         // exact whitespace mirrors `addTypeToVariable` in the JS ref.
@@ -1688,7 +1683,7 @@ mod tests {
         let source = "/**\n * @param {{ url: URL }} event\n */\nexport async function load(event) {\n  return { url: event.url };\n}\n";
         let adds = build_added_code(&path, source, &KitFilesSettings::default());
         assert!(
-            adds.as_ref().is_none_or(|a| a.is_empty()),
+            adds.as_ref().is_none_or(std::vec::Vec::is_empty),
             "a `@param` tag with a brace-nested type must still be parsed to its real name: {adds:?}"
         );
     }
@@ -1699,7 +1694,7 @@ mod tests {
         let source = "/**\n * @param {Array<{ a: string }>} event\n */\nexport async function load(event) {\n  return { event };\n}\n";
         let adds = build_added_code(&path, source, &KitFilesSettings::default());
         assert!(
-            adds.as_ref().is_none_or(|a| a.is_empty()),
+            adds.as_ref().is_none_or(std::vec::Vec::is_empty),
             "a `@param` tag with a generic+brace-nested type must still be parsed to its real name: {adds:?}"
         );
     }
@@ -1710,7 +1705,7 @@ mod tests {
         let source = "/**\n * @param {number} event\n */\nexport async function load(event) {\n  return { event };\n}\n";
         let adds = build_added_code(&path, source, &KitFilesSettings::default());
         assert!(
-            adds.as_ref().is_none_or(|a| a.is_empty()),
+            adds.as_ref().is_none_or(std::vec::Vec::is_empty),
             "a plain (unbraced-body) `@param` type must still resolve to the right name: {adds:?}"
         );
     }
@@ -1782,7 +1777,7 @@ mod tests {
         let source = "/**\n * @satisfies {import('@sveltejs/kit').Handle}\n */\nexport const handle = async ({ event, resolve }) => {\n  return resolve(event);\n};\n";
         let adds = build_added_code(&path, source, &KitFilesSettings::default());
         assert!(
-            adds.as_ref().is_none_or(|a| a.is_empty()),
+            adds.as_ref().is_none_or(std::vec::Vec::is_empty),
             "an existing `@satisfies` JSDoc tag must suppress re-annotation: {adds:?}"
         );
     }
@@ -1795,7 +1790,7 @@ mod tests {
         let source = "/**\n * @satisfies {(param: string) => boolean}\n */\nexport const match = (param) => param.length > 0;\n";
         let adds = build_added_code(&path, source, &KitFilesSettings::default());
         assert!(
-            adds.as_ref().is_none_or(|a| a.is_empty()),
+            adds.as_ref().is_none_or(std::vec::Vec::is_empty),
             "an existing `@satisfies` JSDoc tag must suppress re-annotation: {adds:?}"
         );
     }
@@ -2118,7 +2113,7 @@ mod tests {
         let source = "/** @typedef {string} S @type {import('./$types.js').PageLoad} */\nexport function load(event) {\n  return {};\n}\n";
         let adds = build_added_code(&path, source, &KitFilesSettings::default());
         assert!(
-            adds.as_ref().is_none_or(|a| a.is_empty()),
+            adds.as_ref().is_none_or(std::vec::Vec::is_empty),
             "a `@type` sharing its line with `@typedef` must still suppress augmentation: {adds:?}"
         );
     }
@@ -2129,7 +2124,7 @@ mod tests {
         let source = "/** @typedef {string} S @param {import('./$types.js').PageLoadEvent} event */\nexport function load(event) {\n  return {};\n}\n";
         let adds = build_added_code(&path, source, &KitFilesSettings::default());
         assert!(
-            adds.as_ref().is_none_or(|a| a.is_empty()),
+            adds.as_ref().is_none_or(std::vec::Vec::is_empty),
             "a `@param` sharing its line with `@typedef` must still suppress augmentation: {adds:?}"
         );
     }
@@ -2142,7 +2137,7 @@ mod tests {
         let source = "/** @typedef {Record<string, string>} S @type {import('./$types.js').PageLoad} */\nexport function load(event) {\n  return {};\n}\n";
         let adds = build_added_code(&path, source, &KitFilesSettings::default());
         assert!(
-            adds.as_ref().is_none_or(|a| a.is_empty()),
+            adds.as_ref().is_none_or(std::vec::Vec::is_empty),
             "a brace-nested preceding tag type must not hide the `@type` after it: {adds:?}"
         );
     }
@@ -2153,7 +2148,7 @@ mod tests {
         let source = "/** @summary does things @type {import('./$types.js').PageLoad} */\nexport function load(event) {\n  return {};\n}\n";
         let adds = build_added_code(&path, source, &KitFilesSettings::default());
         assert!(
-            adds.as_ref().is_none_or(|a| a.is_empty()),
+            adds.as_ref().is_none_or(std::vec::Vec::is_empty),
             "a `@type` after another tag's prose must still suppress augmentation: {adds:?}"
         );
     }
@@ -2164,7 +2159,7 @@ mod tests {
         let source = "/**\n *@type {import('./$types.js').PageLoad}\n */\nexport function load(event) {\n  return {};\n}\n";
         let adds = build_added_code(&path, source, &KitFilesSettings::default());
         assert!(
-            adds.as_ref().is_none_or(|a| a.is_empty()),
+            adds.as_ref().is_none_or(std::vec::Vec::is_empty),
             "a tag glued to the line's `*` decoration is still a tag: {adds:?}"
         );
     }
@@ -2175,7 +2170,7 @@ mod tests {
         let source = "/** @typedef {string} S @satisfies {boolean} */\nexport const ssr = true;\n";
         let adds = build_added_code(&path, source, &KitFilesSettings::default());
         assert!(
-            adds.as_ref().is_none_or(|a| a.is_empty()),
+            adds.as_ref().is_none_or(std::vec::Vec::is_empty),
             "the var gate must see a `@satisfies` sharing its line with `@typedef`: {adds:?}"
         );
     }
@@ -2229,7 +2224,7 @@ mod tests {
         let source = "export const entries = (...args) => [];\n";
         let adds = build_added_code(&path, source, &KitFilesSettings::default());
         assert!(
-            adds.as_ref().is_none_or(|a| a.is_empty()),
+            adds.as_ref().is_none_or(std::vec::Vec::is_empty),
             "`entries` only gets typed with *no* parameters at all: {adds:?}"
         );
     }
@@ -2240,7 +2235,7 @@ mod tests {
         let source = "export function entries(...args) {\n  return [];\n}\n";
         let adds = build_added_code(&path, source, &KitFilesSettings::default());
         assert!(
-            adds.as_ref().is_none_or(|a| a.is_empty()),
+            adds.as_ref().is_none_or(std::vec::Vec::is_empty),
             "`entries` only gets typed with *no* parameters at all: {adds:?}"
         );
     }
@@ -2344,7 +2339,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp);
         write_config(
             &tmp,
-            r#"export default {
+            r"export default {
                 kit: {
                     files: {
                         params: 'src/custom-params',
@@ -2355,7 +2350,7 @@ mod tests {
                         }
                     }
                 }
-            }"#,
+            }",
         );
         let s = load_kit_files_settings(&tmp);
         assert_eq!(s.params_path, "src/custom-params");
@@ -2372,10 +2367,10 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp);
         write_config(
             &tmp,
-            r#"import { defineConfig } from '@sveltejs/kit/vite';
+            r"import { defineConfig } from '@sveltejs/kit/vite';
             export default defineConfig({
                 kit: { files: { params: 'lib/params' } }
-            });"#,
+            });",
         );
         let s = load_kit_files_settings(&tmp);
         assert_eq!(s.params_path, "lib/params");
@@ -2390,9 +2385,9 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp);
         write_config(
             &tmp,
-            r#"module.exports = {
+            r"module.exports = {
                 kit: { files: { hooks: { server: 'srv/hooks' } } }
-            };"#,
+            };",
         );
         let s = load_kit_files_settings(&tmp);
         assert_eq!(s.server_hooks_path, "srv/hooks");
@@ -2426,8 +2421,8 @@ mod tests {
         std::fs::write(
             tmp.join("vite.custom.config.js"),
             format!(
-                r#"import {{ svelte }} from '@sveltejs/vite-plugin-svelte';
-                export default {{ plugins: [svelte()], {KIT} }};"#
+                r"import {{ svelte }} from '@sveltejs/vite-plugin-svelte';
+                export default {{ plugins: [svelte()], {KIT} }};"
             ),
         )
         .unwrap();

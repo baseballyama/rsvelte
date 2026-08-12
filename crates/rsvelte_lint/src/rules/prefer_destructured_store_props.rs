@@ -1,3 +1,5 @@
+//! `svelte/prefer-destructured-store-props`.
+//!
 //! `svelte/prefer-destructured-store-props` — prefer destructuring a store's
 //! property (`$: ({ bar } = $foo)`) over reading `$foo.bar` directly in markup,
 //! for finer-grained change tracking. Port of the eslint-plugin-svelte rule.
@@ -44,6 +46,14 @@ static META: RuleMeta = RuleMeta {
     options_schema: None,
 };
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("source offsets are represented as u32")
+}
+
+fn json_offset(value: u64) -> Option<u32> {
+    u32::try_from(value).ok()
+}
+
 const SVELTE_RUNES: &[&str] = &[
     "$state",
     "$derived",
@@ -55,7 +65,7 @@ const SVELTE_RUNES: &[&str] = &[
 ];
 
 /// JavaScript global identifiers that are NOT reserved words but exist in the
-/// global scope (mirrors ESLint's `scopeManager.globalScope.set.has(name)`
+/// global scope (mirrors `ESLint`'s `scopeManager.globalScope.set.has(name)`
 /// for the names that commonly appear as store property names). Only
 /// identifiers that are NOT already reserved/restricted words are needed here,
 /// since those are handled by `is_reserved_or_restricted`.
@@ -196,10 +206,7 @@ fn compute_var_name(prop_name: &str, top_level: &HashSet<String>) -> String {
     // Strip a leading `$` (e.g. `$foo` → `foo`).
     let base = prop_name.strip_prefix('$').unwrap_or(prop_name).to_string();
 
-    let mut suffix = 0u32;
-    if is_reserved_or_restricted(&base) {
-        suffix = 1;
-    }
+    let mut suffix = u32::from(is_reserved_or_restricted(&base));
 
     loop {
         let candidate = if suffix == 0 {
@@ -287,7 +294,10 @@ fn collect_pattern_idents(id: Option<&Value>, out: &mut HashSet<String>) {
 /// - LHS bindings of top-level `$:` reactive assignment statements
 /// - JS globals (e.g. `undefined`, `NaN`, …)
 fn collect_top_level_names(script_content: &Value) -> HashSet<String> {
-    let mut out: HashSet<String> = JS_GLOBALS.iter().map(|s| s.to_string()).collect();
+    let mut out: HashSet<String> = JS_GLOBALS
+        .iter()
+        .map(std::string::ToString::to_string)
+        .collect();
 
     let Some(body) = script_content.get("body").and_then(Value::as_array) else {
         return out;
@@ -315,7 +325,7 @@ fn collect_top_level_names(script_content: &Value) -> HashSet<String> {
                     }
                 }
             }
-            Some("FunctionDeclaration") | Some("ClassDeclaration") => {
+            Some("FunctionDeclaration" | "ClassDeclaration") => {
                 if let Some(name) = stmt
                     .get("id")
                     .and_then(|i| i.get("name"))
@@ -334,9 +344,8 @@ fn collect_top_level_names(script_content: &Value) -> HashSet<String> {
                 {
                     continue;
                 }
-                let body = match stmt.get("body") {
-                    Some(b) => b,
-                    None => continue,
+                let Some(body) = stmt.get("body") else {
+                    continue;
                 };
                 if node_type(body) != Some("ExpressionStatement") {
                     continue;
@@ -388,9 +397,8 @@ fn find_reactive_variables(script_content: &Value, store: &str, prop_name: &str)
         {
             continue;
         }
-        let body_node = match stmt.get("body") {
-            Some(b) => b,
-            None => continue,
+        let Some(body_node) = stmt.get("body") else {
+            continue;
         };
         if node_type(body_node) != Some("ExpressionStatement") {
             continue;
@@ -516,7 +524,7 @@ fn find_close_script_tag(source: &str, script_end: u32) -> Option<u32> {
     let end = (script_end as usize).min(source.len());
     let slice = &source[..end];
     // rfind gives us the byte offset of '<' in '</script'.
-    slice.rfind("</script").map(|pos| pos as u32)
+    slice.rfind("</script").map(source_offset)
 }
 
 /// A pending report: node span, message text, store name, property name
@@ -598,14 +606,7 @@ impl Rule for PreferDestructuredStoreProps {
                 return;
             }
             // Property name: identifier name (non-computed) or collapsed source.
-            let (property_display, prop_name) = if !computed {
-                let name = node
-                    .get("property")
-                    .and_then(|p| p.get("name"))
-                    .and_then(Value::as_str)
-                    .map(str::to_string);
-                (name.clone(), name.unwrap_or_default())
-            } else {
+            let (property_display, prop_name) = if computed {
                 let display = match (
                     node.get("property")
                         .and_then(|p| p.get("start"))
@@ -614,10 +615,20 @@ impl Rule for PreferDestructuredStoreProps {
                         .and_then(|p| p.get("end"))
                         .and_then(Value::as_u64),
                 ) {
-                    (Some(s), Some(e)) => Some(collapse_ws(ctx.slice(s as u32, e as u32))),
+                    (Some(s), Some(e)) => match (json_offset(s), json_offset(e)) {
+                        (Some(s), Some(e)) => Some(collapse_ws(ctx.slice(s, e))),
+                        _ => None,
+                    },
                     _ => None,
                 };
                 (display, String::new())
+            } else {
+                let name = node
+                    .get("property")
+                    .and_then(|p| p.get("name"))
+                    .and_then(Value::as_str)
+                    .map(str::to_string);
+                (name.clone(), name.unwrap_or_default())
             };
             let Some(property_display) = property_display else {
                 return;
@@ -627,8 +638,8 @@ impl Rule for PreferDestructuredStoreProps {
                 node.get("end").and_then(Value::as_u64),
             ) {
                 reports.push(PendingReport {
-                    start: s as u32,
-                    end: e as u32,
+                    start: json_offset(s).expect("AST source offsets are represented as u32"),
+                    end: json_offset(e).expect("AST source offsets are represented as u32"),
                     message: format!(
                         "Destructure {property_display} from {store} for better change tracking & fewer redraws"
                     ),
@@ -639,86 +650,101 @@ impl Rule for PreferDestructuredStoreProps {
             }
         });
 
-        // Emit findings with suggestions.
-        for report in reports {
-            if report.computed {
-                // Computed accesses: no suggestions.
-                ctx.report_with_suggestions(report.start, report.end, report.message, vec![]);
-                continue;
-            }
+        emit_reports(
+            ctx,
+            reports,
+            script_content,
+            close_tag_offset,
+            &top_level_names,
+        );
+    }
+}
 
-            let mut suggestions: Vec<Suggestion> = Vec::new();
+fn emit_reports(
+    ctx: &mut LintContext,
+    reports: Vec<PendingReport>,
+    script_content: Option<&Value>,
+    close_tag_offset: Option<u32>,
+    top_level_names: &HashSet<String>,
+) {
+    for report in reports {
+        if report.computed {
+            // Computed accesses: no suggestions.
+            ctx.report_with_suggestions(report.start, report.end, report.message, vec![]);
+            continue;
+        }
 
-            // fixUseVariable: for each existing reactive variable that aliases
-            // $store.prop, offer to replace the access with that variable.
-            if let Some(content) = &script_content {
-                let mut seen = HashSet::new();
-                let vars = find_reactive_variables(content, &report.store, &report.prop_name);
-                for var_name in vars {
-                    if !seen.insert(var_name.clone()) {
-                        continue; // deduplicate (mirrors `new Set(...)`)
-                    }
-                    let desc = format!("Using the predefined reactive variable {var_name}");
-                    suggestions.push(Suggestion {
-                        desc: desc.clone(),
-                        fix: Fix {
-                            message: desc,
-                            edits: vec![TextEdit {
-                                start: report.start,
-                                end: report.end,
-                                new_text: var_name,
-                            }],
-                        },
-                    });
+        let mut suggestions: Vec<Suggestion> = Vec::new();
+
+        // fixUseVariable: for each existing reactive variable that aliases
+        // $store.prop, offer to replace the access with that variable.
+        if let Some(content) = script_content {
+            let mut seen = HashSet::new();
+            let vars = find_reactive_variables(content, &report.store, &report.prop_name);
+            for var_name in vars {
+                if !seen.insert(var_name.clone()) {
+                    continue; // deduplicate (mirrors `new Set(...)`)
                 }
-            }
-
-            // fixUseDestructuring: insert `$: ({ prop } = $store);\n` before
-            // </script> and replace the node with the new binding name.
-            // Condition: there must be a main <script> block (close_tag_offset is Some).
-            if let Some(insert_at) = close_tag_offset {
-                let prop_name = &report.prop_name;
-                let store = &report.store;
-
-                // Compute the binding variable name, avoiding reserved words and
-                // top-level collisions.
-                let var_name = compute_var_name(prop_name, &top_level_names);
-
-                // Build the destructuring statement text.
-                // If prop_name != var_name (alias needed), use `{ prop: var }`.
-                let destructure_text = if prop_name != &var_name {
-                    format!("$: ({{ {prop_name}: {var_name} }} = {store});\n")
-                } else {
-                    format!("$: ({{ {prop_name} }} = {store});\n")
-                };
-
-                let desc = format!(
-                    "Using destructuring like $: ({{ {prop_name} }} = {store}); will run faster"
-                );
+                let desc = format!("Using the predefined reactive variable {var_name}");
                 suggestions.push(Suggestion {
                     desc: desc.clone(),
                     fix: Fix {
                         message: desc,
-                        edits: vec![
-                            // Insert the new reactive statement before </script>.
-                            TextEdit {
-                                start: insert_at,
-                                end: insert_at,
-                                new_text: destructure_text,
-                            },
-                            // Replace the member expression with the new variable.
-                            TextEdit {
-                                start: report.start,
-                                end: report.end,
-                                new_text: var_name,
-                            },
-                        ],
+                        edits: vec![TextEdit {
+                            start: report.start,
+                            end: report.end,
+                            new_text: var_name,
+                        }],
                     },
                 });
             }
-
-            ctx.report_with_suggestions(report.start, report.end, report.message, suggestions);
         }
+
+        // fixUseDestructuring: insert `$: ({ prop } = $store);\n` before
+        // </script> and replace the node with the new binding name.
+        // Condition: there must be a main <script> block (close_tag_offset is Some).
+        if let Some(insert_at) = close_tag_offset {
+            let prop_name = &report.prop_name;
+            let store = &report.store;
+
+            // Compute the binding variable name, avoiding reserved words and
+            // top-level collisions.
+            let var_name = compute_var_name(prop_name, top_level_names);
+
+            // Build the destructuring statement text.
+            // If prop_name != var_name (alias needed), use `{ prop: var }`.
+            let destructure_text = if prop_name == &var_name {
+                format!("$: ({{ {prop_name} }} = {store});\n")
+            } else {
+                format!("$: ({{ {prop_name}: {var_name} }} = {store});\n")
+            };
+
+            let desc = format!(
+                "Using destructuring like $: ({{ {prop_name} }} = {store}); will run faster"
+            );
+            suggestions.push(Suggestion {
+                desc: desc.clone(),
+                fix: Fix {
+                    message: desc,
+                    edits: vec![
+                        // Insert the new reactive statement before </script>.
+                        TextEdit {
+                            start: insert_at,
+                            end: insert_at,
+                            new_text: destructure_text,
+                        },
+                        // Replace the member expression with the new variable.
+                        TextEdit {
+                            start: report.start,
+                            end: report.end,
+                            new_text: var_name,
+                        },
+                    ],
+                },
+            });
+        }
+
+        ctx.report_with_suggestions(report.start, report.end, report.message, suggestions);
     }
 }
 

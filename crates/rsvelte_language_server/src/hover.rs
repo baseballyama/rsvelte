@@ -29,6 +29,7 @@ const TAG_SPELLINGS: &[(SvelteTag, &[&str])] = &[
 
 const ELSE: &str = ":else";
 
+#[must_use]
 pub fn hover(text: &str, offset: usize) -> Option<Hover> {
     if EmbeddedRegions::new(text).contains(offset) {
         return None;
@@ -109,7 +110,7 @@ fn around_offset(haystack_start: usize, haystack: &str, needle: &str, offset: us
     start <= offset && start + needle.len() >= offset
 }
 
-fn markdown(value: String) -> Hover {
+const fn markdown(value: String) -> Hover {
     Hover {
         contents: HoverContents::Markup(MarkupContent {
             kind: MarkupKind::Markdown,

@@ -3,7 +3,7 @@
 
 use std::collections::{HashSet, VecDeque};
 
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 #[cfg(test)]
 use std::cell::Cell;
 
@@ -36,7 +36,7 @@ fn dependency_edges() -> usize {
 #[derive(Debug, Clone)]
 pub(super) struct HoistCandidate {
     pub(super) name: String,
-    /// Span relative to the script content (raw_content).
+    /// Span relative to the script content (`raw_content`).
     pub(super) rel_start: u32,
     pub(super) rel_end: u32,
 }
@@ -268,8 +268,12 @@ pub(super) fn is_ts_structural_keyword(ident: &str) -> bool {
 }
 
 #[inline]
-fn is_ascii_ident_byte(b: u8) -> bool {
+const fn is_ascii_ident_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
+}
+
+fn u32_index(value: usize) -> u32 {
+    u32::try_from(value).expect("projection indexes are represented as u32")
 }
 
 fn resolve_candidate_dependencies<'a, I>(
@@ -284,7 +288,7 @@ where
     for (candidate, dependencies) in type_dependencies.clone().enumerate() {
         for &dependency in dependencies {
             record_dependency_edge();
-            dependents[dependency as usize].push(candidate as u32);
+            dependents[dependency as usize].push(u32_index(candidate));
         }
     }
 
@@ -294,7 +298,7 @@ where
     for (candidate, &is_blocked) in initially_blocked.iter().enumerate() {
         if is_blocked {
             blocked_pass[candidate] = 0;
-            blocked_queue.push_back(candidate as u32);
+            blocked_queue.push_back(u32_index(candidate));
         }
     }
     // Initially disallowed names are visible for the entire first upstream scan.
@@ -327,13 +331,13 @@ where
     }
 
     let mut remaining_dependencies: Vec<u32> = type_dependencies
-        .map(|dependencies| dependencies.len() as u32)
+        .map(|dependencies| u32_index(dependencies.len()))
         .collect();
     let mut promotion_pass = vec![0u32; candidate_count];
     let mut ready = VecDeque::new();
     for candidate in 0..candidate_count {
         if blocked_pass[candidate] == u32::MAX && remaining_dependencies[candidate] == 0 {
-            ready.push_back(candidate as u32);
+            ready.push_back(u32_index(candidate));
         }
     }
 
@@ -368,7 +372,7 @@ where
     let last_executed_pass = if hoist_order.is_empty() {
         0
     } else {
-        max_pass as u32 + 1
+        u32_index(max_pass) + 1
     };
     for candidate in 0..candidate_count {
         blocked[candidate] = blocked_pass[candidate] <= last_executed_pass;
@@ -402,68 +406,25 @@ pub(super) fn resolve_hoistable_type_decls(
         return;
     }
     let mut candidate_indices: FxHashMap<&str, u32> =
-        FxHashMap::with_capacity_and_hasher(candidates.len(), Default::default());
+        FxHashMap::with_capacity_and_hasher(candidates.len(), FxBuildHasher::default());
     for (index, candidate) in candidates.iter().enumerate() {
         candidate_indices
             .entry(candidate.name.as_str())
-            .or_insert(index as u32);
+            .or_insert(u32_index(index));
     }
     // Per-candidate: collect generic parameter names (so `interface Props<T>`
     // doesn't see `T` as a dependency).
     let generics: Vec<FxHashSet<&str>> = candidates
         .iter()
-        .map(|c| {
-            let mut g = FxHashSet::default();
-            // Look at the text between `name` and the first `{` / `=`. If a
-            // `<...>` block exists in that range, parse comma-separated entries
-            // and take their leading identifier.
-            let s = c.rel_start as usize;
-            let e = c.rel_end as usize;
-            if s >= raw_content.len() || e > raw_content.len() {
-                return g;
-            }
-            let header_end = raw_content[s..e]
-                .find(['{', '='])
-                .map(|p| s + p)
-                .unwrap_or(e);
-            let header = &raw_content[s..header_end];
-            let generic_start = header.find(&c.name).map(|name_start| {
-                let mut position = name_start + c.name.len();
-                while position < header.len() && header.as_bytes()[position].is_ascii_whitespace() {
-                    position += 1;
-                }
-                position
-            });
-            if let (Some(lt), Some(gt)) = (generic_start, header.rfind('>'))
-                && lt < gt
-                && header.as_bytes()[lt] == b'<'
-            {
-                let inner = &header[lt + 1..gt];
-                for part in inner.split(',') {
-                    let trimmed = part.trim();
-                    let name = trimmed
-                        .split(|ch: char| !is_ascii_ident_char(ch))
-                        .find(|s| !s.is_empty())
-                        .unwrap_or("");
-                    if !name.is_empty() {
-                        g.insert(name);
-                    }
-                }
-                // type_deps are limited to candidate_indices by
-                // `collect_type_body_deps`, so anything else simply doesn't
-                // appear here.
-            }
-            g
-        })
+        .map(|c| candidate_generic_names(c, raw_content))
         .collect();
-
     // Pre-compute deps for each candidate.
     let deps: Vec<(FxHashSet<&str>, FxHashSet<u32>, bool)> = candidates
         .iter()
         .enumerate()
         .map(|(i, c)| {
             let s = c.rel_start as usize;
-            let e = c.rel_end.min(raw_content.len() as u32) as usize;
+            let e = c.rel_end.min(u32_index(raw_content.len())) as usize;
             let body = if s < e { &raw_content[s..e] } else { "" };
             collect_type_body_deps(
                 body,
@@ -477,61 +438,7 @@ pub(super) fn resolve_hoistable_type_decls(
         })
         .collect();
 
-    // Initial blocked: candidates whose name shadows a module-script
-    // declaration of any kind.
-    let mut blocked = vec![false; candidates.len()];
-    for (i, c) in candidates.iter().enumerate() {
-        if exported_names.module_value_names.contains(&c.name)
-            || exported_names.module_import_names.contains(&c.name)
-            || exported_names.module_type_names.contains(&c.name)
-        {
-            blocked[i] = true;
-        }
-    }
-
-    // Initial blocked: candidates that reference any `<script generics="...">`
-    // parameter name. Hoisting them out of `function $$render<T>(){...}` would
-    // put them at module scope where `T` no longer exists.
-    if !script_generic_names.is_empty() {
-        for (i, (_, _, references_script_generic)) in deps.iter().enumerate() {
-            if !blocked[i] && *references_script_generic {
-                blocked[i] = true;
-            }
-        }
-    }
-    // Initial blocked: candidates with a value_dep that isn't allowed.
-    // "Allowed" = NOT in instance_value_names except imports, OR in any
-    // module-script set (module-script bindings are stable references).
-    for (i, (value_deps, _, _)) in deps.iter().enumerate() {
-        if blocked[i] {
-            continue;
-        }
-        for v in value_deps {
-            // Resolve `$name` references back to their underlying `name`,
-            // so the analysis treats `typeof $store` the same way as
-            // `addDisallowed(getAccessedStores())` in the JS reference.
-            let resolved: &str = if let Some(stripped) = v.strip_prefix('$') {
-                if !stripped.is_empty() && !stripped.starts_with('$') {
-                    stripped
-                } else {
-                    v
-                }
-            } else {
-                v
-            };
-            let in_instance_value = exported_names.instance_value_names.contains(resolved);
-            let in_instance_import = exported_names.instance_import_names.contains(resolved);
-            let in_module = exported_names.module_value_names.contains(resolved)
-                || exported_names.module_import_names.contains(resolved);
-            // The JS reference: `disallowed_values` = instance script values
-            // EXCEPT imports. So a value_dep blocks iff it's an instance
-            // value AND NOT an import (and NOT a module-script binding).
-            if in_instance_value && !in_instance_import && !in_module {
-                blocked[i] = true;
-                break;
-            }
-        }
-    }
+    let mut blocked = initial_blocked_candidates(candidates, &deps, exported_names);
 
     // Record the order in which candidates are promoted to hoistable. The JS
     // reference (`HoistableInterfaces.determineHoistableInterfaces`) inserts
@@ -556,15 +463,7 @@ pub(super) fn resolve_hoistable_type_decls(
         // `Props`; it's hoistable iff that candidate was promoted.
         candidate_indices
             .get(named)
-            .map(|&idx| hoistable[idx as usize])
-            // A bare `: Props` reference whose `Props` is NOT a local interface
-            // (an imported / global type) never sets `props_interface.name` in
-            // upstream `analyze$propsRune` (its `interface_map.get(name)` misses),
-            // so `moveHoistableInterfaces` hits its early `return` and hoists
-            // NOTHING — every type/interface stays inside `function $$render()`.
-            // Gate false to match (`$$Generic`-referenced types are still moved
-            // unconditionally by `hoist_dollar_generic_referenced_types`).
-            .unwrap_or(false)
+            .is_some_and(|&idx| hoistable[idx as usize])
     } else if let Some(inline) = props_inline_type {
         // Synthetic `$$ComponentProps` built from the inline annotation. It's
         // hoistable iff every type dependency is a hoistable candidate (or an
@@ -631,15 +530,82 @@ pub(super) fn resolve_hoistable_type_decls(
         let start = walk_back_through_trivia(raw_bytes, c.rel_start as usize);
         exported_names
             .hoistable_type_ranges
-            .push((start as u32 + offset, c.rel_end + offset));
+            .push((u32_index(start) + offset, c.rel_end + offset));
         exported_names
             .hoistable_instance_type_names
             .insert(c.name.clone());
     }
 }
 
+fn initial_blocked_candidates(
+    candidates: &[HoistCandidate],
+    deps: &[(FxHashSet<&str>, FxHashSet<u32>, bool)],
+    names: &ExportedNames,
+) -> Vec<bool> {
+    candidates
+        .iter()
+        .enumerate()
+        .map(|(index, candidate)| {
+            let module_shadow = names.module_value_names.contains(&candidate.name)
+                || names.module_import_names.contains(&candidate.name)
+                || names.module_type_names.contains(&candidate.name);
+            let (value_deps, _, generic) = &deps[index];
+            module_shadow
+                || *generic
+                || value_deps
+                    .iter()
+                    .any(|dependency| is_disallowed_hoist_value(dependency, names))
+        })
+        .collect()
+}
+
+fn is_disallowed_hoist_value(value: &str, names: &ExportedNames) -> bool {
+    let resolved = value
+        .strip_prefix('$')
+        .filter(|name| !name.is_empty() && !name.starts_with('$'))
+        .unwrap_or(value);
+    names.instance_value_names.contains(resolved)
+        && !names.instance_import_names.contains(resolved)
+        && !names.module_value_names.contains(resolved)
+        && !names.module_import_names.contains(resolved)
+}
+
+fn candidate_generic_names<'a>(
+    candidate: &'a HoistCandidate,
+    source: &'a str,
+) -> FxHashSet<&'a str> {
+    let mut names = FxHashSet::default();
+    let start = candidate.rel_start as usize;
+    let end = candidate.rel_end as usize;
+    if start >= source.len() || end > source.len() {
+        return names;
+    }
+    let header_end = source[start..end]
+        .find(['{', '='])
+        .map_or(end, |offset| start + offset);
+    let header = &source[start..header_end];
+    let position = header
+        .find(&candidate.name)
+        .map(|offset| offset + candidate.name.len());
+    if let Some(position) = position
+        && let Some(end) = header.rfind('>')
+        && position < end
+    {
+        for part in header[position + 1..end].split(',') {
+            if let Some(name) = part
+                .trim()
+                .split(|character: char| !is_ascii_ident_char(character))
+                .find(|name| !name.is_empty())
+            {
+                names.insert(name);
+            }
+        }
+    }
+    names
+}
+
 #[inline]
-pub(super) fn is_ascii_ident_char(ch: char) -> bool {
+pub(super) const fn is_ascii_ident_char(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || ch == '_' || ch == '$'
 }
 
@@ -706,12 +672,12 @@ pub(super) fn walk_back_through_trivia(bytes: &[u8], from: usize) -> usize {
         // Try to absorb a preceding block comment `/* … */` or `/** … */`.
         if p >= 2 && bytes[p - 2] == b'*' && bytes[p - 1] == b'/' {
             // Find the matching `/*` to the left.
-            let mut q = p as isize - 3;
-            while q >= 1 && !(bytes[q as usize - 1] == b'/' && bytes[q as usize] == b'*') {
+            let mut q = p.saturating_sub(3);
+            while q >= 1 && !(bytes[q - 1] == b'/' && bytes[q] == b'*') {
                 q -= 1;
             }
             if q >= 1 {
-                p = (q - 1) as usize;
+                p = q - 1;
                 continue;
             }
         }
@@ -797,7 +763,13 @@ pub(super) fn rewrite_interface_to_type_dts(
     }
 
     let extends = &iface.extends;
-    if !extends.is_empty() {
+    if extends.is_empty() {
+        // No extends: insert `=` immediately before the body's `{`.
+        let body_start = iface.body.span.start;
+        if (body_start as usize) <= raw_content.len() {
+            str.append_left(body_start + offset, "=");
+        }
+    } else {
         {
             // 2. `extends` -> `=`. The `extends` token sits between `iface.id`
             //    (or its type-parameter list) and the first heritage entry.
@@ -824,8 +796,8 @@ pub(super) fn rewrite_interface_to_type_dts(
                 let prev_kw = &raw_content[extends_end - 7..extends_end];
                 if prev_kw == "extends" {
                     str.overwrite(
-                        (extends_end - 7) as u32 + offset,
-                        extends_end as u32 + offset,
+                        u32_index(extends_end - 7) + offset,
+                        u32_index(extends_end) + offset,
                         "=",
                     );
                 }
@@ -838,7 +810,7 @@ pub(super) fn rewrite_interface_to_type_dts(
                 if entry_start > prev_end {
                     let between = &raw_content[prev_end as usize..entry_start as usize];
                     if let Some(comma_off) = between.find(',') {
-                        let comma_abs = prev_end + comma_off as u32;
+                        let comma_abs = prev_end + u32_index(comma_off);
                         str.overwrite(comma_abs + offset, comma_abs + 1 + offset, " &");
                     }
                 }
@@ -849,15 +821,9 @@ pub(super) fn rewrite_interface_to_type_dts(
             let last_extends_end = extends.last().unwrap().span.end;
             let after = &raw_content[last_extends_end as usize..];
             if let Some(brace_off) = after.find('{') {
-                let brace_abs = last_extends_end + brace_off as u32;
+                let brace_abs = last_extends_end + u32_index(brace_off);
                 str.append_left(brace_abs + offset, " & ");
             }
-        }
-    } else {
-        // No extends: insert `=` immediately before the body's `{`.
-        let body_start = iface.body.span.start;
-        if (body_start as usize) <= raw_content.len() {
-            str.append_left(body_start + offset, "=");
         }
     }
 }

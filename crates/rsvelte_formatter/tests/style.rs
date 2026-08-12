@@ -144,7 +144,7 @@ fn no_style_block_at_all() {
 
 #[test]
 fn style_alongside_script_both_format() {
-    let cb: StyleFormatter = Arc::new(|body, _lang, _width| Ok(format!("FORMATTED_CSS:{}", body)));
+    let cb: StyleFormatter = Arc::new(|body, _lang, _width| Ok(format!("FORMATTED_CSS:{body}")));
     let opts = FormatOptions {
         style_formatter: Some(cb),
         ..FormatOptions::default()

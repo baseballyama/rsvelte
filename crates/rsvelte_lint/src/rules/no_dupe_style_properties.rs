@@ -1,6 +1,8 @@
 //! `svelte/no-dupe-style-properties` — flag a CSS property that is declared
 //! more than once on the same element, across both the static `style="…"`
-//! attribute and `style:` directives. Port of the eslint-plugin-svelte rule.
+//! attribute and `style:` directives.
+//!
+//! Port of the eslint-plugin-svelte rule.
 //!
 //! The static value is parsed by splitting on `;` and reading the name before
 //! each `:`; interpolation segments (`{expr}`) are handled by extracting CSS
@@ -74,11 +76,15 @@ impl Rule for NoDupeStyleProperties {
                     }
                 }
                 Attribute::StyleDirective(d) => {
-                    let name_start = d.start + "style:".len() as u32;
+                    let name_start = d.start
+                        + u32::try_from("style:".len())
+                            .expect("directive prefix widths are represented as u32");
                     sets.push(vec![(
                         d.name.to_string(),
                         name_start,
-                        name_start + d.name.len() as u32,
+                        name_start
+                            + u32::try_from(d.name.len())
+                                .expect("property-name widths are represented as u32"),
                     )]);
                 }
                 _ => {}

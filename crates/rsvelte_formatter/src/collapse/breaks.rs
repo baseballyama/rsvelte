@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    FormatOptions, Fragment, TemplateNode, VisualWidth, child_fragments, current_column,
+    indent_config, is_block_display, is_whitespace_preserving, node_end, node_start, tab_width,
+};
 
 /// Recursively visit every expression mustache and member-chain-break any that
 /// sits on an overflowing line (see [`try_break_inline_content_tag`]).
@@ -150,7 +153,7 @@ pub(super) fn try_break_inline_content_tag(
     {
         return None;
     }
-    let _start_col = current_column(out, es as u32, tw);
+    let _start_col = current_column(out, crate::source_offset(es), tw);
     // Continuation lands at the line's own indent + one level.
     let indent = &out[line_start..es];
     let lead_ws: String = indent.chars().take_while(|c| c.is_whitespace()).collect();
@@ -175,7 +178,7 @@ pub(super) fn try_break_inline_content_tag(
         return None; // didn't break — leave it
     }
     let broken = format!("{{{wrapped}}}");
-    (broken != span).then_some((es as u32, ee as u32, broken))
+    (broken != span).then_some((crate::source_offset(es), crate::source_offset(ee), broken))
 }
 
 /// Break a BLOCK element whose only child is a single content tag (`{expr}` /
@@ -424,7 +427,7 @@ pub(super) fn try_break_block_overflow(
 
 /// Break a block-display element whose content is multi-line but the content
 /// is still "glued" to the open and/or close tag (i.e., no newline immediately
-/// after `>` or before `</tag>`). This happens when an ExpressionTag or child
+/// after `>` or before `</tag>`). This happens when an `ExpressionTag` or child
 /// element had its content reformatted to span multiple lines AFTER the indent
 /// pass already ran — so the element's outer `>content</tag>` boundary was
 /// never re-laid out.

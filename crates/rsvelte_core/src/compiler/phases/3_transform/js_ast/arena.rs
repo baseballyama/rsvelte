@@ -107,6 +107,7 @@ unsafe impl Send for JsArena {}
 
 impl JsArena {
     /// Create an empty arena. The first node allocates one fixed-size chunk.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             exprs: UnsafeCell::new(NodeStore::new()),
@@ -119,12 +120,19 @@ impl JsArena {
     /// Allocate an expression in the arena and return its handle.
     ///
     /// Takes `&self` (not `&mut self`) to allow nested builder calls.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the expression arena index exceeds `u32`.
     #[inline(always)]
     pub fn alloc_expr(&self, expr: JsExpr) -> ExprId {
         // SAFETY: single-threaded append into stable chunks.
         unsafe {
             let store = &mut *self.exprs.get();
-            ExprId(store.push(expr) as u32)
+            ExprId(
+                u32::try_from(store.push(expr))
+                    .expect("expression arena indices are limited to u32"),
+            )
         }
     }
 
@@ -164,12 +172,19 @@ impl JsArena {
     /// Allocate a statement in the arena and return its handle.
     ///
     /// Takes `&self` (not `&mut self`) to allow nested builder calls.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the statement arena index exceeds `u32`.
     #[inline(always)]
     pub fn alloc_stmt(&self, stmt: JsStatement) -> StmtId {
         // SAFETY: same as alloc_expr
         unsafe {
             let store = &mut *self.stmts.get();
-            StmtId(store.push(stmt) as u32)
+            StmtId(
+                u32::try_from(store.push(stmt))
+                    .expect("statement arena indices are limited to u32"),
+            )
         }
     }
 

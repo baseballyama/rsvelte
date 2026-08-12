@@ -6,7 +6,7 @@ use super::super::svelte2tsx::slice_src;
 use super::super::utils::lexical::contains_word;
 
 /// Find the start of `</script>` tag by scanning backwards from the script end position.
-pub(crate) fn find_script_close_tag_start(source: &str, script_end: u32) -> u32 {
+pub fn find_script_close_tag_start(source: &str, script_end: u32) -> u32 {
     let bytes = source.as_bytes();
     let end = script_end as usize;
     let needle = b"</script>";
@@ -25,7 +25,7 @@ pub(crate) fn find_script_close_tag_start(source: &str, script_end: u32) -> u32 
                 .zip(needle.iter())
                 .all(|(a, b)| a.to_ascii_lowercase() == *b)
         {
-            return i as u32;
+            return u32::try_from(i).expect("script offset fits in u32");
         }
     }
 
@@ -35,7 +35,7 @@ pub(crate) fn find_script_close_tag_start(source: &str, script_end: u32) -> u32 
 /// A leading comment that travels with its import when the import is hoisted.
 /// Positions are relative to the script content.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct LiftedComment {
+pub struct LiftedComment {
     pub(crate) start: u32,
     pub(crate) end: u32,
     /// `/* … */` rather than `// …` — upstream `handleFirstInstanceImport`
@@ -49,7 +49,7 @@ pub(crate) struct LiftedComment {
 /// the leading comments `moveNode` relocates alongside it. All positions are
 /// relative to the script content (i.e. `Script::content_offset`).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct LiftedImport {
+pub struct LiftedImport {
     pub(crate) comments: Vec<LiftedComment>,
     pub(crate) start: u32,
     pub(crate) end: u32,
@@ -60,7 +60,7 @@ pub(crate) struct LiftedImport {
 
 /// Find top-level import declarations in an instance script, each with the
 /// leading comment ranges the JS reference's `moveNode` hoists alongside it.
-pub(crate) fn find_instance_imports(
+pub fn find_instance_imports(
     script: &crate::ast::template::Script,
     source: &str,
     program: &oxc_ast::ast::Program,
@@ -82,13 +82,13 @@ pub(crate) fn find_instance_imports(
     }
 
     let mut collector = InstanceImportCollector::new(raw_content, &program.comments);
-    for stmt in program.body.iter() {
+    for stmt in &program.body {
         collector.push_statement(stmt);
     }
     collector.finish()
 }
 
-pub(crate) struct InstanceImportCollector<'a> {
+pub struct InstanceImportCollector<'a> {
     bytes: &'a [u8],
     comments: &'a [oxc_ast::ast::Comment],
     comment_cursor: usize,
@@ -96,7 +96,7 @@ pub(crate) struct InstanceImportCollector<'a> {
 }
 
 impl<'a> InstanceImportCollector<'a> {
-    pub(crate) fn new(content: &'a str, comments: &'a [oxc_ast::ast::Comment]) -> Self {
+    pub(crate) const fn new(content: &'a str, comments: &'a [oxc_ast::ast::Comment]) -> Self {
         Self {
             bytes: content.as_bytes(),
             comments,
@@ -209,7 +209,7 @@ fn scan_back_leading_comments(
     comments: &[oxc_ast::ast::Comment],
     comment_cursor: usize,
 ) -> (usize, usize) {
-    let mut cstart = pos as u32;
+    let mut cstart = u32::try_from(pos).expect("script offset fits in u32");
     let mut comment_index = comment_cursor;
     let mut first_comment = comment_cursor;
     let trivia_start = loop {
@@ -239,8 +239,8 @@ fn scan_back_leading_comments(
 
 /// Detect whether a script content contains top-level `await` expressions.
 ///
-/// Checks the retained OXC program for AwaitExpression at the top level.
-pub(crate) fn detect_top_level_await(content: &str, program: &oxc_ast::ast::Program) -> bool {
+/// Checks the retained OXC program for `AwaitExpression` at the top level.
+pub fn detect_top_level_await(content: &str, program: &oxc_ast::ast::Program) -> bool {
     use oxc_ast::ast as oxc;
 
     // Fast path: an `await` substring is required for any top-level await
@@ -266,10 +266,10 @@ pub(crate) fn detect_top_level_await(content: &str, program: &oxc_ast::ast::Prog
     // For both, we use a deep recursive scan that stops at function
     // boundaries (`FunctionExpression` / `ArrowFunctionExpression`) — those
     // introduce a new scope and their inner `await` is NOT top-level.
-    for stmt in program.body.iter() {
+    for stmt in &program.body {
         match stmt {
             oxc::Statement::VariableDeclaration(decl) => {
-                for declarator in decl.declarations.iter() {
+                for declarator in &decl.declarations {
                     if let Some(ref init) = declarator.init
                         && expr_contains_await_deep(init)
                     {
@@ -299,7 +299,7 @@ pub(crate) fn detect_top_level_await(content: &str, program: &oxc_ast::ast::Prog
 /// Reference: `processInstanceScriptContent.ts` lines 246-349
 ///   `if (ts.isBlock(node) || ts.isFunctionLike(node)) pushScope();`
 ///   `if (isSvelte5Plus && ts.isAwaitExpression(node) && scope === rootScope)`
-pub(crate) fn expr_contains_await_deep(expr: &oxc_ast::ast::Expression) -> bool {
+pub fn expr_contains_await_deep(expr: &oxc_ast::ast::Expression) -> bool {
     use oxc_ast::ast::{Argument, Expression as E};
 
     match expr {
@@ -308,8 +308,6 @@ pub(crate) fn expr_contains_await_deep(expr: &oxc_ast::ast::Expression) -> bool 
 
         // Function boundaries: do NOT recurse — their inner awaits are in a
         // new scope and are not "top-level" from the component's perspective.
-        E::ArrowFunctionExpression(_) | E::FunctionExpression(_) => false,
-
         // Parenthesised expression: transparent wrapper.
         E::ParenthesizedExpression(p) => expr_contains_await_deep(&p.expression),
 

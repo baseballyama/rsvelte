@@ -24,6 +24,10 @@ use rsvelte_esrap::{PrintOptions, print_split};
 /// resolves to (`None` = unmapped).
 type LocMapEntry = (u32, u32, Option<u32>);
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("test source exceeds the u32 AST coordinate range")
+}
+
 /// Builds a reassembled program the way the client converter does.
 struct Assembler<'a> {
     ab: AstBuilder<'a>,
@@ -61,7 +65,7 @@ impl<'a> Assembler<'a> {
     fn push_synthesized(&mut self, text: &str) {
         let owned = self.ab.allocator().alloc_str(text);
         assert!(
-            (owned.len() as u32) < self.loc_base,
+            source_offset(owned.len()) < self.loc_base,
             "test chunk must stay below loc_base"
         );
         let program = self.parse(owned);
@@ -75,7 +79,7 @@ impl<'a> Assembler<'a> {
     /// A comment-bearing chunk: re-parsed from `pad + text` so its spans, and
     /// its comments', land at the chunk's own region of the unified buffer.
     fn push_chunk(&mut self, text: &str, maps_to: Option<u32>) {
-        let base = self.source.len() as u32;
+        let base = source_offset(self.source.len());
         let mut padded = " ".repeat(base as usize - 1);
         padded.push('\n');
         padded.push_str(text);
@@ -87,15 +91,16 @@ impl<'a> Assembler<'a> {
         );
         self.source.push_str(text);
         self.source.push('\n');
-        self.comments.extend(program.comments.iter().cloned());
-        self.loc_map.push((base, base + text.len() as u32, maps_to));
+        self.comments.extend(program.comments.iter().copied());
+        self.loc_map
+            .push((base, base + source_offset(text.len()), maps_to));
         self.body.extend(program.body);
     }
 
     fn finish(self) -> Assembled<'a> {
         // The program spans the whole consumed region, so it brackets the
         // leading and trailing comments of the chunks it holds.
-        let span = Span::new(self.loc_base, self.source.len() as u32);
+        let span = Span::new(self.loc_base, source_offset(self.source.len()));
         let comments = ArenaVec::from_iter_in(self.comments, &self.ab);
         let body = ArenaVec::from_iter_in(self.body, &self.ab);
         let program = Program::new(
@@ -231,7 +236,7 @@ fn loc_map_resolves_chunk_positions_back_into_the_source() {
     // Map the chunk's whole region onto the `const count` line of a stand-in
     // original source; every keyword anchor inside the chunk must resolve there.
     let map_source = "<script>\n\tlet count = 0;\n</script>\n";
-    let anchor = map_source.find("let count").unwrap() as u32;
+    let anchor = source_offset(map_source.find("let count").expect("anchor in map source"));
 
     let allocator = Allocator::default();
     let mut a = Assembler::new(&allocator, 512);

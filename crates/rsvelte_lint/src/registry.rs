@@ -1,4 +1,4 @@
-//! The built-in native rule set.
+//! Built-in native rule set.
 //!
 //! Wave 1 ships a seed of pure-syntactic rules to exercise the engine; the bulk
 //! of day-one coverage comes from the validator wrap
@@ -31,6 +31,7 @@ use crate::rules::{
 /// universe from it, so a rule added to either registry is automatically
 /// surfaced everywhere (and subjected to upstream-fixture parity).
 #[cfg(feature = "native")]
+#[must_use]
 pub fn registered_rule_metas() -> Vec<&'static RuleMeta> {
     // Deduplicate by name: a rule registered in both `all_rules()` and
     // `all_script_rules()` (e.g. `prefer-const`, `no-top-level-browser-globals`,
@@ -50,7 +51,7 @@ pub fn registered_rule_metas() -> Vec<&'static RuleMeta> {
             .chain(all_script_rules().iter().map(|r| r.meta()))
             .chain(meta_rule_metas())
         {
-            let ptr = m as *const RuleMeta;
+            let ptr = std::ptr::from_ref::<RuleMeta>(m);
             if let Some(&prev) = by_name.get(m.name) {
                 debug_assert!(
                     std::ptr::eq(prev, ptr),
@@ -74,6 +75,8 @@ pub fn registered_rule_metas() -> Vec<&'static RuleMeta> {
         .collect()
 }
 
+/// Return metadata for meta-rules.
+///
 /// Metas for *meta-rules* — rules that operate on the aggregated diagnostic set
 /// after the walk rather than via a per-node [`Rule`] hook (so they live outside
 /// [`all_rules`] / [`all_script_rules`]). Currently just `comment-directive`,
@@ -95,6 +98,7 @@ pub fn meta_rule_metas() -> impl Iterator<Item = &'static RuleMeta> {
 }
 
 /// Construct the full set of native rules.
+#[must_use]
 pub fn all_rules() -> Vec<Box<dyn Rule>> {
     vec![
         Box::new(NoAtHtmlTags),
@@ -170,7 +174,8 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
 }
 
 /// Construct the full set of script-AST rules (rules that walk the `<script>`
-/// ESTree program rather than the template tree).
+/// `ESTree` program rather than the template tree).
+#[must_use]
 pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
     use crate::rules::no_add_event_listener::NoAddEventListener;
     use crate::rules::no_dom_manipulating::NoDomManipulating;

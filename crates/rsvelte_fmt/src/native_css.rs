@@ -8,7 +8,7 @@ use rsvelte_formatter::{CssFormatOptions, css_variant_from_lang, format_css_sour
 
 use crate::config::OxfmtConfig;
 use crate::output::write_atomic;
-use crate::oxfmt::run_oxfmt;
+use crate::oxfmt::{OxfmtRunOptions, run_oxfmt};
 use crate::paths::LINE_WIDTH_MAX;
 use crate::status::{Mode, NativeOutcome, PipelineStatus};
 
@@ -18,7 +18,7 @@ use crate::status::{Mode, NativeOutcome, PipelineStatus};
 /// native-JSON resolver, a file matched by any `.oxfmtrc` override — or any file
 /// when the base `printWidth` exceeds `oxc_formatter_core`'s max (320) — is
 /// delegated to `oxfmt` rather than risk a mismatch.
-pub(crate) struct CssOptionsResolver {
+pub struct CssOptionsResolver {
     base: CssFormatOptions,
     /// Base `printWidth` exceeds the native max (320) — can't represent natively.
     over_width: bool,
@@ -35,8 +35,7 @@ impl CssOptionsResolver {
     ) -> Self {
         let dir = cfg
             .config_dir()
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|| cwd.to_path_buf());
+            .map_or_else(|| cwd.to_path_buf(), Path::to_path_buf);
         let overrides = cfg
             .overrides
             .iter()
@@ -75,7 +74,7 @@ impl CssOptionsResolver {
 /// engine `oxfmt` uses, so byte-identical), in parallel. Files an override
 /// touches and parse errors fall back to a single `oxfmt` invocation so coverage
 /// matches delegation.
-pub(crate) fn run_native_css(
+pub fn run_native_css(
     files: &[PathBuf],
     resolver: &CssOptionsResolver,
     cwd: &Path,
@@ -150,7 +149,15 @@ pub(crate) fn run_native_css(
     // oxfmt fallback for override-matched + parse-error files. Explicit paths
     // with no native excludes, so oxfmt formats exactly these.
     if !fallback.is_empty() {
-        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false, false, true)?;
+        let fb = run_oxfmt(
+            &fallback,
+            oxfmt,
+            mode,
+            OxfmtRunOptions {
+                suppress_unmatched: true,
+                ..OxfmtRunOptions::default()
+            },
+        )?;
         status.files_changed += fb.files_changed;
         status.had_errors |= fb.had_errors;
     }

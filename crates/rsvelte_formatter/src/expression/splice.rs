@@ -56,13 +56,14 @@ fn expression_code_range(rest: &str, options: &FormatOptions) -> Option<std::ops
     } else {
         SourceType::default()
     };
-    let ret = Parser::new(allocator, &wrapped, source_type)
+    let parse_result = Parser::new(allocator, &wrapped, source_type)
         .with_options(formatter_parse_options())
         .parse();
-    if !ret.diagnostics.is_empty() {
+    if !parse_result.diagnostics.is_empty() {
         return None;
     }
-    let oxc_ast::ast::Statement::ExpressionStatement(stmt) = ret.program.body.first()? else {
+    let oxc_ast::ast::Statement::ExpressionStatement(stmt) = parse_result.program.body.first()?
+    else {
         return None;
     };
     let span = oxc_span::GetSpan::span(&stmt.expression);
@@ -131,16 +132,14 @@ pub(super) fn push_expression_tag(
             tag.expression,
             rsvelte_core::ast::js::Expression::Lazy { .. }
         );
-        let expr_source =
-            if !lazy && let (Some(es), Some(ee)) = (tag.expression.start(), tag.expression.end()) {
-                source.get(es as usize..ee as usize).unwrap_or("").trim()
-            } else {
-                let r = rest.trim();
-                match expression_code_range(r, options) {
-                    Some(range) => r.get(range).unwrap_or(r).trim(),
-                    None => r,
-                }
-            };
+        let expr_source = if !lazy
+            && let (Some(es), Some(ee)) = (tag.expression.start(), tag.expression.end())
+        {
+            source.get(es as usize..ee as usize).unwrap_or("").trim()
+        } else {
+            let r = rest.trim();
+            expression_code_range(r, options).map_or(r, |range| r.get(range).unwrap_or(r).trim())
+        };
         if expr_source.is_empty() {
             edits.push((tag.start, tag.end, format!("{{{leading_comments}}}")));
             return Ok(());
@@ -486,35 +485,38 @@ pub(super) fn push_bare_expression(
         let multi = if multi.contains('\n') || expression_width > full_width {
             multi
         } else {
-            let narrowed_width = oxc_formatter_core::LineWidth::try_from(
-                expression_width.saturating_sub(1).max(1) as u16,
-            )
+            let narrowed_width = oxc_formatter_core::LineWidth::try_from(crate::formatter_width(
+                expression_width.saturating_sub(1).max(1),
+            ))
             .unwrap_or(options.js.line_width);
             format_expr_core(slice, options, narrowed_width, false)?
         };
         // Only accept a method-chain break (hard `.`-led continuation lines,
         // which prettier's removeLines keeps); OXC's soft argument-wrap breaks are
         // collapsed back to one line by the oracle.
-        if let Some(reindented) = reindent_header_method_chain(&multi, depth, options) {
-            Some(reindented)
-        } else if multi.contains('\n')
-            && !first_line_ends_with_logical_op(multi.lines().next().unwrap_or(""))
-        {
-            // OXC broke at call-argument expansion (expanded args, not method chain).
-            // prettier-plugin-svelte's `removeLines` / `forceSingleLine` collapses the
-            // newlines back to spaces but PRESERVES the expanded-args markers: a leading
-            // space after the outermost `(` and a trailing `, ` before the closing `)`.
-            // This produces `call( arg, )` rather than `call(arg)`.
-            //
-            // Detect: OXC's joined-lines form ends with `, )` (trailing comma inside the
-            // outermost call). If so, insert a space after the matching opening `(` to
-            // match the oracle's expanded-arg-collapsed form.
-            collapse_expanded_arg_form(&multi)
-        } else {
-            // OXC kept it on one line, broke at a logical operator, or couldn't
-            // determine an expanded-arg form — keep the inline version.
-            None
-        }
+        reindent_header_method_chain(&multi, depth, options).map_or_else(
+            || {
+                if multi.contains('\n')
+                    && !first_line_ends_with_logical_op(multi.lines().next().unwrap_or(""))
+                {
+                    // OXC broke at call-argument expansion (expanded args, not method chain).
+                    // prettier-plugin-svelte's `removeLines` / `forceSingleLine` collapses the
+                    // newlines back to spaces but PRESERVES the expanded-args markers: a leading
+                    // space after the outermost `(` and a trailing `, ` before the closing `)`.
+                    // This produces `call( arg, )` rather than `call(arg)`.
+                    //
+                    // Detect: OXC's joined-lines form ends with `, )` (trailing comma inside the
+                    // outermost call). If so, insert a space after the matching opening `(` to
+                    // match the oracle's expanded-arg-collapsed form.
+                    collapse_expanded_arg_form(&multi)
+                } else {
+                    // OXC kept it on one line, broke at a logical operator, or couldn't
+                    // determine an expanded-arg form — keep the inline version.
+                    None
+                }
+            },
+            Some,
+        )
     } else {
         None
     };
@@ -569,7 +571,7 @@ pub(super) fn find_each_key_delimiter(
     for (pos, ch) in before.char_indices().rev() {
         match ch {
             ' ' | '\t' => {}
-            '(' => open = Some(pos as u32),
+            '(' => open = Some(crate::source_offset(pos)),
             _ => break,
         }
     }
@@ -580,7 +582,7 @@ pub(super) fn find_each_key_delimiter(
     for (i, ch) in after.char_indices() {
         match ch {
             ' ' | '\t' => {}
-            ')' => close_excl = Some(inner_end + (i + ch.len_utf8()) as u32),
+            ')' => close_excl = Some(inner_end + crate::source_offset(i + ch.len_utf8())),
             _ => break,
         }
     }
@@ -611,17 +613,16 @@ fn widen_to_source_parens(source: &str, mut start: u32, mut end: u32) -> Option<
         while i > 0 {
             i -= 1;
             match bytes[i] {
-                b' ' | b'\t' => continue,
+                b' ' | b'\t' => {}
                 b'(' => {
-                    paren_pos = Some(i as u32);
+                    paren_pos = Some(crate::source_offset(i));
                     break;
                 }
                 _ => break,
             }
         }
-        let paren_open = match paren_pos {
-            Some(p) => p,
-            None => break,
+        let Some(paren_open) = paren_pos else {
+            break;
         };
 
         // Look forward from `end` for `)` through horizontal whitespace only.
@@ -629,7 +630,7 @@ fn widen_to_source_parens(source: &str, mut start: u32, mut end: u32) -> Option<
         let mut close_offset: Option<usize> = None;
         for (i, ch) in after.char_indices() {
             match ch {
-                ' ' | '\t' => continue,
+                ' ' | '\t' => {}
                 ')' => {
                     close_offset = Some(i + ch.len_utf8());
                     break;
@@ -638,7 +639,7 @@ fn widen_to_source_parens(source: &str, mut start: u32, mut end: u32) -> Option<
             }
         }
         let paren_close_excl = match close_offset {
-            Some(off) => end + off as u32,
+            Some(off) => end + crate::source_offset(off),
             None => break,
         };
 
@@ -650,7 +651,7 @@ fn widen_to_source_parens(source: &str, mut start: u32, mut end: u32) -> Option<
         let before_paren = source.get(..paren_open as usize).unwrap_or("");
         let last_char_before_paren = before_paren.chars().next_back();
         match last_char_before_paren {
-            None | Some(' ') | Some('\t') | Some('\n') | Some('\r') => {}
+            None | Some(' ' | '\t' | '\n' | '\r') => {}
             _ => break, // paren is part of a call / grouping in a larger expr
         }
 
@@ -672,7 +673,7 @@ fn enclosing_braces_span(source: &str, expr_start: u32, expr_end: u32) -> Option
     while i > 0 {
         i -= 1;
         match bytes[i] {
-            b' ' | b'\t' | b'\n' | b'\r' => continue,
+            b' ' | b'\t' | b'\n' | b'\r' => {}
             b'{' => {
                 lbrace = Some(i);
                 break;
@@ -696,7 +697,10 @@ fn enclosing_braces_span(source: &str, expr_start: u32, expr_end: u32) -> Option
     }
     let rbrace = rbrace?;
 
-    Some((lbrace as u32, (rbrace + 1) as u32))
+    Some((
+        crate::source_offset(lbrace),
+        crate::source_offset(rbrace + 1),
+    ))
 }
 
 /// Splice a destructuring pattern's source span with its formatted
@@ -737,9 +741,8 @@ pub(super) fn trim_trailing_ws_before_close_brace(
     after: u32,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
-    let rest = match source.get(after as usize..) {
-        Some(r) => r,
-        None => return,
+    let Some(rest) = source.get(after as usize..) else {
+        return;
     };
     // Only horizontal whitespace — a newline means a multi-line header and we
     // leave those alone.
@@ -749,7 +752,7 @@ pub(super) fn trim_trailing_ws_before_close_brace(
         .map(char::len_utf8)
         .sum::<usize>();
     if ws_len > 0 && rest[ws_len..].starts_with('}') {
-        edits.push((after, after + ws_len as u32, String::new()));
+        edits.push((after, after + crate::source_offset(ws_len), String::new()));
     }
 }
 
@@ -776,13 +779,12 @@ pub(super) fn normalize_separator_opener_before(
     edits: &mut Vec<(u32, u32, String)>,
 ) {
     // Walk backward from binding_start to find the `{` of the separator.
-    let before = match source.get(..binding_start as usize) {
-        Some(s) => s,
-        None => return,
+    let Some(before) = source.get(..binding_start as usize) else {
+        return;
     };
     // The structure is `{  :then ` or `{  :catch ` — find the last `{` before binding_start.
     if let Some(brace_pos) = before.rfind('{') {
-        normalize_block_opener_ws(source, brace_pos as u32, edits);
+        normalize_block_opener_ws(source, crate::source_offset(brace_pos), edits);
     }
 }
 
@@ -804,9 +806,13 @@ pub(super) fn normalize_block_opener_ws(
     }
     // Only emit an edit when there was extra whitespace.
     let ws_len = i - (start + 1);
-    if ws_len > 0 && matches!(bytes.get(i), Some(&b'#') | Some(&b':')) {
+    if ws_len > 0 && matches!(bytes.get(i), Some(&b'#' | &b':')) {
         // Replace `{<spaces>` with `{` by removing the spaces.
-        edits.push(((start + 1) as u32, i as u32, String::new()));
+        edits.push((
+            crate::source_offset(start + 1),
+            crate::source_offset(i),
+            String::new(),
+        ));
     }
 }
 
@@ -815,9 +821,8 @@ pub(super) fn normalize_leading_ws_before_expr(
     expr_start: u32,
     edits: &mut Vec<(u32, u32, String)>,
 ) {
-    let before = match source.get(..expr_start as usize) {
-        Some(s) => s,
-        None => return,
+    let Some(before) = source.get(..expr_start as usize) else {
+        return;
     };
     // Walk backward over horizontal whitespace only (space / tab).
     let ws_start = before
@@ -831,7 +836,7 @@ pub(super) fn normalize_leading_ws_before_expr(
     // Only emit an edit when there are extra spaces (> 1) — a single space is
     // already correct and emitting a no-op edit can disturb overlap detection.
     if ws_len > 1 {
-        edits.push((ws_start as u32, expr_start, " ".to_string()));
+        edits.push((crate::source_offset(ws_start), expr_start, " ".to_string()));
     }
 }
 
@@ -850,7 +855,11 @@ pub(super) fn push_snippet_header(
     let Some(name_start) = blk.expression.start() else {
         return Ok(());
     };
-    let Some(last_end) = blk.parameters.last().and_then(|p| p.end()) else {
+    let Some(last_end) = blk
+        .parameters
+        .last()
+        .and_then(rsvelte_core::ast::js::Expression::end)
+    else {
         return Ok(());
     };
     // The parameter list closes at the first `)` at or after the last
@@ -864,6 +873,6 @@ pub(super) fn push_snippet_header(
         return Ok(());
     };
     let formatted = format_snippet_header_source(header_src.trim(), options, depth)?;
-    edits.push((name_start, header_end as u32, formatted));
+    edits.push((name_start, crate::source_offset(header_end), formatted));
     Ok(())
 }

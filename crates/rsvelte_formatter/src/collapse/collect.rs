@@ -1,4 +1,14 @@
-use super::*;
+use std::fmt::Write as _;
+
+use super::{
+    ChildrenPortResult, FormatOptions, Fragment, IndentUnit, TemplateNode, VisualWidth,
+    build_open_attr_doc, current_column, fill, fill_inline_runs, fragment_has_prose_word,
+    indent_config, is_block_display, is_component_tag, is_whitespace_preserving, tab_width,
+    text_end, text_start, trims_edge_whitespace, try_break_block_multiline_content,
+    try_break_block_overflow, try_break_content_tag_block, try_break_pre_content_tag,
+    try_break_pre_own_attrs, try_children_port, try_fill_mixed, try_fix_pre_child_open_tags,
+    try_hug_block_inline_body, try_hug_mixed, try_strip_trailing_slot_space,
+};
 
 /// Pass 1.6: targeted `try_collapse` sweep on inline/component pure-text
 /// elements. Runs after pass 1 so that block restructuring (e.g.
@@ -211,7 +221,9 @@ pub(super) fn collect(
                     Some(node),
                 ) {
                     edits.push(edit);
-                } else if let Some(maybe_edit) = try_children_port(out, node, line_width, options) {
+                } else if let ChildrenPortResult::Claimed(maybe_edit) =
+                    try_children_port(out, node, line_width, options)
+                {
                     // Claimed by the children port (cut-1 shape) — apply its edit if
                     // any; a noop still suppresses the legacy passes below.
                     if let Some(edit) = maybe_edit {
@@ -401,7 +413,7 @@ pub(super) fn collect(
             | TemplateNode::SvelteDocument(s)
             | TemplateNode::SvelteOptions(s)
             | TemplateNode::SvelteWindow(s) => {
-                collect(out, &s.fragment, line_width, false, options, edits)
+                collect(out, &s.fragment, line_width, false, options, edits);
             }
             TemplateNode::SvelteFragment(s) | TemplateNode::SvelteSelf(s) => {
                 if let Some(edit) = try_collapse(
@@ -528,7 +540,7 @@ pub(super) fn collect(
                 // Snippet bodies are NOT treated as inline-collapse block bodies —
                 // prettier keeps `<span>...</span>\n{value}` on separate lines in
                 // snippet bodies even when they fit on one line. Use false here.
-                collect(out, &blk.body, line_width, false, options, edits)
+                collect(out, &blk.body, line_width, false, options, edits);
             }
             _ => {}
         }
@@ -710,11 +722,9 @@ pub(super) fn try_collapse(
             let last_open_line = &open[last_line_start..]; // includes trailing `>`
             // Close-tag indent: whitespace between the last `\n` in close and the
             // final `>`.  For `</A\n    >` this is `    ` (4 spaces).
-            let close_indent = if let Some(nl) = close.rfind('\n') {
-                &close[nl + 1..close.len().saturating_sub(1)]
-            } else {
-                ""
-            };
+            let close_indent = close
+                .rfind('\n')
+                .map_or("", |nl| &close[nl + 1..close.len().saturating_sub(1)]);
             // Attribute-level indent: element indent + 2 spaces (same as the
             // single-line hug path). We derive it from `close_indent` rather
             // than the last open-tag line because the last line could be a
@@ -802,11 +812,10 @@ pub(super) fn try_collapse(
                     <= avail_for(fill_lines.len())
                 {
                     cur.push(' ');
-                    cur.push_str(word);
                 } else {
                     fill_lines.push(std::mem::take(&mut cur));
-                    cur.push_str(word);
                 }
+                cur.push_str(word);
             }
             if !cur.is_empty() {
                 fill_lines.push(cur);
@@ -820,7 +829,6 @@ pub(super) fn try_collapse(
                 result.push_str(&inner_indent);
                 result.push_str(line);
             }
-            use std::fmt::Write as _;
             let _ = write!(result, "</{tag}\n{close_indent}>");
             return (result != whole).then_some((start, end, result));
         }
@@ -848,11 +856,7 @@ pub(super) fn try_collapse(
         // close tag). Add 1 extra column to match prettier's fit check so that
         // elements that just barely fit (e.g. 80 cols) without the space are
         // correctly detected as overflowing and use the inner-indent hug form.
-        let trailing_edge_extra = if had_trail && !trims_edge_whitespace(tag) {
-            1
-        } else {
-            0
-        };
+        let trailing_edge_extra = usize::from(had_trail && !trims_edge_whitespace(tag));
         let same_line_width = column
             + open.visual_width(tw)
             + collapsed.visual_width(tw)

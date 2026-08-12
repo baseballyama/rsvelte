@@ -6,7 +6,7 @@ use crate::svelte2tsx::magic_string::MagicString;
 /// Handle a const tag: `{@const declaration}`.
 ///
 /// The const declaration is emitted as a regular `const` statement.
-pub(crate) fn handle_const_tag(tag: &ConstTag, source: &str, str: &mut MagicString<'_>) {
+pub fn handle_const_tag(tag: &ConstTag, source: &str, str: &mut MagicString<'_>) {
     if tag.start >= tag.end {
         return;
     }
@@ -38,7 +38,7 @@ pub(crate) fn handle_const_tag(tag: &ConstTag, source: &str, str: &mut MagicStri
 /// derived from the source between `tag_start` (`{`) and `tag_end` (past `}`).
 /// The id start is the first non-whitespace byte after the `@const` keyword; the
 /// initializer end is the last non-whitespace byte before the closing `}`.
-pub(crate) fn const_tag_spans(source: &str, tag_start: u32, tag_end: u32) -> Option<(u32, u32)> {
+pub fn const_tag_spans(source: &str, tag_start: u32, tag_end: u32) -> Option<(u32, u32)> {
     let bytes = source.as_bytes();
     let (lo, hi) = (tag_start as usize, tag_end as usize);
     if hi > bytes.len() || lo >= hi {
@@ -65,5 +65,8 @@ pub(crate) fn const_tag_spans(source: &str, tag_start: u32, tag_end: u32) -> Opt
     if id_start >= end {
         return None;
     }
-    Some((id_start as u32, end as u32))
+    Some((
+        u32::try_from(id_start).expect("template offset fits in u32"),
+        u32::try_from(end).expect("template offset fits in u32"),
+    ))
 }

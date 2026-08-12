@@ -17,11 +17,13 @@ pub struct EmbeddedRegions {
 }
 
 impl EmbeddedRegions {
+    #[must_use]
     pub fn new(text: &str) -> Self {
         let bodies = parsed(text).unwrap_or_else(|| scanned(text));
         Self { bodies }
     }
 
+    #[must_use]
     pub fn contains(&self, offset: usize) -> bool {
         self.bodies.iter().any(|body| body.contains(&offset))
     }
@@ -53,6 +55,7 @@ fn parsed(text: &str) -> Option<Vec<Range<usize>>> {
 }
 
 /// The content of a `<tag …>…</tag>` spanning `start..end`.
+#[must_use]
 pub fn body_of(text: &str, start: usize, end: usize) -> Option<Range<usize>> {
     let outer = text.get(start..end)?;
     let open = outer.find('>')? + 1;
@@ -113,6 +116,7 @@ pub struct AttributeContext<'a> {
 impl AttributeContext<'_> {
     /// Event modifiers exist on elements only, and only after the `|` that
     /// starts the modifier list.
+    #[must_use]
     pub fn can_have_event_modifier(&self) -> bool {
         !self.in_value
             && !possibly_component(self.element_tag)
@@ -135,6 +139,7 @@ enum Step<'a> {
 }
 
 /// The attribute at `offset`, if the offset is inside an element's start tag.
+#[must_use]
 pub fn attribute_context(text: &str, offset: usize) -> Option<AttributeContext<'_>> {
     let bytes = text.as_bytes();
     let mut i = 0;
@@ -265,6 +270,7 @@ fn scan_start_tag<'a>(text: &'a str, from: usize, offset: usize, tag: &'a str) -
 }
 
 /// The offset just past the `{…}` starting at `from`, strings included.
+#[must_use]
 pub fn skip_braces(text: &str, from: usize) -> usize {
     let bytes = text.as_bytes();
     let mut depth = 0u32;
@@ -291,13 +297,13 @@ pub fn skip_braces(text: &str, from: usize) -> usize {
     bytes.len()
 }
 
-fn is_tag_name_byte(byte: u8) -> bool {
+const fn is_tag_name_byte(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b':' | b'$')
 }
 
 /// Everything the HTML spec allows in an attribute name, which is what the
 /// official plugin's scanner accepts too.
-fn is_attribute_name_byte(byte: u8) -> bool {
+const fn is_attribute_name_byte(byte: u8) -> bool {
     !byte.is_ascii_whitespace() && !matches!(byte, b'"' | b'\'' | b'<' | b'>' | b'/' | b'=')
 }
 

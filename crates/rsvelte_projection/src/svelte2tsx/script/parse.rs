@@ -5,7 +5,7 @@ use oxc_ast::ast as oxc;
 use crate::ast::oxc_program::RetainedProgram;
 use crate::ast::template::Root;
 
-pub(crate) struct ParsedScript<'source> {
+pub struct ParsedScript<'source> {
     retained: RetainedProgram<'source>,
 }
 
@@ -28,7 +28,7 @@ impl<'source> ParsedScript<'source> {
     }
 }
 
-pub(crate) struct ParsedScripts<'source> {
+pub struct ParsedScripts<'source> {
     pub(crate) instance: Option<ParsedScript<'source>>,
     pub(crate) module: Option<ParsedScript<'source>>,
 }

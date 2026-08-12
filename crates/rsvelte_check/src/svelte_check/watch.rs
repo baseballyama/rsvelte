@@ -1,7 +1,6 @@
-//! Watch loop for the `svelte-check` CLI. Runs the regular `run` once,
-//! prints diagnostics, and then keeps re-running on file-system events
-//! filtered down to the kinds of files the JS reference reacts to:
-//! `.svelte`, `.ts`, `.js`, `.tsx`, `.jsx`, plus `tsconfig.json`.
+//! Watch loop for the `svelte-check` CLI.
+//!
+//! It reruns for relevant source and `tsconfig.json` file-system events.
 //!
 //! Mirrors the high-level behaviour of
 //! `submodules/language-tools/packages/svelte-check/src/index.ts` ↔
@@ -50,9 +49,13 @@ impl Default for WatchOptions {
 /// On platforms where `notify` initialisation fails (e.g. inside a
 /// container with no inotify), this returns the error so the caller can
 /// fall back to a single non-watch run.
+///
+/// # Errors
+///
+/// Returns a watcher initialization or event-delivery failure.
 pub fn run_watch(
-    options: RunOptions,
-    watch: WatchOptions,
+    options: &RunOptions,
+    watch: &WatchOptions,
     mut on_run: impl FnMut(&RunResult),
 ) -> notify::Result<()> {
     let workspace = options.workspace.clone();
@@ -63,7 +66,7 @@ pub fn run_watch(
     watcher.watch(&workspace, RecursiveMode::Recursive)?;
 
     // Initial run.
-    let initial = run(&options);
+    let initial = run(options);
     on_run(&initial);
 
     loop {
@@ -78,7 +81,7 @@ pub fn run_watch(
             // ignore them).
             print!("\x1b[2J\x1b[H");
         }
-        let result = run(&options);
+        let result = run(options);
         on_run(&result);
     }
 }
@@ -108,7 +111,7 @@ fn wait_for_change(
     let deadline = Instant::now() + *debounce;
     while let Some(remaining) = deadline.checked_duration_since(Instant::now()) {
         match rx.recv_timeout(remaining) {
-            Ok(_) => continue, // ignore details; we're already going to rerun
+            Ok(_) => {} // ignore details; we're already going to rerun
             Err(_) => break,
         }
     }

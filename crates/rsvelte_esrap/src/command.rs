@@ -37,7 +37,7 @@ pub enum Command {
     /// limit — live in the command itself instead of a heap allocation.
     Str(CompactString),
     /// A nested buffer, spliced in place (esrap's nested command arrays).
-    Nested(Vec<Command>),
+    Nested(Vec<Self>),
     /// A source-map anchor (1-based line, 0-based column) for a following
     /// string. `Driver::run` consumes it into a [`Mapping`] at the current
     /// generated position (see [`flatten_with_map`]); like a string, it also
@@ -45,8 +45,9 @@ pub enum Command {
     Location { line: u32, column: u32 },
 }
 
-/// One source-map entry: a generated position and the source position it came
-/// from, all 0-based. Flat rather than grouped per generated line — grouping
+/// One source-map entry: a generated position and the source position it came from, all 0-based.
+///
+/// Flat rather than grouped per generated line — grouping
 /// cost one `Vec` allocation for every line of output. esrap only ever maps a
 /// single source, so there is no source index.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -135,7 +136,7 @@ impl CodeDriver<'_> {
 /// A faithful port of esrap's `print` driver, which threads the generated
 /// position through `append` and records a mapping on every `Location` command.
 ///
-/// Note on columns: esrap segments carry ESTree columns (UTF-16 code-unit
+/// Note on columns: esrap segments carry `ESTree` columns (UTF-16 code-unit
 /// indices). This port derives source columns from byte offsets, so the two
 /// agree for ASCII / BMP source (which covers the keyword sites). Generated
 /// columns are likewise tracked in `char`s of the emitted code.
@@ -249,14 +250,14 @@ impl Driver<'_> {
 mod tests {
     use super::*;
 
-    fn cmds(v: Vec<Command>) -> String {
-        print(&v, "\t")
+    fn cmds(v: &[Command]) -> String {
+        print(v, "\t")
     }
 
     #[test]
     fn plain_strings_concatenate() {
         assert_eq!(
-            cmds(vec![Command::Str("a".into()), Command::Str("b".into())]),
+            cmds(&[Command::Str("a".into()), Command::Str("b".into())]),
             "ab"
         );
     }
@@ -265,7 +266,7 @@ mod tests {
     fn space_separates_only_before_next_string() {
         // A trailing Space with no following string emits nothing.
         assert_eq!(
-            cmds(vec![
+            cmds(&[
                 Command::Str("a".into()),
                 Command::Space,
                 Command::Str("b".into()),
@@ -278,7 +279,7 @@ mod tests {
     #[test]
     fn newline_uses_indent_prefix() {
         assert_eq!(
-            cmds(vec![
+            cmds(&[
                 Command::Str("{".into()),
                 Command::Indent,
                 Command::Newline,
@@ -294,7 +295,7 @@ mod tests {
     #[test]
     fn newline_supersedes_space() {
         assert_eq!(
-            cmds(vec![
+            cmds(&[
                 Command::Str("a".into()),
                 Command::Space,
                 Command::Newline,
@@ -307,7 +308,7 @@ mod tests {
     #[test]
     fn margin_adds_blank_line_before_newline() {
         assert_eq!(
-            cmds(vec![
+            cmds(&[
                 Command::Str("a".into()),
                 Command::Margin,
                 Command::Newline,
@@ -320,7 +321,7 @@ mod tests {
     #[test]
     fn margin_without_newline_does_nothing() {
         assert_eq!(
-            cmds(vec![
+            cmds(&[
                 Command::Str("a".into()),
                 Command::Margin,
                 Command::Str("b".into())
@@ -332,7 +333,7 @@ mod tests {
     #[test]
     fn nested_commands_splice_in_place() {
         assert_eq!(
-            cmds(vec![
+            cmds(&[
                 Command::Str("(".into()),
                 Command::Nested(vec![
                     Command::Str("x".into()),
@@ -351,11 +352,7 @@ mod tests {
         // newline prefix at 0 rather than underflow-panic on the subtraction.
         // The prefix (including the leading "\n") collapses to empty.
         assert_eq!(
-            cmds(vec![
-                Command::Dedent,
-                Command::Newline,
-                Command::Str("x".into()),
-            ]),
+            cmds(&[Command::Dedent, Command::Newline, Command::Str("x".into()),]),
             "x"
         );
     }
@@ -363,7 +360,7 @@ mod tests {
     #[test]
     fn multi_level_indent() {
         assert_eq!(
-            cmds(vec![
+            cmds(&[
                 Command::Indent,
                 Command::Indent,
                 Command::Newline,

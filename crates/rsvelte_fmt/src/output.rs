@@ -11,7 +11,7 @@ use crate::status::Mode;
 /// truncates the target up front, so a crash or a concurrent reader can observe
 /// a half-written (or empty) file; the rename swap is atomic and same-directory
 /// (guaranteed same filesystem). Same approach as the `<style>` cache.
-pub(crate) fn write_atomic(path: &Path, data: impl AsRef<[u8]>) -> io::Result<()> {
+pub fn write_atomic(path: &Path, data: impl AsRef<[u8]>) -> io::Result<()> {
     let dir = path.parent().filter(|p| !p.as_os_str().is_empty());
     let dir = dir.unwrap_or_else(|| Path::new("."));
     let name = path
@@ -35,12 +35,12 @@ pub(crate) fn write_atomic(path: &Path, data: impl AsRef<[u8]>) -> io::Result<()
 fn next_tmp_id() -> u64 {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-    ((std::process::id() as u64) << 32) | n
+    (u64::from(std::process::id()) << 32) | n
 }
 
 /// Write `formatted` back to `path` (write mode) or report it (check mode).
 /// Returns whether the file would change.
-pub(crate) fn apply_output(path: &Path, source: &str, formatted: &str, mode: Mode) -> Result<bool> {
+pub fn apply_output(path: &Path, source: &str, formatted: &str, mode: Mode) -> Result<bool> {
     if formatted == source {
         return Ok(false);
     }

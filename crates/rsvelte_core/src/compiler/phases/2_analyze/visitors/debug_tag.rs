@@ -1,4 +1,4 @@
-//! DebugTag visitor.
+//! `DebugTag` visitor.
 //!
 //! Analyzes {@debug} tags.
 //!

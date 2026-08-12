@@ -1,3 +1,5 @@
+//! `svelte/no-nested-style-tag`.
+//!
 //! `svelte/no-nested-style-tag` — disallow a `<style>` element nested inside
 //! another element or block. Only the component's top-level `<style>` is the
 //! scoped stylesheet (the parser lifts it into `Root.css`); a `<style>` that

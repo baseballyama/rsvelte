@@ -8,6 +8,10 @@ use super::super::super::AnalysisError;
 use super::super::VisitorContext;
 
 /// Validate special element placement.
+///
+/// # Errors
+///
+/// Returns an error when a special element is in an invalid location.
 pub fn validate_special_element_placement(
     name: &str,
     context: &VisitorContext,
@@ -26,7 +30,7 @@ pub fn validate_special_element_placement(
             if context.is_inside_element_or_block() => {
                 return Err(AnalysisError::validation(
                     "svelte_meta_invalid_placement",
-                    format!("`<{}>` tags cannot be inside elements or blocks", name),
+                    format!("`<{name}>` tags cannot be inside elements or blocks"),
                 ));
             }
         "svelte:self"
@@ -56,6 +60,10 @@ pub fn validate_special_element_placement(
 ///
 /// * `name` - The special element name
 /// * `fragment` - The fragment containing potential children
+///
+/// # Errors
+///
+/// Returns an error when an element that forbids children has content.
 pub fn disallow_children(
     name: &str,
     fragment: &crate::ast::template::Fragment,

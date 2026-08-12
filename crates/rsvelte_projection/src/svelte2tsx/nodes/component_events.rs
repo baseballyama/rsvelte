@@ -15,7 +15,7 @@ struct ForwardedEventValues<'a> {
 }
 
 impl<'a> ForwardedEventValues<'a> {
-    fn new(value: &'a template::ForwardedEvent<'a>) -> Self {
+    const fn new(value: &'a template::ForwardedEvent<'a>) -> Self {
         Self {
             first: value,
             rest: Vec::new(),
@@ -31,7 +31,7 @@ impl<'a> ForwardedEventValues<'a> {
         self.rest.push(value);
     }
 
-    fn is_single(&self) -> bool {
+    const fn is_single(&self) -> bool {
         self.rest.is_empty()
     }
 }
@@ -188,7 +188,7 @@ fn write_forwarded_event_value(
 
 /// Build the `events` object literal for the component export from template info
 /// and component events.
-pub(crate) fn build_events_str(
+pub fn build_events_str(
     exported_names: &ExportedNames,
     template_info: &template::TemplateInfo<'_>,
     events: &ComponentEvents,
@@ -203,7 +203,7 @@ fn build_events_str_with_observer(
     mut observe_grouping: impl FnMut(GroupingOperation),
     mut observe_materialization: impl FnMut(),
 ) -> String {
-    if exported_names.has_events_type {
+    if exported_names.has_events_type() {
         "{} as unknown as $$Events".to_string()
     } else {
         let mut event_parts = Vec::new();
@@ -245,7 +245,7 @@ fn build_events_str_with_observer(
         }
         // Add custom events from dispatchers (detected during script processing)
         for (name, value) in events.get_event_entries() {
-            event_parts.push(format!("'{}': {}", name, value));
+            event_parts.push(format!("'{name}': {value}"));
         }
         if event_parts.is_empty() {
             "{}".to_string()

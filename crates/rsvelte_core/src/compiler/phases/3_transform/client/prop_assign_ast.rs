@@ -115,7 +115,7 @@ struct PropAssignCollector<'a, 'sem> {
     replacements: Vec<Edit>,
 }
 
-impl<'a, 'sem, 'ast> Visit<'ast> for PropAssignCollector<'a, 'sem> {
+impl<'ast> Visit<'ast> for PropAssignCollector<'_, '_> {
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
         walk::walk_assignment_expression(self, expr);
 
@@ -156,8 +156,8 @@ impl<'a, 'sem, 'ast> Visit<'ast> for PropAssignCollector<'a, 'sem> {
         };
 
         let rewrite = match op_str {
-            None => format!("{}({})", name, rhs_text),
-            Some(op) => format!("{}({}() {} ({}))", name, name, op, rhs_text),
+            None => format!("{name}({rhs_text})"),
+            Some(op) => format!("{name}({name}() {op} ({rhs_text}))"),
         };
 
         self.replacements
@@ -355,10 +355,7 @@ thread_local! {
 /// valid across the rewrite — replacing a child leaves its ancestors' spans
 /// alone — and the rewrite is still post-order, so an inner assignment is
 /// wrapped before the one enclosing it.
-pub(crate) fn transform_prop_assign_in_place(
-    source: &str,
-    prop_vars: &[String],
-) -> ast_rewrite::Rewrite {
+pub fn transform_prop_assign_in_place(source: &str, prop_vars: &[String]) -> ast_rewrite::Rewrite {
     if prop_vars.is_empty() {
         return ast_rewrite::Rewrite::Unchanged;
     }
@@ -433,7 +430,7 @@ struct PropAssignFinder<'a, 'sem> {
     bailed: bool,
 }
 
-impl<'a, 'sem, 'ast> Visit<'ast> for PropAssignFinder<'a, 'sem> {
+impl<'ast> Visit<'ast> for PropAssignFinder<'_, '_> {
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
         walk::walk_assignment_expression(self, expr);
 

@@ -161,7 +161,7 @@ struct StoreAssignCollector<'a> {
     replacements: Vec<Edit>,
 }
 
-impl<'a, 'ast> Visit<'ast> for StoreAssignCollector<'a> {
+impl<'ast> Visit<'ast> for StoreAssignCollector<'_> {
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
         walk::walk_assignment_expression(self, expr);
 
@@ -179,11 +179,11 @@ impl<'a, 'ast> Visit<'ast> for StoreAssignCollector<'a> {
         let store_name = &name[1..];
 
         let store_access = if self.prop_vars.iter().any(|p| p == store_name) {
-            format!("{}()", store_name)
+            format!("{store_name}()")
         } else if self.state_vars.iter().any(|s| s == store_name)
             && !self.non_reactive_state_vars.iter().any(|s| s == store_name)
         {
-            format!("$.get({})", store_name)
+            format!("$.get({store_name})")
         } else {
             store_name.to_string()
         };
@@ -192,7 +192,7 @@ impl<'a, 'ast> Visit<'ast> for StoreAssignCollector<'a> {
         let rhs_text = &self.source[rhs_span.start as usize..rhs_span.end as usize];
 
         let rewrite = if expr.operator == AssignmentOperator::Assign {
-            format!("$.store_set({}, {})", store_access, rhs_text)
+            format!("$.store_set({store_access}, {rhs_text})")
         } else {
             // Every compound operator lowers to `$.store_set(access, $sub() <op> rhs)`.
             // (RHS grouping for lower-precedence expressions is a separate, broader
@@ -201,10 +201,7 @@ impl<'a, 'ast> Visit<'ast> for StoreAssignCollector<'a> {
             let Some(op_str) = compound_store_op(expr.operator) else {
                 return;
             };
-            format!(
-                "$.store_set({}, {}() {} {})",
-                store_access, store_sub, op_str, rhs_text
-            )
+            format!("$.store_set({store_access}, {store_sub}() {op_str} {rhs_text})")
         };
 
         self.replacements
@@ -500,7 +497,7 @@ fn compound_store_op_node(op: AssignmentOperator) -> Option<StoreCompoundOp> {
 }
 
 /// In-place equivalent of [`transform_store_assign_ast`].
-pub(crate) fn transform_store_assign_in_place(
+pub fn transform_store_assign_in_place(
     source: &str,
     store_sub_vars: &[String],
     prop_vars: &[String],
@@ -546,7 +543,7 @@ struct StoreAssignRewriter<'a, 'b> {
     changed: bool,
 }
 
-impl<'a, 'b> StoreAssignRewriter<'a, 'b> {
+impl<'a> StoreAssignRewriter<'a, '_> {
     /// How the store itself is read: a prop is a getter call, reactive state
     /// goes through `$.get`, anything else is the bare binding.
     fn store_access(&self, store_name: &str) -> Expression<'a> {
@@ -562,7 +559,7 @@ impl<'a, 'b> StoreAssignRewriter<'a, 'b> {
     }
 }
 
-impl<'a, 'b> oxc_ast_visit::VisitMut<'a> for StoreAssignRewriter<'a, 'b> {
+impl<'a> oxc_ast_visit::VisitMut<'a> for StoreAssignRewriter<'a, '_> {
     fn visit_expression(&mut self, expr: &mut Expression<'a>) {
         oxc_ast_visit::walk_mut::walk_expression(self, expr);
 

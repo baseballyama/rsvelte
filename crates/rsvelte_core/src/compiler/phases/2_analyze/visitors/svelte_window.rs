@@ -1,4 +1,4 @@
-//! SvelteWindow visitor.
+//! `SvelteWindow` visitor.
 //!
 //! Analyzes <svelte:window> elements.
 //!

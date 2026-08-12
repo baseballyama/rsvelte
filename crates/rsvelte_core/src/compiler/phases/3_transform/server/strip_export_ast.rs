@@ -50,7 +50,7 @@ const EXPORT_PREFIX_LEN: u32 = 7;
 /// Returns `Some(rewritten)` when at least one declaration matched, `None` on a
 /// parse failure or when nothing matched (caller falls back to the byte
 /// scanner).
-pub(crate) fn strip_export_from_declarations_ast(script: &str) -> Option<String> {
+pub fn strip_export_from_declarations_ast(script: &str) -> Option<String> {
     ast_rewrite::rewrite_once(
         &STRIP_EXPORT_ALLOC,
         script,

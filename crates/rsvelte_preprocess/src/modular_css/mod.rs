@@ -42,6 +42,14 @@ pub struct ModularCssOutput {
 ///
 /// The `<style type="text/m-css">` path is handled natively; other entry kinds
 /// (`<link>` / `<script import>`) fall back to the Node bridge.
+///
+/// # Errors
+///
+/// Returns an error when either the native transform or Node bridge fails.
+///
+/// # Panics
+///
+/// Panics if the built-in modular CSS regular expression cannot compile.
 pub fn process(
     content: &str,
     filename: Option<&str>,
@@ -119,7 +127,7 @@ struct RawRule {
 
 impl Processor {
     fn new(cwd: PathBuf) -> Self {
-        Processor {
+        Self {
             cwd,
             cache: HashMap::new(),
             order: Vec::new(),
@@ -388,7 +396,7 @@ fn replace_class(source: &str, lookup: &HashMap<String, String>, keys: &[String]
         let before = &c[1];
         let quote1 = c.get(2).map(|m| m.as_str());
         let key = &c[3];
-        let quote2 = c.get(4).map(|m| m.as_str()).unwrap_or("");
+        let quote2 = c.get(4).map_or("", |m| m.as_str());
         let value = lookup.get(key).cloned().unwrap_or_default();
         let replacement = match quote1 {
             Some(_) => value,
@@ -468,6 +476,7 @@ fn process_bridge(
 }
 
 /// Build the `@modular-css/svelte` [`PreprocessorGroup`].
+#[must_use]
 pub fn modular_css(config: MarkupBridge) -> PreprocessorGroup {
     PreprocessorGroup {
         name: Some("@modular-css/svelte".to_string()),

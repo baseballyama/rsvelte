@@ -1,4 +1,4 @@
-//! IfBlock visitor for client-side transformation.
+//! `IfBlock` visitor for client-side transformation.
 //!
 //! Corresponds to `IfBlock` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/IfBlock.js`.
@@ -13,18 +13,18 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 
-/// Collect all flattened if/elseif branches from an IfBlock chain.
+/// Collect all flattened if/elseif branches from an `IfBlock` chain.
 ///
-/// This traverses the alternate chain and collects each IfBlock that has
+/// This traverses the alternate chain and collects each `IfBlock` that has
 /// `elseif: true` into a flat list. This mirrors the official compiler's
 /// `node.metadata.flattened` array.
 ///
-/// Returns a list of IfBlock references starting with `node`, followed by
+/// Returns a list of `IfBlock` references starting with `node`, followed by
 /// all elseif branches in order. The final else (plain Fragment) is NOT
 /// included — it can be found as `result.last().alternate`.
-/// Find an elseif IfBlock in a fragment, ignoring whitespace-only text nodes.
+/// Find an elseif `IfBlock` in a fragment, ignoring whitespace-only text nodes.
 ///
-/// Returns `Some(inner)` only if the fragment contains an IfBlock with `elseif: true`
+/// Returns `Some(inner)` only if the fragment contains an `IfBlock` with `elseif: true`
 /// and no other non-whitespace content. This mirrors the official compiler's
 /// `alt.nodes.length === 1 && alt.nodes[0].type === 'IfBlock'` check, but is more
 /// lenient about surrounding whitespace text nodes (which our parser sometimes emits).
@@ -139,6 +139,10 @@ fn collect_branches<'a>(
 ///     });
 /// }
 /// ```
+///
+/// # Panics
+///
+/// Panics if an if-block transformation invariant is violated.
 pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
     // Push a comment placeholder into the template
     context.state.template.push_comment(None);
@@ -303,11 +307,7 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
     }
 
     // Build $.if() arguments
-    let render_body = if let Some(chain) = if_chain {
-        vec![chain]
-    } else {
-        vec![]
-    };
+    let render_body = if_chain.map_or_else(|| vec![], |chain| vec![chain]);
 
     let mut args = vec![
         context.state.node.clone(),

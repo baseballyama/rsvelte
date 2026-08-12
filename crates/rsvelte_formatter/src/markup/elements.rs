@@ -7,7 +7,7 @@
 /// Does NOT include `script` / `style` — those are whitespace-preserving in the
 /// collapse pass (handled by `is_whitespace_preserving`) but count as block
 /// elements here for open-tag layout purposes.
-pub(crate) fn is_html_block_display_element(tag_name: &str) -> bool {
+pub fn is_html_block_display_element(tag_name: &str) -> bool {
     matches!(
         tag_name,
         "address"

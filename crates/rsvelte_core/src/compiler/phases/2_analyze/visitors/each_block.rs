@@ -1,4 +1,4 @@
-//! EachBlock visitor.
+//! `EachBlock` visitor.
 //!
 //! Analyzes {#each} blocks.
 //!
@@ -62,7 +62,7 @@ pub fn visit<'a, 'b: 'a>(
         // If key is not an identifier, or there's no index, or the names don't match, it's keyed
         key_name.is_none()
             || block.index.is_none()
-            || key_name != block.index.as_ref().map(|s| s.as_str())
+            || key_name != block.index.as_ref().map(compact_str::CompactString::as_str)
     } else {
         false
     };
@@ -105,8 +105,6 @@ pub fn visit<'a, 'b: 'a>(
         .nodes
         .iter()
         .filter(|n| match n {
-            TemplateNode::Comment(_) => false,
-            TemplateNode::ConstTag(_) => false,
             TemplateNode::DeclarationTag(_) => false,
             TemplateNode::Text(text) => !text.data.trim().is_empty(),
             _ => true,
@@ -230,12 +228,12 @@ pub fn visit<'a, 'b: 'a>(
 
 /// Walk default values in a destructuring pattern using the JS walker.
 ///
-/// This visits the `right` side of AssignmentPattern nodes so that identifiers
+/// This visits the `right` side of `AssignmentPattern` nodes so that identifiers
 /// in default values are properly counted as references. For example, in
 /// `{#each array as { a = default_value_1 }}`, the `default_value_1` identifier
 /// needs to be visited to count as a reference to the outer-scope binding.
 /// Walks the pattern via arena children and materializes only the
-/// default-expression subtrees (the AssignmentPattern right sides), which is
+/// default-expression subtrees (the `AssignmentPattern` right sides), which is
 /// cheap for the common no-defaults case.
 fn walk_pattern_defaults_typed(
     pattern: &crate::ast::typed_expr::JsNode,
@@ -294,12 +292,12 @@ fn walk_expression_refs_only(node: &serde_json::Value, context: &mut VisitorCont
                 {
                     let (start, end) = node
                         .get("start")
-                        .and_then(|s| s.as_u64())
-                        .zip(node.get("end").and_then(|e| e.as_u64()))
+                        .and_then(serde_json::Value::as_u64)
+                        .zip(node.get("end").and_then(serde_json::Value::as_u64))
                         .unwrap_or((0, 0));
                     context.analysis.root.bindings[binding_idx].add_reference(
-                        start as u32,
-                        end as u32,
+                        u32::try_from(start).expect("source positions are limited to u32"),
+                        u32::try_from(end).expect("source positions are limited to u32"),
                         false,
                         false,
                         false,
@@ -339,7 +337,7 @@ fn walk_expression_children_refs_only(node: &serde_json::Value, context: &mut Vi
 /// Collect transitive dependencies for legacy reactivity.
 ///
 /// This function recursively collects all dependencies of a binding,
-/// following the chain of legacy_reactive bindings.
+/// following the chain of `legacy_reactive` bindings.
 ///
 /// Corresponds to `collect_transitive_dependencies` in EachBlock.js.
 fn collect_transitive_dependencies_impl(

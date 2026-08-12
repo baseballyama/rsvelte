@@ -20,10 +20,10 @@
 //! ## Idempotency
 //!
 //! Once wrapped, the outer call is `$.store_unsub(...)`. Its first
-//! argument is the inner `$.set(...)` CallExpression. A naive
+//! argument is the inner `$.set(...)` `CallExpression`. A naive
 //! visitor would re-wrap the inner. We detect the wrap shape via
 //! `visit_call_expression`: when callee is `$.store_unsub` and
-//! arg[0] is a `$.set(<id>, ...)` matching one of our state_vars,
+//! arg[0] is a `$.set(<id>, ...)` matching one of our `state_vars`,
 //! mark that inner call's span as "skip".
 
 use std::cell::RefCell;
@@ -105,7 +105,7 @@ struct StoreUnsubWrapCollector<'a> {
     skip_set_spans: Vec<(u32, u32)>,
 }
 
-impl<'a> StoreUnsubWrapCollector<'a> {
+impl StoreUnsubWrapCollector<'_> {
     fn callee_is_dollar_member(callee: &Expression<'_>, member: &str) -> bool {
         let Expression::StaticMemberExpression(m) = callee else {
             return false;
@@ -120,7 +120,7 @@ impl<'a> StoreUnsubWrapCollector<'a> {
     }
 }
 
-impl<'a, 'ast> Visit<'ast> for StoreUnsubWrapCollector<'a> {
+impl<'ast> Visit<'ast> for StoreUnsubWrapCollector<'_> {
     fn visit_call_expression(&mut self, call: &CallExpression<'ast>) {
         // Detect wrap shape: `$.store_unsub($.set(<id>, ...), '$var',
         // $$stores)`. If found, mark the inner `$.set(...)`
@@ -150,16 +150,13 @@ impl<'a, 'ast> Visit<'ast> for StoreUnsubWrapCollector<'a> {
             return;
         }
         // Verify $state_name is in store_sub_vars
-        let store_sub_name = format!("${}", state_name);
+        let store_sub_name = format!("${state_name}");
         if !self.store_sub_vars.iter().any(|s| s == &store_sub_name) {
             return;
         }
 
         let set_text = &self.source[call.span.start as usize..call.span.end as usize];
-        let rewrite = format!(
-            "$.store_unsub({}, '{}', $$stores)",
-            set_text, store_sub_name
-        );
+        let rewrite = format!("$.store_unsub({set_text}, '{store_sub_name}', $$stores)");
         self.replacements
             .push((call.span.start, call.span.end, rewrite));
     }
@@ -173,7 +170,7 @@ thread_local! {
 }
 
 /// In-place equivalent of [`transform_store_unsub_wrap_ast`].
-pub(crate) fn transform_store_unsub_wrap_in_place(
+pub fn transform_store_unsub_wrap_in_place(
     source: &str,
     state_vars: &[String],
     store_sub_vars: &[String],
@@ -212,7 +209,7 @@ struct StoreUnsubWrapRewriter<'a, 'b> {
     changed: bool,
 }
 
-impl<'a, 'b> StoreUnsubWrapRewriter<'a, 'b> {
+impl<'a> StoreUnsubWrapRewriter<'a, '_> {
     fn note_existing_wrap(&mut self, expr: &Expression<'a>) {
         if let Expression::CallExpression(call) = expr
             && call.arguments.len() == 3
@@ -231,7 +228,7 @@ impl<'a, 'b> StoreUnsubWrapRewriter<'a, 'b> {
         if !self.state_vars.iter().any(|s| s == state_name) {
             return None;
         }
-        let store_sub_name = format!("${}", state_name);
+        let store_sub_name = format!("${state_name}");
         self.store_sub_vars
             .iter()
             .any(|s| s == &store_sub_name)
@@ -239,7 +236,7 @@ impl<'a, 'b> StoreUnsubWrapRewriter<'a, 'b> {
     }
 }
 
-impl<'a, 'b> oxc_ast_visit::VisitMut<'a> for StoreUnsubWrapRewriter<'a, 'b> {
+impl<'a> oxc_ast_visit::VisitMut<'a> for StoreUnsubWrapRewriter<'a, '_> {
     fn visit_expression(&mut self, expr: &mut Expression<'a>) {
         self.note_existing_wrap(expr);
         // Children first, so a nested `$.set` is wrapped before its enclosing

@@ -1,4 +1,4 @@
-use super::*;
+use super::{TemplateNode, child_fragments};
 
 thread_local! {
     /// Set while [`reformat_pre_inner`] re-enters [`crate::format`] on a `<pre>`

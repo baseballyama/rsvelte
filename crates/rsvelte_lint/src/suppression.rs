@@ -1,6 +1,6 @@
 //! Suppression directives.
 //!
-//! We honor **both** vocabularies (design doc §C course correction): ESLint's
+//! We honor **both** vocabularies (design doc §C course correction): `ESLint`'s
 //! `eslint-disable*` comments keyed on rule ids, and Svelte's
 //! `<!-- svelte-ignore code -->`. The compiler already strips its own
 //! svelte-ignored warnings before they reach us; supporting the directives here
@@ -40,14 +40,19 @@ pub struct Suppressions {
 
 impl Suppressions {
     /// Scan `source` for directive comments.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a line count cannot be represented as `u32`.
+    #[must_use]
     pub fn collect(source: &str) -> Self {
-        let mut s = Suppressions::default();
+        let mut s = Self::default();
         // Open block-disables: id (`*` for all) → line it was opened on.
         let mut open: HashMap<String, u32> = HashMap::new();
         let mut last_line = 0u32;
 
         for (i, line) in source.lines().enumerate() {
-            let lineno = i as u32 + 1;
+            let lineno = u32::try_from(i).expect("line counts are represented as u32") + 1;
             last_line = lineno;
             // Order matters: check the more specific directives first.
             if let Some(rest) = find_after(line, "eslint-disable-next-line") {
@@ -103,6 +108,7 @@ impl Suppressions {
     }
 
     /// Whether a finding for `rule` at `line` (1-indexed) is suppressed.
+    #[must_use]
     pub fn is_suppressed(&self, rule: &str, line: u32) -> bool {
         if let Some(set) = self.by_line.get(&line)
             && (set.contains(ALL) || set.contains(rule))

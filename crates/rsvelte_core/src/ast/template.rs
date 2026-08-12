@@ -8,7 +8,7 @@ use std::borrow::Cow;
 use compact_str::CompactString;
 use indexmap::IndexSet;
 
-/// Binding-index sets are keyed by `usize`; the default SipHash is needless here.
+/// Binding-index sets are keyed by `usize`; the default `SipHash` is needless here.
 pub type BindingIndexSet = IndexSet<usize, rustc_hash::FxBuildHasher>;
 use rustc_hash::FxHashSet;
 use serde::Serialize;
@@ -51,15 +51,15 @@ pub struct Root<'a> {
     /// Module script, serialized only if present.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub module: Option<Box<Script<'a>>>,
-    /// Parser-level warnings (e.g., element_implicitly_closed).
+    /// Parser-level warnings (e.g., `element_implicitly_closed`).
     /// These are collected during parsing and forwarded to the analysis phase.
     #[serde(skip)]
     pub parse_warnings: Vec<ParseWarning>,
-    /// Source text is NOT stored here anymore - pass it separately to print().
+    /// Source text is NOT stored here anymore - pass it separately to `print()`.
     /// This avoids cloning the entire source during parsing.
     #[serde(skip)]
     pub source: Option<()>,
-    /// Arena for JsNode instances. Stores all expression sub-nodes contiguously.
+    /// Arena for `JsNode` instances. Stores all expression sub-nodes contiguously.
     #[serde(skip)]
     pub arena: crate::ast::arena::ParseArena,
     /// `ParseOptions::skip_expression_loc` as it was when this tree was parsed.
@@ -93,7 +93,7 @@ pub enum JsCommentKind {
 /// A warning emitted during parsing.
 #[derive(Debug, Clone)]
 pub struct ParseWarning {
-    /// Warning code (e.g., "element_implicitly_closed")
+    /// Warning code (e.g., "`element_implicitly_closed`")
     pub code: String,
     /// Warning message
     pub message: String,
@@ -135,7 +135,7 @@ pub struct Fragment<'a> {
     pub metadata: FragmentMetadata,
 }
 
-fn is_default_metadata(metadata: &FragmentMetadata) -> bool {
+const fn is_default_metadata(metadata: &FragmentMetadata) -> bool {
     !metadata.transparent && !metadata.dynamic
 }
 
@@ -195,8 +195,9 @@ impl<'a> AsRef<TemplateNode<'a>> for TemplateNode<'a> {
     }
 }
 
-impl<'a> TemplateNode<'a> {
+impl TemplateNode<'_> {
     /// The node's `(start, end)` source range.
+    #[must_use]
     pub fn span(&self) -> (u32, u32) {
         match self {
             TemplateNode::Text(n) => (n.start, n.end),
@@ -278,7 +279,7 @@ pub struct ExpressionTag<'a> {
     pub metadata: TagMetadata,
 }
 
-impl<'a> PartialEq for ExpressionTag<'a> {
+impl PartialEq for ExpressionTag<'_> {
     fn eq(&self, other: &Self) -> bool {
         // Metadata is derived from the AST and not part of structural identity.
         self.start == other.start && self.end == other.end && self.expression == other.expression
@@ -296,7 +297,7 @@ pub struct HtmlTag<'a> {
     pub metadata: TagMetadata,
 }
 
-/// Metadata for tags (ConstTag, DebugTag).
+/// Metadata for tags (`ConstTag`, `DebugTag`).
 #[derive(Debug, Clone, Default)]
 pub struct TagMetadata {
     /// Expression metadata
@@ -346,7 +347,7 @@ pub struct DebugTag<'a> {
     pub metadata: TagMetadata,
 }
 
-/// Metadata for RenderTag nodes.
+/// Metadata for `RenderTag` nodes.
 #[derive(Debug, Clone, Default)]
 pub struct RenderTagMetadata {
     /// Path from root to this node (for error reporting)
@@ -372,7 +373,7 @@ pub struct RenderTag<'a> {
     pub metadata: RenderTagMetadata,
 }
 
-/// Metadata for AttachTag nodes.
+/// Metadata for `AttachTag` nodes.
 #[derive(Debug, Clone, Default)]
 pub struct AttachTagMetadata {
     /// Expression metadata for the expression
@@ -394,7 +395,7 @@ pub struct AttachTag<'a> {
 // Block Nodes
 // =============================================================================
 
-/// Metadata for IfBlock nodes.
+/// Metadata for `IfBlock` nodes.
 #[derive(Debug, Clone, Default)]
 pub struct IfBlockMetadata {
     /// Expression metadata for the test expression
@@ -415,7 +416,7 @@ pub struct IfBlock<'a> {
     pub metadata: IfBlockMetadata,
 }
 
-/// Metadata for EachBlock nodes.
+/// Metadata for `EachBlock` nodes.
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct EachBlockMetadata {
     /// Whether this is a keyed each block
@@ -423,7 +424,7 @@ pub struct EachBlockMetadata {
     /// Expression metadata for the iterable expression
     pub expression: ExpressionMetadata,
     /// Transitive dependencies (for legacy reactivity).
-    /// Uses IndexSet to preserve insertion order (matching JavaScript Set behavior).
+    /// Uses `IndexSet` to preserve insertion order (matching JavaScript Set behavior).
     pub transitive_deps: BindingIndexSet,
     /// Whether the each block is controlled (has explicit key tracking)
     #[serde(default)]
@@ -434,9 +435,9 @@ pub struct EachBlockMetadata {
     /// Generated unique index identifier name
     #[serde(skip_serializing_if = "Option::is_none")]
     pub index: Option<String>,
-    /// The binding group name (e.g., "binding_group", "binding_group_1") assigned to this each block.
+    /// The binding group name (e.g., "`binding_group`", "`binding_group_1`") assigned to this each block.
     /// Set when `contains_group_binding=true` by the analysis phase.
-    /// Used by the transform phase to look up the correct group for $.bind_group().
+    /// Used by the transform phase to look up the correct group for $.`bind_group()`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub binding_group_name: Option<String>,
 }
@@ -461,7 +462,7 @@ pub struct EachBlock<'a> {
     pub metadata: EachBlockMetadata,
 }
 
-/// Metadata for AwaitBlock nodes, populated during Phase 2 analysis.
+/// Metadata for `AwaitBlock` nodes, populated during Phase 2 analysis.
 #[derive(Debug, Clone, Default)]
 pub struct AwaitBlockMetadata {
     /// Expression metadata for the promise expression
@@ -484,7 +485,7 @@ pub struct AwaitBlock<'a> {
     pub metadata: AwaitBlockMetadata,
 }
 
-/// Metadata for KeyBlock nodes, populated during Phase 2 analysis.
+/// Metadata for `KeyBlock` nodes, populated during Phase 2 analysis.
 #[derive(Debug, Clone, Default)]
 pub struct KeyBlockMetadata {
     /// Expression metadata
@@ -503,7 +504,7 @@ pub struct KeyBlock<'a> {
     pub metadata: KeyBlockMetadata,
 }
 
-/// Metadata for SnippetBlock nodes, populated during Phase 2 analysis.
+/// Metadata for `SnippetBlock` nodes, populated during Phase 2 analysis.
 #[derive(Debug, Clone, Default)]
 pub struct SnippetBlockMetadata {
     /// Whether this snippet can be hoisted to module level.
@@ -656,9 +657,10 @@ pub enum Attribute<'a> {
     LetDirective(LetDirective<'a>),
 }
 
-impl<'a> Attribute<'a> {
+impl Attribute<'_> {
     /// The attribute's `(start, end)` source range.
-    pub fn span(&self) -> (u32, u32) {
+    #[must_use]
+    pub const fn span(&self) -> (u32, u32) {
         match self {
             Attribute::Attribute(n) => (n.start, n.end),
             Attribute::SpreadAttribute(n) => (n.start, n.end),
@@ -675,7 +677,7 @@ impl<'a> Attribute<'a> {
     }
 }
 
-impl<'a> serde::Serialize for Attribute<'a> {
+impl serde::Serialize for Attribute<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -736,7 +738,7 @@ pub struct AttributeNode<'a> {
     pub metadata: AttributeNodeMetadata,
 }
 
-impl<'a> serde::Serialize for AttributeNode<'a> {
+impl serde::Serialize for AttributeNode<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -767,7 +769,7 @@ pub enum AttributeValue<'a> {
     Sequence(Vec<AttributeValuePart<'a>>),
 }
 
-impl<'a> serde::Serialize for AttributeValue<'a> {
+impl serde::Serialize for AttributeValue<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -802,7 +804,7 @@ pub enum AttributeValuePart<'a> {
     ExpressionTag(ExpressionTag<'a>),
 }
 
-impl<'a> serde::Serialize for AttributeValuePart<'a> {
+impl serde::Serialize for AttributeValuePart<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -838,7 +840,7 @@ pub struct SpreadAttribute<'a> {
     pub expression: Expression<'a>,
 }
 
-impl<'a> serde::Serialize for SpreadAttribute<'a> {
+impl serde::Serialize for SpreadAttribute<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -864,7 +866,7 @@ pub struct BindDirective<'a> {
     pub modifiers: SmallVec<[CompactString; 2]>,
 }
 
-impl<'a> serde::Serialize for BindDirective<'a> {
+impl serde::Serialize for BindDirective<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -909,7 +911,7 @@ pub struct OnDirective<'a> {
     pub metadata: OnDirectiveMetadata,
 }
 
-impl<'a> serde::Serialize for OnDirective<'a> {
+impl serde::Serialize for OnDirective<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -955,7 +957,7 @@ pub struct ClassDirective<'a> {
     pub metadata: ClassDirectiveMetadata,
 }
 
-impl<'a> serde::Serialize for ClassDirective<'a> {
+impl serde::Serialize for ClassDirective<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -985,7 +987,7 @@ pub struct StyleDirective<'a> {
     pub modifiers: SmallVec<[CompactString; 2]>,
 }
 
-impl<'a> serde::Serialize for StyleDirective<'a> {
+impl serde::Serialize for StyleDirective<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -1019,7 +1021,7 @@ pub struct TransitionDirective<'a> {
     pub metadata: Option<DirectiveMetadata<'a>>,
 }
 
-impl<'a> serde::Serialize for TransitionDirective<'a> {
+impl serde::Serialize for TransitionDirective<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -1068,11 +1070,13 @@ pub struct DirectiveExpressionMetadata<'a> {
 
 impl<'a> DirectiveExpressionMetadata<'a> {
     /// Check if the expression is async (has await or blockers).
-    pub fn is_async(&self) -> bool {
+    #[must_use]
+    pub const fn is_async(&self) -> bool {
         self.has_await || !self.blockers.is_empty()
     }
 
     /// Get the blocking dependencies.
+    #[must_use]
     pub fn blockers(&self) -> &[Expression<'a>] {
         &self.blockers
     }
@@ -1089,7 +1093,7 @@ pub struct AnimateDirective<'a> {
     pub metadata: Option<DirectiveMetadata<'a>>,
 }
 
-impl<'a> serde::Serialize for AnimateDirective<'a> {
+impl serde::Serialize for AnimateDirective<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -1123,7 +1127,7 @@ pub struct UseDirective<'a> {
     pub expression: Option<Expression<'a>>,
 }
 
-impl<'a> serde::Serialize for UseDirective<'a> {
+impl serde::Serialize for UseDirective<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -1154,7 +1158,7 @@ pub struct LetDirective<'a> {
     pub expression: Option<Expression<'a>>,
 }
 
-impl<'a> serde::Serialize for LetDirective<'a> {
+impl serde::Serialize for LetDirective<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -1192,7 +1196,7 @@ pub struct Script<'a> {
     /// Raw script content for deferred parsing. Empty string means content was already parsed eagerly.
     #[serde(skip)]
     pub raw_content: &'a str,
-    /// Offset of raw_content in the source for position mapping.
+    /// Offset of `raw_content` in the source for position mapping.
     #[serde(skip)]
     pub content_offset: u32,
     /// Whether the script uses TypeScript.
@@ -1257,7 +1261,7 @@ pub struct CustomElementOptions<'a> {
     pub tag: Option<CompactString>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shadow: Option<ShadowMode>,
-    /// `shadow` given as a ShadowRootInit object expression (upstream allows
+    /// `shadow` given as a `ShadowRootInit` object expression (upstream allows
     /// `shadow: { mode: 'open', ... }` and passes the AST straight through).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shadow_object: Option<serde_json::Value>,
@@ -1289,34 +1293,36 @@ const FLAG_HAS_ASSIGNMENT: u8 = 1 << 4;
 /// Uses bit-packing for boolean flags to reduce memory footprint.
 #[derive(Debug, Clone, Default)]
 pub struct ExpressionMetadata {
-    /// Bit-packed flags for has_state, has_call, has_await, has_member_expression, has_assignment
+    /// Bit-packed flags for `has_state`, `has_call`, `has_await`, `has_member_expression`, `has_assignment`
     flags: u8,
     /// Bindings that this expression depends on (indices into analysis bindings).
-    /// Uses IndexSet to preserve insertion order (matching JavaScript Set behavior),
-    /// which determines the order of dependency tracking in invalidate_inner_signals().
+    /// Uses `IndexSet` to preserve insertion order (matching JavaScript Set behavior),
+    /// which determines the order of dependency tracking in `invalidate_inner_signals()`.
     pub dependencies: BindingIndexSet,
     /// Bindings that this expression references (indices into analysis bindings).
-    /// Uses IndexSet to preserve insertion order (matching JavaScript Set behavior).
+    /// Uses `IndexSet` to preserve insertion order (matching JavaScript Set behavior).
     pub references: BindingIndexSet,
 }
 
 impl ExpressionMetadata {
-    /// Get raw flags byte for direct copy to Phase 3 ExpressionMetadata.
-    /// Bits 0-4 are: STATE, CALL, AWAIT, MEMBER_EXPRESSION, ASSIGNMENT.
+    /// Get raw flags byte for direct copy to Phase 3 `ExpressionMetadata`.
+    /// Bits 0-4 are: STATE, CALL, AWAIT, `MEMBER_EXPRESSION`, ASSIGNMENT.
     #[inline]
-    pub fn raw_flags(&self) -> u8 {
+    #[must_use]
+    pub const fn raw_flags(&self) -> u8 {
         self.flags
     }
 
     /// Whether the expression contains state ($state, $derived, etc.)
     #[inline]
-    pub fn has_state(&self) -> bool {
+    #[must_use]
+    pub const fn has_state(&self) -> bool {
         self.flags & FLAG_HAS_STATE != 0
     }
 
     /// Set whether the expression contains state
     #[inline]
-    pub fn set_has_state(&mut self, v: bool) {
+    pub const fn set_has_state(&mut self, v: bool) {
         if v {
             self.flags |= FLAG_HAS_STATE;
         } else {
@@ -1326,13 +1332,14 @@ impl ExpressionMetadata {
 
     /// Whether the expression involves a call expression
     #[inline]
-    pub fn has_call(&self) -> bool {
+    #[must_use]
+    pub const fn has_call(&self) -> bool {
         self.flags & FLAG_HAS_CALL != 0
     }
 
     /// Set whether the expression involves a call expression
     #[inline]
-    pub fn set_has_call(&mut self, v: bool) {
+    pub const fn set_has_call(&mut self, v: bool) {
         if v {
             self.flags |= FLAG_HAS_CALL;
         } else {
@@ -1342,13 +1349,14 @@ impl ExpressionMetadata {
 
     /// Whether the expression contains `await`
     #[inline]
-    pub fn has_await(&self) -> bool {
+    #[must_use]
+    pub const fn has_await(&self) -> bool {
         self.flags & FLAG_HAS_AWAIT != 0
     }
 
     /// Set whether the expression contains `await`
     #[inline]
-    pub fn set_has_await(&mut self, v: bool) {
+    pub const fn set_has_await(&mut self, v: bool) {
         if v {
             self.flags |= FLAG_HAS_AWAIT;
         } else {
@@ -1358,13 +1366,14 @@ impl ExpressionMetadata {
 
     /// Whether the expression includes a member expression
     #[inline]
-    pub fn has_member_expression(&self) -> bool {
+    #[must_use]
+    pub const fn has_member_expression(&self) -> bool {
         self.flags & FLAG_HAS_MEMBER_EXPRESSION != 0
     }
 
     /// Set whether the expression includes a member expression
     #[inline]
-    pub fn set_has_member_expression(&mut self, v: bool) {
+    pub const fn set_has_member_expression(&mut self, v: bool) {
         if v {
             self.flags |= FLAG_HAS_MEMBER_EXPRESSION;
         } else {
@@ -1374,13 +1383,14 @@ impl ExpressionMetadata {
 
     /// Whether the expression includes an assignment or an update
     #[inline]
-    pub fn has_assignment(&self) -> bool {
+    #[must_use]
+    pub const fn has_assignment(&self) -> bool {
         self.flags & FLAG_HAS_ASSIGNMENT != 0
     }
 
     /// Set whether the expression includes an assignment or an update
     #[inline]
-    pub fn set_has_assignment(&mut self, v: bool) {
+    pub const fn set_has_assignment(&mut self, v: bool) {
         if v {
             self.flags |= FLAG_HAS_ASSIGNMENT;
         } else {
@@ -1389,6 +1399,7 @@ impl ExpressionMetadata {
     }
 
     /// Returns true if the expression is async (contains await or has blockers).
+    #[must_use]
     pub fn is_async(&self) -> bool {
         self.has_await()
         // TODO: also check for blockers when binding blocker support is added
@@ -1396,7 +1407,8 @@ impl ExpressionMetadata {
     }
 
     /// Returns true if the expression has blocker dependencies.
-    pub fn has_blockers(&self) -> bool {
+    #[must_use]
+    pub const fn has_blockers(&self) -> bool {
         // TODO: check if any dependencies have blockers
         // For now, return false
         false
@@ -1422,11 +1434,11 @@ impl Serialize for ExpressionMetadata {
     }
 }
 
-/// Metadata for RegularElement nodes, populated during Phase 2 analysis.
+/// Metadata for `RegularElement` nodes, populated during Phase 2 analysis.
 #[derive(Debug, Clone, Default)]
 pub struct RegularElementMetadata<'a> {
     /// For option elements without an explicit value attribute but with a single expression child,
-    /// the expression is used as the synthetic value. This stores a clone of that ExpressionTag.
+    /// the expression is used as the synthetic value. This stores a clone of that `ExpressionTag`.
     pub synthetic_value_node: Option<Box<ExpressionTag<'a>>>,
     /// Whether this element is scoped (has CSS class hash applied)
     pub scoped: bool,
@@ -1436,7 +1448,7 @@ pub struct RegularElementMetadata<'a> {
     /// Set during Phase 2 analysis based on element name and ancestor context.
     /// Elements like 'a' and 'title' are SVG only when inside an SVG ancestor.
     pub svg: bool,
-    /// Whether this element is in the MathML namespace.
+    /// Whether this element is in the `MathML` namespace.
     /// Set during Phase 2 analysis based on element name.
     pub mathml: bool,
     /// Warning codes ignored via `<!-- svelte-ignore ... -->` comments preceding this element.
@@ -1444,17 +1456,17 @@ pub struct RegularElementMetadata<'a> {
     pub ignored_codes: Vec<String>,
 }
 
-/// Metadata for SvelteDynamicElement nodes (<svelte:element>), populated during Phase 2 analysis.
+/// Metadata for `SvelteDynamicElement` nodes (<svelte:element>), populated during Phase 2 analysis.
 #[derive(Debug, Clone, Default)]
 pub struct SvelteDynamicElementMetadata {
     /// Whether this element is in the SVG namespace.
     /// Set during Phase 2 analysis based on xmlns attribute, ancestor context, or component namespace.
     pub svg: bool,
-    /// Whether this element is in the MathML namespace.
+    /// Whether this element is in the `MathML` namespace.
     /// Set during Phase 2 analysis based on xmlns attribute, ancestor context, or component namespace.
     pub mathml: bool,
     /// Expression metadata for the tag expression (the `this` attribute value).
-    /// Tracks has_await, has_call, etc. for async handling.
+    /// Tracks `has_await`, `has_call`, etc. for async handling.
     pub expression: ExpressionMetadata,
     /// Whether this element has been matched by a CSS selector and needs the scoping class.
     /// Set during Phase 2 analysis by the CSS pruner/scoping pass.

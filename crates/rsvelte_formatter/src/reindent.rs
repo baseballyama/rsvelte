@@ -20,6 +20,176 @@ enum Frame {
     Subst(u32),
 }
 
+fn consume_line_comment(
+    byte: u8,
+    out: &mut Vec<u8>,
+    index: &mut usize,
+    line_comment: &mut bool,
+    at_line_start: &mut bool,
+    seen_newline: &mut bool,
+) {
+    out.push(byte);
+    *index += 1;
+    if byte == b'\n' {
+        *line_comment = false;
+        *at_line_start = true;
+        *seen_newline = true;
+    }
+}
+
+fn consume_block_comment(
+    bytes: &[u8],
+    byte: u8,
+    out: &mut Vec<u8>,
+    index: &mut usize,
+    block_comment: &mut bool,
+    is_jsdoc: &mut bool,
+    at_line_start: &mut bool,
+    seen_newline: &mut bool,
+) {
+    if byte == b'*' && bytes.get(*index + 1) == Some(&b'/') {
+        out.extend_from_slice(b"*/");
+        *index += 2;
+        *block_comment = false;
+        *is_jsdoc = false;
+        return;
+    }
+    out.push(byte);
+    *index += 1;
+    if byte == b'\n' {
+        *seen_newline = true;
+        if *is_jsdoc {
+            *at_line_start = true;
+        }
+    }
+}
+
+fn consume_string(
+    bytes: &[u8],
+    byte: u8,
+    out: &mut Vec<u8>,
+    index: &mut usize,
+    string: &mut Option<u8>,
+    at_line_start: &mut bool,
+    seen_newline: &mut bool,
+) {
+    if byte == b'\n' {
+        out.push(byte);
+        *string = None;
+        *at_line_start = true;
+        *seen_newline = true;
+        *index += 1;
+        return;
+    }
+    out.push(byte);
+    if byte == b'\\' {
+        if let Some(escaped) = bytes.get(*index + 1) {
+            out.push(*escaped);
+            *index += 2;
+        } else {
+            *index += 1;
+        }
+        return;
+    }
+    *index += 1;
+    if string.is_some_and(|quote| byte == quote) {
+        *string = None;
+    }
+}
+
+fn consume_template_quasi(
+    bytes: &[u8],
+    byte: u8,
+    out: &mut Vec<u8>,
+    index: &mut usize,
+    stack: &mut Vec<Frame>,
+    at_line_start: &mut bool,
+    seen_newline: &mut bool,
+) {
+    match byte {
+        b'`' => {
+            stack.pop();
+            out.push(byte);
+            *index += 1;
+        }
+        b'\\' => {
+            out.push(byte);
+            if let Some(escaped) = bytes.get(*index + 1) {
+                out.push(*escaped);
+                *index += 2;
+            } else {
+                *index += 1;
+            }
+        }
+        b'$' if bytes.get(*index + 1) == Some(&b'{') => {
+            stack.push(Frame::Subst(0));
+            out.extend_from_slice(b"${");
+            *index += 2;
+        }
+        b'\n' => {
+            out.push(byte);
+            *at_line_start = true;
+            *seen_newline = true;
+            *index += 1;
+        }
+        _ => {
+            out.push(byte);
+            *index += 1;
+        }
+    }
+}
+
+fn consume_code_byte(
+    bytes: &[u8],
+    byte: u8,
+    out: &mut Vec<u8>,
+    index: &mut usize,
+    stack: &mut Vec<Frame>,
+    string: &mut Option<u8>,
+    line_comment: &mut bool,
+    block_comment: &mut bool,
+    is_jsdoc: &mut bool,
+    at_line_start: &mut bool,
+    seen_newline: &mut bool,
+) {
+    match byte {
+        b'`' => stack.push(Frame::Template),
+        b'\'' | b'"' => *string = Some(byte),
+        b'/' if bytes.get(*index + 1) == Some(&b'/') => {
+            *line_comment = true;
+            out.extend_from_slice(b"//");
+            *index += 2;
+            return;
+        }
+        b'/' if bytes.get(*index + 1) == Some(&b'*') => {
+            *block_comment = true;
+            *is_jsdoc = is_indentable_block_comment(bytes, *index, bytes.len());
+            out.extend_from_slice(b"/*");
+            *index += 2;
+            return;
+        }
+        b'{' => {
+            if let Some(Frame::Subst(depth)) = stack.last_mut() {
+                *depth += 1;
+            }
+        }
+        b'}' => {
+            if matches!(stack.last(), Some(Frame::Subst(0))) {
+                stack.pop();
+            } else if let Some(Frame::Subst(depth)) = stack.last_mut() {
+                *depth -= 1;
+            }
+        }
+        b'\n' => {
+            *at_line_start = true;
+            *seen_newline = true;
+        }
+        _ => {}
+    }
+    out.push(byte);
+    *index += 1;
+}
+
 /// Prepend `prefix` to the start of every line of `formatted`, **except** lines
 /// that begin inside multi-line template-literal quasi text. When `skip_first`
 /// is true the first line is also left unprefixed — used when that line is
@@ -34,7 +204,7 @@ enum Frame {
 /// is ASCII, and an ASCII byte can never occur inside a UTF-8 multi-byte
 /// sequence, so multi-byte characters are copied through verbatim by the
 /// catch-all arms without ever being mistaken for a delimiter.
-pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> String {
+pub fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> String {
     let bytes = formatted.as_bytes();
     let n = bytes.len();
     let prefix = prefix.as_bytes();
@@ -66,13 +236,14 @@ pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> Strin
 
         // Line comment: runs to end of line.
         if line_comment {
-            out.push(c);
-            i += 1;
-            if c == b'\n' {
-                line_comment = false;
-                at_line_start = true;
-                seen_newline = true;
-            }
+            consume_line_comment(
+                c,
+                &mut out,
+                &mut i,
+                &mut line_comment,
+                &mut at_line_start,
+                &mut seen_newline,
+            );
             continue;
         }
 
@@ -84,25 +255,16 @@ pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> Strin
         //   verbatim. The comment author's formatting is intentional, and
         //   `oxc_formatter` does not touch the interior. `is_jsdoc = false`.
         if block_comment {
-            if c == b'*' && bytes.get(i + 1) == Some(&b'/') {
-                out.push(b'*');
-                out.push(b'/');
-                i += 2;
-                block_comment = false;
-                is_jsdoc = false;
-                continue;
-            }
-            out.push(c);
-            i += 1;
-            if c == b'\n' {
-                seen_newline = true;
-                if is_jsdoc {
-                    // JSDoc interior: re-indent continuation lines normally.
-                    at_line_start = true;
-                }
-                // Non-JSDoc (`/*`) interior: do NOT set `at_line_start` —
-                // the next line's existing whitespace is kept verbatim.
-            }
+            consume_block_comment(
+                bytes,
+                c,
+                &mut out,
+                &mut i,
+                &mut block_comment,
+                &mut is_jsdoc,
+                &mut at_line_start,
+                &mut seen_newline,
+            );
             continue;
         }
 
@@ -118,129 +280,43 @@ pub(crate) fn reindent(formatted: &str, prefix: &str, skip_first: bool) -> Strin
             // prefix (a script body de-indents after such a regex). The
             // mis-scanned tail sits on the already-prefixed line, so the visible
             // indentation is unaffected.
-            if c == b'\n' {
-                out.push(c);
-                string = None;
-                at_line_start = true;
-                seen_newline = true;
-                i += 1;
-                continue;
-            }
-            out.push(c);
-            if c == b'\\' {
-                if i + 1 < n {
-                    out.push(bytes[i + 1]);
-                    i += 2;
-                } else {
-                    i += 1;
-                }
-                continue;
-            }
-            i += 1;
-            if c == q {
-                string = None;
-            }
+            debug_assert!(q == b'\'' || q == b'"');
+            consume_string(
+                bytes,
+                c,
+                &mut out,
+                &mut i,
+                &mut string,
+                &mut at_line_start,
+                &mut seen_newline,
+            );
             continue;
         }
 
         if matches!(stack.last(), Some(Frame::Template)) {
-            // Inside template-literal quasi text.
-            match c {
-                b'`' => {
-                    stack.pop();
-                    out.push(c);
-                    i += 1;
-                }
-                b'\\' => {
-                    out.push(c);
-                    if i + 1 < n {
-                        out.push(bytes[i + 1]);
-                        i += 2;
-                    } else {
-                        i += 1;
-                    }
-                }
-                b'$' if bytes.get(i + 1) == Some(&b'{') => {
-                    stack.push(Frame::Subst(0));
-                    out.push(b'$');
-                    out.push(b'{');
-                    i += 2;
-                }
-                b'\n' => {
-                    out.push(c);
-                    at_line_start = true;
-                    seen_newline = true;
-                    i += 1;
-                }
-                _ => {
-                    out.push(c);
-                    i += 1;
-                }
-            }
+            consume_template_quasi(
+                bytes,
+                c,
+                &mut out,
+                &mut i,
+                &mut stack,
+                &mut at_line_start,
+                &mut seen_newline,
+            );
         } else {
-            // Ordinary code context (top level or inside `${ … }`).
-            match c {
-                b'`' => {
-                    stack.push(Frame::Template);
-                    out.push(c);
-                    i += 1;
-                }
-                b'\'' | b'"' => {
-                    string = Some(c);
-                    out.push(c);
-                    i += 1;
-                }
-                b'/' if bytes.get(i + 1) == Some(&b'/') => {
-                    line_comment = true;
-                    out.push(b'/');
-                    out.push(b'/');
-                    i += 2;
-                }
-                b'/' if bytes.get(i + 1) == Some(&b'*') => {
-                    block_comment = true;
-                    // A block comment's interior is re-indented (aligned) by
-                    // `oxc_formatter` only when it is "indentable": it spans
-                    // multiple lines and EVERY continuation line's first
-                    // non-whitespace character is `*` (the canonical
-                    // star-aligned JSDoc / banner shape). This mirrors
-                    // prettier's `isIndentableBlockComment`. A `/**` comment
-                    // whose continuation lines are prose — which may carry
-                    // intentional leading whitespace such as a tab — is NOT
-                    // indentable: `oxc_formatter` leaves its interior verbatim,
-                    // so the splice indent must not be prepended to those lines
-                    // either. (Being `/**` is not sufficient on its own.)
-                    is_jsdoc = is_indentable_block_comment(bytes, i, n);
-                    out.push(b'/');
-                    out.push(b'*');
-                    i += 2;
-                }
-                b'{' => {
-                    if let Some(Frame::Subst(d)) = stack.last_mut() {
-                        *d += 1;
-                    }
-                    out.push(c);
-                    i += 1;
-                }
-                b'}' => {
-                    if matches!(stack.last(), Some(Frame::Subst(0))) {
-                        stack.pop();
-                    } else if let Some(Frame::Subst(d)) = stack.last_mut() {
-                        *d -= 1;
-                    }
-                    out.push(c);
-                    i += 1;
-                }
-                b'\n' => {
-                    out.push(c);
-                    at_line_start = true;
-                    seen_newline = true;
-                    i += 1;
-                }
-                _ => {
-                    out.push(c);
-                    i += 1;
-                }
-            }
+            consume_code_byte(
+                bytes,
+                c,
+                &mut out,
+                &mut i,
+                &mut stack,
+                &mut string,
+                &mut line_comment,
+                &mut block_comment,
+                &mut is_jsdoc,
+                &mut at_line_start,
+                &mut seen_newline,
+            );
         }
     }
 

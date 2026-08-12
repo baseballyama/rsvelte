@@ -112,7 +112,7 @@ fn transform_store_property_mutations(script: &str) -> String {
                         name_end += 1;
                     }
                     let store_name: String = chars[start..name_end].iter().collect();
-                    let store_ref = format!("${}", store_name);
+                    let store_ref = format!("${store_name}");
 
                     // After store name, look for member access chain (.prop or [expr])
                     // but NOT if followed immediately by `=` (that's handled by existing code)
@@ -293,14 +293,7 @@ fn transform_store_property_mutations(script: &str) -> String {
 
                                 // Generate $.store_mutate(...)
                                 let transformed = format!(
-                                    "$.store_mutate($$store_subs ??= {{}}, '{}', {}, $.store_get($$store_subs ??= {{}}, '{}', {}){} {} {})",
-                                    store_ref,
-                                    store_name,
-                                    store_ref,
-                                    store_name,
-                                    member_chain,
-                                    assign_op,
-                                    value
+                                    "$.store_mutate($$store_subs ??= {{}}, '{store_ref}', {store_name}, $.store_get($$store_subs ??= {{}}, '{store_ref}', {store_name}){member_chain} {assign_op} {value})"
                                 );
                                 result.push_str(&transformed);
                                 i = val_start + val_len;
@@ -599,19 +592,19 @@ fn expand_object_store_destructure(pattern: &str, rhs: &str, needs_return: bool)
 
                 if is_store_subscription_name(target) {
                     let store_name = &target[1..];
-                    set_calls.push(format!("$.store_set({}, {}.{})", store_name, rhs, key));
+                    set_calls.push(format!("$.store_set({store_name}, {rhs}.{key})"));
                 } else {
                     // Non-store target, keep the property extraction as regular assignment
-                    set_calls.push(format!("{} = {}.{}", target, rhs, key));
+                    set_calls.push(format!("{target} = {rhs}.{key}"));
                 }
             } else {
                 // Shorthand: `$userName2` means `$userName2: $userName2`
                 if is_store_subscription_name(part) {
                     let store_name = &part[1..];
                     // The property key is the full name with $
-                    set_calls.push(format!("$.store_set({}, {}.{})", store_name, rhs, part));
+                    set_calls.push(format!("$.store_set({store_name}, {rhs}.{part})"));
                 } else {
-                    set_calls.push(format!("{} = {}.{}", part, rhs, part));
+                    set_calls.push(format!("{part} = {rhs}.{part}"));
                 }
             }
         }
@@ -637,15 +630,15 @@ fn expand_object_store_destructure(pattern: &str, rhs: &str, needs_return: bool)
 
                 if is_store_subscription_name(target) {
                     let store_name = &target[1..];
-                    body_lines.push(format!("$.store_set({}, $$value.{});", store_name, key));
+                    body_lines.push(format!("$.store_set({store_name}, $$value.{key});"));
                 } else {
-                    body_lines.push(format!("{} = $$value.{};", target, key));
+                    body_lines.push(format!("{target} = $$value.{key};"));
                 }
             } else if is_store_subscription_name(part) {
                 let store_name = &part[1..];
-                body_lines.push(format!("$.store_set({}, $$value.{});", store_name, part));
+                body_lines.push(format!("$.store_set({store_name}, $$value.{part});"));
             } else {
-                body_lines.push(format!("{} = $$value.{};", part, part));
+                body_lines.push(format!("{part} = $$value.{part};"));
             }
         }
 
@@ -653,7 +646,7 @@ fn expand_object_store_destructure(pattern: &str, rhs: &str, needs_return: bool)
             body_lines.push("return $$value;".to_string());
         }
         let body = body_lines.join("\n\t\t\t");
-        format!("(($$value) => {{\n\t\t\t{}\n\t\t}})({})", body, rhs)
+        format!("(($$value) => {{\n\t\t\t{body}\n\t\t}})({rhs})")
     }
 }
 
@@ -674,12 +667,12 @@ fn expand_array_store_destructure(
     let array_name = if *array_counter == 0 {
         "$$array".to_string()
     } else {
-        format!("$$array_{}", array_counter)
+        format!("$$array_{array_counter}")
     };
     *array_counter += 1;
 
     let mut body_lines = Vec::new();
-    body_lines.push(format!("var {} = $.to_array($$value, {});", array_name, n));
+    body_lines.push(format!("var {array_name} = $.to_array($$value, {n});"));
 
     for (idx, part) in parts.iter().enumerate() {
         let part = part.trim();
@@ -689,12 +682,9 @@ fn expand_array_store_destructure(
 
         if is_store_subscription_name(part) {
             let store_name = &part[1..];
-            body_lines.push(format!(
-                "$.store_set({}, {}[{}]);",
-                store_name, array_name, idx
-            ));
+            body_lines.push(format!("$.store_set({store_name}, {array_name}[{idx}]);"));
         } else {
-            body_lines.push(format!("{} = {}[{}];", part, array_name, idx));
+            body_lines.push(format!("{part} = {array_name}[{idx}];"));
         }
     }
 
@@ -702,7 +692,7 @@ fn expand_array_store_destructure(
         body_lines.push("return $$value;".to_string());
     }
     let body = body_lines.join("\n\t\t\t");
-    format!("(($$value) => {{\n\t\t\t{}\n\t\t}})({})", body, rhs)
+    format!("(($$value) => {{\n\t\t\t{body}\n\t\t}})({rhs})")
 }
 
 /// Find matching opening bracket by walking backwards from the byte offset
@@ -888,14 +878,10 @@ fn transform_store_assignments_once(script: &str) -> String {
             let op = &caps[1];
             let store_name = &caps[2];
             if op == "++" {
-                format!(
-                    "$.update_store_pre($$store_subs ??= {{}}, '${0}', {0})",
-                    store_name
-                )
+                format!("$.update_store_pre($$store_subs ??= {{}}, '${store_name}', {store_name})")
             } else {
                 format!(
-                    "$.update_store_pre($$store_subs ??= {{}}, '${0}', {0}, -1)",
-                    store_name
+                    "$.update_store_pre($$store_subs ??= {{}}, '${store_name}', {store_name}, -1)"
                 )
             }
         })
@@ -931,14 +917,12 @@ fn transform_store_assignments_once(script: &str) -> String {
                 if operator == "++" {
                     let _ = write!(
                         new_result,
-                        "$.update_store($$store_subs ??= {{}}, '${0}', {0})",
-                        store_name
+                        "$.update_store($$store_subs ??= {{}}, '${store_name}', {store_name})"
                     );
                 } else {
                     let _ = write!(
                         new_result,
-                        "$.update_store($$store_subs ??= {{}}, '${0}', {0}, -1)",
-                        store_name
+                        "$.update_store($$store_subs ??= {{}}, '${store_name}', {store_name}, -1)"
                     );
                 }
             }
@@ -966,7 +950,7 @@ fn transform_store_assignments_once(script: &str) -> String {
                 // the code structure when comments are stripped by the test normalizer.
                 let value = strip_trailing_line_comments(value);
                 let value = value.trim();
-                let _ = write!(new_result, "$.store_set({}, {})", store_name, value);
+                let _ = write!(new_result, "$.store_set({store_name}, {value})");
                 last_end = end + value_end;
                 continue;
             }
@@ -977,8 +961,7 @@ fn transform_store_assignments_once(script: &str) -> String {
                 let value = rest[..value_end].trim();
                 let _ = write!(
                     new_result,
-                    "$.store_set({}, $.store_get($$store_subs ??= {{}}, '${0}', {0}) {} {})",
-                    store_name, base_op, value
+                    "$.store_set({store_name}, $.store_get($$store_subs ??= {{}}, '${store_name}', {store_name}) {base_op} {value})"
                 );
                 last_end = end + value_end;
                 continue;

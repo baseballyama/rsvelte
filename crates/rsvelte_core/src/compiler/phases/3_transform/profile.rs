@@ -30,6 +30,7 @@ pub type TimerStart = ();
 
 #[cfg(not(target_arch = "wasm32"))]
 #[inline]
+#[must_use]
 pub fn timer_start() -> TimerStart {
     std::time::Instant::now()
 }
@@ -40,6 +41,7 @@ pub fn timer_start() -> TimerStart {}
 
 #[cfg(not(target_arch = "wasm32"))]
 #[inline]
+#[must_use]
 pub fn timer_elapsed(start: TimerStart) -> Duration {
     start.elapsed()
 }
@@ -92,7 +94,9 @@ pub struct Phase3Breakdown {
 }
 
 /// One level below [`Phase3Breakdown::script_text_transform`], which is the
-/// largest Phase 3 bucket. The five stages are sequential and disjoint, so the
+/// largest Phase 3 bucket.
+///
+/// The five stages are sequential and disjoint, so the
 /// difference between their sum and `script_text_transform` is the prologue
 /// plus the early-out paths.
 ///
@@ -283,6 +287,7 @@ pub fn record_direct_parse(parse: Duration, bytes: usize) {
     });
 }
 
+#[must_use]
 pub fn take_reparse_breakdown() -> ReparseBreakdown {
     let (parse, visit, calls, bytes) = REPARSE.replace((Duration::ZERO, Duration::ZERO, 0, 0));
     let (direct_parse, direct_calls, direct_bytes) = REPARSE_DIRECT.replace((Duration::ZERO, 0, 0));
@@ -345,6 +350,7 @@ pub fn record_esrap_normalize(d: Duration) {
     });
 }
 
+#[must_use]
 pub fn take_esrap_breakdown() -> EsrapBreakdown {
     let (client_split, client_split_calls) =
         ESRAP_CLIENT_SPLIT.with(|c| c.replace((Duration::ZERO, 0)));
@@ -420,6 +426,7 @@ pub struct ParentScope;
 
 impl ParentScope {
     #[expect(clippy::new_without_default, reason = "a guard is never defaulted")]
+    #[must_use]
     pub fn new() -> Self {
         ST_PARENT_OPEN.with(|c| c.set(c.get() + 1));
         Self
@@ -535,6 +542,7 @@ pub const PN_CHG_SPLIT: usize = 7;
 pub const PN_ANY_CHANGED: usize = 8;
 
 #[cfg(feature = "measure-pa-split")]
+#[must_use]
 pub fn take_prenormalize_counters() -> PrenormalizeCounters {
     let a = PN.with(|c| c.replace([0; 9]));
     PrenormalizeCounters {
@@ -596,6 +604,7 @@ pub fn record_sp_bail(clones: u64) {
 pub fn record_sp_bail(_clones: u64) {}
 
 #[cfg(feature = "measure-pa-split")]
+#[must_use]
 pub fn take_state_pipeline_counters() -> StatePipelineCounters {
     StatePipelineCounters {
         calls: SP_CALLS.with(|c| c.replace(0)),
@@ -610,8 +619,9 @@ pub fn take_state_pipeline_counters() -> StatePipelineCounters {
 }
 
 /// Named split of `process_accumulated`, in execution order. The two stages the
-/// parent already times separately (`reactive_stmt`, `runes`) are not repeated
-/// here; a reader sums those two, these, and `other` to reach the parent.
+/// parent already times separately (`reactive_stmt`, `runes`) are not repeated here.
+///
+/// A reader sums those two, these, and `other` to reach the parent.
 pub const PA_STAGE_NAMES: [&str; PA_STAGES] = [
     "join",
     "export_kw_probe",
@@ -671,7 +681,9 @@ pub const PA_CONSOLE_DEV: usize = 20;
 pub const PA_EMIT: usize = 21;
 
 /// `export_let`'s own four calls, one level below [`PA_EXPORT_LET`]. Kept in the
-/// same accumulator so the sub-rows and their parent are drained together; they
+/// same accumulator so the sub-rows and their parent are drained together.
+///
+/// They
 /// are nested inside `PA_EXPORT_LET`, so they are NOT part of the split sum.
 pub const PA_EL_DESTRUCTURED: usize = 22;
 pub const PA_EL_TRANSFORM: usize = 23;
@@ -703,7 +715,7 @@ thread_local! {
 #[cfg(feature = "measure-pa-split")]
 #[inline]
 pub fn record_pa(idx: usize, d: Duration, bytes: u64) {
-    PA_TIME.with(|a| a[idx].set(a[idx].get() + d.as_nanos() as u64));
+    PA_TIME.with(|a| a[idx].set(a[idx].get() + u64::try_from(d.as_nanos()).unwrap_or(u64::MAX)));
     PA_CALLS.with(|a| a[idx].set(a[idx].get() + 1));
     PA_BYTES.with(|a| a[idx].set(a[idx].get() + bytes));
 }
@@ -730,6 +742,7 @@ impl Drop for PaGuard {
 
 #[cfg(feature = "measure-pa-split")]
 #[inline]
+#[must_use]
 pub fn pa_guard(idx: usize, bytes: u64) -> PaGuard {
     PaGuard {
         idx,
@@ -748,6 +761,7 @@ pub fn pa_guard(_idx: usize, _bytes: u64) -> PaGuard {
 }
 
 #[cfg(feature = "measure-pa-split")]
+#[must_use]
 pub fn take_pa_breakdown() -> PaBreakdown {
     let mut out = PaBreakdown::default();
     PA_TIME.with(|a| {
@@ -874,8 +888,8 @@ pub struct TfGuard {
 #[cfg(feature = "measure-tf-split")]
 impl Drop for TfGuard {
     fn drop(&mut self) {
-        let total = timer_elapsed(self.start).as_nanos() as u64;
-        let child = TF_CHILD.with(|c| c.get());
+        let total = u64::try_from(timer_elapsed(self.start).as_nanos()).unwrap_or(u64::MAX);
+        let child = TF_CHILD.with(std::cell::Cell::get);
         TF_TIME.with(|a| a[self.idx].set(a[self.idx].get() + total.saturating_sub(child)));
         TF_CALLS.with(|a| a[self.idx].set(a[self.idx].get() + 1));
         TF_CHILD.with(|c| c.set(self.saved_child + total));
@@ -884,6 +898,7 @@ impl Drop for TfGuard {
 
 #[cfg(feature = "measure-tf-split")]
 #[inline]
+#[must_use]
 pub fn tf_guard(idx: usize) -> TfGuard {
     let saved_child = TF_CHILD.with(|c| c.replace(0));
     TfGuard {
@@ -903,6 +918,7 @@ pub fn tf_guard(_idx: usize) -> TfGuard {
 }
 
 #[cfg(feature = "measure-tf-split")]
+#[must_use]
 pub fn take_tf_breakdown() -> TfBreakdown {
     let mut out = TfBreakdown::default();
     TF_TIME.with(|a| {
@@ -966,8 +982,9 @@ pub fn record_st_line_loop(d: Duration) {
 }
 
 /// Scripts whose statement boundaries came from the parser, and those that fell
-/// back to the scanner. A byte-identical corpus proves nothing about which path
-/// ran, so the adoption rate has to be counted rather than inferred.
+/// back to the scanner.
+///
+/// A byte-identical corpus proves nothing about which path ran, so the adoption rate has to be counted rather than inferred.
 #[inline]
 pub fn record_st_boundary_source(from_ast: bool) {
     if from_ast {
@@ -995,12 +1012,14 @@ pub const BOUNDARY_BAIL_TEXT_DIFFERS_TS: usize = 2;
 /// a projection through it would not help.
 pub const BOUNDARY_BAIL_TEXT_DIFFERS_JS: usize = 5;
 /// TypeScript, and no projection exists to map the retained spans through — so
-/// using the projection cannot recover this one. Separating it keeps "the cause
-/// is TS" from being read as "a projection fixes it".
+/// using the projection cannot recover this one.
+///
+/// Separating it keeps "the cause is TS" from being read as "a projection fixes it".
 pub const BOUNDARY_BAIL_TS_NO_PROJECTION: usize = 6;
 /// A projection existed and still could not place the spans. Separate from
-/// `TEXT_DIFFERS_TS` so a projection path that silently never works is visible
-/// as its own number rather than folded back into the reason it was built for.
+/// `TEXT_DIFFERS_TS` so a projection path that silently never works is visible as its own number.
+///
+/// It is not folded back into the reason it was built for.
 pub const BOUNDARY_BAIL_PROJECTION_FAILED: usize = 7;
 /// A statement or comment crosses the region's edge.
 pub const BOUNDARY_BAIL_STRADDLE: usize = 3;
@@ -1055,6 +1074,7 @@ pub fn record_st_post_passes(d: Duration) {
     ST_POST_PASSES.with(|c| c.set(c.get() + d));
 }
 
+#[must_use]
 pub fn take_script_text_breakdown() -> ScriptTextBreakdown {
     ScriptTextBreakdown {
         prenormalize: ST_PRENORMALIZE.with(|c| c.replace(Duration::ZERO)),
@@ -1091,6 +1111,7 @@ pub fn take_script_text_breakdown() -> ScriptTextBreakdown {
     }
 }
 
+#[must_use]
 pub fn take_breakdown() -> Phase3Breakdown {
     Phase3Breakdown {
         visit_program: VISIT_PROGRAM.with(|c| c.replace(Duration::ZERO)),
@@ -1154,6 +1175,7 @@ pub fn record_semantic_build(site: usize, bytes: usize) {
     });
 }
 
+#[must_use]
 pub fn take_semantic_builds() -> [(u64, u64); SEMANTIC_SITES.len()] {
     SEMANTIC_BUILDS.replace([(0, 0); SEMANTIC_SITES.len()])
 }
@@ -1191,6 +1213,7 @@ pub fn semantic_build<T>(site: usize, bytes: usize, build: impl FnOnce() -> T) -
 }
 
 #[cfg(feature = "measure-semantic-build")]
+#[must_use]
 pub fn take_semantic_time() -> [Duration; SEMANTIC_SITES.len()] {
     SEMANTIC_TIME.replace([Duration::ZERO; SEMANTIC_SITES.len()])
 }
@@ -1225,6 +1248,7 @@ pub fn record_index_oracle(agrees: bool) {
     });
 }
 
+#[must_use]
 pub fn take_index_oracle() -> IndexOracle {
     let (checks, mismatches) = INDEX_ORACLE.replace((0, 0));
     IndexOracle { checks, mismatches }
@@ -1235,8 +1259,9 @@ thread_local! {
 }
 
 /// Whether reusing Phase 1's program answers the boundary question the same way
-/// a fresh parse of the pipeline's own text does. A byte-identical corpus is
-/// not evidence: the reuse could be bailing on every file.
+/// a fresh parse of the pipeline's own text does.
+///
+/// A byte-identical corpus is not evidence: the reuse could be bailing on every file.
 pub fn boundary_oracle_enabled() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ON.get_or_init(|| std::env::var_os("RSVELTE_BOUNDARY_ORACLE").is_some())
@@ -1250,6 +1275,7 @@ pub fn record_boundary_oracle(agrees: bool) {
     });
 }
 
+#[must_use]
 pub fn take_boundary_oracle() -> IndexOracle {
     let (checks, mismatches) = BOUNDARY_ORACLE.replace((0, 0));
     IndexOracle { checks, mismatches }

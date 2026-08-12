@@ -31,7 +31,7 @@ const SPAWN_CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 const SPAWN_CONNECT_POLL: Duration = Duration::from_millis(10);
 
 /// A connected daemon session for one `rsvelte-fmt` invocation.
-pub(crate) struct DaemonClient {
+pub struct DaemonClient {
     reader: BufReader<UnixStream>,
     writer: UnixStream,
     next_id: u64,
@@ -52,11 +52,11 @@ impl DaemonClient {
         let node = crate::oxfmt::oxfmt_node()?;
         let bundle = daemon_bundle_path()?;
         let pkg_dir = oxfmt_pkg_dir(oxfmt)?;
-        let socket = socket_path(oxfmt)?;
+        let socket = socket_path(oxfmt);
 
         let stream = connect_or_spawn(&socket, &node, &bundle, &pkg_dir)?;
         let reader = BufReader::new(stream.try_clone().ok()?);
-        Some(DaemonClient {
+        Some(Self {
             reader,
             writer: stream,
             next_id: 0,
@@ -209,21 +209,20 @@ fn oxfmt_pkg_dir(oxfmt: &Path) -> Option<PathBuf> {
 /// covers the oxfmt fingerprint + protocol version. An oxfmt upgrade or a
 /// protocol bump yields a different path, so a fresh daemon is started rather
 /// than reusing an incompatible one. Kept short for the `sun_path` limit.
-fn socket_path(oxfmt: &Path) -> Option<PathBuf> {
+fn socket_path(oxfmt: &Path) -> PathBuf {
     let dir = runtime_dir();
     let mut h = DefaultHasher::new();
     PROTOCOL_VERSION.hash(&mut h);
     oxfmt_fingerprint(oxfmt).hash(&mut h);
     let hash = h.finish();
-    Some(dir.join(format!("rsvelte-fmt-d-{hash:016x}.sock")))
+    dir.join(format!("rsvelte-fmt-d-{hash:016x}.sock"))
 }
 
 /// Prefer `$XDG_RUNTIME_DIR` (short, user-private), else the system temp dir.
 fn runtime_dir() -> PathBuf {
     std::env::var_os("XDG_RUNTIME_DIR")
         .filter(|v| !v.is_empty())
-        .map(PathBuf::from)
-        .unwrap_or_else(std::env::temp_dir)
+        .map_or_else(std::env::temp_dir, PathBuf::from)
 }
 
 /// Cheap oxfmt identity (path + size + mtime) so a reinstall of a new version

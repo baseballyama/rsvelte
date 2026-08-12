@@ -35,20 +35,17 @@ fn main() {
         // header is stale. Catches every FFI break (function signature,
         // struct layout, doc comments on exported items, etc.).
         let existing = fs::read_to_string(&header_path).unwrap_or_default();
-        if normalize(&existing) != normalize(&generated_str) {
-            panic!(
-                "include/rsvelte.h is out of date — re-run `cargo build -p rsvelte_capi` \
-                 locally and commit the updated header. (RSVELTE_CAPI_CHECK_HEADER=1)"
-            );
-        }
-    } else {
-        if let Err(e) = fs::write(&header_path, generated_str.as_bytes()) {
-            println!(
-                "cargo:warning=failed to write {}: {}",
-                header_path.display(),
-                e
-            );
-        }
+        assert!(
+            normalize(&existing) == normalize(&generated_str),
+            "include/rsvelte.h is out of date — re-run `cargo build -p rsvelte_capi` \
+             locally and commit the updated header. (RSVELTE_CAPI_CHECK_HEADER=1)"
+        );
+    } else if let Err(e) = fs::write(&header_path, generated_str.as_bytes()) {
+        println!(
+            "cargo:warning=failed to write {}: {}",
+            header_path.display(),
+            e
+        );
     }
 }
 

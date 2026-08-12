@@ -36,5 +36,5 @@ mod value;
 mod value_sequence;
 mod walk;
 
-pub(crate) use elements::is_html_block_display_element;
-pub(crate) use walk::{collect_open_tag_edits, collect_options_open_tag_edit};
+pub use elements::is_html_block_display_element;
+pub use walk::{collect_open_tag_edits, collect_options_open_tag_edit};

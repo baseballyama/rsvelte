@@ -20,6 +20,7 @@ pub struct CssWarning {
 }
 
 /// Collect warnings for unused CSS selectors.
+#[must_use]
 pub fn warn_unused(stylesheet: &StyleSheet) -> Vec<CssWarning> {
     let mut warnings = Vec::new();
     collect_warnings(stylesheet, &mut warnings);
@@ -55,14 +56,22 @@ fn collect_node_warnings(node: &serde_json::Value, warnings: &mut Vec<CssWarning
 fn collect_rule_warnings(rule: &serde_json::Value, warnings: &mut Vec<CssWarning>) {
     // Check if the rule has unused metadata
     if let Some(metadata) = rule.get("metadata")
-        && let Some(used) = metadata.get("used").and_then(|u| u.as_bool())
+        && let Some(used) = metadata.get("used").and_then(serde_json::Value::as_bool)
         && !used
     {
-        let start = rule.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
-        let end = rule.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as u32;
+        let start = rule
+            .get("start")
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|value| u32::try_from(value).ok())
+            .unwrap_or(0);
+        let end = rule
+            .get("end")
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|value| u32::try_from(value).ok())
+            .unwrap_or(0);
 
         warnings.push(CssWarning {
-            selector: format!("selector at {}:{}", start, end),
+            selector: format!("selector at {start}:{end}"),
             start,
             end,
             message: "Unused CSS selector".to_string(),

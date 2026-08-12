@@ -1,7 +1,7 @@
 //! Template processing for svelte2tsx.
 //!
 //! Converts Svelte template AST nodes into TSX expressions for type checking
-//! by modifying the source in-place using MagicString.
+//! by modifying the source in-place using `MagicString`.
 //!
 //! Each template node type has a corresponding handler that overwrites the
 //! original source range with the appropriate TypeScript/TSX code.
@@ -11,10 +11,10 @@ mod collect;
 // `pub(crate)`: `svelte2tsx::nodes::svelte_options` is a sibling of `template`,
 // not a descendant, but needs `ElementOpenerCommentIndex` to call `opener_spacing`
 // outside the main walk.
-pub(crate) mod ctx;
+pub mod ctx;
 mod nodes;
 mod segs;
-pub(crate) mod utils;
+pub mod utils;
 mod walk;
 
 use crate::ast::template::{Fragment, Root};
@@ -35,8 +35,8 @@ use walk::process_fragment_inplace;
 /// Information collected during template processing.
 #[derive(Debug, Default)]
 pub struct TemplateInfo<'a> {
-    /// Slots used in the component: slot_name -> list of prop strings.
-    /// e.g., "default" -> ["a:b", "c:d"]
+    /// Slots used in the component: `slot_name` -> list of prop strings.
+    /// e.g., `"default" -> ["a:b", "c:d"]`
     pub slots: IndexMap<String, Vec<String>>,
     /// Events forwarded from elements / components (on:event without handler),
     /// in template-walk order. Each entry carries its source so the assembly can
@@ -81,10 +81,10 @@ pub enum ForwardedEventMapper {
 // Main entry point
 // =============================================================================
 
-/// Process the template fragment by modifying the MagicString in-place.
+/// Process the template fragment by modifying the `MagicString` in-place.
 ///
 /// Walks the fragment's nodes and overwrites template node ranges with TSX
-/// equivalents. The MagicString is modified directly.
+/// equivalents. The `MagicString` is modified directly.
 ///
 /// Returns `TemplateInfo` containing collected slot/event information for
 /// use in the return statement.
@@ -145,23 +145,65 @@ pub fn collect_template_info<'a>(
 pub fn collect_template_info_if_needed<'a>(
     ast: &'a Root<'_>,
     source: &'a str,
-    collect_dollar_slot_names: bool,
-    may_need_template_info: bool,
-    check_await: bool,
-    check_rune_global: bool,
+    options: TemplateInfoOptions,
     instance_value_names: &std::collections::HashSet<String>,
 ) -> TemplateInfo<'a> {
-    if may_need_template_info || check_await || check_rune_global {
+    if options.contains(
+        TemplateInfoOptions::MAY_NEED_INFO
+            | TemplateInfoOptions::CHECK_AWAIT
+            | TemplateInfoOptions::CHECK_RUNE_GLOBAL,
+    ) {
         collect_template_info(
             ast,
             source,
-            collect_dollar_slot_names,
-            check_await,
-            check_rune_global,
+            options.contains(TemplateInfoOptions::COLLECT_DOLLAR_SLOT_NAMES),
+            options.contains(TemplateInfoOptions::CHECK_AWAIT),
+            options.contains(TemplateInfoOptions::CHECK_RUNE_GLOBAL),
             instance_value_names,
         )
     } else {
-        TemplateInfo::empty(collect_dollar_slot_names)
+        TemplateInfo::empty(options.contains(TemplateInfoOptions::COLLECT_DOLLAR_SLOT_NAMES))
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct TemplateInfoOptions(u8);
+
+impl TemplateInfoOptions {
+    const COLLECT_DOLLAR_SLOT_NAMES: u8 = 1;
+    const MAY_NEED_INFO: u8 = 1 << 1;
+    const CHECK_AWAIT: u8 = 1 << 2;
+    const CHECK_RUNE_GLOBAL: u8 = 1 << 3;
+
+    pub const fn new() -> Self {
+        Self(0)
+    }
+    pub const fn collect_dollar_slot_names_if(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.0 |= Self::COLLECT_DOLLAR_SLOT_NAMES;
+        }
+        self
+    }
+    pub const fn may_need_info_if(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.0 |= Self::MAY_NEED_INFO;
+        }
+        self
+    }
+    pub const fn check_await_if(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.0 |= Self::CHECK_AWAIT;
+        }
+        self
+    }
+    pub const fn check_rune_global_if(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.0 |= Self::CHECK_RUNE_GLOBAL;
+        }
+        self
+    }
+    const fn contains(self, flag: u8) -> bool {
+        self.0 & flag != 0
     }
 }
 
@@ -190,8 +232,8 @@ mod tests {
             &ast,
             source,
             dollar_slots,
-            features.has_await_word,
-            features.may_have_template_rune_global,
+            features.has_await_word(),
+            features.may_have_template_rune_global(),
             &std::collections::HashSet::new(),
         );
         inspect(&info);
@@ -215,10 +257,11 @@ mod tests {
         let info = collect_template_info_if_needed(
             &ast,
             source,
-            dollar_slots,
-            may_need_template_info,
-            features.has_await_word,
-            features.may_have_template_rune_global,
+            TemplateInfoOptions::new()
+                .collect_dollar_slot_names_if(dollar_slots)
+                .may_need_info_if(may_need_template_info)
+                .check_await_if(features.has_await_word())
+                .check_rune_global_if(features.may_have_template_rune_global()),
             &std::collections::HashSet::new(),
         );
         inspect(&info);

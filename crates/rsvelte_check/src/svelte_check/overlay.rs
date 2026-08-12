@@ -1,4 +1,6 @@
-//! Overlay-directory manager — materialise `.tsx` shadow files for each
+//! Overlay-directory manager.
+//!
+//! Materialises `.tsx` shadow files for each
 //! `.svelte` source so a TypeScript compiler (tsgo / tsc) can consume
 //! them. Mirrors the `emitSvelteFiles` + `writeOverlayTsconfig`
 //! choreography in
@@ -6,7 +8,7 @@
 //!
 //! Implementation choices for v0.2:
 //! - Cache dir is `<workspace>/.svelte-check/`. v0.3 will swap this to
-//!   `.svelte-kit/` when the workspace looks like a SvelteKit project.
+//!   `.svelte-kit/` when the workspace looks like a `SvelteKit` project.
 //! - `.svelte` → `<cacheDir>/svelte/<rel>.svelte.tsx` plus a
 //!   sibling `<rel>.svelte.d.ts` re-exporting the `.tsx`'s default and
 //!   named exports (so import-by-name still resolves), and a
@@ -14,7 +16,7 @@
 //! - The emitted overlay tsconfig EXTENDS the original tsconfig.json
 //!   instead of duplicating compiler options.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::fs;
 use std::io;
@@ -317,7 +319,8 @@ pub struct OverlayEntry {
     pub source_map: Option<String>,
 }
 
-/// One emitted SvelteKit `.ts` / `.js` shadow with injected type stubs.
+/// One emitted `SvelteKit` `.ts` / `.js` shadow with injected type stubs.
+///
 /// The shadow lives at `<emit_dir>/<rel>` (same extension as source), so
 /// downstream diagnostic mapping is a simple path strip — we don't need
 /// a source map because every insertion is a pure positive shift.
@@ -328,7 +331,9 @@ pub struct KitOverlayEntry {
     pub added_code: Vec<AddedCode>,
 }
 
-/// One plain `.ts` / `.js` source mirrored into the overlay with everything
+/// One plain `.ts` / `.js` source mirrored into the overlay.
+///
+/// It keeps everything
 /// but its hijacked `.svelte` import declarations blanked out (see
 /// `emit_import_probes`). Positions are preserved byte for byte, so a
 /// diagnostic on the probe is reported at the source's own line and column.
@@ -367,15 +372,15 @@ pub enum OverlayError {
 
 impl From<io::Error> for OverlayError {
     fn from(value: io::Error) -> Self {
-        OverlayError::Io(value)
+        Self::Io(value)
     }
 }
 
 impl std::fmt::Display for OverlayError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            OverlayError::Io(e) => write!(f, "I/O error: {e}"),
-            OverlayError::Svelte2Tsx { file, message } => {
+            Self::Io(e) => write!(f, "I/O error: {e}"),
+            Self::Svelte2Tsx { file, message } => {
                 write!(f, "svelte2tsx failed on {}: {message}", file.display())
             }
         }
@@ -384,10 +389,11 @@ impl std::fmt::Display for OverlayError {
 
 impl std::error::Error for OverlayError {}
 
-/// Build (or refresh) an overlay directory under `workspace` and emit
-/// one `.tsx` per `.svelte` input. The original tsconfig path (when
-/// supplied) is `extends`-ed by the overlay tsconfig — passing `None`
-/// produces a self-contained tsconfig with sensible defaults.
+/// Builds or refreshes an overlay directory under `workspace`.
+///
+/// # Errors
+///
+/// Returns an error while reading sources or writing overlay artifacts.
 pub fn materialize_overlay(
     workspace: &Path,
     files: &[PathBuf],
@@ -403,11 +409,11 @@ pub fn materialize_overlay(
     )
 }
 
-/// Same as [`materialize_overlay_with`] but also materialises SvelteKit
-/// kit files (`+page.ts`, hooks, params) with addedCode-style type
-/// augmentation. Kit files land at `<emit_dir>/<rel>` with their
-/// original extension so the overlay tsconfig's `rootDirs` mapping
-/// keeps module resolution intact.
+/// Materializes `SvelteKit` kit files with type augmentation.
+///
+/// # Errors
+///
+/// Returns an error while reading sources or writing overlay artifacts.
 pub fn materialize_overlay_with_kit(
     workspace: &Path,
     svelte_files: &[PathBuf],
@@ -444,17 +450,15 @@ pub fn materialize_overlay_with_kit(
     Ok(layout)
 }
 
-/// Same as [`materialize_overlay`] but with an explicit `incremental`
-/// flag. When `true`, we load `<cacheDir>/manifest.json`, prune entries
-/// for files that have been deleted, and skip running svelte2tsx on
-/// files whose `(mtime_ms, size)` matches the manifest (and whose
-/// `.tsx` / `.d.ts` shadows still exist on disk). The source map for
-/// skipped files is recovered from the sibling `.tsx.map` file written
-/// on the previous run, so downstream diagnostic mapping still works.
+/// Materializes the overlay with optional incremental state.
 ///
-/// `ignore` is the CLI's `--ignore` list, applied to the extra workspace walk
-/// `emit_svelte_module_bridges` does so it sees the same tree the checked
-/// file set was collected from.
+/// # Errors
+///
+/// Returns an error while reading sources, updating the manifest, or writing artifacts.
+#[allow(
+    clippy::too_many_lines,
+    reason = "overlay lifecycle stays in one transaction to preserve cleanup and manifest ordering"
+)]
 pub fn materialize_overlay_with(
     workspace: &Path,
     files: &[PathBuf],
@@ -831,7 +835,7 @@ struct ExternalPackage {
 /// `node_modules` symlinks (pnpm / npm / yarn link a monorepo package's real
 /// source dir into `node_modules/<name>`), OR through a `tsconfig.json`
 /// `compilerOptions.paths` alias that maps straight onto a sibling package's
-/// source tree with no `node_modules` entry at all (common with SvelteKit's
+/// source tree with no `node_modules` entry at all (common with `SvelteKit`'s
 /// `kit.alias` / bundler `resolve.alias`, e.g. `$libs` → `../../libs`) —
 /// #782's fix only covered the former, leaving the alias case still resolving
 /// to the ambient `*.svelte` wildcard. Registry deps — whose realpath stays
@@ -1278,7 +1282,7 @@ fn materialize_kit_files(
     Ok(out)
 }
 
-/// Mirror each SvelteKit route's generated `$types.d.ts` next to the
+/// Mirror each `SvelteKit` route's generated `$types.d.ts` next to the
 /// route's shadows under `<emit_dir>/<route-rel>/$types.d.ts`, rewriting
 /// the `import('…/+layout.js').load` / `+page.js` reverse-references so
 /// they point at the **injected** mirror route file (co-located
@@ -1302,6 +1306,10 @@ fn materialize_kit_files(
 /// exact-directory match that wins over the `rootDirs` route to the
 /// source copy, with no global `rootDirs` reordering (which would perturb
 /// resolution for every non-kit file).
+#[allow(
+    clippy::case_sensitive_file_extension_comparisons,
+    reason = "SvelteKit emits the generated proxy files with an exact lowercase .ts suffix"
+)]
 fn materialize_kit_types(
     workspace: &Path,
     emit_dir: &Path,
@@ -1316,7 +1324,7 @@ fn materialize_kit_types(
     }
 
     // Unique route directories (workspace-relative) that own a route file.
-    let mut route_dirs: BTreeMap<PathBuf, ()> = BTreeMap::new();
+    let mut route_dirs = BTreeSet::new();
     for source in kit_files {
         let abs = if source.is_absolute() {
             source.clone()
@@ -1328,11 +1336,11 @@ fn materialize_kit_types(
         }
         let rel = abs.strip_prefix(workspace).unwrap_or(&abs);
         if let Some(dir) = rel.parent() {
-            route_dirs.insert(dir.to_path_buf(), ());
+            route_dirs.insert(dir.to_path_buf());
         }
     }
 
-    for dir in route_dirs.keys() {
+    for dir in &route_dirs {
         let types_src = kit_types_dir.join(dir).join("$types.d.ts");
         if !types_src.is_file() {
             continue;
@@ -1464,8 +1472,7 @@ fn safe_relative(abs: &Path, base: &Path) -> PathBuf {
         }
     }
     abs.file_name()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("__unnamed"))
+        .map_or_else(|| PathBuf::from("__unnamed"), PathBuf::from)
 }
 
 /// Quick lexical sniff for `<script lang="ts">` so the v0.2 overlay can
@@ -1478,7 +1485,7 @@ fn looks_like_ts_svelte(source: &str) -> bool {
 /// The extension a component's shadow carries: `.tsx` for a `lang="ts"`
 /// component, `.jsx` for a JavaScript one.
 ///
-/// TypeScript honours JSDoc type annotations **only in JS files**, so a
+/// TypeScript honours `JSDoc` type annotations **only in JS files**, so a
 /// JS-authored component emitted as `.tsx` has every `/** @type {...} */` in
 /// it silently discarded — which both invents implicit-`any` errors the user
 /// cannot act on and hides real violations of the types they did declare
@@ -1490,14 +1497,13 @@ fn looks_like_ts_svelte(source: &str) -> bool {
 /// Falls back to `.tsx` for an unreadable source, which is what the caller
 /// would have produced anyway.
 fn shadow_extension(source_path: &Path) -> &'static str {
-    match fs::read_to_string(source_path) {
-        Ok(source) => shadow_extension_for(looks_like_ts_svelte(&source)),
-        Err(_) => ".tsx",
-    }
+    fs::read_to_string(source_path).map_or(".tsx", |source| {
+        shadow_extension_for(looks_like_ts_svelte(&source))
+    })
 }
 
 /// The same decision made from an already-classified source.
-fn shadow_extension_for(is_ts_file: bool) -> &'static str {
+const fn shadow_extension_for(is_ts_file: bool) -> &'static str {
     if is_ts_file { ".tsx" } else { ".jsx" }
 }
 
@@ -1520,6 +1526,10 @@ fn remove_stale_counterpart(shadow: &Path, ext: &str) {
     let _ = fs::remove_file(append_extension(&counterpart, ".map"));
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "the emitted tsconfig fields are intentionally contiguous for audit against upstream"
+)]
 fn build_overlay_tsconfig(
     cache_dir: &Path,
     original: Option<&Path>,
@@ -1789,7 +1799,7 @@ struct InheritedSpecs {
 
 /// Resolve the user's effective `include` / `exclude` / `files` and
 /// rebase each onto `cache_dir` (the overlay dir). Each key is resolved
-/// independently through the `extends` chain — SvelteKit projects keep
+/// independently through the `extends` chain — `SvelteKit` projects keep
 /// these in the generated `./.svelte-kit/tsconfig.json`, not the root
 /// tsconfig, so reading only the directly-passed file forwarded nothing
 /// and project ambient files never entered the program.
@@ -1798,9 +1808,11 @@ fn read_tsconfig_specs(tsconfig_path: &Path, cache_dir: &Path) -> InheritedSpecs
     // A `${configDir}` spec is already anchored on the project, so it only
     // needs the same lexical rebase onto the overlay dir that `rebase_spec`
     // ends with.
-    let rebase = |spec: &str, base: &Path| match substitute_config_dir(spec, &config_dir) {
-        Some(path) => relative_lexical(&absolutize(cache_dir), &path),
-        None => rebase_spec(spec, base, cache_dir),
+    let rebase = |spec: &str, base: &Path| {
+        substitute_config_dir(spec, &config_dir).map_or_else(
+            || rebase_spec(spec, base, cache_dir),
+            |path| relative_lexical(&absolutize(cache_dir), &path),
+        )
     };
     let rebased = |key: &str| -> Vec<String> {
         resolve_config_specs(tsconfig_path, key)
@@ -1844,7 +1856,7 @@ const MAX_EXTENDS_CONFIGS: usize = 32;
 /// later entries winning.
 ///
 /// A bare package-name `extends` is resolved through `node_modules` the way
-/// TypeScript resolves it. SvelteKit writes `"extends": "$app/tsconfig"` into
+/// TypeScript resolves it. `SvelteKit` writes `"extends": "$app/tsconfig"` into
 /// every app's `tsconfig.json`, so leaving that branch unfollowed loses the
 /// whole base config — its `rootDirs`, `paths` and `types` — while tsgo, which
 /// resolves it, sees a program the overlay was not built for (issue #2714's
@@ -1866,7 +1878,10 @@ fn extends_chain(tsconfig_path: &Path) -> Vec<(PathBuf, serde_json::Value)> {
         let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&stripped) else {
             continue;
         };
-        let dir = file.parent().unwrap_or(Path::new(".")).to_path_buf();
+        let dir = file
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .to_path_buf();
 
         // Queued in declaration order, popped from the back: the last entry —
         // the one TypeScript gives precedence — is visited first, and its own
@@ -2032,7 +2047,7 @@ fn normalize_abs(path: &Path) -> PathBuf {
                 let last = out.components().next_back();
                 if matches!(last, Some(Component::Normal(_))) {
                     out.pop();
-                } else if !matches!(last, Some(Component::RootDir) | Some(Component::Prefix(_))) {
+                } else if !matches!(last, Some(Component::RootDir | Component::Prefix(_))) {
                     out.push("..");
                 }
                 // At the root, `..` is a no-op.
@@ -2244,14 +2259,12 @@ fn resolve_effective_target(tsconfig_path: Option<&Path>) -> Option<String> {
 /// Nearest-definition-wins `compilerOptions.allowJs`, read off the
 /// [`extends_chain`]; `false` (TypeScript's default) without a tsconfig.
 fn resolve_allow_js(tsconfig_path: Option<&Path>) -> bool {
-    tsconfig_path
-        .map(|p| {
-            extends_chain(p)
-                .into_iter()
-                .find_map(|(_, parsed)| parsed.get("compilerOptions")?.get("allowJs")?.as_bool())
-                .unwrap_or(false)
-        })
-        .unwrap_or(false)
+    tsconfig_path.is_some_and(|p| {
+        extends_chain(p)
+            .into_iter()
+            .find_map(|(_, parsed)| parsed.get("compilerOptions")?.get("allowJs")?.as_bool())
+            .unwrap_or(false)
+    })
 }
 
 /// Nearest-definition-wins `compilerOptions.noImplicitAny`, falling back to
@@ -2376,10 +2389,7 @@ fn is_relative_specifier(path: &str) -> bool {
         .strip_prefix("..")
         .or_else(|| path.strip_prefix('.'))
         .filter(|_| path.starts_with('.'));
-    match rest {
-        Some(rest) => rest.is_empty() || rest.starts_with('/') || rest.starts_with('\\'),
-        None => false,
-    }
+    rest.is_some_and(|rest| rest.is_empty() || rest.starts_with('/') || rest.starts_with('\\'))
 }
 
 /// TypeScript's `pathIsAbsolute`: a root slash or a drive-letter root. Written
@@ -2406,15 +2416,17 @@ fn paths_value_offset(text: &str, key: &str, index: usize) -> Option<(usize, usi
 
 /// Byte offsets → a 1-based-line / 0-based-column [`Range`].
 fn text_range(text: &str, start: usize, end: usize) -> Range {
+    let lsp_u32 = |value: usize| u32::try_from(value).unwrap_or(u32::MAX);
     let position = |offset: usize| {
         let before = &text[..offset.min(text.len())];
-        let line = before.matches('\n').count() as u32 + 1;
-        let column = before
-            .rsplit_once('\n')
-            .map(|(_, last)| last)
-            .unwrap_or(before)
-            .encode_utf16()
-            .count() as u32;
+        let line = lsp_u32(before.matches('\n').count()).saturating_add(1);
+        let column = lsp_u32(
+            before
+                .rsplit_once('\n')
+                .map_or(before, |(_, last)| last)
+                .encode_utf16()
+                .count(),
+        );
         Position { line, column }
     };
     Range {
@@ -2432,7 +2444,7 @@ struct JsonCursor<'a> {
 }
 
 impl<'a> JsonCursor<'a> {
-    fn new(text: &'a str) -> Self {
+    const fn new(text: &'a str) -> Self {
         Self {
             bytes: text.as_bytes(),
             at: 0,
@@ -2603,10 +2615,8 @@ fn resolve_paths_chain(
                     targets
                         .into_iter()
                         .map(|target| match target.as_str() {
-                            Some(t) => match substitute_config_dir(t, &config_dir) {
-                                Some(path) => path.display().to_string().into(),
-                                None => target,
-                            },
+                            Some(text) => substitute_config_dir(text, &config_dir)
+                                .map_or(target, |path| path.display().to_string().into()),
                             None => target,
                         })
                         .collect(),
@@ -3202,9 +3212,7 @@ fn module_has_default(path: &Path) -> bool {
     } else {
         SourceType::default()
     };
-    fs::read_to_string(path)
-        .map(|src| module_exports(&src, source_type).has_default)
-        .unwrap_or(false)
+    fs::read_to_string(path).is_ok_and(|src| module_exports(&src, source_type).has_default)
 }
 
 /// Sibling companion module (`Foo.svelte.ts` / `Foo.svelte.js`) of a
@@ -3471,7 +3479,7 @@ fn collect_binding_pattern_names(pattern: &oxc::BindingPattern, names: &mut Vec<
             }
         }
         oxc::BindingPattern::AssignmentPattern(assign) => {
-            collect_binding_pattern_names(&assign.left, names)
+            collect_binding_pattern_names(&assign.left, names);
         }
     }
 }
@@ -3528,7 +3536,7 @@ fn build_svelte_import_resolver(tsconfig: Option<&Path>) -> Option<oxc_resolver:
 /// imports are left as-is — the overlay's `rootDirs` already bridges those to
 /// shadows, and TS only applies `rootDirs` to relative specifiers.
 ///
-/// Specifiers that oxc_resolver maps to a `.svelte` file UNDER the workspace
+/// Specifiers that `oxc_resolver` maps to a `.svelte` file UNDER the workspace
 /// are rewritten to that file's shadow under `emit_dir`. A specifier that
 /// resolves OUTSIDE the workspace but under one of `ext_pairs`' real dirs (a
 /// sibling package discovered by [`discover_external_svelte_packages`], via
@@ -3588,13 +3596,13 @@ fn rewrite_aliased_svelte_imports(
             return None;
         }
         let resolution = resolver.resolve(source_dir, spec).ok()?;
-        let resolved = resolution.path();
-        if resolved.extension().and_then(|e| e.to_str()) != Some("svelte") {
+        let resolved_path = resolution.path();
+        if resolved_path.extension().and_then(|e| e.to_str()) != Some("svelte") {
             return None;
         }
-        let resolved_canon = resolved
+        let resolved_canon = resolved_path
             .canonicalize()
-            .unwrap_or_else(|_| resolved.to_path_buf());
+            .unwrap_or_else(|_| resolved_path.to_path_buf());
         // Rewriting a file inside an external package: the alias was resolved
         // with a `paths` map that belongs to a different project, so a name
         // collision (`$lib` means one thing to the consumer and another to the
@@ -3780,12 +3788,12 @@ fn path_relative(from_dir: &Path, to_path: &Path) -> String {
     let mut from_parts: Vec<&std::ffi::OsStr> = from_abs
         .components()
         .filter(|c| !matches!(c, Component::RootDir | Component::Prefix(_)))
-        .map(|c| c.as_os_str())
+        .map(std::path::Component::as_os_str)
         .collect();
     let mut to_parts: Vec<&std::ffi::OsStr> = to_abs
         .components()
         .filter(|c| !matches!(c, Component::RootDir | Component::Prefix(_)))
-        .map(|c| c.as_os_str())
+        .map(std::path::Component::as_os_str)
         .collect();
     while !from_parts.is_empty() && !to_parts.is_empty() && from_parts[0] == to_parts[0] {
         from_parts.remove(0);
@@ -4119,7 +4127,7 @@ mod tests {
     /// type-check, (2) reference the embedded svelte2tsx shims under
     /// `files`, and (3) MERGE the project's `rootDirs` (resolved through
     /// the `extends` chain) with the overlay's `./svelte` rather than
-    /// replacing them — otherwise SvelteKit's `$types` resolution breaks.
+    /// replacing them — otherwise `SvelteKit`'s `$types` resolution breaks.
     #[test]
     fn overlay_tsconfig_has_jsx_shims_and_merged_rootdirs() {
         let tmp = std::env::temp_dir().join(format!("svc_overlay_tsgo_{}", std::process::id()));
@@ -4190,7 +4198,7 @@ mod tests {
     }
 
     /// Regression test for issue #1569: `rewrite_aliased_svelte_imports`
-    /// rewrites tsconfig-alias-resolved `.svelte` imports (e.g. SvelteKit's
+    /// rewrites tsconfig-alias-resolved `.svelte` imports (e.g. `SvelteKit`'s
     /// `$lib/...`) to relative `.svelte.tsx` specifiers, which tsgo/tsc
     /// reject with "An import path can only end with a '.tsx' extension
     /// when 'allowImportingTsExtensions' is enabled" unless the overlay
@@ -4321,7 +4329,7 @@ mod tests {
         let _ = fs::remove_dir_all(&tmp);
     }
 
-    /// A target set only on a grandparent config (e.g. SvelteKit's generated `.svelte-kit/tsconfig.json`) must still be found via the `extends` chain.
+    /// A target set only on a grandparent config (e.g. `SvelteKit`'s generated `.svelte-kit/tsconfig.json`) must still be found via the `extends` chain.
     #[test]
     fn overlay_tsconfig_target_search_follows_extends_chain() {
         let tmp =
@@ -4399,7 +4407,7 @@ mod tests {
     }
 
     /// Regression test for the "project ambient `.d.ts` invisible to
-    /// `--tsgo`" gap: a SvelteKit project keeps `include` in the generated
+    /// `--tsgo`" gap: a `SvelteKit` project keeps `include` in the generated
     /// `./.svelte-kit/tsconfig.json`, not the root tsconfig. The overlay
     /// must resolve `include` through the `extends` chain and forward it
     /// (correctly rebased) so `src/app.d.ts` enters the program.
@@ -4928,7 +4936,7 @@ mod tests {
 
     /// Regression test for #782's uncovered case: a sibling package reached
     /// through a `paths` alias with NO `node_modules` entry at all (a plain
-    /// SvelteKit `kit.alias` / bundler `resolve.alias`, not a package
+    /// `SvelteKit` `kit.alias` / bundler `resolve.alias`, not a package
     /// `exports` barrel resolved via a symlink). Named `<script module>`
     /// exports must resolve through the alias just like the in-workspace case
     /// above, not fall back to the ambient default-only `*.svelte` wildcard.
@@ -5058,7 +5066,9 @@ mod tests {
         .unwrap();
 
         let workspace = tmp.join("pkg-a");
-        let _cwd_guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _cwd_guard = CWD_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let cwd = std::env::current_dir().unwrap();
         std::env::set_current_dir(&workspace).unwrap();
         let result = {
@@ -5157,7 +5167,9 @@ mod tests {
             .unwrap();
 
             let workspace = tmp.join("pkg-a");
-            let _cwd_guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            let _cwd_guard = CWD_LOCK
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             let cwd = std::env::current_dir().unwrap();
             std::env::set_current_dir(&workspace).unwrap();
             let result = {
@@ -5382,7 +5394,9 @@ mod tests {
         )
         .unwrap();
 
-        let _cwd_guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _cwd_guard = CWD_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let cwd = std::env::current_dir().unwrap();
         std::env::set_current_dir(&tmp).unwrap();
         let result = {

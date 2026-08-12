@@ -1,5 +1,7 @@
-//! The native rule engine, free of any `svelte_check` (native-only) types so it
-//! can run both on the CLI and in the browser (wasm). It parses the component
+//! Native lint rule engine.
+//!
+//! It is free of any `svelte_check` (native-only) types, so it can run both on
+//! the CLI and in the browser (wasm). It parses the component
 //! and walks the template once, returning raw [`LintDiagnostic`]s (byte offsets,
 //! fixes intact). Compiler/validator findings are layered on top by the
 //! native-only [`runner`](crate::runner).
@@ -31,10 +33,13 @@ pub(crate) fn lint_parse_options() -> ParseOptions {
     }
 }
 
+/// Run enabled native rules.
+///
 /// Run every enabled native rule over `source`, returning raw findings. `path`
 /// is the file being linted when known (`None` for in-memory / wasm linting);
 /// filesystem-aware rules (e.g. `svelte/no-companion-module-shadow`) use it and
 /// no-op when it is `None`.
+#[must_use]
 pub fn run_native_rules(
     source: &str,
     filename: &str,
@@ -128,21 +133,33 @@ pub enum SourceKind {
     },
 }
 
+/// Classify a source file.
+///
 /// Classify a file by name/extension. `.svelte` → component; `.ts`/`.mts`/`.cts`
 /// (incl. `.svelte.ts`) → TS module; `.js`/`.mjs`/`.cjs` (incl. `.svelte.js`) →
 /// JS module; anything else defaults to a component.
+#[must_use]
 pub fn classify_source(filename: &str) -> SourceKind {
-    if filename.ends_with(".svelte") {
+    if has_extension(filename, &["svelte"]) {
         SourceKind::Svelte
-    } else if filename.ends_with(".ts") || filename.ends_with(".mts") || filename.ends_with(".cts")
-    {
+    } else if has_extension(filename, &["ts", "mts", "cts"]) {
         SourceKind::Module { ts: true }
-    } else if filename.ends_with(".js") || filename.ends_with(".mjs") || filename.ends_with(".cjs")
-    {
+    } else if has_extension(filename, &["js", "mjs", "cjs"]) {
         SourceKind::Module { ts: false }
     } else {
         SourceKind::Svelte
     }
+}
+
+fn has_extension(filename: &str, extensions: &[&str]) -> bool {
+    Path::new(filename)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| {
+            extensions
+                .iter()
+                .any(|candidate| extension.eq_ignore_ascii_case(candidate))
+        })
 }
 
 type EnabledScriptRule<'a> = (&'a dyn ScriptRule, &'static RuleMeta, Severity);
@@ -223,7 +240,9 @@ pub(crate) fn scope_resolver_for_root(root: &Root, source: &str) -> ScopeResolve
             ) else {
                 continue;
             };
-            let (start, end) = (start as u32, end as u32);
+            let (Ok(start), Ok(end)) = (u32::try_from(start), u32::try_from(end)) else {
+                continue;
+            };
             if start > end || end as usize > source.len() {
                 continue;
             }
@@ -253,12 +272,14 @@ pub(crate) fn maybe_scope_resolver(
 /// Each program is materialised as an owned `serde_json::Value` (with absolute
 /// byte offsets) inside the parse arena, then handed to each rule's
 /// `check_program`.
+#[must_use]
 pub fn run_script_rules(source: &str, filename: &str, config: &LintConfig) -> Vec<LintDiagnostic> {
     run_script_rules_with_path(source, filename, config, None)
 }
 
 /// Like [`run_script_rules`] but also threads the file's [`Path`] into the
-/// context so path-gated rules (e.g. SvelteKit route file detection) work.
+/// context so path-gated rules (e.g. `SvelteKit` route file detection) work.
+#[must_use]
 pub fn run_script_rules_with_path(
     source: &str,
     filename: &str,
@@ -334,6 +355,7 @@ pub(crate) fn run_script_rules_on_root(
 ///
 /// The whole file is parsed as a module program (byte offsets relative to the
 /// file), so script rules report at file-accurate positions.
+#[must_use]
 pub fn run_script_rules_module(
     source: &str,
     filename: &str,

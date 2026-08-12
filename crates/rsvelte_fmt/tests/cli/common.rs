@@ -2,7 +2,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-pub(crate) fn bin() -> PathBuf {
+pub fn bin() -> PathBuf {
     // Cargo sets CARGO_BIN_EXE_<bin-name> for integration tests so the test
     // doesn't have to guess where the binary lives — important under
     // cargo-llvm-cov, which uses target/llvm-cov-target/ instead of target/.
@@ -15,7 +15,7 @@ pub(crate) fn bin() -> PathBuf {
 /// directory). Any *other* directory argument — e.g. the project dir from the
 /// non-`.svelte` delegation pass — is ignored, so it never touches the test's
 /// own `.svelte`/`.cjs` files. Shared by the delegation and cache-output tests.
-pub(crate) const MARKER_OXFMT: &str = r#"const fs = require('node:fs');
+pub const MARKER_OXFMT: &str = r"const fs = require('node:fs');
 const path = require('node:path');
 function fmtFile(p) { fs.writeFileSync(p, '/*FMT*/' + fs.readFileSync(p, 'utf8')); }
 for (const p of process.argv.slice(2)) {
@@ -30,9 +30,9 @@ for (const p of process.argv.slice(2)) {
     }
   }
 }
-"#;
+";
 
-pub(crate) fn run_stdin(stdin: &str, args: &[&str]) -> (String, String, i32) {
+pub fn run_stdin(stdin: &str, args: &[&str]) -> (String, String, i32) {
     let mut child = Command::new(bin())
         .args(args)
         .stdin(Stdio::piped())
@@ -54,24 +54,23 @@ pub(crate) fn run_stdin(stdin: &str, args: &[&str]) -> (String, String, i32) {
     )
 }
 
-pub(crate) fn real_oxfmt_bin() -> PathBuf {
+pub fn real_oxfmt_bin() -> PathBuf {
     if let Ok(p) = std::env::var("OXFMT_BIN") {
         return PathBuf::from(p);
     }
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../node_modules/.bin/oxfmt")
 }
 
-pub(crate) fn real_oxfmt_runnable(oxfmt: &Path) -> bool {
+pub fn real_oxfmt_runnable(oxfmt: &Path) -> bool {
     Command::new(oxfmt)
         .arg("--version")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
+        .is_ok_and(|s| s.success())
 }
 
-pub(crate) fn tempdir() -> PathBuf {
+pub fn tempdir() -> PathBuf {
     // PID + timestamp alone can collide: libtest runs this file's tests on a
     // shared thread pool, so many threads call this within the same PID at
     // near-identical instants, and some hosts' clocks don't resolve down to a
@@ -97,7 +96,7 @@ pub(crate) fn tempdir() -> PathBuf {
 
 /// Run `rsvelte-fmt` on `stdin` in `cwd` with extra env, returning
 /// `(stdout, stderr, code)`.
-pub(crate) fn run_stdin_in(
+pub fn run_stdin_in(
     stdin: &str,
     cwd: &Path,
     env: &[(&str, &Path)],

@@ -1,6 +1,6 @@
 //! Inline configuration comments (`/* eslint <rule>: <value> */`).
 //!
-//! ESLint lets a source file override rule severity/options for *that file only*
+//! `ESLint` lets a source file override rule severity/options for *that file only*
 //! via a block comment whose first token is exactly `eslint`:
 //!
 //! ```text
@@ -25,9 +25,12 @@ use serde_json::Value;
 
 use crate::config::{LintConfig, options_from_value, severity_from_value};
 
+/// Apply inline `ESLint` configuration.
+///
 /// Layer every inline `/* eslint … */` rule entry found in `source` on top of
 /// `base`, returning the per-file effective config. When `source` carries no
 /// inline config the original `base` is returned (cloned) unchanged.
+#[must_use]
 pub fn apply(source: &str, base: &LintConfig) -> LintConfig {
     let entries = parse(source);
     if entries.is_empty() {
@@ -59,16 +62,15 @@ fn parse(source: &str) -> Vec<InlineEntry> {
                 }
                 i = i + 2 + end + 2;
                 continue;
-            } else {
-                break; // unterminated block comment
             }
+            break; // unterminated block comment
         }
         i += 1;
     }
     out
 }
 
-/// If `inner` (the text between `/*` and `*/`) is an ESLint *configure* comment
+/// If `inner` (the text between `/*` and `*/`) is an `ESLint` *configure* comment
 /// — its first token is exactly `eslint` (not `eslint-disable`, `eslint-env`,
 /// …) — return the body after that token; otherwise `None`.
 fn configure_body(inner: &str) -> Option<&str> {
@@ -101,18 +103,15 @@ fn parse_body(body: &str) -> Vec<InlineEntry> {
         if rule.is_empty() {
             continue;
         }
-        match parse_value(value.trim()) {
-            Some((sev, opts)) => out.push((rule, sev, opts)),
-            // Fail-safe: an unparseable value yields no entry, so the base config
-            // for this rule is left untouched.
-            None => continue,
+        if let Some((severity, options)) = parse_value(value.trim()) {
+            out.push((rule, severity, options));
         }
     }
     out
 }
 
 /// Parse a rule value (`2` / `"error"` / `['error', { allowX: true }]`) into
-/// severity + options. ESLint parses inline config with a lenient (`levn`)
+/// severity + options. `ESLint` parses inline config with a lenient (`levn`)
 /// parser that accepts JSON5-isms `serde_json` rejects — single-quoted strings,
 /// unquoted object keys, and trailing commas — so we normalize those first.
 fn parse_value(value: &str) -> Option<(Option<crate::rule::Severity>, Option<Value>)> {
@@ -190,110 +189,113 @@ fn split_top_level_once(s: &str, delim: u8) -> Option<(&str, &str)> {
     None
 }
 
-/// Normalize the JSON5-isms ESLint's lenient (`levn`) inline-config parser
+/// Normalize the JSON5-isms `ESLint`'s lenient (`levn`) inline-config parser
 /// accepts but `serde_json` rejects, into strict JSON:
 /// - single-quoted strings → double-quoted (escaping embedded `"`),
 /// - unquoted object keys (`allowReferrer: true`) → quoted,
 /// - trailing commas before `]` / `}` removed.
 ///
 /// Operates on `char`s so multi-byte UTF-8 in string values is preserved.
-fn normalize_json5(s: &str) -> String {
-    let chars: Vec<char> = s.chars().collect();
-    let n = chars.len();
-    let mut out = String::with_capacity(s.len());
-    let mut i = 0;
-    while i < n {
-        let c = chars[i];
-        match c {
+fn normalize_json5(input: &str) -> String {
+    let chars: Vec<char> = input.chars().collect();
+    let length = chars.len();
+    let mut result = String::with_capacity(input.len());
+    let mut index = 0;
+    while index < length {
+        let character = chars[index];
+        match character {
             // Double-quoted string: copy verbatim, respecting `\`-escapes.
             '"' => {
-                out.push('"');
-                i += 1;
-                while i < n {
-                    let d = chars[i];
-                    out.push(d);
-                    i += 1;
-                    if d == '\\' && i < n {
-                        out.push(chars[i]);
-                        i += 1;
-                    } else if d == '"' {
+                result.push('"');
+                index += 1;
+                while index < length {
+                    let escaped_character = chars[index];
+                    result.push(escaped_character);
+                    index += 1;
+                    if escaped_character == '\\' && index < length {
+                        result.push(chars[index]);
+                        index += 1;
+                    } else if escaped_character == '"' {
                         break;
                     }
                 }
             }
             // Single-quoted string → double-quoted.
             '\'' => {
-                out.push('"');
-                i += 1;
-                while i < n {
-                    let d = chars[i];
-                    if d == '\\' && i + 1 < n {
-                        let e = chars[i + 1];
+                result.push('"');
+                index += 1;
+                while index < length {
+                    let escaped_character = chars[index];
+                    if escaped_character == '\\' && index + 1 < length {
+                        let next_character = chars[index + 1];
                         // `\'` needs no escape inside a double-quoted string;
                         // keep every other escape sequence intact.
-                        if e == '\'' {
-                            out.push('\'');
+                        if next_character == '\'' {
+                            result.push('\'');
                         } else {
-                            out.push('\\');
-                            out.push(e);
+                            result.push('\\');
+                            result.push(next_character);
                         }
-                        i += 2;
-                    } else if d == '\'' {
-                        out.push('"');
-                        i += 1;
+                        index += 2;
+                    } else if escaped_character == '\'' {
+                        result.push('"');
+                        index += 1;
                         break;
-                    } else if d == '"' {
+                    } else if escaped_character == '"' {
                         // Escape a double quote embedded in the single-quoted text.
-                        out.push('\\');
-                        out.push('"');
-                        i += 1;
+                        result.push('\\');
+                        result.push('"');
+                        index += 1;
                     } else {
-                        out.push(d);
-                        i += 1;
+                        result.push(escaped_character);
+                        index += 1;
                     }
                 }
             }
             // Trailing comma before a closing bracket → drop.
             ',' => {
-                let mut j = i + 1;
-                while j < n && chars[j].is_whitespace() {
-                    j += 1;
+                let mut lookahead = index + 1;
+                while lookahead < length && chars[lookahead].is_whitespace() {
+                    lookahead += 1;
                 }
-                if j < n && (chars[j] == ']' || chars[j] == '}') {
-                    i += 1; // skip the comma; following whitespace is copied next
+                if lookahead < length && (chars[lookahead] == ']' || chars[lookahead] == '}') {
                 } else {
-                    out.push(',');
-                    i += 1;
+                    result.push(',');
                 }
+                index += 1; // skip the comma; following whitespace is copied next
             }
             // Bareword: an unquoted object key (followed by `:`) gets quoted;
             // a bareword value (`true`/`false`/`null`) is copied as-is.
-            c if c.is_alphabetic() || c == '_' || c == '$' => {
-                let start = i;
-                i += 1;
-                while i < n && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '$') {
-                    i += 1;
+            character if character.is_alphabetic() || character == '_' || character == '$' => {
+                let start = index;
+                index += 1;
+                while index < length
+                    && (chars[index].is_alphanumeric()
+                        || chars[index] == '_'
+                        || chars[index] == '$')
+                {
+                    index += 1;
                 }
-                let ident: String = chars[start..i].iter().collect();
-                let mut j = i;
-                while j < n && chars[j].is_whitespace() {
-                    j += 1;
+                let ident: String = chars[start..index].iter().collect();
+                let mut lookahead = index;
+                while lookahead < length && chars[lookahead].is_whitespace() {
+                    lookahead += 1;
                 }
-                if j < n && chars[j] == ':' {
-                    out.push('"');
-                    out.push_str(&ident);
-                    out.push('"');
+                if lookahead < length && chars[lookahead] == ':' {
+                    result.push('"');
+                    result.push_str(&ident);
+                    result.push('"');
                 } else {
-                    out.push_str(&ident);
+                    result.push_str(&ident);
                 }
             }
             _ => {
-                out.push(c);
-                i += 1;
+                result.push(character);
+                index += 1;
             }
         }
     }
-    out
+    result
 }
 
 /// Strip a single pair of surrounding `"`/`'` quotes from a key, if present.
@@ -382,21 +384,22 @@ mod tests {
     #[test]
     fn parses_single_quoted_strings_and_unquoted_keys() {
         // ESLint's levn parser accepts both; serde_json does not, so we normalize.
-        let e =
-            entries(r#"/* eslint svelte/no-target-blank: ['error', { allowReferrer: true }] */"#);
+        let e = entries(r"/* eslint svelte/no-target-blank: ['error', { allowReferrer: true }] */");
         assert_eq!(e.len(), 1);
         assert_eq!(e[0].0, "svelte/no-target-blank");
         assert_eq!(e[0].1, Some(Severity::Error));
         let opts = e[0].2.as_ref().unwrap();
         assert_eq!(
-            opts[0].get("allowReferrer").and_then(|v| v.as_bool()),
+            opts[0]
+                .get("allowReferrer")
+                .and_then(serde_json::Value::as_bool),
             Some(true)
         );
     }
 
     #[test]
     fn unquoted_key_with_string_value() {
-        let e = entries(r#"/* eslint svelte/x: ['error', { enforceDynamicLinks: 'never' }] */"#);
+        let e = entries(r"/* eslint svelte/x: ['error', { enforceDynamicLinks: 'never' }] */");
         let opts = e[0].2.as_ref().unwrap();
         assert_eq!(
             opts[0].get("enforceDynamicLinks").and_then(|v| v.as_str()),
@@ -418,7 +421,7 @@ mod tests {
     fn normalize_is_utf8_safe() {
         // A multi-byte char inside a string value must survive verbatim (the old
         // byte-wise `b as char` path corrupted it).
-        assert_eq!(normalize_json5(r#"{ k: 'café' }"#), r#"{ "k": "café" }"#);
+        assert_eq!(normalize_json5(r"{ k: 'café' }"), r#"{ "k": "café" }"#);
     }
 
     #[test]

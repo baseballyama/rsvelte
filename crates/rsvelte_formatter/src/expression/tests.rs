@@ -370,7 +370,7 @@ fn ungrouped_calls_keep_flat_parens() {
         "doTheThingNow({})",
         "doTheThingNow([])",
         // Object argument not in last position.
-        r#"f({ columns: 4 }, alphaBetaGammaDelta)"#,
+        r"f({ columns: 4 }, alphaBetaGammaDelta)",
         // Plain arguments only.
         "f(alphaAlpha, betaBeta, gammaGamma)",
         // Arrow last argument with a bare expression body.

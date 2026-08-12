@@ -14,7 +14,7 @@ use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_express
 /// (`style:xx={yy}` → `__sveltets_2_ensureType(String, Number, yy);`). The
 /// expression chunks are preserved as `Seg::Src` so type errors map back to
 /// the original column.
-pub(crate) fn build_class_style_directive_suffix_segments(
+pub fn build_class_style_directive_suffix_segments(
     attributes: &[Attribute],
     source: &str,
 ) -> Vec<Seg> {
@@ -32,7 +32,7 @@ pub(crate) fn build_class_style_directive_suffix_segments(
 /// `None` for any other attribute). Used both by the grouped builder above and
 /// by the source-order unified element-suffix builder so each directive can be
 /// interleaved with `transition:` / `bind:` statements at its own position.
-pub(crate) fn class_style_directive_seg(attr: &Attribute, source: &str) -> Option<Vec<Seg>> {
+pub fn class_style_directive_seg(attr: &Attribute, source: &str) -> Option<Vec<Seg>> {
     let mut out: Vec<Seg> = Vec::new();
     match attr {
         Attribute::ClassDirective(class) => {
@@ -127,13 +127,13 @@ pub(crate) fn class_style_directive_seg(attr: &Attribute, source: &str) -> Optio
 }
 
 /// Format a class directive: `class:active={expr}` → `"class:active":expr,`
-pub(crate) fn format_class_directive(class: &ClassDirective, source: &str) -> String {
+pub fn format_class_directive(class: &ClassDirective, source: &str) -> String {
     let expr_text = get_expression_text(&class.expression, source);
     format!("\"class:{}\":{},", class.name, expr_text)
 }
 
 /// Format a style directive: `style:color={expr}` → `"style:color":expr,`
-pub(crate) fn format_style_directive(style: &StyleDirective, source: &str) -> String {
+pub fn format_style_directive(style: &StyleDirective, source: &str) -> String {
     match &style.value {
         AttributeValue::True(_) => {
             // Shorthand: `style:color` → `"style:color":color,`
@@ -159,7 +159,7 @@ pub(crate) fn format_style_directive(style: &StyleDirective, source: &str) -> St
                     }
                     AttributeValuePart::ExpressionTag(expr) => {
                         let expr_text = get_expression_text(&expr.expression, source);
-                        value_parts.push(format!("${{{}}}", expr_text));
+                        value_parts.push(format!("${{{expr_text}}}"));
                     }
                 }
             }

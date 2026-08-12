@@ -40,6 +40,7 @@ pub struct HmrDiff {
 /// inside a script block triggers `FullReload`. This is the same
 /// trade-off the JS reference makes — it parses both versions and
 /// compares the script-tag body strings.
+#[must_use]
 pub fn hmr_diff(prev: &str, curr: &str) -> HmrDiff {
     if prev == curr {
         return HmrDiff {
@@ -87,10 +88,9 @@ fn extract_script(source: &str, module: bool) -> Option<String> {
         let is_module = is_module_script_attrs(tag_attrs);
         let body_start = close_attrs + 1;
         // Find the closing `</script>`.
-        let body_end = match source[body_start..].find("</script>") {
-            Some(p) => body_start + p,
-            None => bytes.len(),
-        };
+        let body_end = source[body_start..]
+            .find("</script>")
+            .map_or(bytes.len(), |position| body_start + position);
         let next_i = (body_end + "</script>".len()).min(bytes.len());
         if module == is_module {
             // Found the kind we're looking for.

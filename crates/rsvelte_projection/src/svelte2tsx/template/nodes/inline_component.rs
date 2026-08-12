@@ -3,6 +3,10 @@
 
 use std::fmt::Write as _;
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("template source offsets are represented as u32")
+}
+
 use crate::ast::template::{
     Attribute, Component, SvelteComponentElement, SvelteElement, TemplateNode,
 };
@@ -65,15 +69,12 @@ fn build_component_bind_suffix(attributes: &[Attribute], source: &str, inst_var:
                 // A trailing TS assertion the parser stripped off the LHS moves
                 // onto the RHS instance var: `pane = $$_inst as Pane;`.
                 let expr_text = get_binding_lhs_text(&bind.expression, source);
-                let postfix = get_expression_range(&bind.expression)
-                    .map(|(_, e)| {
-                        let ge =
-                            get_expression_end_stripping_ts(&bind.expression, source).unwrap_or(e);
-                        let ee = extend_expr_end_with_ts_postfix(source, e, bind.end);
-                        slice_src(source, ge as usize, ee as usize)
-                    })
-                    .unwrap_or("");
-                let _ = write!(out, "{} = {}{};", expr_text, inst_var, postfix);
+                let postfix = get_expression_range(&bind.expression).map_or("", |(_, e)| {
+                    let ge = get_expression_end_stripping_ts(&bind.expression, source).unwrap_or(e);
+                    let ee = extend_expr_end_with_ts_postfix(source, e, bind.end);
+                    slice_src(source, ge as usize, ee as usize)
+                });
+                let _ = write!(out, "{expr_text} = {inst_var}{postfix};");
             }
             continue;
         }
@@ -105,7 +106,7 @@ fn component_closing_name_range(
     (!name.starts_with("svelte:") && closing_tag_start != node_end).then(|| {
         (
             closing_tag_start + 2,
-            closing_tag_start + 2 + name.len() as u32,
+            closing_tag_start + 2 + source_offset(name.len()),
         )
     })
 }
@@ -118,7 +119,7 @@ fn component_closing_name_range(
 /// - Svelte 5 `children` prop when component has children
 /// - Named slots via `slot="name"` on children
 /// - Component name in closing tag for non-self-closing components
-pub(crate) fn handle_component(
+pub fn handle_component(
     comp: &Component,
     source: &str,
     options: &Svelte2TsxOptions,
@@ -254,13 +255,13 @@ pub(crate) fn handle_component(
     // Add extra whitespace to match JS svelte2tsx position-preserving behavior
     let name_start = source[comp.start as usize..]
         .find(comp.name.as_str())
-        .map_or(comp.start + 1, |o| comp.start + o as u32);
+        .map_or(comp.start + 1, |offset| comp.start + source_offset(offset));
     let spacing = opener_spacing(
         source,
         comp.start,
         &comp.name,
         opening_tag_end,
-        Some((name_start, name_start + comp.name.len() as u32)),
+        Some((name_start, name_start + source_offset(comp.name.len()))),
         &comp.attributes,
         &counter.element_opener_comments,
         OpenerCtx {
@@ -300,7 +301,7 @@ pub(crate) fn handle_component(
             }
         }
         let mut prefixed: Vec<Seg> = Vec::with_capacity(attr_segs.len() + 2);
-        prefixed.push(Seg::Lit(format!("{}{}", leading_ws, children_text)));
+        prefixed.push(Seg::Lit(format!("{leading_ws}{children_text}")));
         prefixed.extend(attr_segs);
         attr_segs = prefixed;
     }
@@ -324,7 +325,7 @@ pub(crate) fn handle_component(
                 "{}{{ const {}C = __sveltets_2_ensureComponent({}); const {} = new {}C({{ target: __sveltets_2_any(), props: {{",
                 block_indent, inst_var, comp.name, inst_var, inst_var,
             ),
-            format!("}}}});{}{}", component_bind_suffix, on_calls),
+            format!("}}}});{component_bind_suffix}{on_calls}"),
         )
     } else {
         (
@@ -533,7 +534,7 @@ pub(crate) fn handle_component(
             str.overwrite_fmt(
                 closing_tag_start,
                 comp.end,
-                format_args!("{}{}}}", spaces, slot_close),
+                format_args!("{spaces}{slot_close}}}"),
             );
         } else {
             str.overwrite_fmt(
@@ -545,7 +546,7 @@ pub(crate) fn handle_component(
     } else if needs_inline_block {
         // A self-closing tag has no `</Component>` for upstream to map, so the
         // name is never referenced here — only the `let:` scope and block close.
-        str.append_left_fmt(comp.end, format_args!("{}}}}}", inline_block));
+        str.append_left_fmt(comp.end, format_args!("{inline_block}}}}}"));
     } else {
         str.append_left(comp.end, "}");
     }
@@ -554,7 +555,7 @@ pub(crate) fn handle_component(
 }
 
 /// Handle `<svelte:component this={expr}>`.
-pub(crate) fn handle_svelte_component(
+pub fn handle_svelte_component(
     comp: &SvelteComponentElement,
     source: &str,
     options: &Svelte2TsxOptions,
@@ -646,7 +647,7 @@ pub(crate) fn handle_svelte_component(
         let children_text = "children:() => { return __sveltets_2_any(0); },";
         let trimmed = attrs_str.trim_start();
         let leading_ws = &attrs_str[..attrs_str.len() - trimmed.len()];
-        attrs_str = format!("{}{}{}", leading_ws, children_text, trimmed);
+        attrs_str = format!("{leading_ws}{children_text}{trimmed}");
     }
 
     let inst_var = reversed_component_name("svelte_component", depth);
@@ -694,16 +695,14 @@ pub(crate) fn handle_svelte_component(
         };
         (
             format!(
-                "{}{{ const {}C = __sveltets_2_ensureComponent({}); const {} = new {}C({{ target: __sveltets_2_any(), props: {{{}",
-                block_indent, inst_var, expr_text, inst_var, inst_var, attrs_str
+                "{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent({expr_text}); const {inst_var} = new {inst_var}C({{ target: __sveltets_2_any(), props: {{{attrs_str}"
             ),
-            format!("}}}});{}{}", component_bind_suffix, on_calls),
+            format!("}}}});{component_bind_suffix}{on_calls}"),
         )
     } else {
         (
             format!(
-                "{}{{ const {}C = __sveltets_2_ensureComponent({}); new {}C({{ target: __sveltets_2_any(), props: {{{}",
-                block_indent, inst_var, expr_text, inst_var, attrs_str
+                "{block_indent}{{ const {inst_var}C = __sveltets_2_ensureComponent({expr_text}); new {inst_var}C({{ target: __sveltets_2_any(), props: {{{attrs_str}"
             ),
             "}});".to_string(),
         )
@@ -845,7 +844,7 @@ pub(crate) fn handle_svelte_component(
         str.overwrite_fmt(
             closing_tag_start,
             comp.end,
-            format_args!("{}{}", spaces, closing_text),
+            format_args!("{spaces}{closing_text}"),
         );
     } else {
         str.append_left(comp.end, closing_text);
@@ -859,7 +858,7 @@ pub(crate) fn handle_svelte_component(
 ///
 /// `<svelte:self>` becomes `__sveltets_2_createComponentAny({props})`.
 /// When there are event directives, a variable is created for `$on()` calls.
-pub(crate) fn handle_svelte_self(
+pub fn handle_svelte_self(
     el: &SvelteElement,
     source: &str,
     options: &Svelte2TsxOptions,
@@ -927,14 +926,10 @@ pub(crate) fn handle_svelte_self(
                     }
                     // `<svelte:self>` is component-like (`__sveltets_2_createComponentAny`),
                     // so apply --* CSS-prop wrapping, not data-* element wrapping.
-                    if let Some(s) = format_attribute_node(node, source, false) {
-                        prop_parts.push(s);
-                    }
+                    prop_parts.push(format_attribute_node(node, source, false));
                 }
                 Attribute::SpreadAttribute(spread) => {
-                    if let Some(s) = format_spread_attribute(spread, source) {
-                        prop_parts.push(s);
-                    }
+                    prop_parts.push(format_spread_attribute(spread, source));
                 }
                 Attribute::BindDirective(bind) => {
                     // `<svelte:self>` is an inline component upstream, so a
@@ -1020,7 +1015,7 @@ pub(crate) fn handle_svelte_self(
     // Use depth as the instance variable index, mirroring official InlineComponent.ts
     // `this._name = '$$_svelteself' + this.computeDepth()`.
     let var_name = if needs_inst_var {
-        Some(format!("$$_svelteself{}", depth))
+        Some(format!("$$_svelteself{depth}"))
     } else {
         None
     };
@@ -1033,28 +1028,27 @@ pub(crate) fn handle_svelte_self(
     } else {
         " ".repeat(self_spacing.before_block)
     };
-    let create_call = if let Some(ref name) = var_name {
-        format!(
-            "{}{{ const {} = __sveltets_2_createComponentAny({{{}",
-            block_indent, name, props_inner
-        )
-    } else {
-        format!(
-            "{}{{ __sveltets_2_createComponentAny({{{}",
-            block_indent, props_inner
-        )
-    };
+    let create_call = var_name.as_ref().map_or_else(
+        || format!("{block_indent}{{ __sveltets_2_createComponentAny({{{props_inner}"),
+        |name| {
+            format!(
+                "{block_indent}{{ const {name} = __sveltets_2_createComponentAny({{{props_inner}"
+            )
+        },
+    );
 
     // Closes the props object, then the `bind:` statements and the `$on()`
     // registrations — the same order official's transformation array emits.
-    let trailer_lit = match var_name {
-        Some(ref name) => format!(
-            "}});{}{}",
-            build_component_bind_suffix(&el.attributes, source, name),
-            build_on_calls(name, &on_directives, source)
-        ),
-        None => "});".to_string(),
-    };
+    let trailer_lit = var_name.as_ref().map_or_else(
+        || "});".to_string(),
+        |name| {
+            format!(
+                "}});{}{}",
+                build_component_bind_suffix(&el.attributes, source, name),
+                build_on_calls(name, &on_directives, source)
+            )
+        },
+    );
 
     let mut opener = create_call;
     // The snippet-prop path leaves the props object open so the relocated
@@ -1075,8 +1069,7 @@ pub(crate) fn handle_svelte_self(
             .as_ref()
             .expect("let: directive requires an instance variable name");
         format!(
-            "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def.default;$$_$$;",
-            destructure, inst_name
+            "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{destructure}}} = {inst_name}.$$slot_def.default;$$_$$;"
         )
     } else {
         String::new()
@@ -1090,7 +1083,7 @@ pub(crate) fn handle_svelte_self(
         // opener's `{` needs a closing `}` immediately, plus another `}` if
         // there's a let-forward block to close.
         let trailing = if has_lets { "}}" } else { "}" };
-        let combined = format!("{}{}", opener, trailing);
+        let combined = format!("{opener}{trailing}");
         str.overwrite(el.start, el.end, &combined);
         counter.slot_inst = saved_outer_slot;
         return;
@@ -1112,7 +1105,7 @@ pub(crate) fn handle_svelte_self(
         if needs_slot_pass {
             counter.slot_inst = None;
         } else {
-            counter.slot_inst = var_name.clone();
+            counter.slot_inst.clone_from(&var_name);
         }
         // A snippet already sitting at the anchor is in place — moving it would
         // be a forbidden self-move — so the anchor just advances past it.
@@ -1195,7 +1188,7 @@ pub(crate) fn handle_svelte_self(
         // Still publish the slot context (as `handle_svelte_component` does) so
         // a descendant that reaches for `$$slot_def` without being detected
         // above cannot fall back to the *enclosing* component's instance.
-        counter.slot_inst = var_name.clone();
+        counter.slot_inst.clone_from(&var_name);
         process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
         counter.slot_inst = None;
         false
@@ -1211,7 +1204,7 @@ pub(crate) fn handle_svelte_self(
     str.overwrite_fmt(
         closing_tag_start,
         el.end,
-        format_args!("{}{}", spaces, trailing),
+        format_args!("{spaces}{trailing}"),
     );
 
     // Restore the slot context for following siblings.

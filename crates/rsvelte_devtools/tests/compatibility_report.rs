@@ -3,7 +3,7 @@
 //! This test generates a comprehensive compatibility report comparing
 //! the Rust implementation against the official Svelte compiler.
 //!
-//! Run: cargo test -p rsvelte_devtools --test compatibility_report -- --nocapture
+//! Run: cargo test -p `rsvelte_devtools` --test `compatibility_report` -- --nocapture
 //!
 //! The report is saved to: fixtures/{commit}/compatibility-report.json
 
@@ -74,10 +74,10 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
     // mismatch that has never been worth fixing — OXC drops standalone
     // comment statements that acorn surfaces via `leadingComments` /
     // `trailingComments` attachment.
-    let skip_tests: &[&str] = if !modern {
-        &["javascript-comments", "implicitly-closed-li-block"]
-    } else {
+    let skip_tests: &[&str] = if modern {
         &[]
+    } else {
+        &["javascript-comments", "implicitly-closed-li-block"]
     };
 
     for sample_dir in &samples {
@@ -109,20 +109,18 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
         let input_path = sample_dir.join("input.svelte");
         let output_path = sample_dir.join("output.json");
 
-        let input = match read_fixture_file(&input_path) {
-            Some(s) => s,
-            None => {
-                coverage.skipped(&name, SkipReason::MissingInput("input.svelte"));
-                continue;
-            }
+        let input = if let Some(s) = read_fixture_file(&input_path) {
+            s
+        } else {
+            coverage.skipped(&name, SkipReason::MissingInput("input.svelte"));
+            continue;
         };
 
-        let expected = match read_fixture_file(&output_path) {
-            Some(s) => s,
-            None => {
-                coverage.skipped(&name, SkipReason::MissingInput("output.json"));
-                continue;
-            }
+        let expected = if let Some(s) = read_fixture_file(&output_path) {
+            s
+        } else {
+            coverage.skipped(&name, SkipReason::MissingInput("output.json"));
+            continue;
         };
 
         let loose = name.contains("loose");
@@ -188,7 +186,7 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
                 result.add_sample(SampleResult {
                     name,
                     status: TestStatus::Error,
-                    error: Some(format!("Parse error: {:?}", e)),
+                    error: Some(format!("Parse error: {e:?}")),
                     skip_reason: None,
                     details: None,
                 });
@@ -312,12 +310,11 @@ fn run_snapshot_tests() -> CategoryResult {
                 (false, false)
             };
 
-        let input = match read_fixture_file(&input_path) {
-            Some(s) => s,
-            None => {
-                coverage.skipped(&name, SkipReason::MissingInput("index.svelte"));
-                continue;
-            }
+        let input = if let Some(s) = read_fixture_file(&input_path) {
+            s
+        } else {
+            coverage.skipped(&name, SkipReason::MissingInput("index.svelte"));
+            continue;
         };
 
         let expected_client = load_fixture_output("snapshot", &name, "client.js");
@@ -337,7 +334,7 @@ fn run_snapshot_tests() -> CategoryResult {
         // Use sample-dir-aware path so component name derives from parent directory
         // (e.g. `hello-world/index.svelte` → `Hello_world`), matching the official
         // compiler's get_component_name behavior in tests.
-        let snapshot_filename = format!("{}/index.svelte", name);
+        let snapshot_filename = format!("{name}/index.svelte");
 
         // Test client
         if let Some(expected) = &expected_client {
@@ -366,7 +363,7 @@ fn run_snapshot_tests() -> CategoryResult {
                 Err(e) => {
                     details.client_passed = Some(false);
                     client_ok = false;
-                    error_msg = Some(format!("Client compilation error: {}", e));
+                    error_msg = Some(format!("Client compilation error: {e}"));
                 }
             }
         }
@@ -401,7 +398,7 @@ fn run_snapshot_tests() -> CategoryResult {
                     details.server_passed = Some(false);
                     server_ok = false;
                     if error_msg.is_none() {
-                        error_msg = Some(format!("Server compilation error: {}", e));
+                        error_msg = Some(format!("Server compilation error: {e}"));
                     }
                 }
             }
@@ -470,12 +467,11 @@ fn run_css_tests() -> CategoryResult {
             .join(&name)
             .join("input.svelte");
 
-        let input = match read_fixture_file(&input_path) {
-            Some(s) => s,
-            None => {
-                coverage.skipped(&name, SkipReason::MissingInput("input.svelte"));
-                continue;
-            }
+        let input = if let Some(s) = read_fixture_file(&input_path) {
+            s
+        } else {
+            coverage.skipped(&name, SkipReason::MissingInput("input.svelte"));
+            continue;
         };
 
         let expected_css = load_fixture_output("css", &name, "css.css");
@@ -500,18 +496,18 @@ fn run_css_tests() -> CategoryResult {
             let _ = tx.send((name_clone, compile_result));
         });
 
-        let compile_result = match rx.recv_timeout(std::time::Duration::from_secs(5)) {
-            Ok((_, r)) => r,
-            Err(_) => {
-                result.add_sample(SampleResult {
-                    name,
-                    status: TestStatus::Error,
-                    error: Some("Test timed out after 5 seconds".to_string()),
-                    skip_reason: None,
-                    details: None,
-                });
-                continue;
-            }
+        let compile_result = if let Ok((_, r)) = rx.recv_timeout(std::time::Duration::from_secs(5))
+        {
+            r
+        } else {
+            result.add_sample(SampleResult {
+                name,
+                status: TestStatus::Error,
+                error: Some("Test timed out after 5 seconds".to_string()),
+                skip_reason: None,
+                details: None,
+            });
+            continue;
         };
 
         match compile_result {
@@ -567,7 +563,7 @@ fn run_css_tests() -> CategoryResult {
                     result.add_sample(SampleResult {
                         name,
                         status: TestStatus::Error,
-                        error: Some(format!("Compilation error: {:?}", e)),
+                        error: Some(format!("Compilation error: {e:?}")),
                         skip_reason: None,
                         details: None,
                     });
@@ -629,15 +625,14 @@ fn run_validator_tests() -> CategoryResult {
         } else {
             &svelte_path
         };
-        let input = match read_fixture_file(input_file) {
-            Some(s) => s,
-            None => {
-                coverage.skipped(
-                    &name,
-                    SkipReason::MissingInput("readable input.svelte(.js)"),
-                );
-                continue;
-            }
+        let input = if let Some(s) = read_fixture_file(input_file) {
+            s
+        } else {
+            coverage.skipped(
+                &name,
+                SkipReason::MissingInput("readable input.svelte(.js)"),
+            );
+            continue;
         };
 
         // Load expected warnings/errors
@@ -754,15 +749,15 @@ fn run_validator_tests() -> CategoryResult {
                     } else {
                         // Apply warningFilter if present - filter out warnings whose code
                         // is in the exclusion list
-                        let actual: Vec<_> = if !warning_filter_codes.is_empty() {
+                        let actual: Vec<_> = if warning_filter_codes.is_empty() {
+                            output.warnings.clone()
+                        } else {
                             output
                                 .warnings
                                 .iter()
                                 .filter(|w| !warning_filter_codes.contains(&w.code))
                                 .cloned()
                                 .collect()
-                        } else {
-                            output.warnings.clone()
                         };
                         // Upstream's `assert.deepEqual` shape — code, message and span,
                         // in order. A count comparison scores the wrong warning as a pass.
@@ -820,7 +815,7 @@ fn run_validator_tests() -> CategoryResult {
                         result.add_sample(SampleResult {
                             name,
                             status: TestStatus::Error,
-                            error: Some(format!("Unexpected compilation error: {:?}", e)),
+                            error: Some(format!("Unexpected compilation error: {e:?}")),
                             skip_reason: None,
                             details: None,
                         });
@@ -863,22 +858,20 @@ fn run_compiler_error_tests() -> CategoryResult {
             continue;
         }
 
-        let config_content = match fs::read_to_string(&config_path) {
-            Ok(s) => s,
-            Err(_) => {
-                coverage.skipped(&name, SkipReason::MissingInput("_config.js"));
-                continue;
-            }
+        let config_content = if let Ok(s) = fs::read_to_string(&config_path) {
+            s
+        } else {
+            coverage.skipped(&name, SkipReason::MissingInput("_config.js"));
+            continue;
         };
 
         let requires_async = config_content.contains("async: true");
 
-        let expected_code = match extract_error_code(&config_content) {
-            Some(c) => c,
-            None => {
-                coverage.skipped(&name, SkipReason::MissingInput("error code in _config.js"));
-                continue;
-            }
+        let expected_code = if let Some(c) = extract_error_code(&config_content) {
+            c
+        } else {
+            coverage.skipped(&name, SkipReason::MissingInput("error code in _config.js"));
+            continue;
         };
 
         let is_module = module_path.exists() && !svelte_path.exists();
@@ -888,26 +881,25 @@ fn run_compiler_error_tests() -> CategoryResult {
             &svelte_path
         };
 
-        let input = match read_fixture_file(input_file) {
-            Some(s) => s,
-            None => {
-                coverage.skipped(&name, SkipReason::MissingInput("readable main.svelte(.js)"));
-                continue;
-            }
+        let input = if let Some(s) = read_fixture_file(input_file) {
+            s
+        } else {
+            coverage.skipped(&name, SkipReason::MissingInput("readable main.svelte(.js)"));
+            continue;
         };
 
         let compile_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             if is_module {
                 let options = ModuleCompileOptions {
                     generate: GenerateMode::Client,
-                    filename: Some(format!("{}/main.svelte.js", name)),
+                    filename: Some(format!("{name}/main.svelte.js")),
                     ..Default::default()
                 };
                 compile_module(&input, options)
             } else {
                 let options = CompileOptions {
                     generate: GenerateMode::Client,
-                    filename: Some(format!("{}/main.svelte", name)),
+                    filename: Some(format!("{name}/main.svelte")),
                     experimental: ExperimentalOptions {
                         r#async: requires_async,
                     },
@@ -932,16 +924,15 @@ fn run_compiler_error_tests() -> CategoryResult {
                     name,
                     status: TestStatus::Failed,
                     error: Some(format!(
-                        "Expected error '{}' but compilation succeeded",
-                        expected_code
+                        "Expected error '{expected_code}' but compilation succeeded"
                     )),
                     skip_reason: None,
                     details: None,
                 });
             }
             Ok(Err(e)) => {
-                let error_str = format!("{:?}", e);
-                let display_str = format!("{}", e);
+                let error_str = format!("{e:?}");
+                let display_str = format!("{e}");
                 let code_matches = error_code_matches(&expected_code, &[&error_str, &display_str]);
 
                 if code_matches {
@@ -957,8 +948,7 @@ fn run_compiler_error_tests() -> CategoryResult {
                         name,
                         status: TestStatus::Failed,
                         error: Some(format!(
-                            "Expected error '{}', got: {}",
-                            expected_code, error_str
+                            "Expected error '{expected_code}', got: {error_str}"
                         )),
                         skip_reason: None,
                         details: None,
@@ -1050,15 +1040,14 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
             .iter()
             .map(|entry| sample_root.join(entry))
             .find(|path| path.exists());
-        let input_path = match input_path {
-            Some(path) => path,
-            None => {
-                coverage.skipped(
-                    &name,
-                    SkipReason::MissingInput("main.svelte / input.svelte"),
-                );
-                continue;
-            }
+        let input_path = if let Some(path) = input_path {
+            path
+        } else {
+            coverage.skipped(
+                &name,
+                SkipReason::MissingInput("main.svelte / input.svelte"),
+            );
+            continue;
         };
         // The fixtures were generated with the sample's own entry-point name,
         // and `filename` reaches the generated code (component name, css hash),
@@ -1073,12 +1062,11 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         // gates so the report cannot measure something else than they do.
         let fixture_options = runtime_fixture_options(category, &name);
 
-        let input = match read_fixture_file(&input_path) {
-            Some(s) => s,
-            None => {
-                coverage.skipped(&name, SkipReason::MissingInput("readable entry point"));
-                continue;
-            }
+        let input = if let Some(s) = read_fixture_file(&input_path) {
+            s
+        } else {
+            coverage.skipped(&name, SkipReason::MissingInput("readable entry point"));
+            continue;
         };
 
         let expected_client = load_fixture_output(category, &name, "client.js");
@@ -1126,7 +1114,7 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
                 Err(e) => {
                     details.client_passed = Some(false);
                     client_ok = false;
-                    error_msg = Some(format!("Client compilation error: {}", e));
+                    error_msg = Some(format!("Client compilation error: {e}"));
                 }
             }
         }
@@ -1163,7 +1151,7 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
                     details.server_passed = Some(false);
                     server_ok = false;
                     if error_msg.is_none() {
-                        error_msg = Some(format!("Server compilation error: {}", e));
+                        error_msg = Some(format!("Server compilation error: {e}"));
                     }
                 }
             }
@@ -1232,19 +1220,17 @@ fn run_print_tests() -> CategoryResult {
             continue;
         }
 
-        let input = match read_fixture_file(&sample_dir.join("input.svelte")) {
-            Some(s) => s,
-            None => {
-                coverage.skipped(&name, SkipReason::MissingInput("input.svelte"));
-                continue;
-            }
+        let input = if let Some(s) = read_fixture_file(&sample_dir.join("input.svelte")) {
+            s
+        } else {
+            coverage.skipped(&name, SkipReason::MissingInput("input.svelte"));
+            continue;
         };
-        let expected = match read_fixture_file(&sample_dir.join("output.svelte")) {
-            Some(s) => s,
-            None => {
-                coverage.skipped(&name, SkipReason::MissingInput("output.svelte"));
-                continue;
-            }
+        let expected = if let Some(s) = read_fixture_file(&sample_dir.join("output.svelte")) {
+            s
+        } else {
+            coverage.skipped(&name, SkipReason::MissingInput("output.svelte"));
+            continue;
         };
 
         let options = ParseOptions {
@@ -1261,9 +1247,9 @@ fn run_print_tests() -> CategoryResult {
                         (TestStatus::Failed, Some("Output mismatch".to_string()))
                     }
                 }
-                Err(e) => (TestStatus::Failed, Some(format!("Print error: {:?}", e))),
+                Err(e) => (TestStatus::Failed, Some(format!("Print error: {e:?}"))),
             },
-            Err(e) => (TestStatus::Failed, Some(format!("Parse error: {:?}", e))),
+            Err(e) => (TestStatus::Failed, Some(format!("Parse error: {e:?}"))),
         };
 
         result.add_sample(SampleResult {
@@ -1282,11 +1268,7 @@ fn run_print_tests() -> CategoryResult {
 /// Trim trailing whitespace per line and ensure a single trailing newline,
 /// matching the helper in `tests/print.rs`.
 fn normalize_print_output(s: &str) -> String {
-    let mut output = s
-        .lines()
-        .map(|line| line.trim_end())
-        .collect::<Vec<_>>()
-        .join("\n");
+    let mut output = s.lines().map(str::trim_end).collect::<Vec<_>>().join("\n");
     if !output.ends_with('\n') {
         output.push('\n');
     }
@@ -1325,7 +1307,7 @@ fn run_preprocess_tests() -> CategoryResult {
                 result.add_sample(SampleResult {
                     name,
                     status: TestStatus::Error,
-                    error: Some(format!("tokio runtime build failed: {}", e)),
+                    error: Some(format!("tokio runtime build failed: {e}")),
                     skip_reason: None,
                     details: None,
                 });
@@ -1342,33 +1324,31 @@ fn run_preprocess_tests() -> CategoryResult {
             .unwrap_or("unknown")
             .to_string();
 
-        let input = match read_fixture_file(&sample_dir.join("input.svelte")) {
-            Some(s) => s,
-            None => {
-                coverage.skipped(&name, SkipReason::MissingInput("input.svelte"));
-                continue;
-            }
+        let input = if let Some(s) = read_fixture_file(&sample_dir.join("input.svelte")) {
+            s
+        } else {
+            coverage.skipped(&name, SkipReason::MissingInput("input.svelte"));
+            continue;
         };
-        let expected = match read_fixture_file(&sample_dir.join("output.svelte")) {
-            Some(s) => s,
-            None => {
-                coverage.skipped(&name, SkipReason::MissingInput("output.svelte"));
-                continue;
-            }
+        let expected = if let Some(s) = read_fixture_file(&sample_dir.join("output.svelte")) {
+            s
+        } else {
+            coverage.skipped(&name, SkipReason::MissingInput("output.svelte"));
+            continue;
         };
 
-        let preprocessors = match common::preprocess_fixtures::build_preprocessors(&name) {
-            Some(g) => g,
-            None => {
-                result.add_sample(SampleResult {
-                    name,
-                    status: TestStatus::Failed,
-                    error: Some("no Rust preprocessor wired up".to_string()),
-                    skip_reason: None,
-                    details: None,
-                });
-                continue;
-            }
+        let preprocessors = if let Some(g) = common::preprocess_fixtures::build_preprocessors(&name)
+        {
+            g
+        } else {
+            result.add_sample(SampleResult {
+                name,
+                status: TestStatus::Failed,
+                error: Some("no Rust preprocessor wired up".to_string()),
+                skip_reason: None,
+                details: None,
+            });
+            continue;
         };
         let filename = common::preprocess_fixtures::filename_for(&name);
 
@@ -1380,10 +1360,7 @@ fn run_preprocess_tests() -> CategoryResult {
                     (TestStatus::Failed, Some("Output mismatch".to_string()))
                 }
             }
-            Err(e) => (
-                TestStatus::Failed,
-                Some(format!("preprocess error: {:?}", e)),
-            ),
+            Err(e) => (TestStatus::Failed, Some(format!("preprocess error: {e:?}"))),
         };
 
         result.add_sample(SampleResult {
@@ -1539,7 +1516,7 @@ fn generate_compatibility_report() {
         "hydration",
         "server-side-rendering",
     ] {
-        print!("Running {} tests... ", category);
+        print!("Running {category} tests... ");
         let result = run_runtime_category_tests(category);
         println!(
             "{}/{} passed ({:.1}%)",
@@ -1643,7 +1620,7 @@ fn generate_compatibility_report() {
 
     let report_path = fixtures_path().join("compatibility-report.json");
     if let Err(e) = report.save_to_file(report_path.to_str().unwrap()) {
-        eprintln!("Warning: Failed to save report: {}", e);
+        eprintln!("Warning: Failed to save report: {e}");
     }
 
     // Print summary

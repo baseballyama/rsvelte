@@ -1,9 +1,11 @@
+//! `svelte/no-reactive-literals`.
+//!
 //! `svelte/no-reactive-literals` — don't assign literal values inside a reactive
 //! statement (`$: foo = "foo"` / `$: bar = []` / `$: baz = {}`). Such a value
 //! never changes, so the reactive statement is pointless — it should be a plain
 //! `let` declaration. Port of the eslint-plugin-svelte rule.
 //!
-//! Runs over the `<script>` ESTree program via the [`ScriptRule`] hook. A `$:`
+//! Runs over the `<script>` `ESTree` program via the [`ScriptRule`] hook. A `$:`
 //! reactive statement is a `LabeledStatement` whose label is `$`; the rule
 //! flags one whose body is `ExpressionStatement > AssignmentExpression` with a
 //! right-hand side that is a literal, an empty array, or an empty object.
@@ -48,11 +50,11 @@ fn is_pointless_rhs(right: &Value) -> bool {
         Some("ArrayExpression") => right
             .get("elements")
             .and_then(Value::as_array)
-            .is_some_and(|e| e.is_empty()),
+            .is_some_and(std::vec::Vec::is_empty),
         Some("ObjectExpression") => right
             .get("properties")
             .and_then(Value::as_array)
-            .is_some_and(|p| p.is_empty()),
+            .is_some_and(std::vec::Vec::is_empty),
         _ => false,
     }
 }
@@ -83,9 +85,8 @@ impl ScriptRule for NoReactiveLiterals {
             {
                 return;
             }
-            let body = match node.get("body") {
-                Some(b) => b,
-                None => return,
+            let Some(body) = node.get("body") else {
+                return;
             };
             if node_type(body) != Some("ExpressionStatement") {
                 return;

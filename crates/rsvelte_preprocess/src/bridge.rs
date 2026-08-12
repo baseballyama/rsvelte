@@ -2,7 +2,7 @@
 //!
 //! Several preprocessors have no faithful pure-Rust backend (their fixtures are
 //! defined by a specific JS engine — `marked`, `unified`/remark, postcss-based
-//! `@modular-css/processor`, KaTeX, …). For those, the port plan (§2.2)
+//! `@modular-css/processor`, `KaTeX`, …). For those, the port plan (§2.2)
 //! sanctions delegating to the user's installed JS tool over a thin boundary.
 //!
 //! This module spawns `node` running a caller-provided ES-module script, sends a
@@ -25,7 +25,7 @@ pub struct BridgeOptions {
 
 impl Default for BridgeOptions {
     fn default() -> Self {
-        BridgeOptions {
+        Self {
             node_bin: "node".to_string(),
             cwd: None,
         }
@@ -34,6 +34,14 @@ impl Default for BridgeOptions {
 
 /// Run `script` (an ES module) under Node, passing `request` as JSON on stdin
 /// and returning the JSON value the script writes to stdout.
+///
+/// # Errors
+///
+/// Returns an error when spawning Node, communicating with it, or parsing its output fails.
+///
+/// # Panics
+///
+/// Panics if a child configured with piped standard input does not expose that handle.
 pub fn run(
     script: &str,
     request: &serde_json::Value,
@@ -98,6 +106,7 @@ pub struct MarkupBridge {
 ///
 /// The script receives `{ content, filename, options }` on stdin and must reply
 /// with `{ ok: { code, map } }`, `{ bridgeError }`, or `{ renderError }`.
+#[must_use]
 pub fn markup_group(
     name: &'static str,
     script: &'static str,

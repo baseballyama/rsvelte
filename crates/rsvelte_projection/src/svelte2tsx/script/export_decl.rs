@@ -6,7 +6,7 @@ use oxc_span::GetSpan;
 use std::collections::HashMap;
 
 use super::ast_utils::{
-    binding_pattern_simple_name, extract_names_from_binding_pattern_full,
+    ExportBindingOptions, binding_pattern_simple_name, extract_names_from_binding_pattern_full,
     module_export_name_to_string,
 };
 use super::classify_kit_route_file;
@@ -26,12 +26,12 @@ use super::ExportedNames;
 /// - `export { a, b as c };` (exports with specifiers)
 /// - `export { a } from './mod';` (re-export; the module specifier is ignored)
 ///
-/// The `export` keyword is removed from the source via MagicString, and the
+/// The `export` keyword is removed from the source via `MagicString`, and the
 /// exported names are recorded in `exported_names`.
 ///
 /// `is_instance` controls whether `export let` is treated as a prop.
 ///
-/// `offset` is the content_offset that maps OXC positions (relative to script
+/// `offset` is the `content_offset` that maps OXC positions (relative to script
 /// content) back to the original source.
 pub(super) fn handle_export_named_decl(
     export_span: oxc_span::Span,
@@ -103,10 +103,13 @@ pub(super) fn handle_export_named_decl(
                         extract_names_from_binding_pattern_full(
                             &declarator.id,
                             exported_names,
-                            has_default,
-                            is_prop,
-                            is_let,
-                            false,
+                            if has_default {
+                                ExportBindingOptions::new().with_default()
+                            } else {
+                                ExportBindingOptions::new()
+                            }
+                            .with_prop_if(is_prop)
+                            .with_let_if(is_let),
                         );
                         // Update the type annotation on the exported name
                         if let Some(ref ta_text) = type_annotation_text
@@ -145,10 +148,13 @@ pub(super) fn handle_export_named_decl(
                             let decl_end_rel = declarator.span.end;
                             // Find the comma after the declarator end and overwrite just it
                             // This preserves any comments/whitespace between declarators
-                            let comma_pos = raw_content[decl_end_rel as usize..]
-                                .find(',')
-                                .map(|p| decl_end_rel + p as u32)
-                                .unwrap_or(decl_end_rel);
+                            let comma_pos = raw_content[decl_end_rel as usize..].find(',').map_or(
+                                decl_end_rel,
+                                |p| {
+                                    decl_end_rel
+                                        + u32::try_from(p).expect("declaration offset fits in u32")
+                                },
+                            );
                             str.overwrite(comma_pos + offset, comma_pos + 1 + offset, ";let ");
                         }
 
@@ -191,12 +197,7 @@ pub(super) fn handle_export_named_decl(
                         {
                             binding_pattern_simple_name(&declarator.id).and_then(|name| {
                                 classify_kit_route_file(basename).and_then(|layout| {
-                                    if !is_let {
-                                        match name {
-                                            "snapshot" => Some("import('./$types.js').Snapshot"),
-                                            _ => None,
-                                        }
-                                    } else {
+                                    if is_let {
                                         match (name, layout) {
                                             ("data", true) => {
                                                 Some("import('./$types.js').LayoutData")
@@ -213,6 +214,11 @@ pub(super) fn handle_export_named_decl(
                                             ("params", false) => {
                                                 Some("import('./$types.js').PageProps['params']")
                                             }
+                                            _ => None,
+                                        }
+                                    } else {
+                                        match name {
+                                            "snapshot" => Some("import('./$types.js').Snapshot"),
                                             _ => None,
                                         }
                                     }
@@ -255,14 +261,13 @@ pub(super) fn handle_export_named_decl(
                                     if use_jsdoc {
                                         str.append_left_fmt(
                                             id_start,
-                                            format_args!("/** @type {{{}}} */ ", kit),
+                                            format_args!("/** @type {{{kit}}} */ "),
                                         );
                                     } else {
                                         str.append_left_fmt(
                                             id_end,
                                             format_args!(
-                                                "/*\u{03A9}ignore_start\u{03A9}*/: {}/*\u{03A9}ignore_end\u{03A9}*/",
-                                                kit
+                                                "/*\u{03A9}ignore_start\u{03A9}*/: {kit}/*\u{03A9}ignore_end\u{03A9}*/"
                                             ),
                                         );
                                     }
@@ -275,13 +280,23 @@ pub(super) fn handle_export_named_decl(
             oxc::Declaration::FunctionDeclaration(func) => {
                 if let Some(ref id) = func.id {
                     let name = id.name.to_string();
-                    exported_names.add_full(name.clone(), name, false, None, false, false, false);
+                    exported_names.add_full(
+                        name.clone(),
+                        name,
+                        None,
+                        super::exported_names::ExportFlags::default(),
+                    );
                 }
             }
             oxc::Declaration::ClassDeclaration(class) => {
                 if let Some(ref id) = class.id {
                     let name = id.name.to_string();
-                    exported_names.add_full(name.clone(), name, false, None, false, false, false);
+                    exported_names.add_full(
+                        name.clone(),
+                        name,
+                        None,
+                        super::exported_names::ExportFlags::default(),
+                    );
                 }
             }
             _ => {}
@@ -296,12 +311,12 @@ pub(super) fn handle_export_named_decl(
     if export_declaration.is_none() {
         let node_end = export_span.end + offset;
         str.overwrite(node_start, node_end, "");
-        for spec in export_specifiers.iter() {
+        for spec in export_specifiers {
             let local = module_export_name_to_string(&spec.local);
             let exported = module_export_name_to_string(&spec.exported);
             let possible = possible_exports.get(&local);
-            let is_let = possible.map(|p| p.is_let).unwrap_or(false);
-            let has_init = possible.map(|p| p.has_init).unwrap_or(true);
+            let is_let = possible.is_some_and(PossibleExport::is_let);
+            let has_init = possible.is_none_or(PossibleExport::has_init);
             let type_ann = possible.and_then(|p| p.type_annotation_text.clone());
             // Mirror official `addExport`: `doc: this.getDoc(target) ||
             // existingDeclaration?.doc`. For a RENAMED export (`export { x as y }`,
@@ -343,11 +358,12 @@ pub(super) fn handle_export_named_decl(
             exported_names.add_full(
                 exported.clone(),
                 local.clone(),
-                has_init,
                 type_ann,
-                is_prop,
-                is_let,
-                true,
+                super::exported_names::ExportFlags::default()
+                    .with_default_if(has_init)
+                    .with_prop_if(is_prop)
+                    .with_let_if(is_let)
+                    .with_named_export_if(true),
             );
             // The JSDoc lives on the `let x` declaration (or, for a renamed
             // export, on the `export { … }` statement); carry it onto the
@@ -367,11 +383,11 @@ pub(super) fn handle_export_named_decl(
             // `let className = ""; export { className as class }` with a JSDoc
             // `@type` (e.g. sveltestrap) that previously lost the widen.
             if is_instance && is_let {
-                let has_ta = possible.map(|p| p.has_type_annotation).unwrap_or(false);
+                let has_ta = possible.is_some_and(PossibleExport::has_type_annotation);
                 let has_jsdoc_type = possible
                     .and_then(|p| p.doc.as_deref())
                     .is_some_and(|d| d.contains("@type"));
-                let has_bool_init = possible.map(|p| p.has_boolean_init).unwrap_or(false);
+                let has_bool_init = possible.is_some_and(PossibleExport::has_boolean_init);
                 if (!has_init || has_ta || has_jsdoc_type || has_bool_init)
                     && let Some(pe) = possible
                 {
@@ -385,7 +401,7 @@ pub(super) fn handle_export_named_decl(
     }
 }
 
-/// Return the leading `/** … */` JSDoc comment immediately before `before`
+/// Return the leading `/** … */` `JSDoc` comment immediately before `before`
 /// (skipping whitespace), or None. Mirrors official `getLastLeadingDoc`.
 pub(super) fn leading_jsdoc_comment(source: &str, before: usize) -> Option<&str> {
     let bytes = source.as_bytes();
@@ -422,7 +438,7 @@ pub(super) fn leading_jsdoc_comment(source: &str, before: usize) -> Option<&str>
         // Otherwise, if the trivia line ending at `p` is a single-line `// …`
         // comment, skip the whole line and keep looking for an earlier block
         // comment. A non-comment line (real code / previous token) stops the walk.
-        let line_start = source[..p].rfind('\n').map(|i| i + 1).unwrap_or(0);
+        let line_start = source[..p].rfind('\n').map_or(0, |i| i + 1);
         if source[line_start..p].trim_start().starts_with("//") {
             p = line_start;
             continue;
@@ -444,8 +460,8 @@ mod tests {
         assert_eq!(result.exported_names.get_prop_names(), vec!["count"]);
 
         let info = result.exported_names.get("count").unwrap();
-        assert!(info.is_prop);
-        assert!(info.has_default);
+        assert!(info.is_prop());
+        assert!(info.has_default());
     }
 
     #[test]
@@ -455,8 +471,8 @@ mod tests {
 
         assert!(result.exported_names.has("name"));
         let info = result.exported_names.get("name").unwrap();
-        assert!(info.is_prop);
-        assert!(!info.has_default);
+        assert!(info.is_prop());
+        assert!(!info.has_default());
     }
 
     #[test]

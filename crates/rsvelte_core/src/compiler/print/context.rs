@@ -34,9 +34,9 @@ pub struct Context<'a> {
     pub multiline: bool,
     /// Original source text for faithful reproduction of expressions/scripts.
     pub source: Option<&'a str>,
-    /// Deferred newline flag (like esrap's needs_newline)
+    /// Deferred newline flag (like esrap's `needs_newline`)
     needs_newline: bool,
-    /// Deferred margin flag (like esrap's needs_margin)
+    /// Deferred margin flag (like esrap's `needs_margin`)
     needs_margin: bool,
 }
 
@@ -112,7 +112,7 @@ impl<'a> Context<'a> {
     /// Add a newline to the output.
     ///
     /// Uses deferred processing like esrap: the actual newline is written
-    /// when the next content is written via write().
+    /// when the next content is written via `write()`.
     pub fn newline(&mut self) {
         // If there's already a deferred newline that hasn't been flushed,
         // flush it now (this happens for consecutive newlines)
@@ -157,6 +157,7 @@ impl<'a> Context<'a> {
     ///
     /// Returns the number of characters in the buffer.
     /// This is useful for making formatting decisions (e.g., inline vs multiline).
+    #[must_use]
     pub fn measure(&self) -> usize {
         self.buffer.len()
     }
@@ -164,6 +165,7 @@ impl<'a> Context<'a> {
     /// Check if the context is empty.
     ///
     /// Returns true if the buffer contains no content and no deferred writes.
+    #[must_use]
     pub fn empty(&self) -> bool {
         self.buffer.is_empty() && !self.needs_newline
     }
@@ -224,6 +226,7 @@ impl<'a> Context<'a> {
     ///
     /// The child context shares the same allocator but has its own buffer
     /// and starts with zero indentation.
+    #[must_use]
     pub fn child(&self) -> Context<'a> {
         Context {
             allocator: self.allocator,
@@ -254,6 +257,7 @@ impl<'a> Context<'a> {
     /// Get the buffer content as a string.
     ///
     /// Returns the complete output buffer.
+    #[must_use]
     pub fn finish(mut self) -> String {
         self.flush_deferred();
         self.buffer
@@ -262,12 +266,13 @@ impl<'a> Context<'a> {
     /// Get a reference to the buffer content.
     ///
     /// Returns the complete output buffer as a string slice.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.buffer
     }
 }
 
-impl<'a> std::fmt::Display for Context<'a> {
+impl std::fmt::Display for Context<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.buffer)?;
         // Flush deferred newlines in display

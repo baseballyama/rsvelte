@@ -11,6 +11,10 @@
 //! Each declaration is returned as `(name, start, end)`, the absolute byte
 //! span of the property name in the source file.
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("source offsets are represented as u32")
+}
+
 /// Parse `prop: value; prop2: value2` declarations from a raw style string,
 /// returning each property name with its absolute byte span.
 pub fn parse_style_decls(raw: &str, base: u32) -> Vec<(String, u32, u32)> {
@@ -21,7 +25,11 @@ pub fn parse_style_decls(raw: &str, base: u32) -> Vec<(String, u32, u32)> {
         let at_end = i == bytes.len();
         if at_end || bytes[i] == b';' {
             if decl_begin < i {
-                push_decl(&raw[decl_begin..i], base + decl_begin as u32, &mut out);
+                push_decl(
+                    &raw[decl_begin..i],
+                    base + source_offset(decl_begin),
+                    &mut out,
+                );
             }
             decl_begin = i + 1;
         }
@@ -43,13 +51,13 @@ fn push_decl(seg: &str, seg_base: u32, out: &mut Vec<(String, u32, u32)>) {
         return;
     }
     let lead = name_raw.len() - name_raw.trim_start().len();
-    let start = seg_base + lead as u32;
-    let end = start + trimmed.len() as u32;
+    let start = seg_base + source_offset(lead);
+    let end = start + source_offset(trimmed.len());
     out.push((trimmed.to_string(), start, end));
 }
 
-/// Extract CSS property declarations from string/template literals inside an
-/// expression-tag source text (e.g. `{cond ? 'background: red' : \`color: blue\`}`).
+/// Extract `CSS` property declarations from string or template literals inside
+/// expression-tag source text.
 ///
 /// Mirrors upstream's `extractExpressions` + `getInlineStyle`:
 /// - Recurse into ternary / logical branches.
@@ -83,7 +91,7 @@ fn extract_from_expr(bytes: &[u8], base: u32, out: &mut Vec<(String, u32, u32)>)
                     i += 1; // skip closing quote
                 }
                 let content = &bytes[start + 1..i.saturating_sub(1)];
-                extract_css_decls_from_literal(content, base + start as u32 + 1, out);
+                extract_css_decls_from_literal(content, base + source_offset(start) + 1, out);
             }
             // Double-quoted string literal
             b'"' => {
@@ -99,7 +107,7 @@ fn extract_from_expr(bytes: &[u8], base: u32, out: &mut Vec<(String, u32, u32)>)
                     i += 1;
                 }
                 let content = &bytes[start + 1..i.saturating_sub(1)];
-                extract_css_decls_from_literal(content, base + start as u32 + 1, out);
+                extract_css_decls_from_literal(content, base + source_offset(start) + 1, out);
             }
             // Template literal: skip `${...}` interpolations
             b'`' => {
@@ -135,7 +143,7 @@ fn extract_from_expr(bytes: &[u8], base: u32, out: &mut Vec<(String, u32, u32)>)
                     bytes,
                     content_start,
                     content_end,
-                    base + content_start as u32,
+                    base + source_offset(content_start),
                     out,
                 );
             }
@@ -156,7 +164,7 @@ fn extract_css_decls_from_literal(content: &[u8], base: u32, out: &mut Vec<(Stri
             if decl_begin < i
                 && let Ok(seg) = std::str::from_utf8(&content[decl_begin..i])
             {
-                push_decl(seg, base + decl_begin as u32, out);
+                push_decl(seg, base + source_offset(decl_begin), out);
             }
             decl_begin = i + 1;
         }
@@ -184,7 +192,7 @@ fn extract_css_decls_from_template(
             if decl_begin < i
                 && let Ok(seg) = std::str::from_utf8(&content[decl_begin..i])
             {
-                push_decl(seg, base + decl_begin as u32, out);
+                push_decl(seg, base + source_offset(decl_begin), out);
             }
             if !at_end && content[i] == b'$' {
                 // Skip the `${...}` interpolation

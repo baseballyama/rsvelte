@@ -16,7 +16,7 @@ use std::sync::LazyLock;
 #[path = "constants_test.rs"]
 mod tests;
 
-/// Type for semantic role element entries: (element_name, optional_attributes, roles).
+/// Type for semantic role element entries: (`element_name`, `optional_attributes`, roles).
 type SemanticRoleElement = (
     &'static str,
     Option<&'static [(&'static str, &'static str)]>,
@@ -216,8 +216,9 @@ const ABSTRACT_ROLE_NAMES: &[&str] = &[
     "select", "structure", "widget", "window",
 ];
 
-/// All ARIA roles, in aria-query's `roles` map key order. The order is load-bearing:
-/// `fuzzymatch` breaks score ties by first occurrence, so `ARIA_ROLES` (a set) must never
+/// All ARIA roles, in aria-query's `roles` map key order.
+///
+/// The order is load-bearing: `fuzzymatch` breaks score ties by first occurrence, so `ARIA_ROLES` (a set) must never
 /// be the source for suggestion lists.
 #[rustfmt::skip]
 pub const ARIA_ROLE_NAMES: &[&str] = &[
@@ -523,7 +524,7 @@ pub static ARIA_PROPERTY_DEFINITIONS: LazyLock<FxHashMap<&'static str, AriaPrope
     });
 
 /// Map of ARIA roles to their required properties.
-/// Sourced from aria-query roles_map requiredProps.
+/// Sourced from aria-query `roles_map` requiredProps.
 /// Only roles that have non-empty requiredProps are included.
 #[rustfmt::skip]
 const ROLE_REQUIRED_PROPS_TABLE: &[(&str, &[&str])] = &[
@@ -545,10 +546,11 @@ pub static ROLE_REQUIRED_PROPS: LazyLock<FxHashMap<&'static str, &'static [&'sta
     LazyLock::new(|| ROLE_REQUIRED_PROPS_TABLE.iter().copied().collect());
 
 /// Map of elements (with optional attributes) to the roles they semantically represent.
-/// Used by `is_semantic_role_element` to determine if an element naturally carries a role.
-/// Derived from axobject-query's elementAXObjects and AXObjectRoles maps.
 ///
-/// Format: (element_name, optional_attributes, roles)
+/// `is_semantic_role_element` uses it to determine if an element naturally carries a role.
+/// Derived from axobject-query's elementAXObjects and `AXObjectRoles` maps.
+///
+/// Format: (`element_name`, `optional_attributes`, roles)
 /// If an element matches (name + attributes), it semantically maps to those roles.
 #[rustfmt::skip]
 pub static SEMANTIC_ROLE_ELEMENTS: &[SemanticRoleElement] = &[

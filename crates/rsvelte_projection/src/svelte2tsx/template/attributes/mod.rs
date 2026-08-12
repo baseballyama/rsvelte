@@ -38,7 +38,7 @@ use spread::{format_spread_attribute, format_spread_attribute_segments};
 use transition::format_transition_directive;
 
 /// End offset of an attribute or directive in the element opener.
-pub(super) fn attribute_end(attr: &Attribute) -> u32 {
+pub(super) const fn attribute_end(attr: &Attribute) -> u32 {
     match attr {
         Attribute::Attribute(n) => n.end,
         Attribute::SpreadAttribute(n) => n.end,
@@ -218,10 +218,8 @@ pub(super) fn build_attribute_segments(
                 prev_end = Some(node.end);
             }
             Attribute::SpreadAttribute(spread) => {
-                if let Some(part) = format_spread_attribute_segments(spread, source) {
-                    push_with_separator(&mut segs, part);
-                    any_pushed = true;
-                }
+                push_with_separator(&mut segs, format_spread_attribute_segments(spread, source));
+                any_pushed = true;
             }
             Attribute::BindDirective(bind) => {
                 // A get/set binding stays a `"bind:…": __sveltets_2_get_set_binding(…)`
@@ -244,7 +242,11 @@ pub(super) fn build_attribute_segments(
                 push_with_separator(&mut segs, part);
                 any_pushed = true;
             }
-            Attribute::ClassDirective(_) | Attribute::StyleDirective(_) => {
+            Attribute::ClassDirective(_)
+            | Attribute::StyleDirective(_)
+            | Attribute::TransitionDirective(_)
+            | Attribute::UseDirective(_)
+            | Attribute::AnimateDirective(_) => {
                 // `class:`/`style:` are directives, not attributes — they must
                 // NOT be emitted as `HTMLProps` keys (the props object is
                 // type-checked against `HTMLProps<tag, …>`, which has no
@@ -253,12 +255,6 @@ pub(super) fn build_attribute_segments(
                 // appended *after* the `createElement(...)` call by
                 // `build_class_style_directive_suffix_segments`, mirroring
                 // upstream `htmlxtojsx_v2/nodes/{Class,StyleDirective}.ts`.
-            }
-            Attribute::TransitionDirective(_)
-            | Attribute::UseDirective(_)
-            | Attribute::AnimateDirective(_) => {
-                // Emitted by `build_directive_prefix_suffix` outside the
-                // props object. No props contribution here.
             }
             Attribute::LetDirective(let_dir) => {
                 // A `let:` directive on an element that is NOT a slot receiver
@@ -331,14 +327,10 @@ pub(super) fn build_component_props_string(
                 }
                 // is_element=false: --* attrs are wrapped with __sveltets_2_cssProp
                 // inside format_attribute_node (mirrors Attribute.ts `addProp`).
-                if let Some(s) = format_attribute_node(node, source, false) {
-                    parts.push(s);
-                }
+                parts.push(format_attribute_node(node, source, false));
             }
             Attribute::SpreadAttribute(spread) => {
-                if let Some(s) = format_spread_attribute(spread, source) {
-                    parts.push(s);
-                }
+                parts.push(format_spread_attribute(spread, source));
             }
             Attribute::BindDirective(bind) => {
                 // `bind:foo={expr}` on a component becomes a regular prop
@@ -352,7 +344,10 @@ pub(super) fn build_component_props_string(
                 // shorthand prop `value`; explicit `bind:foo={expr}` → `foo:expr`.
                 let expr_range = get_expression_range(&bind.expression);
                 let is_shorthand = get_set_binding_ranges(&bind.expression, source).is_none()
-                    && expr_range.is_some_and(|(s, _)| s == bind.start + "bind:".len() as u32);
+                    && expr_range.is_some_and(|(s, _)| {
+                        s == bind.start
+                            + u32::try_from("bind:".len()).expect("literal length fits in u32")
+                    });
                 if is_shorthand {
                     let (s, e) = expr_range.unwrap();
                     parts.push(format!("{},", slice_src(source, s as usize, e as usize)));
@@ -370,7 +365,9 @@ pub(super) fn build_component_props_string(
                     parts.push(format!("{}:{},", bind.name, expr_text));
                 }
             }
-            Attribute::OnDirective(_) => {
+            Attribute::OnDirective(_)
+            | Attribute::LetDirective(_)
+            | Attribute::AnimateDirective(_) => {
                 // Excluded from component props - handled as $on() calls
             }
             Attribute::ClassDirective(class) => {
@@ -380,26 +377,16 @@ pub(super) fn build_component_props_string(
                 parts.push(format_style_directive(style, source));
             }
             Attribute::TransitionDirective(transition) => {
-                if let Some(s) = format_transition_directive(transition, source) {
-                    parts.push(s);
-                }
+                parts.push(format_transition_directive(transition, source));
             }
             Attribute::UseDirective(use_dir) => {
-                if let Some(s) = format_use_directive(use_dir, source) {
-                    parts.push(s);
-                }
-            }
-            Attribute::LetDirective(_) => {
-                // Let directives don't produce props
-            }
-            Attribute::AnimateDirective(_) => {
-                // Animate directives don't produce TSX output
+                parts.push(format_use_directive(use_dir, source));
             }
             Attribute::AttachTag(attach) => {
                 // `{@attach expr}` becomes `[Symbol("@attach")]:expr,`
                 // — same prop-key form as on regular elements.
                 let expr_text = get_expression_text(&attach.expression, source);
-                parts.push(format!("[Symbol(\"@attach\")]:{},", expr_text));
+                parts.push(format!("[Symbol(\"@attach\")]:{expr_text},"));
             }
         }
     }
@@ -452,9 +439,7 @@ pub(super) fn build_component_props_segments(
                 );
             }
             Attribute::SpreadAttribute(spread) => {
-                if let Some(part) = format_spread_attribute_segments(spread, source) {
-                    extend_segs(&mut inner, part);
-                }
+                extend_segs(&mut inner, format_spread_attribute_segments(spread, source));
             }
             Attribute::BindDirective(bind) => {
                 if bind.name == "this" {
@@ -467,7 +452,10 @@ pub(super) fn build_component_props_segments(
                 // after `bind:`. Explicit `bind:foo={expr}` stays `foo:expr,`.
                 let expr_range = get_expression_range(&bind.expression);
                 let is_shorthand = get_set_binding_ranges(&bind.expression, source).is_none()
-                    && expr_range.is_some_and(|(s, _)| s == bind.start + "bind:".len() as u32);
+                    && expr_range.is_some_and(|(s, _)| {
+                        s == bind.start
+                            + u32::try_from("bind:".len()).expect("literal length fits in u32")
+                    });
                 if is_shorthand {
                     let (s, e) = expr_range.unwrap();
                     segs_push_src(&mut inner, s, e);
@@ -501,25 +489,14 @@ pub(super) fn build_component_props_segments(
                 }
                 segs_push_lit(&mut inner, ",");
             }
-            Attribute::OnDirective(_) => {
+            Attribute::OnDirective(_)
+            | Attribute::ClassDirective(_)
+            | Attribute::StyleDirective(_)
+            | Attribute::TransitionDirective(_)
+            | Attribute::UseDirective(_)
+            | Attribute::LetDirective(_)
+            | Attribute::AnimateDirective(_) => {
                 // Excluded from component props - handled as $on() calls.
-            }
-            Attribute::ClassDirective(_) | Attribute::StyleDirective(_) => {
-                // `class:`/`style:` directives are element-only. Official
-                // `htmlxtojsx_v2` calls the Class/StyleDirective handlers solely
-                // for Elements (never InlineComponents), so on a component they
-                // contribute nothing — not even a lowered statement.
-            }
-            Attribute::TransitionDirective(_) | Attribute::UseDirective(_) => {
-                // transition:/in:/out:/use: on a component are not props — they
-                // lower to `__sveltets_2_ensureTransition(...)` statements after
-                // the `new …({...})` call (see build_component_directive_suffix).
-            }
-            Attribute::LetDirective(_) => {
-                // Let directives don't produce props.
-            }
-            Attribute::AnimateDirective(_) => {
-                // animate: lowers to an ensureAnimation suffix, not a prop.
             }
             Attribute::AttachTag(attach) => {
                 let part = format_attach_tag_segments(attach, source);

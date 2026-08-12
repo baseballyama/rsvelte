@@ -1,9 +1,12 @@
+//! `svelte/no-dupe-use-directives`.
+//!
 //! `svelte/no-dupe-use-directives` — flag duplicate `use:` (action) directives
 //! on the same start tag. Two `use:` directives are duplicates when they share
 //! the same key (`use:` + name) AND their expressions are token-equal (same
 //! tokens ignoring comments and whitespace); a directive with no expression
-//! only duplicates another with no expression. Port of the eslint-plugin-svelte
-//! rule.
+//! only duplicates another with no expression.
+//!
+//! Port of the eslint-plugin-svelte rule.
 //!
 //! Mirrors `no-dupe-on-directives` but for `UseDirective` (which, unlike event
 //! handlers, has no modifiers — the key is purely `use:<name>`).
@@ -31,7 +34,7 @@ static META: RuleMeta = RuleMeta {
 pub struct NoDupeUseDirectives;
 
 impl NoDupeUseDirectives {
-    fn check_start_tag(&self, ctx: &mut LintContext, attributes: &[Attribute]) {
+    fn check_start_tag(ctx: &mut LintContext, attributes: &[Attribute]) {
         // `use:` directives in source order.
         let directives: Vec<&UseDirective> = attributes
             .iter()
@@ -52,13 +55,13 @@ impl NoDupeUseDirectives {
 
         for (i, d) in directives.iter().enumerate() {
             let key_text = format!("use:{}", d.name.as_str());
-            let norm: Option<String> = match &d.expression {
-                None => None,
-                Some(e) => match (e.start(), e.end()) {
+            let norm: Option<String> = d.expression.as_ref().map_or_else(
+                || None,
+                |expr| match (expr.start(), expr.end()) {
                     (Some(s), Some(e2)) => Some(normalize_expr(ctx.slice(s, e2))),
                     _ => Some(format!("\0__nospan_{i}")),
                 },
-            };
+            );
 
             if let Some(group) = groups
                 .iter_mut()
@@ -78,10 +81,10 @@ impl NoDupeUseDirectives {
                 let node = directives[idx];
                 // lineNo is the line of the OTHER duplicate: members[0] unless
                 // this node IS members[0], then members[1].
-                let other_idx = if members[0] != idx {
-                    members[0]
-                } else {
+                let other_idx = if members[0] == idx {
                     members[1]
+                } else {
+                    members[0]
                 };
                 let line_no = line_of(ctx.source(), directives[other_idx].start);
                 ctx.report(
@@ -102,22 +105,18 @@ impl Rule for NoDupeUseDirectives {
     }
 
     fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
-        self.check_start_tag(ctx, &el.attributes);
+        Self::check_start_tag(ctx, &el.attributes);
     }
 
     fn check_component(&self, ctx: &mut LintContext, c: &Component) {
-        self.check_start_tag(ctx, &c.attributes);
+        Self::check_start_tag(ctx, &c.attributes);
     }
 }
 
 /// 1-based line number of the byte `offset` within `source`.
 fn line_of(source: &str, offset: u32) -> usize {
     let end = (offset as usize).min(source.len());
-    source.as_bytes()[..end]
-        .iter()
-        .filter(|&&b| b == b'\n')
-        .count()
-        + 1
+    bytecount::count(&source.as_bytes()[..end], b'\n') + 1
 }
 
 /// Canonical token string of an expression source slice: strips `//` and

@@ -23,6 +23,16 @@ use serde_json::Value;
 
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+
+fn integral_number(value: f64) -> String {
+    format!("{value:.0}")
+}
+
+fn uint32_from_number(value: f64) -> u32 {
+    integral_number(value)
+        .parse()
+        .expect("value was normalized to the u32 range")
+}
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::OnceCell;
 
@@ -34,7 +44,7 @@ const MAX_DEPTH: u8 = 16;
 /// `STRING` / `NUMBER` / `FUNCTION` symbols: the *type* is known but the
 /// value is not.
 #[derive(Clone, Debug)]
-pub(crate) enum EvalValue {
+pub enum EvalValue {
     Str(String),
     Num(f64),
     Bool(bool),
@@ -50,46 +60,43 @@ impl EvalValue {
     fn is_marker(&self) -> bool {
         matches!(
             self,
-            EvalValue::StringMarker
-                | EvalValue::NumberMarker
-                | EvalValue::FunctionMarker
-                | EvalValue::Unknown
+            Self::StringMarker | Self::NumberMarker | Self::FunctionMarker | Self::Unknown
         )
     }
 
     /// Value identity for the `values` set (NaN is identical to NaN here,
     /// mirroring JS `Set` semantics where `NaN` is `SameValueZero`-equal).
-    fn same(&self, other: &EvalValue) -> bool {
+    fn same(&self, other: &Self) -> bool {
         match (self, other) {
-            (EvalValue::Str(a), EvalValue::Str(b)) => a == b,
-            (EvalValue::Num(a), EvalValue::Num(b)) => {
+            (Self::Str(a), Self::Str(b)) => a == b,
+            (Self::Num(a), Self::Num(b)) => {
                 (a.is_nan() && b.is_nan()) || a == b || (*a == 0.0 && *b == 0.0)
             }
-            (EvalValue::Bool(a), EvalValue::Bool(b)) => a == b,
-            (EvalValue::Null, EvalValue::Null)
-            | (EvalValue::Undefined, EvalValue::Undefined)
-            | (EvalValue::StringMarker, EvalValue::StringMarker)
-            | (EvalValue::NumberMarker, EvalValue::NumberMarker)
-            | (EvalValue::FunctionMarker, EvalValue::FunctionMarker)
-            | (EvalValue::Unknown, EvalValue::Unknown) => true,
+            (Self::Bool(a), Self::Bool(b)) => a == b,
+            (Self::Null, Self::Null)
+            | (Self::Undefined, Self::Undefined)
+            | (Self::StringMarker, Self::StringMarker)
+            | (Self::NumberMarker, Self::NumberMarker)
+            | (Self::FunctionMarker, Self::FunctionMarker)
+            | (Self::Unknown, Self::Unknown) => true,
             _ => false,
         }
     }
 
     fn truthy(&self) -> Option<bool> {
         match self {
-            EvalValue::Str(s) => Some(!s.is_empty()),
-            EvalValue::Num(n) => Some(!(*n == 0.0 || n.is_nan())),
-            EvalValue::Bool(b) => Some(*b),
-            EvalValue::Null | EvalValue::Undefined => Some(false),
+            Self::Str(s) => Some(!s.is_empty()),
+            Self::Num(n) => Some(!(*n == 0.0 || n.is_nan())),
+            Self::Bool(b) => Some(*b),
+            Self::Null | Self::Undefined => Some(false),
             _ => None,
         }
     }
 
     fn is_nullish(&self) -> Option<bool> {
         match self {
-            EvalValue::Null | EvalValue::Undefined => Some(true),
-            EvalValue::Str(_) | EvalValue::Num(_) | EvalValue::Bool(_) => Some(false),
+            Self::Null | Self::Undefined => Some(true),
+            Self::Str(_) | Self::Num(_) | Self::Bool(_) => Some(false),
             _ => None,
         }
     }
@@ -97,23 +104,23 @@ impl EvalValue {
 
 /// Result of evaluating an expression: the set of possible values.
 /// Mirrors upstream's `Evaluation` (`values` set + derived flags).
-pub(crate) struct Evaluation {
+pub struct Evaluation {
     pub values: Vec<EvalValue>,
 }
 
 impl Evaluation {
     fn new() -> Self {
-        Evaluation { values: Vec::new() }
+        Self { values: Vec::new() }
     }
 
     pub(crate) fn unknown() -> Self {
-        Evaluation {
+        Self {
             values: vec![EvalValue::Unknown],
         }
     }
 
     fn single(v: EvalValue) -> Self {
-        Evaluation { values: vec![v] }
+        Self { values: vec![v] }
     }
 
     fn add(&mut self, v: EvalValue) {
@@ -122,7 +129,7 @@ impl Evaluation {
         }
     }
 
-    fn extend(&mut self, other: Evaluation) {
+    fn extend(&mut self, other: Self) {
         for v in other.values {
             self.add(v);
         }
@@ -180,19 +187,13 @@ fn js_str_to_number(s: &str) -> f64 {
         return 0.0;
     }
     if let Some(hex) = t.strip_prefix("0x").or_else(|| t.strip_prefix("0X")) {
-        return i64::from_str_radix(hex, 16)
-            .map(|v| v as f64)
-            .unwrap_or(f64::NAN);
+        return i64::from_str_radix(hex, 16).map_or(f64::NAN, |v| v as f64);
     }
     if let Some(oct) = t.strip_prefix("0o").or_else(|| t.strip_prefix("0O")) {
-        return i64::from_str_radix(oct, 8)
-            .map(|v| v as f64)
-            .unwrap_or(f64::NAN);
+        return i64::from_str_radix(oct, 8).map_or(f64::NAN, |v| v as f64);
     }
     if let Some(bin) = t.strip_prefix("0b").or_else(|| t.strip_prefix("0B")) {
-        return i64::from_str_radix(bin, 2)
-            .map(|v| v as f64)
-            .unwrap_or(f64::NAN);
+        return i64::from_str_radix(bin, 2).map_or(f64::NAN, |v| v as f64);
     }
     match t {
         "Infinity" | "+Infinity" => return f64::INFINITY,
@@ -215,7 +216,7 @@ fn to_number(v: &EvalValue) -> Option<f64> {
 
 /// JS number → string (`String(n)`), matching V8's formatting for the
 /// common cases (integers, shortest-roundtrip decimals, NaN/Infinity).
-pub(crate) fn js_number_to_string(n: f64) -> String {
+pub fn js_number_to_string(n: f64) -> String {
     if n.is_nan() {
         return "NaN".to_string();
     }
@@ -228,22 +229,22 @@ pub(crate) fn js_number_to_string(n: f64) -> String {
     }
     let abs = n.abs();
     if n.fract() == 0.0 && abs < 1e21 {
-        return format!("{}", n as i128);
+        return integral_number(n);
     }
     if !(1e-6..1e21).contains(&abs) {
         // JS exponential form, e.g. `1e+21`, `1e-7`
-        let s = format!("{:e}", n);
+        let s = format!("{n:e}");
         if let Some(pos) = s.find('e') {
             let (mantissa, exp) = s.split_at(pos);
             let exp_num = &exp[1..];
             if !exp_num.starts_with('-') {
-                return format!("{}e+{}", mantissa, exp_num);
+                return format!("{mantissa}e+{exp_num}");
             }
         }
         return s;
     }
     // Rust's shortest-roundtrip Display matches JS for ordinary decimals.
-    format!("{}", n)
+    format!("{n}")
 }
 
 fn to_js_string(v: &EvalValue) -> Option<String> {
@@ -259,7 +260,7 @@ fn to_js_string(v: &EvalValue) -> Option<String> {
 
 /// The display string used when inlining a known value into the template:
 /// upstream does `(evaluated.value ?? '') + ''`.
-pub(crate) fn js_display_string(v: &EvalValue) -> String {
+pub fn js_display_string(v: &EvalValue) -> String {
     match v {
         EvalValue::Null | EvalValue::Undefined => String::new(),
         other => to_js_string(other).unwrap_or_default(),
@@ -314,9 +315,9 @@ fn to_int32(n: f64) -> i32 {
         return 0;
     }
     let m = n.trunc();
-    let m = m.rem_euclid(4294967296.0);
-    let u = m as u32;
-    u as i32
+    let m = m.rem_euclid(4_294_967_296.0);
+    let u = uint32_from_number(m);
+    i32::from_ne_bytes(u.to_ne_bytes())
 }
 
 fn to_uint32(n: f64) -> u32 {
@@ -324,24 +325,16 @@ fn to_uint32(n: f64) -> u32 {
         return 0;
     }
     let m = n.trunc();
-    let m = m.rem_euclid(4294967296.0);
-    m as u32
+    let m = m.rem_euclid(4_294_967_296.0);
+    uint32_from_number(m)
 }
 
 fn eval_binary(op: &str, a: &EvalValue, b: &EvalValue) -> EvalValue {
     match op {
-        "===" => strict_eq(a, b)
-            .map(EvalValue::Bool)
-            .unwrap_or(EvalValue::Unknown),
-        "!==" => strict_eq(a, b)
-            .map(|r| EvalValue::Bool(!r))
-            .unwrap_or(EvalValue::Unknown),
-        "==" => loose_eq(a, b)
-            .map(EvalValue::Bool)
-            .unwrap_or(EvalValue::Unknown),
-        "!=" => loose_eq(a, b)
-            .map(|r| EvalValue::Bool(!r))
-            .unwrap_or(EvalValue::Unknown),
+        "===" => strict_eq(a, b).map_or(EvalValue::Unknown, EvalValue::Bool),
+        "!==" => strict_eq(a, b).map_or(EvalValue::Unknown, |r| EvalValue::Bool(!r)),
+        "==" => loose_eq(a, b).map_or(EvalValue::Unknown, EvalValue::Bool),
+        "!=" => loose_eq(a, b).map_or(EvalValue::Unknown, |r| EvalValue::Bool(!r)),
         "<" => match js_less_than(a, b) {
             Some(Some(r)) => EvalValue::Bool(r),
             Some(None) => EvalValue::Bool(false),
@@ -359,7 +352,7 @@ fn eval_binary(op: &str, a: &EvalValue, b: &EvalValue) -> EvalValue {
             let b_str = matches!(b, EvalValue::Str(_));
             if a_str || b_str {
                 match (to_js_string(a), to_js_string(b)) {
-                    (Some(x), Some(y)) => EvalValue::Str(format!("{}{}", x, y)),
+                    (Some(x), Some(y)) => EvalValue::Str(format!("{x}{y}")),
                     _ => EvalValue::Unknown,
                 }
             } else {
@@ -392,11 +385,11 @@ fn eval_binary(op: &str, a: &EvalValue, b: &EvalValue) -> EvalValue {
                 let xi = to_int32(x);
                 let shift = to_uint32(y) & 31;
                 EvalValue::Num(match op {
-                    "&" => (xi & to_int32(y)) as f64,
-                    "|" => (xi | to_int32(y)) as f64,
-                    "^" => (xi ^ to_int32(y)) as f64,
-                    "<<" => (xi << shift) as f64,
-                    _ => (xi >> shift) as f64,
+                    "&" => f64::from(xi & to_int32(y)),
+                    "|" => f64::from(xi | to_int32(y)),
+                    "^" => f64::from(xi ^ to_int32(y)),
+                    "<<" => f64::from(xi << shift),
+                    _ => f64::from(xi >> shift),
                 })
             }
             _ => EvalValue::Unknown,
@@ -405,7 +398,7 @@ fn eval_binary(op: &str, a: &EvalValue, b: &EvalValue) -> EvalValue {
             (Some(x), Some(y)) => {
                 let xu = to_uint32(x);
                 let shift = to_uint32(y) & 31;
-                EvalValue::Num((xu >> shift) as f64)
+                EvalValue::Num(f64::from(xu >> shift))
             }
             _ => EvalValue::Unknown,
         },
@@ -435,7 +428,6 @@ fn eval_global_call(keypath: &str, args: &[Evaluation]) -> Option<EvalValue> {
     };
 
     let result = match keypath {
-        "BigInt" | "Math.random" | "Math.f16round" => None,
         "Math.min" => nums().map(|v| v.iter().copied().fold(f64::INFINITY, f64::min)),
         "Math.max" => nums().map(|v| v.iter().copied().fold(f64::NEG_INFINITY, f64::max)),
         "Math.floor" => num1().map(f64::floor),
@@ -470,16 +462,16 @@ fn eval_global_call(keypath: &str, args: &[Evaluation]) -> Option<EvalValue> {
         "Math.asinh" => num1().map(f64::asinh),
         "Math.atanh" => num1().map(f64::atanh),
         "Math.cbrt" => num1().map(f64::cbrt),
-        "Math.fround" => num1().map(|n| n as f32 as f64),
+        "Math.fround" => num1().and_then(|n| n.to_string().parse::<f32>().ok().map(f64::from)),
         "Math.atan2" | "Math.pow" | "Math.imul" | "Math.clz32" => {
             let v = nums()?;
             match keypath {
                 "Math.atan2" if v.len() == 2 => Some(v[0].atan2(v[1])),
                 "Math.pow" if v.len() == 2 => Some(v[0].powf(v[1])),
                 "Math.imul" if v.len() == 2 => {
-                    Some((to_int32(v[0]).wrapping_mul(to_int32(v[1]))) as f64)
+                    Some(f64::from(to_int32(v[0]).wrapping_mul(to_int32(v[1]))))
                 }
-                "Math.clz32" if v.len() == 1 => Some(to_uint32(v[0]).leading_zeros() as f64),
+                "Math.clz32" if v.len() == 1 => Some(f64::from(to_uint32(v[0]).leading_zeros())),
                 _ => None,
             }
         }
@@ -506,7 +498,9 @@ fn eval_global_call(keypath: &str, args: &[Evaluation]) -> Option<EvalValue> {
                         "Number.isInteger" => n.is_finite() && n.fract() == 0.0,
                         "Number.isFinite" => n.is_finite(),
                         "Number.isNaN" => n.is_nan(),
-                        _ => n.is_finite() && n.fract() == 0.0 && n.abs() <= 9007199254740991.0,
+                        _ => {
+                            n.is_finite() && n.fract() == 0.0 && n.abs() <= 9_007_199_254_740_991.0
+                        }
                     };
                     return Some(EvalValue::Bool(b));
                 }
@@ -560,7 +554,7 @@ fn is_global_keypath(keypath: &str) -> bool {
     ) || (keypath.starts_with("Math.") && keypath.len() > 5)
 }
 
-pub(crate) fn global_constant(keypath: &str) -> Option<f64> {
+pub fn global_constant(keypath: &str) -> Option<f64> {
     Some(match keypath {
         "Math.PI" => std::f64::consts::PI,
         "Math.E" => std::f64::consts::E,
@@ -611,7 +605,7 @@ fn get_keypath(node: &Value) -> Option<(String, String)> {
     let mut parts: Vec<&str> = Vec::new();
     let mut n = node;
     while node_type(n) == Some("MemberExpression") {
-        if n.get("computed").and_then(|c| c.as_bool()) == Some(true) {
+        if n.get("computed").and_then(serde_json::Value::as_bool) == Some(true) {
             return None;
         }
         let prop = n.get("property")?;
@@ -720,7 +714,7 @@ fn parse_literal_text(text: &str) -> Option<EvalValue> {
 /// of these via [`ServerCodeGenerator::eval_ctx`] (borrowing its own fields, so
 /// behaviour is byte-identical); the AST pipeline builds one from its
 /// `ServerTransformState`.
-pub(crate) struct EvalCtx<'c> {
+pub struct EvalCtx<'c> {
     pub analysis: Option<&'c ComponentAnalysis>,
     pub constant_vars: &'c FxHashMap<String, String>,
     pub source: &'c str,
@@ -730,7 +724,7 @@ pub(crate) struct EvalCtx<'c> {
     pub template_scopes_cache: &'c OnceCell<FxHashSet<usize>>,
 }
 
-impl<'a> EvalCtx<'a> {
+impl EvalCtx<'_> {
     /// Evaluate a template expression (typed AST wrapper).
     pub(crate) fn evaluate_template_expression(
         &self,
@@ -966,13 +960,10 @@ impl<'a> EvalCtx<'a> {
                 "undefined" => Evaluation::single(EvalValue::Undefined),
                 "true" => Evaluation::single(EvalValue::Bool(true)),
                 "false" => Evaluation::single(EvalValue::Bool(false)),
-                t => {
-                    if let Ok(n) = t.parse::<f64>() {
-                        Evaluation::single(EvalValue::Num(n))
-                    } else {
-                        Evaluation::single(EvalValue::Str(t.to_string()))
-                    }
-                }
+                t => t.parse::<f64>().map_or_else(
+                    |_| Evaluation::single(EvalValue::Str(t.to_string())),
+                    |n| Evaluation::single(EvalValue::Num(n)),
+                ),
             };
         }
 
@@ -1102,10 +1093,7 @@ impl<'a> EvalCtx<'a> {
             return Evaluation::unknown();
         }
 
-        match parse_literal_text(initial) {
-            Some(v) => Evaluation::single(v),
-            None => Evaluation::unknown(),
-        }
+        parse_literal_text(initial).map_or_else(Evaluation::unknown, |v| Evaluation::single(v))
     }
 
     /// Core evaluator over estree-JSON, mirroring upstream's `Evaluation`
@@ -1127,7 +1115,7 @@ impl<'a> EvalCtx<'a> {
                 if let Some(regex) = node.get("regex") {
                     let pattern = regex.get("pattern").and_then(|p| p.as_str()).unwrap_or("");
                     let flags = regex.get("flags").and_then(|f| f.as_str()).unwrap_or("");
-                    return Evaluation::single(EvalValue::Str(format!("/{}/{}", pattern, flags)));
+                    return Evaluation::single(EvalValue::Str(format!("/{pattern}/{flags}")));
                 }
                 match node.get("value") {
                     Some(Value::String(s)) => Evaluation::single(EvalValue::Str(s.clone())),
@@ -1272,7 +1260,7 @@ impl<'a> EvalCtx<'a> {
                         "!" => av.truthy().map(|t| EvalValue::Bool(!t)),
                         "-" => to_number(av).map(|n| EvalValue::Num(-n)),
                         "+" => to_number(av).map(EvalValue::Num),
-                        "~" => to_number(av).map(|n| EvalValue::Num(!to_int32(n) as f64)),
+                        "~" => to_number(av).map(|n| EvalValue::Num(f64::from(!to_int32(n)))),
                         "typeof" => Some(EvalValue::Str(
                             match av {
                                 EvalValue::Str(_) => "string",

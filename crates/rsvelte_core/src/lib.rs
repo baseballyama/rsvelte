@@ -56,6 +56,7 @@ pub use compiler::print::{PrintError, PrintOptions, PrintResult, print};
 /// rewrite passes off text splicing. Exposed so a corpus driver can report the
 /// tally; not part of the public API.
 #[doc(hidden)]
+#[must_use]
 pub fn ast_rewrite_dual_run_tally() -> Vec<(&'static str, u32, u32, u32, u32)> {
     compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::tally()
 }
@@ -69,12 +70,14 @@ pub fn ast_rewrite_dual_run_reset() {
 
 /// How many times a Phase-3 rewrite pass re-parsed an intermediate script.
 #[doc(hidden)]
+#[must_use]
 pub fn ast_rewrite_dual_run_parses() -> u32 {
     compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::parses()
 }
 
 /// `(pass, re-parses)` — which Phase-3 rewrite passes actually run.
 #[doc(hidden)]
+#[must_use]
 pub fn ast_rewrite_dual_run_parses_by_pass() -> Vec<(&'static str, u32)> {
     compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::parses_by_pass()
 }
@@ -90,10 +93,12 @@ pub use compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::Work 
 /// How many times, under `RSVELTE_AST_DUAL_RUN`, the text path produced a
 /// rewrite the in-place path reported as `Unchanged`. Dropping the text-path
 /// fallback for `Unchanged` is only sound while this stays 0.
+#[must_use]
 pub fn ast_rewrite_fallback_would_diverge() -> u64 {
     compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::fallback_would_diverge()
 }
 
+#[must_use]
 pub fn ast_rewrite_dual_run_work() -> Vec<(&'static str, AstRewriteWork, AstRewriteWork)> {
     compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::work()
 }
@@ -103,6 +108,7 @@ pub fn ast_rewrite_dual_run_work() -> Vec<(&'static str, AstRewriteWork, AstRewr
 /// on both sides, which the gate reads as agreement, so the second number is
 /// the part of the denominator nothing verified.
 #[doc(hidden)]
+#[must_use]
 pub fn ast_rewrite_termination_counts() -> (u32, u32) {
     compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::termination_counts()
 }

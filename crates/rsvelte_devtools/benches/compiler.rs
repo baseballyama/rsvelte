@@ -10,7 +10,7 @@
 //!   2. a **deterministic synthetic** generated in-code (a pure function, so
 //!      it's stable without committing a large file).
 //!
-//! Benchmark IDs are derived from stable, feature-tagged names, so CodSpeed
+//! Benchmark IDs are derived from stable, feature-tagged names, so `CodSpeed`
 //! keeps a continuous per-benchmark history across `svelte` bumps.
 //!
 //! Phases: 1. Parse → 2. Analyze → 3. Transform, plus the full `compile`
@@ -104,13 +104,13 @@ fn assert_compiles(sample: &Sample) {
 /// A large markup-heavy synthetic, to stress template/codegen scaling.
 fn create_large_synthetic_file() -> Sample {
     let mut source = String::from(
-        r#"<script>
+        r"<script>
     let count = $state(0);
     let doubled = $derived(count * 2);
     function increment() { count++; }
 </script>
 
-"#,
+",
     );
 
     for i in 0..100 {
@@ -136,19 +136,19 @@ fn create_large_synthetic_file() -> Sample {
 /// / `_update` predecessors) which are only called in non-runes mode.
 fn create_legacy_state_var_heavy_file() -> Sample {
     let mut script = String::from(
-        r#"<script>
+        r"<script>
     let count = 0;
     let total = 0;
     let items = [];
     let flag = false;
     let name = '';
 
-"#,
+",
     );
     for i in 0..40 {
         let _ = write!(
             script,
-            r#"    function action_{i}() {{
+            r"    function action_{i}() {{
         count = {i};
         total += count;
         total -= 1;
@@ -163,7 +163,7 @@ fn create_legacy_state_var_heavy_file() -> Sample {
         }}
         count ??= 0;
     }}
-"#
+"
         );
     }
     script.push_str("</script>\n\n");
@@ -181,19 +181,19 @@ fn create_legacy_state_var_heavy_file() -> Sample {
 /// typical reactive logic, exercising the AST state-assign helpers.
 fn create_state_var_heavy_file() -> Sample {
     let mut script = String::from(
-        r#"<script>
+        r"<script>
     let count = $state(0);
     let total = $state(0);
     let items = $state([]);
     let flag = $state(false);
     let name = $state('');
 
-"#,
+",
     );
     for i in 0..40 {
         let _ = write!(
             script,
-            r#"    function action_{i}() {{
+            r"    function action_{i}() {{
         count = {i};
         total += count;
         total -= 1;
@@ -208,7 +208,7 @@ fn create_state_var_heavy_file() -> Sample {
         }}
         count ??= 0;
     }}
-"#
+"
         );
     }
     script.push_str("</script>\n\n");

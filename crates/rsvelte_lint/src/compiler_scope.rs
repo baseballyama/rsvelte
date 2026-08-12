@@ -2,7 +2,7 @@
 //!
 //! `rsvelte_lint` depends only on `rsvelte_core`, so the oxc-backed scope
 //! resolution the lint rules need lives here, where oxc is already a
-//! dependency. It answers two questions ESLint's `ReferenceTracker` /
+//! dependency. It answers two questions `ESLint`'s `ReferenceTracker` /
 //! svelte-eslint-parser scopes answer natively, so a name-based rule can tell a
 //! real browser global (`window`, `document`) from a local binding — a prop,
 //! import, or `let` named `open` / `top` / `name` / `status` — that merely
@@ -54,8 +54,9 @@ pub struct ScriptScope {
 ///
 /// Parsing / semantic errors do not abort the query: a partially-resolved
 /// semantic still answers the shadowing question for the parts that did resolve,
-/// and a script ESLint accepts parses cleanly here anyway (both this and
+/// and a script `ESLint` accepts parses cleanly here anyway (both this and
 /// `svelte-eslint-parser` sit on a standard JS/TS grammar).
+#[must_use]
 pub fn resolve_script_scope(script_src: &str, is_ts: bool) -> ScriptScope {
     let allocator = Allocator::default();
     let source_type = if is_ts {

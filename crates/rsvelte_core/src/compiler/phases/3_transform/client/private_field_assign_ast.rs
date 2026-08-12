@@ -24,7 +24,7 @@
 //!
 //! Where `q` is one of the qualified names passed by the caller
 //! (e.g. `"instance.#count"`). Match is by source-text equality
-//! at the LHS PrivateField span — same convention as
+//! at the LHS `PrivateField` span — same convention as
 //! `private_read_wrap_ast`.
 //!
 //! Update expressions on private-field arguments
@@ -43,11 +43,11 @@
 //!
 //! ## Idempotency
 //!
-//! After wrap, the AssignmentExpression is replaced by a
-//! `$.set(q, ...)` CallExpression. There's no more
-//! AssignmentExpression at that span, so the visitor doesn't
+//! After wrap, the `AssignmentExpression` is replaced by a
+//! `$.set(q, ...)` `CallExpression`. There's no more
+//! `AssignmentExpression` at that span, so the visitor doesn't
 //! re-trigger. The inner `q` references inside `$.set(q, ...)` /
-//! `$.get(q)` aren't LHS of any AssignmentExpression, so they're
+//! `$.get(q)` aren't LHS of any `AssignmentExpression`, so they're
 //! safe.
 
 use std::cell::RefCell;
@@ -115,7 +115,7 @@ struct PrivateFieldAssignCollector<'a> {
     replacements: Vec<Edit>,
 }
 
-impl<'a, 'ast> Visit<'ast> for PrivateFieldAssignCollector<'a> {
+impl<'ast> Visit<'ast> for PrivateFieldAssignCollector<'_> {
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
         walk::walk_assignment_expression(self, expr);
 
@@ -146,11 +146,8 @@ impl<'a, 'ast> Visit<'ast> for PrivateFieldAssignCollector<'a> {
         let rhs_text = &self.source[rhs_span.start as usize..rhs_span.end as usize];
 
         let rewrite = match op_str {
-            None => format!("$.set({}, {})", qualified, rhs_text),
-            Some(op) => format!(
-                "$.set({}, $.get({}) {} {})",
-                qualified, qualified, op, rhs_text
-            ),
+            None => format!("$.set({qualified}, {rhs_text})"),
+            Some(op) => format!("$.set({qualified}, $.get({qualified}) {op} {rhs_text})"),
         };
 
         self.replacements
@@ -176,10 +173,10 @@ impl<'a, 'ast> Visit<'ast> for PrivateFieldAssignCollector<'a> {
         //   ++q  → $.update_pre(q)
         //   --q  → $.update_pre(q, -1)
         let rewrite = match (expr.operator, expr.prefix) {
-            (UpdateOperator::Increment, false) => format!("$.update({})", qualified),
-            (UpdateOperator::Decrement, false) => format!("$.update({}, -1)", qualified),
-            (UpdateOperator::Increment, true) => format!("$.update_pre({})", qualified),
-            (UpdateOperator::Decrement, true) => format!("$.update_pre({}, -1)", qualified),
+            (UpdateOperator::Increment, false) => format!("$.update({qualified})"),
+            (UpdateOperator::Decrement, false) => format!("$.update({qualified}, -1)"),
+            (UpdateOperator::Increment, true) => format!("$.update_pre({qualified})"),
+            (UpdateOperator::Decrement, true) => format!("$.update_pre({qualified}, -1)"),
         };
 
         self.replacements

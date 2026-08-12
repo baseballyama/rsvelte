@@ -1,4 +1,4 @@
-//! UseDirective visitor.
+//! `UseDirective` visitor.
 //!
 //! Analyzes use: directives.
 //!

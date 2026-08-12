@@ -11,7 +11,7 @@ use super::super::utils::lexical::is_ascii_ident_byte;
 /// or value declared at the top level of the instance script — in which case
 /// the synthesised `;type $$ComponentProps = ...;` cannot be hoisted above
 /// `function $$render()`.
-pub(crate) fn type_text_references_any(
+pub fn type_text_references_any(
     type_text: &str,
     names: &std::collections::HashSet<String>,
 ) -> bool {
@@ -19,7 +19,7 @@ pub(crate) fn type_text_references_any(
         return false;
     }
     let bytes = type_text.as_bytes();
-    for name in names.iter() {
+    for name in names {
         if name.is_empty() {
             continue;
         }
@@ -54,7 +54,7 @@ pub(crate) fn type_text_references_any(
 /// module scope above `$$render`. The previous heuristic forced *every*
 /// `typeof` inside `$$render`, which wrongly nested the alias for the very
 /// common imported-component case.
-pub(crate) fn type_text_typeof_references_local_value(
+pub fn type_text_typeof_references_local_value(
     type_text: &str,
     instance_value_names: &std::collections::HashSet<String>,
     instance_import_names: &std::collections::HashSet<String>,
@@ -113,9 +113,9 @@ pub(crate) fn type_text_typeof_references_local_value(
 }
 
 /// Split a generics string like "T extends Record<string, any>, U" into
-/// just the type parameter names: ["T", "U"].
+/// just the type parameter names: `["T", "U"]`.
 /// Handles nested angle brackets and commas inside constraints.
-pub(crate) fn split_generic_param_names(generics: &str) -> Vec<String> {
+pub fn split_generic_param_names(generics: &str) -> Vec<String> {
     let mut names = Vec::new();
     let mut depth = 0; // angle bracket depth
     let mut current_start = 0;
@@ -142,7 +142,7 @@ pub(crate) fn split_generic_param_names(generics: &str) -> Vec<String> {
 
 /// Compact a generics string by stripping leading spaces from each top-level parameter.
 /// "A, B extends keyof A, C extends boolean" → "A,B extends keyof A,C extends boolean"
-pub(crate) fn compact_generic_params(generics: &str) -> String {
+pub fn compact_generic_params(generics: &str) -> String {
     let mut result = String::new();
     let mut depth = 0;
     let mut after_comma = false;
@@ -190,7 +190,7 @@ fn extract_param_name(param: &str) -> String {
 }
 
 /// Extract the `generics` attribute value from a script tag text.
-pub(crate) fn extract_generics_from_script_tag(tag_text: &str) -> Option<String> {
+pub fn extract_generics_from_script_tag(tag_text: &str) -> Option<String> {
     if let Some(pos) = tag_text.find("generics=") {
         let after = &tag_text[pos + 9..];
         let trimmed = after.trim_start();

@@ -9,6 +9,7 @@
 //! since there is no mature pure-Rust Less compiler. Set
 //! [`LessOptions::prefer_native`] to `false` to always use the bridge.
 
+use std::fmt::Write as _;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -39,8 +40,8 @@ pub struct LessOptions {
 
 impl Default for LessOptions {
     fn default() -> Self {
-        LessOptions {
-            less_options: serde_json::Value::Object(Default::default()),
+        Self {
+            less_options: serde_json::Value::Object(serde_json::Map::default()),
             node_bin: "node".to_string(),
             resolve_dir: None,
             prefer_native: true,
@@ -75,8 +76,8 @@ pub enum LessError {
 impl std::fmt::Display for LessError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LessError::Bridge(m) => write!(f, "{m}"),
-            LessError::Render { message, frame, .. } => match frame {
+            Self::Bridge(m) => write!(f, "{m}"),
+            Self::Render { message, frame, .. } => match frame {
                 Some(frame) => write!(f, "{message}\n{frame}"),
                 None => write!(f, "{message}"),
             },
@@ -88,6 +89,10 @@ impl std::fmt::Display for LessError {
 /// filterOptions, { filename, content, attributes })`.
 ///
 /// Returns `Ok(None)` when the block's `type`/`lang` does not select Less.
+///
+/// # Errors
+///
+/// Returns an error when the Less bridge cannot process the selected block.
 pub fn preprocess_less(
     less_options: &LessOptions,
     filter_options: &FilterOptions,
@@ -215,9 +220,18 @@ fn format_render_error(err: &serde_json::Value) -> LessError {
         .and_then(|v| v.as_str())
         .unwrap_or("Less error")
         .to_string();
-    let line = err.get("line").and_then(|v| v.as_u64()).map(|v| v as u32);
-    let column = err.get("column").and_then(|v| v.as_u64()).map(|v| v as u32);
-    let character = err.get("index").and_then(|v| v.as_u64()).map(|v| v as u32);
+    let line = err
+        .get("line")
+        .and_then(serde_json::Value::as_u64)
+        .and_then(|value| u32::try_from(value).ok());
+    let column = err
+        .get("column")
+        .and_then(serde_json::Value::as_u64)
+        .and_then(|value| u32::try_from(value).ok());
+    let character = err
+        .get("index")
+        .and_then(serde_json::Value::as_u64)
+        .and_then(|value| u32::try_from(value).ok());
     let extract: Option<Vec<String>> = err.get("extract").and_then(|v| v.as_array()).map(|a| {
         a.iter()
             .map(|v| v.as_str().unwrap_or("").to_string())
@@ -248,7 +262,10 @@ fn build_render_error(
     let mut frame: Vec<String> = extract
         .iter()
         .enumerate()
-        .map(|(i, l)| format!("{}:{l}", (line - 1) + i as u32))
+        .map(|(index, text)| {
+            let index = u32::try_from(index).expect("extract frame length fits u32");
+            format!("{}:{text}", (line - 1) + index)
+        })
         .collect();
     // frame.splice(2, 0, '^'.padStart(column + line.toString().length + 2));
     let pad = (column as usize) + line.to_string().len() + 2;
@@ -301,17 +318,11 @@ fn compile_native(content: &str) -> Native {
         }
         // Skip comments (treated as supported / ignorable).
         if content[i..].starts_with("//") {
-            i = content[i..]
-                .find('\n')
-                .map(|p| i + p)
-                .unwrap_or(content.len());
+            i = content[i..].find('\n').map_or(content.len(), |p| i + p);
             continue;
         }
         if content[i..].starts_with("/*") {
-            i = content[i..]
-                .find("*/")
-                .map(|p| i + p + 2)
-                .unwrap_or(content.len());
+            i = content[i..].find("*/").map_or(content.len(), |p| i + p + 2);
             continue;
         }
 
@@ -392,8 +403,7 @@ fn compile_native(content: &str) -> Native {
                     let value_off = off + piece.len() - piece.trim_start().len();
                     let value_off = content[value_off..]
                         .find(value)
-                        .map(|p| value_off + p)
-                        .unwrap_or(value_off);
+                        .map_or(value_off, |p| value_off + p);
                     match resolve_value(value, &vars, content, value_off) {
                         Ok(v) => decls.push((prop.trim().to_string(), v)),
                         Err(e) => return Native::Failed(e),
@@ -408,7 +418,6 @@ fn compile_native(content: &str) -> Native {
     }
 
     // Emit canonical less output (2-space indent, expanded, trailing newline).
-    use std::fmt::Write as _;
     let mut out = String::new();
     for (selector, decls) in &rules {
         out.push_str(selector);
@@ -477,7 +486,7 @@ fn undefined_variable_error(content: &str, at: usize, name: &str) -> LessError {
         format!("variable @{name} is undefined"),
         line,
         column,
-        at as u32,
+        u32::try_from(at).expect("source offset fits u32"),
         &extract,
     )
 }
@@ -503,6 +512,7 @@ fn line_col(content: &str, at: usize) -> (u32, u32) {
 /// Build the `svelte-preprocess-less` [`PreprocessorGroup`].
 ///
 /// Mirrors the upstream `less(lessOptions, filterOptions)` factory.
+#[must_use]
 pub fn less(less_options: LessOptions, filter_options: FilterOptions) -> PreprocessorGroup {
     PreprocessorGroup {
         name: Some("svelte-preprocess-less".to_string()),

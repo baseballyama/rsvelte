@@ -18,13 +18,13 @@ use crate::doc::Doc;
 
 // ── HTML-collapse-whitespace text predicates (port of the `*_RE` helpers) ──
 
-fn is_html_ws(c: char) -> bool {
+const fn is_html_ws(c: char) -> bool {
     matches!(c, '\t' | '\n' | '\u{0C}' | '\r' | ' ')
 }
 
 /// `getUnencodedText === ''` — a truly-empty text node (dropped by
 /// `prepareChildren`), as opposed to a whitespace-only one.
-fn is_empty_raw(text: &str) -> bool {
+const fn is_empty_raw(text: &str) -> bool {
     text.is_empty()
 }
 
@@ -83,7 +83,7 @@ fn trim_right(text: &str) -> &str {
 /// or trailing linebreaks become a hard break (and a blank line — two
 /// linebreaks — is preserved as an extra [`Doc::Hardline`]). Port of
 /// `splitTextToDocs`.
-pub(crate) fn split_text_to_docs(text: &str) -> Vec<Doc> {
+pub fn split_text_to_docs(text: &str) -> Vec<Doc> {
     // JS `text.split(/[\t\n\f\r ]+/)` keeps empty leading/trailing/segment words.
     let words = split_on_ws_runs(text);
     // `join(line, words).filter(d => d !== '')`: interleave Line, drop empty words.
@@ -145,7 +145,7 @@ fn split_on_ws_runs(text: &str) -> Vec<&str> {
 /// child's already-built [`Doc`]; `Text` carries its raw (unencoded) text, which
 /// `print_children` trims and splits via [`split_text_to_docs`].
 #[derive(Clone)]
-pub(crate) enum Child {
+pub enum Child {
     Text(String),
     // Part of prettier's faithful classification and handled throughout
     // `print_children`, but the current caller (`collapse::node_to_child`)
@@ -157,18 +157,18 @@ pub(crate) enum Child {
 }
 
 impl Child {
-    fn is_text(&self) -> bool {
-        matches!(self, Child::Text(_))
+    const fn is_text(&self) -> bool {
+        matches!(self, Self::Text(_))
     }
-    fn is_block(&self) -> bool {
-        matches!(self, Child::Block(_))
+    const fn is_block(&self) -> bool {
+        matches!(self, Self::Block(_))
     }
-    fn is_inline(&self) -> bool {
-        matches!(self, Child::Inline(_))
+    const fn is_inline(&self) -> bool {
+        matches!(self, Self::Inline(_))
     }
-    fn text(&self) -> Option<&str> {
+    const fn text(&self) -> Option<&str> {
         match self {
-            Child::Text(s) => Some(s.as_str()),
+            Self::Text(s) => Some(s.as_str()),
             _ => None,
         }
     }
@@ -179,7 +179,7 @@ impl Child {
 /// whitespace trimming is the *parent element*'s responsibility (milestone 2),
 /// so it is not done here. Returns the `childDocs` array (to be wrapped in the
 /// caller's `fill`/`group`).
-pub(crate) fn print_children(children: Vec<Child>) -> Vec<Doc> {
+pub fn print_children(children: Vec<Child>) -> Vec<Doc> {
     // prepareChildren: drop truly-empty (raw === '') text nodes; keep
     // whitespace-only ones.
     let mut prepared: Vec<Child> = children
@@ -295,13 +295,13 @@ fn handle_block_child(
     // softline after, depending on the next sibling.
     let next = prepared.get(idx + 1);
     if let Some(next) = next {
-        let push_after = if !next.is_text() {
-            true
-        } else {
+        let push_after = if next.is_text() {
             let next_text = next.text().unwrap();
             let non_empty_or_inline_after =
-                !is_only_ws(next_text) || prepared.get(idx + 2).is_some_and(|c2| c2.is_inline());
+                !is_only_ws(next_text) || prepared.get(idx + 2).is_some_and(Child::is_inline);
             non_empty_or_inline_after && !starts_with_linebreak(next_text, 1)
+        } else {
+            true
         };
         if push_after {
             out.push(Doc::Softline);
@@ -377,7 +377,7 @@ fn set_text(c: &mut Child, s: String) {
 
 /// Inputs for [`build_element_doc`] — a `RegularElement` whose open tag and
 /// children have already been converted to Docs by the caller.
-pub(crate) struct ElementLayout {
+pub struct ElementLayout {
     /// Tag name (`div`, `a`, …).
     pub name: String,
     /// The attribute-list doc placed inside `<name …>` — prettier's
@@ -409,7 +409,7 @@ thread_local! {
 }
 
 /// RAII guard restoring [`BRACKET_SAME_LINE`] on drop.
-pub(crate) struct BracketSameLineGuard(bool);
+pub struct BracketSameLineGuard(bool);
 
 impl Drop for BracketSameLineGuard {
     fn drop(&mut self) {
@@ -418,11 +418,11 @@ impl Drop for BracketSameLineGuard {
 }
 
 /// Set [`BRACKET_SAME_LINE`] for the returned guard's lifetime.
-pub(crate) fn enter_bracket_same_line(value: bool) -> BracketSameLineGuard {
+pub fn enter_bracket_same_line(value: bool) -> BracketSameLineGuard {
     BracketSameLineGuard(BRACKET_SAME_LINE.replace(value))
 }
 
-pub(crate) fn bracket_same_line() -> bool {
+pub fn bracket_same_line() -> bool {
     BRACKET_SAME_LINE.with(std::cell::Cell::get)
 }
 
@@ -432,7 +432,90 @@ pub(crate) fn bracket_same_line() -> bool {
 /// and not `<pre>`-content. `bracketSameLine` is honoured via
 /// [`bracket_same_line`], and `canOmitSoftlineBeforeClosingTag` via
 /// `can_omit_softline`.
-pub(crate) fn build_element_doc(el: ElementLayout) -> Doc {
+fn self_closing_element_doc(name: &str, attrs: Doc, bracket_same_line: bool) -> Doc {
+    let (trailing, closer): (Doc, &str) = if bracket_same_line {
+        (Doc::Text(String::new()), " />")
+    } else {
+        (Doc::Dedent(vec![Doc::Line]), "/>")
+    };
+    Doc::Group(vec![
+        Doc::Text(format!("<{name}")),
+        Doc::Indent(vec![Doc::Group(vec![attrs, trailing])]),
+        Doc::Text(closer.into()),
+    ])
+}
+
+enum EmptyElementBody {
+    InlineLeadingWhitespace,
+    BracketSameLine,
+    Standard,
+}
+
+enum EmptyElementClose {
+    Hugged {
+        can_omit_softline: bool,
+        close_no_bracket: String,
+    },
+    Standard {
+        close: String,
+    },
+}
+
+struct EmptyElementLayout {
+    body: EmptyElementBody,
+    close: EmptyElementClose,
+}
+
+fn empty_element_doc(
+    opening_tag: Vec<Doc>,
+    bracket_same_line: bool,
+    layout: EmptyElementLayout,
+) -> Doc {
+    let body = match layout.body {
+        EmptyElementBody::InlineLeadingWhitespace => Doc::Line,
+        EmptyElementBody::BracketSameLine => Doc::Softline,
+        EmptyElementBody::Standard => Doc::Text(String::new()),
+    };
+    match layout.close {
+        EmptyElementClose::Hugged {
+            can_omit_softline,
+            close_no_bracket,
+        } => {
+            let hugged = Doc::Group(vec![
+                Doc::Softline,
+                Doc::Group(vec![
+                    Doc::Text(">".into()),
+                    body,
+                    Doc::Text(close_no_bracket),
+                ]),
+            ]);
+            let before_close = if !bracket_same_line || can_omit_softline {
+                vec![hugged, Doc::Text(">".into())]
+            } else {
+                vec![hugged, Doc::Softline, Doc::Text(">".into())]
+            };
+            group_concat(opening_tag, before_close)
+        }
+        EmptyElementClose::Standard { close } => group_concat(
+            opening_tag,
+            vec![Doc::Text(">".into()), body, Doc::Text(close)],
+        ),
+    }
+}
+
+fn opening_element_tag(name: &str, attrs: Doc, hug_start: bool, is_empty: bool) -> Vec<Doc> {
+    let trailing = if (hug_start && !is_empty) || bracket_same_line() {
+        Doc::Text(String::new())
+    } else {
+        Doc::Dedent(vec![Doc::Softline])
+    };
+    vec![
+        Doc::Text(format!("<{name}")),
+        Doc::Indent(vec![Doc::Group(vec![attrs, trailing])]),
+    ]
+}
+
+pub fn build_element_doc(el: ElementLayout) -> Doc {
     let ElementLayout {
         name,
         attrs,
@@ -467,16 +550,7 @@ pub(crate) fn build_element_doc(el: ElementLayout) -> Doc {
     // `<path … />`. With `bracketSameLine` the trailing line is dropped and a
     // literal space glues `/>` to the last attribute even when the tag wraps.
     if is_empty && self_closing {
-        let (trailing, closer): (Doc, &str) = if bracket_same_line {
-            (Doc::Text(String::new()), " />")
-        } else {
-            (Doc::Dedent(vec![Doc::Line]), "/>")
-        };
-        return Doc::Group(vec![
-            Doc::Text(format!("<{name}")),
-            Doc::Indent(vec![Doc::Group(vec![attrs, trailing])]),
-            Doc::Text(closer.into()),
-        ]);
+        return self_closing_element_doc(&name, attrs, bracket_same_line);
     }
 
     let hug_start = should_hug_start(is_inline, &children);
@@ -485,59 +559,36 @@ pub(crate) fn build_element_doc(el: ElementLayout) -> Doc {
     let close = format!("</{name}>");
     let close_no_bracket = format!("</{name}");
 
-    // openingTag = ['<', name, indent(group([attrs,
-    //   hugStart && !isEmpty ? '' : !bracketSameLine ? dedent(softline) : '']))]
-    // `bracketSameLine` drops the trailing softline so the `>` stays glued to the
-    // last attribute when the open tag wraps.
-    let opener_trailing = if (hug_start && !is_empty) || bracket_same_line {
-        Doc::Text(String::new())
-    } else {
-        Doc::Dedent(vec![Doc::Softline])
-    };
-    let opening_tag = vec![
-        Doc::Text(format!("<{name}")),
-        Doc::Indent(vec![Doc::Group(vec![attrs, opener_trailing])]),
-    ];
+    let opening_tag = opening_element_tag(&name, attrs, hug_start, is_empty);
 
     if is_empty {
-        // body for an empty element: a `line` for an inline element whose (raw)
-        // first child is a whitespace text; otherwise `bracketSameLine ? softline : ''`.
         let body = if is_inline
             && children
                 .first()
                 .and_then(Child::text)
                 .is_some_and(starts_with_ws)
         {
-            Doc::Line
+            EmptyElementBody::InlineLeadingWhitespace
         } else if bracket_same_line {
-            Doc::Softline
+            EmptyElementBody::BracketSameLine
         } else {
-            Doc::Text(String::new())
+            EmptyElementBody::Standard
         };
-        if hug_start && hug_end {
-            // group([...opening, group([softline, group(['>', body, '</name'])]),
-            //   omitSoftlineBeforeClosingTag ? '' : softline, '>'])
-            // omitSoftlineBeforeClosingTag = (isEmpty && !bracketSameLine) || canOmit
-            let omit_softline = !bracket_same_line || can_omit_softline;
-            let hugged = Doc::Group(vec![
-                Doc::Softline,
-                Doc::Group(vec![
-                    Doc::Text(">".into()),
-                    body,
-                    Doc::Text(close_no_bracket),
-                ]),
-            ]);
-            let before_close = if omit_softline {
-                vec![hugged, Doc::Text(">".into())]
-            } else {
-                vec![hugged, Doc::Softline, Doc::Text(">".into())]
-            };
-            return group_concat(opening_tag, before_close);
-        }
-        // isEmpty non-hug: group([...opening, '>', body, '</name>'])
-        return group_concat(
+        let close_layout = if hug_start && hug_end {
+            EmptyElementClose::Hugged {
+                can_omit_softline,
+                close_no_bracket,
+            }
+        } else {
+            EmptyElementClose::Standard { close }
+        };
+        return empty_element_doc(
             opening_tag,
-            vec![Doc::Text(">".into()), body, Doc::Text(close)],
+            bracket_same_line,
+            EmptyElementLayout {
+                body,
+                close: close_layout,
+            },
         );
     }
 
@@ -611,20 +662,18 @@ fn should_hug_start(is_inline: bool, children: &[Child]) -> bool {
     if !is_inline {
         return false;
     }
-    match children.first() {
-        None => true,
-        Some(first) => !first.text().is_some_and(starts_with_ws),
-    }
+    children
+        .first()
+        .is_none_or(|first| !first.text().is_some_and(starts_with_ws))
 }
 
 fn should_hug_end(is_inline: bool, children: &[Child]) -> bool {
     if !is_inline {
         return false;
     }
-    match children.last() {
-        None => true,
-        Some(last) => !last.text().is_some_and(ends_with_ws),
-    }
+    children
+        .last()
+        .is_none_or(|last| !last.text().is_some_and(ends_with_ws))
 }
 
 /// The non-hug separator computation + first/last text trimming, ported from the

@@ -1,4 +1,75 @@
-use super::*;
+use super::{
+    FormatOptions, Fragment, TemplateNode, VisualWidth, apply_edits, child_fragments,
+    current_column, is_block_display, is_whitespace_preserving, node_end, node_start,
+    parse_formatted, split_open_tag_attrs, tab_width, with_pre_content,
+};
+
+struct PreReindent<'a> {
+    tab_lines: &'a std::collections::HashSet<usize>,
+    ignored_ranges: &'a [(usize, usize)],
+    indent_width: usize,
+    content_depth: usize,
+    hugged: bool,
+    source_uses_tabs: bool,
+    configured_tabs: bool,
+}
+
+fn reindent_pre_lines(formatted: &str, context: &PreReindent<'_>) -> String {
+    let mut result = String::new();
+    let mut offset = 0usize;
+    let mut first_line = true;
+    for line in formatted.split('\n') {
+        if first_line && context.hugged {
+            result.push_str(line.trim_start_matches(' '));
+            first_line = false;
+        } else {
+            result.push('\n');
+            let ignored = context
+                .ignored_ranges
+                .iter()
+                .any(|&(start, end)| offset > start && offset < end);
+            if ignored {
+                result.push_str(line);
+            } else {
+                let trimmed = line.trim_start_matches(' ');
+                if !trimmed.is_empty() {
+                    let spaces = line.len() - trimmed.len();
+                    let depth = spaces / context.indent_width + context.content_depth;
+                    let tabs = if context.tab_lines.contains(&offset) {
+                        context.source_uses_tabs
+                    } else {
+                        context.configured_tabs
+                    };
+                    if tabs {
+                        for _ in 0..depth {
+                            result.push('\t');
+                        }
+                    } else {
+                        for _ in 0..depth * context.indent_width {
+                            result.push(' ');
+                        }
+                    }
+                    result.push_str(trimmed);
+                }
+            }
+        }
+        offset += line.len() + 1;
+    }
+    if !context.hugged {
+        result.push('\n');
+        let close_depth = context.content_depth.saturating_sub(1);
+        if context.source_uses_tabs {
+            for _ in 0..close_depth {
+                result.push('\t');
+            }
+        } else {
+            for _ in 0..close_depth * context.indent_width {
+                result.push(' ');
+            }
+        }
+    }
+    result
+}
 
 /// Whether a fragment (recursively) contains a control-flow block — the trigger
 /// for the `<pre>` hybrid reformat (a `<pre>` of only raw text is left verbatim).
@@ -146,11 +217,8 @@ pub(super) fn collapse_text_only_spans(s: &str, narrowed_width: usize) -> String
                         // Check if the line after THAT is a single '>' (closes </span).
                         let after_next_nl = &after_nl[next_nl_pos + 1..];
                         let third_nl_pos = after_next_nl.find('\n');
-                        let third_line = if let Some(p) = third_nl_pos {
-                            &after_next_nl[..p]
-                        } else {
-                            after_next_nl
-                        };
+                        let third_line =
+                            third_nl_pos.map_or(after_next_nl, |p| &after_next_nl[..p]);
                         let third_trimmed = third_line.trim_start_matches([' ', '\t']);
 
                         if third_trimmed == ">" {
@@ -174,11 +242,7 @@ pub(super) fn collapse_text_only_spans(s: &str, narrowed_width: usize) -> String
                                 out.push_str(text_content);
                                 out.push_str("</span>");
                                 // Skip the three consumed lines.
-                                remaining = if let Some(p) = third_nl_pos {
-                                    &after_next_nl[p..] // starts with '\n'
-                                } else {
-                                    "" // consumed to end
-                                };
+                                remaining = third_nl_pos.map_or("", |p| &after_next_nl[p..]);
                                 continue;
                             }
                         }
@@ -257,7 +321,8 @@ pub(super) fn reformat_pre_inner(
         .saturating_add(iw - 1)
         .max(20);
     let mut sub_opts = options.clone();
-    sub_opts.js.line_width = oxc_formatter_core::LineWidth::try_from(narrowed as u16).ok()?;
+    sub_opts.js.line_width =
+        oxc_formatter_core::LineWidth::try_from(crate::formatter_width(narrowed)).ok()?;
     // The re-indent pass below (`spaces / iw`) only understands space-based
     // indentation columns — it strips leading `' '` and measures depth by byte
     // count, then re-emits either spaces or (for element-direct lines) tabs at
@@ -327,11 +392,9 @@ pub(super) fn reformat_pre_inner(
     } else {
         None
     };
-    let formatted: &str = if let Some(ref fixed) = first_line_fixed {
-        fixed.trim_end_matches('\n')
-    } else {
-        formatted
-    };
+    let formatted: &str = first_line_fixed
+        .as_ref()
+        .map_or(formatted, |fixed| fixed.trim_end_matches('\n'));
 
     // Determine which line-starts in `formatted` are element-direct whitespace
     // (→ verbatim source style). Everything else is reformatted structure (block
@@ -348,72 +411,18 @@ pub(super) fn reformat_pre_inner(
     let mut ignored_ranges: Vec<(usize, usize)> = Vec::new();
     collect_ignored_ranges(&sub_root.fragment, &mut ignored_ranges);
 
-    // Re-indent every line: shift by `content_depth` levels. `formatted` is
-    // always space-indented (the sub-format was forced to `IndentStyle::Space`
-    // above) regardless of the caller's real style, so `spaces / iw` always
-    // yields the correct depth; only the final CHARACTER differs per line:
-    // element-direct lines are preserved verbatim (tabs only when the SOURCE
-    // used tabs), everything else follows the document's configured style
-    // (tabs only under `useTabs`) — matching oxfmt exactly (#2151).
-    let mut result = String::new();
-    let mut offset = 0usize;
-    let mut first_line = true;
-    for line in formatted.split('\n') {
-        if first_line && hugged {
-            // Inline: emit the content directly (no leading \n, no indent
-            // — the caller's `>` is already on the line).
-            result.push_str(line.trim_start_matches(' '));
-            first_line = false;
-        } else {
-            result.push('\n');
-            let in_ignored_subtree = ignored_ranges
-                .iter()
-                .any(|&(start, end)| offset > start && offset < end);
-            if in_ignored_subtree {
-                // Strictly inside an ignored node's subtree: keep the line
-                // byte-verbatim, no trim/re-indent.
-                result.push_str(line);
-            } else {
-                let trimmed = line.trim_start_matches(' ');
-                if !trimmed.is_empty() {
-                    let spaces = line.len() - trimmed.len();
-                    let real_depth = spaces / iw + content_depth;
-                    let use_tabs = if tab_lines.contains(&offset) {
-                        pre_uses_tabs
-                    } else {
-                        configured_tabs
-                    };
-                    if use_tabs {
-                        for _ in 0..real_depth {
-                            result.push('\t');
-                        }
-                    } else {
-                        for _ in 0..real_depth * iw {
-                            result.push(' ');
-                        }
-                    }
-                    result.push_str(trimmed);
-                }
-            }
-        }
-        offset += line.len() + 1; // +1 for the '\n' split removed
-    }
-    // The close tag's own line: pre-direct trailing whitespace → tabs at the
-    // element's depth (one less than its content). In the hugged case, the
-    // content starts inline (no leading `\n`) and the close tag immediately
-    // follows on the same line — no trailing `\n<indent>` needed.
-    if !hugged {
-        result.push('\n');
-        if pre_uses_tabs {
-            for _ in 0..content_depth.saturating_sub(1) {
-                result.push('\t');
-            }
-        } else {
-            for _ in 0..content_depth.saturating_sub(1) * iw {
-                result.push(' ');
-            }
-        }
-    }
+    let result = reindent_pre_lines(
+        formatted,
+        &PreReindent {
+            tab_lines: &tab_lines,
+            ignored_ranges: &ignored_ranges,
+            indent_width: iw,
+            content_depth,
+            hugged,
+            source_uses_tabs: pre_uses_tabs,
+            configured_tabs,
+        },
+    );
 
     // Post-processing: collapse multi-line spans whose content is text-only
     // (no child elements) back to a single inline line, matching prettier's
@@ -431,7 +440,11 @@ pub(super) fn reformat_pre_inner(
 
     let replacement = result;
     let current = out.get(inner_start..inner_end)?;
-    (replacement != current).then_some((inner_start as u32, inner_end as u32, replacement))
+    (replacement != current).then_some((
+        crate::source_offset(inner_start),
+        crate::source_offset(inner_end),
+        replacement,
+    ))
 }
 
 /// Collect the `(start, end)` byte ranges (in `formatted`) of every
@@ -752,7 +765,7 @@ pub(super) fn fix_pre_hugged_first_line(
     Some(result)
 }
 
-/// Recursively find inline RegularElements (no attributes) on line 0 of
+/// Recursively find inline `RegularElements` (no attributes) on line 0 of
 /// `formatted` that overflow at `prefix_col + col_in_formatted` and collect
 /// hug-break edits.  `block_depth` counts the number of flow-block bodies
 /// that enclose this fragment at the first line.
@@ -785,9 +798,8 @@ pub(super) fn collect_pre_first_line_hug_breaks(
                     continue;
                 }
                 // Skip if the element itself already spans multiple lines.
-                let elem_text = match formatted.get(e_start..e_end) {
-                    Some(t) => t,
-                    None => continue,
+                let Some(elem_text) = formatted.get(e_start..e_end) else {
+                    continue;
                 };
                 if elem_text.contains('\n') {
                     continue;
@@ -805,9 +817,8 @@ pub(super) fn collect_pre_first_line_hug_breaks(
                 if close_start <= open_end {
                     continue;
                 }
-                let content = match formatted.get(open_end..close_start) {
-                    Some(c) => c,
-                    None => continue,
+                let Some(content) = formatted.get(open_end..close_start) else {
+                    continue;
                 };
                 // Require directly adjacent content (shouldHugStart && shouldHugEnd).
                 if content.is_empty()
@@ -832,9 +843,8 @@ pub(super) fn collect_pre_first_line_hug_breaks(
                 //   `block_depth * iw` spaces (back to the element's block level).
                 let inner_indent = " ".repeat((block_depth + 1) * iw);
                 let ws_indent = " ".repeat(block_depth * iw);
-                let open_no_bracket = match formatted.get(e_start..open_end - 1) {
-                    Some(s) => s,
-                    None => continue,
+                let Some(open_no_bracket) = formatted.get(e_start..open_end - 1) else {
+                    continue;
                 };
                 let rep =
                     format!("{open_no_bracket}\n{inner_indent}>{content}</{tag}\n{ws_indent}>");
@@ -1033,7 +1043,7 @@ pub(super) fn try_break_pre_own_attrs(
     new_open.push('>');
     let rest = out.get(open_end..e)?;
     let result = format!("{new_open}{rest}");
-    (result != whole).then_some((s as u32, e as u32, result))
+    (result != whole).then_some((crate::source_offset(s), crate::source_offset(e), result))
 }
 
 /// Fix the `>` placement for direct children of a `<pre>` inner-content
@@ -1057,9 +1067,7 @@ pub(super) fn fix_pre_child_hug_only(out: &str, fragment: &Fragment) -> Vec<(u32
             continue;
         };
         // Only act on multi-line open tags.
-        let first_child_node = if let Some(n) = child_fragment.nodes.first() {
-            n
-        } else {
+        let Some(first_child_node) = child_fragment.nodes.first() else {
             continue;
         };
         let open_end = node_start(first_child_node) as usize;

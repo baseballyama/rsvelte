@@ -234,10 +234,11 @@ struct RsvelteBuf rsvelte_compile_module_with_callbacks(const uint8_t *source,
                                                         const struct RsvelteCallbacks *callbacks);
 
 /**
- * Out-parameter variant of [`rsvelte_compile`] for hosts whose FFI
- * can't return structs by value (e.g. Ruby Fiddle, older PHP, some
- * Java JNI setups). The result is written through `out`. The caller
- * still owns the bytes and must release them with [`rsvelte_free`].
+ * Out-parameter variant of [`rsvelte_compile`] for hosts whose FFI can't
+ * return structs by value (e.g. Ruby Fiddle, older PHP, some Java JNI setups).
+ *
+ * The result is written through `out`. The caller still owns the bytes and
+ * must release them with [`rsvelte_free`].
  *
  * # Safety
  * `out` must be a non-null pointer to a writable `RsvelteBuf`.

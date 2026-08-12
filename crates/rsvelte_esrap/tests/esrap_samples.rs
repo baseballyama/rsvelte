@@ -18,6 +18,7 @@
 /// Samples not yet byte-identical. Empty — every esrap sample is byte-identical.
 const KNOWN_FAILURES: &[&str] = &[];
 
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use oxc_allocator::Allocator;
@@ -153,7 +154,29 @@ fn esrap_samples_match() {
         let known = KNOWN_FAILURES.contains(&sample.name.as_str());
         let alloc = Allocator::default();
         let ret = Parser::new(&alloc, &sample.source, sample.source_type).parse();
-        let matched = if !ret.diagnostics.is_empty() {
+        let matched = if ret.diagnostics.is_empty() {
+            let out = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                rsvelte_esrap::print(&ret.program, &sample.source)
+            }));
+            out.map_or_else(
+                |_| {
+                    if verbose {
+                        eprintln!("[panic] {}", sample.name);
+                    }
+                    false
+                },
+                |s| {
+                    let m = normalize(&s) == normalize(&sample.expected);
+                    if !m && verbose {
+                        eprintln!(
+                            "===== {} =====\n--- expected ---\n{}\n--- got ---\n{}\n",
+                            sample.name, sample.expected, s
+                        );
+                    }
+                    m
+                },
+            )
+        } else {
             if verbose {
                 eprintln!(
                     "[parse-error] {}: {}",
@@ -165,28 +188,6 @@ fn esrap_samples_match() {
                 );
             }
             false
-        } else {
-            let out = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                rsvelte_esrap::print(&ret.program, &sample.source)
-            }));
-            match out {
-                Ok(s) => {
-                    let m = normalize(&s) == normalize(&sample.expected);
-                    if !m && verbose {
-                        eprintln!(
-                            "===== {} =====\n--- expected ---\n{}\n--- got ---\n{}\n",
-                            sample.name, sample.expected, s
-                        );
-                    }
-                    m
-                }
-                Err(_) => {
-                    if verbose {
-                        eprintln!("[panic] {}", sample.name);
-                    }
-                    false
-                }
-            }
         };
 
         if matched {
@@ -204,7 +205,6 @@ fn esrap_samples_match() {
         KNOWN_FAILURES.len()
     );
 
-    use std::fmt::Write as _;
     let mut msg = String::new();
     if !unexpected_fail.is_empty() {
         let _ = writeln!(

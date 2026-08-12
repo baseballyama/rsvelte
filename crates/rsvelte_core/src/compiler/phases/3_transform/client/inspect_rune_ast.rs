@@ -71,7 +71,7 @@ impl<'src> InspectCollector<'src> {
     }
 }
 
-impl<'a, 'src> Visit<'a> for InspectCollector<'src> {
+impl<'a> Visit<'a> for InspectCollector<'_> {
     fn visit_call_expression(&mut self, expr: &CallExpression<'a>) {
         // `$inspect(args).with(cb)` — match the outer call first so the inner
         // `$inspect(args)` is not rewritten separately.

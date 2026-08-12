@@ -43,7 +43,7 @@ thread_local! {
 /// reference is valid until the next [`reset`]; callers must consume the parse
 /// it feeds within their own call and stash no arena reference past it (see the
 /// module soundness invariant).
-pub(crate) fn acquire<'a>() -> &'a Allocator {
+pub fn acquire<'a>() -> &'a Allocator {
     SCRATCH.with(|cell| {
         // SAFETY: `SCRATCH` is a thread-local dropped only at thread exit, so it
         // outlives every reference handed out here and the laundered `'a` cannot
@@ -58,7 +58,7 @@ pub(crate) fn acquire<'a>() -> &'a Allocator {
 /// Reset the scratch arena, freeing the previous attempt's parses while keeping
 /// the backing chunk. Called once per format attempt (up to two per file when
 /// the #682 TS retry fires) at [`crate::format_attempt`] entry.
-pub(crate) fn reset() {
+pub fn reset() {
     SCRATCH.with(|cell| {
         // SAFETY: exclusive access to this thread's allocator. Sound because
         // `reset` runs only at `format_attempt` entry, where the module

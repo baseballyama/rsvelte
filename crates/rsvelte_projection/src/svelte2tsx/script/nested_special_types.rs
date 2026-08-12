@@ -27,14 +27,14 @@ pub(super) fn apply_special_type_name(
     offset: u32,
 ) {
     if name == "$$Slots" {
-        exported_names.has_slots_type = true;
+        exported_names.set_has_slots_type(true);
     } else if name == "$$Events" {
-        exported_names.has_events_type = true;
+        exported_names.set_has_events_type(true);
         if exported_names.events_type_decl_pos.is_none() {
             exported_names.events_type_decl_pos = Some(offset + span_start);
         }
     } else if name == "$$Props" {
-        exported_names.uses_dollar_props_type = true;
+        exported_names.set_uses_dollar_props_type(true);
     }
 }
 

@@ -7,7 +7,7 @@ use crate::svelte2tsx::template::segs::{Seg, segs_push_lit, segs_push_src};
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
 
 /// Handle an attach tag: `{@attach expression}`.
-pub(crate) fn handle_attach_tag(tag: &AttachTag, str: &mut MagicString<'_>) {
+pub fn handle_attach_tag(tag: &AttachTag, str: &mut MagicString<'_>) {
     if tag.start >= tag.end {
         return;
     }
@@ -16,7 +16,7 @@ pub(crate) fn handle_attach_tag(tag: &AttachTag, str: &mut MagicString<'_>) {
 }
 
 /// Structured-bake variant of the `@attach` tag's inline emission.
-pub(crate) fn format_attach_tag_segments(attach: &AttachTag, source: &str) -> Vec<Seg> {
+pub fn format_attach_tag_segments(attach: &AttachTag, source: &str) -> Vec<Seg> {
     let mut out = Vec::new();
     segs_push_lit(&mut out, "[Symbol(\"@attach\")]:");
     if let Some((s, e)) = get_expression_range(&attach.expression) {

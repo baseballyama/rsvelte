@@ -48,7 +48,9 @@ impl Rule for NoRestrictedHtmlElements {
             return;
         };
         let name = el.name.as_str();
-        let end = el.start + 1 + name.len() as u32;
+        let end = el.start
+            + 1
+            + u32::try_from(name.len()).expect("element-name widths are represented as u32");
 
         for item in items {
             let (matched, message) = match item {
@@ -60,15 +62,11 @@ impl Rule for NoRestrictedHtmlElements {
                     let listed = o
                         .get("elements")
                         .and_then(Value::as_array)
-                        .map(|a| a.iter().any(|e| e.as_str() == Some(name)))
-                        .unwrap_or(false);
-                    let msg = o
-                        .get("message")
-                        .and_then(Value::as_str)
-                        .map(str::to_string)
-                        .unwrap_or_else(|| {
-                            format!("Unexpected use of forbidden HTML element {name}.")
-                        });
+                        .is_some_and(|a| a.iter().any(|e| e.as_str() == Some(name)));
+                    let msg = o.get("message").and_then(Value::as_str).map_or_else(
+                        || format!("Unexpected use of forbidden HTML element {name}."),
+                        str::to_string,
+                    );
                     (listed, msg)
                 }
                 _ => (false, String::new()),

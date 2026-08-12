@@ -11,7 +11,7 @@ use compact_str::CompactString;
 use rustc_hash::FxHashMap;
 use std::borrow::Cow;
 
-/// A borrowed reference to a parent node, avoiding expensive clones of TemplateNode.
+/// A borrowed reference to a parent node, avoiding expensive clones of `TemplateNode`.
 ///
 /// This enum replaces `Option<&TemplateNode>` in functions like `clean_nodes`,
 /// `trim_whitespace`, `infer_namespace`, and `bind_directive` to avoid needing
@@ -25,15 +25,14 @@ pub enum ParentRef<'a> {
 }
 
 impl<'a> ParentRef<'a> {
-    /// Convert from Option<&TemplateNode> for backward compatibility.
+    /// Convert from Option<&`TemplateNode`> for backward compatibility.
+    #[must_use]
     pub fn from_option(opt: Option<&'a TemplateNode>) -> Self {
-        match opt {
-            Some(node) => ParentRef::TemplateNode(node),
-            None => ParentRef::None,
-        }
+        opt.map_or(ParentRef::None, |node| ParentRef::TemplateNode(node))
     }
 
-    /// Check if this is a RegularElement (from either variant).
+    /// Check if this is a `RegularElement` (from either variant).
+    #[must_use]
     pub fn as_regular_element(&self) -> Option<&'a crate::ast::template::RegularElement<'a>> {
         match self {
             ParentRef::RegularElement(el) => Some(el),
@@ -42,7 +41,8 @@ impl<'a> ParentRef<'a> {
         }
     }
 
-    /// Check if this is a SvelteElement (from either variant).
+    /// Check if this is a `SvelteElement` (from either variant).
+    #[must_use]
     pub fn as_svelte_element(&self) -> Option<&'a crate::ast::template::SvelteDynamicElement<'a>> {
         match self {
             ParentRef::SvelteElement(el) => Some(el),
@@ -51,17 +51,20 @@ impl<'a> ParentRef<'a> {
         }
     }
 
-    /// Check if this is a SnippetBlock.
+    /// Check if this is a `SnippetBlock`.
+    #[must_use]
     pub fn is_snippet_block(&self) -> bool {
         matches!(self, ParentRef::TemplateNode(TemplateNode::SnippetBlock(_)))
     }
 
     /// Check if this is a Component.
+    #[must_use]
     pub fn is_component(&self) -> bool {
         matches!(self, ParentRef::TemplateNode(TemplateNode::Component(_)))
     }
 
-    /// Check if this is a SvelteComponent.
+    /// Check if this is a `SvelteComponent`.
+    #[must_use]
     pub fn is_svelte_component(&self) -> bool {
         matches!(
             self,
@@ -70,12 +73,13 @@ impl<'a> ParentRef<'a> {
     }
 
     /// Check if this is None.
+    #[must_use]
     pub fn is_none(&self) -> bool {
         matches!(self, ParentRef::None)
     }
 }
 
-/// Check if string contains any non-whitespace character (replaces REGEX_NOT_WHITESPACE)
+/// Check if string contains any non-whitespace character (replaces `REGEX_NOT_WHITESPACE`)
 #[inline]
 fn has_non_whitespace(s: &str) -> bool {
     s.bytes()
@@ -141,23 +145,26 @@ pub(crate) fn replace_trailing_whitespace(s: &str, replacement: &str) -> String 
 /// Check if a string consists entirely of whitespace, per
 /// `regex_not_whitespace = /[^ \t\r\n]/`. Form feed and non-breaking space
 /// (`&nbsp;`) are content, not whitespace.
+#[must_use]
 pub fn is_svelte_whitespace_only(s: &str) -> bool {
     !has_non_whitespace(s)
 }
 
 /// Trim Svelte whitespace from the start of a string,
 /// per `regex_starts_with_whitespaces = /^[ \t\r\n]+/`.
+#[must_use]
 pub fn svelte_trim_start(s: &str) -> &str {
     trim_leading_whitespace(s)
 }
 
 /// Trim Svelte whitespace from the end of a string,
 /// per `regex_ends_with_whitespaces = /[ \t\r\n]+$/`.
+#[must_use]
 pub fn svelte_trim_end(s: &str) -> &str {
     trim_trailing_whitespace(s)
 }
 
-/// Sort ConstTag nodes in topological order based on their dependencies.
+/// Sort `ConstTag` nodes in topological order based on their dependencies.
 ///
 /// Corresponds to `sort_const_tags` in
 /// `svelte/packages/svelte/src/compiler/phases/3-transform/utils.js`.
@@ -269,38 +276,33 @@ fn sort_const_tags<'a, L: NodeList<'a>>(nodes: &L) -> Option<Vec<TemplateNode<'a
     Some(result)
 }
 
-/// Extract declared names and referenced identifiers from a ConstTag declaration.
+/// Extract declared names and referenced identifiers from a `ConstTag` declaration.
 ///
-/// Returns (declared_names, referenced_identifiers).
+/// Returns (`declared_names`, `referenced_identifiers`).
 fn extract_const_tag_names_and_deps(declaration: &Expression) -> (Vec<String>, Vec<String>) {
     {
         let json_value = declaration.as_json();
-        let obj = match json_value.as_object() {
-            Some(o) => o,
-            None => return (vec![], vec![]),
+        let Some(obj) = json_value.as_object() else {
+            return (vec![], vec![]);
         };
         let expr_type = obj.get("type").and_then(|v| v.as_str()).unwrap_or("");
 
         match expr_type {
             "VariableDeclaration" => {
-                let declarations = match obj.get("declarations").and_then(|v| v.as_array()) {
-                    Some(d) => d,
-                    None => return (vec![], vec![]),
+                let Some(declarations) = obj.get("declarations").and_then(|v| v.as_array()) else {
+                    return (vec![], vec![]);
                 };
                 if declarations.is_empty() {
                     return (vec![], vec![]);
                 }
-                let first_decl = match declarations[0].as_object() {
-                    Some(d) => d,
-                    None => return (vec![], vec![]),
+                let Some(first_decl) = declarations[0].as_object() else {
+                    return (vec![], vec![]);
                 };
-                let id = match first_decl.get("id") {
-                    Some(id) => id,
-                    None => return (vec![], vec![]),
+                let Some(id) = first_decl.get("id") else {
+                    return (vec![], vec![]);
                 };
-                let init = match first_decl.get("init") {
-                    Some(init) => init,
-                    None => return (vec![], vec![]),
+                let Some(init) = first_decl.get("init") else {
+                    return (vec![], vec![]);
                 };
 
                 let mut declared = Vec::new();
@@ -312,13 +314,11 @@ fn extract_const_tag_names_and_deps(declaration: &Expression) -> (Vec<String>, V
                 (declared, referenced)
             }
             "AssignmentExpression" => {
-                let left = match obj.get("left") {
-                    Some(l) => l,
-                    None => return (vec![], vec![]),
+                let Some(left) = obj.get("left") else {
+                    return (vec![], vec![]);
                 };
-                let right = match obj.get("right") {
-                    Some(r) => r,
-                    None => return (vec![], vec![]),
+                let Some(right) = obj.get("right") else {
+                    return (vec![], vec![]);
                 };
 
                 let mut declared = Vec::new();
@@ -413,7 +413,7 @@ fn collect_identifiers_from_json_expr(expr: &serde_json::Value, out: &mut Vec<St
             // For computed properties like a[b], also walk the property
             if expr
                 .get("computed")
-                .and_then(|v| v.as_bool())
+                .and_then(serde_json::Value::as_bool)
                 .unwrap_or(false)
                 && let Some(property) = expr.get("property")
             {
@@ -469,7 +469,7 @@ fn collect_identifiers_from_json_expr(expr: &serde_json::Value, out: &mut Vec<St
                     // For computed keys, walk the key
                     if prop
                         .get("computed")
-                        .and_then(|v| v.as_bool())
+                        .and_then(serde_json::Value::as_bool)
                         .unwrap_or(false)
                         && let Some(key) = prop.get("key")
                     {
@@ -479,11 +479,6 @@ fn collect_identifiers_from_json_expr(expr: &serde_json::Value, out: &mut Vec<St
                         collect_identifiers_from_json_expr(value, out);
                     }
                 }
-            }
-        }
-        "SpreadElement" => {
-            if let Some(arg) = expr.get("argument") {
-                collect_identifiers_from_json_expr(arg, out);
             }
         }
         "TemplateLiteral" => {
@@ -500,10 +495,6 @@ fn collect_identifiers_from_json_expr(expr: &serde_json::Value, out: &mut Vec<St
             if let Some(quasi) = expr.get("quasi") {
                 collect_identifiers_from_json_expr(quasi, out);
             }
-        }
-        "ArrowFunctionExpression" | "FunctionExpression" => {
-            // Don't walk into function bodies for dependency analysis
-            // The function's own parameters shadow outer bindings
         }
         "SequenceExpression" => {
             if let Some(expressions) = expr.get("expressions").and_then(|v| v.as_array()) {
@@ -548,7 +539,7 @@ fn is_js_keyword_or_literal(s: &str) -> bool {
 /// Result of cleaning nodes.
 #[derive(Debug)]
 pub struct CleanedNodes<'a> {
-    /// Nodes that should be hoisted (ConstTag, DebugTag, etc.)
+    /// Nodes that should be hoisted (`ConstTag`, `DebugTag`, etc.)
     pub hoisted: Vec<Cow<'a, TemplateNode<'a>>>,
 
     /// Trimmed nodes with whitespace handled
@@ -641,9 +632,9 @@ pub fn clean_nodes<'a>(
     )
 }
 
-/// [`clean_nodes`] over a slice of node *references* — the shape the slot-content
-/// and fragment visitors hold, which would otherwise have to deep-clone every
-/// child subtree just to hand over a contiguous `&[TemplateNode]`.
+/// [`clean_nodes`] over a slice of node references.
+///
+/// This avoids deep-cloning child subtrees just to hand over a contiguous `&[TemplateNode]`.
 pub fn clean_nodes_refs<'a>(
     parent: ParentRef<'_>,
     nodes: &[&'a TemplateNode<'a>],
@@ -748,7 +739,7 @@ fn clean_node_list<'a, L: NodeList<'a>>(
     // Corresponds to lines 253-262 of utils.js in the official compiler.
     if let Some(el) = parent.as_regular_element()
         && el.name.as_str() == "pre"
-        && let Some(TemplateNode::Text(text)) = trimmed.first().map(|c| c.as_ref())
+        && let Some(TemplateNode::Text(text)) = trimmed.first().map(std::convert::AsRef::as_ref)
         && (text.data.as_ref() == "\n" || text.data.as_ref() == "\r\n")
     {
         trimmed.remove(0);
@@ -761,7 +752,8 @@ fn clean_node_list<'a, L: NodeList<'a>>(
     // tag has no parent.
     // Corresponds to lines 264-274 of utils.js in the official compiler.
     if trimmed.len() == 1
-        && let Some(TemplateNode::RegularElement(el)) = trimmed.first().map(|c| c.as_ref())
+        && let Some(TemplateNode::RegularElement(el)) =
+            trimmed.first().map(std::convert::AsRef::as_ref)
         && el.name.as_str() == "script"
     {
         trimmed.push(Cow::Owned(TemplateNode::Comment(
@@ -799,7 +791,6 @@ fn clean_node_list<'a, L: NodeList<'a>>(
     // whether to generate $.next() to skip over inserted comment markers.
     let is_text_first = match parent {
         // Root fragment (None parent) or specific parent types that need $.next()
-        ParentRef::None => true,
         ParentRef::TemplateNode(
             TemplateNode::SnippetBlock(_)
             | TemplateNode::EachBlock(_)
@@ -810,14 +801,12 @@ fn clean_node_list<'a, L: NodeList<'a>>(
         ) => true,
         _ => false,
     } && {
-        if let Some(first) = trimmed.first() {
+        trimmed.first().is_some_and(|first| {
             matches!(
                 first.as_ref(),
                 TemplateNode::Text(_) | TemplateNode::ExpressionTag(_)
             )
-        } else {
-            false
-        }
+        })
     };
 
     CleanedNodes {
@@ -868,8 +857,7 @@ fn trim_whitespace<'a>(
                 true
             }
         })
-        .map(|i| i + 1)
-        .unwrap_or(0);
+        .map_or(0, |i| i + 1);
 
     // If nothing remains, return empty
     if start_idx >= end_idx {
@@ -1134,6 +1122,7 @@ pub fn infer_namespace<'a, N: AsRef<TemplateNode<'a>>>(
 /// # Returns
 ///
 /// Returns the namespace string ("html", "svg", or "mathml") that children should use.
+#[must_use]
 pub fn determine_namespace_for_children(node: &RegularElement, _namespace: &str) -> String {
     // foreignObject resets to html namespace
     if node.name == "foreignObject" {

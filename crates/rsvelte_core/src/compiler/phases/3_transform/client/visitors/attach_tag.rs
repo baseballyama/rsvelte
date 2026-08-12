@@ -1,4 +1,4 @@
-//! AttachTag visitor for client-side transformation.
+//! `AttachTag` visitor for client-side transformation.
 //!
 //! Corresponds to `AttachTag.js` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/AttachTag.js`.
@@ -13,7 +13,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::transition_dire
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 
-/// Visit an AttachTag node and generate $.attach call.
+/// Visit an `AttachTag` node and generate $.attach call.
 ///
 /// Corresponds to `AttachTag()` function in AttachTag.js.
 ///

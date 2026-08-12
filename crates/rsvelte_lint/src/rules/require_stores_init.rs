@@ -1,6 +1,8 @@
+//! `svelte/require-stores-init`.
+//!
 //! `svelte/require-stores-init` — require an initial value when creating a
 //! `svelte/store` (`writable`/`readable` need ≥1 arg, `derived` needs ≥3). Port
-//! of the eslint-plugin-svelte rule, over the script ESTree program via the
+//! of the eslint-plugin-svelte rule, over the script `ESTree` program via the
 //! [`ScriptRule`] hook (so it also covers `*.svelte.js` module files).
 
 use serde_json::Value;
@@ -56,10 +58,9 @@ impl ScriptRule for RequireStoresInit {
                 _ => 0,
             };
             let args = node.get("arguments").and_then(Value::as_array);
-            let len = args.map(|a| a.len()).unwrap_or(0);
-            let has_spread = args
-                .map(|a| a.iter().any(|x| node_type(x) == Some("SpreadElement")))
-                .unwrap_or(false);
+            let len = args.map_or(0, std::vec::Vec::len);
+            let has_spread =
+                args.is_some_and(|a| a.iter().any(|x| node_type(x) == Some("SpreadElement")));
             if len >= min_args || has_spread {
                 return;
             }

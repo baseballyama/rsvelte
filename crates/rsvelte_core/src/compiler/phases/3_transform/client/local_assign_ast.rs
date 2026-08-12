@@ -75,7 +75,7 @@ struct LocalAssignCollector<'a> {
     matches: Vec<Edit>,
 }
 
-impl<'a, 'ast> Visit<'ast> for LocalAssignCollector<'a> {
+impl<'ast> Visit<'ast> for LocalAssignCollector<'_> {
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
         walk::walk_assignment_expression(self, expr);
 

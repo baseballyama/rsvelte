@@ -19,7 +19,7 @@ use crate::paths::{is_native_css, is_native_js, is_native_json, is_svelte};
 /// in [`crate::oxfmt::run_oxfmt`]) keeps the Svelte files for us. Non-`.svelte` file
 /// arguments are passed straight through. See #694.
 #[allow(clippy::type_complexity)]
-pub(crate) fn partition_files(
+pub fn partition_files(
     roots: &[PathBuf],
     ignore: &oxfmt_ignore::SvelteIgnore,
     cwd: &Path,

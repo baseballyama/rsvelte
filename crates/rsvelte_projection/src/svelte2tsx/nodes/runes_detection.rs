@@ -19,7 +19,7 @@ use super::super::utils::lexical::contains_word;
 ///
 /// Checks for the presence of `$props()`, `$state()`, `$derived()`, etc. in script content,
 /// or `runes: true` in `<svelte:options>`.
-pub(crate) fn detect_runes_mode(ast: &Root) -> bool {
+pub fn detect_runes_mode(ast: &Root) -> bool {
     // Check svelte:options for explicit runes setting
     if let Some(ref options) = ast.options
         && let Some(runes) = options.runes
@@ -31,11 +31,25 @@ pub(crate) fn detect_runes_mode(ast: &Root) -> bool {
     false
 }
 
-pub(crate) struct TemplateRunesDetector {
-    check_await: bool,
-    check_rune_global: bool,
-    has_await: bool,
-    has_rune_global: bool,
+pub struct TemplateRunesDetector {
+    flags: DetectionFlags,
+}
+
+#[derive(Clone, Copy, Default)]
+struct DetectionFlags(u8);
+
+impl DetectionFlags {
+    const CHECK_AWAIT: u8 = 1;
+    const CHECK_RUNE_GLOBAL: u8 = 1 << 1;
+    const HAS_AWAIT: u8 = 1 << 2;
+    const HAS_RUNE_GLOBAL: u8 = 1 << 3;
+
+    const fn contains(self, flag: u8) -> bool {
+        self.0 & flag != 0
+    }
+    const fn mark(&mut self, flag: u8) {
+        self.0 |= flag;
+    }
 }
 
 impl TemplateRunesDetector {
@@ -56,10 +70,7 @@ impl TemplateRunesDetector {
             });
         }
         Self {
-            check_await,
-            check_rune_global,
-            has_await: false,
-            has_rune_global: false,
+            flags: DetectionFlags(u8::from(check_await) | (u8::from(check_rune_global) << 1)),
         }
     }
 
@@ -70,22 +81,29 @@ impl TemplateRunesDetector {
         source: &str,
         arena: &crate::ast::arena::ParseArena,
     ) {
-        if self.check_await && !self.has_await {
-            self.has_await = template_node_has_await(node, source, arena);
+        if self.flags.contains(DetectionFlags::CHECK_AWAIT)
+            && !self.flags.contains(DetectionFlags::HAS_AWAIT)
+            && template_node_has_await(node, source, arena)
+        {
+            self.flags.mark(DetectionFlags::HAS_AWAIT);
         }
-        if self.check_rune_global && !self.has_rune_global {
-            self.has_rune_global = template_node_has_rune_global(node, source, arena);
+        if self.flags.contains(DetectionFlags::CHECK_RUNE_GLOBAL)
+            && !self.flags.contains(DetectionFlags::HAS_RUNE_GLOBAL)
+            && template_node_has_rune_global(node, source, arena)
+        {
+            self.flags.mark(DetectionFlags::HAS_RUNE_GLOBAL);
         }
     }
 
-    pub(crate) fn uses_runes(&self) -> bool {
-        self.has_await || self.has_rune_global
+    pub(crate) const fn uses_runes(&self) -> bool {
+        self.flags
+            .contains(DetectionFlags::HAS_AWAIT | DetectionFlags::HAS_RUNE_GLOBAL)
     }
 }
 
 impl Drop for TemplateRunesDetector {
     fn drop(&mut self) {
-        if self.check_rune_global {
+        if self.flags.contains(DetectionFlags::CHECK_RUNE_GLOBAL) {
             SHADOWED_RUNE_BASES.with(|set| set.borrow_mut().clear());
         }
     }
@@ -153,7 +171,7 @@ fn template_node_has_await(
     }
 }
 
-/// Check if an attribute value contains an await expression in any ExpressionTag part.
+/// Check if an attribute value contains an await expression in any `ExpressionTag` part.
 fn attr_has_await(
     attr: &crate::ast::template::Attribute,
     source: &str,
@@ -203,9 +221,9 @@ fn attr_has_await(
     }
 }
 
-/// Check if an Expression node is (or begins with) an AwaitExpression.
+/// Check if an Expression node is (or begins with) an `AwaitExpression`.
 ///
-/// For `Typed` expressions, checks the top-level JsNode variant.
+/// For `Typed` expressions, checks the top-level `JsNode` variant.
 /// For `Lazy` expressions (source spans), checks the source text.
 /// For `Value` (JSON) expressions, checks the JSON `type` field.
 fn expression_is_await(
@@ -484,12 +502,12 @@ fn is_rune_global_name(name: &str) -> bool {
 
 /// Check whether an Expression node references a `$state`/`$derived`/`$effect` global.
 ///
-/// For `Typed` expressions, walks the JsNode tree stored in the parse arena.
+/// For `Typed` expressions, walks the `JsNode` tree stored in the parse arena.
 /// For `Lazy` expressions (raw source spans), scans the source text.
 /// For `Value` (JSON) expressions, inspects the JSON AST.
 ///
 /// The walk is deliberately shallow-but-sufficient: it recurses into the callee
-/// of a CallExpression and the object of a MemberExpression (the two patterns
+/// of a `CallExpression` and the object of a `MemberExpression` (the two patterns
 /// that can reference a rune global — `$state(x)` and `$state.eager(x)`) but
 /// does NOT recurse into every sub-expression.  Template expressions that use
 /// rune globals almost always have the global as the outermost callee or
@@ -557,15 +575,15 @@ fn js_callee_is_rune_global(
 /// identifier that is just a store auto-subscription (`{$state}`) does NOT match.
 ///
 /// Handles patterns like:
-///   - `$state(x)`                     → CallExpression callee = Identifier "$state"
-///   - `$state.eager(x)`               → CallExpression callee = MemberExpression { object = Identifier "$state" }
+///   - `$state(x)`                     → `CallExpression` callee = Identifier "$state"
+///   - `$state.eager(x)`               → `CallExpression` callee = `MemberExpression` { object = Identifier "$state" }
 ///   - `$effect.pre(() => …)`          → same
-///   - `foo($state(x))`                → arguments contain a rune CallExpression
-///   - `a === '/' ? $state(x) : null`  → ConditionalExpression branches
-///   - `() => $effect(() => {})`       → ArrowFunctionExpression body
-///   - `{@attach $effect(() => {})}`   → ArrowFunctionExpression body in AttachTag
-///   - `[..., $state(x)]`              → ArrayExpression element
-///   - `{ k: $derived(v) }`            → ObjectExpression property value
+///   - `foo($state(x))`                → arguments contain a rune `CallExpression`
+///   - `a === '/' ? $state(x) : null`  → `ConditionalExpression` branches
+///   - `() => $effect(() => {})`       → `ArrowFunctionExpression` body
+///   - `{@attach $effect(() => {})}`   → `ArrowFunctionExpression` body in `AttachTag`
+///   - `[..., $state(x)]`              → `ArrayExpression` element
+///   - `{ k: $derived(v) }`            → `ObjectExpression` property value
 ///
 /// Does NOT match:
 ///   - `{$state}` (bare store auto-subscription; no call)
@@ -629,12 +647,10 @@ fn js_node_references_rune_global(
 
         // FunctionExpression: recurse into the body (a BlockStatement or None).
         // E.g. `use:action={function() { $effect(() => {}); }}`.
-        JsNode::FunctionExpression { body, .. } => body
-            .map(|b| {
-                let body_node = arena.get_js_node(b);
-                js_node_references_rune_global(body_node, arena)
-            })
-            .unwrap_or(false),
+        JsNode::FunctionExpression { body, .. } => body.is_some_and(|b| {
+            let body_node = arena.get_js_node(b);
+            js_node_references_rune_global(body_node, arena)
+        }),
 
         // BlockStatement: recurse into each statement.
         // Reached from FunctionExpression / ArrowFunctionExpression bodies.
@@ -681,12 +697,10 @@ fn js_node_references_rune_global(
 
         // AwaitExpression: recurse into the argument.
         // Rare in template context but possible.
-        JsNode::AwaitExpression { argument, .. } => {
-            js_node_references_rune_global(arena.get_js_node(*argument), arena)
-        }
+        JsNode::AwaitExpression { argument, .. }
 
         // UnaryExpression: recurse into argument (e.g. `!$state(x)`).
-        JsNode::UnaryExpression { argument, .. } => {
+        | JsNode::UnaryExpression { argument, .. } => {
             js_node_references_rune_global(arena.get_js_node(*argument), arena)
         }
 
@@ -705,14 +719,14 @@ fn js_node_references_rune_global(
                 .iter()
                 .any(|d| js_node_references_rune_global(d, arena))
         }
-        JsNode::VariableDeclarator { init, .. } => init
-            .map(|i| js_node_references_rune_global(arena.get_js_node(i), arena))
-            .unwrap_or(false),
+        JsNode::VariableDeclarator { init, .. } => {
+            init.is_some_and(|i| js_node_references_rune_global(arena.get_js_node(i), arena))
+        }
 
         // ReturnStatement / IfStatement bodies can also host rune calls.
-        JsNode::ReturnStatement { argument, .. } => argument
-            .map(|a| js_node_references_rune_global(arena.get_js_node(a), arena))
-            .unwrap_or(false),
+        JsNode::ReturnStatement { argument, .. } => {
+            argument.is_some_and(|a| js_node_references_rune_global(arena.get_js_node(a), arena))
+        }
 
         // Bare Identifier (e.g. `{$state}` — store auto-subscription) → NOT a rune call.
         // MemberExpression without being called (e.g. `$state.value` as a bare expr) → NOT a rune call.

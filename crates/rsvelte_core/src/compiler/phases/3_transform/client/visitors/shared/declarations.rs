@@ -94,7 +94,7 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
         .all_scopes
         .get(context.state.scope_root.instance_scope_index);
     // Iterate over all declarations in the current scope
-    for (name, fallback_idx) in context.state.scope.declarations.iter() {
+    for (name, fallback_idx) in &context.state.scope.declarations {
         let binding_idx = instance_scope
             .and_then(|scope| scope.declarations.get(name))
             .unwrap_or(fallback_idx);
@@ -350,11 +350,7 @@ fn store_sub_mutate(arena: &JsArena, node: JsExpr, mutation: JsExpr) -> JsExpr {
     };
 
     // We need to untrack the store read, for consistency with Svelte 4
-    let untracked = b::call(
-        arena,
-        b::member_path(arena, "$.untrack"),
-        vec![node.clone()],
-    );
+    let untracked = b::call(arena, b::member_path(arena, "$.untrack"), vec![node]);
 
     // Replace $store with $.untrack($store) in the mutation expression
     // This follows the official Svelte compiler's replace() function
@@ -373,7 +369,7 @@ fn store_sub_mutate(arena: &JsArena, node: JsExpr, mutation: JsExpr) -> JsExpr {
 /// to the base identifier and replaces it with the untracked version.
 ///
 /// Corresponds to the `replace()` function in the official Svelte compiler's
-/// `Program.js` store_sub mutate transform.
+/// `Program.js` `store_sub` mutate transform.
 fn replace_store_with_untracked(arena: &JsArena, expr: &JsExpr, untracked: &JsExpr) -> JsExpr {
     match expr {
         JsExpr::Assignment(assign) => {
@@ -450,8 +446,8 @@ fn store_sub_update(
 
     // Build args: store, $store()
     let mut args = vec![
-        b::id(&store_name),                       // store
-        b::call(arena, argument.clone(), vec![]), // $store()
+        b::id(&store_name),               // store
+        b::call(arena, argument, vec![]), // $store()
     ];
 
     // For decrement, pass -1 as the third argument
@@ -471,15 +467,14 @@ fn create_assign_fn(
     context: &ComponentContext,
 ) -> fn(&JsArena, JsExpr, JsExpr, bool) -> JsExpr {
     // Check if this identifier has a corresponding store subscription
-    let store_name = format!("${}", name);
+    let store_name = format!("${name}");
     let has_store_sub = context
         .state
         .scope
         .declarations
         .get(&store_name)
         .and_then(|idx| context.state.scope_root.bindings.get(*idx))
-        .map(|binding| binding.kind == BindingKind::StoreSub)
-        .unwrap_or(false);
+        .is_some_and(|binding| binding.kind == BindingKind::StoreSub);
 
     if has_store_sub {
         assign_value_with_store
@@ -547,7 +542,7 @@ fn assign_value_with_store(
 
     // Extract the name for the store subscription
     let store_name = if let JsExpr::Identifier(ref name) = node {
-        format!("${}", name)
+        format!("${name}")
     } else {
         // Fallback - this shouldn't happen
         "$unknown".to_string()

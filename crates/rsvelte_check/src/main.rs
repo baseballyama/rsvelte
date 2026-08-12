@@ -149,15 +149,14 @@ struct Cli {
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
-    let format = match OutputFormat::parse(&cli.output) {
-        Some(f) => f,
-        None => {
-            eprintln!(
-                "Unknown output format `{}` — expected human, human-verbose, machine, or machine-verbose",
-                cli.output
-            );
-            return ExitCode::from(2);
-        }
+    let format = if let Some(f) = OutputFormat::parse(&cli.output) {
+        f
+    } else {
+        eprintln!(
+            "Unknown output format `{}` — expected human, human-verbose, machine, or machine-verbose",
+            cli.output
+        );
+        return ExitCode::from(2);
     };
 
     let workspace = cli
@@ -184,15 +183,14 @@ fn main() -> ExitCode {
     // have no effect (output is already un-colorized).
     let _ = (cli.color, cli.no_color);
 
-    let threshold = match Threshold::parse(&cli.threshold) {
-        Some(t) => t,
-        None => {
-            eprintln!(
-                "Invalid threshold \"{}\", using \"warning\" instead",
-                cli.threshold
-            );
-            Threshold::default()
-        }
+    let threshold = if let Some(t) = Threshold::parse(&cli.threshold) {
+        t
+    } else {
+        eprintln!(
+            "Invalid threshold \"{}\", using \"warning\" instead",
+            cli.threshold
+        );
+        Threshold::default()
     };
 
     // `--config` names an explicit config file; the JS reference errors
@@ -244,11 +242,11 @@ fn main() -> ExitCode {
             clear_between_runs: !cli.preserve_watch_output,
             ..WatchOptions::default()
         };
-        let workspace_for_print = workspace.clone();
+        let workspace_for_print = workspace;
         // `run_watch` blocks until the watcher channel disconnects (in
         // practice: SIGINT). Failure here only happens when the OS
         // notify backend can't be initialised.
-        if let Err(err) = run_watch(options, watch_opts, |run_result| {
+        if let Err(err) = run_watch(&options, &watch_opts, |run_result| {
             print_run(run_result, &workspace_for_print, format, threshold);
         }) {
             eprintln!("rsvelte-check: watch mode failed to start: {err}");
@@ -301,7 +299,7 @@ fn print_run(
         count_files_with_problems(&result.diagnostics),
         format,
     );
-    print!("{}", out);
+    print!("{out}");
 }
 
 fn parse_compiler_warnings(raw: Option<&str>) -> HashMap<String, WarningOverride> {

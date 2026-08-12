@@ -100,7 +100,7 @@ fn main() {
         "=== Template Expression Analysis ({} files) ===",
         files.len()
     );
-    println!("Total template expressions: {}", total);
+    println!("Total template expressions: {total}");
     println!("Current fast path:  {} ({:.1}%)", fast, pct(fast, total));
     println!("Needs OXC:          {} ({:.1}%)", oxc, pct(oxc, total));
     println!();
@@ -171,13 +171,13 @@ fn classify_expr(expr: &str) -> &'static str {
     if first == b'`' || expr.contains('`') {
         return "template-literal";
     }
-    if expr.contains("(") && !expr.starts_with('(') {
+    if expr.contains('(') && !expr.starts_with('(') {
         return "call-expression";
     }
     if first == b'(' {
         return "parenthesized/iife";
     }
-    if expr.contains("[") && !expr.starts_with('[') {
+    if expr.contains('[') && !expr.starts_with('[') {
         return "member-computed";
     }
     if first == b'[' {
@@ -311,6 +311,6 @@ fn is_ident_or_member(bytes: &[u8]) -> bool {
         .all(|&b| b.is_ascii_alphanumeric() || b == b'_' || b == b'$' || b == b'.')
 }
 
-fn is_ascii_ident_start_byte(b: u8) -> bool {
+const fn is_ascii_ident_start_byte(b: u8) -> bool {
     b.is_ascii_alphabetic() || b == b'_' || b == b'$'
 }

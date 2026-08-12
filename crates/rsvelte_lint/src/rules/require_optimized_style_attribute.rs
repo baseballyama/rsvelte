@@ -45,7 +45,9 @@ fn find_css_comment(text: &Text) -> Option<u32> {
     let mut i = 0usize;
     while i + 1 < bytes.len() {
         if bytes[i] == b'/' && bytes[i + 1] == b'*' {
-            return Some(text.start + i as u32);
+            return Some(
+                text.start + u32::try_from(i).expect("source offsets are represented as u32"),
+            );
         }
         i += 1;
     }
@@ -109,10 +111,10 @@ impl Rule for RequireOptimizedStyleAttribute {
 /// ```
 ///
 /// An interpolation `{…}` is:
-/// - in **key position**  when we are in BEFORE_COLON and the next text starts
+/// - in **key position**  when we are in `BEFORE_COLON` and the next text starts
 ///   with `:` → `interpolationKey`.
-/// - in **value position** when we are in AFTER_COLON → OK (optimizable).
-/// - **standalone** (BEFORE_COLON and next text does not start with `:`) → `complex`.
+/// - in **value position** when we are in `AFTER_COLON` → OK (optimizable).
+/// - **standalone** (`BEFORE_COLON` and next text does not start with `:`) → `complex`.
 fn check_sequence(ctx: &mut LintContext, parts: &[AttributeValuePart]) {
     // We scan text parts to update whether we're before or after the `:` of the
     // current CSS declaration.  The state is reset to BEFORE_COLON on every `;`.

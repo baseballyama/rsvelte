@@ -33,15 +33,16 @@
 
 /// Canonical priority of each section. Markup is priority 3. The caller
 /// (`lib.rs`) tags each section span with one of these.
-pub(crate) const P_OPTIONS: u8 = 0;
-pub(crate) const P_MODULE: u8 = 1;
-pub(crate) const P_INSTANCE: u8 = 2;
+pub const P_OPTIONS: u8 = 0;
+pub const P_MODULE: u8 = 1;
+pub const P_INSTANCE: u8 = 2;
 const P_MARKUP: u8 = 3;
-pub(crate) const P_STYLE: u8 = 4;
+pub const P_STYLE: u8 = 4;
 
 /// Resolved `svelteSortOrder`: the print priority of each top-level section
-/// kind. Lower prints earlier. The four prettier-plugin-svelte keywords
-/// (`options`, `scripts`, `markup`, `styles`) map onto five rsvelte sections —
+/// kind. Lower prints earlier.
+///
+/// The four prettier-plugin-svelte keywords (`options`, `scripts`, `markup`, `styles`) map onto five rsvelte sections —
 /// `scripts` covers both `<script context="module">` (module) and the instance
 /// `<script>`, with module kept before instance within the group.
 #[derive(Clone, Copy, Debug)]
@@ -77,6 +78,7 @@ impl SortOrderSpec {
     /// warn). Each keyword's position in the list becomes its group priority;
     /// `scripts` expands to module-then-instance so they stay adjacent and in
     /// order.
+    #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
         let s = s.trim();
         if s == "none" {
@@ -98,7 +100,7 @@ impl SortOrderSpec {
             // Multiply by 2 so module/instance can interleave within `scripts`
             // (module = base, instance = base + 1) without colliding with the
             // neighbouring group's priority.
-            let base = (idx as u8) * 2;
+            let base = u8::try_from(idx).ok()? * 2;
             let slot = match *kw {
                 "options" => &mut options,
                 "scripts" => &mut scripts,
@@ -137,7 +139,7 @@ struct Unit {
 /// non-markup sections (options / module / instance script / style) **in `out`'s
 /// coordinates** — the caller remaps them from the parsed source through the
 /// applied edits, so this pass never re-parses. Markup is everything else.
-pub(crate) fn reorder_sections(
+pub fn reorder_sections(
     out: &str,
     mut sections: Vec<(u8, usize, usize)>,
     markup_priority: u8,
@@ -272,35 +274,29 @@ fn split_trailing_comment_run(gap: &str) -> Option<(&str, &str)> {
     let mut base = 0usize; // byte offset of `rest` within `gap`
     let mut rest = gap;
     loop {
-        match rest.find("<!--") {
-            Some(open) => {
-                // Characters before this comment are markup-or-whitespace; record
-                // the byte offset just past the last non-whitespace one.
-                if let Some(p) = rest[..open].rfind(|c: char| !c.is_whitespace()) {
-                    let ch_len = rest[p..].chars().next().map_or(1, char::len_utf8);
-                    last_markup_end = base + p + ch_len;
-                }
-                let after_open = open + 4;
-                match rest[after_open..].find("-->") {
-                    Some(close) => {
-                        let consumed = after_open + close + 3;
-                        base += consumed;
-                        rest = &rest[consumed..];
-                    }
-                    // Unterminated comment — treat the remainder as markup.
-                    None => {
-                        last_markup_end = gap.len();
-                        break;
-                    }
-                }
+        if let Some(open) = rest.find("<!--") {
+            // Characters before this comment are markup-or-whitespace; record
+            // the byte offset just past the last non-whitespace one.
+            if let Some(p) = rest[..open].rfind(|c: char| !c.is_whitespace()) {
+                let ch_len = rest[p..].chars().next().map_or(1, char::len_utf8);
+                last_markup_end = base + p + ch_len;
             }
-            None => {
-                if let Some(p) = rest.rfind(|c: char| !c.is_whitespace()) {
-                    let ch_len = rest[p..].chars().next().map_or(1, char::len_utf8);
-                    last_markup_end = base + p + ch_len;
-                }
+            let after_open = open + 4;
+            if let Some(close) = rest[after_open..].find("-->") {
+                let consumed = after_open + close + 3;
+                base += consumed;
+                rest = &rest[consumed..];
+            } else {
+                // Unterminated comment — treat the remainder as markup.
+                last_markup_end = gap.len();
                 break;
             }
+        } else {
+            if let Some(p) = rest.rfind(|c: char| !c.is_whitespace()) {
+                let ch_len = rest[p..].chars().next().map_or(1, char::len_utf8);
+                last_markup_end = base + p + ch_len;
+            }
+            break;
         }
     }
     let markup = gap[..last_markup_end].trim();

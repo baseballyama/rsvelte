@@ -295,7 +295,7 @@ diagnostics! {
     /// The customElement option is used when generating a custom element
     options_missing_custom_element() => "The `customElement` option is used when generating a custom element. Did you forget the `customElement: true` compile option?\nhttps://svelte.dev/e/options_missing_custom_element";
 
-    /// Using a rest element or a non-destructured declaration with $props()
+    /// Using a rest element or a non-destructured declaration with $`props()`
     custom_element_props_identifier_rest as "custom_element_props_identifier"() => "Using a rest element or a non-destructured declaration with `$props()` means that Svelte can't infer what properties to expose when creating a custom element. Consider destructuring all the props or explicitly specifying the `customElement.props` option.\nhttps://svelte.dev/e/custom_element_props_identifier";
 
     /// Binding to a rest element in an each block
@@ -332,6 +332,7 @@ diagnostics! {
 // do not fit the declarative form above.
 
 /// State referenced locally - may not be reactive
+#[must_use]
 pub fn state_referenced_locally(
     name: &str,
     context_type: &str,
@@ -341,8 +342,7 @@ pub fn state_referenced_locally(
     let mut w = warning(
         "state_referenced_locally",
         format!(
-            "This reference only captures the initial value of `{}`. Did you mean to reference it inside a {} instead?\nhttps://svelte.dev/e/state_referenced_locally",
-            name, context_type
+            "This reference only captures the initial value of `{name}`. Did you mean to reference it inside a {context_type} instead?\nhttps://svelte.dev/e/state_referenced_locally"
         ),
     );
     w.start = node_start;
@@ -351,49 +351,30 @@ pub fn state_referenced_locally(
 }
 
 /// Unknown ARIA attribute
+#[must_use]
 pub fn a11y_unknown_aria_attribute(attribute: &str, suggestion: Option<&str>) -> AnalysisWarning {
-    let message = if let Some(suggestion) = suggestion {
-        format!(
-            "Unknown aria attribute 'aria-{}'. Did you mean '{}'?\nhttps://svelte.dev/e/a11y_unknown_aria_attribute",
-            attribute, suggestion
-        )
-    } else {
-        format!(
-            "Unknown aria attribute 'aria-{}'\nhttps://svelte.dev/e/a11y_unknown_aria_attribute",
-            attribute
-        )
-    };
+    let message = suggestion.map_or_else(|| format!(
+            "Unknown aria attribute 'aria-{attribute}'\nhttps://svelte.dev/e/a11y_unknown_aria_attribute"
+        ), |suggestion| format!(
+            "Unknown aria attribute 'aria-{attribute}'. Did you mean '{suggestion}'?\nhttps://svelte.dev/e/a11y_unknown_aria_attribute"
+        ));
     warning("a11y_unknown_aria_attribute", message)
 }
 
 /// Unknown role
+#[must_use]
 pub fn a11y_unknown_role(role: &str, suggestion: Option<&str>) -> AnalysisWarning {
-    let message = if let Some(suggestion) = suggestion {
-        format!(
-            "Unknown role '{}'. Did you mean '{}'?\nhttps://svelte.dev/e/a11y_unknown_role",
-            role, suggestion
-        )
-    } else {
-        format!(
-            "Unknown role '{}'\nhttps://svelte.dev/e/a11y_unknown_role",
-            role
-        )
-    };
+    let message = suggestion.map_or_else(|| format!("Unknown role '{role}'\nhttps://svelte.dev/e/a11y_unknown_role"), |suggestion| format!(
+            "Unknown role '{role}'. Did you mean '{suggestion}'?\nhttps://svelte.dev/e/a11y_unknown_role"
+        ));
     warning("a11y_unknown_role", message)
 }
 
 /// Unknown code in svelte-ignore comment
+#[must_use]
 pub fn unknown_code(code: &str, suggestion: Option<&str>) -> AnalysisWarning {
-    let message = if let Some(suggestion) = suggestion {
-        format!(
-            "`{}` is not a recognised code (did you mean `{}`?)\nhttps://svelte.dev/e/unknown_code",
-            code, suggestion
-        )
-    } else {
-        format!(
-            "`{}` is not a recognised code\nhttps://svelte.dev/e/unknown_code",
-            code
-        )
-    };
+    let message = suggestion.map_or_else(|| format!("`{code}` is not a recognised code\nhttps://svelte.dev/e/unknown_code"), |suggestion| format!(
+            "`{code}` is not a recognised code (did you mean `{suggestion}`?)\nhttps://svelte.dev/e/unknown_code"
+        ));
     warning("unknown_code", message)
 }

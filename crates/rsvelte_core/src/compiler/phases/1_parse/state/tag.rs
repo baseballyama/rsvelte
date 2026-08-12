@@ -11,18 +11,26 @@
 
 use compact_str::CompactString;
 
+use crate::ast::TagMetadata;
 use crate::ast::js::{Expression, LazyKind};
 use crate::ast::template::{
     AwaitBlock, ConstTag, DebugTag, DeclarationTag, EachBlock, ExpressionTag, Fragment,
     FragmentType, HtmlTag, IfBlock, KeyBlock, RenderTag, SnippetBlock, TemplateNode,
 };
 use crate::ast::typed_expr::JsNode;
+use crate::ast::{
+    AwaitBlockMetadata, EachBlockMetadata, IfBlockMetadata, KeyBlockMetadata, SnippetBlockMetadata,
+};
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
 use crate::compiler::utils::is_escaped;
 use crate::error::ParseResult;
 
 use super::super::parser::{Parser, StackEntry, is_js_whitespace};
 use super::super::utils::TrimWs;
+
+fn source_pos(offset: usize) -> u32 {
+    u32::try_from(offset).expect("source positions are limited to u32")
+}
 
 impl<'a> Parser<'a> {
     /// Try to parse a declaration tag (`{let x = …}` / `{const x = …}`,
@@ -103,19 +111,16 @@ impl<'a> Parser<'a> {
         // skips `}` inside strings, regexes, division operators, and comments,
         // and bails to `None` on an unterminated tag (e.g. `{let x = a /`),
         // where the previous hand-rolled brace walk would silently succeed.
-        let body_end = match find_matching_bracket(self.source, start + 1, '{') {
-            Some(p) => p,
-            None => {
-                // Unterminated declaration tag: upstream rethrows the parse
-                // error in both strict and loose mode, surfacing as
-                // `unexpected_eof` at the end of the input (Svelte 5.56.1
-                // #18350).
-                return Err(crate::error::ParseError::svelte(
-                    "unexpected_eof",
-                    "Unexpected end of input",
-                    (self.source.len(), self.source.len()),
-                ));
-            }
+        let Some(body_end) = find_matching_bracket(self.source, start + 1, '{') else {
+            // Unterminated declaration tag: upstream rethrows the parse
+            // error in both strict and loose mode, surfacing as
+            // `unexpected_eof` at the end of the input (Svelte 5.56.1
+            // #18350).
+            return Err(crate::error::ParseError::svelte(
+                "unexpected_eof",
+                "Unexpected end of input",
+                (self.source.len(), self.source.len()),
+            ));
         };
 
         // Disambiguate a `type` keyword (Svelte 5.56.1 #18330). A TS type-alias
@@ -212,7 +217,7 @@ impl<'a> Parser<'a> {
                 // the end of the body so the surrounding AST keeps its
                 // shape. Mirrors upstream's `loose` fallback in
                 // `read_declaration`.
-                let empty_pos = body_end as u32;
+                let empty_pos = source_pos(body_end);
                 let mut declarator = serde_json::Map::new();
                 declarator.insert(
                     "type".to_string(),
@@ -249,7 +254,7 @@ impl<'a> Parser<'a> {
                 );
                 declaration.insert(
                     "start".to_string(),
-                    serde_json::Value::Number((decl_start as u32).into()),
+                    serde_json::Value::Number((source_pos(decl_start)).into()),
                 );
                 declaration.insert(
                     "end".to_string(),
@@ -259,10 +264,10 @@ impl<'a> Parser<'a> {
                     Expression::from_json(serde_json::Value::Object(declaration));
                 return Ok(Some(TemplateNode::DeclarationTag(Box::new(
                     DeclarationTag {
-                        start: start as u32,
-                        end: self.index as u32,
+                        start: source_pos(start),
+                        end: source_pos(self.index),
                         declaration: declaration_expr,
-                        metadata: Default::default(),
+                        metadata: TagMetadata::default(),
                     },
                 ))));
             }
@@ -277,7 +282,7 @@ impl<'a> Parser<'a> {
         // is discarded too, matching the upstream snapshot that puts an
         // empty Identifier at `body_end`.
         if self.options.loose && init_str.is_empty() {
-            let empty_pos = body_end as u32;
+            let empty_pos = source_pos(body_end);
             let id = serde_json::json!({
                 "type": "Identifier",
                 "name": "",
@@ -314,7 +319,7 @@ impl<'a> Parser<'a> {
             );
             declaration.insert(
                 "start".to_string(),
-                serde_json::Value::Number((decl_start as u32).into()),
+                serde_json::Value::Number((source_pos(decl_start)).into()),
             );
             declaration.insert(
                 "end".to_string(),
@@ -322,10 +327,10 @@ impl<'a> Parser<'a> {
             );
             return Ok(Some(TemplateNode::DeclarationTag(Box::new(
                 DeclarationTag {
-                    start: start as u32,
-                    end: self.index as u32,
+                    start: source_pos(start),
+                    end: source_pos(self.index),
                     declaration: Expression::from_json(serde_json::Value::Object(declaration)),
-                    metadata: Default::default(),
+                    metadata: TagMetadata::default(),
                 },
             ))));
         }
@@ -390,10 +395,10 @@ impl<'a> Parser<'a> {
 
         Ok(Some(TemplateNode::DeclarationTag(Box::new(
             DeclarationTag {
-                start: start as u32,
-                end: self.index as u32,
+                start: source_pos(start),
+                end: source_pos(self.index),
                 declaration,
-                metadata: Default::default(),
+                metadata: TagMetadata::default(),
             },
         ))))
     }
@@ -460,11 +465,11 @@ impl<'a> Parser<'a> {
 
             let id_start = pattern_value
                 .get("start")
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .unwrap_or(seg_off as u64);
             let decl_end = init_value
                 .get("end")
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .unwrap_or(id_start + seg.len() as u64);
 
             let mut declarator = Map::new();
@@ -493,14 +498,18 @@ impl<'a> Parser<'a> {
         declaration.insert("end".to_string(), Value::Number((body_end as i64).into()));
 
         TemplateNode::DeclarationTag(Box::new(DeclarationTag {
-            start: start as u32,
-            end: self.index as u32,
+            start: source_pos(start),
+            end: source_pos(self.index),
             declaration: Expression::from_json(Value::Object(declaration)),
-            metadata: Default::default(),
+            metadata: TagMetadata::default(),
         }))
     }
 
     /// Parse a mustache expression.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for malformed mustache expressions or block tags.
     pub fn parse_mustache(&mut self) -> ParseResult<Option<TemplateNode<'a>>> {
         let start = self.index;
         self.advance(); // consume '{'
@@ -554,14 +563,18 @@ impl<'a> Parser<'a> {
         let expression = self.parse_js_expression_strict(expr_content.trim_ws(), expr_start)?;
 
         Ok(Some(TemplateNode::ExpressionTag(Box::new(ExpressionTag {
-            start: start as u32,
-            end: self.index as u32,
+            start: source_pos(start),
+            end: source_pos(self.index),
             expression,
-            metadata: Default::default(),
+            metadata: TagMetadata::default(),
         }))))
     }
 
     /// Parse block open tag ({#if}, {#each}, etc.)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an unknown or malformed block opening tag.
     pub fn parse_block_open(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
         self.advance(); // consume '#'
 
@@ -633,6 +646,10 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse {#if} block.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an invalid condition or malformed block structure.
     pub fn parse_if_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
         self.require_whitespace()?;
 
@@ -648,7 +665,7 @@ impl<'a> Parser<'a> {
 
         // Push block to stack
         self.stack.push(StackEntry::IfBlock {
-            start: start as u32,
+            start: source_pos(start),
         });
 
         // Parse consequent
@@ -668,21 +685,21 @@ impl<'a> Parser<'a> {
 
         // Update end positions of all elseif blocks recursively
         if found_closing && let Some(alt_fragment) = &mut alternate {
-            Self::update_if_block_ends(alt_fragment, self.index as u32);
+            Self::update_if_block_ends(alt_fragment, source_pos(self.index));
         }
 
         Ok(Some(TemplateNode::IfBlock(Box::new(IfBlock {
-            start: start as u32,
-            end: self.index as u32,
+            start: source_pos(start),
+            end: source_pos(self.index),
             elseif: false,
             test,
             consequent,
             alternate,
-            metadata: Default::default(),
+            metadata: IfBlockMetadata::default(),
         }))))
     }
 
-    /// Update end positions of all elseif IfBlocks recursively
+    /// Update end positions of all elseif `IfBlocks` recursively
     fn update_if_block_ends(fragment: &mut Fragment, end: u32) {
         for node in &mut fragment.nodes {
             if let TemplateNode::IfBlock(if_block) = node
@@ -698,6 +715,10 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse {:else} or {:else if} blocks recursively
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for malformed alternate-block syntax.
     pub fn parse_if_alternate(&mut self) -> ParseResult<Option<Fragment<'a>>> {
         // Whitespace between `{` and `:` is allowed (upstream `allow_whitespace()`).
         let Some(colon_pos) = self.match_block_continuation_marker() else {
@@ -738,13 +759,13 @@ impl<'a> Parser<'a> {
             Ok(Some(Fragment {
                 node_type: FragmentType::Fragment,
                 nodes: vec![TemplateNode::IfBlock(Box::new(IfBlock {
-                    start: else_block_start as u32,
-                    end: self.index as u32,
+                    start: source_pos(else_block_start),
+                    end: source_pos(self.index),
                     elseif: true,
                     test: alt_test,
                     consequent: alt_consequent,
                     alternate: alt_alternate,
-                    metadata: Default::default(),
+                    metadata: IfBlockMetadata::default(),
                 }))],
                 ..Default::default()
             }))
@@ -810,6 +831,11 @@ impl<'a> Parser<'a> {
             && self.is_js_whitespace_at(j + 2)
     }
 
+    /// Parse an `{#each}` block.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for invalid iterable expressions, contexts, or block structure.
     pub fn parse_each_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
         self.require_whitespace()?;
 
@@ -1008,7 +1034,7 @@ impl<'a> Parser<'a> {
 
             // Push block to stack so {:else} is recognized
             self.stack.push(StackEntry::EachBlock {
-                start: start as u32,
+                start: source_pos(start),
             });
 
             // Parse body fragment
@@ -1043,15 +1069,15 @@ impl<'a> Parser<'a> {
             }
 
             return Ok(Some(TemplateNode::EachBlock(Box::new(EachBlock {
-                start: start as u32,
-                end: self.index as u32,
+                start: source_pos(start),
+                end: source_pos(self.index),
                 expression: final_expr,
                 context: None, // No context when no "as" clause
                 index: index_name,
                 key,
                 body,
                 fallback,
-                metadata: Default::default(),
+                metadata: EachBlockMetadata::default(),
             }))));
         }
 
@@ -1219,7 +1245,7 @@ impl<'a> Parser<'a> {
 
         // Push block to stack
         self.stack.push(StackEntry::EachBlock {
-            start: start as u32,
+            start: source_pos(start),
         });
 
         // Parse body
@@ -1255,19 +1281,23 @@ impl<'a> Parser<'a> {
         }
 
         Ok(Some(TemplateNode::EachBlock(Box::new(EachBlock {
-            start: start as u32,
-            end: self.index as u32,
+            start: source_pos(start),
+            end: source_pos(self.index),
             expression,
             context: Some(context),
             body,
             fallback,
             index,
             key,
-            metadata: Default::default(),
+            metadata: EachBlockMetadata::default(),
         }))))
     }
 
     /// Parse a binding pattern (for each block context).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `content` is not a valid binding pattern.
     pub fn parse_binding_pattern(
         &self,
         content: &str,
@@ -1282,6 +1312,10 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse {#await} block.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for invalid await expressions or malformed block structure.
     pub fn parse_await_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
         self.require_whitespace()?;
 
@@ -1520,7 +1554,7 @@ impl<'a> Parser<'a> {
 
         // Push block to stack
         self.stack.push(StackEntry::AwaitBlock {
-            start: start as u32,
+            start: source_pos(start),
         });
 
         // Parse the body
@@ -1614,19 +1648,23 @@ impl<'a> Parser<'a> {
         }
 
         Ok(Some(TemplateNode::AwaitBlock(Box::new(AwaitBlock {
-            start: start as u32,
-            end: self.index as u32,
+            start: source_pos(start),
+            end: source_pos(self.index),
             expression,
             value,
             error,
             pending: pending_fragment,
             then: then_fragment,
             catch: catch_fragment,
-            metadata: Default::default(),
+            metadata: AwaitBlockMetadata::default(),
         }))))
     }
 
     /// Parse {#key} block.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an invalid key expression or malformed block structure.
     pub fn parse_key_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
         self.require_whitespace()?;
 
@@ -1643,7 +1681,7 @@ impl<'a> Parser<'a> {
 
         // Push block to stack
         self.stack.push(StackEntry::KeyBlock {
-            start: start as u32,
+            start: source_pos(start),
         });
 
         // Parse body
@@ -1659,15 +1697,19 @@ impl<'a> Parser<'a> {
         }
 
         Ok(Some(TemplateNode::KeyBlock(Box::new(KeyBlock {
-            start: start as u32,
-            end: self.index as u32,
+            start: source_pos(start),
+            end: source_pos(self.index),
             expression,
             fragment,
-            metadata: Default::default(),
+            metadata: KeyBlockMetadata::default(),
         }))))
     }
 
     /// Parse {#snippet name(params)} block.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an invalid snippet name, parameters, or block structure.
     pub fn parse_snippet_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
         self.require_whitespace()?;
 
@@ -1844,7 +1886,7 @@ impl<'a> Parser<'a> {
 
         // Push to stack
         self.stack.push(StackEntry::SnippetBlock {
-            start: start as u32,
+            start: source_pos(start),
         });
 
         // Parse body
@@ -1860,17 +1902,21 @@ impl<'a> Parser<'a> {
         }
 
         Ok(Some(TemplateNode::SnippetBlock(Box::new(SnippetBlock {
-            start: start as u32,
-            end: self.index as u32,
+            start: source_pos(start),
+            end: source_pos(self.index),
             expression,
             type_params,
             parameters,
             body,
-            metadata: Default::default(),
+            metadata: SnippetBlockMetadata::default(),
         }))))
     }
 
     /// Parse special tag ({@html}, {@debug}, etc.)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for unknown or malformed special tags.
     pub fn parse_special_tag(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
         self.advance(); // consume '@'
 
@@ -1920,10 +1966,10 @@ impl<'a> Parser<'a> {
                     self.parse_head_expression(expr_content.trim_ws(), expr_start, false, '}')?;
 
                 Ok(Some(TemplateNode::HtmlTag(Box::new(HtmlTag {
-                    start: start as u32,
-                    end: self.index as u32,
+                    start: source_pos(start),
+                    end: source_pos(self.index),
                     expression,
-                    metadata: Default::default(),
+                    metadata: TagMetadata::default(),
                 }))))
             }
             "render" => {
@@ -1952,8 +1998,8 @@ impl<'a> Parser<'a> {
                 // Upstream rejects anything but a call (optionally chained) here:
                 // `new foo()` and `foo` are parse errors, `foo?.()` is not.
                 if !is_render_tag_call_expression(&self.arena, &expression) {
-                    let err_start = expression.start().map(|s| s as usize).unwrap_or(expr_start);
-                    let err_end = expression.end().map(|e| e as usize).unwrap_or(end);
+                    let err_start = expression.start().map_or(expr_start, |s| s as usize);
+                    let err_end = expression.end().map_or(end, |e| e as usize);
                     return Err(crate::error::ParseError::svelte(
                         "render_tag_invalid_expression",
                         "`{@render ...}` tags can only contain call expressions",
@@ -1962,8 +2008,8 @@ impl<'a> Parser<'a> {
                 }
 
                 Ok(Some(TemplateNode::RenderTag(Box::new(RenderTag {
-                    start: start as u32,
-                    end: self.index as u32,
+                    start: source_pos(start),
+                    end: source_pos(self.index),
                     expression,
                     metadata: crate::ast::template::RenderTagMetadata::default(),
                 }))))
@@ -2095,12 +2141,10 @@ impl<'a> Parser<'a> {
                     if init_expr.node_type() == Some("SequenceExpression") {
                         let paren_before = init_expr
                             .start()
-                            .map(|s| self.source[init_offset..s as usize].contains('('))
-                            .unwrap_or(false);
+                            .is_some_and(|s| self.source[init_offset..s as usize].contains('('));
                         if !paren_before {
-                            let err_start =
-                                init_expr.start().map(|s| s as usize).unwrap_or(init_offset);
-                            let err_end = init_expr.end().map(|e| e as usize).unwrap_or(expr_end);
+                            let err_start = init_expr.start().map_or(init_offset, |s| s as usize);
+                            let err_end = init_expr.end().map_or(expr_end, |e| e as usize);
                             return Err(crate::error::ParseError::svelte(
                                 "const_tag_invalid_expression",
                                 "{@const ...} must consist of a single variable declaration",
@@ -2133,10 +2177,10 @@ impl<'a> Parser<'a> {
                 };
 
                 Ok(Some(TemplateNode::ConstTag(Box::new(ConstTag {
-                    start: start as u32,
-                    end: self.index as u32,
+                    start: source_pos(start),
+                    end: source_pos(self.index),
                     declaration,
-                    metadata: Default::default(),
+                    metadata: TagMetadata::default(),
                 }))))
             }
             "debug" => {
@@ -2193,10 +2237,10 @@ impl<'a> Parser<'a> {
                 self.advance(); // consume '}'
 
                 Ok(Some(TemplateNode::DebugTag(Box::new(DebugTag {
-                    start: start as u32,
-                    end: self.index as u32,
+                    start: source_pos(start),
+                    end: source_pos(self.index),
                     identifiers,
-                    metadata: Default::default(),
+                    metadata: TagMetadata::default(),
                 }))))
             }
             // "attach" (not fully implemented yet) and any unknown special tag
@@ -2255,6 +2299,10 @@ impl<'a> Parser<'a> {
     ///
     /// This is similar to `parse_js_expression_internal` but returns `ParseResult`
     /// instead of always falling back to an empty identifier on errors.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `content` is not a valid JavaScript expression.
     pub fn parse_js_expression_strict(
         &self,
         content: &str,
@@ -2266,8 +2314,8 @@ impl<'a> Parser<'a> {
             if !trimmed.is_empty() {
                 let leading_ws = content.len() - content.trim_start_ws().len();
                 return Ok(Expression::Lazy {
-                    start: (offset + leading_ws) as u32,
-                    end: (offset + leading_ws + trimmed.len()) as u32,
+                    start: source_pos(offset + leading_ws),
+                    end: source_pos(offset + leading_ws + trimmed.len()),
                     ts: self.ts,
                     kind: LazyKind::Mustache,
                 });
@@ -2333,8 +2381,8 @@ impl<'a> Parser<'a> {
             && !trimmed.is_empty()
             && !contains_js_comment(trimmed))
         .then(|| Expression::Lazy {
-            start: trimmed_offset as u32,
-            end: (trimmed_offset + trimmed.len()) as u32,
+            start: source_pos(trimmed_offset),
+            end: source_pos(trimmed_offset + trimmed.len()),
             ts: self.ts,
             kind,
         })
@@ -2356,6 +2404,10 @@ impl<'a> Parser<'a> {
     /// invalid expressions like upstream's `read_expression`. Deferred unless
     /// the value belongs to `<svelte:options>`, whose values `read_options`
     /// inspects during the parse itself (e.g. `runes={false}`).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `content` is not a valid attribute expression.
     pub fn parse_js_expression_attribute(
         &self,
         content: &str,
@@ -2403,6 +2455,10 @@ impl<'a> Parser<'a> {
     /// In loose / editor mode this stays lenient (placeholder identifier),
     /// matching the previous swallowing behaviour of `parse_js_expression`.
     /// (issue #445, H-002)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the block or directive head is not a complete expression.
     pub fn parse_head_expression(
         &self,
         content: &str,
@@ -2487,7 +2543,7 @@ fn contains_js_comment(s: &str) -> bool {
 
 /// Whether a `{@render ...}` expression is a call, optionally optional-chained,
 /// mirroring upstream's `1-parse/state/tag.js` check.
-pub(crate) fn is_render_tag_call_expression(
+pub fn is_render_tag_call_expression(
     arena: &crate::ast::arena::ParseArena,
     expr: &Expression,
 ) -> bool {
@@ -2606,7 +2662,7 @@ fn build_empty_loose_declaration<'a>(
     kind: &str,
 ) -> TemplateNode<'a> {
     use serde_json::{Value, json};
-    let empty_pos = body_end as u32;
+    let empty_pos = source_pos(body_end);
     let declaration = json!({
         "type": "VariableDeclaration",
         "kind": kind,
@@ -2617,14 +2673,14 @@ fn build_empty_loose_declaration<'a>(
             "start": empty_pos,
             "end": empty_pos,
         }],
-        "start": decl_start as u32,
+        "start": source_pos(decl_start),
         "end": empty_pos,
     });
     TemplateNode::DeclarationTag(Box::new(DeclarationTag {
-        start: start as u32,
-        end: tag_end as u32,
+        start: source_pos(start),
+        end: source_pos(tag_end),
         declaration: Expression::from_json(declaration),
-        metadata: Default::default(),
+        metadata: TagMetadata::default(),
     }))
 }
 
@@ -2716,23 +2772,23 @@ fn build_variable_declaration<'a>(
     let pattern_node = expression_into_node(pattern);
     let init_node = expression_into_node(init);
 
-    let id_start = pattern_node.start().unwrap_or(decl_start as u32);
-    let init_end = init_node.end().unwrap_or(decl_end as u32);
+    let id_start = pattern_node.start().unwrap_or(source_pos(decl_start));
+    let init_end = init_node.end().unwrap_or(source_pos(decl_end));
 
     let id = arena.alloc_js_node(pattern_node);
     let init_id = arena.alloc_js_node(init_node);
 
     let declarations = arena.alloc_js_children(vec![JsNode::VariableDeclarator {
         start: id_start,
-        end: declarator_end.map_or(init_end, |e| e as u32),
+        end: declarator_end.map_or(init_end, |e| source_pos(e)),
         loc: None,
         id,
         init: Some(init_id),
     }]);
 
     Expression::from_node(JsNode::VariableDeclaration {
-        start: decl_start as u32,
-        end: decl_end as u32,
+        start: source_pos(decl_start),
+        end: source_pos(decl_end),
         loc: None,
         declarations,
         kind: kind.into(),

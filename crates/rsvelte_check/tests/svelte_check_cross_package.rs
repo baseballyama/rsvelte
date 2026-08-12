@@ -94,7 +94,7 @@ fn cross_package_svelte_gets_shadow_and_rootdirs_bridge() {
     .unwrap();
 
     let result = run(&RunOptions {
-        workspace: a.clone(),
+        workspace: a,
         emit_overlay: true,
         ..RunOptions::default()
     });
@@ -253,7 +253,9 @@ fn bare_deep_specifier_is_rewritten_under_a_relative_workspace() {
     .unwrap();
     symlink(Path::new("../../pkg-libs"), a.join("node_modules/libs")).unwrap();
 
-    let _cwd_guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _cwd_guard = CWD_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let cwd = std::env::current_dir().unwrap();
     std::env::set_current_dir(&a).unwrap();
     let result = run(&RunOptions {
@@ -309,7 +311,9 @@ fn relative_workspace_leaves_a_within_workspace_import_unrewritten() {
     let root = target_dir("_xpkg1919");
     write_fixture(&root);
 
-    let _cwd_guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _cwd_guard = CWD_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let cwd = std::env::current_dir().unwrap();
     std::env::set_current_dir(&root).unwrap();
     let result = run(&RunOptions {
@@ -364,7 +368,7 @@ fn no_external_packages_leaves_overlay_unchanged() {
     .unwrap();
 
     let result = run(&RunOptions {
-        workspace: ws.clone(),
+        workspace: ws,
         emit_overlay: true,
         ..RunOptions::default()
     });

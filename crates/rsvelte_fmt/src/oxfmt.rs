@@ -11,10 +11,25 @@ use crate::paths::{
 };
 use crate::status::{Mode, PipelineStatus};
 
+/// Native pipelines whose files must be excluded from the delegated oxfmt run.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct NativeExclusions {
+    pub js: bool,
+    pub json: bool,
+    pub css: bool,
+}
+
+/// Behaviour for one delegated `oxfmt` invocation.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct OxfmtRunOptions {
+    pub native_exclusions: NativeExclusions,
+    pub suppress_unmatched: bool,
+}
+
 /// The Node interpreter to run a JS `oxfmt` launcher through, if any — set via
 /// `RSVELTE_FMT_NODE` by the npm JS launcher (`bin/rsvelte-fmt`) when it spawns
 /// this binary.
-pub(crate) fn oxfmt_node() -> Option<PathBuf> {
+pub fn oxfmt_node() -> Option<PathBuf> {
     std::env::var_os("RSVELTE_FMT_NODE")
         .filter(|v| !v.is_empty())
         .map(PathBuf::from)
@@ -31,7 +46,7 @@ pub(crate) fn oxfmt_node() -> Option<PathBuf> {
 /// `.js` / `.cjs` / `.mjs` launcher without providing an interpreter, we also
 /// fall back to `node` on `$PATH` in that case. A plain native binary (the
 /// default `oxfmt` on `$PATH`, or any user-supplied path) is run directly.
-pub(crate) fn oxfmt_command(oxfmt: &Path) -> Command {
+pub fn oxfmt_command(oxfmt: &Path) -> Command {
     let node_env = oxfmt_node();
     let is_js_ext = matches!(
         oxfmt.extension().and_then(OsStr::to_str),
@@ -49,7 +64,7 @@ pub(crate) fn oxfmt_command(oxfmt: &Path) -> Command {
 
 /// Map a `<style lang="...">` value to the file extension oxfmt uses to
 /// pick a parser. Shared with the stdin path's per-block formatter.
-pub(crate) fn oxfmt_ext(lang: &str) -> &'static str {
+pub fn oxfmt_ext(lang: &str) -> &'static str {
     match lang {
         "scss" => "scss",
         "less" => "less",
@@ -60,7 +75,7 @@ pub(crate) fn oxfmt_ext(lang: &str) -> &'static str {
 // ─── oxfmt delegation ───────────────────────────────────────────────────
 
 /// The captured result of one `oxfmt` stdin invocation.
-pub(crate) struct OxfmtStdinOutput {
+pub struct OxfmtStdinOutput {
     pub(crate) code: i32,
     pub(crate) stdout: Vec<u8>,
 }
@@ -69,7 +84,7 @@ pub(crate) struct OxfmtStdinOutput {
 /// both the CLI (which forwards it verbatim) and in-process embedders (which
 /// consume the formatted text) go through one implementation; stderr stays
 /// inherited so oxfmt's own diagnostics reach the user.
-pub(crate) fn oxfmt_stdin(
+pub fn oxfmt_stdin(
     oxfmt: &Path,
     config: Option<&Path>,
     path: &Path,
@@ -129,14 +144,11 @@ pub(crate) fn oxfmt_stdin(
 /// ("Finished … on N files", "Format issues found in above N files") goes to
 /// stdout; we capture it to recover file counts for our own summary, then
 /// forward it. Warnings/errors on stderr stay inherited.
-pub(crate) fn run_oxfmt(
+pub fn run_oxfmt(
     paths: &[PathBuf],
     oxfmt: &Path,
     mode: Mode,
-    exclude_native: bool,
-    exclude_native_json: bool,
-    exclude_native_css: bool,
-    suppress_unmatched: bool,
+    options: OxfmtRunOptions,
 ) -> Result<PipelineStatus> {
     if paths.is_empty() {
         return Ok(PipelineStatus::default());
@@ -149,23 +161,23 @@ pub(crate) fn run_oxfmt(
             cmd.arg("--check");
         }
     }
-    if suppress_unmatched {
+    if options.suppress_unmatched {
         cmd.arg("--no-error-on-unmatched-pattern");
     }
     cmd.arg(OXFMT_EXCLUDE_SVELTE);
     // When the native `.ts`/`.js` path handled those files in-process, keep
     // oxfmt from re-formatting them in directory walks.
-    if exclude_native {
+    if options.native_exclusions.js {
         cmd.args(OXFMT_EXCLUDE_NATIVE_JS);
     }
     // Likewise for native JSON. `package.json` is re-delegated as an explicit
     // path by the native-JSON fallback (a separate call with this flag false),
     // so excluding it from the directory walk here doesn't drop it.
-    if exclude_native_json {
+    if options.native_exclusions.json {
         cmd.args(OXFMT_EXCLUDE_NATIVE_JSON);
     }
     // Likewise for native CSS (`.css`/`.scss`/`.less`).
-    if exclude_native_css {
+    if options.native_exclusions.css {
         cmd.args(OXFMT_EXCLUDE_NATIVE_CSS);
     }
     cmd.args(paths);
@@ -190,8 +202,8 @@ pub(crate) fn run_oxfmt(
     };
 
     Ok(PipelineStatus {
-        files_total,
         files_changed,
+        files_total,
         had_errors,
     })
 }

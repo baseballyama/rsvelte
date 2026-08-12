@@ -95,6 +95,7 @@ impl ScopeResolver {
     /// for an unresolved global reference — and also `false` when the resolver
     /// has no record of it, so a caller that skips only on `true` degrades
     /// safely to name-based behaviour.
+    #[must_use]
     pub fn is_script_local(&self, start: u32, end: u32) -> bool {
         self.local_spans.contains(&(start, end))
     }
@@ -102,6 +103,7 @@ impl ScopeResolver {
     /// Whether `name` is declared at the top level of the component's
     /// script(s) — i.e. a template `{name}` reads that binding rather than a
     /// global of the same name.
+    #[must_use]
     pub fn is_component_binding(&self, name: &str) -> bool {
         self.binding_names.contains(name)
     }
@@ -117,12 +119,14 @@ pub trait ScopeRule: Send + Sync {
 }
 
 /// The built-in scope rule set. Empty until the gated Wave-2 port lands.
+#[must_use]
 pub fn scope_rules() -> Vec<Box<dyn ScopeRule>> {
     Vec::new()
 }
 
 /// Parse + analyze a component, returning its full [`ComponentAnalysis`]
 /// (which owns the `ScopeRoot`). Returns `None` on parse/analysis failure.
+#[must_use]
 pub fn analyze_scope(source: &str) -> Option<ComponentAnalysis> {
     let mut root = rsvelte_core::parse(
         source,
@@ -134,6 +138,7 @@ pub fn analyze_scope(source: &str) -> Option<ComponentAnalysis> {
 }
 
 /// Run the enabled scope rules over a component's bindings.
+#[must_use]
 pub fn scope_diagnostics(source: &str, config: &LintConfig) -> Vec<LintDiagnostic> {
     let rules = scope_rules();
     let enabled: Vec<(&dyn ScopeRule, &'static RuleMeta, Severity)> = rules

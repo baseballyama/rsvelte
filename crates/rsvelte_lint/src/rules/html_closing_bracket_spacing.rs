@@ -42,6 +42,10 @@ static META: RuleMeta = RuleMeta {
     ),
 };
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("source offsets are represented as u32")
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Mode {
     Always,
@@ -62,7 +66,7 @@ fn mode_of(ctx: &LintContext, key: &str, default: Mode) -> Mode {
     }
 }
 
-fn attr_end(a: &Attribute) -> u32 {
+const fn attr_end(a: &Attribute) -> u32 {
     match a {
         Attribute::Attribute(n) => n.end,
         Attribute::SpreadAttribute(n) => n.end,
@@ -105,15 +109,15 @@ fn trailing_match(src: &[u8], tag_end: u32) -> (u32, u32, bool) {
             break;
         }
     }
-    let spaces_len = (spaces_end - spaces_start) as u32;
-    (spaces_start as u32, spaces_len, has_newline)
+    let spaces_len = source_offset(spaces_end - spaces_start);
+    (source_offset(spaces_start), spaces_len, has_newline)
 }
 
 #[derive(Default)]
 pub struct HtmlClosingBracketSpacing;
 
 impl HtmlClosingBracketSpacing {
-    fn check_tag(&self, ctx: &mut LintContext, mode: Mode, tag_end: u32) {
+    fn check_tag(ctx: &mut LintContext, mode: Mode, tag_end: u32) {
         if mode == Mode::Ignore {
             return;
         }
@@ -159,7 +163,6 @@ impl HtmlClosingBracketSpacing {
 impl HtmlClosingBracketSpacing {
     /// Shared implementation for any element-like node.
     fn check_element_like(
-        &self,
         ctx: &mut LintContext,
         el_start: u32,
         el_end: u32,
@@ -173,13 +176,13 @@ impl HtmlClosingBracketSpacing {
         // there are no attributes) for the first `>`. After the attribute list
         // only whitespace, an optional `/`, and the `>` remain, so a raw scan is
         // safe (no `>` inside attribute values can fool us).
-        let name_end = el_start + 1 + el_name_len as u32;
-        let scan_from = attributes.last().map(attr_end).unwrap_or(name_end);
+        let name_end = el_start + 1 + source_offset(el_name_len);
+        let scan_from = attributes.last().map_or(name_end, attr_end);
         let mut i = scan_from as usize;
         let mut start_gt: Option<u32> = None;
         while i < src.len() {
             if src[i] == b'>' {
-                start_gt = Some((i + 1) as u32);
+                start_gt = Some(source_offset(i + 1));
                 break;
             }
             i += 1;
@@ -194,14 +197,14 @@ impl HtmlClosingBracketSpacing {
         } else {
             mode_of(ctx, "startTag", Mode::Never)
         };
-        self.check_tag(ctx, start_mode, start_tag_end);
+        Self::check_tag(ctx, start_mode, start_tag_end);
 
         // --- end tag (only when one exists) ---
         // A separate end tag exists iff the start tag does not span the whole
         // element. `el_end` is the byte after the element's final `>`.
         if start_tag_end < el_end {
             let end_mode = mode_of(ctx, "endTag", Mode::Never);
-            self.check_tag(ctx, end_mode, el_end);
+            Self::check_tag(ctx, end_mode, el_end);
         }
     }
 }
@@ -212,7 +215,7 @@ impl Rule for HtmlClosingBracketSpacing {
     }
 
     fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
-        self.check_element_like(
+        Self::check_element_like(
             ctx,
             el.start,
             el.end,
@@ -222,15 +225,15 @@ impl Rule for HtmlClosingBracketSpacing {
     }
 
     fn check_component(&self, ctx: &mut LintContext, c: &Component) {
-        self.check_element_like(ctx, c.start, c.end, c.name.as_str().len(), &c.attributes);
+        Self::check_element_like(ctx, c.start, c.end, c.name.as_str().len(), &c.attributes);
     }
 
     fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
-        self.check_element_like(ctx, el.start, el.end, "slot".len(), &el.attributes);
+        Self::check_element_like(ctx, el.start, el.end, "slot".len(), &el.attributes);
     }
 
     fn check_svelte_element(&self, ctx: &mut LintContext, el: &SvelteElement) {
-        self.check_element_like(
+        Self::check_element_like(
             ctx,
             el.start,
             el.end,
@@ -240,7 +243,7 @@ impl Rule for HtmlClosingBracketSpacing {
     }
 
     fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
-        self.check_element_like(
+        Self::check_element_like(
             ctx,
             el.start,
             el.end,
@@ -250,7 +253,7 @@ impl Rule for HtmlClosingBracketSpacing {
     }
 
     fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
-        self.check_element_like(
+        Self::check_element_like(
             ctx,
             el.start,
             el.end,
@@ -260,6 +263,6 @@ impl Rule for HtmlClosingBracketSpacing {
     }
 
     fn check_special_element(&self, ctx: &mut LintContext, el: &SpecialElement<'_>) {
-        self.check_element_like(ctx, el.start, el.end, el.name.len(), &el.attributes);
+        Self::check_element_like(ctx, el.start, el.end, el.name.len(), &el.attributes);
     }
 }

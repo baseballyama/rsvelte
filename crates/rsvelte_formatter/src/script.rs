@@ -10,9 +10,14 @@ use crate::width::VisualWidth;
 
 /// Format a standalone JS/TS source file in-process via `oxc_formatter` — the
 /// same engine `oxfmt` uses for `.ts`/`.js`, so the output is byte-identical
-/// without the `oxfmt` subprocess. `ext` is the file extension (`ts`/`tsx`/
-/// `js`/`jsx`/`mjs`/`cjs`) used to pick the parser dialect. EXPERIMENTAL: used
+/// without the `oxfmt` subprocess.
+///
+/// `ext` is the file extension (`ts`/`tsx`/`js`/`jsx`/`mjs`/`cjs`) used to pick the parser dialect. EXPERIMENTAL: used
 /// to benchmark a native (delegation-free) `.ts` path.
+///
+/// # Errors
+///
+/// Returns [`FormatError`] when parsing or printing the source fails.
 pub fn format_js_source(
     source: &str,
     ext: &str,
@@ -62,7 +67,7 @@ fn formatter_parse_options() -> OxcParseOptions {
 
 /// Format a `<script>` body. Returns `(splice_start, splice_end, formatted_body)`
 /// in source-byte offsets, or `None` if the body is empty / whitespace-only.
-pub(crate) fn format_script(
+pub fn format_script(
     source: &str,
     script: &Script,
     options: &FormatOptions,
@@ -82,7 +87,11 @@ pub(crate) fn format_script(
         if body.is_empty() {
             return Ok(None);
         }
-        return Ok(Some((body_start as u32, body_end as u32, "\n".to_string())));
+        return Ok(Some((
+            crate::source_offset(body_start),
+            crate::source_offset(body_end),
+            "\n".to_string(),
+        )));
     }
 
     let allocator = crate::scratch::acquire();
@@ -122,7 +131,7 @@ pub(crate) fn format_script(
         let nested_width = js
             .line_width
             .value()
-            .saturating_sub(js.indent_width.value() as u16);
+            .saturating_sub(u16::from(js.indent_width.value()));
         js.line_width =
             oxc_formatter_core::LineWidth::try_from(nested_width).unwrap_or(js.line_width);
     }
@@ -149,7 +158,11 @@ pub(crate) fn format_script(
     let body_indented = crate::reindent::reindent(formatted.trim_end(), &unit, false);
     let wrapped = format!("\n{body_indented}\n");
 
-    Ok(Some((body_start as u32, body_end as u32, wrapped)))
+    Ok(Some((
+        crate::source_offset(body_start),
+        crate::source_offset(body_end),
+        wrapped,
+    )))
 }
 
 /// Format a `<script>` element nested in the markup (e.g. inside
@@ -157,7 +170,7 @@ pub(crate) fn format_script(
 /// so they'd otherwise be left verbatim. `depth` is the element's nesting depth;
 /// its body renders at `depth + 1` levels of indent. Returns the splice edit, or
 /// `None` when the body is empty / unparseable.
-pub(crate) fn format_nested_script(
+pub fn format_nested_script(
     source: &str,
     start: u32,
     end: u32,
@@ -205,8 +218,9 @@ pub(crate) fn format_nested_script(
     // Narrow the width by the final nesting so wrap decisions match the indented
     // result (mirrors `format_script`'s one-level narrowing, generalised).
     let mut js = options.js.clone();
-    let narrow = (body_indent.visual_width(crate::width::tab_width(options)) as u16)
-        .min(js.line_width.value().saturating_sub(1));
+    let narrow =
+        (crate::formatter_width(body_indent.visual_width(crate::width::tab_width(options))))
+            .min(js.line_width.value().saturating_sub(1));
     let nested_width = js.line_width.value().saturating_sub(narrow);
     js.line_width = oxc_formatter_core::LineWidth::try_from(nested_width).unwrap_or(js.line_width);
     let formatted = format_program(allocator, &parser_ret.program, js, None)
@@ -218,8 +232,8 @@ pub(crate) fn format_nested_script(
     let tag_indent = unit.repeat(depth);
     let spliced = format!("\n{reindented}\n{tag_indent}");
     Ok(Some((
-        start + open_end as u32,
-        start + close_start as u32,
+        start + crate::source_offset(open_end),
+        start + crate::source_offset(close_start),
         spliced,
     )))
 }
@@ -233,7 +247,7 @@ pub(crate) fn format_nested_script(
 ///   `<script lang='ts'>` → `<script lang="ts">`).
 ///
 /// Returns the edit only when it changes something.
-pub(crate) fn format_open_tag(
+pub fn format_open_tag(
     source: &str,
     start: u32,
     end: u32,
@@ -250,8 +264,8 @@ pub(crate) fn format_open_tag(
     // when the flat tag overflows the print width, and — like prettier's
     // `attributeLine` — whenever `singleAttributePerLine` meets >1 attribute.
     let wrapped = wrap_script_open_tag(&normalized, indent_width);
-    let force_single_attr =
-        options.single_attribute_per_line && wrapped.as_ref().is_some_and(|(_, n)| *n > 1);
+    let force_single_attr = options.attributes.single_attribute_per_line
+        && wrapped.as_ref().is_some_and(|(_, n)| *n > 1);
     let result = if normalized.len() > line_width || force_single_attr {
         wrapped.map_or(normalized, |(tag, _)| tag)
     } else {
@@ -260,7 +274,7 @@ pub(crate) fn format_open_tag(
     if result == tag {
         return None;
     }
-    Some((start, start + tag_end_rel as u32, result))
+    Some((start, start + crate::source_offset(tag_end_rel), result))
 }
 
 /// Reformat a flat normalized open tag (e.g. `<script lang="ts" generics="T extends ...">`)
@@ -330,7 +344,7 @@ fn wrap_script_open_tag(tag: &str, indent_width: usize) -> Option<(String, usize
         if i < len {
             i += 1; // skip closing `"`
         }
-        attrs.push(format!("{}=\"{}\"", name, val));
+        attrs.push(format!("{name}=\"{val}\""));
     }
     if attrs.is_empty() {
         return None;

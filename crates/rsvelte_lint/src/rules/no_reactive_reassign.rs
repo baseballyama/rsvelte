@@ -1,9 +1,11 @@
+//! `svelte/no-reactive-reassign`.
+//!
 //! `svelte/no-reactive-reassign` — disallow reassigning a *reactive value* (a
 //! variable declared by a `$: x = …` reactive statement) anywhere else. Mutating
 //! it outside its reactive statement fights the reactivity system. Port of the
 //! eslint-plugin-svelte rule.
 //!
-//! Runs over the `<script>` ESTree program via the [`ScriptRule`] hook, and also
+//! Runs over the `<script>` `ESTree` program via the [`ScriptRule`] hook, and also
 //! re-parses the template (reactive values can be reassigned via a two-way
 //! `bind:` in markup). For each reference to a reactive value the rule walks up
 //! the parent chain — the `getReassignData` state machine — to decide whether
@@ -88,21 +90,18 @@ fn get_reassign<'a>(id: &'a Value, ancestors: &[&'a Value]) -> Option<(u32, u32,
             return None;
         }
         let parent = ancestors[pi - 1];
-        let reassign_here = |p: &Value, len: usize| -> Option<(u32, u32, usize)> {
-            pos(p).map(|(s, e)| (s as u32, e as u32, len))
-        };
         match node_type(parent) {
-            Some("UpdateExpression") => return reassign_here(parent, path.len()),
+            Some("UpdateExpression") => return reassign_span(parent, path.len()),
             Some("UnaryExpression") => {
                 return if parent.get("operator").and_then(Value::as_str) == Some("delete") {
-                    reassign_here(parent, path.len())
+                    reassign_span(parent, path.len())
                 } else {
                     None
                 };
             }
-            Some("AssignmentExpression") | Some("ForInStatement") | Some("ForOfStatement") => {
+            Some("AssignmentExpression" | "ForInStatement" | "ForOfStatement") => {
                 return if same_pos(parent.get("left"), node) {
-                    reassign_here(parent, path.len())
+                    reassign_span(parent, path.len())
                 } else {
                     None
                 };
@@ -114,24 +113,19 @@ fn get_reassign<'a>(id: &'a Value, ancestors: &[&'a Value]) -> Option<(u32, u32,
                         && ARRAY_MUTATORS.contains(&name.as_str())
                     {
                         path.pop();
-                        return reassign_here(parent, path.len());
+                        return reassign_span(parent, path.len());
                     }
                 }
                 return None;
             }
-            Some("MemberExpression") => {
-                if same_pos(parent.get("object"), node) {
-                    path.push(parent);
-                    node = parent;
-                    pi -= 1;
-                    continue;
-                }
-                return None;
+            Some("MemberExpression") if same_pos(parent.get("object"), node) => {
+                path.push(parent);
+                node = parent;
+                pi -= 1;
             }
             Some("ChainExpression") => {
                 node = parent;
                 pi -= 1;
-                continue;
             }
             Some("ConditionalExpression") => {
                 if same_pos(parent.get("test"), node) {
@@ -139,7 +133,6 @@ fn get_reassign<'a>(id: &'a Value, ancestors: &[&'a Value]) -> Option<(u32, u32,
                 }
                 node = parent;
                 pi -= 1;
-                continue;
             }
             Some("Property") => {
                 if same_pos(parent.get("value"), node)
@@ -174,7 +167,7 @@ fn get_reassign<'a>(id: &'a Value, ancestors: &[&'a Value]) -> Option<(u32, u32,
             }
             Some("BindDirective") => {
                 return if same_pos(parent.get("expression"), node) {
-                    reassign_here(parent, path.len())
+                    reassign_span(parent, path.len())
                 } else {
                     None
                 };
@@ -182,6 +175,15 @@ fn get_reassign<'a>(id: &'a Value, ancestors: &[&'a Value]) -> Option<(u32, u32,
             _ => return None,
         }
     }
+}
+
+fn reassign_span(parent: &Value, path_len: usize) -> Option<(u32, u32, usize)> {
+    let (start, end) = pos(parent)?;
+    Some((
+        u32::try_from(start).ok()?,
+        u32::try_from(end).ok()?,
+        path_len,
+    ))
 }
 
 /// Collect names declared at the top level of the script (explicit declarations
@@ -211,7 +213,7 @@ fn collect_toplevel_decls(program: &Value, out: &mut HashSet<String>) {
                     }
                 }
             }
-            Some("FunctionDeclaration") | Some("ClassDeclaration") => {
+            Some("FunctionDeclaration" | "ClassDeclaration") => {
                 if let Some(n) = decl
                     .get("id")
                     .and_then(|i| i.get("name"))

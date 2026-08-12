@@ -9,10 +9,221 @@ use super::close_tag::{find_close_tag_span, push_close_tag};
 use super::elements::is_block_element;
 use super::open_tag::push_open_tag;
 
+fn collect_if_open_tag_edits(
+    source: &str,
+    block: &IfBlock,
+    depth: usize,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) -> Result<(), FormatError> {
+    let mut current = block;
+    loop {
+        collect_open_tag_edits(source, &current.consequent, depth + 1, options, edits)?;
+        match &current.alternate {
+            Some(alternate) => {
+                if let Some(chained) = else_if_branch(alternate) {
+                    current = chained;
+                } else {
+                    collect_open_tag_edits(source, alternate, depth + 1, options, edits)?;
+                    return Ok(());
+                }
+            }
+            None => return Ok(()),
+        }
+    }
+}
+
+fn collect_optional_fragments<'a>(
+    source: &str,
+    fragments: impl IntoIterator<Item = Option<&'a Fragment<'a>>>,
+    depth: usize,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) -> Result<(), FormatError> {
+    for fragment in fragments.into_iter().flatten() {
+        collect_open_tag_edits(source, fragment, depth + 1, options, edits)?;
+    }
+    Ok(())
+}
+
+fn collect_each_open_tag_edits(
+    source: &str,
+    block: &rsvelte_core::ast::template::EachBlock,
+    depth: usize,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) -> Result<(), FormatError> {
+    collect_open_tag_edits(source, &block.body, depth + 1, options, edits)?;
+    collect_optional_fragments(source, [block.fallback.as_ref()], depth, options, edits)
+}
+
+fn collect_single_fragment_open_tag_edits(
+    source: &str,
+    fragment: &Fragment,
+    depth: usize,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) -> Result<(), FormatError> {
+    collect_open_tag_edits(source, fragment, depth + 1, options, edits)
+}
+
+fn collect_svelte_window_open_tag_edits(
+    source: &str,
+    window: &rsvelte_core::ast::template::SvelteElement,
+    depth: usize,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) -> Result<(), FormatError> {
+    let empty = is_empty_fragment(&window.fragment);
+    if !empty {
+        return handle_element(
+            source,
+            window.start,
+            window.end,
+            window.name.as_str(),
+            &window.attributes,
+            None,
+            &window.fragment,
+            depth,
+            options,
+            edits,
+        );
+    }
+    push_open_tag(
+        source,
+        window.start,
+        window.name.as_str(),
+        &window.attributes,
+        None,
+        depth,
+        true,
+        false,
+        options,
+        edits,
+    )?;
+    if let Some((close_start, close_end)) =
+        find_close_tag_span(source, window.end, window.name.as_str())
+    {
+        edits.push((close_start, close_end, String::new()));
+    }
+    collect_open_tag_edits(source, &window.fragment, depth + 1, options, edits)
+}
+
+fn collect_element_open_tag_edits(
+    source: &str,
+    start: u32,
+    end: u32,
+    name: &str,
+    attributes: &[Attribute],
+    expression: Option<&Expression>,
+    fragment: &Fragment,
+    depth: usize,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) -> Result<(), FormatError> {
+    handle_element(
+        source, start, end, name, attributes, expression, fragment, depth, options, edits,
+    )
+}
+
+fn collect_plain_element_open_tag_edits(
+    source: &str,
+    node: &TemplateNode,
+    depth: usize,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) -> Result<bool, FormatError> {
+    let handled = match node {
+        TemplateNode::RegularElement(element) => {
+            collect_element_open_tag_edits(
+                source,
+                element.start,
+                element.end,
+                element.name.as_str(),
+                &element.attributes,
+                None,
+                &element.fragment,
+                depth,
+                options,
+                edits,
+            )?;
+            true
+        }
+        TemplateNode::Component(element) => {
+            collect_element_open_tag_edits(
+                source,
+                element.start,
+                element.end,
+                element.name.as_str(),
+                &element.attributes,
+                None,
+                &element.fragment,
+                depth,
+                options,
+                edits,
+            )?;
+            true
+        }
+        TemplateNode::TitleElement(element) => {
+            collect_element_open_tag_edits(
+                source,
+                element.start,
+                element.end,
+                element.name.as_str(),
+                &element.attributes,
+                None,
+                &element.fragment,
+                depth,
+                options,
+                edits,
+            )?;
+            true
+        }
+        TemplateNode::SlotElement(element) => {
+            collect_element_open_tag_edits(
+                source,
+                element.start,
+                element.end,
+                element.name.as_str(),
+                &element.attributes,
+                None,
+                &element.fragment,
+                depth,
+                options,
+                edits,
+            )?;
+            true
+        }
+        TemplateNode::SvelteHead(element)
+        | TemplateNode::SvelteBody(element)
+        | TemplateNode::SvelteDocument(element)
+        | TemplateNode::SvelteFragment(element)
+        | TemplateNode::SvelteBoundary(element)
+        | TemplateNode::SvelteOptions(element)
+        | TemplateNode::SvelteSelf(element) => {
+            collect_element_open_tag_edits(
+                source,
+                element.start,
+                element.end,
+                element.name.as_str(),
+                &element.attributes,
+                None,
+                &element.fragment,
+                depth,
+                options,
+                edits,
+            )?;
+            true
+        }
+        _ => false,
+    };
+    Ok(handled)
+}
+
 /// Walk a `Fragment` recursively and append open-tag rewrite edits for
 /// every element with attributes. `depth` is the indent level at which
 /// this fragment's elements render (the root call passes `0`).
-pub(crate) fn collect_open_tag_edits(
+pub fn collect_open_tag_edits(
     source: &str,
     fragment: &Fragment,
     depth: usize,
@@ -32,7 +243,7 @@ pub(crate) fn collect_open_tag_edits(
 /// fragment into `root.options`, so the normal fragment walk never sees it —
 /// without this its attributes keep their source indentation (tabs) and its
 /// attribute-value expressions stay unformatted.
-pub(crate) fn collect_options_open_tag_edit(
+pub fn collect_options_open_tag_edit(
     source: &str,
     opts: &SvelteOptions,
     options: &FormatOptions,
@@ -153,116 +364,12 @@ fn collect_node_open_tag_edits(
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
+    if collect_plain_element_open_tag_edits(source, node, depth, options, edits)? {
+        return Ok(());
+    }
     match node {
-        TemplateNode::RegularElement(elem) => handle_element(
-            source,
-            elem.start,
-            elem.end,
-            elem.name.as_str(),
-            &elem.attributes,
-            None,
-            &elem.fragment,
-            depth,
-            options,
-            edits,
-        )?,
-        TemplateNode::Component(c) => handle_element(
-            source,
-            c.start,
-            c.end,
-            c.name.as_str(),
-            &c.attributes,
-            None,
-            &c.fragment,
-            depth,
-            options,
-            edits,
-        )?,
-        TemplateNode::TitleElement(t) => handle_element(
-            source,
-            t.start,
-            t.end,
-            t.name.as_str(),
-            &t.attributes,
-            None,
-            &t.fragment,
-            depth,
-            options,
-            edits,
-        )?,
-        TemplateNode::SlotElement(s) => handle_element(
-            source,
-            s.start,
-            s.end,
-            s.name.as_str(),
-            &s.attributes,
-            None,
-            &s.fragment,
-            depth,
-            options,
-            edits,
-        )?,
-        TemplateNode::SvelteHead(s)
-        | TemplateNode::SvelteBody(s)
-        | TemplateNode::SvelteDocument(s)
-        | TemplateNode::SvelteFragment(s)
-        | TemplateNode::SvelteBoundary(s)
-        | TemplateNode::SvelteOptions(s)
-        | TemplateNode::SvelteSelf(s) => handle_element(
-            source,
-            s.start,
-            s.end,
-            s.name.as_str(),
-            &s.attributes,
-            None,
-            &s.fragment,
-            depth,
-            options,
-            edits,
-        )?,
-        // prettier-plugin-svelte always emits `<svelte:window />` as self-closing
-        // (even when the source uses the paired `<svelte:window></svelte:window>` form).
-        // When empty, delete the close tag too; when non-empty (a compiler error),
-        // fall through to the normal paired rendering.
-        TemplateNode::SvelteWindow(s) => {
-            let empty = is_empty_fragment(&s.fragment);
-            if empty {
-                push_open_tag(
-                    source,
-                    s.start,
-                    s.name.as_str(),
-                    &s.attributes,
-                    None,
-                    depth,
-                    empty,
-                    // `<svelte:window>` is always self-closing when empty, so the
-                    // non-hug empty layout never applies.
-                    false,
-                    options,
-                    edits,
-                )?;
-                // Delete the close tag (replace it with nothing) so that the
-                // self-closing `/>` open tag isn't followed by `</svelte:window>`.
-                if let Some((close_start, close_end)) =
-                    find_close_tag_span(source, s.end, s.name.as_str())
-                {
-                    edits.push((close_start, close_end, String::new()));
-                }
-                collect_open_tag_edits(source, &s.fragment, depth + 1, options, edits)?;
-            } else {
-                handle_element(
-                    source,
-                    s.start,
-                    s.end,
-                    s.name.as_str(),
-                    &s.attributes,
-                    None,
-                    &s.fragment,
-                    depth,
-                    options,
-                    edits,
-                )?;
-            }
+        TemplateNode::SvelteWindow(window) => {
+            collect_svelte_window_open_tag_edits(source, window, depth, options, edits)?;
         }
         TemplateNode::SvelteComponent(c) => handle_element(
             source,
@@ -290,48 +397,26 @@ fn collect_node_open_tag_edits(
         )?,
         // Blocks have child fragments but no attributes themselves.
         // Their bodies are conceptually one level deeper than the block.
-        TemplateNode::IfBlock(blk) => {
-            // `{:else if}` chains stay at the same depth as the opening `{#if}`
-            // (svelte nests them as `elseif` IfBlocks in the alternate); follow
-            // the chain instead of recursing so attributes don't gain an extra
-            // indent level per branch. See `indent.rs::else_if_branch`.
-            let mut current: &IfBlock = blk;
-            loop {
-                collect_open_tag_edits(source, &current.consequent, depth + 1, options, edits)?;
-                match &current.alternate {
-                    Some(alt) => match else_if_branch(alt) {
-                        Some(chained) => current = chained,
-                        None => {
-                            collect_open_tag_edits(source, alt, depth + 1, options, edits)?;
-                            break;
-                        }
-                    },
-                    None => break,
-                }
-            }
+        TemplateNode::IfBlock(block) => {
+            collect_if_open_tag_edits(source, block, depth, options, edits)?;
         }
-        TemplateNode::EachBlock(blk) => {
-            collect_open_tag_edits(source, &blk.body, depth + 1, options, edits)?;
-            if let Some(fb) = &blk.fallback {
-                collect_open_tag_edits(source, fb, depth + 1, options, edits)?;
-            }
+        TemplateNode::EachBlock(block) => {
+            collect_each_open_tag_edits(source, block, depth, options, edits)?;
         }
-        TemplateNode::AwaitBlock(blk) => {
-            if let Some(frag) = &blk.pending {
-                collect_open_tag_edits(source, frag, depth + 1, options, edits)?;
-            }
-            if let Some(frag) = &blk.then {
-                collect_open_tag_edits(source, frag, depth + 1, options, edits)?;
-            }
-            if let Some(frag) = &blk.catch {
-                collect_open_tag_edits(source, frag, depth + 1, options, edits)?;
-            }
+        TemplateNode::AwaitBlock(block) => collect_optional_fragments(
+            source,
+            [&block.pending, &block.then, &block.catch]
+                .into_iter()
+                .map(Option::as_ref),
+            depth,
+            options,
+            edits,
+        )?,
+        TemplateNode::KeyBlock(block) => {
+            collect_single_fragment_open_tag_edits(source, &block.fragment, depth, options, edits)?;
         }
-        TemplateNode::KeyBlock(blk) => {
-            collect_open_tag_edits(source, &blk.fragment, depth + 1, options, edits)?;
-        }
-        TemplateNode::SnippetBlock(blk) => {
-            collect_open_tag_edits(source, &blk.body, depth + 1, options, edits)?;
+        TemplateNode::SnippetBlock(block) => {
+            collect_single_fragment_open_tag_edits(source, &block.body, depth, options, edits)?;
         }
         _ => {}
     }

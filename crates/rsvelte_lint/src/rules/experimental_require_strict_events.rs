@@ -1,5 +1,6 @@
-//! `svelte/experimental-require-strict-events` — require a TS component to opt
-//! into strict event typing via the `strictEvents` attribute or a `$$Events`
+//! `svelte/experimental-require-strict-events` requires strict event typing.
+//!
+//! A TS component opts in through the `strictEvents` attribute or a `$$Events`
 //! type declaration. Port of the eslint-plugin-svelte rule (Svelte 3/4 feature).
 //!
 //! Cross-cutting (script attribute + script type declaration), so it runs as a
@@ -30,6 +31,12 @@ pub static META: RuleMeta = RuleMeta {
     options_schema: None,
 };
 
+/// Return diagnostics for TypeScript script source.
+///
+/// # Panics
+///
+/// Panics when a source offset cannot be represented as `u32`.
+#[must_use]
 pub fn diagnostics(source: &str, file: &Path, config: &LintConfig) -> Vec<Diagnostic> {
     let severity = config.resolve_code(META.name, META.default_severity);
     if severity == Severity::Off {
@@ -53,7 +60,11 @@ pub fn diagnostics(source: &str, file: &Path, config: &LintConfig) -> Vec<Diagno
     vec![Diagnostic {
         file: file.to_path_buf(),
         severity: to_dsev(severity),
-        range: range_from_byte(&li, last.tag_start as u32, last.tag_start as u32),
+        range: Some(range_from_byte(
+            &li,
+            u32::try_from(last.tag_start).expect("source offsets are represented as u32"),
+            u32::try_from(last.tag_start).expect("source offsets are represented as u32"),
+        )),
         message: "The component must have the strictEvents attribute on its <script> tag or it must define the $$Events interface.".to_string(),
         code: Some(META.name.to_string()),
         source: "svelte",

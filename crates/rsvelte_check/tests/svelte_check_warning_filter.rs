@@ -10,7 +10,7 @@
 //! Node is unavailable or the config is broken.
 //!
 //! Run with:
-//!     cargo test --test svelte_check_warning_filter
+//!     cargo test --test `svelte_check_warning_filter`
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -19,7 +19,7 @@ use std::time::Duration;
 use rsvelte_check::warning_filter::{DEFAULT_TIMEOUT, SidecarEnv, apply};
 use rsvelte_diagnostics::{Diagnostic, DiagnosticSeverity, Position, Range};
 
-fn bin() -> &'static str {
+const fn bin() -> &'static str {
     env!("CARGO_BIN_EXE_svelte_check")
 }
 
@@ -34,8 +34,7 @@ fn node_available() -> bool {
     let ok = Command::new("node")
         .arg("--version")
         .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
+        .is_ok_and(|o| o.status.success());
     // Only a job that promised Node may fail on its absence.
     assert!(
         ok || std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
@@ -51,8 +50,7 @@ fn workspace(tag: &str) -> PathBuf {
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0)
+            .map_or(0, |d| d.as_nanos())
     ));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -63,7 +61,7 @@ fn write(dir: &Path, name: &str, body: &str) {
     std::fs::write(dir.join(name), body).unwrap();
 }
 
-/// A `.svelte` file whose only diagnostic is a single css_unused_selector
+/// A `.svelte` file whose only diagnostic is a single `css_unused_selector`
 /// warning.
 const WARN_ONLY: &str = "<div>hello</div>\n<style>\n  .unused { color: red; }\n</style>\n";
 
@@ -334,9 +332,9 @@ fn env_with_script(node: PathBuf, body: &str, timeout: Duration) -> (SidecarEnv,
     )
 }
 
-/// A fake sidecar that keeps warnings whose `code` isn't "drop_me",
+/// A fake sidecar that keeps warnings whose `code` isn't "`drop_me`",
 /// exercising the real framed request/response protocol end-to-end.
-const FAKE_SIDECAR: &str = r#"
+const FAKE_SIDECAR: &str = r"
     const M = '\x00<<rsvelte-warning-filter>>\x00';
     let data = '';
     process.stdin.setEncoding('utf8');
@@ -346,7 +344,7 @@ const FAKE_SIDECAR: &str = r#"
         const keep = req.warnings.map((w) => w.code !== 'drop_me');
         process.stdout.write(M + JSON.stringify({ ok: true, keep }) + M);
     });
-"#;
+";
 
 #[test]
 fn apply_drops_rejected_warning_keeps_others() {
@@ -403,7 +401,7 @@ fn apply_leaves_non_svelte_and_error_diagnostics_untouched() {
         return;
     };
     // Even a filter that drops everything must not remove errors / ts diags.
-    let sidecar = r#"
+    let sidecar = r"
         const M = '\x00<<rsvelte-warning-filter>>\x00';
         let data = '';
         process.stdin.setEncoding('utf8');
@@ -412,7 +410,7 @@ fn apply_leaves_non_svelte_and_error_diagnostics_untouched() {
             const req = JSON.parse(data);
             process.stdout.write(M + JSON.stringify({ ok: true, keep: req.warnings.map(() => false) }) + M);
         });
-    "#;
+    ";
     let (env, script) = env_with_script(node, sidecar, DEFAULT_TIMEOUT);
     let mut err = warn("x");
     err.severity = DiagnosticSeverity::Error;

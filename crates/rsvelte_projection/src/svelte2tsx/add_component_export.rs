@@ -16,7 +16,7 @@ use super::template;
 
 /// Inputs for [`add_component_export`] — mirrors the JS reference's
 /// `addComponentExport(params)` object.
-pub(crate) struct ComponentExportParams<'a> {
+pub struct ComponentExportParams<'a> {
     pub ast: &'a Root<'a>,
     pub source: &'a str,
     pub options: &'a Svelte2TsxOptions,
@@ -25,16 +25,51 @@ pub(crate) struct ComponentExportParams<'a> {
     pub exported_names: &'a ExportedNames,
     pub events: &'a mut ComponentEvents,
     pub generics_attribute: Option<&'a str>,
-    pub has_slot_elements: bool,
-    pub has_top_level_await: bool,
-    pub uses_dollar_props: bool,
-    pub uses_dollar_rest_props: bool,
+    pub features: ComponentExportFeatures,
+}
+
+#[derive(Clone, Copy, Default)]
+pub struct ComponentExportFeatures(u8);
+
+impl ComponentExportFeatures {
+    const SLOT_ELEMENTS: u8 = 1;
+    const TOP_LEVEL_AWAIT: u8 = 1 << 1;
+    const DOLLAR_PROPS: u8 = 1 << 2;
+    const DOLLAR_REST_PROPS: u8 = 1 << 3;
+
+    pub const fn with_slot_elements_if(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.0 |= Self::SLOT_ELEMENTS;
+        }
+        self
+    }
+    pub const fn with_top_level_await_if(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.0 |= Self::TOP_LEVEL_AWAIT;
+        }
+        self
+    }
+    pub const fn with_dollar_props_if(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.0 |= Self::DOLLAR_PROPS;
+        }
+        self
+    }
+    pub const fn with_dollar_rest_props_if(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.0 |= Self::DOLLAR_REST_PROPS;
+        }
+        self
+    }
+    const fn contains(self, flag: u8) -> bool {
+        self.0 & flag != 0
+    }
 }
 
 /// Build the text appended after the `$$render()` body: the async-wrapper
 /// close, the `return { props, slots, events }` statement and the component
 /// export itself. The caller appends the returned string to `str`.
-pub(crate) fn add_component_export(
+pub fn add_component_export(
     params: ComponentExportParams<'_>,
     str: &mut MagicString<'_>,
 ) -> String {
@@ -47,21 +82,22 @@ pub(crate) fn add_component_export(
         exported_names,
         events,
         generics_attribute,
-        has_slot_elements,
-        has_top_level_await,
-        uses_dollar_props,
-        uses_dollar_rest_props,
+        features,
     } = params;
 
     // Append the closing of async wrapper, return statement, and component export
     // `uses$$propsOr$$restProps` (ungated) flattens the props type to `{}` when
     // there are NO explicitly-declared props — mirrors official
     // `createPropsStr(uses$$propsOr$$restProps)`.
+    let has_slot_elements = features.contains(ComponentExportFeatures::SLOT_ELEMENTS);
+    let has_top_level_await = features.contains(ComponentExportFeatures::TOP_LEVEL_AWAIT);
+    let uses_dollar_props = features.contains(ComponentExportFeatures::DOLLAR_PROPS);
+    let uses_dollar_rest_props = features.contains(ComponentExportFeatures::DOLLAR_REST_PROPS);
     let uses_props_or_rest = uses_dollar_props || uses_dollar_rest_props;
     // `canHaveAnyProp = !uses$$Props && (uses$$props || uses$$restProps)`: a
     // `$$Props` type/interface SUPPRESSES the `__sveltets_2_with_any` widening
     // (official addComponentExport.ts), so the two values diverge.
-    let can_have_any_prop = !exported_names.uses_dollar_props_type && uses_props_or_rest;
+    let can_have_any_prop = !exported_names.uses_dollar_props_type() && uses_props_or_rest;
     let props_str = exported_names.create_props_str(options.is_ts_file, uses_props_or_rest);
     let is_svelte5 = matches!(options.version, SvelteVersion::V5);
     // Determine effective accessors setting: from options OR <svelte:options accessors>
@@ -85,7 +121,7 @@ pub(crate) fn add_component_export(
     let component_doc = extract_component_documentation(&ast.fragment);
 
     // Build slots string from template info
-    let slots_str = build_slots_str(template_info, exported_names.has_slots_type);
+    let slots_str = build_slots_str(template_info, exported_names.has_slots_type());
 
     // Scan the component for `dispatch("name", …)` call sites of any untyped
     // `createEventDispatcher()` so they surface in the events return. Template
@@ -101,7 +137,7 @@ pub(crate) fn add_component_export(
     // and every UNTYPED `createEventDispatcher()` gets a
     // `<__sveltets_2_CustomEvents<$$Events>>` type argument so its dispatches are
     // checked against the interface.
-    if exported_names.has_events_type {
+    if exported_names.has_events_type() {
         // Official gates the injection on `ComponentEventsFromInterface.isPresent()`,
         // which only becomes true once the `$$Events` declaration is reached in the
         // single source-order walk. So only an untyped dispatcher declared AFTER the
@@ -172,11 +208,10 @@ pub(crate) fn add_component_export(
             .dollar_generics
             .iter()
             .map(|(name, constraint)| {
-                if let Some(c) = constraint {
-                    format!("{} extends {}", name, c)
-                } else {
-                    name.clone()
-                }
+                constraint.as_ref().map_or_else(
+                    || name.clone(),
+                    |constraint| format!("{name} extends {constraint}"),
+                )
             })
             .collect();
         let names: Vec<String> = exported_names
@@ -203,8 +238,7 @@ pub(crate) fn add_component_export(
             }
             let _ = write!(
                 closing,
-                "\nexport default class {} extends __sveltets_2_createSvelte2TsxComponent(",
-                safe_name
+                "\nexport default class {safe_name} extends __sveltets_2_createSvelte2TsxComponent("
             );
             write_prop_def(
                 &mut closing,
@@ -275,14 +309,14 @@ pub(crate) fn add_component_export(
                     let exports_return = if raw_exports == "$$HAS_EXPORTS$$" {
                         format!("$$render<{gn}>().exports")
                     } else {
-                        raw_exports.clone()
+                        raw_exports
                     };
                     // Mirror official `canHaveAnyProp`: only `$$props`/`$$restProps`
                     // (legacy magic vars) without an explicit `$$Props` type force
                     // the call-signature `props` to fall back to the full
                     // `ReturnType<…['props']>` shape. A runes generic with no props
                     // (e.g. empty `<script generics>`) emits `props: {<events/slots>}`.
-                    let can_have_any_prop = !exported_names.uses_dollar_props_type
+                    let can_have_any_prop = !exported_names.uses_dollar_props_type()
                         && (uses_dollar_props || uses_dollar_rest_props);
                     let props_has_no_props = exported_names.has_no_props();
                     emit_runes_generics_component(
@@ -338,47 +372,44 @@ pub(crate) fn add_component_export(
                 let has_real_exports = raw_exports == "$$HAS_EXPORTS$$";
 
                 // Build __sveltets_Render class
-                let _ = writeln!(closing, "class __sveltets_Render<{}> {{", gp);
+                let _ = writeln!(closing, "class __sveltets_Render<{gp}> {{");
                 // Mirror official `props(isTsFile=true, canHaveAnyProp, …, '$$render<…>()')`:
                 // a legacy (non-runes) generic component widens its `props` with
                 // `__sveltets_2_with_any` exactly when `canHaveAnyProp`.
                 let props_render = if can_have_any_prop {
-                    format!("__sveltets_2_with_any($$render<{}>())", gn)
+                    format!("__sveltets_2_with_any($$render<{gn}>())")
                 } else {
-                    format!("$$render<{}>()", gn)
+                    format!("$$render<{gn}>()")
                 };
                 let _ = writeln!(
                     closing,
-                    "    props() {{\n        return {}.props;\n    }}",
-                    props_render
+                    "    props() {{\n        return {props_render}.props;\n    }}"
                 );
                 // Mirror official `_events(hasStrictEvents || isRunesMode, …)`:
                 // a `$$Events` interface (strict events) — or runes mode — drops
                 // the `__sveltets_2_with_any_event` fallback wrapper.
                 let events_render =
-                    if exported_names.has_events_type || exported_names.is_runes_mode() {
-                        format!("$$render<{}>()", gn)
+                    if exported_names.has_events_type() || exported_names.is_runes_mode() {
+                        format!("$$render<{gn}>()")
                     } else {
-                        format!("__sveltets_2_with_any_event($$render<{}>())", gn)
+                        format!("__sveltets_2_with_any_event($$render<{gn}>())")
                     };
                 let _ = writeln!(
                     closing,
-                    "    events() {{\n        return {}.events;\n    }}",
-                    events_render
+                    "    events() {{\n        return {events_render}.events;\n    }}"
                 );
                 let _ = writeln!(
                     closing,
-                    "    slots() {{\n        return $$render<{}>().slots;\n    }}",
-                    gn
+                    "    slots() {{\n        return $$render<{gn}>().slots;\n    }}"
                 );
-                let _ = writeln!(closing, "    bindings() {{ return {}; }}", raw_bindings);
+                let _ = writeln!(closing, "    bindings() {{ return {raw_bindings}; }}");
                 // exports() returns $$render().exports if there are real exports, {} otherwise
                 let exports_return = if has_real_exports {
-                    format!("$$render<{}>().exports", gn)
+                    format!("$$render<{gn}>().exports")
                 } else {
-                    raw_exports.clone()
+                    raw_exports
                 };
-                let _ = writeln!(closing, "    exports() {{ return {}; }}", exports_return);
+                let _ = writeln!(closing, "    exports() {{ return {exports_return}; }}");
                 closing.push_str("}\n\n");
 
                 // Build `any` type params string: one `any` per generic param
@@ -399,14 +430,12 @@ pub(crate) fn add_component_export(
                 closing.push_str("interface $$IsomorphicComponent {\n");
                 let _ = writeln!(
                     closing,
-                    "    new <{}>(options: import('svelte').ComponentConstructorOptions<ReturnType<__sveltets_Render<{}>['props']>{}>): import('svelte').SvelteComponent<ReturnType<__sveltets_Render<{}>['props']>, ReturnType<__sveltets_Render<{}>['events']>, ReturnType<__sveltets_Render<{}>['slots']>> & {{ $$bindings?: ReturnType<__sveltets_Render<{}>['bindings']> }} & ReturnType<__sveltets_Render<{}>['exports']>;",
-                    gp, gn, children_type_suffix, gn, gn, gn, gn, gn
+                    "    new <{gp}>(options: import('svelte').ComponentConstructorOptions<ReturnType<__sveltets_Render<{gn}>['props']>{children_type_suffix}>): import('svelte').SvelteComponent<ReturnType<__sveltets_Render<{gn}>['props']>, ReturnType<__sveltets_Render<{gn}>['events']>, ReturnType<__sveltets_Render<{gn}>['slots']>> & {{ $$bindings?: ReturnType<__sveltets_Render<{gn}>['bindings']> }} & ReturnType<__sveltets_Render<{gn}>['exports']>;"
                 );
                 // Functional call signature: add $$slots and children only when component has slots
                 let slots_children_suffix = if has_slot_elements {
                     format!(
-                        ", $$slots?: ReturnType<__sveltets_Render<{}>['slots']>, children?: any",
-                        gn
+                        ", $$slots?: ReturnType<__sveltets_Render<{gn}>['slots']>, children?: any"
                     )
                 } else {
                     String::new()
@@ -419,17 +448,15 @@ pub(crate) fn add_component_export(
                 let props_prefix = if exported_names.has_no_props() && !uses_dollar_props {
                     String::new()
                 } else {
-                    format!("ReturnType<__sveltets_Render<{}>['props']> & ", gn)
+                    format!("ReturnType<__sveltets_Render<{gn}>['props']> & ")
                 };
                 let _ = writeln!(
                     closing,
-                    "    <{}>(internal: unknown, props: {}{{$$events?: ReturnType<__sveltets_Render<{}>['events']>{}}}): ReturnType<__sveltets_Render<{}>['exports']>;",
-                    gp, props_prefix, gn, slots_children_suffix, gn
+                    "    <{gp}>(internal: unknown, props: {props_prefix}{{$$events?: ReturnType<__sveltets_Render<{gn}>['events']>{slots_children_suffix}}}): ReturnType<__sveltets_Render<{gn}>['exports']>;"
                 );
                 let _ = writeln!(
                     closing,
-                    "    z_$$bindings?: ReturnType<__sveltets_Render<{}>['bindings']>;",
-                    any_params
+                    "    z_$$bindings?: ReturnType<__sveltets_Render<{any_params}>['bindings']>;"
                 );
                 closing.push_str("}\n");
 
@@ -440,18 +467,15 @@ pub(crate) fn add_component_export(
                 }
                 let _ = writeln!(
                     closing,
-                    "const {}: $$IsomorphicComponent = null as any;",
-                    safe_name
+                    "const {safe_name}: $$IsomorphicComponent = null as any;"
                 );
                 let _ = writeln!(
                     closing,
-                    "/*\u{03A9}ignore_start\u{03A9}*/type {}<{}> = InstanceType<typeof {}<{}>>;",
-                    safe_name, gp, safe_name, gn
+                    "/*\u{03A9}ignore_start\u{03A9}*/type {safe_name}<{gp}> = InstanceType<typeof {safe_name}<{gn}>>;"
                 );
                 let _ = write!(
                     closing,
-                    "/*\u{03A9}ignore_end\u{03A9}*/export default {};",
-                    safe_name
+                    "/*\u{03A9}ignore_end\u{03A9}*/export default {safe_name};"
                 );
             } else {
                 // Legacy V5 non-runes non-generics: isomorphic_component path.
@@ -538,7 +562,7 @@ fn write_prop_def(
         }
     }
 
-    if exported_names.has_events_type {
+    if exported_names.has_events_type() {
         output.push_str(render_call);
     } else {
         output.push_str("__sveltets_2_with_any_event(");

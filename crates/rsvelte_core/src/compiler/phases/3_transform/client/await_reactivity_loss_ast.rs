@@ -380,7 +380,7 @@ struct AwaitCollector<'src> {
     edits: Vec<Edit>,
 }
 
-impl<'a, 'src> Visit<'a> for AwaitCollector<'src> {
+impl<'a> Visit<'a> for AwaitCollector<'_> {
     fn visit_statements(&mut self, stmts: &oxc_allocator::Vec<'a, Statement<'a>>) {
         self.separators
             .extend(separator_positions(stmts, self.source));

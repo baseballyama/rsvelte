@@ -1,4 +1,4 @@
-//! UseDirective visitor for client-side transformation.
+//! `UseDirective` visitor for client-side transformation.
 //!
 //! Corresponds to `UseDirective.js` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/UseDirective.js`.
@@ -20,7 +20,7 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::{
     JsExpr, JsMemberExpression, JsMemberProperty, JsPattern, JsStatement,
 };
 
-/// Visit a UseDirective node and generate action code.
+/// Visit a `UseDirective` node and generate action code.
 ///
 /// Corresponds to `UseDirective` in
 /// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/UseDirective.js`:

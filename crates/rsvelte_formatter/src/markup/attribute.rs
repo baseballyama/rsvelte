@@ -1,5 +1,7 @@
 use rsvelte_core::ast::template::Attribute;
 
+const ATTACH_PREFIX: &str = "{@attach ";
+
 use crate::error::FormatError;
 use crate::options::FormatOptions;
 
@@ -28,7 +30,6 @@ pub(super) fn render_attribute(
         Attribute::AttachTag(attach) => {
             let mut inner = format_expression_at(source, &attach.expression, options, attr_depth)?
                 .unwrap_or_default();
-            const ATTACH_PREFIX: &str = "{@attach ";
             if narrow_value
                 && !inner.contains('\n')
                 && attr_depth * options.js.indent_width.value() as usize
@@ -68,7 +69,10 @@ pub(super) fn render_attribute(
             let inner = render_directive_value(source, &d.expression, d.end, options, attr_depth)?;
             // `bind:value={value}` → `bind:value` only when shorthand is allowed
             // (`svelteAllowShorthand`, default true).
-            if options.allow_shorthand && inner == d.name.as_str() && modifiers.is_empty() {
+            if options.attributes.allow_shorthand
+                && inner == d.name.as_str()
+                && modifiers.is_empty()
+            {
                 Ok(format!("bind:{}", d.name))
             } else {
                 Ok(format!("bind:{}{modifiers}={{{inner}}}", d.name))
@@ -91,7 +95,7 @@ pub(super) fn render_attribute(
             )?;
             // `class:active={active}` → `class:active` only when shorthand is
             // allowed (`svelteAllowShorthand`, default true).
-            if options.allow_shorthand && inner == d.name.as_str() {
+            if options.attributes.allow_shorthand && inner == d.name.as_str() {
                 Ok(format!("class:{}", d.name))
             } else {
                 Ok(format!("class:{}={{{inner}}}", d.name))
@@ -203,7 +207,7 @@ pub(super) fn render_attribute(
             // full `style:color={color}` form is emitted, reconstructing the
             // implicit `{name}` value for a source-bare `style:color`.
             let shorthand_value = format!("{{{}}}", d.name);
-            if options.allow_shorthand
+            if options.attributes.allow_shorthand
                 && (value.is_empty() || (modifiers.is_empty() && value == shorthand_value))
             {
                 Ok(format!("style:{}{modifiers}", d.name))
@@ -240,6 +244,6 @@ pub(super) fn render_attribute(
 /// `extra_lead` that narrows an expression to `inline_len - 1` columns — the
 /// minimal width that forces OXC to break it at its top-level operator while
 /// leaving inner content the widest budget.
-pub(super) fn minimal_break_extra(base_width: usize, inline_len: usize) -> usize {
+pub(super) const fn minimal_break_extra(base_width: usize, inline_len: usize) -> usize {
     base_width.saturating_sub(inline_len) + 1
 }

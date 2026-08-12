@@ -15,8 +15,8 @@ use super::snippet_block::hoist_snippet_blocks;
 /// Header lead-in for the each-block when CTX is relocated. Mirrors the
 /// simple-case ` for(let ` prefix; the trailing space lets the moved CTX
 /// chunk slot in cleanly.
-pub(crate) fn prefix_with_for(prefix: &str) -> String {
-    format!("{}for(let ", prefix)
+pub fn prefix_with_for(prefix: &str) -> String {
+    format!("{prefix}for(let ")
 }
 
 /// Build the text emitted after EXPR (and the relocated CTX) in the
@@ -24,7 +24,7 @@ pub(crate) fn prefix_with_for(prefix: &str) -> String {
 /// `header_after_expr`: `))` closes `__sveltets_2_ensureArray(EXPR)` and
 /// the `for(...)` argument list; `{` opens the for body; the idx / key
 /// bindings still travel as plain text — only CTX is source-preserved.
-pub(crate) fn build_each_after_ctx_tail(block: &EachBlock, source: &str) -> String {
+pub fn build_each_after_ctx_tail(block: &EachBlock, source: &str) -> String {
     let suffix = if block.context.is_some() {
         ""
     } else {
@@ -32,9 +32,9 @@ pub(crate) fn build_each_after_ctx_tail(block: &EachBlock, source: &str) -> Stri
     };
     // `))` closes `__sveltets_2_ensureArray(EXPR)` + the `for(...)`
     // argument list; `{` opens the for body.
-    let mut s = format!(")){{{}", suffix);
+    let mut s = format!(")){{{suffix}");
     if let Some(ref index) = block.index {
-        let _ = write!(s, "let {} = 1;", index);
+        let _ = write!(s, "let {index} = 1;");
     }
     if let Some(ref key) = block.key {
         let key_text = get_expression_text(key, source);
@@ -48,14 +48,14 @@ pub(crate) fn build_each_after_ctx_tail(block: &EachBlock, source: &str) -> Stri
 ///
 /// Generates: `for(let item of __sveltets_2_ensureArray(items)){let i = 1;key;...}`
 /// Find the byte offset of the last whitespace-bounded `as` keyword in `s`.
-pub(crate) fn rfind_as_keyword(s: &str) -> Option<usize> {
+pub fn rfind_as_keyword(s: &str) -> Option<usize> {
     let bytes = s.as_bytes();
     let mut found = None;
     let mut j = 0usize;
     while j + 1 < bytes.len() {
         if bytes[j] == b'a' && bytes[j + 1] == b's' {
             let before_ok = j == 0 || bytes[j - 1].is_ascii_whitespace();
-            let after_ok = bytes.get(j + 2).is_none_or(|c| c.is_ascii_whitespace());
+            let after_ok = bytes.get(j + 2).is_none_or(u8::is_ascii_whitespace);
             if before_ok && after_ok {
                 found = Some(j);
             }
@@ -73,7 +73,7 @@ pub(crate) fn rfind_as_keyword(s: &str) -> Option<usize> {
 /// which official svelte2tsx keeps (e.g. `{#each link.sections! as s}` →
 /// `__sveltets_2_ensureArray(link.sections!)`). Only applies when there is a
 /// context binding (`as X`); index/key-only forms keep the narrowed end.
-pub(crate) fn each_collection_extended_end(block: &EachBlock, source: &str, expr_end: u32) -> u32 {
+pub fn each_collection_extended_end(block: &EachBlock, source: &str, expr_end: u32) -> u32 {
     let Some(ctx) = block.context.as_ref() else {
         return expr_end;
     };
@@ -100,10 +100,10 @@ pub(crate) fn each_collection_extended_end(block: &EachBlock, source: &str, expr
     if !is_ts_postfix {
         return expr_end;
     }
-    expr_end + postfix.len() as u32
+    expr_end + u32::try_from(postfix.len()).expect("postfix length fits in u32")
 }
 
-pub(crate) fn handle_each_block(
+pub fn handle_each_block(
     block: &EachBlock,
     source: &str,
     options: &Svelte2TsxOptions,
@@ -124,16 +124,15 @@ pub(crate) fn handle_each_block(
         None => "",
     };
     let has_context = block.context.is_some();
-    let context_text = block
-        .context
-        .as_ref()
-        .map(|c| get_expression_text(c, source).to_string())
-        .unwrap_or_else(|| "$$each_item".to_string());
+    let context_text = block.context.as_ref().map_or_else(
+        || "$$each_item".to_string(),
+        |c| get_expression_text(c, source).to_string(),
+    );
 
-    let body_start = if !block.body.nodes.is_empty() {
-        block.body.nodes[0].start()
-    } else {
+    let body_start = if block.body.nodes.is_empty() {
         block.end
+    } else {
+        block.body.nodes[0].start()
     };
 
     // Build the for loop header.
@@ -155,9 +154,9 @@ pub(crate) fn handle_each_block(
     // language-tools fixtures match.
     let needs_temp_var = context_text == expr_text;
     let prefix_spaces = 1
-        + (has_context as usize)
-        + (block.index.is_some() as usize)
-        + (block.key.is_some() as usize);
+        + usize::from(has_context)
+        + usize::from(block.index.is_some())
+        + usize::from(block.key.is_some());
     let prefix = " ".repeat(prefix_spaces);
 
     // Build the wrapper around the expression chunk so MagicString can
@@ -166,43 +165,14 @@ pub(crate) fn handle_each_block(
     // expression in source but appear earlier (or later) in the for-loop
     // header — bake them as ordinary text. Their column mapping is lost
     // but they're rarely the target of type errors.
-    let (header_before_expr, header_after_expr) = if needs_temp_var {
-        (
-            format!("{}{{ const $$_each = __sveltets_2_ensureArray(", prefix),
-            {
-                let mut s = format!("); for(let {} of $$_each){{", context_text);
-                if let Some(ref index) = block.index {
-                    let _ = write!(s, "let {} = 1;", index);
-                }
-                if let Some(ref key) = block.key {
-                    let key_text = get_expression_text(key, source);
-                    s.push_str(key_text);
-                    s.push(';');
-                }
-                s
-            },
-        )
-    } else {
-        let suffix = if has_context { "" } else { "$$each_item;" };
-        (
-            format!(
-                "{}for(let {} of __sveltets_2_ensureArray(",
-                prefix, context_text
-            ),
-            {
-                let mut s = format!(")){{{}", suffix);
-                if let Some(ref index) = block.index {
-                    let _ = write!(s, "let {} = 1;", index);
-                }
-                if let Some(ref key) = block.key {
-                    let key_text = get_expression_text(key, source);
-                    s.push_str(key_text);
-                    s.push(';');
-                }
-                s
-            },
-        )
-    };
+    let (header_before_expr, header_after_expr) = build_each_loop_header(
+        block,
+        source,
+        &prefix,
+        &context_text,
+        has_context,
+        needs_temp_var,
+    );
 
     if let Some((expr_start, expr_end)) = expr_range {
         // Try to also preserve the context binding's source range so a
@@ -262,7 +232,7 @@ pub(crate) fn handle_each_block(
     } else {
         // Parser produced no span for the expression — fall back to the
         // monolithic bake (original behaviour).
-        let header = format!("{}{}{}", header_before_expr, expr_text, header_after_expr);
+        let header = format!("{header_before_expr}{expr_text}{header_after_expr}");
         str.overwrite(block.start, body_start, &header);
     }
 
@@ -275,17 +245,17 @@ pub(crate) fn handle_each_block(
     process_fragment_trimmed(&block.body.nodes, source, options, str, counter, depth);
 
     // Handle fallback ({:else}...{/each})
-    let body_end = if !block.body.nodes.is_empty() {
-        block.body.nodes.last().unwrap().end()
-    } else {
+    let body_end = if block.body.nodes.is_empty() {
         body_start
+    } else {
+        block.body.nodes.last().unwrap().end()
     };
 
     if let Some(ref fallback) = block.fallback {
-        let fallback_start = if !fallback.nodes.is_empty() {
-            fallback.nodes[0].start()
-        } else {
+        let fallback_start = if fallback.nodes.is_empty() {
             block.end
+        } else {
+            fallback.nodes[0].start()
         };
 
         // Overwrite {:else} with `}`
@@ -294,10 +264,10 @@ pub(crate) fn handle_each_block(
         // Process fallback
         process_fragment_trimmed(&fallback.nodes, source, options, str, counter, depth);
 
-        let fallback_end = if !fallback.nodes.is_empty() {
-            fallback.nodes.last().unwrap().end()
-        } else {
+        let fallback_end = if fallback.nodes.is_empty() {
             fallback_start
+        } else {
+            fallback.nodes.last().unwrap().end()
         };
 
         if fallback_end < block.end {
@@ -318,4 +288,34 @@ pub(crate) fn handle_each_block(
             str.append_left(block.end, closing);
         }
     }
+}
+
+fn build_each_loop_header(
+    block: &EachBlock,
+    source: &str,
+    prefix: &str,
+    context_text: &str,
+    has_context: bool,
+    needs_temp_var: bool,
+) -> (String, String) {
+    let (before, mut after) = if needs_temp_var {
+        (
+            format!("{prefix}{{ const $$_each = __sveltets_2_ensureArray("),
+            format!("); for(let {context_text} of $$_each){{"),
+        )
+    } else {
+        let suffix = if has_context { "" } else { "$$each_item;" };
+        (
+            format!("{prefix}for(let {context_text} of __sveltets_2_ensureArray("),
+            format!(")){{{suffix}"),
+        )
+    };
+    if let Some(index) = &block.index {
+        let _ = write!(after, "let {index} = 1;");
+    }
+    if let Some(key) = &block.key {
+        after.push_str(get_expression_text(key, source));
+        after.push(';');
+    }
+    (before, after)
 }

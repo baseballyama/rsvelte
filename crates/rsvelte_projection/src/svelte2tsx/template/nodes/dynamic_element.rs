@@ -26,7 +26,7 @@ use super::component_slots::{
 use super::slot_element::slot_attr_static_name;
 
 /// Handle `<svelte:element this={tag}>`.
-pub(crate) fn handle_svelte_dynamic_element(
+pub fn handle_svelte_dynamic_element(
     el: &SvelteDynamicElement,
     source: &str,
     options: &Svelte2TsxOptions,
@@ -67,7 +67,7 @@ pub(crate) fn handle_svelte_dynamic_element(
         };
         if before == b'"' || before == b'\'' {
             // String literal: wrap in quotes
-            format!("\"{}\"", raw_tag_text)
+            format!("\"{raw_tag_text}\"")
         } else {
             raw_tag_text.to_string()
         }
@@ -117,180 +117,33 @@ pub(crate) fn handle_svelte_dynamic_element(
     let indent = " ".repeat(spacing.before_block);
     let indent = match named_slot_block {
         Some(block) => {
-            str.prepend_left(el.start, &format!("{}{}", indent, block));
+            str.prepend_left(el.start, &format!("{indent}{block}"));
             String::new()
         }
         None => match &default_slot_let {
             Some(block) => {
-                str.append_left_fmt(el.start, format_args!("{}{}", indent, block));
+                str.append_left_fmt(el.start, format_args!("{indent}{block}"));
                 String::new()
             }
             None => indent,
         },
     };
 
-    // `use:` / `transition:` / `animate:` directives, same V4 emission as on a
-    // regular element. The action's `mapElementTag` uses the literal element
-    // name (`svelte:element`); the `createElement` first arg stays the dynamic
-    // tag expression.
-    let (directive_prefix, directive_suffix, action_count) =
-        build_directive_prefix_suffix(&el.attributes, source, &el.name);
-    let actions_arg = if action_count > 0 {
-        let mut args = String::from(", __sveltets_2_union(");
-        for i in 0..action_count {
-            if i > 0 {
-                args.push(',');
-            }
-            let _ = write!(args, "$$action_{}", i);
-        }
-        args.push(')');
-        args
-    } else {
-        String::new()
-    };
-    // Only the action `directive_prefix` (the `const $$action_N = …;`
-    // declarations) needs an extra inner block scope; a transition/animate-only
-    // suffix is just appended after the createElement, no extra braces.
-    let needs_inner_block = !directive_prefix.is_empty();
-
-    // Check if this is a self-closing element (no separate closing tag).
-    // Also covers HTML void elements like `<input>`, `<br>`, `<img>` which have
-    // no closing tag in the source — `is_void_element` keeps the opener and
-    // closing brace on a single line, mirroring the JS reference's behaviour
-    // for void tags.
-    let is_self_closing = el.fragment.nodes.is_empty()
-        && (slice_src(source, el.start as usize, el.end as usize)
-            .trim_end()
-            .ends_with("/>")
-            || crate::compiler::utils::is_void_element(&el.name));
-
-    let attrs_inner = if spacing.in_attr_object > 0 {
-        let mut padded = " ".repeat(spacing.in_attr_object);
-        padded.push_str(&attrs_str);
-        padded
-    } else {
-        attrs_str
-    };
-    // With directives an extra inner block scope wraps the createElement so the
-    // action declarations (in `directive_prefix`) are in scope: ` {<prefix>{ … }}`.
-    let inner_open = if needs_inner_block { "{" } else { "" };
-    let inner_close = if needs_inner_block { "}" } else { "" };
-    // `bind:this` / one-way bindings on `<svelte:element>` need the
-    // `const $$_svelteelement<depth> = createElement(...)` form so the binding
-    // assignment can reference it. Mirrors regular-element / Element.ts lowering.
-    let needs_element_var = any_bind_needs_element_var(&el.attributes, source);
-    let element_var = if needs_element_var {
-        Some(format!("$$_{}{}", element_var_base_name(&el.name), depth))
-    } else {
-        None
-    };
-    let bind_suffix = build_bind_directive_suffix(
-        &el.attributes,
-        source,
-        element_var.as_deref(),
-        &el.name,
-        options.is_ts_file || !options.emit_jsdoc,
+    render_dynamic_element(
+        el,
+        DynamicElementRenderInput {
+            source,
+            options,
+            depth,
+            opening_tag_end,
+            indent: &indent,
+            tag_text: &tag_text,
+            attrs: &attrs_str,
+            attribute_padding: spacing.in_attr_object,
+        },
+        str,
+        counter,
     );
-    let element_var_decl = element_var
-        .as_ref()
-        .map(|v| format!("const {} = ", v))
-        .unwrap_or_default();
-    // `class:`/`style:` directives lower to statements after the createElement
-    // (`class:active={x}` → ` x;`), same as a regular element.
-    let class_style_suffix = segs_to_string(
-        &build_class_style_directive_suffix_segments(&el.attributes, source),
-        source,
-    );
-    // ` <var=>svelteHTML.createElement(tag<actions_arg>, {attrs});<suffix>` — no
-    // leading `{`; the block brace comes from the outer ` {` (and `inner_open`
-    // when directives add an extra scope).
-    // The post-`createElement` suffix statements — `class:`/`style:`, transition/animate
-    // (`directive_suffix`), and `bind:` (`bind_suffix`) — are emitted in SOURCE-ATTRIBUTE
-    // ORDER, mirroring the regular-element handler's sort logic.
-    let first_bind_pos_se = el
-        .attributes
-        .iter()
-        .filter_map(|a| match a {
-            Attribute::BindDirective(b) => Some(b.start),
-            _ => None,
-        })
-        .min();
-    let first_directive_pos_se = el
-        .attributes
-        .iter()
-        .filter_map(|a| match a {
-            Attribute::TransitionDirective(t) => Some(t.start),
-            Attribute::AnimateDirective(an) => Some(an.start),
-            _ => None,
-        })
-        .min();
-    let first_class_style_pos_se = el
-        .attributes
-        .iter()
-        .filter_map(|a| match a {
-            Attribute::ClassDirective(c) => Some(c.start),
-            Attribute::StyleDirective(s) => Some(s.start),
-            _ => None,
-        })
-        .min();
-    let sorted_suffix = {
-        let mut pieces: Vec<(u32, &str)> = Vec::new();
-        if !directive_suffix.is_empty() {
-            pieces.push((
-                first_directive_pos_se.unwrap_or(u32::MAX),
-                &directive_suffix,
-            ));
-        }
-        if !class_style_suffix.is_empty() {
-            pieces.push((
-                first_class_style_pos_se.unwrap_or(u32::MAX),
-                &class_style_suffix,
-            ));
-        }
-        if !bind_suffix.is_empty() {
-            pieces.push((first_bind_pos_se.unwrap_or(u32::MAX), &bind_suffix));
-        }
-        pieces.sort_by_key(|(pos, _)| *pos);
-        pieces.into_iter().map(|(_, s)| s).collect::<String>()
-    };
-    let create = |attrs: &str| {
-        format!(
-            " {}svelteHTML.createElement({}{}, {{{}}});{}",
-            element_var_decl, tag_text, actions_arg, attrs, sorted_suffix
-        )
-    };
-    if is_self_closing {
-        // Self-closing: outer block, optional inner directive block, close both.
-        let opener = format!(
-            "{}{{{}{}{}{}}}",
-            indent,
-            directive_prefix,
-            inner_open,
-            create(&attrs_inner),
-            inner_close
-        );
-        str.overwrite(el.start, el.end, &opener);
-    } else {
-        let opener = format!(
-            "{}{{{}{}{}",
-            indent,
-            directive_prefix,
-            inner_open,
-            create(&attrs_inner)
-        );
-        str.overwrite(el.start, opening_tag_end, &opener);
-
-        // svelte:element is an element node → children at depth+1.
-        process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
-
-        let closing_tag_start = find_closing_tag_start(source, el.end);
-        let close = format!(" }}{}", inner_close);
-        if closing_tag_start < el.end {
-            str.overwrite(closing_tag_start, el.end, &close);
-        } else {
-            str.append_left(el.end, &close);
-        }
-    }
 
     // Close the `$$slot_def[...]` / `$$slot_def.default` wrapper block; restore
     // context.
@@ -298,4 +151,147 @@ pub(crate) fn handle_svelte_dynamic_element(
         str.append_left(el.end, "}");
     }
     counter.slot_inst = saved_slot;
+}
+
+#[derive(Clone, Copy)]
+struct DynamicElementRenderInput<'a> {
+    source: &'a str,
+    options: &'a Svelte2TsxOptions,
+    depth: u32,
+    opening_tag_end: u32,
+    indent: &'a str,
+    tag_text: &'a str,
+    attrs: &'a str,
+    attribute_padding: usize,
+}
+
+fn render_dynamic_element(
+    el: &SvelteDynamicElement,
+    input: DynamicElementRenderInput<'_>,
+    str: &mut MagicString<'_>,
+    counter: &mut Counter,
+) {
+    let (directive_prefix, directive_suffix, action_count) =
+        build_directive_prefix_suffix(&el.attributes, input.source, &el.name);
+    let actions_arg = dynamic_action_arguments(action_count);
+    let inner_close = if directive_prefix.is_empty() { "" } else { "}" };
+    let attrs = format!("{}{}", " ".repeat(input.attribute_padding), input.attrs);
+    let element_var = any_bind_needs_element_var(&el.attributes, input.source)
+        .then(|| format!("$$_{}{}", element_var_base_name(&el.name), input.depth));
+    let bind_suffix = build_bind_directive_suffix(
+        &el.attributes,
+        input.source,
+        element_var.as_deref(),
+        &el.name,
+        input.options.is_ts_file || !input.options.emit_jsdoc,
+    );
+    let element_var_decl = element_var
+        .as_ref()
+        .map(|value| format!("const {value} = "))
+        .unwrap_or_default();
+    let class_style_suffix = segs_to_string(
+        &build_class_style_directive_suffix_segments(&el.attributes, input.source),
+        input.source,
+    );
+    let suffix = ordered_dynamic_suffix(
+        &el.attributes,
+        &directive_suffix,
+        &class_style_suffix,
+        &bind_suffix,
+    );
+    let create = format!(
+        " {element_var_decl}svelteHTML.createElement({}{actions_arg}, {{{attrs}}});{suffix}",
+        input.tag_text,
+    );
+    let inner_open = if directive_prefix.is_empty() { "" } else { "{" };
+    if dynamic_element_is_self_closing(el, input.source) {
+        str.overwrite(
+            el.start,
+            el.end,
+            &format!(
+                "{}{{{directive_prefix}{inner_open}{create}{inner_close}}}",
+                input.indent
+            ),
+        );
+        return;
+    }
+
+    str.overwrite(
+        el.start,
+        input.opening_tag_end,
+        &format!("{}{{{directive_prefix}{inner_open}{create}", input.indent),
+    );
+    process_fragment_inplace(
+        &el.fragment,
+        input.source,
+        input.options,
+        str,
+        counter,
+        input.depth + 1,
+    );
+    let close = format!(" }}{inner_close}");
+    let closing_tag_start = find_closing_tag_start(input.source, el.end);
+    if closing_tag_start < el.end {
+        str.overwrite(closing_tag_start, el.end, &close);
+    } else {
+        str.append_left(el.end, &close);
+    }
+}
+
+fn dynamic_action_arguments(action_count: usize) -> String {
+    if action_count == 0 {
+        return String::new();
+    }
+
+    let mut args = String::from(", __sveltets_2_union(");
+    for index in 0..action_count {
+        if index > 0 {
+            args.push(',');
+        }
+        let _ = write!(args, "$$action_{index}");
+    }
+    args.push(')');
+    args
+}
+
+fn dynamic_element_is_self_closing(el: &SvelteDynamicElement, source: &str) -> bool {
+    el.fragment.nodes.is_empty()
+        && (slice_src(source, el.start as usize, el.end as usize)
+            .trim_end()
+            .ends_with("/>")
+            || crate::compiler::utils::is_void_element(&el.name))
+}
+
+fn ordered_dynamic_suffix(
+    attributes: &[Attribute],
+    directive_suffix: &str,
+    class_style_suffix: &str,
+    bind_suffix: &str,
+) -> String {
+    let first_binding = attributes.iter().find_map(|attribute| match attribute {
+        Attribute::BindDirective(binding) => Some(binding.start),
+        _ => None,
+    });
+    let first_directive = attributes.iter().find_map(|attribute| match attribute {
+        Attribute::TransitionDirective(directive) => Some(directive.start),
+        Attribute::AnimateDirective(directive) => Some(directive.start),
+        _ => None,
+    });
+    let first_class_style = attributes.iter().find_map(|attribute| match attribute {
+        Attribute::ClassDirective(directive) => Some(directive.start),
+        Attribute::StyleDirective(directive) => Some(directive.start),
+        _ => None,
+    });
+    let mut pieces = Vec::new();
+    if !directive_suffix.is_empty() {
+        pieces.push((first_directive.unwrap_or(u32::MAX), directive_suffix));
+    }
+    if !class_style_suffix.is_empty() {
+        pieces.push((first_class_style.unwrap_or(u32::MAX), class_style_suffix));
+    }
+    if !bind_suffix.is_empty() {
+        pieces.push((first_binding.unwrap_or(u32::MAX), bind_suffix));
+    }
+    pieces.sort_by_key(|(position, _)| *position);
+    pieces.into_iter().map(|(_, suffix)| suffix).collect()
 }

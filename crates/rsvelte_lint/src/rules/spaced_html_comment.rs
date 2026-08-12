@@ -37,7 +37,7 @@ static META: RuleMeta = RuleMeta {
 /// Whether `c` is a horizontal whitespace character (space or tab) but NOT a
 /// line terminator. Mirrors upstream's `[^\S\n\r]` character class.
 #[inline]
-fn is_h_space(c: char) -> bool {
+const fn is_h_space(c: char) -> bool {
     c == ' ' || c == '\t'
 }
 
@@ -109,7 +109,9 @@ impl Rule for SpacedHtmlComment {
             // Mirrors upstream `/^[^\S\n\r]/u.exec(node.value)?.[0]`
             let begin_spaces: String = data.chars().take_while(|&c| is_h_space(c)).collect();
             if !begin_spaces.is_empty() {
-                let remove_end = after_open + begin_spaces.len() as u32;
+                let remove_end = after_open
+                    + u32::try_from(begin_spaces.len())
+                        .expect("source offsets are represented as u32");
                 ctx.report_with_fix(
                     comment.start,
                     comment.end,
@@ -148,7 +150,9 @@ impl Rule for SpacedHtmlComment {
                     .next_back()
                     .is_some_and(|c| !c.is_whitespace())
                 {
-                    let remove_start = before_close - trailing_bytes as u32;
+                    let remove_start = before_close
+                        - u32::try_from(trailing_bytes)
+                            .expect("source offsets are represented as u32");
                     ctx.report_with_fix(
                         comment.start,
                         comment.end,

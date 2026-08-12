@@ -1,5 +1,5 @@
 //! Development utility that canonicalizes a JS file using OXC.
-//! Usage: canon_dump `<file>`
+//! Usage: `canon_dump` `<file>`
 
 // Defined per-bin rather than once in the lib so that linking the `rsvelte_core`
 // rlib never imposes an allocator on the consumer.
@@ -29,7 +29,7 @@ fn main() {
     let source_type = SourceType::mjs();
     let parsed = Parser::new(&allocator, &code, source_type).parse();
     if parsed.panicked {
-        print!("{}", code);
+        print!("{code}");
         return;
     }
     let options = CodegenOptions {
@@ -47,7 +47,7 @@ fn main() {
         .build(&parsed.program)
         .code;
     let normalized = normalize_import_quotes(&out);
-    print!("{}", normalized);
+    print!("{normalized}");
 }
 
 /// Normalize `import ... from "..."` to single quotes (post-processing for

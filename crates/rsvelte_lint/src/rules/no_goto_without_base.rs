@@ -1,10 +1,11 @@
-//! `svelte/no-goto-without-base` — disallow calling SvelteKit's `goto()` with a
-//! URL that isn't prefixed with the configured `base` path. Port of the
-//! eslint-plugin-svelte rule (deprecated upstream in favour of
+//! `svelte/no-goto-without-base` — disallow calling `SvelteKit`'s `goto()` with a
+//! URL that isn't prefixed with the configured `base` path.
+//!
+//! Port of the eslint-plugin-svelte rule (deprecated upstream in favour of
 //! `no-navigation-without-resolve`, but still a distinct rule with its own
 //! fixtures).
 //!
-//! Runs over the `<script>` ESTree program via the [`ScriptRule`] hook. `goto`
+//! Runs over the `<script>` `ESTree` program via the [`ScriptRule`] hook. `goto`
 //! is matched through its `$app/navigation` import (alias aware) and `base`
 //! through its `$app/paths` import. For each `goto(arg)` call the first argument
 //! must be base-prefixed: a `base + '…'` binary expression, a `` `${base}…` ``
@@ -140,8 +141,7 @@ fn template_starting_identifier(tpl: &Value) -> Option<String> {
             .get("value")
             .and_then(|v| v.get("raw"))
             .and_then(Value::as_str)
-            .map(|r| r.is_empty())
-            .unwrap_or(false);
+            .is_some_and(str::is_empty);
         // store identifier-name = None for quasis; raw_empty flagged via bool
         parts.push((
             start,
@@ -166,10 +166,9 @@ fn template_starting_identifier(tpl: &Value) -> Option<String> {
                 Some(ref s) if s.is_empty() => continue,
                 _ => return None,
             }
-        } else {
-            // Expression part: identifier name or None (non-identifier).
-            return payload;
         }
+        // Expression part: identifier name or None (non-identifier).
+        return payload;
     }
     None
 }
@@ -199,9 +198,8 @@ impl ScriptRule for NoGotoWithoutBase {
                 return;
             }
             // Check: named import `goto(...)` or namespace `nav.goto(...)`.
-            let callee = match node.get("callee") {
-                Some(c) => c,
-                None => return,
+            let Some(callee) = node.get("callee") else {
+                return;
             };
             let is_goto = match node_type(callee) {
                 Some("Identifier") => callee

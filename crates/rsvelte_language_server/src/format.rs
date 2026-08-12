@@ -6,15 +6,19 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use rsvelte_fmt::FormatSession;
 
-/// Formatting sessions keyed by the document's directory. Building one
-/// discovers the project's oxfmt config (a walk to the filesystem root plus a
-/// parse), so it is reused across every document that shares a directory.
+/// Formatting sessions keyed by document directory.
+///
+/// A session discovers the project `oxfmt` configuration, so it is reused by
+/// documents in the same directory.
 #[derive(Default)]
 pub struct FormatSessions {
     by_dir: HashMap<PathBuf, FormatSession>,
 }
 
 impl FormatSessions {
+    /// # Errors
+    ///
+    /// Returns an error when resolving the formatter configuration for `path` fails.
     pub fn get(&mut self, path: &Path) -> Result<&FormatSession> {
         let dir = path.parent().unwrap_or(Path::new(".")).to_path_buf();
         if !self.by_dir.contains_key(&dir) {

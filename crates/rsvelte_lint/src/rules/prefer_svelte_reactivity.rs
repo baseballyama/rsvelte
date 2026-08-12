@@ -1,7 +1,9 @@
+//! `svelte/prefer-svelte-reactivity`.
+//!
 //! `svelte/prefer-svelte-reactivity` — flag a mutated instance of a built-in
 //! `Date` / `Map` / `Set` / `URL` / `URLSearchParams` where `svelte/reactivity`
 //! offers a reactive alternative (`SvelteDate`, …). Port of the eslint-plugin-svelte
-//! rule, over the `<script>` ESTree program via the [`ScriptRule`] hook.
+//! rule, over the `<script>` `ESTree` program via the [`ScriptRule`] hook.
 //!
 //! A `new <Class>(…)` is flagged only when the constructed instance is later
 //! *mutated*:
@@ -118,15 +120,22 @@ fn new_class(node: &Value) -> Option<&str> {
 fn collect_shadowed(program: &Value) -> Vec<String> {
     let mut shadowed: Vec<String> = Vec::new();
     walk_js(program, |node, _| match node_type(node) {
-        Some("ImportSpecifier")
-        | Some("ImportDefaultSpecifier")
-        | Some("ImportNamespaceSpecifier") => {
-            if let Some(n) = node.get("local").and_then(ident_name) {
-                shadowed.push(n.to_string());
-            }
-        }
-        Some("FunctionDeclaration") | Some("ClassDeclaration") => {
-            if let Some(n) = node.get("id").and_then(ident_name) {
+        Some(
+            "ImportSpecifier"
+            | "ImportDefaultSpecifier"
+            | "ImportNamespaceSpecifier"
+            | "FunctionDeclaration"
+            | "ClassDeclaration",
+        ) => {
+            let field = if matches!(
+                node_type(node),
+                Some("FunctionDeclaration" | "ClassDeclaration")
+            ) {
+                "id"
+            } else {
+                "local"
+            };
+            if let Some(n) = node.get(field).and_then(ident_name) {
                 shadowed.push(n.to_string());
             }
         }

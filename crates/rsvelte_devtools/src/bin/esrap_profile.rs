@@ -51,7 +51,7 @@ fn main() {
             rsvelte_core::compile(src, opts).ok().map(|r| r.js.code)
         })
         .collect();
-    let bytes: usize = generated.iter().map(|g| g.len()).sum();
+    let bytes: usize = generated.iter().map(std::string::String::len).sum();
 
     // One arena for every re-parsed program, kept alive for the whole run.
     let allocator = Allocator::default();

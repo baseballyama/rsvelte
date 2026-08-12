@@ -38,11 +38,11 @@ fn bench_format_session(c: &mut Criterion) {
         );
     }
 
-    const CSS: &str = r#"
+    const CSS: &str = r"
         :root { --accent: #ff3e00; }
         .card:hover > .title { color: var(--accent); transform: translateY(-1px); }
         @media (width >= 48rem) { .card { display: grid; grid-template-columns: 1fr 2fr; } }
-    "#;
+    ";
     let css_path = corpus_dir.join("standalone.css");
     session
         .format(CSS, &css_path)

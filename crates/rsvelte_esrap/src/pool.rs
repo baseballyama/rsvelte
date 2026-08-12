@@ -25,19 +25,21 @@ thread_local! {
 }
 
 /// An empty command buffer, reusing a parked allocation when one is available.
-pub(crate) fn take() -> Vec<Command> {
+pub fn take() -> Vec<Command> {
     BUFFERS.with(|buffers| buffers.borrow_mut().pop().unwrap_or_default())
 }
 
 /// Drain a finished command tree, parking every buffer in it for reuse. Replaces
 /// the recursive drop of the tree, which did the same walk only to free.
-pub(crate) fn recycle(root: Vec<Command>) {
+pub fn recycle(root: Vec<Command>) {
     BUFFERS.with(|buffers| {
         let Ok(mut buffers) = buffers.try_borrow_mut() else {
             return;
         };
         let mut pending = vec![root];
         while let Some(mut buffer) = pending.pop() {
+            // Draining leaves `buffer`'s allocation available for the pool below.
+            #[allow(clippy::iter_with_drain)]
             for command in buffer.drain(..) {
                 if let Command::Nested(inner) = command {
                     pending.push(inner);

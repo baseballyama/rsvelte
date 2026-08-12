@@ -18,6 +18,10 @@
 //! **False-negatives (missed findings) are acceptable; false-positives (wrong
 //! findings that disagree with the oracle) are not.**
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("source offsets are represented as u32")
+}
+
 /// Selector kind extracted from SCSS.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SelectorKind {
@@ -66,6 +70,8 @@ pub fn is_plain_css_lang(attributes: &[serde_json::Value]) -> bool {
     true // no lang attribute → plain CSS
 }
 
+/// Return a supported SCSS-like language.
+///
 /// Returns `Some(lang_lowercase)` for `lang="scss"` or `lang="postcss"` — the
 /// two langs the oracle's postcss pipeline handles. Returns `None` for plain
 /// CSS and for any other lang (less, unknown, etc.) which the oracle skips.
@@ -85,9 +91,8 @@ pub fn scss_lang(attributes: &[serde_json::Value]) -> Option<String> {
                         let lang = data.to_lowercase();
                         // Only handle the langs the oracle's postcss pipeline covers.
                         return match lang.as_str() {
-                            "" | "css" => None,
                             "scss" | "postcss" => Some(lang),
-                            _ => None, // less, unknown, etc. — skip entirely
+                            _ => None, // css, less, unknown, etc. — skip entirely
                         };
                     }
                 }
@@ -103,6 +108,7 @@ pub fn scss_lang(attributes: &[serde_json::Value]) -> Option<String> {
 ///
 /// `text` is the raw style block content (i.e., `StyleSheet.content.styles`).
 /// The returned `ScssSelector.offset` and `.end` are byte offsets into `text`.
+#[must_use]
 pub fn extract_selectors(text: &str) -> Vec<ScssSelector> {
     let bytes = text.as_bytes();
     let len = bytes.len();
@@ -184,6 +190,7 @@ pub fn extract_selectors(text: &str) -> Vec<ScssSelector> {
 ///
 /// Comments, string literals, and `#{…}` interpolation are skipped so their
 /// contents never trip the heuristic.
+#[must_use]
 pub fn scss_is_parseable(text: &str) -> bool {
     let bytes = text.as_bytes();
     let len = bytes.len();
@@ -342,8 +349,7 @@ fn skip_at_rule_prelude(bytes: &[u8], pos: usize) -> usize {
     let mut p = pos;
     while p < len {
         match bytes[p] {
-            b'{' => return p + 1, // consume the `{` so caller starts after it
-            b';' => return p + 1,
+            b'{' | b';' => return p + 1,
             b'"' | b'\'' => p = skip_string(bytes, p),
             b'/' if p + 1 < len && bytes[p + 1] == b'*' => {
                 let mut q = p + 2;
@@ -370,9 +376,7 @@ fn parse_selector_text(selector_text: &str, offset_base: usize, out: &mut Vec<Sc
     // declarations (e.g. `color: red; .bar {…}`). Trim it so a property value
     // that happens to be an element name (`display: table; .x {…}`) is not
     // mis-read as a type selector.
-    let trim = last_top_level_semicolon(selector_text)
-        .map(|i| i + 1)
-        .unwrap_or(0);
+    let trim = last_top_level_semicolon(selector_text).map_or(0, |i| i + 1);
     // The selector text may contain multiple selectors separated by `,`.
     // Split on `,` but we must not split inside `(...)`.
     let segments = split_selector_list(&selector_text[trim..]);
@@ -380,7 +384,7 @@ fn parse_selector_text(selector_text: &str, offset_base: usize, out: &mut Vec<Sc
         // `seg` is relative to the trimmed slice; shift back into `selector_text`.
         parse_single_selector(
             selector_text,
-            SegRange {
+            &SegRange {
                 start: seg.start + trim,
                 end: seg.end + trim,
             },
@@ -484,7 +488,7 @@ fn split_selector_list(selector_text: &str) -> Vec<SegRange> {
 /// Parse one simple/compound/complex selector (no commas) and extract tokens.
 fn parse_single_selector(
     selector_text: &str,
-    seg: SegRange,
+    seg: &SegRange,
     offset_base: usize,
     out: &mut Vec<ScssSelector>,
 ) {
@@ -502,21 +506,8 @@ fn parse_single_selector(
             b' ' | b'\t' | b'\r' | b'\n' => {
                 pos += 1;
             }
-            b'/' if pos + 1 < seg_len && seg_bytes[pos + 1] == b'*' => {
-                // Block comment inside selector (unusual but handle it).
-                let mut p = pos + 2;
-                while p + 1 < seg_len && !(seg_bytes[p] == b'*' && seg_bytes[p + 1] == b'/') {
-                    p += 1;
-                }
-                pos = p + 2;
-            }
-            b'/' if pos + 1 < seg_len && seg_bytes[pos + 1] == b'/' => {
-                // Line comment (SCSS).
-                let mut p = pos + 2;
-                while p < seg_len && seg_bytes[p] != b'\n' {
-                    p += 1;
-                }
-                pos = p;
+            b'/' if pos + 1 < seg_len && matches!(seg_bytes[pos + 1], b'*' | b'/') => {
+                pos = skip_selector_comment(seg_bytes, pos);
             }
             b'#' => {
                 // Could be `#id` or `#{...}` (SCSS interpolation).
@@ -532,8 +523,8 @@ fn parse_single_selector(
                         out.push(ScssSelector {
                             kind: SelectorKind::Id,
                             name: name.to_string(),
-                            offset: abs_pos as u32,
-                            end: (offset_base + seg.start + name_end) as u32,
+                            offset: source_offset(abs_pos),
+                            end: source_offset(offset_base + seg.start + name_end),
                         });
                     }
                     pos = name_end;
@@ -548,8 +539,8 @@ fn parse_single_selector(
                     out.push(ScssSelector {
                         kind: SelectorKind::Class,
                         name: name.to_string(),
-                        offset: abs_pos as u32,
-                        end: (offset_base + seg.start + name_end) as u32,
+                        offset: source_offset(abs_pos),
+                        end: source_offset(offset_base + seg.start + name_end),
                     });
                 }
                 pos = name_end;
@@ -602,8 +593,8 @@ fn parse_single_selector(
                         out.push(ScssSelector {
                             kind: SelectorKind::Type,
                             name: name.to_string(),
-                            offset: abs_pos as u32,
-                            end: (offset_base + seg.start + name_end) as u32,
+                            offset: source_offset(abs_pos),
+                            end: source_offset(offset_base + seg.start + name_end),
                         });
                     }
                     pos = name_end;
@@ -613,6 +604,20 @@ fn parse_single_selector(
             }
         }
     }
+}
+
+fn skip_selector_comment(bytes: &[u8], start: usize) -> usize {
+    if bytes[start + 1] == b'/' {
+        return bytes[start + 2..]
+            .iter()
+            .position(|byte| *byte == b'\n')
+            .map_or(bytes.len(), |offset| start + 2 + offset);
+    }
+    let mut position = start + 2;
+    while position + 1 < bytes.len() && !(bytes[position] == b'*' && bytes[position + 1] == b'/') {
+        position += 1;
+    }
+    position + 2
 }
 
 /// Skip a `#{...}` SCSS interpolation starting at the `{` position.
@@ -671,12 +676,12 @@ fn consume_ident(bytes: &[u8], start: usize) -> usize {
 }
 
 /// True for characters that can start a CSS identifier.
-fn is_css_ident_start(b: u8) -> bool {
+const fn is_css_ident_start(b: u8) -> bool {
     b.is_ascii_alphabetic() || b == b'_' || b == b'-' || b >= 0x80
 }
 
 /// True for characters that can continue a CSS identifier.
-fn is_css_ident_char(b: u8) -> bool {
+const fn is_css_ident_char(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'-' || b >= 0x80
 }
 
@@ -690,174 +695,180 @@ fn is_css_ident_char(b: u8) -> bool {
 /// HTML/SVG element allowlist below. This is deliberately conservative: an
 /// unknown custom element is missed (a false-negative, acceptable) rather than a
 /// non-selector identifier being wrongly reported (a false-positive, not).
+macro_rules! valid_type_selector_name {
+    ($name:expr) => {
+        matches!(
+            $name,
+            "a" | "abbr"
+                | "address"
+                | "area"
+                | "article"
+                | "aside"
+                | "audio"
+                | "b"
+                | "base"
+                | "bdi"
+                | "bdo"
+                | "blockquote"
+                | "body"
+                | "br"
+                | "button"
+                | "canvas"
+                | "caption"
+                | "cite"
+                | "code"
+                | "col"
+                | "colgroup"
+                | "data"
+                | "datalist"
+                | "dd"
+                | "del"
+                | "details"
+                | "dfn"
+                | "dialog"
+                | "div"
+                | "dl"
+                | "dt"
+                | "em"
+                | "embed"
+                | "fieldset"
+                | "figcaption"
+                | "figure"
+                | "footer"
+                | "form"
+                | "h1"
+                | "h2"
+                | "h3"
+                | "h4"
+                | "h5"
+                | "h6"
+                | "head"
+                | "header"
+                | "hgroup"
+                | "hr"
+                | "html"
+                | "i"
+                | "iframe"
+                | "img"
+                | "input"
+                | "ins"
+                | "kbd"
+                | "label"
+                | "legend"
+                | "li"
+                | "link"
+                | "main"
+                | "map"
+                | "mark"
+                | "menu"
+                | "meta"
+                | "meter"
+                | "nav"
+                | "noscript"
+                | "object"
+                | "ol"
+                | "optgroup"
+                | "option"
+                | "output"
+                | "p"
+                | "picture"
+                | "pre"
+                | "progress"
+                | "q"
+                | "rp"
+                | "rt"
+                | "ruby"
+                | "s"
+                | "samp"
+                | "script"
+                | "search"
+                | "section"
+                | "select"
+                | "slot"
+                | "small"
+                | "source"
+                | "span"
+                | "strong"
+                | "style"
+                | "sub"
+                | "summary"
+                | "sup"
+                | "table"
+                | "tbody"
+                | "td"
+                | "template"
+                | "textarea"
+                | "tfoot"
+                | "th"
+                | "thead"
+                | "time"
+                | "title"
+                | "tr"
+                | "track"
+                | "u"
+                | "ul"
+                | "var"
+                | "video"
+                | "wbr"
+                | "svg"
+                | "path"
+                | "circle"
+                | "rect"
+                | "line"
+                | "polyline"
+                | "polygon"
+                | "ellipse"
+                | "text"
+                | "g"
+                | "use"
+                | "defs"
+                | "symbol"
+                | "image"
+                | "clipPath"
+                | "mask"
+                | "pattern"
+                | "linearGradient"
+                | "radialGradient"
+                | "stop"
+                | "animate"
+                | "animateMotion"
+                | "animateTransform"
+                | "feBlend"
+                | "feColorMatrix"
+                | "feComposite"
+                | "feConvolveMatrix"
+                | "feDiffuseLighting"
+                | "feDisplacementMap"
+                | "feDropShadow"
+                | "feFlood"
+                | "feFuncA"
+                | "feFuncB"
+                | "feFuncG"
+                | "feFuncR"
+                | "feGaussianBlur"
+                | "feImage"
+                | "feMerge"
+                | "feMergeNode"
+                | "feMorphology"
+                | "feOffset"
+                | "fePointLight"
+                | "feSpecularLighting"
+                | "feSpotLight"
+                | "feTile"
+                | "feTurbulence"
+                | "filter"
+                | "foreignObject"
+                | "marker"
+                | "mpath"
+                | "set"
+                | "tspan"
+                | "view"
+        )
+    };
+}
+
 fn is_valid_type_selector_name(name: &str) -> bool {
-    matches!(
-        name,
-        "a" | "abbr"
-            | "address"
-            | "area"
-            | "article"
-            | "aside"
-            | "audio"
-            | "b"
-            | "base"
-            | "bdi"
-            | "bdo"
-            | "blockquote"
-            | "body"
-            | "br"
-            | "button"
-            | "canvas"
-            | "caption"
-            | "cite"
-            | "code"
-            | "col"
-            | "colgroup"
-            | "data"
-            | "datalist"
-            | "dd"
-            | "del"
-            | "details"
-            | "dfn"
-            | "dialog"
-            | "div"
-            | "dl"
-            | "dt"
-            | "em"
-            | "embed"
-            | "fieldset"
-            | "figcaption"
-            | "figure"
-            | "footer"
-            | "form"
-            | "h1"
-            | "h2"
-            | "h3"
-            | "h4"
-            | "h5"
-            | "h6"
-            | "head"
-            | "header"
-            | "hgroup"
-            | "hr"
-            | "html"
-            | "i"
-            | "iframe"
-            | "img"
-            | "input"
-            | "ins"
-            | "kbd"
-            | "label"
-            | "legend"
-            | "li"
-            | "link"
-            | "main"
-            | "map"
-            | "mark"
-            | "menu"
-            | "meta"
-            | "meter"
-            | "nav"
-            | "noscript"
-            | "object"
-            | "ol"
-            | "optgroup"
-            | "option"
-            | "output"
-            | "p"
-            | "picture"
-            | "pre"
-            | "progress"
-            | "q"
-            | "rp"
-            | "rt"
-            | "ruby"
-            | "s"
-            | "samp"
-            | "script"
-            | "search"
-            | "section"
-            | "select"
-            | "slot"
-            | "small"
-            | "source"
-            | "span"
-            | "strong"
-            | "style"
-            | "sub"
-            | "summary"
-            | "sup"
-            | "table"
-            | "tbody"
-            | "td"
-            | "template"
-            | "textarea"
-            | "tfoot"
-            | "th"
-            | "thead"
-            | "time"
-            | "title"
-            | "tr"
-            | "track"
-            | "u"
-            | "ul"
-            | "var"
-            | "video"
-            | "wbr"
-            | "svg"
-            | "path"
-            | "circle"
-            | "rect"
-            | "line"
-            | "polyline"
-            | "polygon"
-            | "ellipse"
-            | "text"
-            | "g"
-            | "use"
-            | "defs"
-            | "symbol"
-            | "image"
-            | "clipPath"
-            | "mask"
-            | "pattern"
-            | "linearGradient"
-            | "radialGradient"
-            | "stop"
-            | "animate"
-            | "animateMotion"
-            | "animateTransform"
-            | "feBlend"
-            | "feColorMatrix"
-            | "feComposite"
-            | "feConvolveMatrix"
-            | "feDiffuseLighting"
-            | "feDisplacementMap"
-            | "feDropShadow"
-            | "feFlood"
-            | "feFuncA"
-            | "feFuncB"
-            | "feFuncG"
-            | "feFuncR"
-            | "feGaussianBlur"
-            | "feImage"
-            | "feMerge"
-            | "feMergeNode"
-            | "feMorphology"
-            | "feOffset"
-            | "fePointLight"
-            | "feSpecularLighting"
-            | "feSpotLight"
-            | "feTile"
-            | "feTurbulence"
-            | "filter"
-            | "foreignObject"
-            | "marker"
-            | "mpath"
-            | "set"
-            | "tspan"
-            | "view"
-    )
+    valid_type_selector_name!(name)
 }
 
 #[cfg(test)]
@@ -926,10 +937,9 @@ mod tests {
         let names: Vec<_> = selectors.iter().map(|s| s.name.as_str()).collect();
         assert!(
             names.contains(&"container"),
-            "expected container, got {:?}",
-            names
+            "expected container, got {names:?}"
         );
-        assert!(names.contains(&"inner"), "expected inner, got {:?}", names);
+        assert!(names.contains(&"inner"), "expected inner, got {names:?}");
     }
 
     #[test]

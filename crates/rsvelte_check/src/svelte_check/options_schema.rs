@@ -57,24 +57,28 @@ impl Default for ConfigObject {
 
 impl ConfigObject {
     /// An object whose key set is fully known (no spread, no computed key).
-    pub fn complete(entries: Vec<(String, ConfigValue)>) -> Self {
+    #[must_use]
+    pub const fn complete(entries: Vec<(String, ConfigValue)>) -> Self {
         Self {
             entries,
             complete: true,
         }
     }
 
-    pub fn partial(entries: Vec<(String, ConfigValue)>) -> Self {
+    #[must_use]
+    pub const fn partial(entries: Vec<(String, ConfigValue)>) -> Self {
         Self {
             entries,
             complete: false,
         }
     }
 
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
 
+    #[must_use]
     pub fn get(&self, name: &str) -> Option<&ConfigValue> {
         // Last wins, as in JS: a duplicate key overwrites the earlier one.
         self.entries
@@ -88,7 +92,7 @@ impl ConfigObject {
     /// `svelte.config` → inline plugin options precedence. Object-valued keys
     /// merge recursively so a source that declares `experimental.async` alone
     /// does not erase a sibling.
-    pub fn merge(&mut self, other: &ConfigObject) {
+    pub fn merge(&mut self, other: &Self) {
         self.complete &= other.complete;
         for (key, value) in &other.entries {
             match (self.get_mut(key), value) {
@@ -118,7 +122,7 @@ pub struct OptionDiagnostic {
 }
 
 impl OptionDiagnostic {
-    fn error(code: &'static str, body: String) -> Self {
+    fn error(code: &'static str, body: impl std::fmt::Display) -> Self {
         Self {
             message: format!("{body}\nhttps://svelte.dev/e/{code}"),
             code,
@@ -139,16 +143,16 @@ pub enum Lit {
 impl Lit {
     fn matches(self, value: &ConfigValue) -> bool {
         match (self, value) {
-            (Lit::Str(s), ConfigValue::Str(v)) => s == v,
-            (Lit::Num(n), ConfigValue::Number(v)) => n == *v,
+            (Self::Str(s), ConfigValue::Str(v)) => s == v,
+            (Self::Num(n), ConfigValue::Number(v)) => n.to_bits() == v.to_bits(),
             _ => false,
         }
     }
 
     fn spelling(self) -> String {
         match self {
-            Lit::Str(s) => s.to_string(),
-            Lit::Num(n) => format!("{n}"),
+            Self::Str(s) => s.to_string(),
+            Self::Num(n) => format!("{n}"),
         }
     }
 }
@@ -288,7 +292,9 @@ pub const COMPONENT_OPTIONS: &[Opt] = &[
     ),
 ];
 
-/// `object({ ...common_options, ...Object.fromEntries(Object.keys(component_options)
+/// Module compilation recognizes every component option.
+///
+/// It follows `object({ ...common_options, ...Object.fromEntries(Object.keys(component_options)
 /// .map((key) => [key, () => {}])) })`. Module compilation recognises every
 /// component option, but only validates the common subset.
 pub const MODULE_OPTIONS: &[Opt] = &[
@@ -366,10 +372,12 @@ fn check_custom_element(value: &ConfigValue, keypath: &str) -> Option<String> {
 
 /// The first diagnostic `svelte.compile` would raise for these options, or
 /// `None` when nothing statically readable is wrong with them.
+#[must_use]
 pub fn validate_component_options(options: &ConfigObject) -> Option<OptionDiagnostic> {
     validate_object(options, "", COMPONENT_OPTIONS)
 }
 
+#[must_use]
 pub fn validate_module_options(options: &ConfigObject) -> Option<OptionDiagnostic> {
     validate_object(options, "", MODULE_OPTIONS)
 }

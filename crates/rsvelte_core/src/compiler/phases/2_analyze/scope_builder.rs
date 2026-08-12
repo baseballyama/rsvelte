@@ -23,6 +23,14 @@ use oxc_parser::Parser as OxcParser;
 use oxc_span::GetSpan;
 use oxc_span::SourceType;
 
+fn source_pos(value: usize) -> u32 {
+    u32::try_from(value).expect("source positions are limited to u32")
+}
+
+fn source_index(value: u32) -> usize {
+    usize::try_from(value).expect("source positions must fit usize")
+}
+
 /// An update/assignment to track for marking bindings as reassigned/mutated.
 #[derive(Debug)]
 struct Update {
@@ -44,7 +52,7 @@ pub struct ScopeBuilder<'a> {
     current_scope: usize,
     /// Source code for extracting script content
     source: &'a str,
-    /// Parse arena for resolving JsNodeId and IdRange references
+    /// Parse arena for resolving `JsNodeId` and `IdRange` references
     arena: &'a ParseArena,
     /// Tracked updates (assignments and update expressions) to process after declarations
     updates: Vec<Update>,
@@ -69,16 +77,16 @@ pub struct ScopeBuilder<'a> {
     /// created for that function body. Used to resolve context.scope during visitor phase.
     function_scope_map: FxHashMap<u32, usize>,
     /// The start offset of the current script content in the full source.
-    /// Used to convert OXC span positions to full-source positions for function_scope_map.
+    /// Used to convert OXC span positions to full-source positions for `function_scope_map`.
     /// This is set to `script.content.start()` at the beginning of each script visit.
     current_script_offset: usize,
     /// Information about each blocks whose collection variables may need State promotion.
     /// Collected during template visit and processed after all updates are applied.
-    /// Each entry: (parent_scope_idx, each_scope_idx, collection_identifier_names)
+    /// Each entry: (`parent_scope_idx`, `each_scope_idx`, `collection_identifier_names`)
     each_block_collection_infos: Vec<(usize, usize, Vec<String>)>,
     /// Maps template node start positions to scope indices.
     /// Used by Phase 2 visitors to properly track context.scope when entering
-    /// scope-creating template nodes (EachBlock, AwaitBlock, SnippetBlock, etc.).
+    /// scope-creating template nodes (`EachBlock`, `AwaitBlock`, `SnippetBlock`, etc.).
     template_scope_map: FxHashMap<u32, usize>,
     /// `{:else}` fragment scopes keyed by the enclosing `{#if}`'s start (see
     /// `ScopeRoot::if_alternate_scope_map`).
@@ -143,7 +151,7 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Build scopes from the AST.
     ///
-    /// Returns a tuple of (ScopeRoot, Vec<AnalysisError>) where the errors
+    /// Returns a tuple of (`ScopeRoot`, Vec<AnalysisError>) where the errors
     /// are validation errors collected during scope building.
     pub fn build(
         mut self,
@@ -268,8 +276,7 @@ impl<'a> ScopeBuilder<'a> {
                     self.scopes[*each_scope].declarations.values().any(|&idx| {
                         self.bindings
                             .get(idx)
-                            .map(|b| b.kind == BindingKind::EachItem && b.is_updated())
-                            .unwrap_or(false)
+                            .is_some_and(|b| b.kind == BindingKind::EachItem && b.is_updated())
                     })
                 })
                 .collect();
@@ -288,14 +295,11 @@ impl<'a> ScopeBuilder<'a> {
         // Pre-calculate capacity: root scope declarations + bindings + template params.
         // The root scope declarations already include all child scope declarations,
         // so we don't need to iterate child scopes separately.
-        let root_decl_count = all_scopes
-            .first()
-            .map(|s| s.declarations.len())
-            .unwrap_or(0);
+        let root_decl_count = all_scopes.first().map_or(0, |s| s.declarations.len());
         let capacity =
             root_decl_count + self.bindings.len() + self.template_expression_params.len();
         let mut conflicts =
-            rustc_hash::FxHashSet::with_capacity_and_hasher(capacity, Default::default());
+            rustc_hash::FxHashSet::with_capacity_and_hasher(capacity, rustc_hash::FxBuildHasher);
         // Add all declaration names from the merged root scope
         if let Some(root) = all_scopes.first() {
             for name in root.declarations.keys() {
@@ -352,7 +356,7 @@ impl<'a> ScopeBuilder<'a> {
     }
 
     /// Push a new porous (block-level) child scope and return the old scope index.
-    /// Porous scopes inherit the parent's function_depth.
+    /// Porous scopes inherit the parent's `function_depth`.
     /// Record the scope a template node's fragment children live in. The key
     /// must be UNIQUE per fragment — two fragments sharing a key silently
     /// overwrite each other and Phase 3 then folds a sibling's `{@const}`
@@ -380,7 +384,7 @@ impl<'a> ScopeBuilder<'a> {
     }
 
     /// Push a new non-porous (function-level) child scope and return the old scope index.
-    /// Non-porous scopes have function_depth = parent.function_depth + 1.
+    /// Non-porous scopes have `function_depth` = `parent.function_depth` + 1.
     fn push_function_scope(&mut self) -> usize {
         let parent_depth = self.scopes[self.current_scope].function_depth;
         let new_scope = Scope::new_with_depth(Some(self.current_scope), parent_depth + 1);
@@ -510,7 +514,7 @@ impl<'a> ScopeBuilder<'a> {
         }
     }
 
-    /// Helper to collect identifiers from an AssignmentTarget.
+    /// Helper to collect identifiers from an `AssignmentTarget`.
     fn collect_assignment_target_identifiers(&mut self, target: &oxc_ast::ast::AssignmentTarget) {
         if let oxc_ast::ast::AssignmentTarget::AssignmentTargetIdentifier(id) = target {
             let name = id.name.to_string();
@@ -605,7 +609,7 @@ impl<'a> ScopeBuilder<'a> {
         self.bindings_by_name
             .entry(binding.name.clone())
             .or_default()
-            .push(idx as u32);
+            .push(u32::try_from(idx).expect("binding indices are limited to u32"));
         self.bindings.push(binding);
         self.scopes[target_scope].declare(name, idx);
         idx
@@ -613,7 +617,7 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Visit a script block and extract variable declarations.
     ///
-    /// Tries the typed path first (using the JsNode from the parse arena),
+    /// Tries the typed path first (using the `JsNode` from the parse arena),
     /// falling back to OXC re-parse if the content is not in typed form.
     fn visit_script(&mut self, script: &Script) {
         let start = script.content.start().unwrap_or(0) as usize;
@@ -662,7 +666,7 @@ impl<'a> ScopeBuilder<'a> {
         });
     }
 
-    /// Process a typed JsNode::Program AST.
+    /// Process a typed `JsNode::Program` AST.
     fn process_program_typed(&mut self, node: &JsNode) {
         if let JsNode::Program { body, .. } = node {
             for stmt in self.arena.get_js_children(*body) {
@@ -671,15 +675,14 @@ impl<'a> ScopeBuilder<'a> {
         }
     }
 
-    /// Process a statement from a typed JsNode.
-    /// Mirrors the logic of `process_statement` but using JsNode pattern matching.
+    /// Process a statement from a typed `JsNode`.
+    /// Mirrors the logic of `process_statement` but using `JsNode` pattern matching.
     fn process_statement_typed(&mut self, node: &JsNode) {
         match node {
             JsNode::VariableDeclaration {
                 declarations, kind, ..
             } => {
                 let decl_kind = match kind.as_str() {
-                    "const" => DeclarationKind::Const,
                     "let" => DeclarationKind::Let,
                     "var" => DeclarationKind::Var,
                     // using/await using treated as const
@@ -806,9 +809,6 @@ impl<'a> ScopeBuilder<'a> {
                     self.process_statement_typed(decl_node);
                 }
             }
-            JsNode::ExportDefaultDeclaration { .. } => {
-                // Export default doesn't create a named binding in the module scope
-            }
             JsNode::ExpressionStatement { expression, .. } => {
                 let expr = self.arena.get_js_node(*expression);
                 self.track_node_expression_updates(expr);
@@ -851,7 +851,6 @@ impl<'a> ScopeBuilder<'a> {
                 let arg_node = self.arena.get_js_node(*arg_id);
                 self.track_node_expression_updates(arg_node);
             }
-            JsNode::ReturnStatement { .. } => {}
             JsNode::WhileStatement { test, body, .. } => {
                 self.track_node_expression_updates(self.arena.get_js_node(*test));
                 self.process_statement_typed(self.arena.get_js_node(*body));
@@ -1088,17 +1087,13 @@ impl<'a> ScopeBuilder<'a> {
                 self.process_statement_typed(body_node);
             }
             // Empty, debugger, break, continue — no bindings or updates
-            JsNode::EmptyStatement { .. }
-            | JsNode::DebuggerStatement { .. }
-            | JsNode::BreakStatement { .. }
-            | JsNode::ContinueStatement { .. } => {}
             _ => {}
         }
     }
 
     /// Process a binding pattern from a JSON Value (Raw fallback for declarations
-    /// inside ExportNamedDeclaration).
-    /// Collect all identifier names from a typed JsNode binding pattern into the
+    /// inside `ExportNamedDeclaration`).
+    /// Collect all identifier names from a typed `JsNode` binding pattern into the
     /// `nested_declared_names` set (used to seed root.conflicts with inner-scope names).
     fn collect_names_from_pattern_into_nested(&mut self, node: &JsNode) {
         match node {
@@ -1137,8 +1132,8 @@ impl<'a> ScopeBuilder<'a> {
         }
     }
 
-    /// Process a binding pattern from a typed JsNode (for variable declarations).
-    /// This mirrors `process_binding_pattern` but works with JsNode.
+    /// Process a binding pattern from a typed `JsNode` (for variable declarations).
+    /// This mirrors `process_binding_pattern` but works with `JsNode`.
     fn process_binding_pattern_typed(
         &mut self,
         pattern: &JsNode,
@@ -1173,15 +1168,13 @@ impl<'a> ScopeBuilder<'a> {
             }
             JsNode::ObjectPattern { properties, .. } => {
                 // Detect if this ObjectPattern is initialized from $props()
-                let is_props_init = init
-                    .map(|init_id| {
-                        let init_node = self.arena.get_js_node(init_id);
-                        matches!(
-                            self.detect_binding_kind_from_node(init_node),
-                            BindingKind::Prop
-                        )
-                    })
-                    .unwrap_or(false);
+                let is_props_init = init.is_some_and(|init_id| {
+                    let init_node = self.arena.get_js_node(init_id);
+                    matches!(
+                        self.detect_binding_kind_from_node(init_node),
+                        BindingKind::Prop
+                    )
+                });
                 let properties = *properties;
                 for prop in self.arena.get_js_children(properties) {
                     match prop {
@@ -1234,7 +1227,7 @@ impl<'a> ScopeBuilder<'a> {
         }
     }
 
-    /// Process an import specifier from a typed JsNode.
+    /// Process an import specifier from a typed `JsNode`.
     fn process_import_specifier_typed(&mut self, node: &JsNode, source_val: &str) {
         let (name, start, end, specifier_type) = match node {
             JsNode::ImportSpecifier {
@@ -1310,13 +1303,13 @@ impl<'a> ScopeBuilder<'a> {
         import_json.push_str(specifier_type);
         import_json.push_str(r#"","local":{"name":"#);
         import_json.push_str(&name_json);
-        import_json.push_str(r#"}}]}"#);
+        import_json.push_str("}}]}");
         self.bindings[binding_idx].initial = Some(import_json);
         self.bindings[binding_idx].initial_node_type = Some("ImportDeclaration".to_string());
         self.bindings[binding_idx].import_source = Some(source_val.to_string());
     }
 
-    /// Process a function body (BlockStatement) from a typed JsNode.
+    /// Process a function body (`BlockStatement`) from a typed `JsNode`.
     fn process_body_typed(&mut self, node: &JsNode) {
         if let JsNode::BlockStatement { body, .. } = node {
             let body = *body;
@@ -1326,7 +1319,7 @@ impl<'a> ScopeBuilder<'a> {
         }
     }
 
-    /// Process a class body from a typed JsNode.
+    /// Process a class body from a typed `JsNode`.
     fn process_class_body_typed(&mut self, node: &JsNode) {
         if let JsNode::ClassBody { body, .. } = node {
             let body = *body;
@@ -1437,7 +1430,7 @@ impl<'a> ScopeBuilder<'a> {
         }
     }
 
-    /// Detect the binding kind from a JsNode expression (e.g., $state(), $derived()).
+    /// Detect the binding kind from a `JsNode` expression (e.g., $`state()`, $`derived()`).
     fn detect_binding_kind_from_node(&self, expr: &JsNode) -> BindingKind {
         if let JsNode::CallExpression { callee, .. } = expr {
             let callee_node = self.arena.get_js_node(*callee);
@@ -1509,7 +1502,7 @@ impl<'a> ScopeBuilder<'a> {
             Statement::FunctionDeclaration(func_decl) => {
                 if let Some(id) = &func_decl.id {
                     let name = id.name.to_string();
-                    let offset = self.current_script_offset as u32;
+                    let offset = source_pos(self.current_script_offset);
                     let idx = self.declare_binding(
                         name,
                         BindingKind::Normal,
@@ -1527,7 +1520,8 @@ impl<'a> ScopeBuilder<'a> {
                 // Use current_script_offset + body.span.start - 1 to match JSON AST positions
                 // (expression.rs uses: offset + body.span.start - 1 for body.start in JSON AST)
                 if let Some(ref body) = func_decl.body {
-                    let key = (self.current_script_offset + body.span.start as usize) as u32;
+                    let key =
+                        source_pos(self.current_script_offset + source_index(body.span.start));
                     self.function_scope_map.insert(key, self.current_scope);
                 }
 
@@ -1548,7 +1542,7 @@ impl<'a> ScopeBuilder<'a> {
                     // Class declarations use 'let' (not 'const') because class names
                     // are mutable bindings. This matches the official Svelte compiler:
                     // scope.declare(node.id, 'normal', 'let', node)
-                    let offset = self.current_script_offset as u32;
+                    let offset = source_pos(self.current_script_offset);
                     let idx = self.declare_binding(
                         name,
                         BindingKind::Normal,
@@ -1562,12 +1556,6 @@ impl<'a> ScopeBuilder<'a> {
             }
             Statement::ExportDeclaration(export_decl) => {
                 self.process_declaration(&export_decl.declaration);
-            }
-            Statement::ExportNamedDeclaration(_) | Statement::ExportFromDeclaration(_) => {
-                // Specifier-only exports re-export existing bindings; nothing new is declared.
-            }
-            Statement::ExportDefaultDeclaration(_) => {
-                // Export default doesn't create a named binding in the module scope
             }
             Statement::ExpressionStatement(expr_stmt) => {
                 // Process expressions to find assignments
@@ -1802,7 +1790,8 @@ impl<'a> ScopeBuilder<'a> {
                     // (issue #907 follow-up: runed `persisted-state`). Mirrors the
                     // `FunctionDeclaration` / `FunctionExpression` registration.
                     if let Some(ref body) = method_def.value.body {
-                        let key = (self.current_script_offset + body.span.start as usize) as u32;
+                        let key =
+                            source_pos(self.current_script_offset + source_index(body.span.start));
                         self.function_scope_map.insert(key, self.current_scope);
                     }
 
@@ -1880,8 +1869,9 @@ impl<'a> ScopeBuilder<'a> {
                 // Record function body start → scope index mapping for visitor phase
                 // For arrow functions with block body, use offset + span.start - 1
                 {
-                    let key =
-                        (self.current_script_offset + arrow_func.body.span().start as usize) as u32;
+                    let key = source_pos(
+                        self.current_script_offset + source_index(arrow_func.body.span().start),
+                    );
                     self.function_scope_map.insert(key, self.current_scope);
                 }
 
@@ -1913,7 +1903,8 @@ impl<'a> ScopeBuilder<'a> {
                 self.function_depth += 1;
                 // Record function body start → scope index mapping for visitor phase
                 if let Some(ref body) = func_expr.body {
-                    let key = (self.current_script_offset + body.span.start as usize) as u32;
+                    let key =
+                        source_pos(self.current_script_offset + source_index(body.span.start));
                     self.function_scope_map.insert(key, self.current_scope);
                 }
 
@@ -2105,16 +2096,6 @@ impl<'a> ScopeBuilder<'a> {
             Expression::TSInstantiationExpression(ts_expr) => {
                 self.track_expression_updates(&ts_expr.expression);
             }
-            Expression::BooleanLiteral(_)
-            | Expression::NullLiteral(_)
-            | Expression::NumericLiteral(_)
-            | Expression::StringLiteral(_)
-            | Expression::BigIntLiteral(_)
-            | Expression::RegExpLiteral(_)
-            | Expression::ThisExpression(_)
-            | Expression::Super(_)
-            | Expression::ImportMeta(_)
-            | Expression::NewTarget(_) => {}
             // Skip other complex expressions for now
             _ => {}
         }
@@ -2281,7 +2262,7 @@ impl<'a> ScopeBuilder<'a> {
             Declaration::FunctionDeclaration(func_decl) => {
                 if let Some(id) = &func_decl.id {
                     let name = id.name.to_string();
-                    let offset = self.current_script_offset as u32;
+                    let offset = source_pos(self.current_script_offset);
                     let idx = self.declare_binding(
                         name,
                         BindingKind::Normal,
@@ -2299,7 +2280,8 @@ impl<'a> ScopeBuilder<'a> {
                 // Use current_script_offset + body.span.start - 1 to match JSON AST positions
                 // (expression.rs uses: offset + body.span.start - 1 for body.start in JSON AST)
                 if let Some(ref body) = func_decl.body {
-                    let key = (self.current_script_offset + body.span.start as usize) as u32;
+                    let key =
+                        source_pos(self.current_script_offset + source_index(body.span.start));
                     self.function_scope_map.insert(key, self.current_scope);
                 }
                 for param in &func_decl.params.items {
@@ -2314,7 +2296,7 @@ impl<'a> ScopeBuilder<'a> {
                     let name = id.name.to_string();
                     // Class declarations use 'let' (not 'const') because class names
                     // are mutable bindings. This matches the official Svelte compiler.
-                    let offset = self.current_script_offset as u32;
+                    let offset = source_pos(self.current_script_offset);
                     self.declare_binding(
                         name,
                         BindingKind::Normal,
@@ -2364,7 +2346,7 @@ impl<'a> ScopeBuilder<'a> {
                 } else {
                     BindingKind::Normal
                 };
-                let offset = self.current_script_offset as u32;
+                let offset = source_pos(self.current_script_offset);
                 let idx = self.declare_binding(
                     name,
                     kind,
@@ -2377,7 +2359,7 @@ impl<'a> ScopeBuilder<'a> {
                 // Add current_script_offset so positions align with the JSON AST
                 // positions used by the visitor phase.
                 self.bindings[idx].declaration_start =
-                    Some(ident.span.start + self.current_script_offset as u32);
+                    Some(ident.span.start + source_pos(self.current_script_offset));
                 // Check if the initializer is a function expression
                 if let Some(init_expr) = init
                     && matches!(
@@ -2394,10 +2376,9 @@ impl<'a> ScopeBuilder<'a> {
                 // We need to detect this here (before update_binding_kinds runs in Phase 2
                 // variable_declarator.rs) because detect_store_subscriptions runs before
                 // the variable_declarator visitor and needs the correct kind for rest props.
-                let is_props_init = init
-                    .as_ref()
-                    .map(|i| matches!(self.detect_binding_kind_from_expr(i), BindingKind::Prop))
-                    .unwrap_or(false);
+                let is_props_init = init.as_ref().is_some_and(|i| {
+                    matches!(self.detect_binding_kind_from_expr(i), BindingKind::Prop)
+                });
 
                 for prop in &obj.properties {
                     self.process_binding_pattern(&prop.value, &None, decl_kind);
@@ -2408,7 +2389,7 @@ impl<'a> ScopeBuilder<'a> {
                         // so that detect_store_subscriptions correctly identifies $props as
                         // a rune (not a store subscription).
                         if let BindingPattern::BindingIdentifier(ident) = &rest.argument {
-                            let offset = self.current_script_offset as u32;
+                            let offset = source_pos(self.current_script_offset);
                             let idx = self.declare_binding(
                                 ident.name.to_string(),
                                 BindingKind::RestProp,
@@ -2438,7 +2419,7 @@ impl<'a> ScopeBuilder<'a> {
         }
     }
 
-    /// Detect the binding kind from an expression (e.g., $state(), $derived()).
+    /// Detect the binding kind from an expression (e.g., $`state()`, $`derived()`).
     fn detect_binding_kind_from_expr(&self, expr: &Expression) -> BindingKind {
         if let Expression::CallExpression(call) = expr {
             // Handle direct calls like $state(), $derived(), $props()
@@ -2525,7 +2506,7 @@ impl<'a> ScopeBuilder<'a> {
                         "ImportNamespaceSpecifier",
                     ),
                 };
-                let offset = self.current_script_offset as u32;
+                let offset = source_pos(self.current_script_offset);
                 let binding_idx = self.declare_binding(
                     name.clone(),
                     BindingKind::Normal,
@@ -2608,14 +2589,6 @@ impl<'a> ScopeBuilder<'a> {
                 self.visit_fragment(&elem.fragment);
                 self.pop_scope(old_scope);
             }
-            TemplateNode::SvelteSelf(elem) => {
-                self.process_attributes(&elem.attributes);
-                let old_scope = self.push_scope();
-                self.register_template_scope(elem.start);
-                self.declare_let_directive_bindings(&elem.attributes);
-                self.visit_fragment(&elem.fragment);
-                self.pop_scope(old_scope);
-            }
             TemplateNode::SvelteComponent(elem) => {
                 self.process_attributes(&elem.attributes);
                 let old_scope = self.push_scope();
@@ -2664,9 +2637,9 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Declare bindings from let: directives in the current scope.
     ///
-    /// Corresponds to the LetDirective handler in Svelte's scope.js (lines 1048-1072).
-    /// let: directive bindings are declared with kind='template' (BindingKind::Let)
-    /// and declaration_kind='const' (DeclarationKind::Const).
+    /// Corresponds to the `LetDirective` handler in Svelte's scope.js (lines 1048-1072).
+    /// let: directive bindings are declared with kind='template' (`BindingKind::Let`)
+    /// and `declaration_kind`='const' (`DeclarationKind::Const`).
     fn declare_let_directive_bindings(&mut self, attributes: &[crate::ast::template::Attribute]) {
         use crate::ast::template::Attribute;
 
@@ -2806,17 +2779,10 @@ impl<'a> ScopeBuilder<'a> {
         let Some(binding_idx) = self.find_binding_in_scope_chain(root_name) else {
             return;
         };
-        let (start, end) = match name_loc {
-            Some(name_loc) => {
-                let start = name_loc.start.character + prefix_len;
-                (start, start + root_name.len() as u32)
-            }
-            // No location info available (e.g. `skip_expression_loc`): fall back
-            // to the directive's own span rather than dropping the reference —
-            // the exact position only matters for diagnostics/tooling, but the
-            // reference's mere existence drives warning suppression.
-            None => (fallback_start, fallback_end),
-        };
+        let (start, end) = name_loc.map_or((fallback_start, fallback_end), |name_loc| {
+            let start = name_loc.start.character + prefix_len;
+            (start, start + source_pos(root_name.len()))
+        });
         let binding = &mut self.bindings[binding_idx];
         binding.add_reference(start, end, true, false, false);
         binding.has_direct_template_read = true;
@@ -2843,17 +2809,15 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Process a bind expression - the target is marked as reassigned or mutated.
     ///
-    /// Matches the official Svelte compiler's scope.js BindDirective handler:
+    /// Matches the official Svelte compiler's scope.js `BindDirective` handler:
     /// - For Identifier expressions (bind:value={x}), marks as reassigned (direct assignment)
-    /// - For MemberExpression (bind:this={foo[i]}), extracts the base object and marks as mutated
-    /// - SequenceExpression (getter/setter syntax) is skipped (handled separately)
+    /// - For `MemberExpression` (bind:this={foo[i]}), extracts the base object and marks as mutated
+    /// - `SequenceExpression` (getter/setter syntax) is skipped (handled separately)
     fn process_template_expression_for_bind(&mut self, expr: &crate::ast::js::Expression) {
         let node = expr.as_node();
 
         match &*node {
             // Skip SequenceExpression (getter/setter syntax) - handled separately
-            JsNode::SequenceExpression { .. } => {}
-
             // For direct Identifier (bind:value={x}), mark as reassigned
             JsNode::Identifier { name, .. } => {
                 self.updates.push(Update {
@@ -2890,7 +2854,7 @@ impl<'a> ScopeBuilder<'a> {
         }
     }
 
-    /// Track expression updates by walking a JsNode tree directly.
+    /// Track expression updates by walking a `JsNode` tree directly.
     /// This is the typed equivalent of `track_json_expression_updates` and avoids
     /// the overhead of JSON conversion for template expressions.
     fn track_node_expression_updates(&mut self, node: &JsNode) {
@@ -3027,11 +2991,6 @@ impl<'a> ScopeBuilder<'a> {
             JsNode::MemberExpression { object, .. } => {
                 self.track_node_expression_updates(self.arena.get_js_node(*object));
             }
-            JsNode::TemplateLiteral { expressions, .. } => {
-                for expr in self.arena.get_js_children(*expressions) {
-                    self.track_node_expression_updates(expr);
-                }
-            }
             JsNode::TaggedTemplateExpression { tag, quasi, .. } => {
                 self.track_node_expression_updates(self.arena.get_js_node(*tag));
                 let quasi_node = self.arena.get_js_node(*quasi);
@@ -3040,15 +2999,6 @@ impl<'a> ScopeBuilder<'a> {
                         self.track_node_expression_updates(expr);
                     }
                 }
-            }
-            JsNode::AwaitExpression { argument, .. } => {
-                self.track_node_expression_updates(self.arena.get_js_node(*argument));
-            }
-            JsNode::YieldExpression {
-                argument: Some(argument),
-                ..
-            } => {
-                self.track_node_expression_updates(self.arena.get_js_node(*argument));
             }
             JsNode::ChainExpression { expression, .. } => {
                 self.track_node_expression_updates(self.arena.get_js_node(*expression));
@@ -3122,7 +3072,7 @@ impl<'a> ScopeBuilder<'a> {
         }
     }
 
-    /// Track an assignment target from JsNode.
+    /// Track an assignment target from `JsNode`.
     fn track_node_assignment_target(&mut self, node: &JsNode) {
         match node {
             JsNode::Identifier { name, .. } => {
@@ -3189,7 +3139,7 @@ impl<'a> ScopeBuilder<'a> {
         }
     }
 
-    /// Track a simple assignment target (update expression argument) from JsNode.
+    /// Track a simple assignment target (update expression argument) from `JsNode`.
     fn track_node_simple_assignment_target(&mut self, node: &JsNode) {
         match node {
             JsNode::Identifier { name, .. } => {
@@ -3214,7 +3164,7 @@ impl<'a> ScopeBuilder<'a> {
         }
     }
 
-    /// Track statement updates from JsNode (for arrow/function bodies).
+    /// Track statement updates from `JsNode` (for arrow/function bodies).
     fn track_node_statement_updates(&mut self, node: &JsNode) {
         match node {
             JsNode::ExpressionStatement { expression, .. } => {
@@ -3355,9 +3305,9 @@ impl<'a> ScopeBuilder<'a> {
         self.pop_scope(old_scope);
     }
 
-    /// Declare bindings from a JsNode pattern (handles destructuring).
+    /// Declare bindings from a `JsNode` pattern (handles destructuring).
     ///
-    /// JsNode version of `declare_bindings_from_pattern` that uses typed pattern matching
+    /// `JsNode` version of `declare_bindings_from_pattern` that uses typed pattern matching
     /// instead of JSON field access. Falls back to JSON version for `JsNode::Raw`.
     fn declare_bindings_from_pattern_node(
         &mut self,
@@ -3436,16 +3386,6 @@ impl<'a> ScopeBuilder<'a> {
             }
             // Handle both ArrayPattern (official AST) and ArrayExpression (our parser's AST)
             JsNode::ArrayPattern { elements, .. } => {
-                for elem in elements.iter().flatten() {
-                    self.declare_bindings_from_pattern_node_with_kind(
-                        elem,
-                        kind,
-                        inside_rest,
-                        decl_kind,
-                    );
-                }
-            }
-            JsNode::ArrayExpression { elements, .. } => {
                 for elem in elements.iter().flatten() {
                     self.declare_bindings_from_pattern_node_with_kind(
                         elem,
@@ -3647,9 +3587,9 @@ impl<'a> ScopeBuilder<'a> {
                 let Some(id_id) = decl.id() else { continue };
                 let id_node = self.arena.get_js_node(id_id);
                 let init_node = decl.init().map(|i| self.arena.get_js_node(i));
-                let binding_kind = init_node
-                    .map(|n| binding_kind_from_init_node(n, self.arena))
-                    .unwrap_or(BindingKind::Template);
+                let binding_kind = init_node.map_or(BindingKind::Template, |n| {
+                    binding_kind_from_init_node(n, self.arena)
+                });
                 self.declare_decl_tag_bindings_node(id_node, decl_kind, binding_kind);
                 if let Some(init) = init_node {
                     self.set_const_tag_initial_typed(id_node, init);
@@ -3658,7 +3598,7 @@ impl<'a> ScopeBuilder<'a> {
         }
     }
 
-    /// Declare DeclarationTag pattern bindings with `BindingKind::Template`
+    /// Declare `DeclarationTag` pattern bindings with `BindingKind::Template`
     /// (so the rest of the template-scope analysis treats them like
     /// `{@const}` bindings) but carry the user-supplied `let` / `const` /
     /// `var` keyword through as the `DeclarationKind`. The default
@@ -3747,7 +3687,7 @@ impl<'a> ScopeBuilder<'a> {
     /// Typed-AST equivalent of `set_const_tag_initial`. Avoids materializing
     /// the LHS pattern and the RHS init expression into intermediate
     /// `Value`s — pattern matching reads the Identifier name directly from
-    /// the typed JsNode, and the init is serialized to compact JSON via
+    /// the typed `JsNode`, and the init is serialized to compact JSON via
     /// `to_json_string()` (the byte-equivalent of `to_value().to_string()`
     /// without the intermediate allocation).
     fn set_const_tag_initial_typed(&mut self, pattern: &JsNode, init: &JsNode) {
@@ -3791,9 +3731,9 @@ impl<'a> ScopeBuilder<'a> {
         }
     }
 
-    /// Process a binding pattern from a JsNode.
+    /// Process a binding pattern from a `JsNode`.
     /// Const-tag bindings get `BindingKind::Template` to match the official Svelte compiler.
-    /// JsNode version of `process_binding_pattern_from_json`.
+    /// `JsNode` version of `process_binding_pattern_from_json`.
     fn process_binding_pattern_from_node(&mut self, pattern: &JsNode) {
         match pattern {
             JsNode::Identifier { name, .. } => {
@@ -3836,7 +3776,7 @@ impl<'a> ScopeBuilder<'a> {
 /// declaration tag from its typed init AST. Mirrors the OXC-side
 /// `detect_binding_kind_from_expr` for the rune-call recognition path: a
 /// bare `$state(...)` / `$state.raw(...)` / `$derived(...)` /
-/// `$derived.by(...)` call upgrades the binding kind to State / RawState /
+/// `$derived.by(...)` call upgrades the binding kind to State / `RawState` /
 /// Derived so the rest of the analyze + transform pipeline knows to wrap
 /// reads with `$.get(...)` and writes with `$.set(...)`.
 fn binding_kind_from_init_node(
@@ -3880,9 +3820,9 @@ fn binding_kind_from_init_node(
     BindingKind::Template
 }
 
-/// Recursively collect all Identifier names from a JsNode AST.
+/// Recursively collect all Identifier names from a `JsNode` AST.
 ///
-/// JsNode version of `collect_identifiers_from_json`. Used to extract identifiers
+/// `JsNode` version of `collect_identifiers_from_json`. Used to extract identifiers
 /// from a collection expression so their bindings can be promoted to State kind.
 fn collect_identifiers_from_node(node: &JsNode, result: &mut Vec<String>, arena: &ParseArena) {
     match node {
@@ -3958,14 +3898,6 @@ fn collect_identifiers_from_node(node: &JsNode, result: &mut Vec<String>, arena:
             collect_identifiers_from_node(arena.get_js_node(*tag), result, arena);
             collect_identifiers_from_node(arena.get_js_node(*quasi), result, arena);
         }
-        JsNode::NewExpression {
-            callee, arguments, ..
-        } => {
-            collect_identifiers_from_node(arena.get_js_node(*callee), result, arena);
-            for arg in arena.get_js_children(*arguments) {
-                collect_identifiers_from_node(arg, result, arena);
-            }
-        }
         // Leaf nodes (Literal, ThisExpression, etc.) - no identifiers
         _ => {}
     }
@@ -3973,7 +3905,7 @@ fn collect_identifiers_from_node(node: &JsNode, result: &mut Vec<String>, arena:
 
 /// Build scopes for a component AST.
 ///
-/// Returns a tuple of (ScopeRoot, Vec<AnalysisError>) where the errors
+/// Returns a tuple of (`ScopeRoot`, Vec<AnalysisError>) where the errors
 /// are validation errors collected during scope building.
 pub fn build_scopes(
     ast: &Root,
@@ -3989,8 +3921,8 @@ pub fn build_scopes(
     builder.build(ast)
 }
 
-/// JsNode version of `collect_arrow_param_names`. Walks the typed JsNode tree
-/// looking for ArrowFunctionExpression and FunctionExpression nodes, then
+/// `JsNode` version of `collect_arrow_param_names`. Walks the typed `JsNode` tree
+/// looking for `ArrowFunctionExpression` and `FunctionExpression` nodes, then
 /// extracts parameter identifier names. Avoids JSON conversion entirely.
 fn collect_arrow_param_names_node(node: &JsNode, names: &mut Vec<String>, arena: &ParseArena) {
     match node {
@@ -4017,14 +3949,6 @@ fn collect_arrow_param_names_node(node: &JsNode, names: &mut Vec<String>, arena:
                 collect_arrow_param_names_node(arg, names, arena);
             }
         }
-        JsNode::NewExpression {
-            callee, arguments, ..
-        } => {
-            collect_arrow_param_names_node(arena.get_js_node(*callee), names, arena);
-            for arg in arena.get_js_children(*arguments) {
-                collect_arrow_param_names_node(arg, names, arena);
-            }
-        }
         JsNode::MemberExpression {
             object, property, ..
         } => {
@@ -4032,11 +3956,6 @@ fn collect_arrow_param_names_node(node: &JsNode, names: &mut Vec<String>, arena:
             collect_arrow_param_names_node(arena.get_js_node(*property), names, arena);
         }
         JsNode::AssignmentExpression { left, right, .. } => {
-            collect_arrow_param_names_node(arena.get_js_node(*left), names, arena);
-            collect_arrow_param_names_node(arena.get_js_node(*right), names, arena);
-        }
-        JsNode::BinaryExpression { left, right, .. }
-        | JsNode::LogicalExpression { left, right, .. } => {
             collect_arrow_param_names_node(arena.get_js_node(*left), names, arena);
             collect_arrow_param_names_node(arena.get_js_node(*right), names, arena);
         }
@@ -4074,20 +3993,9 @@ fn collect_arrow_param_names_node(node: &JsNode, names: &mut Vec<String>, arena:
         JsNode::Property { value, .. } => {
             collect_arrow_param_names_node(arena.get_js_node(*value), names, arena);
         }
-        JsNode::TemplateLiteral { expressions, .. } => {
-            for expr in arena.get_js_children(*expressions) {
-                collect_arrow_param_names_node(expr, names, arena);
-            }
-        }
         JsNode::TaggedTemplateExpression { tag, quasi, .. } => {
             collect_arrow_param_names_node(arena.get_js_node(*tag), names, arena);
             collect_arrow_param_names_node(arena.get_js_node(*quasi), names, arena);
-        }
-        JsNode::YieldExpression {
-            argument: Some(argument),
-            ..
-        } => {
-            collect_arrow_param_names_node(arena.get_js_node(*argument), names, arena);
         }
         JsNode::ChainExpression { expression, .. } => {
             collect_arrow_param_names_node(arena.get_js_node(*expression), names, arena);
@@ -4096,15 +4004,6 @@ fn collect_arrow_param_names_node(node: &JsNode, names: &mut Vec<String>, arena:
             for stmt in arena.get_js_children(*body) {
                 collect_arrow_param_names_node(stmt, names, arena);
             }
-        }
-        JsNode::ExpressionStatement { expression, .. } => {
-            collect_arrow_param_names_node(arena.get_js_node(*expression), names, arena);
-        }
-        JsNode::ReturnStatement {
-            argument: Some(argument),
-            ..
-        } => {
-            collect_arrow_param_names_node(arena.get_js_node(*argument), names, arena);
         }
         JsNode::VariableDeclaration { declarations, .. } => {
             for decl in arena.get_js_children(*declarations) {
@@ -4133,12 +4032,12 @@ fn collect_arrow_param_names_node(node: &JsNode, names: &mut Vec<String>, arena:
     }
 }
 
-/// Get a JsNode's `(start, end)` source range.
+/// Get a `JsNode`'s `(start, end)` source range.
 fn span_of(node: &JsNode) -> Option<(u32, u32)> {
     node.start().zip(node.end())
 }
 
-/// Get the start position of a JsNode (helper for function_scope_map).
+/// Get the start position of a `JsNode` (helper for `function_scope_map`).
 fn node_start(node: &JsNode) -> Option<u32> {
     match node {
         JsNode::BlockStatement { start, .. }

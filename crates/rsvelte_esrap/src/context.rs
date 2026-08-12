@@ -31,7 +31,7 @@ pub struct Context {
 impl Context {
     /// A fresh, empty context.
     pub fn new() -> Self {
-        Context {
+        Self {
             commands: crate::pool::take(),
             ..Self::default()
         }
@@ -39,8 +39,8 @@ impl Context {
 
     /// A fresh child context. Named `child` rather than mirroring esrap's `new`
     /// because in this port it carries no shared visitor table.
-    pub fn child(&self) -> Context {
-        Context::new()
+    pub fn child() -> Self {
+        Self::new()
     }
 
     /// Grow the newline indentation by one level for subsequent newlines.
@@ -88,7 +88,7 @@ impl Context {
     }
 
     /// Splice `child`'s commands in place, propagating its multiline state.
-    pub fn append(&mut self, child: Context) {
+    pub fn append(&mut self, child: Self) {
         let child_multiline = child.multiline;
         self.measure += child.measure;
         self.has_content |= child.has_content;
@@ -99,13 +99,13 @@ impl Context {
     }
 
     /// `true` when nothing with visible content has been written.
-    pub fn empty(&self) -> bool {
+    pub const fn empty(&self) -> bool {
         !self.has_content
     }
 
     /// Total length of the literal strings in this context, ignoring whitespace
     /// sentinels — esrap's `measure`, used to decide if a layout fits on a line.
-    pub fn measure(&self) -> usize {
+    pub const fn measure(&self) -> usize {
         self.measure
     }
 
@@ -145,7 +145,7 @@ mod tests {
     #[test]
     fn append_propagates_multiline() {
         let mut parent = Context::new();
-        let mut child = parent.child();
+        let mut child = Context::child();
         child.newline();
         child.write("x");
         assert!(child.multiline);
@@ -158,7 +158,7 @@ mod tests {
     fn append_splices_child_output() {
         let mut parent = Context::new();
         parent.write("(");
-        let mut child = parent.child();
+        let mut child = Context::child();
         child.write("x");
         child.space();
         child.write("y");

@@ -13,22 +13,17 @@ use std::collections::{HashMap, HashSet};
 pub struct ExportedNames {
     names: HashMap<String, ExportedNameInfo>,
     insertion_order: Vec<String>,
-    uses_runes: bool,
-    has_props_rune: bool,
-    /// Type annotation text for $props() (e.g., "Props" from `let {...}: Props = $props()`)
+    flags: ExportedNamesFlags,
+    /// Type annotation text for $`props()` (e.g., "Props" from `let {...}: Props = $props()`)
     pub props_type_text: Option<String>,
-    /// Whether a $$ComponentProps typedef was generated (for use in return statement)
-    pub has_component_props_typedef: bool,
-    /// Names of $bindable() props
+    /// Whether a $$`ComponentProps` typedef was generated (for use in return statement)
+    /// Names of $`bindable()` props
     pub bindable_props: Vec<String>,
-    /// JSDoc type text found before $props() (e.g., "{{ a: number, b: string }}")
+    /// `JSDoc` type text found before $`props()` (e.g., "{{ a: number, b: string }}")
     pub props_jsdoc_type: Option<String>,
     /// Whether a legacy `type $$Props` / `interface $$Props` is declared.
-    pub uses_dollar_props_type: bool,
     /// Whether `$$Slots` type/interface is declared in the script
-    pub has_slots_type: bool,
     /// Whether `$$Events` type/interface is declared in the script
-    pub has_events_type: bool,
     /// Absolute source position of the FIRST `$$Events` interface / type
     /// declaration, if any. Official only injects `<__sveltets_2_CustomEvents<
     /// $$Events>>` onto an untyped `createEventDispatcher()` when the `$$Events`
@@ -36,19 +31,18 @@ pub struct ExportedNames {
     /// (`ComponentEventsFromInterface.isPresent()` gate), so the injection is
     /// gated on the dispatcher position coming AFTER this.
     pub events_type_decl_pos: Option<u32>,
-    /// Whether the $$ComponentProps type was already inserted by apply_props_typedef
+    /// Whether the $$`ComponentProps` type was already inserted by `apply_props_typedef`
     /// (for best-effort auto-generated types that go inside $$render, not before it)
-    pub type_already_inserted: bool,
     /// Generics collected from `type X = $$Generic<T>` declarations.
     /// Each entry is (name, constraint) e.g., ("A", None), ("B", Some("keyof A")).
     pub dollar_generics: Vec<(String, Option<String>)>,
     /// Source positions of `type X = $$Generic...` statements to blank out.
     pub dollar_generic_positions: Vec<(u32, u32)>,
     /// Type/interface declarations from instance script that should be hoisted
-    /// before $$render(). Each entry is (start, end) relative to source (absolute positions).
+    /// before $$`render()`. Each entry is (start, end) relative to source (absolute positions).
     pub hoistable_type_ranges: Vec<(u32, u32)>,
     /// Type/interface declarations referenced by `$$Generic<X>` constraints that
-    /// must be moved before $$render() so the generic constraint sees the type.
+    /// must be moved before $$`render()` so the generic constraint sees the type.
     /// Mirrors `nodesToMove` in the JS reference (`processInstanceScriptContent`).
     /// Each entry is `(start, end)` in absolute source positions; processing
     /// differs from `hoistable_type_ranges` (no `;` markers, no leading-trivia
@@ -116,59 +110,204 @@ pub struct ExportedNames {
     /// inserted via `append_right`.
     /// Mirrors upstream's `analyze$propsRune` → `moveHoistableInterfaces` for `$$ComponentProps`.
     pub props_type_arg_hoist: Option<(u32, u32)>,
-    /// True when `$props<{ ... }>()` (inline non-named type arg) form is used and the type
-    /// is being moved to scriptStart via `props_type_arg_hoist`. In this case `create_props_str`
-    /// should return `{} as any as $$ComponentProps` even without `props_type_text` being set
-    /// (to avoid triggering `ts_component_props_before_render`).
-    pub props_type_arg_hoist_ts: bool,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct ExportedNamesFlags(u16);
+
+impl ExportedNamesFlags {
+    const USES_RUNES: u16 = 1;
+    const HAS_PROPS_RUNE: u16 = 1 << 1;
+    const HAS_COMPONENT_PROPS_TYPEDEF: u16 = 1 << 2;
+    const USES_DOLLAR_PROPS_TYPE: u16 = 1 << 3;
+    const HAS_SLOTS_TYPE: u16 = 1 << 4;
+    const HAS_EVENTS_TYPE: u16 = 1 << 5;
+    const TYPE_ALREADY_INSERTED: u16 = 1 << 6;
+    const PROPS_TYPE_ARG_HOIST_TS: u16 = 1 << 7;
+
+    const fn contains(self, flag: u16) -> bool {
+        self.0 & flag != 0
+    }
+
+    const fn set(&mut self, flag: u16, enabled: bool) {
+        if enabled {
+            self.0 |= flag;
+        } else {
+            self.0 &= !flag;
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct ExportedNameInfo {
     pub local_name: String,
-    pub has_default: bool,
+    flags: ExportFlags,
     pub type_annotation: Option<String>,
-    pub is_prop: bool,
-    pub is_let: bool,
-    pub is_named_export: bool,
-    /// Leading JSDoc `/** @type {…} */` comment on the export declaration,
+    /// Leading `JSDoc` `/** @type {…} */` comment on the export declaration,
     /// preserved in the legacy `props: { … }` return (mirrors official's
     /// `value.doc`).
     pub doc: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub(super) struct ExportFlags(u8);
+
+impl ExportFlags {
+    const HAS_DEFAULT: u8 = 1;
+    const IS_PROP: u8 = 1 << 1;
+    const IS_LET: u8 = 1 << 2;
+    const IS_NAMED_EXPORT: u8 = 1 << 3;
+
+    pub const fn with_default_if(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.0 |= Self::HAS_DEFAULT;
+        }
+        self
+    }
+    pub const fn with_prop_if(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.0 |= Self::IS_PROP;
+        }
+        self
+    }
+    pub const fn with_let_if(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.0 |= Self::IS_LET;
+        }
+        self
+    }
+    pub const fn with_named_export_if(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.0 |= Self::IS_NAMED_EXPORT;
+        }
+        self
+    }
+    const fn contains(self, flag: u8) -> bool {
+        self.0 & flag != 0
+    }
+}
+
+impl ExportedNameInfo {
+    #[must_use]
+    pub const fn has_default(&self) -> bool {
+        self.flags.contains(ExportFlags::HAS_DEFAULT)
+    }
+
+    #[must_use]
+    pub const fn is_prop(&self) -> bool {
+        self.flags.contains(ExportFlags::IS_PROP)
+    }
+
+    #[must_use]
+    pub const fn is_let(&self) -> bool {
+        self.flags.contains(ExportFlags::IS_LET)
+    }
+
+    #[must_use]
+    pub const fn is_named_export(&self) -> bool {
+        self.flags.contains(ExportFlags::IS_NAMED_EXPORT)
+    }
+
+    fn mark_named_export(&mut self) {
+        self.flags.0 |= ExportFlags::IS_NAMED_EXPORT;
+        self.flags.0 &= !ExportFlags::IS_LET;
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(super) struct PossibleExport {
-    pub(super) is_let: bool,
-    pub(super) has_init: bool,
-    pub(super) has_type_annotation: bool,
+    flags: PossibleExportFlags,
     /// Initializer is a boolean literal (`let x = false`). Like official's
     /// `propTypeAssertToUserDefined`, this still forces the `__sveltets_2_any`
     /// widen (TS would otherwise narrow `x` to the `false`/`true` literal type).
-    pub(super) has_boolean_init: bool,
     pub(super) decl_end: u32,
     pub(super) type_annotation_text: Option<String>,
-    /// Leading JSDoc `/** @type {…} */` on the declaration, for
+    /// Leading `JSDoc` `/** @type {…} */` on the declaration, for
     /// `export { x as y }` (the doc lives on the `let x` declaration).
     pub(super) doc: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, Default)]
+pub(super) struct PossibleExportFlags(u8);
+
+impl PossibleExportFlags {
+    const IS_LET: u8 = 1;
+    const HAS_INIT: u8 = 1 << 1;
+    const HAS_TYPE_ANNOTATION: u8 = 1 << 2;
+    const HAS_BOOLEAN_INIT: u8 = 1 << 3;
+
+    const fn with_if(mut self, flag: u8, enabled: bool) -> Self {
+        if enabled {
+            self.0 |= flag;
+        }
+        self
+    }
+
+    pub(super) const fn with_let_if(self, enabled: bool) -> Self {
+        self.with_if(Self::IS_LET, enabled)
+    }
+
+    pub(super) const fn with_init_if(self, enabled: bool) -> Self {
+        self.with_if(Self::HAS_INIT, enabled)
+    }
+
+    pub(super) const fn with_type_annotation_if(self, enabled: bool) -> Self {
+        self.with_if(Self::HAS_TYPE_ANNOTATION, enabled)
+    }
+
+    pub(super) const fn with_boolean_init_if(self, enabled: bool) -> Self {
+        self.with_if(Self::HAS_BOOLEAN_INIT, enabled)
+    }
+
+    const fn contains(self, flag: u8) -> bool {
+        self.0 & flag != 0
+    }
+}
+
+impl PossibleExport {
+    pub(super) const fn from_parts(
+        flags: PossibleExportFlags,
+        decl_end: u32,
+        type_annotation_text: Option<String>,
+        doc: Option<String>,
+    ) -> Self {
+        Self {
+            flags,
+            decl_end,
+            type_annotation_text,
+            doc,
+        }
+    }
+
+    pub(super) const fn is_let(&self) -> bool {
+        self.flags.contains(PossibleExportFlags::IS_LET)
+    }
+
+    pub(super) const fn has_init(&self) -> bool {
+        self.flags.contains(PossibleExportFlags::HAS_INIT)
+    }
+
+    pub(super) const fn has_type_annotation(&self) -> bool {
+        self.flags
+            .contains(PossibleExportFlags::HAS_TYPE_ANNOTATION)
+    }
+
+    pub(super) const fn has_boolean_init(&self) -> bool {
+        self.flags.contains(PossibleExportFlags::HAS_BOOLEAN_INIT)
+    }
+}
+
 impl ExportedNames {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             names: HashMap::new(),
             insertion_order: Vec::new(),
-            uses_runes: false,
-            has_props_rune: false,
+            flags: ExportedNamesFlags::default(),
             props_type_text: None,
-            has_component_props_typedef: false,
             bindable_props: Vec::new(),
             props_jsdoc_type: None,
-            uses_dollar_props_type: false,
-            has_slots_type: false,
-            has_events_type: false,
             events_type_decl_pos: None,
-            type_already_inserted: false,
             dollar_generics: Vec::new(),
             dollar_generic_positions: Vec::new(),
             hoistable_type_ranges: Vec::new(),
@@ -182,13 +321,13 @@ impl ExportedNames {
             module_type_names: HashSet::new(),
             hoistable_instance_type_names: HashSet::new(),
             props_type_arg_hoist: None,
-            props_type_arg_hoist_ts: false,
             instance_script_loose_dollar_names: HashSet::new(),
         }
     }
     /// Build the generics string for `$$render` from `$$Generic` declarations.
     /// Returns something like `/*Ωignore_startΩ*/<A,B extends keyof A,C extends boolean>/*Ωignore_endΩ*/`
     /// or empty string if no $$Generic declarations.
+    #[must_use]
     pub fn build_dollar_generics_str(&self) -> String {
         if self.dollar_generics.is_empty() {
             return String::new();
@@ -197,11 +336,10 @@ impl ExportedNames {
             .dollar_generics
             .iter()
             .map(|(name, constraint)| {
-                if let Some(c) = constraint {
-                    format!("{} extends {}", name, c)
-                } else {
-                    name.clone()
-                }
+                constraint.as_ref().map_or_else(
+                    || name.clone(),
+                    |constraint| format!("{name} extends {constraint}"),
+                )
             })
             .collect();
         format!(
@@ -225,24 +363,20 @@ impl ExportedNames {
             name,
             ExportedNameInfo {
                 local_name,
-                has_default,
+                flags: ExportFlags::default()
+                    .with_default_if(has_default)
+                    .with_prop_if(is_prop),
                 type_annotation,
-                is_prop,
-                is_let: false,
-                is_named_export: false,
                 doc: None,
             },
         );
     }
-    pub fn add_full(
+    pub(super) fn add_full(
         &mut self,
         name: String,
         local_name: String,
-        has_default: bool,
         type_annotation: Option<String>,
-        is_prop: bool,
-        is_let: bool,
-        is_named_export: bool,
+        flags: ExportFlags,
     ) {
         if !self.names.contains_key(&name) {
             self.insertion_order.push(name.clone());
@@ -251,60 +385,114 @@ impl ExportedNames {
             name,
             ExportedNameInfo {
                 local_name,
-                has_default,
+                flags,
                 type_annotation,
-                is_prop,
-                is_let,
-                is_named_export,
                 doc: None,
             },
         );
     }
-    pub fn set_uses_runes(&mut self, val: bool) {
-        self.uses_runes = val;
+    pub const fn set_uses_runes(&mut self, val: bool) {
+        self.flags.set(ExportedNamesFlags::USES_RUNES, val);
     }
-    pub fn set_has_props_rune(&mut self, val: bool) {
-        self.has_props_rune = val;
+    pub const fn set_has_props_rune(&mut self, val: bool) {
+        self.flags.set(ExportedNamesFlags::HAS_PROPS_RUNE, val);
     }
-    pub fn is_runes_mode(&self) -> bool {
-        self.uses_runes || self.has_props_rune
+    #[must_use]
+    pub const fn has_component_props_typedef(&self) -> bool {
+        self.flags
+            .contains(ExportedNamesFlags::HAS_COMPONENT_PROPS_TYPEDEF)
     }
+    pub const fn set_has_component_props_typedef(&mut self, value: bool) {
+        self.flags
+            .set(ExportedNamesFlags::HAS_COMPONENT_PROPS_TYPEDEF, value);
+    }
+    #[must_use]
+    pub const fn uses_dollar_props_type(&self) -> bool {
+        self.flags
+            .contains(ExportedNamesFlags::USES_DOLLAR_PROPS_TYPE)
+    }
+    pub const fn set_uses_dollar_props_type(&mut self, value: bool) {
+        self.flags
+            .set(ExportedNamesFlags::USES_DOLLAR_PROPS_TYPE, value);
+    }
+    #[must_use]
+    pub const fn has_slots_type(&self) -> bool {
+        self.flags.contains(ExportedNamesFlags::HAS_SLOTS_TYPE)
+    }
+    pub const fn set_has_slots_type(&mut self, value: bool) {
+        self.flags.set(ExportedNamesFlags::HAS_SLOTS_TYPE, value);
+    }
+    #[must_use]
+    pub const fn has_events_type(&self) -> bool {
+        self.flags.contains(ExportedNamesFlags::HAS_EVENTS_TYPE)
+    }
+    pub const fn set_has_events_type(&mut self, value: bool) {
+        self.flags.set(ExportedNamesFlags::HAS_EVENTS_TYPE, value);
+    }
+    #[must_use]
+    pub const fn type_already_inserted(&self) -> bool {
+        self.flags
+            .contains(ExportedNamesFlags::TYPE_ALREADY_INSERTED)
+    }
+    pub const fn set_type_already_inserted(&mut self, value: bool) {
+        self.flags
+            .set(ExportedNamesFlags::TYPE_ALREADY_INSERTED, value);
+    }
+    #[must_use]
+    pub const fn props_type_arg_hoist_ts(&self) -> bool {
+        self.flags
+            .contains(ExportedNamesFlags::PROPS_TYPE_ARG_HOIST_TS)
+    }
+    pub const fn set_props_type_arg_hoist_ts(&mut self, value: bool) {
+        self.flags
+            .set(ExportedNamesFlags::PROPS_TYPE_ARG_HOIST_TS, value);
+    }
+    #[must_use]
+    pub const fn is_runes_mode(&self) -> bool {
+        self.flags.contains(ExportedNamesFlags::USES_RUNES)
+            || self.flags.contains(ExportedNamesFlags::HAS_PROPS_RUNE)
+    }
+    #[must_use]
     pub fn get_prop_names(&self) -> Vec<&str> {
         let mut names: Vec<&str> = self
             .names
             .iter()
-            .filter(|(_, info)| info.is_prop)
+            .filter(|(_, info)| info.is_prop())
             .map(|(name, _)| name.as_str())
             .collect();
-        names.sort();
+        names.sort_unstable();
         names
     }
+    #[must_use]
     pub fn get_all_names(&self) -> Vec<&str> {
-        let mut names: Vec<&str> = self.names.keys().map(|s| s.as_str()).collect();
-        names.sort();
+        let mut names: Vec<&str> = self.names.keys().map(std::string::String::as_str).collect();
+        names.sort_unstable();
         names
     }
+    #[must_use]
     pub fn has(&self, name: &str) -> bool {
         self.names.contains_key(name)
     }
     /// True if `local` is the *local* (source-declared) name of any export.
     /// Unlike `has`, this matches through aliases: `export { v1 as a1 }`
     /// is keyed by `a1`, but its local name is `v1`.
+    #[must_use]
     pub fn has_local(&self, local: &str) -> bool {
         self.names.values().any(|info| info.local_name == local)
     }
     /// Mirror official `hasNoProps()`: runes mode → no `$props` type/comment;
     /// legacy → no exports.
+    #[must_use]
     pub fn has_no_props(&self) -> bool {
         if self.is_runes_mode() {
             self.props_type_text.is_none()
-                && !self.has_component_props_typedef
+                && !self.has_component_props_typedef()
                 && self.props_jsdoc_type.is_none()
         } else {
             self.names.is_empty()
         }
     }
-    /// Attach the leading JSDoc comment to an exported name (by export key).
+    /// Attach the leading `JSDoc` comment to an exported name (by export key).
     pub fn set_doc(&mut self, name: &str, doc: String) {
         if let Some(info) = self.names.get_mut(name) {
             info.doc = Some(doc);
@@ -331,100 +519,47 @@ impl ExportedNames {
             return;
         };
         info.local_name = local.to_string();
-        info.is_let = false;
-        info.is_named_export = true;
+        info.mark_named_export();
         info.type_annotation = None;
         info.doc = doc;
         match self.insertion_order.iter().position(|k| k == local) {
-            Some(pos) => self.insertion_order[pos] = exported.clone(),
+            Some(pos) => self.insertion_order[pos].clone_from(&exported),
             None => self.insertion_order.push(exported.clone()),
         }
         self.names.insert(exported, info);
     }
+    #[must_use]
     pub fn get(&self, name: &str) -> Option<&ExportedNameInfo> {
         self.names.get(name)
     }
     pub fn get_mut(&mut self, name: &str) -> Option<&mut ExportedNameInfo> {
         self.names.get_mut(name)
     }
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.names.is_empty()
     }
+    #[must_use]
     pub fn create_props_str(&self, is_ts: bool, uses_dollar_props: bool) -> String {
         if self.is_runes_mode() {
-            // Type-arg hoist case: `$props<{ ... }>()` with type moved to scriptStart
-            if self.props_type_arg_hoist_ts {
-                return "{} as any as $$ComponentProps".to_string();
-            }
-            // If we generated a $$ComponentProps typedef (hoistable TS or JSDoc), use it
-            if self.has_component_props_typedef && self.props_type_text.is_some() {
-                // TS hoistable case: `{} as any as $$ComponentProps`
-                return "{} as any as $$ComponentProps".to_string();
-            }
-            if self.has_component_props_typedef {
-                // JSDoc/inferred case: `/** @type {$$ComponentProps} */({})`
-                return "/** @type {$$ComponentProps} */({})".to_string();
-            }
-
-            // Non-hoistable TS case: use the type text directly
-            // e.g., `{} as any as Props<boolean>`
-            if let Some(ref type_text) = self.props_type_text {
-                return format!("{{}} as any as {}", type_text);
-            }
-
-            // JSDoc named type case: `/** @type {SomeType} */` → `/** @type {SomeType} */({})`
-            if let Some(ref jsdoc_type) = self.props_jsdoc_type
-                && !self.has_component_props_typedef
-            {
-                return format!("/** @type {} */({{}})", jsdoc_type);
-            }
-
-            // Otherwise, list the prop entries from $props() destructuring.
-            // In runes mode, props ONLY come from a `$props()` call; a stray
-            // `export let foo` is not a prop (it's a runes-mode error), so
-            // without a `$props()` call there are no props. Named exports
-            // (`export { x as y }`) are likewise not props.
-            let mut entries = String::from("{");
-            let mut has_entries = false;
-            if self.has_props_rune {
-                for (en, info) in self
-                    .ordered()
-                    .filter(|(_, info)| info.is_prop && !info.is_named_export)
-                {
-                    if has_entries {
-                        entries.push_str(" , ");
-                    }
-                    has_entries = true;
-                    entries.push_str(en);
-                    entries.push_str(": ");
-                    entries.push_str(&info.local_name);
-                }
-            }
-            if !has_entries {
-                // Reference: addComponentExport.ts `props()` function —
-                // runes mode with no props: TS uses `{} as Record<string, never>`,
-                // JS uses `/** @type {Record<string, never>} */ ({})`.
-                return if is_ts {
-                    "{} as Record<string, never>".to_string()
-                } else {
-                    "/** @type {Record<string, never>} */ ({})".to_string()
-                };
-            }
-            entries.push('}');
-            return entries;
+            return self.create_runes_props_str(is_ts);
         }
         // Legacy `$$Props` type/interface (TS only): mirror official's
         // `uses$$Props` branch — wrap the props in `__sveltets_2_ensureRightProps`
         // and assert against `$$Props` (with non-`let` exports `& `-joined in).
         // Reference: ExportedNames.ts createPropsStr uses$$Props branch.
-        if self.uses_dollar_props_type && is_ts {
+        if self.uses_dollar_props_type() && is_ts {
             // Mirror official `createReturnElementsType`: each member is prefixed
             // with its leading JSDoc (`addDoc` defaults true), so a `/** … */`
             // comment on the `export let` survives into the `$$Props` type list.
             let mut lets = String::new();
             let mut others = String::new();
             for (en, info) in self.ordered() {
-                let output = if info.is_let { &mut lets } else { &mut others };
+                let output = if info.is_let() {
+                    &mut lets
+                } else {
+                    &mut others
+                };
                 if !output.is_empty() {
                     output.push(',');
                 }
@@ -455,7 +590,7 @@ impl ExportedNames {
             || self
                 .names
                 .values()
-                .all(|info| info.type_annotation.is_none() && info.is_let && !info.has_default);
+                .all(|info| info.type_annotation.is_none() && info.is_let() && !info.has_default());
         // When `dontAddTypeDef`, the props object omits the `as {…}` type assert,
         // so a captured leading JSDoc `/** … */` is emitted before the prop's
         // value element — mirrors official `createReturnElements`.
@@ -503,10 +638,50 @@ impl ExportedNames {
         }
         entries
     }
+
+    fn create_runes_props_str(&self, is_ts: bool) -> String {
+        if self.props_type_arg_hoist_ts()
+            || (self.has_component_props_typedef() && self.props_type_text.is_some())
+        {
+            return "{} as any as $$ComponentProps".to_string();
+        }
+        if self.has_component_props_typedef() {
+            return "/** @type {$$ComponentProps} */({})".to_string();
+        }
+        if let Some(type_text) = &self.props_type_text {
+            return format!("{{}} as any as {type_text}");
+        }
+        if let Some(jsdoc_type) = &self.props_jsdoc_type {
+            return format!("/** @type {jsdoc_type} */({{}})");
+        }
+
+        let entries = self.runes_prop_entries();
+        if entries.is_empty() {
+            return if is_ts {
+                "{} as Record<string, never>".to_string()
+            } else {
+                "/** @type {Record<string, never>} */ ({})".to_string()
+            };
+        }
+        format!("{{{entries}}}")
+    }
+
+    fn runes_prop_entries(&self) -> String {
+        if !self.flags.contains(ExportedNamesFlags::HAS_PROPS_RUNE) {
+            return String::new();
+        }
+        self.ordered()
+            .filter(|(_, info)| info.is_prop() && !info.is_named_export())
+            .map(|(name, info)| format!("{name}: {}", info.local_name))
+            .collect::<Vec<_>>()
+            .join(" , ")
+    }
+    #[must_use]
     pub fn create_exports_str(&self, is_svelte5: bool, is_ts: bool) -> String {
         self.create_exports_str_with_accessors(is_svelte5, false, is_ts)
     }
 
+    #[must_use]
     pub fn create_exports_str_with_accessors(
         &self,
         is_svelte5: bool,
@@ -530,17 +705,13 @@ impl ExportedNames {
                 type_entries.push('\n');
                 type_entries.push_str(doc);
             }
-            match &info.type_annotation {
-                Some(type_annotation) => {
-                    type_entries.push_str(en);
-                    type_entries.push_str(": ");
-                    type_entries.push_str(type_annotation);
-                }
-                None => {
-                    type_entries.push_str(en);
-                    type_entries.push_str(": typeof ");
-                    type_entries.push_str(&info.local_name);
-                }
+            type_entries.push_str(en);
+            if let Some(type_annotation) = &info.type_annotation {
+                type_entries.push_str(": ");
+                type_entries.push_str(type_annotation);
+            } else {
+                type_entries.push_str(": typeof ");
+                type_entries.push_str(&info.local_name);
             }
 
             // Official's `onlyTyped` value list omits untyped runes exports.
@@ -553,7 +724,9 @@ impl ExportedNames {
                 value_entries.push_str(&info.local_name);
             }
         }
-        if !type_entries.is_empty() {
+        if type_entries.is_empty() {
+            ", exports: {}".to_string()
+        } else {
             let mut result = String::with_capacity(40 + value_entries.len() + type_entries.len());
             if is_ts {
                 result.push_str(", exports: {");
@@ -567,10 +740,9 @@ impl ExportedNames {
                 result.push_str("}} */ ({})");
             }
             result
-        } else {
-            ", exports: {}".to_string()
         }
     }
+    #[must_use]
     pub fn create_bindings_str(&self, is_svelte5: bool) -> String {
         if !is_svelte5 {
             return String::new();
@@ -582,7 +754,7 @@ impl ExportedNames {
                 let bindings: Vec<String> = self
                     .bindable_props
                     .iter()
-                    .map(|n| format!("'{}'", n))
+                    .map(|n| format!("'{n}'"))
                     .collect();
                 format!(", bindings: __sveltets_$$bindings({})", bindings.join(", "))
             }
@@ -590,7 +762,8 @@ impl ExportedNames {
             ", bindings: \"\"".to_string()
         }
     }
-    /// Return just the raw bindings value (for __sveltets_Render class)
+    /// Return just the raw bindings value (for __`sveltets_Render` class)
+    #[must_use]
     pub fn create_raw_bindings_str(&self, is_svelte5: bool) -> String {
         if !is_svelte5 {
             return "\"\"".to_string();
@@ -602,7 +775,7 @@ impl ExportedNames {
                 let bindings: Vec<String> = self
                     .bindable_props
                     .iter()
-                    .map(|n| format!("'{}'", n))
+                    .map(|n| format!("'{n}'"))
                     .collect();
                 format!("__sveltets_$$bindings({})", bindings.join(", "))
             }
@@ -611,7 +784,8 @@ impl ExportedNames {
         }
     }
 
-    /// Return just the raw exports value (for __sveltets_Render class)
+    /// Return just the raw exports value (for __`sveltets_Render` class)
+    #[must_use]
     pub fn create_raw_exports_str(
         &self,
         is_svelte5: bool,
@@ -640,7 +814,7 @@ impl ExportedNames {
             let Some(info) = self.names.get(en) else {
                 continue;
             };
-            if info.has_default || !info.is_let {
+            if info.has_default() || !info.is_let() {
                 if wrote_prop {
                     output.push(',');
                 }
@@ -658,14 +832,14 @@ impl ExportedNames {
             .filter_map(|n| self.names.get(n).map(|i| (n.as_str(), i)))
     }
 
-    fn is_export(info: &ExportedNameInfo, accessors: bool, runes_mode: bool) -> bool {
-        if accessors && info.is_let {
+    const fn is_export(info: &ExportedNameInfo, accessors: bool, runes_mode: bool) -> bool {
+        if accessors && info.is_let() {
             return true;
         }
-        if info.is_prop && !info.is_named_export {
+        if info.is_prop() && !info.is_named_export() {
             return false;
         }
-        !info.is_let || (runes_mode && info.is_named_export)
+        !info.is_let() || (runes_mode && info.is_named_export())
     }
 
     fn write_type_entry(output: &mut String, name: &str, info: &ExportedNameInfo) {
@@ -674,16 +848,15 @@ impl ExportedNames {
             output.push(' ');
         }
         output.push_str(name);
-        if info.has_default || !info.is_let {
+        if info.has_default() || !info.is_let() {
             output.push('?');
         }
         output.push_str(": ");
-        match &info.type_annotation {
-            Some(type_annotation) => output.push_str(type_annotation),
-            None => {
-                output.push_str("typeof ");
-                output.push_str(&info.local_name);
-            }
+        if let Some(type_annotation) = &info.type_annotation {
+            output.push_str(type_annotation);
+        } else {
+            output.push_str("typeof ");
+            output.push_str(&info.local_name);
         }
     }
 }
@@ -844,11 +1017,8 @@ mod tests {
             names.add_full(
                 exported.clone(),
                 local.clone(),
-                false,
                 None,
-                true,
-                true,
-                false,
+                ExportFlags::default().with_prop_if(true).with_let_if(true),
             );
             if index != 0 {
                 expected.push_str(" , ");
@@ -872,11 +1042,8 @@ mod tests {
             names.add_full(
                 exported.clone(),
                 local.clone(),
-                false,
                 Some("number".to_string()),
-                false,
-                false,
-                true,
+                ExportFlags::default().with_named_export_if(true),
             );
             if index != 0 {
                 values.push(',');

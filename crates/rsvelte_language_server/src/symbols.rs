@@ -70,11 +70,11 @@ struct Symbol {
     span: Span,
     /// The part of `span` a client selects when the symbol is picked.
     selection: Span,
-    children: Vec<Symbol>,
+    children: Vec<Self>,
 }
 
 impl Symbol {
-    fn leaf(name: String, kind: SymbolKind, span: Span, selection: Span) -> Self {
+    const fn leaf(name: String, kind: SymbolKind, span: Span, selection: Span) -> Self {
         Self {
             name,
             kind,
@@ -236,7 +236,7 @@ fn script_name(script: &Script<'_>) -> String {
     }
 }
 
-fn tag_name_span(start: u32, tag: &str) -> Span {
+const fn tag_name_span(start: u32, tag: &str) -> Span {
     (start + 1, start + 1 + tag.len() as u32)
 }
 

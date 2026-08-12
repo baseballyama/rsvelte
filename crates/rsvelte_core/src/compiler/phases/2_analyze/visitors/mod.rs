@@ -84,24 +84,24 @@ use super::types::{ComponentAnalysis, CssDomElement};
 use crate::ast::arena::ParseArena;
 use crate::ast::template::{Root, TemplateNode};
 
-/// Information about the current EachBlock context for animate: validation.
+/// Information about the current `EachBlock` context for animate: validation.
 #[derive(Debug, Clone)]
 pub struct EachBlockContext {
-    /// Whether the EachBlock has a key.
+    /// Whether the `EachBlock` has a key.
     pub has_key: bool,
-    /// Number of non-empty child elements in the EachBlock body.
+    /// Number of non-empty child elements in the `EachBlock` body.
     pub child_count: usize,
 }
 
-/// A wrapper that provides access to an AST node on the js_path.
+/// A wrapper that provides access to an AST node on the `js_path`.
 ///
 /// Supports three modes:
 /// - **Borrowed**: a raw pointer to a `Value` whose lifetime is managed by the caller
 ///   (used by `walk_js_node` where the `&Value` outlives the push/pop).
 /// - **Owned**: a `Box<Value>` for cases where the value is created on the fly.
-/// - **TypedNode**: a raw pointer to a `JsNode` with a lazily-materialized `Value`
+/// - **`TypedNode`**: a raw pointer to a `JsNode` with a lazily-materialized `Value`
 ///   (used by `walk_js_node_typed` to avoid the expensive `to_value()` conversion
-///   for the vast majority of nodes that are never inspected via js_path).
+///   for the vast majority of nodes that are never inspected via `js_path`).
 pub enum JsPathEntry {
     Borrowed(*const serde_json::Value),
     Owned(Box<serde_json::Value>),
@@ -133,12 +133,14 @@ impl Clone for JsPathEntry {
 impl JsPathEntry {
     /// Create a new `JsPathEntry` from a reference (borrowed, zero-cost).
     #[inline]
+    #[must_use]
     pub fn new(value: &serde_json::Value) -> Self {
         Self::Borrowed(value as *const _)
     }
 
     /// Create a new `JsPathEntry` that owns the `Value`.
     #[inline]
+    #[must_use]
     pub fn new_owned(value: serde_json::Value) -> Self {
         Self::Owned(Box::new(value))
     }
@@ -146,6 +148,7 @@ impl JsPathEntry {
     /// Create a new `JsPathEntry` from a `JsNode` reference (zero-cost).
     /// The Value will be lazily materialized only if `as_value()` or `Deref` is called.
     #[inline]
+    #[must_use]
     pub fn new_typed(node: &crate::ast::typed_expr::JsNode) -> Self {
         Self::TypedNode {
             node: node as *const _,
@@ -155,7 +158,11 @@ impl JsPathEntry {
 
     /// Get a reference to the underlying `Value`.
     ///
-    /// For `TypedNode` entries, lazily converts the JsNode to Value on first access.
+    /// For `TypedNode` entries, lazily converts the `JsNode` to Value on first access.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the traversal's typed-node cache invariant is violated.
     #[inline]
     pub fn as_value(&self) -> &serde_json::Value {
         match self {
@@ -191,9 +198,9 @@ impl JsPathEntry {
         }
     }
 
-    /// Get the ESTree type string for this entry.
+    /// Get the `ESTree` type string for this entry.
     ///
-    /// Works across all variants without converting TypedNode to Value.
+    /// Works across all variants without converting `TypedNode` to Value.
     #[inline]
     pub fn get_type_str(&self) -> Option<&str> {
         match self {
@@ -211,7 +218,7 @@ impl JsPathEntry {
     /// Get a string field value by name.
     ///
     /// For Value entries, does `node.get(field).and_then(|v| v.as_str())`.
-    /// For TypedNode entries, handles known fields like "name", "operator", "kind".
+    /// For `TypedNode` entries, handles known fields like "name", "operator", "kind".
     pub fn get_field_str(&self, field: &str) -> Option<&str> {
         match self {
             Self::TypedNode { node, .. } => {
@@ -235,7 +242,10 @@ impl JsPathEntry {
                 let js_node = unsafe { &**node };
                 js_node.get_field_bool(field)
             }
-            _ => self.as_value().get(field).and_then(|v| v.as_bool()),
+            _ => self
+                .as_value()
+                .get(field)
+                .and_then(serde_json::Value::as_bool),
         }
     }
 
@@ -249,7 +259,10 @@ impl JsPathEntry {
                 let js_node = unsafe { &**node };
                 js_node.get_field_u64(field)
             }
-            _ => self.as_value().get(field).and_then(|v| v.as_u64()),
+            _ => self
+                .as_value()
+                .get(field)
+                .and_then(serde_json::Value::as_u64),
         }
     }
 
@@ -274,8 +287,8 @@ impl JsPathEntry {
                 .as_value()
                 .get(field)
                 .and_then(|v| v.get("start"))
-                .and_then(|s| s.as_u64())
-                .map(|n| n as u32),
+                .and_then(serde_json::Value::as_u64)
+                .and_then(|n| u32::try_from(n).ok()),
         }
     }
 
@@ -297,12 +310,12 @@ impl JsPathEntry {
                 .as_value()
                 .get(field)
                 .and_then(|v| v.get("end"))
-                .and_then(|e| e.as_u64())
-                .map(|n| n as u32),
+                .and_then(serde_json::Value::as_u64)
+                .and_then(|n| u32::try_from(n).ok()),
         }
     }
 
-    /// Get the callee JsNode for a CallExpression entry, if typed.
+    /// Get the callee `JsNode` for a `CallExpression` entry, if typed.
     ///
     /// Falls back to None for non-typed entries.
     pub fn get_callee_typed<'a>(
@@ -321,7 +334,7 @@ impl JsPathEntry {
         }
     }
 
-    /// Check if this entry is a specific ESTree node type.
+    /// Check if this entry is a specific `ESTree` node type.
     #[inline]
     pub fn is_type(&self, type_name: &str) -> bool {
         self.get_type_str() == Some(type_name)
@@ -338,19 +351,19 @@ impl std::ops::Deref for JsPathEntry {
 }
 
 /// Context for AST visitor traversal.
-/// Corresponds to AnalysisState in the official compiler.
+/// Corresponds to `AnalysisState` in the official compiler.
 pub struct VisitorContext<'a> {
     /// The current scope.
     pub scope: usize,
     /// The analysis being built.
     pub analysis: &'a mut ComponentAnalysis,
-    /// The parse arena used to resolve JsNodeId and IdRange references.
+    /// The parse arena used to resolve `JsNodeId` and `IdRange` references.
     pub parse_arena: &'a ParseArena,
     /// The path of nodes from root to current (Svelte template nodes).
     pub path: Vec<&'a TemplateNode<'a>>,
     /// JavaScript AST node path (for expressions in scripts).
     /// Uses `JsPathEntry` (a raw pointer wrapper) to avoid expensive deep clones.
-    /// SAFETY: Pointers are always valid because walk_js_node pushes a pointer
+    /// SAFETY: Pointers are always valid because `walk_js_node` pushes a pointer
     /// before visiting and pops it after, matching the call stack lifetime.
     pub js_path: Vec<JsPathEntry>,
     /// Information about the current expression/directive/block value being analyzed.
@@ -363,7 +376,7 @@ pub struct VisitorContext<'a> {
     pub function_depth: usize,
     /// Depth inside $derived(...) expressions (but not $derived.by(...)) or @const
     pub derived_function_depth: usize,
-    /// Whether we have a $props() rune.
+    /// Whether we have a $`props()` rune.
     pub has_props_rune: bool,
     /// Current component slots.
     pub component_slots: rustc_hash::FxHashSet<String>,
@@ -372,7 +385,7 @@ pub struct VisitorContext<'a> {
     /// Current reactive statement being analyzed (for legacy mode)
     pub reactive_statement: Option<*mut super::types::ReactiveStatement>,
     /// Whether we're currently inside a `$:` reactive declaration.
-    /// Used for reactive_declaration_module_script_dependency warning.
+    /// Used for `reactive_declaration_module_script_dependency` warning.
     pub in_reactive_declaration: bool,
     /// State fields in the current class (for class body analysis)
     pub state_fields: rustc_hash::FxHashMap<String, super::types::StateField>,
@@ -395,13 +408,13 @@ pub struct VisitorContext<'a> {
     /// Whether we've seen svelte:options.
     pub has_svelte_options: bool,
     /// First on: directive encountered (name for error message).
-    /// Used for mixed_event_handler_syntaxes validation.
+    /// Used for `mixed_event_handler_syntaxes` validation.
     pub event_directive_node: Option<String>,
     /// Whether any event attributes (onclick, etc.) have been used.
-    /// Used for mixed_event_handler_syntaxes validation.
+    /// Used for `mixed_event_handler_syntaxes` validation.
     pub uses_event_attributes: bool,
     /// Whether we're inside a template expression tag ({expression}).
-    /// Used to detect reactive context for pickled_awaits.
+    /// Used to detect reactive context for `pickled_awaits`.
     pub in_expression_tag: bool,
     /// Whether the template expression walker (`walk_js_expression` /
     /// `walk_js_expression_node`) is currently inside a function body.
@@ -412,7 +425,7 @@ pub struct VisitorContext<'a> {
     pub in_template_function: bool,
     /// Stack of ignored warning codes.
     /// Each entry is a set of warning codes that should be ignored at that nesting level.
-    /// Corresponds to ignore_stack in Svelte's state.js.
+    /// Corresponds to `ignore_stack` in Svelte's state.js.
     pub ignore_stack: Vec<rustc_hash::FxHashSet<String>>,
     /// Map from a script JS node's absolute `start` offset to the raw `svelte-ignore`
     /// comment value texts attached to it as leading comments. Populated from the typed
@@ -422,18 +435,18 @@ pub struct VisitorContext<'a> {
     /// in place of reading `leadingComments` off a materialized `JsNode::Raw` Value.
     /// Empty outside a script walk and whenever the script has no `svelte-ignore` comments.
     pub script_ignore_comments: rustc_hash::FxHashMap<u32, Vec<compact_str::CompactString>>,
-    /// Stack of ancestor element names for node_invalid_placement validation.
-    /// This is separate from path because path contains TemplateNode references that are difficult to manage.
+    /// Stack of ancestor element names for `node_invalid_placement` validation.
+    /// This is separate from path because path contains `TemplateNode` references that are difficult to manage.
     pub element_ancestors: Vec<String>,
-    /// Tracks whether a block (IfBlock, EachBlock, AwaitBlock, KeyBlock) was entered
-    /// since the last element. This is used to determine whether node_invalid_placement
+    /// Tracks whether a block (`IfBlock`, `EachBlock`, `AwaitBlock`, `KeyBlock`) was entered
+    /// since the last element. This is used to determine whether `node_invalid_placement`
     /// should be a warning (SSR) or error.
     /// The value is the block depth at the time the element was entered.
     pub block_depth_at_element: Vec<usize>,
-    /// Stack of EachBlock contexts for animate: validation.
-    /// When entering an EachBlock, we push info about it. When an element is visited,
-    /// it checks if its direct parent is an EachBlock by checking the top of this stack.
-    /// When entering an element, we push None to indicate we're no longer directly in the EachBlock.
+    /// Stack of `EachBlock` contexts for animate: validation.
+    /// When entering an `EachBlock`, we push info about it. When an element is visited,
+    /// it checks if its direct parent is an `EachBlock` by checking the top of this stack.
+    /// When entering an element, we push None to indicate we're no longer directly in the `EachBlock`.
     pub each_block_stack: Vec<Option<EachBlockContext>>,
     /// Tracks if we're directly inside a component (for svelte:fragment validation).
     /// This is set to true when entering a Component/SvelteComponent, and reset to false
@@ -445,27 +458,27 @@ pub struct VisitorContext<'a> {
     /// immediate parent is a snippet block is allowed (not a placement error).
     /// Reset to false whenever a nested element/block is entered.
     pub is_direct_child_of_snippet: bool,
-    /// Stack of slot owner types (Component or CustomElement).
-    /// When entering a component, push SlotOwnerType::Component.
-    /// When entering a custom element (RegularElement with '-' in name), push SlotOwnerType::CustomElement.
+    /// Stack of slot owner types (Component or `CustomElement`).
+    /// When entering a component, push `SlotOwnerType::Component`.
+    /// When entering a custom element (`RegularElement` with '-' in name), push `SlotOwnerType::CustomElement`.
     /// Used to determine if slot attribute is valid - the nearest owner determines behavior.
     pub slot_owner_ancestors: Vec<SlotOwnerType>,
     /// Stack of fragment owner types.
-    /// Used for const_tag placement validation - const tags must be direct children of
-    /// specific fragment owners (IfBlock, EachBlock, AwaitBlock, KeyBlock, SnippetBlock,
-    /// Component, SvelteFragment, SvelteBoundary, or elements with slot attribute).
+    /// Used for `const_tag` placement validation - const tags must be direct children of
+    /// specific fragment owners (`IfBlock`, `EachBlock`, `AwaitBlock`, `KeyBlock`, `SnippetBlock`,
+    /// Component, `SvelteFragment`, `SvelteBoundary`, or elements with slot attribute).
     pub fragment_owner_stack: Vec<FragmentOwnerType>,
     /// The current scope during template analysis.
-    /// This is updated when entering scope-creating constructs like EachBlocks
+    /// This is updated when entering scope-creating constructs like `EachBlocks`
     /// to allow correct binding lookup for directives inside those constructs.
-    /// Used by bind_directive analysis to find the correct binding for bind:group.
+    /// Used by `bind_directive` analysis to find the correct binding for bind:group.
     pub current_template_scope: usize,
     /// Whether we're currently inside a {@const} tag expression.
-    /// Used to detect invalid rune usage (e.g., $derived() inside {@const}).
+    /// Used to detect invalid rune usage (e.g., $`derived()` inside {@const}).
     pub in_const_tag: bool,
     /// Whether we're currently inside a bind:this directive expression.
     /// Used to prevent `identifier::visit` from setting `has_direct_template_read`
-    /// for bind:this references, since bind:this has special non_reactive_update logic.
+    /// for bind:this references, since bind:this has special `non_reactive_update` logic.
     pub in_bind_this: bool,
     /// Undo log of temporary shadowing inserts into `analysis.root.scope.declarations`
     /// made while walking a function/arrow body. Each entry is `(name, previous)` where
@@ -479,47 +492,47 @@ pub struct VisitorContext<'a> {
 /// Type of ancestor that can "own" a slot attribute.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SlotOwnerType {
-    /// A component (Component, SvelteComponent, SvelteSelf, SvelteElement)
+    /// A component (Component, `SvelteComponent`, `SvelteSelf`, `SvelteElement`)
     Component,
-    /// A custom element (RegularElement with hyphen in name)
+    /// A custom element (`RegularElement` with hyphen in name)
     CustomElement,
 }
 
 /// Type of parent that owns the current fragment being visited.
-/// Used for const_tag placement validation.
+/// Used for `const_tag` placement validation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FragmentOwnerType {
     /// Root fragment (top-level)
     Root,
-    /// Inside a RegularElement (without slot attribute)
+    /// Inside a `RegularElement` (without slot attribute)
     RegularElement,
-    /// Inside a RegularElement with a slot attribute
+    /// Inside a `RegularElement` with a slot attribute
     RegularElementWithSlot,
-    /// Inside a Component (or SvelteComponent, SvelteSelf)
+    /// Inside a Component (or `SvelteComponent`, `SvelteSelf`)
     Component,
-    /// Inside an IfBlock branch
+    /// Inside an `IfBlock` branch
     IfBlock,
-    /// Inside an EachBlock body or fallback
+    /// Inside an `EachBlock` body or fallback
     EachBlock,
-    /// Inside an AwaitBlock branch (pending, then, catch)
+    /// Inside an `AwaitBlock` branch (pending, then, catch)
     AwaitBlock,
-    /// Inside a KeyBlock
+    /// Inside a `KeyBlock`
     KeyBlock,
-    /// Inside a SnippetBlock (scope index, snippet name)
+    /// Inside a `SnippetBlock` (scope index, snippet name)
     SnippetBlock(usize, String),
-    /// Inside a SvelteFragment
+    /// Inside a `SvelteFragment`
     SvelteFragment,
-    /// Inside a SvelteBoundary
+    /// Inside a `SvelteBoundary`
     SvelteBoundary,
-    /// Inside a SvelteElement (without slot attribute)
+    /// Inside a `SvelteElement` (without slot attribute)
     SvelteElement,
-    /// Inside a SvelteElement with a slot attribute
+    /// Inside a `SvelteElement` with a slot attribute
     SvelteElementWithSlot,
-    /// Inside a SlotElement
+    /// Inside a `SlotElement`
     SlotElement,
-    /// Inside a SvelteHead
+    /// Inside a `SvelteHead`
     SvelteHead,
-    /// Inside a TitleElement
+    /// Inside a `TitleElement`
     TitleElement,
 }
 
@@ -583,6 +596,7 @@ impl<'a> VisitorContext<'a> {
     }
 
     /// Check if currently inside an element or block (for placement validation).
+    #[must_use]
     pub fn is_inside_element_or_block(&self) -> bool {
         self.element_depth > 0 || self.block_depth > 0 || self.component_depth > 0
     }
@@ -595,11 +609,13 @@ impl<'a> VisitorContext<'a> {
     }
 
     /// Get the current parent element index (if any).
+    #[must_use]
     pub fn current_parent_idx(&self) -> Option<usize> {
         self.dom_element_stack.last().copied()
     }
 
     /// Name of the innermost enclosing `{#snippet}`, if any.
+    #[must_use]
     pub fn current_snippet_name(&self) -> Option<String> {
         self.fragment_owner_stack
             .iter()
@@ -630,6 +646,7 @@ impl<'a> VisitorContext<'a> {
     }
 
     /// Check if a warning code is currently being ignored.
+    #[must_use]
     pub fn is_ignored(&self, code: &str) -> bool {
         if let Some(current_ignores) = self.ignore_stack.last() {
             current_ignores.contains(code)
@@ -639,6 +656,7 @@ impl<'a> VisitorContext<'a> {
     }
 
     /// The ancestor context the a11y checker consults.
+    #[must_use]
     pub fn a11y_ancestors(&self) -> shared::a11y::A11yAncestors<'_> {
         shared::a11y::A11yAncestors {
             names: &self.element_ancestors,
@@ -662,7 +680,7 @@ impl<'a> VisitorContext<'a> {
 
     /// Get the current expression being analyzed.
     ///
-    /// Returns a mutable reference to the ExpressionMetadata if we're currently
+    /// Returns a mutable reference to the `ExpressionMetadata` if we're currently
     /// analyzing an expression, or None otherwise.
     ///
     /// This is used by visitors to track metadata about the current expression,
@@ -678,6 +696,10 @@ impl<'a> VisitorContext<'a> {
 }
 
 /// Analyze the template portion of the AST.
+///
+/// # Errors
+///
+/// Returns an error when template analysis finds invalid markup or directives.
 pub fn analyze_template(
     ast: &mut Root,
     analysis: &mut ComponentAnalysis,
@@ -724,6 +746,10 @@ pub fn analyze_template(
 /// its run. None of the path readers traverse the alias's mutated subtrees,
 /// so the only observable property they rely on — the enum discriminant —
 /// stays valid.
+///
+/// # Errors
+///
+/// Returns an error from analysis of the dispatched template node.
 pub fn visit_node<'a, 'b: 'a>(
     node: &mut TemplateNode<'b>,
     context: &mut VisitorContext<'a>,

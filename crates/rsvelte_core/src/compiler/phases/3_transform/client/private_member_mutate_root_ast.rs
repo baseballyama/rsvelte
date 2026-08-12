@@ -14,7 +14,7 @@
 //! `this.#x.` → `this.#x.v.` member-read substitution no longer matches it (the
 //! `this.#x` is now the argument of `$.get(...)`, not followed by `.`).
 //!
-//! Idempotent: after the rewrite the root is the `$.get(...)` CallExpression's
+//! Idempotent: after the rewrite the root is the `$.get(...)` `CallExpression`'s
 //! argument, no longer a bare `PrivateFieldExpression` at member-chain root, so
 //! a second pass finds nothing to do.
 
@@ -89,7 +89,7 @@ struct PrivateMemberMutateCollector<'a> {
     fn_depth: u32,
 }
 
-impl<'a> PrivateMemberMutateCollector<'a> {
+impl PrivateMemberMutateCollector<'_> {
     /// If `root` (the object of an assignment-target member chain) bottoms out
     /// in a `PrivateFieldExpression` whose source text is one of the qualified
     /// `$state` fields, push a `$.get(this.#x)` replacement for that root span.
@@ -103,7 +103,7 @@ impl<'a> PrivateMemberMutateCollector<'a> {
             let span_text = &self.source[s as usize..e as usize];
             if self.state_qualified.iter().any(|q| q.as_str() == span_text) {
                 self.replacements
-                    .push((s, e, format!("$.get({})", span_text)));
+                    .push((s, e, format!("$.get({span_text})")));
             }
         }
     }
@@ -142,7 +142,7 @@ fn simple_target_member_root(target: &SimpleAssignmentTarget<'_>) -> Option<(u32
     }
 }
 
-impl<'a, 'ast> Visit<'ast> for PrivateMemberMutateCollector<'a> {
+impl<'ast> Visit<'ast> for PrivateMemberMutateCollector<'_> {
     fn visit_function(&mut self, func: &Function<'ast>, flags: oxc_syntax::scope::ScopeFlags) {
         self.fn_depth += 1;
         walk::walk_function(self, func, flags);

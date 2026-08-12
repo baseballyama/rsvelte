@@ -13,7 +13,7 @@
 //! `oxc_semantic` (via `scope_analysis::is_locally_shadowed`)
 //! replaces the three shadow checks precisely. Most other guards
 //! are natural in the AST visitor (property side of a static
-//! member isn't an IdentifierReference; PropertyKey isn't; etc.).
+//! member isn't an `IdentifierReference`; `PropertyKey` isn't; etc.).
 //! The `$.set(` / `$.update(` / `$.update_pre(` / `$.mutate(`
 //! first-arg / `$.get(` / `$.safe_get(` already-wrapped checks
 //! are handled via parent-context tracking on
@@ -29,13 +29,13 @@
 //! | `{ count: 1 }`      | unchanged       | property key never visited                  |
 //! | `{ count }`         | unchanged       | shorthand SKIPPED (matches text version)    |
 //! | `count = 5`         | unchanged       | LHS skipped (downstream wraps assignment)   |
-//! | `count++`           | unchanged       | UpdateExpression arg skipped                |
+//! | `count++`           | unchanged       | `UpdateExpression` arg skipped                |
 //! | `function f(count) { count }` | unchanged | function param shadow                  |
 //! | `let count; count`  | unchanged       | local-decl shadow (inner) / wrap (root)     |
 //! | `$.get(count)`      | unchanged       | already wrapped                             |
 //! | `$.set(count, …)`   | unchanged       | first arg of $.set                          |
 //! | `$.update(count)`   | unchanged       | first arg of $.update                       |
-//! | `$.update_pre(count)` | unchanged     | first arg of $.update_pre                   |
+//! | `$.update_pre(count)` | unchanged     | first arg of $.`update_pre`                   |
 //! | `$.mutate(count, …)` | unchanged      | first arg of $.mutate                       |
 //!
 //! `non_reactive_vars` filters out names that should NOT be
@@ -52,8 +52,8 @@
 //!
 //! ## Idempotency
 //!
-//! After wrap, the IdentifierReference becomes the first arg of a
-//! `$.get(...)` CallExpression. `visit_call_expression` skip
+//! After wrap, the `IdentifierReference` becomes the first arg of a
+//! `$.get(...)` `CallExpression`. `visit_call_expression` skip
 //! detection ensures the visitor doesn't re-wrap. The text
 //! predecessor's `chars_match("$.get(")` already-wrapped guard
 //! also no-ops on AST output.
@@ -169,7 +169,7 @@ pub fn transform_state_reads_ast(
     let effective: Vec<&str> = state_vars
         .iter()
         .filter(|v| !non_reactive_vars.iter().any(|n| n == *v))
-        .map(|v| v.as_str())
+        .map(std::string::String::as_str)
         .collect();
     if effective.is_empty() {
         return None;
@@ -225,7 +225,10 @@ pub fn transform_state_reads_ast(
                 || SemanticBuilder::new().with_build_nodes(true).build(program),
             );
             let semantic = &semantic_ret.semantic;
-            let effective_names: Vec<String> = effective.iter().map(|s| s.to_string()).collect();
+            let effective_names: Vec<String> = effective
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect();
             let state_var_symbols = find_state_var_symbols(semantic, &effective_names);
 
             let mut collector = StateReadsCollector {
@@ -264,12 +267,12 @@ struct StateReadsCollector<'a, 'sem> {
     replacements: Vec<(u32, u32, String)>,
     /// Spans of identifier references claimed by a parent-context
     /// handler (assignment LHS, update target, first arg of $.set
-    /// / $.update / $.update_pre / $.mutate, shorthand-property
+    /// / $.update / $.`update_pre` / $.mutate, shorthand-property
     /// value position).
     skip_spans: FxHashSet<u32>,
 }
 
-impl<'a, 'sem> StateReadsCollector<'a, 'sem> {
+impl StateReadsCollector<'_, '_> {
     fn is_effective(&self, name: &str) -> bool {
         self.effective.contains(&name)
     }
@@ -279,7 +282,7 @@ impl<'a, 'sem> StateReadsCollector<'a, 'sem> {
     }
 }
 
-impl<'a, 'sem, 'ast> Visit<'ast> for StateReadsCollector<'a, 'sem> {
+impl<'ast> Visit<'ast> for StateReadsCollector<'_, '_> {
     fn visit_identifier_reference(&mut self, ident: &IdentifierReference<'ast>) {
         if self.skip_spans.contains(&ident.span.start) {
             return;
@@ -297,7 +300,7 @@ impl<'a, 'sem, 'ast> Visit<'ast> for StateReadsCollector<'a, 'sem> {
             return;
         }
         self.replacements
-            .push((ident.span.start, ident.span.end, format!("$.get({})", name)));
+            .push((ident.span.start, ident.span.end, format!("$.get({name})")));
     }
 
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
@@ -369,7 +372,7 @@ impl<'a, 'sem, 'ast> Visit<'ast> for StateReadsCollector<'a, 'sem> {
             self.replacements.push((
                 prop.span.start,
                 prop.span.end,
-                format!("{}: $.get({})", name, name),
+                format!("{name}: $.get({name})"),
             ));
             self.skip(value_ident);
             // Still descend into method-body etc.

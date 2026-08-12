@@ -34,14 +34,13 @@ use super::html::validate_code;
 pub fn decode_numeric_entity(entity: &str) -> Option<char> {
     let entity = entity.strip_suffix(';').unwrap_or(entity);
 
-    let num = if let Some(hex) = entity
+    let num = entity
         .strip_prefix('x')
         .or_else(|| entity.strip_prefix('X'))
-    {
-        u32::from_str_radix(hex, 16).ok()
-    } else {
-        entity.parse().ok()
-    };
+        .map_or_else(
+            || entity.parse().ok(),
+            |hex| u32::from_str_radix(hex, 16).ok(),
+        );
 
     num.and_then(|code| {
         let validated = validate_code(code);
@@ -70,7 +69,7 @@ pub fn decode_numeric_entity(entity: &str) -> Option<char> {
 /// # Arguments
 /// * `s` - The string containing HTML entities
 /// * `is_attribute_value` - If true, applies attribute value decoding rules per HTML spec:
-///   https://html.spec.whatwg.org/multipage/parsing.html#named-character-reference-state
+///   `https://html.spec.whatwg.org/multipage/parsing.html#named-character-reference-state`
 ///   For entities without semicolons, doesn't decode if followed by `=` or alphanumeric.
 ///
 /// # Returns
@@ -207,8 +206,7 @@ pub fn decode_html_entities(s: &str, is_attribute_value: bool) -> String {
                     // (word boundary check from HTML spec)
                     let should_skip = is_attribute_value
                         && next_byte_after_match
-                            .map(|b| b == b'=' || b.is_ascii_alphanumeric())
-                            .unwrap_or(false);
+                            .is_some_and(|b| b == b'=' || b.is_ascii_alphanumeric());
 
                     if should_skip {
                         // Output as-is (including any chars collected but not consumed)
@@ -236,7 +234,7 @@ pub fn decode_html_entities(s: &str, is_attribute_value: bool) -> String {
 }
 
 /// Find the longest prefix of `name` that is a known HTML legacy named entity (without semicolon).
-/// Only matches entities from the LEGACY_ENTITIES table (entities that appear without `;` in
+/// Only matches entities from the `LEGACY_ENTITIES` table (entities that appear without `;` in
 /// Svelte's entities.js source). This mirrors Svelte's regex approach where only specific
 /// entities can be matched without a trailing semicolon.
 /// Returns `(matched_len, decoded_string)` for the best match, or None if no match.

@@ -5,7 +5,7 @@
 //! comparator is Rust; going through one batched process keeps a single
 //! definition of "equivalent" instead of a second one written in acorn.
 //!
-//! Usage: echo '[{"id":"a","left":"x.js","right":"y.js"}]' | ast_equiv_batch [--tsx] [--comments]
+//! Usage: echo '[{"id":"a","left":"x.js","right":"y.js"}]' | `ast_equiv_batch` [--tsx] [--comments]
 
 // Defined per-bin rather than once in the lib so that linking the `rsvelte_core`
 // rlib never imposes an allocator on the consumer.

@@ -4,10 +4,10 @@ use lsp_types::{ClientInfo, PositionEncodingKind, Uri, WorkspaceFolder};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
-/// The `initialize` payload the server holds on to. A client sends these once
-/// and never again, so they are captured here even though the features that
-/// consume them (workspace-relative config discovery, tsconfig lookup) land in
-/// later milestones.
+/// The `initialize` payload the server retains.
+///
+/// A client sends these once, while later features consume them for
+/// workspace-relative configuration and `tsconfig` lookup.
 ///
 /// Every field is read independently rather than through one
 /// `InitializeParams` deserialization: a single value this build happens to
@@ -31,6 +31,7 @@ pub struct ClientState {
 }
 
 impl ClientState {
+    #[must_use]
     pub fn from_initialize(params: &Value) -> Self {
         Self {
             root_uri: field(params.get("rootUri")),

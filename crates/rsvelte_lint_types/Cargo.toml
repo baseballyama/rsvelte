@@ -51,6 +51,9 @@ workspace = true
 unsafe_op_in_unsafe_fn = "deny"
 
 [workspace.lints.clippy]
+all = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
 undocumented_unsafe_blocks = "deny"
 format_push_string = "deny"
 too_many_arguments = "allow"

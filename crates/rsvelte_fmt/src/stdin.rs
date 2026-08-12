@@ -15,7 +15,7 @@ use crate::tailwind_sort::{PendingJsSort, collect_source_classes, resolve_js_cla
 
 // ─── stdin path ─────────────────────────────────────────────────────────
 
-pub(crate) fn run_stdin(
+pub fn run_stdin(
     cli: &Cli,
     flags: &OptionFlags,
     options: &FormatOptions,
@@ -32,33 +32,32 @@ pub(crate) fn run_stdin(
         .read_to_string(&mut source)
         .context("failed to read stdin")?;
 
-    match format_in_process(&source, filepath, flags, options, cfg, pending_js)? {
-        Some(formatted) => {
-            if cli.check {
-                return Ok(if formatted == source {
-                    ExitCode::SUCCESS
-                } else {
-                    ExitCode::from(1)
-                });
-            }
-            io::stdout()
-                .write_all(formatted.as_bytes())
-                .context("failed to write stdout")?;
-            Ok(ExitCode::SUCCESS)
+    if let Some(formatted) = format_in_process(&source, filepath, flags, options, cfg, pending_js)?
+    {
+        if cli.check {
+            return Ok(if formatted == source {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::from(1)
+            });
         }
-        None => {
-            let out = oxfmt_stdin(
-                &flags.oxfmt_bin,
-                cfg.oxfmt_arg_path.as_deref(),
-                filepath,
-                &source,
-                cli.check,
-            )?;
-            io::stdout()
-                .write_all(&out.stdout)
-                .context("failed to write stdout")?;
-            Ok(ExitCode::from(out.code as u8))
-        }
+        io::stdout()
+            .write_all(formatted.as_bytes())
+            .context("failed to write stdout")?;
+        Ok(ExitCode::SUCCESS)
+    } else {
+        let out = oxfmt_stdin(
+            &flags.oxfmt_bin,
+            cfg.oxfmt_arg_path.as_deref(),
+            filepath,
+            &source,
+            cli.check,
+        )?;
+        io::stdout()
+            .write_all(&out.stdout)
+            .context("failed to write stdout")?;
+        let code = u8::try_from(out.code).context("oxfmt returned an invalid exit status")?;
+        Ok(ExitCode::from(code))
     }
 }
 
@@ -67,7 +66,7 @@ pub(crate) fn run_stdin(
 /// `oxc_formatter_css`. `Ok(None)` means the source has no in-process
 /// formatter — or its CSS parse failed, where deferring keeps coverage
 /// identical to delegation — and must be handed to `oxfmt`.
-pub(crate) fn format_in_process(
+pub fn format_in_process(
     source: &str,
     filepath: &Path,
     flags: &OptionFlags,
@@ -78,17 +77,13 @@ pub(crate) fn format_in_process(
     if is_svelte(filepath) {
         // Custom Tailwind config: collect this source's class strings, sort them
         // in one sidecar call, then format with the resolved map-backed sorter.
-        let owned_options;
-        let options = match pending_js {
-            Some(pending) => {
-                let classes = collect_source_classes(source, options);
-                let mut opts = options.clone();
-                opts.class_sorter = resolve_js_class_sorter(pending, classes);
-                owned_options = opts;
-                &owned_options
-            }
-            None => options,
-        };
+        let owned_options = pending_js.map(|pending| {
+            let classes = collect_source_classes(source, options);
+            let mut opts = options.clone();
+            opts.class_sorter = resolve_js_class_sorter(pending, classes);
+            opts
+        });
+        let options = owned_options.as_ref().unwrap_or(options);
         let formatted =
             format(source, options).map_err(|e| anyhow!("rsvelte_formatter error: {e}"))?;
         Ok(Some(formatted))

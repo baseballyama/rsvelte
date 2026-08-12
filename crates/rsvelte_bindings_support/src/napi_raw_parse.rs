@@ -9,14 +9,14 @@
 //! ## Coverage
 //!
 //! - **Binary**: `Root`, `Fragment`, every `TemplateNode` variant
-//!   (Text, Comment, ExpressionTag, HtmlTag, ConstTag, DebugTag,
-//!   RenderTag, AttachTag, IfBlock, EachBlock, AwaitBlock, KeyBlock,
-//!   SnippetBlock, RegularElement, Component, TitleElement,
-//!   SlotElement, SvelteBody/Document/Fragment/Boundary/Head/Options/
-//!   Self/Window, SvelteComponent, SvelteElement), every `Attribute`
-//!   variant (Attribute, SpreadAttribute, AttachTag-as-attr, all eight
+//!   (Text, Comment, `ExpressionTag`, `HtmlTag`, `ConstTag`, `DebugTag`,
+//!   `RenderTag`, `AttachTag`, `IfBlock`, `EachBlock`, `AwaitBlock`, `KeyBlock`,
+//!   `SnippetBlock`, `RegularElement`, Component, `TitleElement`,
+//!   `SlotElement`, SvelteBody/Document/Fragment/Boundary/Head/Options/
+//!   Self/Window, `SvelteComponent`, `SvelteElement`), every `Attribute`
+//!   variant (Attribute, `SpreadAttribute`, AttachTag-as-attr, all eight
 //!   directives), `AttributeValue` and `AttributeValuePart`, `Script`,
-//!   `JsComment`, `SourceLocation`, and every one of the **74 JsNode
+//!   `JsComment`, `SourceLocation`, and every one of the **74 `JsNode`
 //!   variants** (estree expressions and statements, plus a handful of
 //!   TS bridge variants).
 //! - **JSON fallback (`TAG_JSON`)**: the entire `StyleSheet` sub-tree,
@@ -53,7 +53,15 @@
 use serde::Serialize;
 
 use crate::ast::arena::{IdRange, JsNodeId, ParseArena};
-use crate::ast::template::*;
+use crate::ast::template::{
+    AnimateDirective, AttachTag, Attribute, AttributeNode, AttributeValue, AttributeValuePart,
+    AwaitBlock, BindDirective, ClassDirective, Comment, Component, ConstTag, DebugTag,
+    DeclarationTag, EachBlock, ExpressionTag, Fragment, HtmlTag, IfBlock, JsComment, JsCommentKind,
+    KeyBlock, LetDirective, OnDirective, RegularElement, RenderTag, Root, Script, ScriptContext,
+    SlotElement, SnippetBlock, SpreadAttribute, StyleDirective, SvelteComponentElement,
+    SvelteDynamicElement, SvelteElement, SvelteOptions, TemplateNode, Text, TitleElement,
+    TransitionDirective, UseDirective,
+};
 use crate::ast::typed_expr::{JsNode, LiteralValue, Loc, RegexValue, TemplateElementValue};
 
 pub const MAGIC: u32 = 0x3156_5052; // "RPV1" little-endian
@@ -276,6 +284,19 @@ impl Writer for Vec<u8> {
     }
 }
 
+struct IoWriterAdapter<'a, W: Writer>(&'a mut W);
+
+impl<W: Writer> std::io::Write for IoWriterAdapter<'_, W> {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.0.write_bytes(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
 #[inline]
 fn write_u8<W: Writer>(w: &mut W, v: u8) {
     w.write_bytes(&[v]);
@@ -285,12 +306,16 @@ fn write_u32<W: Writer>(w: &mut W, v: u32) {
     w.write_bytes(&v.to_le_bytes());
 }
 #[inline]
+fn parse_envelope_u32(value: usize) -> u32 {
+    u32::try_from(value).expect("parse envelope cannot exceed u32::MAX")
+}
+#[inline]
 fn write_bool<W: Writer>(w: &mut W, v: bool) {
     w.write_bytes(&[u8::from(v)]);
 }
 #[inline]
 fn write_str<W: Writer>(w: &mut W, s: &str) {
-    write_u32(w, s.len() as u32);
+    write_u32(w, parse_envelope_u32(s.len()));
     w.write_bytes(s.as_bytes());
 }
 #[inline]
@@ -333,7 +358,7 @@ fn write_opt_source_location<W: Writer>(w: &mut W, loc: Option<&crate::ast::span
 
 /// Write a list of `CompactString` modifiers as `[u32 count][str…]`.
 fn write_modifiers<W: Writer>(w: &mut W, mods: &[compact_str::CompactString]) {
-    write_u32(w, mods.len() as u32);
+    write_u32(w, parse_envelope_u32(mods.len()));
     for m in mods {
         write_str(w, m.as_str());
     }
@@ -356,19 +381,7 @@ fn write_json_node<W: Writer, T: Serialize + ?Sized>(
     let len_slot = w.position();
     write_u32(w, 0);
     let payload_start = w.position();
-    struct WriterAdapter<'a, W2: Writer>(&'a mut W2);
-    impl<W2: Writer> std::io::Write for WriterAdapter<'_, W2> {
-        #[inline]
-        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-            self.0.write_bytes(bytes);
-            Ok(bytes.len())
-        }
-        #[inline]
-        fn flush(&mut self) -> std::io::Result<()> {
-            Ok(())
-        }
-    }
-    let mut shim = WriterAdapter(w);
+    let mut shim = IoWriterAdapter(w);
     if offset_remap_active() {
         // The embedded JSON sub-tree carries byte offsets too; remap them to
         // UTF-16 so the whole envelope is consistent (#793). Only pay the
@@ -384,11 +397,11 @@ fn write_json_node<W: Writer, T: Serialize + ?Sized>(
         serde_json::to_writer(&mut shim, value).map_err(std::io::Error::other)?;
     }
     let payload_end = shim.0.position();
-    w.patch_u32(len_slot, (payload_end - payload_start) as u32);
+    w.patch_u32(len_slot, parse_envelope_u32(payload_end - payload_start));
     Ok(())
 }
 
-/// Inline an `Expression` as a binary JsNode sub-tree when typed; fall
+/// Inline an `Expression` as a binary `JsNode` sub-tree when typed; fall
 /// back to JSON for the legacy `Value` representation.
 fn write_expression<W: Writer>(
     w: &mut W,
@@ -406,15 +419,12 @@ fn write_opt_expression<W: Writer>(
     w: &mut W,
     expr: Option<&crate::ast::js::Expression>,
 ) -> std::io::Result<()> {
-    match expr {
-        Some(e) => {
-            write_u8(w, 1);
-            write_expression(w, e)
-        }
-        None => {
-            write_u8(w, 0);
-            Ok(())
-        }
+    if let Some(e) = expr {
+        write_u8(w, 1);
+        write_expression(w, e)
+    } else {
+        write_u8(w, 0);
+        Ok(())
     }
 }
 
@@ -433,11 +443,25 @@ thread_local! {
     // `StyleSheet` body from the wire.
     static SKIP_CSS_AST: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
+
+struct EncodeStateGuard {
+    loc: bool,
+    css: bool,
+    offset_converter: Option<crate::compiler::legacy::Utf8ToUtf16>,
+}
+
+impl Drop for EncodeStateGuard {
+    fn drop(&mut self) {
+        SKIP_JSNODE_LOC.with(|cell| cell.set(self.loc));
+        SKIP_CSS_AST.with(|cell| cell.set(self.css));
+        OFFSET_CONV.with(|cell| *cell.borrow_mut() = self.offset_converter.take());
+    }
+}
 fn jsnode_loc_elided() -> bool {
-    SKIP_JSNODE_LOC.with(|c| c.get())
+    SKIP_JSNODE_LOC.with(std::cell::Cell::get)
 }
 fn css_stub_only() -> bool {
-    SKIP_CSS_AST.with(|c| c.get())
+    SKIP_CSS_AST.with(std::cell::Cell::get)
 }
 
 thread_local! {
@@ -457,18 +481,20 @@ fn conv_off(v: u32) -> u32 {
     if v == u32::MAX {
         return v;
     }
-    OFFSET_CONV.with(|c| match &*c.borrow() {
-        Some(conv) => conv.convert(v as usize) as u32,
-        None => v,
+    OFFSET_CONV.with(|c| {
+        (*c.borrow())
+            .as_ref()
+            .map_or(v, |conv| parse_envelope_u32(conv.convert(v as usize)))
     })
 }
 
 /// Convert a byte column (0-based, within `line`) to a UTF-16 column.
 #[inline]
 fn conv_col(line: u32, col: u32) -> u32 {
-    OFFSET_CONV.with(|c| match &*c.borrow() {
-        Some(conv) => conv.convert_column(line as usize, col as usize) as u32,
-        None => col,
+    OFFSET_CONV.with(|c| {
+        (*c.borrow()).as_ref().map_or(col, |conv| {
+            parse_envelope_u32(conv.convert_column(line as usize, col as usize))
+        })
     })
 }
 
@@ -518,9 +544,14 @@ fn write_literal_value<W: Writer>(w: &mut W, v: &LiteralValue) {
         LiteralValue::Bool(false) => write_u8(w, LV_BOOL_FALSE),
         LiteralValue::Bool(true) => write_u8(w, LV_BOOL_TRUE),
         LiteralValue::Number(n) => {
-            if n.fract() == 0.0 && n.abs() < i64::MAX as f64 {
+            if n.fract() == 0.0
+                && *n >= -9_223_372_036_854_775_808.0
+                && *n < 9_223_372_036_854_775_808.0
+            {
                 write_u8(w, LV_NUMBER_I64);
-                w.write_bytes(&(*n as i64).to_le_bytes());
+                // SAFETY: the bounds above guarantee this finite integral value fits in i64.
+                let integer = unsafe { n.to_int_unchecked::<i64>() };
+                w.write_bytes(&integer.to_le_bytes());
             } else {
                 write_u8(w, LV_NUMBER_F64);
                 w.write_bytes(&n.to_le_bytes());
@@ -565,21 +596,18 @@ fn write_opt_node_id<W: Writer>(
     id: Option<JsNodeId>,
     arena: &ParseArena,
 ) -> std::io::Result<()> {
-    match id {
-        Some(i) => {
-            write_u8(w, 1);
-            write_node_id(w, i, arena)
-        }
-        None => {
-            write_u8(w, 0);
-            Ok(())
-        }
+    if let Some(i) = id {
+        write_u8(w, 1);
+        write_node_id(w, i, arena)
+    } else {
+        write_u8(w, 0);
+        Ok(())
     }
 }
 
 fn write_id_range<W: Writer>(w: &mut W, range: IdRange, arena: &ParseArena) -> std::io::Result<()> {
     let children = arena.get_js_children(range);
-    write_u32(w, children.len() as u32);
+    write_u32(w, parse_envelope_u32(children.len()));
     for child in children {
         write_js_node(w, child, arena)?;
     }
@@ -592,7 +620,7 @@ fn write_node_array<W: Writer>(
     nodes: &[Option<JsNode>],
     arena: &ParseArena,
 ) -> std::io::Result<()> {
-    write_u32(w, nodes.len() as u32);
+    write_u32(w, parse_envelope_u32(nodes.len()));
     for n in nodes {
         match n {
             Some(node) => {
@@ -607,7 +635,7 @@ fn write_node_array<W: Writer>(
 
 /// Emit `[u8 has_value][u32 json_len][json bytes]` for a rare
 /// structured optional that we don't have a dedicated binary tag for
-/// yet (directive `metadata`, JsNode::Program comment arrays, …).
+/// yet (directive `metadata`, `JsNode::Program` comment arrays, …).
 fn write_opt_inline_json<W: Writer, T: Serialize>(
     w: &mut W,
     value: Option<&T>,
@@ -618,20 +646,10 @@ fn write_opt_inline_json<W: Writer, T: Serialize>(
             let len_slot = w.position();
             write_u32(w, 0);
             let p0 = w.position();
-            struct A<'a, W2: Writer>(&'a mut W2);
-            impl<W2: Writer> std::io::Write for A<'_, W2> {
-                fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
-                    self.0.write_bytes(b);
-                    Ok(b.len())
-                }
-                fn flush(&mut self) -> std::io::Result<()> {
-                    Ok(())
-                }
-            }
-            let mut shim = A(w);
+            let mut shim = IoWriterAdapter(w);
             serde_json::to_writer(&mut shim, v).map_err(std::io::Error::other)?;
             let p1 = shim.0.position();
-            w.patch_u32(len_slot, (p1 - p0) as u32);
+            w.patch_u32(len_slot, parse_envelope_u32(p1 - p0));
         }
         None => write_u8(w, 0),
     }
@@ -678,7 +696,7 @@ fn write_declaration_tag<W: Writer>(w: &mut W, t: &DeclarationTag) -> std::io::R
 
 fn write_debug_tag<W: Writer>(w: &mut W, t: &DebugTag) -> std::io::Result<()> {
     write_preamble(w, TAG_DEBUG_TAG, t.start, t.end);
-    write_u32(w, t.identifiers.len() as u32);
+    write_u32(w, parse_envelope_u32(t.identifiers.len()));
     for id in &t.identifiers {
         write_expression(w, id)?;
     }
@@ -706,7 +724,7 @@ fn write_element_common<W: Writer>(
 ) -> std::io::Result<()> {
     write_str(w, name);
     write_opt_source_location(w, name_loc);
-    write_u32(w, attributes.len() as u32);
+    write_u32(w, parse_envelope_u32(attributes.len()));
     for a in attributes {
         write_attribute(w, a)?;
     }
@@ -859,7 +877,7 @@ fn write_snippet_block<W: Writer>(w: &mut W, b: &SnippetBlock) -> std::io::Resul
     write_preamble(w, TAG_SNIPPET_BLOCK, b.start, b.end);
     write_expression(w, &b.expression)?;
     write_opt_str(w, b.type_params.as_deref());
-    write_u32(w, b.parameters.len() as u32);
+    write_u32(w, parse_envelope_u32(b.parameters.len()));
     for p in &b.parameters {
         write_expression(w, p)?;
     }
@@ -912,7 +930,7 @@ fn write_fragment<W: Writer>(w: &mut W, f: &Fragment) -> std::io::Result<()> {
     // their containing node. The preamble keeps the dispatch pattern
     // uniform; positions are sentinels.
     write_preamble(w, TAG_FRAGMENT, u32::MAX, u32::MAX);
-    write_u32(w, f.nodes.len() as u32);
+    write_u32(w, parse_envelope_u32(f.nodes.len()));
     for child in &f.nodes {
         write_template_node(w, child)?;
     }
@@ -932,7 +950,7 @@ fn write_attribute_value<W: Writer>(w: &mut W, v: &AttributeValue) -> std::io::R
         }
         AttributeValue::Sequence(parts) => {
             write_u8(w, ATTRVAL_SEQUENCE);
-            write_u32(w, parts.len() as u32);
+            write_u32(w, parse_envelope_u32(parts.len()));
             for p in parts {
                 write_attribute_value_part(w, p)?;
             }
@@ -1063,7 +1081,7 @@ fn write_script<W: Writer>(w: &mut W, s: &Script) -> std::io::Result<()> {
     };
     write_u8(w, ctx);
     write_expression(w, &s.content)?;
-    write_u32(w, s.attributes.len() as u32);
+    write_u32(w, parse_envelope_u32(s.attributes.len()));
     for a in &s.attributes {
         write_attribute_node(w, a)?;
     }
@@ -1121,7 +1139,7 @@ fn write_root<W: Writer>(w: &mut W, root: &Root) -> std::io::Result<()> {
         }
         None => write_u8(w, 0),
     }
-    write_u32(w, root.comments.len() as u32);
+    write_u32(w, parse_envelope_u32(root.comments.len()));
     for c in &root.comments {
         write_js_comment(w, c);
     }
@@ -1163,17 +1181,7 @@ fn write_opt_type_annotation<W: Writer>(
     let len_slot = w.position();
     write_u32(w, 0);
     let p0 = w.position();
-    struct A<'a, W2: Writer>(&'a mut W2);
-    impl<W2: Writer> std::io::Write for A<'_, W2> {
-        fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
-            self.0.write_bytes(b);
-            Ok(b.len())
-        }
-        fn flush(&mut self) -> std::io::Result<()> {
-            Ok(())
-        }
-    }
-    let mut shim = A(w);
+    let mut shim = IoWriterAdapter(w);
     if offset_remap_active() {
         let mut json_value = value.clone();
         OFFSET_CONV.with(|c| {
@@ -1186,10 +1194,14 @@ fn write_opt_type_annotation<W: Writer>(
         serde_json::to_writer(&mut shim, value).map_err(std::io::Error::other)?;
     }
     let p1 = shim.0.position();
-    w.patch_u32(len_slot, (p1 - p0) as u32);
+    w.patch_u32(len_slot, parse_envelope_u32(p1 - p0));
     Ok(())
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "the exhaustive JsNode wire-format match is intentionally contiguous so tags and payload order remain auditable"
+)]
 fn write_js_node<W: Writer>(w: &mut W, node: &JsNode, arena: &ParseArena) -> std::io::Result<()> {
     match node {
         JsNode::Identifier {
@@ -2191,7 +2203,7 @@ pub fn encode_root_to_vec(root: &Root, source: &str) -> Vec<u8> {
 ///
 /// - `skip_jsnode_loc` mirrors `ParseOptions::skip_expression_loc` —
 ///   it tells the encoder/decoder to elide the per-JsNode loc-flag
-///   byte, since every JsNode is guaranteed to have `loc == None`.
+///   byte, since every `JsNode` is guaranteed to have `loc == None`.
 /// - `skip_css_ast` omits the CSS `StyleSheet` body from the wire; the
 ///   decoder reconstructs a `{ type: "StyleSheet", start, end }` stub.
 pub fn encode_root_to_vec_with_flags(
@@ -2229,7 +2241,7 @@ pub fn encode_root_into<W: Writer>(
     writer.write_bytes(&VERSION.to_le_bytes());
     writer.write_bytes(&[0u8; 4]); // total_len  — patched at the end
     writer.write_bytes(&[0u8; 4]); // root_offset — patched after the header
-    write_u32(writer, source.len() as u32);
+    write_u32(writer, parse_envelope_u32(source.len()));
     let mut flags: u32 = 0;
     if skip_jsnode_loc {
         flags |= FLAG_JSNODE_NO_LOC;
@@ -2240,22 +2252,10 @@ pub fn encode_root_into<W: Writer>(
     write_u32(writer, flags);
     debug_assert_eq!(writer.position(), HEADER_LEN);
 
-    let root_off = writer.position() as u32;
+    let root_off = parse_envelope_u32(writer.position());
     writer.patch_u32(12, root_off);
 
     // RAII guards: reset the per-encode thread-locals even on panic.
-    struct Guard {
-        prev_loc: bool,
-        prev_css: bool,
-        prev_conv: Option<crate::compiler::legacy::Utf8ToUtf16>,
-    }
-    impl Drop for Guard {
-        fn drop(&mut self) {
-            SKIP_JSNODE_LOC.with(|c| c.set(self.prev_loc));
-            SKIP_CSS_AST.with(|c| c.set(self.prev_css));
-            OFFSET_CONV.with(|c| *c.borrow_mut() = self.prev_conv.take());
-        }
-    }
     let prev_loc = SKIP_JSNODE_LOC.with(|c| c.replace(skip_jsnode_loc));
     let prev_css = SKIP_CSS_AST.with(|c| c.replace(skip_css_ast));
     // Install a byte->UTF-16 converter only for non-ASCII source (#793).
@@ -2265,15 +2265,15 @@ pub fn encode_root_into<W: Writer>(
         Some(crate::compiler::legacy::Utf8ToUtf16::new(source))
     };
     let prev_conv = OFFSET_CONV.with(|c| c.replace(new_conv));
-    let _guard = Guard {
-        prev_loc,
-        prev_css,
-        prev_conv,
+    let _guard = EncodeStateGuard {
+        loc: prev_loc,
+        css: prev_css,
+        offset_converter: prev_conv,
     };
 
     let _ = crate::ast::arena::with_serialize_arena(&root.arena, || write_root(writer, root));
 
-    let total = writer.position() as u32;
+    let total = parse_envelope_u32(writer.position());
     writer.patch_u32(8, total);
 }
 
@@ -2366,7 +2366,7 @@ mod tests {
                 let num_start = from + rel + key.len();
                 let digits: String = text[num_start..]
                     .chars()
-                    .take_while(|c| c.is_ascii_digit())
+                    .take_while(char::is_ascii_digit)
                     .collect();
                 from = num_start;
                 if let Ok(n) = digits.parse::<i64>() {

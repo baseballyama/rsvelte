@@ -127,11 +127,13 @@ pub struct LintConfig {
 impl LintConfig {
     /// The recommended preset: every rule runs at its declared default
     /// severity unless explicitly overridden.
+    #[must_use]
     pub fn recommended() -> Self {
         Self::default()
     }
 
     /// Start from a baseline where nothing runs unless explicitly enabled.
+    #[must_use]
     pub fn empty() -> Self {
         Self {
             all_off_by_default: true,
@@ -140,12 +142,14 @@ impl LintConfig {
     }
 
     /// Override a single rule's severity. Chainable.
+    #[must_use]
     pub fn with_override(mut self, rule: impl Into<String>, severity: Severity) -> Self {
         self.overrides.insert(rule.into(), severity);
         self
     }
 
     /// Attach options for a rule. Chainable.
+    #[must_use]
     pub fn with_options(mut self, rule: impl Into<String>, options: Value) -> Self {
         self.options.insert(rule.into(), options);
         self
@@ -170,6 +174,7 @@ impl LintConfig {
 
     /// Resolve the effective severity for a native rule (default comes from its
     /// [`RuleMeta`]).
+    #[must_use]
     pub fn severity_for(&self, meta: &RuleMeta) -> Severity {
         self.resolve_code(meta.name, meta.default_severity)
     }
@@ -177,6 +182,7 @@ impl LintConfig {
     /// Resolve the effective severity for a bare code/id with a known `base`
     /// severity (used by the validator wrap, where compiler warning/error codes
     /// have no [`RuleMeta`]).
+    #[must_use]
     pub fn resolve_code(&self, code: &str, base: Severity) -> Severity {
         if let Some(&s) = self.overrides.get(code) {
             return s;
@@ -189,6 +195,7 @@ impl LintConfig {
     }
 
     /// The configured options for a rule, if any.
+    #[must_use]
     pub fn options_for(&self, rule: &str) -> Option<&Value> {
         self.options.get(rule)
     }
@@ -196,7 +203,7 @@ impl LintConfig {
     /// Layer a single inline (`/* eslint <rule>: … */`) rule entry on top of this
     /// config, returning the modified config. `severity` / `options` are the
     /// already-parsed parts of the rule value (see [`severity_from_value`] /
-    /// [`options_from_value`]). Mirrors ESLint's per-file inline-config merge:
+    /// [`options_from_value`]). Mirrors `ESLint`'s per-file inline-config merge:
     /// an inline entry overrides both the severity and the options for that rule
     /// in the current file only.
     pub(crate) fn with_inline_rule(
@@ -217,6 +224,7 @@ impl LintConfig {
     /// Whether a relative path (forward-slash separated) should be linted under
     /// this config's `files`/`ignores` globs. An empty `files` list matches
     /// every candidate; any `ignores` match excludes it.
+    #[must_use]
     pub fn should_lint(&self, rel_path: &str) -> bool {
         let path = rel_path.replace('\\', "/");
         if self.ignores.iter().any(|g| glob_match(g, &path)) {
@@ -227,7 +235,8 @@ impl LintConfig {
 
     /// Whether this config restricts the file set at all (so the CLI knows to
     /// apply `should_lint`).
-    pub fn has_file_filters(&self) -> bool {
+    #[must_use]
+    pub const fn has_file_filters(&self) -> bool {
         !self.files.is_empty() || !self.ignores.is_empty()
     }
 
@@ -247,6 +256,10 @@ impl LintConfig {
     /// ```
     /// A rule value is either a severity scalar (`"off"`/`"warn"`/`"error"` or
     /// `0`/`1`/`2`) or a `[severity, options]` pair.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the input is invalid JSON or not a JSON object.
     pub fn from_json_str(s: &str) -> anyhow::Result<Self> {
         let root: Value = serde_json::from_str(s)?;
         let obj = root
@@ -260,12 +273,12 @@ impl LintConfig {
                 .filter_map(|e| e.as_str())
                 .any(|e| PRESET_NONE.contains(&e))
             {
-                LintConfig::empty()
+                Self::empty()
             } else {
-                LintConfig::recommended()
+                Self::recommended()
             }
         } else {
-            LintConfig::recommended()
+            Self::recommended()
         };
 
         if let Some(Value::Object(rules)) = obj.get("rules") {
@@ -299,7 +312,7 @@ pub(crate) fn severity_from_value(v: &Value) -> Option<Severity> {
     }
 }
 
-/// Read the options from a `[severity, ...options]` rule value. ESLint rule
+/// Read the options from a `[severity, ...options]` rule value. `ESLint` rule
 /// options are variadic, so everything after the severity is kept as an array
 /// (most rules use just `options[0]`).
 pub(crate) fn options_from_value(v: &Value) -> Option<Value> {
@@ -429,7 +442,10 @@ mod tests {
         );
         let opts = cfg.options_for("svelte/button-has-type").unwrap();
         let first = &opts.as_array().unwrap()[0];
-        assert_eq!(first.get("submit").and_then(|v| v.as_bool()), Some(false));
+        assert_eq!(
+            first.get("submit").and_then(serde_json::Value::as_bool),
+            Some(false)
+        );
     }
 
     #[test]

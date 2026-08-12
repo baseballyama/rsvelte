@@ -29,6 +29,10 @@ use crate::compiler::phases::phase2_analyze::AnalysisError;
 /// `walk_js_node_typed(id_node, ...)` calls), which existing checks such as
 /// `export_let_unused`'s "more than 1 reference means used beyond the declaration"
 /// heuristic rely on for other binding kinds.
+///
+/// # Errors
+///
+/// Returns an error from analysis of a parameter default expression.
 pub fn visit_parameter_defaults(
     params: IdRange,
     context: &mut VisitorContext,
@@ -39,7 +43,7 @@ pub fn visit_parameter_defaults(
     Ok(())
 }
 
-/// Visit a function node (ArrowFunctionExpression, FunctionExpression, or FunctionDeclaration).
+/// Visit a function node (`ArrowFunctionExpression`, `FunctionExpression`, or `FunctionDeclaration`).
 ///
 /// Corresponds to `visit_function` in function.js.
 ///
@@ -81,6 +85,7 @@ where
 /// Check if an identifier is a rune.
 /// Uses first-byte dispatch after '$' for fast rejection.
 #[inline]
+#[must_use]
 pub fn is_rune(name: &str) -> bool {
     let bytes = name.as_bytes();
     if bytes.first() != Some(&b'$') || bytes.len() < 5 {

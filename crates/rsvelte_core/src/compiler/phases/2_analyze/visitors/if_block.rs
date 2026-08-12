@@ -1,4 +1,4 @@
-//! IfBlock visitor.
+//! `IfBlock` visitor.
 //!
 //! Analyzes {#if} blocks.
 //!

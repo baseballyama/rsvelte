@@ -42,7 +42,7 @@ fn ident_name(node: &Value) -> Option<&str> {
     }
 }
 
-/// Is `ident` the callee of a direct CallExpression (`foo(...)`)?
+/// Is `ident` the callee of a direct `CallExpression` (`foo(...)`)?
 fn is_direct_call_callee(ident: &Value, parent: Option<&Value>) -> bool {
     let Some(p) = parent else {
         return false;
@@ -54,7 +54,7 @@ fn is_direct_call_callee(ident: &Value, parent: Option<&Value>) -> bool {
 }
 
 /// Collect top-level bound names and function bodies from the program.
-/// The func_map value is (body, param_names) where param_names are the
+/// The `func_map` value is (body, `param_names`) where `param_names` are the
 /// function's own parameter names that shadow any outer reactive variables.
 fn collect_top_level<'a>(
     program: &'a Value,
@@ -76,7 +76,7 @@ fn collect_top_level<'a>(
     (func_map, all_names)
 }
 
-/// Collect all bound names from a function's `params` array into a HashSet.
+/// Collect all bound names from a function's `params` array into a `HashSet`.
 fn collect_param_names(params: &Value) -> HashSet<String> {
     let mut names = HashSet::new();
     if let Some(arr) = params.as_array() {
@@ -336,7 +336,7 @@ fn is_assign_target(ident: &Value, ancestors: &[&Value]) -> bool {
 fn is_promise_then_catch_arg(fn_node: &Value, ancestors: &[&Value]) -> bool {
     if !matches!(
         node_type(fn_node),
-        Some("ArrowFunctionExpression") | Some("FunctionExpression")
+        Some("ArrowFunctionExpression" | "FunctionExpression")
     ) {
         return false;
     }
@@ -375,7 +375,7 @@ fn is_left_of_await_assign(node: &Value, ancestors: &[&Value]) -> bool {
 }
 
 /// Is `node` inside a call to a task scheduler function?
-/// We check if any ancestor is a CallExpression whose callee is a task-named Identifier.
+/// We check if any ancestor is a `CallExpression` whose callee is a task-named Identifier.
 fn is_inside_task_call(node: &Value, ancestors: &[&Value], task_names: &HashSet<String>) -> bool {
     let Some(ns) = node_start(node) else {
         return false;
@@ -426,7 +426,7 @@ fn is_inside_async_fn(ancestors: &[&Value]) -> bool {
                 if let Some(init) = anc.get("init")
                     && matches!(
                         node_type(init),
-                        Some("FunctionExpression") | Some("ArrowFunctionExpression")
+                        Some("FunctionExpression" | "ArrowFunctionExpression")
                     )
                     && init.get("async").and_then(Value::as_bool) == Some(true)
                 {
@@ -459,9 +459,7 @@ fn is_shadowed_locally(name: &str, ancestors: &[&Value]) -> bool {
                     }
                 }
             }
-            Some("ArrowFunctionExpression")
-            | Some("FunctionExpression")
-            | Some("FunctionDeclaration") => {
+            Some("ArrowFunctionExpression" | "FunctionExpression" | "FunctionDeclaration") => {
                 if let Some(params) = anc.get("params")
                     && params_contain(params, name)
                 {
@@ -538,97 +536,22 @@ fn verify_node<'a>(
 ) {
     match node {
         Value::Object(map) => {
-            let ty = map.get("type").and_then(Value::as_str);
-            if let Some(ty_str) = ty {
-                let ns = map.get("start").and_then(Value::as_u64).unwrap_or(u64::MAX) as u32;
-                let ne = map.get("end").and_then(Value::as_u64).unwrap_or(0) as u32;
+            if let Some((ty_str, ns, ne)) = node_metadata(map) {
+                let is_boundary_node =
+                    enter_microtask_boundary(node, ancestors, task_names, ns, is_same, boundary);
 
-                // ---- ENTER ----
-                let mut is_boundary_node = false;
-                let saved = *is_same;
+                let mut recursion = FunctionRecursion {
+                    func_map,
+                    task_names,
+                    reactive_names,
+                    top_level_names,
+                    processed,
+                    reports,
+                };
+                recursion.visit_call(node, map, ty_str, ancestors, call_chain, *is_same, ns, ne);
 
-                // 1. Promise .then/.catch function argument → enters new microtask.
-                if *is_same && is_promise_then_catch_arg(node, ancestors) {
-                    *is_same = false;
-                    boundary.push((ns, saved));
-                    is_boundary_node = true;
-                }
-
-                // 2. Node is inside a task-call (setTimeout etc.) → new microtask.
-                if *is_same && !is_boundary_node && is_inside_task_call(node, ancestors, task_names)
-                {
-                    *is_same = false;
-                    boundary.push((ns, saved));
-                    is_boundary_node = true;
-                }
-
-                // 3. Node is the left of `left = await rhs` → new microtask.
-                if *is_same && !is_boundary_node && is_left_of_await_assign(node, ancestors) {
-                    *is_same = false;
-                    boundary.push((ns, saved));
-                    is_boundary_node = true;
-                }
-
-                // Function call → recurse into the top-level function body.
-                if ty_str == "Identifier"
-                    && let Some(fn_name) = map.get("name").and_then(Value::as_str)
-                    && is_direct_call_callee(node, ancestors.last().copied())
-                    && !is_shadowed_locally(fn_name, ancestors)
-                    && let Some((fn_body, fn_params)) = func_map.get(fn_name)
-                {
-                    let body_key = node_start(fn_body).unwrap_or(u32::MAX);
-                    if !processed.contains(&body_key) {
-                        let mut new_chain = call_chain.to_vec();
-                        new_chain.push((ns, ne, fn_name.to_string()));
-                        let cur_is_same = *is_same;
-                        // Filter out reactive names that are shadowed by the
-                        // called function's own parameters so that assignments
-                        // to those parameters inside the function body are not
-                        // mistaken for updates to the outer reactive variables.
-                        let filtered_reactive: HashSet<String> = reactive_names
-                            .iter()
-                            .filter(|n| !fn_params.contains(*n))
-                            .cloned()
-                            .collect();
-                        // Only recurse if there are still reactive names to check
-                        // (if all reactive names are shadowed by params, there is
-                        // nothing to report from this function body).
-                        if !filtered_reactive.is_empty() {
-                            verify_root(
-                                fn_body,
-                                func_map,
-                                task_names,
-                                &filtered_reactive,
-                                top_level_names,
-                                &new_chain,
-                                cur_is_same,
-                                false,
-                                processed,
-                                reports,
-                            );
-                        } else {
-                            // Still mark as processed to avoid re-visiting.
-                            processed.insert(body_key);
-                        }
-                    }
-                }
-
-                // Check for reactive variable assignment when not in same microtask.
-                if !*is_same
-                    && ty_str == "Identifier"
-                    && let Some(name) = map.get("name").and_then(Value::as_str)
-                    && reactive_names.contains(name)
-                    && !is_direct_call_callee(node, ancestors.last().copied())
-                    && is_assign_target(node, ancestors)
-                    && !is_shadowed_locally(name, ancestors)
-                {
-                    reports.push((ns, ne, MSG_UNEXPECTED.to_string()));
-                    // `variableName` in the message is the assigned variable's
-                    // name, not the function name (mirrors upstream `node.name`).
-                    for (cs, ce, _cn) in call_chain {
-                        reports.push((*cs, *ce, unexpected_call_msg(name)));
-                    }
-                }
+                recursion
+                    .report_assignment(node, map, ty_str, ancestors, call_chain, *is_same, ns, ne);
 
                 // Push self to ancestor stack before recursing into children.
                 ancestors.push(node);
@@ -715,6 +638,134 @@ fn verify_node<'a>(
         }
         _ => {}
     }
+}
+
+fn node_metadata(map: &serde_json::Map<String, Value>) -> Option<(&str, u32, u32)> {
+    Some((
+        map.get("type")?.as_str()?,
+        map.get("start")
+            .and_then(Value::as_u64)
+            .and_then(|value| u32::try_from(value).ok())
+            .unwrap_or(u32::MAX),
+        map.get("end")
+            .and_then(Value::as_u64)
+            .and_then(|value| u32::try_from(value).ok())
+            .unwrap_or(0),
+    ))
+}
+
+struct FunctionRecursion<'a> {
+    func_map: &'a HashMap<String, (&'a Value, HashSet<String>)>,
+    task_names: &'a HashSet<String>,
+    reactive_names: &'a HashSet<String>,
+    top_level_names: &'a HashSet<String>,
+    processed: &'a mut HashSet<u32>,
+    reports: &'a mut Vec<Rep>,
+}
+
+impl FunctionRecursion<'_> {
+    fn visit_call(
+        &mut self,
+        node: &Value,
+        map: &serde_json::Map<String, Value>,
+        node_type: &str,
+        ancestors: &[&Value],
+        call_chain: &[(u32, u32, String)],
+        is_same: bool,
+        start: u32,
+        end: u32,
+    ) {
+        if node_type != "Identifier" {
+            return;
+        }
+        let Some(function_name) = map.get("name").and_then(Value::as_str) else {
+            return;
+        };
+        if !is_direct_call_callee(node, ancestors.last().copied())
+            || is_shadowed_locally(function_name, ancestors)
+        {
+            return;
+        }
+        let Some((body, parameters)) = self.func_map.get(function_name) else {
+            return;
+        };
+        if !self.processed.insert(node_start(body).unwrap_or(u32::MAX)) {
+            return;
+        }
+        let reactive_names: HashSet<String> = self
+            .reactive_names
+            .iter()
+            .filter(|name| !parameters.contains(*name))
+            .cloned()
+            .collect();
+        if reactive_names.is_empty() {
+            return;
+        }
+        let mut chain = call_chain.to_vec();
+        chain.push((start, end, function_name.to_string()));
+        verify_root(
+            body,
+            self.func_map,
+            self.task_names,
+            &reactive_names,
+            self.top_level_names,
+            &chain,
+            is_same,
+            false,
+            self.processed,
+            self.reports,
+        );
+    }
+
+    fn report_assignment(
+        &mut self,
+        node: &Value,
+        map: &serde_json::Map<String, Value>,
+        node_type: &str,
+        ancestors: &[&Value],
+        call_chain: &[(u32, u32, String)],
+        is_same: bool,
+        start: u32,
+        end: u32,
+    ) {
+        if is_same || node_type != "Identifier" {
+            return;
+        }
+        let Some(name) = map.get("name").and_then(Value::as_str) else {
+            return;
+        };
+        if !self.reactive_names.contains(name)
+            || is_direct_call_callee(node, ancestors.last().copied())
+            || !is_assign_target(node, ancestors)
+            || is_shadowed_locally(name, ancestors)
+        {
+            return;
+        }
+        self.reports.push((start, end, MSG_UNEXPECTED.to_string()));
+        for (call_start, call_end, _) in call_chain {
+            self.reports
+                .push((*call_start, *call_end, unexpected_call_msg(name)));
+        }
+    }
+}
+
+fn enter_microtask_boundary(
+    node: &Value,
+    ancestors: &[&Value],
+    task_names: &HashSet<String>,
+    node_start: u32,
+    is_same: &mut bool,
+    boundaries: &mut Vec<(u32, bool)>,
+) -> bool {
+    let enters_boundary = *is_same
+        && (is_promise_then_catch_arg(node, ancestors)
+            || is_inside_task_call(node, ancestors, task_names)
+            || is_left_of_await_assign(node, ancestors));
+    if enters_boundary {
+        boundaries.push((node_start, *is_same));
+        *is_same = false;
+    }
+    enters_boundary
 }
 
 /// Entry point for verifying a single body node (reactive stmt body or function body).

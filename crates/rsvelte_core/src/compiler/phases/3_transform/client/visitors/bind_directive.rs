@@ -1,4 +1,4 @@
-//! BindDirective visitor for client-side transformation.
+//! `BindDirective` visitor for client-side transformation.
 //!
 //! Corresponds to `BindDirective.js` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/BindDirective.js`.
@@ -47,7 +47,7 @@ pub struct BindingProperty {
 /// Handles simple identifiers, sequence expressions, and each-block context variables.
 /// Called by both element `bind:this` (line ~160) and component `bind:this` (component.rs).
 ///
-/// `is_element_binding` should be true when binding to a RegularElement (not a component).
+/// `is_element_binding` should be true when binding to a `RegularElement` (not a component).
 /// This prevents the proxy flag from being added, since element references are always
 /// primitive (DOM nodes). Matches the official compiler's `is_primitive` check.
 pub fn unified_build_bind_this(
@@ -325,11 +325,6 @@ fn get_binding_property(name: &str) -> Option<BindingProperty> {
             ..Default::default()
         }),
         // Window size (with event)
-        "devicePixelRatio" => Some(BindingProperty {
-            event: Some("resize"),
-            omit_in_ssr: true,
-            ..Default::default()
-        }),
         // Checkbox indeterminate
         "indeterminate" => Some(BindingProperty {
             event: Some("change"),
@@ -347,19 +342,19 @@ fn get_binding_property(name: &str) -> Option<BindingProperty> {
     }
 }
 
-/// Visit a BindDirective node.
+/// Visit a `BindDirective` node.
 ///
 /// Corresponds to `BindDirective()` function in BindDirective.js.
 ///
 /// # Arguments
 ///
-/// * `node` - The BindDirective AST node
+/// * `node` - The `BindDirective` AST node
 /// * `context` - The component context
-/// * `parent` - The parent node (RegularElement, Component, etc.)
+/// * `parent` - The parent node (`RegularElement`, Component, etc.)
 ///
 /// # Returns
 ///
-/// Returns a TransformResult indicating what was generated.
+/// Returns a `TransformResult` indicating what was generated.
 pub fn bind_directive(
     node: &BindDirective,
     context: &mut ComponentContext,
@@ -460,16 +455,16 @@ fn bind_directive_inner(
                 &context.arena,
             );
             (
-                JsExpr::Raw(format!("function get() {{\n\treturn {};\n}}", get_src).into()),
+                JsExpr::Raw(format!("function get() {{\n\treturn {get_src};\n}}").into()),
                 Some(JsExpr::Raw(
-                    format!("function set($$value) {{\n\t{};\n}}", setter_body).into(),
+                    format!("function set($$value) {{\n\t{setter_body};\n}}").into(),
                 )),
             )
         } else {
             (
                 get,
                 Some(JsExpr::Raw(
-                    format!("($$value) => (\n\t{}\n)", setter_body).into(),
+                    format!("($$value) => (\n\t{setter_body}\n)").into(),
                 )),
             )
         }
@@ -558,7 +553,7 @@ fn bind_directive_inner(
     // Walking the raw AST JSON ensures we find all referenced variable names.
     {
         let ast_names = collect_ast_identifiers(&node.expression);
-        let name_refs: Vec<&str> = ast_names.iter().map(|s| s.as_str()).collect();
+        let name_refs: Vec<&str> = ast_names.iter().map(std::string::String::as_str).collect();
         let blocker_exprs = context
             .state
             .get_blockers_for_names_with_duplicates(&name_refs, &context.arena);
@@ -855,7 +850,7 @@ fn build_special_binding_call(
     }
 }
 
-/// Build a bind_property call for bindings with events.
+/// Build a `bind_property` call for bindings with events.
 fn build_bind_property_call(
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
 
@@ -890,13 +885,11 @@ fn build_group_binding_keypath(expr: &serde_json::Value) -> String {
 }
 
 fn build_group_keypath_parts(expr: &serde_json::Value, parts: &mut Vec<String>) {
-    let obj = match expr.as_object() {
-        Some(o) => o,
-        None => return,
+    let Some(obj) = expr.as_object() else {
+        return;
     };
-    let expr_type = match obj.get("type").and_then(|t| t.as_str()) {
-        Some(t) => t,
-        None => return,
+    let Some(expr_type) = obj.get("type").and_then(|t| t.as_str()) else {
+        return;
     };
     match expr_type {
         "Identifier" => {
@@ -910,12 +903,12 @@ fn build_group_keypath_parts(expr: &serde_json::Value, parts: &mut Vec<String>) 
             }
             let computed = obj
                 .get("computed")
-                .and_then(|c| c.as_bool())
+                .and_then(serde_json::Value::as_bool)
                 .unwrap_or(false);
             if computed {
                 if let Some(property) = obj.get("property") {
                     let prop_str = build_group_binding_keypath(property);
-                    parts.push(format!("[{}]", prop_str));
+                    parts.push(format!("[{prop_str}]"));
                 }
             } else if let Some(property) = obj.get("property")
                 && let Some(name) = property.get("name").and_then(|n| n.as_str())
@@ -1122,23 +1115,18 @@ fn expression_is_member(expr: &crate::ast::js::Expression) -> bool {
 
 /// Check if a raw expression JSON is a member expression (has dots, subscript access).
 fn expression_json_is_member(val: &serde_json::Value) -> bool {
-    let obj = match val.as_object() {
-        Some(o) => o,
-        None => return false,
+    let Some(obj) = val.as_object() else {
+        return false;
     };
-    let expr_type = match obj.get("type").and_then(|t| t.as_str()) {
-        Some(t) => t,
-        None => return false,
+    let Some(expr_type) = obj.get("type").and_then(|t| t.as_str()) else {
+        return false;
     };
     match expr_type {
         "MemberExpression" => true,
         "CallExpression" => {
             // For call expressions, check the callee
-            if let Some(callee) = obj.get("callee") {
-                expression_json_is_member(callee)
-            } else {
-                false
-            }
+            obj.get("callee")
+                .is_some_and(|callee| expression_json_is_member(callee))
         }
         _ => false,
     }
@@ -1199,11 +1187,11 @@ fn build_value_expression(value: &AttributeValue, context: &mut ComponentContext
 struct EachBlockId {
     /// The variable name (e.g., "i")
     name: String,
-    /// Whether this variable is reactive (needs $.get() in values thunk)
+    /// Whether this variable is reactive (needs $.`get()` in values thunk)
     reactive: bool,
 }
 
-/// Find identifiers in a JsExpr that reference each-block context variables.
+/// Find identifiers in a `JsExpr` that reference each-block context variables.
 /// Returns a list of unique each-block identifiers found.
 fn find_each_block_ids_in_expr(expr: &JsExpr, context: &ComponentContext) -> Vec<EachBlockId> {
     let mut result = Vec::new();
@@ -1212,7 +1200,7 @@ fn find_each_block_ids_in_expr(expr: &JsExpr, context: &ComponentContext) -> Vec
     result
 }
 
-/// Recursively collect each-block identifiers from a JsExpr.
+/// Recursively collect each-block identifiers from a `JsExpr`.
 fn collect_each_block_ids(
     arena: &JsArena,
     expr: &JsExpr,
@@ -1312,7 +1300,7 @@ fn collect_each_block_ids(
     }
 }
 
-/// Make all MemberExpression nodes in an expression use optional chaining.
+/// Make all `MemberExpression` nodes in an expression use optional chaining.
 fn make_optional_chain(arena: &JsArena, expr: &JsExpr) -> JsExpr {
     match expr {
         JsExpr::Member(member) => {
@@ -1462,7 +1450,7 @@ fn build_bind_this_with_each_ids(
 /// Build a bind:this call with context awareness for props, state, and each blocks.
 ///
 /// For props, the getter/setter use function call syntax.
-/// For state variables, uses $.get()/$.set() wrappers.
+/// For state variables, uses $.`get()/$.set()` wrappers.
 /// For each block items in legacy mode, uses the 4-arg form with invalidation.
 fn build_bind_this_call_for_context(
     value: &JsExpr,
@@ -1616,10 +1604,10 @@ fn build_bind_this_each_block(
     let item_name = &each_ctx.item_name;
 
     // Check if the getter references the each item
-    let is_each_item_ref = get_str.starts_with(&format!("{}.", item_name))
-        || get_str.starts_with(&format!("$.get({}).", item_name))
+    let is_each_item_ref = get_str.starts_with(&format!("{item_name}."))
+        || get_str.starts_with(&format!("$.get({item_name})."))
         || get_str == *item_name
-        || get_str == format!("$.get({})", item_name);
+        || get_str == format!("$.get({item_name})");
 
     if !is_each_item_ref {
         return None;
@@ -1630,31 +1618,30 @@ fn build_bind_this_each_block(
     let invalidation = build_invalidation_expr(each_ctx);
 
     // Extract property path
-    let property_path =
-        if let Some(stripped) = get_str.strip_prefix(&format!("$.get({})", item_name)) {
-            stripped.trim_start_matches('.').to_string()
-        } else {
-            let stripped = get_str.strip_prefix(&format!("{}.", item_name))?;
-            stripped.to_string()
-        };
+    let property_path = if let Some(stripped) = get_str.strip_prefix(&format!("$.get({item_name})"))
+    {
+        stripped.trim_start_matches('.').to_string()
+    } else {
+        let stripped = get_str.strip_prefix(&format!("{item_name}."))?;
+        stripped.to_string()
+    };
 
     if property_path.is_empty() {
         return None;
     }
 
     // Setter: ($$value, item) => (item.prop = $$value, invalidation)
-    let setter_body = if let Some(ref inv) = invalidation {
-        format!("{}.{} = $$value, {}", item_name, property_path, inv)
-    } else {
-        format!("{}.{} = $$value", item_name, property_path)
-    };
-    let setter = JsExpr::Raw(format!("($$value, {}) => (\n\t{}\n)", item_name, setter_body).into());
+    let setter_body = invalidation.as_ref().map_or_else(
+        || format!("{item_name}.{property_path} = $$value"),
+        |inv| format!("{item_name}.{property_path} = $$value, {inv}"),
+    );
+    let setter = JsExpr::Raw(format!("($$value, {item_name}) => (\n\t{setter_body}\n)").into());
 
     // Getter: (item) => item?.prop
-    let getter = JsExpr::Raw(format!("({}) => {}?.{}", item_name, item_name, property_path).into());
+    let getter = JsExpr::Raw(format!("({item_name}) => {item_name}?.{property_path}").into());
 
     // Values thunk: () => [$.get(item)]
-    let values_thunk = JsExpr::Raw(format!("() => [$.get({})]", item_name).into());
+    let values_thunk = JsExpr::Raw(format!("() => [$.get({item_name})]").into());
 
     Some(b::call(
         &context.arena,
@@ -2028,7 +2015,7 @@ fn is_prop_variable(expr: &Expression, context: &ComponentContext) -> bool {
     false
 }
 
-/// Check if parent is a RegularElement.
+/// Check if parent is a `RegularElement`.
 fn is_regular_element(
     parent: &crate::compiler::phases::phase3_transform::utils::ParentRef<'_>,
 ) -> bool {
@@ -2039,13 +2026,11 @@ fn is_regular_element(
 fn has_use_directive(
     parent: &crate::compiler::phases::phase3_transform::utils::ParentRef<'_>,
 ) -> bool {
-    match parent.as_regular_element() {
-        Some(elem) => elem
-            .attributes
+    parent.as_regular_element().is_some_and(|elem| {
+        elem.attributes
             .iter()
-            .any(|attr| matches!(attr, Attribute::UseDirective(_))),
-        None => false,
-    }
+            .any(|attr| matches!(attr, Attribute::UseDirective(_)))
+    })
 }
 
 /// Build getter/setter for a binding inside an each block (legacy mode).
@@ -2064,7 +2049,7 @@ pub fn build_each_block_getter_setter(
 ) -> Option<(JsExpr, Option<JsExpr>)> {
     let (get, _, setter_body) =
         build_each_block_accessor_parts(original_expr, converted_expr, context)?;
-    let set = JsExpr::Raw(format!("($$value) => (\n\t{}\n)", setter_body).into());
+    let set = JsExpr::Raw(format!("($$value) => (\n\t{setter_body}\n)").into());
     Some((get, Some(set)))
 }
 
@@ -2122,11 +2107,10 @@ fn build_each_block_accessor_parts(
                     &member_expr,
                     &context.arena,
                 );
-            let setter_body = if let Some(ref inv) = invalidation {
-                format!("{} = $$value, {}", member_access, inv)
-            } else {
-                format!("{} = $$value", member_access)
-            };
+            let setter_body = invalidation.as_ref().map_or_else(
+                || format!("{member_access} = $$value"),
+                |inv| format!("{member_access} = $$value, {inv}"),
+            );
 
             (get, member_expr, setter_body)
         }
@@ -2138,7 +2122,7 @@ fn build_each_block_accessor_parts(
             // Getter: () => $.get(item).prop  OR  () => $.get(item)[$.get(expr)]
             // Setter: ($$value) => ($.get(item).prop = $$value, invalidation)
             let get_base = if each_ctx.item_reactive {
-                format!("$.get({})", item_name)
+                format!("$.get({item_name})")
             } else {
                 item_name.clone()
             };
@@ -2157,7 +2141,7 @@ fn build_each_block_accessor_parts(
                             &transformed,
                             &context.arena,
                         );
-                    format!("[{}]", transformed_str)
+                    format!("[{transformed_str}]")
                 } else {
                     property_path.clone()
                 }
@@ -2167,27 +2151,30 @@ fn build_each_block_accessor_parts(
 
             let access_prop = |base: &str, prop: &str| -> String {
                 if prop.starts_with('[') {
-                    format!("{}{}", base, prop)
+                    format!("{base}{prop}")
                 } else {
-                    format!("{}.{}", base, prop)
+                    format!("{base}.{prop}")
                 }
             };
             let get_expr_str = access_prop(&get_base, &transformed_prop_path);
             // Use a proper Arrow expression so that unwrap_thunk can strip the () => prefix
             let get = b::thunk(&context.arena, JsExpr::Raw(get_expr_str.clone().into()));
 
-            let setter_body = if let Some(ref inv) = invalidation {
-                format!(
-                    "{} = $$value, {}",
-                    access_prop(&get_base, &transformed_prop_path),
-                    inv
-                )
-            } else {
-                format!(
-                    "{} = $$value",
-                    access_prop(&get_base, &transformed_prop_path)
-                )
-            };
+            let setter_body = invalidation.as_ref().map_or_else(
+                || {
+                    format!(
+                        "{} = $$value",
+                        access_prop(&get_base, &transformed_prop_path)
+                    )
+                },
+                |inv| {
+                    format!(
+                        "{} = $$value, {}",
+                        access_prop(&get_base, &transformed_prop_path),
+                        inv
+                    )
+                },
+            );
 
             (get, JsExpr::Raw(get_expr_str.into()), setter_body)
         }
@@ -2213,11 +2200,10 @@ fn build_each_block_accessor_parts(
                 None => b::id(&var_name),
             };
 
-            let setter_body = if let Some(ref inv) = invalidation {
-                format!("{} = $$value, {}", update_path, inv)
-            } else {
-                format!("{} = $$value", update_path)
-            };
+            let setter_body = invalidation.as_ref().map_or_else(
+                || format!("{update_path} = $$value"),
+                |inv| format!("{update_path} = $$value, {inv}"),
+            );
 
             (get, get_body, setter_body)
         }
@@ -2228,13 +2214,12 @@ fn build_each_block_accessor_parts(
             // Computed access like item[index] or a()[key()]
             // Getter: () => access_expr
             // Setter: ($$value) => (assign_expr = $$value, invalidation)
-            let get = JsExpr::Raw(format!("() => {}", access_expr).into());
+            let get = JsExpr::Raw(format!("() => {access_expr}").into());
 
-            let setter_body = if let Some(ref inv) = invalidation {
-                format!("{} = $$value, {}", assign_expr, inv)
-            } else {
-                format!("{} = $$value", assign_expr)
-            };
+            let setter_body = invalidation.as_ref().map_or_else(
+                || format!("{assign_expr} = $$value"),
+                |inv| format!("{assign_expr} = $$value, {inv}"),
+            );
 
             (get, JsExpr::Raw(access_expr.into()), setter_body)
         }
@@ -2259,7 +2244,7 @@ enum EachBindingExprInfo {
         var_name: String,
         update_path: String,
     },
-    /// Computed access expression (bind:value={a()[key()]})
+    /// Computed access expression (`bind:value={a()`[`key()`]})
     ComputedAccess {
         access_expr: String,
         assign_expr: String,
@@ -2358,7 +2343,7 @@ fn analyze_each_binding_expression(
                                 .get(inner)
                                 .is_some_and(|t| t.is_reactive)
                         {
-                            format!("[{}()]", inner)
+                            format!("[{inner}()]")
                         } else {
                             property_path.clone()
                         }
@@ -2367,9 +2352,9 @@ fn analyze_each_binding_expression(
                     };
 
                     let access_expr = if transformed_property_path.starts_with('[') {
-                        format!("{}(){}", root_name, transformed_property_path)
+                        format!("{root_name}(){transformed_property_path}")
                     } else {
-                        format!("{}().{}", root_name, transformed_property_path)
+                        format!("{root_name}().{transformed_property_path}")
                     };
                     // For the assign expression, also use getter calls so the setter writes
                     // through the getter functions (e.g., a()[key()] = $$value).
@@ -2390,8 +2375,8 @@ fn analyze_each_binding_expression(
     }
 }
 
-/// Extract the root identifier name and property path from a MemberExpression.
-/// Returns (root_name, property_path) e.g., ("item", "name.first") for item.name.first
+/// Extract the root identifier name and property path from a `MemberExpression`.
+/// Returns (`root_name`, `property_path`) e.g., ("item", "name.first") for item.name.first
 fn extract_member_path(
     obj: &serde_json::Map<String, serde_json::Value>,
 ) -> Option<(String, String)> {
@@ -2399,14 +2384,14 @@ fn extract_member_path(
     let property = obj.get("property")?.as_object()?;
     let computed = obj
         .get("computed")
-        .and_then(|c| c.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
 
     let prop_name = if computed {
         // Computed property: item[expr]
         let prop_val = serde_json::Value::Object(property.clone());
         let prop_str = format_json_expr(&prop_val);
-        format!("[{}]", prop_str)
+        format!("[{prop_str}]")
     } else {
         property.get("name").and_then(|n| n.as_str())?.to_string()
     };
@@ -2419,9 +2404,9 @@ fn extract_member_path(
     } else if object_type == "MemberExpression" {
         let (root, parent_path) = extract_member_path(object)?;
         if computed {
-            Some((root, format!("{}{}", parent_path, prop_name)))
+            Some((root, format!("{parent_path}{prop_name}")))
         } else {
-            Some((root, format!("{}.{}", parent_path, prop_name)))
+            Some((root, format!("{parent_path}.{prop_name}")))
         }
     } else {
         None
@@ -2440,22 +2425,24 @@ fn format_json_expr(val: &serde_json::Value) -> String {
                     .unwrap_or("?")
                     .to_string(),
                 "Literal" | "NumericLiteral" => {
-                    if let Some(raw) = obj.get("raw").and_then(|r| r.as_str()) {
-                        raw.to_string()
-                    } else if let Some(v) = obj.get("value") {
-                        match v {
-                            serde_json::Value::Number(n) => n.to_string(),
-                            serde_json::Value::String(s) => format!("'{}'", s),
-                            _ => "?".to_string(),
-                        }
-                    } else {
-                        "?".to_string()
-                    }
+                    obj.get("raw").and_then(|r| r.as_str()).map_or_else(
+                        || {
+                            obj.get("value").map_or_else(
+                                || "?".to_string(),
+                                |v| match v {
+                                    serde_json::Value::Number(n) => n.to_string(),
+                                    serde_json::Value::String(s) => format!("'{s}'"),
+                                    _ => "?".to_string(),
+                                },
+                            )
+                        },
+                        |raw| raw.to_string(),
+                    )
                 }
                 _ => "?".to_string(),
             }
         }
-        serde_json::Value::String(s) => format!("'{}'", s),
+        serde_json::Value::String(s) => format!("'{s}'"),
         serde_json::Value::Number(n) => n.to_string(),
         _ => "?".to_string(),
     }
@@ -2487,12 +2474,12 @@ fn build_invalidation_expr(
         } else {
             each_ctx.invalidation_exprs.join(", ")
         };
-        parts.push(format!("$.invalidate_inner_signals(() => ({}))", inner));
+        parts.push(format!("$.invalidate_inner_signals(() => ({inner}))"));
     }
 
     // Add $.invalidate_store($$stores, '$storeName') if the collection is a store
     if let Some(ref store_name) = each_ctx.store_to_invalidate {
-        parts.push(format!("$.invalidate_store($$stores, '{}')", store_name));
+        parts.push(format!("$.invalidate_store($$stores, '{store_name}')"));
     }
 
     if parts.is_empty() {
@@ -2514,7 +2501,7 @@ fn merge_store_invalidation_into_setter(
     setter: &JsExpr,
     store_name: &str,
 ) -> JsExpr {
-    let invalidation = format!("$.invalidate_store($$stores, '{}')", store_name);
+    let invalidation = format!("$.invalidate_store($$stores, '{store_name}')");
     match setter {
         JsExpr::Arrow(arrow) => {
             match &arrow.body {
@@ -2541,14 +2528,14 @@ fn merge_store_invalidation_into_setter(
         JsExpr::Raw(raw) => {
             // For raw expressions like `($$value) => expr`, insert the invalidation
             let raw_str = raw.to_string();
-            if let Some(arrow_pos) = memchr::memmem::find(raw_str.as_bytes(), b"=>") {
-                let after_arrow = raw_str[arrow_pos + 2..].trim();
-                let before_arrow = &raw_str[..arrow_pos + 2];
-                JsExpr::Raw(format!("{} ({}, {})", before_arrow, after_arrow, invalidation).into())
-            } else {
-                // Fallback: just use as-is
-                setter.clone()
-            }
+            memchr::memmem::find(raw_str.as_bytes(), b"=>").map_or_else(
+                || setter.clone(),
+                |arrow_pos| {
+                    let after_arrow = raw_str[arrow_pos + 2..].trim();
+                    let before_arrow = &raw_str[..arrow_pos + 2];
+                    JsExpr::Raw(format!("{before_arrow} ({after_arrow}, {invalidation})").into())
+                },
+            )
         }
         JsExpr::Function(func) => {
             // For function expression setters like `function set($$value) { expr; }`,
@@ -2579,7 +2566,7 @@ fn merge_store_invalidation_into_setter(
     }
 }
 
-/// Get the store name to invalidate from the current each_binding_context.
+/// Get the store name to invalidate from the current `each_binding_context`.
 /// Returns the store name (e.g., "$array") if the innermost each block iterates over a store.
 ///
 /// This is only used in **runes mode**, because in legacy mode the store invalidation
@@ -2599,7 +2586,7 @@ fn get_store_to_invalidate_from_context(context: &ComponentContext) -> Option<St
         .and_then(|ctx| ctx.store_to_invalidate.clone())
 }
 
-/// Extract the root identifier name from a JsExpr.
+/// Extract the root identifier name from a `JsExpr`.
 ///
 /// For `selected` -> Some("selected"), for `selected.done` -> Some("selected"),
 /// for `items[0]` -> Some("items").
@@ -2615,7 +2602,7 @@ pub fn get_expression_root_identifier(expr: &JsExpr, arena: &JsArena) -> Option<
 }
 
 /// Collect all identifier names from a raw AST Expression (JSON-based).
-/// Unlike `collect_expr_identifiers` in transition_directive.rs, this DOES cross
+/// Unlike `collect_expr_identifiers` in `transition_directive.rs`, this DOES cross
 /// arrow/function boundaries because we need to find all referenced variable names
 /// for blocker checking in bind directives (e.g., `bind:value={() => value, v => value = v}`
 /// where `value` is inside arrow functions).
@@ -2659,8 +2646,8 @@ fn collect_ast_identifiers_recursive(val: &serde_json::Value, names: &mut Vec<St
     }
 }
 
-/// Emit $.validate_binding() call for dev mode binding validation.
-/// Reference: validate_binding() in shared/utils.js lines 340-374
+/// Emit $.`validate_binding()` call for dev mode binding validation.
+/// Reference: `validate_binding()` in shared/utils.js lines 340-374
 pub fn emit_validate_binding(
     node: &BindDirective,
     expression: &JsExpr,
@@ -2670,9 +2657,8 @@ pub fn emit_validate_binding(
 
     // Extract the root object name from the original AST expression
     let root_name = extract_root_name_from_json(node.expression.as_json());
-    let root_name = match root_name {
-        Some(n) => n,
-        None => return,
+    let Some(root_name) = root_name else {
+        return;
     };
 
     // Check if the root binding is a store_sub - skip validation for stores
@@ -2771,7 +2757,10 @@ pub fn emit_validate_binding(
 fn extract_root_name_from_json(val: &serde_json::Value) -> Option<String> {
     let obj = val.as_object()?;
     match obj.get("type")?.as_str()? {
-        "Identifier" => obj.get("name")?.as_str().map(|s| s.to_string()),
+        "Identifier" => obj
+            .get("name")?
+            .as_str()
+            .map(std::string::ToString::to_string),
         "MemberExpression" => extract_root_name_from_json(obj.get("object")?),
         _ => None,
     }
@@ -2867,9 +2856,8 @@ fn build_ast_member_path_recursive(
     path: &mut Vec<JsExpr>,
     read_computed: &dyn Fn(&str) -> JsExpr,
 ) -> bool {
-    let obj = match val.as_object() {
-        Some(o) => o,
-        None => return true,
+    let Some(obj) = val.as_object() else {
+        return true;
     };
     match obj.get("type").and_then(|t| t.as_str()) {
         Some("MemberExpression") => {
@@ -2882,7 +2870,7 @@ fn build_ast_member_path_recursive(
             // Add current property
             let computed = obj
                 .get("computed")
-                .and_then(|c| c.as_bool())
+                .and_then(serde_json::Value::as_bool)
                 .unwrap_or(false);
             let Some(property) = obj.get("property") else {
                 return true;

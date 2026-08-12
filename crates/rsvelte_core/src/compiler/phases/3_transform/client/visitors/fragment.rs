@@ -62,12 +62,16 @@ fn parse_namespace(namespace: &str) -> Namespace {
 /// * `node` - The Fragment node to transform
 /// * `context` - The component transformation context
 /// * `is_root_fragment` - Whether this is a root-level fragment (e.g., component body)
-///   that may need `$.next()` for text-first content. Nested fragments like IfBlock
+///   that may need `$.next()` for text-first content. Nested fragments like `IfBlock`
 ///   consequent/alternate should pass `false`.
 ///
 /// # Returns
 ///
 /// Returns a block statement containing the transformed code.
+///
+/// # Panics
+///
+/// Panics if a fragment transformation invariant is violated.
 pub fn fragment(
     node: &Fragment,
     context: &mut ComponentContext,
@@ -626,10 +630,9 @@ pub fn fragment(
                 for idx in &idx_first_seen {
                     let names_at_idx = per_idx_names.get(idx).unwrap();
                     let primary_at_idx = primary_names.get(idx);
-                    let primary_count = match primary_at_idx {
-                        Some(set) => names_at_idx.iter().filter(|n| set.contains(*n)).count(),
-                        None => names_at_idx.len(),
-                    };
+                    let primary_count = primary_at_idx.map_or(names_at_idx.len(), |set| {
+                        names_at_idx.iter().filter(|n| set.contains(*n)).count()
+                    });
                     // Fall back to "at least one" so that an index reached
                     // purely via the broad-reference logic in
                     // `compute_blocker_map` (no primary name at that slot in
@@ -782,7 +785,7 @@ pub fn fragment(
 }
 
 /// Collect all identifier names from a JS statement.
-/// Used for finding blocked variable references in template_effect callbacks.
+/// Used for finding blocked variable references in `template_effect` callbacks.
 pub fn collect_identifiers_from_statement(
     stmt: &JsStatement,
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
@@ -926,11 +929,7 @@ pub(crate) fn collect_ids_from_expr(
         JsExpr::Await(inner) => {
             collect_ids_from_expr(arena.get_expr(*inner), arena, names);
         }
-        JsExpr::Spread(inner) | JsExpr::Void(inner) => {
-            collect_ids_from_expr(arena.get_expr(*inner), arena, names);
-        }
         // Don't cross function boundaries
-        JsExpr::Arrow(_) | JsExpr::Function(_) => {}
         _ => {}
     }
 }
@@ -939,7 +938,7 @@ pub(crate) fn collect_ids_from_expr(
 ///
 /// This version enters getter/setter bodies (which are part of component props)
 /// but does NOT enter arrow functions (which are children callbacks).
-/// This matches the official Svelte compiler's memoizer.blockers() behavior,
+/// This matches the official Svelte compiler's `memoizer.blockers()` behavior,
 /// which only tracks blockers from direct prop expressions.
 pub fn collect_identifiers_from_statement_props(
     stmt: &JsStatement,
@@ -1069,7 +1068,6 @@ pub(crate) fn collect_ids_from_expr_props(
                         // Check if this property is named "children" or "$$slots" -
                         // skip their arrow/function values as children handle their own async
                         let prop_name = match &prop.key {
-                            JsPropertyKey::Identifier(name) => Some(name.as_str()),
                             JsPropertyKey::Literal(JsLiteral::String(name)) => Some(name.as_str()),
                             _ => None,
                         };
@@ -1102,9 +1100,6 @@ pub(crate) fn collect_ids_from_expr_props(
             collect_ids_from_expr_props(arena.get_expr(up.argument), arena, names);
         }
         JsExpr::Await(inner) => {
-            collect_ids_from_expr_props(arena.get_expr(*inner), arena, names);
-        }
-        JsExpr::Spread(inner) | JsExpr::Void(inner) => {
             collect_ids_from_expr_props(arena.get_expr(*inner), arena, names);
         }
         // Enter arrow and function bodies (unlike the shallow version)
@@ -1268,9 +1263,6 @@ fn collect_ids_from_expr_deep(
             collect_ids_from_expr_deep(arena.get_expr(up.argument), arena, names);
         }
         JsExpr::Await(inner) => {
-            collect_ids_from_expr_deep(arena.get_expr(*inner), arena, names);
-        }
-        JsExpr::Spread(inner) | JsExpr::Void(inner) => {
             collect_ids_from_expr_deep(arena.get_expr(*inner), arena, names);
         }
         // Cross into arrow and function bodies

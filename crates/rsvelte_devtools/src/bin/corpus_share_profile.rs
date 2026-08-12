@@ -153,7 +153,7 @@ fn report_shares(guard: &pprof::ProfilerGuard<'_>, file_count: usize, top: usize
     let mut incl: HashMap<String, isize> = HashMap::new();
     let mut selfc: HashMap<String, isize> = HashMap::new();
     let mut total: isize = 0;
-    for (frames, count) in report.data.iter() {
+    for (frames, count) in &report.data {
         total += *count;
         if let Some(first) = frames.frames.first().and_then(|f| f.first()) {
             *selfc.entry(format!("{first}")).or_insert(0) += *count;

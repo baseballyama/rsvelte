@@ -19,9 +19,9 @@ use rsvelte_fmt::FormatSession;
 
 /// A fake `oxfmt` for the `--stdin-filepath` path `oxfmt_stdin` drives:
 /// prefixes whatever it receives on stdin and echoes it to stdout.
-const MARKER_OXFMT_STDIN: &str = r#"const fs = require('node:fs');
+const MARKER_OXFMT_STDIN: &str = r"const fs = require('node:fs');
 process.stdout.write('/*FMT*/' + fs.readFileSync(0, 'utf8'));
-"#;
+";
 
 fn node_runnable() -> bool {
     let ok = Command::new("node")
@@ -29,8 +29,7 @@ fn node_runnable() -> bool {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
-        .map(|s| s.success())
-        .unwrap_or(false);
+        .is_ok_and(|s| s.success());
     // Only a job that promised Node may fail on its absence.
     assert!(
         ok || std::env::var_os("RSVELTE_REQUIRE_PREREQS").is_none(),
@@ -70,8 +69,8 @@ fn resolve_with_oxfmt_bin_routes_non_svelte_formatting_through_it() {
     std::fs::write(&fake, MARKER_OXFMT_STDIN).unwrap();
 
     let ts_path = dir.join("a.ts");
-    let session = FormatSession::resolve_with_oxfmt_bin(&ts_path, Some(fake.clone()))
-        .expect("resolve session");
+    let session =
+        FormatSession::resolve_with_oxfmt_bin(&ts_path, Some(fake)).expect("resolve session");
     let out = session
         .format("const x=1\n", &ts_path)
         .expect("format via the explicit oxfmt_bin");

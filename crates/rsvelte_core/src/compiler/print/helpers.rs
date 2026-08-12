@@ -6,6 +6,10 @@
 use super::Context;
 use std::fmt::Write as _;
 
+fn source_index(value: u64) -> usize {
+    usize::try_from(value).expect("source positions must fit usize")
+}
+
 /// Threshold for when content should be formatted on separate lines.
 ///
 /// If the measured length of content exceeds this threshold, it will be
@@ -83,14 +87,14 @@ pub fn is_void_element(name: &str) -> bool {
     )
 }
 
-/// Convert ESTree JSON to JavaScript source code string.
+/// Convert `ESTree` JSON to JavaScript source code string.
 ///
-/// This function converts an ESTree-formatted JSON value (serde_json::Value)
+/// This function converts an ESTree-formatted JSON value (`serde_json::Value`)
 /// into its JavaScript source code representation.
 ///
 /// # Arguments
 ///
-/// * `node` - The ESTree node as JSON
+/// * `node` - The `ESTree` node as JSON
 ///
 /// # Returns
 ///
@@ -101,7 +105,7 @@ pub fn estree_to_string(node: &serde_json::Value) -> String {
     generator.output
 }
 
-/// ESTree to JavaScript code generator.
+/// `ESTree` to JavaScript code generator.
 struct EstreeGenerator {
     output: String,
 }
@@ -155,7 +159,7 @@ impl EstreeGenerator {
                 self.output.push_str("yield");
                 if node
                     .get("delegate")
-                    .and_then(|d| d.as_bool())
+                    .and_then(serde_json::Value::as_bool)
                     .unwrap_or(false)
                 {
                     self.output.push('*');
@@ -222,7 +226,10 @@ impl EstreeGenerator {
     fn generate_member_expression(&mut self, node: &serde_json::Value) {
         if let Some(object) = node.get("object") {
             let needs_parens = object.get("type").and_then(|t| t.as_str()) == Some("Literal")
-                && object.get("value").and_then(|v| v.as_f64()).is_some();
+                && object
+                    .get("value")
+                    .and_then(serde_json::Value::as_f64)
+                    .is_some();
 
             if needs_parens {
                 self.output.push('(');
@@ -235,11 +242,11 @@ impl EstreeGenerator {
 
         let optional = node
             .get("optional")
-            .and_then(|o| o.as_bool())
+            .and_then(serde_json::Value::as_bool)
             .unwrap_or(false);
         let computed = node
             .get("computed")
-            .and_then(|c| c.as_bool())
+            .and_then(serde_json::Value::as_bool)
             .unwrap_or(false);
 
         if optional {
@@ -316,7 +323,7 @@ impl EstreeGenerator {
 
         let optional = node
             .get("optional")
-            .and_then(|o| o.as_bool())
+            .and_then(serde_json::Value::as_bool)
             .unwrap_or(false);
         if optional {
             self.output.push_str("?.");
@@ -378,11 +385,11 @@ impl EstreeGenerator {
         let kind = node.get("kind").and_then(|k| k.as_str()).unwrap_or("init");
         let computed = node
             .get("computed")
-            .and_then(|c| c.as_bool())
+            .and_then(serde_json::Value::as_bool)
             .unwrap_or(false);
         let shorthand = node
             .get("shorthand")
-            .and_then(|s| s.as_bool())
+            .and_then(serde_json::Value::as_bool)
             .unwrap_or(false);
 
         if shorthand {
@@ -418,7 +425,10 @@ impl EstreeGenerator {
     }
 
     fn generate_arrow_function(&mut self, node: &serde_json::Value) {
-        let is_async = node.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
+        let is_async = node
+            .get("async")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false);
         if is_async {
             self.output.push_str("async ");
         }
@@ -460,10 +470,13 @@ impl EstreeGenerator {
     }
 
     fn generate_function_expression(&mut self, node: &serde_json::Value) {
-        let is_async = node.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
+        let is_async = node
+            .get("async")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false);
         let is_generator = node
             .get("generator")
-            .and_then(|g| g.as_bool())
+            .and_then(serde_json::Value::as_bool)
             .unwrap_or(false);
 
         if is_async {
@@ -505,7 +518,10 @@ impl EstreeGenerator {
     }
 
     fn generate_unary_expression(&mut self, node: &serde_json::Value) {
-        let prefix = node.get("prefix").and_then(|p| p.as_bool()).unwrap_or(true);
+        let prefix = node
+            .get("prefix")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(true);
         let op = node.get("operator").and_then(|o| o.as_str()).unwrap_or("");
 
         if prefix {
@@ -525,7 +541,10 @@ impl EstreeGenerator {
     }
 
     fn generate_update_expression(&mut self, node: &serde_json::Value) {
-        let prefix = node.get("prefix").and_then(|p| p.as_bool()).unwrap_or(true);
+        let prefix = node
+            .get("prefix")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(true);
         let op = node.get("operator").and_then(|o| o.as_str()).unwrap_or("");
 
         if prefix {
@@ -617,11 +636,11 @@ impl EstreeGenerator {
                 } else {
                     let shorthand = prop
                         .get("shorthand")
-                        .and_then(|s| s.as_bool())
+                        .and_then(serde_json::Value::as_bool)
                         .unwrap_or(false);
                     let computed = prop
                         .get("computed")
-                        .and_then(|c| c.as_bool())
+                        .and_then(serde_json::Value::as_bool)
                         .unwrap_or(false);
 
                     if shorthand {
@@ -797,7 +816,7 @@ pub fn source_expression_to_string(
     expression_to_string(expr)
 }
 
-/// Format a VariableDeclaration for ConstTag output.
+/// Format a `VariableDeclaration` for `ConstTag` output.
 ///
 /// Generates "const x = expr;" from the AST, using source text for the
 /// declarator's init expression when available.
@@ -811,7 +830,7 @@ pub fn format_variable_declaration_from_source(
     let kind = json.get("kind").and_then(|k| k.as_str()).unwrap_or("const");
 
     if let Some(declarations) = json.get("declarations").and_then(|d| d.as_array()) {
-        let mut result = format!("{} ", kind);
+        let mut result = format!("{kind} ");
 
         for (i, decl) in declarations.iter().enumerate() {
             if i > 0 {
@@ -821,9 +840,12 @@ pub fn format_variable_declaration_from_source(
             // Get the declarator's start..end from source if available
             let decl_start = decl
                 .get("start")
-                .and_then(|s| s.as_u64())
-                .map(|n| n as usize);
-            let decl_end = decl.get("end").and_then(|e| e.as_u64()).map(|n| n as usize);
+                .and_then(serde_json::Value::as_u64)
+                .map(source_index);
+            let decl_end = decl
+                .get("end")
+                .and_then(serde_json::Value::as_u64)
+                .map(source_index);
 
             if let (Some(src), Some(s), Some(e)) = (source, decl_start, decl_end)
                 && s < e
@@ -916,8 +938,8 @@ fn get_program_body_positions(program: &crate::ast::js::Expression) -> Vec<(usiz
         return body
             .iter()
             .filter_map(|stmt| {
-                let s = stmt.get("start").and_then(|s| s.as_u64())? as usize;
-                let e = stmt.get("end").and_then(|e| e.as_u64())? as usize;
+                let s = source_index(stmt.get("start").and_then(serde_json::Value::as_u64)?);
+                let e = source_index(stmt.get("end").and_then(serde_json::Value::as_u64)?);
                 Some((s, e))
             })
             .collect();
@@ -932,7 +954,7 @@ fn get_program_body_positions(program: &crate::ast::js::Expression) -> Vec<(usiz
 fn get_column_indent(source: &str, pos: usize) -> usize {
     // Find the start of the current line
     let before = &source[..pos];
-    let line_start = before.rfind('\n').map(|i| i + 1).unwrap_or(0);
+    let line_start = before.rfind('\n').map_or(0, |i| i + 1);
     let prefix = &source[line_start..pos];
 
     // Count leading whitespace characters
@@ -973,7 +995,7 @@ fn strip_base_indent(text: &str, base_indent: usize) -> String {
 ///
 /// # Arguments
 ///
-/// * `program` - The ESTree Program node
+/// * `program` - The `ESTree` Program node
 ///
 /// # Returns
 ///
@@ -1003,7 +1025,7 @@ pub fn format_program(program: &serde_json::Value) -> String {
 ///
 /// # Arguments
 ///
-/// * `stmt` - The ESTree statement node
+/// * `stmt` - The `ESTree` statement node
 ///
 /// # Returns
 ///
@@ -1013,30 +1035,26 @@ fn format_statement_from_json(stmt: &serde_json::Value) -> String {
 
     match stmt_type {
         Some("VariableDeclaration") => format_variable_declaration(stmt),
-        Some("ExpressionStatement") => {
-            if let Some(expr) = stmt.get("expression") {
-                format!("{};", estree_to_string(expr))
-            } else {
-                ";".to_string()
-            }
-        }
+        Some("ExpressionStatement") => stmt.get("expression").map_or_else(
+            || ";".to_string(),
+            |expr| format!("{};", estree_to_string(expr)),
+        ),
         Some("FunctionDeclaration") => format_function_declaration(stmt),
         Some("ClassDeclaration") => format_class_declaration(stmt),
         Some("ImportDeclaration") => format_import_declaration(stmt),
         Some("ExportNamedDeclaration") | Some("ExportDefaultDeclaration") => {
             format_export_declaration(stmt)
         }
-        Some("ReturnStatement") => {
-            if let Some(arg) = stmt.get("argument") {
+        Some("ReturnStatement") => stmt.get("argument").map_or_else(
+            || "return;".to_string(),
+            |arg| {
                 if arg.is_null() {
                     "return;".to_string()
                 } else {
                     format!("return {};", estree_to_string(arg))
                 }
-            } else {
-                "return;".to_string()
-            }
-        }
+            },
+        ),
         Some("IfStatement") => {
             let mut result = String::from("if (");
             if let Some(test) = stmt.get("test") {
@@ -1051,13 +1069,10 @@ fn format_statement_from_json(stmt: &serde_json::Value) -> String {
         | Some("ForInStatement")
         | Some("ForOfStatement") => "/* loop */".to_string(),
         Some("BlockStatement") => "{ /* block */ }".to_string(),
-        Some("ThrowStatement") => {
-            if let Some(arg) = stmt.get("argument") {
-                format!("throw {};", estree_to_string(arg))
-            } else {
-                "throw;".to_string()
-            }
-        }
+        Some("ThrowStatement") => stmt.get("argument").map_or_else(
+            || "throw;".to_string(),
+            |arg| format!("throw {};", estree_to_string(arg)),
+        ),
         Some("TryStatement") => "try { /* ... */ } catch { /* ... */ }".to_string(),
         Some("EmptyStatement") => ";".to_string(),
         _ => {
@@ -1093,10 +1108,13 @@ fn format_variable_declaration(stmt: &serde_json::Value) -> String {
 }
 
 fn format_function_declaration(stmt: &serde_json::Value) -> String {
-    let is_async = stmt.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
+    let is_async = stmt
+        .get("async")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
     let is_generator = stmt
         .get("generator")
-        .and_then(|g| g.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
 
     let mut result = String::new();

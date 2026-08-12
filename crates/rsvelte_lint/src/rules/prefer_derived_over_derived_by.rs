@@ -1,6 +1,8 @@
+//! `svelte/prefer-derived-over-derived-by`.
+//!
 //! `svelte/prefer-derived-over-derived-by` — disallow unnecessary
 //! `$derived.by()` when `$derived()` is sufficient. Port of the
-//! eslint-plugin-svelte rule, over the script ESTree program via the
+//! eslint-plugin-svelte rule, over the script `ESTree` program via the
 //! [`ScriptRule`] hook.
 //!
 //! The rule fires on a `$derived.by(fn)` call whose single argument is a
@@ -62,8 +64,7 @@ fn simple_thunk_kind(arg: &Value) -> Option<&str> {
     let params_empty = arg
         .get("params")
         .and_then(Value::as_array)
-        .map(|p| p.is_empty())
-        .unwrap_or(false);
+        .is_some_and(std::vec::Vec::is_empty);
     if !params_empty {
         return None;
     }

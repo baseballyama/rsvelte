@@ -21,7 +21,7 @@ use crate::width::{VisualWidth, tab_width};
 /// `<svelte:head>`) — the top-level component `<style>` is hoisted into
 /// `root.css` and handled by [`collect_style_edit`]. Each nested style's raw CSS
 /// is formatted through the same callback and re-indented to the element's depth.
-pub(crate) fn collect_nested_style_edits(
+pub fn collect_nested_style_edits(
     source: &str,
     fragment: &Fragment,
     options: &FormatOptions,
@@ -54,16 +54,16 @@ fn walk_nested_style(
                 }
             }
             TemplateNode::RegularElement(e) => {
-                walk_nested_style(source, &e.fragment, d, options, edits)?
+                walk_nested_style(source, &e.fragment, d, options, edits)?;
             }
             TemplateNode::Component(c) => {
-                walk_nested_style(source, &c.fragment, d, options, edits)?
+                walk_nested_style(source, &c.fragment, d, options, edits)?;
             }
             TemplateNode::TitleElement(t) => {
-                walk_nested_style(source, &t.fragment, d, options, edits)?
+                walk_nested_style(source, &t.fragment, d, options, edits)?;
             }
             TemplateNode::SlotElement(s) => {
-                walk_nested_style(source, &s.fragment, d, options, edits)?
+                walk_nested_style(source, &s.fragment, d, options, edits)?;
             }
             TemplateNode::SvelteHead(s)
             | TemplateNode::SvelteBody(s)
@@ -73,13 +73,13 @@ fn walk_nested_style(
             | TemplateNode::SvelteOptions(s)
             | TemplateNode::SvelteSelf(s)
             | TemplateNode::SvelteWindow(s) => {
-                walk_nested_style(source, &s.fragment, d, options, edits)?
+                walk_nested_style(source, &s.fragment, d, options, edits)?;
             }
             TemplateNode::SvelteComponent(c) => {
-                walk_nested_style(source, &c.fragment, d, options, edits)?
+                walk_nested_style(source, &c.fragment, d, options, edits)?;
             }
             TemplateNode::SvelteElement(e) => {
-                walk_nested_style(source, &e.fragment, d, options, edits)?
+                walk_nested_style(source, &e.fragment, d, options, edits)?;
             }
             TemplateNode::IfBlock(blk) => {
                 walk_nested_style(source, &blk.consequent, d, options, edits)?;
@@ -99,10 +99,10 @@ fn walk_nested_style(
                 }
             }
             TemplateNode::KeyBlock(blk) => {
-                walk_nested_style(source, &blk.fragment, d, options, edits)?
+                walk_nested_style(source, &blk.fragment, d, options, edits)?;
             }
             TemplateNode::SnippetBlock(blk) => {
-                walk_nested_style(source, &blk.body, d, options, edits)?
+                walk_nested_style(source, &blk.body, d, options, edits)?;
             }
             _ => {}
         }
@@ -151,16 +151,20 @@ fn format_nested_style(
     };
     let width = css_width(options, &body_indent);
     let dedented = dedent(body);
-    let formatted = formatter(&dedented, "css", width).map_err(FormatError::StyleFormat)?;
-    let reindented = reindent(&formatted, &body_indent);
+    let css_output = formatter(&dedented, "css", width).map_err(FormatError::StyleFormat)?;
+    let reindented = reindent(&css_output, &body_indent);
     let spliced = format!("\n{reindented}\n{tag_indent}");
-    edits.push((start + open_end as u32, start + close_start as u32, spliced));
+    edits.push((
+        start + crate::source_offset(open_end),
+        start + crate::source_offset(close_start),
+        spliced,
+    ));
     Ok(())
 }
 
 /// Push one edit replacing the `<style>` body with the formatter
 /// callback's output. No-op when no callback is configured.
-pub(crate) fn collect_style_edit(
+pub fn collect_style_edit(
     source: &str,
     css: &StyleSheet,
     options: &FormatOptions,
@@ -210,8 +214,8 @@ pub(crate) fn collect_style_edit(
     };
     let width = css_width(options, &body_indent);
     let dedented = dedent(body);
-    let formatted = formatter(&dedented, &lang, width).map_err(FormatError::StyleFormat)?;
-    let reindented = reindent(&formatted, &body_indent);
+    let css_output = formatter(&dedented, &lang, width).map_err(FormatError::StyleFormat)?;
+    let reindented = reindent(&css_output, &body_indent);
     let spliced = format!("\n{reindented}\n{tag_indent}");
 
     edits.push((css.content.start, css.content.end, spliced));
@@ -296,13 +300,15 @@ fn leading_ascii_ws(l: &str) -> usize {
 }
 
 /// Prefix every non-empty line of `s` with `indent`, dropping any trailing
-/// newline (the splice adds its own surrounding newlines). Lines inside a
-/// multi-line `/* … */` comment are left verbatim (the inverse of `dedent`).
+/// newline (the splice adds its own surrounding newlines).
+///
+/// Lines inside a multi-line `/* … */` comment are left verbatim (the inverse of `dedent`).
 ///
 /// Exposed for the `rsvelte-fmt` CLI: its batched `<style>` path collects raw
 /// bodies during the format pass (returning a placeholder) and formats them in
 /// one oxfmt call afterwards, so it must re-indent the formatted CSS with the
 /// *same* routine the single-file/stdin path uses here to stay byte-identical.
+#[must_use]
 pub fn reindent(s: &str, indent: &str) -> String {
     let trimmed = s.trim_end_matches('\n');
     let cont = comment_continuation_flags(trimmed);

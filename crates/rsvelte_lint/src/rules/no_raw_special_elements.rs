@@ -1,3 +1,5 @@
+//! `svelte/no-raw-special-elements`.
+//!
 //! `svelte/no-raw-special-elements` — flag the raw special elements that were
 //! deprecated in Svelte 5 (`<head>`, `<body>`, `<window>`, `<document>`,
 //! `<element>`, `<options>`) and rewrite them to their `svelte:` namespaced
@@ -26,6 +28,10 @@ static META: RuleMeta = RuleMeta {
 /// The raw element names deprecated in Svelte 5 in favour of `svelte:<name>`.
 const INVALID_HTML_ELEMENTS: [&str; 6] =
     ["head", "body", "window", "document", "element", "options"];
+
+fn name_width(value: usize) -> u32 {
+    u32::try_from(value).expect("element-name widths are represented as u32")
+}
 
 fn is_invalid(name: &str) -> bool {
     INVALID_HTML_ELEMENTS.contains(&name)
@@ -60,13 +66,14 @@ impl Rule for NoRawSpecialElements {
         // Closing tag (only present for non-self-closing elements). The source
         // for such an element ends with `</name>`; if we find that exact shape,
         // insert `svelte:` right after the `</`.
-        let close_len = name.len() as u32 + 3; // "</" + name + ">"
+        let name_len = name_width(name.len());
+        let close_len = name_len + 3; // "</" + name + ">"
         if el.end >= close_len {
             let close_start = el.end - close_len;
             if ctx.slice(close_start, el.end) == format!("</{name}>") {
                 edits.push(TextEdit {
-                    start: el.end - name.len() as u32 - 1,
-                    end: el.end - name.len() as u32 - 1,
+                    start: el.end - name_len - 1,
+                    end: el.end - name_len - 1,
                     new_text: "svelte:".to_string(),
                 });
             }

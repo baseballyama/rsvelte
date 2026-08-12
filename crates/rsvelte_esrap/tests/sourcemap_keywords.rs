@@ -24,7 +24,7 @@ use rsvelte_esrap::{PrintOptions, PrintWithMap, print_with_map};
 fn generated_line_column(code: &str, index: usize) -> (usize, usize) {
     let before = &code[..index];
     let gen_line = before.matches('\n').count();
-    let gen_col = before.len() - before.rfind('\n').map(|p| p + 1).unwrap_or(0);
+    let gen_col = before.len() - before.rfind('\n').map_or(0, |p| p + 1);
     (gen_line, gen_col)
 }
 
@@ -46,10 +46,10 @@ fn mapping_at_substring(code: &str, needle: &str, mappings: &[Mapping]) -> [i64;
             )
         });
     [
-        m.gen_column as i64,
+        i64::from(m.gen_column),
         0,
-        m.source_line as i64,
-        m.source_column as i64,
+        i64::from(m.source_line),
+        i64::from(m.source_column),
     ]
 }
 
@@ -83,7 +83,8 @@ fn mapped(source: &str) -> Mapped {
 /// `source.indexOf(needle)` as an `i64`, the expected 0-based source column for a
 /// keyword on line 0.
 fn src_col(source: &str, needle: &str) -> i64 {
-    source.find(needle).expect("needle in source") as i64
+    i64::try_from(source.find(needle).expect("needle in source"))
+        .expect("test source exceeds the i64 source-map range")
 }
 
 #[test]

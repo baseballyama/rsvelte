@@ -1,4 +1,4 @@
-//! ExportDefaultDeclaration visitor.
+//! `ExportDefaultDeclaration` visitor.
 //!
 //! Analyzes export default declarations.
 //!
@@ -10,7 +10,7 @@ use crate::compiler::phases::phase2_analyze::AnalysisError;
 use crate::compiler::phases::phase2_analyze::errors;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
-/// Visit an export default declaration (typed JsNode path).
+/// Visit an export default declaration (typed `JsNode` path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     if let JsNode::ExportDefaultDeclaration {
         declaration,

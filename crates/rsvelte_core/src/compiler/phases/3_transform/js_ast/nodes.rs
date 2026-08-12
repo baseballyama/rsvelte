@@ -15,10 +15,12 @@ pub struct JsProgram {
 }
 
 impl JsProgram {
+    #[must_use]
     pub fn new() -> Self {
         Self { body: Vec::new() }
     }
 
+    #[must_use]
     pub fn with_body(body: Vec<JsStatement>) -> Self {
         Self { body }
     }
@@ -160,11 +162,12 @@ pub enum JsVariableKind {
 
 impl JsVariableKind {
     #[inline]
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
-            JsVariableKind::Var => "var",
-            JsVariableKind::Let => "let",
-            JsVariableKind::Const => "const",
+            Self::Var => "var",
+            Self::Let => "let",
+            Self::Const => "const",
         }
     }
 }
@@ -273,10 +276,12 @@ pub struct JsBlockStatement {
 }
 
 impl JsBlockStatement {
+    #[must_use]
     pub fn new() -> Self {
         Self { body: Vec::new() }
     }
 
+    #[must_use]
     pub fn with_body(body: Vec<JsStatement>) -> Self {
         Self { body }
     }
@@ -331,7 +336,7 @@ pub enum JsExpr {
     /// Identifier
     Identifier(CompactString),
     /// An identifier in already-final form: skipped by the transform passes
-    /// (like `Raw`) but treated as a plain identifier by codegen / to_oxc.
+    /// (like `Raw`) but treated as a plain identifier by codegen / `to_oxc`.
     /// Used for prop setter callees that must not be re-read-transformed.
     OpaqueIdentifier(CompactString),
     /// Literal value
@@ -424,7 +429,7 @@ pub enum JsLiteral {
         value: f64,
         raw: CompactString,
     },
-    /// BigInt literal, stored as its raw source text including the trailing `n`
+    /// `BigInt` literal, stored as its raw source text including the trailing `n`
     /// (e.g. `123n`, `0x1fn`) so the exact representation is preserved.
     BigInt(CompactString),
     Boolean(bool),
@@ -605,30 +610,31 @@ pub enum JsBinaryOp {
 
 impl JsBinaryOp {
     #[inline]
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
-            JsBinaryOp::Add => "+",
-            JsBinaryOp::Sub => "-",
-            JsBinaryOp::Mul => "*",
-            JsBinaryOp::Div => "/",
-            JsBinaryOp::Mod => "%",
-            JsBinaryOp::Pow => "**",
-            JsBinaryOp::Eq => "==",
-            JsBinaryOp::Ne => "!=",
-            JsBinaryOp::StrictEq => "===",
-            JsBinaryOp::StrictNe => "!==",
-            JsBinaryOp::Lt => "<",
-            JsBinaryOp::Le => "<=",
-            JsBinaryOp::Gt => ">",
-            JsBinaryOp::Ge => ">=",
-            JsBinaryOp::BitAnd => "&",
-            JsBinaryOp::BitOr => "|",
-            JsBinaryOp::BitXor => "^",
-            JsBinaryOp::Shl => "<<",
-            JsBinaryOp::Shr => ">>",
-            JsBinaryOp::UShr => ">>>",
-            JsBinaryOp::In => "in",
-            JsBinaryOp::InstanceOf => "instanceof",
+            Self::Add => "+",
+            Self::Sub => "-",
+            Self::Mul => "*",
+            Self::Div => "/",
+            Self::Mod => "%",
+            Self::Pow => "**",
+            Self::Eq => "==",
+            Self::Ne => "!=",
+            Self::StrictEq => "===",
+            Self::StrictNe => "!==",
+            Self::Lt => "<",
+            Self::Le => "<=",
+            Self::Gt => ">",
+            Self::Ge => ">=",
+            Self::BitAnd => "&",
+            Self::BitOr => "|",
+            Self::BitXor => "^",
+            Self::Shl => "<<",
+            Self::Shr => ">>",
+            Self::UShr => ">>>",
+            Self::In => "in",
+            Self::InstanceOf => "instanceof",
         }
     }
 }
@@ -657,11 +663,12 @@ pub enum JsLogicalOp {
 
 impl JsLogicalOp {
     #[inline]
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
-            JsLogicalOp::And => "&&",
-            JsLogicalOp::Or => "||",
-            JsLogicalOp::NullishCoalescing => "??",
+            Self::And => "&&",
+            Self::Or => "||",
+            Self::NullishCoalescing => "??",
         }
     }
 }
@@ -694,15 +701,16 @@ pub enum JsUnaryOp {
 
 impl JsUnaryOp {
     #[inline]
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
-            JsUnaryOp::Minus => "-",
-            JsUnaryOp::Plus => "+",
-            JsUnaryOp::Not => "!",
-            JsUnaryOp::BitNot => "~",
-            JsUnaryOp::TypeOf => "typeof",
-            JsUnaryOp::Void => "void",
-            JsUnaryOp::Delete => "delete",
+            Self::Minus => "-",
+            Self::Plus => "+",
+            Self::Not => "!",
+            Self::BitNot => "~",
+            Self::TypeOf => "typeof",
+            Self::Void => "void",
+            Self::Delete => "delete",
         }
     }
 }
@@ -730,10 +738,11 @@ pub enum JsUpdateOp {
 
 impl JsUpdateOp {
     #[inline]
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
-            JsUpdateOp::Increment => "++",
-            JsUpdateOp::Decrement => "--",
+            Self::Increment => "++",
+            Self::Decrement => "--",
         }
     }
 }
@@ -775,24 +784,25 @@ pub enum JsAssignmentOp {
 
 impl JsAssignmentOp {
     #[inline]
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
-            JsAssignmentOp::Assign => "=",
-            JsAssignmentOp::AddAssign => "+=",
-            JsAssignmentOp::SubAssign => "-=",
-            JsAssignmentOp::MulAssign => "*=",
-            JsAssignmentOp::DivAssign => "/=",
-            JsAssignmentOp::ModAssign => "%=",
-            JsAssignmentOp::PowAssign => "**=",
-            JsAssignmentOp::ShlAssign => "<<=",
-            JsAssignmentOp::ShrAssign => ">>=",
-            JsAssignmentOp::UShrAssign => ">>>=",
-            JsAssignmentOp::BitAndAssign => "&=",
-            JsAssignmentOp::BitOrAssign => "|=",
-            JsAssignmentOp::BitXorAssign => "^=",
-            JsAssignmentOp::AndAssign => "&&=",
-            JsAssignmentOp::OrAssign => "||=",
-            JsAssignmentOp::NullishAssign => "??=",
+            Self::Assign => "=",
+            Self::AddAssign => "+=",
+            Self::SubAssign => "-=",
+            Self::MulAssign => "*=",
+            Self::DivAssign => "/=",
+            Self::ModAssign => "%=",
+            Self::PowAssign => "**=",
+            Self::ShlAssign => "<<=",
+            Self::ShrAssign => ">>=",
+            Self::UShrAssign => ">>>=",
+            Self::BitAndAssign => "&=",
+            Self::BitOrAssign => "|=",
+            Self::BitXorAssign => "^=",
+            Self::AndAssign => "&&=",
+            Self::OrAssign => "||=",
+            Self::NullishAssign => "??=",
         }
     }
 }
@@ -890,7 +900,7 @@ pub enum JsPattern {
     /// Object destructuring
     Object(JsObjectPattern),
     /// Rest element
-    Rest(Box<JsPattern>),
+    Rest(Box<Self>),
     /// Assignment pattern (default value)
     Assignment(JsAssignmentPattern),
 }

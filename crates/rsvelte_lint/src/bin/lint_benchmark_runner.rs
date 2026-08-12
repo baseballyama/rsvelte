@@ -5,7 +5,7 @@
 //!
 //! `--config` takes the same JSON config the `rsvelte-lint` CLI accepts, so
 //! `scripts/bench/run-benchmark.mjs` can enable exactly the rule universe the
-//! ESLint baseline runs — a lint benchmark is only meaningful when both sides
+//! `ESLint` baseline runs — a lint benchmark is only meaningful when both sides
 //! evaluate the same rules.
 //!
 //! Invoked under the `bench` profile (`panic = "unwind"`) so the per-file

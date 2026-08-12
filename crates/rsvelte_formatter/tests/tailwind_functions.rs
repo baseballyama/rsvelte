@@ -23,7 +23,10 @@ fn opts(functions: &[&str]) -> FormatOptions {
     FormatOptions {
         class_sorter: Some(fake_sorter()),
         class_attributes: vec!["class".to_string()],
-        tailwind_functions: functions.iter().map(|s| s.to_string()).collect(),
+        tailwind_functions: functions
+            .iter()
+            .map(std::string::ToString::to_string)
+            .collect(),
         ..FormatOptions::default()
     }
 }

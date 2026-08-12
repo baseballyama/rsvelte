@@ -51,7 +51,7 @@ enum Loc {
     Beside,
 }
 
-fn attr_start(a: &Attribute) -> u32 {
+const fn attr_start(a: &Attribute) -> u32 {
     match a {
         Attribute::Attribute(n) => n.start,
         Attribute::SpreadAttribute(n) => n.start,
@@ -67,7 +67,7 @@ fn attr_start(a: &Attribute) -> u32 {
     }
 }
 
-fn attr_end(a: &Attribute) -> u32 {
+const fn attr_end(a: &Attribute) -> u32 {
     match a {
         Attribute::Attribute(n) => n.end,
         Attribute::SpreadAttribute(n) => n.end,
@@ -90,13 +90,7 @@ impl FirstAttributeLinebreak {
     /// `el_start` is the element's `<`, `name` is the tag name. The token before
     /// the first attribute is the element name; its end offset is
     /// `el_start + 1 + name.len()`.
-    fn check_tag(
-        &self,
-        ctx: &mut LintContext,
-        el_start: u32,
-        name: &str,
-        attributes: &[Attribute],
-    ) {
+    fn check_tag(ctx: &mut LintContext, el_start: u32, name: &str, attributes: &[Attribute]) {
         let Some(first) = attributes.first() else {
             return;
         };
@@ -127,7 +121,9 @@ impl FirstAttributeLinebreak {
         let first_line = li.line(first_start);
         let last_line = li.line(attr_end(last));
         // The element name's end offset → its line.
-        let name_end = el_start + 1 + name.len() as u32;
+        let name_end = el_start
+            + 1
+            + u32::try_from(name.len()).expect("element-name widths are represented as u32");
         let name_line = li.line(name_end);
 
         let location = if first_line == last_line {
@@ -180,30 +176,30 @@ impl Rule for FirstAttributeLinebreak {
     }
 
     fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
-        self.check_tag(ctx, el.start, el.name.as_str(), &el.attributes);
+        Self::check_tag(ctx, el.start, el.name.as_str(), &el.attributes);
     }
 
     fn check_component(&self, ctx: &mut LintContext, c: &Component) {
-        self.check_tag(ctx, c.start, c.name.as_str(), &c.attributes);
+        Self::check_tag(ctx, c.start, c.name.as_str(), &c.attributes);
     }
 
     fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
-        self.check_tag(ctx, el.start, "slot", &el.attributes);
+        Self::check_tag(ctx, el.start, "slot", &el.attributes);
     }
 
     fn check_svelte_element(&self, ctx: &mut LintContext, el: &SvelteElement) {
-        self.check_tag(ctx, el.start, el.name.as_str(), &el.attributes);
+        Self::check_tag(ctx, el.start, el.name.as_str(), &el.attributes);
     }
 
     fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
-        self.check_tag(ctx, el.start, "svelte:component", &el.attributes);
+        Self::check_tag(ctx, el.start, "svelte:component", &el.attributes);
     }
 
     fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
-        self.check_tag(ctx, el.start, "svelte:element", &el.attributes);
+        Self::check_tag(ctx, el.start, "svelte:element", &el.attributes);
     }
 
     fn check_special_element(&self, ctx: &mut LintContext, el: &SpecialElement<'_>) {
-        self.check_tag(ctx, el.start, el.name, &el.attributes);
+        Self::check_tag(ctx, el.start, el.name, &el.attributes);
     }
 }

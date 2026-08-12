@@ -101,7 +101,7 @@ pub(super) fn detect_runes_call(
 
 /// Detect `$state(...)`, `$derived(...)`, `$effect(...)` — including member-call
 /// variants such as `$state.raw(...)`, `$effect.pre(...)` — anywhere as an
-/// expression (not just as a VariableDeclarator init).
+/// expression (not just as a `VariableDeclarator` init).
 ///
 /// Mirrors the official `isRunesMode` `hasRunesGlobals` check which looks for
 /// undeclared `$state`/`$derived`/`$effect` identifiers in the instance scope.
@@ -146,10 +146,10 @@ fn detect_rune_global_call_expr(expr: &oxc::Expression, declared_names: &HashSet
     }
 }
 
-/// Detect rune globals used as top-level ExpressionStatements in the instance
+/// Detect rune globals used as top-level `ExpressionStatements` in the instance
 /// script, e.g. `$effect(() => { ... })`.
 ///
-/// These don't have a VariableDeclarator so `detect_runes_call` misses them.
+/// These don't have a `VariableDeclarator` so `detect_runes_call` misses them.
 /// Reference: official svelte2tsx `hasRunesGlobals` which checks ALL undeclared
 /// `$state`/`$derived`/`$effect` references in the instance script scope.
 pub(super) fn detect_runes_expr_stmt(
@@ -201,11 +201,10 @@ fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSet<String>) 
                 // Same `is_rune` exclusion as the top-level pass: the canonical
                 // `let stateX = $state(...)` form is not a runes-globals trigger,
                 // but nested runes in the arguments still are.
-                if let Some(call) = excluded_rune_init(e, &d.id) {
-                    detect_rune_in_call_args(call, declared_names)
-                } else {
-                    detect_rune_in_expr(e, declared_names)
-                }
+                excluded_rune_init(e, &d.id).map_or_else(
+                    || detect_rune_in_expr(e, declared_names),
+                    |call| detect_rune_in_call_args(call, declared_names),
+                )
             })
         }),
         oxc::Statement::ReturnStatement(ret) => ret
@@ -236,13 +235,9 @@ fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSet<String>) 
                 }),
                 // ForStatementInit inherits Expression variants; use to_expression()
                 // for all non-VariableDeclaration arms.
-                _ => {
-                    if let Some(e) = init.as_expression() {
-                        detect_rune_in_expr(e, declared_names)
-                    } else {
-                        false
-                    }
-                }
+                _ => init.as_expression().map_or(false, |expression| {
+                    detect_rune_in_expr(expression, declared_names)
+                }),
             }) || for_stmt
                 .test
                 .as_ref()
@@ -323,7 +318,7 @@ pub(super) fn scope_with_params(
 ) -> HashSet<String> {
     let mut s = base.clone();
     let mut tmp: Vec<String> = Vec::new();
-    for p in params.items.iter() {
+    for p in &params.items {
         collect_binding_names(&p.pattern, &mut tmp);
     }
     if let Some(rest) = &params.rest {
@@ -347,14 +342,7 @@ pub(super) fn detect_rune_in_expr(
         oxc::Expression::CallExpression(call) => {
             // The callee might not be a rune but the arguments could contain rune calls.
             detect_rune_in_expr(&call.callee, declared_names)
-                || call.arguments.iter().any(|arg| match arg {
-                    oxc::Argument::SpreadElement(spread) => {
-                        detect_rune_in_expr(&spread.argument, declared_names)
-                    }
-                    // Argument inherits Expression variants via `@inherit Expression`;
-                    // use to_expression() (panics for SpreadElement, already handled above).
-                    _ => detect_rune_in_expr(arg.to_expression(), declared_names),
-                })
+                || detect_rune_in_arguments(&call.arguments, declared_names)
         }
         oxc::Expression::ArrowFunctionExpression(arrow) => {
             let scope = scope_with_params(declared_names, &arrow.params);
@@ -402,23 +390,8 @@ pub(super) fn detect_rune_in_expr(
             .expressions
             .iter()
             .any(|e| detect_rune_in_expr(e, declared_names)),
-        oxc::Expression::ObjectExpression(obj) => obj.properties.iter().any(|prop| match prop {
-            oxc::ObjectPropertyKind::ObjectProperty(p) => {
-                detect_rune_in_expr(&p.value, declared_names)
-            }
-            oxc::ObjectPropertyKind::SpreadProperty(spread) => {
-                detect_rune_in_expr(&spread.argument, declared_names)
-            }
-        }),
-        oxc::Expression::ArrayExpression(arr) => arr.elements.iter().any(|el| match el {
-            oxc::ArrayExpressionElement::SpreadElement(spread) => {
-                detect_rune_in_expr(&spread.argument, declared_names)
-            }
-            oxc::ArrayExpressionElement::Elision(_) => false,
-            // ArrayExpressionElement inherits Expression variants via `@inherit Expression`;
-            // use to_expression() for all non-SpreadElement, non-Elision arms.
-            _ => detect_rune_in_expr(el.to_expression(), declared_names),
-        }),
+        oxc::Expression::ObjectExpression(object) => detect_rune_in_object(object, declared_names),
+        oxc::Expression::ArrayExpression(array) => detect_rune_in_array(array, declared_names),
         oxc::Expression::StaticMemberExpression(mem) => {
             detect_rune_in_expr(&mem.object, declared_names)
         }
@@ -433,12 +406,7 @@ pub(super) fn detect_rune_in_expr(
             // e.g. `new class Counter { constructor() { this.x = $state(0) } }`
             // or `new Foo($derived(...))`.
             detect_rune_in_expr(&new_expr.callee, declared_names)
-                || new_expr.arguments.iter().any(|arg| match arg {
-                    oxc::Argument::SpreadElement(spread) => {
-                        detect_rune_in_expr(&spread.argument, declared_names)
-                    }
-                    _ => detect_rune_in_expr(arg.to_expression(), declared_names),
-                })
+                || detect_rune_in_arguments(&new_expr.arguments, declared_names)
         }
         oxc::Expression::TemplateLiteral(tpl) => tpl
             .expressions
@@ -469,6 +437,36 @@ pub(super) fn detect_rune_in_expr(
         // Identifier, literals, template literals without expressions, etc. → no rune
         _ => false,
     }
+}
+
+fn detect_rune_in_object(object: &oxc::ObjectExpression, declared_names: &HashSet<String>) -> bool {
+    object.properties.iter().any(|property| match property {
+        oxc::ObjectPropertyKind::ObjectProperty(property) => {
+            detect_rune_in_expr(&property.value, declared_names)
+        }
+        oxc::ObjectPropertyKind::SpreadProperty(spread) => {
+            detect_rune_in_expr(&spread.argument, declared_names)
+        }
+    })
+}
+
+fn detect_rune_in_array(array: &oxc::ArrayExpression, declared_names: &HashSet<String>) -> bool {
+    array.elements.iter().any(|element| match element {
+        oxc::ArrayExpressionElement::SpreadElement(spread) => {
+            detect_rune_in_expr(&spread.argument, declared_names)
+        }
+        oxc::ArrayExpressionElement::Elision(_) => false,
+        _ => detect_rune_in_expr(element.to_expression(), declared_names),
+    })
+}
+
+fn detect_rune_in_arguments(arguments: &[oxc::Argument], declared_names: &HashSet<String>) -> bool {
+    arguments.iter().any(|argument| match argument {
+        oxc::Argument::SpreadElement(spread) => {
+            detect_rune_in_expr(&spread.argument, declared_names)
+        }
+        _ => detect_rune_in_expr(argument.to_expression(), declared_names),
+    })
 }
 
 #[cfg(test)]

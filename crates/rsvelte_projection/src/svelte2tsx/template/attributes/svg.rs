@@ -1,6 +1,6 @@
 //! SVG attribute-name casing table.
 
-pub(crate) fn is_svg_attribute(name: &str) -> bool {
+pub fn is_svg_attribute(name: &str) -> bool {
     matches!(
         name,
         "accent-height"

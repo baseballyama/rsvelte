@@ -1,6 +1,6 @@
 //! Block-children indentation, matching prettier-plugin-svelte. The headline
 //! case: `{:else if}` branches stay at the same depth as the opening `{#if}`
-//! (svelte desugars them into `elseif` IfBlocks nested in the alternate),
+//! (svelte desugars them into `elseif` `IfBlocks` nested in the alternate),
 //! whereas a plain `{:else}` whose body is an `{#if}` is a genuine nested block
 //! and indents one level deeper.
 

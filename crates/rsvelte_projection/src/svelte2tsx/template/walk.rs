@@ -66,41 +66,41 @@ pub(super) fn process_node_inplace(
         // Control-flow blocks do NOT increment depth (mirrors official computeDepth which
         // only counts ancestor Element/InlineComponent nodes, not block nodes or root).
         TemplateNode::IfBlock(block) => {
-            handle_if_block(block, source, options, str, counter, depth)
+            handle_if_block(block, source, options, str, counter, depth);
         }
         TemplateNode::EachBlock(block) => {
-            handle_each_block(block, source, options, str, counter, depth)
+            handle_each_block(block, source, options, str, counter, depth);
         }
         TemplateNode::AwaitBlock(block) => {
-            handle_await_block(block, source, options, str, counter, depth)
+            handle_await_block(block, source, options, str, counter, depth);
         }
         TemplateNode::KeyBlock(block) => {
-            handle_key_block(block, source, options, str, counter, depth)
+            handle_key_block(block, source, options, str, counter, depth);
         }
         TemplateNode::SnippetBlock(block) => {
-            handle_snippet_block(block, source, options, str, counter, depth)
+            handle_snippet_block(block, source, options, str, counter, depth);
         }
         // Elements and components DO increment depth for their children.
         TemplateNode::RegularElement(el) => {
-            handle_regular_element(el, source, options, str, counter, depth)
+            handle_regular_element(el, source, options, str, counter, depth);
         }
         TemplateNode::Component(comp) => {
-            handle_component(comp, source, options, str, counter, depth)
+            handle_component(comp, source, options, str, counter, depth);
         }
         TemplateNode::SvelteComponent(comp) => {
-            handle_svelte_component(comp, source, options, str, counter, depth)
+            handle_svelte_component(comp, source, options, str, counter, depth);
         }
         TemplateNode::SvelteElement(el) => {
-            handle_svelte_dynamic_element(el, source, options, str, counter, depth)
+            handle_svelte_dynamic_element(el, source, options, str, counter, depth);
         }
         TemplateNode::TitleElement(el) => {
-            handle_title_element(el, source, options, str, counter, depth)
+            handle_title_element(el, source, options, str, counter, depth);
         }
         TemplateNode::SlotElement(el) => {
-            handle_slot_element(el, source, options, str, counter, depth)
+            handle_slot_element(el, source, options, str, counter, depth);
         }
         TemplateNode::SvelteSelf(el) => {
-            handle_svelte_self(el, source, options, str, counter, depth)
+            handle_svelte_self(el, source, options, str, counter, depth);
         }
         TemplateNode::SvelteOptions(el)
         | TemplateNode::SvelteBody(el)
@@ -109,7 +109,7 @@ pub(super) fn process_node_inplace(
         | TemplateNode::SvelteBoundary(el)
         | TemplateNode::SvelteHead(el)
         | TemplateNode::SvelteWindow(el) => {
-            handle_svelte_special_element(el, source, options, str, counter, depth)
+            handle_svelte_special_element(el, source, options, str, counter, depth);
         }
     }
 }

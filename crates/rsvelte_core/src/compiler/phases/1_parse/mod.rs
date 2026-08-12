@@ -79,7 +79,7 @@ pub struct ParseOptions {
     /// When true, loc fields are set to null instead of creating nested objects.
     /// This saves significant allocations during compilation where loc is never used.
     pub skip_expression_loc: bool,
-    /// Defer script content parsing for faster parse().
+    /// Defer script content parsing for faster `parse()`.
     /// When true, script blocks store raw content and parse lazily in the analysis phase.
     /// Set to false for tests that compare parse output directly.
     pub defer_script_parse: bool,
@@ -116,7 +116,7 @@ pub struct ParseOptions {
     pub capture_comments: bool,
 }
 
-/// Extended parse options with filename (separate to keep ParseOptions Copy).
+/// Extended parse options with filename (separate to keep `ParseOptions` Copy).
 #[derive(Debug, Clone, Default)]
 pub struct ParseOptionsWithFilename {
     pub options: ParseOptions,
@@ -128,6 +128,10 @@ pub struct ParseOptionsWithFilename {
 /// `_alloc` is the caller-owned arena that M5-B/C will use to allocate the
 /// borrowed AST; M5-A accepts it but does not yet allocate into it, so it takes
 /// an independent lifetime (the returned `Root<'a>` borrows only `source`).
+///
+/// # Errors
+///
+/// Returns an error when `source` is not valid Svelte markup or script syntax.
 pub fn parse<'a>(
     source: &'a str,
     _alloc: &oxc_allocator::Allocator,
@@ -152,13 +156,18 @@ pub fn parse<'a>(
 }
 
 /// Parse a Svelte component, parsing `<script>` content as TypeScript even
-/// without `lang="ts"` (template-expression parsing stays lang-respecting). Used
-/// by the svelte2tsx pipeline, which — like official svelte2tsx on
+/// without `lang="ts"` (template-expression parsing stays lang-respecting).
+///
+/// Used by the svelte2tsx pipeline, which — like official svelte2tsx on
 /// acorn-typescript — always parses scripts TS-aware (so `let x: typeof C<any>`
 /// in a `.svelte` file with no `lang="ts"` doesn't fail) while keeping template
 /// expressions (e.g. snippet parameters) JS-only when there's no `lang="ts"`.
 /// The compiler's `parse` keeps full `lang="ts"` enforcement.
-pub fn parse_script_ts<'a>(source: &'a str, options: ParseOptions) -> ParseResult<Root<'a>> {
+///
+/// # Errors
+///
+/// Returns an error when `source` is not valid Svelte or TypeScript script syntax.
+pub fn parse_script_ts(source: &str, options: ParseOptions) -> ParseResult<Root<'_>> {
     let mut parser = Parser::new(source, options);
     parser.script_ts = true;
     let _capture = options
@@ -171,6 +180,10 @@ pub fn parse_script_ts<'a>(source: &'a str, options: ParseOptions) -> ParseResul
 
 /// Parse with a reusable parser instance for reduced per-file overhead.
 /// The parser is reset between calls, reusing internal allocations.
+///
+/// # Errors
+///
+/// Returns an error when `source` is not valid Svelte markup or script syntax.
 pub fn parse_reuse<'a>(
     parser: &mut Parser<'a>,
     source: &'a str,
@@ -187,6 +200,7 @@ pub fn parse_reuse<'a>(
 }
 
 /// Compute line offsets for a source string (used for deferred script parsing).
+#[must_use]
 pub fn compute_line_offsets(source: &str, skip: bool) -> Vec<usize> {
     if skip {
         return Vec::new();
@@ -210,6 +224,7 @@ pub fn compute_line_offsets(source: &str, skip: bool) -> Vec<usize> {
 /// as a JS/TS module — used to lint `*.svelte.js` / `*.svelte.ts` / `*.js`
 /// module files. The program node and its children are materialised eagerly
 /// (resolved through a fresh arena), so the returned value is self-contained.
+#[must_use]
 pub fn parse_module_to_estree(source: &str, is_typescript: bool) -> serde_json::Value {
     let arena = crate::ast::arena::ParseArena::new();
     let line_offsets = compute_line_offsets(source, false);
@@ -236,9 +251,12 @@ pub fn parse_module_to_estree(source: &str, is_typescript: bool) -> serde_json::
 }
 
 /// Whether `source` parses as a valid JS/TS program (no syntax error). Used by
-/// lint rules that need to validate a small TS snippet — e.g. wrapping a
+/// lint rules that need to validate a small TS snippet.
+///
+/// For example, this wraps a
 /// `<script generics="…">` value in a type alias to decide whether it is
 /// syntactically valid TypeScript.
+#[must_use]
 pub fn ts_snippet_is_valid(source: &str, is_typescript: bool) -> bool {
     let arena = crate::ast::arena::ParseArena::new();
     let line_offsets = compute_line_offsets(source, false);

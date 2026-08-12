@@ -313,7 +313,7 @@ struct ExpectedError {
     message: String,
     line: u32,
     column: u32,
-    /// Editor suggestions (ESLint `suggest`). `None` ⇒ the finding offers no
+    /// Editor suggestions (`ESLint` `suggest`). `None` ⇒ the finding offers no
     /// suggestions; the actual diagnostic must then carry none either. Upstream
     /// compares only `{ desc, output }` (dropping `messageId`), so we do too.
     #[serde(default)]
@@ -471,8 +471,7 @@ fn findings_for(source: &str, file: &Path, code: &str, options: &Option<Value>) 
     // module fixtures (not just `.svelte` components) correctly.
     let name = file
         .file_name()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("Fixture.svelte"));
+        .map_or_else(|| PathBuf::from("Fixture.svelte"), PathBuf::from);
     lint_source(source, &name, &CompileOptions::default(), &cfg)
         .into_iter()
         .filter(|d| d.code.as_deref() == Some(code))
@@ -481,10 +480,7 @@ fn findings_for(source: &str, file: &Path, code: &str, options: &Option<Value>) 
 
 /// `(line, column-1-based, message)` for an emitted diagnostic.
 fn actual_tuple(d: &Diagnostic) -> (u32, u32, String) {
-    let (line, col) = d
-        .range
-        .map(|r| (r.start.line, r.start.column))
-        .unwrap_or((1, 0));
+    let (line, col) = d.range.map_or((1, 0), |r| (r.start.line, r.start.column));
     (line, col + 1, d.message.clone())
 }
 
@@ -503,8 +499,7 @@ fn raw_findings_for(
     }
     let name = file
         .file_name()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("Fixture.svelte"));
+        .map_or_else(|| PathBuf::from("Fixture.svelte"), PathBuf::from);
     lint_source_raw(source, &name, &cfg)
         .into_iter()
         .filter(|d| d.rule == code)
@@ -513,7 +508,7 @@ fn raw_findings_for(
 
 /// A full comparable record: `(line, column-1-based, message, suggestions)`,
 /// where each suggestion is `(desc, source-after-applying-it)` — exactly the
-/// `{ desc, output }` pair upstream's RuleTester compares.
+/// `{ desc, output }` pair upstream's `RuleTester` compares.
 type FullRecord = (u32, u32, String, Vec<(String, String)>);
 
 fn actual_record(d: &LintDiagnostic, li: &LineIndex, source: &str) -> FullRecord {
@@ -529,10 +524,7 @@ fn actual_record(d: &LintDiagnostic, li: &LineIndex, source: &str) -> FullRecord
 /// A `FullRecord` from an output [`Diagnostic`] (line/column already resolved),
 /// with no suggestions — used for meta-rules like `valid-compile`.
 fn output_record(d: &Diagnostic) -> FullRecord {
-    let (line, col) = d
-        .range
-        .map(|r| (r.start.line, r.start.column))
-        .unwrap_or((1, 0));
+    let (line, col) = d.range.map_or((1, 0), |r| (r.start.line, r.start.column));
     (line, col + 1, d.message.clone(), Vec::new())
 }
 

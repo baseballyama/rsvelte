@@ -1,7 +1,8 @@
 //! `svelte/no-ignored-unsubscribe` — disallow ignoring the unsubscribe function
-//! returned by a store's `.subscribe()` call. Port of the eslint-plugin-svelte
-//! rule: flag a `<expr>.subscribe(...)` call used as a bare expression statement
-//! (its return value discarded). Runs over the script ESTree program via the
+//! returned by a store's `.subscribe()` call.
+//!
+//! Port of the eslint-plugin-svelte rule: flag a `<expr>.subscribe(...)` call used as a bare expression statement
+//! (its return value discarded). Runs over the script `ESTree` program via the
 //! [`ScriptRule`] hook.
 
 use serde_json::Value;
@@ -65,8 +66,7 @@ impl ScriptRule for NoIgnoredUnsubscribe {
                 .get("callee")
                 .and_then(node_start)
                 .zip(node_start(node))
-                .map(|(a, b)| a == b)
-                .unwrap_or(false);
+                .is_some_and(|(a, b)| a == b);
             if !is_callee {
                 return;
             }

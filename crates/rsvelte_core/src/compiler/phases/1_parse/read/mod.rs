@@ -6,5 +6,5 @@
 
 pub mod expression;
 mod options;
-pub(crate) mod script;
+pub mod script;
 pub mod style;

@@ -19,6 +19,10 @@ use crate::line_index::LineIndex;
 use crate::rule::Severity;
 use crate::suppression::Suppressions;
 
+fn position_component(value: usize) -> u32 {
+    u32::try_from(value).expect("compiler positions are represented as u32")
+}
+
 struct Entry {
     severity: &'static str,
     line: u32,
@@ -29,14 +33,14 @@ struct Entry {
     message: String,
 }
 
-fn sev_str(s: Severity) -> &'static str {
+const fn sev_str(s: Severity) -> &'static str {
     match s {
         Severity::Error => "error",
         _ => "warning",
     }
 }
 
-fn sev_catalog(s: Severity) -> &'static str {
+const fn sev_catalog(s: Severity) -> &'static str {
     match s {
         Severity::Off => "off",
         Severity::Warn => "warning",
@@ -52,18 +56,24 @@ fn compile_error_code(e: &CompileError) -> String {
     }
 }
 
+/// Lint source into JSON diagnostics.
+///
 /// Lint `source`, returning a JSON array of diagnostics:
 /// `[{ "severity", "line", "column", "endLine", "endColumn", "code", "message" }]`.
 /// Lines are 1-indexed, columns 0-indexed (UTF-16), matching `rsvelte check`.
+#[must_use]
 pub fn lint(source: &str, filename: &str) -> String {
     lint_with(source, filename, &LintConfig::recommended())
 }
 
+/// Lint source with a supplied configuration document.
+///
 /// [`lint`] under the caller's own config document — the text of a
 /// `rsvelte-lint.json`, which a host without filesystem access (the wasm build)
 /// cannot discover for itself. An empty document selects the recommended
 /// preset; an invalid one falls back to it, since a config error must not leave
 /// the caller without diagnostics.
+#[must_use]
 pub fn lint_with_config(source: &str, filename: &str, config_json: &str) -> String {
     let config = if config_json.trim().is_empty() {
         LintConfig::recommended()
@@ -91,16 +101,12 @@ fn lint_with(source: &str, filename: &str, config: &LintConfig) -> String {
                 if sev == Severity::Off {
                     continue;
                 }
-                let (l, c) = w
-                    .start
-                    .as_ref()
-                    .map(|p| (p.line as u32, p.column as u32))
-                    .unwrap_or((1, 0));
-                let (el, ec) = w
-                    .end
-                    .as_ref()
-                    .map(|p| (p.line as u32, p.column as u32))
-                    .unwrap_or((l, c));
+                let (l, c) = w.start.as_ref().map_or((1, 0), |p| {
+                    (position_component(p.line), position_component(p.column))
+                });
+                let (el, ec) = w.end.as_ref().map_or((l, c), |p| {
+                    (position_component(p.line), position_component(p.column))
+                });
                 if suppressions.is_suppressed(&w.code, l) {
                     continue;
                 }
@@ -174,13 +180,14 @@ fn lint_with(source: &str, filename: &str, config: &LintConfig) -> String {
 /// `run_script_rules`; their `svelte/` prefix is stripped so a consumer can
 /// re-namespace) and the compiler / validator / a11y warning codes
 /// ([`valid_warning_codes`](rsvelte_core::compiler::phases::phase2_analyze::utils::valid_warning_codes),
-/// bare snake_case, always emitted at warning severity). Consumed by
+/// bare `snake_case`, always emitted at warning severity). Consumed by
 /// `@rsvelte/oxlint-plugin` to register its rule set + generate its recommended
 /// config directly from the engine.
+#[must_use]
 pub fn lint_rules() -> String {
     use rsvelte_core::compiler::phases::phase2_analyze::utils::valid_warning_codes;
 
-    fn category_str(c: crate::rule::RuleCategory) -> &'static str {
+    const fn category_str(c: crate::rule::RuleCategory) -> &'static str {
         match c {
             crate::rule::RuleCategory::Correctness => "correctness",
             crate::rule::RuleCategory::A11y => "a11y",

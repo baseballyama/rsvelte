@@ -83,17 +83,20 @@ pub enum LiteralValue {
 impl Serialize for LiteralValue {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match self {
-            LiteralValue::String(s) => serializer.serialize_str(s),
-            LiteralValue::Number(n) => {
+            Self::String(s) => serializer.serialize_str(s),
+            Self::Number(n) => {
                 if n.fract() == 0.0 && n.abs() < i64::MAX as f64 {
-                    serializer.serialize_i64(*n as i64)
+                    match format!("{n:.0}").parse::<i64>() {
+                        Ok(integer) => serializer.serialize_i64(integer),
+                        Err(_) => serializer.serialize_f64(*n),
+                    }
                 } else {
                     serializer.serialize_f64(*n)
                 }
             }
-            LiteralValue::Bool(b) => serializer.serialize_bool(*b),
-            LiteralValue::Null => serializer.serialize_none(),
-            LiteralValue::Regex(_) => {
+            Self::Bool(b) => serializer.serialize_bool(*b),
+            Self::Null => serializer.serialize_none(),
+            Self::Regex(_) => {
                 // Regex value serializes as empty object in ESTree
                 let map = serializer.serialize_map(Some(0))?;
                 map.end()
@@ -114,7 +117,7 @@ pub enum JsNode {
         /// when false, so this serializes only when `true`. `false` for the
         /// overwhelming majority of identifiers.
         optional: bool,
-        /// Opaque, output-only TS `typeAnnotation` boundary blob (ESTree
+        /// Opaque, output-only TS `typeAnnotation` boundary blob (`ESTree`
         /// `TSTypeAnnotation`). Analyze never walks into it; it exists solely so
         /// a TS-annotated binding/declarator identifier can route through the
         /// typed walker while still serializing its annotation verbatim. `None`
@@ -261,7 +264,7 @@ pub enum JsNode {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        elements: Vec<Option<JsNode>>,
+        elements: Vec<Option<Self>>,
     },
     ObjectExpression {
         start: u32,
@@ -356,7 +359,7 @@ pub enum JsNode {
         start: u32,
         end: u32,
         loc: Option<Box<Loc>>,
-        elements: Vec<Option<JsNode>>,
+        elements: Vec<Option<Self>>,
         /// See `ObjectPattern::type_annotation`. Opaque output-only TS annotation
         /// for an annotated array-destructuring declarator id (`let [ a ]: T = …`).
         type_annotation: Option<Box<serde_json::Value>>,
@@ -754,7 +757,7 @@ macro_rules! ser_loc {
     };
 }
 
-/// Helper: serialize a JsNodeId field by resolving through the arena.
+/// Helper: serialize a `JsNodeId` field by resolving through the arena.
 macro_rules! ser_node {
     ($map:ident, $key:expr, $id:expr) => {
         crate::ast::arena::with_current_serialize_arena(|arena| {
@@ -775,7 +778,7 @@ macro_rules! ser_opt_node {
     };
 }
 
-/// Helper: serialize an IdRange field as a JSON array by resolving children through the arena.
+/// Helper: serialize an `IdRange` field as a JSON array by resolving children through the arena.
 macro_rules! ser_children {
     ($map:ident, $key:expr, $range:expr) => {
         crate::ast::arena::with_current_serialize_arena(|arena| {
@@ -787,7 +790,7 @@ macro_rules! ser_children {
 /// Helper: emit `trailingComments` / `leadingComments` for the node at `$start`
 /// from the arena's comment side table (populated by `from_value` on the
 /// `parse()` path). A no-op on the compile path (the table is empty), so it must
-/// be the LAST thing written before `map.end()` to match the ESTree field order.
+/// be the LAST thing written before `map.end()` to match the `ESTree` field order.
 macro_rules! ser_comments {
     ($map:ident, $start:expr, $end:expr) => {
         if let Some((leading, trailing)) =
@@ -816,7 +819,7 @@ macro_rules! ser_comments {
 impl Serialize for JsNode {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match self {
-            JsNode::Identifier {
+            Self::Identifier {
                 start,
                 end,
                 loc,
@@ -839,7 +842,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::PrivateIdentifier {
+            Self::PrivateIdentifier {
                 start,
                 end,
                 loc,
@@ -854,7 +857,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::Literal {
+            Self::Literal {
                 start,
                 end,
                 loc,
@@ -881,7 +884,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::BinaryExpression {
+            Self::BinaryExpression {
                 start,
                 end,
                 loc,
@@ -900,7 +903,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::LogicalExpression {
+            Self::LogicalExpression {
                 start,
                 end,
                 loc,
@@ -919,7 +922,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::UnaryExpression {
+            Self::UnaryExpression {
                 start,
                 end,
                 loc,
@@ -938,7 +941,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ConditionalExpression {
+            Self::ConditionalExpression {
                 start,
                 end,
                 loc,
@@ -957,7 +960,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::CallExpression {
+            Self::CallExpression {
                 start,
                 end,
                 loc,
@@ -976,7 +979,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::MemberExpression {
+            Self::MemberExpression {
                 start,
                 end,
                 loc,
@@ -997,7 +1000,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::NewExpression {
+            Self::NewExpression {
                 start,
                 end,
                 loc,
@@ -1014,7 +1017,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::FunctionExpression {
+            Self::FunctionExpression {
                 start,
                 end,
                 loc,
@@ -1051,7 +1054,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ClassExpression {
+            Self::ClassExpression {
                 start,
                 end,
                 loc,
@@ -1070,7 +1073,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ArrowFunctionExpression {
+            Self::ArrowFunctionExpression {
                 start,
                 end,
                 loc,
@@ -1100,7 +1103,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::AssignmentExpression {
+            Self::AssignmentExpression {
                 start,
                 end,
                 loc,
@@ -1119,7 +1122,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::UpdateExpression {
+            Self::UpdateExpression {
                 start,
                 end,
                 loc,
@@ -1138,7 +1141,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::SequenceExpression {
+            Self::SequenceExpression {
                 start,
                 end,
                 loc,
@@ -1153,7 +1156,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ArrayExpression {
+            Self::ArrayExpression {
                 start,
                 end,
                 loc,
@@ -1169,7 +1172,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ObjectExpression {
+            Self::ObjectExpression {
                 start,
                 end,
                 loc,
@@ -1184,7 +1187,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::TemplateLiteral {
+            Self::TemplateLiteral {
                 start,
                 end,
                 loc,
@@ -1201,7 +1204,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::TaggedTemplateExpression {
+            Self::TaggedTemplateExpression {
                 start,
                 end,
                 loc,
@@ -1218,7 +1221,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::TemplateElement {
+            Self::TemplateElement {
                 start,
                 end,
                 loc,
@@ -1235,16 +1238,16 @@ impl Serialize for JsNode {
                 val_map.insert("raw".to_string(), Value::String(value.raw.to_string()));
                 val_map.insert(
                     "cooked".to_string(),
-                    match &value.cooked {
-                        Some(s) => Value::String(s.to_string()),
-                        None => Value::Null,
-                    },
+                    value
+                        .cooked
+                        .as_ref()
+                        .map_or_else(|| Value::Null, |s| Value::String(s.to_string())),
                 );
                 map.serialize_entry("value", &Value::Object(val_map))?;
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ThisExpression { start, end, loc } => {
+            Self::ThisExpression { start, end, loc } => {
                 let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "ThisExpression")?;
                 map.serialize_entry("start", start)?;
@@ -1253,7 +1256,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::Super { start, end, loc } => {
+            Self::Super { start, end, loc } => {
                 let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "Super")?;
                 map.serialize_entry("start", start)?;
@@ -1262,7 +1265,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ImportExpression {
+            Self::ImportExpression {
                 start,
                 end,
                 loc,
@@ -1278,7 +1281,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::AwaitExpression {
+            Self::AwaitExpression {
                 start,
                 end,
                 loc,
@@ -1293,7 +1296,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::YieldExpression {
+            Self::YieldExpression {
                 start,
                 end,
                 loc,
@@ -1310,7 +1313,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ChainExpression {
+            Self::ChainExpression {
                 start,
                 end,
                 loc,
@@ -1325,7 +1328,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::MetaProperty {
+            Self::MetaProperty {
                 start,
                 end,
                 loc,
@@ -1342,7 +1345,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::SpreadElement {
+            Self::SpreadElement {
                 start,
                 end,
                 loc,
@@ -1357,7 +1360,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ObjectPattern {
+            Self::ObjectPattern {
                 start,
                 end,
                 loc,
@@ -1376,7 +1379,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ArrayPattern {
+            Self::ArrayPattern {
                 start,
                 end,
                 loc,
@@ -1395,7 +1398,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::AssignmentPattern {
+            Self::AssignmentPattern {
                 start,
                 end,
                 loc,
@@ -1412,7 +1415,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::RestElement {
+            Self::RestElement {
                 start,
                 end,
                 loc,
@@ -1427,7 +1430,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::Property {
+            Self::Property {
                 start,
                 end,
                 loc,
@@ -1452,7 +1455,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::Program {
+            Self::Program {
                 start,
                 end,
                 loc,
@@ -1475,7 +1478,7 @@ impl Serialize for JsNode {
                 }
                 map.end()
             }
-            JsNode::ExpressionStatement {
+            Self::ExpressionStatement {
                 start,
                 end,
                 loc,
@@ -1490,7 +1493,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::BlockStatement {
+            Self::BlockStatement {
                 start,
                 end,
                 loc,
@@ -1505,7 +1508,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::VariableDeclaration {
+            Self::VariableDeclaration {
                 start,
                 end,
                 loc,
@@ -1526,7 +1529,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::VariableDeclarator {
+            Self::VariableDeclarator {
                 start,
                 end,
                 loc,
@@ -1543,7 +1546,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::FunctionDeclaration {
+            Self::FunctionDeclaration {
                 start,
                 end,
                 loc,
@@ -1572,7 +1575,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ClassDeclaration {
+            Self::ClassDeclaration {
                 start,
                 end,
                 loc,
@@ -1607,7 +1610,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ReturnStatement {
+            Self::ReturnStatement {
                 start,
                 end,
                 loc,
@@ -1622,7 +1625,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ThrowStatement {
+            Self::ThrowStatement {
                 start,
                 end,
                 loc,
@@ -1637,7 +1640,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::IfStatement {
+            Self::IfStatement {
                 start,
                 end,
                 loc,
@@ -1656,7 +1659,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ForStatement {
+            Self::ForStatement {
                 start,
                 end,
                 loc,
@@ -1677,7 +1680,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ForOfStatement {
+            Self::ForOfStatement {
                 start,
                 end,
                 loc,
@@ -1698,7 +1701,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ForInStatement {
+            Self::ForInStatement {
                 start,
                 end,
                 loc,
@@ -1717,7 +1720,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::WhileStatement {
+            Self::WhileStatement {
                 start,
                 end,
                 loc,
@@ -1734,7 +1737,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::DoWhileStatement {
+            Self::DoWhileStatement {
                 start,
                 end,
                 loc,
@@ -1751,7 +1754,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::TryStatement {
+            Self::TryStatement {
                 start,
                 end,
                 loc,
@@ -1770,7 +1773,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::CatchClause {
+            Self::CatchClause {
                 start,
                 end,
                 loc,
@@ -1787,7 +1790,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::SwitchStatement {
+            Self::SwitchStatement {
                 start,
                 end,
                 loc,
@@ -1804,7 +1807,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::SwitchCase {
+            Self::SwitchCase {
                 start,
                 end,
                 loc,
@@ -1821,7 +1824,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::LabeledStatement {
+            Self::LabeledStatement {
                 start,
                 end,
                 loc,
@@ -1838,7 +1841,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::BreakStatement {
+            Self::BreakStatement {
                 start,
                 end,
                 loc,
@@ -1853,7 +1856,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ContinueStatement {
+            Self::ContinueStatement {
                 start,
                 end,
                 loc,
@@ -1868,7 +1871,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::EmptyStatement { start, end, loc } => {
+            Self::EmptyStatement { start, end, loc } => {
                 let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "EmptyStatement")?;
                 map.serialize_entry("start", start)?;
@@ -1877,7 +1880,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::DebuggerStatement { start, end, loc } => {
+            Self::DebuggerStatement { start, end, loc } => {
                 let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "DebuggerStatement")?;
                 map.serialize_entry("start", start)?;
@@ -1886,7 +1889,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ImportDeclaration {
+            Self::ImportDeclaration {
                 start,
                 end,
                 loc,
@@ -1909,7 +1912,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ImportSpecifier {
+            Self::ImportSpecifier {
                 start,
                 end,
                 loc,
@@ -1930,7 +1933,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ImportDefaultSpecifier {
+            Self::ImportDefaultSpecifier {
                 start,
                 end,
                 loc,
@@ -1945,7 +1948,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ImportNamespaceSpecifier {
+            Self::ImportNamespaceSpecifier {
                 start,
                 end,
                 loc,
@@ -1960,7 +1963,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ExportNamedDeclaration {
+            Self::ExportNamedDeclaration {
                 start,
                 end,
                 loc,
@@ -1985,7 +1988,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ExportDefaultDeclaration {
+            Self::ExportDefaultDeclaration {
                 start,
                 end,
                 loc,
@@ -2000,7 +2003,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ExportSpecifier {
+            Self::ExportSpecifier {
                 start,
                 end,
                 loc,
@@ -2021,7 +2024,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::ClassBody {
+            Self::ClassBody {
                 start,
                 end,
                 loc,
@@ -2036,7 +2039,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::MethodDefinition {
+            Self::MethodDefinition {
                 start,
                 end,
                 loc,
@@ -2059,7 +2062,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::PropertyDefinition {
+            Self::PropertyDefinition {
                 start,
                 end,
                 loc,
@@ -2082,7 +2085,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::StaticBlock {
+            Self::StaticBlock {
                 start,
                 end,
                 loc,
@@ -2097,7 +2100,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::Decorator { start, end, loc } => {
+            Self::Decorator { start, end, loc } => {
                 let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "Decorator")?;
                 map.serialize_entry("start", start)?;
@@ -2106,7 +2109,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::TSTypeAnnotation {
+            Self::TSTypeAnnotation {
                 start,
                 end,
                 loc,
@@ -2121,7 +2124,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::TSParameterProperty { start, end, loc } => {
+            Self::TSParameterProperty { start, end, loc } => {
                 let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "TSParameterProperty")?;
                 map.serialize_entry("start", start)?;
@@ -2130,7 +2133,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::TSEnumDeclaration { start, end, loc } => {
+            Self::TSEnumDeclaration { start, end, loc } => {
                 let mut map = serializer.serialize_map(Some(3))?;
                 map.serialize_entry("type", "TSEnumDeclaration")?;
                 map.serialize_entry("start", start)?;
@@ -2139,7 +2142,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::TSModuleDeclaration {
+            Self::TSModuleDeclaration {
                 start,
                 end,
                 loc,
@@ -2156,7 +2159,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::TSAsExpression {
+            Self::TSAsExpression {
                 start,
                 end,
                 loc,
@@ -2173,7 +2176,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::TSSatisfiesExpression {
+            Self::TSSatisfiesExpression {
                 start,
                 end,
                 loc,
@@ -2190,7 +2193,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::TSNonNullExpression {
+            Self::TSNonNullExpression {
                 start,
                 end,
                 loc,
@@ -2205,7 +2208,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::TSTypeAssertion {
+            Self::TSTypeAssertion {
                 start,
                 end,
                 loc,
@@ -2223,7 +2226,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::TSInstantiationExpression {
+            Self::TSInstantiationExpression {
                 start,
                 end,
                 loc,
@@ -2240,7 +2243,7 @@ impl Serialize for JsNode {
                 ser_comments!(map, *start, *end);
                 map.end()
             }
-            JsNode::Comment {
+            Self::Comment {
                 start,
                 end,
                 comment_type,
@@ -2253,7 +2256,7 @@ impl Serialize for JsNode {
                 map.serialize_entry("value", value.as_str())?;
                 map.end()
             }
-            JsNode::Null => serializer.serialize_none(),
+            Self::Null => serializer.serialize_none(),
         }
     }
 }
@@ -2261,7 +2264,10 @@ impl Serialize for JsNode {
 // ── from_value ─────────────────────────────────────────────────────────
 
 fn get_u32(obj: &serde_json::Map<String, Value>, key: &str) -> u32 {
-    obj.get(key).and_then(|v| v.as_u64()).unwrap_or(0) as u32
+    obj.get(key)
+        .and_then(serde_json::Value::as_u64)
+        .and_then(|value| u32::try_from(value).ok())
+        .unwrap_or(0)
 }
 
 fn get_str(obj: &serde_json::Map<String, Value>, key: &str) -> CompactString {
@@ -2269,7 +2275,9 @@ fn get_str(obj: &serde_json::Map<String, Value>, key: &str) -> CompactString {
 }
 
 fn get_bool(obj: &serde_json::Map<String, Value>, key: &str) -> bool {
-    obj.get(key).and_then(|v| v.as_bool()).unwrap_or(false)
+    obj.get(key)
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false)
 }
 
 fn convert_loc(obj: &serde_json::Map<String, Value>) -> Option<Box<Loc>> {
@@ -2284,16 +2292,16 @@ fn convert_loc(obj: &serde_json::Map<String, Value>) -> Option<Box<Loc>> {
             column: get_u32(start_obj, "column"),
             character: start_obj
                 .get("character")
-                .and_then(|v| v.as_u64())
-                .map(|n| n as u32),
+                .and_then(serde_json::Value::as_u64)
+                .and_then(|n| u32::try_from(n).ok()),
         },
         end: SourcePosition {
             line: get_u32(end_obj, "line"),
             column: get_u32(end_obj, "column"),
             character: end_obj
                 .get("character")
-                .and_then(|v| v.as_u64())
-                .map(|n| n as u32),
+                .and_then(serde_json::Value::as_u64)
+                .and_then(|n| u32::try_from(n).ok()),
         },
     }))
 }
@@ -2303,7 +2311,7 @@ thread_local! {
 }
 
 /// Run `f` against either the active serialize arena (during compile) or the
-/// fallback DESER_ARENA (tests / standalone). The two `deser_alloc_*` helpers
+/// fallback `DESER_ARENA` (tests / standalone). The two `deser_alloc_*` helpers
 /// below are thin wrappers around this combinator.
 fn with_deser_arena<R>(f: impl FnOnce(&ParseArena) -> R) -> R {
     if crate::ast::arena::has_serialize_arena() {
@@ -2313,7 +2321,7 @@ fn with_deser_arena<R>(f: impl FnOnce(&ParseArena) -> R) -> R {
     }
 }
 
-/// Allocate a JsNode during deserialization.
+/// Allocate a `JsNode` during deserialization.
 fn deser_alloc_node(node: JsNode) -> JsNodeId {
     with_deser_arena(|arena| arena.alloc_js_node(node))
 }
@@ -2324,15 +2332,18 @@ fn deser_alloc_children(nodes: Vec<JsNode>) -> IdRange {
 
 /// Same arena selection as `from_value`, for builders that construct the typed
 /// node directly instead of going through a `Value`.
+#[must_use]
 pub fn alloc_deser_node(node: JsNode) -> JsNodeId {
     deser_alloc_node(node)
 }
 
+#[must_use]
 pub fn alloc_deser_children(nodes: Vec<JsNode>) -> IdRange {
     deser_alloc_children(nodes)
 }
 
 /// `from_value`'s child rule: anything that is not a JSON object becomes `Null`.
+#[must_use]
 pub fn child_node_from_value(value: Value) -> JsNode {
     match value {
         Value::Object(_) => JsNode::from_value(value),
@@ -2388,7 +2399,6 @@ fn convert_nullable_array(
 impl JsNode {
     pub fn from_value(value: Value) -> Self {
         match value {
-            Value::Null => JsNode::Null,
             Value::Object(mut owned_obj) => {
                 let obj = &mut owned_obj;
                 let type_str = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
@@ -2414,7 +2424,7 @@ impl JsNode {
                 }
 
                 match type_str {
-                    "Identifier" => JsNode::Identifier {
+                    "Identifier" => Self::Identifier {
                         start,
                         end,
                         loc,
@@ -2422,7 +2432,7 @@ impl JsNode {
                         optional: get_bool(obj, "optional"),
                         type_annotation: obj.get("typeAnnotation").cloned().map(Box::new),
                     },
-                    "PrivateIdentifier" => JsNode::PrivateIdentifier {
+                    "PrivateIdentifier" => Self::PrivateIdentifier {
                         start,
                         end,
                         loc,
@@ -2441,14 +2451,13 @@ impl JsNode {
                                 LiteralValue::Number(n.as_f64().unwrap_or(0.0))
                             }
                             Some(Value::Bool(b)) => LiteralValue::Bool(*b),
-                            Some(Value::Null) => LiteralValue::Null,
-                            Some(Value::Object(_)) => match &regex {
-                                Some(r) => LiteralValue::Regex(r.clone()),
-                                None => LiteralValue::Null,
-                            },
+                            Some(Value::Object(_)) => regex.as_ref().map_or_else(
+                                || LiteralValue::Null,
+                                |r| LiteralValue::Regex(r.clone()),
+                            ),
                             _ => LiteralValue::Null,
                         };
-                        JsNode::Literal {
+                        Self::Literal {
                             start,
                             end,
                             loc,
@@ -2457,7 +2466,7 @@ impl JsNode {
                             regex,
                         }
                     }
-                    "BinaryExpression" => JsNode::BinaryExpression {
+                    "BinaryExpression" => Self::BinaryExpression {
                         start,
                         end,
                         loc,
@@ -2465,7 +2474,7 @@ impl JsNode {
                         operator: get_str(obj, "operator"),
                         right: convert_child(obj, "right"),
                     },
-                    "LogicalExpression" => JsNode::LogicalExpression {
+                    "LogicalExpression" => Self::LogicalExpression {
                         start,
                         end,
                         loc,
@@ -2473,7 +2482,7 @@ impl JsNode {
                         operator: get_str(obj, "operator"),
                         right: convert_child(obj, "right"),
                     },
-                    "UnaryExpression" => JsNode::UnaryExpression {
+                    "UnaryExpression" => Self::UnaryExpression {
                         start,
                         end,
                         loc,
@@ -2481,7 +2490,7 @@ impl JsNode {
                         prefix: get_bool(obj, "prefix"),
                         argument: convert_child(obj, "argument"),
                     },
-                    "ConditionalExpression" => JsNode::ConditionalExpression {
+                    "ConditionalExpression" => Self::ConditionalExpression {
                         start,
                         end,
                         loc,
@@ -2489,7 +2498,7 @@ impl JsNode {
                         consequent: convert_child(obj, "consequent"),
                         alternate: convert_child(obj, "alternate"),
                     },
-                    "CallExpression" => JsNode::CallExpression {
+                    "CallExpression" => Self::CallExpression {
                         start,
                         end,
                         loc,
@@ -2497,7 +2506,7 @@ impl JsNode {
                         arguments: convert_array(obj, "arguments"),
                         optional: get_bool(obj, "optional"),
                     },
-                    "MemberExpression" => JsNode::MemberExpression {
+                    "MemberExpression" => Self::MemberExpression {
                         start,
                         end,
                         loc,
@@ -2506,14 +2515,14 @@ impl JsNode {
                         computed: get_bool(obj, "computed"),
                         optional: get_bool(obj, "optional"),
                     },
-                    "NewExpression" => JsNode::NewExpression {
+                    "NewExpression" => Self::NewExpression {
                         start,
                         end,
                         loc,
                         callee: convert_child(obj, "callee"),
                         arguments: convert_array(obj, "arguments"),
                     },
-                    "FunctionExpression" => JsNode::FunctionExpression {
+                    "FunctionExpression" => Self::FunctionExpression {
                         start,
                         end,
                         loc,
@@ -2526,7 +2535,7 @@ impl JsNode {
                         type_parameters: obj.get("typeParameters").cloned().map(Box::new),
                         type_parameters_after_body: false,
                     },
-                    "ClassExpression" => JsNode::ClassExpression {
+                    "ClassExpression" => Self::ClassExpression {
                         start,
                         end,
                         loc,
@@ -2534,7 +2543,7 @@ impl JsNode {
                         super_class: convert_optional_child(obj, "superClass"),
                         body: convert_child(obj, "body"),
                     },
-                    "ArrowFunctionExpression" => JsNode::ArrowFunctionExpression {
+                    "ArrowFunctionExpression" => Self::ArrowFunctionExpression {
                         start,
                         end,
                         loc,
@@ -2546,7 +2555,7 @@ impl JsNode {
                         r#async: get_bool(obj, "async"),
                         type_parameters: obj.get("typeParameters").cloned().map(Box::new),
                     },
-                    "AssignmentExpression" => JsNode::AssignmentExpression {
+                    "AssignmentExpression" => Self::AssignmentExpression {
                         start,
                         end,
                         loc,
@@ -2554,7 +2563,7 @@ impl JsNode {
                         left: convert_child(obj, "left"),
                         right: convert_child(obj, "right"),
                     },
-                    "UpdateExpression" => JsNode::UpdateExpression {
+                    "UpdateExpression" => Self::UpdateExpression {
                         start,
                         end,
                         loc,
@@ -2562,32 +2571,32 @@ impl JsNode {
                         prefix: get_bool(obj, "prefix"),
                         argument: convert_child(obj, "argument"),
                     },
-                    "SequenceExpression" => JsNode::SequenceExpression {
+                    "SequenceExpression" => Self::SequenceExpression {
                         start,
                         end,
                         loc,
                         expressions: convert_array(obj, "expressions"),
                     },
-                    "ArrayExpression" => JsNode::ArrayExpression {
+                    "ArrayExpression" => Self::ArrayExpression {
                         start,
                         end,
                         loc,
                         elements: convert_nullable_array(obj, "elements"),
                     },
-                    "ObjectExpression" => JsNode::ObjectExpression {
+                    "ObjectExpression" => Self::ObjectExpression {
                         start,
                         end,
                         loc,
                         properties: convert_array(obj, "properties"),
                     },
-                    "TemplateLiteral" => JsNode::TemplateLiteral {
+                    "TemplateLiteral" => Self::TemplateLiteral {
                         start,
                         end,
                         loc,
                         quasis: convert_array(obj, "quasis"),
                         expressions: convert_array(obj, "expressions"),
                     },
-                    "TaggedTemplateExpression" => JsNode::TaggedTemplateExpression {
+                    "TaggedTemplateExpression" => Self::TaggedTemplateExpression {
                         start,
                         end,
                         loc,
@@ -2599,10 +2608,12 @@ impl JsNode {
                         let tev = TemplateElementValue {
                             raw: value_obj.map(|v| get_str(v, "raw")).unwrap_or_default(),
                             cooked: value_obj.and_then(|v| {
-                                v.get("cooked").and_then(|c| c.as_str()).map(|s| s.into())
+                                v.get("cooked")
+                                    .and_then(|c| c.as_str())
+                                    .map(std::convert::Into::into)
                             }),
                         };
-                        JsNode::TemplateElement {
+                        Self::TemplateElement {
                             start,
                             end,
                             loc,
@@ -2610,74 +2621,74 @@ impl JsNode {
                             value: tev,
                         }
                     }
-                    "ThisExpression" => JsNode::ThisExpression { start, end, loc },
-                    "Super" => JsNode::Super { start, end, loc },
-                    "ImportExpression" => JsNode::ImportExpression {
+                    "ThisExpression" => Self::ThisExpression { start, end, loc },
+                    "Super" => Self::Super { start, end, loc },
+                    "ImportExpression" => Self::ImportExpression {
                         start,
                         end,
                         loc,
                         source: convert_child(obj, "source"),
                     },
-                    "AwaitExpression" => JsNode::AwaitExpression {
+                    "AwaitExpression" => Self::AwaitExpression {
                         start,
                         end,
                         loc,
                         argument: convert_child(obj, "argument"),
                     },
-                    "YieldExpression" => JsNode::YieldExpression {
+                    "YieldExpression" => Self::YieldExpression {
                         start,
                         end,
                         loc,
                         delegate: get_bool(obj, "delegate"),
                         argument: convert_optional_child(obj, "argument"),
                     },
-                    "ChainExpression" => JsNode::ChainExpression {
+                    "ChainExpression" => Self::ChainExpression {
                         start,
                         end,
                         loc,
                         expression: convert_child(obj, "expression"),
                     },
-                    "MetaProperty" => JsNode::MetaProperty {
+                    "MetaProperty" => Self::MetaProperty {
                         start,
                         end,
                         loc,
                         meta: convert_child(obj, "meta"),
                         property: convert_child(obj, "property"),
                     },
-                    "SpreadElement" => JsNode::SpreadElement {
+                    "SpreadElement" => Self::SpreadElement {
                         start,
                         end,
                         loc,
                         argument: convert_child(obj, "argument"),
                     },
-                    "ObjectPattern" => JsNode::ObjectPattern {
+                    "ObjectPattern" => Self::ObjectPattern {
                         start,
                         end,
                         loc,
                         properties: convert_array(obj, "properties"),
                         type_annotation: obj.get("typeAnnotation").cloned().map(Box::new),
                     },
-                    "ArrayPattern" => JsNode::ArrayPattern {
+                    "ArrayPattern" => Self::ArrayPattern {
                         start,
                         end,
                         loc,
                         elements: convert_nullable_array(obj, "elements"),
                         type_annotation: obj.get("typeAnnotation").cloned().map(Box::new),
                     },
-                    "AssignmentPattern" => JsNode::AssignmentPattern {
+                    "AssignmentPattern" => Self::AssignmentPattern {
                         start,
                         end,
                         loc,
                         left: convert_child(obj, "left"),
                         right: convert_child(obj, "right"),
                     },
-                    "RestElement" => JsNode::RestElement {
+                    "RestElement" => Self::RestElement {
                         start,
                         end,
                         loc,
                         argument: convert_child(obj, "argument"),
                     },
-                    "Property" => JsNode::Property {
+                    "Property" => Self::Property {
                         start,
                         end,
                         loc,
@@ -2688,7 +2699,7 @@ impl JsNode {
                         shorthand: get_bool(obj, "shorthand"),
                         computed: get_bool(obj, "computed"),
                     },
-                    "Program" => JsNode::Program {
+                    "Program" => Self::Program {
                         start,
                         end,
                         loc,
@@ -2707,19 +2718,19 @@ impl JsNode {
                             ignore_comment_map: Vec::new(),
                         }),
                     },
-                    "ExpressionStatement" => JsNode::ExpressionStatement {
+                    "ExpressionStatement" => Self::ExpressionStatement {
                         start,
                         end,
                         loc,
                         expression: convert_child(obj, "expression"),
                     },
-                    "BlockStatement" => JsNode::BlockStatement {
+                    "BlockStatement" => Self::BlockStatement {
                         start,
                         end,
                         loc,
                         body: convert_array(obj, "body"),
                     },
-                    "VariableDeclaration" => JsNode::VariableDeclaration {
+                    "VariableDeclaration" => Self::VariableDeclaration {
                         start,
                         end,
                         loc,
@@ -2727,14 +2738,14 @@ impl JsNode {
                         kind: get_str(obj, "kind"),
                         declare: get_bool(obj, "declare"),
                     },
-                    "VariableDeclarator" => JsNode::VariableDeclarator {
+                    "VariableDeclarator" => Self::VariableDeclarator {
                         start,
                         end,
                         loc,
                         id: convert_child(obj, "id"),
                         init: convert_optional_child(obj, "init"),
                     },
-                    "FunctionDeclaration" => JsNode::FunctionDeclaration {
+                    "FunctionDeclaration" => Self::FunctionDeclaration {
                         start,
                         end,
                         loc,
@@ -2746,7 +2757,7 @@ impl JsNode {
                         expression: get_bool(obj, "expression"),
                         type_parameters: obj.get("typeParameters").cloned().map(Box::new),
                     },
-                    "ClassDeclaration" => JsNode::ClassDeclaration {
+                    "ClassDeclaration" => Self::ClassDeclaration {
                         start,
                         end,
                         loc,
@@ -2758,19 +2769,19 @@ impl JsNode {
                         implements: get_bool(obj, "implements"),
                         decorators: convert_array(obj, "decorators"),
                     },
-                    "ReturnStatement" => JsNode::ReturnStatement {
+                    "ReturnStatement" => Self::ReturnStatement {
                         start,
                         end,
                         loc,
                         argument: convert_optional_child(obj, "argument"),
                     },
-                    "ThrowStatement" => JsNode::ThrowStatement {
+                    "ThrowStatement" => Self::ThrowStatement {
                         start,
                         end,
                         loc,
                         argument: convert_child(obj, "argument"),
                     },
-                    "IfStatement" => JsNode::IfStatement {
+                    "IfStatement" => Self::IfStatement {
                         start,
                         end,
                         loc,
@@ -2778,7 +2789,7 @@ impl JsNode {
                         consequent: convert_child(obj, "consequent"),
                         alternate: convert_optional_child(obj, "alternate"),
                     },
-                    "ForStatement" => JsNode::ForStatement {
+                    "ForStatement" => Self::ForStatement {
                         start,
                         end,
                         loc,
@@ -2787,7 +2798,7 @@ impl JsNode {
                         update: convert_optional_child(obj, "update"),
                         body: convert_child(obj, "body"),
                     },
-                    "ForOfStatement" => JsNode::ForOfStatement {
+                    "ForOfStatement" => Self::ForOfStatement {
                         start,
                         end,
                         loc,
@@ -2796,7 +2807,7 @@ impl JsNode {
                         right: convert_child(obj, "right"),
                         body: convert_child(obj, "body"),
                     },
-                    "ForInStatement" => JsNode::ForInStatement {
+                    "ForInStatement" => Self::ForInStatement {
                         start,
                         end,
                         loc,
@@ -2804,21 +2815,21 @@ impl JsNode {
                         right: convert_child(obj, "right"),
                         body: convert_child(obj, "body"),
                     },
-                    "WhileStatement" => JsNode::WhileStatement {
+                    "WhileStatement" => Self::WhileStatement {
                         start,
                         end,
                         loc,
                         test: convert_child(obj, "test"),
                         body: convert_child(obj, "body"),
                     },
-                    "DoWhileStatement" => JsNode::DoWhileStatement {
+                    "DoWhileStatement" => Self::DoWhileStatement {
                         start,
                         end,
                         loc,
                         test: convert_child(obj, "test"),
                         body: convert_child(obj, "body"),
                     },
-                    "TryStatement" => JsNode::TryStatement {
+                    "TryStatement" => Self::TryStatement {
                         start,
                         end,
                         loc,
@@ -2826,49 +2837,49 @@ impl JsNode {
                         handler: convert_optional_child(obj, "handler"),
                         finalizer: convert_optional_child(obj, "finalizer"),
                     },
-                    "CatchClause" => JsNode::CatchClause {
+                    "CatchClause" => Self::CatchClause {
                         start,
                         end,
                         loc,
                         param: convert_optional_child(obj, "param"),
                         body: convert_child(obj, "body"),
                     },
-                    "SwitchStatement" => JsNode::SwitchStatement {
+                    "SwitchStatement" => Self::SwitchStatement {
                         start,
                         end,
                         loc,
                         discriminant: convert_child(obj, "discriminant"),
                         cases: convert_array(obj, "cases"),
                     },
-                    "SwitchCase" => JsNode::SwitchCase {
+                    "SwitchCase" => Self::SwitchCase {
                         start,
                         end,
                         loc,
                         test: convert_optional_child(obj, "test"),
                         consequent: convert_array(obj, "consequent"),
                     },
-                    "LabeledStatement" => JsNode::LabeledStatement {
+                    "LabeledStatement" => Self::LabeledStatement {
                         start,
                         end,
                         loc,
                         label: convert_child(obj, "label"),
                         body: convert_child(obj, "body"),
                     },
-                    "BreakStatement" => JsNode::BreakStatement {
+                    "BreakStatement" => Self::BreakStatement {
                         start,
                         end,
                         loc,
                         label: convert_optional_child(obj, "label"),
                     },
-                    "ContinueStatement" => JsNode::ContinueStatement {
+                    "ContinueStatement" => Self::ContinueStatement {
                         start,
                         end,
                         loc,
                         label: convert_optional_child(obj, "label"),
                     },
-                    "EmptyStatement" => JsNode::EmptyStatement { start, end, loc },
-                    "DebuggerStatement" => JsNode::DebuggerStatement { start, end, loc },
-                    "ImportDeclaration" => JsNode::ImportDeclaration {
+                    "EmptyStatement" => Self::EmptyStatement { start, end, loc },
+                    "DebuggerStatement" => Self::DebuggerStatement { start, end, loc },
+                    "ImportDeclaration" => Self::ImportDeclaration {
                         start,
                         end,
                         loc,
@@ -2877,10 +2888,10 @@ impl JsNode {
                         import_kind: obj
                             .get("importKind")
                             .and_then(|v| v.as_str())
-                            .map(|s| s.into()),
+                            .map(std::convert::Into::into),
                         attributes: convert_array(obj, "attributes"),
                     },
-                    "ImportSpecifier" => JsNode::ImportSpecifier {
+                    "ImportSpecifier" => Self::ImportSpecifier {
                         start,
                         end,
                         loc,
@@ -2889,21 +2900,21 @@ impl JsNode {
                         import_kind: obj
                             .get("importKind")
                             .and_then(|v| v.as_str())
-                            .map(|s| s.into()),
+                            .map(std::convert::Into::into),
                     },
-                    "ImportDefaultSpecifier" => JsNode::ImportDefaultSpecifier {
+                    "ImportDefaultSpecifier" => Self::ImportDefaultSpecifier {
                         start,
                         end,
                         loc,
                         local: convert_child(obj, "local"),
                     },
-                    "ImportNamespaceSpecifier" => JsNode::ImportNamespaceSpecifier {
+                    "ImportNamespaceSpecifier" => Self::ImportNamespaceSpecifier {
                         start,
                         end,
                         loc,
                         local: convert_child(obj, "local"),
                     },
-                    "ExportNamedDeclaration" => JsNode::ExportNamedDeclaration {
+                    "ExportNamedDeclaration" => Self::ExportNamedDeclaration {
                         start,
                         end,
                         loc,
@@ -2913,16 +2924,16 @@ impl JsNode {
                         export_kind: obj
                             .get("exportKind")
                             .and_then(|v| v.as_str())
-                            .map(|s| s.into()),
+                            .map(std::convert::Into::into),
                         attributes: convert_array(obj, "attributes"),
                     },
-                    "ExportDefaultDeclaration" => JsNode::ExportDefaultDeclaration {
+                    "ExportDefaultDeclaration" => Self::ExportDefaultDeclaration {
                         start,
                         end,
                         loc,
                         declaration: convert_child(obj, "declaration"),
                     },
-                    "ExportSpecifier" => JsNode::ExportSpecifier {
+                    "ExportSpecifier" => Self::ExportSpecifier {
                         start,
                         end,
                         loc,
@@ -2931,15 +2942,15 @@ impl JsNode {
                         export_kind: obj
                             .get("exportKind")
                             .and_then(|v| v.as_str())
-                            .map(|s| s.into()),
+                            .map(std::convert::Into::into),
                     },
-                    "ClassBody" => JsNode::ClassBody {
+                    "ClassBody" => Self::ClassBody {
                         start,
                         end,
                         loc,
                         body: convert_array(obj, "body"),
                     },
-                    "MethodDefinition" => JsNode::MethodDefinition {
+                    "MethodDefinition" => Self::MethodDefinition {
                         start,
                         end,
                         loc,
@@ -2949,7 +2960,7 @@ impl JsNode {
                         r#static: get_bool(obj, "static"),
                         computed: get_bool(obj, "computed"),
                     },
-                    "PropertyDefinition" => JsNode::PropertyDefinition {
+                    "PropertyDefinition" => Self::PropertyDefinition {
                         start,
                         end,
                         loc,
@@ -2959,28 +2970,28 @@ impl JsNode {
                         computed: get_bool(obj, "computed"),
                         accessor: get_bool(obj, "accessor"),
                     },
-                    "StaticBlock" => JsNode::StaticBlock {
+                    "StaticBlock" => Self::StaticBlock {
                         start,
                         end,
                         loc,
                         body: convert_array(obj, "body"),
                     },
-                    "Decorator" => JsNode::Decorator { start, end, loc },
-                    "TSTypeAnnotation" => JsNode::TSTypeAnnotation {
+                    "Decorator" => Self::Decorator { start, end, loc },
+                    "TSTypeAnnotation" => Self::TSTypeAnnotation {
                         start,
                         end,
                         loc,
                         type_annotation: convert_child(obj, "typeAnnotation"),
                     },
-                    "TSParameterProperty" => JsNode::TSParameterProperty { start, end, loc },
-                    "TSEnumDeclaration" => JsNode::TSEnumDeclaration { start, end, loc },
-                    "TSModuleDeclaration" => JsNode::TSModuleDeclaration {
+                    "TSParameterProperty" => Self::TSParameterProperty { start, end, loc },
+                    "TSEnumDeclaration" => Self::TSEnumDeclaration { start, end, loc },
+                    "TSModuleDeclaration" => Self::TSModuleDeclaration {
                         start,
                         end,
                         loc,
                         body: convert_optional_child(obj, "body"),
                     },
-                    "TSAsExpression" => JsNode::TSAsExpression {
+                    "TSAsExpression" => Self::TSAsExpression {
                         start,
                         end,
                         loc,
@@ -2989,7 +3000,7 @@ impl JsNode {
                             obj.get("typeAnnotation").cloned().unwrap_or(Value::Null),
                         ),
                     },
-                    "TSSatisfiesExpression" => JsNode::TSSatisfiesExpression {
+                    "TSSatisfiesExpression" => Self::TSSatisfiesExpression {
                         start,
                         end,
                         loc,
@@ -2998,13 +3009,13 @@ impl JsNode {
                             obj.get("typeAnnotation").cloned().unwrap_or(Value::Null),
                         ),
                     },
-                    "TSNonNullExpression" => JsNode::TSNonNullExpression {
+                    "TSNonNullExpression" => Self::TSNonNullExpression {
                         start,
                         end,
                         loc,
                         expression: convert_child(obj, "expression"),
                     },
-                    "TSTypeAssertion" => JsNode::TSTypeAssertion {
+                    "TSTypeAssertion" => Self::TSTypeAssertion {
                         start,
                         end,
                         loc,
@@ -3013,7 +3024,7 @@ impl JsNode {
                             obj.get("typeAnnotation").cloned().unwrap_or(Value::Null),
                         ),
                     },
-                    "TSInstantiationExpression" => JsNode::TSInstantiationExpression {
+                    "TSInstantiationExpression" => Self::TSInstantiationExpression {
                         start,
                         end,
                         loc,
@@ -3022,7 +3033,7 @@ impl JsNode {
                             obj.get("typeArguments").cloned().unwrap_or(Value::Null),
                         ),
                     },
-                    "Line" | "Block" => JsNode::Comment {
+                    "Line" | "Block" => Self::Comment {
                         start,
                         end,
                         comment_type: type_str.into(),
@@ -3036,104 +3047,106 @@ impl JsNode {
                     // logic treats a typeless/None node as non-foldable) rather
                     // than aborting the compile. Real compile-path nodes always
                     // carry a known `type`, so this never fires for them.
-                    _ => JsNode::Null,
+                    _ => Self::Null,
                 }
             }
             // Non-object JSON in a node position is likewise a synthetic carrier.
-            _ => JsNode::Null,
+            _ => Self::Null,
         }
     }
 
+    #[must_use]
     pub fn node_type(&self) -> Option<&str> {
         match self {
-            JsNode::Identifier { .. } => Some("Identifier"),
-            JsNode::PrivateIdentifier { .. } => Some("PrivateIdentifier"),
-            JsNode::Literal { .. } => Some("Literal"),
-            JsNode::BinaryExpression { .. } => Some("BinaryExpression"),
-            JsNode::LogicalExpression { .. } => Some("LogicalExpression"),
-            JsNode::UnaryExpression { .. } => Some("UnaryExpression"),
-            JsNode::ConditionalExpression { .. } => Some("ConditionalExpression"),
-            JsNode::CallExpression { .. } => Some("CallExpression"),
-            JsNode::MemberExpression { .. } => Some("MemberExpression"),
-            JsNode::NewExpression { .. } => Some("NewExpression"),
-            JsNode::FunctionExpression { .. } => Some("FunctionExpression"),
-            JsNode::ClassExpression { .. } => Some("ClassExpression"),
-            JsNode::ArrowFunctionExpression { .. } => Some("ArrowFunctionExpression"),
-            JsNode::AssignmentExpression { .. } => Some("AssignmentExpression"),
-            JsNode::UpdateExpression { .. } => Some("UpdateExpression"),
-            JsNode::SequenceExpression { .. } => Some("SequenceExpression"),
-            JsNode::ArrayExpression { .. } => Some("ArrayExpression"),
-            JsNode::ObjectExpression { .. } => Some("ObjectExpression"),
-            JsNode::TemplateLiteral { .. } => Some("TemplateLiteral"),
-            JsNode::TaggedTemplateExpression { .. } => Some("TaggedTemplateExpression"),
-            JsNode::TemplateElement { .. } => Some("TemplateElement"),
-            JsNode::ThisExpression { .. } => Some("ThisExpression"),
-            JsNode::Super { .. } => Some("Super"),
-            JsNode::ImportExpression { .. } => Some("ImportExpression"),
-            JsNode::AwaitExpression { .. } => Some("AwaitExpression"),
-            JsNode::YieldExpression { .. } => Some("YieldExpression"),
-            JsNode::ChainExpression { .. } => Some("ChainExpression"),
-            JsNode::MetaProperty { .. } => Some("MetaProperty"),
-            JsNode::SpreadElement { .. } => Some("SpreadElement"),
-            JsNode::ObjectPattern { .. } => Some("ObjectPattern"),
-            JsNode::ArrayPattern { .. } => Some("ArrayPattern"),
-            JsNode::AssignmentPattern { .. } => Some("AssignmentPattern"),
-            JsNode::RestElement { .. } => Some("RestElement"),
-            JsNode::Property { .. } => Some("Property"),
-            JsNode::Program { .. } => Some("Program"),
-            JsNode::ExpressionStatement { .. } => Some("ExpressionStatement"),
-            JsNode::BlockStatement { .. } => Some("BlockStatement"),
-            JsNode::VariableDeclaration { .. } => Some("VariableDeclaration"),
-            JsNode::VariableDeclarator { .. } => Some("VariableDeclarator"),
-            JsNode::FunctionDeclaration { .. } => Some("FunctionDeclaration"),
-            JsNode::ClassDeclaration { .. } => Some("ClassDeclaration"),
-            JsNode::ReturnStatement { .. } => Some("ReturnStatement"),
-            JsNode::ThrowStatement { .. } => Some("ThrowStatement"),
-            JsNode::IfStatement { .. } => Some("IfStatement"),
-            JsNode::ForStatement { .. } => Some("ForStatement"),
-            JsNode::ForOfStatement { .. } => Some("ForOfStatement"),
-            JsNode::ForInStatement { .. } => Some("ForInStatement"),
-            JsNode::WhileStatement { .. } => Some("WhileStatement"),
-            JsNode::DoWhileStatement { .. } => Some("DoWhileStatement"),
-            JsNode::TryStatement { .. } => Some("TryStatement"),
-            JsNode::CatchClause { .. } => Some("CatchClause"),
-            JsNode::SwitchStatement { .. } => Some("SwitchStatement"),
-            JsNode::SwitchCase { .. } => Some("SwitchCase"),
-            JsNode::LabeledStatement { .. } => Some("LabeledStatement"),
-            JsNode::BreakStatement { .. } => Some("BreakStatement"),
-            JsNode::ContinueStatement { .. } => Some("ContinueStatement"),
-            JsNode::EmptyStatement { .. } => Some("EmptyStatement"),
-            JsNode::DebuggerStatement { .. } => Some("DebuggerStatement"),
-            JsNode::ImportDeclaration { .. } => Some("ImportDeclaration"),
-            JsNode::ImportSpecifier { .. } => Some("ImportSpecifier"),
-            JsNode::ImportDefaultSpecifier { .. } => Some("ImportDefaultSpecifier"),
-            JsNode::ImportNamespaceSpecifier { .. } => Some("ImportNamespaceSpecifier"),
-            JsNode::ExportNamedDeclaration { .. } => Some("ExportNamedDeclaration"),
-            JsNode::ExportDefaultDeclaration { .. } => Some("ExportDefaultDeclaration"),
-            JsNode::ExportSpecifier { .. } => Some("ExportSpecifier"),
-            JsNode::ClassBody { .. } => Some("ClassBody"),
-            JsNode::MethodDefinition { .. } => Some("MethodDefinition"),
-            JsNode::PropertyDefinition { .. } => Some("PropertyDefinition"),
-            JsNode::StaticBlock { .. } => Some("StaticBlock"),
-            JsNode::Decorator { .. } => Some("Decorator"),
-            JsNode::TSTypeAnnotation { .. } => Some("TSTypeAnnotation"),
-            JsNode::TSParameterProperty { .. } => Some("TSParameterProperty"),
-            JsNode::TSEnumDeclaration { .. } => Some("TSEnumDeclaration"),
-            JsNode::TSModuleDeclaration { .. } => Some("TSModuleDeclaration"),
-            JsNode::TSAsExpression { .. } => Some("TSAsExpression"),
-            JsNode::TSSatisfiesExpression { .. } => Some("TSSatisfiesExpression"),
-            JsNode::TSNonNullExpression { .. } => Some("TSNonNullExpression"),
-            JsNode::TSTypeAssertion { .. } => Some("TSTypeAssertion"),
-            JsNode::TSInstantiationExpression { .. } => Some("TSInstantiationExpression"),
-            JsNode::Comment { comment_type, .. } => Some(comment_type.as_str()),
-            JsNode::Null => None,
+            Self::Identifier { .. } => Some("Identifier"),
+            Self::PrivateIdentifier { .. } => Some("PrivateIdentifier"),
+            Self::Literal { .. } => Some("Literal"),
+            Self::BinaryExpression { .. } => Some("BinaryExpression"),
+            Self::LogicalExpression { .. } => Some("LogicalExpression"),
+            Self::UnaryExpression { .. } => Some("UnaryExpression"),
+            Self::ConditionalExpression { .. } => Some("ConditionalExpression"),
+            Self::CallExpression { .. } => Some("CallExpression"),
+            Self::MemberExpression { .. } => Some("MemberExpression"),
+            Self::NewExpression { .. } => Some("NewExpression"),
+            Self::FunctionExpression { .. } => Some("FunctionExpression"),
+            Self::ClassExpression { .. } => Some("ClassExpression"),
+            Self::ArrowFunctionExpression { .. } => Some("ArrowFunctionExpression"),
+            Self::AssignmentExpression { .. } => Some("AssignmentExpression"),
+            Self::UpdateExpression { .. } => Some("UpdateExpression"),
+            Self::SequenceExpression { .. } => Some("SequenceExpression"),
+            Self::ArrayExpression { .. } => Some("ArrayExpression"),
+            Self::ObjectExpression { .. } => Some("ObjectExpression"),
+            Self::TemplateLiteral { .. } => Some("TemplateLiteral"),
+            Self::TaggedTemplateExpression { .. } => Some("TaggedTemplateExpression"),
+            Self::TemplateElement { .. } => Some("TemplateElement"),
+            Self::ThisExpression { .. } => Some("ThisExpression"),
+            Self::Super { .. } => Some("Super"),
+            Self::ImportExpression { .. } => Some("ImportExpression"),
+            Self::AwaitExpression { .. } => Some("AwaitExpression"),
+            Self::YieldExpression { .. } => Some("YieldExpression"),
+            Self::ChainExpression { .. } => Some("ChainExpression"),
+            Self::MetaProperty { .. } => Some("MetaProperty"),
+            Self::SpreadElement { .. } => Some("SpreadElement"),
+            Self::ObjectPattern { .. } => Some("ObjectPattern"),
+            Self::ArrayPattern { .. } => Some("ArrayPattern"),
+            Self::AssignmentPattern { .. } => Some("AssignmentPattern"),
+            Self::RestElement { .. } => Some("RestElement"),
+            Self::Property { .. } => Some("Property"),
+            Self::Program { .. } => Some("Program"),
+            Self::ExpressionStatement { .. } => Some("ExpressionStatement"),
+            Self::BlockStatement { .. } => Some("BlockStatement"),
+            Self::VariableDeclaration { .. } => Some("VariableDeclaration"),
+            Self::VariableDeclarator { .. } => Some("VariableDeclarator"),
+            Self::FunctionDeclaration { .. } => Some("FunctionDeclaration"),
+            Self::ClassDeclaration { .. } => Some("ClassDeclaration"),
+            Self::ReturnStatement { .. } => Some("ReturnStatement"),
+            Self::ThrowStatement { .. } => Some("ThrowStatement"),
+            Self::IfStatement { .. } => Some("IfStatement"),
+            Self::ForStatement { .. } => Some("ForStatement"),
+            Self::ForOfStatement { .. } => Some("ForOfStatement"),
+            Self::ForInStatement { .. } => Some("ForInStatement"),
+            Self::WhileStatement { .. } => Some("WhileStatement"),
+            Self::DoWhileStatement { .. } => Some("DoWhileStatement"),
+            Self::TryStatement { .. } => Some("TryStatement"),
+            Self::CatchClause { .. } => Some("CatchClause"),
+            Self::SwitchStatement { .. } => Some("SwitchStatement"),
+            Self::SwitchCase { .. } => Some("SwitchCase"),
+            Self::LabeledStatement { .. } => Some("LabeledStatement"),
+            Self::BreakStatement { .. } => Some("BreakStatement"),
+            Self::ContinueStatement { .. } => Some("ContinueStatement"),
+            Self::EmptyStatement { .. } => Some("EmptyStatement"),
+            Self::DebuggerStatement { .. } => Some("DebuggerStatement"),
+            Self::ImportDeclaration { .. } => Some("ImportDeclaration"),
+            Self::ImportSpecifier { .. } => Some("ImportSpecifier"),
+            Self::ImportDefaultSpecifier { .. } => Some("ImportDefaultSpecifier"),
+            Self::ImportNamespaceSpecifier { .. } => Some("ImportNamespaceSpecifier"),
+            Self::ExportNamedDeclaration { .. } => Some("ExportNamedDeclaration"),
+            Self::ExportDefaultDeclaration { .. } => Some("ExportDefaultDeclaration"),
+            Self::ExportSpecifier { .. } => Some("ExportSpecifier"),
+            Self::ClassBody { .. } => Some("ClassBody"),
+            Self::MethodDefinition { .. } => Some("MethodDefinition"),
+            Self::PropertyDefinition { .. } => Some("PropertyDefinition"),
+            Self::StaticBlock { .. } => Some("StaticBlock"),
+            Self::Decorator { .. } => Some("Decorator"),
+            Self::TSTypeAnnotation { .. } => Some("TSTypeAnnotation"),
+            Self::TSParameterProperty { .. } => Some("TSParameterProperty"),
+            Self::TSEnumDeclaration { .. } => Some("TSEnumDeclaration"),
+            Self::TSModuleDeclaration { .. } => Some("TSModuleDeclaration"),
+            Self::TSAsExpression { .. } => Some("TSAsExpression"),
+            Self::TSSatisfiesExpression { .. } => Some("TSSatisfiesExpression"),
+            Self::TSNonNullExpression { .. } => Some("TSNonNullExpression"),
+            Self::TSTypeAssertion { .. } => Some("TSTypeAssertion"),
+            Self::TSInstantiationExpression { .. } => Some("TSInstantiationExpression"),
+            Self::Comment { comment_type, .. } => Some(comment_type.as_str()),
+            Self::Null => None,
         }
     }
 
+    #[must_use]
     pub fn start(&self) -> Option<u32> {
         match self {
-            JsNode::Null => None,
-            JsNode::Comment { start, .. } => Some(*start),
+            Self::Null => None,
+            Self::Comment { start, .. } => Some(*start),
             _ => {
                 // All named variants have start as first field
                 Some(self.get_start_inner())
@@ -3141,869 +3154,918 @@ impl JsNode {
         }
     }
 
+    #[must_use]
     pub fn end(&self) -> Option<u32> {
         match self {
-            JsNode::Null => None,
-            JsNode::Comment { end, .. } => Some(*end),
+            Self::Null => None,
+            Self::Comment { end, .. } => Some(*end),
             _ => Some(self.get_end_inner()),
         }
     }
 
     /// Get the identifier name if this is an Identifier node.
     #[inline]
+    #[must_use]
     pub fn identifier_name(&self) -> Option<&str> {
         match self {
-            JsNode::Identifier { name, .. } => Some(name.as_str()),
+            Self::Identifier { name, .. } => Some(name.as_str()),
             _ => None,
         }
     }
 
     // ── Typed Accessor Methods ─────────────────────────────────────────
 
-    /// Get the "name" field for nodes that have one (Identifier, PrivateIdentifier).
+    /// Get the "name" field for nodes that have one (Identifier, `PrivateIdentifier`).
     #[inline]
+    #[must_use]
     pub fn name(&self) -> Option<&str> {
         match self {
-            JsNode::Identifier { name, .. } | JsNode::PrivateIdentifier { name, .. } => {
+            Self::Identifier { name, .. } | Self::PrivateIdentifier { name, .. } => {
                 Some(name.as_str())
             }
             _ => None,
         }
     }
 
-    /// Get the "body" field as an IdRange (for Program, BlockStatement, ClassBody, StaticBlock).
+    /// Get the "body" field as an `IdRange` (for Program, `BlockStatement`, `ClassBody`, `StaticBlock`).
     #[inline]
+    #[must_use]
     pub fn body_stmts(&self) -> IdRange {
         match self {
-            JsNode::Program { body, .. }
-            | JsNode::BlockStatement { body, .. }
-            | JsNode::ClassBody { body, .. }
-            | JsNode::StaticBlock { body, .. } => *body,
+            Self::Program { body, .. }
+            | Self::BlockStatement { body, .. }
+            | Self::ClassBody { body, .. }
+            | Self::StaticBlock { body, .. } => *body,
             _ => IdRange::empty(),
         }
     }
 
-    /// Get the "body" field as a JsNodeId (for ArrowFunctionExpression, ForStatement, etc).
+    /// Get the "body" field as a `JsNodeId` (for `ArrowFunctionExpression`, `ForStatement`, etc).
     #[inline]
+    #[must_use]
     pub fn body_node(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::ArrowFunctionExpression { body, .. }
-            | JsNode::ForStatement { body, .. }
-            | JsNode::ForOfStatement { body, .. }
-            | JsNode::ForInStatement { body, .. }
-            | JsNode::WhileStatement { body, .. }
-            | JsNode::DoWhileStatement { body, .. }
-            | JsNode::LabeledStatement { body, .. }
-            | JsNode::CatchClause { body, .. }
-            | JsNode::ClassExpression { body, .. }
-            | JsNode::ClassDeclaration { body, .. } => Some(*body),
-            JsNode::FunctionExpression { body, .. } | JsNode::FunctionDeclaration { body, .. } => {
-                *body
-            }
-            JsNode::TSModuleDeclaration { body, .. } => *body,
+            Self::ArrowFunctionExpression { body, .. }
+            | Self::ForStatement { body, .. }
+            | Self::ForOfStatement { body, .. }
+            | Self::ForInStatement { body, .. }
+            | Self::WhileStatement { body, .. }
+            | Self::DoWhileStatement { body, .. }
+            | Self::LabeledStatement { body, .. }
+            | Self::CatchClause { body, .. }
+            | Self::ClassExpression { body, .. }
+            | Self::ClassDeclaration { body, .. } => Some(*body),
+            Self::FunctionExpression { body, .. } | Self::FunctionDeclaration { body, .. } => *body,
+            Self::TSModuleDeclaration { body, .. } => *body,
             _ => None,
         }
     }
 
-    /// Get "declarations" for VariableDeclaration.
+    /// Get "declarations" for `VariableDeclaration`.
     #[inline]
+    #[must_use]
     pub fn declarations(&self) -> IdRange {
         match self {
-            JsNode::VariableDeclaration { declarations, .. } => *declarations,
+            Self::VariableDeclaration { declarations, .. } => *declarations,
             _ => IdRange::empty(),
         }
     }
 
-    /// Get "callee" for CallExpression, NewExpression.
+    /// Get "callee" for `CallExpression`, `NewExpression`.
     #[inline]
+    #[must_use]
     pub fn callee(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::CallExpression { callee, .. } | JsNode::NewExpression { callee, .. } => {
+            Self::CallExpression { callee, .. } | Self::NewExpression { callee, .. } => {
                 Some(*callee)
             }
             _ => None,
         }
     }
 
-    /// Get "arguments" for CallExpression, NewExpression.
+    /// Get "arguments" for `CallExpression`, `NewExpression`.
     #[inline]
-    pub fn call_arguments(&self) -> IdRange {
+    #[must_use]
+    pub const fn call_arguments(&self) -> IdRange {
         match self {
-            JsNode::CallExpression { arguments, .. } | JsNode::NewExpression { arguments, .. } => {
+            Self::CallExpression { arguments, .. } | Self::NewExpression { arguments, .. } => {
                 *arguments
             }
             _ => IdRange::empty(),
         }
     }
 
-    /// Get "left" for BinaryExpression, LogicalExpression, AssignmentExpression, AssignmentPattern,
-    /// ForOfStatement, ForInStatement.
+    /// Get "left" for `BinaryExpression`, `LogicalExpression`, `AssignmentExpression`, `AssignmentPattern`,
+    /// `ForOfStatement`, `ForInStatement`.
     #[inline]
+    #[must_use]
     pub fn left(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::BinaryExpression { left, .. }
-            | JsNode::LogicalExpression { left, .. }
-            | JsNode::AssignmentExpression { left, .. }
-            | JsNode::AssignmentPattern { left, .. }
-            | JsNode::ForOfStatement { left, .. }
-            | JsNode::ForInStatement { left, .. } => Some(*left),
+            Self::BinaryExpression { left, .. }
+            | Self::LogicalExpression { left, .. }
+            | Self::AssignmentExpression { left, .. }
+            | Self::AssignmentPattern { left, .. }
+            | Self::ForOfStatement { left, .. }
+            | Self::ForInStatement { left, .. } => Some(*left),
             _ => None,
         }
     }
 
-    /// Get "right" for BinaryExpression, LogicalExpression, AssignmentExpression, AssignmentPattern,
-    /// ForOfStatement, ForInStatement.
+    /// Get "right" for `BinaryExpression`, `LogicalExpression`, `AssignmentExpression`, `AssignmentPattern`,
+    /// `ForOfStatement`, `ForInStatement`.
     #[inline]
+    #[must_use]
     pub fn right(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::BinaryExpression { right, .. }
-            | JsNode::LogicalExpression { right, .. }
-            | JsNode::AssignmentExpression { right, .. }
-            | JsNode::AssignmentPattern { right, .. }
-            | JsNode::ForOfStatement { right, .. }
-            | JsNode::ForInStatement { right, .. } => Some(*right),
+            Self::BinaryExpression { right, .. }
+            | Self::LogicalExpression { right, .. }
+            | Self::AssignmentExpression { right, .. }
+            | Self::AssignmentPattern { right, .. }
+            | Self::ForOfStatement { right, .. }
+            | Self::ForInStatement { right, .. } => Some(*right),
             _ => None,
         }
     }
 
-    /// Get "properties" for ObjectExpression, ObjectPattern.
+    /// Get "properties" for `ObjectExpression`, `ObjectPattern`.
     #[inline]
+    #[must_use]
     pub fn properties(&self) -> IdRange {
         match self {
-            JsNode::ObjectExpression { properties, .. }
-            | JsNode::ObjectPattern { properties, .. } => *properties,
+            Self::ObjectExpression { properties, .. } | Self::ObjectPattern { properties, .. } => {
+                *properties
+            }
             _ => IdRange::empty(),
         }
     }
 
-    /// Get "elements" for ArrayExpression, ArrayPattern (nullable elements).
+    /// Get "elements" for `ArrayExpression`, `ArrayPattern` (nullable elements).
     #[inline]
-    pub fn elements(&self) -> &[Option<JsNode>] {
+    #[must_use]
+    pub fn elements(&self) -> &[Option<Self>] {
         match self {
-            JsNode::ArrayExpression { elements, .. } | JsNode::ArrayPattern { elements, .. } => {
+            Self::ArrayExpression { elements, .. } | Self::ArrayPattern { elements, .. } => {
                 elements
             }
             _ => &[],
         }
     }
 
-    /// Get "params" for FunctionExpression, FunctionDeclaration, ArrowFunctionExpression.
+    /// Get "params" for `FunctionExpression`, `FunctionDeclaration`, `ArrowFunctionExpression`.
     #[inline]
+    #[must_use]
     pub fn params(&self) -> IdRange {
         match self {
-            JsNode::FunctionExpression { params, .. }
-            | JsNode::FunctionDeclaration { params, .. }
-            | JsNode::ArrowFunctionExpression { params, .. } => *params,
+            Self::FunctionExpression { params, .. }
+            | Self::FunctionDeclaration { params, .. }
+            | Self::ArrowFunctionExpression { params, .. } => *params,
             _ => IdRange::empty(),
         }
     }
 
-    /// Get "object" for MemberExpression.
+    /// Get "object" for `MemberExpression`.
     #[inline]
+    #[must_use]
     pub fn object(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::MemberExpression { object, .. } => Some(*object),
+            Self::MemberExpression { object, .. } => Some(*object),
             _ => None,
         }
     }
 
-    /// Get "property" for MemberExpression, MetaProperty.
+    /// Get "property" for `MemberExpression`, `MetaProperty`.
     #[inline]
-    pub fn property(&self) -> Option<JsNodeId> {
+    #[must_use]
+    pub const fn property(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::MemberExpression { property, .. } | JsNode::MetaProperty { property, .. } => {
+            Self::MemberExpression { property, .. } | Self::MetaProperty { property, .. } => {
                 Some(*property)
             }
             _ => None,
         }
     }
 
-    /// Get "computed" for MemberExpression, Property, MethodDefinition, PropertyDefinition.
+    /// Get "computed" for `MemberExpression`, Property, `MethodDefinition`, `PropertyDefinition`.
     #[inline]
-    pub fn computed(&self) -> bool {
+    #[must_use]
+    pub const fn computed(&self) -> bool {
         match self {
-            JsNode::MemberExpression { computed, .. }
-            | JsNode::Property { computed, .. }
-            | JsNode::MethodDefinition { computed, .. }
-            | JsNode::PropertyDefinition { computed, .. } => *computed,
+            Self::MemberExpression { computed, .. }
+            | Self::Property { computed, .. }
+            | Self::MethodDefinition { computed, .. }
+            | Self::PropertyDefinition { computed, .. } => *computed,
             _ => false,
         }
     }
 
-    /// Get "optional" for CallExpression, MemberExpression.
+    /// Get "optional" for `CallExpression`, `MemberExpression`.
     #[inline]
-    pub fn optional(&self) -> bool {
+    #[must_use]
+    pub const fn optional(&self) -> bool {
         match self {
-            JsNode::CallExpression { optional, .. } | JsNode::MemberExpression { optional, .. } => {
+            Self::CallExpression { optional, .. } | Self::MemberExpression { optional, .. } => {
                 *optional
             }
             _ => false,
         }
     }
 
-    /// Get "operator" for BinaryExpression, LogicalExpression, UnaryExpression,
-    /// AssignmentExpression, UpdateExpression.
+    /// Get "operator" for `BinaryExpression`, `LogicalExpression`, `UnaryExpression`,
+    /// `AssignmentExpression`, `UpdateExpression`.
     #[inline]
+    #[must_use]
     pub fn operator(&self) -> Option<&str> {
         match self {
-            JsNode::BinaryExpression { operator, .. }
-            | JsNode::LogicalExpression { operator, .. }
-            | JsNode::UnaryExpression { operator, .. }
-            | JsNode::AssignmentExpression { operator, .. }
-            | JsNode::UpdateExpression { operator, .. } => Some(operator.as_str()),
+            Self::BinaryExpression { operator, .. }
+            | Self::LogicalExpression { operator, .. }
+            | Self::UnaryExpression { operator, .. }
+            | Self::AssignmentExpression { operator, .. }
+            | Self::UpdateExpression { operator, .. } => Some(operator.as_str()),
             _ => None,
         }
     }
 
-    /// Get "prefix" for UnaryExpression, UpdateExpression.
+    /// Get "prefix" for `UnaryExpression`, `UpdateExpression`.
     #[inline]
-    pub fn prefix(&self) -> bool {
+    #[must_use]
+    pub const fn prefix(&self) -> bool {
         match self {
-            JsNode::UnaryExpression { prefix, .. } | JsNode::UpdateExpression { prefix, .. } => {
-                *prefix
-            }
+            Self::UnaryExpression { prefix, .. } | Self::UpdateExpression { prefix, .. } => *prefix,
             _ => false,
         }
     }
 
-    /// Get "test" for ConditionalExpression, IfStatement, SwitchCase.
+    /// Get "test" for `ConditionalExpression`, `IfStatement`, `SwitchCase`.
     #[inline]
-    pub fn test(&self) -> Option<JsNodeId> {
+    #[must_use]
+    pub const fn test(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::ConditionalExpression { test, .. }
-            | JsNode::IfStatement { test, .. }
-            | JsNode::WhileStatement { test, .. }
-            | JsNode::DoWhileStatement { test, .. } => Some(*test),
-            JsNode::ForStatement { test, .. } | JsNode::SwitchCase { test, .. } => *test,
+            Self::ConditionalExpression { test, .. }
+            | Self::IfStatement { test, .. }
+            | Self::WhileStatement { test, .. }
+            | Self::DoWhileStatement { test, .. } => Some(*test),
+            Self::ForStatement { test, .. } | Self::SwitchCase { test, .. } => *test,
             _ => None,
         }
     }
 
-    /// Get "consequent" for ConditionalExpression, IfStatement.
+    /// Get "consequent" for `ConditionalExpression`, `IfStatement`.
     #[inline]
+    #[must_use]
     pub fn consequent(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::ConditionalExpression { consequent, .. }
-            | JsNode::IfStatement { consequent, .. } => Some(*consequent),
+            Self::ConditionalExpression { consequent, .. }
+            | Self::IfStatement { consequent, .. } => Some(*consequent),
             _ => None,
         }
     }
 
-    /// Get "consequent" items for SwitchCase.
+    /// Get "consequent" items for `SwitchCase`.
     #[inline]
-    pub fn consequent_stmts(&self) -> IdRange {
+    #[must_use]
+    pub const fn consequent_stmts(&self) -> IdRange {
         match self {
-            JsNode::SwitchCase { consequent, .. } => *consequent,
+            Self::SwitchCase { consequent, .. } => *consequent,
             _ => IdRange::empty(),
         }
     }
 
-    /// Get "alternate" for ConditionalExpression, IfStatement.
+    /// Get "alternate" for `ConditionalExpression`, `IfStatement`.
     #[inline]
+    #[must_use]
     pub fn alternate(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::ConditionalExpression { alternate, .. } => Some(*alternate),
-            JsNode::IfStatement { alternate, .. } => *alternate,
+            Self::ConditionalExpression { alternate, .. } => Some(*alternate),
+            Self::IfStatement { alternate, .. } => *alternate,
             _ => None,
         }
     }
 
-    /// Get "init" for VariableDeclarator, ForStatement.
+    /// Get "init" for `VariableDeclarator`, `ForStatement`.
     #[inline]
-    pub fn init(&self) -> Option<JsNodeId> {
+    #[must_use]
+    pub const fn init(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::VariableDeclarator { init, .. } | JsNode::ForStatement { init, .. } => *init,
+            Self::VariableDeclarator { init, .. } | Self::ForStatement { init, .. } => *init,
             _ => None,
         }
     }
 
-    /// Get "id" for VariableDeclarator, FunctionDeclaration, FunctionExpression,
-    /// ClassDeclaration, ClassExpression.
+    /// Get "id" for `VariableDeclarator`, `FunctionDeclaration`, `FunctionExpression`,
+    /// `ClassDeclaration`, `ClassExpression`.
     #[inline]
-    pub fn id(&self) -> Option<JsNodeId> {
+    #[must_use]
+    pub const fn id(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::VariableDeclarator { id, .. } => Some(*id),
-            JsNode::FunctionDeclaration { id, .. }
-            | JsNode::FunctionExpression { id, .. }
-            | JsNode::ClassDeclaration { id, .. }
-            | JsNode::ClassExpression { id, .. }
-            | JsNode::ArrowFunctionExpression { id, .. } => *id,
+            Self::VariableDeclarator { id, .. } => Some(*id),
+            Self::FunctionDeclaration { id, .. }
+            | Self::FunctionExpression { id, .. }
+            | Self::ClassDeclaration { id, .. }
+            | Self::ClassExpression { id, .. }
+            | Self::ArrowFunctionExpression { id, .. } => *id,
             _ => None,
         }
     }
 
-    /// Get "argument" for UnaryExpression, UpdateExpression, SpreadElement, RestElement,
-    /// ReturnStatement, ThrowStatement, AwaitExpression, YieldExpression.
+    /// Get "argument" for `UnaryExpression`, `UpdateExpression`, `SpreadElement`, `RestElement`,
+    /// `ReturnStatement`, `ThrowStatement`, `AwaitExpression`, `YieldExpression`.
     #[inline]
+    #[must_use]
     pub fn argument(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::UnaryExpression { argument, .. }
-            | JsNode::UpdateExpression { argument, .. }
-            | JsNode::SpreadElement { argument, .. }
-            | JsNode::RestElement { argument, .. }
-            | JsNode::ThrowStatement { argument, .. }
-            | JsNode::AwaitExpression { argument, .. } => Some(*argument),
-            JsNode::ReturnStatement { argument, .. } | JsNode::YieldExpression { argument, .. } => {
+            Self::UnaryExpression { argument, .. }
+            | Self::UpdateExpression { argument, .. }
+            | Self::SpreadElement { argument, .. }
+            | Self::RestElement { argument, .. }
+            | Self::ThrowStatement { argument, .. }
+            | Self::AwaitExpression { argument, .. } => Some(*argument),
+            Self::ReturnStatement { argument, .. } | Self::YieldExpression { argument, .. } => {
                 *argument
             }
             _ => None,
         }
     }
 
-    /// Get "expression" for ExpressionStatement, ChainExpression.
+    /// Get "expression" for `ExpressionStatement`, `ChainExpression`.
     #[inline]
+    #[must_use]
     pub fn expression_node(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::ExpressionStatement { expression, .. }
-            | JsNode::ChainExpression { expression, .. } => Some(*expression),
+            Self::ExpressionStatement { expression, .. }
+            | Self::ChainExpression { expression, .. } => Some(*expression),
             _ => None,
         }
     }
 
-    /// Get "expressions" for SequenceExpression, TemplateLiteral.
+    /// Get "expressions" for `SequenceExpression`, `TemplateLiteral`.
     #[inline]
+    #[must_use]
     pub fn expressions(&self) -> IdRange {
         match self {
-            JsNode::SequenceExpression { expressions, .. }
-            | JsNode::TemplateLiteral { expressions, .. } => *expressions,
+            Self::SequenceExpression { expressions, .. }
+            | Self::TemplateLiteral { expressions, .. } => *expressions,
             _ => IdRange::empty(),
         }
     }
 
-    /// Get "key" for Property, MethodDefinition, PropertyDefinition.
+    /// Get "key" for Property, `MethodDefinition`, `PropertyDefinition`.
     #[inline]
+    #[must_use]
     pub fn key(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::Property { key, .. }
-            | JsNode::MethodDefinition { key, .. }
-            | JsNode::PropertyDefinition { key, .. } => Some(*key),
+            Self::Property { key, .. }
+            | Self::MethodDefinition { key, .. }
+            | Self::PropertyDefinition { key, .. } => Some(*key),
             _ => None,
         }
     }
 
-    /// Get "value" as a JsNodeId for Property, MethodDefinition, PropertyDefinition.
+    /// Get "value" as a `JsNodeId` for Property, `MethodDefinition`, `PropertyDefinition` const.
     #[inline]
+    #[must_use]
     pub fn value_node(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::Property { value, .. } | JsNode::MethodDefinition { value, .. } => Some(*value),
-            JsNode::PropertyDefinition { value, .. } => *value,
+            Self::Property { value, .. } | Self::MethodDefinition { value, .. } => Some(*value),
+            Self::PropertyDefinition { value, .. } => *value,
             _ => None,
         }
     }
 
     /// Get "shorthand" for Property.
     #[inline]
-    pub fn shorthand(&self) -> bool {
+    #[must_use]
+    pub const fn shorthand(&self) -> bool {
         match self {
-            JsNode::Property { shorthand, .. } => *shorthand,
+            Self::Property { shorthand, .. } => *shorthand,
             _ => false,
         }
     }
 
     /// Get "method" for Property.
     #[inline]
-    pub fn method(&self) -> bool {
+    #[must_use]
+    pub const fn method(&self) -> bool {
         match self {
-            JsNode::Property { method, .. } => *method,
+            Self::Property { method, .. } => *method,
             _ => false,
         }
     }
 
-    /// Get "kind" for VariableDeclaration, Property, MethodDefinition.
+    /// Get "kind" for `VariableDeclaration`, Property, `MethodDefinition`.
     #[inline]
+    #[must_use]
     pub fn kind(&self) -> Option<&str> {
         match self {
-            JsNode::VariableDeclaration { kind, .. }
-            | JsNode::Property { kind, .. }
-            | JsNode::MethodDefinition { kind, .. } => Some(kind.as_str()),
+            Self::VariableDeclaration { kind, .. }
+            | Self::Property { kind, .. }
+            | Self::MethodDefinition { kind, .. } => Some(kind.as_str()),
             _ => None,
         }
     }
 
-    /// Check if the node is async (FunctionExpression, FunctionDeclaration, ArrowFunctionExpression).
+    /// Check if the node is async (`FunctionExpression`, `FunctionDeclaration`, `ArrowFunctionExpression`).
     #[inline]
+    #[must_use]
     pub fn is_async(&self) -> bool {
         match self {
-            JsNode::FunctionExpression { r#async, .. }
-            | JsNode::FunctionDeclaration { r#async, .. }
-            | JsNode::ArrowFunctionExpression { r#async, .. } => *r#async,
+            Self::FunctionExpression { r#async, .. }
+            | Self::FunctionDeclaration { r#async, .. }
+            | Self::ArrowFunctionExpression { r#async, .. } => *r#async,
             _ => false,
         }
     }
 
     /// Check if the node is a generator.
     #[inline]
+    #[must_use]
     pub fn is_generator(&self) -> bool {
         match self {
-            JsNode::FunctionExpression { generator, .. }
-            | JsNode::FunctionDeclaration { generator, .. }
-            | JsNode::ArrowFunctionExpression { generator, .. } => *generator,
+            Self::FunctionExpression { generator, .. }
+            | Self::FunctionDeclaration { generator, .. }
+            | Self::ArrowFunctionExpression { generator, .. } => *generator,
             _ => false,
         }
     }
 
     /// Get "raw" for Literal.
     #[inline]
+    #[must_use]
     pub fn raw(&self) -> Option<&str> {
         match self {
-            JsNode::Literal { raw, .. } => Some(raw.as_str()),
+            Self::Literal { raw, .. } => Some(raw.as_str()),
             _ => None,
         }
     }
 
-    /// Get the LiteralValue for Literal nodes.
+    /// Get the `LiteralValue` for Literal nodes.
     #[inline]
+    #[must_use]
     pub fn literal_value(&self) -> Option<&LiteralValue> {
         match self {
-            JsNode::Literal { value, .. } => Some(value),
+            Self::Literal { value, .. } => Some(value),
             _ => None,
         }
     }
 
-    /// Get "specifiers" for ImportDeclaration, ExportNamedDeclaration.
+    /// Get "specifiers" for `ImportDeclaration`, `ExportNamedDeclaration`.
     #[inline]
-    pub fn specifiers(&self) -> IdRange {
+    #[must_use]
+    pub const fn specifiers(&self) -> IdRange {
         match self {
-            JsNode::ImportDeclaration { specifiers, .. }
-            | JsNode::ExportNamedDeclaration { specifiers, .. } => *specifiers,
+            Self::ImportDeclaration { specifiers, .. }
+            | Self::ExportNamedDeclaration { specifiers, .. } => *specifiers,
             _ => IdRange::empty(),
         }
     }
 
-    /// Get "source" for ImportDeclaration, ImportExpression.
+    /// Get "source" for `ImportDeclaration`, `ImportExpression`.
     #[inline]
+    #[must_use]
     pub fn source(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::ImportDeclaration { source, .. } | JsNode::ImportExpression { source, .. } => {
+            Self::ImportDeclaration { source, .. } | Self::ImportExpression { source, .. } => {
                 Some(*source)
             }
-            JsNode::ExportNamedDeclaration { source, .. } => *source,
+            Self::ExportNamedDeclaration { source, .. } => *source,
             _ => None,
         }
     }
 
-    /// Get "local" for ImportSpecifier, ImportDefaultSpecifier, ImportNamespaceSpecifier, ExportSpecifier.
+    /// Get "local" for `ImportSpecifier`, `ImportDefaultSpecifier`, `ImportNamespaceSpecifier`, `ExportSpecifier`.
     #[inline]
+    #[must_use]
     pub fn local(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::ImportSpecifier { local, .. }
-            | JsNode::ImportDefaultSpecifier { local, .. }
-            | JsNode::ImportNamespaceSpecifier { local, .. }
-            | JsNode::ExportSpecifier { local, .. } => Some(*local),
+            Self::ImportSpecifier { local, .. }
+            | Self::ImportDefaultSpecifier { local, .. }
+            | Self::ImportNamespaceSpecifier { local, .. }
+            | Self::ExportSpecifier { local, .. } => Some(*local),
             _ => None,
         }
     }
 
-    /// Get "imported" for ImportSpecifier.
+    /// Get const "imported" for `ImportSpecifier`.
     #[inline]
+    #[must_use]
     pub fn imported(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::ImportSpecifier { imported, .. } => Some(*imported),
+            Self::ImportSpecifier { imported, .. } => Some(*imported),
             _ => None,
         }
     }
 
-    /// Get "exported" for ExportSpecifier.
+    /// Get "exported" for `ExportSpecifier`.
     #[inline]
+    #[must_use]
     pub fn exported(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::ExportSpecifier { exported, .. } => Some(*exported),
+            Self::ExportSpecifier { exported, .. } => Some(*exported),
             _ => None,
         }
     }
 
-    /// Get "declaration" for ExportNamedDeclaration, ExportDefaultDeclaration.
+    /// Get "declaration" for `ExportNamedDeclaration`, `ExportDefaultDeclaration`.
     #[inline]
+    #[must_use]
     pub fn declaration(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::ExportDefaultDeclaration { declaration, .. } => Some(*declaration),
-            JsNode::ExportNamedDeclaration { declaration, .. } => *declaration,
+            Self::ExportDefaultDeclaration { declaration, .. } => Some(*declaration),
+            Self::ExportNamedDeclaration { declaration, .. } => *declaration,
             _ => None,
         }
     }
 
-    /// Get "quasis" for TemplateLiteral.
+    /// Get "quasis" for `TemplateLiteral`.
     #[inline]
+    #[must_use]
     pub fn quasis(&self) -> IdRange {
         match self {
-            JsNode::TemplateLiteral { quasis, .. } => *quasis,
+            Self::TemplateLiteral { quasis, .. } => *quasis,
             _ => IdRange::empty(),
         }
     }
 
-    /// Get "tag" for TaggedTemplateExpression.
+    /// Get "tag" for `TaggedTemplateExpression`.
     #[inline]
+    #[must_use]
     pub fn tag(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::TaggedTemplateExpression { tag, .. } => Some(*tag),
+            Self::TaggedTemplateExpression { tag, .. } => Some(*tag),
             _ => None,
         }
     }
 
-    /// Get "discriminant" for SwitchStatement.
+    /// Get "discriminant" for `SwitchStatement`.
     #[inline]
+    #[must_use]
     pub fn discriminant(&self) -> Option<JsNodeId> {
         match self {
-            JsNode::SwitchStatement { discriminant, .. } => Some(*discriminant),
+            Self::SwitchStatement { discriminant, .. } => Some(*discriminant),
             _ => None,
         }
     }
 
-    /// Get "cases" for SwitchStatement.
+    /// Get "cases" for `SwitchStatement`.
     #[inline]
+    #[must_use]
     pub fn cases(&self) -> IdRange {
         match self {
-            JsNode::SwitchStatement { cases, .. } => *cases,
+            Self::SwitchStatement { cases, .. } => *cases,
             _ => IdRange::empty(),
         }
     }
 
     /// Check if this is an expression type (not a statement/declaration).
     #[inline]
+    #[must_use]
     pub fn is_expression(&self) -> bool {
         matches!(
             self,
-            JsNode::Identifier { .. }
-                | JsNode::PrivateIdentifier { .. }
-                | JsNode::Literal { .. }
-                | JsNode::BinaryExpression { .. }
-                | JsNode::LogicalExpression { .. }
-                | JsNode::UnaryExpression { .. }
-                | JsNode::ConditionalExpression { .. }
-                | JsNode::CallExpression { .. }
-                | JsNode::MemberExpression { .. }
-                | JsNode::NewExpression { .. }
-                | JsNode::FunctionExpression { .. }
-                | JsNode::ClassExpression { .. }
-                | JsNode::ArrowFunctionExpression { .. }
-                | JsNode::AssignmentExpression { .. }
-                | JsNode::UpdateExpression { .. }
-                | JsNode::SequenceExpression { .. }
-                | JsNode::ArrayExpression { .. }
-                | JsNode::ObjectExpression { .. }
-                | JsNode::TemplateLiteral { .. }
-                | JsNode::TaggedTemplateExpression { .. }
-                | JsNode::ThisExpression { .. }
-                | JsNode::Super { .. }
-                | JsNode::ImportExpression { .. }
-                | JsNode::AwaitExpression { .. }
-                | JsNode::YieldExpression { .. }
-                | JsNode::ChainExpression { .. }
-                | JsNode::MetaProperty { .. }
-                | JsNode::SpreadElement { .. }
+            Self::Identifier { .. }
+                | Self::PrivateIdentifier { .. }
+                | Self::Literal { .. }
+                | Self::BinaryExpression { .. }
+                | Self::LogicalExpression { .. }
+                | Self::UnaryExpression { .. }
+                | Self::ConditionalExpression { .. }
+                | Self::CallExpression { .. }
+                | Self::MemberExpression { .. }
+                | Self::NewExpression { .. }
+                | Self::FunctionExpression { .. }
+                | Self::ClassExpression { .. }
+                | Self::ArrowFunctionExpression { .. }
+                | Self::AssignmentExpression { .. }
+                | Self::UpdateExpression { .. }
+                | Self::SequenceExpression { .. }
+                | Self::ArrayExpression { .. }
+                | Self::ObjectExpression { .. }
+                | Self::TemplateLiteral { .. }
+                | Self::TaggedTemplateExpression { .. }
+                | Self::ThisExpression { .. }
+                | Self::Super { .. }
+                | Self::ImportExpression { .. }
+                | Self::AwaitExpression { .. }
+                | Self::YieldExpression { .. }
+                | Self::ChainExpression { .. }
+                | Self::MetaProperty { .. }
+                | Self::SpreadElement { .. }
         )
     }
 
-    /// Check if this is a pattern (ObjectPattern, ArrayPattern, etc).
+    /// Check if this is a pattern (`ObjectPattern`, `ArrayPattern`, etc).
     #[inline]
+    #[must_use]
     pub fn is_pattern(&self) -> bool {
         matches!(
             self,
-            JsNode::ObjectPattern { .. }
-                | JsNode::ArrayPattern { .. }
-                | JsNode::AssignmentPattern { .. }
-                | JsNode::RestElement { .. }
+            Self::ObjectPattern { .. }
+                | Self::ArrayPattern { .. }
+                | Self::AssignmentPattern { .. }
+                | Self::RestElement { .. }
         )
     }
 
-    /// Check if this is a function-like node (FunctionExpression, ArrowFunction, FunctionDeclaration).
+    /// Check if this is a function-like node (`FunctionExpression`, `ArrowFunction`, `FunctionDeclaration`).
     #[inline]
+    #[must_use]
     pub fn is_function(&self) -> bool {
         matches!(
             self,
-            JsNode::FunctionExpression { .. }
-                | JsNode::ArrowFunctionExpression { .. }
-                | JsNode::FunctionDeclaration { .. }
+            Self::FunctionExpression { .. }
+                | Self::ArrowFunctionExpression { .. }
+                | Self::FunctionDeclaration { .. }
         )
     }
 
     fn get_start_inner(&self) -> u32 {
         match self {
-            JsNode::Identifier { start, .. }
-            | JsNode::PrivateIdentifier { start, .. }
-            | JsNode::Literal { start, .. }
-            | JsNode::BinaryExpression { start, .. }
-            | JsNode::LogicalExpression { start, .. }
-            | JsNode::UnaryExpression { start, .. }
-            | JsNode::ConditionalExpression { start, .. }
-            | JsNode::CallExpression { start, .. }
-            | JsNode::MemberExpression { start, .. }
-            | JsNode::NewExpression { start, .. }
-            | JsNode::FunctionExpression { start, .. }
-            | JsNode::ClassExpression { start, .. }
-            | JsNode::ArrowFunctionExpression { start, .. }
-            | JsNode::AssignmentExpression { start, .. }
-            | JsNode::UpdateExpression { start, .. }
-            | JsNode::SequenceExpression { start, .. }
-            | JsNode::ArrayExpression { start, .. }
-            | JsNode::ObjectExpression { start, .. }
-            | JsNode::TemplateLiteral { start, .. }
-            | JsNode::TaggedTemplateExpression { start, .. }
-            | JsNode::TemplateElement { start, .. }
-            | JsNode::ThisExpression { start, .. }
-            | JsNode::Super { start, .. }
-            | JsNode::ImportExpression { start, .. }
-            | JsNode::AwaitExpression { start, .. }
-            | JsNode::YieldExpression { start, .. }
-            | JsNode::ChainExpression { start, .. }
-            | JsNode::MetaProperty { start, .. }
-            | JsNode::SpreadElement { start, .. }
-            | JsNode::ObjectPattern { start, .. }
-            | JsNode::ArrayPattern { start, .. }
-            | JsNode::AssignmentPattern { start, .. }
-            | JsNode::RestElement { start, .. }
-            | JsNode::Property { start, .. }
-            | JsNode::Program { start, .. }
-            | JsNode::ExpressionStatement { start, .. }
-            | JsNode::BlockStatement { start, .. }
-            | JsNode::VariableDeclaration { start, .. }
-            | JsNode::VariableDeclarator { start, .. }
-            | JsNode::FunctionDeclaration { start, .. }
-            | JsNode::ClassDeclaration { start, .. }
-            | JsNode::ReturnStatement { start, .. }
-            | JsNode::ThrowStatement { start, .. }
-            | JsNode::IfStatement { start, .. }
-            | JsNode::ForStatement { start, .. }
-            | JsNode::ForOfStatement { start, .. }
-            | JsNode::ForInStatement { start, .. }
-            | JsNode::WhileStatement { start, .. }
-            | JsNode::DoWhileStatement { start, .. }
-            | JsNode::TryStatement { start, .. }
-            | JsNode::CatchClause { start, .. }
-            | JsNode::SwitchStatement { start, .. }
-            | JsNode::SwitchCase { start, .. }
-            | JsNode::LabeledStatement { start, .. }
-            | JsNode::BreakStatement { start, .. }
-            | JsNode::ContinueStatement { start, .. }
-            | JsNode::EmptyStatement { start, .. }
-            | JsNode::DebuggerStatement { start, .. }
-            | JsNode::ImportDeclaration { start, .. }
-            | JsNode::ImportSpecifier { start, .. }
-            | JsNode::ImportDefaultSpecifier { start, .. }
-            | JsNode::ImportNamespaceSpecifier { start, .. }
-            | JsNode::ExportNamedDeclaration { start, .. }
-            | JsNode::ExportDefaultDeclaration { start, .. }
-            | JsNode::ExportSpecifier { start, .. }
-            | JsNode::ClassBody { start, .. }
-            | JsNode::MethodDefinition { start, .. }
-            | JsNode::PropertyDefinition { start, .. }
-            | JsNode::StaticBlock { start, .. }
-            | JsNode::Decorator { start, .. }
-            | JsNode::TSTypeAnnotation { start, .. }
-            | JsNode::TSParameterProperty { start, .. }
-            | JsNode::TSEnumDeclaration { start, .. }
-            | JsNode::TSModuleDeclaration { start, .. }
-            | JsNode::TSAsExpression { start, .. }
-            | JsNode::TSSatisfiesExpression { start, .. }
-            | JsNode::TSNonNullExpression { start, .. }
-            | JsNode::TSTypeAssertion { start, .. }
-            | JsNode::TSInstantiationExpression { start, .. }
-            | JsNode::Comment { start, .. } => *start,
-            JsNode::Null => 0,
+            Self::Identifier { start, .. }
+            | Self::PrivateIdentifier { start, .. }
+            | Self::Literal { start, .. }
+            | Self::BinaryExpression { start, .. }
+            | Self::LogicalExpression { start, .. }
+            | Self::UnaryExpression { start, .. }
+            | Self::ConditionalExpression { start, .. }
+            | Self::CallExpression { start, .. }
+            | Self::MemberExpression { start, .. }
+            | Self::NewExpression { start, .. }
+            | Self::FunctionExpression { start, .. }
+            | Self::ClassExpression { start, .. }
+            | Self::ArrowFunctionExpression { start, .. }
+            | Self::AssignmentExpression { start, .. }
+            | Self::UpdateExpression { start, .. }
+            | Self::SequenceExpression { start, .. }
+            | Self::ArrayExpression { start, .. }
+            | Self::ObjectExpression { start, .. }
+            | Self::TemplateLiteral { start, .. }
+            | Self::TaggedTemplateExpression { start, .. }
+            | Self::TemplateElement { start, .. }
+            | Self::ThisExpression { start, .. }
+            | Self::Super { start, .. }
+            | Self::ImportExpression { start, .. }
+            | Self::AwaitExpression { start, .. }
+            | Self::YieldExpression { start, .. }
+            | Self::ChainExpression { start, .. }
+            | Self::MetaProperty { start, .. }
+            | Self::SpreadElement { start, .. }
+            | Self::ObjectPattern { start, .. }
+            | Self::ArrayPattern { start, .. }
+            | Self::AssignmentPattern { start, .. }
+            | Self::RestElement { start, .. }
+            | Self::Property { start, .. }
+            | Self::Program { start, .. }
+            | Self::ExpressionStatement { start, .. }
+            | Self::BlockStatement { start, .. }
+            | Self::VariableDeclaration { start, .. }
+            | Self::VariableDeclarator { start, .. }
+            | Self::FunctionDeclaration { start, .. }
+            | Self::ClassDeclaration { start, .. }
+            | Self::ReturnStatement { start, .. }
+            | Self::ThrowStatement { start, .. }
+            | Self::IfStatement { start, .. }
+            | Self::ForStatement { start, .. }
+            | Self::ForOfStatement { start, .. }
+            | Self::ForInStatement { start, .. }
+            | Self::WhileStatement { start, .. }
+            | Self::DoWhileStatement { start, .. }
+            | Self::TryStatement { start, .. }
+            | Self::CatchClause { start, .. }
+            | Self::SwitchStatement { start, .. }
+            | Self::SwitchCase { start, .. }
+            | Self::LabeledStatement { start, .. }
+            | Self::BreakStatement { start, .. }
+            | Self::ContinueStatement { start, .. }
+            | Self::EmptyStatement { start, .. }
+            | Self::DebuggerStatement { start, .. }
+            | Self::ImportDeclaration { start, .. }
+            | Self::ImportSpecifier { start, .. }
+            | Self::ImportDefaultSpecifier { start, .. }
+            | Self::ImportNamespaceSpecifier { start, .. }
+            | Self::ExportNamedDeclaration { start, .. }
+            | Self::ExportDefaultDeclaration { start, .. }
+            | Self::ExportSpecifier { start, .. }
+            | Self::ClassBody { start, .. }
+            | Self::MethodDefinition { start, .. }
+            | Self::PropertyDefinition { start, .. }
+            | Self::StaticBlock { start, .. }
+            | Self::Decorator { start, .. }
+            | Self::TSTypeAnnotation { start, .. }
+            | Self::TSParameterProperty { start, .. }
+            | Self::TSEnumDeclaration { start, .. }
+            | Self::TSModuleDeclaration { start, .. }
+            | Self::TSAsExpression { start, .. }
+            | Self::TSSatisfiesExpression { start, .. }
+            | Self::TSNonNullExpression { start, .. }
+            | Self::TSTypeAssertion { start, .. }
+            | Self::TSInstantiationExpression { start, .. }
+            | Self::Comment { start, .. } => *start,
+            Self::Null => 0,
         }
     }
 
     fn get_end_inner(&self) -> u32 {
         match self {
-            JsNode::Identifier { end, .. }
-            | JsNode::PrivateIdentifier { end, .. }
-            | JsNode::Literal { end, .. }
-            | JsNode::BinaryExpression { end, .. }
-            | JsNode::LogicalExpression { end, .. }
-            | JsNode::UnaryExpression { end, .. }
-            | JsNode::ConditionalExpression { end, .. }
-            | JsNode::CallExpression { end, .. }
-            | JsNode::MemberExpression { end, .. }
-            | JsNode::NewExpression { end, .. }
-            | JsNode::FunctionExpression { end, .. }
-            | JsNode::ClassExpression { end, .. }
-            | JsNode::ArrowFunctionExpression { end, .. }
-            | JsNode::AssignmentExpression { end, .. }
-            | JsNode::UpdateExpression { end, .. }
-            | JsNode::SequenceExpression { end, .. }
-            | JsNode::ArrayExpression { end, .. }
-            | JsNode::ObjectExpression { end, .. }
-            | JsNode::TemplateLiteral { end, .. }
-            | JsNode::TaggedTemplateExpression { end, .. }
-            | JsNode::TemplateElement { end, .. }
-            | JsNode::ThisExpression { end, .. }
-            | JsNode::Super { end, .. }
-            | JsNode::ImportExpression { end, .. }
-            | JsNode::AwaitExpression { end, .. }
-            | JsNode::YieldExpression { end, .. }
-            | JsNode::ChainExpression { end, .. }
-            | JsNode::MetaProperty { end, .. }
-            | JsNode::SpreadElement { end, .. }
-            | JsNode::ObjectPattern { end, .. }
-            | JsNode::ArrayPattern { end, .. }
-            | JsNode::AssignmentPattern { end, .. }
-            | JsNode::RestElement { end, .. }
-            | JsNode::Property { end, .. }
-            | JsNode::Program { end, .. }
-            | JsNode::ExpressionStatement { end, .. }
-            | JsNode::BlockStatement { end, .. }
-            | JsNode::VariableDeclaration { end, .. }
-            | JsNode::VariableDeclarator { end, .. }
-            | JsNode::FunctionDeclaration { end, .. }
-            | JsNode::ClassDeclaration { end, .. }
-            | JsNode::ReturnStatement { end, .. }
-            | JsNode::ThrowStatement { end, .. }
-            | JsNode::IfStatement { end, .. }
-            | JsNode::ForStatement { end, .. }
-            | JsNode::ForOfStatement { end, .. }
-            | JsNode::ForInStatement { end, .. }
-            | JsNode::WhileStatement { end, .. }
-            | JsNode::DoWhileStatement { end, .. }
-            | JsNode::TryStatement { end, .. }
-            | JsNode::CatchClause { end, .. }
-            | JsNode::SwitchStatement { end, .. }
-            | JsNode::SwitchCase { end, .. }
-            | JsNode::LabeledStatement { end, .. }
-            | JsNode::BreakStatement { end, .. }
-            | JsNode::ContinueStatement { end, .. }
-            | JsNode::EmptyStatement { end, .. }
-            | JsNode::DebuggerStatement { end, .. }
-            | JsNode::ImportDeclaration { end, .. }
-            | JsNode::ImportSpecifier { end, .. }
-            | JsNode::ImportDefaultSpecifier { end, .. }
-            | JsNode::ImportNamespaceSpecifier { end, .. }
-            | JsNode::ExportNamedDeclaration { end, .. }
-            | JsNode::ExportDefaultDeclaration { end, .. }
-            | JsNode::ExportSpecifier { end, .. }
-            | JsNode::ClassBody { end, .. }
-            | JsNode::MethodDefinition { end, .. }
-            | JsNode::PropertyDefinition { end, .. }
-            | JsNode::StaticBlock { end, .. }
-            | JsNode::Decorator { end, .. }
-            | JsNode::TSTypeAnnotation { end, .. }
-            | JsNode::TSParameterProperty { end, .. }
-            | JsNode::TSEnumDeclaration { end, .. }
-            | JsNode::TSModuleDeclaration { end, .. }
-            | JsNode::TSAsExpression { end, .. }
-            | JsNode::TSSatisfiesExpression { end, .. }
-            | JsNode::TSNonNullExpression { end, .. }
-            | JsNode::TSTypeAssertion { end, .. }
-            | JsNode::TSInstantiationExpression { end, .. }
-            | JsNode::Comment { end, .. } => *end,
-            JsNode::Null => 0,
+            Self::Identifier { end, .. }
+            | Self::PrivateIdentifier { end, .. }
+            | Self::Literal { end, .. }
+            | Self::BinaryExpression { end, .. }
+            | Self::LogicalExpression { end, .. }
+            | Self::UnaryExpression { end, .. }
+            | Self::ConditionalExpression { end, .. }
+            | Self::CallExpression { end, .. }
+            | Self::MemberExpression { end, .. }
+            | Self::NewExpression { end, .. }
+            | Self::FunctionExpression { end, .. }
+            | Self::ClassExpression { end, .. }
+            | Self::ArrowFunctionExpression { end, .. }
+            | Self::AssignmentExpression { end, .. }
+            | Self::UpdateExpression { end, .. }
+            | Self::SequenceExpression { end, .. }
+            | Self::ArrayExpression { end, .. }
+            | Self::ObjectExpression { end, .. }
+            | Self::TemplateLiteral { end, .. }
+            | Self::TaggedTemplateExpression { end, .. }
+            | Self::TemplateElement { end, .. }
+            | Self::ThisExpression { end, .. }
+            | Self::Super { end, .. }
+            | Self::ImportExpression { end, .. }
+            | Self::AwaitExpression { end, .. }
+            | Self::YieldExpression { end, .. }
+            | Self::ChainExpression { end, .. }
+            | Self::MetaProperty { end, .. }
+            | Self::SpreadElement { end, .. }
+            | Self::ObjectPattern { end, .. }
+            | Self::ArrayPattern { end, .. }
+            | Self::AssignmentPattern { end, .. }
+            | Self::RestElement { end, .. }
+            | Self::Property { end, .. }
+            | Self::Program { end, .. }
+            | Self::ExpressionStatement { end, .. }
+            | Self::BlockStatement { end, .. }
+            | Self::VariableDeclaration { end, .. }
+            | Self::VariableDeclarator { end, .. }
+            | Self::FunctionDeclaration { end, .. }
+            | Self::ClassDeclaration { end, .. }
+            | Self::ReturnStatement { end, .. }
+            | Self::ThrowStatement { end, .. }
+            | Self::IfStatement { end, .. }
+            | Self::ForStatement { end, .. }
+            | Self::ForOfStatement { end, .. }
+            | Self::ForInStatement { end, .. }
+            | Self::WhileStatement { end, .. }
+            | Self::DoWhileStatement { end, .. }
+            | Self::TryStatement { end, .. }
+            | Self::CatchClause { end, .. }
+            | Self::SwitchStatement { end, .. }
+            | Self::SwitchCase { end, .. }
+            | Self::LabeledStatement { end, .. }
+            | Self::BreakStatement { end, .. }
+            | Self::ContinueStatement { end, .. }
+            | Self::EmptyStatement { end, .. }
+            | Self::DebuggerStatement { end, .. }
+            | Self::ImportDeclaration { end, .. }
+            | Self::ImportSpecifier { end, .. }
+            | Self::ImportDefaultSpecifier { end, .. }
+            | Self::ImportNamespaceSpecifier { end, .. }
+            | Self::ExportNamedDeclaration { end, .. }
+            | Self::ExportDefaultDeclaration { end, .. }
+            | Self::ExportSpecifier { end, .. }
+            | Self::ClassBody { end, .. }
+            | Self::MethodDefinition { end, .. }
+            | Self::PropertyDefinition { end, .. }
+            | Self::StaticBlock { end, .. }
+            | Self::Decorator { end, .. }
+            | Self::TSTypeAnnotation { end, .. }
+            | Self::TSParameterProperty { end, .. }
+            | Self::TSEnumDeclaration { end, .. }
+            | Self::TSModuleDeclaration { end, .. }
+            | Self::TSAsExpression { end, .. }
+            | Self::TSSatisfiesExpression { end, .. }
+            | Self::TSNonNullExpression { end, .. }
+            | Self::TSTypeAssertion { end, .. }
+            | Self::TSInstantiationExpression { end, .. }
+            | Self::Comment { end, .. } => *end,
+            Self::Null => 0,
         }
     }
 
-    /// Return the ESTree "type" string for this node.
+    /// Return the `ESTree` "type" string for this node.
     #[inline]
+    #[must_use]
     pub fn type_str(&self) -> &str {
         match self {
-            JsNode::Identifier { .. } => "Identifier",
-            JsNode::PrivateIdentifier { .. } => "PrivateIdentifier",
-            JsNode::Literal { .. } => "Literal",
-            JsNode::BinaryExpression { .. } => "BinaryExpression",
-            JsNode::LogicalExpression { .. } => "LogicalExpression",
-            JsNode::UnaryExpression { .. } => "UnaryExpression",
-            JsNode::ConditionalExpression { .. } => "ConditionalExpression",
-            JsNode::CallExpression { .. } => "CallExpression",
-            JsNode::MemberExpression { .. } => "MemberExpression",
-            JsNode::NewExpression { .. } => "NewExpression",
-            JsNode::FunctionExpression { .. } => "FunctionExpression",
-            JsNode::ClassExpression { .. } => "ClassExpression",
-            JsNode::ArrowFunctionExpression { .. } => "ArrowFunctionExpression",
-            JsNode::AssignmentExpression { .. } => "AssignmentExpression",
-            JsNode::UpdateExpression { .. } => "UpdateExpression",
-            JsNode::SequenceExpression { .. } => "SequenceExpression",
-            JsNode::ArrayExpression { .. } => "ArrayExpression",
-            JsNode::ObjectExpression { .. } => "ObjectExpression",
-            JsNode::TemplateLiteral { .. } => "TemplateLiteral",
-            JsNode::TaggedTemplateExpression { .. } => "TaggedTemplateExpression",
-            JsNode::TemplateElement { .. } => "TemplateElement",
-            JsNode::ThisExpression { .. } => "ThisExpression",
-            JsNode::Super { .. } => "Super",
-            JsNode::ImportExpression { .. } => "ImportExpression",
-            JsNode::AwaitExpression { .. } => "AwaitExpression",
-            JsNode::YieldExpression { .. } => "YieldExpression",
-            JsNode::ChainExpression { .. } => "ChainExpression",
-            JsNode::MetaProperty { .. } => "MetaProperty",
-            JsNode::SpreadElement { .. } => "SpreadElement",
-            JsNode::ObjectPattern { .. } => "ObjectPattern",
-            JsNode::ArrayPattern { .. } => "ArrayPattern",
-            JsNode::AssignmentPattern { .. } => "AssignmentPattern",
-            JsNode::RestElement { .. } => "RestElement",
-            JsNode::Property { .. } => "Property",
-            JsNode::Program { .. } => "Program",
-            JsNode::ExpressionStatement { .. } => "ExpressionStatement",
-            JsNode::BlockStatement { .. } => "BlockStatement",
-            JsNode::VariableDeclaration { .. } => "VariableDeclaration",
-            JsNode::VariableDeclarator { .. } => "VariableDeclarator",
-            JsNode::FunctionDeclaration { .. } => "FunctionDeclaration",
-            JsNode::ClassDeclaration { .. } => "ClassDeclaration",
-            JsNode::ReturnStatement { .. } => "ReturnStatement",
-            JsNode::ThrowStatement { .. } => "ThrowStatement",
-            JsNode::IfStatement { .. } => "IfStatement",
-            JsNode::ForStatement { .. } => "ForStatement",
-            JsNode::ForOfStatement { .. } => "ForOfStatement",
-            JsNode::ForInStatement { .. } => "ForInStatement",
-            JsNode::WhileStatement { .. } => "WhileStatement",
-            JsNode::DoWhileStatement { .. } => "DoWhileStatement",
-            JsNode::TryStatement { .. } => "TryStatement",
-            JsNode::CatchClause { .. } => "CatchClause",
-            JsNode::SwitchStatement { .. } => "SwitchStatement",
-            JsNode::SwitchCase { .. } => "SwitchCase",
-            JsNode::LabeledStatement { .. } => "LabeledStatement",
-            JsNode::BreakStatement { .. } => "BreakStatement",
-            JsNode::ContinueStatement { .. } => "ContinueStatement",
-            JsNode::EmptyStatement { .. } => "EmptyStatement",
-            JsNode::DebuggerStatement { .. } => "DebuggerStatement",
-            JsNode::ImportDeclaration { .. } => "ImportDeclaration",
-            JsNode::ImportSpecifier { .. } => "ImportSpecifier",
-            JsNode::ImportDefaultSpecifier { .. } => "ImportDefaultSpecifier",
-            JsNode::ImportNamespaceSpecifier { .. } => "ImportNamespaceSpecifier",
-            JsNode::ExportNamedDeclaration { .. } => "ExportNamedDeclaration",
-            JsNode::ExportDefaultDeclaration { .. } => "ExportDefaultDeclaration",
-            JsNode::ExportSpecifier { .. } => "ExportSpecifier",
-            JsNode::ClassBody { .. } => "ClassBody",
-            JsNode::MethodDefinition { .. } => "MethodDefinition",
-            JsNode::PropertyDefinition { .. } => "PropertyDefinition",
-            JsNode::StaticBlock { .. } => "StaticBlock",
-            JsNode::Decorator { .. } => "Decorator",
-            JsNode::TSTypeAnnotation { .. } => "TSTypeAnnotation",
-            JsNode::TSParameterProperty { .. } => "TSParameterProperty",
-            JsNode::TSEnumDeclaration { .. } => "TSEnumDeclaration",
-            JsNode::TSModuleDeclaration { .. } => "TSModuleDeclaration",
-            JsNode::TSAsExpression { .. } => "TSAsExpression",
-            JsNode::TSSatisfiesExpression { .. } => "TSSatisfiesExpression",
-            JsNode::TSNonNullExpression { .. } => "TSNonNullExpression",
-            JsNode::TSTypeAssertion { .. } => "TSTypeAssertion",
-            JsNode::TSInstantiationExpression { .. } => "TSInstantiationExpression",
-            JsNode::Comment { .. } => "Comment",
-            JsNode::Null => "Null",
+            Self::Identifier { .. } => "Identifier",
+            Self::PrivateIdentifier { .. } => "PrivateIdentifier",
+            Self::Literal { .. } => "Literal",
+            Self::BinaryExpression { .. } => "BinaryExpression",
+            Self::LogicalExpression { .. } => "LogicalExpression",
+            Self::UnaryExpression { .. } => "UnaryExpression",
+            Self::ConditionalExpression { .. } => "ConditionalExpression",
+            Self::CallExpression { .. } => "CallExpression",
+            Self::MemberExpression { .. } => "MemberExpression",
+            Self::NewExpression { .. } => "NewExpression",
+            Self::FunctionExpression { .. } => "FunctionExpression",
+            Self::ClassExpression { .. } => "ClassExpression",
+            Self::ArrowFunctionExpression { .. } => "ArrowFunctionExpression",
+            Self::AssignmentExpression { .. } => "AssignmentExpression",
+            Self::UpdateExpression { .. } => "UpdateExpression",
+            Self::SequenceExpression { .. } => "SequenceExpression",
+            Self::ArrayExpression { .. } => "ArrayExpression",
+            Self::ObjectExpression { .. } => "ObjectExpression",
+            Self::TemplateLiteral { .. } => "TemplateLiteral",
+            Self::TaggedTemplateExpression { .. } => "TaggedTemplateExpression",
+            Self::TemplateElement { .. } => "TemplateElement",
+            Self::ThisExpression { .. } => "ThisExpression",
+            Self::Super { .. } => "Super",
+            Self::ImportExpression { .. } => "ImportExpression",
+            Self::AwaitExpression { .. } => "AwaitExpression",
+            Self::YieldExpression { .. } => "YieldExpression",
+            Self::ChainExpression { .. } => "ChainExpression",
+            Self::MetaProperty { .. } => "MetaProperty",
+            Self::SpreadElement { .. } => "SpreadElement",
+            Self::ObjectPattern { .. } => "ObjectPattern",
+            Self::ArrayPattern { .. } => "ArrayPattern",
+            Self::AssignmentPattern { .. } => "AssignmentPattern",
+            Self::RestElement { .. } => "RestElement",
+            Self::Property { .. } => "Property",
+            Self::Program { .. } => "Program",
+            Self::ExpressionStatement { .. } => "ExpressionStatement",
+            Self::BlockStatement { .. } => "BlockStatement",
+            Self::VariableDeclaration { .. } => "VariableDeclaration",
+            Self::VariableDeclarator { .. } => "VariableDeclarator",
+            Self::FunctionDeclaration { .. } => "FunctionDeclaration",
+            Self::ClassDeclaration { .. } => "ClassDeclaration",
+            Self::ReturnStatement { .. } => "ReturnStatement",
+            Self::ThrowStatement { .. } => "ThrowStatement",
+            Self::IfStatement { .. } => "IfStatement",
+            Self::ForStatement { .. } => "ForStatement",
+            Self::ForOfStatement { .. } => "ForOfStatement",
+            Self::ForInStatement { .. } => "ForInStatement",
+            Self::WhileStatement { .. } => "WhileStatement",
+            Self::DoWhileStatement { .. } => "DoWhileStatement",
+            Self::TryStatement { .. } => "TryStatement",
+            Self::CatchClause { .. } => "CatchClause",
+            Self::SwitchStatement { .. } => "SwitchStatement",
+            Self::SwitchCase { .. } => "SwitchCase",
+            Self::LabeledStatement { .. } => "LabeledStatement",
+            Self::BreakStatement { .. } => "BreakStatement",
+            Self::ContinueStatement { .. } => "ContinueStatement",
+            Self::EmptyStatement { .. } => "EmptyStatement",
+            Self::DebuggerStatement { .. } => "DebuggerStatement",
+            Self::ImportDeclaration { .. } => "ImportDeclaration",
+            Self::ImportSpecifier { .. } => "ImportSpecifier",
+            Self::ImportDefaultSpecifier { .. } => "ImportDefaultSpecifier",
+            Self::ImportNamespaceSpecifier { .. } => "ImportNamespaceSpecifier",
+            Self::ExportNamedDeclaration { .. } => "ExportNamedDeclaration",
+            Self::ExportDefaultDeclaration { .. } => "ExportDefaultDeclaration",
+            Self::ExportSpecifier { .. } => "ExportSpecifier",
+            Self::ClassBody { .. } => "ClassBody",
+            Self::MethodDefinition { .. } => "MethodDefinition",
+            Self::PropertyDefinition { .. } => "PropertyDefinition",
+            Self::StaticBlock { .. } => "StaticBlock",
+            Self::Decorator { .. } => "Decorator",
+            Self::TSTypeAnnotation { .. } => "TSTypeAnnotation",
+            Self::TSParameterProperty { .. } => "TSParameterProperty",
+            Self::TSEnumDeclaration { .. } => "TSEnumDeclaration",
+            Self::TSModuleDeclaration { .. } => "TSModuleDeclaration",
+            Self::TSAsExpression { .. } => "TSAsExpression",
+            Self::TSSatisfiesExpression { .. } => "TSSatisfiesExpression",
+            Self::TSNonNullExpression { .. } => "TSNonNullExpression",
+            Self::TSTypeAssertion { .. } => "TSTypeAssertion",
+            Self::TSInstantiationExpression { .. } => "TSInstantiationExpression",
+            Self::Comment { .. } => "Comment",
+            Self::Null => "Null",
         }
     }
 
-    /// Get a string field by name (for js_path queries).
+    /// Get a string field by name (for `js_path` queries).
     ///
     /// Supports common fields: "name", "operator", "kind", "sourceType", "exportKind", "importKind".
+    #[must_use]
     pub fn get_field_str(&self, field: &str) -> Option<&str> {
         match field {
             "name" => match self {
-                JsNode::Identifier { name, .. } | JsNode::PrivateIdentifier { name, .. } => {
+                Self::Identifier { name, .. } | Self::PrivateIdentifier { name, .. } => {
                     Some(name.as_str())
                 }
                 _ => None,
             },
             "operator" => match self {
-                JsNode::BinaryExpression { operator, .. }
-                | JsNode::LogicalExpression { operator, .. }
-                | JsNode::UnaryExpression { operator, .. }
-                | JsNode::AssignmentExpression { operator, .. }
-                | JsNode::UpdateExpression { operator, .. } => Some(operator.as_str()),
+                Self::BinaryExpression { operator, .. }
+                | Self::LogicalExpression { operator, .. }
+                | Self::UnaryExpression { operator, .. }
+                | Self::AssignmentExpression { operator, .. }
+                | Self::UpdateExpression { operator, .. } => Some(operator.as_str()),
                 _ => None,
             },
             "kind" => match self {
-                JsNode::VariableDeclaration { kind, .. }
-                | JsNode::Property { kind, .. }
-                | JsNode::MethodDefinition { kind, .. } => Some(kind.as_str()),
+                Self::VariableDeclaration { kind, .. }
+                | Self::Property { kind, .. }
+                | Self::MethodDefinition { kind, .. } => Some(kind.as_str()),
                 _ => None,
             },
             "sourceType" => match self {
-                JsNode::Program { source_type, .. } => Some(source_type.as_str()),
+                Self::Program { source_type, .. } => Some(source_type.as_str()),
                 _ => None,
             },
             "type" => Some(self.type_str()),
@@ -4011,49 +4073,52 @@ impl JsNode {
         }
     }
 
-    /// Get a boolean field by name (for js_path queries).
+    /// Get a boolean field by name (for `js_path` queries).
+    #[must_use]
     pub fn get_field_bool(&self, field: &str) -> Option<bool> {
         match field {
             "computed" => match self {
-                JsNode::MemberExpression { computed, .. }
-                | JsNode::Property { computed, .. }
-                | JsNode::MethodDefinition { computed, .. }
-                | JsNode::PropertyDefinition { computed, .. } => Some(*computed),
+                Self::MemberExpression { computed, .. }
+                | Self::Property { computed, .. }
+                | Self::MethodDefinition { computed, .. }
+                | Self::PropertyDefinition { computed, .. } => Some(*computed),
                 _ => None,
             },
             "optional" => match self {
-                JsNode::CallExpression { optional, .. }
-                | JsNode::MemberExpression { optional, .. } => Some(*optional),
+                Self::CallExpression { optional, .. } | Self::MemberExpression { optional, .. } => {
+                    Some(*optional)
+                }
                 _ => None,
             },
             "generator" => match self {
-                JsNode::FunctionDeclaration { generator, .. }
-                | JsNode::FunctionExpression { generator, .. }
-                | JsNode::ArrowFunctionExpression { generator, .. } => Some(*generator),
+                Self::FunctionDeclaration { generator, .. }
+                | Self::FunctionExpression { generator, .. }
+                | Self::ArrowFunctionExpression { generator, .. } => Some(*generator),
                 _ => None,
             },
             "async" => match self {
-                JsNode::FunctionDeclaration { r#async, .. }
-                | JsNode::FunctionExpression { r#async, .. }
-                | JsNode::ArrowFunctionExpression { r#async, .. } => Some(*r#async),
+                Self::FunctionDeclaration { r#async, .. }
+                | Self::FunctionExpression { r#async, .. }
+                | Self::ArrowFunctionExpression { r#async, .. } => Some(*r#async),
                 _ => None,
             },
             "static" => match self {
-                JsNode::MethodDefinition { r#static, .. }
-                | JsNode::PropertyDefinition { r#static, .. } => Some(*r#static),
+                Self::MethodDefinition { r#static, .. }
+                | Self::PropertyDefinition { r#static, .. } => Some(*r#static),
                 _ => None,
             },
             "prefix" => match self {
-                JsNode::UnaryExpression { prefix, .. }
-                | JsNode::UpdateExpression { prefix, .. } => Some(*prefix),
+                Self::UnaryExpression { prefix, .. } | Self::UpdateExpression { prefix, .. } => {
+                    Some(*prefix)
+                }
                 _ => None,
             },
             "shorthand" => match self {
-                JsNode::Property { shorthand, .. } => Some(*shorthand),
+                Self::Property { shorthand, .. } => Some(*shorthand),
                 _ => None,
             },
             "method" => match self {
-                JsNode::Property { method, .. } => Some(*method),
+                Self::Property { method, .. } => Some(*method),
                 _ => None,
             },
             _ => None,
@@ -4061,10 +4126,11 @@ impl JsNode {
     }
 
     /// Get a u64 field by name (for start/end positions).
+    #[must_use]
     pub fn get_field_u64(&self, field: &str) -> Option<u64> {
         match field {
-            "start" => self.start().map(|v| v as u64),
-            "end" => self.end().map(|v| v as u64),
+            "start" => self.start().map(u64::from),
+            "end" => self.end().map(u64::from),
             _ => None,
         }
     }
@@ -4073,7 +4139,7 @@ impl JsNode {
     ///
     /// Resolves the child `JsNodeId` through the given arena and returns
     /// the child's start position. Used for positional equality checks
-    /// (e.g., "is this identifier the `object` of a MemberExpression?").
+    /// (e.g., "is this identifier the `object` of a `MemberExpression`?").
     pub fn get_child_field_start(
         &self,
         field: &str,
@@ -4081,41 +4147,39 @@ impl JsNode {
     ) -> Option<u32> {
         match field {
             "object" => match self {
-                JsNode::MemberExpression { object, .. } => arena.get_js_node(*object).start(),
+                Self::MemberExpression { object, .. } => arena.get_js_node(*object).start(),
                 _ => None,
             },
             "property" => match self {
-                JsNode::MemberExpression { property, .. } => arena.get_js_node(*property).start(),
+                Self::MemberExpression { property, .. } => arena.get_js_node(*property).start(),
                 _ => None,
             },
             "value" => match self {
-                JsNode::Property { value, .. } => arena.get_js_node(*value).start(),
-                JsNode::PropertyDefinition { value: Some(v), .. } => arena.get_js_node(*v).start(),
+                Self::Property { value, .. } => arena.get_js_node(*value).start(),
+                Self::PropertyDefinition { value: Some(v), .. } => arena.get_js_node(*v).start(),
                 _ => None,
             },
             "meta" => match self {
-                JsNode::MetaProperty { meta, .. } => arena.get_js_node(*meta).start(),
+                Self::MetaProperty { meta, .. } => arena.get_js_node(*meta).start(),
                 _ => None,
             },
             "local" => match self {
-                JsNode::ExportSpecifier { local, .. }
-                | JsNode::ImportSpecifier { local, .. }
-                | JsNode::ImportDefaultSpecifier { local, .. }
-                | JsNode::ImportNamespaceSpecifier { local, .. } => {
-                    arena.get_js_node(*local).start()
-                }
+                Self::ExportSpecifier { local, .. }
+                | Self::ImportSpecifier { local, .. }
+                | Self::ImportDefaultSpecifier { local, .. }
+                | Self::ImportNamespaceSpecifier { local, .. } => arena.get_js_node(*local).start(),
                 _ => None,
             },
             "left" => match self {
-                JsNode::AssignmentExpression { left, .. } => arena.get_js_node(*left).start(),
+                Self::AssignmentExpression { left, .. } => arena.get_js_node(*left).start(),
                 _ => None,
             },
             "id" => match self {
-                JsNode::VariableDeclarator { id, .. } => arena.get_js_node(*id).start(),
+                Self::VariableDeclarator { id, .. } => arena.get_js_node(*id).start(),
                 _ => None,
             },
             "callee" => match self {
-                JsNode::CallExpression { callee, .. } => arena.get_js_node(*callee).start(),
+                Self::CallExpression { callee, .. } => arena.get_js_node(*callee).start(),
                 _ => None,
             },
             _ => None,
@@ -4132,23 +4196,24 @@ impl JsNode {
     ) -> Option<u32> {
         match field {
             "id" => match self {
-                JsNode::VariableDeclarator { id, .. } => arena.get_js_node(*id).end(),
+                Self::VariableDeclarator { id, .. } => arena.get_js_node(*id).end(),
                 _ => None,
             },
             _ => None,
         }
     }
 
-    /// Get the callee JsNode reference for a CallExpression.
+    /// Get the callee `JsNode` reference for a `CallExpression`.
     ///
     /// Returns the resolved callee node. Used for typed rune checks.
-    pub fn get_callee<'a>(&self, arena: &'a crate::ast::arena::ParseArena) -> Option<&'a JsNode> {
+    pub fn get_callee<'a>(&self, arena: &'a crate::ast::arena::ParseArena) -> Option<&'a Self> {
         match self {
-            JsNode::CallExpression { callee, .. } => Some(arena.get_js_node(*callee)),
+            Self::CallExpression { callee, .. } => Some(arena.get_js_node(*callee)),
             _ => None,
         }
     }
 
+    #[must_use]
     pub fn to_value(&self) -> Value {
         #[cfg(test)]
         to_value_probe::record();
@@ -4171,6 +4236,7 @@ impl JsNode {
     /// Matches `node.to_value().to_string()` byte-for-byte (both use the same
     /// `Serialize` impl), but cuts the cost of building and dropping a `Value`
     /// tree just to re-serialize it.
+    #[must_use]
     pub fn to_json_string(&self) -> String {
         use crate::ast::arena::{has_serialize_arena, with_serialize_arena};
         if has_serialize_arena() {

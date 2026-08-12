@@ -1,5 +1,6 @@
-//! `svelte/no-at-html-tags` — disallow `{@html ...}`, which bypasses Svelte's
-//! escaping and is a common XSS vector. Port of the eslint-plugin-svelte rule
+//! `svelte/no-at-html-tags` disallows `{@html ...}`.
+//!
+//! The tag bypasses Svelte's escaping and is a common XSS vector. This ports the eslint-plugin-svelte rule
 //! of the same name (a pure-syntactic, AST-only check).
 
 use rsvelte_core::ast::template::HtmlTag;

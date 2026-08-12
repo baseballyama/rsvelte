@@ -1,4 +1,4 @@
-use super::*;
+use super::{FormatOptions, Fragment, ParseOptions, TemplateNode, VisualWidth, parse};
 
 /// Derive the indent unit string and indent width from `FormatOptions`.
 /// Used to convert leading-whitespace column counts to indent levels and to
@@ -136,14 +136,14 @@ pub(super) fn child_fragments<'b, 'a>(node: &'b TemplateNode<'a>) -> Vec<&'b Fra
     }
 }
 
-pub(super) fn text_start(node: &TemplateNode) -> Option<u32> {
+pub(super) const fn text_start(node: &TemplateNode) -> Option<u32> {
     match node {
         TemplateNode::Text(t) => Some(t.start),
         _ => None,
     }
 }
 
-pub(super) fn text_end(node: &TemplateNode) -> Option<u32> {
+pub(super) const fn text_end(node: &TemplateNode) -> Option<u32> {
     match node {
         TemplateNode::Text(t) => Some(t.end),
         _ => None,
@@ -175,7 +175,7 @@ pub(super) fn is_whitespace_preserving(tag: &str) -> bool {
 }
 
 /// Tags whose text content has its leading/trailing whitespace trimmed when
-/// collapsed onto one line: block / list-item elements (CSS_DISPLAY_DEFAULTS),
+/// collapsed onto one line: block / list-item elements (`CSS_DISPLAY_DEFAULTS`),
 /// plus the `display:contents` elements `<slot>` / `<svelte:boundary>`, which
 /// prettier / oxfmt also edge-trim (`<slot> x </slot>` → `<slot>x</slot>`).
 /// Everything else (inline, inline-block, table-cell, …) keeps one edge space.
@@ -224,7 +224,7 @@ pub(super) fn fragment_has_prose_word(fragment: &Fragment) -> bool {
 }
 
 /// Source span of an attribute, mirroring `markup::attribute_span`.
-pub(super) fn attribute_span(attr: &rsvelte_core::ast::template::Attribute) -> (u32, u32) {
+pub(super) const fn attribute_span(attr: &rsvelte_core::ast::template::Attribute) -> (u32, u32) {
     use rsvelte_core::ast::template::Attribute;
     match attr {
         Attribute::Attribute(n) => (n.start, n.end),
@@ -306,7 +306,7 @@ pub(super) fn node_end(node: &TemplateNode) -> u32 {
     template_node_span(node).1
 }
 
-pub(crate) fn template_node_span(node: &TemplateNode) -> (u32, u32) {
+pub fn template_node_span(node: &TemplateNode) -> (u32, u32) {
     match node {
         TemplateNode::Text(n) => (n.start, n.end),
         TemplateNode::Comment(n) => (n.start, n.end),
@@ -388,8 +388,7 @@ pub(super) fn element_source_empty(out: &str, nodes: &[TemplateNode], el_start: 
 pub(super) fn omit_softline_allowed(out: &str, end: u32) -> bool {
     let rest = &out[end as usize..];
     match rest.chars().next() {
-        None => true,
-        Some(' ' | '\t' | '\n' | '\u{0C}' | '\r') => true,
+        None | Some(' ' | '\t' | '\n' | '\u{0C}' | '\r') => true,
         Some(_) => rest.strip_prefix("</").is_some_and(|after| {
             let name: String = after
                 .chars()

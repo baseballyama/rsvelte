@@ -91,11 +91,11 @@ struct PrivateReadWrapCollector<'a> {
     replacements: Vec<Edit>,
     /// Spans of `PrivateFieldExpression`s that should NOT be
     /// rewritten (assignment LHS, update target, deeper-member
-    /// object, $.get/$.set/$.update/$.update_pre argument).
+    /// object, $.`get/$.set/$.update/$.update_pre` argument).
     skip_spans: Vec<(u32, u32)>,
 }
 
-impl<'a> PrivateReadWrapCollector<'a> {
+impl PrivateReadWrapCollector<'_> {
     fn callee_is_dollar_member(callee: &Expression<'_>) -> Option<&'static str> {
         let Expression::StaticMemberExpression(m) = callee else {
             return None;
@@ -121,7 +121,7 @@ impl<'a> PrivateReadWrapCollector<'a> {
     }
 }
 
-impl<'a, 'ast> Visit<'ast> for PrivateReadWrapCollector<'a> {
+impl<'ast> Visit<'ast> for PrivateReadWrapCollector<'_> {
     fn visit_private_field_expression(&mut self, expr: &PrivateFieldExpression<'ast>) {
         walk::walk_private_field_expression(self, expr);
         let span_text = &self.source[expr.span.start as usize..expr.span.end as usize];

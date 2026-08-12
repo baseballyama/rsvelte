@@ -45,11 +45,12 @@ pub enum Severity {
 impl Severity {
     /// Parse the ESLint-style severity vocabulary (`"off"`/`0`, `"warn"`/`1`,
     /// `"error"`/`2`).
+    #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
         Some(match s {
-            "off" | "0" => Severity::Off,
-            "warn" | "warning" | "1" => Severity::Warn,
-            "error" | "2" => Severity::Error,
+            "off" | "0" => Self::Off,
+            "warn" | "warning" | "1" => Self::Warn,
+            "error" | "2" => Self::Error,
             _ => return None,
         })
     }

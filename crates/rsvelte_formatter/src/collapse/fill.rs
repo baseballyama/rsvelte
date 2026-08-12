@@ -1,4 +1,142 @@
-use super::*;
+use super::{
+    FormatOptions, Fragment, IndentUnit, TemplateNode, VisualWidth, build_children_doc_nodes,
+    current_column, indent_config, inline_ignore_atom, is_block_display, is_component_tag,
+    is_inline_node, is_whitespace_preserving, node_end, node_start, prepend_leading_to_fill,
+    tab_width, text_preceded_by_close_tag,
+};
+
+fn trimmed_fill_run<'a>(run: &'a [TemplateNode<'a>]) -> &'a [TemplateNode<'a>] {
+    let mut start = 0;
+    let mut end = run.len();
+    while start < end
+        && matches!(&run[start], TemplateNode::Text(text) if crate::is_blank_text(text.data.as_ref()))
+    {
+        start += 1;
+    }
+    while end > start
+        && matches!(&run[end - 1], TemplateNode::Text(text) if crate::is_blank_text(text.data.as_ref()))
+    {
+        end -= 1;
+    }
+    &run[start..end]
+}
+
+fn fill_run_has_prose(run: &[TemplateNode]) -> bool {
+    let has_text_word = run.iter().any(
+        |node| matches!(node, TemplateNode::Text(text) if text.data.split_whitespace().next().is_some()),
+    );
+    let non_whitespace_count = run
+        .iter()
+        .filter(|node| !matches!(node, TemplateNode::Text(text) if crate::is_blank_text(text.data.as_ref())))
+        .count();
+    has_text_word
+        || (non_whitespace_count > 1
+            && run.iter().any(|node| match node {
+                TemplateNode::RegularElement(element) => !element.fragment.nodes.is_empty(),
+                TemplateNode::Component(component) => !component.fragment.nodes.is_empty(),
+                TemplateNode::SlotElement(slot) => !slot.fragment.nodes.is_empty(),
+                _ => false,
+            }))
+}
+
+fn fill_run_span(
+    out: &str,
+    first: &TemplateNode,
+    last: &TemplateNode,
+) -> Option<(usize, usize, Option<usize>, Option<bool>)> {
+    let first_text_start = match first {
+        TemplateNode::Text(text) => Some(text.start as usize),
+        _ => None,
+    };
+    let mut start = node_start(first) as usize;
+    let leading_whitespace = if let TemplateNode::Text(text) = first {
+        let data = out.get(text.start as usize..text.end as usize)?;
+        let leading_len = data.len() - data.trim_start().len();
+        if leading_len > 0 {
+            start += leading_len;
+            (!data.starts_with("\n\n")).then_some(data.starts_with('\n'))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    if matches!(leading_whitespace, Some(false))
+        && start > 0
+        && out.as_bytes().get(start - 1) == Some(&b' ')
+    {
+        start -= 1;
+    }
+    let mut end = node_end(last) as usize;
+    if let TemplateNode::Text(text) = last {
+        let data = out.get(text.start as usize..text.end as usize)?;
+        end -= data.len() - data.trim_end().len();
+    }
+    Some((start, end, first_text_start, leading_whitespace))
+}
+
+fn mixed_children_are_inline(out: &str, nodes: &[TemplateNode]) -> bool {
+    let mut has_non_text = false;
+    let mut ignored_index = None;
+    for (index, node) in nodes.iter().enumerate() {
+        if matches!(node, TemplateNode::Text(_)) {
+            continue;
+        }
+        has_non_text = true;
+        if inline_ignore_atom(out, nodes, index).is_some() {
+            ignored_index = Some(index + 1);
+            continue;
+        }
+        if ignored_index == Some(index) {
+            continue;
+        }
+        if matches!(node, TemplateNode::Comment(_)) || !is_inline_node(node) {
+            return false;
+        }
+    }
+    has_non_text
+}
+
+fn wrap_trailing_content_call(
+    printed: &mut String,
+    out: &str,
+    nodes: &[TemplateNode],
+    options: &FormatOptions,
+    line_width: usize,
+    indent_columns: usize,
+    tab_width: usize,
+) -> Option<()> {
+    if printed.lines().count() > 1 || !matches!(nodes.last(), Some(TemplateNode::ExpressionTag(_)))
+    {
+        return Some(());
+    }
+    let last = nodes.last()?;
+    let mustache = out.get(node_start(last) as usize..node_end(last) as usize)?;
+    let glued = printed
+        .strip_suffix(mustache)
+        .and_then(|prefix| prefix.chars().next_back())
+        .is_some_and(|character| !character.is_whitespace());
+    let inner = mustache
+        .strip_prefix('{')
+        .and_then(|source| source.strip_suffix('}'))
+        .map_or("", str::trim);
+    let column = indent_columns
+        + printed
+            .visual_width(tab_width)
+            .saturating_sub(mustache.visual_width(tab_width));
+    let wrappable = !inner.is_empty() && !inner.contains("=>") && !inner.starts_with(['{', '[']);
+    if glued && wrappable && column + mustache.visual_width(tab_width) > line_width {
+        let width = line_width.saturating_sub(column + 2);
+        if let Ok(wrapped) =
+            crate::expression::reformat_content_at_width(inner, options, width, indent_columns)
+            && wrapped.contains('\n')
+        {
+            let head = &printed[..printed.len() - mustache.len()];
+            *printed = format!("{head}{{{wrapped}}}");
+        }
+    }
+    Some(())
+}
 
 /// Whether `node` may sit inside a fragment-level inline prose run that the run
 /// fill reflows. Text, mustaches/html-tags, and ONE-LINE inline elements
@@ -144,7 +282,7 @@ pub(super) fn fill_inline_runs(
 ///
 /// `allow_elem_expr_collapse` — when true, a whitespace-only single-newline
 /// separator that immediately follows a content inline element (e.g.
-/// `<strong>x</strong>\n  {y}`) is treated as a soft break (Doc::Line) so the
+/// `<strong>x</strong>\n  {y}`) is treated as a soft break (`Doc::Line`) so the
 /// run can collapse to one line in flat mode.  Pass `true` when the run
 /// covers ALL non-whitespace content of its parent fragment (no block siblings
 /// like `{#if}`/`{#each}` outside the run).
@@ -158,19 +296,7 @@ pub(super) fn try_fill_run(
     let tw = tab_width(options);
     let (indent_unit, indent_width) = indent_config(options);
     // Trim whitespace-only edge text nodes — the surrounding layout owns them.
-    let mut lo = 0;
-    let mut hi = run.len();
-    while lo < hi
-        && matches!(&run[lo], TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref()))
-    {
-        lo += 1;
-    }
-    while hi > lo
-        && matches!(&run[hi - 1], TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref()))
-    {
-        hi -= 1;
-    }
-    let run = &run[lo..hi];
+    let run = trimmed_fill_run(run);
     // Need prose: at least one text word (a Text node with non-whitespace content)
     // or an element with content combined with at least one other non-whitespace
     // node (so a two-node run like `<strong>x</strong> {y}` is reflowed but a
@@ -181,22 +307,7 @@ pub(super) fn try_fill_run(
     // an inline element followed by expression tags
     // (`<strong>x</strong> {y}` — the indent pass may break the space before
     // `{y}` to a newline, which the fill should restore when it fits).
-    let has_text_word = run
-        .iter()
-        .any(|n| matches!(n, TemplateNode::Text(t) if t.data.split_whitespace().next().is_some()));
-    // Count non-whitespace-only nodes in the run.
-    let non_ws_count = run
-        .iter()
-        .filter(|n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())))
-        .count();
-    let has_element_content = non_ws_count > 1
-        && run.iter().any(|n| match n {
-            TemplateNode::RegularElement(e) => !e.fragment.nodes.is_empty(),
-            TemplateNode::Component(c) => !c.fragment.nodes.is_empty(),
-            TemplateNode::SlotElement(s) => !s.fragment.nodes.is_empty(),
-            _ => false,
-        });
-    if !has_text_word && !has_element_content {
+    if !fill_run_has_prose(run) {
         return None;
     }
     let first = run.first()?;
@@ -212,53 +323,12 @@ pub(super) fn try_fill_run(
     // even when the pair would overflow, matching prettier-plugin-svelte's
     // `splitTextToDocs` output which always starts with a separator when the text
     // begins with whitespace.
-    let first_text_orig_start = match first {
-        TemplateNode::Text(t) => Some(t.start as usize),
-        _ => None,
-    };
-    let mut s = node_start(first) as usize;
-    let first_text_leading_ws_kind: Option<bool> = if let TemplateNode::Text(t) = first {
-        let d = out.get(t.start as usize..t.end as usize)?;
-        let leading_len = d.len() - d.trim_start().len();
-        if leading_len > 0 {
-            // true  = starts with SINGLE newline + indent, e.g. "\n    word"
-            //         (Case B: prettier does NOT trim → inverted fill with hardline prefix)
-            // false = starts with spaces only, e.g. " word"
-            //         (Case A: inverted fill with line prefix)
-            // None  = starts with double newline "\n\n..." — prettier uses double
-            //         hardline prefix which falls back to normal fill; skip both cases.
-            s += leading_len;
-            if d.starts_with("\n\n") {
-                // Double-newline: prettier prepends two hardlines making the fill
-                // normal word-first after the hardlines — don't apply inverted logic.
-                None
-            } else {
-                Some(d.starts_with('\n'))
-            }
-        } else {
-            None
-        }
-    } else {
-        None
-    };
+    let (s, e, first_text_orig_start, first_text_leading_ws_kind) =
+        fill_run_span(out, first, last)?;
     // For Case A (space-only leading whitespace): include the leading space in the
     // edit region by moving s back by 1. This ensures the fill output (which starts
     // with a space from the inverted leading Line) replaces the space rather than
     // doubling it. Only include ONE space (the char immediately before s).
-    if matches!(first_text_leading_ws_kind, Some(false)) {
-        // Move s back by 1 to include the single leading space in the edit range.
-        // This keeps the indent computation correct (the space is already counted
-        // in indent_cols since s was advanced past it).
-        if s > 0 && out.as_bytes().get(s - 1) == Some(&b' ') {
-            s -= 1;
-        }
-    }
-
-    let mut e = node_end(last) as usize;
-    if let TemplateNode::Text(t) = last {
-        let d = out.get(t.start as usize..t.end as usize)?;
-        e -= d.len() - d.trim_end().len();
-    }
     let whole = out.get(s..e)?;
 
     // The run must start at the beginning of its line so its column = that line's
@@ -369,7 +439,7 @@ pub(super) fn try_fill_run(
         // be multi-line (e.g. root-level prose written one word per line), and
         // prettier reflows prose that fits onto a single line, so we must emit the
         // flat text rather than leaving the broken input untouched.
-        return (flat != whole).then_some((s as u32, e as u32, flat));
+        return (flat != whole).then_some((crate::source_offset(s), crate::source_offset(e), flat));
     }
     // If the prefix was non-whitespace and NOT a recognized close-tag prefix
     // (`>` or `> `), we cannot safely compute base_level for multi-line reflow.
@@ -411,7 +481,56 @@ pub(super) fn try_fill_run(
     if !printed.contains('\n') && indent_cols + printed.visual_width(tw) > line_width {
         return None;
     }
-    (printed != whole).then_some((s as u32, e as u32, printed))
+    (printed != whole).then_some((crate::source_offset(s), crate::source_offset(e), printed))
+}
+
+enum FlatMixedDecision {
+    Decline,
+    Continue,
+    Edit(String),
+}
+
+fn flat_mixed_decision(
+    tag: &str,
+    nodes: &[TemplateNode],
+    raw: &str,
+    open: &str,
+    close: &str,
+    flat: &str,
+    has_text_word: bool,
+    has_multiline_child: bool,
+    has_boundary_whitespace: bool,
+    column: usize,
+    line_width: usize,
+    tab_width: usize,
+) -> FlatMixedDecision {
+    if flat.contains('\n') || has_multiline_child {
+        return FlatMixedDecision::Continue;
+    }
+    let one_line_width = column
+        + open.visual_width(tab_width)
+        + flat.visual_width(tab_width)
+        + close.visual_width(tab_width);
+    let block = is_block_display(tag);
+    if !has_text_word {
+        if block && has_boundary_whitespace && !raw.contains('\n') && one_line_width <= line_width {
+            return FlatMixedDecision::Edit(format!("{open}{flat}{close}"));
+        }
+        let meaningful_children = nodes
+            .iter()
+            .filter(|node| !matches!(node, TemplateNode::Text(text) if crate::is_blank_text(text.data.as_ref())))
+            .count();
+        if !(block && meaningful_children > 1 && one_line_width > line_width) {
+            return FlatMixedDecision::Decline;
+        }
+    }
+    if one_line_width <= line_width || (!block && !is_component_tag(tag)) {
+        if block && has_boundary_whitespace && !raw.contains('\n') && one_line_width <= line_width {
+            return FlatMixedDecision::Edit(format!("{open}{flat}{close}"));
+        }
+        return FlatMixedDecision::Decline;
+    }
+    FlatMixedDecision::Continue
 }
 
 /// Greedy word-wrap `text` into lines no wider than `width` (each line keeps at
@@ -424,11 +543,10 @@ pub(super) fn fill(text: &str, width: usize, tw: usize) -> Vec<String> {
             cur.push_str(word);
         } else if cur.visual_width(tw) + 1 + word.visual_width(tw) <= width {
             cur.push(' ');
-            cur.push_str(word);
         } else {
             lines.push(std::mem::take(&mut cur));
-            cur.push_str(word);
         }
+        cur.push_str(word);
     }
     if !cur.is_empty() {
         lines.push(cur);
@@ -457,31 +575,8 @@ pub(super) fn try_fill_mixed(
     let tw = tab_width(options);
     let (s, e) = (start as usize, end as usize);
     let whole = out.get(s..e)?;
-    // Must be mixed (at least one non-text child) and entirely inline.
-    let mut has_non_text = false;
-    let mut ignored_idx = None;
-    for (i, n) in fragment.nodes.iter().enumerate() {
-        if matches!(n, TemplateNode::Text(_)) {
-            continue;
-        }
-        has_non_text = true;
-        // An ignore comment glued to an inline node is one verbatim atom of the
-        // prose, so the fill flows across it; any OTHER comment sits on its own
-        // line(s) — never fill it inline with the surrounding prose, leave the
-        // whole fragment to the indent pass (which keeps it on its own line).
-        if inline_ignore_atom(out, &fragment.nodes, i).is_some() {
-            ignored_idx = Some(i + 1);
-            continue;
-        }
-        if ignored_idx == Some(i) {
-            continue;
-        }
-        if matches!(n, TemplateNode::Comment(_)) || !is_inline_node(n) {
-            return None;
-        }
-    }
-    if !has_non_text {
-        return None; // pure text is handled by try_collapse
+    if !mixed_children_are_inline(out, &fragment.nodes) {
+        return None;
     }
     let content_start = node_start(fragment.nodes.first()?) as usize;
     let content_end = node_end(fragment.nodes.last()?) as usize;
@@ -561,68 +656,25 @@ pub(super) fn try_fill_mixed(
         .nodes
         .iter()
         .any(|n| matches!(n, TemplateNode::Text(t) if t.data.split_whitespace().next().is_some()));
-    if !has_text_word && !flat.contains('\n') && !has_multiline_child {
-        // For block-display elements that are ALREADY on one source line but have
-        // leading/trailing SPACE (not newline) boundary whitespace, collapse to
-        // one line and strip the boundary whitespace — prettier's block element
-        // trimming behavior.
-        // E.g. `<p> {@html raw1} {@html raw2} </p>` → `<p>{@html raw1} {@html raw2}</p>`.
-        // Multi-line source (boundary whitespace is newline + indent) is left alone —
-        // the indent pass owns those elements.
-        if is_block_display(tag) && (had_lead || had_trail) && !raw.contains('\n') {
-            let element_one_line =
-                column + open.visual_width(tw) + flat.visual_width(tw) + close.visual_width(tw);
-            if element_one_line <= line_width {
-                let one_line = format!("{open}{flat}{close}");
-                return (one_line != whole).then_some((start, end, one_line));
-            }
+    match flat_mixed_decision(
+        tag,
+        &fragment.nodes,
+        raw,
+        open,
+        close,
+        &flat,
+        has_text_word,
+        has_multiline_child,
+        had_lead || had_trail,
+        column,
+        line_width,
+        tw,
+    ) {
+        FlatMixedDecision::Edit(one_line) => {
+            return (one_line != whole).then_some((start, end, one_line));
         }
-        // For a block-display element with multiple inline children (expression
-        // tags separated by space text nodes, e.g. `<p>{a} {b} {c}…</p>`) that
-        // overflows 80 cols: fall through to the doc-print break path so each
-        // child lands on its own indented line. A single child is handled more
-        // precisely by `try_break_content_tag_block` (which also reformats the
-        // inner expression), so gate on >1 meaningful child.
-        let non_ws_child_count = fragment
-            .nodes
-            .iter()
-            .filter(
-                |n| !matches!(n, TemplateNode::Text(t) if crate::is_blank_text(t.data.as_ref())),
-            )
-            .count();
-        let element_one_line =
-            column + open.visual_width(tw) + flat.visual_width(tw) + close.visual_width(tw);
-        if is_block_display(tag) && non_ws_child_count > 1 && element_one_line > line_width {
-            // Fall through to the doc-print break path below.
-        } else {
-            return None;
-        }
-    }
-
-    if !flat.contains('\n') && !has_multiline_child {
-        let element_one_line =
-            column + open.visual_width(tw) + flat.visual_width(tw) + close.visual_width(tw);
-        // A block element (or overflowing component with prose content) puts its
-        // content on its own line; an inline HTML element would instead hug, so
-        // leave those. Components with block-like (newline-bounded) content that
-        // overflow are also reflowed here — they are gated above by
-        // `fragment_has_prose_word` and `had_lead && had_trail`.
-        if element_one_line <= line_width || (!is_block_display(tag) && !is_component_tag(tag)) {
-            // Even when the element fits on one line, if it's a block-display
-            // element with leading/trailing space boundary whitespace (but NOT
-            // newline-separated — that's indented multi-line content), collapse
-            // to the space-trimmed one-line form.
-            // E.g. `<p> {a} {b} : {c} : </p>` → `<p>{a} {b} : {c} :</p>`.
-            if is_block_display(tag)
-                && (had_lead || had_trail)
-                && !raw.contains('\n')
-                && element_one_line <= line_width
-            {
-                let one_line = format!("{open}{flat}{close}");
-                return (one_line != whole).then_some((start, end, one_line));
-            }
-            return None;
-        }
+        FlatMixedDecision::Decline => return None,
+        FlatMixedDecision::Continue => {}
     }
     let mut printed = crate::doc::print(
         &content_doc,
@@ -632,46 +684,15 @@ pub(super) fn try_fill_mixed(
         inner_indent.visual_width(tw),
     );
 
-    // Post-pass: a trailing content mustache `{call(...)}` that is glued to the
-    // preceding content (no break point before it, e.g. `…:{pad(x)}`) can't move
-    // to its own line, so when it overflows it must wrap its own call args. The
-    // doc fill treats it as one atom, so re-format it here at its actual column.
-    if printed.lines().count() <= 1
-        && let Some(last) = fragment.nodes.last()
-        && matches!(last, TemplateNode::ExpressionTag(_))
-    {
-        let mspan = out.get(node_start(last) as usize..node_end(last) as usize)?;
-        let glued_after_nonspace = printed
-            .strip_suffix(mspan)
-            .and_then(|p| p.chars().next_back())
-            .is_some_and(|c| !c.is_whitespace());
-        let inner = mspan
-            .strip_prefix('{')
-            .and_then(|s| s.strip_suffix('}'))
-            .map(str::trim)
-            .unwrap_or("");
-        let mcol = inner_indent.visual_width(tw)
-            + printed
-                .visual_width(tw)
-                .saturating_sub(mspan.visual_width(tw));
-        // Only a call / member chain (not an object / array / arrow literal) wraps
-        // by breaking its own internals; leave those to other paths.
-        let wrappable =
-            !inner.is_empty() && !inner.contains("=>") && !inner.starts_with(['{', '[']);
-        if glued_after_nonspace && wrappable && mcol + mspan.visual_width(tw) > line_width {
-            let w = line_width.saturating_sub(mcol + 2); // `{` + `}`
-            if let Ok(wrapped) = crate::expression::reformat_content_at_width(
-                inner,
-                options,
-                w,
-                inner_indent.visual_width(tw),
-            ) && wrapped.contains('\n')
-            {
-                let head = &printed[..printed.len() - mspan.len()];
-                printed = format!("{head}{{{wrapped}}}");
-            }
-        }
-    }
+    wrap_trailing_content_call(
+        &mut printed,
+        out,
+        &fragment.nodes,
+        options,
+        line_width,
+        inner_indent.visual_width(tw),
+        tw,
+    )?;
 
     let broken = format!("{open}\n{inner_indent}{printed}\n{indent}{close}");
     (broken != whole).then_some((start, end, broken))

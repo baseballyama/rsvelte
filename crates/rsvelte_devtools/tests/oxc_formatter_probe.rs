@@ -1,5 +1,5 @@
-//! Repository-only probe confirming that oxc_parser's `Program<'a>` type unifies with
-//! oxc_formatter's expected input across the crate boundary. If the patch
+//! Repository-only probe confirming that `oxc_parser`'s `Program<'a>` type unifies with
+//! `oxc_formatter`'s expected input across the crate boundary. If the patch
 //! block in Cargo.toml didn't unify the AST source units, this test would
 //! fail to compile with E0308 "expected struct `oxc_ast::Program`, found a
 //! different `oxc_ast::Program`".

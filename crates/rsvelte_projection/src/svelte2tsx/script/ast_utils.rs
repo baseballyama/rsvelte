@@ -6,13 +6,43 @@ use oxc_ast::ast as oxc;
 
 use super::ExportedNames;
 
+#[derive(Clone, Copy)]
+pub(super) struct ExportBindingOptions(u8);
+
+impl ExportBindingOptions {
+    const HAS_DEFAULT: u8 = 1;
+    const IS_PROP: u8 = 1 << 1;
+    const IS_LET: u8 = 1 << 2;
+    const IS_NAMED_EXPORT: u8 = 1 << 3;
+
+    pub(super) const fn new() -> Self {
+        Self(0)
+    }
+    pub(super) const fn with_default(mut self) -> Self {
+        self.0 |= Self::HAS_DEFAULT;
+        self
+    }
+    pub(super) const fn with_prop_if(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.0 |= Self::IS_PROP;
+        }
+        self
+    }
+    pub(super) const fn with_let_if(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.0 |= Self::IS_LET;
+        }
+        self
+    }
+    const fn contains(self, flag: u8) -> bool {
+        self.0 & flag != 0
+    }
+}
+
 pub(super) fn extract_names_from_binding_pattern_full(
     pattern: &oxc::BindingPattern,
     exported_names: &mut ExportedNames,
-    has_default: bool,
-    is_prop: bool,
-    is_let: bool,
-    is_named_export: bool,
+    options: ExportBindingOptions,
 ) {
     match pattern {
         oxc::BindingPattern::BindingIdentifier(id) => {
@@ -20,48 +50,36 @@ pub(super) fn extract_names_from_binding_pattern_full(
             exported_names.add_full(
                 name.clone(),
                 name,
-                has_default,
                 None,
-                is_prop,
-                is_let,
-                is_named_export,
+                super::exported_names::ExportFlags::default()
+                    .with_default_if(options.contains(ExportBindingOptions::HAS_DEFAULT))
+                    .with_prop_if(options.contains(ExportBindingOptions::IS_PROP))
+                    .with_let_if(options.contains(ExportBindingOptions::IS_LET))
+                    .with_named_export_if(options.contains(ExportBindingOptions::IS_NAMED_EXPORT)),
             );
         }
         oxc::BindingPattern::ObjectPattern(obj_pat) => {
-            for prop in obj_pat.properties.iter() {
+            for prop in &obj_pat.properties {
                 match &prop.value {
                     oxc::BindingPattern::AssignmentPattern(assign) => {
                         extract_names_from_binding_pattern_full(
                             &assign.left,
                             exported_names,
-                            true,
-                            is_prop,
-                            is_let,
-                            is_named_export,
+                            options.with_default(),
                         );
                     }
                     _ => {
                         extract_names_from_binding_pattern_full(
                             &prop.value,
                             exported_names,
-                            has_default,
-                            is_prop,
-                            is_let,
-                            is_named_export,
+                            options,
                         );
                     }
                 }
             }
             // Handle rest element: `{ a, ...rest }` — recurse into `rest`
             if let Some(rest) = &obj_pat.rest {
-                extract_names_from_binding_pattern_full(
-                    &rest.argument,
-                    exported_names,
-                    has_default,
-                    is_prop,
-                    is_let,
-                    is_named_export,
-                );
+                extract_names_from_binding_pattern_full(&rest.argument, exported_names, options);
             }
         }
         oxc::BindingPattern::ArrayPattern(arr_pat) => {
@@ -71,50 +89,30 @@ pub(super) fn extract_names_from_binding_pattern_full(
                         extract_names_from_binding_pattern_full(
                             &assign.left,
                             exported_names,
-                            true,
-                            is_prop,
-                            is_let,
-                            is_named_export,
+                            options.with_default(),
                         );
                     }
                     _ => {
-                        extract_names_from_binding_pattern_full(
-                            el,
-                            exported_names,
-                            has_default,
-                            is_prop,
-                            is_let,
-                            is_named_export,
-                        );
+                        extract_names_from_binding_pattern_full(el, exported_names, options);
                     }
                 }
             }
             // Handle rest element: `[a, ...rest]` — recurse into `rest`
             if let Some(rest) = &arr_pat.rest {
-                extract_names_from_binding_pattern_full(
-                    &rest.argument,
-                    exported_names,
-                    has_default,
-                    is_prop,
-                    is_let,
-                    is_named_export,
-                );
+                extract_names_from_binding_pattern_full(&rest.argument, exported_names, options);
             }
         }
         oxc::BindingPattern::AssignmentPattern(assign) => {
             extract_names_from_binding_pattern_full(
                 &assign.left,
                 exported_names,
-                true,
-                is_prop,
-                is_let,
-                is_named_export,
+                options.with_default(),
             );
         }
     }
 }
 
-/// Get a simple name from a binding pattern (only works for BindingIdentifier).
+/// Get a simple name from a binding pattern (only works for `BindingIdentifier`).
 pub(super) fn binding_pattern_simple_name<'a>(
     pattern: &'a oxc::BindingPattern<'_>,
 ) -> Option<&'a str> {
@@ -135,7 +133,7 @@ pub(super) fn declarator_has_boolean_init(declarator: &oxc::VariableDeclarator) 
         .is_some_and(|init| matches!(init, oxc::Expression::BooleanLiteral(_)))
 }
 
-/// Convert a PropertyKey to a string name.
+/// Convert a `PropertyKey` to a string name.
 pub(super) fn property_key_to_string(key: &oxc::PropertyKey) -> Option<String> {
     match key {
         oxc::PropertyKey::StaticIdentifier(id) => Some(id.name.to_string()),
@@ -145,7 +143,7 @@ pub(super) fn property_key_to_string(key: &oxc::PropertyKey) -> Option<String> {
     }
 }
 
-/// Convert a ModuleExportName to a string.
+/// Convert a `ModuleExportName` to a string.
 pub(super) fn module_export_name_to_string(name: &oxc::ModuleExportName) -> String {
     match name {
         oxc::ModuleExportName::IdentifierName(id) => id.name.to_string(),
@@ -175,7 +173,7 @@ pub(super) fn collect_top_level_declared_names(body: &[oxc::Statement]) -> HashS
     }
 
     fn add_var(vd: &oxc::VariableDeclaration, names: &mut HashSet<String>) {
-        for d in vd.declarations.iter() {
+        for d in &vd.declarations {
             add_binding(&d.id, names);
         }
     }
@@ -221,7 +219,7 @@ pub(super) fn collect_top_level_declared_names(body: &[oxc::Statement]) -> HashS
             }
             oxc::Statement::ImportDeclaration(imp) => {
                 if let Some(specs) = &imp.specifiers {
-                    for s in specs.iter() {
+                    for s in specs {
                         let n = match s {
                             oxc::ImportDeclarationSpecifier::ImportDefaultSpecifier(s) => {
                                 s.local.name.to_string()
@@ -270,7 +268,7 @@ where
             visit(id.name.as_str());
         }
         oxc::BindingPattern::ObjectPattern(obj) => {
-            for prop in obj.properties.iter() {
+            for prop in &obj.properties {
                 visit_binding_names(&prop.value, visit);
             }
             if let Some(ref rest) = obj.rest {
@@ -308,7 +306,7 @@ fn collect_assignment_target_names(target: &oxc::AssignmentTarget, names: &mut V
             }
         }
         oxc::AssignmentTarget::ObjectAssignmentTarget(obj) => {
-            for prop in obj.properties.iter() {
+            for prop in &obj.properties {
                 match prop {
                     oxc::AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(id) => {
                         let name = id.binding.name.to_string();

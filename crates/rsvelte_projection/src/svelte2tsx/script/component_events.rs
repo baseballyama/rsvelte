@@ -5,11 +5,15 @@ use std::collections::HashMap;
 use oxc_ast::ast as oxc;
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxBuildHasher, FxHashMap};
 
 use super::ast_utils::{
     binding_pattern_simple_name, module_export_name_to_string, property_key_to_string,
 };
+
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("component-event source offsets are represented as u32")
+}
 
 /// Tracks events declared by a component.
 ///
@@ -95,6 +99,7 @@ pub struct EventInfo {
 
 impl ComponentEvents {
     /// Create a new empty `ComponentEvents`.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -127,13 +132,19 @@ impl ComponentEvents {
     }
 
     /// Get all event names.
+    #[must_use]
     pub fn get_event_names(&self) -> Vec<&str> {
-        let mut names: Vec<&str> = self.events.keys().map(|s| s.as_str()).collect();
-        names.sort();
+        let mut names: Vec<&str> = self
+            .events
+            .keys()
+            .map(std::string::String::as_str)
+            .collect();
+        names.sort_unstable();
         names
     }
 
     /// Check if there are any events declared.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.events.is_empty()
     }
@@ -198,7 +209,7 @@ impl ComponentEvents {
         for entry in pending {
             match entry.kind {
                 PendingKind::TypedMember(detail_type) => {
-                    self.add_to_events(&entry.name, detail_type)
+                    self.add_to_events(&entry.name, detail_type);
                 }
                 PendingKind::Dispatched => {
                     self.add_to_events(&entry.name, None);
@@ -209,7 +220,8 @@ impl ComponentEvents {
     }
 
     /// Get event entries for the return statement, in official insertion order.
-    /// Returns (name, value) pairs like ("hi", "__sveltets_2_customEvent").
+    /// Returns (name, value) pairs like ("hi", "__`sveltets_2_customEvent`").
+    #[must_use]
     pub fn get_event_entries(&self) -> impl ExactSizeIterator<Item = (&str, &'static str)> {
         self.dispatched_order
             .iter()
@@ -220,15 +232,16 @@ impl ComponentEvents {
     /// where `type` mirrors upstream's `CustomEvent<detail>` (or
     /// `CustomEvent<any>` when the detail type is unknown). Sorted by name for
     /// determinism; the deprecated `doc` field is not tracked.
+    #[must_use]
     pub fn get_api_entries(&self) -> Vec<(String, String)> {
         let mut entries: Vec<(String, String)> = self
             .events
             .iter()
             .map(|(name, info)| {
-                let ty = match &info.detail_type {
-                    Some(detail) => format!("CustomEvent<{detail}>"),
-                    None => "CustomEvent<any>".to_string(),
-                };
+                let ty = info.detail_type.as_ref().map_or_else(
+                    || "CustomEvent<any>".to_string(),
+                    |detail| format!("CustomEvent<{detail}>"),
+                );
                 (name.clone(), ty)
             })
             .collect();
@@ -270,7 +283,7 @@ fn scan_dispatch_calls_with_observer<'source>(
     mut observe_identifier: impl FnMut(),
 ) -> DispatchScan<'source> {
     let mut dispatcher_indices: FxHashMap<&str, (usize, usize)> =
-        FxHashMap::with_capacity_and_hasher(decls.len(), Default::default());
+        FxHashMap::with_capacity_and_hasher(decls.len(), FxBuildHasher::default());
     let mut next_dispatcher = vec![usize::MAX; decls.len()];
     for (index, (name, _)) in decls.iter().enumerate() {
         dispatcher_indices
@@ -357,7 +370,7 @@ fn scan_dispatch_calls_with_observer<'source>(
             if p >= bytes.len() || (bytes[p] != b',' && bytes[p] != b')') {
                 continue;
             }
-            match lookup_string_var(string_vars, identifier, start as u32) {
+            match lookup_string_var(string_vars, identifier, source_offset(start)) {
                 Some(value) => value,
                 None => continue,
             }
@@ -367,8 +380,8 @@ fn scan_dispatch_calls_with_observer<'source>(
 
         loop {
             if in_instance_script {
-                if start as u32 > decls[dispatcher_index].1 {
-                    script_events.push((event, start as u32));
+                if source_offset(start) > decls[dispatcher_index].1 {
+                    script_events.push((event, source_offset(start)));
                 }
             } else {
                 template_events.push((event, dispatcher_index));
@@ -388,8 +401,8 @@ fn scan_dispatch_calls_with_observer<'source>(
 /// `createEventDispatcher` is imported under, the dispatchers instantiated from
 /// it (typed and untyped, at any nesting level) and the string constants a
 /// `dispatch(x)` can resolve through.
-pub(super) fn collect_event_dispatcher_facts<'a>(
-    program: &oxc::Program<'a>,
+pub(super) fn collect_event_dispatcher_facts(
+    program: &oxc::Program<'_>,
     raw_content: &str,
     events: &mut ComponentEvents,
     content_offset: u32,
@@ -469,7 +482,7 @@ impl EventDispatcherCollector<'_, '_> {
         // Only an inline type literal exposes its event names; a named type is
         // spread verbatim and stays opaque to the event map.
         if let oxc::TSType::TSTypeLiteral(literal) = typing {
-            for member in literal.members.iter() {
+            for member in &literal.members {
                 if let oxc::TSSignature::TSPropertySignature(signature) = member
                     && let Some(event_name) = property_key_to_string(&signature.key)
                 {

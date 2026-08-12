@@ -40,8 +40,7 @@ pub(super) fn collect_pattern_bindings(src: &str) -> Vec<String> {
                     match chars[i] {
                         '{' | '[' | '(' => depth += 1,
                         '}' | ']' | ')' if depth > 0 => depth -= 1,
-                        '}' | ']' if depth == 0 => break,
-                        ',' if depth == 0 => break,
+                        '}' | ']' | ',' if depth == 0 => break,
                         _ => {}
                     }
                     i += 1;
@@ -111,14 +110,6 @@ pub(super) fn collect_pattern_bindings(src: &str) -> Vec<String> {
 /// copied verbatim for the same reason.
 pub(super) fn resolve_slot_expression(text: &str, scope: &[(String, String)]) -> String {
     let chars: Vec<char> = text.chars().collect();
-    let is_ident_start = |c: char| c.is_alphabetic() || c == '_' || c == '$';
-    let is_ident = |c: char| c.is_alphanumeric() || c == '_' || c == '$';
-    let resolve = |name: &str| -> String {
-        match scope.iter().rev().find(|(bound, _)| bound == name) {
-            Some((_, expr)) => expr.clone(),
-            None => name.to_string(),
-        }
-    };
     let mut out = String::with_capacity(text.len());
     // Context stack: `true` = object literal (property keys expected after
     // `{` / `,`), `false` = array / call / block / group.
@@ -134,25 +125,10 @@ pub(super) fn resolve_slot_expression(text: &str, scope: &[(String, String)]) ->
         let c = chars[i];
         // String / template literal: copy verbatim.
         if c == '"' || c == '\'' || c == '`' {
-            let quote = c;
-            out.push(c);
-            i += 1;
-            while i < n {
-                let ch = chars[i];
-                out.push(ch);
-                i += 1;
-                if ch == '\\' && i < n {
-                    out.push(chars[i]);
-                    i += 1;
-                    continue;
-                }
-                if ch == quote {
-                    break;
-                }
-            }
+            i = copy_quoted_literal(&chars, i, &mut out);
             expect_prop = false;
             prev2 = prev;
-            prev = quote;
+            prev = c;
             continue;
         }
         match c {
@@ -168,7 +144,7 @@ pub(super) fn resolve_slot_expression(text: &str, scope: &[(String, String)]) ->
                 prev = c;
                 i += 1;
             }
-            '}' => {
+            '}' | ']' | ')' => {
                 ctx.pop();
                 expect_prop = false;
                 out.push(c);
@@ -183,38 +159,13 @@ pub(super) fn resolve_slot_expression(text: &str, scope: &[(String, String)]) ->
                 // compound key expression (`[item + 1]`) has its nested identifiers
                 // resolved as if they weren't in key position at all — mirrored here
                 // by consuming the whole `[…]` span and branching on its shape.
-                let close = find_matching_close(&chars, i, '[', ']');
-                let inner: String = chars[i + 1..close].iter().collect();
-                let trimmed = inner.trim();
-                let is_bare_ident = {
-                    let mut it = trimmed.chars();
-                    match it.next() {
-                        Some(c0) if is_ident_start(c0) => it.all(is_ident),
-                        _ => false,
-                    }
-                };
-                out.push('[');
-                if is_bare_ident {
-                    out.push_str(&inner);
-                } else {
-                    out.push_str(&resolve_slot_expression(&inner, scope));
-                }
-                out.push(']');
+                i = copy_computed_object_key(&chars, i, &mut out, scope);
                 expect_prop = false;
                 prev2 = prev;
                 prev = ']';
-                i = close + 1;
             }
             '[' | '(' => {
                 ctx.push(false);
-                expect_prop = false;
-                out.push(c);
-                prev2 = prev;
-                prev = c;
-                i += 1;
-            }
-            ']' | ')' => {
-                ctx.pop();
                 expect_prop = false;
                 out.push(c);
                 prev2 = prev;
@@ -241,37 +192,14 @@ pub(super) fn resolve_slot_expression(text: &str, scope: &[(String, String)]) ->
             }
             // Start of an identifier token — not a member-access tail (`.prop`)
             // and not the continuation of a longer identifier.
-            c if is_ident_start(c)
-                && (i == 0 || (!is_ident(chars[i - 1]) && chars[i - 1] != '.')) =>
+            c if is_identifier_start(c)
+                && (i == 0 || (!is_identifier(chars[i - 1]) && chars[i - 1] != '.')) =>
             {
-                let mut j = i + 1;
-                while j < n && is_ident(chars[j]) {
-                    j += 1;
-                }
-                let ident: String = chars[i..j].iter().collect();
-                if expect_prop {
-                    // Look ahead, skipping whitespace, to the next meaningful char.
-                    let mut k = j;
-                    while k < n && chars[k].is_whitespace() {
-                        k += 1;
-                    }
-                    let next = chars.get(k).copied().unwrap_or('\0');
-                    // The key itself is never substituted. A bare identifier
-                    // followed by `,` or `}` is a true shorthand (`{ foo }`) and
-                    // gains the resolved value; `key: …`, method `foo() {}`, etc.
-                    // are keys only.
-                    out.push_str(&ident);
-                    if next == ',' || next == '}' || next == '\0' {
-                        out.push(':');
-                        out.push_str(&resolve(&ident));
-                    }
-                } else {
-                    out.push_str(&resolve(&ident));
-                }
+                let (next, last) = copy_identifier(&chars, i, expect_prop, &mut out, scope);
                 expect_prop = false;
                 prev2 = prev;
-                prev = chars[j - 1];
-                i = j;
+                prev = last;
+                i = next;
             }
             _ => {
                 // Any other char in property position (e.g. `.` of a spread)
@@ -285,6 +213,92 @@ pub(super) fn resolve_slot_expression(text: &str, scope: &[(String, String)]) ->
         }
     }
     out
+}
+
+fn copy_identifier(
+    chars: &[char],
+    start: usize,
+    property_key: bool,
+    output: &mut String,
+    scope: &[(String, String)],
+) -> (usize, char) {
+    let mut end = start + 1;
+    while end < chars.len() && is_identifier(chars[end]) {
+        end += 1;
+    }
+    let identifier: String = chars[start..end].iter().collect();
+    if property_key {
+        output.push_str(&identifier);
+        let next = chars[end..]
+            .iter()
+            .copied()
+            .find(|character| !character.is_whitespace())
+            .unwrap_or('\0');
+        if matches!(next, ',' | '}' | '\0') {
+            output.push(':');
+            output.push_str(&resolve_slot_name(&identifier, scope));
+        }
+    } else {
+        output.push_str(&resolve_slot_name(&identifier, scope));
+    }
+    (end, chars[end - 1])
+}
+
+fn resolve_slot_name(name: &str, scope: &[(String, String)]) -> String {
+    scope
+        .iter()
+        .rev()
+        .find(|(bound, _)| bound == name)
+        .map_or_else(|| name.to_string(), |(_, expression)| expression.clone())
+}
+
+fn copy_computed_object_key(
+    chars: &[char],
+    index: usize,
+    output: &mut String,
+    scope: &[(String, String)],
+) -> usize {
+    let close = find_matching_close(chars, index, '[', ']');
+    let inner: String = chars[index + 1..close].iter().collect();
+    output.push('[');
+    if is_bare_identifier(inner.trim()) {
+        output.push_str(&inner);
+    } else {
+        output.push_str(&resolve_slot_expression(&inner, scope));
+    }
+    output.push(']');
+    close + 1
+}
+
+fn is_bare_identifier(text: &str) -> bool {
+    let mut characters = text.chars();
+    characters.next().is_some_and(is_identifier_start) && characters.all(is_identifier)
+}
+
+fn is_identifier_start(character: char) -> bool {
+    character.is_alphabetic() || character == '_' || character == '$'
+}
+
+fn is_identifier(character: char) -> bool {
+    character.is_alphanumeric() || character == '_' || character == '$'
+}
+
+fn copy_quoted_literal(chars: &[char], mut index: usize, output: &mut String) -> usize {
+    let quote = chars[index];
+    output.push(quote);
+    index += 1;
+    while index < chars.len() {
+        let character = chars[index];
+        output.push(character);
+        index += 1;
+        if character == '\\' && index < chars.len() {
+            output.push(chars[index]);
+            index += 1;
+        } else if character == quote {
+            break;
+        }
+    }
+    index
 }
 
 /// Find the index of the `close` char matching the `open` char at `chars[open_index]`,

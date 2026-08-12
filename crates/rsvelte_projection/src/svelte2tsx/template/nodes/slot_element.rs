@@ -21,7 +21,7 @@ use super::component_slots::{default_slot_let_block, named_slot_let_block};
 ///
 /// The slot name is determined by the `name` attribute (default: "default").
 /// Other attributes become slot props. `bind:this` gets special handling.
-pub(crate) fn handle_slot_element(
+pub fn handle_slot_element(
     el: &SlotElement,
     source: &str,
     options: &Svelte2TsxOptions,
@@ -90,12 +90,12 @@ pub(crate) fn handle_slot_element(
     let indent = " ".repeat(spacing.before_block);
     let indent = match named_slot_block {
         Some(block) => {
-            str.prepend_left(el.start, &format!("{}{}", indent, block));
+            str.prepend_left(el.start, &format!("{indent}{block}"));
             String::new()
         }
         None => match &default_slot_let {
             Some(block) => {
-                str.append_left_fmt(el.start, format_args!("{}{}", indent, block));
+                str.append_left_fmt(el.start, format_args!("{indent}{block}"));
                 String::new()
             }
             None => indent,
@@ -110,10 +110,7 @@ pub(crate) fn handle_slot_element(
             slot_props_obj
         )
     } else {
-        format!(
-            "{}{{ __sveltets_createSlot(\"{}\", {});",
-            indent, slot_name, slot_props_obj
-        )
+        format!("{indent}{{ __sveltets_createSlot(\"{slot_name}\", {slot_props_obj});")
     };
     str.overwrite(el.start, opening_tag_end, &opener);
 
@@ -140,7 +137,7 @@ pub(crate) fn handle_slot_element(
             str.overwrite_fmt(
                 el.end - 2, // rewrite the `/>` portion
                 el.end,
-                format_args!("{} = $$_slot{};}}", bind_expr, slot_idx),
+                format_args!("{bind_expr} = $$_slot{slot_idx};}}"),
             );
         } else {
             // Self-closing without bind:this - just close the block
@@ -197,7 +194,7 @@ fn first_value_part<'a>(attributes: &'a [Attribute], name: &str) -> Option<First
 /// fallback: official's `''` key pairs with a syntactically broken
 /// `__sveltets_createSlot(, …)` call, and `get_slot_name` already declines to
 /// reproduce that.
-pub(crate) fn slot_name_for_type(attributes: &[Attribute]) -> String {
+pub fn slot_name_for_type(attributes: &[Attribute]) -> String {
     match first_value_part(attributes, "name") {
         Some(FirstValuePart::Text(raw)) if !raw.is_empty() => raw.to_string(),
         Some(FirstValuePart::Expression) => "undefined".to_string(),
@@ -213,7 +210,7 @@ pub(crate) fn slot_name_for_type(attributes: &[Attribute]) -> String {
 /// even though the JSX lowering keeps the same child in the *default* slot —
 /// official really does apply two different rules here, see
 /// [`slot_attr_static_name`].
-pub(crate) fn slot_consumer_name<'a>(attributes: &'a [Attribute]) -> Option<&'a str> {
+pub fn slot_consumer_name<'a>(attributes: &'a [Attribute]) -> Option<&'a str> {
     match first_value_part(attributes, "slot") {
         Some(FirstValuePart::Text(raw)) => Some(raw),
         _ => None,
@@ -238,7 +235,7 @@ fn get_slot_name_range(attributes: &[Attribute]) -> Option<(u32, u32)> {
     })
 }
 
-pub(crate) fn get_slot_name(attributes: &[Attribute], source: &str) -> String {
+pub fn get_slot_name(attributes: &[Attribute], source: &str) -> String {
     // Official only ever looks at `value[0]` (`nodes/Element.ts`'s `slotName`),
     // then slices its verbatim source range — including the braces of an
     // ExpressionTag and any inner whitespace — rather than re-serializing an
@@ -252,10 +249,7 @@ pub(crate) fn get_slot_name(attributes: &[Attribute], source: &str) -> String {
 }
 
 /// Get the `bind:this` expression text from a slot element's attributes.
-pub(crate) fn get_bind_this_expr<'a>(
-    attributes: &'a [Attribute],
-    source: &'a str,
-) -> Option<String> {
+pub fn get_bind_this_expr<'a>(attributes: &'a [Attribute], source: &'a str) -> Option<String> {
     for attr in attributes {
         if let Attribute::BindDirective(bind) = attr
             && bind.name == "this"
@@ -275,7 +269,7 @@ pub(crate) fn get_bind_this_expr<'a>(
 /// an unforwarded `slot=` (dynamic, interpolated, or outside a component) stays
 /// an ordinary slot prop.
 /// Format matches `__sveltets_createSlot("name", { props })`.
-pub(crate) fn build_slot_props_string(
+pub fn build_slot_props_string(
     attributes: &[Attribute],
     source: &str,
     drop_slot_attr: bool,
@@ -291,14 +285,10 @@ pub(crate) fn build_slot_props_string(
                 }
                 // Slot props are neither DOM-element props nor component props;
                 // use is_element=false (no data-* wrapping; --* wrapping if present).
-                if let Some(s) = format_attribute_node(node, source, false) {
-                    parts.push(s);
-                }
+                parts.push(format_attribute_node(node, source, false));
             }
             Attribute::SpreadAttribute(spread) => {
-                if let Some(s) = format_spread_attribute(spread, source) {
-                    parts.push(s);
-                }
+                parts.push(format_spread_attribute(spread, source));
             }
             Attribute::BindDirective(bind) => {
                 // Skip bind:this on slot elements
@@ -325,7 +315,7 @@ pub(crate) fn build_slot_props_string(
 /// interpolated `slot="a{b}c"` are both emitted as ordinary attributes and do
 /// NOT trigger the `$$slot_def[...]` lowering or the component-instance const —
 /// unlike [`slot_consumer_name`], which reads `value[0]` for the same attribute.
-pub(crate) fn slot_attr_static_name<'a>(attributes: &'a [Attribute]) -> Option<&'a str> {
+pub fn slot_attr_static_name<'a>(attributes: &'a [Attribute]) -> Option<&'a str> {
     attributes.iter().find_map(|attr| match attr {
         Attribute::Attribute(node) if node.name == "slot" => match &node.value {
             AttributeValue::Sequence(parts) => match parts.as_slice() {

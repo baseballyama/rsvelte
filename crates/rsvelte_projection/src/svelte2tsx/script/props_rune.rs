@@ -10,68 +10,90 @@ use super::hoistable_types::walk_back_through_trivia;
 use super::super::magic_string::MagicString;
 use super::ExportedNames;
 
-/// Position info for $props() typedef generation, collected during OXC walk.
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("script source offsets are represented as u32")
+}
+
+/// Position info for $`props()` typedef generation, collected during OXC walk.
 #[derive(Debug, Clone)]
 pub(super) struct PropsRuneInfo {
-    /// Position of the `let` keyword (relative to raw_content)
+    /// Position of the `let` keyword (relative to `raw_content`)
     let_pos: u32,
-    /// Position of the `{` in the destructuring pattern (relative to raw_content)
+    /// Position of the `{` in the destructuring pattern (relative to `raw_content`)
     destructure_start: u32,
-    /// End position of the destructuring pattern (relative to raw_content)
+    /// End position of the destructuring pattern (relative to `raw_content`)
     destructure_end: u32,
-    /// End position of the `$props()` call (relative to raw_content), including semicolon if present
+    /// End position of the `$props()` call (relative to `raw_content`), including semicolon if present
     props_call_end: u32,
     /// Whether the declarator has a TS type annotation
-    pub(super) has_type_annotation: bool,
-    /// End of the type annotation (relative to raw_content)
+    flags: PropsRuneFlags,
+    /// End of the type annotation (relative to `raw_content`)
     type_annotation_end: Option<u32>,
     /// Text of the type annotation
     pub(super) type_text: Option<String>,
-    /// Whether there's a JSDoc `@type` comment before the `let`
+    /// Whether there's a `JSDoc` `@type` comment before the `let`
     jsdoc_type: Option<String>,
-    /// Start position of the JSDoc comment (relative to raw_content)
+    /// Start position of the `JSDoc` comment (relative to `raw_content`)
     jsdoc_start: Option<u32>,
-    /// End position of the JSDoc comment (relative to raw_content)
+    /// End position of the `JSDoc` comment (relative to `raw_content`)
     jsdoc_end: Option<u32>,
-    /// Position of the `:` before the type annotation (relative to raw_content)
+    /// Position of the `:` before the type annotation (relative to `raw_content`)
     colon_pos: Option<u32>,
-    /// Whether the TS type annotation is hoistable (inline object type, not a named reference)
-    is_hoistable_type: bool,
-    /// Whether the TS type annotation is a simple named type reference (TSTypeReference).
-    /// Only `TSTypeReference` nodes (e.g. `Props`, `Props<T>`) are used directly;
-    /// all other annotated types (TSIndexedAccessType, TSUnionType, etc.) get wrapped
-    /// in `$$ComponentProps` — mirrors the official `ts.isTypeReferenceNode` check.
-    pub(super) is_named_type_reference: bool,
-    /// Whether the pattern has a rest element (`...rest`)
-    has_rest: bool,
-    /// Whether the pattern has any non-identifier property keys (mirrors official `withUnknown`).
-    /// Set when a prop uses a string literal, numeric, or computed key (e.g. `'kebab-case': x`).
-    /// When true, contributes `& Record<string, any>` to the generated type.
-    has_unknown_props: bool,
-    /// Prop type entries: (name, optional, inferred_type)
+    /// Prop type entries: (name, optional, `inferred_type`)
     prop_types: Vec<(String, bool, String)>,
-    /// Names of $bindable() props
+    /// Names of $`bindable()` props
     bindable_names: Vec<String>,
-    /// Whether the $props() call has a type argument: `$props<TypeArg>()`
-    pub(super) has_type_arg: bool,
-    /// Start of the type argument (relative to raw_content), for `$props<TypeArg>()`
+    /// Start of the type argument (relative to `raw_content`), for `$props<TypeArg>()`
     type_arg_start: Option<u32>,
-    /// End of the type argument (relative to raw_content), for `$props<TypeArg>()`
+    /// End of the type argument (relative to `raw_content`), for `$props<TypeArg>()`
     type_arg_end: Option<u32>,
     /// Text of the type argument
     pub(super) type_arg_text: Option<String>,
-    /// Whether the type argument is a plain named type reference (TSTypeReference),
-    /// e.g. `$props<Props>()` — used directly without creating `$$ComponentProps`.
-    pub(super) type_arg_is_named_ref: bool,
 }
 
-/// Apply $$ComponentProps typedef transformations based on collected $props() info.
+#[derive(Debug, Clone, Copy, Default)]
+struct PropsRuneFlags(u8);
+
+impl PropsRuneFlags {
+    const TYPE_ANNOTATION: u8 = 1;
+    const HOISTABLE_TYPE: u8 = 1 << 1;
+    const NAMED_TYPE_REFERENCE: u8 = 1 << 2;
+    const HAS_REST: u8 = 1 << 3;
+    const HAS_UNKNOWN_PROPS: u8 = 1 << 4;
+    const HAS_TYPE_ARG: u8 = 1 << 5;
+    const TYPE_ARG_NAMED_REF: u8 = 1 << 6;
+    const fn contains(self, flag: u8) -> bool {
+        self.0 & flag != 0
+    }
+    const fn mark_if(&mut self, flag: u8, enabled: bool) {
+        if enabled {
+            self.0 |= flag;
+        }
+    }
+}
+
+impl PropsRuneInfo {
+    pub(super) const fn has_type_annotation(&self) -> bool {
+        self.flags.contains(PropsRuneFlags::TYPE_ANNOTATION)
+    }
+    pub(super) const fn has_type_arg(&self) -> bool {
+        self.flags.contains(PropsRuneFlags::HAS_TYPE_ARG)
+    }
+    pub(super) const fn type_arg_is_named_ref(&self) -> bool {
+        self.flags.contains(PropsRuneFlags::TYPE_ARG_NAMED_REF)
+    }
+    pub(super) const fn is_named_type_reference(&self) -> bool {
+        self.flags.contains(PropsRuneFlags::NAMED_TYPE_REFERENCE)
+    }
+}
+
+/// Apply $$`ComponentProps` typedef transformations based on collected $`props()` info.
 ///
 /// For JS files without type annotation:
 ///   `let { a, b } = $props()` →
 ///   `let/** @typedef {{ a: any, b: any }} $$ComponentProps *//** @type {$$ComponentProps} */ { a, b } = $props()`
 ///
-/// For JS files with JSDoc @type annotation:
+/// For JS files with `JSDoc` @type annotation:
 ///   `/** @type {SomeType} */\nlet { a, b } = $props()` →
 ///   `/** @typedef {SomeType}  $$ComponentProps *//** @type {$$ComponentProps} */\nlet { a, b } = $props()`
 ///
@@ -88,11 +110,13 @@ pub(super) fn apply_props_typedef(
     is_ts: bool,
     basename: &str,
 ) {
-    if info.has_type_arg && !info.has_type_annotation {
+    if info.flags.contains(PropsRuneFlags::HAS_TYPE_ARG)
+        && !info.flags.contains(PropsRuneFlags::TYPE_ANNOTATION)
+    {
         // TS type-argument form: `let { ... } = $props<TypeArg>()`
         // Mirrors upstream ExportedNames.ts handle$propsRune "Easy mode":
         //   `if (node.initializer.typeArguments?.length > 0 || node.type)`
-        if info.type_arg_is_named_ref {
+        if info.flags.contains(PropsRuneFlags::TYPE_ARG_NAMED_REF) {
             // `$props<Props>()` → use Props directly, no $$ComponentProps needed.
             // props_type_text is already set by detect_props_rune_oxc.
             // No source manipulation needed.
@@ -122,14 +146,17 @@ pub(super) fn apply_props_typedef(
                 );
                 // Signal svelte2tsx.rs to call move_range(abs_start, abs_end, scriptStart)
                 exported_names.props_type_arg_hoist = Some((abs_start, abs_end));
-                exported_names.props_type_arg_hoist_ts = true;
+                exported_names.set_props_type_arg_hoist_ts(true);
             }
-            exported_names.has_component_props_typedef = true;
+            exported_names.set_has_component_props_typedef(true);
         }
         return;
     }
 
-    if info.has_type_annotation && info.is_hoistable_type {
+    if info
+        .flags
+        .contains(PropsRuneFlags::TYPE_ANNOTATION | PropsRuneFlags::HOISTABLE_TYPE)
+    {
         // TS case with inline object type: `: { a: number, b: string }`
         // Create $$ComponentProps alias and replace everything from `:` to end of type
         // Result: `:/*Ωignore_startΩ*/$$ComponentProps/*Ωignore_endΩ*/`
@@ -143,7 +170,7 @@ pub(super) fn apply_props_typedef(
                 "/*\u{03A9}ignore_start\u{03A9}*/$$ComponentProps/*\u{03A9}ignore_end\u{03A9}*/",
             );
         }
-        exported_names.has_component_props_typedef = true;
+        exported_names.set_has_component_props_typedef(true);
         // Track the position right BEFORE the leading whitespace of the
         // `let { ... } = $props()` declaration so the caller can insert
         // `;type $$ComponentProps = ...;` there when the type cannot be
@@ -162,8 +189,12 @@ pub(super) fn apply_props_typedef(
             }
             // Rest element ({ ...rest }) is intentionally not added as a prop
         }
-        exported_names.props_let_abs_pos = Some(p as u32 + offset);
-    } else if info.has_type_annotation && !info.is_hoistable_type && !info.is_named_type_reference {
+        exported_names.props_let_abs_pos = Some(source_offset(p) + offset);
+    } else if info.flags.contains(PropsRuneFlags::TYPE_ANNOTATION)
+        && !info
+            .flags
+            .contains(PropsRuneFlags::HOISTABLE_TYPE | PropsRuneFlags::NAMED_TYPE_REFERENCE)
+    {
         // TS case with non-TSTypeReference annotation (e.g. `SvelteHTMLElements["div"]`,
         // union types, intersection types, etc.).
         // Mirrors the official `!ts.isTypeReferenceNode(generic_arg)` branch:
@@ -180,7 +211,7 @@ pub(super) fn apply_props_typedef(
                 "/*\u{03A9}ignore_start\u{03A9}*/$$ComponentProps/*\u{03A9}ignore_end\u{03A9}*/",
             );
         }
-        exported_names.has_component_props_typedef = true;
+        exported_names.set_has_component_props_typedef(true);
         // props_type_text is the original type text (set by detect_props_rune_oxc).
         // svelte2tsx.rs uses it in `ts_component_props_before_render` to emit
         // `;type $$ComponentProps = <type_text>;` before `function $$render`.
@@ -195,8 +226,12 @@ pub(super) fn apply_props_typedef(
                 break;
             }
         }
-        exported_names.props_let_abs_pos = Some(p as u32 + offset);
-    } else if info.has_type_annotation && !info.is_hoistable_type && info.is_named_type_reference {
+        exported_names.props_let_abs_pos = Some(source_offset(p) + offset);
+    } else if info
+        .flags
+        .contains(PropsRuneFlags::TYPE_ANNOTATION | PropsRuneFlags::NAMED_TYPE_REFERENCE)
+        && !info.flags.contains(PropsRuneFlags::HOISTABLE_TYPE)
+    {
         // TS case with simple named type reference: `: Props` or `: Props<T>`
         // Keep the type annotation as-is, use it directly in props_type_text
         // (props_type_text is already set by detect_props_rune_oxc)
@@ -239,28 +274,29 @@ pub(super) fn apply_props_typedef(
                     // The official replaces `*/` with ` $$ComponentProps */`, so the space before `*/`
                     // in the original is preserved plus one new space → two spaces for the typical case.
                     format!(
-                        "{}@typedef{} $$ComponentProps *//** @type {{$$ComponentProps}} */",
-                        prefix, after_typedef_kw
+                        "{prefix}@typedef{after_typedef_kw} $$ComponentProps *//** @type {{$$ComponentProps}} */"
                     )
                 } else {
                     // Fallback: generate from extracted type (may lose trailing space)
                     format!(
-                        "/** @typedef {} $$ComponentProps *//** @type {{$$ComponentProps}} */",
-                        jsdoc_type
+                        "/** @typedef {jsdoc_type} $$ComponentProps *//** @type {{$$ComponentProps}} */"
                     )
                 };
                 let abs_start = jsdoc_start + offset;
                 let abs_end = jsdoc_end + offset;
                 str.overwrite(abs_start, abs_end, &typedef);
             }
-            exported_names.has_component_props_typedef = true;
-            exported_names.props_jsdoc_type = Some(jsdoc_type.clone());
+            exported_names.set_has_component_props_typedef(true);
         } else {
             // Named type reference: keep `/** @type {SomeType} */` as-is
             // Use the type name directly in create_props_str
-            exported_names.props_jsdoc_type = Some(jsdoc_type.clone());
         }
-    } else if info.prop_types.is_empty() && !info.has_rest && !info.has_unknown_props {
+        exported_names.props_jsdoc_type = Some(jsdoc_type.clone());
+    } else if info.prop_types.is_empty()
+        && !info
+            .flags
+            .contains(PropsRuneFlags::HAS_REST | PropsRuneFlags::HAS_UNKNOWN_PROPS)
+    {
         // No named props, no rest element, no non-identifier keys:
         // whole-object identifier (`let props = $props()`) or empty ObjectPattern (`let {} = $props()`).
         //
@@ -276,9 +312,13 @@ pub(super) fn apply_props_typedef(
         } else {
             // JS: has_component_props_typedef = true → create_props_str returns `/** @type {$$ComponentProps} */({})`
             // No source changes needed, no typedef inserted
-            exported_names.has_component_props_typedef = true;
+            exported_names.set_has_component_props_typedef(true);
         }
-    } else if !info.prop_types.is_empty() || info.has_rest || info.has_unknown_props {
+    } else if !info.prop_types.is_empty()
+        || info
+            .flags
+            .contains(PropsRuneFlags::HAS_REST | PropsRuneFlags::HAS_UNKNOWN_PROPS)
+    {
         // Auto-generate typedef from destructured props.
         //
         // For SvelteKit `+page.svelte` / `+layout.svelte` route files, override
@@ -327,9 +367,9 @@ pub(super) fn apply_props_typedef(
                     // Non-kit file: include all props with inferred types
                     let resolved = inferred_type.as_str();
                     if *optional {
-                        Some(format!("{}?: {}", name, resolved))
+                        Some(format!("{name}?: {resolved}"))
                     } else {
-                        Some(format!("{}: {}", name, resolved))
+                        Some(format!("{name}: {resolved}"))
                     }
                 }
             })
@@ -344,7 +384,9 @@ pub(super) fn apply_props_typedef(
 
         // `with_unknown` mirrors official's `withUnknown`: true when there's a rest
         // element OR non-identifier property keys (e.g. 'kebab-case': x).
-        let with_unknown = info.has_rest || info.has_unknown_props;
+        let with_unknown = info
+            .flags
+            .contains(PropsRuneFlags::HAS_REST | PropsRuneFlags::HAS_UNKNOWN_PROPS);
 
         // Build the type body string, mirroring official lines 368-377:
         //   if props.length > 0:
@@ -386,7 +428,7 @@ pub(super) fn apply_props_typedef(
             if is_ts {
                 exported_names.props_type_text = Some("$$ComponentProps".to_string());
             } else {
-                exported_names.has_component_props_typedef = true;
+                exported_names.set_has_component_props_typedef(true);
             }
         } else if is_ts {
             // TS case: The type declaration `/*Ωignore_startΩ*/;type $$ComponentProps = { ... };/*Ωignore_endΩ*/`
@@ -397,11 +439,11 @@ pub(super) fn apply_props_typedef(
             let abs_pattern_end = info.destructure_end + offset;
             str.append_left(abs_pattern_end, ": $$ComponentProps");
 
-            exported_names.has_component_props_typedef = true;
+            exported_names.set_has_component_props_typedef(true);
             // Store the type text as props_type_text so it's used in `create_props_str`
             exported_names.props_type_text = Some(type_body);
             // Mark that this is a best-effort type that needs to go inside $$render
-            exported_names.type_already_inserted = true;
+            exported_names.set_type_already_inserted(true);
             // Track the let position so the caller (`svelte2tsx::svelte2tsx`)
             // can insert the synthesised `;type $$ComponentProps = ...;` right
             // before the `let { ... } = $props()` statement instead of at the
@@ -413,12 +455,11 @@ pub(super) fn apply_props_typedef(
             // preceding `// …` line and is swallowed by that line comment.
             let raw_bytes = raw_content.as_bytes();
             let p = walk_back_through_trivia(raw_bytes, info.let_pos as usize);
-            exported_names.props_let_abs_pos = Some(p as u32 + offset);
+            exported_names.props_let_abs_pos = Some(source_offset(p) + offset);
         } else {
             // JS case: Insert JSDoc typedef between `let` and `{`
             let typedef_text = format!(
-                "/** @typedef {{{}}} $$ComponentProps *//** @type {{$$ComponentProps}} */",
-                type_body
+                "/** @typedef {{{type_body}}} $$ComponentProps *//** @type {{$$ComponentProps}} */"
             );
 
             let abs_let = info.let_pos + offset;
@@ -434,17 +475,21 @@ pub(super) fn apply_props_typedef(
             {
                 kw_len += 1;
             }
-            let insert_pos = abs_let + kw_len as u32; // after the keyword (let/const/var)
-            let typedef_with_space = format!("{} ", typedef_text);
+            let insert_pos = abs_let + source_offset(kw_len); // after the keyword (let/const/var)
+            let typedef_with_space = format!("{typedef_text} ");
             str.overwrite(insert_pos, abs_destruct, &typedef_with_space);
-            exported_names.has_component_props_typedef = true;
+            exported_names.set_has_component_props_typedef(true);
         }
     }
 
     // Append $bindable() ignore markers after $props() call
     if !info.bindable_names.is_empty() {
         let abs_end = info.props_call_end + offset;
-        let bindable_refs: Vec<&str> = info.bindable_names.iter().map(|s| s.as_str()).collect();
+        let bindable_refs: Vec<&str> = info
+            .bindable_names
+            .iter()
+            .map(std::string::String::as_str)
+            .collect();
         let marker = format!(
             "/*\u{03A9}ignore_start\u{03A9}*/;{};/*\u{03A9}ignore_end\u{03A9}*/",
             bindable_refs.join(";")
@@ -519,7 +564,7 @@ pub(super) fn detect_props_rune_oxc(
 }
 
 /// Check if an expression is a `$bindable()` call, optionally returning the inner argument text.
-/// Also handles `$bindable(x) as Type` (TSAsExpression wrapping $bindable).
+/// Also handles `$bindable(x) as Type` (`TSAsExpression` wrapping $bindable).
 fn is_bindable_call(expr: &oxc::Expression, raw_content: &str) -> (bool, Option<String>) {
     // Unwrap TSAsExpression if present: `$bindable(0) as number`
     let inner = match expr {
@@ -541,13 +586,12 @@ fn is_bindable_call(expr: &oxc::Expression, raw_content: &str) -> (bool, Option<
     (false, None)
 }
 
-/// Infer a type string from a default value expression for JSDoc $$ComponentProps typedef.
+/// Infer a type string from a default value expression for `JSDoc` $$`ComponentProps` typedef.
 fn infer_type_from_default(expr: &oxc::Expression, raw_content: &str) -> String {
     match expr {
         oxc::Expression::BooleanLiteral(_) => "boolean".to_string(),
         oxc::Expression::NumericLiteral(_) => "number".to_string(),
         oxc::Expression::StringLiteral(_) => "string".to_string(),
-        oxc::Expression::NullLiteral(_) => "any".to_string(),
         oxc::Expression::ArrayExpression(_) => "any[]".to_string(),
         oxc::Expression::ObjectExpression(_) => "Record<string, any>".to_string(),
         oxc::Expression::ArrowFunctionExpression(_) | oxc::Expression::FunctionExpression(_) => {
@@ -591,8 +635,8 @@ fn infer_type_from_default(expr: &oxc::Expression, raw_content: &str) -> String 
 
 /// Extract prop names from a destructuring pattern used with `$props()`.
 ///
-/// Handles ObjectPattern: `{ a, b = 1, ...rest }`
-/// Also detects $bindable() and infers types for JSDoc $$ComponentProps typedef.
+/// Handles `ObjectPattern`: `{ a, b = 1, ...rest }`
+/// Also detects $`bindable()` and infers types for `JSDoc` $$`ComponentProps` typedef.
 pub(super) fn extract_props_from_binding_pattern_runes(
     pattern: &oxc::BindingPattern,
     exported_names: &mut ExportedNames,
@@ -600,20 +644,18 @@ pub(super) fn extract_props_from_binding_pattern_runes(
 ) {
     match pattern {
         oxc::BindingPattern::ObjectPattern(obj_pat) => {
-            for prop in obj_pat.properties.iter() {
+            for prop in &obj_pat.properties {
                 let key_name = property_key_to_string(&prop.key);
-                let (local_name, has_default, is_bindable) = match &prop.value {
-                    oxc::BindingPattern::AssignmentPattern(assign) => {
+                let (local_name, has_default, is_bindable) =
+                    if let oxc::BindingPattern::AssignmentPattern(assign) = &prop.value {
                         // { a = 1 } or { a = $bindable() }
                         let name = binding_pattern_simple_name(&assign.left);
                         let (bindable, _) = is_bindable_call(&assign.right, raw_content);
                         (name, true, bindable)
-                    }
-                    _ => {
+                    } else {
                         let name = binding_pattern_simple_name(&prop.value);
                         (name, false, false)
-                    }
-                };
+                    };
 
                 if let Some(ref key) = key_name {
                     let local = local_name.unwrap_or(key).to_owned();
@@ -624,15 +666,11 @@ pub(super) fn extract_props_from_binding_pattern_runes(
                 }
             }
         }
-        oxc::BindingPattern::BindingIdentifier(_) => {
-            // `let props = $props();` - entire props object, not destructured
-            // No individual prop names to extract
-        }
         _ => {}
     }
 }
 
-/// Collect detailed position info from a $props() variable declaration for typedef generation.
+/// Collect detailed position info from a $`props()` variable declaration for typedef generation.
 pub(super) fn collect_props_rune_info(
     var_decl: &oxc::VariableDeclaration,
     declarator: &oxc::VariableDeclarator,
@@ -647,46 +685,18 @@ pub(super) fn collect_props_rune_info(
     let let_pos = var_decl.span.start;
     let destructure_start = declarator.id.span().start;
     let destructure_end = declarator.id.span().end;
-    let props_call_end = declarator.init.as_ref().map(|e| e.span().end).unwrap_or(0);
+    let props_call_end = declarator.init.as_ref().map_or(0, |e| e.span().end);
 
     // Detect type annotation
     // Also detect if the type is "hoistable" (inline object type vs named type reference)
-    let (
+    let TypeAnnotationInfo {
         has_type_annotation,
         type_annotation_end,
         type_text,
         is_hoistable_type,
         is_named_type_reference,
         colon_pos,
-    ) = if let Some(ref ta) = declarator.type_annotation {
-        let ts_type = &ta.type_annotation;
-        let start = ts_type.span().start;
-        let end = ts_type.span().end;
-        let text = if (start as usize) < raw_content.len() && (end as usize) <= raw_content.len() {
-            Some(raw_content[start as usize..end as usize].to_string())
-        } else {
-            None
-        };
-        // Inline object types are hoistable, named type references are not.
-        // Mirrors official `ts.isTypeReferenceNode` check:
-        // - TSTypeLiteral (`{ a: T }`) → hoistable (inline object)
-        // - TSTypeReference (`Props`, `Props<T>`) → named reference, use directly
-        // - Everything else (TSIndexedAccessType, TSUnionType, etc.) → create $$ComponentProps
-        let is_hoistable = matches!(&ts_type, oxc::TSType::TSTypeLiteral(_));
-        let is_named_ref = matches!(&ts_type, oxc::TSType::TSTypeReference(_));
-        // The colon position is the start of the TSTypeAnnotation span (includes `:`)
-        let colon = ta.span.start;
-        (
-            true,
-            Some(end),
-            text,
-            is_hoistable,
-            is_named_ref,
-            Some(colon),
-        )
-    } else {
-        (false, None, None, false, false, None)
-    };
+    } = type_annotation_info(declarator, raw_content);
 
     // Detect JSDoc @type comment before the let statement
     let (jsdoc_type, jsdoc_start, jsdoc_end) = detect_jsdoc_type_before(
@@ -696,63 +706,12 @@ pub(super) fn collect_props_rune_info(
         stmt_index,
     );
 
-    // Detect rest element and collect prop types.
-    // Also detect whether the binding is an identifier (whole-object) vs destructure.
-    let mut has_rest = false;
-    // `has_unknown_props` mirrors official's `withUnknown` flag: set to true when
-    // a property has a non-identifier key (string literal, numeric, computed) or
-    // a non-identifier name. Mirrors official check:
-    //   `!ts.isIdentifier(element.name) || (element.propertyName && !ts.isIdentifier(element.propertyName))`
-    let mut has_unknown_props = false;
-    let mut prop_types: Vec<(String, bool, String)> = Vec::new();
-    let mut bindable_names: Vec<String> = Vec::new();
-
-    if let oxc::BindingPattern::ObjectPattern(obj_pat) = &declarator.id {
-        has_rest = obj_pat.rest.is_some();
-
-        for prop in obj_pat.properties.iter() {
-            // Only include a prop in the type if its key is a plain identifier.
-            // For non-identifier keys (string literals like `'kebab-case'`, numeric
-            // literals like `0`, computed properties), set `has_unknown_props = true`
-            // which will contribute `& Record<string, any>` or `Record<string, any>`
-            // to the generated type — mirrors official's `withUnknown` path.
-            let is_identifier_key = matches!(&prop.key, oxc::PropertyKey::StaticIdentifier(_));
-            if !is_identifier_key {
-                has_unknown_props = true;
-                continue;
-            }
-            let key_name = property_key_to_string(&prop.key);
-            if let Some(key) = key_name {
-                // Also check that the binding target name is a simple identifier
-                // (not a nested destructure, which is a non-identifier).
-                match &prop.value {
-                    oxc::BindingPattern::AssignmentPattern(assign) => {
-                        let Some(local_name) = binding_pattern_simple_name(&assign.left) else {
-                            // Complex binding (nested destructure) → unknown
-                            has_unknown_props = true;
-                            continue;
-                        };
-                        let inferred_type = infer_type_from_default(&assign.right, raw_content);
-                        let (bindable, _) = is_bindable_call(&assign.right, raw_content);
-                        prop_types.push((key.clone(), true, inferred_type));
-                        if bindable {
-                            // The bindable marker statement uses the LOCAL binding
-                            // name, not the prop key: `{ count: definedCount =
-                            // $bindable() }` → `definedCount;`.
-                            bindable_names.push(local_name.to_owned());
-                        }
-                    }
-                    oxc::BindingPattern::BindingIdentifier(_) => {
-                        prop_types.push((key, false, "any".to_string()));
-                    }
-                    _ => {
-                        // Nested destructure in value position → unknown
-                        has_unknown_props = true;
-                    }
-                }
-            }
-        }
-    }
+    let BindingPropsInfo {
+        has_rest,
+        has_unknown_props,
+        prop_types,
+        bindable_names,
+    } = binding_props_info(&declarator.id, raw_content);
 
     // Detect type arguments on the $props() call: `$props<TypeArg>()`
     let (has_type_arg, type_arg_start, type_arg_end, type_arg_text, type_arg_is_named_ref) =
@@ -775,33 +734,136 @@ pub(super) fn collect_props_rune_info(
             (false, None, None, None, false)
         };
 
+    let mut flags = PropsRuneFlags::default();
+    flags.mark_if(PropsRuneFlags::TYPE_ANNOTATION, has_type_annotation);
+    flags.mark_if(PropsRuneFlags::HOISTABLE_TYPE, is_hoistable_type);
+    flags.mark_if(
+        PropsRuneFlags::NAMED_TYPE_REFERENCE,
+        is_named_type_reference,
+    );
+    flags.mark_if(PropsRuneFlags::HAS_REST, has_rest);
+    flags.mark_if(PropsRuneFlags::HAS_UNKNOWN_PROPS, has_unknown_props);
+    flags.mark_if(PropsRuneFlags::HAS_TYPE_ARG, has_type_arg);
+    flags.mark_if(PropsRuneFlags::TYPE_ARG_NAMED_REF, type_arg_is_named_ref);
+
     Some(PropsRuneInfo {
         let_pos,
         destructure_start,
         destructure_end,
         props_call_end,
-        has_type_annotation,
+        flags,
         type_annotation_end,
         type_text,
-        colon_pos,
-        is_hoistable_type,
-        is_named_type_reference,
         jsdoc_type,
         jsdoc_start,
         jsdoc_end,
-        has_rest,
-        has_unknown_props,
+        colon_pos,
         prop_types,
         bindable_names,
-        has_type_arg,
         type_arg_start,
         type_arg_end,
         type_arg_text,
-        type_arg_is_named_ref,
     })
 }
 
-/// Detect a JSDoc `@type` comment immediately before a given position.
+struct BindingPropsInfo {
+    has_rest: bool,
+    has_unknown_props: bool,
+    prop_types: Vec<(String, bool, String)>,
+    bindable_names: Vec<String>,
+}
+
+fn binding_props_info(pattern: &oxc::BindingPattern, source: &str) -> BindingPropsInfo {
+    let oxc::BindingPattern::ObjectPattern(object) = pattern else {
+        return BindingPropsInfo {
+            has_rest: false,
+            has_unknown_props: false,
+            prop_types: Vec::new(),
+            bindable_names: Vec::new(),
+        };
+    };
+    let mut info = BindingPropsInfo {
+        has_rest: object.rest.is_some(),
+        has_unknown_props: false,
+        prop_types: Vec::new(),
+        bindable_names: Vec::new(),
+    };
+    for property in &object.properties {
+        collect_binding_property(property, source, &mut info);
+    }
+    info
+}
+
+fn collect_binding_property(
+    property: &oxc::BindingProperty,
+    source: &str,
+    info: &mut BindingPropsInfo,
+) {
+    if !matches!(&property.key, oxc::PropertyKey::StaticIdentifier(_)) {
+        info.has_unknown_props = true;
+        return;
+    }
+    let Some(key) = property_key_to_string(&property.key) else {
+        return;
+    };
+    match &property.value {
+        oxc::BindingPattern::AssignmentPattern(assignment) => {
+            let Some(local_name) = binding_pattern_simple_name(&assignment.left) else {
+                info.has_unknown_props = true;
+                return;
+            };
+            let inferred = infer_type_from_default(&assignment.right, source);
+            let (bindable, _) = is_bindable_call(&assignment.right, source);
+            info.prop_types.push((key, true, inferred));
+            if bindable {
+                info.bindable_names.push(local_name.to_owned());
+            }
+        }
+        oxc::BindingPattern::BindingIdentifier(_) => {
+            info.prop_types.push((key, false, "any".to_string()));
+        }
+        _ => info.has_unknown_props = true,
+    }
+}
+
+struct TypeAnnotationInfo {
+    has_type_annotation: bool,
+    type_annotation_end: Option<u32>,
+    type_text: Option<String>,
+    is_hoistable_type: bool,
+    is_named_type_reference: bool,
+    colon_pos: Option<u32>,
+}
+
+fn type_annotation_info(declarator: &oxc::VariableDeclarator, source: &str) -> TypeAnnotationInfo {
+    declarator.type_annotation.as_ref().map_or(
+        TypeAnnotationInfo {
+            has_type_annotation: false,
+            type_annotation_end: None,
+            type_text: None,
+            is_hoistable_type: false,
+            is_named_type_reference: false,
+            colon_pos: None,
+        },
+        |annotation| {
+            let ty = &annotation.type_annotation;
+            let start = ty.span().start as usize;
+            let end = ty.span().end as usize;
+            let text = (start < source.len() && end <= source.len())
+                .then(|| source[start..end].to_string());
+            TypeAnnotationInfo {
+                has_type_annotation: true,
+                type_annotation_end: Some(ty.span().end),
+                type_text: text,
+                is_hoistable_type: matches!(ty, oxc::TSType::TSTypeLiteral(_)),
+                is_named_type_reference: matches!(ty, oxc::TSType::TSTypeReference(_)),
+                colon_pos: Some(annotation.span.start),
+            }
+        },
+    )
+}
+
+/// Detect a `JSDoc` `@type` comment immediately before a given position.
 ///
 /// Looks for patterns like `/** @type {SomeType} */` preceding a variable declaration.
 fn detect_jsdoc_type_before(
@@ -829,11 +891,11 @@ fn detect_jsdoc_type_before(
                 if trimmed_after.starts_with('{') {
                     // Extract the type text between { and }
                     if let Some(brace_end) = find_matching_brace(trimmed_after) {
-                        let type_text = &trimmed_after[..brace_end + 1];
+                        let type_text = &trimmed_after[..=brace_end];
                         return (
                             Some(type_text.to_string()),
-                            Some(comment_start as u32),
-                            Some(comment_end_pos as u32),
+                            Some(source_offset(comment_start)),
+                            Some(source_offset(comment_end_pos)),
                         );
                     }
                 }

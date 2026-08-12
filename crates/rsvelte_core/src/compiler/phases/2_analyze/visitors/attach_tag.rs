@@ -1,4 +1,4 @@
-//! AttachTag visitor.
+//! `AttachTag` visitor.
 //!
 //! Analyzes {@attach} tags.
 //!

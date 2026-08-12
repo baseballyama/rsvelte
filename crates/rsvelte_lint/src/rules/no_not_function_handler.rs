@@ -1,3 +1,5 @@
+//! `svelte/no-not-function-handler`.
+//!
 //! `svelte/no-not-function-handler` — flag an event handler whose expression is
 //! not a function (an object/array/class expression, a literal value, or a
 //! template literal). Such handlers don't do what the author intends — Svelte
@@ -388,7 +390,7 @@ const EVENT_NAMES: &[&str] = &[
 ];
 
 /// The "phrase" the message uses for a non-function handler expression, given
-/// the resolved (root) expression as an ESTree JSON node. `None` means the
+/// the resolved (root) expression as an `ESTree` JSON node. `None` means the
 /// expression is acceptable (or a literal whose value is `null`/unrepresentable).
 /// Mirrors upstream's `PHRASES` map exactly.
 fn phrase(node: &Value) -> Option<&'static str> {
@@ -405,7 +407,6 @@ fn phrase(node: &Value) -> Option<&'static str> {
                 return Some("bigint value");
             }
             match node.get("value") {
-                None | Some(Value::Null) => None,
                 Some(Value::String(_)) => Some("string value"),
                 Some(Value::Number(_)) => Some("number value"),
                 Some(Value::Bool(_)) => Some("boolean value"),
@@ -556,7 +557,6 @@ fn read_const_declarators(
         match terminator {
             b',' => {
                 i += 1; // next declarator
-                continue;
             }
             b';' => return i + 1,
             _ => return i,
@@ -656,11 +656,11 @@ fn is_bare_identifier(s: &str) -> bool {
         && bytes.iter().all(|&b| is_word_char(b))
 }
 
-fn is_word_start(b: u8) -> bool {
+const fn is_word_start(b: u8) -> bool {
     b.is_ascii_alphabetic() || b == b'_' || b == b'$'
 }
 
-fn is_word_char(b: u8) -> bool {
+const fn is_word_char(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
 }
 
@@ -716,7 +716,6 @@ impl NoNotFunctionHandler {
     /// Verify a single handler expression span `[start, end)` whose JSON node is
     /// `node`, lazily building `const_map` from `ctx.source()` if not yet built.
     fn verify(
-        &self,
         ctx: &mut LintContext,
         start: u32,
         end: u32,
@@ -733,7 +732,7 @@ impl NoNotFunctionHandler {
 
     /// Walk an element/component's attributes for `on:` directives and plain
     /// event attributes. `const_map` is shared/lazily built across all handlers.
-    fn check_attributes(&self, ctx: &mut LintContext, attributes: &[Attribute]) {
+    fn check_attributes(ctx: &mut LintContext, attributes: &[Attribute]) {
         let mut const_map: Option<std::collections::HashMap<String, Value>> = None;
         for attr in attributes {
             match attr {
@@ -743,7 +742,7 @@ impl NoNotFunctionHandler {
                         && let (Some(start), Some(end)) = (expr.start(), expr.end())
                     {
                         let node = expr.as_json().clone();
-                        self.verify(ctx, start, end, &node, &mut const_map);
+                        Self::verify(ctx, start, end, &node, &mut const_map);
                     }
                 }
                 // B) plain event attribute (`onclick={…}`)
@@ -759,7 +758,7 @@ impl NoNotFunctionHandler {
                                     (tag.expression.start(), tag.expression.end())
                             {
                                 let json = tag.expression.as_json().clone();
-                                self.verify(ctx, start, end, &json, &mut const_map);
+                                Self::verify(ctx, start, end, &json, &mut const_map);
                             }
                         }
                     } else if let AttributeValue::Expression(tag) = &node.value
@@ -767,7 +766,7 @@ impl NoNotFunctionHandler {
                             (tag.expression.start(), tag.expression.end())
                     {
                         let json = tag.expression.as_json().clone();
-                        self.verify(ctx, start, end, &json, &mut const_map);
+                        Self::verify(ctx, start, end, &json, &mut const_map);
                     }
                 }
                 _ => {}
@@ -782,11 +781,11 @@ impl Rule for NoNotFunctionHandler {
     }
 
     fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
-        self.check_attributes(ctx, &el.attributes);
+        Self::check_attributes(ctx, &el.attributes);
     }
 
     fn check_component(&self, ctx: &mut LintContext, c: &Component) {
-        self.check_attributes(ctx, &c.attributes);
+        Self::check_attributes(ctx, &c.attributes);
     }
 }
 

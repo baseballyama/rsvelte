@@ -2,59 +2,61 @@
 /// close paren verbatim. Returns `None` when `s` doesn't start with `(` or the
 /// paren is unbalanced. Paren scanning skips string/template literals and
 /// `//` / `/* */` comments so a `)` inside them isn't mistaken for the match.
-pub(super) fn strip_leading_paren_pair(s: &str) -> Option<String> {
-    let t = s.trim_start();
-    if !t.starts_with('(') {
+pub(super) fn strip_leading_paren_pair(source: &str) -> Option<String> {
+    let trimmed = source.trim_start();
+    if !trimmed.starts_with('(') {
         return None;
     }
-    let chars: Vec<char> = t.chars().collect();
+    let characters: Vec<char> = trimmed.chars().collect();
     let mut depth: i32 = 0;
-    let mut i = 0;
+    let mut index = 0;
     let mut in_string: Option<char> = None;
-    let mut close: Option<usize> = None;
-    while i < chars.len() {
-        let c = chars[i];
+    let mut close_index: Option<usize> = None;
+    while index < characters.len() {
+        let character = characters[index];
         match in_string {
-            Some(q) => {
-                if c == '\\' {
-                    i += 2;
+            Some(quote) => {
+                if character == '\\' {
+                    index += 2;
                     continue;
-                } else if c == q {
+                } else if character == quote {
                     in_string = None;
                 }
             }
-            None => match c {
-                '"' | '\'' | '`' => in_string = Some(c),
-                '/' if chars.get(i + 1) == Some(&'/') => {
-                    while i < chars.len() && chars[i] != '\n' {
-                        i += 1;
+            None => match character {
+                '"' | '\'' | '`' => in_string = Some(character),
+                '/' if characters.get(index + 1) == Some(&'/') => {
+                    while index < characters.len() && characters[index] != '\n' {
+                        index += 1;
                     }
                     continue;
                 }
-                '/' if chars.get(i + 1) == Some(&'*') => {
-                    i += 2;
-                    while i + 1 < chars.len() && !(chars[i] == '*' && chars[i + 1] == '/') {
-                        i += 1;
+                '/' if characters.get(index + 1) == Some(&'*') => {
+                    index += 2;
+                    while index + 1 < characters.len()
+                        && !(characters[index] == '*' && characters[index + 1] == '/')
+                    {
+                        index += 1;
                     }
-                    i += 2;
+                    index += 2;
                     continue;
                 }
                 '(' => depth += 1,
                 ')' => {
                     depth -= 1;
                     if depth == 0 {
-                        close = Some(i);
+                        close_index = Some(index);
                         break;
                     }
                 }
                 _ => {}
             },
         }
-        i += 1;
+        index += 1;
     }
-    let close = close?;
-    let inner: String = chars[1..close].iter().collect();
-    let rest: String = chars[close + 1..].iter().collect();
+    let close_index = close_index?;
+    let inner: String = characters[1..close_index].iter().collect();
+    let rest: String = characters[close_index + 1..].iter().collect();
     Some(format!("{}{}", inner.trim(), rest))
 }
 
@@ -329,7 +331,7 @@ pub(super) fn collapse_expanded_arg_form(multi: &str) -> Option<String> {
         .map(|head| format!("{head} )"))
         .unwrap_or(joined);
     let mut result = String::with_capacity(joined.len() + 1);
-    result.push_str(&joined[..open_pos + 1]);
+    result.push_str(&joined[..=open_pos]);
     result.push(' ');
     result.push_str(&joined[open_pos + 1..]);
     Some(result)
@@ -338,7 +340,7 @@ pub(super) fn collapse_expanded_arg_form(multi: &str) -> Option<String> {
 /// Collapse OXC's `LineWidth::MAX` "expanded call" layout back to prettier's
 /// single-line block-header form, WITH expanded-arg spacing.
 ///
-/// `format_inline_expression` (LineWidth::MAX) only breaks a call across lines
+/// `format_inline_expression` (`LineWidth::MAX`) only breaks a call across lines
 /// when OXC unconditionally expands it — the same shape prettier bakes as
 /// `allArgsBrokenOut` under shouldExpandLastArg. prettier-plugin-svelte's
 /// `removeLines` then collapses that layout to one line, turning the `line`
@@ -447,7 +449,44 @@ pub(super) fn collapse_block_header_expanded_call(multi: &str) -> Option<String>
 /// - Not a call expression ending with `)` or `})`.
 /// - Has multiple arguments (more than one top-level comma at depth 0).
 /// - The single argument is not an object literal `{...}`.
-pub(crate) fn expand_obj_arg_call(s: &str, indent_width: usize) -> Option<String> {
+fn is_flat_single_object(arg: &str) -> bool {
+    let mut brace_depth = 0i32;
+    let mut paren_depth = 0i32;
+    let mut bracket_depth = 0i32;
+    for (index, &byte) in arg.as_bytes().iter().enumerate() {
+        match byte {
+            b'{' => brace_depth += 1,
+            b'}' => brace_depth -= 1,
+            b'(' => paren_depth += 1,
+            b')' => paren_depth -= 1,
+            b'[' => bracket_depth += 1,
+            b']' => bracket_depth -= 1,
+            b',' if brace_depth == 0 && paren_depth == 0 && bracket_depth == 0 && index > 0 => {
+                return false;
+            }
+            _ => {}
+        }
+    }
+    if brace_depth != 0 {
+        return false;
+    }
+    let mut depth = 0i32;
+    for character in arg.chars() {
+        match character {
+            '{' => {
+                depth += 1;
+                if depth > 1 {
+                    return false;
+                }
+            }
+            '}' => depth -= 1,
+            _ => {}
+        }
+    }
+    true
+}
+
+pub fn expand_obj_arg_call(s: &str, indent_width: usize) -> Option<String> {
     let s = s.trim();
     // Must end with `)` (single-line) or `})` (multi-line)
     if !s.ends_with(')') {
@@ -494,59 +533,12 @@ pub(crate) fn expand_obj_arg_call(s: &str, indent_width: usize) -> Option<String
     if !arg_trimmed.starts_with('{') || !arg_trimmed.ends_with('}') {
         return None;
     }
-    // Verify balanced braces (no stray top-level commas between separate args).
-    let mut brace_depth: i32 = 0;
-    let mut paren_depth: i32 = 0;
-    let mut bracket_depth: i32 = 0;
-    let mut has_top_level_comma = false;
-    for (i, &b) in arg_trimmed.as_bytes().iter().enumerate() {
-        match b {
-            b'{' => brace_depth += 1,
-            b'}' => brace_depth -= 1,
-            b'(' => paren_depth += 1,
-            b')' => paren_depth -= 1,
-            b'[' => bracket_depth += 1,
-            b']' => bracket_depth -= 1,
-            b',' if brace_depth == 0 && paren_depth == 0 && bracket_depth == 0 && i > 0 => {
-                has_top_level_comma = true;
-                break;
-            }
-            _ => {}
-        }
-    }
-    if has_top_level_comma || brace_depth != 0 {
+    if !is_flat_single_object(arg_trimmed) {
         return None;
-    }
-    // Bail out when the object literal contains nested objects — the
-    // re-indentation logic doesn't handle them correctly.
-    {
-        let mut depth = 0i32;
-        let mut has_nested = false;
-        for ch in arg_trimmed.chars() {
-            match ch {
-                '{' => {
-                    depth += 1;
-                    if depth > 1 {
-                        has_nested = true;
-                        break;
-                    }
-                }
-                '}' => depth -= 1,
-                _ => {}
-            }
-        }
-        if has_nested {
-            return None;
-        }
     }
     // Build the expanded form.
     let indent = " ".repeat(indent_width);
-    if !arg_body.contains('\n') {
-        // Single-line object: `fn(\n  { k: v },\n)`
-        // Strip trailing comma from the object literal if present (we add a new one).
-        let arg_clean = arg_body.trim_end_matches(',').trim();
-        Some(format!("{prefix}(\n{indent}{arg_clean},\n)"))
-    } else {
+    if arg_body.contains('\n') {
         // Multi-line object: re-indent each line inside the `{...}` by one extra
         // level, then wrap with `fn(\n  {\n    ...\n  },\n)`.
         let lines: Vec<&str> = arg_body.lines().collect();
@@ -564,17 +556,20 @@ pub(crate) fn expand_obj_arg_call(s: &str, indent_width: usize) -> Option<String
         // Interior lines (everything except first `{` and last `}`).
         for line in &lines[1..lines.len() - 1] {
             let trimmed = line.trim_start();
-            if trimmed.is_empty() {
-                result.push('\n');
-            } else {
+            if !trimmed.is_empty() {
                 result.push_str(&indent);
                 result.push_str(&indent);
                 result.push_str(trimmed);
-                result.push('\n');
             }
+            result.push('\n');
         }
         result.push_str(&indent);
         result.push_str("},\n)");
         Some(result)
+    } else {
+        // Single-line object: `fn(\n  { k: v },\n)`
+        // Strip trailing comma from the object literal if present (we add a new one).
+        let arg_clean = arg_body.trim_end_matches(',').trim();
+        Some(format!("{prefix}(\n{indent}{arg_clean},\n)"))
     }
 }

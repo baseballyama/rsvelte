@@ -216,7 +216,7 @@ fn slot_attribute_value<'a>(
             if exprs.is_empty() {
                 return state.b.string(&quasis[0]);
             }
-            let quasi_refs: Vec<&str> = quasis.iter().map(|s| s.as_str()).collect();
+            let quasi_refs: Vec<&str> = quasis.iter().map(std::string::String::as_str).collect();
             state.b.template(quasi_refs, exprs)
         }
     }

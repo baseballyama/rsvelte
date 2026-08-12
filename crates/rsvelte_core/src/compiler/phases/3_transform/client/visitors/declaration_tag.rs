@@ -1,4 +1,4 @@
-//! DeclarationTag client transform visitor.
+//! `DeclarationTag` client transform visitor.
 //!
 //! Mirrors `phases/3-transform/client/visitors/DeclarationTag.js` from the
 //! upstream Svelte compiler (Svelte 5.56.0 #18282).
@@ -124,7 +124,7 @@ pub fn declaration_tag(node: &DeclarationTag, context: &mut ComponentContext) {
         .each_item_names
         .iter()
         .filter(|n| context.state.transform.contains_key(n.as_str()))
-        .map(|n| n.to_string())
+        .map(std::string::ToString::to_string)
         .collect();
     let transformed = if reactive_each_names.is_empty() {
         transformed
@@ -255,10 +255,10 @@ fn try_emit_async_declaration(
         let src = &context.state.analysis.source;
         let lhs_pattern = id
             .get("start")
-            .and_then(|v| v.as_u64())
-            .zip(id.get("end").and_then(|v| v.as_u64()))
+            .and_then(serde_json::Value::as_u64)
+            .zip(id.get("end").and_then(serde_json::Value::as_u64))
             .and_then(|(st, en)| {
-                let (st, en) = (st as usize, en as usize);
+                let (st, en) = (usize::try_from(st).ok()?, usize::try_from(en).ok()?);
                 if st < en && en <= src.len() {
                     Some(src[st..en].trim().to_string())
                 } else {
@@ -398,7 +398,7 @@ fn strip_ts_annotation_body(body: &str) -> std::borrow::Cow<'_, str> {
     }
 
     let keyword = &body[..kw_len];
-    std::borrow::Cow::Owned(format!("{}{}{}", keyword, stripped_lhs, rhs))
+    std::borrow::Cow::Owned(format!("{keyword}{stripped_lhs}{rhs}"))
 }
 
 /// Return the portion of `s` before the first top-level `:`, trimmed.

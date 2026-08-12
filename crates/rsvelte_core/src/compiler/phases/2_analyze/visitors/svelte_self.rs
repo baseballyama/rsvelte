@@ -1,4 +1,4 @@
-//! SvelteSelf visitor.
+//! `SvelteSelf` visitor.
 //!
 //! Analyzes <svelte:self> elements.
 //!

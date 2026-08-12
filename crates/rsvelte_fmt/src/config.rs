@@ -32,7 +32,7 @@ use oxc_formatter_core::{IndentStyle, IndentWidth, LineEnding, LineWidth};
 use crate::ts_config;
 
 /// Config file names oxfmt recognises, in the order it prefers them:
-/// JSON, then JSONC, then the JS/TS names (mirrors oxc_config's
+/// JSON, then JSONC, then the JS/TS names (mirrors `oxc_config`'s
 /// `ConfigDiscovery::config_file_names` — `apps/oxfmt/src/core/config/mod.rs`
 /// upstream). A directory holding more than one of these is a conflict oxfmt
 /// itself refuses to resolve; we mirror that by erroring instead of silently
@@ -264,7 +264,6 @@ impl OxfmtConfig {
     /// covered byte-for-byte.
     pub fn sort_imports_options(&self) -> Option<SortImportsOptions> {
         match self.sort_imports.as_ref()? {
-            serde_json::Value::Bool(false) => None,
             serde_json::Value::Bool(true) => Some(SortImportsOptions::default()),
             serde_json::Value::Object(obj) => {
                 let mut opts = SortImportsOptions::default();
@@ -441,9 +440,7 @@ fn parse_object(map: &serde_json::Map<String, serde_json::Value>) -> OxfmtConfig
     // turned into `SortImportsOptions` lazily so the embedded `<script>` path
     // gets the same import ordering oxfmt applies.
     cfg.sort_imports = match map.get("sortImports") {
-        Some(v @ serde_json::Value::Bool(_)) | Some(v @ serde_json::Value::Object(_)) => {
-            Some(v.clone())
-        }
+        Some(v @ (serde_json::Value::Bool(_) | serde_json::Value::Object(_))) => Some(v.clone()),
         _ => None,
     };
 

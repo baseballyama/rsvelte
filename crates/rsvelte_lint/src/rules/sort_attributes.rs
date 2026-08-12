@@ -94,18 +94,14 @@ enum Sort {
 /// A leading `!` means negation.
 /// Otherwise it matches exactly (`^exact$`).
 fn compile_pattern(p: &str) -> Option<Pattern> {
-    let (negative, rest) = if let Some(stripped) = p.strip_prefix('!') {
-        (true, stripped)
-    } else {
-        (false, p)
-    };
+    let (negative, rest) = p
+        .strip_prefix('!')
+        .map_or((false, p), |stripped| (true, stripped));
 
-    let re = if let Some(inner) = to_regex(rest) {
-        inner
-    } else {
-        // Exact match
-        Regex::new(&format!("^{}$", regex::escape(rest))).ok()?
-    };
+    let re = to_regex(rest).map_or_else(
+        || Regex::new(&format!("^{}$", regex::escape(rest))).ok(),
+        Some,
+    )?;
     Some(Pattern { negative, re })
 }
 
@@ -123,13 +119,8 @@ fn to_regex(s: &str) -> Option<Regex> {
     // Build a regex with the given flags.
     let mut builder = regex::RegexBuilder::new(pattern);
     for flag in flags.chars() {
-        match flag {
-            'i' => {
-                builder.case_insensitive(true);
-            }
-            // 'u' is the default in Rust's regex crate.
-            'u' => {}
-            _ => {}
+        if flag == 'i' {
+            builder.case_insensitive(true);
         }
     }
     builder.build().ok()
@@ -235,12 +226,10 @@ impl CompiledOption {
             let mb = patterns_match(&g.patterns, b);
             if ma && mb {
                 if g.sort == Sort::Alphabetical {
-                    return if a == b {
-                        0
-                    } else if a < b {
-                        -1
-                    } else {
-                        1
+                    return match a.cmp(b) {
+                        std::cmp::Ordering::Equal => 0,
+                        std::cmp::Ordering::Less => -1,
+                        std::cmp::Ordering::Greater => 1,
                     };
                 }
                 return 0;
@@ -364,7 +353,7 @@ impl SortEntry {
         let (start, end) = attr_range(a);
         let spread = matches!(a, Attribute::SpreadAttribute(_));
         let is_plain_attr = matches!(a, Attribute::Attribute(_));
-        SortEntry {
+        Self {
             key,
             start,
             end,
@@ -375,7 +364,7 @@ impl SortEntry {
 }
 
 /// Get the start and end byte offsets for an attribute.
-fn attr_range(a: &Attribute) -> (u32, u32) {
+const fn attr_range(a: &Attribute) -> (u32, u32) {
     match a {
         Attribute::Attribute(n) => (n.start, n.end),
         Attribute::SpreadAttribute(n) => (n.start, n.end),
@@ -408,9 +397,9 @@ fn attr_range(a: &Attribute) -> (u32, u32) {
 /// The result is: `attrs[prev] ← node, attrs[prev+1] ← attrs[prev], …,
 /// attrs[node] ← attrs[node-1]`.
 ///
-/// To make the runner's overlap-detection work the same way ESLint does
+/// To make the runner's overlap-detection work the same way `ESLint` does
 /// (treating each Fix as an atomic unit that is either fully accepted or
-/// fully rejected when it overlaps another fix), we emit one single TextEdit
+/// fully rejected when it overlaps another fix), we emit one single `TextEdit`
 /// covering the whole span from `attrs[prev_idx].start` to
 /// `attrs[node_idx].end`. The content is the correct rotated text with the
 /// original inter-attribute whitespace preserved between each pair.
@@ -463,7 +452,8 @@ fn build_fix(src: &str, entries: &[SortEntry], prev_idx: usize, node_idx: usize)
 
     // The fix end is the trimmed end of the last attribute (= start + trimmed_len),
     // NOT entries[node_idx].end (which may include trailing whitespace).
-    let last_trimmed_end = entries[node_idx].start + trimmed[n].len() as u32;
+    let last_trimmed_end = entries[node_idx].start
+        + u32::try_from(trimmed[n].len()).expect("source offsets are represented as u32");
 
     Fix {
         message: "Sort attributes".to_string(),
@@ -482,7 +472,7 @@ pub struct SortAttributes;
 
 impl SortAttributes {
     /// Core sort-check, operating on a pre-built list of `SortEntry` values.
-    fn check_entries(&self, ctx: &mut LintContext, entries: &[SortEntry]) {
+    fn check_entries(ctx: &mut LintContext, entries: &[SortEntry]) {
         if entries.len() < 2 {
             return;
         }
@@ -533,7 +523,7 @@ impl SortAttributes {
                     // Spread exists between; use the "spread" verification:
                     // only compare against attributes between the last spread
                     // before `i` and `i`.
-                    self.verify_for_spread(ctx, src, entries, &opt, i);
+                    Self::verify_for_spread(ctx, src, entries, &opt, i);
                 }
                 // Skip adding to valid_previous (we already reported).
                 continue;
@@ -551,10 +541,10 @@ impl SortAttributes {
             .collect()
     }
 
-    fn check_tag(&self, ctx: &mut LintContext, attributes: &[Attribute]) {
+    fn check_tag(ctx: &mut LintContext, attributes: &[Attribute]) {
         let src = ctx.source();
         let entries = Self::entries_from_attrs(src, attributes);
-        self.check_entries(ctx, &entries);
+        Self::check_entries(ctx, &entries);
     }
 
     /// Verify an attribute when spread attributes exist between it and some
@@ -564,7 +554,6 @@ impl SortAttributes {
     /// `node_idx` itself, and only reports when a preceding entry in that window
     /// should come AFTER the current one.
     fn verify_for_spread(
-        &self,
         ctx: &mut LintContext,
         src: &str,
         entries: &[SortEntry],
@@ -574,10 +563,7 @@ impl SortAttributes {
         // Find the last spread attribute before node_idx.
         let last_spread = entries[..node_idx].iter().rposition(|e| e.spread);
 
-        let window_start = match last_spread {
-            Some(s) => s + 1,
-            None => 0,
-        };
+        let window_start = last_spread.map_or(0, |spread| spread + 1);
 
         // Collect previous valid nodes in the window [window_start, node_idx).
         let mut prev_nodes: Vec<usize> = Vec::new();
@@ -684,34 +670,34 @@ impl Rule for SortAttributes {
     }
 
     fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
-        self.check_tag(ctx, &el.attributes);
+        Self::check_tag(ctx, &el.attributes);
     }
 
     fn check_component(&self, ctx: &mut LintContext, c: &Component) {
-        self.check_tag(ctx, &c.attributes);
+        Self::check_tag(ctx, &c.attributes);
     }
 
     fn check_svelte_element(&self, ctx: &mut LintContext, el: &SvelteElement) {
-        self.check_tag(ctx, &el.attributes);
+        Self::check_tag(ctx, &el.attributes);
     }
 
     fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
         let src = ctx.source();
         let entries = Self::entries_for_svelte_component(src, el);
-        self.check_entries(ctx, &entries);
+        Self::check_entries(ctx, &entries);
     }
 
     fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
         let src = ctx.source();
         let entries = Self::entries_for_svelte_dynamic_element(src, el);
-        self.check_entries(ctx, &entries);
+        Self::check_entries(ctx, &entries);
     }
 
     fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
-        self.check_tag(ctx, &el.attributes);
+        Self::check_tag(ctx, &el.attributes);
     }
 
     fn check_special_element(&self, ctx: &mut LintContext, el: &SpecialElement<'_>) {
-        self.check_tag(ctx, &el.attributes);
+        Self::check_tag(ctx, &el.attributes);
     }
 }

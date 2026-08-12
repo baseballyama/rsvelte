@@ -96,7 +96,7 @@ struct StateMemberMutateCollector<'a> {
     replacements: Vec<Edit>,
 }
 
-impl<'a> StateMemberMutateCollector<'a> {
+impl StateMemberMutateCollector<'_> {
     /// Walk the `object` chain of a member expression down to the
     /// leftmost identifier. Returns `None` if the leftmost atom is
     /// a call, parenthesised expression, `this`, etc.
@@ -122,7 +122,7 @@ impl<'a> StateMemberMutateCollector<'a> {
     }
 }
 
-impl<'a, 'ast> Visit<'ast> for StateMemberMutateCollector<'a> {
+impl<'ast> Visit<'ast> for StateMemberMutateCollector<'_> {
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
         walk::walk_assignment_expression(self, expr);
 
@@ -148,7 +148,7 @@ impl<'a, 'ast> Visit<'ast> for StateMemberMutateCollector<'a> {
         wrapped.push(')');
         wrapped.push_str(&outer_text[re..]);
 
-        let rewrite = format!("$.mutate({}, {})", state_var, wrapped);
+        let rewrite = format!("$.mutate({state_var}, {wrapped})");
         self.replacements
             .push((expr.span.start, expr.span.end, rewrite));
     }

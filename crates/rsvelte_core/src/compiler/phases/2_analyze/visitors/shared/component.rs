@@ -25,6 +25,10 @@ use crate::ast::template::{Attribute, Component};
 /// - Fragment analysis
 ///
 /// Corresponds to `visit_component(node, context)` in shared/component.js.
+///
+/// # Errors
+///
+/// Returns an error when component structure or attributes violate analysis rules.
 pub fn visit_component<'a, 'b: 'a>(
     component: &mut Component<'b>,
     context: &mut VisitorContext<'a>,
@@ -183,9 +187,6 @@ pub fn visit_component<'a, 'b: 'a>(
                 // TODO: Validate attach tag
                 // disallow_unparenthesized_sequences(attribute.expression, context.state.analysis.source)
             }
-            Attribute::LetDirective(_) | Attribute::SpreadAttribute(_) => {
-                // These are allowed on components
-            }
             _ => {
                 // All other directive types are invalid on components
                 // (TransitionDirective, AnimateDirective, UseDirective, ClassDirective, StyleDirective)
@@ -231,9 +232,6 @@ pub fn visit_component<'a, 'b: 'a>(
             Attribute::AttachTag(attach) => {
                 // Visit the attach expression
                 super::super::script::walk_expression(&attach.expression, context)?;
-            }
-            Attribute::LetDirective(_) => {
-                // Let directives don't have expressions to visit for needs_context
             }
             _ => {
                 // Other directives (StyleDirective, ClassDirective, etc.) are invalid
@@ -303,7 +301,7 @@ pub fn visit_component<'a, 'b: 'a>(
 /// This checks for:
 /// 1. Duplicate slot names in component children
 /// 2. Both explicit slot="default" and implicit default content
-/// 3. snippet_conflict: {#snippet children()} used alongside other content
+/// 3. `snippet_conflict`: {#snippet `children()`} used alongside other content
 fn validate_slot_attributes(component: &Component) -> Result<(), AnalysisError> {
     use crate::ast::template::TemplateNode;
 
@@ -405,6 +403,10 @@ fn get_slot_name(node: &crate::ast::template::TemplateNode) -> Option<String> {
 }
 
 /// Validate a component and its attributes.
+///
+/// # Errors
+///
+/// Returns an error for an invalid component name or attribute usage.
 pub fn validate_component(
     component: &Component,
     context: &mut VisitorContext,
@@ -415,8 +417,7 @@ pub fn validate_component(
 
     if !first_char.is_uppercase() && !name.contains('.') && !name.contains(':') {
         return Err(AnalysisError::Validation(format!(
-            "Component name '{}' should start with an uppercase letter",
-            name
+            "Component name '{name}' should start with an uppercase letter"
         )));
     }
 

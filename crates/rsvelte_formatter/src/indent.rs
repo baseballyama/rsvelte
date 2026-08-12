@@ -24,7 +24,7 @@ use crate::width::{VisualWidth, tab_width};
 /// `child_depth` is the indent level at which this fragment's children
 /// render. The root call uses `0`. Recursing into an element's
 /// children adds one level.
-pub(crate) fn collect_indent_edits(
+pub fn collect_indent_edits(
     source: &str,
     fragment: &Fragment,
     child_depth: usize,
@@ -555,6 +555,39 @@ fn collect_indent_edits_inner(
     Ok(())
 }
 
+fn collect_if_block_indent(
+    source: &str,
+    block: &IfBlock,
+    depth: usize,
+    options: &FormatOptions,
+    edits: &mut Vec<(u32, u32, String)>,
+) -> Result<(), FormatError> {
+    let mut current = block;
+    loop {
+        collect_indent_edits_inner(
+            source,
+            &current.consequent,
+            depth,
+            true,
+            true,
+            options,
+            edits,
+        )?;
+        match &current.alternate {
+            Some(alternate) => {
+                if let Some(chained) = else_if_branch(alternate) {
+                    current = chained;
+                    continue;
+                }
+                collect_indent_edits_inner(source, alternate, depth, true, true, options, edits)?;
+                break;
+            }
+            None => break,
+        }
+    }
+    Ok(())
+}
+
 fn recurse_into_children(
     source: &str,
     node: &TemplateNode,
@@ -615,37 +648,8 @@ fn recurse_into_children(
         TemplateNode::SvelteElement(e) => {
             collect_indent_edits(source, &e.fragment, next_depth, options, edits)?;
         }
-        TemplateNode::IfBlock(blk) => {
-            // Walk the `{#if} / {:else if} / {:else}` chain at one consistent
-            // depth. svelte desugars `{:else if}` into an alternate fragment
-            // whose sole child is another IfBlock (`elseif = true`); prettier
-            // keeps every chained branch at the same indent as the opening
-            // `{#if}`, so follow the chain here rather than recursing (which
-            // would add one level per `{:else if}`).
-            let mut current: &IfBlock = blk;
-            loop {
-                collect_indent_edits_inner(
-                    source,
-                    &current.consequent,
-                    next_depth,
-                    true,
-                    true, // if/else body is a block body
-                    options,
-                    edits,
-                )?;
-                match &current.alternate {
-                    Some(alt) => match else_if_branch(alt) {
-                        Some(chained) => current = chained,
-                        None => {
-                            collect_indent_edits_inner(
-                                source, alt, next_depth, true, true, options, edits,
-                            )?;
-                            break;
-                        }
-                    },
-                    None => break,
-                }
-            }
+        TemplateNode::IfBlock(block) => {
+            collect_if_block_indent(source, block, next_depth, options, edits)?;
         }
         TemplateNode::EachBlock(blk) => {
             collect_indent_edits_inner(source, &blk.body, next_depth, true, true, options, edits)?;
@@ -710,11 +714,11 @@ fn recurse_into_children(
 }
 
 /// If `alt` is the desugared body of an `{:else if}` — a fragment whose sole
-/// child is an `elseif` IfBlock — return that IfBlock so the caller can keep it
+/// child is an `elseif` `IfBlock` — return that `IfBlock` so the caller can keep it
 /// at the same depth. A plain `{:else}` whose body merely starts with an
 /// `{#if}` carries surrounding whitespace text nodes (and `elseif == false`),
 /// so it won't match and is indented as a normal nested block.
-pub(crate) fn else_if_branch<'b, 'a>(alt: &'b Fragment<'a>) -> Option<&'b IfBlock<'a>> {
+pub fn else_if_branch<'b, 'a>(alt: &'b Fragment<'a>) -> Option<&'b IfBlock<'a>> {
     match alt.nodes.as_slice() {
         [TemplateNode::IfBlock(b)] if b.elseif => Some(b.as_ref()),
         _ => None,
@@ -751,7 +755,7 @@ fn is_inline_level_node(
     };
     // `singleAttributePerLine` breaks every attribute of a multi-attribute tag
     // regardless of width, so such an element is never flat.
-    if options.single_attribute_per_line && attr_count > 1 {
+    if options.attributes.single_attribute_per_line && attr_count > 1 {
         return false;
     }
     // An element that cannot print flat breaks its own open tag, and prettier
@@ -765,7 +769,7 @@ fn is_inline_level_node(
     !flat.contains('\n') && indent_width + flat.visual_width(tw) <= line_width
 }
 
-fn is_indent_provoking(node: &TemplateNode) -> bool {
+const fn is_indent_provoking(node: &TemplateNode) -> bool {
     matches!(
         node,
         // Mustache tags and comments sit on their own line just like elements

@@ -312,8 +312,9 @@ fn collect_info_from_node<'a>(
             // `resolveExpression(initExpression, scope.parent)`. A simple
             // identifier context binds to `__sveltets_2_unwrapArr(coll)`.
             // (The fallback is outside the each scope.)
-            let pushed = match block.context.as_ref() {
-                Some(ctx) => {
+            let pushed = block.context.as_ref().map_or_else(
+                || 0,
+                |ctx| {
                     let coll = resolve_slot_expression(
                         get_expression_text(&block.expression, source),
                         scope,
@@ -321,12 +322,11 @@ fn collect_info_from_node<'a>(
                     push_context_binding(
                         ctx,
                         source,
-                        &format!("__sveltets_2_unwrapArr({})", coll),
+                        &format!("__sveltets_2_unwrapArr({coll})"),
                         scope,
                     )
-                }
-                None => 0,
-            };
+                },
+            );
             collect_info_from_fragment(
                 &block.body,
                 source,
@@ -355,8 +355,9 @@ fn collect_info_from_node<'a>(
                 // `{#await promise then value}` binds `value` to
                 // `__sveltets_2_unwrapPromiseLike(promise)` for slot props in the
                 // then-branch (mirrors official slot scope resolution).
-                let pushed = match block.value.as_ref() {
-                    Some(value) => {
+                let pushed = block.value.as_ref().map_or_else(
+                    || 0,
+                    |value| {
                         let promise = resolve_slot_expression(
                             get_expression_text(&block.expression, source),
                             scope,
@@ -364,12 +365,11 @@ fn collect_info_from_node<'a>(
                         push_context_binding(
                             value,
                             source,
-                            &format!("__sveltets_2_unwrapPromiseLike({})", promise),
+                            &format!("__sveltets_2_unwrapPromiseLike({promise})"),
                             scope,
                         )
-                    }
-                    None => 0,
-                };
+                    },
+                );
                 collect_info_from_fragment(then, source, info, scope, enclosing, detector, arena);
                 for _ in 0..pushed {
                     scope.pop();
@@ -378,12 +378,10 @@ fn collect_info_from_node<'a>(
             if let Some(ref catch) = block.catch {
                 // Official `getResolveExpressionStr` types a `{:catch e}` binding
                 // as `__sveltets_2_any({})` — the error is untyped.
-                let pushed = match block.error.as_ref() {
-                    Some(error) => {
-                        push_context_binding(error, source, "__sveltets_2_any({})", scope)
-                    }
-                    None => 0,
-                };
+                let pushed = block.error.as_ref().map_or_else(
+                    || 0,
+                    |error| push_context_binding(error, source, "__sveltets_2_any({})", scope),
+                );
                 collect_info_from_fragment(catch, source, info, scope, enclosing, detector, arena);
                 for _ in 0..pushed {
                     scope.pop();
@@ -572,17 +570,14 @@ fn push_context_binding(
     let pattern = get_expression_text(context, source);
     let mut count = 0usize;
     for name in collect_pattern_bindings(pattern) {
-        scope.push((
-            name.clone(),
-            format!("(({}) => {})({})", pattern, name, resolved),
-        ));
+        scope.push((name.clone(), format!("(({pattern}) => {name})({resolved})")));
         count += 1;
     }
     count
 }
 
 /// Collect slot prop entries from a <slot> element's attributes.
-/// Returns props like ["a:b", "c:d"] for `<slot a={b} c={d}>`.
+/// Returns props like `["a:b", "c:d"]` for `<slot a={b} c={d}>`.
 fn collect_slot_prop_entries(
     attributes: &[Attribute],
     source: &str,
@@ -601,11 +596,11 @@ fn collect_slot_prop_entries(
         // becomes `__sveltets_2_unwrapArr(...)`), while a member/other expression
         // (`{...obj.data}`) has `name === undefined` and emits `...undefined`.
         if let Attribute::SpreadAttribute(spread) = attr {
-            let name = match expression_simple_identifier(&spread.expression, source) {
-                Some(id) => resolve_slot_expression(&id, scope),
-                None => "undefined".to_string(),
-            };
-            props.push(format!("...{}", name));
+            let name = expression_simple_identifier(&spread.expression, source).map_or_else(
+                || "undefined".to_string(),
+                |id| resolve_slot_expression(&id, scope),
+            );
+            props.push(format!("...{name}"));
             continue;
         }
         if let Attribute::Attribute(node) = attr {

@@ -57,10 +57,8 @@ impl SidecarEnv {
         if !script.is_file() {
             return None;
         }
-        let node = std::env::var_os(NODE_ENV)
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("node"));
-        node_runnable(&node).then_some(SidecarEnv {
+        let node = std::env::var_os(NODE_ENV).map_or_else(|| PathBuf::from("node"), PathBuf::from);
+        node_runnable(&node).then_some(Self {
             node,
             script,
             timeout: DEFAULT_TIMEOUT,
@@ -68,11 +66,9 @@ impl SidecarEnv {
     }
 }
 
-/// Apply the config's `warningFilter` to `diagnostics` in place, dropping every
-/// Svelte compiler **warning** the predicate rejects. Errors and non-Svelte
-/// (e.g. TypeScript) diagnostics are never touched — `warningFilter` only ever
-/// sees compiler warnings. On any sidecar failure the diagnostics are left
-/// untouched and a single note is printed to stderr.
+/// Applies the config's `warningFilter` to Svelte warnings in place.
+///
+/// Errors and non-Svelte diagnostics are unchanged; sidecar failures retain all diagnostics.
 pub fn apply(env: &SidecarEnv, config_path: &Path, diagnostics: &mut Vec<Diagnostic>) {
     // Indices of the Svelte warnings the filter is allowed to judge, in order.
     let indices: Vec<usize> = diagnostics
@@ -232,8 +228,7 @@ fn node_runnable(node: &Path) -> bool {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
+        .is_ok_and(|s| s.success())
 }
 
 // Only the pure, Node-free logic is unit-tested here so the `--lib` test-unit CI

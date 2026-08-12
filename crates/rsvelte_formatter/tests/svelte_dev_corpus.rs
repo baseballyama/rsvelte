@@ -93,8 +93,7 @@ fn oxfmt_runnable(oxfmt: &Path) -> bool {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
+        .is_ok_and(|s| s.success())
 }
 
 /// Build a style callback that mirrors the production one in
@@ -265,8 +264,7 @@ fn svelte_dev_corpus_parity() {
     let unparseable: Mutex<Vec<(String, String)>> = Mutex::new(Vec::new());
     let next = AtomicUsize::new(0);
     let n_threads = std::thread::available_parallelism()
-        .map(|n| n.get())
-        .unwrap_or(4)
+        .map_or(4, std::num::NonZero::get)
         .min(8);
 
     std::thread::scope(|scope| {
@@ -373,10 +371,10 @@ fn first_diff(expected: &str, got: &str) -> String {
         }
     }
     let (el, gl) = (expected.lines().count(), got.lines().count());
-    if el != gl {
-        format!("line count differs: expected {el} got {gl}")
-    } else {
+    if el == gl {
         "outputs differ (trailing whitespace/newline)".to_string()
+    } else {
+        format!("line count differs: expected {el} got {gl}")
     }
 }
 

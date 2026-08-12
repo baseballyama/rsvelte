@@ -31,6 +31,7 @@ pub static META: RuleMeta = RuleMeta {
     options_schema: None,
 };
 
+#[must_use]
 pub fn diagnostics(source: &str, file: &Path, config: &LintConfig) -> Vec<Diagnostic> {
     let severity = config.resolve_code(META.name, META.default_severity);
     if severity == Severity::Off {

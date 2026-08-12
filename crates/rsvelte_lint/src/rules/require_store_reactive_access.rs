@@ -1,3 +1,5 @@
+//! `svelte/require-store-reactive-access`.
+//!
 //! `svelte/require-store-reactive-access` — disallow using a store itself as an
 //! operand; the `$` prefix (or `get`) must be used to read its reactive value.
 //! Port of the eslint-plugin-svelte rule (ES / non-type-aware path).
@@ -39,6 +41,14 @@ static META: RuleMeta = RuleMeta {
 
 const MESSAGE: &str = "Use the $ prefix or the get function to access reactive values instead of accessing the raw store.";
 
+fn json_offset(value: u64) -> Option<u32> {
+    u32::try_from(value).ok()
+}
+
+fn source_width(value: usize) -> u32 {
+    u32::try_from(value).expect("identifier widths are represented as u32")
+}
+
 /// A pending finding: the reported node span and an optional `$`-insert offset.
 struct Report {
     start: u32,
@@ -51,10 +61,14 @@ fn is_ident(node: &Value) -> bool {
 }
 
 fn nstart(node: &Value) -> Option<u32> {
-    node.get("start").and_then(Value::as_u64).map(|v| v as u32)
+    node.get("start")
+        .and_then(Value::as_u64)
+        .and_then(json_offset)
 }
 fn nend(node: &Value) -> Option<u32> {
-    node.get("end").and_then(Value::as_u64).map(|v| v as u32)
+    node.get("end")
+        .and_then(Value::as_u64)
+        .and_then(json_offset)
 }
 
 /// Collect store variables: `const|let NAME = writable()/readable()/derived()`.
@@ -175,11 +189,11 @@ impl Checker<'_> {
             .and_then(|l| l.get("end"))
             .and_then(|e| e.get("character"))
             .and_then(Value::as_u64)
-            .map(|v| v as u32)
+            .and_then(json_offset)
         else {
             return;
         };
-        let start = end.saturating_sub(name.len() as u32);
+        let start = end.saturating_sub(source_width(name.len()));
         self.reports.push(Report {
             start,
             end,
@@ -203,7 +217,7 @@ fn nearest_element(ancestors: &[&Value]) -> Option<&'static str> {
 }
 
 fn element_accepts_store(el: Option<&'static str>) -> bool {
-    matches!(el, Some("Component") | Some("SvelteComponent"))
+    matches!(el, Some("Component" | "SvelteComponent"))
 }
 
 #[derive(Default)]
@@ -270,14 +284,14 @@ impl Rule for RequireStoreReactiveAccess {
 }
 
 fn is_eq_op(op: Option<&str>) -> bool {
-    matches!(op, Some("==") | Some("!=") | Some("===") | Some("!=="))
+    matches!(op, Some("==" | "!=" | "===" | "!=="))
 }
 
 fn walk_dispatch(root: &Value, checker: &mut Checker) {
     walk_js(root, |node, ancestors| {
         match node_type(node) {
             // ---- JS expression positions ----
-            Some("UpdateExpression") | Some("SpreadElement") => {
+            Some("UpdateExpression" | "SpreadElement") => {
                 checker.verify(node.get("argument"), false, true);
             }
             Some("UnaryExpression") => {
@@ -306,20 +320,22 @@ fn walk_dispatch(root: &Value, checker: &mut Checker) {
             Some("LogicalExpression") => {
                 checker.verify(node.get("left"), true, true);
             }
-            Some("ConditionalExpression")
-            | Some("IfStatement")
-            | Some("WhileStatement")
-            | Some("DoWhileStatement")
-            | Some("ForStatement") => {
+            Some(
+                "ConditionalExpression"
+                | "IfStatement"
+                | "WhileStatement"
+                | "DoWhileStatement"
+                | "ForStatement",
+            ) => {
                 checker.verify(node.get("test"), true, true);
             }
-            Some("ForInStatement") | Some("ForOfStatement") => {
+            Some("ForInStatement" | "ForOfStatement") => {
                 checker.verify(node.get("right"), false, true);
             }
             Some("SwitchStatement") => {
                 checker.verify(node.get("discriminant"), false, true);
             }
-            Some("CallExpression") | Some("NewExpression")
+            Some("CallExpression" | "NewExpression")
                 if node.get("callee").map(node_type) != Some(Some("Super")) =>
             {
                 checker.verify(node.get("callee"), false, true);
@@ -331,10 +347,15 @@ fn walk_dispatch(root: &Value, checker: &mut Checker) {
                     }
                 }
             }
-            Some("TaggedTemplateExpression") => {
-                checker.verify(node.get("tag"), false, true);
+            Some("TaggedTemplateExpression" | "SpreadAttribute" | "OnDirective") => {
+                let field = if node_type(node) == Some("TaggedTemplateExpression") {
+                    "tag"
+                } else {
+                    "expression"
+                };
+                checker.verify(node.get(field), false, true);
             }
-            Some("Property") | Some("PropertyDefinition") | Some("MethodDefinition") => {
+            Some("Property" | "PropertyDefinition" | "MethodDefinition") => {
                 let key_is_private =
                     node.get("key").map(node_type) == Some(Some("PrivateIdentifier"));
                 let computed = node.get("computed").and_then(Value::as_bool) == Some(true);
@@ -352,53 +373,48 @@ fn walk_dispatch(root: &Value, checker: &mut Checker) {
             Some("AwaitExpression") => {
                 checker.verify(node.get("argument"), true, true);
             }
-            // ---- Template positions ----
-            Some("ExpressionTag") => {
-                handle_expression_tag(node, ancestors, checker);
-            }
-            Some("SpreadAttribute") => {
-                checker.verify(node.get("expression"), false, true);
-            }
-            Some("ClassDirective") => {
-                let shorthand = directive_is_shorthand(node, checker);
-                checker.verify(node.get("expression"), true, !shorthand);
-            }
-            Some("BindDirective") => {
-                handle_bind_directive(node, ancestors, checker);
-            }
-            Some("OnDirective") => {
-                checker.verify(node.get("expression"), false, true);
-            }
-            // `use:store` / `transition|in|out:store` / `animate:store` — the
-            // directive name itself is the store reference (fixable).
-            Some("UseDirective") | Some("TransitionDirective") | Some("AnimateDirective") => {
-                checker.verify_directive_name(node, false, true);
-            }
-            // `style:color` shorthand — the name is the store (not fixable).
-            Some("StyleDirective") if node.get("value").and_then(Value::as_bool) == Some(true) => {
-                checker.verify_directive_name(node, false, false);
-            }
-            // `<svelte:component this={store}>` / `<svelte:element this={store}>`.
-            Some("SvelteComponent") => {
-                checker.verify(node.get("expression"), false, true);
-            }
-            Some("SvelteElement") => {
-                checker.verify(node.get("tag"), false, true);
-            }
-            Some("IfBlock") | Some("AwaitBlock") => {
-                // {#if store} / {#await store} — consistent.
-                checker.verify(
-                    node.get("test").or_else(|| node.get("expression")),
-                    true,
-                    true,
-                );
-            }
-            Some("EachBlock") => {
-                checker.verify(node.get("expression"), false, true);
-            }
+            node_type if dispatch_template_node(node_type, node, ancestors, checker) => {}
             _ => {}
         }
     });
+}
+
+fn dispatch_template_node(
+    node_kind: Option<&str>,
+    node: &Value,
+    ancestors: &[&Value],
+    checker: &mut Checker,
+) -> bool {
+    match node_kind {
+        Some("ExpressionTag") => handle_expression_tag(node, ancestors, checker),
+        Some("ClassDirective") => {
+            let shorthand = directive_is_shorthand(node, checker);
+            checker.verify(node.get("expression"), true, !shorthand);
+        }
+        Some("BindDirective") => handle_bind_directive(node, ancestors, checker),
+        Some("UseDirective" | "TransitionDirective" | "AnimateDirective") => {
+            checker.verify_directive_name(node, false, true);
+        }
+        Some("StyleDirective") if node.get("value").and_then(Value::as_bool) == Some(true) => {
+            checker.verify_directive_name(node, false, false);
+        }
+        Some("SvelteComponent" | "SvelteElement") => {
+            let field = if node_kind == Some("SvelteComponent") {
+                "expression"
+            } else {
+                "tag"
+            };
+            checker.verify(node.get(field), false, true);
+        }
+        Some("IfBlock" | "AwaitBlock") => checker.verify(
+            node.get("test").or_else(|| node.get("expression")),
+            true,
+            true,
+        ),
+        Some("EachBlock") => checker.verify(node.get("expression"), false, true),
+        _ => return false,
+    }
+    true
 }
 
 /// Whether a directive is shorthand (`class:foo` / `bind:value`) — its value
@@ -442,7 +458,7 @@ fn handle_expression_tag(node: &Value, ancestors: &[&Value], checker: &mut Check
     let attr = parent.unwrap();
     let attr_name = attr.get("name").and_then(Value::as_str).unwrap_or("");
     let el = nearest_element(ancestors);
-    let value_is_array = attr.get("value").map(Value::is_array) == Some(true);
+    let value_is_array = attr.get("value").is_some_and(Value::is_array);
     // shorthand `{store}`: the attribute span starts with `{`.
     let shorthand = nstart(attr).and_then(|s| checker.byte_at(s)) == Some(b'{');
     if shorthand {

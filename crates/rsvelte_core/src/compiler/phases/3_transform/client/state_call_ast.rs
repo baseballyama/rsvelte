@@ -13,7 +13,7 @@
 //!
 //! Combined truth table (mirrors the text predecessor):
 //!
-//! | reactive | needs_proxy | empty | rewrite                          |
+//! | reactive | `needs_proxy` | empty | rewrite                          |
 //! |----------|-------------|-------|----------------------------------|
 //! | yes      | yes         | n/a   | `$.state($.proxy(value))`        |
 //! | yes      | no          | no    | `$.state(value)`                 |
@@ -93,7 +93,7 @@ impl StateCallCollector<'_, '_, '_> {
                 self.semantic
                     .scoping()
                     .get_resolved_references(id)
-                    .any(|reference| reference.is_write())
+                    .any(oxc_semantic::Reference::is_write)
             });
         }
         self.non_reactive_vars.iter().any(|v| v == name)
@@ -141,12 +141,12 @@ impl<'ast> Visit<'ast> for StateCallCollector<'_, '_, '_> {
             && expression_needs_proxy_with_scope(content.trim(), self.non_proxy_vars);
 
         let rewrite = match (is_non_reactive, needs_proxy, trimmed_is_empty) {
-            (true, true, _) => format!("$.proxy({})", collapsed),
+            (true, true, _) => format!("$.proxy({collapsed})"),
             (true, false, true) => "void 0".to_string(),
             (true, false, false) => collapsed,
-            (false, true, _) => format!("$.state($.proxy({}))", collapsed),
+            (false, true, _) => format!("$.state($.proxy({collapsed}))"),
             (false, false, true) => "$.state(void 0)".to_string(),
-            (false, false, false) => format!("$.state({})", collapsed),
+            (false, false, false) => format!("$.state({collapsed})"),
         };
 
         self.replacements

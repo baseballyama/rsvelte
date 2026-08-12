@@ -28,6 +28,10 @@ use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("source offsets are represented as u32")
+}
+
 static META: RuleMeta = RuleMeta {
     name: "svelte/mustache-spacing",
     category: RuleCategory::Formatting,
@@ -92,7 +96,7 @@ impl Options {
             Some("always-after-expression") => CloseOpt::AlwaysAfterExpression,
             _ => CloseOpt::Never,
         };
-        Options {
+        Self {
             text_expressions: parse_open(get("textExpressions"), OpenOpt::Never),
             attributes_and_props: parse_open(get("attributesAndProps"), OpenOpt::Never),
             directive_expressions: parse_open(get("directiveExpressions"), OpenOpt::Never),
@@ -109,7 +113,7 @@ fn first_non_ws(src: &[u8], from: u32, end: u32) -> u32 {
     while i < end && (src[i] as char).is_ascii_whitespace() {
         i += 1;
     }
-    i as u32
+    source_offset(i)
 }
 
 /// Byte just past the last non-whitespace byte in `[start, before)`.
@@ -119,7 +123,7 @@ fn last_non_ws_end(src: &[u8], start: u32, before: u32) -> u32 {
     while i > start && (src[i - 1] as char).is_ascii_whitespace() {
         i -= 1;
     }
-    i as u32
+    source_offset(i)
 }
 
 /// First `}` at or after `from`.
@@ -127,7 +131,7 @@ fn first_close_brace(src: &[u8], from: u32) -> Option<u32> {
     let mut i = from as usize;
     while i < src.len() {
         if src[i] == b'}' {
-            return Some(i as u32);
+            return Some(source_offset(i));
         }
         i += 1;
     }
@@ -141,7 +145,7 @@ fn prev_open_brace(src: &[u8], floor: u32, before: u32) -> Option<u32> {
     while i > floor {
         i -= 1;
         if src[i] == b'{' {
-            return Some(i as u32);
+            return Some(source_offset(i));
         }
     }
     None
@@ -154,7 +158,6 @@ impl MustacheSpacing {
     /// The core verifier. `open_brace` is the byte offset of `{`. `close_brace`
     /// is the byte offset of `}` (or `None` to skip the closing check).
     fn verify_braces(
-        &self,
         ctx: &mut LintContext,
         open_brace: u32,
         close_brace: Option<u32>,
@@ -172,7 +175,7 @@ impl MustacheSpacing {
         let after_open = open_brace + 1;
         // Stop the inner scan at the closing brace (or EOF) so we don't run past
         // the mustache region.
-        let inner_end = close_brace.unwrap_or(src.len() as u32);
+        let inner_end = close_brace.unwrap_or_else(|| source_offset(src.len()));
         let first_inner = first_non_ws(src, after_open, inner_end);
 
         match open_opt {
@@ -255,19 +258,19 @@ impl MustacheSpacing {
 
     /// Verify a `{ … }` region given its outer span (`{` at `start`, `}` at
     /// `end - 1`), with the same option on both braces.
-    fn verify_wrapped(&self, ctx: &mut LintContext, start: u32, end: u32, opt: OpenOpt) {
+    fn verify_wrapped(ctx: &mut LintContext, start: u32, end: u32, opt: OpenOpt) {
         let close_opt = match opt {
             OpenOpt::Always => CloseOpt::Always,
             OpenOpt::Never => CloseOpt::Never,
         };
-        self.verify_braces(ctx, start, Some(end - 1), opt, close_opt, false);
+        Self::verify_braces(ctx, start, Some(end - 1), opt, close_opt, false);
     }
 
     /// Verify a whole-node tag (`{@html …}`, `{@debug …}`, `{@render …}`, …)
     /// using the `tags` option, with `hasExpression = true`.
-    fn verify_tag_node(&self, ctx: &mut LintContext, start: u32, end: u32) {
+    fn verify_tag_node(ctx: &mut LintContext, start: u32, end: u32) {
         let opts = Options::resolve(ctx);
-        self.verify_braces(
+        Self::verify_braces(
             ctx,
             start,
             Some(end - 1),
@@ -285,23 +288,23 @@ impl Rule for MustacheSpacing {
 
     fn check_expression_tag(&self, ctx: &mut LintContext, tag: &ExpressionTag) {
         let opt = Options::resolve(ctx).text_expressions;
-        self.verify_wrapped(ctx, tag.start, tag.end, opt);
+        Self::verify_wrapped(ctx, tag.start, tag.end, opt);
     }
 
     fn check_html_tag(&self, ctx: &mut LintContext, tag: &HtmlTag) {
-        self.verify_tag_node(ctx, tag.start, tag.end);
+        Self::verify_tag_node(ctx, tag.start, tag.end);
     }
 
     fn check_debug_tag(&self, ctx: &mut LintContext, tag: &DebugTag) {
-        self.verify_tag_node(ctx, tag.start, tag.end);
+        Self::verify_tag_node(ctx, tag.start, tag.end);
     }
 
     fn check_declaration_tag(&self, ctx: &mut LintContext, tag: &DeclarationTag) {
-        self.verify_tag_node(ctx, tag.start, tag.end);
+        Self::verify_tag_node(ctx, tag.start, tag.end);
     }
 
     fn check_render_tag(&self, ctx: &mut LintContext, tag: &RenderTag) {
-        self.verify_tag_node(ctx, tag.start, tag.end);
+        Self::verify_tag_node(ctx, tag.start, tag.end);
     }
 
     fn check_attribute(&self, ctx: &mut LintContext, attr: &Attribute) {
@@ -309,33 +312,13 @@ impl Rule for MustacheSpacing {
         let src = ctx.source().as_bytes();
         match attr {
             Attribute::Attribute(node) => {
-                let opt = opts.attributes_and_props;
-                match &node.value {
-                    AttributeValue::True(_) => {}
-                    AttributeValue::Expression(tag) => {
-                        // Shorthand `{name}`: the AttributeNode itself spans the
-                        // braces (the ExpressionTag is identifier-only). Regular
-                        // `name={expr}`: the ExpressionTag spans `{expr}`.
-                        if src.get(node.start as usize) == Some(&b'{') {
-                            self.verify_wrapped(ctx, node.start, node.end, opt);
-                        } else {
-                            self.verify_wrapped(ctx, tag.start, tag.end, opt);
-                        }
-                    }
-                    AttributeValue::Sequence(parts) => {
-                        for part in parts {
-                            if let AttributeValuePart::ExpressionTag(tag) = part {
-                                self.verify_wrapped(ctx, tag.start, tag.end, opt);
-                            }
-                        }
-                    }
-                }
+                verify_attribute_value(ctx, node, opts.attributes_and_props, src);
             }
             Attribute::SpreadAttribute(node) => {
-                self.verify_wrapped(ctx, node.start, node.end, opts.attributes_and_props);
+                Self::verify_wrapped(ctx, node.start, node.end, opts.attributes_and_props);
             }
             Attribute::AttachTag(_) => {}
-            Attribute::BindDirective(d) => self.verify_directive(
+            Attribute::BindDirective(d) => Self::verify_directive(
                 ctx,
                 src,
                 d.start,
@@ -344,7 +327,7 @@ impl Rule for MustacheSpacing {
                 d.expression.end(),
                 opts.directive_expressions,
             ),
-            Attribute::OnDirective(d) => self.verify_directive_opt(
+            Attribute::OnDirective(d) => Self::verify_directive_opt(
                 ctx,
                 src,
                 d.start,
@@ -352,7 +335,7 @@ impl Rule for MustacheSpacing {
                 d.expression.as_ref(),
                 opts.directive_expressions,
             ),
-            Attribute::ClassDirective(d) => self.verify_directive(
+            Attribute::ClassDirective(d) => Self::verify_directive(
                 ctx,
                 src,
                 d.start,
@@ -366,18 +349,18 @@ impl Rule for MustacheSpacing {
                 match &d.value {
                     AttributeValue::True(_) => {}
                     AttributeValue::Expression(tag) => {
-                        self.verify_wrapped(ctx, tag.start, tag.end, opt)
+                        Self::verify_wrapped(ctx, tag.start, tag.end, opt);
                     }
                     AttributeValue::Sequence(parts) => {
                         for part in parts {
                             if let AttributeValuePart::ExpressionTag(tag) = part {
-                                self.verify_wrapped(ctx, tag.start, tag.end, opt);
+                                Self::verify_wrapped(ctx, tag.start, tag.end, opt);
                             }
                         }
                     }
                 }
             }
-            Attribute::TransitionDirective(d) => self.verify_directive_opt(
+            Attribute::TransitionDirective(d) => Self::verify_directive_opt(
                 ctx,
                 src,
                 d.start,
@@ -385,7 +368,7 @@ impl Rule for MustacheSpacing {
                 d.expression.as_ref(),
                 opts.directive_expressions,
             ),
-            Attribute::AnimateDirective(d) => self.verify_directive_opt(
+            Attribute::AnimateDirective(d) => Self::verify_directive_opt(
                 ctx,
                 src,
                 d.start,
@@ -393,7 +376,7 @@ impl Rule for MustacheSpacing {
                 d.expression.as_ref(),
                 opts.directive_expressions,
             ),
-            Attribute::UseDirective(d) => self.verify_directive_opt(
+            Attribute::UseDirective(d) => Self::verify_directive_opt(
                 ctx,
                 src,
                 d.start,
@@ -401,7 +384,7 @@ impl Rule for MustacheSpacing {
                 d.expression.as_ref(),
                 opts.directive_expressions,
             ),
-            Attribute::LetDirective(d) => self.verify_directive_opt(
+            Attribute::LetDirective(d) => Self::verify_directive_opt(
                 ctx,
                 src,
                 d.start,
@@ -420,7 +403,7 @@ impl Rule for MustacheSpacing {
         if let Some(test_end) = block.test.end()
             && let Some(close) = first_close_brace(src, test_end)
         {
-            self.verify_braces(
+            Self::verify_braces(
                 ctx,
                 open,
                 Some(close),
@@ -439,7 +422,7 @@ impl Rule for MustacheSpacing {
                 .iter()
                 .any(|n| matches!(n, TemplateNode::IfBlock(b) if b.elseif));
             if !is_elseif && let Some((eo, ec)) = find_else_tag(src, block.start, block.end) {
-                self.verify_braces(
+                Self::verify_braces(
                     ctx,
                     eo,
                     Some(ec),
@@ -455,7 +438,7 @@ impl Rule for MustacheSpacing {
         // Closing tag `{/if}`.
         let close = block.end - 1;
         if let Some(open_b) = prev_open_brace(src, block.start, close) {
-            self.verify_braces(
+            Self::verify_braces(
                 ctx,
                 open_b,
                 Some(close),
@@ -479,7 +462,7 @@ impl Rule for MustacheSpacing {
             last = last.max(k.end().unwrap_or(last));
         }
         if let Some(close) = first_close_brace(src, last) {
-            self.verify_braces(
+            Self::verify_braces(
                 ctx,
                 block.start,
                 Some(close),
@@ -491,7 +474,7 @@ impl Rule for MustacheSpacing {
         // Closing `{/each}`.
         let close = block.end - 1;
         if let Some(open_b) = prev_open_brace(src, block.start, close) {
-            self.verify_braces(
+            Self::verify_braces(
                 ctx,
                 open_b,
                 Some(close),
@@ -504,7 +487,7 @@ impl Rule for MustacheSpacing {
         if block.fallback.is_some()
             && let Some((eo, ec)) = find_else_tag(src, block.start, block.end)
         {
-            self.verify_braces(
+            Self::verify_braces(
                 ctx,
                 eo,
                 Some(ec),
@@ -521,7 +504,7 @@ impl Rule for MustacheSpacing {
         if let Some(expr_end) = block.expression.end()
             && let Some(close) = first_close_brace(src, expr_end)
         {
-            self.verify_braces(
+            Self::verify_braces(
                 ctx,
                 block.start,
                 Some(close),
@@ -532,7 +515,7 @@ impl Rule for MustacheSpacing {
         }
         let close = block.end - 1;
         if let Some(open_b) = prev_open_brace(src, block.start, close) {
-            self.verify_braces(
+            Self::verify_braces(
                 ctx,
                 open_b,
                 Some(close),
@@ -551,11 +534,11 @@ impl Rule for MustacheSpacing {
         let last = block
             .parameters
             .last()
-            .and_then(|p| p.end())
+            .and_then(rsvelte_core::ast::js::Expression::end)
             .or_else(|| block.expression.end())
             .unwrap_or(block.start);
         if let Some(close) = first_close_brace(src, last) {
-            self.verify_braces(
+            Self::verify_braces(
                 ctx,
                 block.start,
                 Some(close),
@@ -566,7 +549,7 @@ impl Rule for MustacheSpacing {
         }
         let close = block.end - 1;
         if let Some(open_b) = prev_open_brace(src, block.start, close) {
-            self.verify_braces(
+            Self::verify_braces(
                 ctx,
                 open_b,
                 Some(close),
@@ -584,7 +567,7 @@ impl Rule for MustacheSpacing {
         // Closing `{/await}`.
         let close = block.end - 1;
         if let Some(open_b) = prev_open_brace(src, block.start, close) {
-            self.verify_braces(
+            Self::verify_braces(
                 ctx,
                 open_b,
                 Some(close),
@@ -602,7 +585,7 @@ impl Rule for MustacheSpacing {
             && let Some(expr_end) = block.expression.end()
             && let Some(c) = first_close_brace(src, expr_end)
         {
-            self.verify_braces(
+            Self::verify_braces(
                 ctx,
                 block.start,
                 Some(c),
@@ -622,13 +605,15 @@ impl Rule for MustacheSpacing {
             let open_block_last = block
                 .value
                 .as_ref()
-                .and_then(|v| v.end())
-                .or(if await_then {
-                    block.expression.end()
-                } else {
-                    None
+                .and_then(rsvelte_core::ast::js::Expression::end)
+                .or_else(|| {
+                    if await_then {
+                        block.expression.end()
+                    } else {
+                        None
+                    }
                 });
-            self.verify_branch(ctx, &opts, open_b, open_block_last, src);
+            Self::verify_branch(ctx, &opts, open_b, open_block_last, src);
         }
 
         // `{:catch …}` / combined `{#await … catch …}`.
@@ -641,13 +626,42 @@ impl Rule for MustacheSpacing {
             let open_block_last = block
                 .error
                 .as_ref()
-                .and_then(|e| e.end())
-                .or(if await_catch {
-                    block.expression.end()
-                } else {
-                    None
+                .and_then(rsvelte_core::ast::js::Expression::end)
+                .or_else(|| {
+                    if await_catch {
+                        block.expression.end()
+                    } else {
+                        None
+                    }
                 });
-            self.verify_branch(ctx, &opts, open_b, open_block_last, src);
+            Self::verify_branch(ctx, &opts, open_b, open_block_last, src);
+        }
+    }
+}
+
+fn verify_attribute_value(
+    ctx: &mut LintContext,
+    node: &rsvelte_core::ast::template::AttributeNode,
+    opt: OpenOpt,
+    source: &[u8],
+) {
+    match &node.value {
+        AttributeValue::True(_) => {}
+        AttributeValue::Expression(tag) => {
+            let (start, end) = if source.get(node.start as usize) == Some(&b'{') {
+                (node.start, node.end)
+            } else {
+                (tag.start, tag.end)
+            };
+            MustacheSpacing::verify_wrapped(ctx, start, end, opt);
+        }
+        AttributeValue::Sequence(parts) => {
+            for tag in parts.iter().filter_map(|part| match part {
+                AttributeValuePart::ExpressionTag(tag) => Some(tag),
+                AttributeValuePart::Text(_) => None,
+            }) {
+                MustacheSpacing::verify_wrapped(ctx, tag.start, tag.end, opt);
+            }
         }
     }
 }
@@ -656,7 +670,6 @@ impl MustacheSpacing {
     /// Verify a directive value (`name={expr}`): find the `{` before the
     /// expression and the `}` after it; skip shorthands / value-less directives.
     fn verify_directive(
-        &self,
         ctx: &mut LintContext,
         src: &[u8],
         node_start: u32,
@@ -674,11 +687,10 @@ impl MustacheSpacing {
         let Some(close) = first_close_brace(src, ee).filter(|c| *c < node_end) else {
             return;
         };
-        self.verify_wrapped_braces(ctx, open, close, opt);
+        Self::verify_wrapped_braces(ctx, open, close, opt);
     }
 
     fn verify_directive_opt(
-        &self,
         ctx: &mut LintContext,
         src: &[u8],
         node_start: u32,
@@ -687,24 +699,23 @@ impl MustacheSpacing {
         opt: OpenOpt,
     ) {
         if let Some(e) = expr {
-            self.verify_directive(ctx, src, node_start, node_end, e.start(), e.end(), opt);
+            Self::verify_directive(ctx, src, node_start, node_end, e.start(), e.end(), opt);
         }
     }
 
     /// Like [`verify_wrapped`] but the braces are at explicit offsets.
-    fn verify_wrapped_braces(&self, ctx: &mut LintContext, open: u32, close: u32, opt: OpenOpt) {
+    fn verify_wrapped_braces(ctx: &mut LintContext, open: u32, close: u32, opt: OpenOpt) {
         let close_opt = match opt {
             OpenOpt::Always => CloseOpt::Always,
             OpenOpt::Never => CloseOpt::Never,
         };
-        self.verify_braces(ctx, open, Some(close), opt, close_opt, false);
+        Self::verify_braces(ctx, open, Some(close), opt, close_opt, false);
     }
 
     /// Verify an await then/catch branch given its opening `{` and the byte just
     /// past the last binding/expression (or `None` when the branch carries no
     /// binding — then only the opening brace is checked).
     fn verify_branch(
-        &self,
         ctx: &mut LintContext,
         opts: &Options,
         open_b: u32,
@@ -714,19 +725,15 @@ impl MustacheSpacing {
         if open_b == u32::MAX {
             return;
         }
-        let (close, has_expr) = match open_block_last {
-            Some(last) => match first_close_brace(src, last) {
-                Some(c) => {
-                    // hasExpression ⇔ the close brace is the first token after
-                    // the binding (only whitespace between them).
-                    let has = last_non_ws_end(src, last, c) == last;
-                    (Some(c), has)
-                }
-                None => (None, false),
-            },
-            None => (None, false),
-        };
-        self.verify_braces(
+        let (close, has_expr) = open_block_last.map_or((None, false), |last| {
+            first_close_brace(src, last).map_or((None, false), |close_brace| {
+                // hasExpression ⇔ the close brace is the first token after
+                // the binding (only whitespace between them).
+                let has_expression = last_non_ws_end(src, last, close_brace) == last;
+                (Some(close_brace), has_expression)
+            })
+        });
+        Self::verify_braces(
             ctx,
             open_b,
             close,
@@ -750,7 +757,7 @@ fn find_branch_tag(src: &[u8], start: u32, end: u32, keyword: &[u8]) -> u32 {
                 j += 1;
             }
             if src[j..end.min(j + keyword.len())] == *keyword {
-                return i as u32;
+                return source_offset(i);
             }
         }
         i += 1;
@@ -811,12 +818,12 @@ fn find_else_tag(src: &[u8], start: u32, end: u32) -> Option<(u32, u32)> {
     while i < end {
         if src[i] == b'{' {
             // Find the matching `}` (the `{:else}` tag has no nested braces).
-            if let Some(close) = first_close_brace(src, (i + 1) as u32) {
+            if let Some(close) = first_close_brace(src, source_offset(i + 1)) {
                 let inner = std::str::from_utf8(&src[i + 1..close as usize])
                     .unwrap_or("")
                     .trim();
                 if inner == ":else" {
-                    return Some((i as u32, close));
+                    return Some((source_offset(i), close));
                 }
             }
         }

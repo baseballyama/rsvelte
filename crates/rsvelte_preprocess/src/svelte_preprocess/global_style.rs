@@ -10,6 +10,10 @@
 use regex::Regex;
 
 /// `globalifyRulePlugin` (always) + `globalAttrPlugin` (when `is_global`).
+///
+/// # Errors
+///
+/// Returns an error when the stylesheet cannot be transformed.
 pub fn transform(content: &str, is_global: bool) -> Result<String, String> {
     let mut edits: Vec<(usize, usize, String)> = Vec::new();
     scan_block(content, 0, content.len(), None, is_global, &mut edits);
@@ -188,7 +192,7 @@ fn handle_at_rule(
     }
     // Params = text after the name, trimmed (its span within the prelude).
     let prelude = &s[stmt_start..body_open];
-    let at_ident_end = stmt_start + prelude.find(&name).map(|p| p + name.len()).unwrap_or(0);
+    let at_ident_end = stmt_start + prelude.find(&name).map_or(0, |p| p + name.len());
     let (p_start, p_end) = trimmed_span(s, at_ident_end, body_open);
     if p_start >= p_end {
         return;
@@ -236,9 +240,7 @@ fn process_rule(
 
     // PLUGIN 2 — globalAttrPlugin (only with the `global` attribute, and not for
     // rules nested directly in a `@keyframes`).
-    let in_keyframes = parent_atrule
-        .map(|n| n.ends_with("keyframes"))
-        .unwrap_or(false);
+    let in_keyframes = parent_atrule.is_some_and(|n| n.ends_with("keyframes"));
     if is_global && !in_keyframes {
         current = split_top_commas(&current)
             .into_iter()
@@ -247,14 +249,14 @@ fn process_rule(
             .join(",");
     }
 
-    if current != original {
+    if current == original {
+        Action::Keep
+    } else {
         Action::Replace {
             start: sel_start,
             end: sel_end,
             text: current,
         }
-    } else {
-        Action::Keep
     }
 }
 
@@ -301,13 +303,12 @@ fn split_global_np(s: &str) -> Vec<String> {
     while let Some(pos) = s[from..].find(":global") {
         let abs = from + pos;
         let after = abs + ":global".len();
-        if bytes.get(after) != Some(&b'(') {
+        if bytes.get(after) == Some(&b'(') {
+        } else {
             res.push(s[last..abs].to_string());
             last = after;
-            from = after;
-        } else {
-            from = after;
         }
+        from = after;
     }
     res.push(s[last..].to_string());
     res
@@ -340,6 +341,7 @@ fn split_top_commas(s: &str) -> Vec<&str> {
 }
 
 /// Port of `globalifySelector` (`src/modules/globalifySelector.ts`).
+#[must_use]
 pub fn globalify_selector(selector: &str) -> String {
     let parts = split_combinators(selector.trim());
     let mut out: Vec<String> = Vec::new();
@@ -363,8 +365,7 @@ pub fn globalify_selector(selector: &str) -> String {
                 .enumerate()
                 .skip(start_index + 1)
                 .find(|(_, p)| p.starts_with(":global"))
-                .map(|(idx, _)| idx)
-                .unwrap_or(parts.len() - 1);
+                .map_or(parts.len() - 1, |(idx, _)| idx);
             for p in &parts[start_index..=end_index] {
                 out.push(p.clone());
             }

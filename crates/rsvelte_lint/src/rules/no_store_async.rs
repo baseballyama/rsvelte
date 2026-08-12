@@ -1,7 +1,9 @@
+//! `svelte/no-store-async`.
+//!
 //! `svelte/no-store-async` — disallow passing an `async` function to a
 //! `svelte/store` creator (`writable` / `readable` / `derived`). An async start
 //! function breaks the store's auto-unsubscribe behaviour. Port of the
-//! eslint-plugin-svelte rule, over the script ESTree program via the
+//! eslint-plugin-svelte rule, over the script `ESTree` program via the
 //! [`ScriptRule`] hook (so it also lints `*.svelte.js` / `*.js` module files).
 //!
 //! The store creators are resolved from their `svelte/store` import — including
@@ -45,7 +47,7 @@ fn ident_name(node: &Value) -> Option<&str> {
 fn is_async_function(node: &Value) -> bool {
     matches!(
         node_type(node),
-        Some("ArrowFunctionExpression") | Some("FunctionExpression")
+        Some("ArrowFunctionExpression" | "FunctionExpression")
     ) && node.get("async").and_then(Value::as_bool) == Some(true)
 }
 

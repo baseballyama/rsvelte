@@ -9,6 +9,7 @@
 
 use crate::ast::arena::ParseArena;
 use crate::ast::template::TemplateNode;
+use crate::ast::{Fragment, RegularElementMetadata};
 use crate::compiler::phases::phase2_analyze::scope::{Binding, Scope, ScopeRoot};
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::client::transform_template::Template;
@@ -30,7 +31,7 @@ pub struct ComponentContext<'a> {
     pub state: ComponentClientTransformState<'a>,
 
     /// Arena allocator for JavaScript AST expressions and statements.
-    /// Uses interior mutability (UnsafeCell) so allocation only needs `&self`.
+    /// Uses interior mutability (`UnsafeCell`) so allocation only needs `&self`.
     pub arena: JsArena,
 
     /// The path of nodes being visited (for parent access)
@@ -445,9 +446,9 @@ impl<'a> ComponentContext<'a> {
                     // Concatenate CSS hash if scoped
                     let class_str = if is_scoped && !css_hash.is_empty() {
                         if text_value.is_empty() {
-                            css_hash.clone()
+                            css_hash
                         } else {
-                            format!("{} {}", text_value, css_hash)
+                            format!("{text_value} {css_hash}")
                         }
                     } else {
                         text_value
@@ -488,8 +489,8 @@ impl<'a> ComponentContext<'a> {
                     name: "div".into(),
                     name_loc: None,
                     attributes: vec![],
-                    fragment: Default::default(),
-                    metadata: Default::default(),
+                    fragment: Fragment::default(),
+                    metadata: RegularElementMetadata::default(),
                 };
                 build_set_class(
                     &dummy_element,
@@ -514,7 +515,7 @@ impl<'a> ComponentContext<'a> {
                     &class_directives,
                     &style_directives,
                     self,
-                    element_id.clone(),
+                    element_id,
                     &css_hash,
                     false, // should_remove_defaults - not needed for svelte:element
                     false, // ignore_hydration - not needed for svelte:element
@@ -530,8 +531,8 @@ impl<'a> ComponentContext<'a> {
                     name: "div".into(),
                     name_loc: None,
                     attributes: vec![],
-                    fragment: Default::default(),
-                    metadata: Default::default(),
+                    fragment: Fragment::default(),
+                    metadata: RegularElementMetadata::default(),
                 };
                 build_set_class(
                     &dummy_element,
@@ -798,7 +799,7 @@ impl<'a> ComponentContext<'a> {
                 JsExpr::Identifier(name) => name.clone(),
                 _ => "node".into(),
             };
-            let mut callback_params = vec![b::id_pattern(node_name.clone())];
+            let mut callback_params = vec![b::id_pattern(node_name)];
             if has_await {
                 callback_params.push(b::id_pattern("$$tag"));
             }
@@ -954,7 +955,7 @@ impl<'a> ComponentContext<'a> {
         TransformResult::None
     }
 
-    /// Visit a SlotElement node.
+    /// Visit a `SlotElement` node.
     ///
     /// Corresponds to `SlotElement.js` in the official Svelte compiler:
     /// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/SlotElement.js`
@@ -987,10 +988,10 @@ impl<'a> ComponentContext<'a> {
                 };
 
                 if is_simple {
-                    let binding_name = match &let_dir.expression {
-                        Some(expr) => expr.identifier_name().unwrap_or(prop_name).to_string(),
-                        None => prop_name.to_string(),
-                    };
+                    let binding_name = let_dir.expression.as_ref().map_or_else(
+                        || prop_name.to_string(),
+                        |expr| expr.identifier_name().unwrap_or(prop_name).to_string(),
+                    );
 
                     let derived_fn = if self.state.analysis.runes {
                         "$.derived"
@@ -1123,9 +1124,6 @@ impl<'a> ComponentContext<'a> {
                             props.push(b::prop(&self.arena, attr.name.as_str(), result.value));
                         }
                     }
-                }
-                Attribute::LetDirective(_) => {
-                    // Already processed in first pass
                 }
                 _ => {}
             }
@@ -1305,12 +1303,12 @@ impl<'a> ComponentContext<'a> {
         TransformResult::None
     }
 
-    /// Visit a SvelteFragment node.
+    /// Visit a `SvelteFragment` node.
     ///
     /// Corresponds to `SvelteFragment.js` in the official Svelte compiler:
     /// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/SvelteFragment.js`
     ///
-    /// SvelteFragment nodes (`<svelte:fragment>`) are wrappers that:
+    /// `SvelteFragment` nodes (`<svelte:fragment>`) are wrappers that:
     /// 1. Define a named slot (via `slot="name"` attribute)
     /// 2. Provide `let:` directives that expose slot props to children
     /// 3. Their CHILDREN are what should be rendered in the slot
@@ -1340,17 +1338,17 @@ impl<'a> ComponentContext<'a> {
                 let prop_name = &let_dir.name;
 
                 // Check if expression is an Identifier or null (simple case)
-                let is_simple = match &let_dir.expression {
-                    None => true,
-                    Some(expr) => expr.is_identifier_node(),
-                };
+                let is_simple = let_dir
+                    .expression
+                    .as_ref()
+                    .is_none_or(|expr| expr.is_identifier_node());
 
                 if is_simple {
                     // Simple case: let:x or let:x={y}
-                    let name = match &let_dir.expression {
-                        Some(expr) => expr.identifier_name().unwrap_or(prop_name).to_string(),
-                        None => prop_name.to_string(),
-                    };
+                    let name = let_dir.expression.as_ref().map_or_else(
+                        || prop_name.to_string(),
+                        |expr| expr.identifier_name().unwrap_or(prop_name).to_string(),
+                    );
 
                     let_names.push(name.clone().into());
 
@@ -1709,7 +1707,7 @@ impl<'a> ComponentContext<'a> {
         TransformResult::Expression(expr)
     }
 
-    /// Visit a BindDirective node.
+    /// Visit a `BindDirective` node.
     ///
     /// This handles bind: directives like bind:value, bind:checked, bind:this, etc.
     pub fn visit_bind_directive(
@@ -1779,7 +1777,7 @@ pub struct TransformOptions {
 
     /// Whether HMR (Hot Module Replacement) is enabled.
     /// When true, components need fragment wrappers even in standalone mode
-    /// because $.hmr() uses block/branch effects that need stable anchor nodes.
+    /// because $.`hmr()` uses block/branch effects that need stable anchor nodes.
     pub hmr: bool,
 }
 
@@ -1873,7 +1871,7 @@ pub struct ComponentClientTransformState<'a> {
     /// Memoizer for expressions
     pub memoizer: Memoizer,
 
-    /// Transform rules for identifiers (uses im::HashMap for O(1) clone)
+    /// Transform rules for identifiers (uses `im::HashMap` for O(1) clone)
     pub transform: ImHashMap<String, IdentifierTransform>,
 
     /// Names whose current-scope binding kind requires `$.deep_read_state()`
@@ -1909,7 +1907,7 @@ pub struct ComponentClientTransformState<'a> {
     /// Imports that should be re-evaluated in legacy mode following a mutation
     pub legacy_reactive_imports: Vec<JsStatement>,
 
-    /// Whether to preserve whitespace (deprecated, use options.preserve_whitespace)
+    /// Whether to preserve whitespace (deprecated, use `options.preserve_whitespace`)
     pub preserve_whitespace: bool,
 
     /// Snippets hoisted to the instance level (within the component function).
@@ -1923,11 +1921,11 @@ pub struct ComponentClientTransformState<'a> {
     /// Names of snippets declared in this component.
     /// Used to determine if an identifier reference should be treated as having state
     /// (snippet references need to be wrapped in getters when passed as props).
-    /// Uses im::HashSet for O(1) clone.
+    /// Uses `im::HashSet` for O(1) clone.
     pub snippet_names: ImHashSet<String>,
 
     /// Flag indicating if we're in a direct assignment LHS (props.X = ...).
-    /// This is used to skip rest_prop → $$props transformation for direct property assignments.
+    /// This is used to skip `rest_prop` → $$props transformation for direct property assignments.
     pub in_direct_assignment_lhs: bool,
 
     /// Name of the declarator whose `$state(...)` initializer is being converted.
@@ -1948,18 +1946,18 @@ pub struct ComponentClientTransformState<'a> {
     /// outer exemption cannot leak into one nested below it.
     pub event_handler_arrow_body_level: u32,
 
-    /// Flag indicating if the current EachBlock should be treated as "controlled".
+    /// Flag indicating if the current `EachBlock` should be treated as "controlled".
     /// A controlled each block is one that is the only child of a static element.
-    /// This flag is set in fragment.rs process_children and checked in each_block.rs.
+    /// This flag is set in fragment.rs `process_children` and checked in `each_block.rs`.
     pub is_controlled_each: bool,
 
-    /// Flag indicating if the current HtmlTag should be treated as "controlled".
+    /// Flag indicating if the current `HtmlTag` should be treated as "controlled".
     /// Set when `{@html ...}` is the only child of an element (Svelte 5.53.8
     /// upstream commit `0206a2019`); the visitor then skips the wrapper
     /// comment anchor and emits `$.html(parent, thunk, true, ...)` so the
     /// runtime can use the parent's namespace and clean up
     /// externally-added DOM nodes (e.g. contenteditable input). Set in
-    /// shared/fragment.rs process_children and read in html_tag.rs.
+    /// shared/fragment.rs `process_children` and read in `html_tag.rs`.
     pub is_controlled_html: bool,
 
     /// Local snippets for child processing (used when processing element children).
@@ -1968,7 +1966,7 @@ pub struct ComponentClientTransformState<'a> {
     pub snippets: Vec<JsStatement>,
 
     /// Nesting level for template nodes (elements, blocks, etc.).
-    /// This is used by place_snippet_declaration to determine if a snippet is at root level.
+    /// This is used by `place_snippet_declaration` to determine if a snippet is at root level.
     /// A value of 0 means we're at the component root, >0 means inside an element/block.
     pub template_nesting_level: usize,
 
@@ -1982,10 +1980,10 @@ pub struct ComponentClientTransformState<'a> {
     pub each_index_used: Rc<Cell<bool>>,
 
     /// The name of the current each block's index variable, if any.
-    /// Used by apply_transforms_to_expression_with_shadowed to detect index accesses.
+    /// Used by `apply_transforms_to_expression_with_shadowed` to detect index accesses.
     pub each_index_name: Option<String>,
 
-    /// Stack of ancestor each-block index entries: (index_name, index_used_flag).
+    /// Stack of ancestor each-block index entries: (`index_name`, `index_used_flag`).
     /// When inside a nested each block, this allows detecting when an ancestor's
     /// index variable is used in the nested body.
     pub ancestor_each_index_names: Vec<(String, Rc<Cell<bool>>)>,
@@ -2006,21 +2004,21 @@ pub struct ComponentClientTransformState<'a> {
     /// The names of the current each block's item variables (from context pattern).
     /// For simple `{#each items as item}`, this is `["item"]`.
     /// For destructured patterns, this contains all declared names.
-    /// Used by apply_transforms_to_expression_with_shadowed to detect item assigns/mutates.
+    /// Used by `apply_transforms_to_expression_with_shadowed` to detect item assigns/mutates.
     pub each_item_names: Vec<compact_str::CompactString>,
 
     /// Stack of each-block binding contexts.
     /// When inside an each block in legacy mode, this contains information needed
-    /// to generate correct binding getters/setters with $.invalidate_inner_signals().
+    /// to generate correct binding getters/setters with $.`invalidate_inner_signals()`.
     /// Each entry represents a nested each block level.
     pub each_binding_context: Vec<EachBindingContext>,
 
-    /// Local variable init expression types for scope-aware should_proxy() decisions.
-    /// Maps variable name -> AST node type string of the init expression (e.g., "BinaryExpression").
+    /// Local variable init expression types for scope-aware `should_proxy()` decisions.
+    /// Maps variable name -> AST node type string of the init expression (e.g., "`BinaryExpression`").
     /// This is populated during block statement conversion for variables declared with
     /// `const`/`let`/`var` inside function bodies (arrow functions, function expressions),
-    /// enabling should_proxy() to trace through local identifier references.
-    /// Uses a Vec stack of HashMaps to support nested scopes.
+    /// enabling `should_proxy()` to trace through local identifier references.
+    /// Uses a Vec stack of `HashMaps` to support nested scopes.
     pub local_var_init_types: Vec<FxHashMap<String, String>>,
 
     /// Counter for generating unique `$$array` variable names across the entire component.
@@ -2032,7 +2030,7 @@ pub struct ComponentClientTransformState<'a> {
     /// Flag set during client transform when an `on:` directive without an expression
     /// (event forwarding/bubbling) is encountered. This mirrors the official compiler's
     /// behavior where `context.state.analysis.needs_props = true` is set in the client
-    /// transform's OnDirective visitor (NOT in the analyze phase), so that only the client
+    /// transform's `OnDirective` visitor (NOT in the analyze phase), so that only the client
     /// output gets $$props injected, not the server output.
     /// Uses `Rc<Cell<bool>>` so the flag is shared across all child states.
     pub needs_props_from_events: Rc<Cell<bool>>,
@@ -2086,7 +2084,7 @@ pub struct ComponentClientTransformState<'a> {
         Rc<std::cell::RefCell<rustc_hash::FxHashMap<usize, rustc_hash::FxHashSet<String>>>>,
 
     /// Extra blocker indices accumulated from expressions that were evaluated to
-    /// literals at compile time but still reference variables in the blocker_map.
+    /// literals at compile time but still reference variables in the `blocker_map`.
     /// These are merged into the blocker detection in Fragment visitor.
     pub extra_blocker_indices: Vec<usize>,
 
@@ -2102,7 +2100,7 @@ pub struct ComponentClientTransformState<'a> {
     /// non-shorthand (blocker-contributing) construct in the same fragment.
     pub style_shorthand_blocker_names: Vec<String>,
 
-    /// Whether the fragment is standalone (single Component or RenderTag that
+    /// Whether the fragment is standalone (single Component or `RenderTag` that
     /// doesn't need a template wrapper). Set by Fragment visitor and consumed by
     /// component/render-tag visitors to know if `$.next()` is needed after `$.async()`.
     /// Corresponds to `context.state.is_standalone` in the official Svelte compiler.
@@ -2116,7 +2114,7 @@ pub struct ComponentClientTransformState<'a> {
     /// Uses `Rc<RefCell<...>>` for shared ownership across nested fragment states.
     pub const_blocker_map: Rc<std::cell::RefCell<rustc_hash::FxHashMap<String, JsExpr>>>,
 
-    /// Pending transform error set during template traversal (e.g. "Not implemented: LetDirective").
+    /// Pending transform error set during template traversal (e.g. "Not implemented: `LetDirective`").
     /// Checked after the root fragment visit; if Some, `transform_client_with_visitors` returns
     /// `Err(TransformError::CodeGen(...))` so the corpus sees an error entry for the client target.
     pub pending_error: Option<String>,
@@ -2136,7 +2134,7 @@ pub struct EachBindingContext {
     /// The item parameter name (e.g., "item", "$$item")
     pub item_name: String,
 
-    /// Whether the item is reactive (wrapped in $.get())
+    /// Whether the item is reactive (wrapped in $.`get()`)
     pub item_reactive: bool,
 
     /// The collection expression as an AST node (e.g. `items()` for props,
@@ -2147,8 +2145,8 @@ pub struct EachBindingContext {
     /// If a $$array parameter was generated (scope shadowing case)
     pub collection_id: Option<String>,
 
-    /// The invalidation sequence expressions (for $.invalidate_inner_signals)
-    /// These are the transitive dependency expressions collected in build_declarations
+    /// The invalidation sequence expressions (for $.`invalidate_inner_signals`)
+    /// These are the transitive dependency expressions collected in `build_declarations`
     pub invalidation_exprs: Vec<String>,
 
     /// The index parameter name (e.g., "$$index", "i")
@@ -2160,32 +2158,32 @@ pub struct EachBindingContext {
     /// Whether this each block is in runes mode
     pub is_runes: bool,
 
-    /// Flag set by bind_directive when it generates a binding that uses the each context.
-    /// This is used by each_block to know that uses_index should be true.
+    /// Flag set by `bind_directive` when it generates a binding that uses the each context.
+    /// This is used by `each_block` to know that `uses_index` should be true.
     pub binding_used: Rc<Cell<bool>>,
 
     /// Map of destructured variable names to their update expressions.
     /// e.g., "f" -> "$.get($$item).name.first"
-    /// Used by bind_directive to generate correct setters for destructured each variables.
+    /// Used by `bind_directive` to generate correct setters for destructured each variables.
     pub destructured_update_paths: FxHashMap<String, String>,
 
     /// Whether this each block contains a bind:group directive that references its item or index.
-    /// When true, this each block's index ($$index_N) should be included in the bind:group indexes array.
+    /// When true, this each block's index ($$`index_N`) should be included in the bind:group indexes array.
     pub contains_group_binding: bool,
 
-    /// The binding group name assigned to this each block (e.g., "binding_group", "binding_group_1").
-    /// Set from EachBlock.metadata.binding_group_name during transform.
-    /// Used by bind_directive to look up the correct group variable.
+    /// The binding group name assigned to this each block (e.g., "`binding_group`", "`binding_group_1`").
+    /// Set from `EachBlock.metadata.binding_group_name` during transform.
+    /// Used by `bind_directive` to look up the correct group variable.
     pub binding_group_name: Option<String>,
 
     /// If the each block iterates over a store subscription, this contains the store name
     /// (e.g., "$items" for `{#each $items as item}`).
-    /// Used by bind_directive to add `$.invalidate_store($$stores, '$items')` to setters.
+    /// Used by `bind_directive` to add `$.invalidate_store($$stores, '$items')` to setters.
     pub store_to_invalidate: Option<String>,
 
     /// Whether the each item binding was reassigned (e.g., via bind:value).
     /// When true, reads should use `$$array()[$$index]` instead of `$.get(item)`.
-    /// This is a cached version of the EachItem binding's `reassigned` flag,
+    /// This is a cached version of the `EachItem` binding's `reassigned` flag,
     /// used to avoid scope lookup confusion when a same-named outer variable exists.
     pub item_reassigned: bool,
 
@@ -2415,14 +2413,20 @@ impl<'a> ComponentClientTransformState<'a> {
     /// if any have blockers.
     pub fn get_blockers_for_expr(&self, expr: &JsExpr, arena: &JsArena) -> Vec<JsExpr> {
         let names = collect_identifiers_from_expr(expr, arena);
-        let name_refs: Vec<&str> = names.iter().map(|s| s.as_str()).collect();
+        let name_refs: Vec<&str> = names
+            .iter()
+            .map(compact_str::CompactString::as_str)
+            .collect();
         self.get_blockers_for_names(&name_refs, arena)
     }
 
     /// Check if a JS expression references any blocked variables.
     pub fn has_blockers_for_expr(&self, expr: &JsExpr, arena: &JsArena) -> bool {
         let names = collect_identifiers_from_expr(expr, arena);
-        let name_refs: Vec<&str> = names.iter().map(|s| s.as_str()).collect();
+        let name_refs: Vec<&str> = names
+            .iter()
+            .map(compact_str::CompactString::as_str)
+            .collect();
         self.has_blockers_for_names(&name_refs)
     }
 
@@ -2546,12 +2550,6 @@ fn collect_identifiers_recursive(
         JsExpr::Update(up) => {
             collect_identifiers_recursive(arena.get_expr(up.argument), arena, names);
         }
-        JsExpr::Spread(inner) => {
-            collect_identifiers_recursive(arena.get_expr(*inner), arena, names);
-        }
-        JsExpr::Void(inner) => {
-            collect_identifiers_recursive(arena.get_expr(*inner), arena, names);
-        }
         JsExpr::New(new_expr) => {
             collect_identifiers_recursive(arena.get_expr(new_expr.callee), arena, names);
             for arg in &new_expr.arguments {
@@ -2568,7 +2566,6 @@ fn collect_identifiers_recursive(
             collect_identifiers_recursive(arena.get_expr(chain.expression), arena, names);
         }
         // Don't cross function boundaries
-        JsExpr::Arrow(_) | JsExpr::Function(_) => {}
         // Literals, this, raw, class, yield don't contain identifier references we care about
         _ => {}
     }
@@ -2586,7 +2583,7 @@ pub struct IdentifierTransform {
     /// instead of the normal `$.get(identifier_name)`. This is used for destructured
     /// `{@const}` declarations where multiple identifiers share a single derived value.
     ///
-    /// For example, `{@const { x, y } = point}` generates a computed_const variable,
+    /// For example, `{@const { x, y } = point}` generates a `computed_const` variable,
     /// and reads of `x` become `$.get(computed_const).x`.
     pub read_source: Option<String>,
 
@@ -2596,7 +2593,7 @@ pub struct IdentifierTransform {
     /// - arena: The JS arena allocator
     /// - identifier: The identifier being assigned to
     /// - value: The value being assigned
-    /// - needs_proxy: Whether the value needs to be proxified
+    /// - `needs_proxy`: Whether the value needs to be proxified
     pub assign: Option<fn(&JsArena, JsExpr, JsExpr, bool) -> JsExpr>,
 
     /// How to handle mutations to the identifier
@@ -2604,7 +2601,7 @@ pub struct IdentifierTransform {
     /// Parameters:
     /// - arena: The JS arena allocator
     /// - identifier: The identifier being mutated
-    /// - mutation_expr: The mutation expression (e.g., `obj.prop = value`)
+    /// - `mutation_expr`: The mutation expression (e.g., `obj.prop = value`)
     pub mutate: Option<fn(&JsArena, JsExpr, JsExpr) -> JsExpr>,
 
     /// How to handle update expressions (++ or --)
@@ -2617,7 +2614,7 @@ pub struct IdentifierTransform {
     pub update: Option<fn(&JsArena, JsUpdateOp, JsExpr, bool) -> JsExpr>,
 
     /// Whether to skip proxy wrapping for this variable (e.g., $state.raw)
-    /// When true, needs_proxy will always be false for assignments
+    /// When true, `needs_proxy` will always be false for assignments
     pub skip_proxy: bool,
 
     /// Whether this identifier is guaranteed to be defined (non-null/undefined).
@@ -2626,7 +2623,7 @@ pub struct IdentifierTransform {
 
     /// Whether this identifier represents reactive state that needs tracking.
     /// Set to false for non-reactive each block indices/items (unkeyed blocks).
-    /// When false, expressions using this identifier don't need template_effect wrapping.
+    /// When false, expressions using this identifier don't need `template_effect` wrapping.
     pub is_reactive: bool,
 
     /// Optional replacement identifier name.
@@ -2647,8 +2644,8 @@ pub struct ComponentMetadata {
     pub scoped: bool,
 
     /// Whether we're inside a <svelte:element> child context.
-    /// When true, infer_namespace should NOT re-evaluate from children,
-    /// because the namespace is determined at runtime by $.element().
+    /// When true, `infer_namespace` should NOT re-evaluate from children,
+    /// because the namespace is determined at runtime by $.`element()`.
     pub svelte_element_child: bool,
 
     /// Whether an ancestor element is a `<text>` element. Stands in for upstream
@@ -2687,7 +2684,7 @@ pub struct MemoEntry {
 #[derive(Debug, Default, Clone)]
 pub struct Memoizer {
     /// Shared set of conflicting names to avoid collisions across all scopes.
-    /// Uses Rc<RefCell<...>> so that parent and child memoizers share the SAME
+    /// Uses Rc<`RefCell`<...>> so that parent and child memoizers share the SAME
     /// conflicts set, matching the official Svelte compiler's single shared
     /// `ScopeRoot.conflicts` set.
     conflicts: Rc<RefCell<FxHashSet<String>>>,
@@ -2704,6 +2701,7 @@ pub struct Memoizer {
 
 impl Memoizer {
     /// Create a new memoizer.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             conflicts: Rc::new(RefCell::new(FxHashSet::default())),
@@ -2744,6 +2742,7 @@ impl Memoizer {
     ///
     /// This matches the official Svelte compiler where `scope.root.unique()` uses
     /// a single shared `ScopeRoot.conflicts` set across all scopes.
+    #[must_use]
     pub fn with_parent_conflicts(parent: &Memoizer) -> Self {
         Self {
             conflicts: Rc::clone(&parent.conflicts),
@@ -2798,7 +2797,7 @@ impl Memoizer {
         };
 
         // Create the identifier with the correct name ($0, $1, etc.)
-        let name = format!("${}", idx);
+        let name = format!("${idx}");
         let id = b::id(&name);
 
         let entry = MemoEntry {
@@ -2821,7 +2820,7 @@ impl Memoizer {
     ///
     /// # Arguments
     ///
-    /// * `runes` - Whether to use runes mode ($.derived vs $.derived_safe_equal)
+    /// * `runes` - Whether to use runes mode ($.derived vs $.`derived_safe_equal`)
     ///
     /// # Returns
     ///
@@ -2848,7 +2847,7 @@ impl Memoizer {
                 };
                 b::let_decl(
                     arena,
-                    name.clone(),
+                    name,
                     Some(b::call(
                         arena,
                         b::member_path(arena, derived_fn),
@@ -2874,7 +2873,7 @@ impl Memoizer {
     /// # Returns
     ///
     /// Returns an identifier ($0, $1, etc.) that will be used as the parameter
-    /// in the template_effect. If no memoization is needed, returns the original expression.
+    /// in the `template_effect`. If no memoization is needed, returns the original expression.
     pub fn add_memoized(
         &mut self,
         expression: JsExpr,
@@ -2900,7 +2899,7 @@ impl Memoizer {
         };
 
         // Create the parameter identifier immediately with the correct name
-        let name = format!("${}", idx);
+        let name = format!("${idx}");
         let id = b::id(&name);
 
         let entry = MemoEntry {
@@ -2917,15 +2916,16 @@ impl Memoizer {
         id
     }
 
-    /// Get the parameter identifiers for the template_effect arrow function.
+    /// Get the parameter identifiers for the `template_effect` arrow function.
     ///
     /// Returns the list of parameter identifiers ($0, $1, etc.) that will be
     /// used in the arrow function parameters.
+    #[must_use]
     pub fn get_params(&self) -> Vec<JsExpr> {
         use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
         (0..self.sync.len() + self.async_entries.len())
-            .map(|i| b::id(format!("${}", i)))
+            .map(|i| b::id(format!("${i}")))
             .collect()
     }
 
@@ -2934,7 +2934,7 @@ impl Memoizer {
         self.get_params()
     }
 
-    /// Get the sync values array for template_effect.
+    /// Get the sync values array for `template_effect`.
     ///
     /// Returns an array of thunked expressions: `[() => expr1, () => expr2]`
     /// Returns `None` if there are no sync expressions.
@@ -2986,11 +2986,13 @@ impl Memoizer {
     }
 
     /// Check if there are any memoized expressions.
+    #[must_use]
     pub fn has_memoized(&self) -> bool {
         !self.sync.is_empty() || !self.async_entries.is_empty()
     }
 
     /// Get all memoized expressions (both sync and async) for blocker scanning.
+    #[must_use]
     pub fn all_expressions(&self) -> Vec<JsExpr> {
         let mut exprs = Vec::new();
         for entry in &self.sync {
@@ -3002,10 +3004,11 @@ impl Memoizer {
         exprs
     }
 
-    /// Get the async parameter identifiers for the $.async() arrow function.
+    /// Get the async parameter identifiers for the $.`async()` arrow function.
     ///
     /// Returns the list of async parameter identifiers ($0, $1, etc.) that will
-    /// be passed as parameters to the arrow function in $.async() calls.
+    /// be passed as parameters to the arrow function in $.`async()` calls.
+    #[must_use]
     pub fn async_ids(&self) -> Vec<JsExpr> {
         self.async_entries.iter().map(|e| e.id.clone()).collect()
     }
@@ -3018,13 +3021,16 @@ impl Memoizer {
     ///
     /// # Returns
     ///
-    /// A unique identifier like "text", "text_2", "text_3", etc.
+    /// A unique identifier like "text", "`text_2`", "`text_3`", etc.
     /// Add a name to the conflicts set without generating a new one.
     /// Used to seed the memoizer with names already generated elsewhere (e.g., script pre-transform).
     pub fn add_conflict(&self, name: &str) {
         self.conflicts.borrow_mut().insert(name.to_string());
     }
 
+    /// # Panics
+    ///
+    /// Panics if the memoizer's generated-name counter overflows.
     pub fn generate_id(&mut self, base: &str) -> String {
         let sanitized = if is_valid_identifier(base) {
             base
@@ -3068,7 +3074,9 @@ impl Memoizer {
             name.push_str(sanitized);
             name.push('_');
             if n < 10 {
-                name.push((b'0' + n as u8) as char);
+                name.push(char::from(
+                    b'0' + u8::try_from(n).expect("single digit suffix"),
+                ));
             } else {
                 name.push_str(itoa_buf.format(n));
             }
@@ -3113,7 +3121,9 @@ impl Memoizer {
             name.push_str(&sanitized);
             name.push('_');
             if n < 10 {
-                name.push((b'0' + n as u8) as char);
+                name.push(char::from(
+                    b'0' + u8::try_from(n).expect("single digit suffix"),
+                ));
             } else {
                 name.push_str(itoa_buf.format(n));
             }
@@ -3133,7 +3143,7 @@ impl Memoizer {
     }
 
     /// Merge conflicts from another memoizer.
-    /// With shared Rc<RefCell<...>> conflicts, this is a no-op.
+    /// With shared Rc<`RefCell`<...>> conflicts, this is a no-op.
     pub fn merge_conflicts(&mut self, _other: &Memoizer) {
         // No-op: conflicts are shared via Rc<RefCell<...>>
     }
@@ -3200,7 +3210,7 @@ const FLAG_HAS_ASSIGNMENT: u8 = 1 << 4;
 /// Uses bit-packing for boolean flags to reduce memory footprint.
 #[derive(Debug, Clone, Default)]
 pub struct ExpressionMetadata {
-    /// Bit-packed flags for has_call, has_await, has_state, has_member_expression, has_assignment, dynamic
+    /// Bit-packed flags for `has_call`, `has_await`, `has_state`, `has_member_expression`, `has_assignment`, dynamic
     flags: u8,
 
     /// Blocking dependencies (for async expressions)
@@ -3210,15 +3220,16 @@ pub struct ExpressionMetadata {
     /// Used in legacy mode by `build_expression` to determine which bindings
     /// need to be read for dependency tracking (matching the official Svelte
     /// compiler's `metadata.references`).
-    /// Uses IndexSet to preserve insertion order (matching JavaScript Set behavior).
+    /// Uses `IndexSet` to preserve insertion order (matching JavaScript Set behavior).
     pub references: crate::ast::template::BindingIndexSet,
 }
 
 impl ExpressionMetadata {
-    /// Create ExpressionMetadata from the template's ExpressionMetadata.
+    /// Create `ExpressionMetadata` from the template's `ExpressionMetadata`.
     /// This is a helper to convert from phase 2 metadata to phase 3 metadata.
     /// Uses direct flag byte copy (bits 0-4 are aligned between the two types).
     #[inline]
+    #[must_use]
     pub fn from_template_metadata(meta: &crate::ast::template::ExpressionMetadata) -> Self {
         // Copy bits 0-4 directly (STATE, CALL, AWAIT, MEMBER_EXPRESSION, ASSIGNMENT).
         // Bit 5 (DYNAMIC) is not present in the template metadata, so it stays 0.
@@ -3232,6 +3243,7 @@ impl ExpressionMetadata {
 
     /// Whether the expression contains a call
     #[inline]
+    #[must_use]
     pub fn has_call(&self) -> bool {
         self.flags & FLAG_HAS_CALL != 0
     }
@@ -3248,6 +3260,7 @@ impl ExpressionMetadata {
 
     /// Whether the expression contains await
     #[inline]
+    #[must_use]
     pub fn has_await(&self) -> bool {
         self.flags & FLAG_HAS_AWAIT != 0
     }
@@ -3264,6 +3277,7 @@ impl ExpressionMetadata {
 
     /// Whether the expression references reactive state
     #[inline]
+    #[must_use]
     pub fn has_state(&self) -> bool {
         self.flags & FLAG_HAS_STATE != 0
     }
@@ -3280,6 +3294,7 @@ impl ExpressionMetadata {
 
     /// Whether the expression contains a member expression
     #[inline]
+    #[must_use]
     pub fn has_member_expression(&self) -> bool {
         self.flags & FLAG_HAS_MEMBER_EXPRESSION != 0
     }
@@ -3296,6 +3311,7 @@ impl ExpressionMetadata {
 
     /// Whether the expression contains an assignment
     #[inline]
+    #[must_use]
     pub fn has_assignment(&self) -> bool {
         self.flags & FLAG_HAS_ASSIGNMENT != 0
     }
@@ -3311,6 +3327,7 @@ impl ExpressionMetadata {
     }
 
     /// Get the blocking dependencies as a JS array expression.
+    #[must_use]
     pub fn blockers(&self) -> JsExpr {
         use crate::compiler::phases::phase3_transform::js_ast::builders as b;
         b::array(self.blockers.clone())

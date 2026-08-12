@@ -14,7 +14,10 @@
 //! rewrite rather than emitting a wrong one.
 
 use oxc_ast::Comment;
-use oxc_ast::ast::*;
+use oxc_ast::ast::{
+    Argument, ArrayExpression, ArrayExpressionElement, ArrowFunctionExpression, CallExpression,
+    ChainElement, Expression, NewExpression, SimpleAssignmentTarget, TSType, UnaryOperator,
+};
 use oxc_ast_visit::{Visit, walk};
 use oxc_span::{GetSpan, SourceType, Span};
 
@@ -162,7 +165,7 @@ impl GroupedCalls<'_> {
         let Some(offset) = gap.find('(') else {
             return;
         };
-        let open = scan_from + offset as u32;
+        let open = scan_from + crate::source_offset(offset);
         // A comment between the callee and `(` could hold a paren of its own, so
         // leave the call alone rather than delimit it at the wrong byte.
         if has_comment_in(self.comments, Span::new(scan_from, open)) {
@@ -308,7 +311,7 @@ fn can_group_argument(expr: &Expression<'_>, comments: &[Comment]) -> bool {
 /// an expression body only for the shapes that keep the braces huggable.
 ///
 /// oxc additionally consults comments here (an empty block body carrying one
-/// still groups; a JSDoc type cast before a call body suppresses it). Both are
+/// still groups; a `JSDoc` type cast before a call body suppresses it). Both are
 /// dropped: each only ever removes a rewrite, never adds a wrong one.
 fn can_group_arrow(arrow: &ArrowFunctionExpression<'_>, is_arrow_recursion: bool) -> bool {
     // A composite return type would break inside, so oxc refuses to group unless

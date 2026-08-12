@@ -49,8 +49,16 @@ impl<'a> Parser<'a> {
     /// 2. Collects characters until `<` or `{` is encountered (using SIMD-accelerated search)
     /// 3. Decodes HTML character references with `decode_character_references(data, false)`
     /// 4. Creates a Text node with both raw and decoded data
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when text parsing encounters invalid template syntax.
+    ///
+    /// # Panics
+    ///
+    /// Panics if a source position exceeds the supported `u32` range.
     pub fn parse_text(&mut self) -> ParseResult<Option<TemplateNode<'a>>> {
-        let start = self.index as u32;
+        let start = u32::try_from(self.index).expect("source positions are limited to u32");
         let start_pos = self.index;
 
         // Upstream parses `template.trimEnd()`, so whitespace after the last
@@ -68,9 +76,8 @@ impl<'a> Parser<'a> {
         let remaining = &self.source.as_bytes()[self.index..template_end];
         let has_entity = match memchr3(b'<', b'{', b'&', remaining) {
             Some(pos) if remaining[pos] == b'&' => {
-                self.index += memchr2(b'<', b'{', &remaining[pos..])
-                    .map(|p| pos + p)
-                    .unwrap_or(remaining.len());
+                self.index +=
+                    memchr2(b'<', b'{', &remaining[pos..]).map_or(remaining.len(), |p| pos + p);
                 true
             }
             Some(pos) => {
@@ -88,7 +95,7 @@ impl<'a> Parser<'a> {
             return Ok(None);
         }
 
-        let end = self.index as u32;
+        let end = u32::try_from(self.index).expect("source positions are limited to u32");
         let raw_str = &self.source[start_pos..self.index];
 
         if has_entity {

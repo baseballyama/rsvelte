@@ -148,9 +148,8 @@ fn is_text_attribute(attribute: &AttributeNode) -> bool {
             parts.len() == 1 && matches!(&parts[0], AttributeValuePart::Text(_))
         }
         // True (boolean attribute) is not a text attribute
-        AttributeValue::True(_) => false,
+        AttributeValue::True(_) | AttributeValue::Expression(_) => false,
         // Expression is not a text attribute
-        AttributeValue::Expression(_) => false,
     }
 }
 

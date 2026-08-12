@@ -9,7 +9,7 @@ use rsvelte_formatter::{JsonFormatOptions, format_json_source};
 use crate::config::OxfmtConfig;
 use crate::options::json_variant;
 use crate::output::write_atomic;
-use crate::oxfmt::run_oxfmt;
+use crate::oxfmt::{OxfmtRunOptions, run_oxfmt};
 use crate::paths::{LINE_WIDTH_MAX, is_package_json};
 use crate::status::{Mode, NativeOutcome, PipelineStatus};
 
@@ -20,7 +20,7 @@ use crate::status::{Mode, NativeOutcome, PipelineStatus};
 /// or any file when the base `printWidth` exceeds `oxc_formatter_core`'s max
 /// (320) — is delegated to `oxfmt` rather than risk a mismatch. flyle-style
 /// configs only override `.ts`/`.js` globs, so JSON formats natively there.
-pub(crate) struct JsonOptionsResolver {
+pub struct JsonOptionsResolver {
     base: JsonFormatOptions,
     /// Base `printWidth` exceeds the native max (320) — can't represent natively.
     over_width: bool,
@@ -37,8 +37,7 @@ impl JsonOptionsResolver {
     ) -> Self {
         let dir = cfg
             .config_dir()
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|| cwd.to_path_buf());
+            .map_or_else(|| cwd.to_path_buf(), Path::to_path_buf);
         let overrides = cfg
             .overrides
             .iter()
@@ -77,7 +76,7 @@ impl JsonOptionsResolver {
 /// engine `oxfmt` uses, so byte-identical), in parallel. `package.json` (needs
 /// oxfmt's `sortPackageJson`), files an override touches, and parse errors all
 /// fall back to a single `oxfmt` invocation so coverage matches delegation.
-pub(crate) fn run_native_json(
+pub fn run_native_json(
     files: &[PathBuf],
     resolver: &JsonOptionsResolver,
     cwd: &Path,
@@ -157,7 +156,15 @@ pub(crate) fn run_native_json(
     // Explicit paths with no native excludes, so oxfmt formats exactly these
     // (and applies `sortPackageJson` to any `package.json`).
     if !fallback.is_empty() {
-        let fb = run_oxfmt(&fallback, oxfmt, mode, false, false, false, true)?;
+        let fb = run_oxfmt(
+            &fallback,
+            oxfmt,
+            mode,
+            OxfmtRunOptions {
+                suppress_unmatched: true,
+                ..OxfmtRunOptions::default()
+            },
+        )?;
         status.files_changed += fb.files_changed;
         status.had_errors |= fb.had_errors;
     }

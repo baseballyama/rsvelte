@@ -4,7 +4,7 @@
 //! Port of `eslint-plugin-svelte/src/rules/prefer-style-directive.ts`.
 //!
 //! Category: Stylistic Issues. Type: suggestion. fixable=code.
-//! Not recommended (default_severity = Off).
+//! Not recommended (`default_severity` = Off).
 //!
 //! TEMPLATE rule. Operates on `style` attributes of HTML elements and
 //! `<svelte:element>`. Components are excluded.
@@ -43,6 +43,10 @@ static META: RuleMeta = RuleMeta {
 
 const MESSAGE: &str = "Can use style directives instead.";
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("source offsets are represented as u32")
+}
+
 // ── CSS parsing helpers ────────────────────────────────────────────────────────
 
 /// A parsed CSS declaration extracted from the style attribute value.
@@ -55,8 +59,8 @@ struct Decl {
     value_start: u32,
     value_end: u32,
     /// Byte start and end of this whole declaration in the source.
-    decl_start: u32,
-    decl_end: u32,
+    start: u32,
+    end: u32,
     /// Whether this is the first node among all root nodes.
     is_first: bool,
     /// Whether this is the last node among all root nodes.
@@ -65,7 +69,7 @@ struct Decl {
 
 /// An inline ternary at the top level of the style value.
 struct Inline {
-    /// The ExpressionTag byte range in the source (including `{}`).
+    /// The `ExpressionTag` byte range in the source (including `{}`).
     expr_start: u32,
     expr_end: u32,
     /// Property name extracted from the inline CSS string.
@@ -97,16 +101,16 @@ enum RootNode {
 }
 
 impl RootNode {
-    fn decl_start(&self) -> u32 {
+    const fn decl_start(&self) -> u32 {
         match self {
-            RootNode::Decl(d) => d.decl_start,
-            RootNode::Inline(i) => i.expr_start,
+            Self::Decl(d) => d.start,
+            Self::Inline(i) => i.expr_start,
         }
     }
-    fn decl_end(&self) -> u32 {
+    const fn decl_end(&self) -> u32 {
         match self {
-            RootNode::Decl(d) => d.decl_end,
-            RootNode::Inline(i) => i.expr_end,
+            Self::Decl(d) => d.end,
+            Self::Inline(i) => i.expr_end,
         }
     }
 }
@@ -133,8 +137,6 @@ fn parse_style_value(parts: &[AttributeValuePart], source: &str) -> Vec<RootNode
     // - `Value`: collecting value characters (may contain expression tags).
     // - `Top`: between declarations (whitespace).
 
-    let mut nodes: Vec<RootNode> = Vec::new();
-
     // We process parts sequentially.
     // `decl_prop`: accumulated prop name text, or None if not in a declaration.
     // `decl_prop_start`: byte offset where prop name begins.
@@ -145,226 +147,34 @@ fn parse_style_value(parts: &[AttributeValuePart], source: &str) -> Vec<RootNode
     // `value_parts`: the value parts (text and expression tags).
     // `unknown_interpolations`: expression tags in unknown positions.
 
-    let mut state: ParseState = ParseState::Top;
-    // Current declaration being built.
-    let mut cur_decl: Option<CurDecl> = None;
+    let mut parser = StyleValueParser::default();
 
     // Count total parts for is_first/is_last calculation.
     // We'll assign indices after collection.
 
     for part in parts {
         match part {
-            AttributeValuePart::Text(t) => {
-                let text = t.raw.as_ref();
-                let base = t.start;
-                let bytes = text.as_bytes();
-                let mut i = 0usize;
-                while i < bytes.len() {
-                    let b = bytes[i];
-                    let abs_pos = base + i as u32;
-
-                    // Skip CSS block comments (`/* … */`) in all states.
-                    // PostCSS (used by the oracle) parses comments as separate
-                    // nodes rather than as declaration text, so any `/*` in the
-                    // Top or PropName state means we are NOT inside a property
-                    // declaration and should discard any partially-accumulated
-                    // prop and advance past the comment.
-                    if b == b'/' && bytes.get(i + 1) == Some(&b'*') {
-                        // Drop any partially-accumulated declaration (it is
-                        // invalid — a real prop name cannot contain `/*`).
-                        if matches!(state, ParseState::PropName) {
-                            cur_decl = None;
-                            state = ParseState::Top;
-                        }
-                        // Skip to the end of the comment.
-                        i += 2; // past `/*`
-                        while i < bytes.len() {
-                            if bytes[i] == b'*' && bytes.get(i + 1) == Some(&b'/') {
-                                i += 2; // past `*/`
-                                break;
-                            }
-                            i += 1;
-                        }
-                        continue;
-                    }
-
-                    match &state {
-                        ParseState::Top => {
-                            if b == b';' {
-                                // Stray semicolon; skip.
-                                i += 1;
-                                continue;
-                            }
-                            if !b.is_ascii_whitespace() {
-                                // Start of a new declaration prop name.
-                                let cd = CurDecl {
-                                    prop: String::new(),
-                                    prop_start: abs_pos,
-                                    prop_end: abs_pos,
-                                    has_prop_interp: false,
-                                    value_start: 0,
-                                    value_end: 0,
-                                    has_value: false,
-                                    unknown_interp: false,
-                                    important: false,
-                                    decl_start: abs_pos,
-                                    decl_end: abs_pos,
-                                };
-                                cur_decl = Some(cd);
-                                state = ParseState::PropName;
-                                // Don't advance; re-process this byte in PropName state.
-                                continue;
-                            }
-                            // Whitespace → stay in Top.
-                            i += 1;
-                        }
-                        ParseState::PropName => {
-                            let cd = cur_decl.as_mut().unwrap();
-                            if b == b':' {
-                                // End of prop name, start of value.
-                                cd.prop_end = abs_pos;
-                                state = ParseState::ValueLeadingSpace;
-                                i += 1;
-                            } else if b == b';' || b == b'{' || b == b'}' {
-                                // Unexpected character in prop → mark unknown.
-                                cd.unknown_interp = true;
-                                state = ParseState::Top;
-                                cur_decl = None;
-                                i += 1;
-                            } else {
-                                cd.prop.push(b as char);
-                                i += 1;
-                            }
-                        }
-                        ParseState::ValueLeadingSpace => {
-                            let cd = cur_decl.as_mut().unwrap();
-                            if b == b';' {
-                                // Empty value.
-                                cd.value_start = abs_pos;
-                                cd.value_end = abs_pos;
-                                cd.decl_end = abs_pos + 1;
-                                finalize_decl(&mut nodes, cur_decl.take());
-                                state = ParseState::Top;
-                                i += 1;
-                            } else if !b.is_ascii_whitespace() {
-                                cd.value_start = abs_pos;
-                                state = ParseState::Value;
-                                // Re-process.
-                                continue;
-                            } else {
-                                i += 1;
-                            }
-                        }
-                        ParseState::Value => {
-                            let cd = cur_decl.as_mut().unwrap();
-                            if b == b';' {
-                                cd.decl_end = abs_pos + 1;
-                                cd.value_end = trim_end_pos(text, i, base);
-                                cd.has_value = true;
-                                finalize_decl(&mut nodes, cur_decl.take());
-                                state = ParseState::Top;
-                                i += 1;
-                            } else if b == b'!' && text[i..].starts_with("!important") {
-                                // !important marker.
-                                let cd = cur_decl.as_mut().unwrap();
-                                cd.important = true;
-                                cd.value_end = trim_end_pos(text, i, base);
-                                cd.has_value = true;
-                                // Skip "!important".
-                                i += "!important".len();
-                            } else {
-                                // Track value_end as we scan (non-whitespace only, so we can
-                                // finalize at end-of-parts without a trailing semicolon).
-                                if !b.is_ascii_whitespace() {
-                                    cd.value_end = abs_pos + 1;
-                                    cd.has_value = true;
-                                }
-                                i += 1;
-                            }
-                        }
-                        ParseState::ValueAfterExpr => {
-                            // Text after an expression tag in the value.
-                            // Look for `;` to end the declaration.
-                            if b == b';' {
-                                if let Some(cd) = cur_decl.as_mut() {
-                                    cd.decl_end = abs_pos + 1;
-                                    // value_end stays as the last expr tag end.
-                                }
-                                finalize_decl(&mut nodes, cur_decl.take());
-                                state = ParseState::Top;
-                            }
-                            i += 1;
-                        }
-                    }
-                }
-                // End of text part: if we are in Value state and no `;` was found,
-                // the value continues (possibly into the next expression tag).
-            }
+            AttributeValuePart::Text(t) => parser.process_text(t.raw.as_ref(), t.start),
             AttributeValuePart::ExpressionTag(tag) => {
-                match &state {
-                    ParseState::Top => {
-                        // Top-level expression tag: check if it's a ternary inline.
-                        if let Some(inline) = try_parse_inline(tag, source) {
-                            nodes.push(RootNode::Inline(inline));
-                        }
-                        // Stay in Top state.
-                    }
-                    ParseState::PropName => {
-                        // Expression tag inside prop name → unknown interpolation.
-                        if let Some(cd) = cur_decl.as_mut() {
-                            cd.has_prop_interp = true;
-                        }
-                        // Continue in PropName? Actually upstream skips decls with prop interps.
-                        // Mark and bail to Top.
-                        cur_decl = None;
-                        state = ParseState::Top;
-                    }
-                    ParseState::ValueLeadingSpace => {
-                        // Expression tag after `:` and whitespace — value starts here.
-                        if let Some(cd) = cur_decl.as_mut() {
-                            cd.value_start = tag.start;
-                            cd.value_end = tag.end;
-                            cd.has_value = true;
-                            state = ParseState::ValueAfterExpr;
-                        }
-                    }
-                    ParseState::Value => {
-                        // Expression tag inside value — mark as having expression, stay in Value.
-                        // The value_end will be updated when we see `;` or end of parts.
-                        // For now, extend the "value" range to include this tag.
-                        if let Some(cd) = cur_decl.as_mut() {
-                            cd.has_value = true;
-                        }
-                        state = ParseState::ValueAfterExpr;
-                    }
-                    ParseState::ValueAfterExpr => {
-                        // Multiple expression tags in the value are valid value
-                        // interpolations (e.g. `color: {r}e{d}`). Just extend the
-                        // value range to include this tag.
-                        if let Some(cd) = cur_decl.as_mut() {
-                            cd.value_end = tag.end;
-                        }
-                        // Stay in ValueAfterExpr state.
-                    }
-                }
+                parser.process_expression(tag, source);
             }
         }
     }
 
     // Finalize any dangling declaration at end of parts (no trailing `;`).
-    if matches!(state, ParseState::Value | ParseState::ValueAfterExpr)
-        && let Some(mut cd) = cur_decl.take()
-        && cd.has_value
+    if matches!(parser.state, ParseState::Value | ParseState::ValueAfterExpr)
+        && let Some(mut cd) = parser.declaration.take()
+        && cd.flags.contains(DeclFlags::HAS_VALUE)
     {
         // value_end was already updated to the last non-whitespace position
         // (or last ExprTag end) during scanning. Set decl_end to match.
-        cd.decl_end = cd.value_end;
-        finalize_decl(&mut nodes, Some(cd));
+        cd.end = cd.value_end;
+        finalize_decl(&mut parser.nodes, Some(cd));
     }
 
     // Set is_first / is_last.
-    let len = nodes.len();
-    for (i, n) in nodes.iter_mut().enumerate() {
+    let len = parser.nodes.len();
+    for (i, n) in parser.nodes.iter_mut().enumerate() {
         match n {
             RootNode::Decl(d) => {
                 d.is_first = i == 0;
@@ -377,7 +187,195 @@ fn parse_style_value(parts: &[AttributeValuePart], source: &str) -> Vec<RootNode
         }
     }
 
-    nodes
+    parser.nodes
+}
+
+struct StyleValueParser {
+    state: ParseState,
+    declaration: Option<CurDecl>,
+    nodes: Vec<RootNode>,
+}
+
+impl Default for StyleValueParser {
+    fn default() -> Self {
+        Self {
+            state: ParseState::Top,
+            declaration: None,
+            nodes: Vec::new(),
+        }
+    }
+}
+
+impl StyleValueParser {
+    fn process_expression(
+        &mut self,
+        tag: &rsvelte_core::ast::template::ExpressionTag,
+        source: &str,
+    ) {
+        match self.state {
+            ParseState::Top => {
+                if let Some(inline) = try_parse_inline(tag, source) {
+                    self.nodes.push(RootNode::Inline(inline));
+                }
+            }
+            ParseState::PropName => {
+                if let Some(declaration) = &mut self.declaration {
+                    declaration.flags.mark(DeclFlags::PROP_INTERPOLATION);
+                }
+                self.declaration = None;
+                self.state = ParseState::Top;
+            }
+            ParseState::ValueLeadingSpace => {
+                if let Some(declaration) = &mut self.declaration {
+                    declaration.value_start = tag.start;
+                    declaration.value_end = tag.end;
+                    declaration.flags.mark(DeclFlags::HAS_VALUE);
+                    self.state = ParseState::ValueAfterExpr;
+                }
+            }
+            ParseState::Value => {
+                if let Some(declaration) = &mut self.declaration {
+                    declaration.flags.mark(DeclFlags::HAS_VALUE);
+                }
+                self.state = ParseState::ValueAfterExpr;
+            }
+            ParseState::ValueAfterExpr => {
+                if let Some(declaration) = &mut self.declaration {
+                    declaration.value_end = tag.end;
+                }
+            }
+        }
+    }
+
+    fn process_text(&mut self, text: &str, base: u32) {
+        let bytes = text.as_bytes();
+        let mut index = 0;
+        while index < bytes.len() {
+            if self.skip_comment(bytes, &mut index) {
+                continue;
+            }
+            self.process_text_byte(text, base, &mut index);
+        }
+    }
+
+    fn skip_comment(&mut self, bytes: &[u8], index: &mut usize) -> bool {
+        if bytes[*index] != b'/' || bytes.get(*index + 1) != Some(&b'*') {
+            return false;
+        }
+        if matches!(self.state, ParseState::PropName) {
+            self.declaration = None;
+            self.state = ParseState::Top;
+        }
+        *index += 2;
+        while *index < bytes.len() {
+            if bytes[*index] == b'*' && bytes.get(*index + 1) == Some(&b'/') {
+                *index += 2;
+                break;
+            }
+            *index += 1;
+        }
+        true
+    }
+
+    fn process_text_byte(&mut self, text: &str, base: u32, index: &mut usize) {
+        let byte = text.as_bytes()[*index];
+        let position = base + source_offset(*index);
+        match self.state {
+            ParseState::Top => self.process_top(byte, position, index),
+            ParseState::PropName => self.process_property_name(byte, position, index),
+            ParseState::ValueLeadingSpace => {
+                self.process_value_leading_space(byte, position, index);
+            }
+            ParseState::Value => self.process_value(text, byte, base, position, index),
+            ParseState::ValueAfterExpr => {
+                self.process_value_after_expression(byte, position, index);
+            }
+        }
+    }
+
+    fn process_top(&mut self, byte: u8, position: u32, index: &mut usize) {
+        if byte == b';' || byte.is_ascii_whitespace() {
+            *index += 1;
+        } else {
+            self.declaration = Some(CurDecl::new(position));
+            self.state = ParseState::PropName;
+        }
+    }
+
+    fn process_property_name(&mut self, byte: u8, position: u32, index: &mut usize) {
+        let declaration = self
+            .declaration
+            .as_mut()
+            .expect("property state has declaration");
+        if byte == b':' {
+            declaration.prop_end = position;
+            self.state = ParseState::ValueLeadingSpace;
+        } else if byte == b';' || matches!(byte, b'{' | b'}') {
+            declaration.flags.mark(DeclFlags::UNKNOWN_INTERPOLATION);
+            self.state = ParseState::Top;
+            self.declaration = None;
+        } else {
+            declaration.prop.push(char::from(byte));
+        }
+        *index += 1;
+    }
+
+    fn process_value_leading_space(&mut self, byte: u8, position: u32, index: &mut usize) {
+        let declaration = self
+            .declaration
+            .as_mut()
+            .expect("value state has declaration");
+        if byte == b';' {
+            declaration.value_start = position;
+            declaration.value_end = position;
+            declaration.end = position + 1;
+            finalize_decl(&mut self.nodes, self.declaration.take());
+            self.state = ParseState::Top;
+            *index += 1;
+        } else if !byte.is_ascii_whitespace() {
+            declaration.value_start = position;
+            self.state = ParseState::Value;
+        } else {
+            *index += 1;
+        }
+    }
+
+    fn process_value(&mut self, text: &str, byte: u8, base: u32, position: u32, index: &mut usize) {
+        let declaration = self
+            .declaration
+            .as_mut()
+            .expect("value state has declaration");
+        if byte == b';' {
+            declaration.end = position + 1;
+            declaration.value_end = trim_end_pos(text, *index, base);
+            declaration.flags.mark(DeclFlags::HAS_VALUE);
+            finalize_decl(&mut self.nodes, self.declaration.take());
+            self.state = ParseState::Top;
+            *index += 1;
+        } else if byte == b'!' && text[*index..].starts_with("!important") {
+            declaration.flags.mark(DeclFlags::IMPORTANT);
+            declaration.value_end = trim_end_pos(text, *index, base);
+            declaration.flags.mark(DeclFlags::HAS_VALUE);
+            *index += "!important".len();
+        } else {
+            if !byte.is_ascii_whitespace() {
+                declaration.value_end = position + 1;
+                declaration.flags.mark(DeclFlags::HAS_VALUE);
+            }
+            *index += 1;
+        }
+    }
+
+    fn process_value_after_expression(&mut self, byte: u8, position: u32, index: &mut usize) {
+        if byte == b';' {
+            if let Some(declaration) = &mut self.declaration {
+                declaration.end = position + 1;
+            }
+            finalize_decl(&mut self.nodes, self.declaration.take());
+            self.state = ParseState::Top;
+        }
+        *index += 1;
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -393,26 +391,59 @@ struct CurDecl {
     prop: String,
     prop_start: u32,
     prop_end: u32,
-    has_prop_interp: bool,
+    flags: DeclFlags,
     value_start: u32,
     value_end: u32,
-    has_value: bool,
-    unknown_interp: bool,
-    important: bool,
-    decl_start: u32,
-    decl_end: u32,
+    start: u32,
+    end: u32,
+}
+
+impl CurDecl {
+    fn new(position: u32) -> Self {
+        Self {
+            prop: String::new(),
+            prop_start: position,
+            prop_end: position,
+            flags: DeclFlags::default(),
+            value_start: 0,
+            value_end: 0,
+            start: position,
+            end: position,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+struct DeclFlags(u8);
+
+impl DeclFlags {
+    const PROP_INTERPOLATION: u8 = 1;
+    const HAS_VALUE: u8 = 1 << 1;
+    const UNKNOWN_INTERPOLATION: u8 = 1 << 2;
+    const IMPORTANT: u8 = 1 << 3;
+
+    const fn contains(self, flag: u8) -> bool {
+        self.0 & flag != 0
+    }
+
+    const fn mark(&mut self, flag: u8) {
+        self.0 |= flag;
+    }
 }
 
 fn finalize_decl(nodes: &mut Vec<RootNode>, cd: Option<CurDecl>) {
     let Some(cd) = cd else { return };
-    if cd.has_prop_interp || cd.unknown_interp || cd.important {
+    if cd.flags.contains(DeclFlags::PROP_INTERPOLATION)
+        || cd.flags.contains(DeclFlags::UNKNOWN_INTERPOLATION)
+        || cd.flags.contains(DeclFlags::IMPORTANT)
+    {
         return;
     }
     let prop = cd.prop.trim().to_string();
     if prop.is_empty() {
         return;
     }
-    if !cd.has_value && cd.value_start == 0 {
+    if !cd.flags.contains(DeclFlags::HAS_VALUE) && cd.value_start == 0 {
         return;
     }
     nodes.push(RootNode::Decl(Decl {
@@ -420,8 +451,8 @@ fn finalize_decl(nodes: &mut Vec<RootNode>, cd: Option<CurDecl>) {
         prop_start: cd.prop_start,
         value_start: cd.value_start,
         value_end: cd.value_end,
-        decl_start: cd.decl_start,
-        decl_end: cd.decl_end,
+        start: cd.start,
+        end: cd.end,
         is_first: false,
         is_last: false,
     }));
@@ -432,10 +463,10 @@ fn finalize_decl(nodes: &mut Vec<RootNode>, cd: Option<CurDecl>) {
 fn trim_end_pos(text: &str, text_idx: usize, base: u32) -> u32 {
     let s = &text[..text_idx];
     let trimmed = s.trim_end();
-    base + trimmed.len() as u32
+    base + source_offset(trimmed.len())
 }
 
-/// Try to parse a top-level ExpressionTag as an inline ternary that contains
+/// Try to parse a top-level `ExpressionTag` as an inline ternary that contains
 /// a single CSS declaration. Returns `Some(Inline)` if successful.
 fn try_parse_inline(
     tag: &rsvelte_core::ast::template::ExpressionTag,
@@ -485,7 +516,7 @@ fn try_parse_inline(
     let neg_lit_end = node_end(neg_node)?;
 
     // Determine the quote char of the positive literal.
-    let pos_lit_quote = if pos_lit_start < source.len() as u32 {
+    let pos_lit_quote = if pos_lit_start < source_offset(source.len()) {
         let ch = source.as_bytes()[pos_lit_start as usize];
         if ch == b'\'' { '\'' } else { '"' }
     } else {
@@ -549,7 +580,7 @@ fn check_style_attr(ctx: &mut LintContext, attributes: &[Attribute]) {
                     start: tag.start,
                     end: tag.end,
                     expression: tag.expression.clone(),
-                    metadata: Default::default(),
+                    metadata: rsvelte_core::ast::template::TagMetadata::default(),
                 },
             )]
         }
@@ -572,179 +603,144 @@ fn check_style_attr(ctx: &mut LintContext, attributes: &[Attribute]) {
 
     // Check for existing style directives on this element, to avoid suggesting
     // when the directive already exists.
-    let existing_directives: Vec<&str> = attributes
+    let existing_directives: Vec<String> = attributes
         .iter()
         .filter_map(|a| {
             if let Attribute::StyleDirective(d) = a {
-                Some(d.name.as_str())
+                Some(d.name.to_string())
             } else {
                 None
             }
         })
         .collect();
 
+    let mut reporter = StyleDirectiveReporter {
+        ctx,
+        parts: &parts,
+        nodes: &nodes,
+        attr_start,
+        attr_end,
+        existing_directives: &existing_directives,
+    };
     for node in &nodes {
+        reporter.report(node);
+    }
+}
+
+struct StyleDirectiveReporter<'borrow, 'source, 'value> {
+    ctx: &'borrow mut LintContext<'source>,
+    parts: &'borrow [AttributeValuePart<'value>],
+    nodes: &'borrow [RootNode],
+    attr_start: u32,
+    attr_end: u32,
+    existing_directives: &'borrow [String],
+}
+
+impl StyleDirectiveReporter<'_, '_, '_> {
+    fn report(&mut self, node: &RootNode) {
         match node {
-            RootNode::Decl(d) => {
-                // Skip if a style directive for this prop already exists.
-                if existing_directives.contains(&d.prop.as_str()) {
-                    continue;
-                }
-                let value_text = ctx.slice(d.value_start, d.value_end).to_string();
-                let style_directive = format!("style:{}=\"{}\"", d.prop, value_text);
+            RootNode::Decl(declaration) => self.report_declaration(node, declaration),
+            RootNode::Inline(inline) => self.report_inline(node, inline),
+        }
+    }
 
-                // Report at the declaration location.
-                // Upstream reports at `decl.loc` which is relative to the attribute.
-                // We report at the prop_start position in the source.
-                let report_start = d.prop_start;
-                let report_end = d.decl_end;
+    fn report_declaration(&mut self, node: &RootNode, declaration: &Decl) {
+        if self
+            .existing_directives
+            .iter()
+            .any(|existing| existing == &declaration.prop)
+        {
+            return;
+        }
+        let value = self
+            .ctx
+            .slice(declaration.value_start, declaration.value_end);
+        let directive = format!("style:{}=\"{value}\"", declaration.prop);
+        let fix = self.fix(node, directive, declaration.is_first);
+        self.ctx
+            .report_with_fix(declaration.prop_start, declaration.end, MESSAGE, fix);
+    }
 
-                let fix = if total == 1 {
-                    // Only node → replace whole attribute.
-                    Fix {
-                        message: "Replace with style directive".to_string(),
-                        edits: vec![TextEdit {
-                            start: attr_start,
-                            end: attr_end,
-                            new_text: style_directive,
-                        }],
-                    }
-                } else {
-                    // Multiple nodes: remove this decl from the style, insert directive.
-                    let mut edits = Vec::new();
-                    // Remove the decl from the style attribute.
-                    let remove_edit = remove_node_edit(&nodes, node, &parts);
-                    edits.push(remove_edit);
-                    // Insert directive.
-                    if d.is_first {
-                        // Insert before the attribute.
-                        edits.push(TextEdit {
-                            start: attr_start,
-                            end: attr_start,
-                            new_text: format!("{style_directive} "),
-                        });
-                    } else {
-                        // Insert after the attribute.
-                        edits.push(TextEdit {
-                            start: attr_end,
-                            end: attr_end,
-                            new_text: format!(" {style_directive}"),
-                        });
-                    }
-                    Fix {
-                        message: "Replace with style directive".to_string(),
-                        edits,
-                    }
-                };
-                ctx.report_with_fix(report_start, report_end, MESSAGE, fix);
+    fn report_inline(&mut self, node: &RootNode, inline: &Inline) {
+        if self
+            .existing_directives
+            .iter()
+            .any(|existing| existing == &inline.prop)
+        {
+            return;
+        }
+        let value = self.inline_value(inline);
+        let directive = format!("style:{}={{{value}}}", inline.prop);
+        let fix = self.fix(node, directive, inline.is_first);
+        self.ctx
+            .report_with_fix(inline.expr_start + 1, inline.expr_end - 1, MESSAGE, fix);
+    }
+
+    fn inline_value(&self, inline: &Inline) -> String {
+        let (consequent_start, consequent_end, alternate_start) = if inline.positive {
+            (
+                inline.pos_lit_start,
+                inline.pos_lit_end,
+                inline.neg_lit_start,
+            )
+        } else {
+            (
+                inline.neg_lit_start,
+                inline.neg_lit_end,
+                inline.pos_lit_start,
+            )
+        };
+        let quoted_value = format!(
+            "{}{}{}",
+            inline.pos_lit_quote, inline.value_str, inline.pos_lit_quote
+        );
+        let (consequent, alternate) = if inline.positive {
+            (quoted_value.as_str(), "null")
+        } else {
+            ("null", quoted_value.as_str())
+        };
+        format!(
+            "{}{}{}{}{}",
+            self.ctx.slice(inline.test_start, inline.test_end),
+            self.ctx.slice(inline.test_end, consequent_start),
+            consequent,
+            self.ctx.slice(consequent_end, alternate_start),
+            alternate,
+        )
+    }
+
+    fn fix(&self, node: &RootNode, directive: String, is_first: bool) -> Fix {
+        if self.nodes.len() == 1 {
+            return Fix {
+                message: "Replace with style directive".to_string(),
+                edits: vec![TextEdit {
+                    start: self.attr_start,
+                    end: self.attr_end,
+                    new_text: directive,
+                }],
+            };
+        }
+        let insert = if is_first {
+            TextEdit {
+                start: self.attr_start,
+                end: self.attr_start,
+                new_text: format!("{directive} "),
             }
-            RootNode::Inline(il) => {
-                // Skip if a style directive for this prop already exists.
-                if existing_directives.contains(&il.prop.as_str()) {
-                    continue;
-                }
-                // Build the style directive for inline ternary.
-                // style:prop={test ? 'value' : null} or style:prop={test ? null : 'value'}
-                let test_text = ctx.slice(il.test_start, il.test_end);
-                // Get the source text for the span between test and consequent start,
-                // and between consequent end and alternate start.
-                let consequent_node_start = if il.positive {
-                    il.pos_lit_start
-                } else {
-                    il.neg_lit_start
-                };
-                let consequent_node_end = if il.positive {
-                    il.pos_lit_end
-                } else {
-                    il.neg_lit_end
-                };
-                let alternate_node_start = if il.positive {
-                    il.neg_lit_start
-                } else {
-                    il.pos_lit_start
-                };
-                let _alternate_node_end = if il.positive {
-                    il.neg_lit_end
-                } else {
-                    il.pos_lit_end
-                };
-
-                // Build the value text for the positive branch (value_str in quotes).
-                let q = il.pos_lit_quote;
-                let value_in_quotes = format!("{q}{}{q}", il.value_str);
-
-                // Build the ternary value expression:
-                // For `test ? 'css-decl;' : ''` → `{test ? 'value' : null}`
-                // We need: `{test_text<from-test-to-consequent-quote><value><from-consequent-end-to-alternate-start>null}`
-                // i.e. replicate the original source structure between test and consequent/alternate,
-                // but replace the literal content.
-                //
-                // Upstream uses:
-                //   valueText = sourceCode.text.slice(test.range[0], consequent.range[0])
-                //   + (positive ? openQuote + decl.value.value + closeQuote : 'null')
-                //   + sourceCode.text.slice(consequent.range[1], alternate.range[0])
-                //   + (positive ? 'null' : openQuote + decl.value.value + closeQuote)
-                //
-                // where pos_lit is the string literal with the CSS value.
-
-                let between_test_and_consequent = ctx.slice(il.test_end, consequent_node_start);
-                let between_consequent_and_alternate =
-                    ctx.slice(consequent_node_end, alternate_node_start);
-
-                let (cons_text, alt_text) = if il.positive {
-                    (value_in_quotes.as_str().to_string(), "null".to_string())
-                } else {
-                    ("null".to_string(), value_in_quotes.as_str().to_string())
-                };
-
-                let value_text = format!(
-                    "{test_text}{between_test_and_consequent}{cons_text}{between_consequent_and_alternate}{alt_text}"
-                );
-                let style_directive = format!("style:{}={{{value_text}}}", il.prop);
-
-                let fix = if total == 1 {
-                    Fix {
-                        message: "Replace with style directive".to_string(),
-                        edits: vec![TextEdit {
-                            start: attr_start,
-                            end: attr_end,
-                            new_text: style_directive,
-                        }],
-                    }
-                } else {
-                    let mut edits = Vec::new();
-                    let remove_edit = remove_node_edit(&nodes, node, &parts);
-                    edits.push(remove_edit);
-                    if il.is_first {
-                        edits.push(TextEdit {
-                            start: attr_start,
-                            end: attr_start,
-                            new_text: format!("{style_directive} "),
-                        });
-                    } else {
-                        edits.push(TextEdit {
-                            start: attr_end,
-                            end: attr_end,
-                            new_text: format!(" {style_directive}"),
-                        });
-                    }
-                    Fix {
-                        message: "Replace with style directive".to_string(),
-                        edits,
-                    }
-                };
-                // Report at the inline ternary expression (not the tag) to match
-                // upstream's `node: node.expression` (the ConditionalExpression inside {}).
-                // The column is the column of the ConditionalExpression start.
-                // Since we have the tag's `{` at il.expr_start, the expr is at il.expr_start+1.
-                let report_start = il.expr_start + 1;
-                ctx.report_with_fix(report_start, il.expr_end - 1, MESSAGE, fix);
+        } else {
+            TextEdit {
+                start: self.attr_end,
+                end: self.attr_end,
+                new_text: format!(" {directive}"),
             }
+        };
+        Fix {
+            message: "Replace with style directive".to_string(),
+            edits: vec![remove_node_edit(self.nodes, node, self.parts), insert],
         }
     }
 }
 
-/// Build the TextEdit that removes a node from the style attribute value.
+/// Build the `TextEdit` that removes a node from the style attribute value.
 /// Mirrors `removeStyle` in upstream: if there's a node after, remove up to
 /// the next node's start; if there's a node before, remove from the previous
 /// node's end; otherwise remove the node itself.
@@ -755,31 +751,34 @@ fn remove_node_edit(
 ) -> TextEdit {
     let idx = nodes
         .iter()
-        .position(|n| std::ptr::eq(n as *const _, node as *const _))
+        .position(|n| std::ptr::eq(std::ptr::from_ref(n), std::ptr::from_ref(node)))
         .unwrap_or(0);
     let after = nodes.get(idx + 1);
     let before = if idx > 0 { nodes.get(idx - 1) } else { None };
-    if let Some(after_node) = after {
-        // Remove from this node's start to the next node's start.
-        TextEdit {
-            start: node.decl_start(),
-            end: after_node.decl_start(),
-            new_text: String::new(),
-        }
-    } else if let Some(before_node) = before {
-        // Remove from the previous node's end to this node's end.
-        TextEdit {
-            start: before_node.decl_end(),
-            end: node.decl_end(),
-            new_text: String::new(),
-        }
-    } else {
-        TextEdit {
-            start: node.decl_start(),
-            end: node.decl_end(),
-            new_text: String::new(),
-        }
-    }
+    after.map_or_else(
+        || {
+            before.map_or_else(
+                || TextEdit {
+                    start: node.decl_start(),
+                    end: node.decl_end(),
+                    new_text: String::new(),
+                },
+                |before_node| TextEdit {
+                    start: before_node.decl_end(),
+                    end: node.decl_end(),
+                    new_text: String::new(),
+                },
+            )
+        },
+        |after_node| {
+            // Remove from this node's start to the next node's start.
+            TextEdit {
+                start: node.decl_start(),
+                end: after_node.decl_start(),
+                new_text: String::new(),
+            }
+        },
+    )
 }
 
 #[derive(Default)]

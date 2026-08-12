@@ -9,7 +9,7 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-fn bin() -> &'static str {
+const fn bin() -> &'static str {
     env!("CARGO_BIN_EXE_svelte_check")
 }
 
@@ -20,8 +20,7 @@ fn workspace(tag: &str) -> PathBuf {
         // Keep concurrently-running tests from colliding on the same dir.
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0)
+            .map_or(0, |d| d.as_nanos())
     ));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -172,10 +171,10 @@ fn custom_named_vite_config_supplies_compiler_options() {
     write(
         &dir,
         "vite.custom.config.js",
-        r#"import { svelte } from '@sveltejs/vite-plugin-svelte';
+        r"import { svelte } from '@sveltejs/vite-plugin-svelte';
         export default {
             plugins: [svelte({ compilerOptions: { experimental: { async: true } } })]
-        };"#,
+        };",
     );
 
     // Without the flag the same workspace must still error, or the

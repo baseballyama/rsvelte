@@ -232,17 +232,18 @@ impl ProjectionEngine {
             let Some(info) = result.exported_names.get(name) else {
                 continue;
             };
-            if info.is_prop {
+            if info.is_prop() {
                 props.push(ProjectionProp {
                     name: name.to_string(),
                     local_name: info.local_name.clone(),
-                    optional: info.has_default,
+                    optional: info.has_default(),
                     bindable: bindable_props.iter().any(|bindable| bindable == name),
                     type_annotation: info.type_annotation.clone(),
                 });
             }
-            if (!info.is_prop || info.is_named_export)
-                && (!info.is_let || (result.exported_names.is_runes_mode() && info.is_named_export))
+            if (!info.is_prop() || info.is_named_export())
+                && (!info.is_let()
+                    || (result.exported_names.is_runes_mode() && info.is_named_export()))
             {
                 exports.push(ProjectionExport {
                     name: name.to_string(),

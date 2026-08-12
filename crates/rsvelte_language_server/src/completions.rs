@@ -21,6 +21,7 @@ const HTML_COMMENT_START: &str = "<!--";
 /// case, and short enough that a stray `{` far away cannot open a moustache.
 const WINDOW: usize = 10;
 
+#[must_use]
 pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
     if EmbeddedRegions::new(text).contains(offset) {
         return None;
@@ -86,7 +87,7 @@ fn preceded_by_opening_brace(window: &str) -> bool {
     i > 0 && bytes[i - 1] == b'{'
 }
 
-fn is_word_byte(byte: u8) -> bool {
+const fn is_word_byte(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || byte == b'_'
 }
 
@@ -295,7 +296,7 @@ fn component_documentation(window: &str) -> Option<CompletionList> {
     })
 }
 
-fn markdown(value: String) -> Documentation {
+const fn markdown(value: String) -> Documentation {
     Documentation::MarkupContent(MarkupContent {
         kind: MarkupKind::Markdown,
         value,

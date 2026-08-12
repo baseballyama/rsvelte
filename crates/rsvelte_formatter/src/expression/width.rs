@@ -9,13 +9,13 @@ use crate::width::{VisualWidth, tab_width};
 /// at an explicit `width`, then push its continuation lines out to `indent_cols`
 /// columns. Used by the collapse pass to wrap a block element's sole content-tag
 /// child onto its own line (`<h1>`\n`  {@html foo.bar(`\n`    …`\n`  )}`\n`</h1>`).
-pub(crate) fn reformat_content_at_width(
+pub fn reformat_content_at_width(
     expr_source: &str,
     options: &FormatOptions,
     width: usize,
     indent_cols: usize,
 ) -> Result<String, FormatError> {
-    let lw = oxc_formatter_core::LineWidth::try_from(width.max(1) as u16)
+    let lw = oxc_formatter_core::LineWidth::try_from(crate::formatter_width(width.max(1)))
         .unwrap_or(options.js.line_width);
     let formatted = format_expr_core(expr_source, options, lw, false)?;
     if !formatted.contains('\n') {
@@ -32,7 +32,7 @@ pub(crate) fn reformat_content_at_width(
 /// Format an attribute / directive value expression (`bind:value={ … }`) at
 /// the configured width. Attribute-position wrapping is owned by the open-tag
 /// rewrite in [`crate::markup`], so this applies no markup-depth adjustment.
-pub(crate) fn format_expression_source(
+pub fn format_expression_source(
     expr_source: &str,
     options: &FormatOptions,
 ) -> Result<String, FormatError> {
@@ -47,7 +47,7 @@ pub(crate) fn format_expression_source(
 /// prettier-plugin-svelte puts it (#795). Unlike [`format_content_expression`],
 /// this does NOT reindent: the open-tag rewrite (`crate::markup::render_multi_line`)
 /// owns pushing continuation lines out to the attribute column.
-pub(crate) fn format_attribute_value_expression(
+pub fn format_attribute_value_expression(
     expr_source: &str,
     options: &FormatOptions,
     attr_depth: usize,
@@ -72,8 +72,9 @@ pub(crate) fn format_attribute_value_expression(
     } else {
         line_width_val - lead
     };
-    let line_width = oxc_formatter_core::LineWidth::try_from(narrowed.max(1) as u16)
-        .unwrap_or(options.js.line_width);
+    let line_width =
+        oxc_formatter_core::LineWidth::try_from(crate::formatter_width(narrowed.max(1)))
+            .unwrap_or(options.js.line_width);
     format_expr_core(expr_source, options, line_width, false)
 }
 
@@ -82,12 +83,12 @@ pub(crate) fn format_attribute_value_expression(
 /// whole-value Doc model (`crate::markup`) to produce an interpolation's `flat`
 /// form (at the widest line OXC allows) and its `broken` form (at the width
 /// that forces the break the enclosing group already decided on).
-pub(crate) fn format_attribute_value_expression_at_width(
+pub fn format_attribute_value_expression_at_width(
     expr_source: &str,
     options: &FormatOptions,
     width: usize,
 ) -> Result<String, FormatError> {
-    let lw = oxc_formatter_core::LineWidth::try_from(width.max(1) as u16)
+    let lw = oxc_formatter_core::LineWidth::try_from(crate::formatter_width(width.max(1)))
         .unwrap_or(options.js.line_width);
     format_expr_core(expr_source, options, lw, false)
 }
@@ -96,7 +97,7 @@ pub(crate) fn format_attribute_value_expression_at_width(
 /// regardless of length — the `RawExpr` flat variant for the whole-value Doc
 /// model. Formats at the widest line OXC allows so a long ternary / member
 /// chain does not split.
-pub(crate) fn format_attribute_value_expression_flat(
+pub fn format_attribute_value_expression_flat(
     expr_source: &str,
     options: &FormatOptions,
 ) -> Result<String, FormatError> {
@@ -156,8 +157,9 @@ pub(super) fn format_content_expression_with_prefix(
     let full_width = options.js.line_width.value() as usize;
     // First-pass width: same as format_content_expression (narrowed only by indent).
     let narrowed = full_width.saturating_sub(lead);
-    let line_width = oxc_formatter_core::LineWidth::try_from(narrowed.max(1) as u16)
-        .unwrap_or(options.js.line_width);
+    let line_width =
+        oxc_formatter_core::LineWidth::try_from(crate::formatter_width(narrowed.max(1)))
+            .unwrap_or(options.js.line_width);
     let formatted = format_expr_core(expr_source, options, line_width, false)?;
     // Overflow re-check: a single-line result that overflows when the actual
     // prefix (braces + keyword) is counted must be re-formatted at a narrower
@@ -171,7 +173,7 @@ pub(super) fn format_content_expression_with_prefix(
         .visual_width(tab_width(options));
     let formatted = if lead + overhead + first_line_width > full_width {
         let narrowed2 = full_width.saturating_sub(lead + overhead);
-        let lw2 = oxc_formatter_core::LineWidth::try_from(narrowed2.max(1) as u16)
+        let lw2 = oxc_formatter_core::LineWidth::try_from(crate::formatter_width(narrowed2.max(1)))
             .unwrap_or(options.js.line_width);
         format_expr_core(expr_source, options, lw2, false)?
     } else {

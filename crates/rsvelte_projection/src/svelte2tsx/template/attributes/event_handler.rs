@@ -7,7 +7,7 @@ use std::fmt::Write as _;
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
 
 /// Collect references to all `on:` directives from an attribute list.
-pub(crate) fn get_on_directives<'a>(attributes: &'a [Attribute<'a>]) -> Vec<&'a OnDirective<'a>> {
+pub fn get_on_directives<'a>(attributes: &'a [Attribute<'a>]) -> Vec<&'a OnDirective<'a>> {
     attributes
         .iter()
         .filter_map(|attr| match attr {
@@ -21,25 +21,20 @@ pub(crate) fn get_on_directives<'a>(attributes: &'a [Attribute<'a>]) -> Vec<&'a 
 ///
 /// Each directive becomes `inst.$on("eventName", handler);`
 /// If no handler expression, uses `() => {}`.
-pub(crate) fn build_on_calls(
-    inst_var: &str,
-    on_directives: &[&OnDirective],
-    source: &str,
-) -> String {
+pub fn build_on_calls(inst_var: &str, on_directives: &[&OnDirective], source: &str) -> String {
     let mut calls = String::new();
     for on in on_directives {
-        let handler = if let Some(ref expr) = on.expression {
-            get_expression_text(expr, source).to_string()
-        } else {
-            "() => {}".to_string()
-        };
+        let handler = on.expression.as_ref().map_or_else(
+            || "() => {}".to_string(),
+            |expr| get_expression_text(expr, source).to_string(),
+        );
         let _ = write!(calls, "{}.$on(\"{}\", {});", inst_var, on.name, handler);
     }
     calls
 }
 
 /// Structured-bake variant of [`format_on_directive`].
-pub(crate) fn format_on_directive_segments(on: &OnDirective, source: &str) -> Vec<Seg> {
+pub fn format_on_directive_segments(on: &OnDirective, source: &str) -> Vec<Seg> {
     let mut out = Vec::new();
     if let Some(ref expr) = on.expression {
         segs_push_fmt(&mut out, format_args!("\"on:{}\":", on.name));
@@ -57,12 +52,12 @@ pub(crate) fn format_on_directive_segments(on: &OnDirective, source: &str) -> Ve
 }
 
 /// Format an on directive: `on:click={handler}` → `"on:click":handler,`
-pub(crate) fn format_on_directive(on: &OnDirective, source: &str) -> String {
-    if let Some(ref expr) = on.expression {
-        let expr_text = get_expression_text(expr, source);
-        format!("\"on:{}\":{},", on.name, expr_text)
-    } else {
-        // Event forwarding: `on:click` → `"on:click":undefined,`
-        format!("\"on:{}\":undefined,", on.name)
-    }
+pub fn format_on_directive(on: &OnDirective, source: &str) -> String {
+    on.expression.as_ref().map_or_else(
+        || format!("\"on:{}\":undefined,", on.name),
+        |expr| {
+            let expr_text = get_expression_text(expr, source);
+            format!("\"on:{}\":{},", on.name, expr_text)
+        },
+    )
 }

@@ -91,15 +91,15 @@ fn template_literal_interior_is_not_reindented() {
 
 #[test]
 fn slot_span_slot_inline_run_breaks() {
-    let source = r#"<slot><slot><h1>Heading 1</h1></slot></slot><span>Span 1</span><span>Span 2</span><slot><slot><p>Paragraph 2</p></slot></slot>
+    let source = r"<slot><slot><h1>Heading 1</h1></slot></slot><span>Span 1</span><span>Span 2</span><slot><slot><p>Paragraph 2</p></slot></slot>
 
 <style>
   h1 ~ p {
     color: red;
   }
 </style>
-"#;
-    let expected = r#"<slot><slot><h1>Heading 1</h1></slot></slot><span>Span 1</span><span
+";
+    let expected = r"<slot><slot><h1>Heading 1</h1></slot></slot><span>Span 1</span><span
   >Span 2</span
 ><slot><slot><p>Paragraph 2</p></slot></slot>
 
@@ -108,7 +108,7 @@ fn slot_span_slot_inline_run_breaks() {
     color: red;
   }
 </style>
-"#;
+";
     let opts = FormatOptions {
         js: JsFormatOptions {
             line_width: LineWidth::try_from(80u16).unwrap(),

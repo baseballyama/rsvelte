@@ -1,4 +1,4 @@
-//! TitleElement visitor for client-side transformation.
+//! `TitleElement` visitor for client-side transformation.
 //!
 //! Handles `<title>` elements within `<svelte:head>`.
 //!
@@ -25,7 +25,7 @@ struct MemoEntry {
     is_async: bool,
 }
 
-/// Visit a TitleElement node and generate client-side code.
+/// Visit a `TitleElement` node and generate client-side code.
 ///
 /// When the content contains reactive expressions, generates:
 /// ```js
@@ -267,10 +267,10 @@ fn build_async_thunk(
 /// Build the title content from fragment nodes using memoizer pattern.
 ///
 /// Handles text nodes and expression tags to build a single value expression.
-/// For expressions with `await`, extracts them into the memo_entries for
-/// separate handling as async values in deferred_template_effect.
+/// For expressions with `await`, extracts them into the `memo_entries` for
+/// separate handling as async values in `deferred_template_effect`.
 ///
-/// Returns (value_expression, has_state, memo_entries).
+/// Returns (`value_expression`, `has_state`, `memo_entries`).
 fn build_title_content(
     nodes: &[TemplateNode],
     context: &mut ComponentContext,

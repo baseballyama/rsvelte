@@ -28,6 +28,13 @@ use crate::rules::scss_selector::{
     ScssSelector, SelectorKind, extract_selectors, is_plain_css_lang, scss_lang,
 };
 
+fn json_offset(node: &Value, field: &str) -> u32 {
+    node.get(field)
+        .and_then(Value::as_u64)
+        .and_then(|offset| u32::try_from(offset).ok())
+        .unwrap_or(0)
+}
+
 static META: RuleMeta = RuleMeta {
     name: "svelte/consistent-selector-style",
     category: RuleCategory::Style,
@@ -120,11 +127,8 @@ impl Selections {
             .map(|v| v.iter().map(|&e| (e, true)).collect())
             .unwrap_or_default();
         for (prefix, suffix, elems) in &self.affixes {
-            let prefix_ok = prefix
-                .as_deref()
-                .map(|p| key.starts_with(p))
-                .unwrap_or(true);
-            let suffix_ok = suffix.as_deref().map(|s| key.ends_with(s)).unwrap_or(true);
+            let prefix_ok = prefix.as_deref().is_none_or(|p| key.starts_with(p));
+            let suffix_ok = suffix.as_deref().is_none_or(|s| key.ends_with(s));
             if prefix_ok && suffix_ok {
                 out.extend(elems.iter().map(|&e| (e, false)));
             }
@@ -140,7 +144,7 @@ struct TemplateSelections {
     id: Selections,
     /// type → [element ids] (only exact/static type names).
     type_map: HashMap<String, Vec<ElemId>>,
-    /// Element id → occurrence count (ZeroToInf or Finite).
+    /// Element id → occurrence count (`ZeroToInf` or Finite).
     occ: HashMap<ElemId, OccCount>,
     /// Class names added by `class:name` directives — always whitelisted.
     whitelisted_classes: Vec<String>,
@@ -316,7 +320,7 @@ fn process_class_value(value: &AttributeValue, elem: ElemId, sel: &mut TemplateS
                         match extract_affix(et.expression.as_json()) {
                             Affix::Universal => sel.class.universal_selector = true,
                             Affix::Known { prefix, suffix } => {
-                                sel.class.add_affix(prefix, suffix, elem)
+                                sel.class.add_affix(prefix, suffix, elem);
                             }
                         }
                     }
@@ -430,11 +434,11 @@ fn extract_prefix_literal(expr: &Value) -> Option<String> {
             let exprs_refs: Vec<_> = exprs.iter().collect();
             let mut all: Vec<(u32, &Value)> = Vec::new();
             for q in &quasis_refs {
-                let start = q.get("start").and_then(Value::as_u64).unwrap_or(0) as u32;
+                let start = json_offset(q, "start");
                 all.push((start, q));
             }
             for e in &exprs_refs {
-                let start = e.get("start").and_then(Value::as_u64).unwrap_or(0) as u32;
+                let start = json_offset(e, "start");
                 all.push((start, e));
             }
             all.sort_by_key(|(s, _)| *s);
@@ -450,16 +454,15 @@ fn extract_prefix_literal(expr: &Value) -> Option<String> {
                         continue; // skip leading empty quasi
                     }
                     return Some(raw.to_string());
-                } else {
-                    // Expression part: recurse.
-                    return extract_prefix_literal(part);
                 }
+                // Expression part: recurse.
+                return extract_prefix_literal(part);
             }
             None
         }
         "Literal" => {
             let v = expr.get("value")?;
-            v.as_str().map(|s| s.to_string())
+            v.as_str().map(std::string::ToString::to_string)
         }
         _ => None,
     }
@@ -489,11 +492,11 @@ fn extract_suffix_literal(expr: &Value) -> Option<String> {
             let exprs_refs: Vec<_> = exprs.iter().collect();
             let mut all: Vec<(u32, &Value)> = Vec::new();
             for q in &quasis_refs {
-                let start = q.get("start").and_then(Value::as_u64).unwrap_or(0) as u32;
+                let start = json_offset(q, "start");
                 all.push((start, q));
             }
             for e in &exprs_refs {
-                let start = e.get("start").and_then(Value::as_u64).unwrap_or(0) as u32;
+                let start = json_offset(e, "start");
                 all.push((start, e));
             }
             all.sort_by_key(|(s, _)| *s);
@@ -511,15 +514,14 @@ fn extract_suffix_literal(expr: &Value) -> Option<String> {
                         continue;
                     }
                     return Some(raw.to_string());
-                } else {
-                    return extract_suffix_literal(part);
                 }
+                return extract_suffix_literal(part);
             }
             None
         }
         "Literal" => {
             let v = expr.get("value")?;
-            v.as_str().map(|s| s.to_string())
+            v.as_str().map(std::string::ToString::to_string)
         }
         _ => None,
     }
@@ -530,7 +532,7 @@ fn extract_suffix_literal(expr: &Value) -> Option<String> {
 // ---------------------------------------------------------------------------
 
 /// Check whether an ID selector can be used: no elements (empty match), or
-/// exactly one element that is not in a ZeroToInf context.
+/// exactly one element that is not in a `ZeroToInf` context.
 fn can_use_id_selector(selection: &[(ElemId, bool)], sel: &TemplateSelections) -> bool {
     if selection.is_empty() {
         return true;
@@ -544,7 +546,7 @@ fn can_use_id_selector(selection: &[(ElemId, bool)], sel: &TemplateSelections) -
 
 /// Check whether a type selector could replace the selector:
 /// - all matched elements have the same tag type
-/// - no affix-matched element is in a ZeroToInf context
+/// - no affix-matched element is in a `ZeroToInf` context
 /// - the set of matched elements equals the full set of that tag type in the template
 fn can_use_type_selector(
     selection: &[(ElemId, bool)],
@@ -577,9 +579,8 @@ fn can_use_type_selector(
         return true; // no elements with this tag in template
     }
     let tag = &types[0];
-    let type_elems = match type_map.get(tag.as_str()) {
-        Some(e) => e,
-        None => return false,
+    let Some(type_elems) = type_map.get(tag.as_str()) else {
+        return false;
     };
     // Selection elements must be exactly the set of type elements.
     let sel_elems: Vec<ElemId> = selection.iter().map(|(e, _)| *e).collect();
@@ -589,8 +590,8 @@ fn can_use_type_selector(
     type_elems.iter().all(|e| sel_elems.contains(e))
 }
 
-/// Walk the CSS stylesheet and check each ClassSelector, IdSelector,
-/// TypeSelector for consistency.
+/// Walk the CSS stylesheet and check each `ClassSelector`, `IdSelector`,
+/// `TypeSelector` for consistency.
 fn check_stylesheet(
     css: &StyleSheet,
     sel: &TemplateSelections,
@@ -658,32 +659,28 @@ fn check_css_node(
 fn is_bare_global_rule(node: &Value) -> bool {
     // A bare `:global { … }` rule has prelude = SelectorList > ComplexSelector
     // > RelativeSelector > selectors=[PseudoClassSelector(name="global", args=null)]
-    let prelude = match node.get("prelude") {
-        Some(p) => p,
-        None => return false,
+    let Some(prelude) = node.get("prelude") else {
+        return false;
     };
     if prelude.get("type").and_then(Value::as_str) != Some("SelectorList") {
         return false;
     }
-    let children = match prelude.get("children").and_then(Value::as_array) {
-        Some(c) => c,
-        None => return false,
+    let Some(children) = prelude.get("children").and_then(Value::as_array) else {
+        return false;
     };
     if children.len() != 1 {
         return false;
     }
     let complex = &children[0];
-    let rel_children = match complex.get("children").and_then(Value::as_array) {
-        Some(c) => c,
-        None => return false,
+    let Some(rel_children) = complex.get("children").and_then(Value::as_array) else {
+        return false;
     };
     if rel_children.len() != 1 {
         return false;
     }
     let rel = &rel_children[0];
-    let sels = match rel.get("selectors").and_then(Value::as_array) {
-        Some(s) => s,
-        None => return false,
+    let Some(sels) = rel.get("selectors").and_then(Value::as_array) else {
+        return false;
     };
     if sels.len() != 1 {
         return false;
@@ -759,15 +756,14 @@ fn check_class_selector(
     if sel.class.universal_selector {
         return;
     }
-    let name = match node.get("name").and_then(Value::as_str) {
-        Some(n) => n,
-        None => return,
+    let Some(name) = node.get("name").and_then(Value::as_str) else {
+        return;
     };
     if sel.whitelisted_classes.iter().any(|w| w == name) {
         return;
     }
-    let start = node.get("start").and_then(Value::as_u64).unwrap_or(0) as u32;
-    let end = node.get("end").and_then(Value::as_u64).unwrap_or(0) as u32;
+    let start = json_offset(node, "start");
+    let end = json_offset(node, "end");
 
     let selection = sel.class.match_key(name);
     for style_val in style {
@@ -799,12 +795,11 @@ fn check_id_selector(
     if sel.id.universal_selector {
         return;
     }
-    let name = match node.get("name").and_then(Value::as_str) {
-        Some(n) => n,
-        None => return,
+    let Some(name) = node.get("name").and_then(Value::as_str) else {
+        return;
     };
-    let start = node.get("start").and_then(Value::as_u64).unwrap_or(0) as u32;
-    let end = node.get("end").and_then(Value::as_u64).unwrap_or(0) as u32;
+    let start = json_offset(node, "start");
+    let end = json_offset(node, "end");
 
     let selection = sel.id.match_key(name);
     for style_val in style {
@@ -833,12 +828,11 @@ fn check_type_selector(
     style: &[&str],
     ctx: &mut LintContext,
 ) {
-    let name = match node.get("name").and_then(Value::as_str) {
-        Some(n) => n,
-        None => return,
+    let Some(name) = node.get("name").and_then(Value::as_str) else {
+        return;
     };
-    let start = node.get("start").and_then(Value::as_u64).unwrap_or(0) as u32;
-    let end = node.get("end").and_then(Value::as_u64).unwrap_or(0) as u32;
+    let start = json_offset(node, "start");
+    let end = json_offset(node, "end");
 
     let selection: Vec<ElemId> = sel.type_map.get(name).cloned().unwrap_or_default();
     // Convert to selection with exact=true (type selectors are always exact).
@@ -1026,18 +1020,19 @@ impl Rule for ConsistentSelectorStyle {
         let style_vec: Vec<String> = opts
             .and_then(|o| o.get("style"))
             .and_then(Value::as_array)
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str().map(str::to_string))
-                    .collect()
-            })
-            .unwrap_or_else(|| vec!["type".into(), "id".into(), "class".into()]);
-        let style: Vec<&str> = style_vec.iter().map(|s| s.as_str()).collect();
+            .map_or_else(
+                || vec!["type".into(), "id".into(), "class".into()],
+                |arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(str::to_string))
+                        .collect()
+                },
+            );
+        let style: Vec<&str> = style_vec.iter().map(std::string::String::as_str).collect();
 
         // No CSS → nothing to check.
-        let css = match root.css.as_deref() {
-            Some(c) => c,
-            None => return,
+        let Some(css) = root.css.as_deref() else {
+            return;
         };
 
         // Collect template selections.

@@ -1,8 +1,8 @@
-//! Expression converter: crate::ast::js::Expression → JsExpr
+//! Expression converter: `crate::ast::js::Expression` → `JsExpr`
 //!
-//! This module converts the JSON-based ESTree expressions from the parser
-//! (crate::ast::js::Expression) into the strongly-typed JavaScript AST
-//! (crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr).
+//! This module converts the JSON-based `ESTree` expressions from the parser
+//! (`crate::ast::js::Expression`) into the strongly-typed JavaScript AST
+//! (`crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr`).
 //!
 //! Corresponds to the visitor pattern in Svelte's transform phase.
 
@@ -19,10 +19,18 @@ use compact_str::CompactString;
 use serde_json::Value;
 use std::fmt::Write as _;
 
-/// Check if a JSON AST node contains an AwaitExpression anywhere in its tree.
+fn source_pos(value: u64) -> u32 {
+    u32::try_from(value).expect("source positions are limited to u32")
+}
+
+fn source_index(value: u64) -> usize {
+    usize::try_from(value).expect("source positions must fit usize")
+}
+
+/// Check if a JSON AST node contains an `AwaitExpression` anywhere in its tree.
 ///
 /// This recursively walks the JSON value looking for `{"type": "AwaitExpression"}`.
-/// It skips into function bodies (ArrowFunctionExpression, FunctionExpression)
+/// It skips into function bodies (`ArrowFunctionExpression`, `FunctionExpression`)
 /// since those create new async contexts.
 fn json_has_await_expression(value: &Value) -> bool {
     match value {
@@ -50,7 +58,7 @@ fn json_has_await_expression(value: &Value) -> bool {
 /// Check if a JSON AST node is a "simple" expression (doesn't need thunk wrapping).
 ///
 /// Mirrors `is_simple_expression` from the official Svelte compiler.
-/// Simple expressions: Literal, Identifier, ArrowFunctionExpression, FunctionExpression,
+/// Simple expressions: Literal, Identifier, `ArrowFunctionExpression`, `FunctionExpression`,
 /// and ConditionalExpression/BinaryExpression/LogicalExpression with simple operands.
 fn json_is_simple_expression(value: &Value) -> bool {
     match value {
@@ -141,7 +149,7 @@ fn build_fallback_expr(
     )
 }
 
-/// Convert an Expression to JsExpr.
+/// Convert an Expression to `JsExpr`.
 ///
 /// This is the main entry point for converting parsed JavaScript expressions
 /// into the transform-phase AST format.
@@ -151,8 +159,8 @@ pub fn convert_expression(expr: &Expression, context: &mut ComponentContext) -> 
     convert_js_node(&node, context)
 }
 
-/// Convert a JsNode directly to JsExpr via pattern matching, bypassing serde_json::Value
-/// for simple expression types. Complex types fall back to convert_json_value.
+/// Convert a `JsNode` directly to `JsExpr` via pattern matching, bypassing `serde_json::Value`
+/// for simple expression types. Complex types fall back to `convert_json_value`.
 fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
     // Copy the parse_arena reference from context.state so we can resolve JsNodeId/IdRange
     // without holding a borrow on context. The ParseArena is external and outlives context.
@@ -233,13 +241,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 // from user source code. This keeps formats like 1_000_000, 0.5, etc.
                 // intact instead of normalizing them (e.g. to 1e6 or .5).
                 let raw_str = raw.as_str();
-                let i = *n as i64;
-                let is_simple_int = i >= 0 && *n == i as f64 && n.is_finite();
-                let codegen_str = if is_simple_int {
-                    itoa::Buffer::new().format(i).to_string()
-                } else {
-                    format!("{}", n)
-                };
+                let codegen_str = format!("{n}");
                 if raw_str == codegen_str {
                     JsExpr::Literal(JsLiteral::Number(*n))
                 } else {
@@ -306,7 +308,6 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             }
 
             let op = match operator.as_str() {
-                "+" => JsBinaryOp::Add,
                 "-" => JsBinaryOp::Sub,
                 "*" => JsBinaryOp::Mul,
                 "/" => JsBinaryOp::Div,
@@ -350,7 +351,6 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             ..
         } => {
             let op = match operator.as_str() {
-                "&&" => JsLogicalOp::And,
                 "||" => JsLogicalOp::Or,
                 "??" => JsLogicalOp::NullishCoalescing,
                 _ => JsLogicalOp::And,
@@ -377,7 +377,6 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             let op = match operator.as_str() {
                 "-" => JsUnaryOp::Minus,
                 "+" => JsUnaryOp::Plus,
-                "!" => JsUnaryOp::Not,
                 "~" => JsUnaryOp::BitNot,
                 "typeof" => JsUnaryOp::TypeOf,
                 "void" => JsUnaryOp::Void,
@@ -999,7 +998,6 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             }
 
             let assign_op = match operator_str {
-                "=" => JsAssignmentOp::Assign,
                 "+=" => JsAssignmentOp::AddAssign,
                 "-=" => JsAssignmentOp::SubAssign,
                 "*=" => JsAssignmentOp::MulAssign,
@@ -1099,7 +1097,6 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             let node_start = *start;
 
             let update_op = match operator_str {
-                "++" => JsUpdateOp::Increment,
                 "--" => JsUpdateOp::Decrement,
                 _ => JsUpdateOp::Increment,
             };
@@ -1173,7 +1170,7 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
     }
 }
 
-/// Check if a CallExpression callee might be a rune call.
+/// Check if a `CallExpression` callee might be a rune call.
 /// This is a fast check to avoid the expensive `to_value()` conversion for non-rune calls.
 fn is_potential_rune_call(callee: &JsNode, context: &ComponentContext) -> bool {
     let pa = context.state.parse_arena as *const ParseArena;
@@ -1215,7 +1212,7 @@ fn is_potential_rune_call(callee: &JsNode, context: &ComponentContext) -> bool {
     false
 }
 
-/// Convert an object member from a JsNode (Property or SpreadElement).
+/// Convert an object member from a `JsNode` (Property or `SpreadElement`).
 fn convert_object_member_from_node(
     node: &JsNode,
     context: &mut ComponentContext,
@@ -1243,7 +1240,6 @@ fn convert_object_member_from_node(
             };
 
             let prop_kind = match kind.as_str() {
-                "init" => JsPropertyKind::Init,
                 "get" => JsPropertyKind::Get,
                 "set" => JsPropertyKind::Set,
                 _ => JsPropertyKind::Init,
@@ -1269,7 +1265,7 @@ fn convert_object_member_from_node(
     }
 }
 
-/// Convert a property key from a JsNode.
+/// Convert a property key from a `JsNode`.
 fn convert_property_key_from_node(
     key: &JsNode,
     computed: bool,
@@ -1306,7 +1302,7 @@ fn convert_property_key_from_node(
     }
 }
 
-/// Convert function parameters from JsNode reference slices.
+/// Convert function parameters from `JsNode` reference slices.
 fn convert_params_from_nodes(params: &[&JsNode], context: &mut ComponentContext) -> Vec<JsPattern> {
     params
         .iter()
@@ -1314,7 +1310,7 @@ fn convert_params_from_nodes(params: &[&JsNode], context: &mut ComponentContext)
         .collect()
 }
 
-/// Convert a JsNode parameter to a JsPattern.
+/// Convert a `JsNode` parameter to a `JsPattern`.
 fn convert_param_pattern_from_node(
     node: &JsNode,
     context: &mut ComponentContext,
@@ -1373,7 +1369,7 @@ fn convert_param_pattern_from_node(
     }
 }
 
-/// Convert an object pattern property from a JsNode.
+/// Convert an object pattern property from a `JsNode`.
 fn convert_object_pattern_property_from_node(
     node: &JsNode,
     context: &mut ComponentContext,
@@ -1406,7 +1402,7 @@ fn convert_object_pattern_property_from_node(
     }
 }
 
-/// Inner helper for converting a typed Property's key/value into JsObjectPatternProperty.
+/// Inner helper for converting a typed Property's key/value into `JsObjectPatternProperty`.
 fn convert_object_pattern_prop_inner(
     key: &JsNode,
     value: &JsNode,
@@ -1463,7 +1459,7 @@ fn convert_object_pattern_prop_inner(
     })
 }
 
-/// Extract parameter names from JsNode reference params for transform shadowing.
+/// Extract parameter names from `JsNode` reference params for transform shadowing.
 fn extract_param_names_from_node_refs(params: &[&JsNode]) -> Vec<String> {
     let mut names = Vec::new();
     for param in params {
@@ -1474,7 +1470,7 @@ fn extract_param_names_from_node_refs(params: &[&JsNode]) -> Vec<String> {
     names
 }
 
-/// Extract root identifier name from a JsNode (before conversion applies transforms).
+/// Extract root identifier name from a `JsNode` (before conversion applies transforms).
 fn extract_root_identifier_from_jsnode(node: &JsNode, pa: &ParseArena) -> Option<String> {
     match node {
         JsNode::Identifier { name, .. } => Some(name.to_string()),
@@ -1488,7 +1484,7 @@ fn extract_root_identifier_from_jsnode(node: &JsNode, pa: &ParseArena) -> Option
     }
 }
 
-/// Get private identifier name from a JsNode, handling both typed and Raw-wrapped.
+/// Get private identifier name from a `JsNode`, handling both typed and Raw-wrapped.
 fn get_jsnode_private_identifier_name(node: &JsNode) -> Option<String> {
     match node {
         JsNode::PrivateIdentifier { name, .. } => Some(name.to_string()),
@@ -1496,7 +1492,7 @@ fn get_jsnode_private_identifier_name(node: &JsNode) -> Option<String> {
     }
 }
 
-/// Get identifier name from a JsNode, handling both typed and Raw-wrapped Identifiers.
+/// Get identifier name from a `JsNode`, handling both typed and Raw-wrapped Identifiers.
 fn get_jsnode_identifier_name(node: &JsNode) -> Option<String> {
     match node {
         JsNode::Identifier { name, .. } => Some(name.to_string()),
@@ -1514,7 +1510,7 @@ fn get_jsnode_identifier_name_unwrap_ts(node: &JsNode) -> Option<String> {
     }
 }
 
-/// Check if a JsNode is a MemberExpression with a direct Identifier object (not computed).
+/// Check if a `JsNode` is a `MemberExpression` with a direct Identifier object (not computed).
 /// Handles both typed and Raw-wrapped nodes.
 fn is_direct_member_with_identifier(node: &JsNode, pa: &ParseArena) -> bool {
     match node {
@@ -1531,9 +1527,9 @@ fn is_direct_member_with_identifier(node: &JsNode, pa: &ParseArena) -> bool {
     }
 }
 
-/// Convert a JSON value to JsExpr.
+/// Convert a JSON value to `JsExpr`.
 ///
-/// This handles all ESTree node types by examining the "type" field.
+/// This handles all `ESTree` node types by examining the "type" field.
 #[inline]
 fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
     match value {
@@ -1574,10 +1570,9 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
                     // Dynamic import: import('./module'[, options]). Hold the
                     // converted source/options as sub-expressions emitted lazily
                     // by codegen (was: eager generate_expr + Raw stringification).
-                    let source_expr = obj
-                        .get("source")
-                        .map(|source| convert_json_value(source, context))
-                        .unwrap_or(JsExpr::Raw("".into()));
+                    let source_expr = obj.get("source").map_or(JsExpr::Raw("".into()), |source| {
+                        convert_json_value(source, context)
+                    });
                     let source = context.arena.alloc_expr(source_expr);
                     let options = obj.get("options").filter(|v| !v.is_null()).map(|options| {
                         let options_expr = convert_json_value(options, context);
@@ -1609,12 +1604,12 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
                     if let Some(pattern) = convert_param_pattern(&value_ref, context) {
                         JsExpr::Raw(pattern_to_string(&pattern).into())
                     } else {
-                        JsExpr::Raw(format!("/* Unknown: {} */", node_type).into())
+                        JsExpr::Raw(format!("/* Unknown: {node_type} */").into())
                     }
                 }
                 _ => {
                     // Unknown node type - return as raw comment
-                    JsExpr::Raw(format!("/* Unknown: {} */", node_type).into())
+                    JsExpr::Raw(format!("/* Unknown: {node_type} */").into())
                 }
             }
         }
@@ -1749,11 +1744,11 @@ fn convert_literal(
     }
 }
 
-/// Convert a MemberExpression node.
+/// Convert a `MemberExpression` node.
 ///
 /// This also handles:
-/// 1. The rest_prop → $$props optimization:
-///    When accessing a property on a rest_prop binding (e.g., `props.a` where `let props = $props()`),
+/// 1. The `rest_prop` → $$props optimization:
+///    When accessing a property on a `rest_prop` binding (e.g., `props.a` where `let props = $props()`),
 ///    we transform the object to `$$props` for read access, but NOT for direct property assignments
 ///    (e.g., `props.a = true` stays as-is, but `props.a.b = true` becomes `$$props.a.b = true`).
 ///
@@ -1767,12 +1762,12 @@ fn convert_member_expression(
 ) -> JsExpr {
     let computed = obj
         .get("computed")
-        .and_then(|c| c.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
 
     let optional = obj
         .get("optional")
-        .and_then(|o| o.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
 
     // Handle private state field access: this.#foo -> this.#foo.v (in constructor) or $.get(this.#foo)
@@ -1893,13 +1888,12 @@ fn convert_member_expression(
 
     let property = if computed {
         obj.get("property")
-            .map(|p| {
+            .map_or(JsMemberProperty::Identifier("unknown".into()), |p| {
                 JsMemberProperty::Expression({
                     let __tmp = convert_json_value(p, context);
                     context.arena.alloc_expr(__tmp)
                 })
             })
-            .unwrap_or(JsMemberProperty::Identifier("unknown".into()))
     } else {
         // Check if property is a PrivateIdentifier
         if let Some(prop_obj) = obj.get("property").and_then(|p| p.as_object())
@@ -1912,8 +1906,9 @@ fn convert_member_expression(
                 .and_then(|p| p.as_object())
                 .and_then(|p| p.get("name"))
                 .and_then(|n| n.as_str())
-                .map(|n| JsMemberProperty::Identifier(n.into()))
-                .unwrap_or(JsMemberProperty::Identifier("unknown".into()))
+                .map_or(JsMemberProperty::Identifier("unknown".into()), |n| {
+                    JsMemberProperty::Identifier(n.into())
+                })
         }
     };
 
@@ -1925,7 +1920,7 @@ fn convert_member_expression(
     })
 }
 
-/// Convert a CallExpression node.
+/// Convert a `CallExpression` node.
 ///
 /// This handles rune transformations like `$state()`, `$derived()`, etc.
 /// The transformation logic mirrors the official Svelte compiler's
@@ -2005,7 +2000,7 @@ fn convert_call_expression(
 
     let optional = obj
         .get("optional")
-        .and_then(|o| o.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
 
     JsExpr::Call(JsCallExpression {
@@ -2015,7 +2010,7 @@ fn convert_call_expression(
     })
 }
 
-/// Extract console method name from a CallExpression JSON node.
+/// Extract console method name from a `CallExpression` JSON node.
 /// Returns Some("log") for `console.log(...)`, etc.
 fn get_console_method_name(obj: &serde_json::Map<String, Value>) -> Option<String> {
     let callee = obj.get("callee")?.as_object()?;
@@ -2104,7 +2099,7 @@ const RUNES: &[&str] = &[
     "$host",
 ];
 
-/// Get the rune name from a CallExpression if it's a rune call.
+/// Get the rune name from a `CallExpression` if it's a rune call.
 ///
 /// This function mirrors the official Svelte compiler's `get_rune` function
 /// from `svelte/packages/svelte/src/compiler/phases/scope.js`.
@@ -2145,7 +2140,7 @@ fn get_rune_from_call(
                 if inner_callee_type == "Identifier" {
                     let inner_name = inner_callee.get("name")?.as_str()?;
                     // Produce "$inspect().with" style keypath
-                    let keypath = format!("{}().{}", inner_name, property_name);
+                    let keypath = format!("{inner_name}().{property_name}");
                     if RUNES.contains(&keypath.as_str()) {
                         // Check if the rune is shadowed
                         if context.state.get_binding(inner_name).is_some() {
@@ -2158,7 +2153,7 @@ fn get_rune_from_call(
             } else if object_type == "Identifier" {
                 // Standard rune with method like $state.raw
                 let object_name = object.get("name")?.as_str()?;
-                format!("{}.{}", object_name, property_name)
+                format!("{object_name}.{property_name}")
             } else {
                 return None;
             }
@@ -2188,42 +2183,29 @@ fn get_rune_from_call(
     Some(rune_name)
 }
 
-/// Determines if a value should be wrapped in $.proxy() for deep reactivity.
+/// Determines if a value should be wrapped in $.`proxy()` for deep reactivity.
 ///
 /// Returns `true` for objects, arrays, and other reference types.
 /// Returns `false` for primitives, functions, and literals.
 fn should_proxy_json(value: &Value) -> bool {
-    let obj = match value.as_object() {
-        Some(o) => o,
-        None => return false,
+    let Some(obj) = value.as_object() else {
+        return false;
     };
 
-    let node_type = match obj.get("type").and_then(|t| t.as_str()) {
-        Some(t) => t,
-        None => return true, // Unknown type, assume proxy needed
+    let Some(node_type) = obj.get("type").and_then(|t| t.as_str()) else {
+        return true; // Unknown type, assume proxy needed
     };
 
     match node_type {
         // Primitives don't need proxy
-        "Literal" => false,
         // Functions don't need proxy
-        "ArrowFunctionExpression" | "FunctionExpression" => false,
         // Unary and binary expressions result in primitives
-        "UnaryExpression" | "BinaryExpression" => false,
         // Template literals are strings
         "TemplateLiteral" => false,
         // Identifiers might need proxy (could reference objects/arrays),
         // EXCEPT for `undefined` which is a primitive
-        "Identifier" => {
-            if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
-                // undefined doesn't need proxy, everything else does
-                name != "undefined"
-            } else {
-                true
-            }
-        }
+        "Identifier" => obj.get("name").and_then(|n| n.as_str()) != Some("undefined"),
         // Objects and arrays need proxy
-        "ObjectExpression" | "ArrayExpression" => true,
         // Other expressions might need proxy (e.g., function calls that return objects)
         _ => true,
     }
@@ -2583,10 +2565,10 @@ fn transform_rune_call(
                             .unwrap_or_default();
 
                         // The callback is the first argument of .with()
-                        let callback = arguments
-                            .first()
-                            .map(|arg| convert_json_value(arg, context))
-                            .unwrap_or_else(|| JsExpr::Identifier("undefined".into()));
+                        let callback = arguments.first().map_or_else(
+                            || JsExpr::Identifier("undefined".into()),
+                            |arg| convert_json_value(arg, context),
+                        );
 
                         (inner_args, callback)
                     } else {
@@ -2610,7 +2592,7 @@ fn transform_rune_call(
             // Build: (...$$args) => inspector(...$$args)
             // This makes the log appear to come from the $inspect callsite
             let args_id = JsExpr::Identifier("$$args".into());
-            let spread_args = JsExpr::Spread(context.arena.alloc_expr(args_id.clone()));
+            let spread_args = JsExpr::Spread(context.arena.alloc_expr(args_id));
             let inspector_call = JsExpr::Call(JsCallExpression {
                 callee: context.arena.alloc_expr(inspector),
                 arguments: vec![spread_args],
@@ -2672,7 +2654,7 @@ fn transform_rune_call(
     }
 }
 
-/// Convert a BinaryExpression node.
+/// Convert a `BinaryExpression` node.
 fn convert_binary_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
@@ -2691,13 +2673,15 @@ fn convert_binary_expression(
     {
         let left = obj
             .get("left")
-            .map(|l| convert_json_value(l, context))
-            .unwrap_or(JsExpr::Literal(JsLiteral::Null));
+            .map_or(JsExpr::Literal(JsLiteral::Null), |l| {
+                convert_json_value(l, context)
+            });
 
         let right = obj
             .get("right")
-            .map(|r| convert_json_value(r, context))
-            .unwrap_or(JsExpr::Literal(JsLiteral::Null));
+            .map_or(JsExpr::Literal(JsLiteral::Null), |r| {
+                convert_json_value(r, context)
+            });
 
         let is_strict = operator_str == "===" || operator_str == "!==";
         let is_negated = operator_str == "!==" || operator_str == "!=";
@@ -2721,7 +2705,6 @@ fn convert_binary_expression(
     }
 
     let operator = match operator_str {
-        "+" => JsBinaryOp::Add,
         "-" => JsBinaryOp::Sub,
         "*" => JsBinaryOp::Mul,
         "/" => JsBinaryOp::Div,
@@ -2769,7 +2752,7 @@ fn convert_binary_expression(
     })
 }
 
-/// Convert a UnaryExpression node.
+/// Convert a `UnaryExpression` node.
 fn convert_unary_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
@@ -2779,7 +2762,6 @@ fn convert_unary_expression(
     let operator = match operator_str {
         "-" => JsUnaryOp::Minus,
         "+" => JsUnaryOp::Plus,
-        "!" => JsUnaryOp::Not,
         "~" => JsUnaryOp::BitNot,
         "typeof" => JsUnaryOp::TypeOf,
         "void" => JsUnaryOp::Void,
@@ -2795,7 +2777,10 @@ fn convert_unary_expression(
         })
         .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Null)));
 
-    let prefix = obj.get("prefix").and_then(|p| p.as_bool()).unwrap_or(true);
+    let prefix = obj
+        .get("prefix")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(true);
 
     JsExpr::Unary(JsUnaryExpression {
         operator,
@@ -2804,7 +2789,7 @@ fn convert_unary_expression(
     })
 }
 
-/// Convert a LogicalExpression node.
+/// Convert a `LogicalExpression` node.
 fn convert_logical_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
@@ -2812,7 +2797,6 @@ fn convert_logical_expression(
     let operator_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("&&");
 
     let operator = match operator_str {
-        "&&" => JsLogicalOp::And,
         "||" => JsLogicalOp::Or,
         "??" => JsLogicalOp::NullishCoalescing,
         _ => JsLogicalOp::And,
@@ -2841,7 +2825,7 @@ fn convert_logical_expression(
     })
 }
 
-/// Convert a ConditionalExpression node.
+/// Convert a `ConditionalExpression` node.
 fn convert_conditional_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
@@ -2877,7 +2861,7 @@ fn convert_conditional_expression(
     })
 }
 
-/// Convert an ArrayExpression node.
+/// Convert an `ArrayExpression` node.
 fn convert_array_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
@@ -2902,7 +2886,7 @@ fn convert_array_expression(
     JsExpr::Array(JsArrayExpression { elements })
 }
 
-/// Convert an ObjectExpression node.
+/// Convert an `ObjectExpression` node.
 fn convert_object_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
@@ -2932,16 +2916,15 @@ fn convert_object_expression(
 
                             let computed = prop_obj
                                 .get("computed")
-                                .and_then(|c| c.as_bool())
+                                .and_then(serde_json::Value::as_bool)
                                 .unwrap_or(false);
 
                             let shorthand = prop_obj
                                 .get("shorthand")
-                                .and_then(|s| s.as_bool())
+                                .and_then(serde_json::Value::as_bool)
                                 .unwrap_or(false);
 
                             let kind = match prop_obj.get("kind")?.as_str()? {
-                                "init" => JsPropertyKind::Init,
                                 "get" => JsPropertyKind::Get,
                                 "set" => JsPropertyKind::Set,
                                 _ => JsPropertyKind::Init,
@@ -2949,7 +2932,7 @@ fn convert_object_expression(
 
                             let method = prop_obj
                                 .get("method")
-                                .and_then(|v| v.as_bool())
+                                .and_then(serde_json::Value::as_bool)
                                 .unwrap_or(false);
 
                             Some(JsObjectMember::Property(JsProperty {
@@ -2992,7 +2975,7 @@ fn convert_property_key(
     let key = obj.get("key");
     let computed = obj
         .get("computed")
-        .and_then(|c| c.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
 
     if computed && let Some(k) = key {
@@ -3083,14 +3066,17 @@ fn collect_param_names(value: &Value, names: &mut Vec<String>) {
     }
 }
 
-/// Convert an ArrowFunctionExpression node.
+/// Convert an `ArrowFunctionExpression` node.
 fn convert_arrow_function(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
 ) -> JsExpr {
     let params = convert_params(obj, context);
 
-    let is_async = obj.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
+    let is_async = obj
+        .get("async")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
 
     // Save transforms and remove any for parameter names that shadow outer variables.
     // For example, in `createRawSnippet((count) => { ... })`, the `count` parameter
@@ -3120,13 +3106,13 @@ fn convert_arrow_function(
             );
             let is_exempt_arrow = obj
                 .get("start")
-                .and_then(|v| v.as_u64())
+                .and_then(serde_json::Value::as_u64)
                 .is_some_and(|start| {
                     context
                         .state
                         .analysis
                         .assign_exempt_arrow_starts
-                        .contains(&(start as u32))
+                        .contains(&source_pos(start))
                 });
             let saved_level = context.state.event_handler_arrow_body_level;
             context.state.event_handler_arrow_body_level =
@@ -3155,7 +3141,7 @@ fn convert_arrow_function(
     })
 }
 
-/// Convert a FunctionExpression node.
+/// Convert a `FunctionExpression` node.
 fn convert_function_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
@@ -3165,7 +3151,7 @@ fn convert_function_expression(
         .and_then(|i| i.as_object())
         .and_then(|i| i.get("name"))
         .and_then(|n| n.as_str())
-        .map(|n| n.into());
+        .map(std::convert::Into::into);
 
     let params = convert_params(obj, context);
 
@@ -3197,11 +3183,14 @@ fn convert_function_expression(
     context.state.transform_deep_read = saved_transform_deep_read;
     context.state.shadowed_prop_names = saved_shadowed;
 
-    let is_async = obj.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
+    let is_async = obj
+        .get("async")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
 
     let is_generator = obj
         .get("generator")
-        .and_then(|g| g.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
 
     JsExpr::Function(JsFunctionExpression {
@@ -3213,7 +3202,7 @@ fn convert_function_expression(
     })
 }
 
-/// Convert an ESTree `ClassExpression` into a `JsClassExpression`, including
+/// Convert an `ESTree` `ClassExpression` into a `JsClassExpression`, including
 /// its body. Previously this node was unhandled and fell through to a
 /// `/* Unknown: ClassExpression */` comment placeholder (H-011).
 fn convert_class_expression(
@@ -3225,7 +3214,7 @@ fn convert_class_expression(
         .and_then(|i| i.as_object())
         .and_then(|i| i.get("name"))
         .and_then(|n| n.as_str())
-        .map(|n| n.into());
+        .map(std::convert::Into::into);
 
     let super_class = obj.get("superClass").filter(|v| !v.is_null()).map(|sc| {
         let expr = convert_json_value(sc, context);
@@ -3260,9 +3249,12 @@ fn convert_class_member(member: &Value, context: &mut ComponentContext) -> Optio
     let member_type = obj.get("type").and_then(|t| t.as_str())?;
     let computed = obj
         .get("computed")
-        .and_then(|c| c.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
-    let is_static = obj.get("static").and_then(|s| s.as_bool()).unwrap_or(false);
+    let is_static = obj
+        .get("static")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
 
     match member_type {
         "MethodDefinition" => {
@@ -3274,9 +3266,8 @@ fn convert_class_member(member: &Value, context: &mut ComponentContext) -> Optio
                 _ => JsMethodKind::Method,
             };
             let value_obj = obj.get("value").and_then(|v| v.as_object())?;
-            let func = match convert_function_expression(value_obj, context) {
-                JsExpr::Function(f) => f,
-                _ => return None,
+            let JsExpr::Function(func) = convert_function_expression(value_obj, context) else {
+                return None;
             };
             Some(JsClassMember::Method(JsMethodDefinition {
                 key,
@@ -3350,7 +3341,7 @@ fn convert_params(
         .unwrap_or_default()
 }
 
-/// Convert a JSON parameter value to a JsPattern, handling all ESTree pattern types.
+/// Convert a JSON parameter value to a `JsPattern`, handling all `ESTree` pattern types.
 pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> Option<JsPattern> {
     let obj = value.as_object()?;
     let param_type = obj.get("type").and_then(|t| t.as_str())?;
@@ -3364,13 +3355,11 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
                 .get("left")
                 .and_then(|l| convert_param_pattern(l, context))?;
             let right = obj
-                .get("right")
-                .map(|r| {
+                .get("right").map( |r| {
                     let expr = convert_json_value(r, context);
                     // Apply transforms so reactive identifiers in default values get their getter calls
                     context.arena.alloc_expr(crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&expr, context))
-                })
-                .unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Undefined)));
+                }).unwrap_or_else(|| context.arena.alloc_expr(JsExpr::Literal(JsLiteral::Undefined)));
             Some(JsPattern::Assignment(JsAssignmentPattern {
                 left: Box::new(left),
                 right,
@@ -3455,11 +3444,11 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
                                     })?;
                                 let shorthand = prop_obj
                                     .get("shorthand")
-                                    .and_then(|s| s.as_bool())
+                                    .and_then(serde_json::Value::as_bool)
                                     .unwrap_or(false);
                                 let computed = prop_obj
                                     .get("computed")
-                                    .and_then(|c| c.as_bool())
+                                    .and_then(serde_json::Value::as_bool)
                                     .unwrap_or(false);
                                 Some(JsObjectPatternProperty::Property {
                                     key,
@@ -3501,10 +3490,11 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
     }
 }
 
-/// Render a JsPattern to a JavaScript source string.
+/// Render a `JsPattern` to a JavaScript source string.
 ///
 /// This mirrors the `emit_pattern` logic in the codegen but produces a String directly.
 /// Used when a destructuring pattern needs to be embedded as a `JsExpr::Raw`.
+#[must_use]
 pub fn pattern_to_string(pattern: &JsPattern) -> String {
     match pattern {
         JsPattern::Identifier(name) => name.to_string(),
@@ -3550,7 +3540,7 @@ pub fn pattern_to_string(pattern: &JsPattern) -> String {
                                     }
                                     JsLiteral::Number(n) => s.push_str(&n.to_string()),
                                     _ => {
-                                        let _ = write!(s, "{:?}", lit);
+                                        let _ = write!(s, "{lit:?}");
                                     }
                                 },
                                 JsPropertyKey::Computed(_e) => {
@@ -3584,7 +3574,7 @@ pub fn pattern_to_string(pattern: &JsPattern) -> String {
     }
 }
 
-/// Convert a BlockStatement.
+/// Convert a `BlockStatement`.
 fn convert_block_statement(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
@@ -3609,13 +3599,13 @@ fn convert_block_statement(
                 let stmt_start = stmt
                     .as_object()
                     .and_then(|o| o.get("start"))
-                    .and_then(|s| s.as_u64())
-                    .map(|s| s as usize);
+                    .and_then(serde_json::Value::as_u64)
+                    .map(source_index);
                 let stmt_end = stmt
                     .as_object()
                     .and_then(|o| o.get("end"))
-                    .and_then(|e| e.as_u64())
-                    .map(|e| e as usize);
+                    .and_then(serde_json::Value::as_u64)
+                    .map(source_index);
                 if let Some(start) = stmt_start {
                     let gap_start =
                         prev_end.unwrap_or_else(|| own_line_comment_scan_start(source, start));
@@ -3674,15 +3664,12 @@ fn own_line_comment_scan_start(source: &str, stmt_start: usize) -> usize {
     if stmt_start > source.len() || !source.is_char_boundary(stmt_start) {
         return stmt_start;
     }
-    let mut line_start = source[..stmt_start].rfind('\n').map(|p| p + 1).unwrap_or(0);
+    let mut line_start = source[..stmt_start].rfind('\n').map_or(0, |p| p + 1);
     loop {
         if line_start == 0 {
             return 0;
         }
-        let prev_line_start = source[..line_start - 1]
-            .rfind('\n')
-            .map(|p| p + 1)
-            .unwrap_or(0);
+        let prev_line_start = source[..line_start - 1].rfind('\n').map_or(0, |p| p + 1);
         let prev_line = source[prev_line_start..line_start - 1].trim();
         let is_comment_line = prev_line.starts_with("//")
             || (prev_line.starts_with("/*") && prev_line.ends_with("*/"));
@@ -3798,7 +3785,7 @@ fn convert_expression_statement_child(expr_json: &Value, context: &mut Component
     result
 }
 
-/// Convert a statement node to JsStatement.
+/// Convert a statement node to `JsStatement`.
 fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsStatement> {
     let obj = stmt.as_object()?;
     let stmt_type = obj.get("type").and_then(|t| t.as_str())?;
@@ -3899,8 +3886,10 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             let consequent = obj
                 .get("consequent")
                 .and_then(|c| convert_statement(c, context))
-                .map(|s| context.arena.alloc_stmt(s))
-                .unwrap_or_else(|| context.arena.alloc_stmt(JsStatement::Empty));
+                .map_or_else(
+                    || context.arena.alloc_stmt(JsStatement::Empty),
+                    |s| context.arena.alloc_stmt(s),
+                );
             let alternate = obj
                 .get("alternate")
                 .and_then(|a| convert_statement(a, context))
@@ -3915,16 +3904,16 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
         "ThrowStatement" => {
             let argument = obj
                 .get("argument")
-                .map(|a| convert_json_value(a, context))
-                .unwrap_or(JsExpr::Literal(JsLiteral::Null));
+                .map_or(JsExpr::Literal(JsLiteral::Null), |a| {
+                    convert_json_value(a, context)
+                });
             Some(JsStatement::Throw(context.arena.alloc_expr(argument)))
         }
         "TryStatement" => {
-            let block = obj
-                .get("block")
-                .and_then(|b| b.as_object())
-                .map(|b| convert_block_statement(b, context))
-                .unwrap_or_else(|| JsBlockStatement { body: Vec::new() });
+            let block = obj.get("block").and_then(|b| b.as_object()).map_or_else(
+                || JsBlockStatement { body: Vec::new() },
+                |b| convert_block_statement(b, context),
+            );
             let handler = obj.get("handler").and_then(|h| {
                 let h_obj = h.as_object()?;
                 // Route the catch parameter through the full pattern converter so
@@ -3934,11 +3923,10 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                     .get("param")
                     .filter(|p| !p.is_null())
                     .and_then(|p| convert_param_pattern(p, context));
-                let body = h_obj
-                    .get("body")
-                    .and_then(|b| b.as_object())
-                    .map(|b| convert_block_statement(b, context))
-                    .unwrap_or_else(|| JsBlockStatement { body: Vec::new() });
+                let body = h_obj.get("body").and_then(|b| b.as_object()).map_or_else(
+                    || JsBlockStatement { body: Vec::new() },
+                    |b| convert_block_statement(b, context),
+                );
                 Some(JsCatchClause { param, body })
             });
             let finalizer = obj
@@ -4048,8 +4036,10 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             let body = obj
                 .get("body")
                 .and_then(|b| convert_statement(b, context))
-                .map(|s| context.arena.alloc_stmt(s))
-                .unwrap_or_else(|| context.arena.alloc_stmt(JsStatement::Empty));
+                .map_or_else(
+                    || context.arena.alloc_stmt(JsStatement::Empty),
+                    |s| context.arena.alloc_stmt(s),
+                );
 
             // Restore transforms
             if let Some(saved) = saved_transform {
@@ -4151,14 +4141,19 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             let body = obj
                 .get("body")
                 .and_then(|b| convert_statement(b, context))
-                .map(|s| context.arena.alloc_stmt(s))
-                .unwrap_or_else(|| context.arena.alloc_stmt(JsStatement::Empty));
+                .map_or_else(
+                    || context.arena.alloc_stmt(JsStatement::Empty),
+                    |s| context.arena.alloc_stmt(s),
+                );
 
             if let Some(saved) = saved_transform {
                 context.state.transform = saved;
             }
 
-            let is_await = obj.get("await").and_then(|a| a.as_bool()).unwrap_or(false);
+            let is_await = obj
+                .get("await")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false);
             // `for...in` and `for...of` share `JsForOfStatement`; the `is_for_in`
             // flag drives codegen to emit ` in ` vs ` of ` (H-110). `for await`
             // only applies to `for...of`.
@@ -4185,8 +4180,10 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             let body = obj
                 .get("body")
                 .and_then(|b| convert_statement(b, context))
-                .map(|s| context.arena.alloc_stmt(s))
-                .unwrap_or_else(|| context.arena.alloc_stmt(JsStatement::Empty));
+                .map_or_else(
+                    || context.arena.alloc_stmt(JsStatement::Empty),
+                    |s| context.arena.alloc_stmt(s),
+                );
             Some(JsStatement::While(JsWhileStatement { test, body }))
         }
         "DoWhileStatement" => {
@@ -4204,8 +4201,10 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             let body = obj
                 .get("body")
                 .and_then(|b| convert_statement(b, context))
-                .map(|s| context.arena.alloc_stmt(s))
-                .unwrap_or_else(|| context.arena.alloc_stmt(JsStatement::Empty));
+                .map_or_else(
+                    || context.arena.alloc_stmt(JsStatement::Empty),
+                    |s| context.arena.alloc_stmt(s),
+                );
             Some(JsStatement::DoWhile(JsDoWhileStatement { test, body }))
         }
         "LabeledStatement" => {
@@ -4285,7 +4284,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                 .and_then(|i| i.as_object())
                 .and_then(|i| i.get("name"))
                 .and_then(|n| n.as_str())
-                .map(|n| n.into());
+                .map(std::convert::Into::into);
 
             let params = convert_params(obj, context);
 
@@ -4317,10 +4316,13 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             context.state.transform_deep_read = saved_transform_deep_read;
             context.state.shadowed_prop_names = saved_shadowed;
 
-            let is_async = obj.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
+            let is_async = obj
+                .get("async")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false);
             let is_generator = obj
                 .get("generator")
-                .and_then(|g| g.as_bool())
+                .and_then(serde_json::Value::as_bool)
                 .unwrap_or(false);
 
             Some(JsStatement::FunctionDeclaration(JsFunctionDeclaration {
@@ -4332,8 +4334,8 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             }))
         }
         "ClassDeclaration" => {
-            let start = obj.get("start")?.as_u64()? as usize;
-            let end = obj.get("end")?.as_u64()? as usize;
+            let start = source_index(obj.get("start")?.as_u64()?);
+            let end = source_index(obj.get("end")?.as_u64()?);
             let source = context.state.analysis.source.get(start..end)?;
             Some(JsStatement::Raw(source.into()))
         }
@@ -4344,14 +4346,14 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
     }
 }
 
-/// Convert an AssignmentExpression node.
+/// Convert an `AssignmentExpression` node.
 ///
-/// Special handling for rest_prop transformation:
-/// When the LHS is `props.a = ...` (direct property assignment on rest_prop),
+/// Special handling for `rest_prop` transformation:
+/// When the LHS is `props.a = ...` (direct property assignment on `rest_prop`),
 /// we DON'T transform `props` to `$$props`. But for deeper assignments like
 /// `props.a.b = ...`, we DO transform `props` to `$$props`.
 ///
-/// Also applies reactive transformations ($.set()) for state variables.
+/// Also applies reactive transformations ($.`set()`) for state variables.
 fn convert_assignment_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
@@ -4387,7 +4389,6 @@ fn convert_assignment_expression(
     }
 
     let operator = match operator_str {
-        "=" => JsAssignmentOp::Assign,
         "+=" => JsAssignmentOp::AddAssign,
         "-=" => JsAssignmentOp::SubAssign,
         "*=" => JsAssignmentOp::MulAssign,
@@ -4415,7 +4416,7 @@ fn convert_assignment_expression(
         // Check if the computed flag is false (non-computed property access)
         let computed = left_obj
             .get("computed")
-            .and_then(|c| c.as_bool())
+            .and_then(serde_json::Value::as_bool)
             .unwrap_or(false);
         if !computed {
             // Check if the object is directly an Identifier (not a nested MemberExpression)
@@ -4579,8 +4580,8 @@ pub(crate) fn is_svelte_ignored_with_source(
     // Also check the source code directly before the node's start position
     // This handles comments inside template expressions (arrow bodies) that
     // aren't attached as leadingComments by our parser
-    if let Some(start) = obj.get("start").and_then(|s| s.as_u64()) {
-        return is_svelte_ignored_before_offset(start as usize, code, source);
+    if let Some(start) = obj.get("start").and_then(serde_json::Value::as_u64) {
+        return is_svelte_ignored_before_offset(source_index(start), code, source);
     }
     false
 }
@@ -4645,7 +4646,7 @@ pub(crate) fn is_svelte_ignored_before_offset(start: usize, code: &str, source: 
 /// Check if a comment text contains `svelte-ignore <code>`.
 fn comment_has_svelte_ignore(text: &str, code: &str) -> bool {
     let trimmed = text.trim();
-    if let Some(rest) = trimmed.strip_prefix("svelte-ignore") {
+    trimmed.strip_prefix("svelte-ignore").is_some_and(|rest| {
         let rest = rest.trim();
         rest == code
             || (rest.starts_with(code)
@@ -4653,13 +4654,11 @@ fn comment_has_svelte_ignore(text: &str, code: &str) -> bool {
                     .as_bytes()
                     .get(code.len())
                     .is_some_and(|&c| c == b' ' || c == b','))
-    } else {
-        false
-    }
+    })
 }
 
 /// Check if an assignment expression's LHS is a member expression targeting a prop,
-/// and if so, return the ownership validation info (prop_alias, path array, optional source location).
+/// and if so, return the ownership validation info (`prop_alias`, path array, optional source location).
 /// This works on the original JSON AST before transforms are applied.
 pub(crate) fn check_ownership_validation(
     left_json: Option<&Value>,
@@ -4762,17 +4761,14 @@ fn wrap_with_ownership_mutation(
 /// for a binding that has none (`b.literal(binding.prop_alias)` upstream).
 pub(crate) fn ownership_alias_literal(prop_alias: Option<String>) -> JsExpr {
     use crate::compiler::phases::phase3_transform::js_ast::builders as b;
-    match prop_alias {
-        Some(alias) => b::string(alias),
-        None => b::null(),
-    }
+    prop_alias.map_or_else(b::null, |alias| b::string(alias))
 }
 
 /// Get the start position of the root identifier in a member expression chain.
 fn get_root_start_position(val: &Value) -> Option<u32> {
     let obj = val.as_object()?;
     match obj.get("type")?.as_str()? {
-        "Identifier" => obj.get("start")?.as_u64().map(|n| n as u32),
+        "Identifier" => obj.get("start")?.as_u64().map(source_pos),
         "MemberExpression" => get_root_start_position(obj.get("object")?),
         _ => None,
     }
@@ -4782,14 +4778,17 @@ fn get_root_start_position(val: &Value) -> Option<u32> {
 fn get_root_identifier_from_member_json(val: &Value) -> Option<String> {
     let obj = val.as_object()?;
     match obj.get("type")?.as_str()? {
-        "Identifier" => obj.get("name")?.as_str().map(|s| s.to_string()),
+        "Identifier" => obj
+            .get("name")?
+            .as_str()
+            .map(std::string::ToString::to_string),
         "MemberExpression" => get_root_identifier_from_member_json(obj.get("object")?),
         _ => None,
     }
 }
 
 /// Build the property path array from a JSON member expression.
-/// Returns [root_name, prop1, prop2, ...] for obj.prop1.prop2.
+/// Returns [`root_name`, prop1, prop2, ...] for obj.prop1.prop2.
 /// A property that is neither an `Identifier` nor a `Literal` (e.g. `obj[a.b]`) aborts the
 /// whole validation, matching `validate_mutation`'s `else { return expression; }` branch.
 fn build_member_path_from_json(val: &Value, context: &ComponentContext) -> Option<Vec<JsExpr>> {
@@ -4804,7 +4803,7 @@ fn build_member_path_from_json(val: &Value, context: &ComponentContext) -> Optio
                 let property = obj.get("property");
                 let computed = obj
                     .get("computed")
-                    .and_then(|c| c.as_bool())
+                    .and_then(serde_json::Value::as_bool)
                     .unwrap_or(false);
 
                 if let Some(prop_obj) = property.and_then(|p| p.as_object()) {
@@ -4863,7 +4862,7 @@ fn build_member_path_from_json(val: &Value, context: &ComponentContext) -> Optio
 /// Try to apply reactive transformations to an assignment expression.
 ///
 /// This function checks if the left-hand side is a reactive state variable
-/// and applies the appropriate transformation ($.set()).
+/// and applies the appropriate transformation ($.`set()`).
 ///
 /// Corresponds to `build_assignment` in the official Svelte compiler's
 /// `AssignmentExpression.js`.
@@ -4884,7 +4883,7 @@ fn try_transform_assignment(
     // convert_json_value applies read transforms (e.g., `rows` -> `rows()`)
     // which makes the root identifier unrecoverable from the converted expression.
     let root_name = extract_root_identifier_from_expr(&context.arena, left)
-        .or_else(|| original_root_name.map(|s| s.to_string()))?;
+        .or_else(|| original_root_name.map(std::string::ToString::to_string))?;
 
     // Check if there's a transform for this identifier
     let transform = context.state.transform.get(&root_name)?;
@@ -4911,18 +4910,16 @@ fn try_transform_assignment(
         // Check if the binding kind excludes proxy (Derived, Prop, etc.)
         use crate::compiler::phases::phase2_analyze::scope::BindingKind;
         let binding = context.state.get_binding(name);
-        let binding_kind_excludes_proxy = binding
-            .map(|b| {
-                matches!(
-                    b.kind,
-                    BindingKind::Prop
-                        | BindingKind::BindableProp
-                        | BindingKind::Derived
-                        | BindingKind::StoreSub
-                        | BindingKind::RawState
-                )
-            })
-            .unwrap_or(false);
+        let binding_kind_excludes_proxy = binding.is_some_and(|b| {
+            matches!(
+                b.kind,
+                BindingKind::Prop
+                    | BindingKind::BindableProp
+                    | BindingKind::Derived
+                    | BindingKind::StoreSub
+                    | BindingKind::RawState
+            )
+        });
 
         // Determine if proxy is needed based on:
         // 1. Not skipped (not $state.raw)
@@ -4967,8 +4964,7 @@ fn try_transform_assignment(
             context
                 .state
                 .get_binding(&root_name)
-                .map(|b| matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp))
-                .unwrap_or(false)
+                .is_some_and(|b| matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp))
         };
 
         let visited_left = if is_prop_binding {
@@ -5050,7 +5046,6 @@ pub(crate) fn wrap_with_legacy_invalidate(
 /// Get the appropriate $.assign* function name for an operator.
 fn get_coercive_assign_callee(operator: &str) -> &'static str {
     match operator {
-        "=" => "$.assign",
         "&&=" => "$.assign_and",
         "||=" => "$.assign_or",
         "??=" => "$.assign_nullish",
@@ -5061,23 +5056,18 @@ fn get_coercive_assign_callee(operator: &str) -> &'static str {
 /// Check if a JSON AST expression evaluates to a known primitive value.
 /// This corresponds to `context.state.scope.evaluate(right).is_primitive` in the official compiler.
 fn is_known_primitive_json(value: Option<&Value>) -> bool {
-    let value = match value {
-        Some(v) => v,
-        None => return false, // Unknown, assume not primitive
+    let Some(value) = value else {
+        return false; // Unknown, assume not primitive
     };
 
-    let node_type = match unwrap_ts_expression_type(value) {
-        Some(t) => t,
-        None => return false,
+    let Some(node_type) = unwrap_ts_expression_type(value) else {
+        return false;
     };
 
     match node_type {
         // Literal values (numbers, strings, booleans, null) are primitive
-        "Literal" => true,
         // Unary expressions result in primitives (typeof, !, -, +, ~, void)
-        "UnaryExpression" => true,
         // Binary expressions result in primitives
-        "BinaryExpression" => true,
         // Template literals are strings (primitive)
         "TemplateLiteral" => true,
         // `undefined` identifier is primitive
@@ -5265,13 +5255,13 @@ fn try_coercive_assignment_transform(
     // Reference: AssignmentExpression.js lines 204-215
     if obj
         .get("start")
-        .and_then(|v| v.as_u64())
+        .and_then(serde_json::Value::as_u64)
         .is_some_and(|start| {
             context
                 .state
                 .analysis
                 .assign_exempt_assignment_starts
-                .contains(&(start as u32))
+                .contains(&source_pos(start))
         })
     {
         return None;
@@ -5306,7 +5296,7 @@ fn try_coercive_assignment_transform(
     // Get the property expression
     let computed = left_json
         .get("computed")
-        .and_then(|c| c.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
 
     let property_expr = if computed {
@@ -5331,7 +5321,10 @@ fn try_coercive_assignment_transform(
     };
 
     // Compute the location string: "filename:line:column"
-    let start = left_json.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+    let start = left_json
+        .get("start")
+        .and_then(serde_json::Value::as_u64)
+        .map_or(0, source_index);
     let source = &context.state.analysis.source;
     let filename = &context.state.analysis.filename;
     let (line, col) =
@@ -5352,7 +5345,7 @@ fn try_coercive_assignment_transform(
 /// A decomposed path from a destructuring pattern.
 /// Represents a single assignment target extracted from a pattern like `[a, b]` or `{x, y}`.
 struct DestructuredPath {
-    /// The target node (Identifier or MemberExpression) as JSON
+    /// The target node (Identifier or `MemberExpression`) as JSON
     node: Value,
     /// The expression to access this value from the RHS (e.g., `$$value.x` or `$$array[0]`)
     expression: JsExpr,
@@ -5369,7 +5362,7 @@ struct ArrayInsert {
 
 /// Try to handle a destructuring assignment expression.
 ///
-/// When the LHS is an ArrayPattern or ObjectPattern, this decomposes the destructure
+/// When the LHS is an `ArrayPattern` or `ObjectPattern`, this decomposes the destructure
 /// into individual assignments and checks if any target has a reactive transform.
 /// If so, generates an IIFE (Immediately Invoked Function Expression) pattern.
 ///
@@ -5497,7 +5490,7 @@ fn try_destructure_assignment(
                 .any(|a| b::js_expr_has_await(&context.arena, a));
 
         let arrow = if is_async {
-            b::async_arrow_block(vec![JsPattern::Identifier(param_name.clone())], statements)
+            b::async_arrow_block(vec![JsPattern::Identifier(param_name)], statements)
         } else {
             b::arrow_block(vec![JsPattern::Identifier(param_name)], statements)
         };
@@ -5546,9 +5539,8 @@ fn extract_destructure_paths(
 ) {
     use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
-    let obj = match param.as_object() {
-        Some(o) => o,
-        None => return,
+    let Some(obj) = param.as_object() else {
+        return;
     };
     let node_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
@@ -5563,9 +5555,8 @@ fn extract_destructure_paths(
         "ObjectPattern" => {
             if let Some(properties) = obj.get("properties").and_then(|p| p.as_array()) {
                 for prop in properties {
-                    let prop_obj = match prop.as_object() {
-                        Some(o) => o,
-                        None => continue,
+                    let Some(prop_obj) = prop.as_object() else {
+                        continue;
                     };
                     let prop_type = prop_obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
@@ -5584,7 +5575,7 @@ fn extract_destructure_paths(
                                         key.get("type").and_then(|t| t.as_str()).unwrap_or("");
                                     let computed = p_obj
                                         .get("computed")
-                                        .and_then(|c| c.as_bool())
+                                        .and_then(serde_json::Value::as_bool)
                                         .unwrap_or(false);
 
                                     if key_type == "Identifier" && !computed {
@@ -5632,7 +5623,7 @@ fn extract_destructure_paths(
                         let key = prop_obj.get("key");
                         let computed = prop_obj
                             .get("computed")
-                            .and_then(|c| c.as_bool())
+                            .and_then(serde_json::Value::as_bool)
                             .unwrap_or(false);
 
                         let member_expr = if let Some(key_val) = key {
@@ -5691,7 +5682,7 @@ fn extract_destructure_paths(
             };
 
             inserts.push(ArrayInsert {
-                id: array_name.clone(),
+                id: array_name,
                 value: b::call(
                     &context.arena,
                     b::member_path(&context.arena, "$.to_array"),
@@ -5704,9 +5695,8 @@ fn extract_destructure_paths(
                     continue; // Skip holes in array patterns
                 }
 
-                let elem_obj = match element.as_object() {
-                    Some(o) => o,
-                    None => continue,
+                let Some(elem_obj) = element.as_object() else {
+                    continue;
                 };
                 let elem_type = elem_obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
@@ -5753,7 +5743,7 @@ fn extract_destructure_paths(
 /// Try to build a single reactive assignment from a destructured path.
 ///
 /// This checks if the target identifier has a reactive transform (assign or mutate)
-/// and generates the appropriate call ($.set(), $.mutate(), $.store_set(), etc.).
+/// and generates the appropriate call ($.`set()`, $.`mutate()`, $.`store_set()`, etc.).
 ///
 /// Returns `None` if no reactive transform is needed (plain variable).
 fn try_build_single_assignment(
@@ -5794,11 +5784,9 @@ fn try_build_single_assignment(
             let target = convert_json_value(&path.node, context);
             let mutation_expr = b::assign(&context.arena, target, path.expression.clone());
 
-            let node_id = if let Some(ref replacement) = replacement_id {
-                b::id(replacement)
-            } else {
-                b::id(&root_name)
-            };
+            let node_id = replacement_id
+                .as_ref()
+                .map_or_else(|| b::id(&root_name), |replacement| b::id(replacement));
             return Some(mutate_fn(&context.arena, node_id, mutation_expr));
         }
     }
@@ -5806,7 +5794,7 @@ fn try_build_single_assignment(
     None
 }
 
-/// Extract the root identifier name from a JsExpr.
+/// Extract the root identifier name from a `JsExpr`.
 ///
 /// Recursively walks down member expressions to find the leftmost identifier.
 fn extract_root_identifier_from_expr(
@@ -5827,7 +5815,7 @@ fn extract_root_identifier_from_expr(
 
 /// Extract the root identifier name from a JSON AST node.
 ///
-/// Recursively walks down MemberExpression nodes to find the leftmost Identifier.
+/// Recursively walks down `MemberExpression` nodes to find the leftmost Identifier.
 /// This is used to extract the root BEFORE conversion applies read transforms.
 fn extract_root_identifier_from_json(value: &Value) -> Option<String> {
     let obj = value.as_object()?;
@@ -5837,7 +5825,7 @@ fn extract_root_identifier_from_json(value: &Value) -> Option<String> {
         "Identifier" => obj
             .get("name")
             .and_then(|n| n.as_str())
-            .map(|s| s.to_string()),
+            .map(std::string::ToString::to_string),
         "MemberExpression" => obj
             .get("object")
             .and_then(extract_root_identifier_from_json),
@@ -5845,9 +5833,6 @@ fn extract_root_identifier_from_json(value: &Value) -> Option<String> {
             .get("expression")
             .and_then(extract_root_identifier_from_json),
         // Unwrap TypeScript expression wrappers
-        "TSAsExpression" | "TSNonNullExpression" | "TSSatisfiesExpression" => obj
-            .get("expression")
-            .and_then(extract_root_identifier_from_json),
         _ => None,
     }
 }
@@ -5859,10 +5844,10 @@ fn is_non_coercive_operator(operator: &str) -> bool {
     matches!(operator, "=" | "||=" | "&&=" | "??=")
 }
 
-/// Unwrap TypeScript expression wrappers (TSAsExpression, TSNonNullExpression, etc.)
+/// Unwrap TypeScript expression wrappers (`TSAsExpression`, `TSNonNullExpression`, etc.)
 /// and return the underlying AST node type.
 ///
-/// For example, `next! as number` -> TSAsExpression wrapping TSNonNullExpression wrapping
+/// For example, `next! as number` -> `TSAsExpression` wrapping `TSNonNullExpression` wrapping
 /// Identifier -> returns "Identifier".
 fn unwrap_ts_expression_type(value: &Value) -> Option<&str> {
     let obj = value.as_object()?;
@@ -5875,11 +5860,8 @@ fn unwrap_ts_expression_type(value: &Value) -> Option<&str> {
         | "TSTypeAssertion"
         | "TSInstantiationExpression" => {
             // Unwrap to the inner expression
-            if let Some(expr) = obj.get("expression") {
-                unwrap_ts_expression_type(expr)
-            } else {
-                Some(node_type)
-            }
+            obj.get("expression")
+                .map_or(Some(node_type), |expr| unwrap_ts_expression_type(expr))
         }
         _ => Some(node_type),
     }
@@ -5900,7 +5882,7 @@ fn should_proxy_node_type_str(node_type: &str) -> bool {
     )
 }
 
-/// Determines if a value should be wrapped in $.proxy() for deep reactivity.
+/// Determines if a value should be wrapped in $.`proxy()` for deep reactivity.
 ///
 /// Returns `false` for primitives, functions, and literals.
 /// Returns `true` for objects, arrays, and other reference types.
@@ -5910,9 +5892,8 @@ fn should_proxy_node_type_str(node_type: &str) -> bool {
 /// 2. Check analysis scope bindings (component-level declarations)
 /// 3. Fall back to conservative proxy assumption
 fn should_proxy_value(value: Option<&Value>, context: &ComponentContext) -> bool {
-    let value = match value {
-        Some(v) => v,
-        None => return true, // Unknown, conservatively assume proxy needed
+    let Some(value) = value else {
+        return true; // Unknown, conservatively assume proxy needed
     };
 
     // Verify this is an object node
@@ -5920,18 +5901,14 @@ fn should_proxy_value(value: Option<&Value>, context: &ComponentContext) -> bool
         return false;
     }
 
-    let node_type = match unwrap_ts_expression_type(value) {
-        Some(t) => t,
-        None => return true, // Unknown type, assume proxy needed
+    let Some(node_type) = unwrap_ts_expression_type(value) else {
+        return true; // Unknown type, assume proxy needed
     };
 
     match node_type {
         // Primitives don't need proxy
-        "Literal" => false,
         // Functions don't need proxy
-        "ArrowFunctionExpression" | "FunctionExpression" => false,
         // Unary and binary expressions result in primitives
-        "UnaryExpression" | "BinaryExpression" => false,
         // Template literals are strings (primitives)
         "TemplateLiteral" => false,
         // Identifiers: scope-aware lookup to check what the identifier was initialized with
@@ -5961,10 +5938,7 @@ fn should_proxy_value(value: Option<&Value>, context: &ComponentContext) -> bool
                 let mut binding_opt = context.state.get_binding(name);
                 // Prefer a Template binding (@const) with a known initial type when the
                 // fallback found a same-named function param without initial info.
-                if binding_opt
-                    .map(|b| b.initial_node_type.is_none())
-                    .unwrap_or(true)
-                {
+                if binding_opt.is_none_or(|b| b.initial_node_type.is_none()) {
                     for scope in &context.state.scope_root.all_scopes {
                         if let Some(&idx) = scope.declarations.get(name)
                             && let Some(b) = context.state.scope_root.bindings.get(idx)
@@ -6005,7 +5979,6 @@ fn should_proxy_value(value: Option<&Value>, context: &ComponentContext) -> bool
             }
         }
         // Objects and arrays need proxy
-        "ObjectExpression" | "ArrayExpression" => true,
         // Other expressions might need proxy (e.g., function calls that return objects)
         _ => true,
     }
@@ -6013,12 +5986,9 @@ fn should_proxy_value(value: Option<&Value>, context: &ComponentContext) -> bool
 
 /// JsNode-based version of `should_proxy_value`.
 /// Determines if a value should be wrapped in `$.proxy()` for deep reactivity
-/// by inspecting the JsNode directly, avoiding JSON serialization.
+/// by inspecting the `JsNode` directly, avoiding JSON serialization.
 fn should_proxy_jsnode(node: &JsNode, _pa: &ParseArena, context: &ComponentContext) -> bool {
     match node {
-        JsNode::Literal { .. } => false,
-        JsNode::ArrowFunctionExpression { .. } | JsNode::FunctionExpression { .. } => false,
-        JsNode::UnaryExpression { .. } | JsNode::BinaryExpression { .. } => false,
         JsNode::TemplateLiteral { .. } => false,
         JsNode::Identifier { name, .. } => {
             if name == "undefined" {
@@ -6035,10 +6005,7 @@ fn should_proxy_jsnode(node: &JsNode, _pa: &ParseArena, context: &ComponentConte
                 }
             }
             let mut binding_opt = context.state.get_binding(name);
-            if binding_opt
-                .map(|b| b.initial_node_type.is_none())
-                .unwrap_or(true)
-            {
+            if binding_opt.is_none_or(|b| b.initial_node_type.is_none()) {
                 for scope in &context.state.scope_root.all_scopes {
                     if let Some(&idx) = scope.declarations.get(name.as_str())
                         && let Some(b) = context.state.scope_root.bindings.get(idx)
@@ -6087,7 +6054,7 @@ fn should_proxy_jsnode(node: &JsNode, _pa: &ParseArena, context: &ComponentConte
 }
 
 /// JsNode-based version of `get_rune_from_call`.
-/// Extracts the rune name from a CallExpression's callee without JSON serialization.
+/// Extracts the rune name from a `CallExpression`'s callee without JSON serialization.
 fn get_rune_from_call_jsnode(
     callee_node: &JsNode,
     pa: &ParseArena,
@@ -6108,7 +6075,7 @@ fn get_rune_from_call_jsnode(
                 JsNode::CallExpression { callee, .. } => {
                     let inner_callee = pa.get_js_node(*callee);
                     if let JsNode::Identifier { name, .. } = inner_callee {
-                        let keypath = format!("{}().{}", name, property_name);
+                        let keypath = format!("{name}().{property_name}");
                         if RUNES.contains(&keypath.as_str()) {
                             if context.state.get_binding(name).is_some() {
                                 return None;
@@ -6119,7 +6086,7 @@ fn get_rune_from_call_jsnode(
                     return None;
                 }
                 JsNode::Identifier { name, .. } => {
-                    format!("{}.{}", name, property_name)
+                    format!("{name}.{property_name}")
                 }
                 _ => return None,
             }
@@ -6136,7 +6103,7 @@ fn get_rune_from_call_jsnode(
     Some(rune_name)
 }
 
-/// Convert a BlockStatement from a typed JsNode, avoiding `to_value()` on the parent.
+/// Convert a `BlockStatement` from a typed `JsNode`, avoiding `to_value()` on the parent.
 fn convert_block_statement_from_jsnode(
     body_range: &IdRange,
     context: &mut ComponentContext,
@@ -6180,7 +6147,7 @@ fn convert_block_statement_from_jsnode(
     JsBlockStatement { body }
 }
 
-/// Add the top-level variable-declaration names from a JsNode statement to
+/// Add the top-level variable-declaration names from a `JsNode` statement to
 /// `shadowed_prop_names`.  Only simple `Identifier` lhs patterns are handled;
 /// destructuring patterns are ignored (they rarely shadow a prop name and the
 /// code is cleaner without the extra complexity).
@@ -6239,7 +6206,7 @@ fn convert_expression_statement_child_typed(
     result
 }
 
-/// Convert a single statement from a JsNode.
+/// Convert a single statement from a `JsNode`.
 /// Handles common statement types directly; falls back to JSON for uncommon ones.
 fn convert_statement_from_jsnode(
     node: &JsNode,
@@ -6333,9 +6300,10 @@ fn convert_statement_from_jsnode(
                 context.arena.alloc_expr(__tmp)
             };
             let conv_consequent =
-                convert_statement_from_jsnode(pa.get_js_node(*consequent), context)
-                    .map(|s| context.arena.alloc_stmt(s))
-                    .unwrap_or_else(|| context.arena.alloc_stmt(JsStatement::Empty));
+                convert_statement_from_jsnode(pa.get_js_node(*consequent), context).map_or_else(
+                    || context.arena.alloc_stmt(JsStatement::Empty),
+                    |s| context.arena.alloc_stmt(s),
+                );
             let conv_alternate = alternate.and_then(|a| {
                 convert_statement_from_jsnode(pa.get_js_node(a), context)
                     .map(|s| context.arena.alloc_stmt(s))
@@ -6358,7 +6326,7 @@ fn convert_statement_from_jsnode(
     }
 }
 
-/// Collect parameter names from a JsNode, avoiding JSON serialization for simple identifiers.
+/// Collect parameter names from a `JsNode`, avoiding JSON serialization for simple identifiers.
 fn collect_param_names_from_jsnode(node: &JsNode, names: &mut Vec<String>) {
     match node {
         JsNode::Identifier { name, .. } => {
@@ -6388,14 +6356,14 @@ fn get_identifier_name_from_json(value: &Value) -> Option<&str> {
     }
 }
 
-/// Convert an UpdateExpression node.
+/// Convert an `UpdateExpression` node.
 ///
 /// This applies transforms for reactive state and store subscriptions.
 /// For store subscriptions like `$store++`, it generates `$.update_store(...)`.
 /// For member expressions like `$store[0].value++`, it generates `$.store_mutate(...)`.
 ///
-/// Special handling for rest_prop transformation:
-/// When the argument is `props.a` (MemberExpression on rest_prop),
+/// Special handling for `rest_prop` transformation:
+/// When the argument is `props.a` (`MemberExpression` on `rest_prop`),
 /// we DON'T transform `props` to `$$props`, similar to direct assignments.
 fn convert_update_expression(
     obj: &serde_json::Map<String, Value>,
@@ -6404,12 +6372,14 @@ fn convert_update_expression(
     let operator_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("++");
 
     let operator = match operator_str {
-        "++" => JsUpdateOp::Increment,
         "--" => JsUpdateOp::Decrement,
         _ => JsUpdateOp::Increment,
     };
 
-    let prefix = obj.get("prefix").and_then(|p| p.as_bool()).unwrap_or(true);
+    let prefix = obj
+        .get("prefix")
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(true);
 
     let argument_value = obj.get("argument");
 
@@ -6434,7 +6404,7 @@ fn convert_update_expression(
     {
         let computed = arg_obj
             .get("computed")
-            .and_then(|c| c.as_bool())
+            .and_then(serde_json::Value::as_bool)
             .unwrap_or(false);
         if !computed {
             if let Some(object_obj) = arg_obj.get("object").and_then(|o| o.as_object())
@@ -6659,14 +6629,14 @@ fn apply_store_ref_transform(
                 optional: false,
             })
         } else {
-            b::member_path(&context.arena, &format!("$$props.{}", store_name))
+            b::member_path(&context.arena, &format!("$$props.{store_name}"))
         };
     }
 
     result
 }
 
-/// Convert a SequenceExpression node.
+/// Convert a `SequenceExpression` node.
 fn convert_sequence_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
@@ -6685,7 +6655,7 @@ fn convert_sequence_expression(
     JsExpr::Sequence(JsSequenceExpression { expressions })
 }
 
-/// Convert a NewExpression node.
+/// Convert a `NewExpression` node.
 fn convert_new_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
@@ -6715,18 +6685,22 @@ fn convert_new_expression(
     JsExpr::New(JsNewExpression { callee, arguments })
 }
 
-/// Convert an AwaitExpression node.
+/// Convert an `AwaitExpression` node.
 fn convert_await_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
 ) -> JsExpr {
     let argument = obj
         .get("argument")
-        .map(|a| convert_json_value(a, context))
-        .unwrap_or(JsExpr::Literal(JsLiteral::Null));
+        .map_or(JsExpr::Literal(JsLiteral::Null), |a| {
+            convert_json_value(a, context)
+        });
 
     // Check if this await is in the pickled_awaits set (needs $.save() wrapping)
-    let start = obj.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
+    let start = obj
+        .get("start")
+        .and_then(serde_json::Value::as_u64)
+        .map_or(0, source_pos);
     if context.state.analysis.pickled_awaits.contains(&start)
         && !context.state.suppress_pickled_await_instrumentation.get()
     {
@@ -6779,7 +6753,7 @@ fn convert_await_expression(
     JsExpr::Await(context.arena.alloc_expr(argument))
 }
 
-/// Convert a YieldExpression node.
+/// Convert a `YieldExpression` node.
 fn convert_yield_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
@@ -6793,7 +6767,7 @@ fn convert_yield_expression(
 
     let delegate = obj
         .get("delegate")
-        .and_then(|d| d.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
 
     JsExpr::Yield(JsYieldExpression {
@@ -6802,7 +6776,7 @@ fn convert_yield_expression(
     })
 }
 
-/// Convert a SpreadElement node.
+/// Convert a `SpreadElement` node.
 fn convert_spread_element(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
@@ -6818,7 +6792,7 @@ fn convert_spread_element(
     JsExpr::Spread(argument)
 }
 
-/// Convert a TemplateLiteral node.
+/// Convert a `TemplateLiteral` node.
 fn convert_template_literal(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
@@ -6867,7 +6841,7 @@ fn convert_template_literal(
     })
 }
 
-/// Convert a TaggedTemplateExpression node.
+/// Convert a `TaggedTemplateExpression` node.
 ///
 /// Structure: tag`template`
 /// Example: css`color: red;`
@@ -6889,10 +6863,12 @@ fn convert_tagged_template_expression(
         });
 
     // Convert the quasi (template literal)
-    let quasi = obj
-        .get("quasi")
-        .and_then(|q| q.as_object())
-        .map(|q| {
+    let quasi = obj.get("quasi").and_then(|q| q.as_object()).map_or_else(
+        || JsTemplateLiteral {
+            quasis: vec![],
+            expressions: vec![],
+        },
+        |q| {
             // Convert the quasi which is a TemplateLiteral
             match convert_template_literal(q, context) {
                 JsExpr::TemplateLiteral(tl) => tl,
@@ -6901,16 +6877,13 @@ fn convert_tagged_template_expression(
                     expressions: vec![],
                 },
             }
-        })
-        .unwrap_or_else(|| JsTemplateLiteral {
-            quasis: vec![],
-            expressions: vec![],
-        });
+        },
+    );
 
     JsExpr::TaggedTemplate(JsTaggedTemplate { tag, quasi })
 }
 
-/// Convert a ChainExpression node.
+/// Convert a `ChainExpression` node.
 ///
 /// Handles optional chaining: a?.b, a?.[b], a?.()
 fn convert_chain_expression(

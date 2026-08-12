@@ -8,6 +8,10 @@ use crate::ast::template::{
 use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, slice_src};
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("template source offsets are represented as u32")
+}
+
 use crate::svelte2tsx::template::attributes::attribute::format_attribute_node;
 use crate::svelte2tsx::template::attributes::binding::format_bind_directive;
 use crate::svelte2tsx::template::attributes::class_style::build_class_style_directive_suffix_segments;
@@ -35,7 +39,7 @@ use crate::svelte2tsx::template::attributes::action::format_use_directive;
 /// `a.name === 'slot' && a.value[0]?.data !== 'default'`. A dynamic
 /// `slot={foo}` (no static `.data`) counts as non-default, as does any static
 /// `slot="name"` except `slot="default"`.
-pub(crate) fn has_non_default_slot_attr(attributes: &[Attribute], _source: &str) -> bool {
+pub fn has_non_default_slot_attr(attributes: &[Attribute], _source: &str) -> bool {
     for attr in attributes {
         if let Attribute::Attribute(node) = attr
             && node.name == "slot"
@@ -58,7 +62,7 @@ pub(crate) fn has_non_default_slot_attr(attributes: &[Attribute], _source: &str)
 ///
 /// Returns true if the component has any non-text children, or text children
 /// with non-whitespace content.
-pub(crate) fn has_component_slot_children(fragment: &Fragment, source: &str) -> bool {
+pub fn has_component_slot_children(fragment: &Fragment, source: &str) -> bool {
     for node in &fragment.nodes {
         match node {
             TemplateNode::Text(text) => {
@@ -78,11 +82,9 @@ pub(crate) fn has_component_slot_children(fragment: &Fragment, source: &str) -> 
             // Comments are likewise ignorable. Mirrors upstream
             // `handleImplicitChildren`, which skips `SnippetBlock` / `Comment`
             // and only fakes a `children` prop for a real default-slot child.
-            TemplateNode::SnippetBlock(_) | TemplateNode::Comment(_) => {}
-            // A `<slot>` child never contributes default-slot content — official
-            // `handleImplicitChildren` skips every `child.type === 'Slot'`
-            // unconditionally (it forwards a slot, it isn't slotted content).
-            TemplateNode::SlotElement(_) => {}
+            TemplateNode::SnippetBlock(_)
+            | TemplateNode::Comment(_)
+            | TemplateNode::SlotElement(_) => {}
             // Non-default-slot children (`<el slot="name">`, `slot={dynamic}`,
             // `<svelte:fragment slot="name">`, etc.) populate their slot, NOT
             // the default `children` prop, so they must not trigger the
@@ -140,7 +142,7 @@ fn element_kind_attributes<'a>(node: &'a TemplateNode<'a>) -> Option<&'a [Attrib
 /// `parent`. This therefore recurses through blocks but NOT into nested
 /// elements/components (each owns its own slot scope) nor `{#snippet}` bodies
 /// (official resets `element` to `undefined` there).
-pub(crate) fn has_default_slot_let_children(fragment: &Fragment) -> bool {
+pub fn has_default_slot_let_children(fragment: &Fragment) -> bool {
     fragment.nodes.iter().any(|node| {
         if let Some(attrs) = element_kind_attributes(node) {
             return has_let_directives(attrs);
@@ -190,7 +192,7 @@ pub(crate) fn has_default_slot_let_children(fragment: &Fragment) -> bool {
 /// The block is emitted by the node's own handler, and therefore *after* the
 /// handler's leading gap — official runs it through the SAME `transform()` call
 /// as the opening-tag rewrite, so the gap precedes the destructure.
-pub(crate) fn default_slot_let_block(
+pub fn default_slot_let_block(
     attributes: &[Attribute],
     slot_inst: Option<&String>,
     source: &str,
@@ -208,7 +210,7 @@ pub(crate) fn default_slot_let_block(
 
 /// The `$$slot_def["name"]` destructure an element-kind child emits when a
 /// static `slot=` retargets it at a named slot (official `addSlotName`).
-pub(crate) fn named_slot_let_block(
+pub fn named_slot_let_block(
     attributes: &[Attribute],
     inst: &str,
     target_slot: &str,
@@ -223,7 +225,7 @@ pub(crate) fn named_slot_let_block(
 }
 
 /// Check if any children have `slot="name"` attributes (named slots).
-pub(crate) fn has_named_slot_children(fragment: &Fragment) -> bool {
+pub fn has_named_slot_children(fragment: &Fragment) -> bool {
     for node in &fragment.nodes {
         match node {
             TemplateNode::RegularElement(el) if slot_attr_static_name(&el.attributes).is_some() => {
@@ -325,7 +327,7 @@ pub(crate) fn has_named_slot_children(fragment: &Fragment) -> bool {
 /// Takes the owning node's parts rather than a `&Component` so `<svelte:component>`
 /// (a `SvelteComponentElement`) can share the exact same slot lowering.
 #[must_use]
-pub(crate) fn process_component_children_with_slots(
+pub fn process_component_children_with_slots(
     attributes: &[Attribute],
     fragment: &Fragment,
     node_end: u32,
@@ -378,9 +380,10 @@ pub(crate) fn process_component_children_with_slots(
             TemplateNode::Component(child_comp) => {
                 slot_attr_static_name(&child_comp.attributes).is_some()
             }
-            TemplateNode::SvelteFragment(el) => slot_attr_static_name(&el.attributes).is_some(),
+            TemplateNode::SvelteFragment(el) | TemplateNode::SvelteSelf(el) => {
+                slot_attr_static_name(&el.attributes).is_some()
+            }
             TemplateNode::SvelteComponent(sc) => slot_attr_static_name(&sc.attributes).is_some(),
-            TemplateNode::SvelteSelf(el) => slot_attr_static_name(&el.attributes).is_some(),
             _ => false,
         };
 
@@ -457,7 +460,7 @@ pub(crate) fn process_component_children_with_slots(
 /// Handle a regular element child with `slot="name"` attribute inside a component.
 ///
 /// Wraps the element in a `$$slot_def["name"]` destructuring block.
-pub(crate) fn handle_named_slot_element(
+pub fn handle_named_slot_element(
     el: &RegularElement,
     inst_var: &str,
     source: &str,
@@ -471,8 +474,7 @@ pub(crate) fn handle_named_slot_element(
 
     // Build the slot def block opener
     let block_open = format!(
-        "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def[\"{}\"];$$_$$;",
-        let_destructure, inst_var, slot_name
+        "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{let_destructure}}} = {inst_var}.$$slot_def[\"{slot_name}\"];$$_$$;"
     );
 
     // Build attributes string excluding `slot` and `let:` directives
@@ -495,7 +497,7 @@ pub(crate) fn handle_named_slot_element(
         el.start,
         &el.name,
         opening_tag_end,
-        Some((el.start + 1, el.start + 1 + el.name.len() as u32)),
+        Some((el.start + 1, el.start + 1 + source_offset(el.name.len()))),
         &el.attributes,
         &counter.element_opener_comments,
         OpenerCtx {
@@ -550,7 +552,7 @@ pub(crate) fn handle_named_slot_element(
 /// reference still emits a `svelteHTML.createElement("svelte:fragment", { })`
 /// (with `slot` and `let:` attributes stripped), wrapped in the slot let
 /// destructure block.
-pub(crate) fn handle_named_slot_svelte_fragment(
+pub fn handle_named_slot_svelte_fragment(
     el: &SvelteElement,
     inst_var: &str,
     source: &str,
@@ -566,8 +568,7 @@ pub(crate) fn handle_named_slot_svelte_fragment(
     // `\t {const ... ;{ svelteHTML.createElement(...)` after the tab indent
     // is preserved.
     let block_open = format!(
-        " {{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def[\"{}\"];$$_$$;",
-        let_destructure, inst_var, slot_name
+        " {{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{let_destructure}}} = {inst_var}.$$slot_def[\"{slot_name}\"];$$_$$;"
     );
 
     let opening_tag_end =
@@ -597,14 +598,12 @@ pub(crate) fn handle_named_slot_svelte_fragment(
     } else {
         attrs_str
     };
-    let opener = format!(
-        "{}{{ svelteHTML.createElement(\"svelte:fragment\", {{{}}});",
-        block_open, inner
-    );
+    let opener =
+        format!("{block_open}{{ svelteHTML.createElement(\"svelte:fragment\", {{{inner}}});");
 
     if !has_closing_tag {
         // Self-closing `<svelte:fragment slot="x" />` — body has no nodes.
-        let combined = format!("{} }}}}", opener);
+        let combined = format!("{opener} }}}}");
         str.overwrite(el.start, el.end, &combined);
         return;
     }
@@ -618,7 +617,7 @@ pub(crate) fn handle_named_slot_svelte_fragment(
 }
 
 /// Handle a component child with `slot="name"` attribute inside a parent component.
-pub(crate) fn handle_named_slot_component(
+pub fn handle_named_slot_component(
     comp: &Component,
     inst_var: &str,
     source: &str,
@@ -632,8 +631,7 @@ pub(crate) fn handle_named_slot_component(
 
     // Build the slot def block opener
     let block_open = format!(
-        "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def[\"{}\"];$$_$$;",
-        let_destructure, inst_var, slot_name
+        "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{let_destructure}}} = {inst_var}.$$slot_def[\"{slot_name}\"];$$_$$;"
     );
 
     // Insert the block opener before the component
@@ -647,8 +645,8 @@ pub(crate) fn handle_named_slot_component(
         source[comp.start as usize..]
             .find(comp.name.as_str())
             .map(|o| {
-                let start = comp.start + o as u32;
-                (start, start + comp.name.len() as u32)
+                let start = comp.start + source_offset(o);
+                (start, start + source_offset(comp.name.len()))
             }),
         &comp.attributes,
         &counter.element_opener_comments,
@@ -689,7 +687,7 @@ pub(crate) fn handle_named_slot_component(
 /// `InlineComponent`, so a named-slot child of that kind forwards through the
 /// exact same `$$slot_def[...]` lowering as a named component
 /// (`handle_named_slot_component`) — see #2136.
-pub(crate) fn handle_named_slot_svelte_component(
+pub fn handle_named_slot_svelte_component(
     comp: &SvelteComponentElement,
     inst_var: &str,
     source: &str,
@@ -702,8 +700,7 @@ pub(crate) fn handle_named_slot_svelte_component(
     let let_destructure = build_let_destructure_string(&comp.attributes, source);
 
     let block_open = format!(
-        "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def[\"{}\"];$$_$$;",
-        let_destructure, inst_var, slot_name
+        "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{let_destructure}}} = {inst_var}.$$slot_def[\"{slot_name}\"];$$_$$;"
     );
 
     // The `this={expr}` range stands in for the "name" head `handle_component`
@@ -746,7 +743,7 @@ pub(crate) fn handle_named_slot_svelte_component(
 /// Official svelte2tsx models `svelte:self` as an `InlineComponent` too, so it
 /// forwards through the same lowering as `handle_named_slot_svelte_component`
 /// (#2136).
-pub(crate) fn handle_named_slot_svelte_self(
+pub fn handle_named_slot_svelte_self(
     el: &SvelteElement,
     inst_var: &str,
     source: &str,
@@ -759,8 +756,7 @@ pub(crate) fn handle_named_slot_svelte_self(
     let let_destructure = build_let_destructure_string(&el.attributes, source);
 
     let block_open = format!(
-        "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{}}} = {}.$$slot_def[\"{}\"];$$_$$;",
-        let_destructure, inst_var, slot_name
+        "{{const {{/*\u{03A9}ignore_start\u{03A9}*/$$_$$/*\u{03A9}ignore_end\u{03A9}*/,{let_destructure}}} = {inst_var}.$$slot_def[\"{slot_name}\"];$$_$$;"
     );
 
     // `svelte:self` emits its opener as a pure string (no source range head),
@@ -797,7 +793,7 @@ pub(crate) fn handle_named_slot_svelte_self(
 }
 
 /// Build attribute string for a named slot element, excluding `slot` and `let:` directives.
-pub(crate) fn build_named_slot_element_attrs(attributes: &[Attribute], source: &str) -> String {
+pub fn build_named_slot_element_attrs(attributes: &[Attribute], source: &str) -> String {
     let mut parts: Vec<String> = Vec::new();
 
     for attr in attributes {
@@ -808,14 +804,10 @@ pub(crate) fn build_named_slot_element_attrs(attributes: &[Attribute], source: &
                 }
                 // Named-slot elements become `svelteHTML.createElement(…)` calls,
                 // so they are real DOM elements — apply data-* wrapping.
-                if let Some(s) = format_attribute_node(node, source, true) {
-                    parts.push(s);
-                }
+                parts.push(format_attribute_node(node, source, true));
             }
             Attribute::SpreadAttribute(spread) => {
-                if let Some(s) = format_spread_attribute(spread, source) {
-                    parts.push(s);
-                }
+                parts.push(format_spread_attribute(spread, source));
             }
             Attribute::BindDirective(bind) => {
                 parts.push(format_bind_directive(bind, source));
@@ -823,23 +815,20 @@ pub(crate) fn build_named_slot_element_attrs(attributes: &[Attribute], source: &
             Attribute::OnDirective(on) => {
                 parts.push(format_on_directive(on, source));
             }
-            Attribute::ClassDirective(_) | Attribute::StyleDirective(_) => {
+            Attribute::ClassDirective(_)
+            | Attribute::StyleDirective(_)
+            | Attribute::AnimateDirective(_)
+            | Attribute::LetDirective(_)
+            | Attribute::AttachTag(_) => {
                 // class:/style: are not props — they lower to statements after
                 // createElement (see the suffix in handle_named_slot_element).
             }
             Attribute::TransitionDirective(transition) => {
-                if let Some(s) = format_transition_directive(transition, source) {
-                    parts.push(s);
-                }
+                parts.push(format_transition_directive(transition, source));
             }
             Attribute::UseDirective(use_dir) => {
-                if let Some(s) = format_use_directive(use_dir, source) {
-                    parts.push(s);
-                }
+                parts.push(format_use_directive(use_dir, source));
             }
-            // Skip let: directives and animate
-            Attribute::AnimateDirective(_) | Attribute::LetDirective(_) => {}
-            Attribute::AttachTag(_) => {}
         }
     }
 

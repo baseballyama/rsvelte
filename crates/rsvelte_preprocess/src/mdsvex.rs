@@ -16,6 +16,7 @@ use crate::bridge::{MarkupBridge, markup_group};
 const SCRIPT: &str = include_str!("../js/mdsvex-bridge.mjs");
 
 /// Build the `mdsvex` `PreprocessorGroup`.
+#[must_use]
 pub fn mdsvex(config: MarkupBridge) -> PreprocessorGroup {
     markup_group("mdsvex", SCRIPT, config)
 }

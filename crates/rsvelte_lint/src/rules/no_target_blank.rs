@@ -1,3 +1,5 @@
+//! `svelte/no-target-blank`.
+//!
 //! `svelte/no-target-blank` — disallow `target="_blank"` on links that point to
 //! a "dangerous" (external or, when enforced, dynamic) destination without a
 //! secure `rel="noopener noreferrer"`. Port of the eslint-plugin-svelte rule.
@@ -49,8 +51,7 @@ const MESSAGE: &str =
 /// single `SvelteLiteral` returns its text, anything else returns `None`.
 fn static_attribute_value<'b>(value: &'b AttributeValue<'_>) -> Option<&'b str> {
     match value {
-        AttributeValue::True(_) => None,
-        AttributeValue::Expression(_) => None,
+        AttributeValue::True(_) | AttributeValue::Expression(_) => None,
         AttributeValue::Sequence(parts) => match parts.as_slice() {
             [AttributeValuePart::Text(text)] => Some(text.data.as_ref()),
             _ => None,
@@ -67,7 +68,7 @@ fn is_secure_rel(rel: &str, allow_referrer: bool) -> bool {
 }
 
 /// The tokens a secure `rel` must carry, in the order the fix writes them.
-fn required_tags(allow_referrer: bool) -> &'static [&'static str] {
+const fn required_tags(allow_referrer: bool) -> &'static [&'static str] {
     if allow_referrer {
         &["noopener"]
     } else {
@@ -237,10 +238,7 @@ impl NoTargetBlank {
             // tokens go in the empty slot just inside the closing quote.
             [] => {
                 let slot = rel.end.checked_sub(1)?;
-                if !matches!(
-                    source.as_bytes().get(slot as usize),
-                    Some(b'"') | Some(b'\'')
-                ) {
+                if !matches!(source.as_bytes().get(slot as usize), Some(b'"' | b'\'')) {
                     return None;
                 }
                 (slot, slot, "")
@@ -268,7 +266,7 @@ impl NoTargetBlank {
             value_start
                 .checked_sub(1)
                 .and_then(|i| source.as_bytes().get(i as usize)),
-            Some(b'"') | Some(b'\'')
+            Some(b'"' | b'\'')
         );
         let new_text = if quoted {
             extended

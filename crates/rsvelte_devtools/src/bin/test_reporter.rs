@@ -3,7 +3,7 @@
 //! Generates a JSON report of all test results for the progress dashboard.
 //!
 //! Usage:
-//!   cargo run -p rsvelte_devtools --bin test_reporter -- --output apps/playground/static/test-results.json
+//!   cargo run -p `rsvelte_devtools` --bin `test_reporter` -- --output apps/playground/static/test-results.json
 
 // Defined per-bin rather than once in the lib so that linking the `rsvelte_core`
 // rlib never imposes an allocator on the consumer.
@@ -86,8 +86,7 @@ fn get_commit_sha() -> String {
         .output()
         .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
-        .map(|s| s.trim().to_string())
-        .unwrap_or_else(|| "unknown".to_string())
+        .map_or_else(|| "unknown".to_string(), |s| s.trim().to_string())
 }
 
 fn get_samples(test_dir: &str) -> Vec<PathBuf> {
@@ -104,7 +103,7 @@ fn get_samples(test_dir: &str) -> Vec<PathBuf> {
         .min_depth(1)
         .max_depth(1)
         .into_iter()
-        .filter_map(|e| e.ok())
+        .filter_map(std::result::Result::ok)
         .filter(|e| e.file_type().is_dir())
         .map(|e| e.path().to_path_buf())
         .collect();
@@ -192,7 +191,7 @@ fn run_parser_tests(test_type: &str, modern: bool) -> Category {
                     name: test_name,
                     status: "skip".to_string(),
                     error_message: None,
-                    skip_reason: Some(format!("failed to read input: {}", e)),
+                    skip_reason: Some(format!("failed to read input: {e}")),
                 });
                 continue;
             }
@@ -209,7 +208,7 @@ fn run_parser_tests(test_type: &str, modern: bool) -> Category {
         match result {
             Ok(ast) => {
                 let expected = fs::read_to_string(&output_path).unwrap_or_default();
-                let actual_json = format!("{:?}", ast);
+                let actual_json = format!("{ast:?}");
 
                 let actual_normalized = normalize_json(&actual_json);
                 let expected_normalized = normalize_json(&expected);
@@ -237,7 +236,7 @@ fn run_parser_tests(test_type: &str, modern: bool) -> Category {
                 tests.push(TestCase {
                     name: test_name,
                     status: "fail".to_string(),
-                    error_message: Some(format!("Parse error: {:?}", e)),
+                    error_message: Some(format!("Parse error: {e:?}")),
                     skip_reason: None,
                 });
             }
@@ -381,7 +380,7 @@ fn run_snapshot_tests() -> Category {
                 }
                 Err(e) => {
                     client_ok = false;
-                    error_msg = format!("Client compilation error: {}", e);
+                    error_msg = format!("Client compilation error: {e}");
                 }
             }
         }
@@ -406,7 +405,7 @@ fn run_snapshot_tests() -> Category {
                 Err(e) => {
                     server_ok = false;
                     if error_msg.is_empty() {
-                        error_msg = format!("Server compilation error: {}", e);
+                        error_msg = format!("Server compilation error: {e}");
                     }
                 }
             }
@@ -456,7 +455,7 @@ fn normalize_js(js: &str) -> String {
 
     js.lines()
         .filter(|line| !line.trim().is_empty())
-        .map(|line| line.trim_end())
+        .map(str::trim_end)
         .map(normalize_spacing)
         .collect::<Vec<_>>()
         .join("\n")
@@ -605,7 +604,7 @@ fn run_css_tests() -> Category {
                     name: test_name,
                     status: "skip".to_string(),
                     error_message: None,
-                    skip_reason: Some(format!("failed to read input: {}", e)),
+                    skip_reason: Some(format!("failed to read input: {e}")),
                 });
                 continue;
             }
@@ -620,7 +619,7 @@ fn run_css_tests() -> Category {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let options = CompileOptions {
                     generate: GenerateMode::Client,
-                    filename: Some(format!("{}/input.svelte", name_clone)),
+                    filename: Some(format!("{name_clone}/input.svelte")),
                     css: CssMode::External,
                     ..Default::default()
                 };
@@ -629,18 +628,17 @@ fn run_css_tests() -> Category {
             let _ = tx.send(result);
         });
 
-        let result = match rx.recv_timeout(std::time::Duration::from_secs(5)) {
-            Ok(r) => r,
-            Err(_) => {
-                failed += 1;
-                tests.push(TestCase {
-                    name: test_name,
-                    status: "fail".to_string(),
-                    error_message: Some("Test timed out".to_string()),
-                    skip_reason: None,
-                });
-                continue;
-            }
+        let result = if let Ok(r) = rx.recv_timeout(std::time::Duration::from_secs(5)) {
+            r
+        } else {
+            failed += 1;
+            tests.push(TestCase {
+                name: test_name,
+                status: "fail".to_string(),
+                error_message: Some("Test timed out".to_string()),
+                skip_reason: None,
+            });
+            continue;
         };
 
         match result {
@@ -696,7 +694,7 @@ fn run_css_tests() -> Category {
                     tests.push(TestCase {
                         name: test_name,
                         status: "fail".to_string(),
-                        error_message: Some(format!("Compilation error: {:?}", e)),
+                        error_message: Some(format!("Compilation error: {e:?}")),
                         skip_reason: None,
                     });
                 }
@@ -729,7 +727,7 @@ fn normalize_css(css: &str) -> String {
 
     normalized
         .lines()
-        .map(|line| line.trim())
+        .map(str::trim)
         .filter(|line| !line.is_empty())
         .collect::<Vec<_>>()
         .join("\n")
@@ -749,10 +747,10 @@ fn run_ssr_tests(expected_outputs: &serde_json::Value) -> Category {
 
 fn extract_string_field(content: &str, field: &str) -> Option<String> {
     let patterns = [
-        format!("{}: '", field),
-        format!("{}: \"", field),
-        format!("{}:'", field),
-        format!("{}:\"", field),
+        format!("{field}: '"),
+        format!("{field}: \""),
+        format!("{field}:'"),
+        format!("{field}:\""),
     ];
 
     for pattern in &patterns {
@@ -861,7 +859,7 @@ fn run_compiler_error_tests() -> Category {
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let options = CompileOptions {
                 generate: GenerateMode::Client,
-                filename: Some(format!("{}/main.svelte", test_name)),
+                filename: Some(format!("{test_name}/main.svelte")),
                 ..Default::default()
             };
             compile(&input, options)
@@ -884,14 +882,13 @@ fn run_compiler_error_tests() -> Category {
                         name: test_name,
                         status: "fail".to_string(),
                         error_message: Some(format!(
-                            "Expected error '{}' but compilation succeeded",
-                            expected_code
+                            "Expected error '{expected_code}' but compilation succeeded"
                         )),
                         skip_reason: None,
                     });
                 }
                 Err(e) => {
-                    let error_str = format!("{:?}", e);
+                    let error_str = format!("{e:?}");
                     let code_matches = error_str.contains(&expected_code)
                         || error_str
                             .to_lowercase()
@@ -911,8 +908,7 @@ fn run_compiler_error_tests() -> Category {
                             name: test_name,
                             status: "fail".to_string(),
                             error_message: Some(format!(
-                                "Expected error '{}', got: {}",
-                                expected_code, error_str
+                                "Expected error '{expected_code}', got: {error_str}"
                             )),
                             skip_reason: None,
                         });
@@ -1011,7 +1007,7 @@ fn run_validator_tests() -> Category {
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let options = CompileOptions {
                 generate: GenerateMode::Client,
-                filename: Some(format!("{}/input.svelte", test_name)),
+                filename: Some(format!("{test_name}/input.svelte")),
                 ..Default::default()
             };
             compile(&input, options)
@@ -1067,7 +1063,7 @@ fn run_validator_tests() -> Category {
                 }
                 Err(e) => {
                     if let Some(expected_error) = &expected_error {
-                        let error_str = format!("{:?}", e);
+                        let error_str = format!("{e:?}");
                         let code_matches = error_str.contains(&expected_error.code)
                             || error_str
                                 .to_lowercase()
@@ -1098,7 +1094,7 @@ fn run_validator_tests() -> Category {
                         tests.push(TestCase {
                             name: test_name,
                             status: "fail".to_string(),
-                            error_message: Some(format!("Unexpected compilation error: {:?}", e)),
+                            error_message: Some(format!("Unexpected compilation error: {e:?}")),
                             skip_reason: None,
                         });
                     }
@@ -1191,12 +1187,12 @@ fn run_runtime_tests(
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let client_options = CompileOptions {
                     generate: GenerateMode::Client,
-                    filename: Some(format!("{}/main.svelte", name_clone)),
+                    filename: Some(format!("{name_clone}/main.svelte")),
                     ..Default::default()
                 };
                 let server_options = CompileOptions {
                     generate: GenerateMode::Server,
-                    filename: Some(format!("{}/main.svelte", name_clone)),
+                    filename: Some(format!("{name_clone}/main.svelte")),
                     ..Default::default()
                 };
                 (
@@ -1207,18 +1203,17 @@ fn run_runtime_tests(
             let _ = tx.send(result);
         });
 
-        let result = match rx.recv_timeout(std::time::Duration::from_secs(5)) {
-            Ok(r) => r,
-            Err(_) => {
-                failed += 1;
-                tests.push(TestCase {
-                    name: test_name,
-                    status: "fail".to_string(),
-                    error_message: Some("Test timed out".to_string()),
-                    skip_reason: None,
-                });
-                continue;
-            }
+        let result = if let Ok(r) = rx.recv_timeout(std::time::Duration::from_secs(5)) {
+            r
+        } else {
+            failed += 1;
+            tests.push(TestCase {
+                name: test_name,
+                status: "fail".to_string(),
+                error_message: Some("Test timed out".to_string()),
+                skip_reason: None,
+            });
+            continue;
         };
 
         match result {
@@ -1247,7 +1242,7 @@ fn run_runtime_tests(
                         }
                         Err(e) => {
                             client_ok = false;
-                            error_msg = format!("Client compilation error: {}", e);
+                            error_msg = format!("Client compilation error: {e}");
                         }
                     }
                 }
@@ -1266,7 +1261,7 @@ fn run_runtime_tests(
                         Err(e) => {
                             server_ok = false;
                             if error_msg.is_empty() {
-                                error_msg = format!("Server compilation error: {}", e);
+                                error_msg = format!("Server compilation error: {e}");
                             }
                         }
                     }
@@ -1366,7 +1361,7 @@ fn run_print_tests(expected_outputs: &serde_json::Value) -> Category {
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let options = CompileOptions {
                 generate: GenerateMode::Client,
-                filename: Some(format!("{}/input.svelte", test_name)),
+                filename: Some(format!("{test_name}/input.svelte")),
                 ..Default::default()
             };
             compile(&input, options)
@@ -1407,7 +1402,7 @@ fn run_print_tests(expected_outputs: &serde_json::Value) -> Category {
                     tests.push(TestCase {
                         name: test_name,
                         status: "fail".to_string(),
-                        error_message: Some(format!("Compilation error: {:?}", e)),
+                        error_message: Some(format!("Compilation error: {e:?}")),
                         skip_reason: None,
                     });
                 }
@@ -1481,7 +1476,7 @@ fn run_sourcemaps_tests(expected_outputs: &serde_json::Value) -> Category {
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let options = CompileOptions {
                 generate: GenerateMode::Client,
-                filename: Some(format!("{}/input.svelte", test_name)),
+                filename: Some(format!("{test_name}/input.svelte")),
                 ..Default::default()
             };
             compile(&input, options)
@@ -1522,7 +1517,7 @@ fn run_sourcemaps_tests(expected_outputs: &serde_json::Value) -> Category {
                     tests.push(TestCase {
                         name: test_name,
                         status: "fail".to_string(),
-                        error_message: Some(format!("Compilation error: {:?}", e)),
+                        error_message: Some(format!("Compilation error: {e:?}")),
                         skip_reason: None,
                     });
                 }
@@ -1802,7 +1797,7 @@ fn run_and_print<F>(name: &str, runner: F) -> Category
 where
     F: FnOnce() -> Category,
 {
-    eprint!("  Running {} tests... ", name);
+    eprint!("  Running {name} tests... ");
     io::stderr().flush().unwrap();
     let result = runner();
     if result.skipped == result.total {
@@ -1918,9 +1913,9 @@ fn main() {
             fs::create_dir_all(parent).expect("Failed to create output directory");
         }
         fs::write(&path, &json).expect("Failed to write output file");
-        eprintln!("\nResults written to: {}", path);
+        eprintln!("\nResults written to: {path}");
     } else {
-        println!("{}", json);
+        println!("{json}");
     }
 
     eprintln!(

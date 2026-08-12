@@ -21,6 +21,10 @@ pub struct ScssOutput {
 }
 
 /// Compile `content`. `indented` selects the `.sass` syntax.
+///
+/// # Errors
+///
+/// Returns an error when the SCSS compiler rejects the prepared source.
 pub fn transform(
     options: ScssOptions,
     indented: bool,
@@ -28,10 +32,10 @@ pub fn transform(
     content: &str,
 ) -> Result<ScssOutput, String> {
     // `prepareContent` prepends `prependData` before compiling.
-    let prepared = match &options.prepend_data {
-        Some(data) => format!("{data}\n{content}"),
-        None => content.to_string(),
-    };
+    let prepared = options
+        .prepend_data
+        .as_ref()
+        .map_or_else(|| content.to_string(), |data| format!("{data}\n{content}"));
 
     // scss errors if passed an empty string — upstream returns `{ code: '' }`.
     if prepared.is_empty() {

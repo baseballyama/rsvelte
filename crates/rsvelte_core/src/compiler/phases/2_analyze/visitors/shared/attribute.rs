@@ -15,6 +15,10 @@ const ILLEGAL_ATTRIBUTE_CHARS: &[char] = &['"', '\'', '>', '/', '='];
 /// Validate an attribute.
 ///
 /// Corresponds to `validate_attribute` in `shared/attribute.js`.
+///
+/// # Errors
+///
+/// Returns an error for illegal attribute names or unquoted value sequences.
 pub fn validate_attribute(attribute: &AttributeNode) -> Result<(), AnalysisError> {
     // Check for illegal characters in attribute name
     if attribute
@@ -59,9 +63,10 @@ pub fn validate_attribute(attribute: &AttributeNode) -> Result<(), AnalysisError
 }
 
 /// Warn when a component or custom-element attribute wraps a lone expression in
-/// quotes. Upstream reaches this only through `validate_attribute`, which both
-/// of its callers guard with `analysis.runes`, so legacy components must stay
-/// silent.
+/// quotes.
+///
+/// Upstream reaches this only through `validate_attribute`, which both callers guard with
+/// `analysis.runes`, so legacy components must stay silent.
 pub fn warn_attribute_quoted(context: &mut VisitorContext, attribute: &AttributeNode) {
     if !context.analysis.runes || !is_quoted_single_expression(attribute) {
         return;
@@ -73,12 +78,21 @@ pub fn warn_attribute_quoted(context: &mut VisitorContext, attribute: &Attribute
 }
 
 /// Whether the attribute's value is a lone expression tag inside quotes.
+#[must_use]
 pub fn is_quoted_single_expression(attribute: &AttributeNode) -> bool {
     matches!(&attribute.value, AttributeValue::Sequence(parts)
         if parts.len() == 1 && matches!(&parts[0], AttributeValuePart::ExpressionTag(_)))
 }
 
 /// Validate attribute name format.
+///
+/// # Errors
+///
+/// Returns an error for empty names or names beginning with a digit.
+///
+/// # Panics
+///
+/// Panics if a non-empty attribute name has no first character.
 pub fn validate_attribute_name(attribute: &AttributeNode) -> Result<(), AnalysisError> {
     // Check for empty attribute name
     if attribute.name.is_empty() {
@@ -102,7 +116,7 @@ pub fn validate_attribute_name(attribute: &AttributeNode) -> Result<(), Analysis
 /// Validate slot attribute on an element.
 ///
 /// The slot attribute is only valid:
-/// 1. As a direct child of a component (Component, SvelteComponent, SvelteSelf)
+/// 1. As a direct child of a component (Component, `SvelteComponent`, `SvelteSelf`)
 /// 2. As a descendant of a custom element (with no component in between)
 ///
 /// The key insight is that we need to find the NEAREST "slot owner" (component or custom element).
@@ -110,6 +124,10 @@ pub fn validate_attribute_name(attribute: &AttributeNode) -> Result<(), Analysis
 /// If the nearest owner is a custom element, we're always OK.
 ///
 /// Corresponds to `validate_slot_attribute` in shared/attribute.js.
+///
+/// # Errors
+///
+/// Returns an error when the slot attribute is not in a valid component position.
 pub fn validate_slot_attribute(
     context: &VisitorContext,
     attribute: &AttributeNode,
@@ -153,6 +171,7 @@ pub fn validate_slot_attribute(
 }
 
 /// Check if an attribute is an expression attribute.
+#[must_use]
 pub fn is_expression_attribute(attribute: &AttributeNode<'_>) -> bool {
     use crate::ast::template::AttributeValue;
 
@@ -160,6 +179,7 @@ pub fn is_expression_attribute(attribute: &AttributeNode<'_>) -> bool {
 }
 
 /// Get the expression tag from an attribute value.
+#[must_use]
 pub fn get_attribute_expression<'b, 'a>(
     attribute: &'b AttributeNode<'a>,
 ) -> Option<&'b ExpressionTag<'a>> {
@@ -172,6 +192,7 @@ pub fn get_attribute_expression<'b, 'a>(
 }
 
 /// Common React attribute name corrections.
+#[must_use]
 pub fn get_correct_attribute_name(name: &str) -> Option<&'static str> {
     match name {
         "className" => Some("class"),
@@ -183,12 +204,14 @@ pub fn get_correct_attribute_name(name: &str) -> Option<&'static str> {
 /// Check if an attribute is an event attribute (starts with "on" and has expression value).
 ///
 /// Corresponds to `is_event_attribute` in ast.js.
+#[must_use]
 pub fn is_event_attribute(attribute: &AttributeNode<'_>) -> bool {
     attribute.name.starts_with("on") && is_expression_attribute(attribute)
 }
 
 /// Record an event attribute whose expression is a lone arrow, so Phase 3 can
 /// exempt that arrow's direct assignment body from the dev `$.assign` wrap.
+///
 /// Upstream's test is node identity (`expression === context.path.at(-1)`), so
 /// only the arrow that *is* the attribute's expression qualifies — never one
 /// nested inside it. Call this for `RegularElement` and `SvelteElement` only:
@@ -207,10 +230,14 @@ pub fn record_event_attribute_arrow(context: &mut VisitorContext, attribute: &At
 
 /// Record the nodes exempted by upstream's second `$.assign` special case
 /// (`AssignmentExpression.js:204-215`), for one expression that a `Component`,
-/// `<svelte:component>` or `bind:` directive visits directly: the expression
-/// itself when it is an assignment, an arrow that *is* the expression, or an
-/// arrow that is a direct element of a getter/setter `SequenceExpression`.
-/// `lone_arrow_exempt` is false for `<svelte:component>`, whose `path.at(-2)`
+/// `<svelte:component>` or `bind:` directive.
+///
+/// The expression may be an assignment, an arrow that *is* the expression, or an arrow that is a
+/// direct element of a getter/setter `SequenceExpression`.
+///
+/// `lone_arrow_exempt` is false for `<svelte:component>`.
+///
+/// Its `path.at(-2)`
 /// form upstream omits.
 pub fn record_assign_exempt_expression(
     context: &mut VisitorContext,
@@ -244,8 +271,9 @@ pub fn record_assign_exempt_expression(
     }
 }
 
-/// `record_assign_exempt_expression` for every expression a component visits
-/// directly. Spread attributes are excluded: upstream keeps the
+/// `record_assign_exempt_expression` for every expression a component visits directly.
+///
+/// Spread attributes are excluded: upstream keeps the
 /// `SpreadAttribute` node on the path, so nothing under one qualifies.
 pub fn record_component_assign_exempt(
     context: &mut VisitorContext,
@@ -294,6 +322,7 @@ pub fn record_component_assign_exempt(
 /// Corresponds to `get_attribute_chunks` in ast.js.
 ///
 /// Returns the expression tags and text nodes that make up an attribute value.
+#[must_use]
 pub fn get_attribute_chunks<'a>(
     value: &'a crate::ast::template::AttributeValue<'a>,
 ) -> Vec<AttributeChunk<'a>> {
@@ -325,6 +354,7 @@ pub enum AttributeChunk<'a> {
 /// unless they are wrapped in parentheses: `foo={(x, y, z)}`.
 ///
 /// Corresponds to `disallow_unparenthesized_sequences` in utils/ast.js.
+#[must_use]
 pub fn is_unparenthesized_sequence_expression(
     expression_tag: &ExpressionTag<'_>,
     source: &str,

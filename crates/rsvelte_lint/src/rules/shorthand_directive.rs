@@ -68,7 +68,7 @@ pub struct ShorthandDirective;
 
 impl ShorthandDirective {
     /// Apply the always/never report to a gathered directive.
-    fn report(&self, ctx: &mut LintContext, info: &DirectiveInfo, prefer_never: bool) {
+    fn report(ctx: &mut LintContext, info: &DirectiveInfo, prefer_never: bool) {
         if prefer_never {
             if info.is_shorthand {
                 // `bind:value` → `bind:value={value}`
@@ -92,7 +92,8 @@ impl ShorthandDirective {
             let Some(eq_offset) = src.find('=') else {
                 return;
             };
-            let remove_start = info.start + eq_offset as u32;
+            let remove_start = info.start
+                + u32::try_from(eq_offset).expect("source offsets are represented as u32");
             ctx.report_with_fix(
                 info.start,
                 info.end,
@@ -151,6 +152,6 @@ impl Rule for ShorthandDirective {
             _ => return,
         };
 
-        self.report(ctx, &info, prefer_never);
+        Self::report(ctx, &info, prefer_never);
     }
 }

@@ -22,7 +22,7 @@
 //! | `prop.foo ??= x`      | `prop(prop().foo ??= x, true)`             |
 //!
 //! Both `prop.foo` (bare Identifier root) and `prop().foo`
-//! (CallExpression root with no args) collapse to the same output.
+//! (`CallExpression` root with no args) collapse to the same output.
 //!
 //! What the AST drops on the floor:
 //!
@@ -32,18 +32,18 @@
 //! - The `!= == != => <= >=` exclusions — `AssignmentExpression`
 //!   only matches `=`-family operators.
 //! - The `prop({rest}().` already-wrapped check — once wrapped,
-//!   the LHS root is the outer CallExpression call's first arg,
+//!   the LHS root is the outer `CallExpression` call's first arg,
 //!   not a bare `prop` identifier or `prop()` call — wait, it
-//!   actually IS still a CallExpression with callee=prop. The
+//!   actually IS still a `CallExpression` with callee=prop. The
 //!   "Skip if already wrapped" comes via fixed-point exhaustion:
-//!   after wrap, the outer `prop(...)` is a CallExpression, not
-//!   an AssignmentExpression — its inner argument IS still an
-//!   AssignmentExpression that matches, but the LHS member's
+//!   after wrap, the outer `prop(...)` is a `CallExpression`, not
+//!   an `AssignmentExpression` — its inner argument IS still an
+//!   `AssignmentExpression` that matches, but the LHS member's
 //!   root is `prop()` (the inner `prop()` we just generated).
 //!   That `prop()` is still recognized as a prop-rooted root, so
 //!   it WOULD re-wrap. We avoid that by checking whether the
-//!   AssignmentExpression's parent is `prop(<assignment>, true)`
-//!   — i.e. the immediate enclosing CallExpression has callee
+//!   `AssignmentExpression`'s parent is `prop(<assignment>, true)`
+//!   — i.e. the immediate enclosing `CallExpression` has callee
 //!   = same prop identifier and the assignment is the first arg
 //!   with `true` as the second arg.
 //!
@@ -139,7 +139,7 @@ fn transform_prop_member_mutate_spliced(
 enum Root {
     /// `prop.x = ...` — root is bare Identifier `prop`
     Direct(Span),
-    /// `prop().x = ...` — root is CallExpression `prop()` with the
+    /// `prop().x = ...` — root is `CallExpression` `prop()` with the
     /// callee Identifier. The `Span` is the full `prop()` span so
     /// we can replace it cleanly with the regenerated `prop()`.
     Call(Span),
@@ -169,7 +169,7 @@ struct PropMemberMutateCollector<'a> {
     skip_assignment_spans: Vec<(u32, u32)>,
 }
 
-impl<'a> PropMemberMutateCollector<'a> {
+impl PropMemberMutateCollector<'_> {
     /// Find the leftmost root of a member chain. Returns the
     /// identifier name and a [`Root`] tagged with the appropriate
     /// span. `None` if the root isn't a bare identifier or
@@ -207,7 +207,7 @@ impl<'a> PropMemberMutateCollector<'a> {
     }
 }
 
-impl<'a, 'ast> Visit<'ast> for PropMemberMutateCollector<'a> {
+impl<'ast> Visit<'ast> for PropMemberMutateCollector<'_> {
     fn visit_call_expression(&mut self, call: &CallExpression<'ast>) {
         // Detect the wrap shape `prop(<assignment>, true)` we emit
         // for prop member mutations. If callee is a bare Identifier
@@ -266,10 +266,7 @@ impl<'a, 'ast> Visit<'ast> for PropMemberMutateCollector<'a> {
         let rest_and_assignment = &outer_text[local_rest_start..];
 
         // Build the wrapped mutation: `prop(prop()<rest_and_assignment>, true)`
-        let mutation = format!(
-            "{}({}(){}, true)",
-            root_name, root_name, rest_and_assignment
-        );
+        let mutation = format!("{root_name}({root_name}(){rest_and_assignment}, true)");
 
         // If the prop carries legacy indirect bindings (a `<select bind:value>`
         // referencing other variables), wrap the mutation in a sequence with
@@ -277,10 +274,7 @@ impl<'a, 'ast> Visit<'ast> for PropMemberMutateCollector<'a> {
         // Mirrors AssignmentExpression.js / the bind-directive setter path.
         let rewrite = match self.prop_invalidate_bodies.get(root_name) {
             Some(body) if !body.is_empty() => {
-                format!(
-                    "({}, $.invalidate_inner_signals(() => {{ {} }}))",
-                    mutation, body
-                )
+                format!("({mutation}, $.invalidate_inner_signals(() => {{ {body} }}))")
             }
             _ => mutation,
         };
@@ -298,7 +292,7 @@ thread_local! {
 }
 
 /// In-place equivalent of [`transform_prop_member_mutate_ast`].
-pub(crate) fn transform_prop_member_mutate_in_place(
+pub fn transform_prop_member_mutate_in_place(
     source: &str,
     prop_vars: &[String],
     non_bindable_prop_vars: &[String],

@@ -29,6 +29,10 @@ use crate::error::{ParseError, ParseResult};
 
 use super::ParseOptions;
 
+fn source_pos(offset: usize) -> u32 {
+    u32::try_from(offset).expect("source positions are limited to u32")
+}
+
 /// Substring searchers used once per file; building one is not free, so they
 /// are shared instead of reconstructed per parse.
 static SCRIPT_TAG_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> =
@@ -45,7 +49,7 @@ static COMMENT_END_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> 
 /// `1-parse/index.js`, a `\s` regex or `String.prototype.trim*`. Rust's
 /// `char::is_whitespace` is the Unicode `White_Space` property, which has the
 /// same 25 members but excludes `U+FEFF` and includes `U+0085`.
-pub(crate) fn is_js_whitespace(c: char) -> bool {
+pub fn is_js_whitespace(c: char) -> bool {
     matches!(
         c,
         '\u{9}'..='\u{d}'
@@ -64,7 +68,7 @@ pub(crate) fn is_js_whitespace(c: char) -> bool {
 
 /// ASCII fast path for `is_js_whitespace`, derived from it rather than restated;
 /// every non-ASCII byte answers `false` so the caller decodes and asks again.
-pub(crate) fn is_js_whitespace_byte(b: u8) -> bool {
+pub fn is_js_whitespace_byte(b: u8) -> bool {
     b.is_ascii() && is_js_whitespace(b as char)
 }
 
@@ -143,7 +147,7 @@ pub struct Parser<'a> {
     ///
     /// Corresponds to `last_auto_closed_tag` field in JavaScript Parser.
     pub(crate) last_auto_closed_tag: Option<LastAutoClosedTag>,
-    /// Parser-level warnings (e.g., element_implicitly_closed).
+    /// Parser-level warnings (e.g., `element_implicitly_closed`).
     pub(crate) parse_warnings: Vec<crate::ast::template::ParseWarning>,
     /// JS-style comments collected across the parse. Mirrors upstream
     /// `parser.root.comments`. Populated by:
@@ -155,7 +159,7 @@ pub struct Parser<'a> {
     /// (the parser arena/options sit behind `&self` and many existing
     /// callers don't go through a `&mut` route).
     pub(crate) root_comments: std::cell::RefCell<Vec<crate::ast::template::JsComment>>,
-    /// Arena allocator for JsNode instances created during parsing.
+    /// Arena allocator for `JsNode` instances created during parsing.
     pub(crate) arena: ParseArena,
     /// Current template nesting depth, bounded by [`MAX_NESTING_DEPTH`].
     pub(crate) depth: u32,
@@ -232,6 +236,7 @@ impl<'a> Parser<'a> {
     /// Create a new parser.
     ///
     /// Corresponds to the `Parser` constructor in `svelte/packages/svelte/src/compiler/phases/1-parse/index.js`.
+    #[must_use]
     pub fn new(source: &'a str, options: ParseOptions) -> Self {
         // Discard any comments left in the per-thread expression sink from
         // a previous (possibly errored) parse on this thread.
@@ -364,10 +369,9 @@ impl<'a> Parser<'a> {
                     comment_pos = comment_start;
                     break;
                 }
-                let comment_end = match COMMENT_END_FINDER.find(&bytes[comment_start + 4..]) {
-                    Some(end_offset) => comment_start + 4 + end_offset + 3,
-                    None => len,
-                };
+                let comment_end = COMMENT_END_FINDER
+                    .find(&bytes[comment_start + 4..])
+                    .map_or(len, |end_offset| comment_start + 4 + end_offset + 3);
                 comment_pos = comment_end;
                 if comment_end > i {
                     script_pos = comment_end;
@@ -436,8 +440,8 @@ impl<'a> Parser<'a> {
     }
 
     /// Get line offsets for expression loc creation.
-    /// Returns empty slice when skip_expression_loc is enabled (compilation mode),
-    /// which causes create_loc functions to return Value::Null instead of allocating objects.
+    /// Returns empty slice when `skip_expression_loc` is enabled (compilation mode),
+    /// which causes `create_loc` functions to return `Value::Null` instead of allocating objects.
     pub fn expression_line_offsets(&self) -> &[usize] {
         if self.options.skip_expression_loc {
             &[]
@@ -457,19 +461,19 @@ impl<'a> Parser<'a> {
 
         SourceLocation {
             start: LineColumn {
-                line: (line + 1) as u32,
-                column: column as u32,
-                character: pos as u32,
+                line: source_pos(line + 1),
+                column: source_pos(column),
+                character: source_pos(pos),
             },
             end: LineColumn {
-                line: (line + 1) as u32,
-                column: column as u32,
-                character: pos as u32,
+                line: source_pos(line + 1),
+                column: source_pos(column),
+                character: source_pos(pos),
             },
         }
     }
 
-    /// Create name_loc with character field for Svelte compatibility.
+    /// Create `name_loc` with character field for Svelte compatibility.
     #[inline]
     pub fn create_name_loc(&self, start: usize, end: usize) -> SourceLocation {
         // Inline get_location to avoid two separate binary searches
@@ -494,19 +498,19 @@ impl<'a> Parser<'a> {
 
         SourceLocation {
             start: LineColumn {
-                line: (start_line + 1) as u32,
-                column: (start - start_line_start) as u32,
-                character: start as u32,
+                line: source_pos(start_line + 1),
+                column: source_pos(start - start_line_start),
+                character: source_pos(start),
             },
             end: LineColumn {
-                line: (end_line + 1) as u32,
-                column: (end - end_line_start) as u32,
-                character: end as u32,
+                line: source_pos(end_line + 1),
+                column: source_pos(end - end_line_start),
+                character: source_pos(end),
             },
         }
     }
 
-    /// Create name_loc, returning None when skip_expression_loc is enabled (compilation mode).
+    /// Create `name_loc`, returning None when `skip_expression_loc` is enabled (compilation mode).
     /// This avoids expensive binary searches for line/column when the data is never used.
     #[inline]
     pub fn create_name_loc_optional(&self, start: usize, end: usize) -> Option<SourceLocation> {
@@ -700,6 +704,10 @@ impl<'a> Parser<'a> {
     /// - `Ok(true)` if the string matches and was consumed
     /// - `Ok(false)` if the string doesn't match and `required` is false
     /// - `Err(ParseError)` if the string doesn't match and `required` is true (and loose mode conditions are met)
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseError::expected_token`] when a required token is absent.
     pub fn eat(&mut self, s: &str, required: bool, required_in_loose: bool) -> ParseResult<bool> {
         if self.match_str(s) {
             self.advance_by(s.len());
@@ -738,6 +746,10 @@ impl<'a> Parser<'a> {
     /// Consume a string, requiring it to be present (equivalent to `eat(s, true, true)` in JavaScript).
     ///
     /// This will error in both strict and loose modes if the string is not found.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `s` is absent at the current position.
     #[inline]
     pub fn eat_required(&mut self, s: &str) -> ParseResult<()> {
         self.eat(s, true, true)?;
@@ -747,6 +759,10 @@ impl<'a> Parser<'a> {
     /// Consume a string, requiring it only in strict mode (equivalent to `eat(s, true, false)` in JavaScript).
     ///
     /// This will error in strict mode but not in loose mode if the string is not found.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `s` is absent in strict mode.
     #[inline]
     pub fn eat_required_strict(&mut self, s: &str) -> ParseResult<bool> {
         self.eat(s, true, false)
@@ -755,6 +771,10 @@ impl<'a> Parser<'a> {
     /// Consume a string, returning an error if it doesn't match.
     ///
     /// This is equivalent to `eat_required()`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `s` is absent at the current position.
     pub fn expect(&mut self, s: &str) -> ParseResult<()> {
         self.eat_required(s)
     }
@@ -988,6 +1008,10 @@ impl<'a> Parser<'a> {
     /// Read until a pattern is found.
     ///
     /// Corresponds to `read_until()` in JavaScript Parser.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseError::UnexpectedEof`] when strict parsing reaches end of input.
     pub fn read_until(&mut self, pattern: &Regex) -> ParseResult<String> {
         if self.index >= self.source.len() {
             if self.options.loose {
@@ -1015,6 +1039,10 @@ impl<'a> Parser<'a> {
     /// Require whitespace at the current position.
     ///
     /// Corresponds to `require_whitespace()` in JavaScript Parser.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the current position is not JavaScript whitespace.
     pub fn require_whitespace(&mut self) -> ParseResult<()> {
         if self.is_eof() || !is_js_whitespace(self.current_char()) {
             return Err(ParseError::svelte(

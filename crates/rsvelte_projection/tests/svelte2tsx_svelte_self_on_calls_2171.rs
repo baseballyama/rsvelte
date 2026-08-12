@@ -24,7 +24,7 @@ fn svelte_self_on_call_has_no_trailing_space() {
         "expected no trailing space before the closing brace, got:\n{code}"
     );
     assert!(
-        !code.contains(r#"handler); }"#),
+        !code.contains(r"handler); }"),
         "found a trailing-space `$on` call, got:\n{code}"
     );
 }

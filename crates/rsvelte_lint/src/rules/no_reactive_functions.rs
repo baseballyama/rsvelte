@@ -1,9 +1,11 @@
+//! `svelte/no-reactive-functions`.
+//!
 //! `svelte/no-reactive-functions` — don't create functions inside reactive
 //! statements (`$: foo = () => {…}` / `$: fn = function () {…}`). The function is
 //! recreated on every reactive run for no reason; it should be a plain `const`.
 //! Port of the eslint-plugin-svelte rule.
 //!
-//! Runs over the `<script>` ESTree program via the [`ScriptRule`] hook. A `$:`
+//! Runs over the `<script>` `ESTree` program via the [`ScriptRule`] hook. A `$:`
 //! reactive statement is a `LabeledStatement` whose label is `$`; the rule
 //! flags one whose body is `ExpressionStatement > AssignmentExpression` with a
 //! function-expression right-hand side. The upstream fix is suggestion-only
@@ -50,12 +52,10 @@ fn const_suggestion(source: &str, stmt_start: u32, label_end: u32) -> Option<Tex
         return None;
     }
     let colon_end = i + 1;
-    let space_after = bytes
-        .get(colon_end)
-        .is_some_and(|b| b.is_ascii_whitespace());
+    let space_after = bytes.get(colon_end).is_some_and(u8::is_ascii_whitespace);
     Some(TextEdit {
         start: stmt_start,
-        end: colon_end as u32,
+        end: u32::try_from(colon_end).expect("source offsets are represented as u32"),
         new_text: if space_after { "const" } else { "const " }.to_string(),
     })
 }
@@ -63,7 +63,7 @@ fn const_suggestion(source: &str, stmt_start: u32, label_end: u32) -> Option<Tex
 fn is_function_expr(node: &Value) -> bool {
     matches!(
         node_type(node),
-        Some("ArrowFunctionExpression") | Some("FunctionExpression")
+        Some("ArrowFunctionExpression" | "FunctionExpression")
     )
 }
 

@@ -41,12 +41,12 @@ fn bench_components(c: &mut Criterion) {
 }
 
 fn bench_module(c: &mut Criterion) {
-    const SOURCE: &str = r#"
+    const SOURCE: &str = r"
         let count = $state(0);
         let doubled = $derived(count * 2);
         export function increment() { count += 1; }
         export function current() { return { count, doubled }; }
-    "#;
+    ";
 
     let path = Path::new("state.svelte.ts");
     let options = CompileOptions::default();

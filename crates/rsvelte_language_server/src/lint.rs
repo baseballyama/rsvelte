@@ -9,7 +9,7 @@ use rsvelte_diagnostics::Diagnostic;
 use rsvelte_lint::{LintConfig, lint_source};
 
 /// Config file names, in the order a directory is probed — the same two
-/// `rsvelte-lint` itself discovers. An ESLint config is deliberately *not*
+/// `rsvelte-lint` itself discovers. An `ESLint` config is deliberately *not*
 /// consulted: importing it is opt-in on the CLI (`--config-from-eslint`), and a
 /// server that read it on its own would report a different rule set in the
 /// editor than the same project's CI does.
@@ -67,6 +67,7 @@ fn discover(start: &Path) -> Option<LintConfig> {
 
 /// Lint one open document. Suppression comments (`<!-- svelte-ignore -->`,
 /// `eslint-disable`) and inline rule config are applied inside `lint_source`.
+#[must_use]
 pub fn lint(path: &Path, source: &str, config: &LintConfig) -> Vec<Diagnostic> {
     let options = CompileOptions {
         filename: Some(path.display().to_string()),

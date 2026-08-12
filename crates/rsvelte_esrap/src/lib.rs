@@ -3,7 +3,7 @@
 //!
 //! ## Why
 //!
-//! The official Svelte compiler builds an ESTree and prints it once with esrap.
+//! The official Svelte compiler builds an `ESTree` and prints it once with esrap.
 //! rsvelte's Phase 3 instead generates JS by string surgery — splicing edits
 //! into source text across hundreds of passes — which is both the root cause of
 //! a class of formatting divergences and a large share of client-transform time.
@@ -78,7 +78,7 @@ impl Default for PrintOptions {
 impl PrintOptions {
     /// Control whether empty statements are retained in statement lists.
     #[must_use]
-    pub fn with_empty_statements(mut self, keep: bool) -> Self {
+    pub const fn with_empty_statements(mut self, keep: bool) -> Self {
         self.keep_empty_statements = keep;
         self
     }
@@ -89,7 +89,7 @@ impl PrintOptions {
     /// location re-finds its own. Only a caller whose nested bodies keep real
     /// locations may set this — otherwise nothing can recover the comments.
     #[must_use]
-    pub fn with_unlocated_program(mut self, unlocated: bool) -> Self {
+    pub const fn with_unlocated_program(mut self, unlocated: bool) -> Self {
         self.unlocated_program = unlocated;
         self
     }
@@ -115,8 +115,9 @@ pub fn print_with(program: &Program<'_>, source: &str, options: &PrintOptions) -
     code
 }
 
-/// Print a program whose comment coordinates and source-map coordinates live in
-/// two different buffers — the shape a *reassembled* program has, where the
+/// Print a program whose comment coordinates and source-map coordinates live in two different buffers.
+///
+/// This is the shape a *reassembled* program has, where the
 /// nodes carrying comments were parsed from generated chunks rather than from
 /// the original file.
 ///
@@ -149,7 +150,7 @@ pub fn print_split(
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
     let commands = ctx.into_commands();
-    let printed = if map_source.is_some() {
+    let output = if map_source.is_some() {
         let (code, mappings) = command::flatten_with_map(&commands, &options.indent);
         PrintWithMap { code, mappings }
     } else {
@@ -159,7 +160,7 @@ pub fn print_split(
         }
     };
     pool::recycle(commands);
-    printed
+    output
 }
 
 /// The decoded result of [`print_with_map`].
@@ -173,8 +174,9 @@ pub struct PrintWithMap {
     pub mappings: Vec<Mapping>,
 }
 
-/// Print `program` to JavaScript, returning both the code and decoded
-/// source-map mappings. The emitted code is byte-identical to what
+/// Print `program` to JavaScript, returning both the code and decoded source-map mappings.
+///
+/// The emitted code is byte-identical to what
 /// [`print_with`] returns — `Location` anchors only carry mapping data, never
 /// add text.
 pub fn print_with_map(program: &Program<'_>, source: &str, options: &PrintOptions) -> PrintWithMap {

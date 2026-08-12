@@ -2,7 +2,7 @@
 //! the source text verbatim (the formatting the current text pipeline preserves).
 //!
 //! Not production code — measurement only. Run:
-//!   cargo run --release -p rsvelte_devtools --bin roundtrip_probe -- [out.jsonl]
+//!   cargo run --release -p `rsvelte_devtools` --bin `roundtrip_probe` -- [out.jsonl]
 
 use std::fs;
 use std::path::PathBuf;
@@ -124,7 +124,7 @@ fn main() {
     println!("  typescript skipped:{}", c.ts_skipped);
     println!("  empty skipped:     {}", c.empty_skipped);
     println!("  oxc parse fail:    {}", c.parse_fail);
-    println!("scripts compared:    {}", compared);
+    println!("scripts compared:    {compared}");
     println!(
         "EXACT:               {} ({:.2}%)",
         c.exact,
@@ -150,7 +150,7 @@ fn main() {
         c.content_other,
         c.content_other as f64 / compared as f64 * 100.0
     );
-    println!("jsonl: {}", out_path);
+    println!("jsonl: {out_path}");
 
     // === Pass 2: what does the CURRENT client pipeline actually emit? ===
     // The default client codegen converts the whole IR (including the instance
@@ -194,7 +194,7 @@ fn short(path: &str) -> &str {
 fn fnv1a(s: &str) -> u64 {
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
     for b in s.as_bytes() {
-        h ^= *b as u64;
+        h ^= u64::from(*b);
         h = h.wrapping_mul(0x1000_0000_01b3);
     }
     h
@@ -208,12 +208,12 @@ enum Cat {
 }
 
 impl Cat {
-    fn name(&self) -> &'static str {
+    const fn name(&self) -> &'static str {
         match self {
-            Cat::WsIndentBlank => "ws_indent_blank",
-            Cat::WsLineBreak => "ws_linebreak",
-            Cat::ContentComment => "content_comment",
-            Cat::ContentOther => "content_other",
+            Self::WsIndentBlank => "ws_indent_blank",
+            Self::WsLineBreak => "ws_linebreak",
+            Self::ContentComment => "content_comment",
+            Self::ContentOther => "content_other",
         }
     }
 }
@@ -248,18 +248,18 @@ fn first_diff_context(a: &str, b: &str) -> (String, String) {
     while i < ab.len() && i < bb.len() && ab[i] == bb[i] {
         i += 1;
     }
-    let start = a[..i].rfind('\n').map(|p| p + 1).unwrap_or(0);
+    let start = a[..i].rfind('\n').map_or(0, |p| p + 1);
     let clip = |s: &str, from: usize| -> String {
         let from = from.min(s.len());
         let s = &s[from..];
-        let end = s.char_indices().nth(160).map(|(p, _)| p).unwrap_or(s.len());
+        let end = s.char_indices().nth(160).map_or(s.len(), |(p, _)| p);
         s[..end].to_string()
     };
     let start_b = if start <= b.len() { start } else { 0 };
     (clip(a, start), clip(b, start_b))
 }
 
-/// Replicate `formatting::detect_base_indent` + `strip_indent` (indent_level 1
+/// Replicate `formatting::detect_base_indent` + `strip_indent` (`indent_level` 1
 /// minus the added tab), i.e. what the current fast path preserves.
 fn dedent(code: &str) -> String {
     let mut min_indent: Option<usize> = None;

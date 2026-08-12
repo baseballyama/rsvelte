@@ -33,9 +33,9 @@ pub fn record(key: &str) {
 /// `(calls, bytes, default_keys)` accumulated on this thread.
 pub fn snapshot() -> (u64, u64, u64) {
     (
-        CALLS.with(|c| c.get()),
-        BYTES.with(|c| c.get()),
-        DEFAULT_KEYS.with(|c| c.get()),
+        CALLS.with(std::cell::Cell::get),
+        BYTES.with(std::cell::Cell::get),
+        DEFAULT_KEYS.with(std::cell::Cell::get),
     )
 }
 

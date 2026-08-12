@@ -1,4 +1,5 @@
 //! `svelte/button-has-type` — require a valid, explicit `type` on `<button>`.
+//!
 //! Without it the browser defaults to `type="submit"`, a common footgun inside
 //! forms. Port of the eslint-plugin-svelte rule, including its `button`/
 //! `submit`/`reset` options that forbid otherwise-valid type values.
@@ -125,7 +126,9 @@ impl Rule for ButtonHasType {
         }
 
         // No `type`, no `bind:type`, no spread → flag the `<button` opener.
-        let end = el.start + 1 + el.name.len() as u32;
+        let end = el.start
+            + 1
+            + u32::try_from(el.name.len()).expect("element-name widths are represented as u32");
         ctx.report(
             el.start,
             end,

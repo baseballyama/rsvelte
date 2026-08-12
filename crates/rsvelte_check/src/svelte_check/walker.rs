@@ -10,20 +10,19 @@ use walkdir::WalkDir;
 
 use super::kit_file::{KitFilesSettings, is_kit_file};
 
-/// Result of `find_relevant_files` — split into Svelte sources and
-/// SvelteKit `.ts` / `.js` "kit files" (route, hooks, params). The two
-/// halves are processed by different paths downstream: Svelte files
-/// flow through svelte2tsx; kit files flow through the addedCode
-/// augmentation pipeline.
+/// Result of `find_relevant_files`, split into Svelte and kit files.
+///
+/// Each kind takes a different downstream augmentation path.
 #[derive(Debug, Default)]
 pub struct RelevantFiles {
     pub svelte: Vec<PathBuf>,
     pub kit: Vec<PathBuf>,
 }
 
-/// Find every `.svelte` file under `root`, skipping `node_modules` and any
-/// user-supplied `filter_paths` (relative path fragments — entries whose
-/// path contains any fragment as a path component are skipped).
+/// Finds `.svelte` files under `root`.
+///
+/// Skips `node_modules` and entries matching a supplied path fragment.
+#[must_use]
 pub fn find_svelte_files(root: &Path, filter_paths: &[String]) -> Vec<PathBuf> {
     let mut out: Vec<PathBuf> = Vec::new();
     for entry in pruned_walk(root, filter_paths).flatten() {
@@ -35,11 +34,10 @@ pub fn find_svelte_files(root: &Path, filter_paths: &[String]) -> Vec<PathBuf> {
     out
 }
 
-/// Find every `<name>.svelte.ts` / `<name>.svelte.js` module under `root` — a
-/// Svelte 5 "rune module", whose import specifier is conventionally written
-/// with the trailing extension stripped (`./provider.svelte`). Same pruning as
-/// [`find_svelte_files`]. Needed because such a specifier ends in `.svelte`
-/// and therefore competes with the overlay's ambient wildcard (#1916).
+/// Finds `<name>.svelte.ts` and `<name>.svelte.js` modules under `root`.
+///
+/// These Svelte 5 rune modules use extensionless `.svelte` specifiers.
+#[must_use]
 pub fn find_svelte_suffixed_modules(root: &Path, filter_paths: &[String]) -> Vec<PathBuf> {
     let mut out: Vec<PathBuf> = Vec::new();
     for entry in pruned_walk(root, filter_paths).flatten() {
@@ -58,10 +56,10 @@ pub fn find_svelte_suffixed_modules(root: &Path, filter_paths: &[String]) -> Vec
 /// Extensions a plain TypeScript / JavaScript module can carry.
 const JS_TS_EXTENSIONS: [&str; 8] = ["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs"];
 
-/// Find every plain `.ts` / `.js` module under `root` that could carry a
-/// relative `.svelte` import the overlay has to re-resolve — i.e. everything
-/// except the `<name>.svelte.<ext>` rune modules, which reach their component
-/// through their own bridge instead. Same pruning as [`find_svelte_files`].
+/// Finds plain modules that could carry a relative `.svelte` import.
+///
+/// Rune modules use a separate bridge and are excluded.
+#[must_use]
 pub fn find_probeable_modules(root: &Path, filter_paths: &[String]) -> Vec<PathBuf> {
     let mut out: Vec<PathBuf> = Vec::new();
     for entry in pruned_walk(root, filter_paths).flatten() {
@@ -85,6 +83,7 @@ pub fn find_probeable_modules(root: &Path, filter_paths: &[String]) -> Vec<PathB
 }
 
 /// Find every import probe the overlay has previously written under `mirror`.
+#[must_use]
 pub fn find_import_probes(mirror: &Path) -> Vec<PathBuf> {
     let mut out: Vec<PathBuf> = Vec::new();
     for entry in WalkDir::new(mirror)
@@ -144,9 +143,10 @@ fn pruned_walk(
         })
 }
 
-/// Find both `.svelte` files and SvelteKit `.ts` / `.js` files (route,
+/// Find both `.svelte` files and `SvelteKit` `.ts` / `.js` files (route,
 /// hooks, params) under `root`. Mirrors `incremental.ts`'s `findFiles`
 /// filter `endsWith('.svelte') || (isJsOrTsFile && isKitFile)`.
+#[must_use]
 pub fn find_relevant_files(
     root: &Path,
     filter_paths: &[String],

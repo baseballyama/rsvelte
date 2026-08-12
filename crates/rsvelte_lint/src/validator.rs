@@ -18,7 +18,7 @@ use std::path::Path;
 use crate::config::LintConfig;
 use crate::rule::Severity;
 
-pub(crate) fn to_dsev(s: Severity) -> DiagnosticSeverity {
+pub(crate) const fn to_dsev(s: Severity) -> DiagnosticSeverity {
     match s {
         Severity::Error => DiagnosticSeverity::Error,
         // `Off` is filtered before this is called; map defensively.
@@ -26,17 +26,17 @@ pub(crate) fn to_dsev(s: Severity) -> DiagnosticSeverity {
     }
 }
 
+fn position_component(value: usize) -> u32 {
+    u32::try_from(value).expect("compiler positions are represented as u32")
+}
+
 /// Build an output [`Range`] from UTF-8 byte offsets via the line index. Used by
 /// the source-scan meta-rules that work in byte offsets rather than compiler
 /// positions.
-pub(crate) fn range_from_byte(
-    li: &crate::line_index::LineIndex,
-    start: u32,
-    end: u32,
-) -> Option<Range> {
+pub(crate) fn range_from_byte(li: &crate::line_index::LineIndex, start: u32, end: u32) -> Range {
     let (sl, sc) = li.position(start);
     let (el, ec) = li.position(end);
-    Some(Range {
+    Range {
         start: Position {
             line: sl,
             column: sc,
@@ -45,7 +45,7 @@ pub(crate) fn range_from_byte(
             line: el,
             column: ec,
         },
-    })
+    }
 }
 
 pub(crate) fn range_from(
@@ -58,18 +58,19 @@ pub(crate) fn range_from(
     // `svelte_check::runner::range_from_warning`.
     Some(Range {
         start: Position {
-            line: start.line as u32,
-            column: start.column as u32,
+            line: position_component(start.line),
+            column: position_component(start.column),
         },
         end: Position {
-            line: end.line as u32,
-            column: end.column as u32,
+            line: position_component(end.line),
+            column: position_component(end.column),
         },
     })
 }
 
 /// Run the analyzer and return its findings as output diagnostics, with config
 /// overrides already applied (`Off` codes dropped).
+#[must_use]
 pub fn validator_diagnostics(
     source: &str,
     file: &Path,

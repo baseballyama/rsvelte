@@ -1,3 +1,5 @@
+//! `svelte/no-useless-children-snippet`.
+//!
 //! `svelte/no-useless-children-snippet` — disallow an explicit `children`
 //! snippet where it's not needed. A `{#snippet children()}` (no params) that is
 //! a direct child of an element/component is equivalent to just placing the
@@ -40,7 +42,7 @@ fn is_useless_children_snippet(block: &SnippetBlock) -> bool {
 pub struct NoUselessChildrenSnippet;
 
 impl NoUselessChildrenSnippet {
-    fn check_nodes(&self, ctx: &mut LintContext, nodes: &[TemplateNode]) {
+    fn check_nodes(ctx: &mut LintContext, nodes: &[TemplateNode]) {
         for node in nodes {
             if let TemplateNode::SnippetBlock(block) = node
                 && is_useless_children_snippet(block)
@@ -65,11 +67,11 @@ impl Rule for NoUselessChildrenSnippet {
     }
 
     fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
-        self.check_nodes(ctx, &el.fragment.nodes);
+        Self::check_nodes(ctx, &el.fragment.nodes);
     }
 
     fn check_component(&self, ctx: &mut LintContext, c: &Component) {
-        self.check_nodes(ctx, &c.fragment.nodes);
+        Self::check_nodes(ctx, &c.fragment.nodes);
     }
 }
 

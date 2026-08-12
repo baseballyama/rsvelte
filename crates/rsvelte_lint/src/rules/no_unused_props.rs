@@ -45,6 +45,12 @@ pub static META: RuleMeta = RuleMeta {
     ),
 };
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("source offsets are represented as u32")
+}
+
+/// Type-aware unused-props diagnostics.
+///
 /// Type-aware variant of [`diagnostics`]: instead of resolving the Props type
 /// body syntactically (which only works for local, flat types), the
 /// fully-resolved property set is obtained from the TypeScript checker via
@@ -176,21 +182,18 @@ fn diagnostics_typed_flat(
                 else {
                     continue;
                 };
-                let owner = format!("{}.{}", var_name, name);
+                let owner = format!("{var_name}.{name}");
                 for nested_name in &nested {
                     if any_match(&ignore_prop_patterns, nested_name) {
                         continue;
                     }
                     if !whole_object_member_used(source, &owner, nested_name) {
-                        let abs = *var_abs_offset as u32;
+                        let abs = source_offset(*var_abs_offset);
                         out.push(Diagnostic {
                             file: file.to_path_buf(),
                             severity: to_dsev(severity),
-                            range: range_from_byte(&li, abs, abs),
-                            message: format!(
-                                "'{}' in '{}' is an unused property.",
-                                nested_name, name
-                            ),
+                            range: Some(range_from_byte(&li, abs, abs)),
+                            message: format!("'{nested_name}' in '{name}' is an unused property."),
                             code: Some(META.name.to_string()),
                             source: "svelte",
                         });
@@ -203,7 +206,7 @@ fn diagnostics_typed_flat(
     out
 }
 
-/// An ESLint `ignore*Patterns` matcher. Mirrors eslint-plugin-svelte's
+/// An `ESLint` `ignore*Patterns` matcher. Mirrors eslint-plugin-svelte's
 /// `toRegExp` exactly: a `"/body/flags"` string becomes a regex; **any other
 /// string is matched by exact equality** (NOT as a regex) — so e.g. `"^foo$"`
 /// matches only the literal property name `^foo$`, never `foo`.
@@ -320,7 +323,12 @@ fn diagnostics_typed_graph(
                         spreads.push(full);
                     }
                 }
-                (declared, paths, spreads, *pattern_open_brace_abs as u32)
+                (
+                    declared,
+                    paths,
+                    spreads,
+                    source_offset(*pattern_open_brace_abs),
+                )
             }
             PropForm::WholeObject {
                 var_name,
@@ -333,14 +341,19 @@ fn diagnostics_typed_graph(
                 // absorb all member-access paths in `normalize_used_paths`.
                 // (Spreads keep their empty chain — `{...props}` means all-used.)
                 paths.retain(|c| !c.is_empty());
-                (HashSet::new(), paths, spreads, *var_abs_offset as u32)
+                (
+                    HashSet::new(),
+                    paths,
+                    spreads,
+                    source_offset(*var_abs_offset),
+                )
             }
         };
 
         let used_paths = normalize_used_paths(raw_paths, allow_unused_nested);
         let used_spread = normalize_used_paths(raw_spreads, allow_unused_nested);
         // A spread of the whole object (`{...props}`) marks everything used.
-        if used_spread.iter().any(|s| s.is_empty()) {
+        if used_spread.iter().any(std::string::String::is_empty) {
             continue;
         }
 
@@ -475,7 +488,7 @@ fn walk_unused(
             out.push(Diagnostic {
                 file: file.to_path_buf(),
                 severity: to_dsev(severity),
-                range: range_from_byte(li, report_abs, report_abs),
+                range: Some(range_from_byte(li, report_abs, report_abs)),
                 message: msg,
                 code: Some(META.name.to_string()),
                 source: "svelte",
@@ -495,7 +508,7 @@ fn walk_unused(
         out.push(Diagnostic {
             file: file.to_path_buf(),
             severity: to_dsev(severity),
-            range: range_from_byte(li, report_abs, report_abs),
+            range: Some(range_from_byte(li, report_abs, report_abs)),
             message: "Index signature is unused. Consider using rest operator (...) to capture remaining properties.".to_string(),
             code: Some(META.name.to_string()),
             source: "svelte",
@@ -524,7 +537,7 @@ fn parse_destructure_entries(pattern: &str) -> Vec<(String, String)> {
             let Some(end) = bytes[1..].iter().position(|&c| c == q) else {
                 continue;
             };
-            let key = seg[1..end + 1].to_string();
+            let key = seg[1..=end].to_string();
             let rest = seg[end + 2..].trim_start();
             let local = rest
                 .strip_prefix(':')
@@ -683,7 +696,7 @@ fn parse_member_chain(source: &str, mut pos: usize) -> Vec<String> {
 /// `allow_unused_nested`, truncate each path to its first segment. Mirrors
 /// upstream `normalizeUsedPaths`.
 fn normalize_used_paths(mut paths: Vec<Vec<String>>, allow_unused_nested: bool) -> Vec<String> {
-    paths.sort_by_key(|p| p.len());
+    paths.sort_by_key(std::vec::Vec::len);
     let mut normalized: Vec<Vec<String>> = Vec::new();
     for path in paths {
         let covered = normalized.iter().any(|p| {
@@ -721,7 +734,7 @@ fn option_str_list(opts: Option<&serde_json::Value>, key: &str) -> Vec<String> {
 fn option_bool(opts: Option<&serde_json::Value>, key: &str) -> Option<bool> {
     opts.and_then(first_option_object)
         .and_then(|o| o.get(key))
-        .and_then(|v| v.as_bool())
+        .and_then(serde_json::Value::as_bool)
 }
 
 fn first_option_object(
@@ -734,6 +747,7 @@ fn first_option_object(
     }
 }
 
+#[must_use]
 pub fn diagnostics(source: &str, file: &Path, config: &LintConfig) -> Vec<Diagnostic> {
     let severity = config.resolve_code(META.name, META.default_severity);
     if severity == Severity::Off || !script_is_ts(source) {
@@ -843,12 +857,12 @@ fn report_unused(
             let destructured = parse_destructure_props(pattern_text);
             for member_name in members {
                 if !destructured.contains(member_name.as_str()) {
-                    let abs = *pattern_open_brace_abs as u32;
+                    let abs = source_offset(*pattern_open_brace_abs);
                     out.push(Diagnostic {
                         file: file.to_path_buf(),
                         severity: to_dsev(severity),
-                        range: range_from_byte(li, abs, abs),
-                        message: format!("'{}' is an unused Props property.", member_name),
+                        range: Some(range_from_byte(li, abs, abs)),
+                        message: format!("'{member_name}' is an unused Props property."),
                         code: Some(META.name.to_string()),
                         source: "svelte",
                     });
@@ -865,12 +879,12 @@ fn report_unused(
             }
             for member_name in members {
                 if !whole_object_member_used(source, var_name, member_name) {
-                    let abs = *var_abs_offset as u32;
+                    let abs = source_offset(*var_abs_offset);
                     out.push(Diagnostic {
                         file: file.to_path_buf(),
                         severity: to_dsev(severity),
-                        range: range_from_byte(li, abs, abs),
-                        message: format!("'{}' is an unused Props property.", member_name),
+                        range: Some(range_from_byte(li, abs, abs)),
+                        message: format!("'{member_name}' is an unused Props property."),
                         code: Some(META.name.to_string()),
                         source: "svelte",
                     });
@@ -1041,7 +1055,7 @@ fn code_mask(source: &str) -> Vec<bool> {
 /// source (e.g. `{...props}`, `...props)`) where the next char after
 /// `...{var_name}` is NOT `.`, `[`, or an identifier char.
 fn has_whole_object_spread(source: &str, var_name: &str) -> bool {
-    let pat = format!("...{}", var_name);
+    let pat = format!("...{var_name}");
     let bytes = source.as_bytes();
     let vb = pat.as_bytes();
     let mut i = 0;
@@ -1078,7 +1092,7 @@ struct PropsInfo {
     form: PropForm,
 }
 
-/// Find $props() call and extract the type annotation + declaration form.
+/// Find $`props()` call and extract the type annotation + declaration form.
 fn find_props_info(content: &str, blanked: &str, content_start: usize) -> Option<PropsInfo> {
     let props_rel = blanked.find("$props()")?;
     let before_props = &blanked[..props_rel];
@@ -1349,7 +1363,7 @@ fn extract_member_name(seg: &str) -> Option<String> {
     if bytes[0] == b'\'' || bytes[0] == b'"' {
         let q = bytes[0];
         let end = bytes[1..].iter().position(|&c| c == q)?;
-        return Some(seg[1..end + 1].to_string());
+        return Some(seg[1..=end].to_string());
     }
 
     // Plain identifier (possibly followed by `?`, `:`, `(`)
@@ -1441,7 +1455,7 @@ fn extract_destructure_prop_name(seg: &str) -> Option<String> {
     if bytes[0] == b'\'' || bytes[0] == b'"' {
         let q = bytes[0];
         let end = bytes[1..].iter().position(|&c| c == q)?;
-        return Some(seg[1..end + 1].to_string());
+        return Some(seg[1..=end].to_string());
     }
 
     // Plain identifier (take just the name, not `= default` or `: alias` or
@@ -1612,7 +1626,7 @@ mod tests {
     fn facts(names: &[&str], types: &[&str]) -> TypeFacts {
         TypeFacts {
             type_texts: vec!["Props".into()],
-            property_names: names.iter().map(|s| s.to_string()).collect(),
+            property_names: names.iter().map(std::string::ToString::to_string).collect(),
             property_types: types.iter().map(|s| vec![s.to_string()]).collect(),
         }
     }
@@ -1635,7 +1649,7 @@ mod tests {
         is_class: bool,
         has_index: bool,
         bases: Vec<TypeId>,
-        /// (name, is_local, is_builtin, type_id)
+        /// (name, `is_local`, `is_builtin`, `type_id`)
         props: Vec<(&'static str, bool, bool, TypeId)>,
     }
 

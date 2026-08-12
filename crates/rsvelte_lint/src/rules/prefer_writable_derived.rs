@@ -1,16 +1,18 @@
+//! `svelte/prefer-writable-derived`.
+//!
 //! `svelte/prefer-writable-derived` — prefer a writable `$derived` over the
 //! `$state` + `$effect` pattern. When an `$effect(() => { x = expr })` body does
 //! nothing but reassign a `$state`-declared variable `x`, the whole thing can be
 //! a writable `$derived` (`let x = $derived(expr)`). Port of the
 //! eslint-plugin-svelte rule.
 //!
-//! Runs over the `<script>` ESTree program via the [`ScriptRule`] hook.
+//! Runs over the `<script>` `ESTree` program via the [`ScriptRule`] hook.
 //! Reports at the `$state` declarator (matching upstream's `node: def.node`),
 //! once per offending `$effect` / `$effect.pre` call.
 //!
 //! The suggestion (messageId `suggestRewrite`) mirrors upstream exactly:
 //!   1. Replace the `$state(…)` init expression with `$derived(<rightCode>)`.
-//!   2. Remove the `$effect(…)` CallExpression (NOT the ExpressionStatement),
+//!   2. Remove the `$effect(…)` `CallExpression` (NOT the `ExpressionStatement`),
 //!      which leaves the trailing `;` behind — exactly as in the fixture outputs.
 
 use std::collections::HashMap;
@@ -90,13 +92,13 @@ struct EffectAssignment<'a> {
 /// whose block body is exactly one `x = <expr>` assignment statement.
 fn single_assignment_info(arg: &Value) -> Option<EffectAssignment<'_>> {
     match node_type(arg) {
-        Some("FunctionExpression") | Some("ArrowFunctionExpression") => {}
+        Some("FunctionExpression" | "ArrowFunctionExpression") => {}
         _ => return None,
     }
     if !arg
         .get("params")
         .and_then(Value::as_array)
-        .is_some_and(|p| p.is_empty())
+        .is_some_and(std::vec::Vec::is_empty)
     {
         return None;
     }
@@ -135,11 +137,11 @@ fn single_assignment_info(arg: &Value) -> Option<EffectAssignment<'_>> {
 
 /// Information about the `$state` declaration for a variable name.
 struct StateDecl {
-    /// Start of the VariableDeclarator node (used for the lint report location).
+    /// Start of the `VariableDeclarator` node (used for the lint report location).
     decl_start: u32,
-    /// Start of the `$state(…)` init CallExpression.
+    /// Start of the `$state(…)` init `CallExpression`.
     init_start: u32,
-    /// End of the `$state(…)` init CallExpression.
+    /// End of the `$state(…)` init `CallExpression`.
     init_end: u32,
 }
 

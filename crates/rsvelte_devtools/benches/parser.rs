@@ -4,7 +4,7 @@
 //! batch tooling. Inputs come from the **pinned, in-repo corpus** at
 //! `benches/corpus/` (committed to the repo, never read from the `svelte`
 //! submodule) so the workload — and the benchmark IDs — stay stable across
-//! submodule bumps, which is what makes the CodSpeed regression diff valid.
+//! submodule bumps, which is what makes the `CodSpeed` regression diff valid.
 
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use std::hint::black_box;
@@ -48,7 +48,7 @@ fn bench_single_parse(c: &mut Criterion) {
 
 fn bench_parallel_parse(c: &mut Criterion) {
     let files = corpus::load();
-    let total_size: u64 = files.iter().map(|s| s.bytes()).sum();
+    let total_size: u64 = files.iter().map(corpus::Sample::bytes).sum();
 
     let sources: Vec<(&str, &str)> = files
         .iter()

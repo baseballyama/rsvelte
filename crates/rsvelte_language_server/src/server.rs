@@ -43,6 +43,10 @@ const CONFIG_SECTION: &str = "rsvelte";
 /// reachable from here may write to it — note that `rsvelte_fmt` does print to
 /// stdout on its CLI paths, which is why only [`rsvelte_fmt::FormatSession`]
 /// (which never does) is used.
+///
+/// # Errors
+///
+/// Returns an error when initializing or serving the JSON-RPC connection fails.
 pub fn run_stdio() -> Result<ExitCode> {
     let (connection, io_threads) = Connection::stdio();
     let (id, params) = connection.initialize_start()?;

@@ -1,4 +1,4 @@
-//! LabeledStatement visitor.
+//! `LabeledStatement` visitor.
 //!
 //! Analyzes labeled statements (including $: reactive statements).
 //!
@@ -9,7 +9,7 @@ use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use crate::compiler::phases::phase2_analyze::warnings;
 
-/// Visit a labeled statement (typed JsNode path).
+/// Visit a labeled statement (typed `JsNode` path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     if let JsNode::LabeledStatement {
         label,

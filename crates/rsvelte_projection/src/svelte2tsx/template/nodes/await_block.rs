@@ -18,7 +18,7 @@ use crate::svelte2tsx::template::walk::process_fragment_inplace;
 ///   → `{  { const $$_value = await (promise);{ const value = $$_value; resolved}}`
 /// - `{#await promise catch error}rejected{/await}`
 ///   → `{  { try { const $$_value = await (promise);} catch(error) { rejected}}`
-pub(crate) fn handle_await_block(
+pub fn handle_await_block(
     block: &AwaitBlock,
     source: &str,
     options: &Svelte2TsxOptions,
@@ -65,24 +65,24 @@ pub(crate) fn handle_await_block(
     if has_pending {
         // Pattern: {#await promise} pending {:then value} then {:catch error} catch {/await}
         let pending = block.pending.as_ref().unwrap();
-        let pending_start = if !pending.nodes.is_empty() {
-            pending.nodes[0].start()
-        } else {
+        let pending_start = if pending.nodes.is_empty() {
             block.end
+        } else {
+            pending.nodes[0].start()
         };
 
         // Handle then
         if let Some(ref then) = block.then {
-            let then_start = if !then.nodes.is_empty() {
-                then.nodes[0].start()
-            } else {
+            let then_start = if then.nodes.is_empty() {
                 block.end
+            } else {
+                then.nodes[0].start()
             };
 
-            let prev_end = if !pending.nodes.is_empty() {
-                pending.nodes.last().unwrap().end()
-            } else {
+            let prev_end = if pending.nodes.is_empty() {
                 pending_start
+            } else {
+                pending.nodes.last().unwrap().end()
             };
 
             // The PROMISE expression source-wise lives inside the
@@ -95,7 +95,7 @@ pub(crate) fn handle_await_block(
             // travels with the expression.
             if let Some((expr_start, expr_end)) = get_expression_range(&block.expression) {
                 str.move_range(expr_start, expr_end, prev_end);
-                str.overwrite_fmt(block.start, expr_start, format_args!("{}{{ ", open_pad));
+                str.overwrite_fmt(block.start, expr_start, format_args!("{open_pad}{{ "));
                 if expr_end < pending_start {
                     str.overwrite(expr_end, pending_start, "");
                 }
@@ -117,13 +117,13 @@ pub(crate) fn handle_await_block(
                         (false, true) => "await (",
                     },
                 );
-                if !value_text.is_empty() {
+                if value_text.is_empty() {
+                    str.append_left(expr_end, ");");
+                } else {
                     str.append_left_fmt(
                         expr_end,
-                        format_args!(");{{ const {} = $$_value; ", value_text),
+                        format_args!(");{{ const {value_text} = $$_value; "),
                     );
-                } else {
-                    str.append_left(expr_end, ");");
                 }
                 if prev_end < then_start {
                     str.overwrite(prev_end, then_start, "");
@@ -132,24 +132,23 @@ pub(crate) fn handle_await_block(
             } else {
                 // Parser couldn't span the expression — fall back to
                 // the original monolithic bake.
-                str.overwrite_fmt(block.start, pending_start, format_args!("{}{{ ", open_pad));
+                str.overwrite_fmt(block.start, pending_start, format_args!("{open_pad}{{ "));
                 process_fragment_inplace(pending, source, options, str, counter, depth);
                 // `try { ` wrapper when a catch/error is present (see above).
                 let try_prefix = if has_catch { "try { " } else { "" };
-                if !value_text.is_empty() {
+                if value_text.is_empty() {
                     str.overwrite_fmt(
                         prev_end,
                         then_start,
-                        format_args!(
-                            "{}const $$_value = await ({});{{ const {} = $$_value; ",
-                            try_prefix, expr_text, value_text
-                        ),
+                        format_args!("{try_prefix}const $$_value = await ({expr_text});{{ "),
                     );
                 } else {
                     str.overwrite_fmt(
                         prev_end,
                         then_start,
-                        format_args!("{}const $$_value = await ({});{{ ", try_prefix, expr_text),
+                        format_args!(
+                            "{try_prefix}const $$_value = await ({expr_text});{{ const {value_text} = $$_value; "
+                        ),
                     );
                 }
             }
@@ -158,44 +157,43 @@ pub(crate) fn handle_await_block(
 
             // Handle catch after then
             if let Some(ref catch) = block.catch {
-                let catch_start = if !catch.nodes.is_empty() {
-                    catch.nodes[0].start()
-                } else {
+                let catch_start = if catch.nodes.is_empty() {
                     block.end
+                } else {
+                    catch.nodes[0].start()
                 };
 
-                let then_end = if !then.nodes.is_empty() {
-                    then.nodes.last().unwrap().end()
-                } else {
+                let then_end = if then.nodes.is_empty() {
                     then_start
+                } else {
+                    then.nodes.last().unwrap().end()
                 };
 
                 // Close the `try` (always) plus the value block (only when a
                 // `{:then value}` binding opened one), then open the catch.
                 let close_before_catch = if value_text.is_empty() { "}" } else { "}}" };
-                if !error_text.is_empty() {
+                if error_text.is_empty() {
                     str.overwrite_fmt(
                         then_end,
                         catch_start,
-                        format_args!(
-                            "{} catch($$_e) {{ const {} = __sveltets_2_any();",
-                            close_before_catch, error_text
-                        ),
+                        format_args!("{close_before_catch} catch($$_e) {{ "),
                     );
                 } else {
                     str.overwrite_fmt(
                         then_end,
                         catch_start,
-                        format_args!("{} catch($$_e) {{ ", close_before_catch),
+                        format_args!(
+                            "{close_before_catch} catch($$_e) {{ const {error_text} = __sveltets_2_any();"
+                        ),
                     );
                 }
 
                 process_fragment_inplace(catch, source, options, str, counter, depth);
 
-                let catch_end = if !catch.nodes.is_empty() {
-                    catch.nodes.last().unwrap().end()
-                } else {
+                let catch_end = if catch.nodes.is_empty() {
                     catch_start
+                } else {
+                    catch.nodes.last().unwrap().end()
                 };
 
                 if catch_end < block.end {
@@ -204,10 +202,10 @@ pub(crate) fn handle_await_block(
             } else {
                 // No catch: close the value block (if any) + the outer await
                 // block. A bare `{:then}` opened only the outer block.
-                let then_end = if !then.nodes.is_empty() {
-                    then.nodes.last().unwrap().end()
-                } else {
+                let then_end = if then.nodes.is_empty() {
                     then_start
+                } else {
+                    then.nodes.last().unwrap().end()
                 };
                 if then_end < block.end {
                     let close = if value_text.is_empty() { "}" } else { "}}" };
@@ -223,30 +221,29 @@ pub(crate) fn handle_await_block(
             // ignored the catch, producing brace-unbalanced / invalid TSX.
             // Mirror upstream `handleAwait`: `{ <pending> [try {] await(p);
             // [} catch($$_e) { … }] }`.
-            let pending_end = if !pending.nodes.is_empty() {
-                pending.nodes.last().unwrap().end()
-            } else {
+            let pending_end = if pending.nodes.is_empty() {
                 pending_start
+            } else {
+                pending.nodes.last().unwrap().end()
             };
 
             // Opening `{ ` — consume the `{#await PROMISE}` opener (PROMISE is
             // re-emitted as `await(...)` after the pending body).
-            str.overwrite_fmt(block.start, pending_start, format_args!("{}{{ ", open_pad));
+            str.overwrite_fmt(block.start, pending_start, format_args!("{open_pad}{{ "));
             process_fragment_inplace(pending, source, options, str, counter, depth);
 
             if let Some(ref catch) = block.catch {
-                let catch_start = if !catch.nodes.is_empty() {
-                    catch.nodes[0].start()
-                } else {
+                let catch_start = if catch.nodes.is_empty() {
                     block.end
-                };
-                let header = if !error_text.is_empty() {
-                    format!(
-                        "try {{ await ({});}} catch($$_e) {{ const {} = __sveltets_2_any();",
-                        expr_text, error_text
-                    )
                 } else {
-                    format!("try {{ await ({});}} catch($$_e) {{ ", expr_text)
+                    catch.nodes[0].start()
+                };
+                let header = if error_text.is_empty() {
+                    format!("try {{ await ({expr_text});}} catch($$_e) {{ ")
+                } else {
+                    format!(
+                        "try {{ await ({expr_text});}} catch($$_e) {{ const {error_text} = __sveltets_2_any();"
+                    )
                 };
                 if pending_end < catch_start {
                     str.overwrite(pending_end, catch_start, &header);
@@ -254,10 +251,10 @@ pub(crate) fn handle_await_block(
                     str.append_left(pending_end, &header);
                 }
                 process_fragment_inplace(catch, source, options, str, counter, depth);
-                let catch_end = if !catch.nodes.is_empty() {
-                    catch.nodes.last().unwrap().end()
-                } else {
+                let catch_end = if catch.nodes.is_empty() {
                     catch_start
+                } else {
+                    catch.nodes.last().unwrap().end()
                 };
                 if catch_end < block.end {
                     str.overwrite(catch_end, block.end, "}}");
@@ -266,7 +263,7 @@ pub(crate) fn handle_await_block(
                 str.overwrite_fmt(
                     pending_end,
                     block.end,
-                    format_args!("await ({});}}", expr_text),
+                    format_args!("await ({expr_text});}}"),
                 );
             }
         }
@@ -274,10 +271,10 @@ pub(crate) fn handle_await_block(
         // Pattern: {#await promise then value} then {/await} (no pending)
         // Or:      {#await promise then value} then {:catch error} catch {/await}
         let then = block.then.as_ref().unwrap();
-        let then_start = if !then.nodes.is_empty() {
-            then.nodes[0].start()
-        } else {
+        let then_start = if then.nodes.is_empty() {
             block.end
+        } else {
+            then.nodes[0].start()
         };
 
         // In source order, `{#await PROMISE then VALUE}` is followed
@@ -306,7 +303,7 @@ pub(crate) fn handle_await_block(
         let header_suffix = if value_text.is_empty() {
             ");".to_string()
         } else {
-            format!(");{{ const {} = $$_value; ", value_text)
+            format!(");{{ const {value_text} = $$_value; ")
         };
 
         if let Some((expr_start, expr_end)) = get_expression_range(&block.expression) {
@@ -320,52 +317,51 @@ pub(crate) fn handle_await_block(
             str.overwrite_fmt(
                 block.start,
                 then_start,
-                format_args!("{}{}{}", header_prefix, expr_text, header_suffix),
+                format_args!("{header_prefix}{expr_text}{header_suffix}"),
             );
         }
 
         process_fragment_inplace(then, source, options, str, counter, depth);
 
-        let then_end = if !then.nodes.is_empty() {
-            then.nodes.last().unwrap().end()
-        } else {
+        let then_end = if then.nodes.is_empty() {
             then_start
+        } else {
+            then.nodes.last().unwrap().end()
         };
 
         if has_catch {
             // Handle catch after then
             let catch = block.catch.as_ref().unwrap();
-            let catch_start = if !catch.nodes.is_empty() {
-                catch.nodes[0].start()
-            } else {
+            let catch_start = if catch.nodes.is_empty() {
                 block.end
+            } else {
+                catch.nodes[0].start()
             };
 
-            if !error_text.is_empty() {
-                str.overwrite_fmt(
-                    then_end,
-                    catch_start,
-                    format_args!(
-                        "{}}} catch($$_e) {{ const {} = __sveltets_2_any();",
-                        value_close, error_text
-                    ),
-                );
-            } else {
+            if error_text.is_empty() {
                 // Close the value block (only when there's a `{:then value}`
                 // binding) + `try`, then open the catch. Always emit `($$_e)`.
                 str.overwrite_fmt(
                     then_end,
                     catch_start,
-                    format_args!("{}}} catch($$_e) {{ ", value_close),
+                    format_args!("{value_close}}} catch($$_e) {{ "),
+                );
+            } else {
+                str.overwrite_fmt(
+                    then_end,
+                    catch_start,
+                    format_args!(
+                        "{value_close}}} catch($$_e) {{ const {error_text} = __sveltets_2_any();"
+                    ),
                 );
             }
 
             process_fragment_inplace(catch, source, options, str, counter, depth);
 
-            let catch_end = if !catch.nodes.is_empty() {
-                catch.nodes.last().unwrap().end()
-            } else {
+            let catch_end = if catch.nodes.is_empty() {
                 catch_start
+            } else {
+                catch.nodes.last().unwrap().end()
             };
 
             if catch_end < block.end {
@@ -379,28 +375,25 @@ pub(crate) fn handle_await_block(
             // expr_end to block.end already consumed that region, so we must
             // append rather than overwrite a zero-length range).
             if then_end < block.end {
-                str.overwrite_fmt(then_end, block.end, format_args!("{}}}", value_close));
+                str.overwrite_fmt(then_end, block.end, format_args!("{value_close}}}"));
             } else {
-                str.append_left_fmt(block.end, format_args!("{}}}", value_close));
+                str.append_left_fmt(block.end, format_args!("{value_close}}}"));
             }
         }
     } else if has_catch {
         // Pattern: {#await promise catch error} catch {/await} (no pending, no then)
         let catch = block.catch.as_ref().unwrap();
-        let catch_start = if !catch.nodes.is_empty() {
-            catch.nodes[0].start()
-        } else {
+        let catch_start = if catch.nodes.is_empty() {
             block.end
+        } else {
+            catch.nodes[0].start()
         };
 
-        let header_prefix = format!("{}{{ try {{ await (", open_pad);
-        let header_suffix = if !error_text.is_empty() {
-            format!(
-                ");}} catch($$_e) {{ const {} = __sveltets_2_any();",
-                error_text
-            )
-        } else {
+        let header_prefix = format!("{open_pad}{{ try {{ await (");
+        let header_suffix = if error_text.is_empty() {
             ");} catch($$_e) { ".to_string()
+        } else {
+            format!(");}} catch($$_e) {{ const {error_text} = __sveltets_2_any();")
         };
         if let Some((expr_start, expr_end)) = get_expression_range(&block.expression) {
             str.overwrite(block.start, expr_start, &header_prefix);
@@ -413,16 +406,16 @@ pub(crate) fn handle_await_block(
             str.overwrite_fmt(
                 block.start,
                 catch_start,
-                format_args!("{}{}{}", header_prefix, expr_text, header_suffix),
+                format_args!("{header_prefix}{expr_text}{header_suffix}"),
             );
         }
 
         process_fragment_inplace(catch, source, options, str, counter, depth);
 
-        let catch_end = if !catch.nodes.is_empty() {
-            catch.nodes.last().unwrap().end()
-        } else {
+        let catch_end = if catch.nodes.is_empty() {
             catch_start
+        } else {
+            catch.nodes.last().unwrap().end()
         };
 
         if catch_end < block.end {
@@ -437,7 +430,7 @@ pub(crate) fn handle_await_block(
             str.overwrite_fmt(
                 block.start,
                 expr_start,
-                format_args!("{}{{ await (", open_pad),
+                format_args!("{open_pad}{{ await ("),
             );
             if expr_end < block.end {
                 str.overwrite(expr_end, block.end, ");}");
@@ -448,7 +441,7 @@ pub(crate) fn handle_await_block(
             str.overwrite_fmt(
                 block.start,
                 block.end,
-                format_args!("{}{{ await ({});}}", open_pad, expr_text),
+                format_args!("{open_pad}{{ await ({expr_text});}}"),
             );
         }
     }

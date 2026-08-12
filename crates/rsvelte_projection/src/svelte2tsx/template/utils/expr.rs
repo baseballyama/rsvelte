@@ -4,8 +4,12 @@
 
 use crate::svelte2tsx::svelte2tsx::slice_src;
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("template source offsets are represented as u32")
+}
+
 /// Get the expression source text range from an Expression.
-pub(crate) fn get_expression_range(expr: &crate::ast::js::Expression) -> Option<(u32, u32)> {
+pub fn get_expression_range(expr: &crate::ast::js::Expression) -> Option<(u32, u32)> {
     let start = expr.start()?;
     let end = expr.end()?;
     Some((start, end))
@@ -22,7 +26,7 @@ pub(crate) fn get_expression_range(expr: &crate::ast::js::Expression) -> Option<
 /// separates the two expressions in `getFn, setFn`. This mirrors the
 /// `isGetSetBinding` branch in upstream `htmlxtojsx_v2/nodes/Binding.ts`,
 /// which reads `attr.expression.expressions[0]`/`[1]`.
-pub(crate) fn get_set_binding_ranges(
+pub fn get_set_binding_ranges(
     expr: &crate::ast::js::Expression,
     source: &str,
 ) -> Option<((u32, u32), (u32, u32))> {
@@ -75,7 +79,7 @@ pub(crate) fn get_set_binding_ranges(
 
 /// Trim leading/trailing ASCII whitespace from a `[start, end)` source range,
 /// returning the tightened `(start, end)` (or `None` if empty after trimming).
-pub(crate) fn trim_range(source: &str, mut start: usize, mut end: usize) -> Option<(u32, u32)> {
+pub fn trim_range(source: &str, mut start: usize, mut end: usize) -> Option<(u32, u32)> {
     let bytes = source.as_bytes();
     while start < end && bytes[start].is_ascii_whitespace() {
         start += 1;
@@ -86,15 +90,12 @@ pub(crate) fn trim_range(source: &str, mut start: usize, mut end: usize) -> Opti
     if start >= end {
         None
     } else {
-        Some((start as u32, end as u32))
+        Some((source_offset(start), source_offset(end)))
     }
 }
 
 /// Get the expression source text from the original source.
-pub(crate) fn get_expression_text<'a>(
-    expr: &crate::ast::js::Expression,
-    source: &'a str,
-) -> &'a str {
+pub fn get_expression_text<'a>(expr: &crate::ast::js::Expression, source: &'a str) -> &'a str {
     if let Some((start, end)) = get_expression_range(expr) {
         slice_src(source, start as usize, end as usize)
     } else {
@@ -112,7 +113,7 @@ pub(crate) fn get_expression_text<'a>(
 /// the svelte2tsx parse path does not resolve arena children (`as_json()` is
 /// empty), so — like [`extend_expr_end_with_ts_postfix`] — the inner end is
 /// found by scanning the expression's source span rather than the arena.
-pub(crate) fn get_expression_end_stripping_ts(
+pub fn get_expression_end_stripping_ts(
     expr: &crate::ast::js::Expression,
     source: &str,
 ) -> Option<u32> {
@@ -133,48 +134,10 @@ pub(crate) fn get_expression_end_stripping_ts(
         return Some(end);
     }
     if ty == "TSNonNullExpression" {
-        // Strip the trailing `!` (and any surrounding whitespace).
-        let mut i = e;
-        while i > s && bytes[i - 1].is_ascii_whitespace() {
-            i -= 1;
-        }
-        if i > s && bytes[i - 1] == b'!' {
-            i -= 1;
-        }
-        while i > s && bytes[i - 1].is_ascii_whitespace() {
-            i -= 1;
-        }
-        return Some(i as u32);
+        return Some(source_offset(strip_non_null_suffix(bytes, s, e)));
     }
     if ty == "TSInstantiationExpression" {
-        // `f<T>`: strip the trailing `<…>` type-argument list. Scan back from the
-        // closing `>` balancing nested `<…>` to its matching `<`; the inner
-        // expression ends just before it.
-        let mut i = e;
-        while i > s && bytes[i - 1].is_ascii_whitespace() {
-            i -= 1;
-        }
-        if i > s && bytes[i - 1] == b'>' {
-            let mut depth: i32 = 0;
-            while i > s {
-                match bytes[i - 1] {
-                    b'>' => depth += 1,
-                    b'<' => {
-                        depth -= 1;
-                        if depth == 0 {
-                            i -= 1;
-                            break;
-                        }
-                    }
-                    _ => {}
-                }
-                i -= 1;
-            }
-            while i > s && bytes[i - 1].is_ascii_whitespace() {
-                i -= 1;
-            }
-        }
-        return Some(i as u32);
+        return Some(source_offset(strip_instantiation_suffix(bytes, s, e)));
     }
     // `x as T` / `x satisfies T`: find the outermost (last top-level) ` as ` /
     // ` satisfies ` keyword; the inner expression ends just before it.
@@ -218,22 +181,56 @@ pub(crate) fn get_expression_end_stripping_ts(
         }
         i += 1;
     }
-    match op_ws {
-        Some(p) => {
-            let mut ie = p;
-            while ie > s && bytes[ie - 1].is_ascii_whitespace() {
-                ie -= 1;
-            }
-            Some(ie as u32)
+    op_ws.map_or(Some(end), |position| {
+        let mut ie = position;
+        while ie > s && bytes[ie - 1].is_ascii_whitespace() {
+            ie -= 1;
         }
-        None => Some(end),
+        Some(source_offset(ie))
+    })
+}
+
+fn strip_non_null_suffix(bytes: &[u8], start: usize, end: usize) -> usize {
+    let mut index = trim_trailing_whitespace(bytes, start, end);
+    if index > start && bytes[index - 1] == b'!' {
+        index -= 1;
     }
+    trim_trailing_whitespace(bytes, start, index)
+}
+
+fn strip_instantiation_suffix(bytes: &[u8], start: usize, end: usize) -> usize {
+    let mut index = trim_trailing_whitespace(bytes, start, end);
+    if index > start && bytes[index - 1] == b'>' {
+        let mut depth = 0;
+        while index > start {
+            match bytes[index - 1] {
+                b'>' => depth += 1,
+                b'<' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        index -= 1;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+            index -= 1;
+        }
+    }
+    trim_trailing_whitespace(bytes, start, index)
+}
+
+fn trim_trailing_whitespace(bytes: &[u8], start: usize, mut end: usize) -> usize {
+    while end > start && bytes[end - 1].is_ascii_whitespace() {
+        end -= 1;
+    }
+    end
 }
 
 /// Start offset of an expression, stripping a leading TS `<T>` type-assertion
 /// prefix (`TSTypeAssertion`). For `<T>x` the assignable inner expression begins
 /// after the closing `>`; every other expression keeps its own start.
-pub(crate) fn get_expression_start_stripping_ts(
+pub fn get_expression_start_stripping_ts(
     expr: &crate::ast::js::Expression,
     source: &str,
 ) -> Option<u32> {
@@ -266,7 +263,7 @@ pub(crate) fn get_expression_start_stripping_ts(
     while i < e && bytes[i].is_ascii_whitespace() {
         i += 1;
     }
-    Some(i as u32)
+    Some(source_offset(i))
 }
 
 /// Source text of a binding assignment LHS: the expression with any TS assertion
@@ -274,10 +271,7 @@ pub(crate) fn get_expression_start_stripping_ts(
 /// postfix (`as T` / `satisfies T` / `!` / `<T>` type args) is trimmed from the
 /// end and a leading `<T>` type-assertion prefix from the start, so a cast never
 /// lands on the assignment target.
-pub(crate) fn get_binding_lhs_text<'a>(
-    expr: &crate::ast::js::Expression,
-    source: &'a str,
-) -> &'a str {
+pub fn get_binding_lhs_text<'a>(expr: &crate::ast::js::Expression, source: &'a str) -> &'a str {
     match (
         get_expression_start_stripping_ts(expr, source),
         get_expression_end_stripping_ts(expr, source),
@@ -292,7 +286,7 @@ pub(crate) fn get_binding_lhs_text<'a>(
 /// `scan_end` is the enclosing `{…}` directive/attribute end; the closing `}`
 /// is found by scanning back from it (so braces inside the type — `as { x }` —
 /// don't confuse it). Returns the original `expr_end` when no postfix follows.
-pub(crate) fn extend_expr_end_with_ts_postfix(source: &str, expr_end: u32, scan_end: u32) -> u32 {
+pub fn extend_expr_end_with_ts_postfix(source: &str, expr_end: u32, scan_end: u32) -> u32 {
     let bytes = source.as_bytes();
     let mut c = scan_end as usize;
     while c > expr_end as usize && bytes.get(c - 1) != Some(&b'}') {
@@ -306,7 +300,7 @@ pub(crate) fn extend_expr_end_with_ts_postfix(source: &str, expr_end: u32, scan_
     if close > expr_end as usize
         && (tail.starts_with("as ") || tail.starts_with("satisfies ") || tail.starts_with('!'))
     {
-        close as u32
+        source_offset(close)
     } else {
         expr_end
     }

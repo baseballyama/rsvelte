@@ -26,10 +26,10 @@ pub enum Svelte2TsxError {
 impl fmt::Display for Svelte2TsxError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Svelte2TsxError::Parse { message, .. } => write!(f, "Parse error: {message}"),
-            Svelte2TsxError::Template(msg) => write!(f, "Template error: {}", msg),
-            Svelte2TsxError::Script(msg) => write!(f, "Script error: {}", msg),
-            Svelte2TsxError::Other(msg) => write!(f, "svelte2tsx error: {}", msg),
+            Self::Parse { message, .. } => write!(f, "Parse error: {message}"),
+            Self::Template(msg) => write!(f, "Template error: {msg}"),
+            Self::Script(msg) => write!(f, "Script error: {msg}"),
+            Self::Other(msg) => write!(f, "svelte2tsx error: {msg}"),
         }
     }
 }
@@ -39,7 +39,7 @@ impl std::error::Error for Svelte2TsxError {}
 impl From<crate::error::ParseError> for Svelte2TsxError {
     fn from(err: crate::error::ParseError) -> Self {
         let span = err.span();
-        Svelte2TsxError::Parse {
+        Self::Parse {
             message: err.to_string(),
             span,
         }
@@ -63,9 +63,10 @@ impl Svelte2TsxError {
     /// Currently only `Svelte2TsxError::Parse` carries position info — the
     /// `Template` / `Script` / `Other` variants are message-only so this
     /// returns `None` for them.
-    pub fn span(&self) -> Option<(usize, usize)> {
+    #[must_use]
+    pub const fn span(&self) -> Option<(usize, usize)> {
         match self {
-            Svelte2TsxError::Parse { span, .. } => Some(*span),
+            Self::Parse { span, .. } => Some(*span),
             _ => None,
         }
     }

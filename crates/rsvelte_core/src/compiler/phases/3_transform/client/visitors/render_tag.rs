@@ -1,4 +1,4 @@
-//! RenderTag visitor for client-side transformation.
+//! `RenderTag` visitor for client-side transformation.
 //!
 //! Corresponds to `RenderTag.js` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/RenderTag.js`.
@@ -14,14 +14,14 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 
-/// Visit a RenderTag node and generate client-side code.
+/// Visit a `RenderTag` node and generate client-side code.
 ///
 /// This function corresponds to the `RenderTag` visitor in the JavaScript compiler.
 /// It generates the necessary JavaScript to render a snippet.
 ///
 /// # Arguments
 ///
-/// * `node` - The RenderTag AST node
+/// * `node` - The `RenderTag` AST node
 /// * `context` - The component transformation context
 ///
 /// # Returns
@@ -44,6 +44,10 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 /// ```javascript
 /// $.snippet(node, () => snippet_function, ...args);
 /// ```
+///
+/// # Panics
+///
+/// Panics if the render-tag expression is not a supported call expression.
 pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStatement {
     // Push a comment placeholder for the render tag
     context.state.template.push_comment(None);
@@ -91,7 +95,7 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
             if arg_has_await {
                 any_has_await = true;
                 // Generate async value id like $0, $1, etc. (shared counter)
-                let id_name = format!("${}", placeholder_index);
+                let id_name = format!("${placeholder_index}");
                 placeholder_index += 1;
                 // Strip the top-level await since $.async handles the awaiting
                 let stripped = b::strip_await(&context.arena, built);
@@ -120,7 +124,7 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
                     // Draw from the same `$N` counter as async placeholders so a
                     // memoised-call arg never collides with an async callback
                     // param in the same render block (H-099).
-                    let id_name = format!("${}", placeholder_index);
+                    let id_name = format!("${placeholder_index}");
                     placeholder_index += 1;
                     derived_decls.push(b::let_decl(
                         &context.arena,
@@ -249,7 +253,7 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
 
         let mut callback_params: Vec<
             crate::compiler::phases::phase3_transform::js_ast::nodes::JsPattern,
-        > = vec![b::id_pattern(node_name.clone())];
+        > = vec![b::id_pattern(node_name)];
         for id in &async_ids {
             callback_params.push(b::id_pattern(id.clone()));
         }
@@ -365,8 +369,8 @@ fn render_tag_has_call(expr: &Expression) -> bool {
     json_value_has_call(expr.as_json())
 }
 
-/// Recursively check if a JSON value (ESTree node) contains a CallExpression.
-/// Stops recursion at function boundaries (ArrowFunctionExpression, FunctionExpression)
+/// Recursively check if a JSON value (`ESTree` node) contains a `CallExpression`.
+/// Stops recursion at function boundaries (`ArrowFunctionExpression`, `FunctionExpression`)
 /// since calls inside those don't affect the outer expression's reactivity.
 ///
 /// `SpreadElement` and `TaggedTemplateExpression` also count: the official Phase-2

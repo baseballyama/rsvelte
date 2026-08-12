@@ -1,4 +1,4 @@
-//! ExpressionTag visitor.
+//! `ExpressionTag` visitor.
 //!
 //! Analyzes {expression} tags.
 //!
@@ -15,7 +15,7 @@ use crate::compiler::phases::phase2_analyze::AnalysisError;
 /// - Track variable references
 /// - Mark bindings as used
 /// - Detect reactive dependencies
-/// - Set needs_context when non-safe identifiers are accessed
+/// - Set `needs_context` when non-safe identifiers are accessed
 /// - Populate `tag.metadata.expression` so Phase 3 transforms can read
 ///   `has_call`, `has_state`, etc. without re-walking the expression
 pub fn visit(tag: &mut ExpressionTag, context: &mut VisitorContext) -> Result<(), AnalysisError> {

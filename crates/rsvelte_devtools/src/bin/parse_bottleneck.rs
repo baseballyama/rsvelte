@@ -143,7 +143,7 @@ fn bench_reuse(files: &[(String, String)], options: ParseOptions, label: &str) -
     let median = times[times.len() / 2];
     let total_bytes: usize = files.iter().map(|(_, c)| c.len()).sum();
     let throughput = total_bytes as f64 / (median / 1000.0) / 1_000_000.0;
-    println!("{:35} {:.2}ms  ({:.1} MB/s)", label, median, throughput);
+    println!("{label:35} {median:.2}ms  ({throughput:.1} MB/s)");
     median
 }
 
@@ -167,7 +167,7 @@ fn bench(files: &[(String, String)], options: ParseOptions, label: &str) -> f64 
     let median = times[times.len() / 2];
     let total_bytes: usize = files.iter().map(|(_, c)| c.len()).sum();
     let throughput = total_bytes as f64 / (median / 1000.0) / 1_000_000.0;
-    println!("{:35} {:.2}ms  ({:.1} MB/s)", label, median, throughput);
+    println!("{label:35} {median:.2}ms  ({throughput:.1} MB/s)");
     median
 }
 

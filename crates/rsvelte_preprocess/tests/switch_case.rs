@@ -249,13 +249,13 @@ fn rejects_two_default_branches() {
 
 #[test]
 fn requires_at_least_one_branch() {
-    let code = r#"
+    let code = r"
     <section>
       {#switch animal}
         <p>I feel lonely here</p>
       {/switch}
     </section>
-    "#;
+    ";
     assert_throws(code);
 }
 

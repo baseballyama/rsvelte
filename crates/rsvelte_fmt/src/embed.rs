@@ -30,6 +30,10 @@ impl FormatSession {
     /// Equivalent to `resolve_with_oxfmt_bin(path, None)` — see
     /// [`Self::resolve_with_oxfmt_bin`] for how the `oxfmt` binary itself is
     /// resolved.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when configuration discovery fails.
     pub fn resolve(path: &Path) -> Result<Self> {
         Self::resolve_with_oxfmt_bin(path, None)
     }
@@ -54,6 +58,10 @@ impl FormatSession {
     /// always has an explicit `--oxfmt-bin` from its own npm launcher.
     /// `RSVELTE_FMT_NODE`, if set, is honored automatically by every `oxfmt`
     /// invocation regardless of this value — see `crate::oxfmt::oxfmt_node`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when configuration discovery fails.
     pub fn resolve_with_oxfmt_bin(path: &Path, oxfmt_bin: Option<PathBuf>) -> Result<Self> {
         let cfg = OxfmtConfig::resolve(None, path).map_err(|e| anyhow!(e))?;
         let mut flags = OptionFlags::default();
@@ -71,6 +79,10 @@ impl FormatSession {
 
     /// Format `source` as if it were piped to
     /// `rsvelte-fmt --stdin --stdin-filepath <filepath>`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when formatting fails or `oxfmt` returns invalid output.
     pub fn format(&self, source: &str, filepath: &Path) -> Result<String> {
         if let Some(formatted) = format_in_process(
             source,

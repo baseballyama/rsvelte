@@ -7,7 +7,7 @@
 //! writers untouched. The summary line is also local so it can say
 //! `rsvelte-lint found …` instead of `svelte-check found …`.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::Path;
 
@@ -27,7 +27,7 @@ pub enum LintFormat {
 impl LintFormat {
     pub fn parse(s: &str) -> Option<Self> {
         if s == "sarif" {
-            Some(LintFormat::Sarif)
+            Some(Self::Sarif)
         } else {
             OutputFormat::parse(s).map(LintFormat::Core)
         }
@@ -35,6 +35,7 @@ impl LintFormat {
 }
 
 /// Render all diagnostics into the chosen format, returning the full output.
+#[must_use]
 pub fn render(
     diagnostics: &[Diagnostic],
     workspace_root: &Path,
@@ -81,7 +82,7 @@ fn write_summary(out: &mut String, diagnostics: &[Diagnostic], files_checked: us
     );
 }
 
-fn sarif_level(severity: DiagnosticSeverity) -> &'static str {
+const fn sarif_level(severity: DiagnosticSeverity) -> &'static str {
     match severity {
         DiagnosticSeverity::Error => "error",
         DiagnosticSeverity::Warning => "warning",
@@ -90,6 +91,7 @@ fn sarif_level(severity: DiagnosticSeverity) -> &'static str {
 }
 
 /// Build a SARIF 2.1.0 document for the diagnostics.
+#[must_use]
 pub fn write_sarif(
     diagnostics: &[Diagnostic],
     workspace_root: &Path,
@@ -102,14 +104,14 @@ pub fn write_sarif(
         .collect();
 
     // Collect the distinct rule ids actually present, in stable order.
-    let mut rule_ids: BTreeMap<String, ()> = BTreeMap::new();
+    let mut rule_ids = BTreeSet::new();
     for d in diagnostics {
         if let Some(code) = &d.code {
-            rule_ids.insert(code.clone(), ());
+            rule_ids.insert(code.clone());
         }
     }
     let rules: Vec<Value> = rule_ids
-        .keys()
+        .iter()
         .map(|id| {
             let mut rule = json!({ "id": id });
             if let Some(doc) = docs.get(id) {

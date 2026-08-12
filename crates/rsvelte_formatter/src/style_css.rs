@@ -21,8 +21,10 @@ pub use oxc_formatter_css::{
 };
 
 /// Map a `<style lang="...">` value / file extension to a [`CssVariant`].
+///
 /// Brace-based dialects only — `sass`/`stylus`/`styl` are handled upstream and
 /// never reach here. Unknown values fall back to plain CSS.
+#[must_use]
 pub fn css_variant_from_lang(lang: &str) -> CssVariant {
     match lang.to_ascii_lowercase().as_str() {
         "scss" => CssVariant::Scss,
@@ -34,9 +36,14 @@ pub fn css_variant_from_lang(lang: &str) -> CssVariant {
 }
 
 /// Format `source` as CSS of the given `variant` with `options`. `variant`
-/// overrides any value already on `options`. Returns a parse error for input the
-/// CSS parser rejects (the caller falls back to `oxfmt`, mirroring the native-JS
+/// overrides any value already on `options`.
+///
+/// Returns a parse error for input the CSS parser rejects (the caller falls back to `oxfmt`, mirroring the native-JS
 /// and native-JSON paths).
+///
+/// # Errors
+///
+/// Returns [`FormatError`] when the CSS parser or printer rejects `source`.
 pub fn format_css_source(
     source: &str,
     variant: CssVariant,
@@ -53,23 +60,26 @@ pub fn format_css_source(
     Ok(code)
 }
 
-/// A [`StyleFormatter`] that formats every `<style>` body in-process via
-/// `oxc_formatter_css` — the same engine `oxfmt` uses for standalone CSS, so
-/// output is byte-identical without a subprocess (and it runs in wasm, unlike
-/// spawning `oxfmt`). `base` supplies the indent / quote / EOL settings; the
-/// callback narrows `line_width` to each block's column and picks the dialect
+/// A [`StyleFormatter`] that formats every `<style>` body in-process.
+///
+/// It uses `oxc_formatter_css`, the same engine `oxfmt` uses for standalone CSS,
+/// so output is byte-identical without a subprocess (and it runs in wasm, unlike
+/// spawning `oxfmt`).
+///
+/// `base` supplies the indent / quote / EOL settings.
+///
+/// The callback narrows `line_width` to each block's column and picks the dialect
 /// from its `lang`. A body the CSS parser rejects round-trips unchanged, mirroring
 /// how `oxfmt` leaves unparseable CSS in place.
+#[must_use]
 pub fn native_style_formatter(base: CssFormatOptions) -> StyleFormatter {
     Arc::new(
         move |body: &str, lang: &str, width: usize| -> Result<String, String> {
             let mut opts = base;
-            let clamped = width.min(u16::MAX as usize) as u16;
+            let clamped = crate::formatter_width(width);
             opts.line_width = LineWidth::try_from(clamped).unwrap_or_default();
-            match format_css_source(body, css_variant_from_lang(lang), &opts) {
-                Ok(out) => Ok(out),
-                Err(_) => Ok(body.to_string()),
-            }
+            format_css_source(body, css_variant_from_lang(lang), &opts)
+                .map_or_else(|_| Ok(body.to_string()), Ok)
         },
     )
 }

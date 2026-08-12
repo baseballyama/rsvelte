@@ -18,6 +18,7 @@
 //!
 //! **CRITICAL RULE:** return `None` on ANY variant not explicitly handled
 //! here.
+
 //!
 //! The text-carrying variants are handled, not excluded, and each has its own
 //! route:
@@ -66,6 +67,10 @@ use oxc_syntax::operator::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
 };
 use std::cell::RefCell;
+
+fn source_pos(value: usize) -> u32 {
+    u32::try_from(value).expect("source positions are limited to u32")
+}
 
 /// A converted program plus the comment coordinate space it needs to be printed
 /// in (see the module docs). `comment_source` is `None` for the common
@@ -149,7 +154,7 @@ fn convert_once<'a>(
     let synth = cx.synth.into_inner();
     let ab = AstBuilder::new(allocator);
     let body = ArenaVec::from_iter_in(body, &ab);
-    let comments = ArenaVec::from_iter_in(synth.comments.iter().cloned(), &ab);
+    let comments = ArenaVec::from_iter_in(synth.comments.iter().copied(), &ab);
     let program = Program::new(
         span,
         oxc_span::SourceType::mjs(),
@@ -174,7 +179,7 @@ fn convert_once<'a>(
 /// through, so overriding it covers the whole subtree.
 struct ShiftSpans(u32);
 
-impl<'a> VisitMut<'a> for ShiftSpans {
+impl VisitMut<'_> for ShiftSpans {
     fn visit_span(&mut self, span: &mut Span) {
         span.start += self.0;
         span.end += self.0;
@@ -235,7 +240,7 @@ struct SingleTargetSequenceRebuilder<'a, 'x> {
     ab: &'x AstBuilder<'a>,
 }
 
-impl<'a, 'x> VisitMut<'a> for SingleTargetSequenceRebuilder<'a, 'x> {
+impl<'a> VisitMut<'a> for SingleTargetSequenceRebuilder<'a, '_> {
     fn visit_expression(&mut self, expr: &mut Expression<'a>) {
         oxc_ast_visit::walk_mut::walk_expression(self, expr);
 
@@ -322,7 +327,7 @@ impl Synth {
 
     /// The offset the next chunk region would start at.
     fn cursor(&self) -> u32 {
-        self.source.len() as u32
+        source_pos(self.source.len())
     }
 
     fn note_span(&mut self, end: u32) {
@@ -334,7 +339,7 @@ impl Synth {
 /// (`({ a } = obj)` → `a = obj.a`) so the "this must reprint as a
 /// `SequenceExpression`" decision survives the raw-text reparse. Upstream's
 /// `visit_assignment_expression` (`shared/assignments.js`) always lowers a
-/// destructuring assignment through `b.sequence(assignments)` — an ESTree
+/// destructuring assignment through `b.sequence(assignments)` — an `ESTree`
 /// `SequenceExpression` *unconditionally*, even for a single assignment — and
 /// esrap's `SequenceExpression` printer always self-parenthesizes, `(expr)`,
 /// regardless of element count. rsvelte's client transform generates this
@@ -347,7 +352,7 @@ impl Synth {
 /// "force sequence" decision attached to the generated text itself;
 /// [`Cx::restore_single_target_destructure_sequences`] finds the marker call
 /// after reparse and rebuilds the real single-element `SequenceExpression`.
-pub(crate) const SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER: &str = "__rsvelte_seq1";
+pub const SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER: &str = "__rsvelte_seq1";
 
 /// Conversion context: holds the oxc [`AstBuilder`] and the IR arena used to
 /// resolve [`ExprId`] handles.
@@ -357,7 +362,7 @@ struct Cx<'a, 'arena> {
     synth: RefCell<Synth>,
 }
 
-impl<'a, 'arena> Cx<'a, 'arena> {
+impl<'a> Cx<'a, '_> {
     /// Allocate a string into the oxc arena and return it as an `&'a str`,
     /// which satisfies the `Into<Atom<'a>>` / `Into<Str<'a>>` bounds used by
     /// the builder helpers.
@@ -610,7 +615,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 // declarator may hold a spurious `null` init (which the string
                 // codegen drops in this position); strip it so we emit
                 // `for (const k in obj)`, not `for (const k = null in obj)`.
-                for d in var_decl.declarations.iter_mut() {
+                for d in &mut var_decl.declarations {
                     d.init = None;
                 }
                 ForStatementLeft::VariableDeclaration(var_decl)
@@ -1361,14 +1366,14 @@ impl<'a, 'arena> Cx<'a, 'arena> {
         if ret.program.comments.is_empty() {
             // Chunk-local spans stay below `loc_base`, so they read as "no
             // location"; record the bound the second pass has to clear.
-            self.note_span(text.len() as u32);
+            self.note_span(source_pos(text.len()));
             return Some(ret.program.body.into_iter().collect());
         }
         self.synth.borrow_mut().saw_comments = true;
         if !self.synth.borrow().enabled {
             // Probe pass: the comments are dropped here, but the result is
             // discarded — it only tells the driver a second pass is needed.
-            self.note_span(text.len() as u32);
+            self.note_span(source_pos(text.len()));
             return Some(ret.program.body.into_iter().collect());
         }
 
@@ -1408,7 +1413,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 comment.attached_to += shift;
                 comment
             }));
-        synth.pending_region = Some((base, base + text.len() as u32));
+        synth.pending_region = Some((base, base + source_pos(text.len())));
         synth.last_region_ends_with_removed_inspect_comment = removed_inspect
             && ret
                 .program

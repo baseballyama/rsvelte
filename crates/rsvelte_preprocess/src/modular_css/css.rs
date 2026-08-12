@@ -163,7 +163,7 @@ pub fn parse_body(inner: &str) -> (Vec<Decl>, String) {
             continue;
         }
         if b[i] == b';' {
-            let raw = &inner[last_end..i + 1];
+            let raw = &inner[last_end..=i];
             push_decl(raw, &mut decls);
             last_end = i + 1;
         }

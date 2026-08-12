@@ -12,8 +12,8 @@
 //!      and template literal in the expression, regardless of any enclosing call.
 //!      This mirrors the plugin's `transformSvelte`, which is not function-gated.
 //!
-//! Template literals with `${…}` are sorted per static quasi; the token abutting
-//! an interpolation is pinned so `cn(\`flex m-2 ${x}\`)` keeps its structure.
+//! Template literals with `${…}` are sorted per static quasi.
+//! The token abutting an interpolation is pinned so the surrounding call keeps its structure.
 //!
 //! Only class tokens are reordered (via the shared class sorter, so the native
 //! and JS-sidecar paths both apply). The surrounding source is re-parsed and
@@ -29,7 +29,7 @@ use crate::options::{ClassSorter, FormatOptions};
 
 /// Rewrite Tailwind class literals inside `functions` calls in a `<script>` body.
 /// Returns the rewritten body when anything changed, else `None`.
-pub(crate) fn sort_script_functions(body: &str, options: &FormatOptions) -> Option<String> {
+pub fn sort_script_functions(body: &str, options: &FormatOptions) -> Option<String> {
     if options.class_sorter.is_none() || options.tailwind_functions.is_empty() {
         return None;
     }
@@ -38,7 +38,7 @@ pub(crate) fn sort_script_functions(body: &str, options: &FormatOptions) -> Opti
 
 /// Rewrite every Tailwind class literal in a `class`-attribute mustache
 /// expression. Returns the rewritten expression source when anything changed.
-pub(crate) fn sort_class_expression(expr_src: &str, options: &FormatOptions) -> Option<String> {
+pub fn sort_class_expression(expr_src: &str, options: &FormatOptions) -> Option<String> {
     // `rewrite` returns `None` when no class sorter is configured.
     rewrite(expr_src, true, true, options)
 }
@@ -88,7 +88,7 @@ fn rewrite(src: &str, wrap: bool, sort_all: bool, options: &FormatOptions) -> Op
         let replacement = match edit {
             Edit::StringLit { .. } => {
                 // The span includes its delimiters (`"` or `'`); sort the inner.
-                let quote = &out[start..start + 1];
+                let quote = &out[start..=start];
                 let inner = &out[start + 1..end - 1];
                 format!("{quote}{}{quote}", sorter(inner))
             }
@@ -133,14 +133,14 @@ enum Edit {
 }
 
 impl Edit {
-    fn start(&self) -> u32 {
+    const fn start(&self) -> u32 {
         match self {
-            Edit::StringLit { start, .. } | Edit::Quasi { start, .. } => *start,
+            Self::StringLit { start, .. } | Self::Quasi { start, .. } => *start,
         }
     }
-    fn end(&self) -> u32 {
+    const fn end(&self) -> u32 {
         match self {
-            Edit::StringLit { end, .. } | Edit::Quasi { end, .. } => *end,
+            Self::StringLit { end, .. } | Self::Quasi { end, .. } => *end,
         }
     }
 }

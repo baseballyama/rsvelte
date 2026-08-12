@@ -9,6 +9,8 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
+use rayon::prelude::*;
+
 use crate::compiler::{CompileOptions, ExperimentalOptions, GenerateMode, compile};
 
 use super::config::{
@@ -42,18 +44,20 @@ pub enum DiagnosticSource {
 }
 
 impl DiagnosticSource {
-    pub fn as_str(self) -> &'static str {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
         match self {
-            DiagnosticSource::Svelte => "svelte",
-            DiagnosticSource::Ts => "ts",
-            DiagnosticSource::Css => "css",
+            Self::Svelte => "svelte",
+            Self::Ts => "ts",
+            Self::Css => "css",
         }
     }
+    #[must_use]
     pub fn parse(s: &str) -> Option<Self> {
         Some(match s {
-            "svelte" => DiagnosticSource::Svelte,
-            "ts" | "js" => DiagnosticSource::Ts,
-            "css" => DiagnosticSource::Css,
+            "svelte" => Self::Svelte,
+            "ts" | "js" => Self::Ts,
+            "css" => Self::Css,
             _ => return None,
         })
     }
@@ -61,6 +65,10 @@ impl DiagnosticSource {
 
 /// Inputs to a `svelte-check` run.
 #[derive(Debug, Clone)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "the public CLI option model preserves independent command-line flag semantics"
+)]
 pub struct RunOptions {
     /// Workspace root — `.svelte` files are searched under this directory.
     pub workspace: PathBuf,
@@ -136,6 +144,7 @@ pub struct RunResult {
 }
 
 impl RunResult {
+    #[must_use]
     pub fn error_count(&self) -> usize {
         self.diagnostics
             .iter()
@@ -143,6 +152,7 @@ impl RunResult {
             .count()
     }
 
+    #[must_use]
     pub fn warning_count(&self) -> usize {
         self.diagnostics
             .iter()
@@ -152,19 +162,19 @@ impl RunResult {
 
     /// Process exit code per the JS reference: 1 if any errors, 1 also
     /// when `fail_on_warnings` and any warnings exist, 0 otherwise.
+    #[must_use]
     pub fn exit_code(&self, fail_on_warnings: bool) -> i32 {
-        if self.error_count() > 0 || (fail_on_warnings && self.warning_count() > 0) {
-            1
-        } else {
-            0
-        }
+        i32::from(self.error_count() > 0 || (fail_on_warnings && self.warning_count() > 0))
     }
 }
 
-/// Anchor `path` on the process CWD when it isn't already absolute, then
+/// Anchors a relative path on the process CWD.
+///
+/// It then
 /// normalise `.`/`..` lexically. Exposed so a caller (the CLI's own
 /// diagnostic-path relativisation in `main.rs`) can agree with what `run`
 /// does to `RunOptions::workspace` internally — see `run`'s doc comment.
+#[must_use]
 pub fn absolutize_workspace(path: &Path) -> PathBuf {
     super::overlay::absolutize(path)
 }
@@ -182,6 +192,7 @@ pub fn absolutize_workspace(path: &Path) -> PathBuf {
 /// relativizes those paths for display (the CLI's `print_run`) must
 /// normalise its own copy of the workspace the same way via
 /// `absolutize_workspace`, or the two won't agree (#1919).
+#[must_use]
 pub fn run(options: &RunOptions) -> RunResult {
     let workspace = absolutize_workspace(&options.workspace);
     let options = &RunOptions {
@@ -345,11 +356,8 @@ fn apply_filters(diagnostics: &mut Vec<Diagnostic>, options: &RunOptions) {
         });
     }
     if let Some(allowed) = &options.diagnostic_sources {
-        diagnostics.retain(|d| {
-            DiagnosticSource::parse(d.source)
-                .map(|s| allowed.contains(&s))
-                .unwrap_or(true)
-        });
+        diagnostics
+            .retain(|d| DiagnosticSource::parse(d.source).is_none_or(|s| allowed.contains(&s)));
     }
 }
 
@@ -462,7 +470,7 @@ fn run_type_check_phase(
 ///     our bug; emit an `internal error … please report this` per file.
 ///   * **user's own syntax error** — the `.svelte`/`.ts` source is itself
 ///     malformed. That's already reported (on the Svelte side for
-///     `.svelte`, or as a passthrough TS1xxx for plain `.ts`), so we don't
+///     `.svelte`, or as a passthrough `TS1xxx` for plain `.ts`), so we don't
 ///     blame rsvelte — but semantics are STILL suppressed program-wide, so
 ///     we attach one note so the hidden type errors aren't a surprise.
 ///
@@ -576,7 +584,6 @@ fn compile_files_with_cache(
 
     // Per-file lookup → either reuse cached diagnostics or recompile.
     // The output preserves the input file order via a (file -> diags) map.
-    use rayon::prelude::*;
     let outputs: Vec<(PathBuf, CachedDiagnostics)> = files
         .par_iter()
         .map(|file| compile_or_reuse(file, &cache, compiler_opts))
@@ -701,13 +708,13 @@ fn range_from_warning(
     let end_pos = end.unwrap_or(start);
     Some(Range {
         start: Position {
-            line: start.line as u32,
+            line: u32::try_from(start.line).unwrap_or(u32::MAX),
             // Compiler positions are 0-indexed columns; LSP uses 0-index too.
-            column: start.column as u32,
+            column: u32::try_from(start.column).unwrap_or(u32::MAX),
         },
         end: Position {
-            line: end_pos.line as u32,
-            column: end_pos.column as u32,
+            line: u32::try_from(end_pos.line).unwrap_or(u32::MAX),
+            column: u32::try_from(end_pos.column).unwrap_or(u32::MAX),
         },
     })
 }

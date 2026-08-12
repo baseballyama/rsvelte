@@ -1,3 +1,5 @@
+//! Shared helpers for `svelte/store` rules.
+//!
 //! Shared helper for the `svelte/store` rules: resolve which call expressions
 //! are store-creator calls (`writable` / `readable` / `derived`), accounting for
 //! the import that binds them — direct (`import { writable }`), aliased
@@ -37,7 +39,8 @@ pub struct StoreCreators {
 }
 
 impl StoreCreators {
-    pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
         self.direct.is_empty() && self.namespaces.is_empty()
     }
 
@@ -69,6 +72,7 @@ impl StoreCreators {
 }
 
 /// Collect the `svelte/store` creator bindings declared in `program`.
+#[must_use]
 pub fn collect_store_creators(program: &Value) -> StoreCreators {
     let mut direct: Vec<(String, &'static str)> = Vec::new();
     let mut namespaces: Vec<String> = Vec::new();
@@ -117,10 +121,11 @@ pub fn collect_store_creators(program: &Value) -> StoreCreators {
 }
 
 /// Whether a node is an arrow/function expression.
+#[must_use]
 pub fn is_function_expr(node: &Value) -> bool {
     matches!(
         node_type(node),
-        Some("ArrowFunctionExpression") | Some("FunctionExpression")
+        Some("ArrowFunctionExpression" | "FunctionExpression")
     )
 }
 

@@ -16,7 +16,7 @@ use super::super::magic_string::MagicString;
 /// official `isAssignmentBinaryExpr`'s `isIdentifier(left) ||
 /// isObjectLiteralExpression(left) || isArrayLiteralExpression(left)`. A
 /// member-expression target (`foo.bar`) does NOT qualify.
-fn is_invalidate_assignment_target(target: &oxc::AssignmentTarget) -> bool {
+const fn is_invalidate_assignment_target(target: &oxc::AssignmentTarget) -> bool {
     matches!(
         target,
         oxc::AssignmentTarget::AssignmentTargetIdentifier(_)
@@ -77,12 +77,7 @@ pub(super) fn handle_reactive_statement(
                     let lhs_names = extract_names_from_assignment_target(&assign.left);
 
                     // Check if the LHS is a $store reference
-                    let is_store_assignment = match &assign.left {
-                        oxc::AssignmentTarget::AssignmentTargetIdentifier(id) => {
-                            id.name.starts_with('$')
-                        }
-                        _ => false,
-                    };
+                    let is_store_assignment = is_store_assignment(&assign.left);
 
                     // Mirrors `nodes/ImplicitTopLevelNames.ts::modifyCode`:
                     //   - all LHS names are NEW → replace `$:` with `let `,
@@ -112,14 +107,7 @@ pub(super) fn handle_reactive_statement(
                     let rhs_text = &raw_content[rhs_start as usize..rhs_end as usize];
 
                     // Check if RHS starts with `{` (object literal needs wrapping in parens)
-                    let rhs_needs_parens = rhs_text.starts_with('{');
-
-                    // Build the invalidate wrapper for the RHS
-                    let wrapped_rhs = if rhs_needs_parens {
-                        format!("__sveltets_2_invalidate(() => ({}))", rhs_text)
-                    } else {
-                        format!("__sveltets_2_invalidate(() => {})", rhs_text)
-                    };
+                    let wrapped_rhs = invalidate_rhs(rhs_text);
 
                     // Overwrite the RHS
                     let rhs_abs_start = rhs_start + offset;
@@ -133,7 +121,7 @@ pub(super) fn handle_reactive_statement(
                         // the assignment still triggers reactivity.
                         let mut decls = String::new();
                         for name in &new_names {
-                            let _ = writeln!(decls, "let {};", name);
+                            let _ = writeln!(decls, "let {name};");
                         }
                         str.prepend_right(label_start, &decls);
                         for name in &new_names {
@@ -155,16 +143,16 @@ pub(super) fn handle_reactive_statement(
                             oxc::Expression::ParenthesizedExpression(_)
                         );
 
+                        str.overwrite(label_start, label_colon_abs, "let ");
                         if is_paren {
                             // `$: ({ a } = expr)` → `let  { a } = __sveltets_2_invalidate(() => expr)`
                             // Replace `$:` with `let ` (extra space so the original space
                             // after `:` produces the double-space matching JS svelte2tsx).
-                            str.overwrite(label_start, label_colon_abs, "let ");
-
                             // Remove the opening `(` and the closing `)` and `;`
-                            let paren_expr = match &expr_stmt.expression {
-                                oxc::Expression::ParenthesizedExpression(p) => p,
-                                _ => unreachable!(),
+                            let oxc::Expression::ParenthesizedExpression(paren_expr) =
+                                &expr_stmt.expression
+                            else {
+                                unreachable!();
                             };
                             let paren_start = paren_expr.span.start + offset;
                             let paren_end = paren_expr.span.end + offset;
@@ -217,6 +205,18 @@ pub(super) fn handle_reactive_statement(
             str.overwrite(label_start, label_colon_abs, ";() => {$:");
             str.append_left(label_end, "}");
         }
+    }
+}
+
+fn is_store_assignment(target: &oxc::AssignmentTarget) -> bool {
+    matches!(target, oxc::AssignmentTarget::AssignmentTargetIdentifier(id) if id.name.starts_with('$'))
+}
+
+fn invalidate_rhs(rhs: &str) -> String {
+    if rhs.starts_with('{') {
+        format!("__sveltets_2_invalidate(() => ({rhs}))")
+    } else {
+        format!("__sveltets_2_invalidate(() => {rhs})")
     }
 }
 

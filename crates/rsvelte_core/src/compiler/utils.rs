@@ -9,6 +9,7 @@
 /// byte `>= 0x80`) answers a different question; scanners that need the ASCII
 /// subset say so in their name.
 #[inline]
+#[must_use]
 pub fn is_js_ident_start(c: char) -> bool {
     oxc_syntax::identifier::is_identifier_start(c)
 }
@@ -18,6 +19,7 @@ pub fn is_js_ident_start(c: char) -> bool {
 /// Mirrors acorn's `isIdentifierChar(code, true)`: `ID_Continue` plus `$`, and
 /// the zero-width joiners.
 #[inline]
+#[must_use]
 pub fn is_js_ident_continue(c: char) -> bool {
     oxc_syntax::identifier::is_identifier_part(c)
 }
@@ -33,6 +35,7 @@ pub fn is_js_ident_continue(c: char) -> bool {
 /// shorter window on multibyte input is equivalent: the ASCII pattern can't
 /// span a multibyte byte. `end` must already be a char boundary (callers pass
 /// AST token positions); it is clamped to `source.len()` defensively.
+#[must_use]
 pub fn char_boundary_lookback(source: &str, end: usize, window: usize) -> &str {
     let end = end.min(source.len());
     let lo = (end.saturating_sub(window)..end)
@@ -47,6 +50,7 @@ pub fn char_boundary_lookback(source: &str, end: usize, window: usize) -> &str {
 /// of a UTF-8 sequence: `名`'s lead byte reads as `å` and `א`'s as `×`, so an
 /// `is_alphanumeric` / `is_whitespace` predicate answers about a character that is
 /// not in the source. `at` must be a char boundary; a `find()` match offset always is.
+#[must_use]
 pub fn char_at(source: &str, at: usize) -> Option<char> {
     source.get(at..).and_then(|rest| rest.chars().next())
 }
@@ -56,6 +60,7 @@ pub fn char_at(source: &str, at: usize) -> Option<char> {
 /// Replaces `source.as_bytes()[end - 1] as char`, which reads a *continuation*
 /// byte of the preceding character: `名` (`E5 90 8D`) reads as `U+008D`, a control
 /// that no identifier predicate accepts, so a letter is mistaken for a word boundary.
+#[must_use]
 pub fn char_before(source: &str, end: usize) -> Option<char> {
     source.get(..end).and_then(|head| head.chars().next_back())
 }
@@ -70,6 +75,7 @@ pub fn char_before(source: &str, end: usize) -> Option<char> {
 /// `format!(".#{var}")`) silently turns the next `&text[search_from..]` into a
 /// mid-character slice, which panics. `at` must be a char boundary; a `find()`
 /// match offset always is.
+#[must_use]
 pub fn next_char_boundary(source: &str, at: usize) -> usize {
     source[at..]
         .chars()
@@ -84,6 +90,7 @@ pub fn next_char_boundary(source: &str, at: usize) -> usize {
 /// all, so a scanner using that test never closes the string. A byte is escaped
 /// only when the run of backslashes immediately before it has odd length.
 #[inline]
+#[must_use]
 pub fn is_escaped(bytes: &[u8], i: usize) -> bool {
     let mut n = 0;
     while n < i && bytes[i - 1 - n] == b'\\' {
@@ -94,6 +101,7 @@ pub fn is_escaped(bytes: &[u8], i: usize) -> bool {
 
 /// [`is_escaped`] over a `char` slice, for scanners that index characters.
 #[inline]
+#[must_use]
 pub fn is_escaped_char(chars: &[char], i: usize) -> bool {
     let mut n = 0;
     while n < i && chars[i - 1 - n] == '\\' {
@@ -134,6 +142,7 @@ const DELEGATED_EVENTS: &[&str] = &[
 /// Returns `true` if `event_name` is a delegated event.
 ///
 /// Corresponds to `can_delegate_event` in utils.js.
+#[must_use]
 pub fn can_delegate_event(event_name: &str) -> bool {
     DELEGATED_EVENTS.contains(&event_name)
 }
@@ -148,6 +157,7 @@ const NON_STATIC_PROPERTIES: &[&str] = &["autofocus", "muted", "defaultValue", "
 /// string, i.e. needs some kind of JavaScript handling to work.
 ///
 /// Corresponds to `cannot_be_set_statically` in utils.js.
+#[must_use]
 pub fn cannot_be_set_statically(name: &str) -> bool {
     NON_STATIC_PROPERTIES.contains(&name)
 }
@@ -155,6 +165,7 @@ pub fn cannot_be_set_statically(name: &str) -> bool {
 /// Check if an event name is a capture event.
 ///
 /// Corresponds to `is_capture_event` in utils.js.
+#[must_use]
 pub fn is_capture_event(name: &str) -> bool {
     name.ends_with("capture") && name != "gotpointercapture" && name != "lostpointercapture"
 }
@@ -162,6 +173,7 @@ pub fn is_capture_event(name: &str) -> bool {
 /// Check if an event should be passive by default.
 ///
 /// Corresponds to `is_passive_event` in utils.js.
+#[must_use]
 pub fn is_passive_event(name: &str) -> bool {
     matches!(name, "touchstart" | "touchmove")
 }
@@ -169,6 +181,7 @@ pub fn is_passive_event(name: &str) -> bool {
 /// Check if a name is a boolean attribute.
 ///
 /// Corresponds to `is_boolean_attribute` in utils.js.
+#[must_use]
 pub fn is_boolean_attribute(name: &str) -> bool {
     matches!(
         name,
@@ -204,6 +217,7 @@ pub fn is_boolean_attribute(name: &str) -> bool {
 }
 
 /// Check if a name is a void element (self-closing).
+#[must_use]
 pub fn is_void_element(name: &str) -> bool {
     matches!(
         name,
@@ -227,6 +241,7 @@ pub fn is_void_element(name: &str) -> bool {
 }
 
 /// Check if a binding is to a content-editable property.
+#[must_use]
 pub fn is_content_editable_binding(name: &str) -> bool {
     matches!(name, "textContent" | "innerHTML" | "innerText")
 }
@@ -236,7 +251,8 @@ pub fn is_content_editable_binding(name: &str) -> bool {
 /// Like node's `basename`, but doesn't use it to ensure the compiler is usable
 /// in a browser environment.
 ///
-/// Corresponds to `get_basename` in mapped_code.js.
+/// Corresponds to `get_basename` in `mapped_code.js`.
+#[must_use]
 pub fn get_basename(filename: &str) -> String {
     filename
         .split(['/', '\\'])
@@ -248,6 +264,7 @@ pub fn get_basename(filename: &str) -> String {
 /// Get a location function for finding line/column from character offset.
 ///
 /// This creates a closure that can efficiently look up locations in the source.
+#[must_use]
 pub fn get_locator(
     source: &str,
 ) -> std::sync::Arc<dyn Fn(usize) -> crate::compiler::preprocess::types::Location + Send + Sync> {

@@ -76,8 +76,7 @@ fn oxfmt_runnable(oxfmt: &Path) -> bool {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
+        .is_ok_and(|s| s.success())
 }
 
 struct Sample {
@@ -104,10 +103,10 @@ fn collect_markdown_samples(markdown_root: &Path, sha_root: &Path) -> Vec<Sample
                     .to_string_lossy()
                     .replace('\\', "/");
                 // The sample dir is named after the source file (…/index.md/).
-                let md_name = p
-                    .file_name()
-                    .map(|s| s.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| "doc.md".to_string());
+                let md_name = p.file_name().map_or_else(
+                    || "doc.md".to_string(),
+                    |s| s.to_string_lossy().into_owned(),
+                );
                 out.push(Sample {
                     id,
                     dir: p,
@@ -188,8 +187,7 @@ fn svelte_dev_markdown_cli_parity() {
     // many startups are in flight at once; the cap bounds peak concurrent
     // Node processes (memory) while keeping the CPUs saturated.
     let n_threads = std::thread::available_parallelism()
-        .map(|n| n.get())
-        .unwrap_or(4)
+        .map_or(4, std::num::NonZero::get)
         .saturating_mul(4)
         .clamp(8, 32);
 
@@ -222,18 +220,18 @@ fn svelte_dev_markdown_cli_parity() {
                     child.stdin.take().unwrap().write_all(&input).unwrap();
                     let out = child.wait_with_output().unwrap();
 
-                    let detail = if !out.status.success() {
-                        format!(
-                            "rsvelte-fmt exited {:?}: {}",
-                            out.status.code(),
-                            String::from_utf8_lossy(&out.stderr).trim()
-                        )
-                    } else {
+                    let detail = if out.status.success() {
                         match String::from_utf8(out.stdout) {
                             Ok(got) if got == expected => continue,
                             Ok(got) => first_diff(&expected, &got),
                             Err(_) => "non-utf8 output".to_string(),
                         }
+                    } else {
+                        format!(
+                            "rsvelte-fmt exited {:?}: {}",
+                            out.status.code(),
+                            String::from_utf8_lossy(&out.stderr).trim()
+                        )
                     };
                     failures.lock().unwrap().push((s.id.clone(), detail));
                 }
@@ -276,10 +274,10 @@ fn first_diff(expected: &str, got: &str) -> String {
         }
     }
     let (el, gl) = (expected.lines().count(), got.lines().count());
-    if el != gl {
-        format!("line count differs: expected {el} got {gl}")
-    } else {
+    if el == gl {
         "outputs differ (trailing whitespace/newline)".to_string()
+    } else {
+        format!("line count differs: expected {el} got {gl}")
     }
 }
 

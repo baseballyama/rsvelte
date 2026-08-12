@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    FormatOptions, Fragment, TemplateNode, VisualWidth, attribute_span, child_fragments,
+    indent_config, is_block_display, is_whitespace_preserving, node_end, node_start, tab_width,
+};
 
 /// Pass 1.9: break the open tag of inline/component elements that land on an
 /// overflowing line with non-whitespace text before them.
@@ -16,7 +19,7 @@ use super::*;
 /// - The element's content starts with whitespace (`hug_start=false`).
 ///
 /// The broken form uses the line's leading-whitespace as `indent` and
-/// `indent + `[`indent_config`]`'s unit` as `inner_indent` for attributes.
+/// `indent` plus [`indent_config`]'s unit as `inner_indent` for attributes.
 pub(super) fn collect_break_inline_open_tag(
     out: &str,
     fragment: &Fragment,
@@ -191,25 +194,7 @@ pub(super) fn try_break_inline_open_tag(
     let first_child_text = out.get(open_tag_end..node_end(first) as usize)?;
     let hug_start = !first_child_text.starts_with([' ', '\t', '\r', '\n']);
 
-    if !hug_start {
-        // hug_start=false: build broken open tag with `>` on its own line.
-        //   <tag
-        //     attr1
-        //     attr2
-        //   >
-        let mut broken = format!("<{tag}");
-        for atext in &attr_texts {
-            broken.push('\n');
-            broken.push_str(&inner_indent);
-            broken.push_str(atext);
-        }
-        broken.push('\n');
-        broken.push_str(indent);
-        broken.push('>');
-
-        // Only emit if different from the current open tag.
-        (broken != open_tag).then_some((elem_start, open_tag_end as u32, broken))
-    } else {
+    if hug_start {
         // hug_start=true: the element's content starts directly after `>` with no
         // whitespace. We need to break the open tag so that `>content</tag` stays
         // glued, and the close tag's `>` goes on its own line at the base indent.
@@ -300,6 +285,24 @@ pub(super) fn try_break_inline_open_tag(
             return None;
         }
         Some((elem_start, elem_end, broken))
+    } else {
+        // hug_start=false: build broken open tag with `>` on its own line.
+        //   <tag
+        //     attr1
+        //     attr2
+        //   >
+        let mut broken = format!("<{tag}");
+        for atext in &attr_texts {
+            broken.push('\n');
+            broken.push_str(&inner_indent);
+            broken.push_str(atext);
+        }
+        broken.push('\n');
+        broken.push_str(indent);
+        broken.push('>');
+
+        // Only emit if different from the current open tag.
+        (broken != open_tag).then_some((elem_start, crate::source_offset(open_tag_end), broken))
     }
 }
 
@@ -363,7 +366,7 @@ pub(super) fn try_break_empty_block_open_tag(
 
     // Break: `<tagname\n{indent}>`
     let broken = format!("<{tag}\n{indent}>");
-    Some((elem_start, open_tag_end as u32, broken))
+    Some((elem_start, crate::source_offset(open_tag_end), broken))
 }
 
 /// Pass 1.95: re-collapse broken open tags whose single-line form now fits at
@@ -497,7 +500,11 @@ pub(super) fn try_recollapse_open_tag(
     }
 
     // Only emit if the forms differ.
-    (single_line != open_tag).then_some((elem_start, open_tag_end as u32, single_line))
+    (single_line != open_tag).then_some((
+        elem_start,
+        crate::source_offset(open_tag_end),
+        single_line,
+    ))
 }
 
 /// Split an attribute string (`attr1 attr2="val" attr3={expr}`) into individual

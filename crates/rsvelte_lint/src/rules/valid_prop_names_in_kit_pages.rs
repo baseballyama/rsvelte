@@ -1,8 +1,8 @@
 //! `svelte/valid-prop-names-in-kit-pages` — disallow invalid prop names in
-//! SvelteKit route components (`+page.svelte`, `+layout.svelte`,
+//! `SvelteKit` route components (`+page.svelte`, `+layout.svelte`,
 //! `+error.svelte`).
 //!
-//! The rule is filename-gated: it only fires on SvelteKit route files. In
+//! The rule is filename-gated: it only fires on `SvelteKit` route files. In
 //! Svelte 5 (runes mode) it flags `$props()` destructuring that uses prop
 //! names outside the allowed set for the file type:
 //!
@@ -34,10 +34,10 @@ static META: RuleMeta = RuleMeta {
 
 const MESSAGE: &str = "disallow invalid props in SvelteKit route components.";
 
-/// Allowed `$props()` destructuring keys for each SvelteKit route file type
+/// Allowed `$props()` destructuring keys for each `SvelteKit` route file type
 /// (Svelte 5 only).
 ///
-/// Returns `None` if the file is not a recognized SvelteKit route file, or
+/// Returns `None` if the file is not a recognized `SvelteKit` route file, or
 /// if it is not located under a `src/routes` directory segment (matching
 /// upstream's `svelteKitFileType` path gate).
 fn allowed_prop_names(ctx: &LintContext) -> Option<&'static [&'static str]> {

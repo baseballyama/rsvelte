@@ -18,6 +18,10 @@ use crate::ast::template::{
 };
 use rustc_hash::FxHashSet;
 
+fn source_pos(offset: usize) -> u32 {
+    u32::try_from(offset).expect("source positions are limited to u32")
+}
+
 /// A store reference with location context
 #[derive(Debug, Clone)]
 struct StoreRef {
@@ -118,8 +122,8 @@ pub fn detect_store_subscriptions(
         // Note: bare $ detection is handled in Identifier visitor via proper AST analysis
         if ref_name.starts_with("$$") {
             return Err(errors::global_reference_invalid(ref_name).at(
-                store_ref.position as u32,
-                (store_ref.position + ref_name.len()) as u32,
+                source_pos(store_ref.position),
+                source_pos(store_ref.position + ref_name.len()),
             ));
         }
 
@@ -253,8 +257,7 @@ pub fn detect_store_subscriptions(
                             None
                         }
                     })
-                    .map(|src| src.contains("$props(") || src.contains("$props.bindable("))
-                    .unwrap_or(false);
+                    .is_some_and(|src| src.contains("$props(") || src.contains("$props.bindable("));
                 let is_props_rune_init = (matches!(
                     binding.kind,
                     BindingKind::Prop | BindingKind::RestProp | BindingKind::BindableProp
@@ -303,7 +306,7 @@ pub fn detect_store_subscriptions(
                     if check_pos < source_bytes.len() && source_bytes[check_pos] == b'(' {
                         analysis.warnings.push(
                             warnings::store_rune_conflict(store_name)
-                                .at(store_ref.position as u32, pos as u32),
+                                .at(source_pos(store_ref.position), source_pos(pos)),
                         );
                     }
                 }
@@ -449,8 +452,7 @@ pub fn detect_store_subscriptions(
             // if no binding exists for a lowercase $xxx name, it's an invalid global reference.
             // This matches Svelte's behavior: `if (options.runes !== false) { ... }`
             // Corresponds to Svelte's L398-400 in 2-analyze/index.js
-            if !store_name.is_empty() && store_name.chars().next().is_some_and(|c| c.is_lowercase())
-            {
+            if !store_name.is_empty() && store_name.chars().next().is_some_and(char::is_lowercase) {
                 // Before erroring, check whether `$name` is itself a real declared
                 // binding — e.g. a destructured callback parameter
                 // `derived([box_d], ([$box]) => $box.width)`, where `$box` is the
@@ -470,8 +472,8 @@ pub fn detect_store_subscriptions(
                     continue;
                 }
                 return Err(errors::global_reference_invalid(ref_name).at(
-                    store_ref.position as u32,
-                    (store_ref.position + ref_name.len()) as u32,
+                    source_pos(store_ref.position),
+                    source_pos(store_ref.position + ref_name.len()),
                 ));
             }
         }
@@ -529,16 +531,16 @@ fn collect_dollar_refs_from_script_with_context(
         if retained.is_none() {
             super::profile::record_reject(super::profile::Reject::Absent);
         }
-        let blanked = match reusable {
-            Some(program) => {
-                super::profile::record_ts_script(false, content.len());
-                super::types::blank_typescript_from_program(content, program.program())
-            }
-            None => {
+        let blanked = reusable.map_or_else(
+            || {
                 super::profile::record_ts_script(true, content.len());
                 super::types::blank_typescript(content)
-            }
-        };
+            },
+            |program| {
+                super::profile::record_ts_script(false, content.len());
+                super::types::blank_typescript_from_program(content, program.program())
+            },
+        );
         collect_dollar_identifiers_from_js_with_context(&blanked, start, refs, in_module);
         return;
     }
@@ -553,7 +555,7 @@ fn collect_dollar_refs_from_script_with_context(
 /// - It's immediately followed by `=>` (arrow function: `$x => ...`)
 /// - It's preceded (ignoring whitespace) by `(` or `,` AND followed by `)` or `,` or `=>`
 ///
-/// This is a heuristic to avoid creating StoreSub bindings for function parameters
+/// This is a heuristic to avoid creating `StoreSub` bindings for function parameters
 /// like `($count) => $count * 2` in `derived(store, $count => ...)`.
 /// Char-index range `[start, end)` of an arrow body starting at char `from`
 /// (the position just past `=>`). Handles both `{ … }` block bodies and
@@ -575,7 +577,6 @@ fn arrow_body_range(chars: &[char], from: usize) -> (usize, usize) {
             '(' | '[' | '{' => depth += 1,
             ')' | ']' | '}' if depth == 0 => break,
             ')' | ']' | '}' => depth -= 1,
-            ',' | ';' if depth == 0 => break,
             _ => {}
         }
         m += 1;
@@ -1120,12 +1121,10 @@ fn collect_dollar_identifiers_pass(
                         && !is_dollar_ident_object_property_key(chars, ident_start, i)
                         && !is_dollar_ident_type_declaration(chars, ident_start)
                     {
-                        let byte_offset = match &char_byte_offsets {
-                            Some(offsets) => offsets.get(ident_start).copied(),
-                            // ASCII: char index == byte index, with the same
-                            // in-bounds condition the offset table would apply.
-                            None => (ident_start < len).then_some(ident_start),
-                        };
+                        let byte_offset = char_byte_offsets.as_ref().map_or_else(
+                            || (ident_start < len).then_some(ident_start),
+                            |offsets| offsets.get(ident_start).copied(),
+                        );
                         refs.push(StoreRef {
                             name: ident,
                             position: base_offset + byte_offset.unwrap_or(js.len()),
@@ -1346,11 +1345,10 @@ fn collect_dollar_refs_from_attributes(
                 // e.g., use:$store.action should create a subscription for $store
                 if use_dir.name.starts_with('$') {
                     // Extract the store name (before the first . if present)
-                    let store_name = if let Some(dot_pos) = use_dir.name.find('.') {
-                        &use_dir.name[..dot_pos]
-                    } else {
-                        use_dir.name.as_str()
-                    };
+                    let store_name = use_dir
+                        .name
+                        .find('.')
+                        .map_or_else(|| use_dir.name.as_str(), |dot_pos| &use_dir.name[..dot_pos]);
                     if store_name.len() > 1 {
                         refs.push(StoreRef {
                             name: store_name.to_string(),

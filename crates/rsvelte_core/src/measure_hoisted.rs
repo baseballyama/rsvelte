@@ -65,6 +65,7 @@ fn dummy_node() -> Cow<'static, TemplateNode<'static>> {
 
 /// The lengths at which pushing onto a `Vec` that started at `start_cap`
 /// (re)allocates, measured on the real element type up to `n` pushes.
+#[must_use]
 pub fn growth_steps(start_cap: usize, n: usize) -> Vec<usize> {
     let mut v: Vec<Cow<'static, TemplateNode<'static>>> = Vec::with_capacity(start_cap);
     let mut cap = v.capacity();
@@ -80,6 +81,7 @@ pub fn growth_steps(start_cap: usize, n: usize) -> Vec<usize> {
 }
 
 /// Size of one `hoisted` element, which decides `RawVec`'s minimum capacity.
+#[must_use]
 pub fn element_size() -> usize {
     std::mem::size_of::<Cow<'static, TemplateNode<'static>>>()
 }

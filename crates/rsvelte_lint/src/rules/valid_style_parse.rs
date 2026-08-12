@@ -4,11 +4,11 @@
 //! ## Scope
 //!
 //! Upstream reports two things: an `unknown-lang` status (unsupported `lang`)
-//! and a `parse-error` status (the style preprocessor — PostCSS et al. — failed
+//! and a `parse-error` status (the style preprocessor — `PostCSS` et al. — failed
 //! to parse the CSS). rsvelte ports the **unknown-lang** half faithfully.
 //!
 //! The CSS parse-error half is intentionally not surfaced here because:
-//! - the upstream message embeds PostCSS's own error text and position
+//! - the upstream message embeds `PostCSS`'s own error text and position
 //!   (e.g. `…:4:11: Unknown word .div-class/35`), which rsvelte's hand-written
 //!   CSS parser cannot reproduce byte-for-byte, and
 //! - rsvelte already surfaces an invalid `<style>` as a hard compile error
@@ -52,6 +52,7 @@ const KNOWN_LANGS: &[&str] = &[
 
 /// Scan `source` for `<style>` elements with an unsupported `lang` and report
 /// each at its opening tag. Returns empty when the rule is `Off`.
+#[must_use]
 pub fn valid_style_parse_diagnostics(
     source: &str,
     file: &Path,
@@ -130,7 +131,10 @@ fn style_tags(source: &str) -> Vec<(u32, String)> {
         // Reuse the shared quote-aware attribute scanner.
         let lang =
             crate::svelte_scan::attr_value(&source[i + 6..tag_end], "lang").unwrap_or_default();
-        out.push((i as u32, lang));
+        out.push((
+            u32::try_from(i).expect("source offsets are represented as u32"),
+            lang,
+        ));
         i = tag_end + 1;
     }
     out

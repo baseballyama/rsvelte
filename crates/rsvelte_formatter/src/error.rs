@@ -14,7 +14,7 @@ pub enum FormatError {
 
 impl FormatError {
     pub(crate) fn from_parse<E: Debug>(err: E) -> Self {
-        FormatError::Parse(format!("{err:?}"))
+        Self::Parse(format!("{err:?}"))
     }
 
     /// Whether this error could be resolved by re-parsing as TypeScript.
@@ -28,7 +28,7 @@ impl FormatError {
     /// "span out of bounds" invariants — neither is fixed by forcing TS, so
     /// retrying them would waste a second pass and shadow the real error.
     /// Style/JSON failures are dialect-independent too and never retried.
-    pub(crate) fn is_dialect_sensitive(&self) -> bool {
-        matches!(self, FormatError::ScriptParse(_))
+    pub(crate) const fn is_dialect_sensitive(&self) -> bool {
+        matches!(self, Self::ScriptParse(_))
     }
 }

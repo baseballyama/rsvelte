@@ -30,7 +30,7 @@
 //! KNOWN GAPs:
 //! - `node.metadata.expression.has_await` IIFE wrap + the `create_child_block`
 //!   `$$renderer.async_block` / `$$renderer.child_block` blocker wrapping — needs
-//!   the PromiseOptimiser. The sync, blocker-free path is emitted as a bare
+//!   the `PromiseOptimiser`. The sync, blocker-free path is emitted as a bare
 //!   `$.await(...)` statement.
 //!
 //! Destructuring `node.value` patterns (`{#await … then { a, b }}`, `[a, b]`,
@@ -49,7 +49,7 @@ use super::shared::{
 /// Visit an `{#await expr}...{:then v}...{/await}` block.
 ///
 /// 写经 `AwaitBlock.js`:
-/// - `expression = context.visit(node.expression)` — the AwaitExpression server
+/// - `expression = context.visit(node.expression)` — the `AwaitExpression` server
 ///   visitor rewrites an inline `await x` to `(await $.save(x))()`.
 /// - when `node.metadata.expression.has_await` (an inline await in the
 ///   expression), the visited expression is wrapped in an async IIFE
@@ -63,7 +63,9 @@ use super::shared::{
 pub fn visit_await_block<'a>(node: &AwaitBlock<'a>, state: &mut ServerTransformState<'a>) {
     // Detect the async axes from the expression source against the precomputed
     // instance blocker map (only populated under `experimental.async`).
-    let expr_text = state.expr_source(&node.expression).map(|s| s.to_string());
+    let expr_text = state
+        .expr_source(&node.expression)
+        .map(std::string::ToString::to_string);
     let blocker_indices: Vec<usize> = expr_text
         .as_deref()
         .map(|t| expr_text_blockers(state, t))

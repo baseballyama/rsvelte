@@ -89,7 +89,7 @@ fn run_svelte_files_native(
     files: &[PathBuf],
     options: &FormatOptions,
     mode: Mode,
-) -> Result<PipelineStatus> {
+) -> PipelineStatus {
     let outcomes: Vec<(PathBuf, NativeOutcome)> = files
         .par_iter()
         .map_init(Arenas::new, |arenas, path| {
@@ -146,7 +146,7 @@ fn run_svelte_files_native(
             NativeOutcome::Fallback => status.had_errors = true,
         }
     }
-    Ok(status)
+    status
 }
 
 /// Format every `.svelte` file, batching all their `<style>` bodies into a
@@ -158,7 +158,7 @@ fn run_svelte_files_native(
 /// Instead: pass 1 formats each file in parallel with a *collecting* style
 /// callback that records the CSS and returns a placeholder; one batched
 /// `oxfmt` call formats them all; pass 2 substitutes the results back.
-pub(crate) fn run_svelte_files(
+pub fn run_svelte_files(
     files: &[PathBuf],
     options: &FormatOptions,
     oxfmt: &Path,
@@ -172,7 +172,7 @@ pub(crate) fn run_svelte_files(
     // format each file directly in parallel, skipping the collect/batch/cache/
     // daemon machinery entirely (that exists only to batch `oxfmt` spawns).
     if native_css {
-        return run_svelte_files_native(files, options, mode);
+        return Ok(run_svelte_files_native(files, options, mode));
     }
 
     // ── Pass 1: format in parallel, collecting <style> bodies ──
@@ -294,9 +294,10 @@ fn format_collecting(path: &Path, options: &FormatOptions, arenas: &mut Arenas) 
     let outcome = match format_with_arenas(&source, &opts, arenas) {
         Ok(formatted) => {
             drop(opts); // release the sink Arc so we can unwrap it
-            let styles = Arc::try_unwrap(styles)
-                .map(|m| m.into_inner().expect("style sink poisoned"))
-                .unwrap_or_else(|arc| arc.lock().expect("style sink poisoned").drain(..).collect());
+            let styles = Arc::try_unwrap(styles).map_or_else(
+                |arc| arc.lock().expect("style sink poisoned").drain(..).collect(),
+                |m| m.into_inner().expect("style sink poisoned"),
+            );
             Ok((formatted, styles))
         }
         Err(e) => Err(format!("rsvelte_formatter error: {e}")),
@@ -339,13 +340,12 @@ fn format_styles_cached(
     let mut miss_styles: Vec<Style> = Vec::new();
     let mut miss_slots: Vec<usize> = Vec::new();
     for (i, s) in styles.iter().enumerate() {
-        match cache.get(s.css, s.lang, s.width) {
-            Some(hit) => results.push(Some(hit)),
-            None => {
-                results.push(None);
-                miss_styles.push(*s);
-                miss_slots.push(i);
-            }
+        if let Some(hit) = cache.get(s.css, s.lang, s.width) {
+            results.push(Some(hit));
+        } else {
+            results.push(None);
+            miss_styles.push(*s);
+            miss_slots.push(i);
         }
     }
 
@@ -363,7 +363,10 @@ fn format_styles_cached(
         }
     }
 
-    Ok(results.into_iter().map(|r| r.unwrap_or_default()).collect())
+    Ok(results
+        .into_iter()
+        .map(std::option::Option::unwrap_or_default)
+        .collect())
 }
 
 /// Format a set of `<style>` bodies, grouping by print width so each block wraps

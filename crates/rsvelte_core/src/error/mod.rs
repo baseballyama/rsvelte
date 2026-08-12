@@ -70,7 +70,7 @@ pub enum ParseError {
     #[error("{code}: {message}")]
     #[diagnostic()]
     SvelteError {
-        /// The Svelte error code (e.g., "element_unclosed", "void_element_invalid_content")
+        /// The Svelte error code (e.g., "`element_unclosed`", "`void_element_invalid_content`")
         code: String,
         /// The error message
         message: String,
@@ -92,10 +92,11 @@ impl ParseError {
     /// Create an expected token error.
     ///
     /// Corresponds to `expected_token()` in JavaScript errors.
+    #[must_use]
     pub fn expected_token(expected: &str, position: usize) -> Self {
         ParseError::svelte(
             "expected_token",
-            format!("Expected token {}", expected),
+            format!("Expected token {expected}"),
             (position, position + 1),
         )
     }
@@ -121,6 +122,7 @@ impl ParseError {
     ///
     /// Every variant carries a `span` field (the `#[label]` source range used
     /// by miette); this accessor exposes it without exhaustive matching.
+    #[must_use]
     pub fn span(&self) -> (usize, usize) {
         match self {
             ParseError::UnexpectedEof { span }

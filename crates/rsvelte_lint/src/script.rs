@@ -1,7 +1,7 @@
 //! Script-AST rules: rules that inspect the `<script>` (instance / module)
 //! JavaScript/TypeScript AST rather than the template tree.
 //!
-//! Many eslint-plugin-svelte rules are written as plain ESTree visitors over the
+//! Many eslint-plugin-svelte rules are written as plain `ESTree` visitors over the
 //! script (import checks, rune-call checks, declaration-nesting, etc.). The
 //! rsvelte parser stores each script's program in an arena owned by the parsed
 //! [`Root`](rsvelte_core::ast::template::Root); serializing the program node
@@ -21,6 +21,14 @@ use serde_json::Value;
 use crate::context::LintContext;
 use crate::rule::RuleMeta;
 
+fn json_offset(value: u64) -> Option<u32> {
+    u32::try_from(value).ok()
+}
+
+fn ancestor_depth(value: usize) -> u32 {
+    u32::try_from(value).expect("AST ancestor depth is represented as u32")
+}
+
 /// Which `<script>` block a program came from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScriptKind {
@@ -30,12 +38,12 @@ pub enum ScriptKind {
     Module,
 }
 
-/// A rule that inspects a script's ESTree JSON program.
+/// A rule that inspects a script's `ESTree` JSON program.
 #[allow(unused_variables)]
 pub trait ScriptRule: Send + Sync {
     fn meta(&self) -> &'static RuleMeta;
 
-    /// Called once per script block with the full ESTree program.
+    /// Called once per script block with the full `ESTree` program.
     fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, kind: ScriptKind);
 }
 
@@ -54,13 +62,14 @@ pub struct ProgramView<'a> {
 }
 
 impl<'a> ProgramView<'a> {
+    #[must_use]
     pub fn new(value: &'a Value) -> Self {
         let mut nodes = Vec::new();
         let mut depths = Vec::new();
         let mut stack: Vec<&'a Value> = Vec::new();
         walk_inner(value, &mut stack, &mut |node, ancestors| {
             nodes.push(node);
-            depths.push(ancestors.len() as u32);
+            depths.push(ancestor_depth(ancestors.len()));
         });
         Self {
             value,
@@ -70,7 +79,8 @@ impl<'a> ProgramView<'a> {
     }
 
     /// The underlying program value.
-    pub fn value(&self) -> &'a Value {
+    #[must_use]
+    pub const fn value(&self) -> &'a Value {
         self.value
     }
 
@@ -93,7 +103,9 @@ impl std::ops::Deref for ProgramView<'_> {
     }
 }
 
-/// Depth-first walk over an ESTree JSON tree. `f` is called for every node (an
+/// Walk an `ESTree` JSON tree depth-first.
+///
+/// Depth-first walk over an `ESTree` JSON tree. `f` is called for every node (an
 /// object with a string `"type"` field) with its ancestor stack, nearest parent
 /// last (empty for the root). The `loc` subtree is skipped (it has no nodes).
 pub fn walk_js<'a, F: FnMut(&'a Value, &[&'a Value])>(node: &'a Value, mut f: F) {
@@ -139,19 +151,23 @@ fn walk_inner<'a, F: FnMut(&'a Value, &[&'a Value])>(
     }
 }
 
-/// Convenience accessors for ESTree JSON nodes.
+/// Convenience accessors for `ESTree` JSON nodes.
 pub fn node_type(node: &Value) -> Option<&str> {
     node.get("type").and_then(Value::as_str)
 }
 
-/// The `start` byte offset of an ESTree node (absolute in the source).
+/// The `start` byte offset of an `ESTree` node (absolute in the source).
 pub fn node_start(node: &Value) -> Option<u32> {
-    node.get("start").and_then(Value::as_u64).map(|n| n as u32)
+    node.get("start")
+        .and_then(Value::as_u64)
+        .and_then(json_offset)
 }
 
-/// The `end` byte offset of an ESTree node (absolute in the source).
+/// The `end` byte offset of an `ESTree` node (absolute in the source).
 pub fn node_end(node: &Value) -> Option<u32> {
-    node.get("end").and_then(Value::as_u64).map(|n| n as u32)
+    node.get("end")
+        .and_then(Value::as_u64)
+        .and_then(json_offset)
 }
 
 #[cfg(test)]

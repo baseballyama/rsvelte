@@ -44,6 +44,7 @@ eslint-import = [
 rsvelte_core = { path = "../rsvelte_core", default-features = false }
 rsvelte_diagnostics = { path = "../rsvelte_diagnostics" }
 anyhow = "1.0"
+bytecount = "0.6"
 compact_str = { version = "0.10", features = ["serde"] }
 # Minimal regex feature set (see rsvelte_core's regex dep) — only `(?i)`/`\w \s`
 # are used here, so the large Unicode tables are dropped.

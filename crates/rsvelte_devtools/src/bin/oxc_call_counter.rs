@@ -54,8 +54,8 @@ fn main() {
         }
     }
 
-    println!("Files with <script>: {}", scripts_count);
-    println!("Template expressions: {}", total_template_exprs);
+    println!("Files with <script>: {scripts_count}");
+    println!("Template expressions: {total_template_exprs}");
     println!(
         "Avg expressions/file: {:.1}",
         total_template_exprs as f64 / files.len() as f64

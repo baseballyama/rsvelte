@@ -2,7 +2,7 @@
 //! from a single source file without standing the whole corpus harness back up.
 //!
 //! Usage:
-//!   cargo run -p rsvelte_devtools --bin compile_one -- <file.svelte> [--server] [--dev]
+//!   cargo run -p `rsvelte_devtools` --bin `compile_one` -- <file.svelte> [--server] [--dev]
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 

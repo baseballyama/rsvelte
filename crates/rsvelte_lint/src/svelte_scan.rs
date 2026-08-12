@@ -1,9 +1,11 @@
+//! Shared source-scan helpers.
+//!
 //! Small source-scan helpers shared by the cross-cutting (template + script)
 //! legacy meta-rules (`experimental-require-slot-types`,
 //! `experimental-require-strict-events`, `require-event-dispatcher-types`).
 //!
 //! These rules each need facts that straddle the template and the `<script>`
-//! ESTree (e.g. "is the script TS *and* does it declare a `$$Slots` interface"),
+//! `ESTree` (e.g. "is the script TS *and* does it declare a `$$Slots` interface"),
 //! which neither the per-node template [`Rule`](crate::rule::Rule) nor the
 //! [`ScriptRule`](crate::script::ScriptRule) trait can see together. A focused
 //! source scan over the `<script>` region keeps them simple and dependency-free.
@@ -66,8 +68,7 @@ pub(crate) fn script_blocks(source: &str) -> Vec<ScriptBlock> {
         let content_start = gt + 1;
         let content_end = source[content_start..]
             .find("</script>")
-            .map(|rel| content_start + rel)
-            .unwrap_or(source.len());
+            .map_or(source.len(), |rel| content_start + rel);
         out.push(ScriptBlock {
             tag_start: i,
             content_start,
@@ -144,12 +145,10 @@ pub(crate) fn has_attr(open_tag_attrs: &str, name: &str) -> bool {
 
 /// Whether an opening-tag attribute string declares `lang="ts"`/`"typescript"`.
 pub(crate) fn open_tag_is_ts(open_tag_attrs: &str) -> bool {
-    attr_value(open_tag_attrs, "lang")
-        .map(|l| {
-            let l = l.to_ascii_lowercase();
-            l == "ts" || l == "typescript"
-        })
-        .unwrap_or(false)
+    attr_value(open_tag_attrs, "lang").is_some_and(|l| {
+        let l = l.to_ascii_lowercase();
+        l == "ts" || l == "typescript"
+    })
 }
 
 /// Whether any `<script>` block declares `lang="ts"` / `lang="typescript"`.

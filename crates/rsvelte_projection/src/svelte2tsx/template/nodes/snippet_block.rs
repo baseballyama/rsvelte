@@ -23,7 +23,7 @@ use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_express
 /// early-`continue` guards. Component / boundary containers are excluded by
 /// their callers (they treat snippets as implicit props instead), so this is
 /// only invoked for block and plain-element fragments.
-pub(crate) fn hoist_snippet_blocks(fragment: &Fragment, source: &str, str: &mut MagicString<'_>) {
+pub fn hoist_snippet_blocks(fragment: &Fragment, source: &str, str: &mut MagicString<'_>) {
     let mut target_position: Option<u32> = None;
     for node in &fragment.nodes {
         if !matches!(node, TemplateNode::SnippetBlock(_)) {
@@ -31,8 +31,7 @@ pub(crate) fn hoist_snippet_blocks(fragment: &Fragment, source: &str, str: &mut 
                 let is_empty_text = match node {
                     TemplateNode::Text(t) => source
                         .get(t.start as usize..t.end as usize)
-                        .map(|s| s.trim().is_empty())
-                        .unwrap_or(true),
+                        .is_none_or(|s| s.trim().is_empty()),
                     _ => false,
                 };
                 if !is_empty_text {
@@ -67,7 +66,7 @@ pub(crate) fn hoist_snippet_blocks(fragment: &Fragment, source: &str, str: &mut 
 ///   ...
 /// };return __sveltets_2_any(0)};
 /// ```
-pub(crate) fn handle_snippet_block(
+pub fn handle_snippet_block(
     block: &SnippetBlock,
     source: &str,
     options: &Svelte2TsxOptions,
@@ -87,7 +86,7 @@ pub(crate) fn handle_snippet_block(
 /// upstream svelte2tsx `addImplicitSnippetProp`, and lets TypeScript
 /// contextually type the snippet's parameters from the prop's `Snippet<[T]>`
 /// type while satisfying required snippet props (#780).
-pub(crate) fn handle_snippet_block_as_component_prop(
+pub fn handle_snippet_block_as_component_prop(
     block: &SnippetBlock,
     source: &str,
     options: &Svelte2TsxOptions,
@@ -122,7 +121,7 @@ fn opener_pad(block: &SnippetBlock, source: &str) -> &'static str {
     if close - kept_end >= 2 { "  " } else { " " }
 }
 
-pub(crate) fn handle_snippet_block_inner(
+pub fn handle_snippet_block_inner(
     block: &SnippetBlock,
     source: &str,
     options: &Svelte2TsxOptions,
@@ -140,15 +139,15 @@ pub(crate) fn handle_snippet_block_inner(
     let name_text = get_expression_text(&block.expression, source);
 
     // Build parameters string
-    let params_text = if !block.parameters.is_empty() {
+    let params_text = if block.parameters.is_empty() {
+        String::new()
+    } else {
         block
             .parameters
             .iter()
             .map(|p| get_expression_text(p, source))
             .collect::<Vec<_>>()
             .join(", ")
-    } else {
-        String::new()
     };
 
     let has_body_nodes = !block.body.nodes.is_empty();
@@ -170,7 +169,7 @@ pub(crate) fn handle_snippet_block_inner(
     //   before the `(params)` arrow, no generic-params syntax
     let use_ts_syntax = options.is_ts_file || !options.emit_jsdoc;
     let type_params_str = match (use_ts_syntax, block.type_params.as_ref()) {
-        (true, Some(tp)) => format!("<{}>", tp),
+        (true, Some(tp)) => format!("<{tp}>"),
         _ => String::new(),
     };
     // Implicit-prop form (`name:(params) => …`) vs standalone declaration
@@ -180,8 +179,7 @@ pub(crate) fn handle_snippet_block_inner(
     // with a trailing `,` so it slots into the component `props` object literal.
     let header = if as_component_prop {
         format!(
-            "{}:({}) => {{ async ()/*\u{03A9}ignore_position\u{03A9}*/ => {{",
-            name_text, params_text
+            "{name_text}:({params_text}) => {{ async ()/*\u{03A9}ignore_position\u{03A9}*/ => {{"
         )
     } else if use_ts_syntax {
         format!(
@@ -228,7 +226,7 @@ pub(crate) fn handle_snippet_block_inner(
         // `};return __sveltets_2_any(0)};` was never emitted because both the
         // body-start overwrite and the would-be closing overwrite landed at
         // the same offset.
-        let combined = format!("{}{}", header, closing);
+        let combined = format!("{header}{closing}");
         str.overwrite(block.start, block.end, &combined);
     }
 }

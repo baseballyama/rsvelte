@@ -20,6 +20,7 @@ use crate::indent_folding::{LineRange, body_lines, indent_folding};
 use crate::nodes::{Top, parse_root, top_level, view};
 use crate::text::LineIndex;
 
+#[must_use]
 pub fn folding_ranges(text: &str, line_folding_only: bool) -> Vec<FoldingRange> {
     let index = LineIndex::new(text);
     let allocator = Allocator::default();

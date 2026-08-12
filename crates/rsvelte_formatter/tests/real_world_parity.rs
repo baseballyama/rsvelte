@@ -24,7 +24,7 @@ fn assert_parity(source: &str, expected: &str) {
 
 #[test]
 fn adjacent_content_expression_accounts_for_previous_sibling_width() {
-    let source = r#"<section>
+    let source = r"<section>
   <div>
     <div>
       <div>
@@ -41,8 +41,8 @@ fn adjacent_content_expression_accounts_for_previous_sibling_width() {
     </div>
   </div>
 </section>
-"#;
-    let expected = r#"<section>
+";
+    let expected = r"<section>
   <div>
     <div>
       <div>
@@ -60,13 +60,13 @@ fn adjacent_content_expression_accounts_for_previous_sibling_width() {
     </div>
   </div>
 </section>
-"#;
+";
     assert_parity(source, expected);
 }
 
 #[test]
 fn attach_attribute_accounts_for_directive_prefix() {
-    let source = r#"<section>
+    let source = r"<section>
   <div>
     <button
       popovertarget={popoverTarget}
@@ -78,8 +78,8 @@ fn attach_attribute_accounts_for_directive_prefix() {
     </button>
   </div>
 </section>
-"#;
-    let expected = r#"<section>
+";
+    let expected = r"<section>
   <div>
     <button
       popovertarget={popoverTarget}
@@ -92,26 +92,26 @@ fn attach_attribute_accounts_for_directive_prefix() {
     </button>
   </div>
 </section>
-"#;
+";
     assert_parity(source, expected);
 }
 
 #[test]
 fn optional_chain_attribute_breaks_at_oracle_boundary() {
-    let source = r#"<section>
+    let source = r"<section>
   <Report
     selectedCategories={dashboardFilter?.getDrillDownQuery(reportData.reportId)?.selectedCategories ??
       []}
   />
 </section>
-"#;
-    let expected = r#"<section>
+";
+    let expected = r"<section>
   <Report
     selectedCategories={dashboardFilter?.getDrillDownQuery(reportData.reportId)
       ?.selectedCategories ?? []}
   />
 </section>
-"#;
+";
     assert_parity(source, expected);
 }
 
@@ -139,7 +139,7 @@ fn each_header_keeps_fitting_member_chain_inline() {
 
 #[test]
 fn each_call_chain_accounts_for_full_header_width() {
-    let source = r#"<section>
+    let source = r"<section>
   <div>
     <div>
       <div>
@@ -160,8 +160,8 @@ fn each_call_chain_accounts_for_full_header_width() {
     </div>
   </div>
 </section>
-"#;
-    let expected = r#"<section>
+";
+    let expected = r"<section>
   <div>
     <div>
       <div>
@@ -184,13 +184,13 @@ fn each_call_chain_accounts_for_full_header_width() {
     </div>
   </div>
 </section>
-"#;
+";
     assert_parity(source, expected);
 }
 
 #[test]
 fn each_expanded_call_accounts_for_full_header_width() {
-    let source = r#"<section>
+    let source = r"<section>
   <div>
     <div>
       <div>
@@ -209,8 +209,8 @@ fn each_expanded_call_accounts_for_full_header_width() {
     </div>
   </div>
 </section>
-"#;
-    let expected = r#"<section>
+";
+    let expected = r"<section>
   <div>
     <div>
       <div>
@@ -229,7 +229,7 @@ fn each_expanded_call_accounts_for_full_header_width() {
     </div>
   </div>
 </section>
-"#;
+";
     assert_parity(source, expected);
 }
 
@@ -381,7 +381,7 @@ fn arrow_attribute_body_uses_rendered_column_width() {
 
 #[test]
 fn deep_attribute_chain_breaks_call_before_optional_member() {
-    let source = r#"<section>
+    let source = r"<section>
   <div>
     <div>
       <div>
@@ -404,8 +404,8 @@ fn deep_attribute_chain_breaks_call_before_optional_member() {
     </div>
   </div>
 </section>
-"#;
-    let expected = r#"<section>
+";
+    let expected = r"<section>
   <div>
     <div>
       <div>
@@ -430,7 +430,7 @@ fn deep_attribute_chain_breaks_call_before_optional_member() {
     </div>
   </div>
 </section>
-"#;
+";
     assert_parity(source, expected);
 }
 

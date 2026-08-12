@@ -36,7 +36,7 @@ fn get_bidirectional_regex() -> &'static Regex {
     })
 }
 
-/// Visit a literal value (typed JsNode path).
+/// Visit a literal value (typed `JsNode` path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     if let JsNode::Literal {
         value, start, end, ..

@@ -1,3 +1,5 @@
+//! `svelte/no-top-level-browser-globals`.
+//!
 //! `svelte/no-top-level-browser-globals` — disallow using browser global
 //! variables (`window`, `document`, `location`, `localStorage`, …) at the
 //! top level of a `<script>` / `*.svelte.[js|ts]` module, where the code also
@@ -6,14 +8,14 @@
 //! ## Scope of this port
 //!
 //! This rule has two check paths:
-//! - `ScriptRule::check_program` — checks `<script>` blocks via the ESTree program.
+//! - `ScriptRule::check_program` — checks `<script>` blocks via the `ESTree` program.
 //! - `Rule::check_root` — checks template `{expr}` tags, respecting `{#if browser}`
 //!   / `{#if !browser}` guards.
 //!
 //! ## Algorithm (faithful to upstream)
 //!
 //! Upstream resolves real scopes via `ReferenceTracker`; we approximate by
-//! walking the ESTree JSON:
+//! walking the `ESTree` JSON:
 //!
 //! 1. Collect *guards* — expressions that prove the browser environment is
 //!    available for a sub-region of the program:
@@ -106,15 +108,15 @@ enum Region {
     /// Only the exact node at `start` is available (optional-chain self guard).
     Just(u32),
     /// Union of two regions (logical `&&` left guard + parent guard).
-    Or(Box<Region>, Box<Region>),
+    Or(Box<Self>, Box<Self>),
 }
 
 impl Region {
     fn covers(&self, start: u32, end: u32) -> bool {
         match self {
-            Region::Range(s, e) => *s <= start && end <= *e,
-            Region::Just(s) => *s == start,
-            Region::Or(a, b) => a.covers(start, end) || b.covers(start, end),
+            Self::Range(s, e) => *s <= start && end <= *e,
+            Self::Just(s) => *s == start,
+            Self::Or(a, b) => a.covers(start, end) || b.covers(start, end),
         }
     }
 }
@@ -196,9 +198,7 @@ fn in_function(ancestors: &[&Value]) -> bool {
     ancestors.iter().any(|n| {
         matches!(
             node_type(n),
-            Some("FunctionDeclaration")
-                | Some("FunctionExpression")
-                | Some("ArrowFunctionExpression")
+            Some("FunctionDeclaration" | "FunctionExpression" | "ArrowFunctionExpression")
         )
     })
 }
@@ -227,7 +227,7 @@ fn in_type_annotation(ancestors: &[&Value]) -> bool {
 /// (`return`/`continue`/`break`). Mirrors upstream's `hasJumpStatementInAllPath`.
 fn has_jump_in_all_paths(stmt: &Value) -> bool {
     match node_type(stmt) {
-        Some("ReturnStatement") | Some("ContinueStatement") | Some("BreakStatement") => true,
+        Some("ReturnStatement" | "ContinueStatement" | "BreakStatement") => true,
         Some("BlockStatement") => stmt
             .get("body")
             .and_then(Value::as_array)
@@ -247,8 +247,8 @@ fn has_jump_in_all_paths(stmt: &Value) -> bool {
 
 fn range(node: &Value) -> Option<(u32, u32)> {
     Some((
-        node.get("start").and_then(Value::as_u64)? as u32,
-        node.get("end").and_then(Value::as_u64)? as u32,
+        u32::try_from(node.get("start").and_then(Value::as_u64)?).ok()?,
+        u32::try_from(node.get("end").and_then(Value::as_u64)?).ok()?,
     ))
 }
 
@@ -257,7 +257,7 @@ fn region_of(node: &Value) -> Option<Region> {
     Some(Region::Range(s, e))
 }
 
-/// Pointer-identity comparison of two ESTree node references (they come from
+/// Pointer-identity comparison of two `ESTree` node references (they come from
 /// the same arena, so identity is reliable).
 fn same(a: &Value, b: &Value) -> bool {
     std::ptr::eq(a, b)
@@ -312,7 +312,7 @@ fn get_guard_checker(path: &[&Value], not: bool) -> Option<Region> {
                 return None;
             }
             let pp = path[path.len() - 3];
-            if !matches!(node_type(pp), Some("BlockStatement") | Some("Program")) {
+            if !matches!(node_type(pp), Some("BlockStatement" | "Program")) {
                 return None;
             }
             let start = range(parent)?.1;
@@ -478,11 +478,10 @@ fn is_import_meta_env_ssr(node: &Value, source: &str) -> bool {
     };
     range(meta)
         .and_then(|(s, e)| source.get(s as usize..e as usize))
-        .map(|slice| slice == "import.meta")
-        .unwrap_or(false)
+        .is_some_and(|slice| slice == "import.meta")
 }
 
-/// Scan an ESTree `program` for `import { browser } from "$app/environment"` /
+/// Scan an `ESTree` `program` for `import { browser } from "$app/environment"` /
 /// `import * as env from "esm-env"` declarations and collect the local names.
 ///
 /// - `browser_locals`: local names bound to `browser`/`BROWSER` (e.g. `browser`,
@@ -502,7 +501,7 @@ fn collect_browser_checker_imports(
             .get("source")
             .and_then(|s| s.get("value"))
             .and_then(Value::as_str);
-        let is_env_module = matches!(source_val, Some("$app/environment") | Some("esm-env"));
+        let is_env_module = matches!(source_val, Some("$app/environment" | "esm-env"));
         if !is_env_module {
             return;
         }
@@ -517,7 +516,7 @@ fn collect_browser_checker_imports(
                             .and_then(|i| i.get("value"))
                             .and_then(Value::as_str)
                     });
-                    if matches!(imported, Some("browser") | Some("BROWSER"))
+                    if matches!(imported, Some("browser" | "BROWSER"))
                         && let Some(local) = spec.get("local").and_then(ident_name)
                     {
                         browser_locals.push(local.to_string());
@@ -550,64 +549,7 @@ impl ScriptRule for NoTopLevelBrowserGlobals {
         let mut env_namespaces: Vec<String> = Vec::new();
         collect_browser_checker_imports(program, &mut browser_locals, &mut env_namespaces);
 
-        let mut guards: Vec<Guard> = Vec::new();
-
-        // --- 2. import.meta.env.SSR guards (inverted: SSR true == server). ---
-        walk_js(program, |node, ancestors| {
-            if !is_import_meta_env_ssr(node, source) || in_function(ancestors) {
-                return;
-            }
-            let mut path: Vec<&Value> = ancestors.to_vec();
-            path.push(node);
-            if let Some(region) = get_guard_checker(&path, true) {
-                guards.push(Guard {
-                    region,
-                    browser_environment: true,
-                    name: None,
-                });
-            }
-        });
-
-        // --- 3. esm-env / $app/environment browser-read guards. ---
-        if !browser_locals.is_empty() || !env_namespaces.is_empty() {
-            walk_js(program, |node, ancestors| {
-                if in_function(ancestors) {
-                    return;
-                }
-                let is_browser_ref = match node_type(node) {
-                    Some("Identifier") => {
-                        let name = node.get("name").and_then(Value::as_str);
-                        // A bare read of an imported `browser`/`BROWSER` local,
-                        // not itself a member property or import binding.
-                        name.is_some_and(|n| browser_locals.iter().any(|l| l == n))
-                            && is_value_reference(node, ancestors)
-                            && !is_member_property(node, ancestors)
-                    }
-                    Some("MemberExpression") => {
-                        // `env.browser` / `env.BROWSER` namespace access.
-                        let obj_is_ns = node
-                            .get("object")
-                            .and_then(ident_name)
-                            .is_some_and(|o| env_namespaces.iter().any(|n| n == o));
-                        let prop = member_prop_name(node);
-                        obj_is_ns && matches!(prop, Some("browser") | Some("BROWSER"))
-                    }
-                    _ => false,
-                };
-                if !is_browser_ref {
-                    return;
-                }
-                let mut path: Vec<&Value> = ancestors.to_vec();
-                path.push(node);
-                if let Some(region) = get_guard_checker(&path, false) {
-                    guards.push(Guard {
-                        region,
-                        browser_environment: true,
-                        name: None,
-                    });
-                }
-            });
-        }
+        let mut guards = collect_browser_guards(program, source, &browser_locals, &env_namespaces);
 
         // --- 4. Collect browser-global references. ---
         // Each is either a bare global identifier or `globalThis.<global>`.
@@ -691,6 +633,75 @@ impl ScriptRule for NoTopLevelBrowserGlobals {
     }
 }
 
+fn collect_browser_guards(
+    program: &ProgramView<'_>,
+    source: &str,
+    browser_locals: &[String],
+    env_namespaces: &[String],
+) -> Vec<Guard> {
+    let mut guards = Vec::new();
+    walk_js(program, |node, ancestors| {
+        if !is_import_meta_env_ssr(node, source) || in_function(ancestors) {
+            return;
+        }
+        let mut path: Vec<&Value> = ancestors.to_vec();
+        path.push(node);
+        if let Some(region) = get_guard_checker(&path, true) {
+            guards.push(Guard {
+                region,
+                browser_environment: true,
+                name: None,
+            });
+        }
+    });
+    if browser_locals.is_empty() && env_namespaces.is_empty() {
+        return guards;
+    }
+    walk_js(program, |node, ancestors| {
+        if in_function(ancestors)
+            || !is_browser_checker_reference(node, ancestors, browser_locals, env_namespaces)
+        {
+            return;
+        }
+        let mut path: Vec<&Value> = ancestors.to_vec();
+        path.push(node);
+        if let Some(region) = get_guard_checker(&path, false) {
+            guards.push(Guard {
+                region,
+                browser_environment: true,
+                name: None,
+            });
+        }
+    });
+    guards
+}
+
+fn is_browser_checker_reference(
+    node: &Value,
+    ancestors: &[&Value],
+    browser_locals: &[String],
+    env_namespaces: &[String],
+) -> bool {
+    match node_type(node) {
+        Some("Identifier") => node
+            .get("name")
+            .and_then(Value::as_str)
+            .is_some_and(|name| {
+                browser_locals.iter().any(|local| local == name)
+                    && is_value_reference(node, ancestors)
+                    && !is_member_property(node, ancestors)
+            }),
+        Some("MemberExpression") => node
+            .get("object")
+            .and_then(ident_name)
+            .is_some_and(|object| {
+                env_namespaces.iter().any(|namespace| namespace == object)
+                    && matches!(member_prop_name(node), Some("browser" | "BROWSER"))
+            }),
+        _ => false,
+    }
+}
+
 /// Whether a reference at `[start, end)` named `name` is covered by a guard.
 /// Mirrors upstream `isAvailableLocation` (reverse iteration order).
 fn is_available(guards: &[Guard], start: u32, end: u32, name: &str) -> bool {
@@ -713,23 +724,30 @@ fn is_value_reference(node: &Value, ancestors: &[&Value]) -> bool {
     };
     match node_type(parent) {
         // Declaration ids and binding positions.
-        Some("VariableDeclarator") => !parent.get("id").is_some_and(|i| same(i, node)),
-        Some("FunctionDeclaration")
-        | Some("FunctionExpression")
-        | Some("ClassDeclaration")
-        | Some("ClassExpression") => !parent.get("id").is_some_and(|i| same(i, node)),
+        Some(
+            "VariableDeclarator"
+            | "FunctionDeclaration"
+            | "FunctionExpression"
+            | "ClassDeclaration"
+            | "ClassExpression",
+        ) => !parent
+            .get("id")
+            .is_some_and(|identifier| same(identifier, node)),
         // Import/export bindings.
-        Some("ImportSpecifier")
-        | Some("ImportDefaultSpecifier")
-        | Some("ImportNamespaceSpecifier")
-        | Some("ExportSpecifier") => false,
+        Some(
+            "ImportSpecifier"
+            | "ImportDefaultSpecifier"
+            | "ImportNamespaceSpecifier"
+            | "ExportSpecifier"
+            | "LabeledStatement"
+            | "BreakStatement"
+            | "ContinueStatement",
+        ) => false,
         // Object/class property keys (non-computed).
-        Some("Property") | Some("PropertyDefinition") | Some("MethodDefinition") => {
+        Some("Property" | "PropertyDefinition" | "MethodDefinition") => {
             !(parent.get("key").is_some_and(|k| same(k, node))
                 && parent.get("computed").and_then(Value::as_bool) != Some(true))
         }
-        // Labels.
-        Some("LabeledStatement") | Some("BreakStatement") | Some("ContinueStatement") => false,
         // Member property handled separately by the caller.
         _ => true,
     }
@@ -739,7 +757,7 @@ fn is_value_reference(node: &Value, ancestors: &[&Value]) -> bool {
 // Template rule implementation
 // ---------------------------------------------------------------------------
 
-/// Whether `expr_json` (an ESTree Identifier node) is a bare read of one of
+/// Whether `expr_json` (an `ESTree` Identifier node) is a bare read of one of
 /// the browser-local names (not a declaration, member property, etc.).
 fn is_bare_browser_ref(
     node: &Value,
@@ -749,9 +767,8 @@ fn is_bare_browser_ref(
 ) -> bool {
     match node_type(node) {
         Some("Identifier") => {
-            let name = match node.get("name").and_then(Value::as_str) {
-                Some(n) => n,
-                None => return false,
+            let Some(name) = node.get("name").and_then(Value::as_str) else {
+                return false;
             };
             browser_locals.iter().any(|l| l == name)
                 && is_value_reference(node, ancestors)
@@ -764,7 +781,7 @@ fn is_bare_browser_ref(
                 .and_then(ident_name)
                 .is_some_and(|o| env_namespaces.iter().any(|n| n == o));
             let prop = member_prop_name(node);
-            obj_is_ns && matches!(prop, Some("browser") | Some("BROWSER"))
+            obj_is_ns && matches!(prop, Some("browser" | "BROWSER"))
         }
         _ => false,
     }
@@ -857,9 +874,8 @@ fn check_expr_for_browser_globals(expr_json: &Value, ctx: &mut LintContext) {
     walk_js(expr_json, |node, ancestors| {
         let name = match node_type(node) {
             Some("Identifier") => {
-                let n = match node.get("name").and_then(Value::as_str) {
-                    Some(n) => n,
-                    None => return,
+                let Some(n) = node.get("name").and_then(Value::as_str) else {
+                    return;
                 };
                 if !is_browser_global(n) {
                     return;
@@ -911,6 +927,22 @@ fn walk_fragment_for_browser_globals(
     }
 }
 
+fn walk_child_fragment_for_browser_globals(
+    fragment: &Fragment,
+    client_guaranteed: bool,
+    browser_locals: &[String],
+    env_namespaces: &[String],
+    ctx: &mut LintContext,
+) {
+    walk_fragment_for_browser_globals(
+        fragment,
+        client_guaranteed,
+        browser_locals,
+        env_namespaces,
+        ctx,
+    );
+}
+
 fn walk_template_node_for_browser_globals(
     node: &TemplateNode,
     client_guaranteed: bool,
@@ -919,27 +951,13 @@ fn walk_template_node_for_browser_globals(
     ctx: &mut LintContext,
 ) {
     match node {
-        TemplateNode::IfBlock(b) => {
-            let test_json = b.test.as_json();
-            let (consequent_guaranteed, alternate_guaranteed) =
-                classify_if_test(test_json, client_guaranteed, browser_locals, env_namespaces);
-            walk_fragment_for_browser_globals(
-                &b.consequent,
-                consequent_guaranteed,
-                browser_locals,
-                env_namespaces,
-                ctx,
-            );
-            if let Some(alt) = &b.alternate {
-                walk_fragment_for_browser_globals(
-                    alt,
-                    alternate_guaranteed,
-                    browser_locals,
-                    env_namespaces,
-                    ctx,
-                );
-            }
-        }
+        TemplateNode::IfBlock(block) => walk_if_block_for_browser_globals(
+            block,
+            client_guaranteed,
+            browser_locals,
+            env_namespaces,
+            ctx,
+        ),
         TemplateNode::ExpressionTag(tag) if !client_guaranteed => {
             let expr_json = tag.expression.as_json();
             check_expr_for_browser_globals(expr_json, ctx);
@@ -962,38 +980,20 @@ fn walk_template_node_for_browser_globals(
                 ctx,
             );
         }
-        TemplateNode::EachBlock(b) => {
-            walk_fragment_for_browser_globals(
-                &b.body,
-                client_guaranteed,
-                browser_locals,
-                env_namespaces,
-                ctx,
-            );
-            if let Some(fb) = &b.fallback {
-                walk_fragment_for_browser_globals(
-                    fb,
-                    client_guaranteed,
-                    browser_locals,
-                    env_namespaces,
-                    ctx,
-                );
-            }
-        }
-        TemplateNode::AwaitBlock(b) => {
-            for frag in [b.pending.as_ref(), b.then.as_ref(), b.catch.as_ref()]
-                .into_iter()
-                .flatten()
-            {
-                walk_fragment_for_browser_globals(
-                    frag,
-                    client_guaranteed,
-                    browser_locals,
-                    env_namespaces,
-                    ctx,
-                );
-            }
-        }
+        TemplateNode::EachBlock(block) => walk_each_block_for_browser_globals(
+            block,
+            client_guaranteed,
+            browser_locals,
+            env_namespaces,
+            ctx,
+        ),
+        TemplateNode::AwaitBlock(block) => walk_await_block_for_browser_globals(
+            block,
+            client_guaranteed,
+            browser_locals,
+            env_namespaces,
+            ctx,
+        ),
         TemplateNode::KeyBlock(b) => {
             walk_fragment_for_browser_globals(
                 &b.fragment,
@@ -1002,11 +1002,6 @@ fn walk_template_node_for_browser_globals(
                 env_namespaces,
                 ctx,
             );
-        }
-        TemplateNode::SnippetBlock(_) => {
-            // Snippets can be called from any context (client or server), so
-            // browser globals inside them cannot be reliably flagged. Skip them
-            // entirely — mirrors the `valid/in-template02` fixture behaviour.
         }
         TemplateNode::SvelteHead(el)
         | TemplateNode::SvelteBody(el)
@@ -1034,7 +1029,7 @@ fn walk_template_node_for_browser_globals(
             );
         }
         TemplateNode::SvelteElement(e) => {
-            walk_fragment_for_browser_globals(
+            walk_child_fragment_for_browser_globals(
                 &e.fragment,
                 client_guaranteed,
                 browser_locals,
@@ -1043,7 +1038,7 @@ fn walk_template_node_for_browser_globals(
             );
         }
         TemplateNode::TitleElement(t) => {
-            walk_fragment_for_browser_globals(
+            walk_child_fragment_for_browser_globals(
                 &t.fragment,
                 client_guaranteed,
                 browser_locals,
@@ -1051,7 +1046,90 @@ fn walk_template_node_for_browser_globals(
                 ctx,
             );
         }
+        // Snippets can be called from any context (client or server), so browser
+        // globals inside them cannot be reliably flagged; skip them.
         _ => {}
+    }
+}
+
+fn walk_each_block_for_browser_globals(
+    block: &rsvelte_core::ast::template::EachBlock,
+    client_guaranteed: bool,
+    browser_locals: &[String],
+    env_namespaces: &[String],
+    ctx: &mut LintContext,
+) {
+    walk_fragment_for_browser_globals(
+        &block.body,
+        client_guaranteed,
+        browser_locals,
+        env_namespaces,
+        ctx,
+    );
+    if let Some(fallback) = &block.fallback {
+        walk_fragment_for_browser_globals(
+            fallback,
+            client_guaranteed,
+            browser_locals,
+            env_namespaces,
+            ctx,
+        );
+    }
+}
+
+fn walk_await_block_for_browser_globals(
+    block: &rsvelte_core::ast::template::AwaitBlock,
+    client_guaranteed: bool,
+    browser_locals: &[String],
+    env_namespaces: &[String],
+    ctx: &mut LintContext,
+) {
+    for fragment in [
+        block.pending.as_ref(),
+        block.then.as_ref(),
+        block.catch.as_ref(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        walk_fragment_for_browser_globals(
+            fragment,
+            client_guaranteed,
+            browser_locals,
+            env_namespaces,
+            ctx,
+        );
+    }
+}
+
+fn walk_if_block_for_browser_globals(
+    block: &rsvelte_core::ast::template::IfBlock,
+    client_guaranteed: bool,
+    browser_locals: &[String],
+    env_namespaces: &[String],
+    ctx: &mut LintContext,
+) {
+    let (consequent_guaranteed, alternate_guaranteed) = classify_if_test(
+        block.test.as_json(),
+        client_guaranteed,
+        browser_locals,
+        env_namespaces,
+    );
+    walk_fragment_for_browser_globals(
+        &block.consequent,
+        consequent_guaranteed,
+        browser_locals,
+        env_namespaces,
+        ctx,
+    );
+    if let Some(alternate) = &block.alternate {
+        walk_fragment_for_browser_globals(
+            alternate,
+            alternate_guaranteed,
+            browser_locals,
+            env_namespaces,
+            ctx,
+        );
     }
 }
 

@@ -1,3 +1,5 @@
+//! Known CSS property data.
+//!
 //! The complete CSS property name list from the `known-css-properties` npm
 //! package (v0.37.0, the version eslint-plugin-svelte depends on), used by
 //! `no-unknown-style-directive-property` to recognise valid CSS properties.

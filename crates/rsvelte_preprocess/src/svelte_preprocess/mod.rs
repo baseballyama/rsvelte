@@ -45,7 +45,7 @@ fn get_lang(attributes: &Map<String, AttributeValue>) -> Option<String> {
     Some(alias_of(&raw))
 }
 
-/// Subset of svelte-preprocess's ALIAS_MAP relevant to the native transforms.
+/// Subset of svelte-preprocess's `ALIAS_MAP` relevant to the native transforms.
 fn alias_of(alias: &str) -> String {
     match alias {
         "pcss" | "postcss" | "sugarss" | "sss" => "css",
@@ -72,9 +72,10 @@ fn lang_is_indented(attributes: &Map<String, AttributeValue>) -> bool {
 }
 
 /// Build the `svelte-preprocess` auto-preprocessor [`PreprocessorGroup`].
+#[must_use]
 pub fn svelte_preprocess(options: AutoOptions) -> PreprocessorGroup {
     let markup_opts = options.clone();
-    let style_opts = options.clone();
+    let style_opts = options;
 
     PreprocessorGroup {
         name: Some("svelte-preprocess".to_string()),

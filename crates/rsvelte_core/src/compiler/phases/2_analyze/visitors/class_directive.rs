@@ -1,4 +1,4 @@
-//! ClassDirective visitor.
+//! `ClassDirective` visitor.
 //!
 //! Analyzes class: directives.
 //!
@@ -12,7 +12,7 @@ use crate::compiler::phases::phase2_analyze::AnalysisError;
 
 /// Visit a class directive.
 ///
-/// Corresponds to ClassDirective() in Svelte's `2-analyze/visitors/ClassDirective.js`.
+/// Corresponds to `ClassDirective()` in Svelte's `2-analyze/visitors/ClassDirective.js`.
 ///
 /// This function marks the subtree as dynamic (since class: directives require runtime evaluation)
 /// and tracks the expression for dependency analysis.

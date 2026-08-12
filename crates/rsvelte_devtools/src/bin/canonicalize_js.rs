@@ -3,7 +3,7 @@
 //! Used by the verify-svelte-compat skill's compare-app.mjs to do semantic
 //! comparison of compiler outputs that differ only in formatting.
 //!
-//! Usage: cat input.js | canonicalize_js > canonical.js
+//! Usage: cat input.js | `canonicalize_js` > canonical.js
 //!
 //! Exits 2 when the input does not parse. Callers must treat that as an
 //! unusable comparison rather than falling back to a text diff.

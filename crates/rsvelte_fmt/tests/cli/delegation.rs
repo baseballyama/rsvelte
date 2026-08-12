@@ -17,9 +17,9 @@ fn directory_delegates_full_set_to_oxfmt_with_svelte_excluded() {
     let fake = dir.join("fake-oxfmt.cjs");
     std::fs::write(
         &fake,
-        r#"const fs = require('node:fs');
+        r"const fs = require('node:fs');
 fs.appendFileSync(process.env.FAKE_OXFMT_LOG, process.argv.slice(2).join('\n') + '\n');
-"#,
+",
     )
     .unwrap();
 
@@ -73,12 +73,12 @@ fs.appendFileSync(process.env.FAKE_OXFMT_LOG, process.argv.slice(2).join('\n') +
 /// genuinely empty tree as a false success), whether the flag is present is
 /// exactly what proves the fix: it must be omitted once every in-process pass
 /// (Svelte, native JS/JSON/CSS) also found nothing.
-const NO_MATCH_ECHO_OXFMT: &str = r#"const argv = process.argv.slice(2);
+const NO_MATCH_ECHO_OXFMT: &str = r"const argv = process.argv.slice(2);
 if (!argv.includes('--no-error-on-unmatched-pattern')) {
   process.stderr.write('Expected at least one target file. All matched files may have been excluded by ignore rules.\n');
   process.exit(2);
 }
-"#;
+";
 
 /// An empty directory (no files at all, so not even `oxfmt`'s own delegated
 /// share has a target) must exit like real `oxfmt` does when it hits "no

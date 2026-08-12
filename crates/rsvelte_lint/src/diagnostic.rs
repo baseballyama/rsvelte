@@ -1,5 +1,6 @@
-//! The lint diagnostic model and its conversion to the shared
-//! `rsvelte_check` [`Diagnostic`] used by the output writers.
+//! Lint diagnostic model and its conversion to the shared output type.
+//!
+//! The output writers use `rsvelte_check`'s [`Diagnostic`].
 
 #[cfg(feature = "native")]
 use std::path::Path;
@@ -28,14 +29,16 @@ pub struct Fix {
     pub edits: Vec<TextEdit>,
 }
 
+/// Editor-offered suggestion.
+///
 /// A suggestion: an editor-offered code action that is **never** auto-applied
-/// by `--fix` (mirrors ESLint's `suggest` / `meta.hasSuggestions`). Each carries
+/// by `--fix` (mirrors `ESLint`'s `suggest` / `meta.hasSuggestions`). Each carries
 /// a human-readable description and the edits that apply it. eslint-plugin-svelte
 /// fixtures store these as `{ desc, output }`, where `output` is the source after
 /// applying this one suggestion's [`Fix`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Suggestion {
-    /// The user-facing description (ESLint's resolved `desc`).
+    /// The user-facing description (`ESLint`'s resolved `desc`).
     pub desc: String,
     /// The edits this suggestion would apply.
     pub fix: Fix,
@@ -44,6 +47,7 @@ pub struct Suggestion {
 impl Fix {
     /// Apply the edits to `source`, producing the fixed string. Edits are
     /// applied right-to-left so earlier offsets stay valid.
+    #[must_use]
     pub fn apply(&self, source: &str) -> String {
         let mut edits = self.edits.clone();
         edits.sort_by_key(|e| std::cmp::Reverse(e.start));
@@ -117,7 +121,7 @@ impl LintMessage {
 
     /// Wrap a diagnostic that has no fix payload (validator wrap, source-scan
     /// meta rules).
-    pub(crate) fn from_diagnostic(diagnostic: Diagnostic) -> Self {
+    pub(crate) const fn from_diagnostic(diagnostic: Diagnostic) -> Self {
         Self {
             diagnostic,
             span: None,
@@ -132,6 +136,7 @@ impl LintMessage {
 impl LintDiagnostic {
     /// Convert to the shared output diagnostic. `Off`-severity findings should
     /// already have been filtered out; they map to `Warning` defensively.
+    #[must_use]
     pub fn to_output(&self, file: &Path, line_index: &LineIndex) -> Diagnostic {
         let severity = match self.severity {
             Severity::Error => DiagnosticSeverity::Error,

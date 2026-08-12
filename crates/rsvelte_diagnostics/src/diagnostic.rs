@@ -15,12 +15,13 @@ pub enum DiagnosticSeverity {
 }
 
 impl DiagnosticSeverity {
-    pub fn label(self) -> &'static str {
+    #[must_use]
+    pub const fn label(self) -> &'static str {
         match self {
-            DiagnosticSeverity::Error => "error",
-            DiagnosticSeverity::Warning => "warning",
-            DiagnosticSeverity::Info => "info",
-            DiagnosticSeverity::Hint => "hint",
+            Self::Error => "error",
+            Self::Warning => "warning",
+            Self::Info => "info",
+            Self::Hint => "hint",
         }
     }
 }

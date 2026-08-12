@@ -14,6 +14,7 @@ pub struct LineIndex {
 }
 
 impl LineIndex {
+    #[must_use]
     pub fn new(text: &str) -> Self {
         let bytes = text.as_bytes();
         let mut line_starts = Vec::with_capacity(bytes.len() / 32 + 1);
@@ -37,12 +38,14 @@ impl LineIndex {
     }
 
     /// The number of lines in the indexed text.
-    pub fn line_count(&self) -> usize {
+    #[must_use]
+    pub const fn line_count(&self) -> usize {
         self.line_starts.len()
     }
 
     /// The content of one line, without its terminator. Out-of-range lines are
     /// empty.
+    #[must_use]
     pub fn line_text<'a>(&self, text: &'a str, line: usize) -> &'a str {
         let Some(&start) = self.line_starts.get(line) else {
             return "";
@@ -58,6 +61,7 @@ impl LineIndex {
     /// end of the text and out-of-range characters to the end of their line's
     /// content; a character landing inside a surrogate pair rounds down to the
     /// start of that character.
+    #[must_use]
     pub fn offset(&self, text: &str, position: Position) -> usize {
         let line = position.line as usize;
         let Some(&start) = self.line_starts.get(line) else {
@@ -82,6 +86,7 @@ impl LineIndex {
 
     /// The position of byte `offset`. An offset past the end of the text, or
     /// inside a multi-byte character, is clamped down to a character boundary.
+    #[must_use]
     pub fn position(&self, text: &str, offset: usize) -> Position {
         let offset = floor_char_boundary(text, offset);
         let line = match self.line_starts.binary_search(&(offset as u32)) {
@@ -98,7 +103,7 @@ impl LineIndex {
 }
 
 /// The largest char boundary `<= offset`, clamped to the length of `text`.
-fn floor_char_boundary(text: &str, offset: usize) -> usize {
+const fn floor_char_boundary(text: &str, offset: usize) -> usize {
     if offset >= text.len() {
         return text.len();
     }

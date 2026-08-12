@@ -1,5 +1,6 @@
-//! Coexistence helpers (design doc §D course correction 2): a generated
-//! "disable these in ESLint" flat-config so exactly one engine owns each rule
+//! Coexistence helpers for native rules and `ESLint`.
+//!
+//! They generate a "disable these in `ESLint`" flat-config so exactly one engine owns each rule
 //! id, plus a human-readable rule listing for `--list-rules`.
 
 use std::fmt::Write as _;
@@ -9,9 +10,12 @@ use serde_json::{Map, Value, json};
 use crate::registry::registered_rule_metas;
 use crate::rule::{Fixable, RuleCategory, Severity};
 
+/// Generate an `ESLint` disable-config snippet.
+///
 /// A flat-config snippet that turns every native-owned `svelte/*` rule **off**
-/// in ESLint, so running rsvelte-lint alongside eslint-plugin-svelte doesn't
+/// in `ESLint`, so running rsvelte-lint alongside eslint-plugin-svelte doesn't
 /// double-report. Emitted by `--print-eslint-config`.
+#[must_use]
 pub fn eslint_disable_config() -> String {
     let mut rules = Map::new();
     for m in registered_rule_metas() {
@@ -25,6 +29,7 @@ pub fn eslint_disable_config() -> String {
 }
 
 /// A human-readable listing of the native rules and their metadata.
+#[must_use]
 pub fn list_rules() -> String {
     let mut out = String::new();
     let mut metas = registered_rule_metas();
@@ -46,7 +51,7 @@ pub fn list_rules() -> String {
     out
 }
 
-fn category_label(c: RuleCategory) -> &'static str {
+const fn category_label(c: RuleCategory) -> &'static str {
     match c {
         RuleCategory::Correctness => "correctness",
         RuleCategory::A11y => "a11y",
@@ -55,7 +60,7 @@ fn category_label(c: RuleCategory) -> &'static str {
     }
 }
 
-fn severity_suffix(s: Severity) -> &'static str {
+const fn severity_suffix(s: Severity) -> &'static str {
     match s {
         Severity::Error => ", error",
         Severity::Warn => ", warn",
@@ -63,7 +68,7 @@ fn severity_suffix(s: Severity) -> &'static str {
     }
 }
 
-fn fixable_suffix(f: Fixable) -> &'static str {
+const fn fixable_suffix(f: Fixable) -> &'static str {
     match f {
         Fixable::No => "",
         Fixable::Code => ", fixable",

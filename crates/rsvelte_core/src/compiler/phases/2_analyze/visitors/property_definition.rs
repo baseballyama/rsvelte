@@ -1,4 +1,4 @@
-//! PropertyDefinition visitor.
+//! `PropertyDefinition` visitor.
 //!
 //! Analyzes class property definitions.
 //!
@@ -8,7 +8,7 @@ use super::VisitorContext;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
-/// Visit a property definition (typed JsNode path).
+/// Visit a property definition (typed `JsNode` path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     if let JsNode::PropertyDefinition {
         key,

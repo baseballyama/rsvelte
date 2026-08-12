@@ -1,7 +1,7 @@
 //! Resolve lazy expressions in the AST.
 //!
 //! When `defer_script_parse` is enabled, template expressions are stored as
-//! `Expression::Lazy { start, end, ts }` during parse(). This module walks
+//! `Expression::Lazy { start, end, ts }` during `parse()`. This module walks
 //! the AST and resolves them into `Expression::Typed` by invoking OXC.
 
 use crate::ast::arena::ParseArena;
@@ -13,16 +13,16 @@ use crate::ast::template::{
 /// Resolve all lazy expressions and deferred CSS in the AST.
 /// Must be called before analysis.
 /// Returns the first JS parse error encountered, if any.
-pub fn resolve_lazy_expressions<'a>(
-    ast: &mut Root<'a>,
+pub fn resolve_lazy_expressions(
+    ast: &mut Root<'_>,
     source: &str,
 ) -> Option<crate::error::ParseError> {
     let line_offsets = super::compute_line_offsets(source, false);
     resolve_lazy_expressions_with_line_offsets(ast, source, &line_offsets)
 }
 
-pub(crate) fn resolve_lazy_expressions_with_line_offsets<'a>(
-    ast: &mut Root<'a>,
+pub fn resolve_lazy_expressions_with_line_offsets(
+    ast: &mut Root<'_>,
     source: &str,
     line_offsets: &[usize],
 ) -> Option<crate::error::ParseError> {
@@ -282,31 +282,14 @@ fn resolve_template_node(
             resolve_attributes(arena, &mut el.attributes, line_offsets, source, first_error);
             resolve_fragment(arena, &mut el.fragment, line_offsets, source, first_error);
         }
-        TemplateNode::SvelteHead(el) => {
-            resolve_attributes(arena, &mut el.attributes, line_offsets, source, first_error);
-            resolve_fragment(arena, &mut el.fragment, line_offsets, source, first_error);
-        }
-        TemplateNode::SvelteBody(el) => {
-            resolve_attributes(arena, &mut el.attributes, line_offsets, source, first_error);
-            resolve_fragment(arena, &mut el.fragment, line_offsets, source, first_error);
-        }
-        TemplateNode::SvelteWindow(el) => {
-            resolve_attributes(arena, &mut el.attributes, line_offsets, source, first_error);
-            resolve_fragment(arena, &mut el.fragment, line_offsets, source, first_error);
-        }
-        TemplateNode::SvelteDocument(el) => {
-            resolve_attributes(arena, &mut el.attributes, line_offsets, source, first_error);
-            resolve_fragment(arena, &mut el.fragment, line_offsets, source, first_error);
-        }
-        TemplateNode::SvelteSelf(el) => {
-            resolve_attributes(arena, &mut el.attributes, line_offsets, source, first_error);
-            resolve_fragment(arena, &mut el.fragment, line_offsets, source, first_error);
-        }
-        TemplateNode::SvelteFragment(el) => {
-            resolve_attributes(arena, &mut el.attributes, line_offsets, source, first_error);
-            resolve_fragment(arena, &mut el.fragment, line_offsets, source, first_error);
-        }
-        TemplateNode::SvelteOptions(el) | TemplateNode::SvelteBoundary(el) => {
+        TemplateNode::SvelteHead(el)
+        | TemplateNode::SvelteBody(el)
+        | TemplateNode::SvelteWindow(el)
+        | TemplateNode::SvelteDocument(el)
+        | TemplateNode::SvelteSelf(el)
+        | TemplateNode::SvelteFragment(el)
+        | TemplateNode::SvelteOptions(el)
+        | TemplateNode::SvelteBoundary(el) => {
             resolve_attributes(arena, &mut el.attributes, line_offsets, source, first_error);
             resolve_fragment(arena, &mut el.fragment, line_offsets, source, first_error);
         }
@@ -406,7 +389,7 @@ fn resolve_attribute_value(
 }
 
 /// Resolve a single lazy expression by parsing it with OXC.
-/// If parsing fails and first_error is None, stores the error.
+/// If parsing fails and `first_error` is None, stores the error.
 fn resolve_expression(
     arena: &ParseArena,
     expr: &mut Expression,
@@ -484,14 +467,16 @@ fn lazy_parse_error(
                         super::read::expression::check_js_parse_error_with_pos(prefix).is_none()
                     })
             });
-            match trailing {
-                Some(offset) => crate::error::ParseError::expected_token("}", start + offset),
-                None => crate::error::ParseError::svelte(
-                    "js_parse_error",
-                    msg,
-                    (start, start + content.len()),
-                ),
-            }
+            trailing.map_or_else(
+                || {
+                    crate::error::ParseError::svelte(
+                        "js_parse_error",
+                        msg,
+                        (start, start + content.len()),
+                    )
+                },
+                |offset| crate::error::ParseError::expected_token("}", start + offset),
+            )
         }
         // `parse_js_expression_attribute`: a point error at the byte where OXC
         // stopped consuming input.

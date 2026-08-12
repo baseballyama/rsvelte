@@ -1,6 +1,7 @@
-//! Port of [`svelte-preprocess-filter`](https://www.npmjs.com/package/svelte-preprocess-filter)
-//! (v1.0.0) — decides whether a `<style>` / `<script>` block should be
-//! processed based on its `type` / `lang` attributes.
+//! Port of [`svelte-preprocess-filter`](https://www.npmjs.com/package/svelte-preprocess-filter).
+//!
+//! It decides whether a `<style>` / `<script>` block should be processed based
+//! on its `type` / `lang` attributes.
 
 use rsvelte_core::compiler::preprocess::types::{AttributeValue, PreprocessAttributeMap as Map};
 
@@ -19,7 +20,7 @@ pub struct FilterOptions {
 
 impl Default for FilterOptions {
     fn default() -> Self {
-        FilterOptions {
+        Self {
             name: None,
             all: false,
             type_: true,
@@ -31,7 +32,7 @@ impl Default for FilterOptions {
 impl FilterOptions {
     /// A filter that matches the given language `name`.
     pub fn named(name: impl Into<String>) -> Self {
-        FilterOptions {
+        Self {
             name: Some(name.into()),
             ..Default::default()
         }
@@ -49,6 +50,7 @@ fn attr_str<'a>(attributes: &'a Map<String, AttributeValue>, key: &str) -> Optio
 ///
 /// Returns `true` when the block should be processed. Mirrors the upstream:
 /// `typeAttributes.includes(name) || typeAttributes.includes('text/'+name)`.
+#[must_use]
 pub fn matches(opts: &FilterOptions, attributes: &Map<String, AttributeValue>) -> bool {
     if opts.all {
         return true;

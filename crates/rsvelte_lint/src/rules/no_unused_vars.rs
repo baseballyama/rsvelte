@@ -1,9 +1,9 @@
 //! `svelte/no-unused-vars` — flag top-level `<script>` bindings that are never
 //! read anywhere in the component (script, template, or `<style>` directives).
 //!
-//! ESLint core's `no-unused-vars` and oxlint both stop at the `.svelte`
+//! `ESLint` core's `no-unused-vars` and oxlint both stop at the `.svelte`
 //! boundary, so a component's script variables go unchecked unless a project
-//! keeps a Svelte-aware ESLint around (issue #1732). This rule closes that gap
+//! keeps a Svelte-aware `ESLint` around (issue #1732). This rule closes that gap
 //! using the compiler's own Phase-2 scope tree, which already resolves template
 //! reads, `$store` auto-subscriptions and `bind:` targets back to their binding.
 //!
@@ -18,7 +18,7 @@
 //!   declarations and reassigned/mutated bindings are all treated as used;
 //! - a name that occurs anywhere else in the source is treated as used, which
 //!   covers reads Phase 2 does not record as references (TypeScript type
-//!   positions, JSDoc `@type`, generics).
+//!   positions, `JSDoc` `@type`, generics).
 
 use serde_json::Value;
 
@@ -106,7 +106,8 @@ impl ScriptRule for NoUnusedVars {
 
         reports.sort_unstable();
         for (start, name) in reports {
-            let end = start + name.len() as u32;
+            let end = start
+                + u32::try_from(name.len()).expect("identifier widths are represented as u32");
             ctx.report(start, end, format!("'{name}' is defined but never used."));
         }
     }
@@ -228,13 +229,13 @@ fn collect_pattern_names(pat: Option<&Value>, out: &mut Vec<String>) {
 /// Whether `name` appears as a standalone identifier anywhere in `source` other
 /// than at `decl_start`. Phase 2 records no reference for reads that the
 /// TypeScript stripper removes (type annotations, generics) or that live in
-/// JSDoc, so a textual hit anywhere else vetoes the report.
+/// `JSDoc`, so a textual hit anywhere else vetoes the report.
 fn occurs_outside(source: &str, name: &str, decl_start: u32) -> bool {
     let mut from = 0usize;
     while let Some(rel) = source[from..].find(name) {
         let at = from + rel;
         from = at + name.len();
-        if at as u32 == decl_start {
+        if u32::try_from(at).expect("source offsets are represented as u32") == decl_start {
             continue;
         }
         // A neighbour is glue only if it could continue the identifier; every
@@ -400,7 +401,7 @@ mod tests {
         assert_clean("<script>\n  import Child from './Child.svelte';\n</script>\n<Child />");
     }
 
-    /// A JSDoc `@type` is the shape this rule's textual fallback exists for, and
+    /// A `JSDoc` `@type` is the shape this rule's textual fallback exists for, and
     /// a non-ASCII space in it must not hide the use.
     #[test]
     fn nbsp_separated_jsdoc_use_is_not_unused() {

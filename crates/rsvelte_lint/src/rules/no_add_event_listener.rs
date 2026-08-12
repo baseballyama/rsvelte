@@ -5,7 +5,7 @@
 //! `svelte/events` (which respects the component lifecycle), so any direct use of
 //! `addEventListener` should be flagged.
 //!
-//! Runs over the `<script>` (instance / module) ESTree program via the
+//! Runs over the `<script>` (instance / module) `ESTree` program via the
 //! [`ScriptRule`] hook.
 //!
 //! A `CallExpression` is reported when its callee is either:
@@ -22,7 +22,7 @@
 //! When an open parenthesis can be located in the source immediately after the
 //! callee (skipping whitespace and comments), one suggestion is offered:
 //!
-//! - desc: `"Use \`on\` from \`svelte/events\` instead"`
+//! - desc: `"Use on from svelte/events instead"`
 //! - edits:
 //!   1. Replace `[callee.start, callee.end)` with `"on"` (i.e. replace the
 //!      whole callee — `window.addEventListener` or bare `addEventListener` —
@@ -32,8 +32,8 @@
 //!      object (everything before `.addEventListener`). For a bare `addEventListener`
 //!      identifier, `<target>` is the literal string `"window"`.
 //!
-//! This mirrors upstream's `fixer.replaceText(callee, 'on')` +
-//! `fixer.insertTextAfter(openParen, \`${target}, \`)`.
+//! This mirrors upstream's `fixer.replaceText(callee, 'on')` and
+//! `fixer.insertTextAfter(openParen, target)`.
 
 use serde_json::Value;
 
@@ -142,7 +142,7 @@ impl ScriptRule for NoAddEventListener {
             // ESLint's `getTokenAfter(callee)`.
             let paren_pos = find_open_paren(ctx.source(), r.callee_end);
 
-            let suggestions = if let Some(paren) = paren_pos {
+            let suggestions = paren_pos.map_or_else(Vec::new, |paren| {
                 // Edit 1: replace the callee with `on`.
                 let edit_callee = TextEdit {
                     start: r.callee_start,
@@ -163,9 +163,7 @@ impl ScriptRule for NoAddEventListener {
                         edits: vec![edit_callee, edit_args],
                     },
                 }]
-            } else {
-                Vec::new()
-            };
+            });
 
             ctx.report_with_suggestions(r.call_start, r.call_end, MESSAGE, suggestions);
         }
@@ -242,14 +240,14 @@ fn find_open_paren(source: &str, from: u32) -> Option<u32> {
                     i += 1;
                 }
             }
-            b'(' => return Some(i as u32),
+            b'(' => return Some(u32::try_from(i).expect("source offsets are represented as u32")),
             _ => return None, // unexpected character — no open paren found
         }
     }
     None
 }
 
-/// Detect whether a CallExpression whose callee spans `[callee_end..]` was
+/// Detect whether a `CallExpression` whose callee spans `[callee_end..]` was
 /// wrapped in a TypeScript type assertion (`(expr as T)(...)`) that was
 /// stripped by rsvelte's TS-stripping. The oracle (espree/TS-parser) would see a
 /// `TSAsExpression` as the callee and NOT report it, but rsvelte's AST strips
@@ -276,7 +274,7 @@ fn is_ts_cast_stripped_callee(source: &str, call_start: u32, callee_end: u32) ->
     while i < bytes.len() && bytes[i] != b')' {
         if bytes[i] == b'a'
             && bytes.get(i + 1) == Some(&b's')
-            && bytes.get(i + 2).is_some_and(|c| c.is_ascii_whitespace())
+            && bytes.get(i + 2).is_some_and(u8::is_ascii_whitespace)
         {
             return true;
         }

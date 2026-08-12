@@ -1,6 +1,6 @@
 //! Integration coverage for issue #1034 — `svelte-check` must honour the
 //! Svelte `compilerOptions` declared in project config, including the
-//! `experimental.async` flag that SvelteKit projects increasingly place
+//! `experimental.async` flag that `SvelteKit` projects increasingly place
 //! in the `vite.config.{js,ts}` Svelte-plugin call rather than in
 //! `svelte.config.js`.
 //!
@@ -10,7 +10,7 @@
 //! project's config.
 //!
 //! Run with:
-//!     cargo test --test svelte_check_compiler_options
+//!     cargo test --test `svelte_check_compiler_options`
 
 use std::path::{Path, PathBuf};
 
@@ -86,11 +86,11 @@ fn experimental_async_from_vite_plugin_clears_error() {
     write(
         &dir,
         "vite.config.ts",
-        r#"import { svelte } from '@sveltejs/vite-plugin-svelte';
+        r"import { svelte } from '@sveltejs/vite-plugin-svelte';
         import { defineConfig } from 'vite';
         export default defineConfig({
             plugins: [svelte({ compilerOptions: { experimental: { async: true } } })]
-        });"#,
+        });",
     );
     let errors = svelte_errors(&dir);
     assert!(
@@ -109,11 +109,11 @@ fn experimental_async_from_sveltekit_plugin_clears_error() {
     write(
         &dir,
         "vite.config.ts",
-        r#"import { sveltekit } from '@sveltejs/kit/vite';
+        r"import { sveltekit } from '@sveltejs/kit/vite';
         import { defineConfig } from 'vite';
         export default defineConfig({
             plugins: [sveltekit({ compilerOptions: { experimental: { async: true } } })]
-        });"#,
+        });",
     );
     let errors = svelte_errors(&dir);
     assert!(
@@ -147,8 +147,8 @@ fn incremental_cache_invalidates_when_config_changes() {
     write(
         &dir,
         "vite.config.js",
-        r#"import { svelte } from '@sveltejs/vite-plugin-svelte';
-        export default { plugins: [svelte({ compilerOptions: { experimental: { async: true } } })] };"#,
+        r"import { svelte } from '@sveltejs/vite-plugin-svelte';
+        export default { plugins: [svelte({ compilerOptions: { experimental: { async: true } } })] };",
     );
     let second = run(&opts);
     let errors: Vec<_> = second

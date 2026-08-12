@@ -4,12 +4,16 @@ use crate::ast::template::Attribute;
 use crate::svelte2tsx::template::attributes::attribute_end;
 use rsvelte_core::compiler::utils::is_escaped;
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("template source offsets are represented as u32")
+}
+
 /// Find the end of the opening tag (position after the closing `>`).
 ///
 /// Scans from the last retained attribute (or the tag name when there are no
 /// attributes) for the first `>` that is not inside a string or expression.
 /// Returns the position after the `>`.
-pub(crate) fn find_opening_tag_end(
+pub fn find_opening_tag_end(
     source: &str,
     element_start: u32,
     element_end: u32,
@@ -17,7 +21,7 @@ pub(crate) fn find_opening_tag_end(
     attributes: &[Attribute],
 ) -> u32 {
     let bytes = source.as_bytes();
-    let tag_name_end = element_start.saturating_add(1 + tag_name.len() as u32);
+    let tag_name_end = element_start.saturating_add(1 + source_offset(tag_name.len()));
     let scan_start = attributes.last().map_or(tag_name_end, attribute_end);
     let scan_start = if scan_start >= tag_name_end && scan_start <= element_end {
         scan_start
@@ -33,41 +37,38 @@ pub(crate) fn find_opening_tag_end(
     while i < end {
         let ch = bytes[i];
 
-        match in_string {
-            Some(quote) => {
-                if ch == quote && !is_escaped(bytes, i) {
-                    in_string = None;
+        if let Some(quote) = in_string {
+            if ch == quote && !is_escaped(bytes, i) {
+                in_string = None;
+            }
+        } else {
+            // Inside an expression value (`{ … }`), skip JS comments so a
+            // quote within them (`// don't` / `/* don't */`) doesn't start a
+            // fake string and throw off the brace tracking — which would make
+            // this return the wrong `>` and overwrite past the tag.
+            if brace_depth > 0 && ch == b'/' && i + 1 < end {
+                if bytes[i + 1] == b'/' {
+                    while i < end && bytes[i] != b'\n' {
+                        i += 1;
+                    }
+                    continue;
+                } else if bytes[i + 1] == b'*' {
+                    i += 2;
+                    while i + 1 < end && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                        i += 1;
+                    }
+                    i += 2; // skip the closing `*/`
+                    continue;
                 }
             }
-            None => {
-                // Inside an expression value (`{ … }`), skip JS comments so a
-                // quote within them (`// don't` / `/* don't */`) doesn't start a
-                // fake string and throw off the brace tracking — which would make
-                // this return the wrong `>` and overwrite past the tag.
-                if brace_depth > 0 && ch == b'/' && i + 1 < end {
-                    if bytes[i + 1] == b'/' {
-                        while i < end && bytes[i] != b'\n' {
-                            i += 1;
-                        }
-                        continue;
-                    } else if bytes[i + 1] == b'*' {
-                        i += 2;
-                        while i + 1 < end && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
-                            i += 1;
-                        }
-                        i += 2; // skip the closing `*/`
-                        continue;
-                    }
-                }
-                if ch == b'"' || ch == b'\'' || ch == b'`' {
-                    in_string = Some(ch);
-                } else if ch == b'{' {
-                    brace_depth += 1;
-                } else if ch == b'}' {
-                    brace_depth = brace_depth.saturating_sub(1);
-                } else if ch == b'>' && brace_depth == 0 {
-                    return (i + 1) as u32;
-                }
+            if ch == b'"' || ch == b'\'' || ch == b'`' {
+                in_string = Some(ch);
+            } else if ch == b'{' {
+                brace_depth += 1;
+            } else if ch == b'}' {
+                brace_depth = brace_depth.saturating_sub(1);
+            } else if ch == b'>' && brace_depth == 0 {
+                return source_offset(i + 1);
             }
         }
         i += 1;
@@ -83,7 +84,7 @@ pub(crate) fn find_opening_tag_end(
 /// True when the `</…>` at `closing_tag_start` is the closing tag for an
 /// element named `name` (case-insensitive). Used to distinguish a real closing
 /// tag from a child's closing tag wrongly matched on an auto-closed element.
-pub(crate) fn closing_tag_name_matches(source: &str, closing_tag_start: u32, name: &str) -> bool {
+pub fn closing_tag_name_matches(source: &str, closing_tag_start: u32, name: &str) -> bool {
     let rest = &source[closing_tag_start as usize..];
     let Some(after) = rest.strip_prefix("</") else {
         return false;
@@ -96,13 +97,13 @@ pub(crate) fn closing_tag_name_matches(source: &str, closing_tag_start: u32, nam
     tag.eq_ignore_ascii_case(name)
 }
 
-pub(crate) fn find_closing_tag_start(source: &str, end: u32) -> u32 {
+pub fn find_closing_tag_start(source: &str, end: u32) -> u32 {
     let bytes = source.as_bytes();
     let end = end as usize;
 
     // Check if this is a self-closing tag (ends with `/>`)
     if end >= 2 && bytes[end - 2] == b'/' && bytes[end - 1] == b'>' {
-        return end as u32; // Return end to signal self-closing
+        return source_offset(end); // Return end to signal self-closing
     }
 
     // Scan backwards for `</`
@@ -110,11 +111,11 @@ pub(crate) fn find_closing_tag_start(source: &str, end: u32) -> u32 {
     while i >= 2 {
         i -= 1;
         if bytes[i] == b'<' && i + 1 < end && bytes[i + 1] == b'/' {
-            return i as u32;
+            return source_offset(i);
         }
     }
 
-    end as u32
+    source_offset(end)
 }
 
 #[cfg(test)]

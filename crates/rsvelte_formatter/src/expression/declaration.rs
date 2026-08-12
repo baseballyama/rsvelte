@@ -46,8 +46,9 @@ pub(super) fn format_const_declaration(
     // Format the wrapped `const <decl>;` at `narrowed` columns and strip the
     // `const ` / `;` affixes back off, recovering the declaration body.
     let format_at = |narrowed: usize| -> Result<String, FormatError> {
-        let line_width = oxc_formatter_core::LineWidth::try_from(narrowed.max(1) as u16)
-            .unwrap_or(options.js.line_width);
+        let line_width =
+            oxc_formatter_core::LineWidth::try_from(crate::formatter_width(narrowed.max(1)))
+                .unwrap_or(options.js.line_width);
         let mut js = options.js.clone();
         js.line_width = line_width;
         let formatted = format_program(allocator, &parser_ret.program, js, None)
@@ -138,8 +139,9 @@ pub(super) fn format_declaration_tag_body(
     // `lead + 2 - 1 = lead + 1` to make OXC's break threshold match the
     // rendered column.
     let narrowed = full_width.saturating_sub(lead + 1);
-    let line_width = oxc_formatter_core::LineWidth::try_from(narrowed.max(1) as u16)
-        .unwrap_or(options.js.line_width);
+    let line_width =
+        oxc_formatter_core::LineWidth::try_from(crate::formatter_width(narrowed.max(1)))
+            .unwrap_or(options.js.line_width);
 
     let mut js = options.js.clone();
     js.line_width = line_width;
@@ -208,8 +210,8 @@ pub(super) fn format_snippet_header_source(
     let narrowed = base.saturating_add(1);
 
     let mut js = options.js.clone();
-    js.line_width =
-        oxc_formatter_core::LineWidth::try_from(narrowed as u16).unwrap_or(options.js.line_width);
+    js.line_width = oxc_formatter_core::LineWidth::try_from(crate::formatter_width(narrowed))
+        .unwrap_or(options.js.line_width);
     // NOTE: do NOT set `expand = Never` — width-driven breaking is the point.
 
     let formatted = format_program(allocator, &parser_ret.program, js, None)
@@ -246,7 +248,7 @@ pub(super) fn format_snippet_header_source(
 /// We force `line_width` to its maximum so nested patterns stay on one
 /// line — multi-line patterns inside `{#each as ...}` would land
 /// across the block header, which Svelte's parser then can't re-read.
-pub(crate) fn format_pattern_source(
+pub fn format_pattern_source(
     pattern_source: &str,
     options: &FormatOptions,
 ) -> Result<String, FormatError> {
@@ -552,9 +554,7 @@ fn light_normalize_pattern(src: &str) -> String {
                     };
                     if let Some(slice) = src.get(i..i + seq_len) {
                         out.push_str(slice);
-                        last_non_ws = other;
                         i += seq_len;
-                        continue;
                     } else {
                         // Truncated sequence — emit best-effort.
                         out.push(other as char);

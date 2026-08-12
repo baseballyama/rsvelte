@@ -5,7 +5,8 @@
 //! #1057.
 
 use rsvelte_formatter::{
-    FormatOptions, IndentWidth, JsFormatOptions, LineWidth, SortOrderSpec, format,
+    AttributeFormatOptions, FormatOptions, IndentWidth, JsFormatOptions, LineWidth, SortOrderSpec,
+    format,
 };
 
 fn fmt(src: &str, opts: &FormatOptions) -> String {
@@ -17,7 +18,10 @@ fn fmt(src: &str, opts: &FormatOptions) -> String {
 #[test]
 fn single_attribute_per_line_breaks_multi_attr() {
     let opts = FormatOptions {
-        single_attribute_per_line: true,
+        attributes: AttributeFormatOptions {
+            single_attribute_per_line: true,
+            ..AttributeFormatOptions::default()
+        },
         ..FormatOptions::default()
     };
     let out = fmt("<div class=\"a\" id=\"b\" role=\"c\"></div>", &opts);
@@ -30,7 +34,10 @@ fn single_attribute_per_line_breaks_multi_attr() {
 #[test]
 fn single_attribute_per_line_keeps_single_attr_inline() {
     let opts = FormatOptions {
-        single_attribute_per_line: true,
+        attributes: AttributeFormatOptions {
+            single_attribute_per_line: true,
+            ..AttributeFormatOptions::default()
+        },
         ..FormatOptions::default()
     };
     let out = fmt("<div class=\"a\"></div>", &opts);
@@ -49,7 +56,10 @@ fn single_attribute_per_line_default_off_stays_flat() {
 #[test]
 fn single_attribute_per_line_breaks_over_block_children() {
     let opts = FormatOptions {
-        single_attribute_per_line: true,
+        attributes: AttributeFormatOptions {
+            single_attribute_per_line: true,
+            ..AttributeFormatOptions::default()
+        },
         ..FormatOptions::default()
     };
     for child in [
@@ -72,7 +82,10 @@ fn single_attribute_per_line_breaks_over_block_children() {
 #[test]
 fn single_attribute_per_line_breaks_script_and_style_tags() {
     let opts = FormatOptions {
-        single_attribute_per_line: true,
+        attributes: AttributeFormatOptions {
+            single_attribute_per_line: true,
+            ..AttributeFormatOptions::default()
+        },
         ..FormatOptions::default()
     };
     let out = fmt(
@@ -96,7 +109,10 @@ fn single_attribute_per_line_breaks_script_and_style_tags() {
 #[test]
 fn single_attribute_per_line_keeps_single_attr_script_inline() {
     let opts = FormatOptions {
-        single_attribute_per_line: true,
+        attributes: AttributeFormatOptions {
+            single_attribute_per_line: true,
+            ..AttributeFormatOptions::default()
+        },
         ..FormatOptions::default()
     };
     let out = fmt("<script lang=\"ts\">\n  let a = 1;\n</script>\n", &opts);
@@ -108,7 +124,10 @@ fn single_attribute_per_line_keeps_single_attr_script_inline() {
 #[test]
 fn allow_shorthand_false_expands_attribute_and_directives() {
     let opts = FormatOptions {
-        allow_shorthand: false,
+        attributes: AttributeFormatOptions {
+            allow_shorthand: false,
+            ..AttributeFormatOptions::default()
+        },
         ..FormatOptions::default()
     };
     let out = fmt(
@@ -124,7 +143,10 @@ fn allow_shorthand_false_expands_attribute_and_directives() {
 #[test]
 fn allow_shorthand_false_expands_bind() {
     let opts = FormatOptions {
-        allow_shorthand: false,
+        attributes: AttributeFormatOptions {
+            allow_shorthand: false,
+            ..AttributeFormatOptions::default()
+        },
         ..FormatOptions::default()
     };
     let out = fmt("<input bind:value={value} />", &opts);
@@ -163,7 +185,7 @@ fn indent_script_and_style_false_keeps_full_print_width() {
         indent_script_and_style: false,
         ..FormatOptions::default()
     };
-    let src = r#"<script>
+    let src = r"<script>
 const metrics = $derived.by(() => {
     return {
         recurring_amount:
@@ -171,7 +193,7 @@ const metrics = $derived.by(() => {
             'No recurring base yet',
     }
 })
-</script>"#;
+</script>";
     let out = fmt(src, &opts);
     assert!(
         out.contains(
@@ -239,7 +261,10 @@ fn sort_order_default_hoists_script_above_markup() {
 #[test]
 fn bracket_same_line_glues_self_closing_closer() {
     let opts = FormatOptions {
-        single_attribute_per_line: true,
+        attributes: AttributeFormatOptions {
+            single_attribute_per_line: true,
+            ..AttributeFormatOptions::default()
+        },
         bracket_same_line: true,
         ..FormatOptions::default()
     };
@@ -250,7 +275,10 @@ fn bracket_same_line_glues_self_closing_closer() {
 #[test]
 fn bracket_same_line_default_breaks_self_closing_closer() {
     let opts = FormatOptions {
-        single_attribute_per_line: true,
+        attributes: AttributeFormatOptions {
+            single_attribute_per_line: true,
+            ..AttributeFormatOptions::default()
+        },
         ..FormatOptions::default()
     };
     let out = fmt("<input class=\"a\" id=\"b\" role=\"c\" />", &opts);
@@ -260,7 +288,10 @@ fn bracket_same_line_default_breaks_self_closing_closer() {
 #[test]
 fn bracket_same_line_glues_non_empty_closer() {
     let opts = FormatOptions {
-        single_attribute_per_line: true,
+        attributes: AttributeFormatOptions {
+            single_attribute_per_line: true,
+            ..AttributeFormatOptions::default()
+        },
         bracket_same_line: true,
         ..FormatOptions::default()
     };

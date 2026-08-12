@@ -1,3 +1,5 @@
+//! `svelte/no-shorthand-style-property-overrides`.
+//!
 //! `svelte/no-shorthand-style-property-overrides` — flag a CSS shorthand
 //! property that overrides a related longhand declared earlier on the same
 //! element (across the static `style="…"` attribute and `style:` directives, in
@@ -107,7 +109,9 @@ impl Rule for NoShorthandStylePropertyOverrides {
         for attr in &el.attributes {
             match attr {
                 Attribute::StyleDirective(d) => {
-                    let name_start = d.start + "style:".len() as u32;
+                    let name_start = d.start
+                        + u32::try_from("style:".len())
+                            .expect("directive prefix widths are represented as u32");
                     decls.push((d.name.to_string(), name_start));
                 }
                 Attribute::Attribute(node) if node.name.eq_ignore_ascii_case("style") => {

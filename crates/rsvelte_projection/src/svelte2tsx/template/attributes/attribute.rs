@@ -10,7 +10,11 @@ use crate::svelte2tsx::template::ctx::ElementOpenerCommentIndex;
 use crate::svelte2tsx::template::segs::{Seg, segs_push_fmt, segs_push_lit, segs_push_src};
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
 
-/// Format a regular attribute: `name="value"` → `"name":\`value\`,`
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("template source offsets are represented as u32")
+}
+
+/// Format a regular attribute: `name="value"` → `"name":value,`.
 ///
 /// Shorthand attributes like `{propB}` (where name equals expression text)
 /// produce `propB,` instead of `"propB":propB,`.
@@ -20,11 +24,7 @@ use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_express
 ///   `...__sveltets_2_empty({ "data-foo": value })` — boolean/no-value → `__sveltets_2_any()`.
 /// - `!is_element` && name starts with `--`:
 ///   `...__sveltets_2_cssProp({ "--x": value })` — boolean/no-value → `""`.
-pub(crate) fn format_attribute_node(
-    node: &AttributeNode,
-    source: &str,
-    is_element: bool,
-) -> Option<String> {
+pub fn format_attribute_node(node: &AttributeNode, source: &str, is_element: bool) -> String {
     let name = &node.name;
 
     // Determine wrapping: data-* on elements, --* on components.
@@ -36,15 +36,15 @@ pub(crate) fn format_attribute_node(
     /// appropriate helper and re-attach the comma.
     fn wrap(inner: &str, is_data: bool, is_css: bool) -> String {
         if is_data {
-            format!("...__sveltets_2_empty({{{}}}),", inner)
+            format!("...__sveltets_2_empty({{{inner}}}),")
         } else if is_css {
-            format!("...__sveltets_2_cssProp({{{}}}),", inner)
+            format!("...__sveltets_2_cssProp({{{inner}}}),")
         } else {
-            format!("{},", inner)
+            format!("{inner},")
         }
     }
 
-    match &node.value {
+    let value = match &node.value {
         AttributeValue::True(_) => {
             // Boolean attribute: `disabled` → `"disabled":true,`
             // For data-* on elements the boolean value is still `true` — official
@@ -54,11 +54,11 @@ pub(crate) fn format_attribute_node(
             // boolean attribute.)
             // For --* on components: boolean means no value → ""
             if is_data_attr {
-                Some(format!("...__sveltets_2_empty({{\"{}\":true}}),", name))
+                format!("...__sveltets_2_empty({{\"{name}\":true}}),")
             } else if is_css_prop {
-                Some(format!("...__sveltets_2_cssProp({{\"{}\":\"\"}}),", name))
+                format!("...__sveltets_2_cssProp({{\"{name}\":\"\"}}),")
             } else {
-                Some(format!("\"{}\":true,", name))
+                format!("\"{name}\":true,")
             }
         }
         AttributeValue::Expression(expr) => {
@@ -72,10 +72,10 @@ pub(crate) fn format_attribute_node(
             // Shorthand names are plain identifiers so they cannot start with
             // `data-` or `--`; skip wrapping for them.
             if expr.start == node.start + 1 {
-                Some(format!("{},", name))
+                format!("{name},")
             } else {
-                let inner = format!("\"{}\":{}", name, expr_text);
-                Some(wrap(&inner, is_data_attr, is_css_prop))
+                let inner = format!("\"{name}\":{expr_text}");
+                wrap(&inner, is_data_attr, is_css_prop)
             }
         }
         AttributeValue::Sequence(parts) => {
@@ -85,8 +85,8 @@ pub(crate) fn format_attribute_node(
                 && let AttributeValuePart::ExpressionTag(expr) = &parts[0]
             {
                 let expr_text = get_expression_text(&expr.expression, source);
-                let inner = format!("\"{}\":{}", name, expr_text);
-                return Some(wrap(&inner, is_data_attr, is_css_prop));
+                let inner = format!("\"{name}\":{expr_text}");
+                return wrap(&inner, is_data_attr, is_css_prop);
             }
 
             // Pure-static empty value (`class=""`): emit the quoted empty
@@ -99,11 +99,7 @@ pub(crate) fn format_attribute_node(
                 AttributeValuePart::ExpressionTag(_) => false,
             });
             if !has_expr && text_is_empty {
-                return Some(wrap(
-                    &format!("\"{}\":\"\"", name),
-                    is_data_attr,
-                    is_css_prop,
-                ));
+                return wrap(&format!("\"{name}\":\"\""), is_data_attr, is_css_prop);
             }
 
             // Text or mixed content: `name="text {expr} text"` → `"name":\`text ${expr} text\`,`
@@ -124,24 +120,25 @@ pub(crate) fn format_attribute_node(
                     }
                     AttributeValuePart::ExpressionTag(expr) => {
                         let expr_text = get_expression_text(&expr.expression, source);
-                        value_parts.push(format!("${{{}}}", expr_text));
+                        value_parts.push(format!("${{{expr_text}}}"));
                     }
                 }
             }
             let inner = format!("\"{}\":`{}`", name, value_parts.join(""));
-            Some(wrap(&inner, is_data_attr, is_css_prop))
+            wrap(&inner, is_data_attr, is_css_prop)
         }
-    }
+    };
+    value
 }
 
 /// Structured-bake variant of [`format_attribute_node`]. Wraps every
-/// expression site in `Seg::Src` so the resulting MagicString chunks
+/// expression site in `Seg::Src` so the resulting `MagicString` chunks
 /// retain per-character source-map fidelity.
 /// HTML attributes whose `svelte/elements` type is `number | undefined | null`
 /// (no `string`). A static string value (`tabindex="-1"`) must be lowered to a
 /// bare number to type-check. List mirrors svelte2tsx's `numberOnlyAttributes`
 /// (`htmlxtojsx_v2/nodes/Attribute.ts`), itself derived from `elements.d.ts`.
-pub(crate) fn is_number_only_attribute(name: &str) -> bool {
+pub const fn is_number_only_attribute(name: &str) -> bool {
     match name.len() {
         3 => name.eq_ignore_ascii_case("low"),
         4 => {
@@ -187,7 +184,7 @@ pub(crate) fn is_number_only_attribute(name: &str) -> bool {
 /// Mirror JS `!isNaN(Number(s))` for the number-conversion check: an attribute
 /// value coerces to a number. Covers the realistic forms (`-1`, `2`, `1e3`,
 /// `0x1f`) and the JS quirk that an all-whitespace value is `0` (not NaN).
-pub(crate) fn is_js_numeric(data: &str) -> bool {
+pub fn is_js_numeric(data: &str) -> bool {
     let t = data.trim();
     if t.is_empty() {
         return true; // JS: Number("") === 0
@@ -219,7 +216,7 @@ pub(crate) fn is_js_numeric(data: &str) -> bool {
 /// SVG attributes, custom elements (tag contains `-`), and svelte-5 `on*` event
 /// attributes; non-element (component/slot) attributes are never transformed.
 /// `preserve_case` (the `foreign` namespace) suppresses the fold entirely.
-pub(crate) fn transform_attribute_case<'a>(
+pub fn transform_attribute_case<'a>(
     name: &'a str,
     tag: &str,
     is_element: bool,
@@ -250,7 +247,7 @@ pub(crate) fn transform_attribute_case<'a>(
 /// `attr_start`: any comments immediately before it (only whitespace between)
 /// become `[\n]?<comment-source>…\n` (mirrors official getLeadingComment +
 /// getLeadingCommentTransformation). Empty when there are none.
-pub(crate) fn leading_attr_comment_segs(
+pub fn leading_attr_comment_segs(
     attr_start: u32,
     source: &str,
     comments: &ElementOpenerCommentIndex,
@@ -302,7 +299,7 @@ fn trailing_attr_comments<'a>(
     let Some(rel) = source.get(attr_end as usize..).and_then(|s| s.find('>')) else {
         return &[];
     };
-    let tag_end = attr_end + rel as u32;
+    let tag_end = attr_end + source_offset(rel);
     let candidates = comments.starting_at_or_after(attr_end);
     let mut count = 0;
     let mut search_start = attr_end;
@@ -337,7 +334,7 @@ fn trailing_attr_comments<'a>(
 /// opener: each comment becomes `[\n| ]<comment-source>`, closed by a final
 /// `\n` (mirrors official `getTrailingCommentTransformation`). Empty when there
 /// are none.
-pub(crate) fn trailing_attr_comment_segs(
+pub fn trailing_attr_comment_segs(
     attr_end: u32,
     source: &str,
     comments: &ElementOpenerCommentIndex,
@@ -361,7 +358,7 @@ pub(crate) fn trailing_attr_comment_segs(
 }
 
 /// String variant of [`trailing_attr_comment_segs`] for the component props path.
-pub(crate) fn trailing_attr_comment_text(
+pub fn trailing_attr_comment_text(
     attr_end: u32,
     source: &str,
     comments: &ElementOpenerCommentIndex,
@@ -426,7 +423,7 @@ fn append_wrapped_attribute(
 }
 
 /// Structured-bake variant of [`format_attribute_node`]. Wraps every
-/// expression site in `Seg::Src` so the resulting MagicString chunks
+/// expression site in `Seg::Src` so the resulting `MagicString` chunks
 /// retain per-character source-map fidelity.
 ///
 /// Applies the same wrapping rules as `format_attribute_node`:
@@ -434,7 +431,7 @@ fn append_wrapped_attribute(
 /// - `!is_element` && `--*` → `__sveltets_2_cssProp({…})`
 ///
 /// (Mirrors `htmlxtojsx_v2/nodes/Attribute.ts` `addAttribute`.)
-pub(crate) fn append_attribute_node_segments(
+pub fn append_attribute_node_segments(
     out: &mut Vec<Seg>,
     node: &AttributeNode,
     source: &str,
@@ -466,18 +463,15 @@ pub(crate) fn append_attribute_node_segments(
             if is_data_attr {
                 segs_push_fmt(
                     out,
-                    format_args!(
-                        "...__sveltets_2_empty({{{leading_comment}\"{}\":true}}),",
-                        name
-                    ),
+                    format_args!("...__sveltets_2_empty({{{leading_comment}\"{name}\":true}}),"),
                 );
             } else if is_css_prop {
                 segs_push_fmt(
                     out,
-                    format_args!("...__sveltets_2_cssProp({{\"{}\":\"\"}}),", name),
+                    format_args!("...__sveltets_2_cssProp({{\"{name}\":\"\"}}),"),
                 );
             } else {
-                segs_push_fmt(out, format_args!("\"{}\":true,", name));
+                segs_push_fmt(out, format_args!("\"{name}\":true,"));
             }
         }
         AttributeValue::Expression(expr) => {
@@ -510,7 +504,7 @@ pub(crate) fn append_attribute_node_segments(
                             || tail.starts_with("satisfies ")
                             || tail.starts_with('!'))
                     {
-                        (s, close as u32)
+                        (s, source_offset(close))
                     } else if close > e as usize && tail.starts_with(')') && {
                         let after = tail[1..].trim_start();
                         after.starts_with("as ")
@@ -527,7 +521,7 @@ pub(crate) fn append_attribute_node_segments(
                             ps -= 1;
                         }
                         if ps > 0 && bytes[ps - 1] == b'(' {
-                            ((ps - 1) as u32, close as u32)
+                            (source_offset(ps - 1), source_offset(close))
                         } else {
                             (s, e)
                         }
@@ -535,16 +529,16 @@ pub(crate) fn append_attribute_node_segments(
                         (s, e)
                     };
                     append_wrapped_attribute(out, leading, is_data_attr, is_css_prop, |out| {
-                        segs_push_fmt(out, format_args!("\"{}\":", name));
+                        segs_push_fmt(out, format_args!("\"{name}\":"));
                         segs_push_src(out, s, e);
                     });
                 }
             } else if is_shorthand {
                 append_segments(out, leading);
-                segs_push_fmt(out, format_args!("{},", name));
+                segs_push_fmt(out, format_args!("{name},"));
             } else {
                 append_wrapped_attribute(out, leading, is_data_attr, is_css_prop, |out| {
-                    segs_push_fmt(out, format_args!("\"{}\":{}", name, expr_text))
+                    segs_push_fmt(out, format_args!("\"{name}\":{expr_text}"));
                 });
             }
         }
@@ -556,7 +550,7 @@ pub(crate) fn append_attribute_node_segments(
             {
                 let range = get_expression_range(&expr.expression);
                 append_wrapped_attribute(out, leading, is_data_attr, is_css_prop, |out| {
-                    segs_push_fmt(out, format_args!("\"{}\":", name));
+                    segs_push_fmt(out, format_args!("\"{name}\":"));
                     if let Some((s, e)) = range {
                         segs_push_src(out, s, e);
                     } else {
@@ -583,7 +577,7 @@ pub(crate) fn append_attribute_node_segments(
                 && is_js_numeric(&text.data)
             {
                 append_segments(out, leading);
-                segs_push_fmt(out, format_args!("\"{}\":", name));
+                segs_push_fmt(out, format_args!("\"{name}\":"));
                 segs_push_src(out, text.start, text.end);
                 segs_push_lit(out, ",");
                 return;
@@ -601,7 +595,7 @@ pub(crate) fn append_attribute_node_segments(
             });
             if !has_expr && text_is_empty {
                 append_wrapped_attribute(out, leading, is_data_attr, is_css_prop, |out| {
-                    segs_push_fmt(out, format_args!("\"{}\":\"\"", name))
+                    segs_push_fmt(out, format_args!("\"{name}\":\"\""));
                 });
                 return;
             }
@@ -617,9 +611,7 @@ pub(crate) fn append_attribute_node_segments(
             {
                 let data = text.data.as_ref();
                 let has_backtick = data.contains('`');
-                let quote = if !has_backtick {
-                    '`'
-                } else {
+                let quote = if has_backtick {
                     match text
                         .start
                         .checked_sub(1)
@@ -628,13 +620,15 @@ pub(crate) fn append_attribute_node_segments(
                         Some(b'\'') => '\'',
                         _ => '"',
                     }
+                } else {
+                    '`'
                 };
                 let needs_escape = data.contains('\\') || (has_backtick && data.contains('\n'));
                 append_wrapped_attribute(out, leading, is_data_attr, is_css_prop, |out| {
-                    segs_push_fmt(out, format_args!("\"{}\":{}", name, quote));
+                    segs_push_fmt(out, format_args!("\"{name}\":{quote}"));
                     if needs_escape {
                         let json =
-                            serde_json::to_string(data).unwrap_or_else(|_| format!("\"{}\"", data));
+                            serde_json::to_string(data).unwrap_or_else(|_| format!("\"{data}\""));
                         segs_push_lit(out, &json[1..json.len() - 1]);
                     } else {
                         segs_push_src(out, text.start, text.end);
@@ -647,7 +641,7 @@ pub(crate) fn append_attribute_node_segments(
             // Mixed text + expression sequence → template literal. Each
             // `${EXPR}` slot still preserves the expression chunk.
             append_wrapped_attribute(out, leading, is_data_attr, is_css_prop, |out| {
-                segs_push_fmt(out, format_args!("\"{}\":`", name));
+                segs_push_fmt(out, format_args!("\"{name}\":`"));
                 for part in parts {
                     match part {
                         AttributeValuePart::Text(text) => {

@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Everything needed to look up / store formatted `<style>` bodies for one run.
-pub(crate) struct StyleCache {
+pub struct StyleCache {
     dir: PathBuf,
     /// Stable per-run prefix mixed into every key: `oxfmt` version + the
     /// resolved config bytes. Computed once so per-block keying is cheap.
@@ -55,7 +55,7 @@ impl StyleCache {
         }
         salt.push(0);
 
-        Some(StyleCache { dir, salt })
+        Some(Self { dir, salt })
     }
 
     /// Look up the formatted form of `(body, lang, width)`. Returns the cached
@@ -86,7 +86,7 @@ impl StyleCache {
         }
     }
 
-    /// 128-bit content key as hex (two SipHashes with distinct salts —
+    /// 128-bit content key as hex (two `SipHashes` with distinct salts —
     /// collision probability is astronomically small for content addressing,
     /// and a key only needs to be stable within a single binary build).
     fn key(&self, body: &str, lang: &str, width: usize) -> String {
@@ -115,9 +115,7 @@ fn hash_parts(salt_byte: u8, run_salt: &[u8], lang: &str, body: &str, width: usi
 
 /// `true` when the user opted out via `RSVELTE_FMT_NO_CACHE`.
 fn env_disabled() -> bool {
-    std::env::var_os("RSVELTE_FMT_NO_CACHE")
-        .map(|v| !v.is_empty() && v != "0")
-        .unwrap_or(false)
+    std::env::var_os("RSVELTE_FMT_NO_CACHE").is_some_and(|v| !v.is_empty() && v != "0")
 }
 
 /// Resolve the cache root, honoring `RSVELTE_FMT_CACHE_DIR`, then the platform
@@ -172,5 +170,5 @@ fn oxfmt_fingerprint(oxfmt: &Path) -> Vec<u8> {
 fn next_tmp_id() -> u64 {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-    ((std::process::id() as u64) << 32) | n
+    (u64::from(std::process::id()) << 32) | n
 }

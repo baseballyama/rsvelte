@@ -1,4 +1,4 @@
-//! CallExpression visitor.
+//! `CallExpression` visitor.
 //!
 //! Analyzes function call expressions, particularly rune calls.
 //!
@@ -10,13 +10,13 @@ use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use serde_json::Value;
 
-/// Get the rune name from a CallExpression node, if it is a rune call.
+/// Get the rune name from a `CallExpression` node, if it is a rune call.
 ///
-/// Returns Some(rune_name) if the call is a rune, None otherwise.
+/// Returns `Some(rune_name)` if the call is a rune, None otherwise.
 ///
 /// # Arguments
 ///
-/// * `node` - The CallExpression node
+/// * `node` - The `CallExpression` node
 /// * `context` - The visitor context
 fn get_rune(node: &Value, context: &VisitorContext) -> Option<String> {
     if node.get("type").and_then(|t| t.as_str()) != Some("CallExpression") {
@@ -50,7 +50,10 @@ fn get_global_keypath(node: &Value, context: &VisitorContext) -> Option<String> 
     // Handle MemberExpression chain
     while n.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
         // Must not be computed
-        if n.get("computed").and_then(|c| c.as_bool()).unwrap_or(false) {
+        if n.get("computed")
+            .and_then(serde_json::Value::as_bool)
+            .unwrap_or(false)
+        {
             return None;
         }
 
@@ -61,7 +64,7 @@ fn get_global_keypath(node: &Value, context: &VisitorContext) -> Option<String> 
         }
 
         let prop_name = property.get("name").and_then(|n| n.as_str())?;
-        joined = format!(".{}{}", prop_name, joined);
+        joined = format!(".{prop_name}{joined}");
 
         n = n.get("object")?;
     }
@@ -72,7 +75,7 @@ fn get_global_keypath(node: &Value, context: &VisitorContext) -> Option<String> 
         if callee.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
             return None;
         }
-        joined = format!("(){}", joined);
+        joined = format!("(){joined}");
         n = callee;
     }
 
@@ -98,7 +101,7 @@ fn get_global_keypath(node: &Value, context: &VisitorContext) -> Option<String> 
         return None;
     }
 
-    Some(format!("{}{}", name, joined))
+    Some(format!("{name}{joined}"))
 }
 
 /// Get the parent node at a specific offset in the path.
@@ -127,8 +130,8 @@ fn get_parent<'a>(context: &'a VisitorContext, offset: usize) -> Option<&'a supe
 
 /// Check if $bindable is in a valid placement.
 ///
-/// Must be inside an AssignmentPattern in an ObjectPattern in a VariableDeclarator
-/// that is initialized with $props().
+/// Must be inside an `AssignmentPattern` in an `ObjectPattern` in a `VariableDeclarator`
+/// that is initialized with $`props()`.
 ///
 /// Valid structure:
 /// ```js
@@ -147,9 +150,8 @@ fn is_bindable_valid_placement(context: &VisitorContext) -> bool {
 
     // Current node should be CallExpression ($bindable call)
     // Parent should be AssignmentPattern
-    let parent = match get_parent(context, 1) {
-        Some(p) => p,
-        None => return false,
+    let Some(parent) = get_parent(context, 1) else {
+        return false;
     };
 
     if parent.get_type_str() != Some("AssignmentPattern") {
@@ -158,9 +160,8 @@ fn is_bindable_valid_placement(context: &VisitorContext) -> bool {
 
     // Grandparent might be Property (in object destructuring) or ObjectPattern/ArrayPattern directly
     let mut offset = 2;
-    let grandparent = match get_parent(context, offset) {
-        Some(p) => p,
-        None => return false,
+    let Some(grandparent) = get_parent(context, offset) else {
+        return false;
     };
 
     let gp_type = grandparent.get_type_str();
@@ -168,9 +169,8 @@ fn is_bindable_valid_placement(context: &VisitorContext) -> bool {
     // If grandparent is Property, skip it and look at the next ancestor
     if gp_type == Some("Property") {
         offset += 1;
-        let next_ancestor = match get_parent(context, offset) {
-            Some(p) => p,
-            None => return false,
+        let Some(next_ancestor) = get_parent(context, offset) else {
+            return false;
         };
         let next_type = next_ancestor.get_type_str();
         if !matches!(next_type, Some("ObjectPattern") | Some("ArrayPattern")) {
@@ -182,9 +182,8 @@ fn is_bindable_valid_placement(context: &VisitorContext) -> bool {
 
     // Next ancestor should be VariableDeclarator
     offset += 1;
-    let var_declarator = match get_parent(context, offset) {
-        Some(p) => p,
-        None => return false,
+    let Some(var_declarator) = get_parent(context, offset) else {
+        return false;
     };
 
     if var_declarator.get_type_str() != Some("VariableDeclarator") {
@@ -246,7 +245,7 @@ fn get_global_keypath_node(node: &JsNode, context: &VisitorContext) -> Option<St
         let JsNode::Identifier { name, .. } = arena.get_js_node(*property) else {
             return None;
         };
-        joined = format!(".{}{}", name, joined);
+        joined = format!(".{name}{joined}");
         n = arena.get_js_node(*object);
     }
 
@@ -255,7 +254,7 @@ fn get_global_keypath_node(node: &JsNode, context: &VisitorContext) -> Option<St
         if !matches!(callee, JsNode::Identifier { .. }) {
             return None;
         }
-        joined = format!("(){}", joined);
+        joined = format!("(){joined}");
         n = callee;
     }
 
@@ -272,13 +271,13 @@ fn get_global_keypath_node(node: &JsNode, context: &VisitorContext) -> Option<St
         return None;
     }
 
-    Some(format!("{}{}", name, joined))
+    Some(format!("{name}{joined}"))
 }
 
 /// Check if $props is in a valid placement.
 ///
-/// Must be a VariableDeclarator at the top level of the instance script,
-/// and not inside a ConstTag.
+/// Must be a `VariableDeclarator` at the top level of the instance script,
+/// and not inside a `ConstTag`.
 ///
 /// Valid:
 /// ```js
@@ -297,9 +296,8 @@ fn get_global_keypath_node(node: &JsNode, context: &VisitorContext) -> Option<St
 /// ```
 fn is_props_valid_placement(context: &VisitorContext) -> bool {
     // Parent must be VariableDeclarator
-    let parent = match get_parent(context, 1) {
-        Some(p) => p,
-        None => return false,
+    let Some(parent) = get_parent(context, 1) else {
+        return false;
     };
 
     if parent.get_type_str() != Some("VariableDeclarator") {
@@ -313,9 +311,8 @@ fn is_props_valid_placement(context: &VisitorContext) -> bool {
     // Walk up to find Program or detect non-top-level nesting
     let mut current_offset = 2; // Start from VariableDeclaration
     loop {
-        let ancestor = match get_parent(context, current_offset) {
-            Some(a) => a,
-            None => return false,
+        let Some(ancestor) = get_parent(context, current_offset) else {
+            return false;
         };
 
         let ancestor_type = ancestor.get_type_str();
@@ -360,7 +357,7 @@ fn is_props_valid_placement(context: &VisitorContext) -> bool {
 
 /// Check if $props.id is in a valid placement.
 ///
-/// Must be a VariableDeclarator with an Identifier id at the top level.
+/// Must be a `VariableDeclarator` with an Identifier id at the top level.
 ///
 /// Valid:
 /// ```js
@@ -373,9 +370,8 @@ fn is_props_valid_placement(context: &VisitorContext) -> bool {
 /// ```
 fn is_props_id_valid_placement(context: &VisitorContext) -> bool {
     // Parent must be VariableDeclarator
-    let parent = match get_parent(context, 1) {
-        Some(p) => p,
-        None => return false,
+    let Some(parent) = get_parent(context, 1) else {
+        return false;
     };
 
     if parent.get_type_str() != Some("VariableDeclarator") {
@@ -402,9 +398,8 @@ fn is_props_id_valid_placement(context: &VisitorContext) -> bool {
     // Check we're at the root scope (top level) - same logic as is_props_valid_placement
     let mut current_offset = 2; // Start from VariableDeclaration
     loop {
-        let ancestor = match get_parent(context, current_offset) {
-            Some(a) => a,
-            None => return false,
+        let Some(ancestor) = get_parent(context, current_offset) else {
+            return false;
         };
 
         let ancestor_type = ancestor.get_type_str();
@@ -439,9 +434,9 @@ fn is_props_id_valid_placement(context: &VisitorContext) -> bool {
 /// Check if $state/$derived is in a valid placement.
 ///
 /// Valid placements:
-/// - VariableDeclarator (not in ConstTag)
-/// - PropertyDefinition (non-static, non-computed)
-/// - AssignmentExpression in constructor (this.property = $state(...))
+/// - `VariableDeclarator` (not in `ConstTag`)
+/// - `PropertyDefinition` (non-static, non-computed)
+/// - `AssignmentExpression` in constructor (this.property = $state(...))
 ///
 /// Valid examples:
 /// ```js
@@ -474,9 +469,8 @@ fn is_state_or_derived_valid_placement(context: &VisitorContext) -> bool {
         }
     }
 
-    let parent = match get_parent(context, 1) {
-        Some(p) => p,
-        None => return false,
+    let Some(parent) = get_parent(context, 1) else {
+        return false;
     };
 
     let parent_type = parent.get_type_str();
@@ -534,9 +528,8 @@ fn is_class_property_assignment_at_constructor_root(
     // First, verify we're inside a constructor method.
     // Path: AssignmentExpression (-1) -> ExpressionStatement (-2) ->
     //       BlockStatement (-3) -> FunctionExpression (-4) -> MethodDefinition (-5)
-    let parent_5 = match get_parent(context, 5) {
-        Some(p) => p,
-        None => return false,
+    let Some(parent_5) = get_parent(context, 5) else {
+        return false;
     };
 
     if parent_5.get_type_str() != Some("MethodDefinition") {
@@ -569,24 +562,21 @@ fn is_class_property_assignment_at_constructor_root(
     // This mirrors the official Svelte compiler's is_class_property_assignment_at_constructor_root
     let computed = left
         .get("computed")
-        .and_then(|c| c.as_bool())
+        .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
-    if let Some(property) = left.get("property") {
+    left.get("property").is_some_and(|property| {
         let prop_type = property.get("type").and_then(|t| t.as_str());
         match prop_type {
             Some("Identifier") if !computed => true,
             Some("PrivateIdentifier") => true,
-            Some("Literal") => true,
             _ => false,
         }
-    } else {
-        false
-    }
+    })
 }
 
 /// Check if $effect is in a valid placement.
 ///
-/// Must be an ExpressionStatement.
+/// Must be an `ExpressionStatement`.
 ///
 /// Valid:
 /// ```js
@@ -598,9 +588,8 @@ fn is_class_property_assignment_at_constructor_root(
 /// let x = $effect(() => { ... });  // Not an ExpressionStatement
 /// ```
 fn is_effect_valid_placement(context: &VisitorContext) -> bool {
-    let parent = match get_parent(context, 1) {
-        Some(p) => p,
-        None => return false,
+    let Some(parent) = get_parent(context, 1) else {
+        return false;
     };
 
     parent.get_type_str() == Some("ExpressionStatement")
@@ -627,9 +616,8 @@ fn is_effect_valid_placement(context: &VisitorContext) -> bool {
 /// ```
 fn is_inspect_trace_valid_placement(context: &VisitorContext) -> bool {
     // Parent: ExpressionStatement
-    let parent = match get_parent(context, 1) {
-        Some(p) => p,
-        None => return false,
+    let Some(parent) = get_parent(context, 1) else {
+        return false;
     };
 
     if parent.get_type_str() != Some("ExpressionStatement") {
@@ -637,9 +625,8 @@ fn is_inspect_trace_valid_placement(context: &VisitorContext) -> bool {
     }
 
     // Grandparent: BlockStatement
-    let grandparent = match get_parent(context, 2) {
-        Some(p) => p,
-        None => return false,
+    let Some(grandparent) = get_parent(context, 2) else {
+        return false;
     };
 
     if grandparent.get_type_str() != Some("BlockStatement") {
@@ -647,9 +634,8 @@ fn is_inspect_trace_valid_placement(context: &VisitorContext) -> bool {
     }
 
     // Great-grandparent: Function (FunctionDeclaration, FunctionExpression, or ArrowFunctionExpression)
-    let fn_node = match get_parent(context, 3) {
-        Some(p) => p,
-        None => return false,
+    let Some(fn_node) = get_parent(context, 3) else {
+        return false;
     };
 
     let fn_type = fn_node.get_type_str();
@@ -668,7 +654,7 @@ fn is_inspect_trace_valid_placement(context: &VisitorContext) -> bool {
         .and_then(|b| b.as_array())
         && let Some(first) = body.first()
     {
-        let first_start = first.get("start").and_then(|s| s.as_u64());
+        let first_start = first.get("start").and_then(serde_json::Value::as_u64);
         let parent_start = parent.get_field_u64("start");
         return first_start.is_some() && first_start == parent_start;
     }
@@ -712,7 +698,7 @@ fn is_inside_generator_function(context: &VisitorContext) -> bool {
     false
 }
 
-/// Visit a call expression (typed JsNode path).
+/// Visit a call expression (typed `JsNode` path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     let JsNode::CallExpression {
         callee,
@@ -842,7 +828,6 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                 "exactly one argument",
             ));
         }
-        Some("$effect.pending") => {}
         Some("$inspect") if arg_count < 1 => {
             return Err(errors::rune_invalid_arguments_length(
                 "$inspect",

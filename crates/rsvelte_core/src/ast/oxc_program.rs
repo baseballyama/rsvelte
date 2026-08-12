@@ -12,7 +12,7 @@ struct ProgramOwner<'source> {
 }
 
 impl ProgramOwner<'_> {
-    fn source(&self) -> &str {
+    const fn source(&self) -> &str {
         self.source
     }
 }
@@ -33,6 +33,7 @@ self_cell!(
 );
 
 impl<'source> RetainedProgram<'source> {
+    #[must_use]
     pub fn parse(source: &'source str, is_typescript: bool) -> Self {
         let source_type = if is_typescript {
             SourceType::ts()
@@ -57,10 +58,12 @@ impl<'source> RetainedProgram<'source> {
         )
     }
 
+    #[must_use]
     pub fn program(&self) -> &Program<'_> {
         &self.borrow_dependent().program
     }
 
+    #[must_use]
     pub fn source(&self) -> &str {
         self.borrow_owner().source()
     }
@@ -69,6 +72,7 @@ impl<'source> RetainedProgram<'source> {
         &self.borrow_dependent().diagnostics
     }
 
+    #[must_use]
     pub fn panicked(&self) -> bool {
         self.borrow_dependent().panicked
     }

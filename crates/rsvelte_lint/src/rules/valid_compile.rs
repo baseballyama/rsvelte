@@ -30,6 +30,10 @@ use crate::line_index::LineIndex;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
 use crate::validator::{range_from, to_dsev};
 
+fn source_offset(value: usize) -> u32 {
+    u32::try_from(value).expect("source offsets are represented as u32")
+}
+
 pub static META: RuleMeta = RuleMeta {
     name: "svelte/valid-compile",
     category: RuleCategory::Correctness,
@@ -69,6 +73,7 @@ fn ignore_warnings_enabled(options: Option<&Value>) -> bool {
 
 /// Compile `source` (warnings-only) and surface the result under
 /// `svelte/valid-compile`. Returns empty when the rule is `Off`.
+#[must_use]
 pub fn valid_compile_diagnostics(
     source: &str,
     file: &Path,
@@ -190,9 +195,11 @@ fn global_style_ranges(source: &str) -> Vec<((u32, u32), (u32, u32))> {
             // Element end: the `</style>` close (or EOF if unterminated).
             let close = source[tag_end..]
                 .find("</style>")
-                .map(|rel| tag_end + rel + "</style>".len())
-                .unwrap_or(source.len());
-            out.push((li.position(i as u32), li.position(close as u32)));
+                .map_or(source.len(), |rel| tag_end + rel + "</style>".len());
+            out.push((
+                li.position(source_offset(i)),
+                li.position(source_offset(close)),
+            ));
         }
         i = tag_end + 1;
     }
@@ -209,7 +216,7 @@ fn is_global_style_node(
     let (Some(start), Some(end)) = (start, end) else {
         return false;
     };
-    let s = (start.line as u32, start.column as u32);
-    let e = (end.line as u32, end.column as u32);
+    let s = (source_offset(start.line), source_offset(start.column));
+    let e = (source_offset(end.line), source_offset(end.column));
     ranges.iter().any(|(rs, re)| *rs <= s && e <= *re)
 }

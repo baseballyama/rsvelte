@@ -5,7 +5,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-/// One benchmark input with a stable CodSpeed identity.
+/// One benchmark input with a stable `CodSpeed` identity.
 pub struct Sample {
     pub id: String,
     pub source: String,
@@ -19,7 +19,7 @@ impl Sample {
         }
     }
 
-    pub fn bytes(&self) -> u64 {
+    pub const fn bytes(&self) -> u64 {
         self.source.len() as u64
     }
 }
