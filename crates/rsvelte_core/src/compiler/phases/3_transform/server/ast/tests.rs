@@ -2414,6 +2414,14 @@ fn ast_matches_oracle_dev_instrumentation() {
             "non-hoistable-snippet-dev-init",
             "<script>let count = $state(0)</script>{#snippet item()}{count}{/snippet}<button onclick={() => count += 1}>x</button>{@render item()}",
         ),
+        (
+            "dynamic-element-identifier",
+            "<script>let tag = 'div'</script><svelte:element this={tag}>x</svelte:element>",
+        ),
+        (
+            "dynamic-element-expression",
+            "<script>let tag = 'div'</script><svelte:element this={tag.toUpperCase()}>x</svelte:element>",
+        ),
     ];
     let mut mismatches = Vec::new();
     for (name, src) in inline {

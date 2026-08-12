@@ -46,6 +46,7 @@ use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState
 
 use super::element::build_element_attributes;
 use super::shared::{TemplateEntry, build_fragment_body, build_template};
+use oxc_ast::ast::Expression as OxcExpression;
 
 /// Visit a `<svelte:element this={tag}>…</svelte:element>` element (static path).
 pub fn visit_svelte_element<'a>(
@@ -80,11 +81,16 @@ pub fn visit_svelte_element<'a>(
     };
 
     let tag = if state.options.dev {
-        let name = state.next_dynamic_tag_name();
         let b = state.b;
-        state
-            .template
-            .push(TemplateEntry::Stmt(b.const_id(&name, tag)));
+        let name = if let OxcExpression::Identifier(identifier) = &tag {
+            identifier.name.to_string()
+        } else {
+            let name = state.next_dynamic_tag_name();
+            state
+                .template
+                .push(TemplateEntry::Stmt(b.const_id(&name, tag)));
+            name
+        };
         state.template.push(TemplateEntry::Stmt(b.stmt(b.call(
             "$.validate_dynamic_element_tag",
             vec![b.thunk(b.id(&name), false)],
