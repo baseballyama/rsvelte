@@ -1,5 +1,13 @@
 # @rsvelte/lint
 
+## 0.10.12
+
+### Patch Changes
+
+- 0a0b1d8: Preserve Oxlint-compatible globals and environment configuration across lint hosts.
+- c8d1fa8: Recognize Unicode identifiers in `valid-each-key` references.
+- 3b2e3b4: Add opt-in `svelte/no-undef` diagnostics for unresolved component-script references.
+
 ## 0.10.11
 
 ### Patch Changes

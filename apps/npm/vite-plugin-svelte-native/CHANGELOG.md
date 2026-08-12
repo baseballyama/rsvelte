@@ -1,5 +1,12 @@
 # @rsvelte/vite-plugin-svelte-native
 
+## 0.3.6
+
+### Patch Changes
+
+- d31687f: Reject unsupported musl targets before resolving a native package.
+- 9f79b99: Expose native build provenance and attest staged bindings against the commit embedded in the addon.
+
 ## 0.3.5
 
 ### Patch Changes

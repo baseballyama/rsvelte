@@ -1,5 +1,38 @@
 # @rsvelte/svelte2tsx
 
+## 0.2.15
+
+### Patch Changes
+
+- 7edc819: Keep generated TypeScript projection code aligned with the compiler's strict Rust quality baseline.
+- Updated dependencies [c46dd83]
+- Updated dependencies [973b147]
+- Updated dependencies [966b011]
+- Updated dependencies [ece95af]
+- Updated dependencies [cb0a6c6]
+- Updated dependencies [1e06814]
+- Updated dependencies [9a5cdb3]
+- Updated dependencies [50ed4b9]
+- Updated dependencies [fc13c09]
+- Updated dependencies [fc85476]
+- Updated dependencies [50ed4b9]
+- Updated dependencies [ee5204b]
+- Updated dependencies [ba984da]
+- Updated dependencies [dd0fd18]
+- Updated dependencies [7edca8a]
+- Updated dependencies [8c35fe4]
+- Updated dependencies [8279905]
+- Updated dependencies [c46dd83]
+- Updated dependencies [89e1646]
+- Updated dependencies [d2a4c1b]
+- Updated dependencies [fe3b1d2]
+- Updated dependencies [c9855ba]
+- Updated dependencies [7edc819]
+- Updated dependencies [b6d0bbe]
+- Updated dependencies [794d775]
+- Updated dependencies [f9e2127]
+  - @rsvelte/compiler@0.10.12
+
 ## 0.2.14
 
 ### Patch Changes

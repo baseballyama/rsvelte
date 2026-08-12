@@ -1,5 +1,39 @@
 # @rsvelte/compiler
 
+## 0.10.12
+
+### Patch Changes
+
+- c46dd83: Preserve reactive context across non-final awaits in async derived declarations
+  and keep generated destructuring temporaries scoped to their async callback.
+- 973b147: Correct async module transforms around Unicode JavaScript identifiers.
+- 966b011: Fix dev-mode placement of comments before derived class fields.
+- ece95af: Preserve SSR source comment placement when legacy reactive statements are reordered.
+- cb0a6c6: Match client effect callback comment placement with Svelte output.
+- 1e06814: Correctly classify async-server function initializers containing comment delimiters.
+- 9a5cdb3: Match Svelte's dev-mode `$.assign` exemptions for `bind:` setters on special elements and `<svelte:self>`.
+- 50ed4b9: Fix corpus mutation accounting for the server development target.
+- fc13c09: Keep comments from function bodies out of generated parameter lists. `rsvelte_esrap`
+  is released as 0.10.5 and `rsvelte_core` pins the new exact requirement.
+- fc85476: Match development SSR lowering for dynamic elements whose tag is an identifier.
+- 50ed4b9: Preserve declaration order for dev SSR snippet stringification guards.
+- ee5204b: Prevent Unicode pseudo-element arguments from panicking CSS compilation.
+- ba984da: Rewrite updates of shadowed local `$state` bindings through the AST pipeline.
+- dd0fd18: Retain async-derived waterfall suppression comments in SSR output.
+- 7edca8a: Match Svelte's development SSR guards for non-hoistable snippets.
+- 8c35fe4: Match Svelte's development SSR output for snippets, elements, bindings, CSS, and snapshots.
+- 8279905: Preserve server output comments trailing direct legacy reactive blocks.
+- c46dd83: Correct proxying for assignments to module-script state that shares a name with an instance derived value.
+- 89e1646: Prevent the internal empty-statement placeholder for removed `$inspect` calls
+  from reaching generated client output when comments change printer whitespace.
+- d2a4c1b: Match server lowering for async `$derived` array destructuring in `.svelte.js` modules.
+- fe3b1d2: Match Svelte's server development guards for snippets passed as component children.
+- c9855ba: Match development-mode SSR snippet validation and stringification guards.
+- 7edc819: Update the embedded Rust printer alongside the compiler's strict quality baseline.
+- b6d0bbe: Classify async component-body awaits from the JavaScript AST, preserving async `$derived.by` callbacks in the synchronous prelude.
+- 794d775: Prevent character offsets from being combined with byte lengths during compiler transforms.
+- f9e2127: Emit source-map columns in UTF-16 code units for astral Unicode characters.
+
 ## 0.10.11
 
 ### Patch Changes

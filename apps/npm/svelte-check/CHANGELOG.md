@@ -1,5 +1,12 @@
 # @rsvelte/svelte-check
 
+## 0.5.16
+
+### Patch Changes
+
+- b183d26: Allow overlay caches under a workspace path whose ancestors are symlinks while continuing to reject symlinks inside the cache.
+- 3f7c8a4: Reject symlinked overlay output paths before writing generated files.
+
 ## 0.5.15
 
 ### Patch Changes

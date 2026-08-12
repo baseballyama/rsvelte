@@ -1,5 +1,7 @@
 # @rsvelte/svelte-check-darwin-arm64
 
+## 0.5.16
+
 ## 0.5.15
 
 ## 0.5.14
