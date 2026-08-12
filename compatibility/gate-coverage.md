@@ -176,9 +176,9 @@ because 1a means no gate reaches this code path with `Meaningful`.
 `compile.mjs:99-100`: `{ generate, dev, filename }` plus `css: 'external'` for components.
 Never passed anywhere in the corpus pipeline: `runes`, `namespace`, `accessors`,
 `customElement`, `preserveWhitespace`, `preserveComments`, `hmr`, `discloseVersion`,
-`sourcemap`, `modernAst`. **[S]** `server` + `dev: true` is covered as
-`server-dev`; its enrolment baseline found four pre-existing output divergences,
-so this target is not a no-op.
+`sourcemap`, `modernAst`. **[S]** SSR `dev: true` is independently compared as
+`server-dev` (`targets.mjs`), so server-only development instrumentation is no
+longer outside this gate.
 
 `experimental.async` is the one that has since been measured, and it was not merely
 uncovered — it made a whole *source shape* unreachable. `$derived(await …)` is an

@@ -15,7 +15,7 @@ Regenerate after a change that moves compile errors:
 node scripts/compat-corpus/verify.mjs --no-fmt --update-error-baseline
 ```
 
-`--update-error-baseline` touches **only** these twelve files, never the output
+`--update-error-baseline` touches **only** these sixteen files, never the output
 or warning ratchets — error comparison needs no oxfmt normalization, so it is
 valid under `--no-fmt`, which the output comparison is not.
 
@@ -96,15 +96,15 @@ of two unrelated errors say nothing, and the code divergence is an
 
 ## Why the per-target files are near-identical
 
-`error-message-known-failures.client.json` holds 121 entries,
-`error-message-known-failures.client-dev.json` holds 121 entries and
-`error-message-known-failures.server.json` holds 120 entries and
-`error-message-known-failures.server-dev.json` holds 120 entries; all four of
-`error-position-known-failures.<target>.json` hold 226 entries, all three of
-`error-end-known-failures.<target>.json` hold 243 entries, and all three of
+`error-message-known-failures.client.json` holds 121 entries;
+`error-message-known-failures.client-dev.json` holds 121 entries;
+`error-message-known-failures.server.json` holds 120 entries; and
+`error-message-known-failures.server-dev.json` holds 120 entries. All four of
+`error-position-known-failures.<target>.json` hold 226 entries, all four of
+`error-end-known-failures.<target>.json` hold 243 entries, and all four of
 `error-frame-known-failures.<target>.json` hold 0 entries. Almost every
 compile error is raised in Phase 1/2, before the target is consulted, so a
-divergence shows up on all three targets at once. Expect the twelve files to move
+divergence shows up on all four targets at once. Expect the sixteen files to move
 together in a burn-down PR.
 
 The single asymmetry is genuinely target-dependent, which is exactly what the

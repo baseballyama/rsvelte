@@ -147,7 +147,7 @@ Pipeline stages (all idempotent, everything under `compatibility/` except
 
 1. `collect.mjs` — gathers sources into `compatibility/sources/` + `manifest.json`
 2. `compile.mjs` — compiles every entry for all three targets into
-   `compatibility/{expected,actual}/<id>/{client.js,server.js,client-dev.js,client.css,client-dev.css,error.json}`.
+   `compatibility/{expected,actual}/<id>/{client.js,server.js,server-dev.js,client-dev.js,client.css,client-dev.css,error.json}`.
    Sharded across worker processes; a Rust panic is recorded as a `rust_panic`
    error for that entry instead of killing the run.
 3. `verify.mjs` — oxfmt-normalizes both trees, byte-compares, writes `report.json`,

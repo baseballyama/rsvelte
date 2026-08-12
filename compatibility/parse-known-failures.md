@@ -1,7 +1,7 @@
 # Output-parseability ratchet
 
 Gate: the "output parseability" section of `scripts/compat-corpus/verify.mjs`.
-Ratchet: `parse-known-failures.<target>.json`, currently **0 entries** for each of the three
+Ratchet: `parse-known-failures.<target>.json`, currently **0 entries** for each of the four
 targets.
 
 ## The question it asks

@@ -32,18 +32,18 @@ reported that entry as passing. Adding this comparison turns the entire existing
 corpus into a warning-parity gate at essentially zero marginal cost, since both
 compilers already run on every entry.
 
-## Why the three per-target files are currently identical
+## Why the four per-target files are currently identical
 
-`warning-known-failures.<target>.json` holds the same 26 entries on all three,
+`warning-known-failures.<target>.json` holds the same 26 entries on all four,
 and `warning-position-known-failures.<target>.json` the same 4 entries. That is not a
 bug in the partitioning — almost every warning is produced in Phase 1/2 (parse
 and analyze), before the target is consulted, so a divergence shows up on all
-three targets at once. Only target-specific codes (`node_invalid_placement_ssr`
+four targets at once. Only target-specific codes (`node_invalid_placement_ssr`
 and friends) can ever differ, and none of those diverge today.
 
 The split is kept anyway: it costs nothing in code, matches the output ratchets,
 and stays sensitive to an entry that starts diverging on a second target while
-already listed for the first. Expect all six files to move together in a
+already listed for the first. Expect all eight files to move together in a
 burn-down PR.
 
 ## Warning codes (`warning-known-failures.<target>.json`, 26 entries each)

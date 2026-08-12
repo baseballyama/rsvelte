@@ -46,7 +46,6 @@ use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState
 
 use super::element::build_element_attributes;
 use super::shared::{TemplateEntry, build_fragment_body, build_template};
-use oxc_ast::ast::Expression as OxcExpression;
 
 /// Visit a `<svelte:element this={tag}>…</svelte:element>` element (static path).
 pub fn visit_svelte_element<'a>(
@@ -82,24 +81,29 @@ pub fn visit_svelte_element<'a>(
 
     let tag = if state.options.dev {
         let b = state.b;
-        let name = if let OxcExpression::Identifier(identifier) = &tag {
-            identifier.name.to_string()
-        } else {
-            let name = state.next_dynamic_tag_name();
-            state
-                .template
-                .push(TemplateEntry::Stmt(b.const_id(&name, tag)));
-            name
+        let name = match tag {
+            oxc_ast::ast::Expression::Identifier(id) => id.name.to_string(),
+            tag => {
+                let name = state.next_dynamic_tag_name();
+                state
+                    .template
+                    .push(TemplateEntry::HoistableDecl(b.const_id(&name, tag)));
+                name
+            }
         };
-        state.template.push(TemplateEntry::Stmt(b.stmt(b.call(
-            "$.validate_dynamic_element_tag",
-            vec![b.thunk(b.id(&name), false)],
-        ))));
-        if !node.fragment.nodes.is_empty() {
-            state.template.push(TemplateEntry::Stmt(b.stmt(b.call(
-                "$.validate_void_dynamic_element",
+        state
+            .template
+            .push(TemplateEntry::HoistableDecl(b.stmt(b.call(
+                "$.validate_dynamic_element_tag",
                 vec![b.thunk(b.id(&name), false)],
             ))));
+        if !node.fragment.nodes.is_empty() {
+            state
+                .template
+                .push(TemplateEntry::HoistableDecl(b.stmt(b.call(
+                    "$.validate_void_dynamic_element",
+                    vec![b.thunk(b.id(&name), false)],
+                ))));
         }
         let (line, col) = crate::compiler::phases::phase3_transform::utils::locate_in_source(
             state.source,

@@ -29,6 +29,7 @@
 //! program assembly prepends to the component-function body ahead of the rendered
 //! template.
 //!
+//! The dev-mode `$.validate_snippet_args` prologue and
 
 use crate::ast::template::SnippetBlock;
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;

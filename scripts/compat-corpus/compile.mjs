@@ -2,10 +2,10 @@
 /**
  * Compile every corpus entry (see collect.mjs) with BOTH the official Svelte
  * compiler (from submodules/svelte) and rsvelte (NAPI binding), for every
- * target in targets.mjs (client = CSR, server = SSR, client-dev = CSR with
- * `dev: true`), writing the outputs to:
+ * target in targets.mjs (client = CSR, server = SSR, server-dev = SSR with
+ * `dev: true`, client-dev = CSR with `dev: true`), writing the outputs to:
  *
- *   compatibility/expected/<id>/{client.js,server.js,client-dev.js,client.css,client-dev.css,error.json}
+ *   compatibility/expected/<id>/{client.js,server.js,server-dev.js,client-dev.js,client.css,client-dev.css,error.json}
  *   compatibility/actual/<id>/{...same...}
  *
  * Files the OFFICIAL compiler rejects are error cases: rsvelte must reject

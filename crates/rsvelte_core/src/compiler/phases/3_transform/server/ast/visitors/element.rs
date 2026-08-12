@@ -249,18 +249,6 @@ fn emit_element_body<'a>(
         if is_void { "/>" } else { ">" }.to_string(),
     ));
 
-    // -- dev element-location instrumentation (写经 RegularElement.js l.94-107)
-    // In dev mode, after the opening tag, push `$.push_element($$renderer,
-    // '<name>', <line>, <col>)`. The location is `locator(node.start)` — a
-    // 1-based line + 0-based column. For a void element, the matching
-    // `$.pop_element()` follows immediately (RegularElement.js l.211-213 only
-    // runs when there are children, but void elements have none — upstream's
-    // pop is gated on `!node_is_void` paths; the oracle emits pop right after
-    // push for void).
-    if state.options.dev {
-        push_element_dev(node, name, state);
-    }
-
     // -- children -----------------------------------------------------------
     if !is_void {
         let namespace = if node.metadata.svg {
@@ -285,6 +273,9 @@ fn emit_element_body<'a>(
             state.in_text_element = true;
         }
         if let Some(content) = content {
+            if state.options.dev {
+                push_element_dev(node, name, state);
+            }
             // Content bind: render the bound value as the body when truthy,
             // otherwise fall back to the element's own (trimmed) children.
             // Mirrors upstream RegularElement.js lines 178-198 + the text
@@ -294,7 +285,45 @@ fn emit_element_body<'a>(
             let is_textarea = name == "textarea";
             emit_content_body(node, content, namespace, is_textarea, state);
         } else {
-            process_children(&node.fragment.nodes, Some(node), namespace, state);
+            let mut leading_debug = 0;
+            let mut has_debug = false;
+            for child in &node.fragment.nodes {
+                match child {
+                    TemplateNode::DebugTag(_) => {
+                        has_debug = true;
+                        leading_debug += 1;
+                    }
+                    TemplateNode::Text(text)
+                        if text
+                            .data
+                            .chars()
+                            .all(|c| matches!(c, ' ' | '\t' | '\r' | '\n')) =>
+                    {
+                        leading_debug += 1;
+                    }
+                    _ => break,
+                }
+            }
+            if !has_debug {
+                leading_debug = 0;
+            }
+            if leading_debug > 0 {
+                process_children(
+                    &node.fragment.nodes[..leading_debug],
+                    Some(node),
+                    namespace,
+                    state,
+                );
+            }
+            if state.options.dev {
+                push_element_dev(node, name, state);
+            }
+            process_children(
+                &node.fragment.nodes[leading_debug..],
+                Some(node),
+                namespace,
+                state,
+            );
             // For a non-special `<optgroup>` / `<select>` with rich content,
             // upstream appends a `<!>` hydration marker after the children
             // (RegularElement.js lines 200-204).
@@ -316,6 +345,7 @@ fn emit_element_body<'a>(
             ));
         }
     } else if state.options.dev {
+        push_element_dev(node, name, state);
         // Void element: the `$.pop_element()` immediately follows the
         // `$.push_element(...)` (the void element has no children) — matches
         // the oracle's void-path pop.
@@ -1916,7 +1946,26 @@ fn emit_option_special<'a>(node: &RegularElement<'a>, state: &mut ServerTransfor
         // Direct value (the option's lone expression child becomes its `value`).
         state.visit_expr(&synthetic.expression)
     } else {
-        let stmts = render_children_body(node, state);
+        let mut stmts = render_children_body(node, state);
+        if state.options.dev {
+            let (line, col) = crate::compiler::phases::phase3_transform::utils::locate_in_source(
+                state.source,
+                node.start as usize,
+            );
+            stmts.insert(
+                0,
+                state.b.stmt(state.b.call(
+                    "$.push_element",
+                    vec![
+                        state.b.id("$$renderer"),
+                        state.b.string("option"),
+                        state.b.number(line as f64),
+                        state.b.number(col as f64),
+                    ],
+                )),
+            );
+            stmts.push(state.b.stmt(state.b.call("$.pop_element", vec![])));
+        }
         let params = state.b.params(vec![state.b.id_pat("$$renderer")], None);
         let fn_body = state.b.body(stmts);
         state.b.arrow(params, fn_body, false, false)

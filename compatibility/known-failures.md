@@ -71,6 +71,13 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
+## Server dev (`known-failures.server-dev.json`, 0 entries)
+
+The `server-dev` target is the server transform with `dev: true`. It separately
+ratchets server-only development instrumentation: component metadata, element
+locations, dynamic-element validation, snippet validation, and injected CSS.
+Its output baseline is empty.
+
 ## Client dev (`known-failures.client-dev.json`, 0 entries)
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
@@ -258,36 +265,6 @@ being *absent*, so a positioning bug reads as an unported feature — #2020, #20
 and #2023 were all filed as "not emitted" and all turned out to be emitted in
 the right number and the wrong place.
 
-
-## Server dev (`known-failures.server-dev.json`, 239 entries)
-
-`server-dev` is SSR with `dev: true`. It was enrolled after the client-dev
-target, so this is a new measured population rather than a regression in any
-existing target. The output comparator finds the same family of missing
-development SSR guards across components: rsvelte lacks the dev-only helper
-calls that upstream places around snippets, slot functions, and their
-generated renderer plumbing. #2844 fixes the two minimal snippet forms that
-first exposed the target; the remaining corpus population is retained as this
-shrink-only baseline until those lowering paths are ported.
-
-Component-child snippets reduced this population by 1,322 entries; non-hoistable
-snippet guards now share upstream's init placement, removing another 72. Dev
-dynamic elements now keep identifier tags direct and only memoize non-identifiers,
-matching upstream and removing 45 more. Partition by corpus source: `162 + 27 +
-9 + 7 + 5 + 5 + 5 + 3 + 3 + 3 + 2 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 = 239`.
-
-| source | entries |
-| --- | ---: |
-| `svelte` | 162 |
-| `svelte.dev` | 27 |
-| `flowbite-svelte` | 5 |
-| `svelte-form-builder` | 9 |
-| `skeleton` | 7 |
-| `shadcn-svelte`, `layercake` | 5 each |
-| `pattern` | 3 |
-| `bits-ui`, `layerchart` | 3 each |
-| `svelte-ux` | 2 |
-| `melt-ui`, `powertable`, `svar-core`, `svelte-formly`, `svelte-maplibre`, `svelte-notifications`, `svelte-table`, `sveltestrap` | 1 each |
 
 ## Hard-cluster warnings for future work
 

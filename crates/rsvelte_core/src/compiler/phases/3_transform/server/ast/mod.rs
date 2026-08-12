@@ -712,7 +712,7 @@ impl<'a> ServerTransformState<'a> {
         // Lower value-position `$effect.tracking()` → `false`,
         // `$effect.root(…)` → `() => {}`, `$effect.pending()` → `0` inside the
         // template expression (写经 server `CallExpression` visitor).
-        script::lower_effect_value_runes_expr(&mut out, self.b);
+        script::lower_effect_value_runes_expr(&mut out, self.b, self.options.dev, self.source);
         // Drop statement-position `$effect(…)` / `$effect.pre(…)` / `$inspect(…)`
         // calls nested in a template-expression IIFE arrow / function body (写经
         // server `ExpressionStatement` visitor → `b.empty`).
@@ -1206,6 +1206,7 @@ pub fn server_component_ast<'a>(
     // and keep them ahead of `$$render_inner` rather than inside it.
     let template_body = if analysis.uses_component_bindings {
         let mut snippets: Vec<Statement<'a>> = Vec::new();
+        let mut inner_prefix: Vec<Statement<'a>> = Vec::new();
         let mut rest: Vec<Statement<'a>> = Vec::new();
         for stmt in template_body {
             let is_snippet = matches!(
@@ -1215,6 +1216,8 @@ pub fn server_component_ast<'a>(
             );
             if is_snippet {
                 snippets.push(stmt);
+            } else if is_prevent_snippet_stringification(&stmt) {
+                inner_prefix.push(stmt);
             } else {
                 rest.push(stmt);
             }
@@ -1222,7 +1225,8 @@ pub fn server_component_ast<'a>(
 
         // function $$render_inner($$renderer) { <rest> }
         let inner_params = b.params(vec![b.id_pat("$$renderer")], None);
-        let inner_fn_body = b.body(rest);
+        inner_prefix.extend(rest);
+        let inner_fn_body = b.body(inner_prefix);
         let render_inner_fn =
             b.function_declaration("$$render_inner", inner_params, inner_fn_body, false);
 
@@ -1427,26 +1431,40 @@ pub fn server_component_ast<'a>(
     // scope and unshifts `$$renderer.global.css.add($$css)` as the FIRST line of
     // the component block (before the sanitized-props prologue).
     //
-    // rsvelte has no `css.ast`; the oracle (server/mod.rs) gates the same
-    // injection on `options.css == Injected && css.has_css && !hash.is_empty() &&
-    // custom_element.is_none() && !options.custom_element`, rendering the code
-    // via `render_stylesheet_minified` and requiring it to be non-empty. We
-    // mirror that decision exactly so the AST path matches the oracle byte-for-byte.
+    // Injected CSS retains its formatted source and inline map in dev, matching
+    // the client transform and upstream's `minify: inject_styles && !dev`.
     let mut css_const: Option<Statement<'a>> = None;
     if options.css == crate::compiler::CssMode::Injected
         && analysis.css.has_css
         && !analysis.css.hash.is_empty()
         && analysis.custom_element.is_none()
         && !options.custom_element
-        && let Ok(css_output) =
+        && let Ok(mut css_output) = (if options.dev {
+            crate::compiler::phases::phase3_transform::css::render_stylesheet(
+                analysis,
+                ast.css.as_deref(),
+                source,
+                options,
+            )
+        } else {
             crate::compiler::phases::phase3_transform::css::render_stylesheet_minified(
                 analysis,
                 ast.css.as_deref(),
                 source,
                 options,
             )
+        })
         && !css_output.code.is_empty()
     {
+        if options.dev
+            && let Some(map) = css_output.map
+        {
+            css_output.code = format!(
+                "{}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,{} */",
+                css_output.code,
+                crate::compiler::phases::phase3_transform::base64_encode(map.as_bytes())
+            );
+        }
         // const $$css = { hash: '<hash>', code: '<code>' };
         css_const = Some(b.const_id(
             "$$css",
@@ -1605,6 +1623,22 @@ See https://svelte.dev/docs/svelte/v5-migration-guide#Components-are-no-longer-c
         }
         None => code,
     })
+}
+
+fn is_prevent_snippet_stringification(stmt: &Statement<'_>) -> bool {
+    matches!(
+        stmt,
+        Statement::ExpressionStatement(expr)
+            if matches!(
+                &expr.expression,
+                OxcExpression::CallExpression(call)
+                    if matches!(
+                        &call.callee,
+                        OxcExpression::Identifier(id)
+                            if id.name.as_str() == "$.prevent_snippet_stringification"
+                    )
+            )
+    )
 }
 
 fn rehome_derived_jsdoc(code: &str) -> String {

@@ -66,6 +66,21 @@ export const TARGETS = [
 		errorFrameBaseline: 'error-frame-known-failures.server.json',
 		parseBaseline: 'parse-known-failures.server.json',
 	},
+	{
+		key: 'server-dev',
+		generate: 'server',
+		dev: true,
+		css: false,
+		baseline: 'known-failures.server-dev.json',
+		warningBaseline: 'warning-known-failures.server-dev.json',
+		warningPositionBaseline: 'warning-position-known-failures.server-dev.json',
+		warningMessageBaseline: 'warning-message-known-failures.server-dev.json',
+		errorMessageBaseline: 'error-message-known-failures.server-dev.json',
+		errorPositionBaseline: 'error-position-known-failures.server-dev.json',
+		errorEndBaseline: 'error-end-known-failures.server-dev.json',
+		errorFrameBaseline: 'error-frame-known-failures.server-dev.json',
+		parseBaseline: 'parse-known-failures.server-dev.json',
+	},
 	// `dev: true` gates 18 client codegen files plus the CSS transform (empty
 	// rules survive pruning in dev), so dev CSS is compared too.
 	{

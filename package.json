@@ -89,6 +89,8 @@
 		"corpus:clean:all": "node scripts/compat-corpus/clean.mjs --all",
 		"corpus:compile:dev": "node scripts/compat-corpus/compile.mjs --targets client-dev",
 		"corpus:verify:dev": "node scripts/compat-corpus/verify.mjs --targets client-dev",
+		"corpus:compile:ssr-dev": "node scripts/compat-corpus/compile.mjs --targets server-dev",
+		"corpus:verify:ssr-dev": "node scripts/compat-corpus/verify.mjs --targets server-dev",
 		"corpus:fmt": "node scripts/compat-corpus/fmt.mjs",
 		"corpus:fmt-verify": "node scripts/compat-corpus/fmt-verify.mjs",
 		"corpus:s2t:compile": "node scripts/compat-corpus/svelte2tsx-compile.mjs",

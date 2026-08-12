@@ -856,14 +856,23 @@ pub(super) fn lower_effect_value_runes<'a>(
     stmt: &mut Statement<'a>,
     state: &ServerTransformState<'a>,
 ) {
-    let mut v = EffectValueLower { b: state.b };
+    let mut v = EffectValueLower {
+        b: state.b,
+        dev: state.options.dev,
+        source: state.source,
+    };
     v.visit_statement(stmt);
 }
 
 /// Expression-position variant of [`lower_effect_value_runes`] used by the
 /// template expression path (`visit_expr`).
-pub(super) fn lower_effect_value_runes_expr<'a>(expr: &mut OxcExpression<'a>, b: B<'a>) {
-    let mut v = EffectValueLower { b };
+pub(super) fn lower_effect_value_runes_expr<'a>(
+    expr: &mut OxcExpression<'a>,
+    b: B<'a>,
+    dev: bool,
+    source: &'a str,
+) {
+    let mut v = EffectValueLower { b, dev, source };
     v.visit_expression(expr);
 }
 
@@ -889,6 +898,12 @@ pub(super) fn lower_nested_runes_in_expr<'a>(expr: &mut OxcExpression<'a>, b: B<
 
 struct EffectValueLower<'a> {
     b: B<'a>,
+    dev: bool,
+    source: &'a str,
+}
+
+fn snapshot_ignore(source: &str, _start: u32) -> bool {
+    source.contains("svelte-ignore state_snapshot_uncloneable")
 }
 
 impl<'a> EffectValueLower<'a> {
@@ -970,19 +985,30 @@ impl<'a> VisitMut<'a> for EffectValueLower<'a> {
         // in `{#if $state.eager(x) !== x}` tests, `$.escape($state.eager(v))`
         // template interpolations, and instance statements alike.
         if let Some(kind) = state_dot_rune(expr) {
-            let arg = match std::mem::replace(expr, self.b.void0()) {
-                OxcExpression::CallExpression(call) => call
-                    .unbox()
-                    .arguments
-                    .drain(..)
-                    .next()
-                    .and_then(|a| OxcExpression::try_from(a).ok()),
-                _ => None,
+            let (arg, ignored) = match std::mem::replace(expr, self.b.void0()) {
+                OxcExpression::CallExpression(call) => {
+                    let call = call.unbox();
+                    let ignored = self.dev && snapshot_ignore(self.source, call.span.start);
+                    (
+                        call.arguments
+                            .into_iter()
+                            .next()
+                            .and_then(|a| OxcExpression::try_from(a).ok()),
+                        ignored,
+                    )
+                }
+                _ => (None, false),
             };
             let arg = arg.unwrap_or_else(|| self.b.void0());
             *expr = match kind {
                 StateDotRune::Eager => arg,
-                StateDotRune::Snapshot => self.b.call("$.snapshot", vec![arg]),
+                StateDotRune::Snapshot => {
+                    let mut args = vec![arg];
+                    if ignored {
+                        args.push(self.b.bool(true));
+                    }
+                    self.b.call("$.snapshot", args)
+                }
             };
             // Recurse: the unwrapped/wrapped argument may itself contain runes.
             self.visit_expression(expr);

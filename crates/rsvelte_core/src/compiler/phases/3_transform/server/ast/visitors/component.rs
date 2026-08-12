@@ -384,13 +384,6 @@ fn build_inline_component<'a, 'b>(
 /// returns any snippet **function declarations** that must wrap the component
 /// call in a hoisting block.
 ///
-/// 写经 gaps (KNOWN GAP):
-/// - The `$.invalid_default_snippet` error path (a `children` attribute *and* a
-///   default-slot body) is not emitted; the default body is simply dropped when
-///   `has_children_prop` is set, matching the common "render tag already used"
-///   intent without the dev-time error.
-/// - `$.prevent_snippet_stringification` (dev-only) wrapper is not emitted.
-///
 /// `let:` directives ARE handled: a slot whose tag (or, for the default slot, the
 /// component itself / a `<svelte:fragment>` child) carries `let:x={pattern}`
 /// directives gets a second destructured parameter `{ x: <pattern>, … }` on its
@@ -434,13 +427,7 @@ fn build_component_children<'a, 'b>(
                 .identifier_name()
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| "snippet".to_string());
-            if state.options.dev {
-                snippet_declarations.push(state.b.stmt(state.b.call(
-                    "$.prevent_snippet_stringification",
-                    vec![state.b.id(&snippet_name)],
-                )));
-            }
-            snippet_declarations.push(build_snippet_declaration(snippet, &snippet_name, state));
+            snippet_declarations.extend(build_snippet_declaration(snippet, &snippet_name, state));
 
             // `name: name` prop (the function reference).
             push_prop(
@@ -713,7 +700,7 @@ fn build_snippet_declaration<'a>(
     snippet: &SnippetBlock<'a>,
     name: &str,
     state: &mut ServerTransformState<'a>,
-) -> Statement<'a> {
+) -> Vec<Statement<'a>> {
     let b = state.b;
     // Emit the declared parameters VERBATIM (destructuring patterns / defaults),
     // mirroring `visit_snippet_block` — a slot snippet `{#snippet children({ foo })}`
@@ -747,7 +734,15 @@ fn build_snippet_declaration<'a>(
         );
     }
     let fn_body = state.b.body(body_block);
-    state.b.function_declaration(name, params, fn_body, false)
+    let fn_decl = state.b.function_declaration(name, params, fn_body, false);
+    if state.options.dev {
+        vec![
+            b.stmt(b.call("$.prevent_snippet_stringification", vec![b.id(name)])),
+            fn_decl,
+        ]
+    } else {
+        vec![fn_decl]
+    }
 }
 
 /// Return the `slot="name"` value of an element-like child node, if present.

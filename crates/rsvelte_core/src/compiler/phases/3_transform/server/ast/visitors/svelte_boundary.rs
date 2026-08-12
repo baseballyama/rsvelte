@@ -153,7 +153,7 @@ pub fn visit_svelte_boundary<'a>(node: &SvelteElement<'a>, state: &mut ServerTra
     // snippets go onto `state.body` (the component-body top, ahead of ALL
     // template content); non-hoistable ones are emitted INLINE into the CURRENT
     // block, immediately ahead of the `$$renderer.boundary(...)` call.
-    let mut failed_fn: Option<Statement<'a>> = None;
+    let mut failed_fn: Option<Vec<Statement<'a>>> = None;
     let mut failed_fn_hoist = false;
     if let Some(snippet) = failed_snippet {
         // 写经 upstream `context.visit(failed_snippet, context.state)` →
@@ -195,9 +195,9 @@ pub fn visit_svelte_boundary<'a>(node: &SvelteElement<'a>, state: &mut ServerTra
     //   (`TemplateEntry::Stmt`) right before the boundary call, which placed it
     //   AFTER preceding sibling template pushes — diverging from upstream, whose
     //   `state.init` always precedes the fragment's rendered template.
-    if let Some(fn_decl) = failed_fn {
+    if let Some(fn_decls) = failed_fn {
         if failed_fn_hoist {
-            state.body.push(fn_decl);
+            state.body.extend(fn_decls);
         } else {
             // Emit inline in the current template stream (visit order), exactly like
             // the regular SnippetBlock visitor (snippet_block.rs). `build_template`
@@ -205,7 +205,9 @@ pub fn visit_svelte_boundary<'a>(node: &SvelteElement<'a>, state: &mut ServerTra
             // source order, so a nested boundary's `failed` lands AFTER preceding
             // `{@const}` / sibling snippets, not prepended ahead of them (which
             // `state.snippet_inits` did).
-            state.template.push(TemplateEntry::HoistableDecl(fn_decl));
+            state
+                .template
+                .extend(fn_decls.into_iter().map(TemplateEntry::HoistableDecl));
         }
     }
 
@@ -237,7 +239,7 @@ fn build_boundary_snippet<'a>(
     snippet: &SnippetBlock<'a>,
     name: &str,
     state: &mut ServerTransformState<'a>,
-) -> Statement<'a> {
+) -> Vec<Statement<'a>> {
     let b = state.b;
     let mut patterns = vec![b.id_pat("$$renderer")];
     for param in &snippet.parameters {
@@ -250,10 +252,24 @@ fn build_boundary_snippet<'a>(
     let params = b.params(patterns, None);
     // SnippetBlock body IS an `is_text_first` parent.
     let saved_scope = state.enter_template_scope(snippet.start);
-    let body_block = super::shared::build_fragment_body(&snippet.body.nodes, true, true, state);
+    let mut body_block = super::shared::build_fragment_body(&snippet.body.nodes, true, true, state);
     state.restore_scope(saved_scope);
+    if state.options.dev {
+        body_block.insert(
+            0,
+            b.stmt(b.call("$.validate_snippet_args", vec![b.id("$$renderer")])),
+        );
+    }
     let fn_body = state.b.body(body_block);
-    state.b.function_declaration(name, params, fn_body, false)
+    let fn_decl = state.b.function_declaration(name, params, fn_body, false);
+    if state.options.dev {
+        vec![
+            b.stmt(b.call("$.prevent_snippet_stringification", vec![b.id(name)])),
+            fn_decl,
+        ]
+    } else {
+        vec![fn_decl]
+    }
 }
 
 /// Build the value expression for a `failed={...}` attribute. A single-expression
