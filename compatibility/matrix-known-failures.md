@@ -28,9 +28,9 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 862 entries)
+## Matrix known failures (`matrix-known-failures.json`, 842 entries)
 
-Partition of `matrix-known-failures.json` by family: `4 + 316 + 8 + 24 + 60 + 82 + 180 + 188`
+Partition of `matrix-known-failures.json` by family: `4 + 316 + 8 + 24 + 60 + 82 + 180 + 168`
 
 ### `binding-position` — 4 entries
 
@@ -343,6 +343,8 @@ slots across all four targets. The eight remaining `script-module` rows with
 that declaration shape remain module-lowering differences; they are not hidden
 by the fixed instance rows.
 
+Partition of `matrix-known-failures.json` entries under `async-derived/` by cause: `39 + 24 + 18 + 12 + 11 + 0 + 2 + 62`
+
 | # | cause | entries |
 |---|---|---|
 | 1 | module async-derived lowering | 39 |
@@ -352,6 +354,7 @@ by the fixed instance rows.
 | 5a | no `$.save(…)` around a non-final `await` | 11 |
 | 5b | instance `$derived.by(async …)` suspended as if it were an async derived | 0 |
 | — | server `$$renderer.async` split lost alongside cause 3 | 2 |
+| — | server-dev target rows enrolled by #2849, pending per-cause attribution | 62 |
 
 **1 — the module entry points.** The module paths now lower destructured async-derived
 declarations, preserve dev metadata, and make awaited generated server deriveds callable. The
