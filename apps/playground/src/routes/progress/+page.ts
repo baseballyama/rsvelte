@@ -1,26 +1,16 @@
-import { base } from '$app/paths';
-import type { PageLoad } from './$types';
-import type { TestResults } from '$lib/types/test-results';
+import { base } from "$app/paths";
+import type { PageLoad } from "./$types";
+import type { CompatibilityReport } from "$lib/types/reports";
 
 export const load: PageLoad = async ({ fetch }) => {
-	try {
-		const response = await fetch(`${base}/test-results.json`);
-
-		if (!response.ok) {
-			return {
-				results: null,
-				error:
-					'Test results not available. Run: cargo run --release -p rsvelte_devtools --bin test_reporter -- --output apps/playground/static/test-results.json'
-			};
-		}
-
-		const results: TestResults = await response.json();
-		return { results, error: null };
-	} catch {
-		return {
-			results: null,
-			error:
-				'Failed to load test results. Run: cargo run --release -p rsvelte_devtools --bin test_reporter -- --output apps/playground/static/test-results.json'
-		};
-	}
+  try {
+    const response = await fetch(`${base}/compatibility-report.json`);
+    if (!response.ok) {
+      return { compatibility: null, error: "Compatibility report not found." };
+    }
+    const compatibility: CompatibilityReport = await response.json();
+    return { compatibility, error: null };
+  } catch {
+    return { compatibility: null, error: "Failed to load the compatibility report." };
+  }
 };

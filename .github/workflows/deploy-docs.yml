@@ -36,14 +36,14 @@ jobs:
 
       - uses: ./.github/actions/setup-rust
         with:
-          wasm-pack: 'true'
+          wasm-pack: "true"
 
       - name: Cache cargo registry + target
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
 
       - uses: ./.github/actions/setup-node-pnpm
         with:
-          cache: 'true'
+          cache: "true"
           cache-dependency-path: apps/playground/pnpm-lock.yaml
 
       # NOTE: the docs dashboard's `apps/playground/static/test-results.json`
@@ -57,11 +57,11 @@ jobs:
       # `apps/playground/static/test-results.json` (same flow as the
       # benchmark JSON below).
 
-      # NOTE: apps/playground/static/benchmark-results.json is *not* regenerated on
-      # every deploy — running the JS-vs-Rust benchmark added ~30 minutes
+      # NOTE: apps/playground/static/performance-report.json is *not* regenerated on
+      # every deploy — running the real-world compiler benchmark adds minutes
       # to each Pages publish for numbers that don't move per push.
       # The committed JSON is the source of truth; refresh it locally by
-      # running `node scripts/bench/run-benchmark.mjs > apps/playground/static/benchmark-results.json`
+      # running `npm run report:performance`
       # on a machine with enough cores to exercise the multi-thread path
       # (GitHub-hosted runners top out at low core counts, so they can't
       # show the parallelism gains we care about), then commit the file.

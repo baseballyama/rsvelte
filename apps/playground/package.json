@@ -12,8 +12,9 @@
 		"format": "oxfmt",
 		"format:check": "oxfmt --check",
 		"generate-results": "cd ../.. && cargo run --release -p rsvelte_devtools --bin test_reporter -- --output apps/playground/static/test-results.json",
-		"generate-benchmark": "cd ../.. && node scripts/bench/run-benchmark.mjs > apps/playground/static/benchmark-results.json",
-		"dev:progress": "npm run generate-results && npm run dev",
+		"generate-compatibility": "cd ../.. && node scripts/reports/publish-compatibility.mjs",
+		"generate-benchmark": "cd ../.. && node scripts/reports/run-performance.mjs",
+		"dev:progress": "npm run generate-results && npm run generate-compatibility && npm run dev",
 		"dev:benchmark": "npm run generate-benchmark && npm run dev"
 	},
 	"dependencies": {

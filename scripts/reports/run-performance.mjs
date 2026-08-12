@@ -1,0 +1,793 @@
+#!/usr/bin/env node
+
+import { execFileSync, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { arch, cpus, loadavg, platform, tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { pathToFileURL, fileURLToPath } from "node:url";
+import { flattenTemplateHoles, oxfmtTree, stripBlankLines } from "../compat-corpus/normalize.mjs";
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
+const corpusDir = join(root, "compatibility/sources");
+const manifestPath = join(root, "compatibility/manifest.json");
+const compatibilityPath = join(root, "compatibility/report.json");
+const oracleDir = join(root, "scripts/bench/competitor-oracle");
+const outputPath = join(root, "apps/playground/static/performance-report.json");
+const astEquivBin = join(root, "target/release/ast_equiv_batch");
+const warmups = Number(process.env.REPORT_WARMUPS ?? 1);
+const runs = Number(process.env.REPORT_RUNS ?? 5);
+const fileLimit = Number(process.env.REPORT_FILE_LIMIT ?? 0);
+
+if (!existsSync(manifestPath) || !existsSync(corpusDir)) {
+  throw new Error("The collected corpus is required; run pnpm corpus:collect first");
+}
+if (!existsSync(join(oracleDir, "node_modules"))) {
+  throw new Error("Competitor packages are missing; run pnpm report:competitors:install");
+}
+if (!existsSync(join(root, "submodules/svelte/packages/svelte/compiler/index.js"))) {
+  throw new Error("The official compiler is not built; run pnpm --dir submodules/svelte build");
+}
+
+const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+const componentEntries = manifest.filter(({ kind }) => kind === "component");
+const selectedEntries = fileLimit > 0 ? componentEntries.slice(0, fileLimit) : componentEntries;
+const files = selectedEntries.map(({ id }) => {
+  const path = join(corpusDir, id);
+  const source = readFileSync(path, "utf8");
+  return { id, path, source, bytes: Buffer.byteLength(source) };
+});
+
+const currentModule = await import(
+  pathToFileURL(join(root, "submodules/svelte/packages/svelte/compiler/index.js"))
+);
+const currentCompile = (currentModule.default ?? currentModule).compile;
+const mrwaipModule = await import(
+  pathToFileURL(join(oracleDir, "node_modules/@mrwaip/svelte-rs/compiler/index.js"))
+);
+const mrwaipCompile = (mrwaipModule.default ?? mrwaipModule).compile;
+const referenceModule = await import(
+  pathToFileURL(join(oracleDir, "node_modules/svelte-mrwaip-reference/compiler/index.js"))
+);
+const referenceCompile = (referenceModule.default ?? referenceModule).compile;
+const { createVerterCompiler } = await import(pathToFileURL(join(oracleDir, "verter-adapter.mjs")));
+
+const targets = [
+  { id: "client", generate: "client", dev: false },
+  { id: "server", generate: "server", dev: false },
+  { id: "client-dev", generate: "client", dev: true },
+  { id: "server-dev", generate: "server", dev: true },
+];
+
+const optionsFor = (target, filename) => ({
+  filename,
+  generate: target.generate,
+  dev: target.dev,
+  css: "external",
+});
+
+async function acceptedBy(compile, target) {
+  const accepted = [];
+  for (const file of files) {
+    try {
+      compile(file.source, optionsFor(target, file.id));
+      accepted.push(file);
+    } catch {
+      // Eligibility is version-class-specific by design.
+    }
+  }
+  return accepted;
+}
+
+function stats(samples, fileCount) {
+  const sorted = [...samples].sort((a, b) => a - b);
+  const median =
+    sorted.length % 2
+      ? sorted[(sorted.length - 1) / 2]
+      : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;
+  const mean = samples.reduce((sum, value) => sum + value, 0) / samples.length;
+  const stddev = Math.sqrt(
+    samples.reduce((sum, value) => sum + (value - mean) ** 2, 0) / samples.length,
+  );
+  return {
+    medianMs: median,
+    minMs: sorted[0],
+    maxMs: sorted.at(-1),
+    stddevMs: stddev,
+    cvPct: mean === 0 ? 0 : (stddev / mean) * 100,
+    throughputFilesPerSec: (fileCount / median) * 1000,
+    rawMs: samples,
+  };
+}
+
+async function benchmarkJs(compile, eligible, target) {
+  for (let i = 0; i < warmups; i += 1) {
+    for (const file of eligible) compile(file.source, optionsFor(target, file.id));
+  }
+  const samples = [];
+  for (let i = 0; i < runs; i += 1) {
+    const start = performance.now();
+    for (const file of eligible) compile(file.source, optionsFor(target, file.id));
+    samples.push(performance.now() - start);
+  }
+  return stats(samples, eligible.length);
+}
+
+async function benchmarkJsAttempts(compile, corpus, target) {
+  const run = () => {
+    for (const file of corpus) {
+      try {
+        compile(file.source, optionsFor(target, file.id));
+      } catch {
+        // Rejections are part of this complete-corpus elapsed-time metric.
+      }
+    }
+  };
+  for (let i = 0; i < warmups; i += 1) run();
+  const samples = [];
+  for (let i = 0; i < runs; i += 1) {
+    const start = performance.now();
+    run();
+    samples.push(performance.now() - start);
+  }
+  return stats(samples, corpus.length);
+}
+
+function benchmarkRust(eligible, target, mode) {
+  const fileList = join(root, `.report-files-${target.id}.txt`);
+  writeFileSync(fileList, `${eligible.map(({ path }) => path).join("\n")}\n`);
+  const args = [
+    "run",
+    "--release",
+    "-p",
+    "rsvelte_devtools",
+    "--bin",
+    "benchmark_runner",
+    "--",
+    "--mode",
+    mode,
+    "--task",
+    `compile-${target.generate}`,
+    "--files",
+    fileList,
+    "--iterations",
+    String(runs),
+    "--warmup",
+    String(warmups),
+  ];
+  if (target.dev) args.push("--dev");
+  const result = spawnSync("cargo", args, {
+    cwd: root,
+    encoding: "utf8",
+    maxBuffer: 1 << 24,
+  });
+  if (result.status !== 0)
+    throw new Error(result.stderr || `Rust benchmark exited ${result.status}`);
+  return stats(JSON.parse(result.stdout).times, eligible.length);
+}
+
+const outputCode = (output) =>
+  typeof output === "string" ? output : typeof output?.code === "string" ? output.code : null;
+
+async function compileCoverage(compile, reference, eligible, target, label) {
+  let compiled = 0;
+  const failures = [];
+  const successfulFiles = [];
+  const stage = mkdtempSync(join(tmpdir(), "rsvelte-competitor-parity-"));
+  const expected = join(stage, "expected");
+  const actual = join(stage, "actual");
+  mkdirSync(expected);
+  mkdirSync(actual);
+
+  try {
+    for (const [index, file] of eligible.entries()) {
+      try {
+        const options = optionsFor(target, file.id);
+        const referenceResult = reference(file.source, options);
+        const result = compile(file.source, options);
+        const referenceJs = outputCode(referenceResult?.js);
+        const actualJs = outputCode(result?.js);
+        if (actualJs !== null && referenceJs !== null) {
+          const name = String(index).padStart(6, "0");
+          writeFileSync(join(expected, `${name}.js`), flattenTemplateHoles(referenceJs));
+          writeFileSync(join(actual, `${name}.js`), flattenTemplateHoles(actualJs));
+          writeFileSync(join(expected, `${name}.css`), outputCode(referenceResult?.css) ?? "");
+          writeFileSync(join(actual, `${name}.css`), outputCode(result?.css) ?? "");
+          successfulFiles.push({ ...file, parityName: name });
+          compiled += 1;
+        } else if (failures.length < 10) {
+          failures.push({ id: file.id, code: "missing_output" });
+        }
+      } catch (error) {
+        if (failures.length < 10) {
+          failures.push({ id: file.id, code: error?.code ?? "compile_error" });
+        }
+      }
+    }
+
+    oxfmtTree(expected, {
+      config: join(root, "compatibility/.oxfmtrc.json"),
+      label: `${label}-expected`,
+    });
+    oxfmtTree(actual, {
+      config: join(root, "compatibility/.oxfmtrc.json"),
+      label: `${label}-actual`,
+    });
+
+    const pairs = [];
+    const byteEqual = new Set();
+    for (const file of successfulFiles) {
+      const left = join(expected, `${file.parityName}.js`);
+      const right = join(actual, `${file.parityName}.js`);
+      const expectedJs = stripBlankLines(readFileSync(left, "utf8"));
+      const actualJs = stripBlankLines(readFileSync(right, "utf8"));
+      if (expectedJs === actualJs) byteEqual.add(file.parityName);
+      else pairs.push({ id: file.parityName, left, right });
+    }
+
+    if (pairs.length > 0 && !existsSync(astEquivBin)) {
+      throw new Error(
+        "The AST equivalence comparator is required; run cargo build --release --bin ast_equiv_batch",
+      );
+    }
+    const astVerdicts = pairs.length
+      ? new Map(
+          JSON.parse(
+            execFileSync(astEquivBin, [], {
+              input: JSON.stringify(pairs),
+              encoding: "utf8",
+              maxBuffer: 1 << 28,
+            }),
+          ).map((verdict) => [verdict.id, verdict]),
+        )
+      : new Map();
+
+    let correct = 0;
+    for (const file of successfulFiles) {
+      const jsVerdict = astVerdicts.get(file.parityName);
+      const jsMatches = byteEqual.has(file.parityName) || jsVerdict?.verdict === "equivalent";
+      const cssMatches =
+        readFileSync(join(expected, `${file.parityName}.css`), "utf8") ===
+        readFileSync(join(actual, `${file.parityName}.css`), "utf8");
+      if (jsMatches && cssMatches) {
+        correct += 1;
+      } else if (failures.length < 10) {
+        failures.push({
+          id: file.id,
+          code: !jsMatches ? (jsVerdict?.verdict ?? "js_mismatch") : "css_mismatch",
+        });
+      }
+    }
+
+    return {
+      compiled,
+      correct,
+      failures,
+      successfulFiles: successfulFiles.map(({ parityName: _, ...file }) => file),
+    };
+  } finally {
+    rmSync(stage, { recursive: true, force: true });
+  }
+}
+
+function rejectionParity(compile, corpus, eligible, target) {
+  const accepted = new Set(eligible.map(({ id }) => id));
+  let correct = 0;
+  for (const file of corpus) {
+    if (accepted.has(file.id)) continue;
+    try {
+      compile(file.source, optionsFor(target, file.id));
+    } catch {
+      correct += 1;
+    }
+  }
+  return correct;
+}
+
+const exactTargetFailures = new Map(targets.map(({ id }) => [id, new Set()]));
+if (existsSync(compatibilityPath)) {
+  const report = JSON.parse(readFileSync(compatibilityPath, "utf8"));
+  for (const failure of report.failures) {
+    for (const detail of failure.details) {
+      exactTargetFailures.get(detail.target)?.add(failure.id);
+    }
+  }
+}
+
+const surfaces = [];
+for (const target of targets) {
+  console.error(`[report] resolving eligible files for ${target.id}`);
+  const currentEligible = await acceptedBy(currentCompile, target);
+  const mrwaipEligible = await acceptedBy(referenceCompile, target);
+  const currentBytes = currentEligible.reduce((sum, file) => sum + file.bytes, 0);
+  const mrwaipBytes = mrwaipEligible.reduce((sum, file) => sum + file.bytes, 0);
+
+  console.error(
+    `[report] benchmarking ${target.id}: ${currentEligible.length} current, ${mrwaipEligible.length} mrwaip-reference`,
+  );
+  const officialCurrent = await benchmarkJs(currentCompile, currentEligible, target);
+  const rustSingle = benchmarkRust(currentEligible, target, "single");
+  const rustMulti = benchmarkRust(currentEligible, target, "multi");
+  const officialCurrentAttempts = await benchmarkJsAttempts(currentCompile, files, target);
+  const rustMultiAttempts = benchmarkRust(files, target, "multi");
+  rmSync(join(root, `.report-files-${target.id}.txt`), { force: true });
+  const officialMrwaip = await benchmarkJs(referenceCompile, mrwaipEligible, target);
+  const officialMrwaipAttempts = await benchmarkJsAttempts(referenceCompile, files, target);
+  const mrwaipCoverage = await compileCoverage(
+    mrwaipCompile,
+    referenceCompile,
+    mrwaipEligible,
+    target,
+    `mrwaip-${target.id}`,
+  );
+  const mrwaipRejectedCorrect = rejectionParity(mrwaipCompile, files, mrwaipEligible, target);
+  const mrwaipCorrect = mrwaipCoverage.correct + mrwaipRejectedCorrect;
+  const mrwaipComparable = mrwaipCorrect === files.length;
+  const mrwaipReferenceSubset = mrwaipComparable
+    ? await benchmarkJs(referenceCompile, mrwaipEligible, target)
+    : null;
+  const mrwaip = mrwaipComparable ? await benchmarkJs(mrwaipCompile, mrwaipEligible, target) : null;
+  const mrwaipAttempts = await benchmarkJsAttempts(mrwaipCompile, files, target);
+
+  const verterCompile = createVerterCompiler({ dev: target.dev });
+  const verterCoverage =
+    target.generate === "client"
+      ? await compileCoverage(
+          verterCompile,
+          currentCompile,
+          currentEligible,
+          target,
+          `verter-${target.id}`,
+        )
+      : { compiled: 0, correct: 0, failures: [], successfulFiles: [] };
+  const verterRejectedCorrect =
+    target.generate === "client"
+      ? rejectionParity(verterCompile, files, currentEligible, target)
+      : 0;
+  const verterCorrect = verterCoverage.correct + verterRejectedCorrect;
+  const verterComparable = target.generate === "client" && verterCorrect === files.length;
+  const verterReferenceSubset = verterComparable
+    ? await benchmarkJs(currentCompile, currentEligible, target)
+    : null;
+  const verter = verterComparable
+    ? await benchmarkJs(verterCompile, currentEligible, target)
+    : null;
+  const verterAttempts =
+    target.generate === "client" ? await benchmarkJsAttempts(verterCompile, files, target) : null;
+
+  surfaces.push({
+    id: target.id,
+    generate: target.generate,
+    dev: target.dev,
+    comparisonClasses: [
+      {
+        id: "svelte-5.56.8",
+        files: currentEligible.length,
+        excludedFiles: files.length - currentEligible.length,
+        bytes: currentBytes,
+        variants: [
+          {
+            id: "official",
+            label: "svelte/compiler",
+            version: "5.56.8",
+            status: "reference",
+            correctFiles: files.length,
+            attemptFiles: files.length,
+            attemptMedianMs: officialCurrentAttempts.medianMs,
+            ...officialCurrent,
+          },
+          {
+            id: "rsvelte-single",
+            label: "rsvelte",
+            version: "workspace",
+            threading: "single",
+            status: "ok",
+            compiledFiles: currentEligible.length,
+            correctFiles: files.length - (exactTargetFailures.get(target.id)?.size ?? 0),
+            exactOutputDivergences: exactTargetFailures.get(target.id)?.size ?? 0,
+            speedup: officialCurrent.medianMs / rustSingle.medianMs,
+            ...rustSingle,
+          },
+          {
+            id: "rsvelte-multi",
+            label: "rsvelte",
+            version: "workspace",
+            threading: "parallel",
+            status: "ok",
+            compiledFiles: currentEligible.length,
+            correctFiles: files.length - (exactTargetFailures.get(target.id)?.size ?? 0),
+            exactOutputDivergences: exactTargetFailures.get(target.id)?.size ?? 0,
+            attemptFiles: files.length,
+            attemptMedianMs: rustMultiAttempts.medianMs,
+            attemptRatioVsRsvelte: 1,
+            speedup: officialCurrent.medianMs / rustMulti.medianMs,
+            ...rustMulti,
+          },
+        ],
+      },
+      {
+        id: "svelte-5.56.4",
+        files: mrwaipEligible.length,
+        excludedFiles: files.length - mrwaipEligible.length,
+        bytes: mrwaipBytes,
+        variants: [
+          {
+            id: "official",
+            label: "svelte/compiler",
+            version: "5.56.4",
+            status: "reference",
+            correctFiles: files.length,
+            attemptFiles: files.length,
+            attemptMedianMs: officialMrwaipAttempts.medianMs,
+            ...officialMrwaip,
+          },
+          {
+            id: "mrwaip",
+            label: "@mrwaip/svelte-rs",
+            version: "0.0.0-canary.13.1",
+            status: mrwaipCorrect === files.length ? "ok" : "unranked",
+            compiledFiles: mrwaipCoverage.compiled,
+            correctFiles: mrwaipCorrect,
+            exactOutputDivergences: mrwaipEligible.length - mrwaipCoverage.correct,
+            benchmarkFiles: mrwaipComparable ? mrwaipEligible.length : 0,
+            failureExamples: mrwaipCoverage.failures,
+            attemptFiles: files.length,
+            attemptMedianMs: mrwaipAttempts.medianMs,
+            attemptRatioVsRsvelte: mrwaipAttempts.medianMs / rustMultiAttempts.medianMs,
+            ...(mrwaip && mrwaipReferenceSubset
+              ? {
+                  speedup: mrwaipReferenceSubset.medianMs / mrwaip.medianMs,
+                  benchmarkReferenceMedianMs: mrwaipReferenceSubset.medianMs,
+                  ...mrwaip,
+                }
+              : {}),
+          },
+        ],
+      },
+      {
+        id: "svelte-5.56.8-verter",
+        files: currentEligible.length,
+        excludedFiles: files.length - currentEligible.length,
+        bytes: currentBytes,
+        variants: [
+          {
+            id: "official",
+            label: "svelte/compiler",
+            version: "5.56.8",
+            status: "reference",
+            correctFiles: files.length,
+            attemptFiles: files.length,
+            ...officialCurrent,
+          },
+          {
+            id: "verter",
+            label: "@verter/wasm",
+            version: "0.0.1-beta.3",
+            status:
+              target.generate !== "client"
+                ? "unsupported"
+                : verterCorrect === files.length
+                  ? "ok"
+                  : "unranked",
+            compiledFiles: verterCoverage.compiled,
+            correctFiles: verterCorrect,
+            exactOutputDivergences: currentEligible.length - verterCoverage.correct,
+            benchmarkFiles: verterComparable ? currentEligible.length : 0,
+            failureExamples: verterCoverage.failures,
+            adapter: "Node WASM asset-path adapter",
+            ...(verterAttempts
+              ? {
+                  attemptFiles: files.length,
+                  attemptMedianMs: verterAttempts.medianMs,
+                  attemptRatioVsRsvelte: verterAttempts.medianMs / rustMultiAttempts.medianMs,
+                }
+              : {}),
+            ...(verter && verterReferenceSubset
+              ? {
+                  speedup: verterReferenceSubset.medianMs / verter.medianMs,
+                  benchmarkReferenceMedianMs: verterReferenceSubset.medianMs,
+                  ...verter,
+                }
+              : {}),
+          },
+        ],
+      },
+    ],
+  });
+}
+
+console.error("[report] benchmarking parser and toolchain tasks");
+const toolFileListDir = mkdtempSync(join(tmpdir(), "rsvelte-tool-corpus-"));
+const toolFileList = join(toolFileListDir, "files.txt");
+writeFileSync(toolFileList, `${files.map(({ path }) => path).join("\n")}\n`);
+const toolBenchmark = spawnSync(process.execPath, [join(root, "scripts/bench/run-benchmark.mjs")], {
+  cwd: root,
+  encoding: "utf8",
+  maxBuffer: 1 << 28,
+  env: {
+    ...process.env,
+    BENCHMARK_TASKS: "parse,svelte2tsx,fmt,lint,svelte-check",
+    BENCHMARK_FILE_LIST: toolFileList,
+    BENCHMARK_WARMUP: String(warmups),
+    BENCHMARK_ITERATIONS: String(runs),
+  },
+});
+rmSync(toolFileListDir, { recursive: true, force: true });
+if (toolBenchmark.stderr) process.stderr.write(toolBenchmark.stderr);
+if (toolBenchmark.status !== 0) {
+  throw new Error(`Toolchain benchmark exited ${toolBenchmark.status}`);
+}
+const toolResults = JSON.parse(toolBenchmark.stdout);
+
+const packageVersion = (path) => JSON.parse(readFileSync(join(root, path), "utf8")).version;
+const toolTask = ({
+  id,
+  label,
+  reference,
+  version,
+  rsvelteLabel = "rsvelte",
+  rsvelteVersion,
+  result,
+  files,
+  excludedFiles = 0,
+  note,
+}) => ({
+  id,
+  label,
+  dataset: id.startsWith("svelte-check") ? "synthetic-workspace" : "compatibility-corpus",
+  files,
+  excludedFiles,
+  reference: {
+    label: reference,
+    version,
+    ...result.javascript,
+  },
+  rsvelteSingle: {
+    label: rsvelteLabel,
+    ...(rsvelteVersion ? { version: rsvelteVersion } : {}),
+    threading: "single",
+    speedup: result.speedup.singleThreadVsJs,
+    ...result.rustSingleThread,
+  },
+  rsvelteParallel: {
+    label: rsvelteLabel,
+    ...(rsvelteVersion ? { version: rsvelteVersion } : {}),
+    threading: "parallel",
+    speedup: result.speedup.multiThreadVsJs,
+    ...result.rustMultiThread,
+  },
+  alternatives: (result.alternatives ?? []).map((alternative) => ({
+    ...alternative,
+    speedupVsRsvelteParallel: alternative.durationMs / result.rustMultiThread.durationMs,
+  })),
+  note,
+});
+
+const fixtureFiles = toolResults.testFilesCount;
+const fixtureExcluded = toolResults.excludedFilesCount;
+const svelteCheckVersion = packageVersion(
+  "submodules/language-tools/packages/svelte-check/package.json",
+);
+const tsgoVersion = packageVersion(
+  "submodules/language-tools/packages/svelte-check/node_modules/@typescript/native-preview/package.json",
+);
+const typescriptVersion = packageVersion(
+  "submodules/language-tools/packages/svelte-check/node_modules/typescript/package.json",
+);
+const svelteCheckRsVersion = packageVersion(
+  "scripts/bench/competitor-oracle/node_modules/svelte-check-rs/package.json",
+);
+const svelteCheckRsTsgoVersion = packageVersion(
+  "scripts/bench/competitor-oracle/node_modules/@typescript/native-preview/package.json",
+);
+const toolTasks = [
+  toolTask({
+    id: "parser",
+    label: "Parser",
+    reference: "svelte/compiler.parse",
+    version: "5.56.8",
+    result: toolResults.parse,
+    files: fixtureFiles,
+    excludedFiles: fixtureExcluded,
+    note: "Complete collected corpus accepted by the official compiler in CSR and SSR.",
+  }),
+  toolTask({
+    id: "svelte2tsx",
+    label: "svelte2tsx",
+    reference: "svelte2tsx",
+    version: packageVersion("submodules/language-tools/packages/svelte2tsx/package.json"),
+    result: toolResults.svelte2tsx,
+    files: fixtureFiles,
+    excludedFiles: fixtureExcluded,
+    note: "Complete collected corpus accepted by the official compiler in CSR and SSR.",
+  }),
+  toolTask({
+    id: "fmt",
+    label: "Formatter",
+    reference: "Prettier + prettier-plugin-svelte",
+    version: `${packageVersion("node_modules/prettier/package.json")} + ${packageVersion("node_modules/prettier-plugin-svelte/package.json")}`,
+    result: toolResults.fmt,
+    files: fixtureFiles,
+    excludedFiles: fixtureExcluded,
+    note: "Complete collected corpus accepted by the official compiler in CSR and SSR.",
+  }),
+  toolTask({
+    id: "lint",
+    label: "Linter",
+    reference: "ESLint + eslint-plugin-svelte",
+    version: `10.x + ${packageVersion("scripts/compat-corpus/lint-oracle/node_modules/eslint-plugin-svelte/package.json")}`,
+    result: toolResults.lint,
+    files: fixtureFiles,
+    excludedFiles: fixtureExcluded,
+    note: `${toolResults.lint.rulesCount} rules implemented by both linters.`,
+  }),
+  toolTask({
+    id: "svelte-check-tsgo",
+    label: "Typecheck",
+    reference: "svelte-check",
+    version: `${svelteCheckVersion} + TypeScript ${typescriptVersion}`,
+    rsvelteLabel: "rsvelte + tsgo",
+    rsvelteVersion: tsgoVersion,
+    result: {
+      ...toolResults.svelteCheck.endToEnd,
+      alternatives: toolResults.svelteCheck.endToEnd.alternatives.map((alternative) => ({
+        ...alternative,
+        version:
+          alternative.id === "svelte-check-rs"
+            ? `${svelteCheckRsVersion} + tsgo ${svelteCheckRsTsgoVersion}`
+            : `${svelteCheckVersion} + ${tsgoVersion}`,
+      })),
+    },
+    files: toolResults.svelteCheck.filesCount,
+    note: `${toolResults.svelteCheck.filesCount.toLocaleString("en-US")}-file synthetic workspace; end-to-end Svelte and TypeScript diagnostics. The equivalent tsgo rows use ${tsgoVersion}; regular svelte-check uses TypeScript ${typescriptVersion}. svelte-check-rs uses default diagnostic sources and is shown separately after passing ${toolResults.svelteCheck.endToEnd.alternatives.find((alternative) => alternative.id === "svelte-check-rs").compatibility.matchedDiagnostics}/${toolResults.svelteCheck.endToEnd.alternatives.find((alternative) => alternative.id === "svelte-check-rs").compatibility.expectedDiagnostics} planted diagnostic checks.`,
+  }),
+];
+
+const git = (...args) => {
+  try {
+    return execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
+  } catch {
+    return "unknown";
+  }
+};
+const fileSetHash = createHash("sha256")
+  .update(selectedEntries.map(({ id }) => id).join("\n"))
+  .digest("hex");
+const result = {
+  schemaVersion: 9,
+  kind: "rsvelte-performance-report",
+  generatedAt: new Date().toISOString(),
+  provenance: {
+    benchmarkDesign:
+      "https://github.com/pikax/svelte-benchmarks/tree/e19c48b81ad24b75a6d4b81377b4a7ebc39a1900",
+    reproduceCommand: "pnpm benchmark:reproduce",
+    competitorPackages: [
+      "@mrwaip/svelte-rs@0.0.0-canary.13.1",
+      "@verter/wasm@0.0.1-beta.3",
+      "oxfmt@0.62.0",
+      `svelte-check@${svelteCheckVersion}`,
+      `svelte-check-rs@${svelteCheckRsVersion}`,
+      `typescript@${typescriptVersion}`,
+      `@typescript/native-preview@${tsgoVersion}`,
+    ],
+    competitorReferences: ["svelte@5.56.4", "svelte@5.56.8"],
+  },
+  commit: {
+    rsvelte: git("rev-parse", "HEAD"),
+    upstreamSvelte: git("-C", "submodules/svelte", "rev-parse", "HEAD"),
+  },
+  corpus: {
+    name: "rsvelte real-world compatibility corpus",
+    configuredComponentFiles: componentEntries.length,
+    measuredFiles: files.length,
+    bytes: files.reduce((sum, file) => sum + file.bytes, 0),
+    truncated: fileLimit > 0,
+    fileSetHash: `sha256:${fileSetHash}`,
+  },
+  runner: {
+    label: process.env.BENCHMARK_RUNNER_LABEL ?? "local",
+    platform: platform(),
+    arch: arch(),
+    cpus: cpus().length,
+    cpuModel: cpus()[0]?.model?.trim() ?? "unknown",
+    node: process.versions.node,
+    loadAvg1min: loadavg()[0],
+    warmups,
+    runs,
+  },
+  surfaces,
+  toolTasks,
+  benchmarkCoverage: [
+    { id: "compiler", label: "Compiler", status: "measured", detail: "CSR, SSR, CSR dev, SSR dev" },
+    { id: "parser", label: "Parser", status: "measured", detail: "Complete accepted corpus" },
+    { id: "projection", label: "TS projection", status: "measured", detail: "svelte2tsx" },
+    {
+      id: "typecheck",
+      label: "Typecheck",
+      status: "measured",
+      detail: "End-to-end diagnostics, including svelte-check-rs",
+    },
+    { id: "format", label: "Format", status: "measured", detail: "Prettier and Oxfmt" },
+    { id: "lint", label: "Lint", status: "measured", detail: "72 equivalent rules" },
+    {
+      id: "metadata",
+      label: "Component metadata",
+      status: "unmeasured",
+      detail: "sveld, svelte-docinfo, Verter",
+    },
+    {
+      id: "lsp-hover",
+      label: "LSP hover",
+      status: "unsupported",
+      detail: "Not implemented by rsvelte LS",
+    },
+    {
+      id: "lsp-format",
+      label: "LSP formatting",
+      status: "unmeasured",
+      detail: "Supported; adapter not pinned",
+    },
+    { id: "memory", label: "Memory", status: "unmeasured", detail: "Peak RSS and resource use" },
+    { id: "vite", label: "Vite", status: "unmeasured", detail: "Bundle and incremental transform" },
+  ],
+  alternativeProducts: [
+    {
+      task: "fmt",
+      label: "dprint + markup_fmt",
+      status: "unmeasured",
+      note: "Svelte is supported through the markup_fmt plugin; no in-process benchmark adapter is pinned yet.",
+    },
+    {
+      task: "fmt",
+      label: "Biome",
+      status: "different-scope",
+      note: "Svelte formatting is experimental and does not yet cover the same syntax as the parity benchmark.",
+    },
+    {
+      task: "lint",
+      label: "Oxlint",
+      status: "different-scope",
+      note: "Oxlint does not implement the 72 Svelte-specific rules used by this benchmark.",
+    },
+    {
+      task: "lint",
+      label: "Biome",
+      status: "different-scope",
+      note: "Biome does not implement the same Svelte-specific rule set.",
+    },
+    {
+      task: "typecheck",
+      label: "svelte-check-rs",
+      status: "different-scope",
+      note: "Uses a different diagnostic pipeline; an equivalent Svelte-only adapter is not pinned yet.",
+    },
+    {
+      task: "typecheck",
+      label: "svelte-check-native",
+      status: "different-scope",
+      note: "Uses a different TypeScript engine, so its end-to-end result is not mixed into this Svelte-only row.",
+    },
+    {
+      task: "typecheck",
+      label: "verter-tsc",
+      status: "different-scope",
+      note: "Experimental and not yet pinned to an equivalent benchmark adapter.",
+    },
+  ],
+  unsupported: [],
+  methodology: [
+    "Compiler rows use real files read byte-for-byte from the pinned compatibility corpus.",
+    "Parser, formatter, linter, and svelte2tsx rows use the same complete collected corpus accepted by the official compiler in CSR and SSR.",
+    `Typecheck runs end to end on a generated ${toolResults.svelteCheck.filesCount.toLocaleString("en-US")}-file workspace; regular svelte-check uses its pinned TypeScript backend, and the svelte-check + tsgo and rsvelte + tsgo rows share the same pinned tsgo backend.`,
+    "svelte-check-rs is timed on the same workspace and gated with planted script and template diagnostics, but remains a separate default-sources workload because its CLI cannot select diagnostic sources.",
+    "Each compiler is compared only with the official compiler version it targets; accepted inputs require output parity and rejected inputs require rejection parity.",
+    "Every published duration is the median of warmed in-process runs; raw samples and coefficient of variation remain in this artifact.",
+    "A competitor stays unranked unless every complete-corpus input has the same acceptance outcome and every accepted input has equivalent normalized JavaScript and identical CSS output.",
+    "Compiler elapsed time and correctness use the same complete corpus, with rejections included; partial implementations remain visible but are not equivalent-work speed rankings.",
+    "Verter's published Node package requires an asset-path adapter; initialization is excluded from timed samples.",
+  ],
+};
+
+writeFileSync(outputPath, `${JSON.stringify(result, null, 2)}\n`);
+execFileSync(join(root, "node_modules/.bin/oxfmt"), [outputPath], { stdio: "ignore" });
+console.error(`[report] wrote ${outputPath}`);

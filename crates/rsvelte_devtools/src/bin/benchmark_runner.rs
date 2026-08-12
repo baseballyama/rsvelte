@@ -38,6 +38,7 @@ enum Task {
 struct Config {
     mode: String,
     task: Task,
+    dev: bool,
     files_path: String,
     iterations: usize,
     warmup: usize,
@@ -47,6 +48,7 @@ fn parse_args() -> Result<Config, String> {
     let args: Vec<String> = env::args().collect();
     let mut mode = String::from("single");
     let mut task = Task::CompileClient;
+    let mut dev = false;
     let mut files_path = String::new();
     let mut iterations = 5;
     let mut warmup = 2;
@@ -72,6 +74,7 @@ fn parse_args() -> Result<Config, String> {
                     };
                 }
             }
+            "--dev" => dev = true,
             "--files" => {
                 i += 1;
                 if i < args.len() {
@@ -114,6 +117,7 @@ fn parse_args() -> Result<Config, String> {
     Ok(Config {
         mode,
         task,
+        dev,
         files_path,
         iterations,
         warmup,
@@ -138,12 +142,13 @@ fn load_files(files_path: &str) -> io::Result<Vec<(String, String)>> {
     Ok(files)
 }
 
-fn process_file(source: &str, filename: &str, task: &Task) {
+fn process_file(source: &str, filename: &str, task: &Task, dev: bool) {
     match task {
         Task::CompileClient => {
             let options = CompileOptions {
                 name: Some(filename.to_string()),
                 generate: GenerateMode::Client,
+                dev,
                 enable_sourcemap: false,
                 ..Default::default()
             };
@@ -153,6 +158,7 @@ fn process_file(source: &str, filename: &str, task: &Task) {
             let options = CompileOptions {
                 name: Some(filename.to_string()),
                 generate: GenerateMode::Server,
+                dev,
                 enable_sourcemap: false,
                 ..Default::default()
             };
@@ -184,7 +190,7 @@ fn process_file(source: &str, filename: &str, task: &Task) {
     }
 }
 
-fn run_single_threaded(files: &[(String, String)], task: &Task) {
+fn run_single_threaded(files: &[(String, String)], task: &Task, dev: bool) {
     match task {
         Task::Parse => {
             // Reuse parser instance across files for reduced per-file overhead
@@ -214,22 +220,22 @@ fn run_single_threaded(files: &[(String, String)], task: &Task) {
         }
         _ => {
             for (path, content) in files {
-                process_file(content, path, task);
+                process_file(content, path, task, dev);
             }
         }
     }
 }
 
 #[cfg(feature = "native")]
-fn run_multi_threaded(files: &[(String, String)], task: &Task) {
+fn run_multi_threaded(files: &[(String, String)], task: &Task, dev: bool) {
     files.par_iter().for_each(|(path, content)| {
-        process_file(content, path, task);
+        process_file(content, path, task, dev);
     });
 }
 
 #[cfg(not(feature = "native"))]
-fn run_multi_threaded(files: &[(String, String)], task: &Task) {
-    run_single_threaded(files, task);
+fn run_multi_threaded(files: &[(String, String)], task: &Task, dev: bool) {
+    run_single_threaded(files, task, dev);
 }
 
 fn main() {
@@ -250,10 +256,11 @@ fn main() {
     };
 
     eprintln!(
-        "Loaded {} files, mode: {}, task: {:?}, iterations: {}, warmup: {}",
+        "Loaded {} files, mode: {}, task: {:?}, dev: {}, iterations: {}, warmup: {}",
         files.len(),
         config.mode,
         config.task,
+        config.dev,
         config.iterations,
         config.warmup
     );
@@ -263,9 +270,9 @@ fn main() {
     // Warmup
     for _ in 0..config.warmup {
         if is_multi {
-            run_multi_threaded(&files, &config.task);
+            run_multi_threaded(&files, &config.task, config.dev);
         } else {
-            run_single_threaded(&files, &config.task);
+            run_single_threaded(&files, &config.task, config.dev);
         }
     }
 
@@ -276,9 +283,9 @@ fn main() {
         let start = Instant::now();
 
         if is_multi {
-            run_multi_threaded(&files, &config.task);
+            run_multi_threaded(&files, &config.task, config.dev);
         } else {
-            run_single_threaded(&files, &config.task);
+            run_single_threaded(&files, &config.task, config.dev);
         }
 
         let elapsed = start.elapsed();

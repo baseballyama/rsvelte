@@ -151,6 +151,7 @@ compatibility/.mutant-shards/
 # Lint-compat pipeline (generated; lint-known-failures.json is tracked)
 compatibility/lint-sources/
 compatibility/lint-manifest.json
+compatibility/lint-report.json
 compatibility/.lint-rules.json
 compatibility/.lint-rsvelte-lint.json
 scripts/compat-corpus/lint-oracle/node_modules/

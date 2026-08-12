@@ -10,16 +10,28 @@
  * skipped, so a warm checkout pays nothing.
  */
 
-import { execSync, spawn, spawnSync } from 'child_process';
-import { mkdirSync, mkdtempSync, rmSync } from 'fs';
-import { arch as nodeArch, cpus, loadavg as osLoadAvg, platform as nodePlatform, tmpdir } from 'os';
-import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { execSync, spawn, spawnSync } from "child_process";
+import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from "fs";
+import { arch as nodeArch, cpus, loadavg as osLoadAvg, platform as nodePlatform, tmpdir } from "os";
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+import { format as oxfmtFormat } from "oxfmt";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = join(__dirname, '../..');
-const SVELTE_TESTS = join(REPO_ROOT, 'submodules/svelte/packages/svelte/tests');
+const REPO_ROOT = join(__dirname, "../..");
+const SVELTE_TESTS = join(REPO_ROOT, "submodules/svelte/packages/svelte/tests");
+const OXFMT_BIN = join(REPO_ROOT, "node_modules/.bin/oxfmt");
+const OXFMT_CONFIG = join(REPO_ROOT, "scripts/fixtures/fmt-corpus.oxfmtrc.json");
+const REQUESTED_TASKS = new Set(
+  (
+    process.env.BENCHMARK_TASKS ??
+    "compile-client,compile-server,parse,svelte2tsx,fmt,lint,svelte-check"
+  )
+    .split(",")
+    .map((task) => task.trim())
+    .filter(Boolean),
+);
 
 /**
  * Ensure the JS baselines the benchmark consumes are built. Both are
@@ -30,69 +42,71 @@ const SVELTE_TESTS = join(REPO_ROOT, 'submodules/svelte/packages/svelte/tests');
  * cost nothing.
  */
 function ensureBenchDeps() {
-	// Stdio used for every shell-out below: stdin ignored, child stdout
-	// redirected to *our* stderr so it can never corrupt the JSON the
-	// parent script pipes from our stdout, stderr inherited so build
-	// logs still surface in the terminal.
-	const sio = { stdio: ['ignore', 2, 'inherit'] };
-	const run = (cmd, cwd) =>
-		execSync(cmd, { ...sio, cwd: join(REPO_ROOT, cwd) });
-	const built = (marker) => existsSync(join(REPO_ROOT, marker));
+  // Stdio used for every shell-out below: stdin ignored, child stdout
+  // redirected to *our* stderr so it can never corrupt the JSON the
+  // parent script pipes from our stdout, stderr inherited so build
+  // logs still surface in the terminal.
+  const sio = { stdio: ["ignore", 2, "inherit"] };
+  const run = (cmd, cwd) => execSync(cmd, { ...sio, cwd: join(REPO_ROOT, cwd) });
+  const built = (marker) => existsSync(join(REPO_ROOT, marker));
 
-	// 1. svelte/compiler — self-contained, has its own install + build.
-	if (!built('submodules/svelte/packages/svelte/compiler/index.js')) {
-		console.error('[run-benchmark] building svelte/compiler (one-time)…');
-		run('pnpm install --frozen-lockfile && pnpm build', 'submodules/svelte');
-	}
+  // 1. svelte/compiler — self-contained, has its own install + build.
+  if (!built("submodules/svelte/packages/svelte/compiler/index.js")) {
+    console.error("[run-benchmark] building svelte/compiler (one-time)…");
+    run("pnpm install --frozen-lockfile && pnpm build", "submodules/svelte");
+  }
 
-	// 2. language-tools — svelte2tsx → language-server → svelte-check is a
-	// hard dependency chain (each package's build config imports the
-	// previous package's `dist/`). Walk it explicitly so we don't end up
-	// re-running upstream's recursive `pnpm build` script, which
-	// rebuilds everything and tail-runs a slow `test:sanity` pass.
-	const langPkgs = [
-		{
-			name: 'svelte2tsx',
-			marker: 'submodules/language-tools/packages/svelte2tsx/index.mjs',
-			cwd: 'submodules/language-tools/packages/svelte2tsx',
-			cmd: 'pnpm build',
-		},
-		{
-			name: 'language-server',
-			marker: 'submodules/language-tools/packages/language-server/dist/src/index.js',
-			cwd: 'submodules/language-tools/packages/language-server',
-			cmd: 'pnpm build',
-		},
-		{
-			name: 'svelte-check',
-			marker: 'submodules/language-tools/packages/svelte-check/dist/src/index.js',
-			cwd: 'submodules/language-tools/packages/svelte-check',
-			// Upstream's `pnpm build` recursively rebuilds svelte2tsx +
-			// language-server (idempotent but slow) and runs a fixture
-			// `test:sanity` pass. Invoke rollup directly — it's in
-			// svelte-check's own devDeps.
-			cmd: 'pnpm exec rollup -c',
-		},
-	];
-	const langPending = langPkgs.filter((p) => !built(p.marker));
-	if (langPending.length > 0) {
-		if (!built('submodules/language-tools/node_modules/.modules.yaml')) {
-			console.error('[run-benchmark] installing language-tools workspace (one-time)…');
-			run('pnpm install --frozen-lockfile', 'submodules/language-tools');
-		}
-		for (const pkg of langPending) {
-			console.error(`[run-benchmark] building language-tools/${pkg.name} (one-time)…`);
-			run(pkg.cmd, pkg.cwd);
-		}
-	}
+  // 2. language-tools — svelte2tsx → language-server → svelte-check is a
+  // hard dependency chain (each package's build config imports the
+  // previous package's `dist/`). Walk it explicitly so we don't end up
+  // re-running upstream's recursive `pnpm build` script, which
+  // rebuilds everything and tail-runs a slow `test:sanity` pass.
+  const langPkgs = [
+    {
+      name: "svelte2tsx",
+      marker: "submodules/language-tools/packages/svelte2tsx/index.mjs",
+      cwd: "submodules/language-tools/packages/svelte2tsx",
+      cmd: "pnpm build",
+    },
+    {
+      name: "language-server",
+      marker: "submodules/language-tools/packages/language-server/dist/src/index.js",
+      cwd: "submodules/language-tools/packages/language-server",
+      cmd: "pnpm build",
+    },
+    {
+      name: "svelte-check",
+      marker: "submodules/language-tools/packages/svelte-check/dist/src/index.js",
+      cwd: "submodules/language-tools/packages/svelte-check",
+      // Upstream's `pnpm build` recursively rebuilds svelte2tsx +
+      // language-server (idempotent but slow) and runs a fixture
+      // `test:sanity` pass. Invoke rollup directly — it's in
+      // svelte-check's own devDeps.
+      cmd: "pnpm exec rollup -c",
+    },
+  ];
+  const requiredLangPackages = REQUESTED_TASKS.has("svelte-check")
+    ? langPkgs
+    : langPkgs.filter(({ name }) => name === "svelte2tsx");
+  const langPending = requiredLangPackages.filter((p) => !built(p.marker));
+  if (langPending.length > 0) {
+    if (!built("submodules/language-tools/node_modules/.modules.yaml")) {
+      console.error("[run-benchmark] installing language-tools workspace (one-time)…");
+      run("pnpm install --frozen-lockfile", "submodules/language-tools");
+    }
+    for (const pkg of langPending) {
+      console.error(`[run-benchmark] building language-tools/${pkg.name} (one-time)…`);
+      run(pkg.cmd, pkg.cwd);
+    }
+  }
 
-	// 3. The lint baseline is the real eslint-plugin-svelte, installed in the
-	// parity corpus' isolated oracle package (same pin the lint gate compares
-	// against) rather than as a root devDependency.
-	if (!built('scripts/compat-corpus/lint-oracle/node_modules/eslint-plugin-svelte')) {
-		console.error('[run-benchmark] installing lint oracle (one-time)…');
-		run('npm install --no-package-lock', 'scripts/compat-corpus/lint-oracle');
-	}
+  // 3. The lint baseline is the real eslint-plugin-svelte, installed in the
+  // parity corpus' isolated oracle package (same pin the lint gate compares
+  // against) rather than as a root devDependency.
+  if (!built("scripts/compat-corpus/lint-oracle/node_modules/eslint-plugin-svelte")) {
+    console.error("[run-benchmark] installing lint oracle (one-time)…");
+    run("npm install --no-package-lock", "scripts/compat-corpus/lint-oracle");
+  }
 }
 
 ensureBenchDeps();
@@ -100,13 +114,10 @@ ensureBenchDeps();
 // Now safe to import. We use dynamic imports so the prereq check above
 // runs first — static imports get hoisted and would crash before we
 // could print a helpful message / build the missing output.
-const svelteCompilerMod = await import(
-	'../../submodules/svelte/packages/svelte/compiler/index.js'
-);
+const svelteCompilerMod = await import("../../submodules/svelte/packages/svelte/compiler/index.js");
 const { compile, parse } = svelteCompilerMod.default ?? svelteCompilerMod;
-const { svelte2tsx: upstreamSvelte2tsx } = await import(
-	'../../submodules/language-tools/packages/svelte2tsx/index.mjs'
-);
+const { svelte2tsx: upstreamSvelte2tsx } =
+  await import("../../submodules/language-tools/packages/svelte2tsx/index.mjs");
 
 // Prettier + prettier-plugin-svelte are the JS baseline for the `fmt` task.
 // Both are plain npm devDependencies (see root package.json), so a normal
@@ -116,26 +127,26 @@ const { svelte2tsx: upstreamSvelte2tsx } = await import(
 let prettier;
 let prettierPluginSvelte;
 try {
-	const prettierMod = await import('prettier');
-	prettier = prettierMod.default ?? prettierMod;
-	prettierPluginSvelte = await import('prettier-plugin-svelte');
+  const prettierMod = await import("prettier");
+  prettier = prettierMod.default ?? prettierMod;
+  prettierPluginSvelte = await import("prettier-plugin-svelte");
 } catch (err) {
-	console.error(
-		'[run-benchmark] prettier / prettier-plugin-svelte not found — run `pnpm install`.',
-	);
-	throw err;
+  console.error(
+    "[run-benchmark] prettier / prettier-plugin-svelte not found — run `pnpm install`.",
+  );
+  throw err;
 }
 
 const TEST_CATEGORIES = [
-	'parser-modern/samples',
-	'snapshot/samples',
-	'css/samples',
-	'runtime-runes/samples',
-	'runtime-legacy/samples',
-	'runtime-browser/samples',
-	'hydration/samples',
-	'server-side-rendering/samples',
-	'validator/samples',
+  "parser-modern/samples",
+  "snapshot/samples",
+  "css/samples",
+  "runtime-runes/samples",
+  "runtime-legacy/samples",
+  "runtime-browser/samples",
+  "hydration/samples",
+  "server-side-rendering/samples",
+  "validator/samples",
 ];
 
 // How many iterations to run for accurate timing.
@@ -145,27 +156,26 @@ const TEST_CATEGORIES = [
 // so per-run jitter (mostly JS-side V8 inlining warmup) is averaged out.
 const WARMUP_ITERATIONS = Number(process.env.BENCHMARK_WARMUP ?? 1);
 const BENCHMARK_ITERATIONS = Number(process.env.BENCHMARK_ITERATIONS ?? 3);
-
 function findSvelteFiles(dir, files = []) {
-	if (!existsSync(dir)) return files;
+  if (!existsSync(dir)) return files;
 
-	const entries = readdirSync(dir);
-	for (const entry of entries) {
-		const fullPath = join(dir, entry);
-		const stat = statSync(fullPath);
+  const entries = readdirSync(dir);
+  for (const entry of entries) {
+    const fullPath = join(dir, entry);
+    const stat = statSync(fullPath);
 
-		if (stat.isDirectory()) {
-			findSvelteFiles(fullPath, files);
-		} else if (entry.endsWith('.svelte')) {
-			files.push({
-				path: fullPath,
-				content: readFileSync(fullPath, 'utf-8'),
-				size: stat.size,
-			});
-		}
-	}
+    if (stat.isDirectory()) {
+      findSvelteFiles(fullPath, files);
+    } else if (entry.endsWith(".svelte")) {
+      files.push({
+        path: fullPath,
+        content: readFileSync(fullPath, "utf-8"),
+        size: stat.size,
+      });
+    }
+  }
 
-	return files;
+  return files;
 }
 
 /**
@@ -176,89 +186,112 @@ function findSvelteFiles(dir, files = []) {
  * client and server mode.
  */
 function filterCompilableFiles(files) {
-	return files.filter((file) => {
-		for (const generate of ['client', 'server']) {
-			try {
-				compile(file.content, { generate, filename: file.path, dev: false });
-			} catch {
-				return false;
-			}
-		}
-		return true;
-	});
+  return files.filter((file) => {
+    for (const generate of ["client", "server"]) {
+      try {
+        compile(file.content, { generate, filename: file.path, dev: false });
+      } catch {
+        return false;
+      }
+    }
+    return true;
+  });
 }
 
 let cachedTestFiles = null;
 
 function collectTestFiles() {
-	if (cachedTestFiles) return cachedTestFiles;
+  if (cachedTestFiles) return cachedTestFiles;
 
-	const collected = [];
-	for (const category of TEST_CATEGORIES) {
-		const categoryPath = join(SVELTE_TESTS, category);
-		findSvelteFiles(categoryPath, collected);
-	}
+  const externalFileList = process.env.BENCHMARK_FILE_LIST;
+  if (externalFileList) {
+    const collected = readFileSync(externalFileList, "utf8")
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((path) => ({ path, content: readFileSync(path, "utf8") }));
+    const files = filterCompilableFiles(collected);
+    const excluded = collected.length - files.length;
+    console.error(
+      `[run-benchmark] complete corpus: excluded ${excluded} files rejected by the reference (${collected.length} → ${files.length})`,
+    );
+    cachedTestFiles = { files, excludedCount: excluded };
+    return cachedTestFiles;
+  }
 
-	const files = filterCompilableFiles(collected);
-	const excluded = collected.length - files.length;
-	console.error(
-		`[run-benchmark] excluded ${excluded} files that fail to compile (${collected.length} → ${files.length})`,
-	);
+  const collected = [];
+  for (const category of TEST_CATEGORIES) {
+    const categoryPath = join(SVELTE_TESTS, category);
+    findSvelteFiles(categoryPath, collected);
+  }
 
-	cachedTestFiles = { files, excludedCount: excluded };
-	return cachedTestFiles;
+  const files = filterCompilableFiles(collected);
+  const excluded = collected.length - files.length;
+  console.error(
+    `[run-benchmark] excluded ${excluded} files that fail to compile (${collected.length} → ${files.length})`,
+  );
+
+  cachedTestFiles = { files, excludedCount: excluded };
+  return cachedTestFiles;
 }
 
 function processFileJS(file, task) {
-	switch (task) {
-		case 'compile-client':
-			compile(file.content, { generate: 'client', filename: file.path, dev: false });
-			break;
-		case 'compile-server':
-			compile(file.content, { generate: 'server', filename: file.path, dev: false });
-			break;
-		case 'parse':
-			parse(file.content, { modern: true });
-			break;
-		case 'svelte2tsx':
-			upstreamSvelte2tsx(file.content, {
-				filename: file.path,
-				isTsFile: false,
-				mode: 'ts',
-				typingsNamespace: 'svelteHTML',
-				version: '5',
-			});
-			break;
-	}
+  switch (task) {
+    case "compile-client":
+      compile(file.content, {
+        generate: "client",
+        filename: file.path,
+        dev: false,
+      });
+      break;
+    case "compile-server":
+      compile(file.content, {
+        generate: "server",
+        filename: file.path,
+        dev: false,
+      });
+      break;
+    case "parse":
+      parse(file.content, { modern: true });
+      break;
+    case "svelte2tsx":
+      upstreamSvelte2tsx(file.content, {
+        filename: file.path,
+        isTsFile: false,
+        mode: "ts",
+        typingsNamespace: "svelteHTML",
+        version: "5",
+      });
+      break;
+  }
 }
 
 function benchmarkJavaScript(files, iterations, task) {
-	const times = [];
+  const times = [];
 
-	for (let i = 0; i < WARMUP_ITERATIONS; i++) {
-		for (const file of files) {
-			try {
-				processFileJS(file, task);
-			} catch {
-				// Ignore compilation errors for benchmark
-			}
-		}
-	}
+  for (let i = 0; i < WARMUP_ITERATIONS; i++) {
+    for (const file of files) {
+      try {
+        processFileJS(file, task);
+      } catch {
+        // Ignore compilation errors for benchmark
+      }
+    }
+  }
 
-	for (let i = 0; i < iterations; i++) {
-		const start = performance.now();
-		for (const file of files) {
-			try {
-				processFileJS(file, task);
-			} catch {
-				// Ignore compilation errors for benchmark
-			}
-		}
-		const end = performance.now();
-		times.push(end - start);
-	}
+  for (let i = 0; i < iterations; i++) {
+    const start = performance.now();
+    for (const file of files) {
+      try {
+        processFileJS(file, task);
+      } catch {
+        // Ignore compilation errors for benchmark
+      }
+    }
+    const end = performance.now();
+    times.push(end - start);
+  }
 
-	return times;
+  return times;
 }
 
 /**
@@ -270,83 +303,89 @@ function benchmarkJavaScript(files, iterations, task) {
  * `rsvelte_fmt` (the formatter can't live in the compiler crate without a
  * dependency cycle). Both share the same CLI + JSON-output contract.
  */
-async function benchmarkRust(files, singleThread, task, binName = 'benchmark_runner', extraArgs = []) {
-	const mode = singleThread ? 'single' : 'multi';
+async function benchmarkRust(
+  files,
+  singleThread,
+  task,
+  binName = "benchmark_runner",
+  extraArgs = [],
+) {
+  const mode = singleThread ? "single" : "multi";
 
-	const fileList = files.map((f) => f.path).join('\n');
-	const tempFile = join(__dirname, '../../.benchmark-files.txt');
-	writeFileSync(tempFile, fileList);
+  const fileList = files.map((f) => f.path).join("\n");
+  const tempFile = join(__dirname, "../../.benchmark-files.txt");
+  writeFileSync(tempFile, fileList);
 
-	// `profile.release` sets `panic = "abort"`, so a formatter/linter panic on
-	// a malformed corpus file would kill the whole run. Both runners rely on
-	// `catch_unwind` to skip such files, which only works under a profile with
-	// `panic = "unwind"` — that's exactly what `profile.bench` is for (it
-	// inherits release's optimisation flags, so the timings stay
-	// representative). Compiler tasks don't panic on this corpus, so they
-	// keep the faster-to-link release profile.
-	const profileFlag = binName === 'benchmark_runner' ? '--release' : '--profile=bench';
-	const packageArgs = binName === 'benchmark_runner' ? ['-p', 'rsvelte_devtools'] : [];
+  // `profile.release` sets `panic = "abort"`, so a formatter/linter panic on
+  // a malformed corpus file would kill the whole run. Both runners rely on
+  // `catch_unwind` to skip such files, which only works under a profile with
+  // `panic = "unwind"` — that's exactly what `profile.bench` is for (it
+  // inherits release's optimisation flags, so the timings stay
+  // representative). Compiler tasks don't panic on this corpus, so they
+  // keep the faster-to-link release profile.
+  const profileFlag = binName === "benchmark_runner" ? "--release" : "--profile=bench";
+  const packageArgs = binName === "benchmark_runner" ? ["-p", "rsvelte_devtools"] : [];
 
-	return new Promise((resolve, reject) => {
-		const args = [
-			'run',
-			profileFlag,
-			...packageArgs,
-			'--bin',
-			binName,
-			'--',
-			'--mode',
-			mode,
-			'--task',
-			task,
-			'--files',
-			tempFile,
-			'--iterations',
-			String(BENCHMARK_ITERATIONS),
-			'--warmup',
-			String(WARMUP_ITERATIONS),
-			...extraArgs,
-		];
+  return new Promise((resolve, reject) => {
+    const args = [
+      "run",
+      profileFlag,
+      ...packageArgs,
+      "--bin",
+      binName,
+      "--",
+      "--mode",
+      mode,
+      "--task",
+      task,
+      "--files",
+      tempFile,
+      "--iterations",
+      String(BENCHMARK_ITERATIONS),
+      "--warmup",
+      String(WARMUP_ITERATIONS),
+      ...extraArgs,
+    ];
 
-		const proc = spawn('cargo', args, {
-			cwd: join(__dirname, '../..'),
-			stdio: ['ignore', 'pipe', 'pipe'],
-		});
+    const proc = spawn("cargo", args, {
+      cwd: join(__dirname, "../.."),
+      stdio: ["ignore", "pipe", "pipe"],
+    });
 
-		let stdout = '';
-		let stderr = '';
+    let stdout = "";
+    let stderr = "";
 
-		proc.stdout.on('data', (data) => {
-			stdout += data.toString();
-		});
-		proc.stderr.on('data', (data) => {
-			stderr += data.toString();
-		});
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
 
-		proc.on('close', (code) => {
-			if (code !== 0) {
-				console.error('Rust benchmark stderr:', stderr);
-				reject(new Error(`Rust benchmark failed with code ${code}`));
-				return;
-			}
+    proc.on("close", (code) => {
+      if (code !== 0) {
+        console.error("Rust benchmark stderr:", stderr);
+        reject(new Error(`Rust benchmark failed with code ${code}`));
+        return;
+      }
 
-			try {
-				const result = JSON.parse(stdout);
-				resolve(result.times);
-			} catch (e) {
-				console.error('Failed to parse Rust output:', stdout);
-				reject(e);
-			}
-		});
-	});
+      try {
+        const result = JSON.parse(stdout);
+        resolve(result.times);
+      } catch (e) {
+        console.error("Failed to parse Rust output:", stdout);
+        reject(e);
+      }
+    });
+  });
 }
 
 function getCommitSha() {
-	try {
-		return execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim();
-	} catch {
-		return 'unknown';
-	}
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf-8" }).trim();
+  } catch {
+    return "unknown";
+  }
 }
 
 /**
@@ -366,28 +405,28 @@ function getCommitSha() {
  * can't tell environmental drift from real regressions.
  */
 function getRunnerInfo() {
-	const cpuList = cpus();
-	// `os.loadavg()` returns [1min, 5min, 15min] on Unix; on Windows it
-	// returns `[0, 0, 0]`. We only emit the 1-minute figure (the rest is
-	// rarely actionable for a benchmark run that takes <5min total).
-	let loadAvg = null;
-	try {
-		loadAvg = osLoadAvg()[0];
-	} catch {
-		loadAvg = null;
-	}
-	return {
-		label: process.env.BENCHMARK_RUNNER_LABEL || 'local',
-		os: nodePlatform(),
-		arch: nodeArch(),
-		cpus: cpuList.length,
-		cpuModel: cpuList[0]?.model?.trim() ?? 'unknown',
-		nodeVersion: process.versions.node,
-		v8Version: process.versions.v8,
-		loadAvg1min: loadAvg,
-		warmupIterations: WARMUP_ITERATIONS,
-		benchmarkIterations: BENCHMARK_ITERATIONS,
-	};
+  const cpuList = cpus();
+  // `os.loadavg()` returns [1min, 5min, 15min] on Unix; on Windows it
+  // returns `[0, 0, 0]`. We only emit the 1-minute figure (the rest is
+  // rarely actionable for a benchmark run that takes <5min total).
+  let loadAvg = null;
+  try {
+    loadAvg = osLoadAvg()[0];
+  } catch {
+    loadAvg = null;
+  }
+  return {
+    label: process.env.BENCHMARK_RUNNER_LABEL || "local",
+    os: nodePlatform(),
+    arch: nodeArch(),
+    cpus: cpuList.length,
+    cpuModel: cpuList[0]?.model?.trim() ?? "unknown",
+    nodeVersion: process.versions.node,
+    v8Version: process.versions.v8,
+    loadAvg1min: loadAvg,
+    warmupIterations: WARMUP_ITERATIONS,
+    benchmarkIterations: BENCHMARK_ITERATIONS,
+  };
 }
 
 /**
@@ -400,71 +439,76 @@ function getRunnerInfo() {
  * apples-to-apples comparisons between snapshots are obvious.
  */
 function calculateStats(times, filesCount) {
-	const sum = times.reduce((a, b) => a + b, 0);
-	const mean = sum / times.length;
-	const sorted = times.slice().sort((a, b) => a - b);
-	const median = sorted.length % 2 === 0
-		? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
-		: sorted[(sorted.length - 1) / 2];
-	const variance = times.reduce((acc, t) => acc + (t - mean) ** 2, 0) / times.length;
-	const stdDev = Math.sqrt(variance);
+  const sum = times.reduce((a, b) => a + b, 0);
+  const mean = sum / times.length;
+  const sorted = times.slice().sort((a, b) => a - b);
+  const median =
+    sorted.length % 2 === 0
+      ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+      : sorted[(sorted.length - 1) / 2];
+  const variance = times.reduce((acc, t) => acc + (t - mean) ** 2, 0) / times.length;
+  const stdDev = Math.sqrt(variance);
 
-	return {
-		durationMs: median,
-		throughputFilesPerSec: (filesCount / median) * 1000,
-		minMs: sorted[0],
-		maxMs: sorted[sorted.length - 1],
-		meanMs: mean,
-		stdDevMs: stdDev,
-		samples: times.length,
-	};
+  return {
+    durationMs: median,
+    throughputFilesPerSec: (filesCount / median) * 1000,
+    minMs: sorted[0],
+    maxMs: sorted[sorted.length - 1],
+    meanMs: mean,
+    stdDevMs: stdDev,
+    samples: times.length,
+  };
 }
 
 async function runBenchmarkTask(files, task) {
-	const taskLabel = {
-		'compile-client': 'Compile (Client)',
-		'compile-server': 'Compile (SSR)',
-		parse: 'Parse',
-		svelte2tsx: 'svelte2tsx',
-	}[task];
+  const taskLabel = {
+    "compile-client": "Compile (Client)",
+    "compile-server": "Compile (SSR)",
+    parse: "Parse",
+    svelte2tsx: "svelte2tsx",
+  }[task];
 
-	console.error(`\n=== ${taskLabel} ===`);
+  console.error(`\n=== ${taskLabel} ===`);
 
-	console.error(`  Benchmarking JavaScript...`);
-	const jsTimes = benchmarkJavaScript(files, BENCHMARK_ITERATIONS, task);
-	const jsStats = calculateStats(jsTimes, files.length);
-	console.error(`    ${jsStats.durationMs.toFixed(2)}ms (${jsStats.throughputFilesPerSec.toFixed(0)} files/sec)`);
+  console.error(`  Benchmarking JavaScript...`);
+  const jsTimes = benchmarkJavaScript(files, BENCHMARK_ITERATIONS, task);
+  const jsStats = calculateStats(jsTimes, files.length);
+  console.error(
+    `    ${jsStats.durationMs.toFixed(2)}ms (${jsStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
+  );
 
-	console.error(`  Benchmarking Rust (single-threaded)...`);
-	const rustSingleTimes = await benchmarkRust(files, true, task);
-	const rustSingleStats = calculateStats(rustSingleTimes, files.length);
-	console.error(
-		`    ${rustSingleStats.durationMs.toFixed(2)}ms (${rustSingleStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
-	);
+  console.error(`  Benchmarking Rust (single-threaded)...`);
+  const rustSingleTimes = await benchmarkRust(files, true, task);
+  const rustSingleStats = calculateStats(rustSingleTimes, files.length);
+  console.error(
+    `    ${rustSingleStats.durationMs.toFixed(2)}ms (${rustSingleStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
+  );
 
-	console.error(`  Benchmarking Rust (multi-threaded)...`);
-	const rustMultiTimes = await benchmarkRust(files, false, task);
-	const rustMultiStats = calculateStats(rustMultiTimes, files.length);
-	console.error(
-		`    ${rustMultiStats.durationMs.toFixed(2)}ms (${rustMultiStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
-	);
+  console.error(`  Benchmarking Rust (multi-threaded)...`);
+  const rustMultiTimes = await benchmarkRust(files, false, task);
+  const rustMultiStats = calculateStats(rustMultiTimes, files.length);
+  console.error(
+    `    ${rustMultiStats.durationMs.toFixed(2)}ms (${rustMultiStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
+  );
 
-	const speedupSingle = jsStats.durationMs / rustSingleStats.durationMs;
-	const speedupMulti = jsStats.durationMs / rustMultiStats.durationMs;
+  const speedupSingle = jsStats.durationMs / rustSingleStats.durationMs;
+  const speedupMulti = jsStats.durationMs / rustMultiStats.durationMs;
 
-	console.error(`  Speedup: single=${speedupSingle.toFixed(1)}x, multi=${speedupMulti.toFixed(1)}x`);
+  console.error(
+    `  Speedup: single=${speedupSingle.toFixed(1)}x, multi=${speedupMulti.toFixed(1)}x`,
+  );
 
-	return {
-		task,
-		taskLabel,
-		javascript: { ...jsStats },
-		rustSingleThread: { ...rustSingleStats },
-		rustMultiThread: { ...rustMultiStats },
-		speedup: {
-			singleThreadVsJs: speedupSingle,
-			multiThreadVsJs: speedupMulti,
-		},
-	};
+  return {
+    task,
+    taskLabel,
+    javascript: { ...jsStats },
+    rustSingleThread: { ...rustSingleStats },
+    rustMultiThread: { ...rustMultiStats },
+    speedup: {
+      singleThreadVsJs: speedupSingle,
+      multiThreadVsJs: speedupMulti,
+    },
+  };
 }
 
 /**
@@ -472,8 +516,14 @@ async function runBenchmarkTask(files, task) {
  * `BenchmarkTaskResults` shape (just javascript / rust* / speedup).
  */
 function asTaskResults(taskResult) {
-	const { javascript, rustSingleThread, rustMultiThread, speedup } = taskResult;
-	return { javascript, rustSingleThread, rustMultiThread, speedup };
+  const { javascript, rustSingleThread, rustMultiThread, speedup, alternatives } = taskResult;
+  return {
+    javascript,
+    rustSingleThread,
+    rustMultiThread,
+    speedup,
+    alternatives,
+  };
 }
 
 // The `fmt` task pits prettier + prettier-plugin-svelte (the canonical JS
@@ -483,76 +533,143 @@ function asTaskResults(taskResult) {
 // driven by the `fmt_benchmark_runner` binary in `rsvelte_fmt`.
 
 async function benchmarkPrettier(files, iterations) {
-	const opts = (filepath) => ({
-		parser: 'svelte',
-		plugins: [prettierPluginSvelte],
-		filepath,
-	});
+  const opts = (filepath) => ({
+    parser: "svelte",
+    plugins: [prettierPluginSvelte],
+    filepath,
+  });
 
-	for (let i = 0; i < WARMUP_ITERATIONS; i++) {
-		for (const file of files) {
-			try {
-				await prettier.format(file.content, opts(file.path));
-			} catch {
-				// Ignore formatting errors — some fixtures aren't valid Svelte.
-			}
-		}
-	}
+  for (let i = 0; i < WARMUP_ITERATIONS; i++) {
+    for (const file of files) {
+      try {
+        await prettier.format(file.content, opts(file.path));
+      } catch {
+        // Ignore formatting errors — some fixtures aren't valid Svelte.
+      }
+    }
+  }
 
-	const times = [];
-	for (let i = 0; i < iterations; i++) {
-		const start = performance.now();
-		for (const file of files) {
-			try {
-				await prettier.format(file.content, opts(file.path));
-			} catch {
-				// Ignore formatting errors for benchmark
-			}
-		}
-		times.push(performance.now() - start);
-	}
-	return times;
+  const times = [];
+  for (let i = 0; i < iterations; i++) {
+    const start = performance.now();
+    for (const file of files) {
+      try {
+        await prettier.format(file.content, opts(file.path));
+      } catch {
+        // Ignore formatting errors for benchmark
+      }
+    }
+    times.push(performance.now() - start);
+  }
+  return times;
+}
+
+async function benchmarkOxfmt(files, iterations) {
+  let completed = 0;
+  for (const file of files) {
+    try {
+      const result = await oxfmtFormat(file.path, file.content, { svelte: true });
+      if (result.errors.length === 0) completed += 1;
+    } catch {
+      // Completion is checked separately from the parallel timing run.
+    }
+  }
+
+  const stage = mkdtempSync(join(REPO_ROOT, ".oxfmt-benchmark-"));
+  const inputs = join(stage, "inputs");
+  mkdirSync(inputs);
+  try {
+    for (const [index, file] of files.entries()) {
+      copyFileSync(file.path, join(inputs, `${String(index).padStart(6, "0")}.svelte`));
+    }
+    const run = () => {
+      const result = spawnSync(
+        OXFMT_BIN,
+        [
+          "--check",
+          `--threads=${cpus().length}`,
+          "--config",
+          OXFMT_CONFIG,
+          "--ignore-path=/dev/null",
+          inputs,
+        ],
+        { cwd: REPO_ROOT, stdio: "ignore" },
+      );
+      // Exit 2 includes per-file parse failures already captured by the completion pass.
+      if (result.error || ![0, 1, 2].includes(result.status)) {
+        throw result.error ?? new Error(`Oxfmt exited ${result.status}`);
+      }
+    };
+    for (let i = 0; i < WARMUP_ITERATIONS; i++) run();
+    const times = [];
+    for (let i = 0; i < iterations; i++) {
+      const start = performance.now();
+      run();
+      times.push(performance.now() - start);
+    }
+    return { completed, times };
+  } finally {
+    rmSync(stage, { recursive: true, force: true });
+  }
 }
 
 async function runFmtTask(files) {
-	console.error('\n=== fmt ===');
+  console.error("\n=== fmt ===");
 
-	console.error('  Benchmarking JavaScript (prettier-plugin-svelte)...');
-	const jsTimes = await benchmarkPrettier(files, BENCHMARK_ITERATIONS);
-	const jsStats = calculateStats(jsTimes, files.length);
-	console.error(
-		`    ${jsStats.durationMs.toFixed(2)}ms (${jsStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
-	);
+  console.error("  Benchmarking JavaScript (prettier-plugin-svelte)...");
+  const jsTimes = await benchmarkPrettier(files, BENCHMARK_ITERATIONS);
+  const jsStats = calculateStats(jsTimes, files.length);
+  console.error(
+    `    ${jsStats.durationMs.toFixed(2)}ms (${jsStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
+  );
 
-	console.error('  Benchmarking Rust (single-threaded)...');
-	const rustSingleTimes = await benchmarkRust(files, true, 'fmt', 'fmt_benchmark_runner');
-	const rustSingleStats = calculateStats(rustSingleTimes, files.length);
-	console.error(
-		`    ${rustSingleStats.durationMs.toFixed(2)}ms (${rustSingleStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
-	);
+  console.error("  Benchmarking alternative (oxfmt)...");
+  const oxfmtResult = await benchmarkOxfmt(files, BENCHMARK_ITERATIONS);
+  const oxfmtStats = calculateStats(oxfmtResult.times, files.length);
+  console.error(
+    `    ${oxfmtStats.durationMs.toFixed(2)}ms (${oxfmtResult.completed}/${files.length} files)`,
+  );
 
-	console.error('  Benchmarking Rust (multi-threaded)...');
-	const rustMultiTimes = await benchmarkRust(files, false, 'fmt', 'fmt_benchmark_runner');
-	const rustMultiStats = calculateStats(rustMultiTimes, files.length);
-	console.error(
-		`    ${rustMultiStats.durationMs.toFixed(2)}ms (${rustMultiStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
-	);
+  console.error("  Benchmarking Rust (single-threaded)...");
+  const rustSingleTimes = await benchmarkRust(files, true, "fmt", "fmt_benchmark_runner");
+  const rustSingleStats = calculateStats(rustSingleTimes, files.length);
+  console.error(
+    `    ${rustSingleStats.durationMs.toFixed(2)}ms (${rustSingleStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
+  );
 
-	const speedupSingle = jsStats.durationMs / rustSingleStats.durationMs;
-	const speedupMulti = jsStats.durationMs / rustMultiStats.durationMs;
-	console.error(`  Speedup: single=${speedupSingle.toFixed(1)}x, multi=${speedupMulti.toFixed(1)}x`);
+  console.error("  Benchmarking Rust (multi-threaded)...");
+  const rustMultiTimes = await benchmarkRust(files, false, "fmt", "fmt_benchmark_runner");
+  const rustMultiStats = calculateStats(rustMultiTimes, files.length);
+  console.error(
+    `    ${rustMultiStats.durationMs.toFixed(2)}ms (${rustMultiStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
+  );
 
-	return {
-		task: 'fmt',
-		taskLabel: 'fmt',
-		javascript: { ...jsStats },
-		rustSingleThread: { ...rustSingleStats },
-		rustMultiThread: { ...rustMultiStats },
-		speedup: {
-			singleThreadVsJs: speedupSingle,
-			multiThreadVsJs: speedupMulti,
-		},
-	};
+  const speedupSingle = jsStats.durationMs / rustSingleStats.durationMs;
+  const speedupMulti = jsStats.durationMs / rustMultiStats.durationMs;
+  console.error(
+    `  Speedup: single=${speedupSingle.toFixed(1)}x, multi=${speedupMulti.toFixed(1)}x`,
+  );
+
+  return {
+    task: "fmt",
+    taskLabel: "fmt",
+    javascript: { ...jsStats },
+    alternatives: [
+      {
+        id: "oxfmt",
+        label: "Oxfmt",
+        version: "0.62.0",
+        completedFiles: oxfmtResult.completed,
+        ...oxfmtStats,
+      },
+    ],
+    rustSingleThread: { ...rustSingleStats },
+    rustMultiThread: { ...rustMultiStats },
+    speedup: {
+      singleThreadVsJs: speedupSingle,
+      multiThreadVsJs: speedupMulti,
+    },
+  };
 }
 
 // The `lint` task pits ESLint + eslint-plugin-svelte against `rsvelte_lint`
@@ -580,113 +697,120 @@ async function runFmtTask(files) {
 // equivalent — `svelte/valid-compile` — sits outside the shared universe. The
 // reported ratio therefore understates a rule-engine-only comparison.
 
-const LINT_BENCH_BIN = join(REPO_ROOT, 'target/release/lint_benchmark_runner');
-const LINT_ORACLE_DIR = join(REPO_ROOT, 'scripts/compat-corpus/lint-oracle');
+const LINT_BENCH_BIN = join(REPO_ROOT, "target/release/lint_benchmark_runner");
+const LINT_ORACLE_DIR = join(REPO_ROOT, "scripts/compat-corpus/lint-oracle");
 
 function ensureLintBenchRunnerBuilt() {
-	if (existsSync(LINT_BENCH_BIN)) return;
-	console.error('  Building lint_benchmark_runner (one-time)...');
-	// `--profile=bench` for the same reason the fmt runner uses it: the runner
-	// isolates a per-file panic with `catch_unwind`, which needs unwinding.
-	const r = spawnSync(
-		'cargo',
-		['build', '--profile=bench', '--bin', 'lint_benchmark_runner'],
-		{ cwd: REPO_ROOT, stdio: ['ignore', 2, 'inherit'] },
-	);
-	if (r.status !== 0) throw new Error('cargo build --bin lint_benchmark_runner failed');
+  if (existsSync(LINT_BENCH_BIN)) return;
+  console.error("  Building lint_benchmark_runner (one-time)...");
+  // `--profile=bench` for the same reason the fmt runner uses it: the runner
+  // isolates a per-file panic with `catch_unwind`, which needs unwinding.
+  const r = spawnSync("cargo", ["build", "--profile=bench", "--bin", "lint_benchmark_runner"], {
+    cwd: REPO_ROOT,
+    stdio: ["ignore", 2, "inherit"],
+  });
+  if (r.status !== 0) throw new Error("cargo build --bin lint_benchmark_runner failed");
 }
 
 async function runLintTask(files) {
-	console.error('\n=== lint ===');
+  console.error("\n=== lint ===");
 
-	ensureLintBenchRunnerBuilt();
-	const { ruleUniverse } = await import('../compat-corpus/lint-universe.mjs');
-	const universe = ruleUniverse(LINT_BENCH_BIN);
-	console.error(`  Rule universe: ${universe.length} rules enabled on both sides`);
+  ensureLintBenchRunnerBuilt();
+  const { ruleUniverse } = await import("../compat-corpus/lint-universe.mjs");
+  const universe = ruleUniverse(LINT_BENCH_BIN);
+  console.error(`  Rule universe: ${universe.length} rules enabled on both sides`);
 
-	const rulesFile = join(REPO_ROOT, '.benchmark-lint-rules.json');
-	const configFile = join(REPO_ROOT, '.benchmark-lint-config.json');
-	writeFileSync(rulesFile, JSON.stringify(universe));
-	writeFileSync(
-		configFile,
-		JSON.stringify({
-			extends: ['none'],
-			rules: Object.fromEntries(universe.map((id) => [id, 'warn'])),
-		}),
-	);
+  const rulesFile = join(REPO_ROOT, ".benchmark-lint-rules.json");
+  const configFile = join(REPO_ROOT, ".benchmark-lint-config.json");
+  writeFileSync(rulesFile, JSON.stringify(universe));
+  writeFileSync(
+    configFile,
+    JSON.stringify({
+      extends: ["none"],
+      rules: Object.fromEntries(universe.map((id) => [id, "warn"])),
+    }),
+  );
 
-	console.error('  Benchmarking JavaScript (eslint + eslint-plugin-svelte)...');
-	const jsProc = spawnSync(
-		'node',
-		[
-			'run.mjs',
-			'--rules',
-			rulesFile,
-			'--stdin',
-			'--bench',
-			'--iterations',
-			String(BENCHMARK_ITERATIONS),
-			'--warmup',
-			String(WARMUP_ITERATIONS),
-		],
-		{
-			cwd: LINT_ORACLE_DIR,
-			input: files.map((f) => f.path).join('\0'),
-			encoding: 'utf8',
-			maxBuffer: 1 << 28,
-			stdio: ['pipe', 'pipe', 'inherit'],
-		},
-	);
-	if (jsProc.status !== 0) throw new Error('lint oracle benchmark failed');
-	const jsTimes = JSON.parse(jsProc.stdout).times;
-	const jsStats = calculateStats(jsTimes, files.length);
-	console.error(
-		`    ${jsStats.durationMs.toFixed(2)}ms (${jsStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
-	);
+  console.error("  Benchmarking JavaScript (eslint + eslint-plugin-svelte)...");
+  const jsProc = spawnSync(
+    "node",
+    [
+      "run.mjs",
+      "--rules",
+      rulesFile,
+      "--stdin",
+      "--bench",
+      "--iterations",
+      String(BENCHMARK_ITERATIONS),
+      "--warmup",
+      String(WARMUP_ITERATIONS),
+    ],
+    {
+      cwd: LINT_ORACLE_DIR,
+      input: files.map((f) => f.path).join("\0"),
+      encoding: "utf8",
+      maxBuffer: 1 << 28,
+      stdio: ["pipe", "pipe", "inherit"],
+    },
+  );
+  if (jsProc.status !== 0) throw new Error("lint oracle benchmark failed");
+  const jsTimes = JSON.parse(jsProc.stdout).times;
+  const jsStats = calculateStats(jsTimes, files.length);
+  console.error(
+    `    ${jsStats.durationMs.toFixed(2)}ms (${jsStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
+  );
 
-	console.error('  Benchmarking Rust (single-threaded)...');
-	const rustSingleTimes = await benchmarkRust(files, true, 'lint', 'lint_benchmark_runner', [
-		'--config',
-		configFile,
-	]);
-	const rustSingleStats = calculateStats(rustSingleTimes, files.length);
-	console.error(
-		`    ${rustSingleStats.durationMs.toFixed(2)}ms (${rustSingleStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
-	);
+  console.error("  Benchmarking Rust (single-threaded)...");
+  const rustSingleTimes = await benchmarkRust(files, true, "lint", "lint_benchmark_runner", [
+    "--config",
+    configFile,
+  ]);
+  const rustSingleStats = calculateStats(rustSingleTimes, files.length);
+  console.error(
+    `    ${rustSingleStats.durationMs.toFixed(2)}ms (${rustSingleStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
+  );
 
-	console.error('  Benchmarking Rust (multi-threaded)...');
-	const rustMultiTimes = await benchmarkRust(files, false, 'lint', 'lint_benchmark_runner', [
-		'--config',
-		configFile,
-	]);
-	const rustMultiStats = calculateStats(rustMultiTimes, files.length);
-	console.error(
-		`    ${rustMultiStats.durationMs.toFixed(2)}ms (${rustMultiStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
-	);
+  console.error("  Benchmarking Rust (multi-threaded)...");
+  const rustMultiTimes = await benchmarkRust(files, false, "lint", "lint_benchmark_runner", [
+    "--config",
+    configFile,
+  ]);
+  const rustMultiStats = calculateStats(rustMultiTimes, files.length);
+  console.error(
+    `    ${rustMultiStats.durationMs.toFixed(2)}ms (${rustMultiStats.throughputFilesPerSec.toFixed(0)} files/sec)`,
+  );
 
-	const speedupSingle = jsStats.durationMs / rustSingleStats.durationMs;
-	const speedupMulti = jsStats.durationMs / rustMultiStats.durationMs;
-	console.error(`  Speedup: single=${speedupSingle.toFixed(1)}x, multi=${speedupMulti.toFixed(1)}x`);
+  const speedupSingle = jsStats.durationMs / rustSingleStats.durationMs;
+  const speedupMulti = jsStats.durationMs / rustMultiStats.durationMs;
+  console.error(
+    `  Speedup: single=${speedupSingle.toFixed(1)}x, multi=${speedupMulti.toFixed(1)}x`,
+  );
 
-	return {
-		task: 'lint',
-		taskLabel: 'lint',
-		rulesCount: universe.length,
-		javascript: { ...jsStats },
-		rustSingleThread: { ...rustSingleStats },
-		rustMultiThread: { ...rustMultiStats },
-		speedup: {
-			singleThreadVsJs: speedupSingle,
-			multiThreadVsJs: speedupMulti,
-		},
-	};
+  return {
+    task: "lint",
+    taskLabel: "lint",
+    rulesCount: universe.length,
+    javascript: { ...jsStats },
+    rustSingleThread: { ...rustSingleStats },
+    rustMultiThread: { ...rustMultiStats },
+    speedup: {
+      singleThreadVsJs: speedupSingle,
+      multiThreadVsJs: speedupMulti,
+    },
+  };
 }
 
 // Unlike the other tasks, svelte-check is a project-wise CLI, not a per-file
 // API. We materialise a synthetic workspace of N `.svelte` files and time each
 // CLI's wall-clock cost end-to-end.
 //
-// What this measures and why both sides skip TypeScript checking:
+// The first measurement skips TypeScript checking and is retained only for
+// profiling the Svelte-specific work. It is not published as type checking.
+// The published end-to-end comparison runs full JS and Svelte diagnostics:
+// regular svelte-check uses its bundled TypeScript, while the other two rows
+// use the same pinned tsgo binary.
+//
+// Why both sides skip TypeScript checking in the profiling measurement:
 // svelte-check's job is split into (1) the *tool's own work* — find files,
 // parse + analyze each `.svelte`, generate the `.tsx` overlay — and (2)
 // delegating semantic type-checking to an *external* TypeScript compiler
@@ -708,15 +832,27 @@ async function runLintTask(files) {
 // single-threaded numbers come from forcing `RAYON_NUM_THREADS=1` so the two
 // figures parallel the per-file tasks above.
 
-const SVELTE_CHECK_FILES = 500;
-const RSVELTE_SVELTE_CHECK_BIN = join(REPO_ROOT, 'target/release/svelte_check');
+const SVELTE_CHECK_FILES = 5_000;
+const RSVELTE_SVELTE_CHECK_BIN = join(REPO_ROOT, "target/release/svelte_check");
 const JS_SVELTE_CHECK_BIN = join(
-	REPO_ROOT,
-	'submodules/language-tools/packages/svelte-check/bin/svelte-check',
+  REPO_ROOT,
+  "submodules/language-tools/packages/svelte-check/bin/svelte-check",
+);
+const SVELTE_CHECK_TSGO_BIN = join(
+  REPO_ROOT,
+  "submodules/language-tools/packages/svelte-check/node_modules/.bin/tsgo",
+);
+const SVELTE_CHECK_RS_BIN = join(
+  REPO_ROOT,
+  "scripts/bench/competitor-oracle/node_modules/.bin/svelte-check-rs",
+);
+const SVELTE_CHECK_RS_TSGO_BIN = join(
+  REPO_ROOT,
+  "scripts/bench/competitor-oracle/node_modules/.bin/tsgo",
 );
 
 function buildSyntheticSvelte(seed) {
-	return `<script>
+  return `<script>
 \tlet count = ${seed};
 \tfunction increment() { count++; }
 </script>
@@ -731,153 +867,421 @@ function buildSyntheticSvelte(seed) {
 }
 
 function makeSvelteCheckFixture(n) {
-	const dir = mkdtempSync(join(tmpdir(), 'rsvelte-bench-svc-'));
-	for (let i = 0; i < n; i++) {
-		const sub = `pkg${(i / 50) | 0}`;
-		const subdir = join(dir, 'src', sub);
-		mkdirSync(subdir, { recursive: true });
-		writeFileSync(join(subdir, `Comp${i}.svelte`), buildSyntheticSvelte(i));
-	}
-	return dir;
+  const dir = mkdtempSync(join(tmpdir(), "rsvelte-bench-svc-"));
+  const fixtureNodeModules = join(dir, "node_modules");
+  const svelteNodeModules = dirname(realpathSync(join(REPO_ROOT, "node_modules/svelte")));
+  mkdirSync(fixtureNodeModules, { recursive: true });
+  for (const entry of readdirSync(svelteNodeModules)) {
+    const source = join(svelteNodeModules, entry);
+    const target = join(fixtureNodeModules, entry);
+    if (entry.startsWith("@")) {
+      mkdirSync(target, { recursive: true });
+      for (const child of readdirSync(source)) {
+        symlinkSync(realpathSync(join(source, child)), join(target, child), "dir");
+      }
+    } else {
+      symlinkSync(realpathSync(source), target, "dir");
+    }
+  }
+  mkdirSync(join(dir, "node_modules", "@typescript"), { recursive: true });
+  mkdirSync(join(dir, "node_modules", ".bin"), { recursive: true });
+  symlinkSync(
+    realpathSync(
+      join(
+        REPO_ROOT,
+        "scripts/bench/competitor-oracle/node_modules/@typescript/native-preview",
+      ),
+    ),
+    join(dir, "node_modules", "@typescript", "native-preview"),
+    "dir",
+  );
+  symlinkSync(
+    realpathSync(SVELTE_CHECK_RS_TSGO_BIN),
+    join(dir, "node_modules", ".bin", "tsgo"),
+  );
+  writeFileSync(
+    join(dir, "tsconfig.json"),
+    JSON.stringify({ compilerOptions: { noEmit: true, skipLibCheck: true }, include: ["src"] }),
+  );
+  for (let i = 0; i < n; i++) {
+    const sub = `pkg${(i / 50) | 0}`;
+    const subdir = join(dir, "src", sub);
+    mkdirSync(subdir, { recursive: true });
+    writeFileSync(join(subdir, `Comp${i}.svelte`), buildSyntheticSvelte(i));
+  }
+  return dir;
 }
 
 function ensureRsvelteSvelteCheckBuilt() {
-	if (existsSync(RSVELTE_SVELTE_CHECK_BIN)) return;
-	console.error('  Building rsvelte svelte_check (one-time)...');
-	// Stdout from this script becomes the benchmark JSON file — anything
-	// cargo prints to its own stdout would corrupt it. Redirect both
-	// streams to our stderr so logs still surface in the terminal but
-	// never leak into the JSON.
-	const r = spawnSync(
-		'cargo',
-		['build', '--release', '-p', 'rsvelte_check', '--bin', 'svelte_check'],
-		{
-			cwd: REPO_ROOT,
-			stdio: ['ignore', 2, 'inherit'],
-		},
-	);
-	if (r.status !== 0) {
-		throw new Error('cargo build -p rsvelte_check --bin svelte_check failed');
-	}
+  if (existsSync(RSVELTE_SVELTE_CHECK_BIN)) return;
+  console.error("  Building rsvelte svelte_check (one-time)...");
+  // Stdout from this script becomes the benchmark JSON file — anything
+  // cargo prints to its own stdout would corrupt it. Redirect both
+  // streams to our stderr so logs still surface in the terminal but
+  // never leak into the JSON.
+  const r = spawnSync(
+    "cargo",
+    ["build", "--release", "-p", "rsvelte_check", "--bin", "svelte_check"],
+    {
+      cwd: REPO_ROOT,
+      stdio: ["ignore", 2, "inherit"],
+    },
+  );
+  if (r.status !== 0) {
+    throw new Error("cargo build -p rsvelte_check --bin svelte_check failed");
+  }
 }
 
-function timeSvelteCheckRun(label, bin, args, env) {
-	const samples = [];
-	for (let i = 0; i < WARMUP_ITERATIONS; i++) {
-		spawnSync(bin, args, { stdio: 'ignore', env: { ...process.env, ...env } });
-	}
-	for (let i = 0; i < BENCHMARK_ITERATIONS; i++) {
-		const t0 = process.hrtime.bigint();
-		spawnSync(bin, args, { stdio: 'ignore', env: { ...process.env, ...env } });
-		const t1 = process.hrtime.bigint();
-		samples.push(Number(t1 - t0) / 1e6);
-	}
-	const stats = calculateStats(samples, SVELTE_CHECK_FILES);
-	console.error(
-		`    ${label.padEnd(28)} ${stats.durationMs.toFixed(2)}ms (${stats.throughputFilesPerSec.toFixed(0)} files/sec)`,
-	);
-	return stats;
+function ensureSvelteCheckTsgoAvailable() {
+  if (existsSync(SVELTE_CHECK_TSGO_BIN)) return;
+  throw new Error(
+    "svelte-check tsgo backend is missing; run `pnpm --dir submodules/language-tools install --frozen-lockfile`",
+  );
+}
+
+function verifySvelteCheckRsDiagnostics(fixture) {
+  const gateFile = join(fixture, "src", "DiagnosticGate.svelte");
+  writeFileSync(
+    gateFile,
+    '<script lang="ts">let count: number = "bad";</script>\n<p>{missingName}</p>\n',
+  );
+  try {
+    const runs = [
+      spawnSync(
+        "node",
+        [
+          JS_SVELTE_CHECK_BIN,
+          "--workspace",
+          fixture,
+          "--output",
+          "machine",
+          "--threshold",
+          "error",
+          "--diagnostic-sources",
+          "js,svelte",
+        ],
+        { encoding: "utf8", maxBuffer: 1 << 24 },
+      ),
+      spawnSync(
+        SVELTE_CHECK_RS_BIN,
+        [
+          "--workspace",
+          fixture,
+          "--tsconfig",
+          join(fixture, "tsconfig.json"),
+          "--output",
+          "machine",
+          "--threshold",
+          "error",
+        ],
+        { encoding: "utf8", maxBuffer: 1 << 24 },
+      ),
+    ];
+    const expected = ["Type 'string' is not assignable", "Cannot find name 'missingName'"];
+    for (const run of runs) {
+      const output = `${run.stdout ?? ""}\n${run.stderr ?? ""}`;
+      if (run.status !== 1 || expected.some((message) => !output.includes(message))) {
+        throw new Error(`typecheck diagnostic gate failed:\n${output.split("\n").slice(0, 12).join("\n")}`);
+      }
+    }
+    return { matchedDiagnostics: expected.length, expectedDiagnostics: expected.length };
+  } finally {
+    rmSync(gateFile, { force: true });
+    rmSync(join(fixture, ".svelte-check"), { recursive: true, force: true });
+  }
+}
+
+function verifySvelteCheckRsCoverage(fixture) {
+  const result = spawnSync(
+    SVELTE_CHECK_RS_BIN,
+    [
+      "--workspace",
+      fixture,
+      "--tsconfig",
+      join(fixture, "tsconfig.json"),
+      "--list-files",
+    ],
+    { encoding: "utf8", maxBuffer: 1 << 24 },
+  );
+  if (result.status !== 0) {
+    throw new Error(`svelte-check-rs --list-files failed:\n${result.stderr || result.stdout}`);
+  }
+  const discoveredFiles = `${result.stdout ?? ""}\n${result.stderr ?? ""}`
+    .split("\n")
+    .filter((line) => line.trim().endsWith(".svelte")).length;
+  if (discoveredFiles !== SVELTE_CHECK_FILES) {
+    throw new Error(
+      `svelte-check-rs discovered ${discoveredFiles}/${SVELTE_CHECK_FILES} benchmark files`,
+    );
+  }
+  return discoveredFiles;
+}
+
+function timeSvelteCheckRun(label, bin, args, env, beforeRun) {
+  const samples = [];
+  const run = () => {
+    beforeRun?.();
+    const result = spawnSync(bin, args, {
+      encoding: "utf8",
+      maxBuffer: 1 << 24,
+      env: { ...process.env, ...env },
+    });
+    if (result.status !== 0) {
+      const diagnostic = (result.stderr || result.stdout || "").split("\n").slice(0, 12).join("\n");
+      throw new Error(`${label} exited with status ${result.status}: ${diagnostic}`);
+    }
+  };
+  for (let i = 0; i < WARMUP_ITERATIONS; i++) {
+    run();
+  }
+  for (let i = 0; i < BENCHMARK_ITERATIONS; i++) {
+    const t0 = process.hrtime.bigint();
+    run();
+    const t1 = process.hrtime.bigint();
+    samples.push(Number(t1 - t0) / 1e6);
+  }
+  const stats = calculateStats(samples, SVELTE_CHECK_FILES);
+  console.error(
+    `    ${label.padEnd(28)} ${stats.durationMs.toFixed(2)}ms (${stats.throughputFilesPerSec.toFixed(0)} files/sec)`,
+  );
+  return stats;
 }
 
 async function runSvelteCheckTask() {
-	console.error('\n=== svelte-check ===');
-	console.error(`  Synthetic workspace: ${SVELTE_CHECK_FILES} files`);
-	ensureRsvelteSvelteCheckBuilt();
-	const fixture = makeSvelteCheckFixture(SVELTE_CHECK_FILES);
-	try {
-		// Disables the TypeScript pass on both sides — see the comment above.
-		const rsArgs = [
-			'--workspace',
-			fixture,
-			'--output',
-			'machine',
-			'--no-type-check',
-			'--diagnostic-sources',
-			'svelte',
-		];
-		const jsArgs = [
-			JS_SVELTE_CHECK_BIN,
-			'--workspace',
-			fixture,
-			'--output',
-			'machine',
-			'--diagnostic-sources',
-			'svelte',
-		];
+  console.error("\n=== svelte-check ===");
+  console.error(`  Synthetic workspace: ${SVELTE_CHECK_FILES} files`);
+  ensureRsvelteSvelteCheckBuilt();
+  ensureSvelteCheckTsgoAvailable();
+  if (!existsSync(SVELTE_CHECK_RS_BIN) || !existsSync(SVELTE_CHECK_RS_TSGO_BIN)) {
+    throw new Error("svelte-check-rs is missing; run `pnpm run report:competitors:install`");
+  }
+  const fixture = makeSvelteCheckFixture(SVELTE_CHECK_FILES);
+  try {
+    const svelteCheckRsDiscoveredFiles = verifySvelteCheckRsCoverage(fixture);
+    const svelteCheckRsGate = verifySvelteCheckRsDiagnostics(fixture);
+    // Disables the TypeScript pass on both sides — see the comment above.
+    const rsArgs = [
+      "--workspace",
+      fixture,
+      "--output",
+      "machine",
+      "--no-type-check",
+      "--diagnostic-sources",
+      "svelte",
+    ];
+    const jsArgs = [
+      JS_SVELTE_CHECK_BIN,
+      "--workspace",
+      fixture,
+      "--output",
+      "machine",
+      "--diagnostic-sources",
+      "svelte",
+    ];
 
-		console.error('  Benchmarking JavaScript (svelte-check)...');
-		const jsStats = timeSvelteCheckRun('JS svelte-check', 'node', jsArgs);
+    console.error("  Benchmarking JavaScript (svelte-check)...");
+    const jsStats = timeSvelteCheckRun("JS svelte-check", "node", jsArgs);
 
-		console.error('  Benchmarking Rust (single-threaded)...');
-		const rsSingleStats = timeSvelteCheckRun(
-			'rsvelte (RAYON=1)',
-			RSVELTE_SVELTE_CHECK_BIN,
-			rsArgs,
-			{ RAYON_NUM_THREADS: '1' },
-		);
+    console.error("  Benchmarking Rust (single-threaded)...");
+    const rsSingleStats = timeSvelteCheckRun(
+      "rsvelte (RAYON=1)",
+      RSVELTE_SVELTE_CHECK_BIN,
+      rsArgs,
+      {
+        RAYON_NUM_THREADS: "1",
+      },
+    );
 
-		console.error('  Benchmarking Rust (multi-threaded)...');
-		const rsMultiStats = timeSvelteCheckRun(
-			'rsvelte (default)',
-			RSVELTE_SVELTE_CHECK_BIN,
-			rsArgs,
-			{},
-		);
+    console.error("  Benchmarking Rust (multi-threaded)...");
+    const rsMultiStats = timeSvelteCheckRun(
+      "rsvelte (default)",
+      RSVELTE_SVELTE_CHECK_BIN,
+      rsArgs,
+      {},
+    );
 
-		const result = {
-			javascript: jsStats,
-			rustSingleThread: rsSingleStats,
-			rustMultiThread: rsMultiStats,
-			speedup: {
-				singleThreadVsJs: jsStats.durationMs / rsSingleStats.durationMs,
-				multiThreadVsJs: jsStats.durationMs / rsMultiStats.durationMs,
-			},
-		};
-		console.error(
-			`  Speedup: single=${result.speedup.singleThreadVsJs.toFixed(1)}x, multi=${result.speedup.multiThreadVsJs.toFixed(1)}x`,
-		);
-		return result;
-	} finally {
-		rmSync(fixture, { recursive: true, force: true });
-	}
+    const result = {
+      javascript: jsStats,
+      rustSingleThread: rsSingleStats,
+      rustMultiThread: rsMultiStats,
+      speedup: {
+        singleThreadVsJs: jsStats.durationMs / rsSingleStats.durationMs,
+        multiThreadVsJs: jsStats.durationMs / rsMultiStats.durationMs,
+      },
+    };
+    console.error(
+      `  Speedup: single=${result.speedup.singleThreadVsJs.toFixed(1)}x, multi=${result.speedup.multiThreadVsJs.toFixed(1)}x`,
+    );
+
+    const jsFullArgs = [
+      JS_SVELTE_CHECK_BIN,
+      "--workspace",
+      fixture,
+      "--output",
+      "machine",
+      "--diagnostic-sources",
+      "js,svelte",
+    ];
+    const rsTsgoArgs = [
+      "--workspace",
+      fixture,
+      "--output",
+      "machine",
+      "--tsgo",
+      "--diagnostic-sources",
+      "js,svelte",
+    ];
+    const svelteCheckRsArgs = [
+      "--workspace",
+      fixture,
+      "--tsconfig",
+      join(fixture, "tsconfig.json"),
+      "--output",
+      "machine",
+      "--threshold",
+      "error",
+    ];
+    const jsTsgoArgs = [
+      JS_SVELTE_CHECK_BIN,
+      "--workspace",
+      fixture,
+      "--output",
+      "machine",
+      "--tsgo",
+      "--diagnostic-sources",
+      "js,svelte",
+    ];
+    const tsgoEnv = { TSGO_BIN: SVELTE_CHECK_TSGO_BIN };
+    const cleanTypecheckArtifacts = () => {
+      rmSync(join(fixture, ".svelte-check"), { recursive: true, force: true });
+      rmSync(join(fixture, "node_modules", ".cache", "svelte-check-rs"), {
+        recursive: true,
+        force: true,
+      });
+    };
+
+    console.error("  Benchmarking end-to-end TypeScript diagnostics...");
+    const jsFullStats = timeSvelteCheckRun(
+      "JS svelte-check",
+      "node",
+      jsFullArgs,
+      {},
+      cleanTypecheckArtifacts,
+    );
+    const jsTsgoStats = timeSvelteCheckRun(
+      "JS svelte-check + tsgo",
+      "node",
+      jsTsgoArgs,
+      tsgoEnv,
+      cleanTypecheckArtifacts,
+    );
+    const rsTsgoSingleStats = timeSvelteCheckRun(
+      "rsvelte + tsgo (RAYON=1)",
+      RSVELTE_SVELTE_CHECK_BIN,
+      rsTsgoArgs,
+      { ...tsgoEnv, RAYON_NUM_THREADS: "1" },
+      cleanTypecheckArtifacts,
+    );
+    const rsTsgoMultiStats = timeSvelteCheckRun(
+      "rsvelte + tsgo (default)",
+      RSVELTE_SVELTE_CHECK_BIN,
+      rsTsgoArgs,
+      tsgoEnv,
+      cleanTypecheckArtifacts,
+    );
+    const svelteCheckRsStats = timeSvelteCheckRun(
+      "svelte-check-rs",
+      SVELTE_CHECK_RS_BIN,
+      svelteCheckRsArgs,
+      {},
+      cleanTypecheckArtifacts,
+    );
+    result.endToEnd = {
+      javascript: jsFullStats,
+      rustSingleThread: rsTsgoSingleStats,
+      rustMultiThread: rsTsgoMultiStats,
+      alternatives: [
+        {
+          id: "svelte-check-tsgo",
+          label: "svelte-check + tsgo",
+          completedFiles: SVELTE_CHECK_FILES,
+          ...jsTsgoStats,
+        },
+        {
+          id: "svelte-check-rs",
+          label: "svelte-check-rs",
+          completedFiles: svelteCheckRsDiscoveredFiles,
+          comparable: false,
+          scope: "default sources",
+          compatibility: svelteCheckRsGate,
+          ...svelteCheckRsStats,
+        },
+      ],
+      speedup: {
+        singleThreadVsJs: jsFullStats.durationMs / rsTsgoSingleStats.durationMs,
+        multiThreadVsJs: jsFullStats.durationMs / rsTsgoMultiStats.durationMs,
+      },
+    };
+    return result;
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
 }
 
 async function main() {
-	console.error('Collecting Svelte test files...');
-	const { files, excludedCount } = collectTestFiles();
-	console.error(`Found ${files.length} files`);
+  console.error("Collecting Svelte test files...");
+  const { files, excludedCount } = collectTestFiles();
+  console.error(`Found ${files.length} files`);
 
-	const compileClient = await runBenchmarkTask(files, 'compile-client');
-	const compileServer = await runBenchmarkTask(files, 'compile-server');
-	const parse = await runBenchmarkTask(files, 'parse');
-	const svelte2tsx = await runBenchmarkTask(files, 'svelte2tsx');
-	const fmt = await runFmtTask(files);
-	const lint = await runLintTask(files);
-	const svelteCheck = await runSvelteCheckTask();
+  const results = {};
+  if (REQUESTED_TASKS.has("compile-client"))
+    results.compileClient = await runBenchmarkTask(files, "compile-client");
+  if (REQUESTED_TASKS.has("compile-server"))
+    results.compileServer = await runBenchmarkTask(files, "compile-server");
+  if (REQUESTED_TASKS.has("parse")) results.parse = await runBenchmarkTask(files, "parse");
+  if (REQUESTED_TASKS.has("svelte2tsx"))
+    results.svelte2tsx = await runBenchmarkTask(files, "svelte2tsx");
+  if (REQUESTED_TASKS.has("fmt")) results.fmt = await runFmtTask(files);
+  if (REQUESTED_TASKS.has("lint")) results.lint = await runLintTask(files);
+  if (REQUESTED_TASKS.has("svelte-check")) results.svelteCheck = await runSvelteCheckTask();
 
-	// Output combined JSON. Compile-client (CSR) lives at the top level for
-	// backward compatibility with the existing benchmark page; compile-server
-	// (SSR), parse, svelte2tsx, fmt, lint and svelte-check are nested siblings
-	// so the page can render each as its own section.
-	const output = {
-		generatedAt: new Date().toISOString(),
-		commitSha: getCommitSha(),
-		runner: getRunnerInfo(),
-		testFilesCount: files.length,
-		excludedFilesCount: excludedCount,
-		...asTaskResults(compileClient),
-		compileServer: asTaskResults(compileServer),
-		parse: asTaskResults(parse),
-		svelte2tsx: asTaskResults(svelte2tsx),
-		fmt: asTaskResults(fmt),
-		lint: { ...asTaskResults(lint), rulesCount: lint.rulesCount },
-		svelteCheck: { ...svelteCheck, filesCount: SVELTE_CHECK_FILES },
-	};
+  // Output combined JSON. Compile-client (CSR) lives at the top level for
+  // backward compatibility with the existing benchmark page; compile-server
+  // (SSR), parse, svelte2tsx, fmt, lint and svelte-check are nested siblings
+  // so the page can render each as its own section.
+  const output = {
+    generatedAt: new Date().toISOString(),
+    commitSha: getCommitSha(),
+    runner: getRunnerInfo(),
+    testFilesCount: files.length,
+    excludedFilesCount: excludedCount,
+    ...(results.compileClient ? asTaskResults(results.compileClient) : {}),
+    ...(results.compileServer ? { compileServer: asTaskResults(results.compileServer) } : {}),
+    ...(results.parse ? { parse: asTaskResults(results.parse) } : {}),
+    ...(results.svelte2tsx ? { svelte2tsx: asTaskResults(results.svelte2tsx) } : {}),
+    ...(results.fmt ? { fmt: asTaskResults(results.fmt) } : {}),
+    ...(results.lint
+      ? {
+          lint: {
+            ...asTaskResults(results.lint),
+            rulesCount: results.lint.rulesCount,
+          },
+        }
+      : {}),
+    ...(results.svelteCheck
+      ? {
+          svelteCheck: {
+            ...results.svelteCheck,
+            filesCount: SVELTE_CHECK_FILES,
+          },
+        }
+      : {}),
+  };
 
-	console.log(JSON.stringify(output, null, 2));
+  console.log(JSON.stringify(output, null, 2));
 }
 
 main().catch((err) => {
-	console.error('Benchmark failed:', err);
-	process.exit(1);
+  console.error("Benchmark failed:", err);
+  process.exit(1);
 });

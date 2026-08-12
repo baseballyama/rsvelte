@@ -34,8 +34,11 @@
  *               official's text: an entry already listed there for a text
  *               mismatch would suppress a later regression to output that is
  *               not JavaScript at all.
+ *   - reportOnly
+ *               available to explicit reporting runs but excluded from the
+ *               default shrink-only gates.
  */
-export const TARGETS = [
+export const REPORT_TARGETS = [
 	{
 		key: 'client',
 		generate: 'client',
@@ -100,7 +103,9 @@ export const TARGETS = [
 	},
 ];
 
+export const TARGETS = REPORT_TARGETS.filter((target) => !target.reportOnly);
 export const TARGET_KEYS = TARGETS.map((t) => t.key);
+export const REPORT_TARGET_KEYS = REPORT_TARGETS.map((t) => t.key);
 
 /**
  * `--targets <key>[,<key>…]` narrows a run to a subset of TARGETS (iterating on
@@ -111,10 +116,10 @@ export function selectTargets(argv) {
 	const value = i !== -1 ? argv[i + 1] : null;
 	if (!value || value.startsWith('--')) return TARGETS;
 	const keys = value.split(',').map((s) => s.trim()).filter(Boolean);
-	const unknown = keys.filter((k) => !TARGET_KEYS.includes(k));
+	const unknown = keys.filter((k) => !REPORT_TARGET_KEYS.includes(k));
 	if (unknown.length) {
-		console.error(`[corpus] unknown --targets ${unknown.join(', ')} (known: ${TARGET_KEYS.join(', ')})`);
+		console.error(`[corpus] unknown --targets ${unknown.join(', ')} (known: ${REPORT_TARGET_KEYS.join(', ')})`);
 		process.exit(2);
 	}
-	return TARGETS.filter((t) => keys.includes(t.key));
+	return REPORT_TARGETS.filter((t) => keys.includes(t.key));
 }

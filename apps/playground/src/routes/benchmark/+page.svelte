@@ -1,481 +1,274 @@
 <script lang="ts">
 	import { base } from '$app/paths';
-	import type { PageData } from './$types';
-	import type { BenchmarkTaskResults } from '$lib/types/benchmark';
-	import CodeBlock from '$lib/components/CodeBlock.svelte';
 	import SiteFooter from '$lib/components/SiteFooter.svelte';
 	import SiteNav from '$lib/components/SiteNav.svelte';
+	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
-	type TaskId = 'full' | 'full-ssr' | 'parse' | 'svelte2tsx' | 'fmt' | 'lint' | 'svelte-check';
-	type TaskGroup = 'compiler' | 'ecosystem';
-
-	type TaskRow = {
-		id: TaskId;
-		label: string;
-		description: string;
-		group: TaskGroup;
-		baseline: string;
-		data: BenchmarkTaskResults;
+	const surfaceName = (id: string) =>
+		({ client: 'CSR', server: 'SSR', 'client-dev': 'CSR dev', 'server-dev': 'SSR dev' })[
+			id
+		] ?? id;
+	const speedup = (value?: number) =>
+		typeof value === 'number' && Number.isFinite(value) ? `${value.toFixed(2)}×` : '—';
+	const duration = (ms?: number) => {
+		if (typeof ms !== 'number' || !Number.isFinite(ms)) return '—';
+		return ms >= 1000 ? `${(ms / 1000).toFixed(2)}s` : `${ms.toFixed(ms < 10 ? 1 : 0)}ms`;
 	};
-
-	const formatDate = (iso: string): string =>
-		new Date(iso).toLocaleDateString('en-US', {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric'
-		});
-
-	const formatDuration = (ms: number): string => {
-		if (ms < 1) return `${(ms * 1000).toFixed(1)} μs`;
-		if (ms < 1000) return `${ms.toFixed(1)} ms`;
-		return `${(ms / 1000).toFixed(2)} s`;
+	const formatDate = (iso: string) => {
+		const date = new Date(iso);
+		return Number.isNaN(date.getTime())
+			? 'Unknown'
+			: date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 	};
-
-	const tasks: TaskRow[] = $derived.by(() => {
-		if (!data.results) return [];
-		const r = data.results;
-		const rows: TaskRow[] = [
-			{
-				id: 'full',
-				label: 'Compile (client)',
-				description: 'Parse, analyze, and generate DOM code',
-				group: 'compiler',
-				baseline: 'svelte/compiler',
-				data: r
-			}
-		];
-
-		if (r.compileServer) {
-			rows.push({
-				id: 'full-ssr',
-				label: 'Compile (server)',
-				description: 'Parse, analyze, and generate HTML',
-				group: 'compiler',
-				baseline: 'svelte/compiler',
-				data: r.compileServer
-			});
-		}
-
-		rows.push({
-			id: 'parse',
-			label: 'Parse only',
-			description: 'Compiler phase 1 in isolation',
-			group: 'compiler',
-			baseline: 'svelte/compiler',
-			data: r.parse
-		});
-
-		if (r.svelte2tsx) {
-			rows.push({
-				id: 'svelte2tsx',
-				label: 'svelte2tsx',
-				description: 'Generate TypeScript from Svelte source',
-				group: 'ecosystem',
-				baseline: 'svelte2tsx',
-				data: r.svelte2tsx
-			});
-		}
-		if (r.fmt) {
-			rows.push({
-				id: 'fmt',
-				label: 'Format',
-				description: 'Format Svelte source files',
-				group: 'ecosystem',
-				baseline: 'prettier-plugin-svelte',
-				data: r.fmt
-			});
-		}
-		if (r.lint) {
-			rows.push({
-				id: 'lint',
-				label: 'Lint',
-				description: `${r.lint.rulesCount} rules shared by both implementations`,
-				group: 'ecosystem',
-				baseline: 'eslint-plugin-svelte',
-				data: r.lint
-			});
-		}
-		if (r.svelteCheck) {
-			rows.push({
-				id: 'svelte-check',
-				label: 'svelte-check',
-				description: `${r.svelteCheck.filesCount.toLocaleString('en-US')}-file workspace`,
-				group: 'ecosystem',
-				baseline: 'svelte-check',
-				data: r.svelteCheck
-			});
-		}
-
-		return rows;
-	});
-
-	const groups: { key: TaskGroup; title: string; description: string }[] = [
-		{ key: 'compiler', title: 'Compiler', description: 'Core Svelte compilation tasks.' },
-		{ key: 'ecosystem', title: 'Ecosystem tools', description: 'Tools built around the compiler.' }
-	];
-
-	const tasksByGroup = $derived(
-		groups
-			.map((group) => ({ ...group, rows: tasks.filter((task) => task.group === group.key) }))
-			.filter((group) => group.rows.length > 0)
-	);
-
-	const generateData = `cargo build --release
-pnpm run generate-benchmark
-pnpm run dev:docs`;
+	const throughputWidth = (durationMs?: number, fastestMs?: number) => {
+		if (!durationMs || !fastestMs) return '0%';
+		return `${Math.max(1, Math.min(100, (fastestMs / durationMs) * 100))}%`;
+	};
+	const relativeToRsvelte = (durationMs?: number, rsvelteMs?: number) => {
+		if (!durationMs || !rsvelteMs) return '—';
+		const ratio = durationMs / rsvelteMs;
+		return ratio >= 1 ? `${ratio.toFixed(2)}× slower` : `${(1 / ratio).toFixed(2)}× faster`;
+	};
+	const correctnessPercent = (matched?: number, total?: number) => {
+		if (typeof matched !== 'number' || typeof total !== 'number' || total <= 0) return '—';
+		const percent = (matched / total) * 100;
+		return `${percent.toFixed(matched === total || percent < 99 ? 1 : 2)}%`;
+	};
+	const correctnessFraction = (matched?: number, total?: number) =>
+		typeof matched === 'number' && typeof total === 'number'
+			? `${matched.toLocaleString('en-US')} / ${total.toLocaleString('en-US')}`
+			: 'work gate passed';
+	const elapsedRatio = (ratio?: number) =>
+		typeof ratio === 'number' && Number.isFinite(ratio) ? `${ratio.toFixed(2)}× elapsed` : '—';
 </script>
 
 <svelte:head>
-	<title>Benchmark · rsvelte</title>
+	<title>Performance · rsvelte</title>
 	<meta
 		name="description"
-		content="Compilation speed benchmark — rsvelte against the official Svelte compiler and ecosystem tools."
+		content="Measured compiler, parser, formatter, linter, and svelte2tsx performance."
 	/>
 </svelte:head>
 
 <div class="page">
 	<SiteNav active="benchmark" />
+	<main>
+		{#if data.error || !data.results}
+			<h1>Performance data is unavailable</h1>
+			<p>{data.error ?? 'The benchmark report could not be loaded.'}</p>
+		{:else}
+			{@const report = data.results}
+			<header><h1>Performance</h1></header>
 
-	<main class="report">
-		{#if data.error}
-			<nav class="breadcrumbs" aria-label="Breadcrumb">
-				<a href="{base}/">Documentation</a><span>/</span><span>Benchmark</span>
-			</nav>
-			<h1>Benchmark data is unavailable</h1>
-			<p class="intro">{data.error}</p>
-			<div class="command"><CodeBlock code={generateData} lang="bash" caption="Terminal" /></div>
-		{:else if data.results}
-			{@const r = data.results}
+			{#if report.corpus.truncated}
+				<aside>Sample report — not suitable for release comparisons.</aside>
+			{/if}
 
-			<header class="report-header">
-				<nav class="breadcrumbs" aria-label="Breadcrumb">
-					<a href="{base}/">Documentation</a><span>/</span><span>Benchmark</span>
-				</nav>
-				<h1>Benchmark</h1>
-				<p class="intro">
-					Results from running the official JavaScript tools and rsvelte against the same source
-					corpus. Lower durations are better.
-				</p>
+			<section aria-labelledby="results-title">
+				<div class="section-head">
+					<h2 id="results-title">Results</h2>
+					<p><i></i> rsvelte parallel <span></span> reference · longer bar = higher throughput</p>
+				</div>
+				<div class="result-grid">
+					{#each report.surfaces as surface}
+						{@const group = surface.comparisonClasses.find((item) => item.variants.some((variant) => variant.id === 'rsvelte-single'))}
+						{@const parallel = group?.variants.find((variant) => variant.id === 'rsvelte-multi')}
+						{@const reference = group?.variants.find((variant) => variant.id === 'official')}
+						<article class="result-card">
+							<div class="result-head"><h3>{surfaceName(surface.id)}</h3><strong>{speedup(parallel?.speedup)}</strong></div>
+							<div class="bars">
+								<div class="bar-row rsvelte"><div><span>rsvelte · parallel</span><b>{duration(parallel?.medianMs)}</b></div><div class="track"><i></i></div></div>
+								<div class="bar-row reference"><div><span>Svelte</span><b>{duration(reference?.medianMs)}</b></div><div class="track"><i style:width={throughputWidth(reference?.medianMs, parallel?.medianMs)}></i></div></div>
+							</div>
+						</article>
+					{/each}
 
-				<dl class="metadata">
-					<div>
-						<dt>Corpus</dt>
-						<dd>{r.testFilesCount.toLocaleString('en-US')} Svelte files</dd>
+					{#each report.toolTasks as task}
+						<article class="result-card">
+							<div class="result-head"><h3>{task.label}</h3><strong>{speedup(task.rsvelteParallel.speedup)}</strong></div>
+							<div class="bars">
+								<div class="bar-row rsvelte"><div><span>{task.rsvelteParallel.label} · parallel</span><b>{duration(task.rsvelteParallel.durationMs)}</b></div><div class="track"><i></i></div></div>
+								<div class="bar-row reference"><div><span>{task.reference.label}</span><b>{duration(task.reference.durationMs)}</b></div><div class="track"><i style:width={throughputWidth(task.reference.durationMs, task.rsvelteParallel.durationMs)}></i></div></div>
+								{#each task.alternatives ?? [] as alternative}
+									<div class="bar-row reference"><div><span>{alternative.label}{alternative.scope ? ` · ${alternative.scope}` : ''}</span><b>{duration(alternative.durationMs)}</b></div><div class="track"><i style:width={throughputWidth(alternative.durationMs, task.rsvelteParallel.durationMs)}></i></div></div>
+								{/each}
+							</div>
+						</article>
+					{/each}
+				</div>
+			</section>
+
+			{#if report.benchmarkCoverage?.length}
+				<section class="coverage" aria-labelledby="coverage-title">
+					<div class="coverage-head">
+						<h2 id="coverage-title">Benchmark coverage</h2>
+						<strong>{report.benchmarkCoverage.filter((item) => item.status === 'measured').length}<span> / {report.benchmarkCoverage.length}</span></strong>
 					</div>
-					{#if r.runner}
-						<div>
-							<dt>Machine</dt>
-							<dd>{r.runner.cpus}-core {r.runner.arch} · {r.runner.label}</dd>
-						</div>
-					{/if}
-					<div>
-						<dt>Recorded</dt>
-						<dd>{formatDate(r.generatedAt)}</dd>
+					<div class="coverage-grid">
+						{#each report.benchmarkCoverage as item}
+							<div class:measured={item.status === 'measured'} class:unsupported={item.status === 'unsupported'}>
+								<i></i><span>{item.label}<small>{item.detail}</small></span><b>{item.status === 'measured' ? 'Measured' : item.status === 'unsupported' ? 'Unsupported' : 'Not measured'}</b>
+							</div>
+						{/each}
 					</div>
-					<div>
-						<dt>Commit</dt>
-						<dd><code>{r.commitSha}</code></dd>
-					</div>
-				</dl>
-			</header>
+					<p class="note">Surfaces follow <a href="https://github.com/pikax/svelte-benchmarks">pikax/svelte-benchmarks</a>. Results from a different machine or workload are not mixed into this report.</p>
+				</section>
+			{/if}
 
-			<section class="results" aria-labelledby="results-heading">
-				<h2 id="results-heading">Results</h2>
-				<p class="section-description">
-					Each duration is the total time for the corpus. Speedup compares multi-threaded rsvelte
-					with the JavaScript baseline.
-				</p>
-
-				{#each tasksByGroup as group (group.key)}
-					<section class="result-group" aria-labelledby="{group.key}-heading">
-						<div class="group-heading">
-							<h3 id="{group.key}-heading">{group.title}</h3>
-							<p>{group.description}</p>
-						</div>
-						<div class="table-scroll">
-							<table>
-								<caption class="visually-hidden">{group.title} benchmark results</caption>
-								<thead>
-									<tr>
-										<th scope="col">Task</th>
-										<th scope="col">JavaScript</th>
-										<th scope="col">rsvelte, single thread</th>
-										<th scope="col">rsvelte, multi-thread</th>
-										<th scope="col">Speedup</th>
-									</tr>
-								</thead>
-								<tbody>
-									{#each group.rows as task (task.id)}
-										<tr>
-											<th scope="row">
-												<span class="task-name">{task.label}</span>
-												<span class="task-description">{task.description}</span>
-											</th>
-											<td>
-												<span class="duration">{formatDuration(task.data.javascript.durationMs)}</span>
-												<span class="implementation">{task.baseline}</span>
-											</td>
-											<td>{formatDuration(task.data.rustSingleThread.durationMs)}</td>
-											<td>{formatDuration(task.data.rustMultiThread.durationMs)}</td>
-											<td class="speedup">{task.data.speedup.multiThreadVsJs.toFixed(1)}×</td>
-										</tr>
+			<section class="alternatives" aria-labelledby="alternatives-title">
+				<div class="comparison-head">
+					<h2 id="alternatives-title">Implementation comparison</h2>
+					<p>Every row is compared directly with rsvelte on the same workload.</p>
+				</div>
+				<div class="alternative-grid">
+					<article class="compiler-comparison">
+						<h3>Compiler <span>complete-corpus attempts · always shown</span></h3>
+						{#each report.surfaces as surface}
+							{@const current = surface.comparisonClasses.find((item) => item.variants.some((variant) => variant.id === 'rsvelte-multi'))}
+							{@const rsvelte = current?.variants.find((variant) => variant.id === 'rsvelte-multi')}
+							{@const official = current?.variants.find((variant) => variant.id === 'official')}
+							<div class="surface-comparison">
+								<h4>{surfaceName(surface.id)} <small>{rsvelte?.attemptFiles?.toLocaleString('en-US')} inputs tested</small></h4>
+								<div class="comparison-table" role="table" aria-label={`${surfaceName(surface.id)} compiler comparison`}>
+									<div class="table-head" role="row"><span>Implementation</span><span>All-file time</span><span>vs rsvelte</span><span>Correctness</span></div>
+									<div class="comparison-row rsvelte-row" role="row"><b>rsvelte · parallel</b><strong>{duration(rsvelte?.attemptMedianMs)}</strong><span class="baseline">baseline</span><span class="correctness"><strong>{correctnessPercent(rsvelte?.correctFiles, rsvelte?.attemptFiles)}</strong><small>{correctnessFraction(rsvelte?.correctFiles, rsvelte?.attemptFiles)}</small></span></div>
+									<div class="comparison-row" role="row"><b>Svelte</b><strong>{duration(official?.attemptMedianMs)}</strong><span>{elapsedRatio(official?.attemptMedianMs && rsvelte?.attemptMedianMs ? official.attemptMedianMs / rsvelte.attemptMedianMs : undefined)}</span><span class="correctness"><strong>{correctnessPercent(official?.correctFiles, official?.attemptFiles)}</strong><small>{correctnessFraction(official?.correctFiles, official?.attemptFiles)}</small></span></div>
+									{#each ['mrwaip', 'verter'] as competitorId}
+										{@const group = surface.comparisonClasses.find((item) => item.variants.some((variant) => variant.id === competitorId))}
+										{@const competitor = group?.variants.find((variant) => variant.id === competitorId)}
+										{#if competitor}
+											<div class:failed={competitor.status === 'unranked'} class="comparison-row" role="row">
+												<b>{competitor.label}<small>v{competitor.version}</small></b>
+												<strong>{competitor.status === 'unsupported' ? '—' : duration(competitor.attemptMedianMs)}</strong>
+												<span>{competitor.status === 'unsupported' ? 'unsupported' : elapsedRatio(competitor.attemptRatioVsRsvelte)}</span>
+												{#if competitor.status === 'unsupported'}
+													<span>unsupported</span>
+												{:else}
+													<span class="correctness"><strong>{correctnessPercent(competitor.correctFiles, competitor.attemptFiles)}</strong><small>{correctnessFraction(competitor.correctFiles, competitor.attemptFiles)}</small></span>
+												{/if}
+											</div>
+										{/if}
 									{/each}
-								</tbody>
-							</table>
-						</div>
-					</section>
-				{/each}
+								</div>
+							</div>
+						{/each}
+					</article>
+
+					{#each report.toolTasks as task}
+						<article class="tool-comparison">
+							<h3>{task.label}<span>{task.files.toLocaleString('en-US')} files</span></h3>
+							<div class="tool-row rsvelte-row"><div><b>{task.rsvelteParallel.label} · parallel</b><small>{task.rsvelteParallel.version ? `tsgo ${task.rsvelteParallel.version}` : task.id === 'lint' ? '72 shared rules' : 'compatibility gate'}</small></div><strong>{duration(task.rsvelteParallel.durationMs)}</strong><em>baseline</em></div>
+							<div class="tool-row"><div><b>{task.reference.label}</b><small>{task.reference.version ? `v${task.reference.version}` : task.id === 'lint' ? '72 shared rules' : 'reference'}</small></div><strong>{duration(task.reference.durationMs)}</strong><em>{relativeToRsvelte(task.reference.durationMs, task.rsvelteParallel.durationMs)}</em></div>
+							{#each task.alternatives ?? [] as alternative}
+								<div class:failed={alternative.completedFiles !== task.files} class="tool-row"><div><b>{alternative.label}</b><small>{alternative.version ? `v${alternative.version} · ` : ''}{alternative.compatibility ? `${alternative.compatibility.matchedDiagnostics}/${alternative.compatibility.expectedDiagnostics} diagnostic checks` : `${task.files.toLocaleString('en-US')} attempts · ${alternative.completedFiles.toLocaleString('en-US')} completed`}</small></div><strong>{duration(alternative.durationMs)}</strong><em>{alternative.comparable === false ? `${alternative.scope} · separate scope` : alternative.completedFiles === task.files ? relativeToRsvelte(alternative.durationMs, task.rsvelteParallel.durationMs) : `${elapsedRatio(alternative.speedupVsRsvelteParallel)} · incomplete output`}</em></div>
+							{/each}
+						</article>
+					{/each}
+				</div>
+				<p class="note">Compiler time and correctness use the same {report.corpus.measuredFiles.toLocaleString('en-US')} inputs. Accepted inputs require equivalent JS and CSS output; rejected inputs require rejection parity. Every implementation remains visible, but only 100%-correct rows count as an equivalent-work speed ranking. Tool timings require their category-specific work gate.</p>
 			</section>
 
-			<section class="reproduce" aria-labelledby="reproduce-heading">
-				<h2 id="reproduce-heading">Run the benchmark locally</h2>
-				<p>Generate a fresh result file and open this report in the local documentation site.</p>
-				<div class="command"><CodeBlock code={generateData} lang="bash" caption="Terminal" /></div>
-			</section>
+			<details>
+				<summary>Measurement details</summary>
+				<ul>
+					<li>{report.runner.cpuModel} · {report.runner.cpus} CPUs</li>
+					<li>{report.runner.warmups} warmup · median of {report.runner.runs} runs · recorded {formatDate(report.generatedAt)}</li>
+					<li>Compiler and parser: Svelte · svelte2tsx: svelte2tsx · Formatter: Prettier · Linter: ESLint</li>
+					{#each report.toolTasks as task}<li>{task.label}: {task.note}</li>{/each}
+					{#each report.unsupported as item}<li>{item.label}: {item.reason}</li>{/each}
+				</ul>
+				<p>Versions, raw compiler samples, exclusions, and methodology are in the <a href="{base}/performance-report.json">JSON report</a>.</p>
+			</details>
+
+			<p class="links"><a href="{base}/progress">Compatibility results</a></p>
 		{/if}
 	</main>
-
 	<SiteFooter />
 </div>
 
 <style>
-	.page {
-		min-height: 100vh;
-	}
-
-	.report {
-		width: min(100% - 2rem, 1100px);
-		margin: 0 auto;
-		padding: 2.75rem 0 5rem;
-	}
-
-	.breadcrumbs {
-		display: flex;
-		gap: 0.45rem;
-		align-items: center;
-		margin-bottom: 1.4rem;
-		font-size: 0.8rem;
-		color: var(--ink-faint);
-	}
-
-	.breadcrumbs a {
-		color: var(--ink-soft);
-		text-decoration: none;
-	}
-
-	.breadcrumbs a:hover {
-		color: var(--accent);
-		text-decoration: underline;
-	}
-
-	h1,
-	h2,
-	h3,
-	p {
-		margin-top: 0;
-	}
-
-	h1 {
-		margin-bottom: 0.7rem;
-		font-size: clamp(2rem, 4vw, 2.75rem);
-		line-height: 1.15;
-		letter-spacing: -0.035em;
-	}
-
-	.intro {
-		max-width: 68ch;
-		margin-bottom: 0;
-		font-size: 1rem;
-		line-height: 1.65;
-		color: var(--ink-soft);
-	}
-
-	.metadata {
-		display: grid;
-		grid-template-columns: repeat(4, minmax(0, 1fr));
-		gap: 1.5rem;
-		margin: 2rem 0 0;
-		padding: 1.1rem 0;
-		border-top: 1px solid var(--rule);
-		border-bottom: 1px solid var(--rule);
-	}
-
-	.metadata dt {
-		margin-bottom: 0.25rem;
-		font-size: 0.75rem;
-		font-weight: 600;
-		color: var(--ink-faint);
-	}
-
-	.metadata dd {
-		margin: 0;
-		font-size: 0.82rem;
-		line-height: 1.45;
-		color: var(--ink);
-	}
-
-	.metadata code {
-		font-family: var(--font-code);
-	}
-
-	.results {
-		margin-top: 3.5rem;
-	}
-
-	h2 {
-		margin-bottom: 0.45rem;
-		font-size: 1.45rem;
-		letter-spacing: -0.02em;
-	}
-
-	.section-description,
-	.reproduce > p {
-		max-width: 70ch;
-		margin-bottom: 1.8rem;
-		font-size: 0.9rem;
-		line-height: 1.6;
-		color: var(--ink-soft);
-	}
-
-	.result-group + .result-group {
-		margin-top: 2.5rem;
-	}
-
-	.group-heading {
-		display: flex;
-		align-items: baseline;
-		gap: 0.75rem;
-		margin-bottom: 0.65rem;
-	}
-
-	.group-heading h3 {
-		margin-bottom: 0;
-		font-size: 1rem;
-	}
-
-	.group-heading p {
-		margin-bottom: 0;
-		font-size: 0.8rem;
-		color: var(--ink-faint);
-	}
-
-	.table-scroll {
-		overflow-x: auto;
-		border: 1px solid var(--rule);
-		border-radius: 6px;
-		background: var(--bg);
-	}
-
-	table {
-		width: 100%;
-		min-width: 720px;
-		border-collapse: collapse;
-		font-size: 0.82rem;
-		font-variant-numeric: tabular-nums;
-	}
-
-	th,
-	td {
-		padding: 0.8rem 0.9rem;
-		border-bottom: 1px solid var(--rule);
-		text-align: right;
-		vertical-align: top;
-		white-space: nowrap;
-	}
-
-	thead th {
-		background: var(--paper);
-		font-family: var(--font-ui);
-		font-size: 0.72rem;
-		font-weight: 600;
-		line-height: 1.35;
-		color: var(--ink-soft);
-		white-space: normal;
-	}
-
-	th:first-child,
-	td:first-child {
-		text-align: left;
-	}
-
-	tbody th {
-		width: 30%;
-		font-weight: 500;
-		white-space: normal;
-	}
-
-	tbody tr:last-child th,
-	tbody tr:last-child td {
-		border-bottom: 0;
-	}
-
-	.task-name,
-	.task-description,
-	.implementation {
-		display: block;
-	}
-
-	.task-description,
-	.implementation {
-		margin-top: 0.2rem;
-		font-size: 0.7rem;
-		font-weight: 400;
-		line-height: 1.45;
-		color: var(--ink-faint);
-	}
-
-	.duration {
-		display: block;
-	}
-
-	.speedup {
-		font-weight: 650;
-		color: var(--ok);
-	}
-
-	tbody tr:hover {
-		background: color-mix(in srgb, var(--paper) 55%, transparent);
-	}
-
-	.reproduce {
-		margin-top: 4rem;
-		padding-top: 2.5rem;
-		border-top: 1px solid var(--rule);
-	}
-
-	.command {
-		max-width: 720px;
-	}
-
-	.visually-hidden {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0 0 0 0);
-		white-space: nowrap;
-		border: 0;
-	}
-
-	@media (max-width: 760px) {
-		.report {
-			padding-top: 2rem;
-		}
-
-		.metadata {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-		}
-
-		.group-heading {
-			display: block;
-		}
-
-		.group-heading p {
-			margin-top: 0.2rem;
-		}
-	}
+	main { max-width: 1100px; margin: 0 auto; padding: 4rem 1.5rem 6rem; }
+	header { margin-bottom: 2.5rem; }
+	h1 { margin: 0 0 .65rem; font-size: clamp(2.4rem, 6vw, 4rem); letter-spacing: -.045em; }
+	.note, details { color: var(--ink-soft); }
+	section + section { margin-top: 3.5rem; }
+	h2 { margin: 0; font-size: 1.15rem; }
+	aside { margin-bottom: 1.5rem; padding: .75rem 1rem; border: 1px solid var(--warn); border-radius: 6px; color: var(--warn); font-size: .8rem; }
+	.section-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+	.section-head p { margin: 0; color: var(--ink-faint); font-size: .72rem; }
+	.section-head i, .section-head span { display: inline-block; width: 1.25rem; height: .35rem; margin: 0 .25rem 0 .5rem; border-radius: 99px; vertical-align: middle; }
+	.section-head i { margin-left: 0; background: var(--ok); }
+	.section-head span { background: var(--ink-faint); }
+	.result-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+	.result-card { padding: 1.45rem; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); }
+	.result-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+	.result-head h3 { margin: 0; font-size: 1.1rem; }
+	.result-head strong { color: var(--ok); font-size: 1.6rem; letter-spacing: -.04em; white-space: nowrap; }
+	.bars { display: grid; gap: 1rem; margin-top: 1.6rem; }
+	.bar-row > div:first-child { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+	.bar-row span { color: var(--ink-soft); font-size: .78rem; }
+	.bar-row b { font-size: 1.05rem; }
+	.bar-row .track { height: .55rem; margin-top: .4rem; overflow: hidden; border-radius: 99px; background: color-mix(in srgb, var(--rule) 60%, transparent); }
+	.bar-row .track i { display: block; width: 100%; height: 100%; min-width: 3px; border-radius: inherit; background: var(--ok); }
+	.bar-row.reference .track i { background: var(--ink-faint); }
+	.alternatives { padding-top: 2rem; border-top: 1px solid var(--rule); }
+	.comparison-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+	.comparison-head p { margin: 0; color: var(--ink-faint); font-size: .8rem; }
+	.coverage { padding-top: 2rem; border-top: 1px solid var(--rule); }
+	.coverage-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1rem; }
+	.coverage-head strong { color: var(--ok); font-size: 2rem; letter-spacing: -.05em; }
+	.coverage-head strong span { color: var(--ink-faint); font-size: 1rem; }
+	.coverage-grid { display: grid; grid-template-columns: repeat(2, 1fr); overflow: hidden; border: 1px solid var(--rule); border-radius: 10px; }
+	.coverage-grid > div { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .7rem; align-items: center; padding: .9rem 1rem; border-bottom: 1px solid var(--rule); }
+	.coverage-grid > div:nth-child(odd) { border-right: 1px solid var(--rule); }
+	.coverage-grid > div:nth-last-child(-n + 2) { border-bottom: 0; }
+	.coverage-grid i { width: .55rem; height: .55rem; border-radius: 50%; background: var(--ink-faint); }
+	.coverage-grid .measured i { background: var(--ok); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 14%, transparent); }
+	.coverage-grid .unsupported i { background: var(--warn); }
+	.coverage-grid span { font-size: .88rem; font-weight: 650; }
+	.coverage-grid small { display: block; margin-top: .15rem; color: var(--ink-faint); font-size: .7rem; font-weight: 400; }
+	.coverage-grid b { color: var(--ink-faint); font-size: .68rem; font-weight: 500; text-transform: uppercase; }
+	.coverage-grid .measured b { color: var(--ok); }
+	.coverage a { color: var(--accent); }
+	.alternative-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+	.alternative-grid > article { padding: 1.25rem; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); }
+	.alternative-grid h3 { display: flex; justify-content: space-between; gap: 1rem; margin: 0 0 .8rem; font-size: 1rem; }
+	.alternative-grid h3 span { color: var(--ink-faint); font-size: .72rem; font-weight: 400; }
+	.compiler-comparison { grid-column: 1 / -1; }
+	.surface-comparison { padding: 1.1rem 0; }
+	.surface-comparison + .surface-comparison { border-top: 1px solid var(--rule); }
+	.surface-comparison h4 { display: flex; align-items: baseline; gap: .65rem; margin: 0 0 .65rem; font-size: 1.05rem; }
+	.surface-comparison h4 small { color: var(--ink-faint); font-size: .7rem; font-weight: 400; }
+	.comparison-table { overflow: hidden; border: 1px solid var(--rule); border-radius: 8px; }
+	.table-head, .comparison-row { display: grid; grid-template-columns: minmax(12rem, 1.4fr) minmax(6rem, .65fr) minmax(7rem, .75fr) minmax(10rem, 1fr); gap: 1rem; align-items: center; padding: .75rem 1rem; }
+	.table-head { color: var(--ink-faint); background: color-mix(in srgb, var(--rule) 25%, transparent); font-size: .68rem; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; }
+	.comparison-row + .comparison-row { border-top: 1px solid var(--rule); }
+	.comparison-row b { font-size: .9rem; }
+	.comparison-row b small { display: block; margin-top: .12rem; color: var(--ink-faint); font-size: .65rem; font-weight: 400; }
+	.comparison-row strong { font-size: 1rem; }
+	.comparison-row > span { color: var(--ink-soft); font-size: .78rem; }
+	.comparison-row .correctness { display: flex; align-items: baseline; gap: .45rem; }
+	.comparison-row .correctness strong { color: var(--ink); font-size: 1rem; }
+	.comparison-row .correctness small { color: var(--ink-soft); font-size: .75rem; }
+	.rsvelte-row { background: color-mix(in srgb, var(--ok) 7%, transparent); }
+	.rsvelte-row strong, .baseline { color: var(--ok) !important; }
+	.failed { background: color-mix(in srgb, var(--warn) 5%, transparent); }
+	.failed strong, .failed > span:nth-last-child(2) { color: var(--warn); }
+	.tool-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .15rem 1rem; align-items: center; padding: .85rem; border-radius: 7px; }
+	.tool-row + .tool-row { margin-top: .35rem; }
+	.tool-row div { min-width: 0; }
+	.tool-row b { display: block; font-size: .9rem; }
+	.tool-row small { display: block; margin-top: .15rem; color: var(--ink-faint); font-size: .68rem; }
+	.tool-row strong { font-size: 1.05rem; }
+	.tool-row em { grid-column: 1 / -1; color: var(--ink-soft); font-size: .72rem; font-style: normal; }
+	.note { margin: .9rem 0 0; font-size: .8rem; line-height: 1.5; }
+	details { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-size: .8rem; }
+	summary { color: var(--ink); cursor: pointer; font-weight: 650; }
+	details li { margin: .45rem 0; line-height: 1.5; }
+	details a, .links a { color: var(--accent); }
+	.links { margin-top: 1.5rem; font-size: .82rem; }
+	@media (max-width: 820px) { .alternative-grid, .coverage-grid { grid-template-columns: 1fr; } .coverage-grid > div, .coverage-grid > div:nth-child(odd) { border-right: 0; border-bottom: 1px solid var(--rule); } .coverage-grid > div:last-child { border-bottom: 0; } .section-head, .comparison-head { align-items: flex-start; flex-direction: column; } .comparison-table { overflow-x: auto; } .table-head, .comparison-row { min-width: 680px; } }
+	@media (max-width: 640px) { main { padding: 3rem 1rem 5rem; } .result-grid { grid-template-columns: 1fr; } .result-card { padding: 1.2rem; } .section-head p { line-height: 1.7; } }
 </style>
