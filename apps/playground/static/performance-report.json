@@ -1,7 +1,7 @@
 {
   "schemaVersion": 9,
   "kind": "rsvelte-performance-report",
-  "generatedAt": "2026-08-12T13:45:38.781Z",
+  "generatedAt": "2026-08-12T17:41:14.714Z",
   "provenance": {
     "benchmarkDesign": "https://github.com/pikax/svelte-benchmarks/tree/e19c48b81ad24b75a6d4b81377b4a7ebc39a1900",
     "reproduceCommand": "pnpm benchmark:reproduce",
@@ -17,16 +17,16 @@
     "competitorReferences": ["svelte@5.56.4", "svelte@5.56.8"]
   },
   "commit": {
-    "rsvelte": "307f60a39c20c9ca001ca6326ac4ec36337f9b75",
+    "rsvelte": "8138b45f442c26934f1b3accede4f2cbb7a8eec4",
     "upstreamSvelte": "44a7813730579b94004e182e5a67aab27aa9d2a6"
   },
   "corpus": {
     "name": "rsvelte real-world compatibility corpus",
-    "configuredComponentFiles": 13745,
-    "measuredFiles": 13745,
-    "bytes": 15228936,
+    "configuredComponentFiles": 13744,
+    "measuredFiles": 13744,
+    "bytes": 15228725,
     "truncated": false,
-    "fileSetHash": "sha256:6cbfb1f4ac6b67a065d64e13adca2dab801b9ab6e7425066e7492a1d1618555d"
+    "fileSetHash": "sha256:c998e188e9e9b3e86ad1fec66f53ad1682c62bb127ad17cf84fe99a2b8a5352f"
   },
   "runner": {
     "label": "local",
@@ -35,7 +35,7 @@
     "cpus": 12,
     "cpuModel": "Apple M4 Pro",
     "node": "26.6.0",
-    "loadAvg1min": 19.97412109375,
+    "loadAvg1min": 26.478515625,
     "warmups": 1,
     "runs": 5
   },
@@ -47,27 +47,27 @@
       "comparisonClasses": [
         {
           "id": "svelte-5.56.8",
-          "files": 12908,
+          "files": 12907,
           "excludedFiles": 837,
-          "bytes": 14872612,
+          "bytes": 14872401,
           "variants": [
             {
               "id": "official",
               "label": "svelte/compiler",
               "version": "5.56.8",
               "status": "reference",
-              "correctFiles": 13745,
-              "attemptFiles": 13745,
-              "attemptMedianMs": 8311.006167,
-              "medianMs": 7870.367583000007,
-              "minMs": 7531.499000000003,
-              "maxMs": 8623.244749999998,
-              "stddevMs": 397.02841626782083,
-              "cvPct": 5.01367952547861,
-              "throughputFilesPerSec": 1640.0758749669176,
+              "correctFiles": 13744,
+              "attemptFiles": 13744,
+              "attemptMedianMs": 7860.293958999973,
+              "medianMs": 9089.987832999992,
+              "minMs": 7563.7648749999935,
+              "maxMs": 14113.176500000001,
+              "stddevMs": 2295.3392511078196,
+              "cvPct": 23.04356148741149,
+              "throughputFilesPerSec": 1419.9138917593325,
               "rawMs": [
-                8623.244749999998, 8012.301166999998, 7870.367583000007, 7531.499000000003,
-                7557.102292000003
+                14113.176500000001, 7563.7648749999935, 8468.543292000002, 9089.987832999992,
+                10568.878540999998
               ]
             },
             {
@@ -76,17 +76,17 @@
               "version": "workspace",
               "threading": "single",
               "status": "ok",
-              "compiledFiles": 12908,
-              "correctFiles": 13745,
+              "compiledFiles": 12907,
+              "correctFiles": 13744,
               "exactOutputDivergences": 0,
-              "speedup": 4.2182883055214475,
-              "medianMs": 1865.7728,
-              "minMs": 1626.9422,
-              "maxMs": 1946.6515,
-              "stddevMs": 140.0618984853568,
-              "cvPct": 7.795640422903187,
-              "throughputFilesPerSec": 6918.312883540804,
-              "rawMs": [1914.8041, 1626.9422, 1865.7728, 1946.6515, 1629.1772]
+              "speedup": 2.9364113403517833,
+              "medianMs": 3095.6112,
+              "minMs": 1651.0052,
+              "maxMs": 4946.251,
+              "stddevMs": 1384.7905901733907,
+              "cvPct": 41.9972824763265,
+              "throughputFilesPerSec": 4169.451254085138,
+              "rawMs": [1651.0052, 1965.4016, 3095.6112, 4946.251, 4828.4]
             },
             {
               "id": "rsvelte-multi",
@@ -94,46 +94,46 @@
               "version": "workspace",
               "threading": "parallel",
               "status": "ok",
-              "compiledFiles": 12908,
-              "correctFiles": 13745,
+              "compiledFiles": 12907,
+              "correctFiles": 13744,
               "exactOutputDivergences": 0,
-              "attemptFiles": 13745,
-              "attemptMedianMs": 382.2422,
+              "attemptFiles": 13744,
+              "attemptMedianMs": 963.5266,
               "attemptRatioVsRsvelte": 1,
-              "speedup": 20.39275488068854,
-              "medianMs": 385.9394,
-              "minMs": 367.3024,
-              "maxMs": 443.7655,
-              "stddevMs": 28.23122697472428,
-              "cvPct": 7.1302688135254035,
-              "throughputFilesPerSec": 33445.665303931135,
-              "rawMs": [372.1612, 385.9394, 367.3024, 443.7655, 410.5063]
+              "speedup": 21.53241303582082,
+              "medianMs": 422.1537,
+              "minMs": 318.9556,
+              "maxMs": 501.5315,
+              "stddevMs": 62.1825787478969,
+              "cvPct": 15.309271072541291,
+              "throughputFilesPerSec": 30574.172392661723,
+              "rawMs": [426.425, 422.1537, 501.5315, 318.9556, 361.814]
             }
           ]
         },
         {
           "id": "svelte-5.56.4",
-          "files": 12908,
+          "files": 12907,
           "excludedFiles": 837,
-          "bytes": 14872612,
+          "bytes": 14872401,
           "variants": [
             {
               "id": "official",
               "label": "svelte/compiler",
               "version": "5.56.4",
               "status": "reference",
-              "correctFiles": 13745,
-              "attemptFiles": 13745,
-              "attemptMedianMs": 8742.739792000008,
-              "medianMs": 7873.557499999995,
-              "minMs": 7700.288499999995,
-              "maxMs": 10301.671541999996,
-              "stddevMs": 968.3198964940817,
-              "cvPct": 11.531716642728806,
-              "throughputFilesPerSec": 1639.411409645514,
+              "correctFiles": 13744,
+              "attemptFiles": 13744,
+              "attemptMedianMs": 7537.570416999981,
+              "medianMs": 8085.652375000005,
+              "minMs": 7798.324625000008,
+              "maxMs": 11386.768542000034,
+              "stddevMs": 1349.3971861798188,
+              "cvPct": 15.336019315600828,
+              "throughputFilesPerSec": 1596.2843072387207,
               "rawMs": [
-                7872.004874999984, 10301.671541999996, 8237.54912500002, 7873.557499999995,
-                7700.288499999995
+                11386.768542000034, 8085.652375000005, 7798.324625000008, 7854.202749999997,
+                8869.427250000008
               ]
             },
             {
@@ -141,8 +141,8 @@
               "label": "@mrwaip/svelte-rs",
               "version": "0.0.0-canary.13.1",
               "status": "unranked",
-              "compiledFiles": 12639,
-              "correctFiles": 12551,
+              "compiledFiles": 12638,
+              "correctFiles": 12550,
               "exactOutputDivergences": 1190,
               "benchmarkFiles": 0,
               "failureExamples": [
@@ -187,34 +187,34 @@
                   "code": "js_parse_error"
                 }
               ],
-              "attemptFiles": 13745,
-              "attemptMedianMs": 732.8359160000109,
-              "attemptRatioVsRsvelte": 1.917203061305138
+              "attemptFiles": 13744,
+              "attemptMedianMs": 776.0410830000183,
+              "attemptRatioVsRsvelte": 0.805417393769947
             }
           ]
         },
         {
           "id": "svelte-5.56.8-verter",
-          "files": 12908,
+          "files": 12907,
           "excludedFiles": 837,
-          "bytes": 14872612,
+          "bytes": 14872401,
           "variants": [
             {
               "id": "official",
               "label": "svelte/compiler",
               "version": "5.56.8",
               "status": "reference",
-              "correctFiles": 13745,
-              "attemptFiles": 13745,
-              "medianMs": 7870.367583000007,
-              "minMs": 7531.499000000003,
-              "maxMs": 8623.244749999998,
-              "stddevMs": 397.02841626782083,
-              "cvPct": 5.01367952547861,
-              "throughputFilesPerSec": 1640.0758749669176,
+              "correctFiles": 13744,
+              "attemptFiles": 13744,
+              "medianMs": 9089.987832999992,
+              "minMs": 7563.7648749999935,
+              "maxMs": 14113.176500000001,
+              "stddevMs": 2295.3392511078196,
+              "cvPct": 23.04356148741149,
+              "throughputFilesPerSec": 1419.9138917593325,
               "rawMs": [
-                8623.244749999998, 8012.301166999998, 7870.367583000007, 7531.499000000003,
-                7557.102292000003
+                14113.176500000001, 7563.7648749999935, 8468.543292000002, 9089.987832999992,
+                10568.878540999998
               ]
             },
             {
@@ -222,8 +222,8 @@
               "label": "@verter/wasm",
               "version": "0.0.1-beta.3",
               "status": "unranked",
-              "compiledFiles": 4622,
-              "correctFiles": 3919,
+              "compiledFiles": 4621,
+              "correctFiles": 3918,
               "exactOutputDivergences": 9784,
               "benchmarkFiles": 0,
               "failureExamples": [
@@ -269,9 +269,9 @@
                 }
               ],
               "adapter": "Node WASM asset-path adapter",
-              "attemptFiles": 13745,
-              "attemptMedianMs": 2284.6640420000185,
-              "attemptRatioVsRsvelte": 5.977006311705035
+              "attemptFiles": 13744,
+              "attemptMedianMs": 2753.5380420000292,
+              "attemptRatioVsRsvelte": 2.85777065417813
             }
           ]
         }
@@ -284,27 +284,27 @@
       "comparisonClasses": [
         {
           "id": "svelte-5.56.8",
-          "files": 12909,
+          "files": 12908,
           "excludedFiles": 836,
-          "bytes": 14876586,
+          "bytes": 14876375,
           "variants": [
             {
               "id": "official",
               "label": "svelte/compiler",
               "version": "5.56.8",
               "status": "reference",
-              "correctFiles": 13745,
-              "attemptFiles": 13745,
-              "attemptMedianMs": 6627.669750000001,
-              "medianMs": 7828.228333999985,
-              "minMs": 6288.379167000006,
-              "maxMs": 14988.400542000018,
-              "stddevMs": 3205.5719261412596,
-              "cvPct": 36.51711342093901,
-              "throughputFilesPerSec": 1649.032124412229,
+              "correctFiles": 13744,
+              "attemptFiles": 13744,
+              "attemptMedianMs": 9542.559541999944,
+              "medianMs": 7006.359834000003,
+              "minMs": 6158.144709000015,
+              "maxMs": 9981.536041000043,
+              "stddevMs": 1373.609613996678,
+              "cvPct": 18.516441201916926,
+              "throughputFilesPerSec": 1842.3261587794714,
               "rawMs": [
-                8361.074167000013, 6288.379167000006, 14988.400542000018, 6425.283041000017,
-                7828.228333999985
+                6377.309708000044, 6158.144709000015, 7006.359834000003, 7568.270041999989,
+                9981.536041000043
               ]
             },
             {
@@ -313,17 +313,17 @@
               "version": "workspace",
               "threading": "single",
               "status": "ok",
-              "compiledFiles": 12909,
-              "correctFiles": 13745,
+              "compiledFiles": 12908,
+              "correctFiles": 13744,
               "exactOutputDivergences": 0,
-              "speedup": 6.421485669258334,
-              "medianMs": 1219.0681,
-              "minMs": 1093.8573,
-              "maxMs": 1513.2707,
-              "stddevMs": 140.28905230794598,
-              "cvPct": 11.184262184087581,
-              "throughputFilesPerSec": 10589.236155059754,
-              "rawMs": [1188.361, 1513.2707, 1219.0681, 1257.1598, 1093.8573]
+              "speedup": 4.687092962837866,
+              "medianMs": 1494.8199,
+              "minMs": 1152.4335,
+              "maxMs": 2394.8141,
+              "stddevMs": 462.4166018484691,
+              "cvPct": 27.066773466256063,
+              "throughputFilesPerSec": 8635.153974067378,
+              "rawMs": [2096.3034, 2394.8141, 1494.8199, 1152.4335, 1403.774]
             },
             {
               "id": "rsvelte-multi",
@@ -331,46 +331,46 @@
               "version": "workspace",
               "threading": "parallel",
               "status": "ok",
-              "compiledFiles": 12909,
-              "correctFiles": 13745,
+              "compiledFiles": 12908,
+              "correctFiles": 13744,
               "exactOutputDivergences": 0,
-              "attemptFiles": 13745,
-              "attemptMedianMs": 306.8476,
+              "attemptFiles": 13744,
+              "attemptMedianMs": 274.3441,
               "attemptRatioVsRsvelte": 1,
-              "speedup": 30.598224487011905,
-              "medianMs": 255.8393,
-              "minMs": 195.2601,
-              "maxMs": 270.4563,
-              "stddevMs": 28.693588156129934,
-              "cvPct": 11.941982191120877,
-              "throughputFilesPerSec": 50457.455129059534,
-              "rawMs": [261.5525, 270.4563, 218.2664, 195.2601, 255.8393]
+              "speedup": 17.60045657851735,
+              "medianMs": 398.0783,
+              "minMs": 305.3344,
+              "maxMs": 493.8899,
+              "stddevMs": 72.3217297656631,
+              "cvPct": 18.355483860418996,
+              "throughputFilesPerSec": 32425.781561064745,
+              "rawMs": [322.4135, 450.3145, 305.3344, 398.0783, 493.8899]
             }
           ]
         },
         {
           "id": "svelte-5.56.4",
-          "files": 12909,
+          "files": 12908,
           "excludedFiles": 836,
-          "bytes": 14876586,
+          "bytes": 14876375,
           "variants": [
             {
               "id": "official",
               "label": "svelte/compiler",
               "version": "5.56.4",
               "status": "reference",
-              "correctFiles": 13745,
-              "attemptFiles": 13745,
-              "attemptMedianMs": 17509.245250000036,
-              "medianMs": 7468.555457999988,
-              "minMs": 6747.476665999973,
-              "maxMs": 10745.179249999986,
-              "stddevMs": 1462.3382081794975,
-              "cvPct": 18.537201474421977,
-              "throughputFilesPerSec": 1728.4466952939938,
+              "correctFiles": 13744,
+              "attemptFiles": 13744,
+              "attemptMedianMs": 24650.901916999952,
+              "medianMs": 9511.922458999907,
+              "minMs": 8145.881875000079,
+              "maxMs": 11561.231416000053,
+              "stddevMs": 1252.2942918338613,
+              "cvPct": 12.853206377803492,
+              "throughputFilesPerSec": 1357.0337705798706,
               "rawMs": [
-                7468.555457999988, 10745.179249999986, 6747.476665999973, 7568.868791999994,
-                6913.25787500001
+                10730.706165999989, 8145.881875000079, 8765.506832999992, 9511.922458999907,
+                11561.231416000053
               ]
             },
             {
@@ -378,8 +378,8 @@
               "label": "@mrwaip/svelte-rs",
               "version": "0.0.0-canary.13.1",
               "status": "unranked",
-              "compiledFiles": 12637,
-              "correctFiles": 12862,
+              "compiledFiles": 12636,
+              "correctFiles": 12861,
               "exactOutputDivergences": 880,
               "benchmarkFiles": 0,
               "failureExamples": [
@@ -424,34 +424,34 @@
                   "code": "node_invalid_placement"
                 }
               ],
-              "attemptFiles": 13745,
-              "attemptMedianMs": 579.0551670000423,
-              "attemptRatioVsRsvelte": 1.8871099757666094
+              "attemptFiles": 13744,
+              "attemptMedianMs": 1268.5527500000317,
+              "attemptRatioVsRsvelte": 4.623947626356942
             }
           ]
         },
         {
           "id": "svelte-5.56.8-verter",
-          "files": 12909,
+          "files": 12908,
           "excludedFiles": 836,
-          "bytes": 14876586,
+          "bytes": 14876375,
           "variants": [
             {
               "id": "official",
               "label": "svelte/compiler",
               "version": "5.56.8",
               "status": "reference",
-              "correctFiles": 13745,
-              "attemptFiles": 13745,
-              "medianMs": 7828.228333999985,
-              "minMs": 6288.379167000006,
-              "maxMs": 14988.400542000018,
-              "stddevMs": 3205.5719261412596,
-              "cvPct": 36.51711342093901,
-              "throughputFilesPerSec": 1649.032124412229,
+              "correctFiles": 13744,
+              "attemptFiles": 13744,
+              "medianMs": 7006.359834000003,
+              "minMs": 6158.144709000015,
+              "maxMs": 9981.536041000043,
+              "stddevMs": 1373.609613996678,
+              "cvPct": 18.516441201916926,
+              "throughputFilesPerSec": 1842.3261587794714,
               "rawMs": [
-                8361.074167000013, 6288.379167000006, 14988.400542000018, 6425.283041000017,
-                7828.228333999985
+                6377.309708000044, 6158.144709000015, 7006.359834000003, 7568.270041999989,
+                9981.536041000043
               ]
             },
             {
@@ -461,7 +461,7 @@
               "status": "unsupported",
               "compiledFiles": 0,
               "correctFiles": 0,
-              "exactOutputDivergences": 12909,
+              "exactOutputDivergences": 12908,
               "benchmarkFiles": 0,
               "failureExamples": [],
               "adapter": "Node WASM asset-path adapter"
@@ -477,27 +477,27 @@
       "comparisonClasses": [
         {
           "id": "svelte-5.56.8",
-          "files": 12908,
+          "files": 12907,
           "excludedFiles": 837,
-          "bytes": 14872612,
+          "bytes": 14872401,
           "variants": [
             {
               "id": "official",
               "label": "svelte/compiler",
               "version": "5.56.8",
               "status": "reference",
-              "correctFiles": 13745,
-              "attemptFiles": 13745,
-              "attemptMedianMs": 8591.924916999997,
-              "medianMs": 9757.819749999908,
-              "minMs": 8310.111542000086,
-              "maxMs": 11367.459792000009,
-              "stddevMs": 1033.3422383793309,
-              "cvPct": 10.381924650446809,
-              "throughputFilesPerSec": 1322.8364871158972,
+              "correctFiles": 13744,
+              "attemptFiles": 13744,
+              "attemptMedianMs": 9449.149958000053,
+              "medianMs": 38050.044666000176,
+              "minMs": 26723.327333000023,
+              "maxMs": 38407.74562499998,
+              "stddevMs": 4499.834424225009,
+              "cvPct": 12.841031956512428,
+              "throughputFilesPerSec": 339.2111655399217,
               "rawMs": [
-                8310.111542000086, 10670.873917000019, 11367.459792000009, 9757.819749999908,
-                9660.14504199999
+                38050.044666000176, 33805.98608299997, 38407.74562499998, 38226.01154199988,
+                26723.327333000023
               ]
             },
             {
@@ -506,17 +506,17 @@
               "version": "workspace",
               "threading": "single",
               "status": "ok",
-              "compiledFiles": 12908,
-              "correctFiles": 13745,
+              "compiledFiles": 12907,
+              "correctFiles": 13744,
               "exactOutputDivergences": 0,
-              "speedup": 3.860165798726457,
-              "medianMs": 2527.824,
-              "minMs": 2184.3817,
-              "maxMs": 3453.6725,
-              "stddevMs": 447.298252213654,
-              "cvPct": 16.383112409769886,
-              "throughputFilesPerSec": 5106.368164872238,
-              "rawMs": [3453.6725, 2480.1894, 2184.3817, 3005.1313, 2527.824]
+              "speedup": 5.21240650279074,
+              "medianMs": 7299.8997,
+              "minMs": 5372.3749,
+              "maxMs": 9991.2482,
+              "stddevMs": 1476.4501919270815,
+              "cvPct": 19.801167734665988,
+              "throughputFilesPerSec": 1768.1064850795142,
+              "rawMs": [7486.774, 9991.2482, 7131.6002, 5372.3749, 7299.8997]
             },
             {
               "id": "rsvelte-multi",
@@ -524,46 +524,46 @@
               "version": "workspace",
               "threading": "parallel",
               "status": "ok",
-              "compiledFiles": 12908,
-              "correctFiles": 13745,
+              "compiledFiles": 12907,
+              "correctFiles": 13744,
               "exactOutputDivergences": 0,
-              "attemptFiles": 13745,
-              "attemptMedianMs": 607.9678,
+              "attemptFiles": 13744,
+              "attemptMedianMs": 1979.0083,
               "attemptRatioVsRsvelte": 1,
-              "speedup": 14.70388668666386,
-              "medianMs": 663.6218,
-              "minMs": 387.407,
-              "maxMs": 1521.2896,
-              "stddevMs": 406.64309313526724,
-              "cvPct": 53.76092703092008,
-              "throughputFilesPerSec": 19450.83781153663,
-              "rawMs": [663.6218, 1521.2896, 764.5382, 445.101, 387.407]
+              "speedup": 72.41116068008212,
+              "medianMs": 525.4721,
+              "minMs": 392.9587,
+              "maxMs": 532.9991,
+              "stddevMs": 53.619942986415026,
+              "cvPct": 10.742940433360305,
+              "throughputFilesPerSec": 24562.674212389204,
+              "rawMs": [532.9991, 525.4721, 392.9587, 532.2958, 511.864]
             }
           ]
         },
         {
           "id": "svelte-5.56.4",
-          "files": 12908,
+          "files": 12907,
           "excludedFiles": 837,
-          "bytes": 14872612,
+          "bytes": 14872401,
           "variants": [
             {
               "id": "official",
               "label": "svelte/compiler",
               "version": "5.56.4",
               "status": "reference",
-              "correctFiles": 13745,
-              "attemptFiles": 13745,
-              "attemptMedianMs": 18839.918167000054,
-              "medianMs": 9171.489666000009,
-              "minMs": 8463.722833000007,
-              "maxMs": 10199.110499999952,
-              "stddevMs": 595.4211149253383,
-              "cvPct": 6.436452360591667,
-              "throughputFilesPerSec": 1407.4049549280699,
+              "correctFiles": 13744,
+              "attemptFiles": 13744,
+              "attemptMedianMs": 12507.74295799993,
+              "medianMs": 30602.485083000036,
+              "minMs": 27945.532666999847,
+              "maxMs": 39343.64562500012,
+              "stddevMs": 3980.693176599152,
+              "cvPct": 12.39447390440776,
+              "throughputFilesPerSec": 421.76313345120974,
               "rawMs": [
-                8463.722833000007, 8860.33254199999, 9559.17200000002, 9171.489666000009,
-                10199.110499999952
+                39343.64562500012, 33095.28691700008, 30602.485083000036, 29596.435792000033,
+                27945.532666999847
               ]
             },
             {
@@ -571,8 +571,8 @@
               "label": "@mrwaip/svelte-rs",
               "version": "0.0.0-canary.13.1",
               "status": "unranked",
-              "compiledFiles": 12639,
-              "correctFiles": 12535,
+              "compiledFiles": 12638,
+              "correctFiles": 12534,
               "exactOutputDivergences": 1206,
               "benchmarkFiles": 0,
               "failureExamples": [
@@ -617,34 +617,34 @@
                   "code": "js_parse_error"
                 }
               ],
-              "attemptFiles": 13745,
-              "attemptMedianMs": 755.2927500000224,
-              "attemptRatioVsRsvelte": 1.2423236066120975
+              "attemptFiles": 13744,
+              "attemptMedianMs": 723.3827080000192,
+              "attemptRatioVsRsvelte": 0.3655278797971788
             }
           ]
         },
         {
           "id": "svelte-5.56.8-verter",
-          "files": 12908,
+          "files": 12907,
           "excludedFiles": 837,
-          "bytes": 14872612,
+          "bytes": 14872401,
           "variants": [
             {
               "id": "official",
               "label": "svelte/compiler",
               "version": "5.56.8",
               "status": "reference",
-              "correctFiles": 13745,
-              "attemptFiles": 13745,
-              "medianMs": 9757.819749999908,
-              "minMs": 8310.111542000086,
-              "maxMs": 11367.459792000009,
-              "stddevMs": 1033.3422383793309,
-              "cvPct": 10.381924650446809,
-              "throughputFilesPerSec": 1322.8364871158972,
+              "correctFiles": 13744,
+              "attemptFiles": 13744,
+              "medianMs": 38050.044666000176,
+              "minMs": 26723.327333000023,
+              "maxMs": 38407.74562499998,
+              "stddevMs": 4499.834424225009,
+              "cvPct": 12.841031956512428,
+              "throughputFilesPerSec": 339.2111655399217,
               "rawMs": [
-                8310.111542000086, 10670.873917000019, 11367.459792000009, 9757.819749999908,
-                9660.14504199999
+                38050.044666000176, 33805.98608299997, 38407.74562499998, 38226.01154199988,
+                26723.327333000023
               ]
             },
             {
@@ -652,9 +652,9 @@
               "label": "@verter/wasm",
               "version": "0.0.1-beta.3",
               "status": "unranked",
-              "compiledFiles": 4622,
+              "compiledFiles": 4621,
               "correctFiles": 795,
-              "exactOutputDivergences": 12908,
+              "exactOutputDivergences": 12907,
               "benchmarkFiles": 0,
               "failureExamples": [
                 {
@@ -699,9 +699,9 @@
                 }
               ],
               "adapter": "Node WASM asset-path adapter",
-              "attemptFiles": 13745,
-              "attemptMedianMs": 2471.529708000133,
-              "attemptRatioVsRsvelte": 4.065231263892812
+              "attemptFiles": 13744,
+              "attemptMedianMs": 2169.797833000077,
+              "attemptRatioVsRsvelte": 1.096406636091459
             }
           ]
         }
@@ -714,27 +714,27 @@
       "comparisonClasses": [
         {
           "id": "svelte-5.56.8",
-          "files": 12909,
+          "files": 12908,
           "excludedFiles": 836,
-          "bytes": 14876586,
+          "bytes": 14876375,
           "variants": [
             {
               "id": "official",
               "label": "svelte/compiler",
               "version": "5.56.8",
               "status": "reference",
-              "correctFiles": 13745,
-              "attemptFiles": 13745,
-              "attemptMedianMs": 7389.674083000049,
-              "medianMs": 9235.429584000027,
-              "minMs": 7342.524667000165,
-              "maxMs": 16866.73462500004,
-              "stddevMs": 3451.133501335321,
-              "cvPct": 33.899491953230275,
-              "throughputFilesPerSec": 1397.769305974058,
+              "correctFiles": 13744,
+              "attemptFiles": 13744,
+              "attemptMedianMs": 6718.6969999996945,
+              "medianMs": 6718.56620900007,
+              "minMs": 6603.494833000004,
+              "maxMs": 6812.795292000053,
+              "stddevMs": 77.37694392390364,
+              "cvPct": 1.1543322777978562,
+              "throughputFilesPerSec": 1921.2432531674208,
               "rawMs": [
-                9646.52883299999, 7811.219207999995, 9235.429584000027, 7342.524667000165,
-                16866.73462500004
+                6812.795292000053, 6751.449790999992, 6718.56620900007, 6629.5824160000775,
+                6603.494833000004
               ]
             },
             {
@@ -743,17 +743,17 @@
               "version": "workspace",
               "threading": "single",
               "status": "ok",
-              "compiledFiles": 12909,
-              "correctFiles": 13745,
+              "compiledFiles": 12908,
+              "correctFiles": 13744,
               "exactOutputDivergences": 0,
-              "speedup": 6.024065386410672,
-              "medianMs": 1533.0892,
-              "minMs": 1270.7325,
-              "maxMs": 2725.4709,
-              "stddevMs": 531.363555004304,
-              "cvPct": 30.510985828202642,
-              "throughputFilesPerSec": 8420.25369430559,
-              "rawMs": [1846.2309, 2725.4709, 1533.0892, 1270.7325, 1332.218]
+              "speedup": 5.664294806672336,
+              "medianMs": 1186.1258,
+              "minMs": 1164.9546,
+              "maxMs": 1220.1669,
+              "stddevMs": 22.42602282248011,
+              "cvPct": 1.8824449039995301,
+              "throughputFilesPerSec": 10882.488181270484,
+              "rawMs": [1164.9546, 1170.8165, 1214.5575, 1186.1258, 1220.1669]
             },
             {
               "id": "rsvelte-multi",
@@ -761,46 +761,46 @@
               "version": "workspace",
               "threading": "parallel",
               "status": "ok",
-              "compiledFiles": 12909,
-              "correctFiles": 13745,
+              "compiledFiles": 12908,
+              "correctFiles": 13744,
               "exactOutputDivergences": 0,
-              "attemptFiles": 13745,
-              "attemptMedianMs": 320.1132,
+              "attemptFiles": 13744,
+              "attemptMedianMs": 236.0611,
               "attemptRatioVsRsvelte": 1,
-              "speedup": 30.522102242138327,
-              "medianMs": 302.5817,
-              "minMs": 273.6907,
-              "maxMs": 367.7256,
-              "stddevMs": 33.38034900803764,
-              "cvPct": 10.599962734768663,
-              "throughputFilesPerSec": 42662.857667862925,
-              "rawMs": [302.5817, 273.6907, 293.7069, 367.7256, 336.8454]
+              "speedup": 29.711801282037413,
+              "medianMs": 226.1245,
+              "minMs": 221.0341,
+              "maxMs": 272.4521,
+              "stddevMs": 19.154498915878733,
+              "cvPct": 8.15456214278581,
+              "throughputFilesPerSec": 57083.59775256551,
+              "rawMs": [222.7712, 226.1245, 232.0833, 272.4521, 221.0341]
             }
           ]
         },
         {
           "id": "svelte-5.56.4",
-          "files": 12909,
+          "files": 12908,
           "excludedFiles": 836,
-          "bytes": 14876586,
+          "bytes": 14876375,
           "variants": [
             {
               "id": "official",
               "label": "svelte/compiler",
               "version": "5.56.4",
               "status": "reference",
-              "correctFiles": 13745,
-              "attemptFiles": 13745,
-              "attemptMedianMs": 7635.703999999911,
-              "medianMs": 7145.869125000201,
-              "minMs": 6854.4985829999205,
-              "maxMs": 17932.493874999927,
-              "stddevMs": 4271.31481596204,
-              "cvPct": 45.140793913446146,
-              "throughputFilesPerSec": 1806.498240338209,
+              "correctFiles": 13744,
+              "attemptFiles": 13744,
+              "attemptMedianMs": 6825.954833999742,
+              "medianMs": 6868.7223330000415,
+              "minMs": 6668.525249999948,
+              "maxMs": 7084.837499999907,
+              "stddevMs": 144.59304769383868,
+              "cvPct": 2.1124954176202997,
+              "throughputFilesPerSec": 1879.2432382926436,
               "rawMs": [
-                8403.714582999935, 17932.493874999927, 6974.452791000018, 7145.869125000201,
-                6854.4985829999205
+                7084.837499999907, 6868.7223330000415, 6668.525249999948, 6725.2150829997845,
+                6875.980624999851
               ]
             },
             {
@@ -808,8 +808,8 @@
               "label": "@mrwaip/svelte-rs",
               "version": "0.0.0-canary.13.1",
               "status": "unranked",
-              "compiledFiles": 12637,
-              "correctFiles": 12858,
+              "compiledFiles": 12636,
+              "correctFiles": 12857,
               "exactOutputDivergences": 884,
               "benchmarkFiles": 0,
               "failureExamples": [
@@ -854,34 +854,34 @@
                   "code": "node_invalid_placement"
                 }
               ],
-              "attemptFiles": 13745,
-              "attemptMedianMs": 603.8973750001751,
-              "attemptRatioVsRsvelte": 1.8865119432756134
+              "attemptFiles": 13744,
+              "attemptMedianMs": 585.1437090002,
+              "attemptRatioVsRsvelte": 2.478780743630357
             }
           ]
         },
         {
           "id": "svelte-5.56.8-verter",
-          "files": 12909,
+          "files": 12908,
           "excludedFiles": 836,
-          "bytes": 14876586,
+          "bytes": 14876375,
           "variants": [
             {
               "id": "official",
               "label": "svelte/compiler",
               "version": "5.56.8",
               "status": "reference",
-              "correctFiles": 13745,
-              "attemptFiles": 13745,
-              "medianMs": 9235.429584000027,
-              "minMs": 7342.524667000165,
-              "maxMs": 16866.73462500004,
-              "stddevMs": 3451.133501335321,
-              "cvPct": 33.899491953230275,
-              "throughputFilesPerSec": 1397.769305974058,
+              "correctFiles": 13744,
+              "attemptFiles": 13744,
+              "medianMs": 6718.56620900007,
+              "minMs": 6603.494833000004,
+              "maxMs": 6812.795292000053,
+              "stddevMs": 77.37694392390364,
+              "cvPct": 1.1543322777978562,
+              "throughputFilesPerSec": 1921.2432531674208,
               "rawMs": [
-                9646.52883299999, 7811.219207999995, 9235.429584000027, 7342.524667000165,
-                16866.73462500004
+                6812.795292000053, 6751.449790999992, 6718.56620900007, 6629.5824160000775,
+                6603.494833000004
               ]
             },
             {
@@ -891,7 +891,7 @@
               "status": "unsupported",
               "compiledFiles": 0,
               "correctFiles": 0,
-              "exactOutputDivergences": 12909,
+              "exactOutputDivergences": 12908,
               "benchmarkFiles": 0,
               "failureExamples": [],
               "adapter": "Node WASM asset-path adapter"
@@ -906,41 +906,41 @@
       "id": "parser",
       "label": "Parser",
       "dataset": "compatibility-corpus",
-      "files": 12908,
+      "files": 12907,
       "excludedFiles": 837,
       "reference": {
         "label": "svelte/compiler.parse",
         "version": "5.56.8",
-        "durationMs": 2342.7527499999997,
-        "throughputFilesPerSec": 5509.75769850233,
-        "minMs": 2136.3459170000024,
-        "maxMs": 2457.7105420000007,
-        "meanMs": 2311.5741252,
-        "stdDevMs": 127.33595006201377,
+        "durationMs": 2143.3751669999983,
+        "throughputFilesPerSec": 6021.810926392995,
+        "minMs": 2102.9003750000047,
+        "maxMs": 2300.0626669999983,
+        "meanMs": 2163.362516600001,
+        "stdDevMs": 70.08642008325239,
         "samples": 5
       },
       "rsvelteSingle": {
         "label": "rsvelte",
         "threading": "single",
-        "speedup": 64.95827730102174,
-        "durationMs": 36.0655,
-        "throughputFilesPerSec": 357904.3684407536,
-        "minMs": 34.489,
-        "maxMs": 38.8667,
-        "meanMs": 36.26274,
-        "stdDevMs": 1.4715075162567144,
+        "speedup": 63.81998847689568,
+        "durationMs": 33.5847,
+        "throughputFilesPerSec": 384311.90393244545,
+        "minMs": 33.1209,
+        "maxMs": 35.1005,
+        "meanMs": 33.952980000000004,
+        "stdDevMs": 0.7057341635488528,
         "samples": 5
       },
       "rsvelteParallel": {
         "label": "rsvelte",
         "threading": "parallel",
-        "speedup": 476.9641984608493,
-        "durationMs": 4.9118,
-        "throughputFilesPerSec": 2627957.1643796572,
-        "minMs": 4.8155,
-        "maxMs": 6.2298,
-        "meanMs": 5.35308,
-        "stdDevMs": 0.617028036316017,
+        "speedup": 442.9101661397306,
+        "durationMs": 4.8393,
+        "throughputFilesPerSec": 2667121.277870767,
+        "minMs": 4.3009,
+        "maxMs": 5.457,
+        "meanMs": 4.87222,
+        "stdDevMs": 0.4032171395166628,
         "samples": 5
       },
       "alternatives": [],
@@ -950,41 +950,41 @@
       "id": "svelte2tsx",
       "label": "svelte2tsx",
       "dataset": "compatibility-corpus",
-      "files": 12908,
+      "files": 12907,
       "excludedFiles": 837,
       "reference": {
         "label": "svelte2tsx",
         "version": "0.7.59",
-        "durationMs": 2059.2839160000003,
-        "throughputFilesPerSec": 6268.198328413497,
-        "minMs": 1879.3880419999987,
-        "maxMs": 2239.638583,
-        "meanMs": 2036.4014832000016,
-        "stdDevMs": 129.34212924972115,
+        "durationMs": 1897.6138749999955,
+        "throughputFilesPerSec": 6801.699845285981,
+        "minMs": 1878.3699999999953,
+        "maxMs": 2039.3177499999874,
+        "meanMs": 1942.3587415999937,
+        "stdDevMs": 66.24000926604985,
         "samples": 5
       },
       "rsvelteSingle": {
         "label": "rsvelte",
         "threading": "single",
-        "speedup": 4.1562139870519195,
-        "durationMs": 495.4711,
-        "throughputFilesPerSec": 26051.973566167635,
-        "minMs": 367.2782,
-        "maxMs": 831.162,
-        "meanMs": 550.42834,
-        "stdDevMs": 170.71499159703112,
+        "speedup": 5.9691975646506155,
+        "durationMs": 317.901,
+        "throughputFilesPerSec": 40600.690151965544,
+        "minMs": 315.346,
+        "maxMs": 319.0214,
+        "meanMs": 317.63052000000005,
+        "stdDevMs": 1.2467040023999343,
         "samples": 5
       },
       "rsvelteParallel": {
         "label": "rsvelte",
         "threading": "parallel",
-        "speedup": 36.69102745657016,
-        "durationMs": 56.125,
-        "throughputFilesPerSec": 229986.63697104677,
-        "minMs": 53.8466,
-        "maxMs": 89.5145,
-        "meanMs": 62.304500000000004,
-        "stdDevMs": 13.679343902833937,
+        "speedup": 35.65214379116886,
+        "durationMs": 53.2258,
+        "throughputFilesPerSec": 242495.18090850677,
+        "minMs": 41.6693,
+        "maxMs": 82.2004,
+        "meanMs": 54.718759999999996,
+        "stdDevMs": 14.653895359882984,
         "samples": 5
       },
       "alternatives": [],
@@ -994,41 +994,41 @@
       "id": "fmt",
       "label": "Formatter",
       "dataset": "compatibility-corpus",
-      "files": 12908,
+      "files": 12907,
       "excludedFiles": 837,
       "reference": {
         "label": "Prettier + prettier-plugin-svelte",
         "version": "3.9.6 + 4.1.1",
-        "durationMs": 25059.372999999992,
-        "throughputFilesPerSec": 515.0966865771145,
-        "minMs": 21634.979708,
-        "maxMs": 39494.801374999995,
-        "meanMs": 28075.511808399995,
-        "stdDevMs": 6482.1707592515695,
+        "durationMs": 21226.388957999996,
+        "throughputFilesPerSec": 608.0638598274386,
+        "minMs": 21070.803832999984,
+        "maxMs": 22111.824041999993,
+        "meanMs": 21403.402558199996,
+        "stdDevMs": 368.2089723617649,
         "samples": 5
       },
       "rsvelteSingle": {
         "label": "rsvelte",
         "threading": "single",
-        "speedup": 41.79402767414251,
-        "durationMs": 599.5922,
-        "throughputFilesPerSec": 21527.96517366303,
-        "minMs": 592.37,
-        "maxMs": 709.3611,
-        "meanMs": 625.03972,
-        "stdDevMs": 43.76347166052526,
+        "speedup": 35.23085439646483,
+        "durationMs": 602.4943,
+        "throughputFilesPerSec": 21422.60930933289,
+        "minMs": 592.9482,
+        "maxMs": 647.351,
+        "meanMs": 609.80412,
+        "stdDevMs": 19.310228583152504,
         "samples": 5
       },
       "rsvelteParallel": {
         "label": "rsvelte",
         "threading": "parallel",
-        "speedup": 218.89375525738123,
-        "durationMs": 114.4819,
-        "throughputFilesPerSec": 112751.44804549891,
-        "minMs": 101.1136,
-        "maxMs": 171.9234,
-        "meanMs": 129.78388,
-        "stdDevMs": 26.938561176974538,
+        "speedup": 199.7582256230919,
+        "durationMs": 106.2604,
+        "throughputFilesPerSec": 121465.7577046576,
+        "minMs": 96.5308,
+        "maxMs": 220.1235,
+        "meanMs": 129.2142,
+        "stdDevMs": 45.96736052309291,
         "samples": 5
       },
       "alternatives": [
@@ -1036,15 +1036,15 @@
           "id": "oxfmt",
           "label": "Oxfmt",
           "version": "0.62.0",
-          "completedFiles": 12903,
-          "durationMs": 12781.223583000014,
-          "throughputFilesPerSec": 1009.9189577724475,
-          "minMs": 11682.454625000013,
-          "maxMs": 14467.406332999992,
-          "meanMs": 13026.041191599996,
-          "stdDevMs": 1009.7497202400757,
+          "completedFiles": 12902,
+          "durationMs": 10917.831874999974,
+          "throughputFilesPerSec": 1182.194427224593,
+          "minMs": 10385.550834000023,
+          "maxMs": 13322.53695800004,
+          "meanMs": 11287.07005020001,
+          "stdDevMs": 1065.9032407897348,
           "samples": 5,
-          "speedupVsRsvelteParallel": 111.64405537469254
+          "speedupVsRsvelteParallel": 102.7460076848946
         }
       ],
       "note": "Complete collected corpus accepted by the official compiler in CSR and SSR."
@@ -1053,41 +1053,41 @@
       "id": "lint",
       "label": "Linter",
       "dataset": "compatibility-corpus",
-      "files": 12908,
+      "files": 12907,
       "excludedFiles": 837,
       "reference": {
         "label": "ESLint + eslint-plugin-svelte",
         "version": "10.x + 3.22.0",
-        "durationMs": 38647.202792,
-        "throughputFilesPerSec": 333.99571165528096,
-        "minMs": 38266.505790999996,
-        "maxMs": 39102.40104200001,
-        "meanMs": 38690.0563166,
-        "stdDevMs": 314.7640704094023,
+        "durationMs": 38892.10545799999,
+        "throughputFilesPerSec": 331.8668364184709,
+        "minMs": 38329.866791999986,
+        "maxMs": 39486.47404100001,
+        "meanMs": 39004.62859179999,
+        "stdDevMs": 429.9175336750232,
         "samples": 5
       },
       "rsvelteSingle": {
         "label": "rsvelte",
         "threading": "single",
-        "speedup": 5.8294792068619365,
-        "durationMs": 6629.615,
-        "throughputFilesPerSec": 1947.0210562755153,
-        "minMs": 6520.8107,
-        "maxMs": 6815.8399,
-        "meanMs": 6652.8605,
-        "stdDevMs": 95.21015641501697,
+        "speedup": 5.826791214016117,
+        "durationMs": 6674.7038,
+        "throughputFilesPerSec": 1933.71876666647,
+        "minMs": 6645.0894,
+        "maxMs": 7006.918,
+        "meanMs": 6736.85284,
+        "stdDevMs": 136.29431080067272,
         "samples": 5
       },
       "rsvelteParallel": {
         "label": "rsvelte",
         "threading": "parallel",
-        "speedup": 27.7901977935215,
-        "durationMs": 1390.6775,
-        "throughputFilesPerSec": 9281.806889088231,
-        "minMs": 1114.0942,
-        "maxMs": 1652.3153,
-        "meanMs": 1408.4061399999998,
-        "stdDevMs": 180.80069712198124,
+        "speedup": 27.629174642806213,
+        "durationMs": 1407.6463,
+        "throughputFilesPerSec": 9169.206781561532,
+        "minMs": 1266.8037,
+        "maxMs": 1726.2751,
+        "meanMs": 1487.8942600000003,
+        "stdDevMs": 172.40653636187469,
         "samples": 5
       },
       "alternatives": [],
@@ -1102,38 +1102,38 @@
       "reference": {
         "label": "svelte-check",
         "version": "4.7.5 + TypeScript 6.0.3",
-        "durationMs": 11350.624875,
-        "throughputFilesPerSec": 440.50438236335424,
-        "minMs": 11087.272209,
-        "maxMs": 12832.641666,
-        "meanMs": 11799.5238418,
-        "stdDevMs": 756.6957979238005,
+        "durationMs": 11747.657125,
+        "throughputFilesPerSec": 425.6167801628787,
+        "minMs": 10510.901,
+        "maxMs": 12270.442417,
+        "meanMs": 11643.206275,
+        "stdDevMs": 608.0348272178057,
         "samples": 5
       },
       "rsvelteSingle": {
         "label": "rsvelte + tsgo",
         "version": "7.0.0-dev.20260703.1",
         "threading": "single",
-        "speedup": 1.6564782162197162,
-        "durationMs": 6852.263292,
-        "throughputFilesPerSec": 729.6859135342169,
-        "minMs": 6535.00825,
-        "maxMs": 7388.42775,
-        "meanMs": 6976.759733399999,
-        "stdDevMs": 338.549753193843,
+        "speedup": 1.6537744645658876,
+        "durationMs": 7103.542458,
+        "throughputFilesPerSec": 703.8741627241218,
+        "minMs": 6930.576209,
+        "maxMs": 7369.036041,
+        "meanMs": 7167.2880416,
+        "stdDevMs": 170.16436942617398,
         "samples": 5
       },
       "rsvelteParallel": {
         "label": "rsvelte + tsgo",
         "version": "7.0.0-dev.20260703.1",
         "threading": "parallel",
-        "speedup": 2.4826008965426762,
-        "durationMs": 4572.069917,
-        "throughputFilesPerSec": 1093.5965745862413,
-        "minMs": 4311.846375,
-        "maxMs": 5075.535625,
-        "meanMs": 4600.602124999999,
-        "stdDevMs": 266.3495899407533,
+        "speedup": 2.383027417567561,
+        "durationMs": 4929.719666,
+        "throughputFilesPerSec": 1014.256456504965,
+        "minMs": 4838.467916,
+        "maxMs": 5264.260458,
+        "meanMs": 5012.221091400001,
+        "stdDevMs": 152.68988618211918,
         "samples": 5
       },
       "alternatives": [
@@ -1141,15 +1141,15 @@
           "id": "svelte-check-tsgo",
           "label": "svelte-check + tsgo",
           "completedFiles": 5000,
-          "durationMs": 7997.864917,
-          "throughputFilesPerSec": 625.1668478886363,
-          "minMs": 7674.905667,
-          "maxMs": 8264.21675,
-          "meanMs": 8009.4412002,
-          "stdDevMs": 200.44523860243157,
+          "durationMs": 8225.911541,
+          "throughputFilesPerSec": 607.8353718100116,
+          "minMs": 7925.746667,
+          "maxMs": 9027.675291,
+          "meanMs": 8346.1354998,
+          "stdDevMs": 367.8940955836471,
           "samples": 5,
           "version": "4.7.5 + 7.0.0-dev.20260703.1",
-          "speedupVsRsvelteParallel": 1.7492875354469344
+          "speedupVsRsvelteParallel": 1.6686367782195912
         },
         {
           "id": "svelte-check-rs",
@@ -1161,15 +1161,15 @@
             "matchedDiagnostics": 2,
             "expectedDiagnostics": 2
           },
-          "durationMs": 5230.18225,
-          "throughputFilesPerSec": 955.9896311452627,
-          "minMs": 5109.769125,
-          "maxMs": 5531.0085,
-          "meanMs": 5318.3175334,
-          "stdDevMs": 166.41980125696108,
+          "durationMs": 5752.515,
+          "throughputFilesPerSec": 869.1850434114469,
+          "minMs": 5576.1895,
+          "maxMs": 6431.116209,
+          "meanMs": 5891.2073086,
+          "stdDevMs": 324.2673077360534,
           "samples": 5,
           "version": "0.11.0 + tsgo 7.0.0-dev.20260707.2",
-          "speedupVsRsvelteParallel": 1.1439418786123519
+          "speedupVsRsvelteParallel": 1.166905095978332
         }
       ],
       "note": "5,000-file synthetic workspace; end-to-end Svelte and TypeScript diagnostics. The equivalent tsgo rows use 7.0.0-dev.20260703.1; regular svelte-check uses TypeScript 6.0.3. svelte-check-rs uses default diagnostic sources and is shown separately after passing 2/2 planted diagnostic checks."

@@ -4,7 +4,9 @@ import type { PerformanceReport } from "$lib/types/reports";
 
 export const load: PageLoad = async ({ fetch }) => {
   try {
-    const response = await fetch(`${base}/performance-report.json`);
+    const response = await fetch(`${base}/performance-report.json?refresh=${Date.now()}`, {
+      cache: "no-store",
+    });
     if (!response.ok) {
       return {
         results: null,
