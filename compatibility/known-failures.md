@@ -259,7 +259,7 @@ and #2023 were all filed as "not emitted" and all turned out to be emitted in
 the right number and the wrong place.
 
 
-## Server dev (`known-failures.server-dev.json`, 284 entries)
+## Server dev (`known-failures.server-dev.json`, 239 entries)
 
 `server-dev` is SSR with `dev: true`. It was enrolled after the client-dev
 target, so this is a new measured population rather than a regression in any
@@ -271,22 +271,23 @@ first exposed the target; the remaining corpus population is retained as this
 shrink-only baseline until those lowering paths are ported.
 
 Component-child snippets reduced this population by 1,322 entries; non-hoistable
-snippet guards now share upstream's init placement, removing another 72.
-Partition by corpus source: `196 + 31 + 10 + 9 + 7 + 5 + 5 + 4 + 3 + 3 + 2 +
-2 + 1 + 1 + 1 + 1 + 1 + 1 + 1 = 284`.
+snippet guards now share upstream's init placement, removing another 72. Dev
+dynamic elements now keep identifier tags direct and only memoize non-identifiers,
+matching upstream and removing 45 more. Partition by corpus source: `162 + 27 +
+9 + 7 + 5 + 5 + 5 + 3 + 3 + 3 + 2 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 = 239`.
 
 | source | entries |
 | --- | ---: |
-| `svelte` | 196 |
-| `svelte.dev` | 31 |
-| `flowbite-svelte` | 10 |
+| `svelte` | 162 |
+| `svelte.dev` | 27 |
+| `flowbite-svelte` | 5 |
 | `svelte-form-builder` | 9 |
 | `skeleton` | 7 |
 | `shadcn-svelte`, `layercake` | 5 each |
-| `pattern` | 4 |
+| `pattern` | 3 |
 | `bits-ui`, `layerchart` | 3 each |
-| `melt-ui`, `svelte-ux` | 2 each |
-| `powertable`, `svar-core`, `svelte-formly`, `svelte-maplibre`, `svelte-notifications`, `svelte-table`, `sveltestrap` | 1 each |
+| `svelte-ux` | 2 |
+| `melt-ui`, `powertable`, `svar-core`, `svelte-formly`, `svelte-maplibre`, `svelte-notifications`, `svelte-table`, `sveltestrap` | 1 each |
 
 ## Hard-cluster warnings for future work
 
