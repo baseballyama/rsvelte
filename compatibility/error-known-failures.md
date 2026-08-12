@@ -98,7 +98,8 @@ of two unrelated errors say nothing, and the code divergence is an
 
 `error-message-known-failures.client.json` holds 121 entries,
 `error-message-known-failures.client-dev.json` holds 121 entries and
-`error-message-known-failures.server.json` holds 120 entries; all three of
+`error-message-known-failures.server.json` holds 120 entries and
+`error-message-known-failures.server-dev.json` holds 120 entries; all four of
 `error-position-known-failures.<target>.json` hold 226 entries, all three of
 `error-end-known-failures.<target>.json` hold 243 entries, and all three of
 `error-frame-known-failures.<target>.json` hold 0 entries. Almost every

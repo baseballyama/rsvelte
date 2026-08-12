@@ -1,7 +1,7 @@
 # known-failures.{client,server,client-dev,server-dev}.json — why each entry is accepted
 
 The output-equality corpus compiles every source with both the official Svelte
-compiler and rsvelte (CSR + SSR + CSR `dev: true`) and requires byte-identical output after
+compiler and rsvelte (CSR + SSR + CSR/SSR `dev: true`) and requires byte-identical output after
 comparison-side normalization. The comparison is **AST-structural**
 (`normalize.astEquivalent` via acorn): comment position, `${}` line-wrapping,
 redundant parens, and quote style are already absorbed, so any entry here is a
@@ -258,6 +258,37 @@ being *absent*, so a positioning bug reads as an unported feature — #2020, #20
 and #2023 were all filed as "not emitted" and all turned out to be emitted in
 the right number and the wrong place.
 
+
+## Server dev (`known-failures.server-dev.json`, 1678 entries)
+
+`server-dev` is SSR with `dev: true`. It was enrolled after the client-dev
+target, so this is a new measured population rather than a regression in any
+existing target. The output comparator finds the same family of missing
+development SSR guards across components: rsvelte lacks the dev-only helper
+calls that upstream places around snippets, slot functions, and their
+generated renderer plumbing. #2844 fixes the two minimal snippet forms that
+first exposed the target; the remaining corpus population is retained as this
+shrink-only baseline until those lowering paths are ported.
+
+Partition by corpus source: `431 + 402 + 238 + 231 + 151 + 71 + 60 + 19 + 19 + 16 + 12 + 9 + 7 + 2 + 2 + 2 + 1 + 1 + 1 + 1 + 1 + 1 = 1678`.
+
+| source | entries |
+| --- | ---: |
+| `layerchart` | 431 |
+| `shadcn-svelte` | 402 |
+| `svelte` | 238 |
+| `flowbite-svelte` | 231 |
+| `bits-ui` | 151 |
+| `skeleton` | 71 |
+| `svelte.dev` | 60 |
+| `layercake` | 19 |
+| `svar-core` | 19 |
+| `pattern` | 16 |
+| `svelte-maplibre` | 12 |
+| `svelte-form-builder` | 9 |
+| `melt-ui` | 7 |
+| `runed`, `svelte-sonner`, `svelte-ux` | 2 each |
+| `powertable`, `svelte-formly`, `svelte-notifications`, `svelte-pivottable`, `svelte-table`, `sveltestrap` | 1 each |
 
 ## Hard-cluster warnings for future work
 

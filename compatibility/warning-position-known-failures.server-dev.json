@@ -1,0 +1,6 @@
+[
+	"svelte/packages/svelte/tests/migrate/samples/accessors/output.svelte",
+	"svelte/packages/svelte/tests/runtime-browser/custom-elements-samples/extended-builtin/main.svelte",
+	"svelte/packages/svelte/tests/runtime-runes/samples/custom-element-attributes/main.svelte",
+	"svelte/packages/svelte/tests/runtime-runes/samples/element-is-attribute/main.svelte"
+]

@@ -71,7 +71,7 @@ const ROOT = path.resolve(__dirname, '../..');
 // been shown to fail on anything.
 const CORPUS = process.env.KNOWN_FAILURES_DIR || path.join(ROOT, 'compatibility');
 
-const TARGETS = ['client', 'server', 'client-dev'];
+const TARGETS = ['client', 'server', 'client-dev', 'server-dev'];
 const perTarget = (stem) => TARGETS.map((t) => `${stem}.${t}.json`);
 
 /**
@@ -98,7 +98,7 @@ const RATCHETS = [
 	{
 		doc: 'warning-message-known-failures.md',
 		key: 'warning-message-known-failures.<target>.json',
-		jsons: perTarget('warning-message-known-failures'),
+		jsons: TARGETS.filter((t) => t !== 'server-dev').map((t) => `warning-message-known-failures.${t}.json`),
 	},
 	// Declared per target rather than with the `<target>` placeholder: `server`
 	// legitimately holds one entry fewer (an error only the client codegen
