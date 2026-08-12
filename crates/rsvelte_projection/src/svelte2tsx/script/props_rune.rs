@@ -156,6 +156,7 @@ pub(super) fn apply_props_typedef(
     if info
         .flags
         .contains(PropsRuneFlags::TYPE_ANNOTATION | PropsRuneFlags::HOISTABLE_TYPE)
+        && !info.flags.contains(PropsRuneFlags::NAMED_TYPE_REFERENCE)
     {
         // TS case with inline object type: `: { a: number, b: string }`
         // Create $$ComponentProps alias and replace everything from `:` to end of type
@@ -230,7 +231,6 @@ pub(super) fn apply_props_typedef(
     } else if info
         .flags
         .contains(PropsRuneFlags::TYPE_ANNOTATION | PropsRuneFlags::NAMED_TYPE_REFERENCE)
-        && !info.flags.contains(PropsRuneFlags::HOISTABLE_TYPE)
     {
         // TS case with simple named type reference: `: Props` or `: Props<T>`
         // Keep the type annotation as-is, use it directly in props_type_text
@@ -642,31 +642,28 @@ pub(super) fn extract_props_from_binding_pattern_runes(
     exported_names: &mut ExportedNames,
     raw_content: &str,
 ) {
-    match pattern {
-        oxc::BindingPattern::ObjectPattern(obj_pat) => {
-            for prop in &obj_pat.properties {
-                let key_name = property_key_to_string(&prop.key);
-                let (local_name, has_default, is_bindable) =
-                    if let oxc::BindingPattern::AssignmentPattern(assign) = &prop.value {
-                        // { a = 1 } or { a = $bindable() }
-                        let name = binding_pattern_simple_name(&assign.left);
-                        let (bindable, _) = is_bindable_call(&assign.right, raw_content);
-                        (name, true, bindable)
-                    } else {
-                        let name = binding_pattern_simple_name(&prop.value);
-                        (name, false, false)
-                    };
+    if let oxc::BindingPattern::ObjectPattern(obj_pat) = pattern {
+        for prop in &obj_pat.properties {
+            let key_name = property_key_to_string(&prop.key);
+            let (local_name, has_default, is_bindable) =
+                if let oxc::BindingPattern::AssignmentPattern(assign) = &prop.value {
+                    // { a = 1 } or { a = $bindable() }
+                    let name = binding_pattern_simple_name(&assign.left);
+                    let (bindable, _) = is_bindable_call(&assign.right, raw_content);
+                    (name, true, bindable)
+                } else {
+                    let name = binding_pattern_simple_name(&prop.value);
+                    (name, false, false)
+                };
 
-                if let Some(ref key) = key_name {
-                    let local = local_name.unwrap_or(key).to_owned();
-                    exported_names.add(key.clone(), local, has_default, None, true);
-                    if is_bindable {
-                        exported_names.bindable_props.push(key.clone());
-                    }
+            if let Some(ref key) = key_name {
+                let local = local_name.unwrap_or(key).to_owned();
+                exported_names.add(key.clone(), local, has_default, None, true);
+                if is_bindable {
+                    exported_names.bindable_props.push(key.clone());
                 }
             }
         }
-        _ => {}
     }
 }
 
@@ -936,8 +933,8 @@ mod tests {
         assert!(result.exported_names.has("a"));
         assert!(result.exported_names.has("b"));
         assert_eq!(result.exported_names.get_prop_names(), vec!["a", "b"]);
-        assert!(!result.exported_names.get("a").unwrap().has_default);
-        assert!(!result.exported_names.get("b").unwrap().has_default);
+        assert!(!result.exported_names.get("a").unwrap().has_default());
+        assert!(!result.exported_names.get("b").unwrap().has_default());
     }
 
     #[test]
@@ -947,8 +944,8 @@ mod tests {
 
         assert!(result.exported_names.has("count"));
         assert!(result.exported_names.has("name"));
-        assert!(result.exported_names.get("count").unwrap().has_default);
-        assert!(result.exported_names.get("name").unwrap().has_default);
+        assert!(result.exported_names.get("count").unwrap().has_default());
+        assert!(result.exported_names.get("name").unwrap().has_default());
     }
 
     #[test]

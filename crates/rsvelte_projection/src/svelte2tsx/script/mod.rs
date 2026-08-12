@@ -1127,7 +1127,7 @@ mod tests {
         let result = run_svelte2tsx(source);
         assert!(!result.exported_names.has("VERSION"));
         assert!(result.exported_names.has("name"));
-        assert!(result.exported_names.get("name").unwrap().is_prop);
+        assert!(result.exported_names.get("name").unwrap().is_prop());
         assert_eq!(result.exported_names.get_prop_names(), vec!["name"]);
     }
 

@@ -231,8 +231,11 @@ impl ScriptSpans {
     fn unpack(span: u64) -> Option<(usize, usize)> {
         (span != Self::NONE).then_some((
             (span >> 32) as usize,
-            usize::try_from(u32::try_from(span).expect("packed span low half fits in u32"))
-                .expect("u32 fits in usize"),
+            usize::try_from(
+                u32::try_from(span & u64::from(u32::MAX))
+                    .expect("packed span low half fits in u32"),
+            )
+            .expect("u32 fits in usize"),
         ))
     }
 
@@ -720,7 +723,7 @@ fn is_dollar_binding_shadowed(
     name: &str,
     pos: usize,
 ) -> bool {
-    shadow.get(name).map_or(false, |spans| {
+    shadow.get(name).is_some_and(|spans| {
         let p = source_offset(pos);
         spans.iter().any(|&(s, e)| p >= s && p < e)
     })

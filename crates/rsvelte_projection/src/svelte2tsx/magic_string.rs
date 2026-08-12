@@ -528,7 +528,8 @@ fn vlq_encode(encoded: &mut String, value: i64) {
 
     let mut vlq = (value.unsigned_abs() << 1) | u64::from(value < 0);
     while vlq >= u64::from(VLQ_BASE) {
-        let digit = (u32::try_from(vlq).expect("VLQ digit fits in u32") & VLQ_BASE_MASK)
+        let digit = u32::try_from(vlq & u64::from(VLQ_BASE_MASK))
+            .expect("masked VLQ digit fits in u32")
             | VLQ_CONTINUATION_BIT;
         encoded.push(BASE64_CHARS[digit as usize] as char);
         vlq >>= VLQ_BASE_SHIFT;
