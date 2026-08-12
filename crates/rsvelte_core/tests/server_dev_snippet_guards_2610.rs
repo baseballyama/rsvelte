@@ -35,3 +35,16 @@ fn default_component_children_get_server_dev_stringification_guard() {
         "{output}"
     );
 }
+
+#[test]
+fn non_hoistable_snippet_guard_keeps_declaration_tag_order() {
+    let output = compile_server_dev("{#if true}{@const xx = test}{#snippet test()}{/snippet}{/if}");
+    let constant = output.find("const xx = test;").expect("const declaration");
+    let guard = output
+        .find("$.prevent_snippet_stringification(test);")
+        .expect("snippet guard");
+    assert!(
+        constant < guard,
+        "the guard must retain its source order after earlier declaration tags:\n{output}"
+    );
+}
