@@ -1916,7 +1916,27 @@ fn emit_option_special<'a>(node: &RegularElement<'a>, state: &mut ServerTransfor
         // Direct value (the option's lone expression child becomes its `value`).
         state.visit_expr(&synthetic.expression)
     } else {
-        let stmts = render_children_body(node, state);
+        let mut stmts = render_children_body(node, state);
+        if state.options.dev {
+            let (line, col) = crate::compiler::phases::phase3_transform::utils::locate_in_source(
+                state.source,
+                node.start as usize,
+            );
+            let b = state.b;
+            stmts.insert(
+                0,
+                b.stmt(b.call(
+                    "$.push_element",
+                    vec![
+                        b.id("$$renderer"),
+                        b.string("option"),
+                        b.number(line as f64),
+                        b.number(col as f64),
+                    ],
+                )),
+            );
+            stmts.push(b.stmt(b.call("$.pop_element", vec![])));
+        }
         let params = state.b.params(vec![state.b.id_pat("$$renderer")], None);
         let fn_body = state.b.body(stmts);
         state.b.arrow(params, fn_body, false, false)

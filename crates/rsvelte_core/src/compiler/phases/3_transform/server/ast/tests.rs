@@ -2422,6 +2422,11 @@ fn ast_matches_oracle_dev_instrumentation() {
             "dynamic-element-expression",
             "<script>let tag = 'div'</script><svelte:element this={tag.toUpperCase()}>x</svelte:element>",
         ),
+        ("option", "<option value=\"a\">A</option>"),
+        (
+            "select-option",
+            "<select><option value=\"a\">A</option></select>",
+        ),
     ];
     let mut mismatches = Vec::new();
     for (name, src) in inline {
