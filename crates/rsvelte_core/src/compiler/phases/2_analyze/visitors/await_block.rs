@@ -1,4 +1,4 @@
-//! `AwaitBlock` visitor.
+//! AwaitBlock visitor.
 //!
 //! Analyzes {#await} blocks.
 //!
@@ -17,10 +17,6 @@ use super::shared::utils::{
 use crate::ast::template::AwaitBlock;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
-
-fn source_pos(value: usize) -> u32 {
-    u32::try_from(value).expect("source positions are limited to u32")
-}
 
 // Cached regular expressions for block syntax validation
 static REGEX_THEN_BLOCK: LazyLock<Regex> =
@@ -78,8 +74,8 @@ pub fn visit<'a, 'b: 'a>(
                     return Err(AnalysisError::validation_at(
                         "block_unexpected_character",
                         "Expected '{:then', not '{ :then'",
-                        source_pos(start - 10),
-                        source_pos(start),
+                        (start - 10) as u32,
+                        start as u32,
                     ));
                 }
             }
@@ -102,8 +98,8 @@ pub fn visit<'a, 'b: 'a>(
                     return Err(AnalysisError::validation_at(
                         "block_unexpected_character",
                         "Expected '{:catch', not '{ :catch'",
-                        source_pos(start - 10),
-                        source_pos(start),
+                        (start - 10) as u32,
+                        start as u32,
                     ));
                 }
             }
@@ -276,7 +272,7 @@ fn walk_pattern_computed_keys_node(
     Ok(())
 }
 
-/// Walk a JavaScript expression and detect mutations (`UpdateExpression`, `AssignmentExpression`).
+/// Walk a JavaScript expression and detect mutations (UpdateExpression, AssignmentExpression).
 fn walk_expression_for_mutations_node(
     expression: &JsNode,
     context: &mut VisitorContext,
@@ -291,8 +287,8 @@ fn walk_expression_for_mutations_node(
     Ok(())
 }
 
-/// Recursively walk a `JsNode` expression tree to find and mark `UpdateExpression` and
-/// `AssignmentExpression` nodes, calling `mark_binding_mutation_node` for each.
+/// Recursively walk a JsNode expression tree to find and mark UpdateExpression and
+/// AssignmentExpression nodes, calling mark_binding_mutation_node for each.
 fn mark_mutations_recursive_node(expression: &JsNode, context: &mut VisitorContext) {
     let arena = context.parse_arena;
     match expression {
@@ -340,6 +336,11 @@ fn mark_mutations_recursive_node(expression: &JsNode, context: &mut VisitorConte
                 mark_mutations_recursive_node(arg, context);
             }
         }
+        JsNode::SequenceExpression { expressions, .. } => {
+            for expr in arena.get_js_children(*expressions) {
+                mark_mutations_recursive_node(expr, context);
+            }
+        }
         JsNode::MemberExpression {
             object,
             property,
@@ -358,7 +359,7 @@ fn mark_mutations_recursive_node(expression: &JsNode, context: &mut VisitorConte
     }
 }
 
-/// Collect pickled await positions from a `JsNode` expression tree.
+/// Collect pickled await positions from a JsNode expression tree.
 ///
 /// An await expression is "pickled" when it's NOT the last evaluated expression
 /// in the reactive context.
@@ -470,6 +471,13 @@ fn collect_pickled_awaits_inner_node(
                 );
             }
         }
+        JsNode::TemplateLiteral { expressions, .. } => {
+            let exprs = arena.get_js_children(*expressions);
+            for (i, e) in exprs.iter().enumerate() {
+                let e_is_last = i == exprs.len() - 1 && is_last;
+                collect_pickled_awaits_inner_node(e, pickled, e_is_last, arena);
+            }
+        }
         JsNode::ObjectExpression { properties, .. } => {
             let props = arena.get_js_children(*properties);
             for (i, p) in props.iter().enumerate() {
@@ -491,6 +499,11 @@ fn collect_pickled_awaits_inner_node(
                 is_last,
                 arena,
             );
+        }
+        JsNode::ArrowFunctionExpression { .. }
+        | JsNode::FunctionExpression { .. }
+        | JsNode::FunctionDeclaration { .. } => {
+            // Don't cross function boundaries
         }
         _ => {
             // For other nodes, no further recursion needed

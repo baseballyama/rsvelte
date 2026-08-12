@@ -10,9 +10,8 @@ use super::types::{ComponentAnalysis, JsAnalysis};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde_json::Value as JsonValue;
 
-/// Analyzes which top-level statements instance bindings must await.
-///
-/// This includes indirect blockers such as functions referencing async top-level statements.
+/// Analyzes the instance's top level statements to calculate which bindings need to wait on which
+/// top level statements. This includes indirect blockers such as functions referencing async top level statements.
 ///
 /// Corresponds to `calculate_blockers()` in `svelte/packages/svelte/src/compiler/phases/2-analyze/index.js`.
 ///
@@ -80,9 +79,9 @@ pub fn calculate_blockers(
 /// Corresponds to the `touch` inner function in `calculate_blockers`.
 fn touch_bindings(
     expression: &JsonValue,
-    scope: &Scope,
+    _scope: &Scope,
     touched: &mut FxHashSet<String>,
-    root_scope: &Scope,
+    _root_scope: &Scope,
     seen: &mut FxHashSet<String>,
 ) {
     // Recursively walk the expression and find all identifier references
@@ -105,24 +104,24 @@ fn touch_bindings(
             }
             "MemberExpression" => {
                 if let Some(object) = expression.get("object") {
-                    touch_bindings(object, scope, touched, root_scope, seen);
+                    touch_bindings(object, _scope, touched, _root_scope, seen);
                 }
                 if let Some(property) = expression.get("property")
                     && expression
                         .get("computed")
-                        .and_then(serde_json::Value::as_bool)
+                        .and_then(|c| c.as_bool())
                         .unwrap_or(false)
                 {
-                    touch_bindings(property, scope, touched, root_scope, seen);
+                    touch_bindings(property, _scope, touched, _root_scope, seen);
                 }
             }
             "CallExpression" => {
                 if let Some(callee) = expression.get("callee") {
-                    touch_bindings(callee, scope, touched, root_scope, seen);
+                    touch_bindings(callee, _scope, touched, _root_scope, seen);
                 }
                 if let Some(arguments) = expression.get("arguments").and_then(|a| a.as_array()) {
                     for arg in arguments {
-                        touch_bindings(arg, scope, touched, root_scope, seen);
+                        touch_bindings(arg, _scope, touched, _root_scope, seen);
                     }
                 }
             }
@@ -132,10 +131,10 @@ fn touch_bindings(
                 if let Some(obj) = expression.as_object() {
                     for (_, value) in obj {
                         if value.is_object() {
-                            touch_bindings(value, scope, touched, root_scope, seen);
+                            touch_bindings(value, _scope, touched, _root_scope, seen);
                         } else if let Some(arr) = value.as_array() {
                             for item in arr {
-                                touch_bindings(item, scope, touched, root_scope, seen);
+                                touch_bindings(item, _scope, touched, _root_scope, seen);
                             }
                         }
                     }
@@ -152,10 +151,10 @@ fn trace_bindings(
     reads: &mut FxHashSet<String>,
     writes: &mut FxHashSet<String>,
     instance_scope: &Scope,
-    scopes: &FxHashMap<usize, Scope>,
+    _scopes: &FxHashMap<usize, Scope>,
     seen: &mut FxHashSet<String>,
 ) {
-    let node_id = format!("{node:?}"); // Simple deduplication
+    let node_id = format!("{:?}", node); // Simple deduplication
     if seen.contains(&node_id) {
         return;
     }
@@ -214,7 +213,7 @@ fn trace_bindings(
                 if let Some(obj) = node.as_object() {
                     for (_, value) in obj {
                         if value.is_object() {
-                            trace_bindings(value, reads, writes, instance_scope, scopes, seen);
+                            trace_bindings(value, reads, writes, instance_scope, _scopes, seen);
                         } else if let Some(arr) = value.as_array() {
                             for item in arr {
                                 if item.is_object() {
@@ -223,7 +222,7 @@ fn trace_bindings(
                                         reads,
                                         writes,
                                         instance_scope,
-                                        scopes,
+                                        _scopes,
                                         seen,
                                     );
                                 }
@@ -252,7 +251,8 @@ fn is_effect_rune_callee(callee: Option<&JsonValue>) -> bool {
         "Identifier" => callee
             .get("name")
             .and_then(|n| n.as_str())
-            .is_some_and(|name| name == "$effect"),
+            .map(|name| name == "$effect")
+            .unwrap_or(false),
         "MemberExpression" => {
             // Match `$effect.<anything>` (e.g. `$effect.pre`, `$effect.tracking`).
             // We intentionally allow any property name because every `$effect.*`
@@ -272,7 +272,8 @@ fn is_effect_rune_callee(callee: Option<&JsonValue>) -> bool {
                         None
                     }
                 })
-                .is_some_and(|name| name == "$effect")
+                .map(|name| name == "$effect")
+                .unwrap_or(false)
         }
         _ => false,
     }

@@ -71,10 +71,10 @@ pub const EMPTY_COMMENT: &str = "<!---->";
 // Element Flags
 // =============================================================================
 
-/// Element is in a namespace (SVG or `MathML`)
+/// Element is in a namespace (SVG or MathML)
 pub const ELEMENT_IS_NAMESPACED: i32 = 1;
 
-/// Preserve attribute case (for SVG, `MathML`, or custom elements)
+/// Preserve attribute case (for SVG, MathML, or custom elements)
 pub const ELEMENT_PRESERVE_ATTRIBUTE_CASE: i32 = 1 << 1;
 
 /// Element is an input element

@@ -6,7 +6,7 @@
 //! - Legacy mode `$$props` sanitization
 //! - Mutated imports in legacy mode
 //! - Store subscriptions ($store)
-//! - Props (prop and `bindable_prop`)
+//! - Props (prop and bindable_prop)
 //! - State transformers
 //!
 //! # Note on Implementation
@@ -110,7 +110,7 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
         };
 
         for name in reactive_import_names {
-            let import_id = format!("$$_import_{name}");
+            let import_id = format!("$$_import_{}", name);
 
             // Register transform: reads become $$_import_X(), mutations become $$_import_X(mutation)
             let transform = IdentifierTransform {
@@ -258,12 +258,12 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
     None
 }
 
-/// Check if a binding is a prop source (needs $.`prop()` wrapping).
+/// Check if a binding is a prop source (needs $.prop() wrapping).
 ///
 /// Corresponds to `is_prop_source()` in
 /// `svelte/packages/svelte/src/compiler/phases/3-transform/client/utils.js`.
 ///
-/// A prop is a "source" when it needs the $.`prop()` wrapping for reactivity.
+/// A prop is a "source" when it needs the $.prop() wrapping for reactivity.
 /// In legacy mode, ALL props are sources (for coarse-grained reactivity).
 /// In runes mode, only props that are accessors, reassigned, have initial values,
 /// or are updated need to be sources.
@@ -388,7 +388,7 @@ fn store_sub_mutate(
 /// to the base identifier and replaces it with the untracked version.
 ///
 /// Corresponds to the `replace()` function in the official Svelte compiler's
-/// `Program.js` `store_sub` mutate transform.
+/// `Program.js` store_sub mutate transform.
 fn replace_store_with_untracked(
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     expr: &JsExpr,
@@ -664,9 +664,9 @@ fn reactive_import_mutate(
     b::call(arena, node, vec![mutation])
 }
 
-/// Transform $$props reads to $$`sanitized_props` in legacy mode.
+/// Transform $$props reads to $$sanitized_props in legacy mode.
 ///
-/// In legacy mode, $$props is replaced with $$`sanitized_props` which has
+/// In legacy mode, $$props is replaced with $$sanitized_props which has
 /// internal properties (children, $$slots, $$events, $$legacy) filtered out.
 ///
 /// Corresponds to the official compiler's:

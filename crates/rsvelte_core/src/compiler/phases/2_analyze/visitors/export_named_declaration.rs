@@ -1,4 +1,4 @@
-//! `ExportNamedDeclaration` visitor.
+//! ExportNamedDeclaration visitor.
 //!
 //! Analyzes export named declarations.
 //!
@@ -64,7 +64,7 @@ fn check_export_bindings(
     Ok(())
 }
 
-/// Typed visitor for `ExportNamedDeclaration`.
+/// Typed visitor for ExportNamedDeclaration.
 ///
 /// Handles both specifiers and declarations using typed pattern matching.
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {

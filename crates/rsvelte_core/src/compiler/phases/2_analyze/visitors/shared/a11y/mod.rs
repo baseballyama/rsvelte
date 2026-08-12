@@ -70,7 +70,6 @@ pub struct A11yElement<'x, 'a> {
 }
 
 impl<'x, 'a> A11yElement<'x, 'a> {
-    #[must_use]
     pub fn regular(element: &'x RegularElement<'a>) -> Self {
         Self {
             name: element.name.as_str(),
@@ -80,7 +79,6 @@ impl<'x, 'a> A11yElement<'x, 'a> {
         }
     }
 
-    #[must_use]
     pub fn dynamic(element: &'x SvelteDynamicElement<'a>) -> Self {
         Self {
             name: element.name.as_str(),
@@ -101,9 +99,6 @@ pub struct A11yAncestors<'x> {
     pub inside_dynamic_element: bool,
 }
 
-/// # Panics
-///
-/// Panics if the internal declaration undo log is inconsistent during a11y analysis.
 pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::AnalysisWarning> {
     let mut warnings = Vec::new();
     let mut attribute_map: FxHashMap<String, &AttributeNode> = FxHashMap::default();
@@ -273,11 +268,9 @@ pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::An
                             };
                             if !missing_props.is_empty() {
                                 let quoted_props: Vec<String> =
-                                    missing_props.iter().map(|p| format!("\"{p}\"")).collect();
-                                let quoted_refs: Vec<&str> = quoted_props
-                                    .iter()
-                                    .map(std::string::String::as_str)
-                                    .collect();
+                                    missing_props.iter().map(|p| format!("\"{}\"", p)).collect();
+                                let quoted_refs: Vec<&str> =
+                                    quoted_props.iter().map(|s| s.as_str()).collect();
                                 let props_list = list(&quoted_refs, "and");
                                 warnings.push(
                                     w::a11y_role_has_required_aria_props(current_role, &props_list)
@@ -494,7 +487,7 @@ pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::An
         let interactive_handlers: Vec<_> = handlers
             .iter()
             .filter(|h| A11Y_INTERACTIVE_HANDLERS.contains(&h.as_str()))
-            .map(std::string::String::as_str)
+            .map(|s| s.as_str())
             .collect();
         if !interactive_handlers.is_empty() {
             let handler_list = list(&interactive_handlers, "or");
@@ -554,8 +547,8 @@ pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::An
                     let aria_disabled = attribute_map
                         .get("aria-disabled")
                         .and_then(|a| get_static_value(a));
-                    if id_attribute.is_none_or(str::is_empty)
-                        && name_attribute.is_none_or(str::is_empty)
+                    if id_attribute.is_none_or(|v| v.is_empty())
+                        && name_attribute.is_none_or(|v| v.is_empty())
                         && aria_disabled != Some("true")
                     {
                         warn_missing_attribute(&mut warnings, node.name, &["href"], None);
@@ -1089,7 +1082,7 @@ fn warn_missing_attribute(
 /// - ["a", "b"] -> "a or b"
 /// - ["a", "b", "c"] -> "a, b or c"
 fn quoted_value_list(values: &[&str]) -> String {
-    let quoted: Vec<String> = values.iter().map(|v| format!("\"{v}\"")).collect();
+    let quoted: Vec<String> = values.iter().map(|v| format!("\"{}\"", v)).collect();
     let refs: Vec<&str> = quoted.iter().map(String::as_str).collect();
     list(&refs, "or")
 }
@@ -1118,19 +1111,20 @@ fn is_semantic_role_element(
     tag_name: &str,
     attribute_map: &FxHashMap<String, &AttributeNode>,
 ) -> bool {
-    for (elem_name, attrs, roles) in SEMANTIC_ROLE_ELEMENTS {
+    for (elem_name, attrs, roles) in SEMANTIC_ROLE_ELEMENTS.iter() {
         if *elem_name != tag_name {
             continue;
         }
         // Check if all required attributes match
-        let attrs_match = attrs.as_ref().is_none_or(|required_attrs| {
-            required_attrs.iter().all(|(attr_name, attr_value)| {
+        let attrs_match = match attrs {
+            Some(required_attrs) => required_attrs.iter().all(|(attr_name, attr_value)| {
                 attribute_map
                     .get(*attr_name)
                     .and_then(|a| get_static_value(a))
                     == Some(attr_value)
-            })
-        });
+            }),
+            None => true,
+        };
         if attrs_match && roles.contains(&role) {
             return true;
         }
@@ -1200,8 +1194,9 @@ fn validate_aria_attribute_value(
     }
 
     // If value is None (dynamic, e.g. `aria-hidden={x}`), skip validation.
-    let Some(value) = value else {
-        return;
+    let value = match value {
+        None => return,
+        Some(v) => v,
     };
 
     match schema.property_type {
@@ -1287,8 +1282,9 @@ fn validate_aria_attribute_value(
 /// Validate an autocomplete attribute value.
 /// Corresponds to `is_valid_autocomplete` in the official compiler's a11y/index.js.
 fn is_valid_autocomplete(autocomplete: Option<&str>) -> bool {
-    let Some(autocomplete) = autocomplete else {
-        return true; // dynamic value
+    let autocomplete = match autocomplete {
+        None => return true, // dynamic value
+        Some(v) => v,
     };
 
     if autocomplete == "true" {

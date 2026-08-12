@@ -1,4 +1,4 @@
-//! `SnippetBlock` visitor for client-side transformation.
+//! SnippetBlock visitor for client-side transformation.
 //!
 //! Corresponds to `SnippetBlock` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/SnippetBlock.js`.
@@ -40,7 +40,7 @@
 //! # Hoisting
 //!
 //! Snippets can be hoisted to different levels:
-//! - Module level: Snippets that don't reference instance-level state (`can_hoist` = true)
+//! - Module level: Snippets that don't reference instance-level state (can_hoist = true)
 //! - Instance level: Snippets that reference instance-level state
 //! - Init level: Snippets defined inside blocks (not at top level)
 
@@ -54,7 +54,7 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 ///
 /// # Arguments
 ///
-/// * `node` - The `SnippetBlock` AST node
+/// * `node` - The SnippetBlock AST node
 /// * `context` - The component transformation context
 ///
 /// # Implementation Notes
@@ -78,7 +78,7 @@ pub fn snippet_block(node: &SnippetBlock, context: &mut ComponentContext) {
 
     // Get the snippet name and register it
     let snippet_name = get_snippet_name(&node.expression);
-    context.state.snippet_names.insert(snippet_name);
+    context.state.snippet_names.insert(snippet_name.clone());
 
     // Build function arguments - $$anchor is always the first argument
     let mut args: Vec<JsPattern> = vec![b::id_pattern("$$anchor")];
@@ -219,7 +219,7 @@ struct ParameterInfo {
 }
 
 /// Extract all parameter names from a snippet parameter expression.
-/// Used to remove snippet parameter names from the `blocker_map` so that
+/// Used to remove snippet parameter names from the blocker_map so that
 /// parameters that shadow blocked instance variables don't cause false blockers.
 fn extract_param_names(param: &Expression) -> Vec<String> {
     let val = param.as_json();
@@ -328,7 +328,7 @@ fn process_parameter(
         // 2. Extract paths from the pattern
         // 3. Create derived values for each extracted path
 
-        let arg_alias = format!("$$arg{index}");
+        let arg_alias = format!("$$arg{}", index);
 
         // IMPORTANT: Use simple identifier pattern for the function parameter
         // The destructuring is handled internally via declarations
@@ -347,7 +347,7 @@ fn process_parameter(
     }
 }
 
-/// Process a destructured pattern (`ObjectPattern` / `ArrayPattern` / `AssignmentPattern`)
+/// Process a destructured pattern (ObjectPattern / ArrayPattern / AssignmentPattern)
 /// by walking it with `extract_snippet_paths` from the base `$$argN?.()`.
 fn process_destructured_pattern(
     obj: &serde_json::Map<String, serde_json::Value>,
@@ -430,8 +430,9 @@ fn extract_snippet_paths(
     declarations: &mut Vec<JsStatement>,
     context: &mut ComponentContext,
 ) {
-    let Some(obj) = pattern.as_object() else {
-        return;
+    let obj = match pattern.as_object() {
+        Some(o) => o,
+        None => return,
     };
     match obj.get("type").and_then(|t| t.as_str()) {
         Some("Identifier") => {
@@ -440,12 +441,14 @@ fn extract_snippet_paths(
             }
         }
         Some("ObjectPattern") => {
-            let Some(props) = obj.get("properties").and_then(|p| p.as_array()) else {
-                return;
+            let props = match obj.get("properties").and_then(|p| p.as_array()) {
+                Some(p) => p,
+                None => return,
             };
             for prop in props {
-                let Some(prop_obj) = prop.as_object() else {
-                    continue;
+                let prop_obj = match prop.as_object() {
+                    Some(o) => o,
+                    None => continue,
                 };
                 match prop_obj.get("type").and_then(|t| t.as_str()) {
                     Some("RestElement") => {
@@ -489,8 +492,9 @@ fn extract_snippet_paths(
             }
         }
         Some("ArrayPattern") => {
-            let Some(elements) = obj.get("elements").and_then(|e| e.as_array()) else {
-                return;
+            let elements = match obj.get("elements").and_then(|e| e.as_array()) {
+                Some(e) => e,
+                None => return,
             };
             let array_name = context.state.memoizer.generate_id("$$array");
             let has_rest = elements
@@ -528,8 +532,9 @@ fn extract_snippet_paths(
                 if elem.is_null() {
                     continue;
                 }
-                let Some(elem_obj) = elem.as_object() else {
-                    continue;
+                let elem_obj = match elem.as_object() {
+                    Some(o) => o,
+                    None => continue,
                 };
                 // `$.get($$array)`
                 let array_get = || {
@@ -583,7 +588,7 @@ fn object_pattern_property_access(
 ) -> JsExpr {
     let computed = prop
         .get("computed")
-        .and_then(serde_json::Value::as_bool)
+        .and_then(|c| c.as_bool())
         .unwrap_or(false);
     let key = prop.get("key").and_then(|k| k.as_object());
     let key_type = key
@@ -612,7 +617,7 @@ fn object_pattern_key_literal(
 ) -> Option<JsExpr> {
     let computed = prop
         .get("computed")
-        .and_then(serde_json::Value::as_bool)
+        .and_then(|c| c.as_bool())
         .unwrap_or(false);
     let key = prop.get("key").and_then(|k| k.as_object())?;
     let key_type = key.get("type").and_then(|t| t.as_str()).unwrap_or("");
@@ -640,7 +645,7 @@ fn convert_snippet_expr(value: &serde_json::Value, context: &mut ComponentContex
     convert_expression(&Expression::from_json(value.clone()), context)
 }
 
-/// Process an `AssignmentPattern` parameter (parameter with default value).
+/// Process an AssignmentPattern parameter (parameter with default value).
 ///
 /// For `{#snippet item(c = count)}`, generates:
 ///   - Parameter: `$$arg0`
@@ -662,7 +667,7 @@ fn process_assignment_pattern(
 
     if left_type == "Identifier" {
         let name = left.get("name").and_then(|n| n.as_str())?;
-        let arg_alias = format!("$$arg{index}");
+        let arg_alias = format!("$$arg{}", index);
 
         // Build the fallback expression
         // $.fallback($$argN?.(), defaultValue) or $.fallback($$argN?.(), () => defaultValue, true)
@@ -717,7 +722,7 @@ fn process_assignment_pattern(
     // `{#snippet foo({ a } = defaultObj)}`): build the fallback over `$$argN?.()`
     // and walk the destructured left with `has_default = true` so each leaf
     // collapses to `$.derived_safe_equal(...)`. (H-103)
-    let arg_alias = format!("$$arg{index}");
+    let arg_alias = format!("$$arg{}", index);
     let pattern = b::id_pattern(&arg_alias);
 
     let arg_call = b::optional_call(&context.arena, b::id(&arg_alias), vec![]);
@@ -744,7 +749,7 @@ fn process_assignment_pattern(
     })
 }
 
-/// Build the arguments for $.`fallback()` call.
+/// Build the arguments for $.fallback() call.
 /// Returns [defaultValue] for simple defaults or [callee/thunk, true] for complex ones.
 ///
 /// This implements the same logic as the official `build_fallback` in
@@ -774,7 +779,7 @@ fn build_fallback_args(
             && obj
                 .get("arguments")
                 .and_then(|a| a.as_array())
-                .is_some_and(std::vec::Vec::is_empty)
+                .is_some_and(|a| a.is_empty())
             && let Some(callee) = obj.get("callee").and_then(|c| c.as_object())
             && callee.get("type").and_then(|t| t.as_str()) == Some("Identifier")
         {
@@ -801,27 +806,48 @@ fn build_fallback_args(
 /// Check if a JSON AST expression is "simple" (doesn't need thunking).
 /// Matches the official Svelte compiler's `is_simple_expression` logic.
 fn is_simple_expression_json(value: &serde_json::Value) -> bool {
-    let Some(obj) = value.as_object() else {
-        return true; // Literals are simple
+    let obj = match value.as_object() {
+        Some(o) => o,
+        None => return true, // Literals are simple
     };
 
-    let Some(expr_type) = obj.get("type").and_then(|t| t.as_str()) else {
-        return true;
+    let expr_type = match obj.get("type").and_then(|t| t.as_str()) {
+        Some(t) => t,
+        None => return true,
     };
 
     match expr_type {
+        "Literal" | "Identifier" | "ArrowFunctionExpression" | "FunctionExpression" => true,
         "ConditionalExpression" => {
-            let test_simple = obj.get("test").is_none_or(is_simple_expression_json);
-            let consequent_simple = obj.get("consequent").is_none_or(is_simple_expression_json);
-            let alternate_simple = obj.get("alternate").is_none_or(is_simple_expression_json);
+            let test_simple = obj
+                .get("test")
+                .map(is_simple_expression_json)
+                .unwrap_or(true);
+            let consequent_simple = obj
+                .get("consequent")
+                .map(is_simple_expression_json)
+                .unwrap_or(true);
+            let alternate_simple = obj
+                .get("alternate")
+                .map(is_simple_expression_json)
+                .unwrap_or(true);
             test_simple && consequent_simple && alternate_simple
         }
         "BinaryExpression" | "LogicalExpression" => {
-            let left_simple = obj.get("left").is_none_or(is_simple_expression_json);
-            let right_simple = obj.get("right").is_none_or(is_simple_expression_json);
+            let left_simple = obj
+                .get("left")
+                .map(is_simple_expression_json)
+                .unwrap_or(true);
+            let right_simple = obj
+                .get("right")
+                .map(is_simple_expression_json)
+                .unwrap_or(true);
             left_simple && right_simple
         }
-        "UnaryExpression" => obj.get("argument").is_none_or(is_simple_expression_json),
+        "UnaryExpression" => obj
+            .get("argument")
+            .map(is_simple_expression_json)
+            .unwrap_or(true),
         // Generic "Expression" fallback from parser (position-only placeholder)
         "Expression" => true,
         _ => false,
@@ -873,9 +899,9 @@ fn get_snippet_name(expr: &Expression) -> String {
 /// Place the snippet declaration in the appropriate collection.
 ///
 /// Snippets are placed based on:
-/// - Top-level snippets that can be hoisted -> `module_level_snippets`
-/// - Top-level snippets that can't be hoisted -> `instance_level_snippets`
-/// - Non-top-level snippets -> snippets (within the `child_state`, to be wrapped in a block)
+/// - Top-level snippets that can be hoisted -> module_level_snippets
+/// - Top-level snippets that can't be hoisted -> instance_level_snippets
+/// - Non-top-level snippets -> snippets (within the child_state, to be wrapped in a block)
 fn place_snippet_declaration(
     node: &SnippetBlock,
     context: &mut ComponentContext,
@@ -907,8 +933,8 @@ fn place_snippet_declaration(
 /// Visit a fragment and return its statements.
 ///
 /// This function properly processes the fragment using the Fragment visitor
-/// which handles whitespace trimming, $.`next()` for `text_first`, and proper
-/// $.`text()` / $.`append()` for single text nodes.
+/// which handles whitespace trimming, $.next() for text_first, and proper
+/// $.text() / $.append() for single text nodes.
 fn visit_fragment(frag: &Fragment, context: &mut ComponentContext) -> Vec<JsStatement> {
     // Use the proper fragment visitor to handle all cases correctly
     use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment as fragment_visitor;

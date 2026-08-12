@@ -200,7 +200,7 @@ struct PipelineVisitor<'a, 'sem> {
     /// Identifier spans claimed by a parent handler — used so the
     /// `visit_identifier_reference` bare-read path doesn't fire on
     /// LHS of assignments, update targets, first arg of $.set /
-    /// $.update / $.`update_pre` / $.mutate, shorthand-property
+    /// $.update / $.update_pre / $.mutate, shorthand-property
     /// value position.
     skip_spans: FxHashSet<u32>,
     /// Whether this walk feeds the in-place rewriter rather than the
@@ -230,7 +230,7 @@ impl Sites {
     }
 }
 
-impl PipelineVisitor<'_, '_> {
+impl<'a, 'sem> PipelineVisitor<'a, 'sem> {
     fn is_read_target(&self, name: &str) -> bool {
         self.effective_read_names.iter().any(|s| s.as_str() == name)
     }
@@ -318,7 +318,7 @@ impl PipelineVisitor<'_, '_> {
     }
 }
 
-impl<'ast> Visit<'ast> for PipelineVisitor<'_, '_> {
+impl<'a, 'sem, 'ast> Visit<'ast> for PipelineVisitor<'a, 'sem> {
     fn visit_identifier_reference(&mut self, ident: &IdentifierReference<'ast>) {
         if self.skip_spans.contains(&ident.span.start) {
             return;
@@ -331,7 +331,7 @@ impl<'ast> Visit<'ast> for PipelineVisitor<'_, '_> {
             return;
         }
         self.read_replacements
-            .push((ident.span.start, ident.span.end, format!("$.get({name})")));
+            .push((ident.span.start, ident.span.end, format!("$.get({})", name)));
         if self.in_place {
             self.sites.reads.insert((ident.span.start, ident.span.end));
         }
@@ -389,9 +389,9 @@ impl<'ast> Visit<'ast> for PipelineVisitor<'_, '_> {
                         expression_needs_proxy_with_scope(rhs_text.trim(), self.non_proxy_vars)
                     });
                 let rewrite = if needs_proxy {
-                    format!("$.set({name}, {rhs_text}, true)")
+                    format!("$.set({}, {}, true)", name, rhs_text)
                 } else {
-                    format!("$.set({name}, {rhs_text})")
+                    format!("$.set({}, {})", name, rhs_text)
                 };
                 self.assigns_replacements
                     .push((expr.span.start, expr.span.end, rewrite));
@@ -416,11 +416,14 @@ impl<'ast> Visit<'ast> for PipelineVisitor<'_, '_> {
                 };
                 let rhs_trimmed = rhs_text.trim();
                 let rhs_for_output = if needs_compound_assignment_parens(rhs_trimmed, op_str) {
-                    format!("({rhs_trimmed})")
+                    format!("({})", rhs_trimmed)
                 } else {
                     rhs_trimmed.to_string()
                 };
-                let rewrite = format!("$.set({name}, $.get({name}) {op_str} {rhs_for_output})");
+                let rewrite = format!(
+                    "$.set({}, $.get({}) {} {})",
+                    name, name, op_str, rhs_for_output
+                );
                 self.assigns_replacements
                     .push((expr.span.start, expr.span.end, rewrite));
                 if self.in_place {
@@ -450,10 +453,10 @@ impl<'ast> Visit<'ast> for PipelineVisitor<'_, '_> {
             return;
         }
         let rewrite = match (expr.operator, expr.prefix) {
-            (UpdateOperator::Increment, false) => format!("$.update({name})"),
-            (UpdateOperator::Decrement, false) => format!("$.update({name}, -1)"),
-            (UpdateOperator::Increment, true) => format!("$.update_pre({name})"),
-            (UpdateOperator::Decrement, true) => format!("$.update_pre({name}, -1)"),
+            (UpdateOperator::Increment, false) => format!("$.update({})", name),
+            (UpdateOperator::Decrement, false) => format!("$.update({}, -1)", name),
+            (UpdateOperator::Increment, true) => format!("$.update_pre({})", name),
+            (UpdateOperator::Decrement, true) => format!("$.update_pre({}, -1)", name),
         };
         self.assigns_replacements
             .push((expr.span.start, expr.span.end, rewrite));
@@ -496,7 +499,7 @@ impl<'ast> Visit<'ast> for PipelineVisitor<'_, '_> {
             self.read_replacements.push((
                 prop.span.start,
                 prop.span.end,
-                format!("{name}: $.get({name})"),
+                format!("{}: $.get({})", name, name),
             ));
             if self.in_place {
                 self.sites

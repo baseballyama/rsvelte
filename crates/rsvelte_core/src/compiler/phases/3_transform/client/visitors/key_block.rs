@@ -1,4 +1,4 @@
-//! `KeyBlock` visitor for client-side transformation.
+//! KeyBlock visitor for client-side transformation.
 //!
 //! Corresponds to `KeyBlock.js` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/KeyBlock.js`.
@@ -11,7 +11,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 
-/// Visit a `KeyBlock` node.
+/// Visit a KeyBlock node.
 ///
 /// Corresponds to `KeyBlock()` function in KeyBlock.js.
 ///
@@ -123,7 +123,7 @@ pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformRe
             JsExpr::Identifier(name) => name.clone(),
             _ => "node".into(),
         };
-        let mut callback_params = vec![b::id_pattern(node_name)];
+        let mut callback_params = vec![b::id_pattern(node_name.clone())];
         if has_await {
             callback_params.push(b::id_pattern("$$key"));
         }

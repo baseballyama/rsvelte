@@ -1,4 +1,4 @@
-//! `TransitionDirective` visitor.
+//! TransitionDirective visitor.
 //!
 //! Analyzes transition:, in:, and out: directives.
 //!

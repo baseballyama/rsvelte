@@ -1,4 +1,4 @@
-//! `SvelteHead` visitor for client-side transformation.
+//! SvelteHead visitor for client-side transformation.
 //!
 //! Handles `<svelte:head>` elements for document head manipulation.
 //!
@@ -10,7 +10,7 @@ use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
-/// Visit a `SvelteHead` node and generate client-side code.
+/// Visit a SvelteHead node and generate client-side code.
 ///
 /// Generates code like:
 /// ```js

@@ -63,19 +63,11 @@ pub struct PrintResult {
 /// # Returns
 ///
 /// Returns a `PrintResult` containing the generated code and optional source map.
-///
-/// # Errors
-///
-/// Returns an error if the AST cannot be printed.
-pub fn print(ast: &Root, options: Option<PrintOptions>) -> Result<PrintResult, PrintError> {
-    print_with_source(ast, options, None)
+pub fn print(ast: &Root, _options: Option<PrintOptions>) -> Result<PrintResult, PrintError> {
+    print_with_source(ast, _options, None)
 }
 
 /// Print AST with external source text (avoids storing source in Root).
-///
-/// # Errors
-///
-/// Returns an error if the AST cannot be printed.
 pub fn print_with_source(
     ast: &Root,
     _options: Option<PrintOptions>,

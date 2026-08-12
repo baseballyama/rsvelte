@@ -1,4 +1,4 @@
-//! `AnimateDirective` visitor.
+//! AnimateDirective visitor.
 //!
 //! Analyzes animate: directives.
 //!

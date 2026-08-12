@@ -1,4 +1,4 @@
-//! `SvelteBoundary` visitor.
+//! SvelteBoundary visitor.
 //!
 //! Analyzes <svelte:boundary> elements.
 //!

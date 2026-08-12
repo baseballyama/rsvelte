@@ -1,4 +1,4 @@
-//! `OnDirective` visitor.
+//! OnDirective visitor.
 //!
 //! Analyzes on: directives (event handlers).
 //!

@@ -46,7 +46,7 @@ struct PreprocessResult {
     /// The filename passed as-is to preprocess
     filename: Option<String>,
     /// Sourcemap list in reverse order (last map first)
-    /// `https://github.com/jridgewell/sourcemaps/tree/main/packages/remapping#multiple-transformations-of-a-file`
+    /// https://github.com/jridgewell/sourcemaps/tree/main/packages/remapping#multiple-transformations-of-a-file
     sourcemap_list: Vec<SimpleDecodedMap>,
     /// List of file dependencies
     dependencies: Vec<String>,
@@ -57,7 +57,7 @@ struct PreprocessResult {
 }
 
 impl PreprocessResult {
-    /// Create a new `PreprocessResult`.
+    /// Create a new PreprocessResult.
     fn new(source: String, filename: Option<String>) -> Self {
         let get_location = get_locator(&source);
         let file_basename = filename
@@ -123,7 +123,7 @@ impl PreprocessResult {
     }
 }
 
-/// Convert preprocessor output for tag content into `MappedCode`.
+/// Convert preprocessor output for tag content into MappedCode.
 ///
 /// Corresponds to `processed_content_to_code` in index.js.
 fn processed_content_to_code(
@@ -161,18 +161,18 @@ fn processed_tag_to_code(
         |code: String, offset: usize| MappedCode::from_source(&slice_source(code, offset, source));
 
     // Build tag open/close strings
-    let original_tag_open = format!("<{tag_name}{original_attributes}>");
-    let tag_open = format!("<{tag_name}{generated_attributes}>");
+    let original_tag_open = format!("<{}{}>", tag_name, original_attributes);
+    let tag_open = format!("<{}{}>", tag_name, generated_attributes);
 
     let tag_open_code = if original_tag_open != tag_open {
         // Generate a source map for the open tag
         let mut mappings = vec![vec![
             vec![0, 0, 0, 0],
             vec![
-                format!("<{tag_name}").len() as i64,
+                format!("<{}", tag_name).len() as i64,
                 0,
                 0,
-                format!("<{tag_name}").len() as i64,
+                format!("<{}", tag_name).len() as i64,
             ],
         ]];
 
@@ -184,7 +184,7 @@ fn processed_tag_to_code(
         };
 
         while mappings.len() <= line {
-            mappings.push(vec![vec![0, 0, 0, format!("<{tag_name}").len() as i64]]);
+            mappings.push(vec![vec![0, 0, 0, format!("<{}", tag_name).len() as i64]]);
         }
 
         let original_line = original_tag_open.split('\n').count() - 1;
@@ -217,7 +217,7 @@ fn processed_tag_to_code(
         build_mapped_code(tag_open, 0)
     };
 
-    let tag_close = format!("</{tag_name}>");
+    let tag_close = format!("</{}>", tag_name);
     let tag_close_code =
         build_mapped_code(tag_close, original_tag_open.len() + source.source.len());
 
@@ -238,7 +238,7 @@ fn parse_tag_attributes(str: &str) -> FxHashMap<String, AttributeValue> {
     let mut attrs = FxHashMap::default();
 
     for cap in ATTRIBUTE_PATTERN.captures_iter(str) {
-        let name = cap.get(1).map_or("", |m| m.as_str());
+        let name = cap.get(1).map(|m| m.as_str()).unwrap_or("");
         let value = cap
             .get(2)
             .or_else(|| cap.get(3))
@@ -263,12 +263,12 @@ fn parse_tag_attributes(str: &str) -> FxHashMap<String, AttributeValue> {
 ///
 /// Corresponds to `stringify_tag_attributes` in index.js.
 fn stringify_tag_attributes(attributes: &Option<FxHashMap<String, AttributeValue>>) -> String {
-    attributes.as_ref().map_or_else(String::new, |attrs| {
+    if let Some(attrs) = attributes {
         let value = attrs
             .iter()
             .map(|(key, value)| match value {
                 AttributeValue::Boolean(true) => key.clone(),
-                AttributeValue::Boolean(false) => format!("{key}=\"false\""),
+                AttributeValue::Boolean(false) => format!("{}=\"false\"", key),
                 AttributeValue::String(val) => format!("{}=\"{}\"", key, escape_attribute(val)),
             })
             .collect::<Vec<_>>()
@@ -277,9 +277,11 @@ fn stringify_tag_attributes(attributes: &Option<FxHashMap<String, AttributeValue
         if value.is_empty() {
             String::new()
         } else {
-            format!(" {value}")
+            format!(" {}", value)
         }
-    })
+    } else {
+        String::new()
+    }
 }
 
 fn escape_attribute(value: &str) -> String {
@@ -325,9 +327,9 @@ async fn process_tag(
         let dependencies = dependencies_for_closure.clone();
 
         async move {
-            let tag_with_content = match_groups.first().map_or("", std::string::String::as_str);
-            let attributes = match_groups.get(1).map_or("", std::string::String::as_str);
-            let content = match_groups.get(2).map_or("", std::string::String::as_str);
+            let tag_with_content = match_groups.first().map(|s| s.as_str()).unwrap_or("");
+            let attributes = match_groups.get(1).map(|s| s.as_str()).unwrap_or("");
+            let content = match_groups.get(2).map(|s| s.as_str()).unwrap_or("");
 
             // No-op if no attributes and no content
             if attributes.is_empty() && content.is_empty() {
@@ -399,9 +401,11 @@ async fn process_tag(
 
     let mapped = replace_in_code(tag_regex, get_replacement, source).await?;
 
-    let collected_dependencies = dependencies
-        .lock()
-        .map_or_else(|_| vec![], |deps| deps.clone());
+    let collected_dependencies = if let Ok(deps) = dependencies.lock() {
+        deps.clone()
+    } else {
+        vec![]
+    };
 
     Ok(SourceUpdate {
         string: Some(mapped.string),
@@ -456,10 +460,6 @@ async fn process_markup(
 /// For example, it can be used to convert a `<style lang="sass">` block into vanilla CSS.
 ///
 /// Corresponds to the default export `preprocess` function in index.js.
-///
-/// # Errors
-///
-/// Returns an error from a configured markup, script, or style preprocessor.
 pub async fn preprocess(
     source: String,
     preprocessors: Vec<PreprocessorGroup>,
@@ -491,13 +491,13 @@ pub async fn preprocess(
 ///
 /// Mutates the map in-place.
 ///
-/// Corresponds to `sourcemap_add_offset` in `mapped_code.js`.
+/// Corresponds to `sourcemap_add_offset` in mapped_code.js.
 fn sourcemap_add_offset(map: &mut SimpleDecodedMap, offset: Location, source_index: usize) {
     if map.mappings.is_empty() {
         return;
     }
 
-    for line in &mut map.mappings {
+    for line in map.mappings.iter_mut() {
         for segment in line {
             if segment.len() >= 2 && segment[1] == source_index as i64 {
                 // Shift column if it points at the first line
@@ -515,7 +515,7 @@ fn sourcemap_add_offset(map: &mut SimpleDecodedMap, offset: Location, source_ind
 
 /// Combine multiple source maps into one.
 ///
-/// Corresponds to `combine_sourcemaps` in `mapped_code.js`.
+/// Corresponds to `combine_sourcemaps` in mapped_code.js.
 fn combine_sourcemaps(
     filename: &str,
     sourcemap_list: &[SimpleDecodedMap],

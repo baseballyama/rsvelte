@@ -43,7 +43,7 @@ pub(super) fn extract_reactive_statement_assignments(
         .iter()
         .chain(prop_vars.iter())
         .chain(store_sub_vars.iter())
-        .map(std::string::String::as_str)
+        .map(|s| s.as_str())
         .collect();
 
     let mut assigned_vars = Vec::new();
@@ -93,10 +93,10 @@ pub(super) fn is_assigned_anywhere_in_body(body: &str, var_name: &str) -> bool {
     }
 
     // Check for update expressions: `var++`, `var--`, `++var`, `--var`
-    let pp = format!("{var_name}++");
-    let mm = format!("{var_name}--");
-    let pp2 = format!("++{var_name}");
-    let mm2 = format!("--{var_name}");
+    let pp = format!("{}++", var_name);
+    let mm = format!("{}--", var_name);
+    let pp2 = format!("++{}", var_name);
+    let mm2 = format!("--{}", var_name);
 
     for pattern in &[&pp, &mm, &pp2, &mm2] {
         if let Some(pos) = body.find(pattern.as_str()) {
@@ -182,7 +182,7 @@ fn is_assignment_operator_at(bytes: &[u8], i: usize) -> bool {
 ///
 /// Corresponds to `order_reactive_statements()` in Svelte's `2-analyze/index.js`.
 ///
-/// Each entry is (`assigned_vars`, `dependency_vars`, `transformed_code`).
+/// Each entry is (assigned_vars, dependency_vars, transformed_code).
 /// Returns the same entries in topologically sorted order.
 pub(super) fn sort_reactive_statements(
     statements: Vec<(Vec<String>, Vec<String>, String)>,
@@ -373,10 +373,10 @@ pub(super) fn transform_reactive_statement(
                         b'"' => *in_double = true,
                         b'`' => *in_template += 1,
                         b'{' if *in_template > 0 && *template_expr_depth > 0 => {
-                            *template_expr_depth += 1;
+                            *template_expr_depth += 1
                         }
                         b'}' if *in_template > 0 && *template_expr_depth > 0 => {
-                            *template_expr_depth -= 1;
+                            *template_expr_depth -= 1
                         }
                         _ => {}
                     }
@@ -548,7 +548,7 @@ pub(super) fn transform_reactive_statement(
                     proxy_vars,
                 );
 
-                transformed_body = format!("{lhs}({transformed_rhs})");
+                transformed_body = format!("{}({})", lhs, transformed_rhs);
             } else if state_vars.contains(&lhs.to_string())
                 && !non_reactive_state_vars.contains(&lhs.to_string())
             {
@@ -573,15 +573,17 @@ pub(super) fn transform_reactive_statement(
                 );
                 // Normalize IIFE parens: (function(a){...}(args)) → (function(a){...})(args)
                 let transformed_rhs = crate::compiler::phases::phase3_transform::server::transform_script::normalize_iife_parens(&transformed_rhs);
-                let set_expr = format!("$.set({lhs}, {transformed_rhs})");
+                let set_expr = format!("$.set({}, {})", lhs, transformed_rhs);
                 // If the LHS has a store subscription, wrap in $.store_unsub()
                 // to clean up the old subscription when the variable is reassigned.
                 // e.g., `$: z = u.id` where $z is a store subscription →
                 // `$.store_unsub($.set(z, ...), '$z', $$stores)`
-                let store_sub_name = format!("${lhs}");
+                let store_sub_name = format!("${}", lhs);
                 if store_sub_vars.contains(&store_sub_name) {
-                    transformed_body =
-                        format!("$.store_unsub({set_expr}, '{store_sub_name}', $$stores)");
+                    transformed_body = format!(
+                        "$.store_unsub({}, '{}', $$stores)",
+                        set_expr, store_sub_name
+                    );
                 } else {
                     transformed_body = set_expr;
                 }
@@ -606,8 +608,10 @@ pub(super) fn transform_reactive_statement(
                     // Build $.mutate(base, $.get(base).member = rhs)
                     // The first arg of $.mutate() is protected by in_mutate_first_arg check
                     // in wrap_state_vars_in_expr, so `base` won't be double-wrapped.
-                    transformed_body =
-                        format!("$.mutate({base}, $.get({base}){member_part} = {transformed_rhs})");
+                    transformed_body = format!(
+                        "$.mutate({}, $.get({}){} = {})",
+                        base, base, member_part, transformed_rhs
+                    );
                 } else if store_sub_vars.contains(&lhs.to_string()) {
                     // Store subscription assignment → $.store_set(store_name, rhs)
                     // e.g., `$: $a = $b` → body becomes `$.store_set(a, $b())`
@@ -619,11 +623,11 @@ pub(super) fn transform_reactive_statement(
                     // - regular: use store_name directly
                     let store_access =
                         if prop_assignment_transform_vars.contains(&store_name.to_string()) {
-                            format!("{store_name}()")
+                            format!("{}()", store_name)
                         } else if state_vars.contains(&store_name.to_string())
                             && !non_reactive_state_vars.contains(&store_name.to_string())
                         {
-                            format!("$.get({store_name})")
+                            format!("$.get({})", store_name)
                         } else {
                             store_name.to_string()
                         };
@@ -636,7 +640,8 @@ pub(super) fn transform_reactive_statement(
                         non_reactive_state_vars,
                         proxy_vars,
                     );
-                    transformed_body = format!("$.store_set({store_access}, {transformed_rhs})");
+                    transformed_body =
+                        format!("$.store_set({}, {})", store_access, transformed_rhs);
                 } else if let Some(base) = extract_member_expression_base(lhs)
                     && prop_assignment_transform_vars.contains(&base.to_string())
                 {
@@ -656,7 +661,8 @@ pub(super) fn transform_reactive_statement(
                         proxy_vars,
                     );
                     transformed_body = format!(
-                        "{base}({base}(){transformed_member_part} = {transformed_rhs}, true)"
+                        "{}({}(){} = {}, true)",
+                        base, base, transformed_member_part, transformed_rhs
                     );
                 } else {
                     // Regular assignment - still transform prop reads on RHS
@@ -668,7 +674,7 @@ pub(super) fn transform_reactive_statement(
                         non_reactive_state_vars,
                         proxy_vars,
                     );
-                    transformed_body = format!("{lhs} = {transformed_rhs}");
+                    transformed_body = format!("{} = {}", lhs, transformed_rhs);
                 }
             }
         } // close the `else` branch of `if lhs.contains('?')`
@@ -779,11 +785,11 @@ pub(super) fn transform_reactive_statement(
         let mut parts: Vec<String> = Vec::with_capacity(dep_names.len());
         for name in dep_names {
             if name == "$$props" || name == "$$restProps" {
-                parts.push(format!("$.deep_read_state({name})"));
+                parts.push(format!("$.deep_read_state({})", name));
             } else if prop_assignment_transform_vars.iter().any(|p| p == name) {
-                parts.push(format!("$.deep_read_state({name}())"));
+                parts.push(format!("$.deep_read_state({}())", name));
             } else if store_sub_vars.iter().any(|s| s == name) {
-                parts.push(format!("{name}()"));
+                parts.push(format!("{}()", name));
             } else if state_vars.iter().any(|s| s == name)
                 && !non_reactive_state_vars.iter().any(|s| s == name)
             {
@@ -792,7 +798,7 @@ pub(super) fn transform_reactive_statement(
                 } else {
                     "$.get"
                 };
-                parts.push(format!("{getter}({name})"));
+                parts.push(format!("{}({})", getter, name));
             } else if import_names.iter().any(|i| i == name)
                 && !state_vars.iter().any(|s| s == name)
                 && !prop_assignment_transform_vars.iter().any(|p| p == name)
@@ -826,7 +832,7 @@ pub(super) fn transform_reactive_statement(
     let deps_thunk = if deps_expr.is_empty() {
         "() => {}".to_string()
     } else {
-        format!("() => ({deps_expr})")
+        format!("() => ({})", deps_expr)
     };
 
     if is_block {
@@ -855,19 +861,25 @@ pub(super) fn transform_reactive_statement(
             }
             update_template_literal_stack(line, &mut stack);
         }
-        format!("$.legacy_pre_effect({deps_thunk}, () => {{\n{indented}\n}});")
+        format!(
+            "$.legacy_pre_effect({}, () => {{\n{}\n}});",
+            deps_thunk, indented
+        )
     } else {
         // Don't add trailing semicolon if the body already ends with '}' (block/if statement)
         // or if the body is a block statement itself
         let body_end = inner_body.trim_end();
         let body_needs_semicolon = !body_end.ends_with('}') && !body_end.ends_with(';');
         let semi = if body_needs_semicolon { ";" } else { "" };
-        format!("$.legacy_pre_effect({deps_thunk}, () => {{\n\t{inner_body}{semi}\n}});")
+        format!(
+            "$.legacy_pre_effect({}, () => {{\n\t{}{}\n}});",
+            deps_thunk, inner_body, semi
+        )
     }
 }
 
-/// Unwrap a block statement `{ ... }` and return (`inner_content`, `is_block`).
-/// If the body is a block statement, returns the dedented inner content with `is_block=true`.
+/// Unwrap a block statement `{ ... }` and return (inner_content, is_block).
+/// If the body is a block statement, returns the dedented inner content with is_block=true.
 /// Otherwise returns (body, false).
 pub(super) fn unwrap_block_statement_owned(body: &str) -> (String, bool) {
     let trimmed = body.trim();
@@ -1016,10 +1028,11 @@ pub(super) fn extract_locally_declared_vars(body: &str) -> Vec<String> {
     let mut vars = Vec::new();
     // Match patterns like: `let x`, `const x`, `var x`, including inside `for (let x`
     // We scan for declaration keywords followed by an identifier.
-    let Some(re) =
-        get_or_compile_regex(r"(?:^|[^a-zA-Z0-9_$])(let|const|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)")
-    else {
-        return vars;
+    let re = match get_or_compile_regex(
+        r"(?:^|[^a-zA-Z0-9_$])(let|const|var)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)",
+    ) {
+        Some(re) => re,
+        None => return vars,
     };
     for cap in re.captures_iter(body) {
         if let Some(m) = cap.get(2) {
@@ -1029,7 +1042,7 @@ pub(super) fn extract_locally_declared_vars(body: &str) -> Vec<String> {
     vars
 }
 
-/// Transform simple assignments to state variables into $.`set()` calls within reactive statements.
+/// Transform simple assignments to state variables into $.set() calls within reactive statements.
 /// `x = expr` -> `$.set(x, expr)` for state variables.
 /// This handles assignments inside compound statements (if blocks, etc.).
 /// Does NOT transform compound assignments (+=, -=, etc.) or declarations.

@@ -41,7 +41,7 @@ type AwaitSpan = (u32, u32, u32, u32);
 /// `(await $.save(<operand>))()`, returning `None` when the expression does
 /// not parse cleanly (the caller falls back to the textual scanner) or when
 /// it contains no expression-level `await`.
-pub fn transform_await_to_save_ast(expr: &str) -> Option<String> {
+pub(crate) fn transform_await_to_save_ast(expr: &str) -> Option<String> {
     AWAIT_SAVE_ALLOC.with(|cell| {
         let allocator = std::mem::take(&mut *cell.borrow_mut());
         let out = transform_with(&allocator, expr);
@@ -80,12 +80,7 @@ fn transform_with(allocator: &Allocator, expr: &str) -> Option<String> {
 
     // Sort by start so the linear emit walks the source left-to-right.
     collector.awaits.sort_by_key(|&(start, ..)| start);
-    Some(emit_range(
-        expr,
-        &collector.awaits,
-        0,
-        u32::try_from(expr.len()).expect("source positions are limited to u32"),
-    ))
+    Some(emit_range(expr, &collector.awaits, 0, expr.len() as u32))
 }
 
 /// Whether `expr` contains an expression-level `await` — one that is *not*
@@ -97,7 +92,7 @@ fn transform_with(allocator: &Allocator, expr: &str) -> Option<String> {
 /// scoping instead of a byte scan with hand-rolled `function`/`=>` body
 /// skipping. Callers should keep a cheap `memmem("await")` pre-check before
 /// calling this (parsing is only worth it when the word is actually present).
-pub fn contains_top_level_await(expr: &str) -> Option<bool> {
+pub(crate) fn contains_top_level_await(expr: &str) -> Option<bool> {
     AWAIT_SAVE_ALLOC.with(|cell| {
         let allocator = std::mem::take(&mut *cell.borrow_mut());
         let out = contains_with(&allocator, expr);

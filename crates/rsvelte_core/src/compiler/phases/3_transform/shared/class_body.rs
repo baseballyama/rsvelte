@@ -40,7 +40,9 @@ fn skip_template(s: &str, i: usize) -> usize {
             b'\\' => j += 2,
             b'`' => return j + 1,
             b'$' if bytes.get(j + 1) == Some(&b'{') => {
-                j = find_matching_bracket(s, j + 2, '{').map_or(bytes.len(), |e| e + 1);
+                j = find_matching_bracket(s, j + 2, '{')
+                    .map(|e| e + 1)
+                    .unwrap_or(bytes.len());
             }
             _ => j += 1,
         }

@@ -15,7 +15,7 @@ use crate::compiler::phases::phase3_transform::utils::{
 };
 use std::borrow::Cow;
 
-/// `NON_STATIC_PROPERTIES` - properties that cannot be set statically
+/// NON_STATIC_PROPERTIES - properties that cannot be set statically
 const NON_STATIC_PROPERTIES: &[&str] = &["autofocus", "muted", "defaultValue", "defaultChecked"];
 
 /// Check if a property cannot be set statically.
@@ -63,6 +63,19 @@ fn is_text_attribute(attr: &Attribute) -> bool {
 pub(crate) fn has_dynamic_children(nodes: &[TemplateNode]) -> bool {
     for node in nodes {
         match node {
+            TemplateNode::ExpressionTag(_) => return true,
+            TemplateNode::HtmlTag(_) => return true,
+            TemplateNode::RenderTag(_) => return true,
+            TemplateNode::IfBlock(_) => return true,
+            TemplateNode::EachBlock(_) => return true,
+            TemplateNode::AwaitBlock(_) => return true,
+            TemplateNode::KeyBlock(_) => return true,
+            TemplateNode::SnippetBlock(_) => return true,
+            TemplateNode::Component(_) => return true,
+            TemplateNode::SvelteComponent(_) => return true,
+            TemplateNode::SvelteElement(_) => return true,
+            TemplateNode::SvelteSelf(_) => return true,
+            TemplateNode::SvelteBoundary(_) => return true,
             TemplateNode::SlotElement(_) => return true,
             TemplateNode::RegularElement(elem) => {
                 // Check if this child element has special attributes that need runtime handling
@@ -221,15 +234,13 @@ pub fn is_static_element(node: &TemplateNode, _state: &ComponentClientTransformS
 }
 
 /// Processes an array of template nodes, joining sibling text/expression nodes
-/// (e.g. `{a} b {c}`) into a single update function.
-///
-/// Along the way it creates
+/// (e.g. `{a} b {c}`) into a single update function. Along the way it creates
 /// corresponding template node references these updates are applied to.
 ///
 /// # Arguments
 ///
 /// * `nodes` - The child nodes to process
-/// * `initial` - Function to generate anchor expression (argument: `is_text`)
+/// * `initial` - Function to generate anchor expression (argument: is_text)
 /// * `is_element` - Whether parent is an element
 /// * `context` - Component context
 ///
@@ -312,7 +323,7 @@ pub fn process_children<F>(
         let id: JsExpr;
 
         if let JsExpr::Identifier(_) = expression {
-            id = expression;
+            id = expression.clone();
         } else {
             // Generate a unique identifier
             let id_name = ctx.state.memoizer.generate_id(name);
@@ -404,7 +415,7 @@ pub fn process_children<F>(
     };
 
     // Main loop
-    for cow_node in nodes {
+    for cow_node in nodes.iter() {
         let node = cow_node.as_ref();
         match node {
             TemplateNode::Text(text) => {
@@ -573,7 +584,7 @@ pub fn process_children<F>(
     }
 }
 
-/// Helper enum for Text or `ExpressionTag` sequences.
+/// Helper enum for Text or ExpressionTag sequences.
 ///
 /// Same large-enum-variant trade-off as `AttributeValuePart`: this enum is
 /// short-lived and lives in tiny vectors, so the size disparity isn't worth
@@ -587,7 +598,7 @@ pub enum TextOrExpr<'a> {
 
 /// Push a static element and its children to the template.
 /// Returns true if the element contained a lone <script> child (which adds a <!> comment
-/// to match the official Svelte compiler's `clean_nodes` behavior).
+/// to match the official Svelte compiler's clean_nodes behavior).
 fn push_static_element_to_template(
     node: &TemplateNode,
     template: &mut Template,
@@ -607,7 +618,7 @@ fn push_static_element_to_template(
     )
 }
 
-/// Inner implementation with `preserve_whitespace` tracking.
+/// Inner implementation with preserve_whitespace tracking.
 /// Returns true if a lone <script> child was encountered (and a <!> comment was added).
 ///
 /// `in_text_element` stands in for upstream `clean_nodes`' `path.some((n) => n.type
@@ -735,7 +746,7 @@ fn push_static_element_to_template_inner(
             if effective_preserve_ws {
                 // For script/pre/textarea elements, add all children without whitespace trimming
                 let mut is_first = true;
-                for child in children {
+                for child in children.iter() {
                     if !preserve_comments && matches!(child, TemplateNode::Comment(_)) {
                         continue;
                     }
@@ -789,7 +800,8 @@ fn push_static_element_to_template_inner(
                             true
                         }
                     })
-                    .map_or(0, |i| i + 1);
+                    .map(|i| i + 1)
+                    .unwrap_or(0);
 
                 let range = &children[start..end.max(start)];
                 let last_idx = range.len().saturating_sub(1);
@@ -966,7 +978,7 @@ fn is_customizable_select_element(node: &RegularElement) -> bool {
 /// for the purposes of `is_customizable_select_element`.
 ///
 /// This is equivalent to the old `find_descendants` but avoids allocating a Vec
-/// and cloning `TemplateNodes`. Instead, it calls a predicate on each descendant
+/// and cloning TemplateNodes. Instead, it calls a predicate on each descendant
 /// and returns true as soon as the predicate returns true.
 fn has_matching_descendant<F>(fragment: &Fragment, predicate: &F) -> bool
 where

@@ -16,16 +16,12 @@ use memchr::memmem;
 use memchr::{memchr, memchr3};
 use smallvec::SmallVec;
 
+use crate::ast::SourceLocation;
 use crate::ast::js::Expression;
 use crate::ast::template::{
     AttributeNode, AttributeValue, AttributeValuePart, Comment, Component, ExpressionTag, Fragment,
     FragmentType, RegularElement, SlotElement, SvelteComponentElement, SvelteDynamicElement,
     SvelteElement, TemplateNode, Text, TitleElement,
-};
-use crate::ast::{
-    AttachTagMetadata, AttributeNodeMetadata, ClassDirectiveMetadata, ComponentNodeMetadata,
-    OnDirectiveMetadata, RegularElementMetadata, SourceLocation, SvelteDynamicElementMetadata,
-    TagMetadata,
 };
 use crate::error::ParseResult;
 
@@ -34,14 +30,10 @@ use super::super::utils::TrimWs;
 use super::super::utils::decode_html_entities;
 use super::super::utils::is_void_element;
 
-fn source_pos(offset: usize) -> u32 {
-    u32::try_from(offset).expect("source positions are limited to u32")
-}
-
 /// Whether the attribute list contains a non-empty `lang="…"` attribute. Used
 /// (in lenient/lint mode) to treat `<template lang="pug">` and similar as raw
 /// text rather than Svelte markup.
-fn template_has_lang(attributes: &[crate::ast::Attribute<'_>]) -> bool {
+fn template_has_lang<'a>(attributes: &[crate::ast::Attribute<'a>]) -> bool {
     for attr in attributes {
         if let crate::ast::Attribute::Attribute(node) = attr
             && node.name.as_str() == "lang"
@@ -61,10 +53,6 @@ static BLOCK_COMMENT_END_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'sta
 
 impl<'a> Parser<'a> {
     /// Parse an element or comment.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error for malformed element or comment markup.
     pub fn parse_element_or_comment(&mut self) -> ParseResult<Option<TemplateNode<'a>>> {
         let start = self.index;
         self.advance(); // consume '<'
@@ -99,8 +87,8 @@ impl<'a> Parser<'a> {
             self.pending_leading_comments.push(data.to_string());
 
             return Ok(Some(TemplateNode::Comment(Comment {
-                start: source_pos(start),
-                end: source_pos(self.index),
+                start: start as u32,
+                end: self.index as u32,
                 data: CompactString::from(data),
             })));
         }
@@ -315,7 +303,7 @@ impl<'a> Parser<'a> {
         if !self_closing && !is_void && has_closing_bracket {
             self.stack.push(StackEntry::Element {
                 name: name.clone(),
-                start: source_pos(start),
+                start: start as u32,
                 element_type,
             });
 
@@ -383,13 +371,14 @@ impl<'a> Parser<'a> {
                             let end = fragment
                                 .nodes
                                 .first()
-                                .map_or(source_pos(close_start), |n| n.span().0);
+                                .map_or(close_start as u32, |n| n.span().0);
                             self.parse_warnings.push(crate::ast::template::ParseWarning {
                                 code: "element_implicitly_closed".to_string(),
                                 message: format!(
-                                    "This element is implicitly closed by the following `</{closing_name}>`, which can cause an unexpected DOM structure. Add an explicit `</{name}>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed"
+                                    "This element is implicitly closed by the following `</{}>`, which can cause an unexpected DOM structure. Add an explicit `</{}>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+                                    closing_name, name
                                 ),
-                                start: source_pos(start),
+                                start: start as u32,
                                 end,
                             });
                         }
@@ -401,7 +390,8 @@ impl<'a> Parser<'a> {
                             return Err(crate::error::ParseError::svelte(
                                 "element_invalid_closing_tag_autoclosed",
                                 format!(
-                                    "`</{closing_name}>` attempted to close element that was already automatically closed by `<{reason}>` (cannot nest `<{reason}>` inside `</{closing_name}>`)"
+                                    "`</{}>` attempted to close element that was already automatically closed by `<{}>` (cannot nest `<{}>` inside `</{}>`)",
+                                    closing_name, reason, reason, closing_name
                                 ),
                                 (close_start, close_start),
                             ));
@@ -409,7 +399,8 @@ impl<'a> Parser<'a> {
                         return Err(crate::error::ParseError::svelte(
                             "element_invalid_closing_tag",
                             format!(
-                                "`</{closing_name}>` attempted to close an element that was not open"
+                                "`</{}>` attempted to close an element that was not open",
+                                closing_name
                             ),
                             (close_start, close_start),
                         ));
@@ -446,13 +437,14 @@ impl<'a> Parser<'a> {
                 let end = fragment
                     .nodes
                     .first()
-                    .map_or(source_pos(self.index), |n| n.span().0);
+                    .map_or(self.index as u32, |n| n.span().0);
                 self.parse_warnings.push(crate::ast::template::ParseWarning {
                     code: "element_implicitly_closed".to_string(),
                     message: format!(
-                        "This element is implicitly closed by the following `<{reason}>`, which can cause an unexpected DOM structure. Add an explicit `</{name}>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed"
+                        "This element is implicitly closed by the following `<{}>`, which can cause an unexpected DOM structure. Add an explicit `</{}>` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+                        reason, name
                     ),
-                    start: source_pos(start),
+                    start: start as u32,
                     end,
                 });
                 // Track which tag was auto-closed so we can raise the correct error later.
@@ -501,14 +493,14 @@ impl<'a> Parser<'a> {
                 }
                 // If it's EOF after the newline, don't include the newline
             }
-            source_pos(end_pos)
+            end_pos as u32
         } else if !self_closing && !is_void && has_closing_bracket && !found_closing_tag {
             // Element has opening tag but no closing tag (auto-closed at EOF)
             // Use the end of the last child node in the fragment
             fragment
                 .nodes
                 .last()
-                .map_or(source_pos(self.index), |node| match node {
+                .map(|node| match node {
                     TemplateNode::Text(t) => t.end,
                     TemplateNode::Comment(c) => c.end,
                     TemplateNode::ExpressionTag(e) => e.end,
@@ -538,14 +530,15 @@ impl<'a> Parser<'a> {
                     TemplateNode::SvelteComponent(c) => c.end,
                     TemplateNode::SvelteElement(e) => e.end,
                 })
+                .unwrap_or(self.index as u32)
         } else {
-            source_pos(self.index)
+            self.index as u32
         };
 
         // Create the appropriate element type
         let node = match element_type {
             ElementType::Slot => TemplateNode::SlotElement(SlotElement {
-                start: source_pos(start),
+                start: start as u32,
                 end,
                 name: name.clone(),
                 name_loc: name_loc_with_char,
@@ -553,7 +546,7 @@ impl<'a> Parser<'a> {
                 fragment,
             }),
             ElementType::Title => TemplateNode::TitleElement(TitleElement {
-                start: source_pos(start),
+                start: start as u32,
                 end,
                 name: name.clone(),
                 name_loc: name_loc_with_char,
@@ -561,16 +554,16 @@ impl<'a> Parser<'a> {
                 fragment,
             }),
             ElementType::Component => TemplateNode::Component(Box::new(Component {
-                start: source_pos(start),
+                start: start as u32,
                 end,
                 name: name.clone(),
                 name_loc: name_loc_with_char,
                 attributes,
                 fragment,
-                metadata: ComponentNodeMetadata::default(),
+                metadata: Default::default(),
             })),
             ElementType::SvelteHead => TemplateNode::SvelteHead(SvelteElement {
-                start: source_pos(start),
+                start: start as u32,
                 end,
                 name: name.clone(),
                 name_loc: name_loc_with_char,
@@ -578,7 +571,7 @@ impl<'a> Parser<'a> {
                 fragment,
             }),
             ElementType::SvelteBody => TemplateNode::SvelteBody(SvelteElement {
-                start: source_pos(start),
+                start: start as u32,
                 end,
                 name: name.clone(),
                 name_loc: name_loc_with_char,
@@ -586,7 +579,7 @@ impl<'a> Parser<'a> {
                 fragment,
             }),
             ElementType::SvelteWindow => TemplateNode::SvelteWindow(SvelteElement {
-                start: source_pos(start),
+                start: start as u32,
                 end,
                 name: name.clone(),
                 name_loc: name_loc_with_char,
@@ -594,7 +587,7 @@ impl<'a> Parser<'a> {
                 fragment,
             }),
             ElementType::SvelteDocument => TemplateNode::SvelteDocument(SvelteElement {
-                start: source_pos(start),
+                start: start as u32,
                 end,
                 name: name.clone(),
                 name_loc: name_loc_with_char,
@@ -602,7 +595,7 @@ impl<'a> Parser<'a> {
                 fragment,
             }),
             ElementType::SvelteFragment => TemplateNode::SvelteFragment(SvelteElement {
-                start: source_pos(start),
+                start: start as u32,
                 end,
                 name: name.clone(),
                 name_loc: name_loc_with_char,
@@ -610,7 +603,7 @@ impl<'a> Parser<'a> {
                 fragment,
             }),
             ElementType::SvelteBoundary => TemplateNode::SvelteBoundary(SvelteElement {
-                start: source_pos(start),
+                start: start as u32,
                 end,
                 name: name.clone(),
                 name_loc: name_loc_with_char,
@@ -618,7 +611,7 @@ impl<'a> Parser<'a> {
                 fragment,
             }),
             ElementType::SvelteSelf => TemplateNode::SvelteSelf(SvelteElement {
-                start: source_pos(start),
+                start: start as u32,
                 end,
                 name: name.clone(),
                 name_loc: name_loc_with_char,
@@ -626,7 +619,7 @@ impl<'a> Parser<'a> {
                 fragment,
             }),
             ElementType::SvelteOptions => TemplateNode::SvelteOptions(SvelteElement {
-                start: source_pos(start),
+                start: start as u32,
                 end,
                 name: name.clone(),
                 name_loc: name_loc_with_char,
@@ -650,7 +643,7 @@ impl<'a> Parser<'a> {
                     .collect();
 
                 TemplateNode::SvelteComponent(Box::new(SvelteComponentElement {
-                    start: source_pos(start),
+                    start: start as u32,
                     end,
                     name: name.clone(),
                     name_loc: name_loc_with_char,
@@ -730,24 +723,24 @@ impl<'a> Parser<'a> {
                     .collect();
 
                 TemplateNode::SvelteElement(Box::new(SvelteDynamicElement {
-                    start: source_pos(start),
+                    start: start as u32,
                     end,
                     name: name.clone(),
                     name_loc: name_loc_with_char,
                     attributes: filtered_attrs,
                     fragment,
                     tag,
-                    metadata: SvelteDynamicElementMetadata::default(),
+                    metadata: Default::default(),
                 }))
             }
             _ => TemplateNode::RegularElement(Box::new(RegularElement {
-                start: source_pos(start),
+                start: start as u32,
                 end,
                 name: name.clone(),
                 name_loc: name_loc_with_char,
                 attributes,
                 fragment,
-                metadata: RegularElementMetadata::default(),
+                metadata: Default::default(),
             })),
         };
 
@@ -846,7 +839,7 @@ impl<'a> Parser<'a> {
                 // Fast byte-level check: uppercase ASCII or first char is uppercase Unicode
                 let first = name.as_bytes().first().copied().unwrap_or(0);
                 if first.is_ascii_uppercase()
-                    || (first >= 0x80 && name.chars().next().is_some_and(char::is_uppercase))
+                    || (first >= 0x80 && name.chars().next().is_some_and(|c| c.is_uppercase()))
                     || memchr(b'.', name.as_bytes()).is_some()
                 {
                     ElementType::Component
@@ -1032,10 +1025,6 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse attributes.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error for malformed attributes.
     pub fn parse_attributes(&mut self) -> ParseResult<Vec<crate::ast::Attribute<'a>>> {
         let mut attributes = Vec::new();
 
@@ -1148,8 +1137,8 @@ impl<'a> Parser<'a> {
                 .borrow_mut()
                 .push(crate::ast::template::JsComment {
                     kind: crate::ast::template::JsCommentKind::Line,
-                    start: source_pos(start),
-                    end: source_pos(end),
+                    start: start as u32,
+                    end: end as u32,
                     value,
                     loc,
                 });
@@ -1172,8 +1161,8 @@ impl<'a> Parser<'a> {
                 .borrow_mut()
                 .push(crate::ast::template::JsComment {
                     kind: crate::ast::template::JsCommentKind::Block,
-                    start: source_pos(start),
-                    end: source_pos(end),
+                    start: start as u32,
+                    end: end as u32,
                     value,
                     loc,
                 });
@@ -1184,10 +1173,6 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a single attribute.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error for invalid attribute syntax.
     pub fn parse_attribute(&mut self) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Capture JS-style comments (// and /* */) before attribute parsing
         // and record them in `root.comments`. Corresponds to `read_comment()`
@@ -1236,8 +1221,8 @@ impl<'a> Parser<'a> {
                     self.parse_head_expression(expr_content.trim_ws(), expr_start, false, '}')?;
                 return Ok(Some(crate::ast::Attribute::SpreadAttribute(
                     crate::ast::template::SpreadAttribute {
-                        start: source_pos(start),
-                        end: source_pos(self.index),
+                        start: start as u32,
+                        end: self.index as u32,
                         expression,
                     },
                 )));
@@ -1313,19 +1298,19 @@ impl<'a> Parser<'a> {
                 };
 
                 let value = AttributeValue::Expression(ExpressionTag {
-                    start: source_pos(expr_start),
-                    end: source_pos(expr_start),
+                    start: expr_start as u32,
+                    end: expr_start as u32,
                     expression: expression.clone(),
-                    metadata: TagMetadata::default(),
+                    metadata: Default::default(),
                 });
 
                 return Ok(Some(crate::ast::Attribute::Attribute(AttributeNode {
-                    start: source_pos(start),
-                    end: source_pos(self.index),
+                    start: start as u32,
+                    end: self.index as u32,
                     name: CompactString::from(""),
                     name_loc,
                     value,
-                    metadata: AttributeNodeMetadata::default(),
+                    metadata: Default::default(),
                 })));
             }
 
@@ -1355,7 +1340,10 @@ impl<'a> Parser<'a> {
             if crate::compiler::phases::phase1_parse::utils::is_reserved(&name) {
                 return Err(crate::error::ParseError::svelte(
                     "unexpected_reserved_word",
-                    format!("'{name}' is a reserved word in JavaScript and cannot be used here"),
+                    format!(
+                        "'{}' is a reserved word in JavaScript and cannot be used here",
+                        name
+                    ),
                     (expr_start, expr_start),
                 ));
             }
@@ -1365,19 +1353,19 @@ impl<'a> Parser<'a> {
 
             // Create the ExpressionTag value
             let value = AttributeValue::Expression(ExpressionTag {
-                start: source_pos(start + 1), // start after {
-                end: source_pos(expr_end),
+                start: (start + 1) as u32, // start after {
+                end: expr_end as u32,
                 expression: expression.clone(),
-                metadata: TagMetadata::default(),
+                metadata: Default::default(),
             });
 
             return Ok(Some(crate::ast::Attribute::Attribute(AttributeNode {
-                start: source_pos(start),
-                end: source_pos(self.index),
+                start: start as u32,
+                end: self.index as u32,
                 name: CompactString::from(name),
                 name_loc,
                 value,
-                metadata: AttributeNodeMetadata::default(),
+                metadata: Default::default(),
             })));
         }
 
@@ -1448,20 +1436,16 @@ impl<'a> Parser<'a> {
         };
 
         Ok(Some(crate::ast::Attribute::Attribute(AttributeNode {
-            start: source_pos(start),
-            end: source_pos(attr_end),
+            start: start as u32,
+            end: attr_end as u32,
             name: name.clone(),
             name_loc,
             value,
-            metadata: AttributeNodeMetadata::default(),
+            metadata: Default::default(),
         })))
     }
 
     /// Parse an on: directive (event handler).
-    ///
-    /// # Errors
-    ///
-    /// Returns an error for invalid event-directive syntax.
     pub fn parse_on_directive(
         &mut self,
         start: usize,
@@ -1471,16 +1455,15 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Extract event name and modifiers from "on:click|preventDefault"
         let after_on = &full_name[3..]; // Skip "on:"
-        let (event_name, modifiers) = memchr(b'|', after_on.as_bytes()).map_or_else(
-            || (CompactString::from(after_on), SmallVec::new()),
-            |pipe_pos| {
-                let mods: SmallVec<[CompactString; 2]> = after_on[pipe_pos + 1..]
-                    .split('|')
-                    .map(CompactString::from)
-                    .collect();
-                (CompactString::from(&after_on[..pipe_pos]), mods)
-            },
-        );
+        let (event_name, modifiers) = if let Some(pipe_pos) = memchr(b'|', after_on.as_bytes()) {
+            let mods: SmallVec<[CompactString; 2]> = after_on[pipe_pos + 1..]
+                .split('|')
+                .map(CompactString::from)
+                .collect();
+            (CompactString::from(&after_on[..pipe_pos]), mods)
+        } else {
+            (CompactString::from(after_on), SmallVec::new())
+        };
 
         // Parse the value (expression)
         let (expression, end_pos) = if self.eat_optional("=") {
@@ -1534,22 +1517,18 @@ impl<'a> Parser<'a> {
 
         Ok(Some(crate::ast::Attribute::OnDirective(
             crate::ast::template::OnDirective {
-                start: source_pos(start),
-                end: source_pos(end_pos),
+                start: start as u32,
+                end: end_pos as u32,
                 name: event_name,
                 name_loc,
                 expression,
                 modifiers,
-                metadata: OnDirectiveMetadata::default(),
+                metadata: Default::default(),
             },
         )))
     }
 
     /// Parse a bind: directive (two-way binding).
-    ///
-    /// # Errors
-    ///
-    /// Returns an error for invalid binding-directive syntax.
     pub fn parse_bind_directive(
         &mut self,
         start: usize,
@@ -1560,16 +1539,15 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Extract property name and modifiers from "bind:value|modifier"
         let after_bind = &full_name[5..]; // Skip "bind:"
-        let (prop_name, modifiers) = memchr(b'|', after_bind.as_bytes()).map_or_else(
-            || (after_bind, SmallVec::new()),
-            |pipe_pos| {
-                let mods: SmallVec<[CompactString; 2]> = after_bind[pipe_pos + 1..]
-                    .split('|')
-                    .map(CompactString::from)
-                    .collect();
-                (&after_bind[..pipe_pos], mods)
-            },
-        );
+        let (prop_name, modifiers) = if let Some(pipe_pos) = memchr(b'|', after_bind.as_bytes()) {
+            let mods: SmallVec<[CompactString; 2]> = after_bind[pipe_pos + 1..]
+                .split('|')
+                .map(CompactString::from)
+                .collect();
+            (&after_bind[..pipe_pos], mods)
+        } else {
+            (after_bind, SmallVec::new())
+        };
 
         // Parse the value (expression)
         let (expression, end_pos) = if self.eat_optional("=") {
@@ -1648,8 +1626,8 @@ impl<'a> Parser<'a> {
 
         Ok(Some(crate::ast::Attribute::BindDirective(
             crate::ast::template::BindDirective {
-                start: source_pos(start),
-                end: source_pos(end_pos),
+                start: start as u32,
+                end: end_pos as u32,
                 name: CompactString::from(prop_name),
                 name_loc,
                 expression,
@@ -1659,10 +1637,6 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a use: directive (action): `use:action`, `use:action={expression}`, or `use:action="{expression}"`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error for invalid action-directive syntax.
     pub fn parse_use_directive(
         &mut self,
         start: usize,
@@ -1736,8 +1710,8 @@ impl<'a> Parser<'a> {
 
         Ok(Some(crate::ast::Attribute::UseDirective(
             crate::ast::template::UseDirective {
-                start: source_pos(start),
-                end: source_pos(end_pos),
+                start: start as u32,
+                end: end_pos as u32,
                 name: CompactString::from(action_name),
                 name_loc,
                 expression,
@@ -1746,10 +1720,6 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a class: directive: `class:name` or `class:name={expression}`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error for invalid class-directive syntax.
     pub fn parse_class_directive(
         &mut self,
         start: usize,
@@ -1817,21 +1787,17 @@ impl<'a> Parser<'a> {
         let end = if had_value { self.index } else { name_end };
         Ok(Some(crate::ast::Attribute::ClassDirective(
             crate::ast::template::ClassDirective {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 name: CompactString::from(class_name),
                 name_loc,
                 expression,
-                metadata: ClassDirectiveMetadata::default(),
+                metadata: Default::default(),
             },
         )))
     }
 
     /// Parse a style: directive: `style:property={expression}` or `style:property="value"`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error for invalid style-directive syntax.
     pub fn parse_style_directive(
         &mut self,
         start: usize,
@@ -1841,16 +1807,15 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Extract property name and modifiers from "style:color|important"
         let after_style = &full_name[6..]; // Skip "style:"
-        let (prop_name, modifiers) = memchr(b'|', after_style.as_bytes()).map_or_else(
-            || (after_style, SmallVec::new()),
-            |pipe_pos| {
-                let mods: SmallVec<[CompactString; 2]> = after_style[pipe_pos + 1..]
-                    .split('|')
-                    .map(CompactString::from)
-                    .collect();
-                (&after_style[..pipe_pos], mods)
-            },
-        );
+        let (prop_name, modifiers) = if let Some(pipe_pos) = memchr(b'|', after_style.as_bytes()) {
+            let mods: SmallVec<[CompactString; 2]> = after_style[pipe_pos + 1..]
+                .split('|')
+                .map(CompactString::from)
+                .collect();
+            (&after_style[..pipe_pos], mods)
+        } else {
+            (after_style, SmallVec::new())
+        };
 
         let has_value = self.eat_optional("=");
         let value = if has_value {
@@ -1862,10 +1827,10 @@ impl<'a> Parser<'a> {
                 let expr_content = &self.source[expr_start..expr_end];
                 self.advance(); // consume '}'
                 AttributeValue::Expression(ExpressionTag {
-                    start: source_pos(expr_start - 1), // include the '{'
-                    end: source_pos(self.index),
+                    start: (expr_start - 1) as u32, // include the '{'
+                    end: self.index as u32,
                     expression: self.parse_head_expression(expr_content, expr_start, false, '}')?,
-                    metadata: TagMetadata::default(),
+                    metadata: Default::default(),
                 })
             } else if self.eat_optional("\"") || self.eat_optional("'") {
                 // Quoted string value with potential expressions: "red{variable}"
@@ -1882,8 +1847,8 @@ impl<'a> Parser<'a> {
                         // Save text before expression
                         if self.index > text_start {
                             parts.push(AttributeValuePart::Text(crate::ast::template::Text {
-                                start: source_pos(text_start),
-                                end: source_pos(self.index),
+                                start: text_start as u32,
+                                end: self.index as u32,
                                 raw: Cow::Borrowed(&self.source[text_start..self.index]),
                                 data: Cow::Owned(decode_html_entities(
                                     &self.source[text_start..self.index],
@@ -1898,13 +1863,13 @@ impl<'a> Parser<'a> {
                         let inner_end = self.index;
                         self.advance(); // consume '}'
                         parts.push(AttributeValuePart::ExpressionTag(ExpressionTag {
-                            start: source_pos(expr_start),
-                            end: source_pos(self.index),
+                            start: expr_start as u32,
+                            end: self.index as u32,
                             expression: self.parse_js_expression_attribute(
                                 &self.source[inner_start..inner_end],
                                 inner_start,
                             )?,
-                            metadata: TagMetadata::default(),
+                            metadata: Default::default(),
                         }));
                         text_start = self.index;
                     } else {
@@ -1915,8 +1880,8 @@ impl<'a> Parser<'a> {
                 // Save remaining text
                 if self.index > text_start {
                     parts.push(AttributeValuePart::Text(crate::ast::template::Text {
-                        start: source_pos(text_start),
-                        end: source_pos(self.index),
+                        start: text_start as u32,
+                        end: self.index as u32,
                         raw: Cow::Borrowed(&self.source[text_start..self.index]),
                         data: Cow::Owned(decode_html_entities(
                             &self.source[text_start..self.index],
@@ -1943,8 +1908,8 @@ impl<'a> Parser<'a> {
                         // Save text before expression
                         if self.index > text_start {
                             parts.push(AttributeValuePart::Text(crate::ast::template::Text {
-                                start: source_pos(text_start),
-                                end: source_pos(self.index),
+                                start: text_start as u32,
+                                end: self.index as u32,
                                 raw: Cow::Borrowed(&self.source[text_start..self.index]),
                                 data: Cow::Owned(decode_html_entities(
                                     &self.source[text_start..self.index],
@@ -1959,13 +1924,13 @@ impl<'a> Parser<'a> {
                         let inner_end = self.index;
                         self.advance(); // consume '}'
                         parts.push(AttributeValuePart::ExpressionTag(ExpressionTag {
-                            start: source_pos(expr_start),
-                            end: source_pos(self.index),
+                            start: expr_start as u32,
+                            end: self.index as u32,
                             expression: self.parse_js_expression_attribute(
                                 &self.source[inner_start..inner_end],
                                 inner_start,
                             )?,
-                            metadata: TagMetadata::default(),
+                            metadata: Default::default(),
                         }));
                         text_start = self.index;
                     } else {
@@ -1976,8 +1941,8 @@ impl<'a> Parser<'a> {
                 // Save remaining text
                 if self.index > text_start {
                     parts.push(AttributeValuePart::Text(crate::ast::template::Text {
-                        start: source_pos(text_start),
-                        end: source_pos(self.index),
+                        start: text_start as u32,
+                        end: self.index as u32,
                         raw: Cow::Borrowed(&self.source[text_start..self.index]),
                         data: Cow::Owned(decode_html_entities(
                             &self.source[text_start..self.index],
@@ -2007,8 +1972,8 @@ impl<'a> Parser<'a> {
         let end = if has_value { self.index } else { name_end };
         Ok(Some(crate::ast::Attribute::StyleDirective(
             crate::ast::template::StyleDirective {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 name: CompactString::from(prop_name),
                 name_loc,
                 value,
@@ -2018,10 +1983,6 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a transition: / in: / out: directive.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error for invalid transition-directive syntax.
     pub fn parse_transition_directive(
         &mut self,
         start: usize,
@@ -2103,8 +2064,8 @@ impl<'a> Parser<'a> {
 
         Ok(Some(crate::ast::Attribute::TransitionDirective(
             crate::ast::template::TransitionDirective {
-                start: source_pos(start),
-                end: source_pos(end_pos),
+                start: start as u32,
+                end: end_pos as u32,
                 name: CompactString::from(transition_name),
                 name_loc,
                 expression,
@@ -2117,26 +2078,20 @@ impl<'a> Parser<'a> {
     }
 
     /// Helper to extract name and modifiers from "name|mod1|mod2".
-    #[must_use]
     pub fn extract_name_and_modifiers(s: &str) -> (&str, SmallVec<[CompactString; 2]>) {
-        memchr(b'|', s.as_bytes()).map_or_else(
-            || (s, SmallVec::new()),
-            |pipe_pos| {
-                let name = &s[..pipe_pos];
-                let mods: SmallVec<[CompactString; 2]> = s[pipe_pos + 1..]
-                    .split('|')
-                    .map(CompactString::from)
-                    .collect();
-                (name, mods)
-            },
-        )
+        if let Some(pipe_pos) = memchr(b'|', s.as_bytes()) {
+            let name = &s[..pipe_pos];
+            let mods: SmallVec<[CompactString; 2]> = s[pipe_pos + 1..]
+                .split('|')
+                .map(CompactString::from)
+                .collect();
+            (name, mods)
+        } else {
+            (s, SmallVec::new())
+        }
     }
 
     /// Parse an animate: directive: `animate:name` or `animate:name={expression}`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error for invalid animate-directive syntax.
     pub fn parse_animate_directive(
         &mut self,
         start: usize,
@@ -2184,8 +2139,8 @@ impl<'a> Parser<'a> {
         let end = if had_value { self.index } else { name_end };
         Ok(Some(crate::ast::Attribute::AnimateDirective(
             crate::ast::template::AnimateDirective {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 name: CompactString::from(animate_name),
                 name_loc,
                 expression,
@@ -2195,10 +2150,6 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a let: directive: `let:item` or `let:item={expression}`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error for invalid let-directive syntax.
     pub fn parse_let_directive(
         &mut self,
         start: usize,
@@ -2244,8 +2195,8 @@ impl<'a> Parser<'a> {
         let end = if had_value { self.index } else { name_end };
         Ok(Some(crate::ast::Attribute::LetDirective(
             crate::ast::template::LetDirective {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 name: CompactString::from(let_name),
                 name_loc,
                 expression,
@@ -2254,10 +2205,6 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse an @attach attribute: `{@attach expression}`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the attach expression is malformed.
     pub fn parse_attach_attribute(
         &mut self,
         start: usize,
@@ -2276,19 +2223,15 @@ impl<'a> Parser<'a> {
 
         Ok(Some(crate::ast::Attribute::AttachTag(
             crate::ast::template::AttachTag {
-                start: source_pos(start),
-                end: source_pos(self.index),
+                start: start as u32,
+                end: self.index as u32,
                 expression,
-                metadata: AttachTagMetadata::default(),
+                metadata: Default::default(),
             },
         )))
     }
 
     /// Parse attribute value.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error for a missing or malformed attribute value.
     pub fn parse_attribute_value(&mut self) -> ParseResult<AttributeValue<'a>> {
         // Check for missing value (e.g., `class= >` or `class=>`)
         if self.index < self.bytes.len() && self.bytes[self.index] == b'>' {
@@ -2309,8 +2252,8 @@ impl<'a> Parser<'a> {
             self.advance(); // consume '/'
             return Ok(AttributeValue::Sequence(vec![AttributeValuePart::Text(
                 Text {
-                    start: source_pos(start),
-                    end: source_pos(self.index),
+                    start: start as u32,
+                    end: self.index as u32,
                     raw: Cow::Borrowed("/"),
                     data: Cow::Borrowed("/"),
                 },
@@ -2380,11 +2323,11 @@ impl<'a> Parser<'a> {
                         .get(self.index..)
                         .unwrap_or("")
                         .chars()
-                        .take_while(char::is_ascii_lowercase)
+                        .take_while(|c| c.is_ascii_lowercase())
                         .collect();
                     return Err(crate::error::ParseError::svelte(
                         "tag_invalid_placement",
-                        format!("{{@{tag_name} ...}} tag cannot be in attribute value"),
+                        format!("{{@{} ...}} tag cannot be in attribute value", tag_name),
                         (expr_start, expr_start),
                     ));
                 }
@@ -2396,11 +2339,11 @@ impl<'a> Parser<'a> {
                         .get(self.index..)
                         .unwrap_or("")
                         .chars()
-                        .take_while(char::is_ascii_lowercase)
+                        .take_while(|c| c.is_ascii_lowercase())
                         .collect();
                     return Err(crate::error::ParseError::svelte(
                         "block_invalid_placement",
-                        format!("{{#{tag_name} ...}} block cannot be in attribute value"),
+                        format!("{{#{} ...}} block cannot be in attribute value", tag_name),
                         (expr_start, expr_start),
                     ));
                 }
@@ -2449,10 +2392,10 @@ impl<'a> Parser<'a> {
                     self.parse_js_expression_attribute(expr_content, expr_start + 1)?
                 };
                 parts.push(AttributeValuePart::ExpressionTag(ExpressionTag {
-                    start: source_pos(expr_start),
-                    end: source_pos(expr_end),
+                    start: expr_start as u32,
+                    end: expr_end as u32,
                     expression,
-                    metadata: TagMetadata::default(),
+                    metadata: Default::default(),
                 }));
             } else {
                 // Text content - use byte-level scanning for speed
@@ -2527,15 +2470,15 @@ impl<'a> Parser<'a> {
                     if has_entity {
                         let data = decode_html_entities(raw, true);
                         parts.push(AttributeValuePart::Text(Text {
-                            start: source_pos(text_start),
-                            end: source_pos(text_end),
+                            start: text_start as u32,
+                            end: text_end as u32,
                             raw: Cow::Borrowed(raw),
                             data: Cow::Owned(data),
                         }));
                     } else {
                         parts.push(AttributeValuePart::Text(Text {
-                            start: source_pos(text_start),
-                            end: source_pos(text_end),
+                            start: text_start as u32,
+                            end: text_end as u32,
                             raw: Cow::Borrowed(raw),
                             data: Cow::Borrowed(raw),
                         }));
@@ -2553,8 +2496,8 @@ impl<'a> Parser<'a> {
             // Empty quoted value
             Ok(AttributeValue::Sequence(vec![AttributeValuePart::Text(
                 Text {
-                    start: source_pos(value_start),
-                    end: source_pos(value_start),
+                    start: value_start as u32,
+                    end: value_start as u32,
                     raw: Cow::Borrowed(""),
                     data: Cow::Borrowed(""),
                 },
@@ -2576,12 +2519,8 @@ impl<'a> Parser<'a> {
     /// Parse raw text content for elements like textarea, style (inside svelte:head).
     /// - For style: completely raw text, no expression parsing
     /// - For textarea: parses {expressions} but treats HTML as text
-    ///
-    /// # Errors
-    ///
-    /// Returns an error for malformed raw-text content or expressions.
     pub fn parse_raw_text_content(&mut self, tag_name: &str) -> ParseResult<Fragment<'a>> {
-        let closing_tag = format!("</{tag_name}");
+        let closing_tag = format!("</{}", tag_name);
         // `template` only reaches here via the lenient-mode `<template lang="…">`
         // raw-text gate (a normal `<template>` is parsed as markup), so its body
         // is a non-Svelte preprocessor language and must be fully opaque — no
@@ -2601,8 +2540,8 @@ impl<'a> Parser<'a> {
 
             // Always add a Text node for style, even if empty
             let nodes = vec![TemplateNode::Text(Text {
-                start: source_pos(content_start),
-                end: source_pos(content_end),
+                start: content_start as u32,
+                end: content_end as u32,
                 raw: Cow::Borrowed(raw_content),
                 data: Cow::Borrowed(raw_content),
             })];
@@ -2633,11 +2572,11 @@ impl<'a> Parser<'a> {
                     let after_at = trimmed_peek.get(1..).unwrap_or("");
                     let tag_name_str: String = after_at
                         .chars()
-                        .take_while(char::is_ascii_lowercase)
+                        .take_while(|c| c.is_ascii_lowercase())
                         .collect();
                     return Err(crate::error::ParseError::svelte(
                         "tag_invalid_placement",
-                        format!("{{@{tag_name_str} ...}} tag cannot be inside <textarea>"),
+                        format!("{{@{} ...}} tag cannot be inside <textarea>", tag_name_str),
                         (mustache_start, mustache_start),
                     ));
                 }
@@ -2651,11 +2590,11 @@ impl<'a> Parser<'a> {
                     let after_hash = trimmed_peek.get(1..).unwrap_or("");
                     let block_name: String = after_hash
                         .chars()
-                        .take_while(char::is_ascii_lowercase)
+                        .take_while(|c| c.is_ascii_lowercase())
                         .collect();
                     return Err(crate::error::ParseError::svelte(
                         "block_invalid_placement",
-                        format!("{{#{block_name} ...}} block cannot be inside <textarea>"),
+                        format!("{{#{} ...}} block cannot be inside <textarea>", block_name),
                         (mustache_start, mustache_start),
                     ));
                 }
@@ -2664,8 +2603,8 @@ impl<'a> Parser<'a> {
                 if self.index > text_start {
                     let text_content = &self.source[text_start..self.index];
                     nodes.push(TemplateNode::Text(Text {
-                        start: source_pos(text_start),
-                        end: source_pos(self.index),
+                        start: text_start as u32,
+                        end: self.index as u32,
                         raw: Cow::Borrowed(text_content),
                         data: Cow::Borrowed(text_content),
                     }));
@@ -2685,8 +2624,8 @@ impl<'a> Parser<'a> {
         if self.index > text_start {
             let text_content = &self.source[text_start..self.index];
             nodes.push(TemplateNode::Text(Text {
-                start: source_pos(text_start),
-                end: source_pos(self.index),
+                start: text_start as u32,
+                end: self.index as u32,
                 raw: text_content.to_string().into(),
                 data: text_content.to_string().into(),
             }));
@@ -2710,7 +2649,7 @@ fn is_valid_element_name(name: &str) -> bool {
 
     // Check for doctype-like: !DOCTYPE, etc.
     if bytes[0] == b'!' {
-        return bytes.len() > 1 && bytes[1..].iter().all(u8::is_ascii_alphabetic);
+        return bytes.len() > 1 && bytes[1..].iter().all(|b| b.is_ascii_alphabetic());
     }
 
     // Must start with a letter
@@ -2727,7 +2666,7 @@ fn is_valid_element_name(name: &str) -> bool {
         if before_bytes.is_empty() || !before_bytes[0].is_ascii_alphabetic() {
             return false;
         }
-        if !before_bytes[1..].iter().all(u8::is_ascii_alphanumeric) {
+        if !before_bytes[1..].iter().all(|b| b.is_ascii_alphanumeric()) {
             return false;
         }
 
@@ -2765,10 +2704,10 @@ fn is_valid_element_name(name: &str) -> bool {
 }
 
 /// Check if a name is a valid Svelte component name.
-/// Based on: /^(?:\p{Lu}[$\`u200c\u200d\p{ID_Continue`}.]*|\`p{ID_Start`}[$\`u200c\u200d\p{ID_Continue`}]*(?:\.[$\`u200c\u200d\p{ID_Continue`}]+)+)$/u
+/// Based on: /^(?:\p{Lu}[$\u200c\u200d\p{ID_Continue}.]*|\p{ID_Start}[$\u200c\u200d\p{ID_Continue}]*(?:\.[$\u200c\u200d\p{ID_Continue}]+)+)$/u
 ///
 /// Simplified implementation that handles the common cases:
-/// 1. Uppercase starting names: Component, `MyComponent`, Cæжαकン中
+/// 1. Uppercase starting names: Component, MyComponent, Cæжαकン中
 /// 2. Dot notation: foo.Bar, a.b.C
 fn is_valid_component_name(name: &str) -> bool {
     if name.is_empty() {
@@ -2827,13 +2766,13 @@ fn is_valid_component_name(name: &str) -> bool {
 }
 
 /// Check if a character can start a JavaScript identifier.
-/// Simplified version of Unicode `ID_Start`.
+/// Simplified version of Unicode ID_Start.
 fn is_identifier_start(c: char) -> bool {
     c.is_alphabetic() || c == '_' || c == '$'
 }
 
 /// Check if a character can continue a JavaScript identifier.
-/// Simplified version of Unicode `ID_Continue`.
+/// Simplified version of Unicode ID_Continue.
 fn is_identifier_continue(c: char) -> bool {
     c.is_alphanumeric() || c == '_' || c == '$' || c == '\u{200c}' || c == '\u{200d}'
 }

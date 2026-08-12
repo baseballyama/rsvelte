@@ -132,7 +132,7 @@ fn classify(
     }
 }
 
-impl<'ast> Visit<'ast> for ReactiveUpdateCollector<'_> {
+impl<'a, 'ast> Visit<'ast> for ReactiveUpdateCollector<'a> {
     fn visit_update_expression(&mut self, expr: &UpdateExpression<'ast>) {
         walk::walk_update_expression(self, expr);
 
@@ -153,28 +153,28 @@ impl<'ast> Visit<'ast> for ReactiveUpdateCollector<'_> {
 
         let rewrite = match (kind, expr.operator, expr.prefix) {
             (Kind::Prop, UpdateOperator::Increment, false) => {
-                format!("$.update_prop({name})")
+                format!("$.update_prop({})", name)
             }
             (Kind::Prop, UpdateOperator::Decrement, false) => {
-                format!("$.update_prop({name}, -1)")
+                format!("$.update_prop({}, -1)", name)
             }
             (Kind::Prop, UpdateOperator::Increment, true) => {
-                format!("$.update_pre_prop({name})")
+                format!("$.update_pre_prop({})", name)
             }
             (Kind::Prop, UpdateOperator::Decrement, true) => {
-                format!("$.update_pre_prop({name}, -1)")
+                format!("$.update_pre_prop({}, -1)", name)
             }
             (Kind::State, UpdateOperator::Increment, false) => {
-                format!("$.update({name})")
+                format!("$.update({})", name)
             }
             (Kind::State, UpdateOperator::Decrement, false) => {
-                format!("$.update({name}, -1)")
+                format!("$.update({}, -1)", name)
             }
             (Kind::State, UpdateOperator::Increment, true) => {
-                format!("$.update_pre({name})")
+                format!("$.update_pre({})", name)
             }
             (Kind::State, UpdateOperator::Decrement, true) => {
-                format!("$.update_pre({name}, -1)")
+                format!("$.update_pre({}, -1)", name)
             }
         };
 
@@ -339,7 +339,7 @@ thread_local! {
 }
 
 /// In-place equivalent of [`transform_reactive_update_ast`].
-pub fn transform_reactive_update_in_place(
+pub(crate) fn transform_reactive_update_in_place(
     source: &str,
     prop_vars: &[String],
     state_vars: &[String],
@@ -384,7 +384,7 @@ struct ReactiveUpdateRewriter<'a, 'b> {
     changed: bool,
 }
 
-impl<'a> oxc_ast_visit::VisitMut<'a> for ReactiveUpdateRewriter<'a, '_> {
+impl<'a, 'b> oxc_ast_visit::VisitMut<'a> for ReactiveUpdateRewriter<'a, 'b> {
     fn visit_expression(&mut self, expr: &mut Expression<'a>) {
         oxc_ast_visit::walk_mut::walk_expression(self, expr);
 

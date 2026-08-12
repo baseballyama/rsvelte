@@ -345,9 +345,7 @@ fn anchors_a_region(stmt: &Statement<'_>) -> bool {
 /// relative to — `reparse_statement` trims its input.
 fn reparse_origin(src: &str, start: u32, end: u32) -> u32 {
     let slice = &src[start as usize..end as usize];
-    start
-        + u32::try_from(slice.len() - slice.trim_start().len())
-            .expect("source positions are limited to u32")
+    start + (slice.len() - slice.trim_start().len()) as u32
 }
 
 /// Return the end of comments that trail `stmt_end` on its physical line.
@@ -450,7 +448,7 @@ fn classify_comments(body: &[Statement<'_>], all: &[Comment]) {
         match body.get(cur) {
             None => super::comment_stats::bump::SCRIPT_COMMENTS_TRAILING(1),
             Some(s) if c.span.end <= s.span().start => {
-                super::comment_stats::bump::SCRIPT_COMMENTS_LEADING(1);
+                super::comment_stats::bump::SCRIPT_COMMENTS_LEADING(1)
             }
             Some(_) => super::comment_stats::bump::SCRIPT_COMMENTS_INTERIOR(1),
         }
@@ -541,7 +539,7 @@ fn transform_script<'a>(
     // lets esrap's cursor flush them from the enclosing body for the same effect.
     let mut region_start: u32 = 0;
 
-    for stmt in &ret.program.body {
+    for stmt in ret.program.body.iter() {
         let stmt_span = stmt.span();
         let out_len = out.len();
         let sink_len = import_sink.as_deref().map_or(0, Vec::len);
@@ -818,7 +816,7 @@ fn transform_script<'a>(
     // statement — class DECLARATIONS, class EXPRESSIONS (`const C = class {…}`)
     // and NESTED classes alike (写经 `PropertyDefinition.js`, a tree-wide
     // visitor). Cheap: the walk only descends, firing on `PropertyDefinition`s.
-    for stmt in &mut out {
+    for stmt in out.iter_mut() {
         lower_class_field_runes(stmt, state);
     }
     // Lower `$state` / `$derived` / `$derived.by` runes and remove `$effect` /
@@ -831,7 +829,7 @@ fn transform_script<'a>(
     // fire at every nesting depth. This pass descends into nested function /
     // block bodies and applies the same lowerings, tracking the set of names
     // that became `$.derived(...)` so their reads turn into `name()` calls.
-    for stmt in &mut out {
+    for stmt in out.iter_mut() {
         lower_nested_runes(stmt, state);
     }
     // Lower `$effect.tracking()` → `false`, `$effect.root(…)` → `() => {}`,
@@ -842,7 +840,7 @@ fn transform_script<'a>(
     // visitor). The bare top-level `$effect(…)` / `$effect.pre(…)` STATEMENTS are
     // already removed above; this only handles the value-position runes that the
     // statement-removal path does not reach.
-    for stmt in &mut out {
+    for stmt in out.iter_mut() {
         lower_effect_value_runes(stmt, state);
     }
     out
@@ -1101,7 +1099,7 @@ impl<'a> NestedRuneLower<'a> {
     /// derived names; expands `$state`/`$derived` identifier declarators.
     fn lower_var_decl(&mut self, vd: &mut oxc_ast::ast::VariableDeclaration<'a>) {
         let b = self.b;
-        for d in &mut vd.declarations {
+        for d in vd.declarations.iter_mut() {
             let Some(rune) = d.init.as_ref().and_then(detect_decl_rune) else {
                 // A plain re-declaration of a name shadows any outer derived
                 // binding for this frame.
@@ -1269,7 +1267,7 @@ struct ClassFieldRuneLower<'a, 'b> {
     analysis: &'b crate::compiler::phases::phase2_analyze::ComponentAnalysis,
 }
 
-impl<'a> ClassFieldRuneLower<'a, '_> {
+impl<'a, 'b> ClassFieldRuneLower<'a, 'b> {
     /// Lower a `$state` / `$state.raw` / `$derived` / `$derived.by` property
     /// initializer in place: `count = $state(0)` → `count = 0`, etc. Returns the
     /// detected rune (so the caller can decide whether public-`$derived` needs
@@ -1346,11 +1344,12 @@ impl<'a> ClassFieldRuneLower<'a, '_> {
         let lowered = match rune {
             // `$state(x)` → `x`; arg-less `$state()` → `void 0`.
             DeclRune::State => arg.unwrap_or_else(|| b.void0()),
-            DeclRune::Derived => arg.map_or_else(
-                || b.void0(),
-                |e| b.call("$.derived", vec![b.thunk(e, false)]),
-            ),
-            DeclRune::DerivedBy => arg.map_or_else(|| b.void0(), |e| b.call("$.derived", vec![e])),
+            DeclRune::Derived => arg
+                .map(|e| b.call("$.derived", vec![b.thunk(e, false)]))
+                .unwrap_or_else(|| b.void0()),
+            DeclRune::DerivedBy => arg
+                .map(|e| b.call("$.derived", vec![e]))
+                .unwrap_or_else(|| b.void0()),
             // `$props` / `$props.id` are not valid class-field runes.
             DeclRune::Props | DeclRune::PropsId => return None,
         };
@@ -1363,7 +1362,7 @@ impl<'a> ClassFieldRuneLower<'a, '_> {
     fn collect_ctor_fields(&self, class: &oxc_ast::ast::Class<'a>) -> Vec<CtorField> {
         use oxc_ast::ast::{ClassElement, Expression as E, MethodDefinitionKind, Statement};
         let mut fields = Vec::new();
-        for el in &class.body.body {
+        for el in class.body.body.iter() {
             let ClassElement::MethodDefinition(m) = el else {
                 continue;
             };
@@ -1373,7 +1372,7 @@ impl<'a> ClassFieldRuneLower<'a, '_> {
             let Some(body) = m.value.body.as_ref() else {
                 continue;
             };
-            for stmt in &body.statements {
+            for stmt in body.statements.iter() {
                 let Statement::ExpressionStatement(es) = stmt else {
                     continue;
                 };
@@ -1408,7 +1407,7 @@ impl<'a> ClassFieldRuneLower<'a, '_> {
             AssignmentTarget as AT, ClassElement, Expression as E, MethodDefinitionKind, Statement,
         };
         let b = self.b;
-        for el in &mut class.body.body {
+        for el in class.body.body.iter_mut() {
             let ClassElement::MethodDefinition(m) = el else {
                 continue;
             };
@@ -1418,7 +1417,7 @@ impl<'a> ClassFieldRuneLower<'a, '_> {
             let Some(body) = m.value.body.as_mut() else {
                 continue;
             };
-            for stmt in &mut body.statements {
+            for stmt in body.statements.iter_mut() {
                 let Statement::ExpressionStatement(es) = stmt else {
                     continue;
                 };
@@ -1587,7 +1586,7 @@ fn ctor_target_name(target: &oxc_ast::ast::AssignmentTarget) -> Option<(String, 
     }
 }
 
-impl<'a> VisitMut<'a> for ClassFieldRuneLower<'a, '_> {
+impl<'a, 'b> VisitMut<'a> for ClassFieldRuneLower<'a, 'b> {
     /// Rebuild a runes-mode class body so public `$derived` / `$derived.by`
     /// fields become a private backing field + `get`/`set` accessor pair (写经
     /// `3-transform/server/visitors/ClassBody.js`):
@@ -1630,13 +1629,13 @@ impl<'a> VisitMut<'a> for ClassFieldRuneLower<'a, '_> {
         // `ClassBody.js`, which only collects PropertyDefinition / MethodDefinition
         // private keys (NOT constructor-declared private fields).
         let mut private_ids: Vec<String> = Vec::new();
-        for el in &class.body.body {
+        for el in class.body.body.iter() {
             let key = match el {
                 ClassElement::PropertyDefinition(p) => Some(&p.key),
                 ClassElement::MethodDefinition(m) => Some(&m.key),
                 _ => None,
             };
-            if let Some(name) = key.and_then(oxc_ast::ast::PropertyKey::private_name) {
+            if let Some(name) = key.and_then(|k| k.private_name()) {
                 private_ids.push(name.as_str().to_string());
             }
         }
@@ -1651,7 +1650,7 @@ impl<'a> VisitMut<'a> for ClassFieldRuneLower<'a, '_> {
         // constructor assignments and the inserted accessors agree.
         let ctor_fields = self.collect_ctor_fields(class);
         let mut backing: rustc_hash::FxHashMap<String, String> = rustc_hash::FxHashMap::default();
-        for cf in &ctor_fields {
+        for cf in ctor_fields.iter() {
             if cf.is_private {
                 continue;
             }
@@ -1677,7 +1676,7 @@ impl<'a> VisitMut<'a> for ClassFieldRuneLower<'a, '_> {
         // `$derived` / `$derived.by` fields, at the TOP of the body (写经 server
         // `ClassBody.js`: the constructor-AssignmentExpression loop runs before the
         // body-replacement loop).
-        for cf in &ctor_fields {
+        for cf in ctor_fields.iter() {
             if cf.is_private || !matches!(cf.rune, DeclRune::Derived | DeclRune::DerivedBy) {
                 continue;
             }
@@ -1829,7 +1828,7 @@ fn reparse_var_decl_whole<'a>(
     let Statement::VariableDeclaration(out_vd) = &mut stmt else {
         return None;
     };
-    for d in &mut out_vd.declarations {
+    for d in out_vd.declarations.iter_mut() {
         if let Some(init) = d.init.as_mut() {
             super::read_wrap::wrap_reads(
                 init,
@@ -1927,7 +1926,7 @@ fn lower_variable_declaration<'a>(
     // statement, because the source had no top-level comma between them.
     let mut out: Vec<Statement<'a>> = Vec::new();
 
-    for d in &vd.declarations {
+    for d in vd.declarations.iter() {
         // Per-source-declarator pair accumulator.
         let mut decls: Vec<(oxc_ast::ast::BindingPattern<'a>, Option<OxcExpression<'a>>)> =
             Vec::new();
@@ -2440,7 +2439,7 @@ fn extract_derived_paths<'a>(
                 let base = expression_clone(&expression, state);
                 let computed = prop.computed;
                 let object_expression = prop_member_access(b, base, prop.key, computed, |key| {
-                    wrap_derived_key_reads(key, state);
+                    wrap_derived_key_reads(key, state)
                 });
                 extract_derived_paths(prop.value, object_expression, state, paths, inserts);
             }
@@ -2704,7 +2703,7 @@ fn expr_has_await(expr: &OxcExpression) -> bool {
 /// Walk a `$props()` LHS pattern and rewrite every `$bindable(...)` default in
 /// an `AssignmentPattern` to its first argument (or `void 0` for the no-arg
 /// form), mirroring upstream's `VariableDeclaration.js:42-52` `AssignmentPattern`
-/// walk: `node.right` is a `$bindable(...)` `CallExpression` → replace with
+/// walk: `node.right` is a `$bindable(...)` CallExpression → replace with
 /// `node.right.arguments[0]` (visited) or `b.void0`. Any other default is left
 /// untouched. The replacement argument is read-wrapped (upstream `context.visit`).
 fn strip_bindable_defaults<'a>(
@@ -2743,7 +2742,7 @@ struct BindableStrip<'a, 'b> {
     analysis: &'b crate::compiler::phases::phase2_analyze::ComponentAnalysis,
 }
 
-impl<'a> VisitMut<'a> for BindableStrip<'a, '_> {
+impl<'a, 'b> VisitMut<'a> for BindableStrip<'a, 'b> {
     fn visit_assignment_pattern(&mut self, it: &mut oxc_ast::ast::AssignmentPattern<'a>) {
         if let Some(replacement) = bindable_default(&mut it.right, self.b) {
             it.right = replacement;
@@ -2909,7 +2908,7 @@ fn transform_script_legacy<'a>(
     let mut reactive_leading_comment_pending = false;
     let mut deferred_reactive_comment: Option<usize> = None;
 
-    for stmt in &ret.program.body {
+    for stmt in ret.program.body.iter() {
         let stmt_span = stmt.span();
         let is_reactive = matches!(stmt, Statement::LabeledStatement(ls) if is_instance && ls.label.name.as_str() == "$");
         let reactive_leading_comment = is_reactive
@@ -3251,7 +3250,7 @@ fn transform_script_legacy<'a>(
 /// topologically order the reactive run (写経 `order_reactive_statements`).
 struct ReactiveEntry<'a> {
     stmt: Statement<'a>,
-    /// `legacy_reactive` var names assigned to by this statement (hoisted-decl).
+    /// legacy_reactive var names assigned to by this statement (hoisted-decl).
     decl_names: Vec<String>,
     /// Instance-scope binding indices this statement assigns to.
     assigns: Vec<usize>,
@@ -3340,7 +3339,7 @@ fn reactive_assignment_indices(body: &Statement, state: &ServerTransformState) -
     struct AssignCollector<'o> {
         out: &'o mut Vec<String>,
     }
-    impl<'a> oxc_ast_visit::Visit<'a> for AssignCollector<'_> {
+    impl<'a, 'o> oxc_ast_visit::Visit<'a> for AssignCollector<'o> {
         fn visit_assignment_expression(&mut self, it: &oxc_ast::ast::AssignmentExpression<'a>) {
             collect_assignment_target_idents(&it.left, self.out);
             // Recurse so a nested assignment in the RHS is also captured.
@@ -3402,7 +3401,7 @@ fn collect_read_identifiers_in_statement(stmt: &Statement, out: &mut Vec<String>
     struct IdentCollector<'o> {
         out: &'o mut Vec<String>,
     }
-    impl<'a> oxc_ast_visit::Visit<'a> for IdentCollector<'_> {
+    impl<'a, 'o> oxc_ast_visit::Visit<'a> for IdentCollector<'o> {
         fn visit_identifier_reference(&mut self, it: &oxc_ast::ast::IdentifierReference<'a>) {
             let name = it.name.to_string();
             if !self.out.contains(&name) {
@@ -3455,7 +3454,7 @@ fn lower_legacy_var_decl<'a>(
     // stays COMBINED inside that one statement.
     let mut out: Vec<Statement<'a>> = Vec::new();
 
-    for d in &vd.declarations {
+    for d in vd.declarations.iter() {
         let mut decls: Vec<(oxc_ast::ast::BindingPattern<'a>, Option<OxcExpression<'a>>)> =
             Vec::new();
         // 写经 upstream `VariableDeclaration.js` legacy (non-runes) branch
@@ -3643,7 +3642,7 @@ fn collect_binding_pattern_idents(pat: &oxc_ast::ast::BindingPattern, out: &mut 
     match pat {
         P::BindingIdentifier(id) => out.push(id.name.to_string()),
         P::ObjectPattern(obj) => {
-            for prop in &obj.properties {
+            for prop in obj.properties.iter() {
                 collect_binding_pattern_idents(&prop.value, out);
             }
             if let Some(rest) = &obj.rest {
@@ -3795,7 +3794,7 @@ fn is_simple_default(init: &OxcExpression) -> bool {
     }
 }
 
-/// Collect the `legacy_reactive` var names assigned to by a `$: <name> = …` body,
+/// Collect the legacy_reactive var names assigned to by a `$: <name> = …` body,
 /// so a hoisted `let <name>;` is emitted (写经 the `extract_identifiers` walk
 /// over the assignment LHS, filtered to `binding.kind === 'legacy_reactive'`).
 fn collect_legacy_reactive_decls(
@@ -3849,7 +3848,7 @@ fn collect_assignment_target_idents(
             }
         }
         T::ObjectAssignmentTarget(obj) => {
-            for prop in &obj.properties {
+            for prop in obj.properties.iter() {
                 match prop {
                     oxc_ast::ast::AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(
                         p,
@@ -3919,9 +3918,9 @@ pub fn transform_instance<'a>(
     // false for every ordinary component, so this never touches sync output.
     if state.eval_inputs.use_async && !body.is_empty() {
         use crate::compiler::phases::phase3_transform::profile;
-        let print_start = profile::timer_start();
+        let _t = profile::timer_start();
         let body_text = state.b.program(body_clone(state, &body)).pipe_print();
-        let print_elapsed = profile::timer_elapsed(print_start);
+        let print_elapsed = profile::timer_elapsed(_t);
         if let Some(result) =
             crate::compiler::phases::phase3_transform::shared::async_body::transform_async_body_dev(
                 body_text.trim(),
@@ -3929,9 +3928,9 @@ pub fn transform_instance<'a>(
                 state.options.dev,
             )
         {
-            let reparse_start = profile::timer_start();
+            let _t = profile::timer_start();
             let reparsed = state.reparse_program(result.output.trim());
-            profile::record_esrap_pipe(print_elapsed, profile::timer_elapsed(reparse_start));
+            profile::record_esrap_pipe(print_elapsed, profile::timer_elapsed(_t));
             if !reparsed.is_empty() {
                 return reparsed;
             }
@@ -3957,7 +3956,7 @@ pub fn transform_instance<'a>(
     // A `$$inspect_hole` expands to TWO statements, so rebuild the body rather
     // than edit in place.
     let mut rebuilt: Vec<Statement<'a>> = Vec::with_capacity(body.len());
-    for stmt in body {
+    for stmt in body.into_iter() {
         if is_inspect_hole_stmt(&stmt) {
             let start = stmt.span().start;
             rebuilt.push(state.b.empty_kept(start));
@@ -4006,7 +4005,7 @@ fn is_async_hole_stmt(stmt: &Statement) -> bool {
 trait PipePrint {
     fn pipe_print(self) -> String;
 }
-impl PipePrint for oxc_ast::ast::Program<'_> {
+impl<'a> PipePrint for oxc_ast::ast::Program<'a> {
     fn pipe_print(self) -> String {
         rsvelte_esrap::print(&self, "")
     }

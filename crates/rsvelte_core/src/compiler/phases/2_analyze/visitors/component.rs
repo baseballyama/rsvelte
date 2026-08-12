@@ -13,7 +13,7 @@ use crate::ast::template::Component;
 ///
 /// This is the entry point visitor for Component nodes, which determines
 /// whether a component is "dynamic" (can change at runtime) and then
-/// delegates to the shared `visit_component` function for full analysis.
+/// delegates to the shared visit_component function for full analysis.
 ///
 /// Corresponds to `Component(node, context)` in Component.js.
 pub fn visit<'a, 'b: 'a>(
@@ -69,8 +69,7 @@ pub fn visit<'a, 'b: 'a>(
         let reference_start = component.start + 1;
         binding.add_reference(
             reference_start,
-            reference_start
-                + u32::try_from(base_name.len()).expect("source positions are limited to u32"),
+            reference_start + base_name.len() as u32,
             true,
             false,
             false,

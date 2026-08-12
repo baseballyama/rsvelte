@@ -142,7 +142,6 @@ pub(crate) fn record_ts_script(reparsed: bool, scan_bytes: usize) {
 pub(crate) fn record_ts_script(_reparsed: bool, _scan_bytes: usize) {}
 
 #[cfg(feature = "measure-pa-split")]
-#[must_use]
 pub fn take_store_subs() -> StoreSubsCounters {
     STORE_SUBS.with(|c| c.replace(StoreSubsCounters::default()))
 }

@@ -18,7 +18,7 @@
 //! - **Line/column tracking**: This implementation computes ESTree-style `loc` fields
 //!   (with `line` and `column`) from OXC's byte offsets using pre-computed line offsets.
 //! - **Comment handling**: Comments are attached as `leadingComments` and `trailingComments`
-//!   following the `ESTree` convention. Block comments have their indentation normalized.
+//!   following the ESTree convention. Block comments have their indentation normalized.
 
 use std::cell::RefCell;
 
@@ -40,18 +40,6 @@ use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
 use crate::compiler::utils::is_escaped;
 use compact_str::CompactString;
 
-fn source_pos(offset: usize) -> u32 {
-    u32::try_from(offset).expect("source positions are limited to u32")
-}
-
-fn source_pos_u64(offset: u64) -> u32 {
-    u32::try_from(offset).expect("source positions are limited to u32")
-}
-
-fn source_index_u64(offset: u64) -> usize {
-    usize::try_from(offset).expect("source positions must fit usize")
-}
-
 // Thread-local OXC allocator reused across all expression parses to avoid
 // repeated allocator creation/destruction overhead. The allocator is reset
 // before each use, which clears all allocations while keeping the underlying
@@ -70,13 +58,13 @@ thread_local! {
 /// Push a comment to the per-thread expression-comment sink. Called from
 /// the OXC expression / script parse pathways so the Parser can later move
 /// the comments into `Root.comments`.
-pub fn push_expr_comment(comment: crate::ast::template::JsComment) {
+pub(crate) fn push_expr_comment(comment: crate::ast::template::JsComment) {
     EXPR_COMMENT_SINK.with(|sink| sink.borrow_mut().push(comment));
 }
 
 /// Drain the per-thread expression-comment sink. Returns all comments
 /// collected since the last drain.
-pub fn take_expr_comments() -> Vec<crate::ast::template::JsComment> {
+pub(crate) fn take_expr_comments() -> Vec<crate::ast::template::JsComment> {
     EXPR_COMMENT_SINK.with(|sink| std::mem::take(&mut *sink.borrow_mut()))
 }
 
@@ -93,11 +81,11 @@ where
     })
 }
 
-/// Extract a `JsNode` from an Expression, avoiding clone/conversion overhead.
-/// For Typed variant: returns the inner `JsNode` directly (zero cost).
-/// For Value variant: wraps the Value in `JsNode::Raw` (no clone).
+/// Extract a JsNode from an Expression, avoiding clone/conversion overhead.
+/// For Typed variant: returns the inner JsNode directly (zero cost).
+/// For Value variant: wraps the Value in JsNode::Raw (no clone).
 #[inline]
-fn expr_to_node(expr: Expression<'_>) -> JsNode {
+fn expr_to_node<'a>(expr: Expression<'a>) -> JsNode {
     match expr {
         Expression::Typed(te) => te.node,
         Expression::Lazy { .. } => {
@@ -136,7 +124,7 @@ fn normalize_block_comment_indentation(value: &str, source: &str, comment_start:
     let mut indent_end = line_start;
     while indent_end < source.len() {
         match source.as_bytes().get(indent_end) {
-            Some(b' ' | b'\t') => indent_end += 1,
+            Some(b' ') | Some(b'\t') => indent_end += 1,
             _ => break,
         }
     }
@@ -147,11 +135,11 @@ fn normalize_block_comment_indentation(value: &str, source: &str, comment_start:
     }
 
     // Remove this indentation from the start of each line in the comment
-    let pattern = format!("\n{indentation}");
+    let pattern = format!("\n{}", indentation);
     value.replace(&pattern, "\n")
 }
 
-/// Create a comment object in `ESTree` format.
+/// Create a comment object in ESTree format.
 ///
 /// # Arguments
 /// * `kind` - The comment kind (Line or Block)
@@ -174,8 +162,8 @@ fn create_comment_object(
     };
 
     JsNode::Comment {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         comment_type: CompactString::from(comment_type),
         value: CompactString::from(value),
     }
@@ -187,7 +175,7 @@ fn line_column_for(offset: usize, line_offsets: &[usize]) -> crate::ast::span::L
         return crate::ast::span::LineColumn {
             line: 1,
             column: 0,
-            character: source_pos(offset),
+            character: offset as u32,
         };
     }
     let line = line_offsets
@@ -195,9 +183,9 @@ fn line_column_for(offset: usize, line_offsets: &[usize]) -> crate::ast::span::L
         .saturating_sub(1);
     let line_start = line_offsets.get(line).copied().unwrap_or(0);
     crate::ast::span::LineColumn {
-        line: source_pos(line + 1),
-        column: source_pos(offset - line_start),
-        character: source_pos(offset),
+        line: (line + 1) as u32,
+        column: (offset - line_start) as u32,
+        character: offset as u32,
     }
 }
 
@@ -223,8 +211,8 @@ fn record_oxc_comment(
     };
     push_expr_comment(crate::ast::template::JsComment {
         kind: comment_kind,
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         value: compact_str::CompactString::from(value),
         loc,
     });
@@ -271,8 +259,8 @@ fn get_loose_identifier<'a>(
         // for shorthand attributes (e.g., <div {}>), but not for regular attributes
         // (e.g., <div foo={}>).
         return Some(Expression::from_node(JsNode::Identifier {
-            start: source_pos(start),
-            end: source_pos(end),
+            start: start as u32,
+            end: end as u32,
             loc: None,
             name: CompactString::from(""),
             optional: false,
@@ -391,8 +379,8 @@ fn try_parse_unary_not<'a>(
     let arg = try_parse_atom(arena, inner, inner_bytes, offset + 1, line_offsets)?;
 
     Some(Expression::from_node(JsNode::UnaryExpression {
-        start: source_pos(offset),
-        end: source_pos(offset + content.len()),
+        start: offset as u32,
+        end: (offset + content.len()) as u32,
         loc: create_typed_loc(offset, offset + content.len(), line_offsets),
         operator: CompactString::from("!"),
         prefix: true,
@@ -542,8 +530,8 @@ fn try_parse_call_expression<'a>(
 
     let total_end = offset + content.len();
     Some(Expression::from_node(JsNode::CallExpression {
-        start: source_pos(offset),
-        end: source_pos(total_end),
+        start: offset as u32,
+        end: total_end as u32,
         loc: create_typed_loc(offset, total_end, line_offsets),
         callee: arena.alloc_js_node(expr_to_node(callee)),
         arguments: arena.alloc_js_children(arguments),
@@ -573,8 +561,8 @@ fn try_parse_update_expression<'a>(
             let arg = try_parse_ident_or_member(arena, arg_str, arg_bytes, offset, line_offsets)?;
             let op = if bytes[len - 1] == b'+' { "++" } else { "--" };
             return Some(Expression::from_node(JsNode::UpdateExpression {
-                start: source_pos(offset),
-                end: source_pos(offset + len),
+                start: offset as u32,
+                end: (offset + len) as u32,
                 loc: create_typed_loc(offset, offset + len, line_offsets),
                 operator: CompactString::from(op),
                 argument: arena.alloc_js_node(expr_to_node(arg)),
@@ -592,8 +580,8 @@ fn try_parse_update_expression<'a>(
                 try_parse_ident_or_member(arena, arg_str, arg_bytes, offset + 2, line_offsets)?;
             let op = if bytes[0] == b'+' { "++" } else { "--" };
             return Some(Expression::from_node(JsNode::UpdateExpression {
-                start: source_pos(offset),
-                end: source_pos(offset + len),
+                start: offset as u32,
+                end: (offset + len) as u32,
                 loc: create_typed_loc(offset, offset + len, line_offsets),
                 operator: CompactString::from(op),
                 argument: arena.alloc_js_node(expr_to_node(arg)),
@@ -715,8 +703,8 @@ fn try_parse_ternary<'a>(
 
     let total_end = offset + content.len();
     Some(Expression::from_node(JsNode::ConditionalExpression {
-        start: source_pos(offset),
-        end: source_pos(total_end),
+        start: offset as u32,
+        end: total_end as u32,
         loc: create_typed_loc(offset, total_end, line_offsets),
         test: arena.alloc_js_node(expr_to_node(test)),
         consequent: arena.alloc_js_node(expr_to_node(cons)),
@@ -862,8 +850,8 @@ fn try_parse_arrow_function<'a>(
             let p_start = region_base + cursor + lead_ws;
             let p_end = p_start + p.len();
             params_nodes.push(JsNode::Identifier {
-                start: source_pos(p_start),
-                end: source_pos(p_end),
+                start: p_start as u32,
+                end: p_end as u32,
                 loc: create_typed_loc(p_start, p_end, line_offsets),
                 name: CompactString::from(p),
                 optional: false,
@@ -876,8 +864,8 @@ fn try_parse_arrow_function<'a>(
 
     let total_end = offset + content.len();
     Some(Expression::from_node(JsNode::ArrowFunctionExpression {
-        start: source_pos(offset),
-        end: source_pos(total_end),
+        start: offset as u32,
+        end: total_end as u32,
         loc: create_typed_loc(offset, total_end, line_offsets),
         id: None,
         params,
@@ -968,16 +956,16 @@ fn try_parse_compound_expression<'a>(
     // Determine if it's binary or logical
     match op_str {
         "&&" | "||" | "??" => Some(Expression::from_node(JsNode::LogicalExpression {
-            start: source_pos(offset),
-            end: source_pos(total_end),
+            start: offset as u32,
+            end: total_end as u32,
             loc: create_typed_loc(offset, total_end, line_offsets),
             left: arena.alloc_js_node(expr_to_node(left)),
             operator: CompactString::from(op_str),
             right: arena.alloc_js_node(expr_to_node(right)),
         })),
         _ => Some(Expression::from_node(JsNode::BinaryExpression {
-            start: source_pos(offset),
-            end: source_pos(total_end),
+            start: offset as u32,
+            end: total_end as u32,
             loc: create_typed_loc(offset, total_end, line_offsets),
             left: arena.alloc_js_node(expr_to_node(left)),
             operator: CompactString::from(op_str),
@@ -1034,7 +1022,7 @@ fn skip_simple_token(bytes: &[u8], start: usize) -> usize {
 }
 
 /// Try to match a binary or logical operator at position `i` in bytes.
-/// Returns (`operator_str`, `operator_byte_len`) or None.
+/// Returns (operator_str, operator_byte_len) or None.
 #[inline]
 fn match_operator(bytes: &[u8], i: usize) -> Option<(&'static str, usize)> {
     let remaining = bytes.len() - i;
@@ -1146,8 +1134,8 @@ fn try_parse_negative_numeric<'a>(
     );
 
     Some(Expression::from_node(JsNode::UnaryExpression {
-        start: source_pos(offset),
-        end: source_pos(offset + total_len),
+        start: offset as u32,
+        end: (offset + total_len) as u32,
         loc: create_typed_loc(offset, offset + total_len, line_offsets),
         operator: CompactString::from("-"),
         prefix: true,
@@ -1339,8 +1327,8 @@ fn try_parse_ident_or_member<'a>(
 
     for &(prop_name, seg_start, seg_end) in &segments[1..] {
         let prop_node = JsNode::Identifier {
-            start: source_pos(offset + seg_start),
-            end: source_pos(offset + seg_end),
+            start: (offset + seg_start) as u32,
+            end: (offset + seg_end) as u32,
             loc: create_typed_loc(offset + seg_start, offset + seg_end, line_offsets),
             name: CompactString::from(prop_name),
             optional: false,
@@ -1348,8 +1336,8 @@ fn try_parse_ident_or_member<'a>(
         };
 
         result = Expression::from_node(JsNode::MemberExpression {
-            start: source_pos(offset),
-            end: source_pos(offset + seg_end),
+            start: offset as u32,
+            end: (offset + seg_end) as u32,
             loc: create_typed_loc(offset, offset + seg_end, line_offsets),
             object: arena.alloc_js_node(expr_to_node(result)),
             property: arena.alloc_js_node(prop_node),
@@ -1547,7 +1535,7 @@ pub fn parse_destructuring_pattern<'a>(
 /// Parse a JavaScript expression with a known end position.
 ///
 /// This is used when the expression's end position is already known (e.g., in await blocks
-/// where the expression ends at 'then' or 'catch'), to avoid `find_matching_bracket` finding
+/// where the expression ends at 'then' or 'catch'), to avoid find_matching_bracket finding
 /// the wrong closing bracket.
 ///
 /// # Arguments
@@ -1637,10 +1625,11 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
                     .labels
                     .first()
                     .map(|label| label.offset() as usize + label.len() as usize)
-                    .map_or(0, |wrapped_end| {
+                    .map(|wrapped_end| {
                         // Strip the leading `(` we added and clamp.
                         wrapped_end.saturating_sub(1).min(content.len())
-                    });
+                    })
+                    .unwrap_or(0);
                 return Some((first_error.message.to_string(), pos));
             }
             // Check for invalid assignment targets that OXC doesn't report as errors
@@ -1697,11 +1686,15 @@ pub fn check_params_parse_error(params: &str, ts: bool) -> Option<(String, usize
         };
         let result = OxcParser::new(allocator, &wrapped, source_type).parse();
         if let Some(first_error) = result.diagnostics.first() {
-            let pos = first_error.labels.first().map_or(0, |label| {
-                (label.offset() as usize)
-                    .saturating_sub(1)
-                    .min(params.len())
-            });
+            let pos = first_error
+                .labels
+                .first()
+                .map(|label| {
+                    (label.offset() as usize)
+                        .saturating_sub(1)
+                        .min(params.len())
+                })
+                .unwrap_or(0);
             return Some((first_error.message.to_string(), pos));
         }
         await_or_yield_in_params(&result.program, params).map(|(at, message)| {
@@ -1732,7 +1725,8 @@ pub fn check_js_statement_parse_error(content: &str, ts: bool) -> Option<(String
             let pos = first_error
                 .labels
                 .first()
-                .map_or(0, |label| (label.offset() as usize).min(content.len()));
+                .map(|label| (label.offset() as usize).min(content.len()))
+                .unwrap_or(0);
             return Some((first_error.message.to_string(), pos));
         }
         await_or_yield_in_params(&result.program, content)
@@ -1792,8 +1786,8 @@ fn create_invalid_identifier<'a>(
 ) -> Expression<'a> {
     // Note: Similar to get_loose_identifier, invalid identifiers don't include 'loc'
     Expression::from_node(JsNode::Identifier {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: None,
         name: CompactString::from(""),
         optional: false,
@@ -1803,7 +1797,7 @@ fn create_invalid_identifier<'a>(
 
 /// Check if an expression is an assignment to an invalid target (e.g., `42 = nope`).
 /// OXC may parse these without errors, but they should be treated as parse errors.
-fn is_invalid_assignment_expression(expr: &oxc_ast::ast::Expression<'_>) -> bool {
+fn is_invalid_assignment_expression<'a>(expr: &oxc_ast::ast::Expression<'a>) -> bool {
     // Unwrap parenthesized expressions
     let inner = match expr {
         oxc_ast::ast::Expression::ParenthesizedExpression(paren) => &paren.expression,
@@ -1819,13 +1813,13 @@ fn is_invalid_assignment_expression(expr: &oxc_ast::ast::Expression<'_>) -> bool
 /// Check if an assignment target is valid (identifier, member expression, etc.)
 fn is_valid_assignment_target(target: &oxc_ast::ast::AssignmentTarget) -> bool {
     match target {
+        oxc_ast::ast::AssignmentTarget::AssignmentTargetIdentifier(_) => true,
+        oxc_ast::ast::AssignmentTarget::StaticMemberExpression(_) => true,
+        oxc_ast::ast::AssignmentTarget::ComputedMemberExpression(_) => true,
+        oxc_ast::ast::AssignmentTarget::PrivateFieldExpression(_) => true,
         // Destructuring patterns are valid
-        oxc_ast::ast::AssignmentTarget::AssignmentTargetIdentifier(_)
-        | oxc_ast::ast::AssignmentTarget::StaticMemberExpression(_)
-        | oxc_ast::ast::AssignmentTarget::ComputedMemberExpression(_)
-        | oxc_ast::ast::AssignmentTarget::PrivateFieldExpression(_)
-        | oxc_ast::ast::AssignmentTarget::ArrayAssignmentTarget(_)
-        | oxc_ast::ast::AssignmentTarget::ObjectAssignmentTarget(_) => true,
+        oxc_ast::ast::AssignmentTarget::ArrayAssignmentTarget(_) => true,
+        oxc_ast::ast::AssignmentTarget::ObjectAssignmentTarget(_) => true,
         // TSAs and other targets
         _ => false,
     }
@@ -1884,7 +1878,7 @@ fn parse_expression_with_typescript<'a>(
                 // Mirror upstream `parser.root.comments`: every comment seen
                 // by acorn is pushed there in source order, *in addition* to
                 // being attached as leading/trailing on the inner node.
-                for comment in &result.program.comments {
+                for comment in result.program.comments.iter() {
                     let comment_start = offset + comment.span.start as usize - 1;
                     let comment_end = offset + comment.span.end as usize - 1;
                     let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
@@ -2082,8 +2076,8 @@ fn json_min_node_start_at_or_after(node: &Value, threshold: usize) -> Option<usi
                 if is_ast_node
                     && let Some(s) = map
                         .get("start")
-                        .and_then(serde_json::Value::as_u64)
-                        .map(source_index_u64)
+                        .and_then(|v| v.as_u64())
+                        .map(|v| v as usize)
                     && s >= threshold
                     && best.is_none_or(|b| s < b)
                 {
@@ -2121,8 +2115,8 @@ fn json_attach_leading_comment_at_start(
                 .is_some_and(|t| t != "Block" && t != "Line");
             let start = map
                 .get("start")
-                .and_then(serde_json::Value::as_u64)
-                .map(source_index_u64);
+                .and_then(|v| v.as_u64())
+                .map(|v| v as usize);
             if is_ast_node && start == Some(target_start) {
                 let entry = map
                     .entry("leadingComments".to_string())
@@ -2151,7 +2145,7 @@ fn json_attach_leading_comment_at_start(
     }
 }
 
-/// Unwrap `ParenthesizedExpression` to get the inner expression.
+/// Unwrap ParenthesizedExpression to get the inner expression.
 /// This is needed because we wrap expressions in parentheses for parsing.
 fn unwrap_parenthesized<'a>(expr: &'a OxcExpression<'a>) -> &'a OxcExpression<'a> {
     match expr {
@@ -2326,8 +2320,8 @@ pub fn parse_typescript_params<'a>(
                 let argument =
                     convert_binding_pattern(arena, &rest.rest.argument, offset - 1, line_offsets);
                 p.push(Expression::from_node(JsNode::RestElement {
-                    start: source_pos(rest_start),
-                    end: source_pos(rest_end),
+                    start: rest_start as u32,
+                    end: rest_end as u32,
                     loc: create_typed_loc(rest_start, rest_end, line_offsets),
                     argument: arena.alloc_js_node(argument),
                 }));
@@ -2396,7 +2390,8 @@ pub fn parse_typescript_params<'a>(
             let stripped_part = strip_optional_markers(part);
             let part_offset_in_content = content[search_from..]
                 .find(part)
-                .map_or(search_from, |p| search_from + p);
+                .map(|p| search_from + p)
+                .unwrap_or(search_from);
             search_from = part_offset_in_content + part.len();
             let mut single_wrapped = String::with_capacity(stripped_part.content.len() + 9);
             single_wrapped.push('(');
@@ -2441,7 +2436,8 @@ pub fn parse_typescript_params<'a>(
             if !part.is_empty() {
                 let part_pos = content[search_from..]
                     .find(part)
-                    .map_or(search_from, |p| search_from + p);
+                    .map(|p| search_from + p)
+                    .unwrap_or(search_from);
                 search_from = part_pos + part.len();
                 // Extract just the name (before colon for typed params)
                 let name = part.split(':').next().unwrap_or(part).trim_ws();
@@ -2458,7 +2454,7 @@ pub fn parse_typescript_params<'a>(
     params
 }
 
-/// Convert an OXC `FormalParameter` to our Expression format, remapping span positions
+/// Convert an OXC FormalParameter to our Expression format, remapping span positions
 /// to account for characters (optional markers `?`) that were removed before parsing.
 ///
 /// The `base_offset` is the position in the original source where the parameter content starts
@@ -2497,10 +2493,10 @@ fn convert_formal_parameter_with_remap<'a>(
 
     if let Some(obj) = val.as_object_mut() {
         // Fix start position
-        if let Some(start_val) = obj.get("start").and_then(serde_json::Value::as_u64) {
+        if let Some(start_val) = obj.get("start").and_then(|s| s.as_u64()) {
             // start_val = base_offset - 1 + oxc_start = base_offset + (oxc_start - 1)
             // = base_offset + cleaned_pos
-            let cleaned_pos = source_index_u64(start_val) - base_offset;
+            let cleaned_pos = start_val as usize - base_offset;
             let original_pos = base_offset + stripped.map_to_original(cleaned_pos);
             obj.set_field(
                 "start",
@@ -2509,8 +2505,8 @@ fn convert_formal_parameter_with_remap<'a>(
         }
 
         // Fix end position
-        if let Some(end_val) = obj.get("end").and_then(serde_json::Value::as_u64) {
-            let cleaned_pos = source_index_u64(end_val) - base_offset;
+        if let Some(end_val) = obj.get("end").and_then(|e| e.as_u64()) {
+            let cleaned_pos = end_val as usize - base_offset;
             let original_pos = base_offset + stripped.map_to_original(cleaned_pos);
             obj.set_field(
                 "end",
@@ -2524,16 +2520,16 @@ fn convert_formal_parameter_with_remap<'a>(
             && let Some(right) = obj.get_mut("right")
             && let Some(right_obj) = right.as_object_mut()
         {
-            if let Some(start_val) = right_obj.get("start").and_then(serde_json::Value::as_u64) {
-                let cleaned_pos = source_index_u64(start_val) - base_offset;
+            if let Some(start_val) = right_obj.get("start").and_then(|s| s.as_u64()) {
+                let cleaned_pos = start_val as usize - base_offset;
                 let original_pos = base_offset + stripped.map_to_original(cleaned_pos);
                 right_obj.set_field(
                     "start",
                     serde_json::Value::Number((original_pos as i64).into()),
                 );
             }
-            if let Some(end_val) = right_obj.get("end").and_then(serde_json::Value::as_u64) {
-                let cleaned_pos = source_index_u64(end_val) - base_offset;
+            if let Some(end_val) = right_obj.get("end").and_then(|e| e.as_u64()) {
+                let cleaned_pos = end_val as usize - base_offset;
                 let original_pos = base_offset + stripped.map_to_original(cleaned_pos);
                 right_obj.set_field(
                     "end",
@@ -2546,7 +2542,7 @@ fn convert_formal_parameter_with_remap<'a>(
     Expression::from_json(val)
 }
 
-/// Convert oxc `FormalParameter` to our Expression format with type annotations.
+/// Convert oxc FormalParameter to our Expression format with type annotations.
 /// Caller should pass pre-adjusted offset if needed (e.g., offset - 1 for paren-wrapped content).
 fn convert_formal_parameter<'a>(
     arena: &ParseArena,
@@ -2583,7 +2579,7 @@ fn convert_formal_parameter<'a>(
     convert_formal_parameter_inner(arena, param, adjusted_offset, line_offsets)
 }
 
-/// Inner implementation of `convert_formal_parameter` (without `TSParameterProperty` wrapping).
+/// Inner implementation of convert_formal_parameter (without TSParameterProperty wrapping).
 fn convert_formal_parameter_inner<'a>(
     arena: &ParseArena,
     param: &oxc_ast::ast::FormalParameter,
@@ -2627,8 +2623,8 @@ fn convert_formal_parameter_inner<'a>(
                 // extends the identifier span to include the `?`.
                 let end = adjusted_offset + id.span.end as usize + 1;
                 Expression::from_node(JsNode::Identifier {
-                    start: source_pos(start),
-                    end: source_pos(end),
+                    start: start as u32,
+                    end: end as u32,
                     loc: create_typed_loc(start, end, line_offsets),
                     name: CompactString::from(name),
                     optional: true,
@@ -2669,8 +2665,8 @@ fn convert_formal_parameter_inner<'a>(
         let right = convert_expression(arena, initializer, adjusted_offset + 1, line_offsets);
 
         return Expression::from_node(JsNode::AssignmentPattern {
-            start: source_pos(pattern_start),
-            end: source_pos(pattern_end),
+            start: pattern_start as u32,
+            end: pattern_end as u32,
             loc: create_typed_loc(pattern_start, pattern_end, line_offsets),
             left: arena.alloc_js_node(expr_to_node(pattern_expr)),
             right: arena.alloc_js_node(expr_to_node(right)),
@@ -2680,7 +2676,7 @@ fn convert_formal_parameter_inner<'a>(
     pattern_expr
 }
 
-/// Fold a `FormalParameter`'s type annotation into a destructuring-pattern
+/// Fold a FormalParameter's type annotation into a destructuring-pattern
 /// expression: extend the node's `end` to cover the annotation and attach a
 /// `typeAnnotation` field (mirroring the `BindingIdentifier` branch of
 /// `convert_formal_parameter_inner`). No-op when the parameter is untyped.
@@ -2703,26 +2699,26 @@ fn attach_param_type_annotation<'a>(
         convert_type_annotation_adjusted(arena, type_ann, adjusted_offset, line_offsets);
     let annotated_end = adjusted_offset + type_ann.span.end as usize;
     let mut node = expr_to_node(expr);
-    let (JsNode::ObjectPattern {
-        start,
-        end,
-        loc,
-        type_annotation,
-        ..
-    }
-    | JsNode::ArrayPattern {
-        start,
-        end,
-        loc,
-        type_annotation,
-        ..
-    }) = &mut node
-    else {
+    let (start, end, loc, type_annotation) = match &mut node {
+        JsNode::ObjectPattern {
+            start,
+            end,
+            loc,
+            type_annotation,
+            ..
+        }
+        | JsNode::ArrayPattern {
+            start,
+            end,
+            loc,
+            type_annotation,
+            ..
+        } => (start, end, loc, type_annotation),
         // The two callers only pass object/array patterns; anything else keeps
         // its spans rather than silently dropping the annotation.
-        return Expression::from_node(node);
+        _ => return Expression::from_node(node),
     };
-    *end = source_pos(annotated_end);
+    *end = annotated_end as u32;
     if let Some(new_loc) = create_typed_loc(*start as usize, annotated_end, line_offsets) {
         *loc = Some(new_loc);
     }
@@ -2730,7 +2726,7 @@ fn attach_param_type_annotation<'a>(
     Expression::from_node(node)
 }
 
-/// Convert oxc `ObjectPattern` to our Expression format (for function parameters).
+/// Convert oxc ObjectPattern to our Expression format (for function parameters).
 fn convert_object_pattern_to_expr<'a>(
     arena: &ParseArena,
     obj_pat: &oxc_ast::ast::ObjectPattern,
@@ -2759,8 +2755,8 @@ fn convert_object_pattern_to_expr<'a>(
                 line_offsets,
             );
             JsNode::Property {
-                start: source_pos(prop_start),
-                end: source_pos(prop_end),
+                start: prop_start as u32,
+                end: prop_end as u32,
                 loc: create_typed_loc(prop_start, prop_end, line_offsets),
                 method: false,
                 shorthand: prop.shorthand,
@@ -2782,23 +2778,23 @@ fn convert_object_pattern_to_expr<'a>(
             line_offsets,
         );
         properties.push(JsNode::RestElement {
-            start: source_pos(rest_start),
-            end: source_pos(rest_end),
+            start: rest_start as u32,
+            end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
             argument: arena.alloc_js_node(argument),
         });
     }
 
     Expression::from_node(JsNode::ObjectPattern {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         properties: arena.alloc_js_children(properties),
         type_annotation: None,
     })
 }
 
-/// Convert oxc `ArrayPattern` to our Expression format (for function parameters).
+/// Convert oxc ArrayPattern to our Expression format (for function parameters).
 fn convert_array_pattern_to_expr<'a>(
     arena: &ParseArena,
     arr_pat: &oxc_ast::ast::ArrayPattern,
@@ -2833,23 +2829,23 @@ fn convert_array_pattern_to_expr<'a>(
             line_offsets,
         );
         elements.push(Some(JsNode::RestElement {
-            start: source_pos(rest_start),
-            end: source_pos(rest_end),
+            start: rest_start as u32,
+            end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
             argument: arena.alloc_js_node(argument),
         }));
     }
 
     Expression::from_node(JsNode::ArrayPattern {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         elements,
         type_annotation: None,
     })
 }
 
-/// Convert oxc `AssignmentPattern` to our Expression format (for function parameters).
+/// Convert oxc AssignmentPattern to our Expression format (for function parameters).
 fn convert_assignment_pattern_to_expr<'a>(
     arena: &ParseArena,
     assign_pat: &oxc_ast::ast::AssignmentPattern,
@@ -2880,15 +2876,15 @@ fn convert_assignment_pattern_to_expr<'a>(
     right_obj.set_field("end", Value::Number((right_end as i64).into()));
 
     Expression::from_node(JsNode::AssignmentPattern {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         left: arena.alloc_js_node(left),
         right: arena.alloc_js_node(JsNode::from_value(Value::Object(right_obj))),
     })
 }
 
-/// Convert oxc `BindingPattern` to our JSON format (for function parameters).
+/// Convert oxc BindingPattern to our JSON format (for function parameters).
 fn convert_binding_pattern_for_param(
     arena: &ParseArena,
     pattern: &oxc_ast::ast::BindingPattern,
@@ -2997,7 +2993,7 @@ fn convert_binding_pattern_for_param(
 
 /// Typed object-pattern property-key converter (param path).
 ///
-/// Produces a typed `JsNode` (Identifier / `PrivateIdentifier` / converted
+/// Produces a typed `JsNode` (Identifier / PrivateIdentifier / converted
 /// expression) that serializes identically to the Value form, so object-pattern
 /// keys route through the typed analyze walker instead of `JsNode::Raw`. Falls
 /// back to `JsNode::Raw` only for the truly-unhandled placeholder
@@ -3048,12 +3044,12 @@ fn convert_property_key_for_param_as_node(
 
 /// Typed sibling of [`convert_binding_pattern_for_param`].
 ///
-/// Produces typed `JsNode` pattern subtrees (Identifier / `ObjectPattern` /
-/// `ArrayPattern` / `AssignmentPattern`) that serialize byte-identically to the
+/// Produces typed `JsNode` pattern subtrees (Identifier / ObjectPattern /
+/// ArrayPattern / AssignmentPattern) that serialize byte-identically to the
 /// Value form, so pattern interiors route through the typed analyze walker
-/// instead of `JsNode::Raw`. The `ObjectPattern` / `ArrayPattern` arms delegate to
+/// instead of `JsNode::Raw`. The ObjectPattern / ArrayPattern arms delegate to
 /// the now-fully-typed `convert_object_pattern_to_expr` /
-/// `convert_array_pattern_to_expr`; the `AssignmentPattern` arm mirrors the Value
+/// `convert_array_pattern_to_expr`; the AssignmentPattern arm mirrors the Value
 /// arm exactly — the default value uses `convert_expression` (the param-path
 /// converter, with its synthetic-paren offset semantics), NOT the program-path
 /// `convert_expression_for_program`.
@@ -3094,8 +3090,8 @@ fn convert_binding_pattern_for_param_as_node(
             );
             let right = convert_expression(arena, &assign_pat.right, adjusted_offset, line_offsets);
             JsNode::AssignmentPattern {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 left: arena.alloc_js_node(left),
                 right: arena.alloc_js_node(expr_to_node(right)),
@@ -3131,7 +3127,7 @@ fn convert_type_annotation_adjusted(
 }
 
 /// Build a TS assertion wrapper (`TSAsExpression` / `TSSatisfiesExpression` /
-/// `TSNonNullExpression`) as a `serde_json` `Value` in svelte/compiler's shape.
+/// `TSNonNullExpression`) as a serde_json `Value` in svelte/compiler's shape.
 /// `type_annotation` is `None` for `TSNonNullExpression` (which has no type).
 fn ts_assertion_value(
     type_name: &str,
@@ -3151,11 +3147,11 @@ fn ts_assertion_value(
     Value::Object(obj)
 }
 
-/// Convert `TSType` with pre-adjusted offset.
+/// Convert TSType with pre-adjusted offset.
 ///
 /// This is a thin alias for [`convert_ts_type`]: both take an absolute base
 /// offset and add the node span (`base + span.start/end`). Keeping the alias
-/// avoids churning the `FunctionParameter` / declarator call sites that already
+/// avoids churning the FunctionParameter / declarator call sites that already
 /// pass an `adjusted_offset`.
 fn convert_ts_type_adjusted(
     arena: &ParseArena,
@@ -3166,7 +3162,7 @@ fn convert_ts_type_adjusted(
     convert_ts_type(arena, ts_type, adjusted_offset, line_offsets)
 }
 
-/// Convert `TSTypeName` with pre-adjusted offset.
+/// Convert TSTypeName with pre-adjusted offset.
 fn convert_ts_type_name_adjusted(
     type_name: &oxc_ast::ast::TSTypeName,
     adjusted_offset: usize,
@@ -3223,12 +3219,12 @@ fn convert_ts_type_name_adjusted(
     }
 }
 
-/// Convert an oxc `TSType` to a `serde_json` `Value` matching svelte/compiler's
-/// (acorn-typescript) `ESTree` shape.
+/// Convert an oxc `TSType` to a serde_json `Value` matching svelte/compiler's
+/// (acorn-typescript) ESTree shape.
 ///
 /// `offset` is an absolute base such that `offset + span.{start,end}` is the
 /// node's absolute position in the original source. Both the program path
-/// (`$props()` destructuring annotations) and the `FunctionParameter` / pattern
+/// (`$props()` destructuring annotations) and the FunctionParameter / pattern
 /// path route through here so inline annotations no longer collapse to a
 /// members-less `TSUnknownKeyword` stub (#791).
 fn convert_ts_type(
@@ -3536,7 +3532,7 @@ fn convert_ts_function_like_params(
     line_offsets: &[usize],
 ) -> Vec<Value> {
     let mut out = Vec::with_capacity(
-        usize::from(this_param.is_some()) + params.items.len() + usize::from(params.rest.is_some()),
+        this_param.is_some() as usize + params.items.len() + params.rest.is_some() as usize,
     );
 
     if let Some(this_param) = this_param {
@@ -3667,7 +3663,7 @@ fn convert_ts_property_key(
                 start,
                 end,
                 Value::String(s.value.to_string()),
-                s.raw.as_ref().map(std::string::ToString::to_string),
+                s.raw.as_ref().map(|r| r.to_string()),
                 line_offsets,
             )
         }
@@ -3678,7 +3674,7 @@ fn convert_ts_property_key(
                 start,
                 end,
                 number_value(n.value),
-                n.raw.as_ref().map(std::string::ToString::to_string),
+                n.raw.as_ref().map(|r| r.to_string()),
                 line_offsets,
             )
         }
@@ -3691,7 +3687,7 @@ fn convert_ts_property_key(
     }
 }
 
-/// Convert a `TSLiteralType` literal into an `ESTree` `Literal` node.
+/// Convert a `TSLiteralType` literal into an ESTree `Literal` node.
 fn convert_ts_literal(
     literal: &oxc_ast::ast::TSLiteral,
     offset: usize,
@@ -3707,7 +3703,7 @@ fn convert_ts_literal(
                 start,
                 end,
                 Value::String(s.value.to_string()),
-                s.raw.as_ref().map(std::string::ToString::to_string),
+                s.raw.as_ref().map(|r| r.to_string()),
                 line_offsets,
             )
         }
@@ -3718,7 +3714,7 @@ fn convert_ts_literal(
                 start,
                 end,
                 number_value(n.value),
-                n.raw.as_ref().map(std::string::ToString::to_string),
+                n.raw.as_ref().map(|r| r.to_string()),
                 line_offsets,
             )
         }
@@ -3742,7 +3738,7 @@ fn convert_ts_literal(
     }
 }
 
-/// Build an `ESTree` `Identifier` node `{ type, start, end, loc, name }` as a
+/// Build an ESTree `Identifier` node `{ type, start, end, loc, name }` as a
 /// `serde_json::Value` (the `create_identifier` helper returns an `Expression`,
 /// which the TS-type converters can't use directly).
 fn ts_identifier_value(name: &str, start: usize, end: usize, line_offsets: &[usize]) -> Value {
@@ -3753,7 +3749,7 @@ fn ts_identifier_value(name: &str, start: usize, end: usize, line_offsets: &[usi
     Value::Object(obj)
 }
 
-/// Build an `ESTree` `Literal` node `{ type, start, end, loc, value, raw }`.
+/// Build an ESTree `Literal` node `{ type, start, end, loc, value, raw }`.
 fn ts_literal_value(
     start: usize,
     end: usize,
@@ -3775,14 +3771,11 @@ fn ts_literal_value(
 /// (so `403` serializes as `403`, not `403.0`), else as a float.
 fn number_value(v: f64) -> Value {
     if v.fract() == 0.0 && v.is_finite() && v.abs() < 9.007_199_254_740_992e15 {
-        Value::Number(
-            format!("{v:.0}")
-                .parse::<i64>()
-                .expect("bounded integral literal")
-                .into(),
-        )
+        Value::Number((v as i64).into())
     } else {
-        serde_json::Number::from_f64(v).map_or(Value::Null, Value::Number)
+        serde_json::Number::from_f64(v)
+            .map(Value::Number)
+            .unwrap_or(Value::Null)
     }
 }
 
@@ -3849,13 +3842,13 @@ fn convert_expression<'a>(
         OxcExpression::NumericLiteral(num) => {
             let start = offset + num.span.start as usize - 1;
             let end = offset + num.span.end as usize - 1;
-            let raw = num.raw.as_ref().map_or("", oxc_ast::ast::Str::as_str);
+            let raw = num.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
             create_numeric_literal(num.value, raw, start, end, line_offsets)
         }
         OxcExpression::StringLiteral(str_lit) => {
             let start = offset + str_lit.span.start as usize - 1;
             let end = offset + str_lit.span.end as usize - 1;
-            let raw = str_lit.raw.as_ref().map_or("", oxc_ast::ast::Str::as_str);
+            let raw = str_lit.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
             create_string_literal(&str_lit.value, raw, start, end, line_offsets)
         }
         OxcExpression::BooleanLiteral(bool_lit) => {
@@ -3955,8 +3948,8 @@ fn convert_expression<'a>(
             let type_annotation =
                 convert_ts_type(arena, &ts_as.type_annotation, offset - 1, line_offsets);
             Expression::from_node(JsNode::TSAsExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expression: arena.alloc_js_node(expr_to_node(inner)),
                 type_annotation: Box::new(type_annotation),
@@ -3973,8 +3966,8 @@ fn convert_expression<'a>(
                 line_offsets,
             );
             Expression::from_node(JsNode::TSSatisfiesExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expression: arena.alloc_js_node(expr_to_node(inner)),
                 type_annotation: Box::new(type_annotation),
@@ -3985,8 +3978,8 @@ fn convert_expression<'a>(
             let end = offset + ts_non_null.span.end as usize - 1;
             let inner = convert_expression(arena, &ts_non_null.expression, offset, line_offsets);
             Expression::from_node(JsNode::TSNonNullExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expression: arena.alloc_js_node(expr_to_node(inner)),
             })
@@ -4002,8 +3995,8 @@ fn convert_expression<'a>(
                 line_offsets,
             );
             Expression::from_node(JsNode::TSTypeAssertion {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expression: arena.alloc_js_node(expr_to_node(inner)),
                 type_annotation: Box::new(type_annotation),
@@ -4020,8 +4013,8 @@ fn convert_expression<'a>(
                 line_offsets,
             );
             Expression::from_node(JsNode::TSInstantiationExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expression: arena.alloc_js_node(expr_to_node(inner)),
                 type_arguments: Box::new(type_arguments),
@@ -4036,8 +4029,8 @@ fn convert_expression<'a>(
             let start = offset + this_expr.span.start as usize - 1;
             let end = offset + this_expr.span.end as usize - 1;
             Expression::from_node(JsNode::ThisExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
             })
         }
@@ -4045,8 +4038,8 @@ fn convert_expression<'a>(
             let start = offset + super_expr.span.start as usize - 1;
             let end = offset + super_expr.span.end as usize - 1;
             Expression::from_node(JsNode::Super {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
             })
         }
@@ -4076,8 +4069,8 @@ fn convert_expression<'a>(
             let end = offset + import_expr.span.end as usize - 1;
             let source = convert_expression(arena, &import_expr.source, offset, line_offsets);
             Expression::from_node(JsNode::ImportExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 source: arena.alloc_js_node(expr_to_node(source)),
             })
@@ -4087,8 +4080,8 @@ fn convert_expression<'a>(
             let end = offset + await_expr.span.end as usize - 1;
             let argument = convert_expression(arena, &await_expr.argument, offset, line_offsets);
             Expression::from_node(JsNode::AwaitExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 argument: arena.alloc_js_node(expr_to_node(argument)),
             })
@@ -4097,8 +4090,8 @@ fn convert_expression<'a>(
             let start = offset + yield_expr.span.start as usize - 1;
             let end = offset + yield_expr.span.end as usize - 1;
             Expression::from_node(JsNode::YieldExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 delegate: yield_expr.delegate,
                 argument: yield_expr.argument.as_ref().map(|arg| {
@@ -4133,8 +4126,8 @@ fn convert_expression<'a>(
                     let inner =
                         convert_expression(arena, &ts_non_null.expression, offset, line_offsets);
                     JsNode::TSNonNullExpression {
-                        start: source_pos(inner_start),
-                        end: source_pos(inner_end),
+                        start: inner_start as u32,
+                        end: inner_end as u32,
                         loc: create_typed_loc(inner_start, inner_end, line_offsets),
                         expression: arena.alloc_js_node(expr_to_node(inner)),
                     }
@@ -4177,8 +4170,8 @@ fn convert_expression<'a>(
                 }
             };
             Expression::from_node(JsNode::ChainExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expression: arena.alloc_js_node(chain_inner),
             })
@@ -4238,8 +4231,8 @@ fn create_meta_property<'a>(
     line_offsets: &[usize],
 ) -> Expression<'a> {
     Expression::from_node(JsNode::MetaProperty {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         meta: arena.alloc_js_node(expr_to_node(create_identifier(
             meta_name,
@@ -4263,8 +4256,8 @@ fn create_identifier<'a>(
     line_offsets: &[usize],
 ) -> Expression<'a> {
     Expression::from_node(JsNode::Identifier {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         name: CompactString::from(name),
         optional: false,
@@ -4272,7 +4265,7 @@ fn create_identifier<'a>(
     })
 }
 
-/// Create a `PrivateIdentifier` node (for class private fields like #count).
+/// Create a PrivateIdentifier node (for class private fields like #count).
 fn create_private_identifier<'a>(
     name: &str,
     start: usize,
@@ -4280,8 +4273,8 @@ fn create_private_identifier<'a>(
     line_offsets: &[usize],
 ) -> Expression<'a> {
     Expression::from_node(JsNode::PrivateIdentifier {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         name: CompactString::from(name),
     })
@@ -4295,8 +4288,8 @@ fn create_identifier_for_binding(
     line_offsets: &[usize],
 ) -> JsNode {
     JsNode::Identifier {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc_for_binding(start, end, line_offsets),
         name: CompactString::from(name),
         optional: false,
@@ -4304,7 +4297,7 @@ fn create_identifier_for_binding(
     }
 }
 
-/// Create a `PrivateIdentifier` for binding patterns.
+/// Create a PrivateIdentifier for binding patterns.
 fn create_private_identifier_for_binding(
     name: &str,
     start: usize,
@@ -4312,8 +4305,8 @@ fn create_private_identifier_for_binding(
     line_offsets: &[usize],
 ) -> JsNode {
     JsNode::PrivateIdentifier {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc_for_binding(start, end, line_offsets),
         name: CompactString::from(name),
     }
@@ -4328,8 +4321,8 @@ fn create_identifier_for_binding_toplevel(
     line_offsets: &[usize],
 ) -> JsNode {
     JsNode::Identifier {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc_for_binding_identifier(start, end, line_offsets),
         name: CompactString::from(name),
         optional: false,
@@ -4346,8 +4339,8 @@ fn create_literal_for_binding(
     line_offsets: &[usize],
 ) -> JsNode {
     JsNode::Literal {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc_for_binding(start, end, line_offsets),
         value,
         raw: CompactString::from(raw),
@@ -4364,8 +4357,8 @@ fn create_numeric_literal_for_binding(
     line_offsets: &[usize],
 ) -> JsNode {
     JsNode::Literal {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc_for_binding(start, end, line_offsets),
         value: LiteralValue::Number(value),
         raw: CompactString::from(raw),
@@ -4382,8 +4375,8 @@ fn create_string_literal_for_binding(
     line_offsets: &[usize],
 ) -> JsNode {
     JsNode::Literal {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc_for_binding(start, end, line_offsets),
         value: LiteralValue::String(CompactString::from(value)),
         raw: CompactString::from(raw),
@@ -4400,8 +4393,8 @@ pub fn create_identifier_with_character<'a>(
     line_offsets: &[usize],
 ) -> Expression<'a> {
     Expression::from_node(JsNode::Identifier {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc_with_character(start, end, line_offsets),
         name: CompactString::from(name),
         optional: false,
@@ -4413,8 +4406,8 @@ pub fn create_identifier_with_character<'a>(
 /// Used for error recovery when parsing invalid expressions in loose mode.
 pub fn create_empty_identifier<'a>(name: &str, start: usize, end: usize) -> Expression<'a> {
     Expression::from_node(JsNode::Identifier {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: None,
         name: CompactString::from(name),
         optional: false,
@@ -4430,8 +4423,8 @@ fn create_literal<'a>(
     line_offsets: &[usize],
 ) -> Expression<'a> {
     Expression::from_node(JsNode::Literal {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         value,
         raw: CompactString::from(raw),
@@ -4447,8 +4440,8 @@ fn create_numeric_literal<'a>(
     line_offsets: &[usize],
 ) -> Expression<'a> {
     Expression::from_node(JsNode::Literal {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         value: LiteralValue::Number(value),
         raw: CompactString::from(raw),
@@ -4464,8 +4457,8 @@ fn create_string_literal<'a>(
     line_offsets: &[usize],
 ) -> Expression<'a> {
     Expression::from_node(JsNode::Literal {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         value: LiteralValue::String(CompactString::from(value)),
         raw: CompactString::from(raw),
@@ -4487,8 +4480,8 @@ fn create_binary_expression<'a>(
     let right_expr = convert_expression(arena, right, offset, line_offsets);
 
     Expression::from_node(JsNode::BinaryExpression {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         left: arena.alloc_js_node(expr_to_node(left_expr)),
         operator: CompactString::from(binary_operator_to_str(operator)),
@@ -4508,8 +4501,8 @@ fn create_logical_expression<'a>(
     let right_expr = convert_expression(arena, &logical.right, offset, line_offsets);
 
     Expression::from_node(JsNode::LogicalExpression {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         left: arena.alloc_js_node(expr_to_node(left_expr)),
         operator: CompactString::from(logical_operator_to_str(&logical.operator)),
@@ -4528,8 +4521,8 @@ fn create_unary_expression<'a>(
     let argument = convert_expression(arena, &unary.argument, offset, line_offsets);
 
     Expression::from_node(JsNode::UnaryExpression {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         operator: CompactString::from(unary_operator_to_str(&unary.operator)),
         prefix: true,
@@ -4550,8 +4543,8 @@ fn create_conditional_expression<'a>(
     let alternate = convert_expression(arena, &cond.alternate, offset, line_offsets);
 
     Expression::from_node(JsNode::ConditionalExpression {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         test: arena.alloc_js_node(expr_to_node(test)),
         consequent: arena.alloc_js_node(expr_to_node(consequent)),
@@ -4578,8 +4571,8 @@ fn create_call_expression<'a>(
                 let spread_end = offset + spread.span.end as usize - 1;
                 let inner = convert_expression(arena, &spread.argument, offset, line_offsets);
                 JsNode::SpreadElement {
-                    start: source_pos(spread_start),
-                    end: source_pos(spread_end),
+                    start: spread_start as u32,
+                    end: spread_end as u32,
                     loc: create_typed_loc(spread_start, spread_end, line_offsets),
                     argument: arena.alloc_js_node(expr_to_node(inner)),
                 }
@@ -4592,8 +4585,8 @@ fn create_call_expression<'a>(
         .collect();
 
     Expression::from_node(JsNode::CallExpression {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         callee: arena.alloc_js_node(expr_to_node(callee)),
         arguments: arena.alloc_js_children(args),
@@ -4615,13 +4608,13 @@ fn create_static_member_expression<'a>(
     let prop_end = offset + member.property.span.end as usize - 1;
 
     Expression::from_node(JsNode::MemberExpression {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         object: arena.alloc_js_node(expr_to_node(object)),
         property: arena.alloc_js_node(JsNode::Identifier {
-            start: source_pos(prop_start),
-            end: source_pos(prop_end),
+            start: prop_start as u32,
+            end: prop_end as u32,
             loc: create_typed_loc(prop_start, prop_end, line_offsets),
             name: CompactString::from(member.property.name.as_str()),
             optional: false,
@@ -4644,8 +4637,8 @@ fn create_computed_member_expression<'a>(
     let property = convert_expression(arena, &member.expression, offset, line_offsets);
 
     Expression::from_node(JsNode::MemberExpression {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         object: arena.alloc_js_node(expr_to_node(object)),
         property: arena.alloc_js_node(expr_to_node(property)),
@@ -4668,13 +4661,13 @@ fn create_private_member_expression<'a>(
     let prop_end = offset + member.field.span.end as usize - 1;
 
     Expression::from_node(JsNode::MemberExpression {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         object: arena.alloc_js_node(expr_to_node(object)),
         property: arena.alloc_js_node(JsNode::PrivateIdentifier {
-            start: source_pos(prop_start),
-            end: source_pos(prop_end),
+            start: prop_start as u32,
+            end: prop_end as u32,
             loc: create_typed_loc(prop_start, prop_end, line_offsets),
             name: CompactString::from(member.field.name.as_str()),
         }),
@@ -4702,8 +4695,8 @@ fn create_new_expression<'a>(
                 let spread_end = offset + spread.span.end as usize - 1;
                 let spread_arg = convert_expression(arena, &spread.argument, offset, line_offsets);
                 JsNode::SpreadElement {
-                    start: source_pos(spread_start),
-                    end: source_pos(spread_end),
+                    start: spread_start as u32,
+                    end: spread_end as u32,
                     loc: create_typed_loc(spread_start, spread_end, line_offsets),
                     argument: arena.alloc_js_node(expr_to_node(spread_arg)),
                 }
@@ -4716,8 +4709,8 @@ fn create_new_expression<'a>(
         .collect();
 
     Expression::from_node(JsNode::NewExpression {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         callee: arena.alloc_js_node(expr_to_node(callee)),
         arguments: arena.alloc_js_children(args),
@@ -4763,8 +4756,8 @@ fn create_function_expression<'a>(
         let rest_end = offset + rest.span.end as usize - 1;
         let argument = convert_binding_pattern(arena, &rest.rest.argument, offset, line_offsets);
         params.push(JsNode::RestElement {
-            start: source_pos(rest_start),
-            end: source_pos(rest_end),
+            start: rest_start as u32,
+            end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
             argument: arena.alloc_js_node(argument),
         });
@@ -4780,16 +4773,16 @@ fn create_function_expression<'a>(
             .filter_map(|stmt| convert_statement(arena, stmt, offset, line_offsets))
             .collect();
         arena.alloc_js_node(JsNode::BlockStatement {
-            start: source_pos(body_start),
-            end: source_pos(body_end),
+            start: body_start as u32,
+            end: body_end as u32,
             loc: create_typed_loc(body_start, body_end, line_offsets),
             body: arena.alloc_js_children(statements),
         })
     });
 
     Expression::from_node(JsNode::FunctionExpression {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         id,
         params: arena.alloc_js_children(params),
@@ -4851,8 +4844,8 @@ fn create_class_expression<'a>(
     let body = convert_class_body_for_expr(arena, &class_expr.body, offset, line_offsets);
 
     Expression::from_node(JsNode::ClassExpression {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         id,
         super_class,
@@ -4882,8 +4875,8 @@ fn create_tagged_template_expression<'a>(
     );
 
     Expression::from_node(JsNode::TaggedTemplateExpression {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         tag: arena.alloc_js_node(expr_to_node(tag)),
         quasi: arena.alloc_js_node(expr_to_node(quasi)),
@@ -4899,14 +4892,15 @@ fn create_regex_literal<'a>(
     let pattern_str = regex.regex.pattern.text.to_string();
     let flags_str = regex.regex.flags.to_string();
 
-    let raw = regex.raw.as_ref().map_or_else(
-        || format!("/{pattern_str}/{flags_str}"),
-        |raw_str| raw_str.to_string(),
-    );
+    let raw = if let Some(ref raw_str) = regex.raw {
+        raw_str.to_string()
+    } else {
+        format!("/{}/{}", pattern_str, flags_str)
+    };
 
     Expression::from_node(JsNode::Literal {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         value: LiteralValue::Regex(Box::new(RegexValue {
             pattern: CompactString::from(pattern_str),
@@ -5053,8 +5047,8 @@ fn create_array_expression<'a>(
                 let spread_end = offset + spread.span.end as usize - 1;
                 let spread_arg = convert_expression(arena, &spread.argument, offset, line_offsets);
                 Some(JsNode::SpreadElement {
-                    start: source_pos(spread_start),
-                    end: source_pos(spread_end),
+                    start: spread_start as u32,
+                    end: spread_end as u32,
                     loc: create_typed_loc(spread_start, spread_end, line_offsets),
                     argument: arena.alloc_js_node(expr_to_node(spread_arg)),
                 })
@@ -5073,8 +5067,8 @@ fn create_array_expression<'a>(
         .collect();
 
     Expression::from_node(JsNode::ArrayExpression {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         elements,
     })
@@ -5122,8 +5116,8 @@ fn create_object_expression<'a>(
                 };
 
                 JsNode::Property {
-                    start: source_pos(prop_start),
-                    end: source_pos(prop_end),
+                    start: prop_start as u32,
+                    end: prop_end as u32,
                     loc: create_typed_loc(prop_start, prop_end, line_offsets),
                     key: arena.alloc_js_node(key),
                     value: arena.alloc_js_node(value_node),
@@ -5139,8 +5133,8 @@ fn create_object_expression<'a>(
                 let argument = convert_expression(arena, &spread.argument, offset, line_offsets);
 
                 JsNode::SpreadElement {
-                    start: source_pos(spread_start),
-                    end: source_pos(spread_end),
+                    start: spread_start as u32,
+                    end: spread_end as u32,
                     loc: create_typed_loc(spread_start, spread_end, line_offsets),
                     argument: arena.alloc_js_node(expr_to_node(argument)),
                 }
@@ -5149,8 +5143,8 @@ fn create_object_expression<'a>(
         .collect();
 
     Expression::from_node(JsNode::ObjectExpression {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         properties: arena.alloc_js_children(properties),
     })
@@ -5207,8 +5201,8 @@ fn create_assignment_expression<'a>(
     let right = convert_expression(arena, &assign.right, offset, line_offsets);
 
     Expression::from_node(JsNode::AssignmentExpression {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         operator: CompactString::from(operator),
         left: arena.alloc_js_node(left),
@@ -5259,8 +5253,8 @@ fn assignment_operator_to_str(op: &oxc_ast::ast::AssignmentOperator) -> &'static
     }
 }
 
-/// Convert an `ObjectAssignmentTarget` to `ObjectPattern` `JsNode`.
-/// `ObjectAssignmentTarget` is `{ foo }` in `({ foo } = obj);`
+/// Convert an ObjectAssignmentTarget to ObjectPattern JsNode.
+/// ObjectAssignmentTarget is `{ foo }` in `({ foo } = obj);`
 fn convert_object_assignment_target(
     arena: &ParseArena,
     obj_target: &oxc_ast::ast::ObjectAssignmentTarget,
@@ -5282,8 +5276,8 @@ fn convert_object_assignment_target(
         let rest_start = offset + rest.span.start as usize - 1;
         let rest_end = offset + rest.span.end as usize - 1;
         properties.push(JsNode::RestElement {
-            start: source_pos(rest_start),
-            end: source_pos(rest_end),
+            start: rest_start as u32,
+            end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
             argument: arena.alloc_js_node(convert_assignment_target(
                 arena,
@@ -5295,16 +5289,16 @@ fn convert_object_assignment_target(
     }
 
     JsNode::ObjectPattern {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         properties: arena.alloc_js_children(properties),
         type_annotation: None,
     }
 }
 
-/// Convert an `ArrayAssignmentTarget` to `ArrayPattern` `JsNode`.
-/// `ArrayAssignmentTarget` is `[a, b]` in `([a, b] = arr);`
+/// Convert an ArrayAssignmentTarget to ArrayPattern JsNode.
+/// ArrayAssignmentTarget is `[a, b]` in `([a, b] = arr);`
 fn convert_array_assignment_target(
     arena: &ParseArena,
     arr_target: &oxc_ast::ast::ArrayAssignmentTarget,
@@ -5330,8 +5324,8 @@ fn convert_array_assignment_target(
         let rest_start = offset + rest.span.start as usize - 1;
         let rest_end = offset + rest.span.end as usize - 1;
         elements.push(Some(JsNode::RestElement {
-            start: source_pos(rest_start),
-            end: source_pos(rest_end),
+            start: rest_start as u32,
+            end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
             argument: arena.alloc_js_node(convert_assignment_target(
                 arena,
@@ -5343,15 +5337,15 @@ fn convert_array_assignment_target(
     }
 
     JsNode::ArrayPattern {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         elements,
         type_annotation: None,
     }
 }
 
-/// Convert an `AssignmentTargetProperty` to Property `JsNode`.
+/// Convert an AssignmentTargetProperty to Property JsNode.
 fn convert_assignment_target_property(
     arena: &ParseArena,
     prop: &oxc_ast::ast::AssignmentTargetProperty,
@@ -5381,8 +5375,8 @@ fn convert_assignment_target_property(
                 // Has default: `{ foo = default }` -> AssignmentPattern
                 let init_end = offset + init.span().end as usize - 1;
                 JsNode::AssignmentPattern {
-                    start: source_pos(id_start),
-                    end: source_pos(init_end),
+                    start: id_start as u32,
+                    end: init_end as u32,
                     loc: create_typed_loc(id_start, init_end, line_offsets),
                     left: arena.alloc_js_node(id_node.clone()),
                     right: arena.alloc_js_node(expr_to_node(convert_expression(
@@ -5397,8 +5391,8 @@ fn convert_assignment_target_property(
             };
 
             JsNode::Property {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 key: arena.alloc_js_node(id_node),
                 value: arena.alloc_js_node(value),
@@ -5423,8 +5417,8 @@ fn convert_assignment_target_property(
             );
 
             JsNode::Property {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 key: arena.alloc_js_node(key),
                 value: arena.alloc_js_node(value),
@@ -5437,7 +5431,7 @@ fn convert_assignment_target_property(
     }
 }
 
-/// Convert an `AssignmentTargetMaybeDefault` to `JsNode`.
+/// Convert an AssignmentTargetMaybeDefault to JsNode.
 fn convert_assignment_target_maybe_default(
     arena: &ParseArena,
     target: &oxc_ast::ast::AssignmentTargetMaybeDefault,
@@ -5453,8 +5447,8 @@ fn convert_assignment_target_maybe_default(
             let end = offset + with_default.span.end as usize - 1;
 
             JsNode::AssignmentPattern {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 left: arena.alloc_js_node(convert_assignment_target(
                     arena,
@@ -5482,7 +5476,7 @@ fn convert_assignment_target_maybe_default(
     }
 }
 
-/// Convert a `PropertyKey` with -1 offset adjustment (for expression context).
+/// Convert a PropertyKey with -1 offset adjustment (for expression context).
 fn convert_property_key_with_offset(
     arena: &ParseArena,
     key: &oxc_ast::ast::PropertyKey,
@@ -5576,9 +5570,8 @@ fn convert_assignment_target(
         }
         _ => target
             .as_simple_assignment_target()
-            .map_or(JsNode::Null, |simple| {
-                convert_ts_wrapper_target(arena, simple, offset, line_offsets)
-            }),
+            .map(|simple| convert_ts_wrapper_target(arena, simple, offset, line_offsets))
+            .unwrap_or(JsNode::Null),
     }
 }
 
@@ -5605,8 +5598,8 @@ fn convert_ts_wrapper_target(
             let type_annotation =
                 convert_ts_type(arena, &ts_as.type_annotation, offset - 1, line_offsets);
             JsNode::TSAsExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expression: arena.alloc_js_node(expr_to_node(inner)),
                 type_annotation: Box::new(type_annotation),
@@ -5623,8 +5616,8 @@ fn convert_ts_wrapper_target(
                 line_offsets,
             );
             JsNode::TSSatisfiesExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expression: arena.alloc_js_node(expr_to_node(inner)),
                 type_annotation: Box::new(type_annotation),
@@ -5635,8 +5628,8 @@ fn convert_ts_wrapper_target(
             let end = offset + ts_non_null.span.end as usize - 1;
             let inner = convert_expression(arena, &ts_non_null.expression, offset, line_offsets);
             JsNode::TSNonNullExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expression: arena.alloc_js_node(expr_to_node(inner)),
             }
@@ -5652,8 +5645,8 @@ fn convert_ts_wrapper_target(
                 line_offsets,
             );
             JsNode::TSTypeAssertion {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expression: arena.alloc_js_node(expr_to_node(inner)),
                 type_annotation: Box::new(type_annotation),
@@ -5679,8 +5672,8 @@ fn create_update_expression<'a>(
     let argument = convert_simple_assignment_target(arena, &update.argument, offset, line_offsets);
 
     Expression::from_node(JsNode::UpdateExpression {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         operator: CompactString::from(operator),
         prefix: update.prefix,
@@ -5703,8 +5696,8 @@ fn create_sequence_expression<'a>(
         .collect();
 
     Expression::from_node(JsNode::SequenceExpression {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         expressions: arena.alloc_js_children(expressions),
     })
@@ -5801,8 +5794,8 @@ fn create_arrow_function<'a>(
             line_offsets,
         );
         params.push(JsNode::RestElement {
-            start: source_pos(rest_start),
-            end: source_pos(rest_end),
+            start: rest_start as u32,
+            end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
             argument: arena.alloc_js_node(argument),
         });
@@ -5820,8 +5813,8 @@ fn create_arrow_function<'a>(
     };
 
     Expression::from_node(JsNode::ArrowFunctionExpression {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         id: None,
         params: arena.alloc_js_children(params),
@@ -5840,7 +5833,7 @@ fn create_arrow_function<'a>(
     })
 }
 
-/// Convert arrow function body to `JsNode` (for block bodies).
+/// Convert arrow function body to JsNode (for block bodies).
 fn convert_arrow_body(
     arena: &ParseArena,
     body: &oxc_ast::ast::FunctionBody,
@@ -5857,14 +5850,14 @@ fn convert_arrow_body(
         .collect();
 
     JsNode::BlockStatement {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         body: arena.alloc_js_children(body_stmts),
     }
 }
 
-/// Convert a statement to `JsNode`.
+/// Convert a statement to JsNode.
 fn convert_statement(
     arena: &ParseArena,
     stmt: &oxc_ast::ast::Statement,
@@ -5883,8 +5876,8 @@ fn convert_statement(
             let end = offset + expr_stmt.span.end as usize - 1;
 
             Some(JsNode::ExpressionStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expression: arena.alloc_js_node(expr_to_node(convert_expression(
                     arena,
@@ -5899,8 +5892,8 @@ fn convert_statement(
             let end = offset + ret_stmt.span.end as usize - 1;
 
             Some(JsNode::ReturnStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 argument: ret_stmt.argument.as_ref().map(|arg| {
                     arena.alloc_js_node(expr_to_node(convert_expression(
@@ -5917,8 +5910,8 @@ fn convert_statement(
             let end = offset + throw_stmt.span.end as usize - 1;
 
             Some(JsNode::ThrowStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 argument: arena.alloc_js_node(expr_to_node(convert_expression(
                     arena,
@@ -5940,8 +5933,8 @@ fn convert_statement(
                 .and_then(|alt| convert_statement(arena, alt, offset, line_offsets));
 
             Some(JsNode::IfStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 test: arena.alloc_js_node(expr_to_node(convert_expression(
                     arena,
@@ -5964,8 +5957,8 @@ fn convert_statement(
                 .collect();
 
             Some(JsNode::BlockStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 body: arena.alloc_js_children(body_stmts),
             })
@@ -6012,8 +6005,8 @@ fn convert_statement(
             });
 
             Some(JsNode::ForStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 init,
                 test,
@@ -6035,8 +6028,8 @@ fn convert_statement(
                 .filter_map(|s| convert_statement(arena, s, offset, line_offsets))
                 .collect();
             let block = JsNode::BlockStatement {
-                start: source_pos(block_start),
-                end: source_pos(block_end),
+                start: block_start as u32,
+                end: block_end as u32,
                 loc: create_typed_loc(block_start, block_end, line_offsets),
                 body: arena.alloc_js_children(block_body),
             };
@@ -6062,13 +6055,13 @@ fn convert_statement(
                     .filter_map(|s| convert_statement(arena, s, offset, line_offsets))
                     .collect();
                 arena.alloc_js_node(JsNode::CatchClause {
-                    start: source_pos(h_start),
-                    end: source_pos(h_end),
+                    start: h_start as u32,
+                    end: h_end as u32,
                     loc: create_typed_loc(h_start, h_end, line_offsets),
                     param,
                     body: arena.alloc_js_node(JsNode::BlockStatement {
-                        start: source_pos(h_body_start),
-                        end: source_pos(h_body_end),
+                        start: h_body_start as u32,
+                        end: h_body_end as u32,
                         loc: create_typed_loc(h_body_start, h_body_end, line_offsets),
                         body: arena.alloc_js_children(h_body_stmts),
                     }),
@@ -6085,16 +6078,16 @@ fn convert_statement(
                     .filter_map(|s| convert_statement(arena, s, offset, line_offsets))
                     .collect();
                 arena.alloc_js_node(JsNode::BlockStatement {
-                    start: source_pos(f_start),
-                    end: source_pos(f_end),
+                    start: f_start as u32,
+                    end: f_end as u32,
                     loc: create_typed_loc(f_start, f_end, line_offsets),
                     body: arena.alloc_js_children(f_body),
                 })
             });
 
             Some(JsNode::TryStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 block: arena.alloc_js_node(block),
                 handler,
@@ -6145,8 +6138,8 @@ fn convert_statement(
                     line_offsets,
                 );
                 params.push(JsNode::RestElement {
-                    start: source_pos(rest_start),
-                    end: source_pos(rest_end),
+                    start: rest_start as u32,
+                    end: rest_end as u32,
                     loc: create_typed_loc(rest_start, rest_end, line_offsets),
                     argument: arena.alloc_js_node(argument),
                 });
@@ -6157,8 +6150,8 @@ fn convert_statement(
             });
 
             Some(JsNode::FunctionDeclaration {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 id,
                 params: arena.alloc_js_children(params),
@@ -6185,7 +6178,7 @@ fn convert_statement(
     }
 }
 
-/// Convert a variable declaration to `JsNode`.
+/// Convert a variable declaration to JsNode.
 fn convert_variable_declaration(
     arena: &ParseArena,
     decl: &oxc_ast::ast::VariableDeclaration,
@@ -6210,8 +6203,8 @@ fn convert_variable_declaration(
     };
 
     JsNode::VariableDeclaration {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         declarations: arena.alloc_js_children(declarations),
         kind: CompactString::from(kind),
@@ -6219,7 +6212,7 @@ fn convert_variable_declaration(
     }
 }
 
-/// Convert a variable declarator to `JsNode`.
+/// Convert a variable declarator to JsNode.
 fn convert_variable_declarator(
     arena: &ParseArena,
     decl: &oxc_ast::ast::VariableDeclarator,
@@ -6249,8 +6242,8 @@ fn convert_variable_declarator(
     });
 
     JsNode::VariableDeclarator {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         id: arena.alloc_js_node(id),
         init,
@@ -6285,8 +6278,8 @@ fn convert_binding_pattern_for_decl_as_node(
                 let ta_value =
                     convert_type_annotation_adjusted(arena, type_ann, offset - 1, line_offsets);
                 JsNode::Identifier {
-                    start: source_pos(start),
-                    end: source_pos(end),
+                    start: start as u32,
+                    end: end as u32,
                     loc: create_typed_loc(start, end, line_offsets),
                     name: CompactString::from(id.name.as_str()),
                     optional: false,
@@ -6325,8 +6318,8 @@ fn create_template_literal<'a>(
             let q_end = offset + quasi.span.end as usize - 1;
 
             JsNode::TemplateElement {
-                start: source_pos(q_start),
-                end: source_pos(q_end),
+                start: q_start as u32,
+                end: q_end as u32,
                 loc: create_typed_loc(q_start, q_end, line_offsets),
                 tail: quasi.tail,
                 value: TemplateElementValue {
@@ -6348,8 +6341,8 @@ fn create_template_literal<'a>(
         .collect();
 
     Expression::from_node(JsNode::TemplateLiteral {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         quasis: arena.alloc_js_children(quasis),
         expressions: arena.alloc_js_children(expressions),
@@ -6414,7 +6407,7 @@ fn update_operator_to_str(op: &oxc_ast::ast::UpdateOperator) -> &'static str {
     }
 }
 
-/// `Map::insert` without the per-call `key.to_string()`. `ESTree` objects here are
+/// `Map::insert` without the per-call `key.to_string()`. ESTree objects here are
 /// built field by field interleaved with control flow, so this keeps each field
 /// on one line; `serde_json`'s `preserve_order` makes the call order the JSON
 /// key order.
@@ -6428,7 +6421,7 @@ impl EstreeFieldExt for Map<String, Value> {
     }
 }
 
-/// Insert the `ESTree` span fields in acorn's emission order (`start`, `end`, then
+/// Insert the ESTree span fields in acorn's emission order (`start`, `end`, then
 /// `loc` when line offsets are available). `serde_json`'s `preserve_order` makes
 /// that insertion order part of the JSON output contract.
 fn push_span_fields(
@@ -6481,8 +6474,8 @@ fn create_loc_with(
     let point = |pos: usize| {
         let (line, column) = line_column(pos, line_offsets);
         let mut obj = Map::new();
-        obj.set_field("line", Value::Number(i64::from(line).into()));
-        obj.set_field("column", Value::Number(i64::from(column).into()));
+        obj.set_field("line", Value::Number((line as i64).into()));
+        obj.set_field("column", Value::Number((column as i64).into()));
         Value::Object(obj)
     };
 
@@ -6498,7 +6491,7 @@ fn get_line_column(pos: usize, line_offsets: &[usize]) -> (u32, u32) {
         .saturating_sub(1);
     let line_start = line_offsets.get(line).copied().unwrap_or(0);
     let column = pos - line_start;
-    (source_pos(line + 1), source_pos(column))
+    ((line + 1) as u32, column as u32)
 }
 
 /// Get line and column for binding patterns.
@@ -6525,10 +6518,10 @@ fn get_line_column_for_binding(pos: usize, line_offsets: &[usize]) -> (u32, u32)
     };
 
     let column = pos - adjusted_line_start;
-    (source_pos(line + 1), source_pos(column))
+    ((line + 1) as u32, column as u32)
 }
 
-/// Create loc for binding patterns (complex patterns like `ObjectPattern`, `ArrayPattern`).
+/// Create loc for binding patterns (complex patterns like ObjectPattern, ArrayPattern).
 /// Uses adjusted column calculation for empty lines, no character field.
 fn create_loc_for_binding(start: usize, end: usize, line_offsets: &[usize]) -> Option<Value> {
     create_loc_with(start, end, line_offsets, get_line_column_for_binding)
@@ -6572,12 +6565,12 @@ fn create_typed_loc_with_character(
         start: SourcePosition {
             line: start_lc.0,
             column: start_lc.1,
-            character: Some(source_pos(start)),
+            character: Some(start as u32),
         },
         end: SourcePosition {
             line: end_lc.0,
             column: end_lc.1,
-            character: Some(source_pos(end)),
+            character: Some(end as u32),
         },
     }))
 }
@@ -6624,14 +6617,14 @@ fn create_typed_loc_for_binding_identifier(
     let end_line_offset = line_offsets.get(end_line).copied().unwrap_or(0);
     Some(Box::new(Loc {
         start: SourcePosition {
-            line: source_pos(start_line + 1),
-            column: source_pos(start - start_line_offset),
-            character: Some(source_pos(start)),
+            line: (start_line + 1) as u32,
+            column: (start - start_line_offset) as u32,
+            character: Some(start as u32),
         },
         end: SourcePosition {
-            line: source_pos(end_line + 1),
-            column: source_pos(end - end_line_offset),
-            character: Some(source_pos(end)),
+            line: (end_line + 1) as u32,
+            column: (end - end_line_offset) as u32,
+            character: Some(end as u32),
         },
     }))
 }
@@ -6868,7 +6861,8 @@ fn convert_parsed_program<'ast>(
                 let pos = first_error
                     .labels
                     .first()
-                    .map_or(0, |label| (label.offset() as usize).min(content.len()))
+                    .map(|label| (label.offset() as usize).min(content.len()))
+                    .unwrap_or(0)
                     + offset;
                 crate::error::ParseError::svelte(
                     "js_parse_error",
@@ -6982,7 +6976,7 @@ fn convert_parsed_program<'ast>(
 
         // Mirror upstream `parser.root.comments`: forward every comment seen
         // by the script parser so it lands in `Root.comments`.
-        for comment in &all_comments {
+        for comment in all_comments.iter() {
             let comment_start = offset + comment.span.start as usize;
             let comment_end = offset + comment.span.end as usize;
             let raw_text = if comment.span.end as usize <= content.len() {
@@ -7032,7 +7026,7 @@ fn convert_parsed_program<'ast>(
                         .get(comment.span.start as usize..comment.span.end as usize)
                         .unwrap_or("");
                     CommentEntry {
-                        start: source_pos(offset) + comment.span.start,
+                        start: offset as u32 + comment.span.start,
                         text: CompactString::from(extract_comment_value(raw_text, comment.kind)),
                     }
                 })
@@ -7042,7 +7036,7 @@ fn convert_parsed_program<'ast>(
                 comments: &comment_entries,
                 next: 0,
                 content,
-                offset: source_pos(offset),
+                offset: offset as u32,
                 map: &mut ignore_comment_map,
             };
             let last_index = program.body.len().saturating_sub(1);
@@ -7054,7 +7048,7 @@ fn convert_parsed_program<'ast>(
                     attacher.visit(
                         &stmt_node.to_value(),
                         Some(ParentInfo {
-                            end: Some(source_pos(end)),
+                            end: Some(end as u32),
                             is_last_in_body: index == last_index,
                         }),
                     );
@@ -7063,7 +7057,7 @@ fn convert_parsed_program<'ast>(
                     // Type-only statements have no typed node. Upstream binds the
                     // comments in and before them to TS nodes whose subtree Phase 2
                     // never visits, so they must not reach the next statement either.
-                    attacher.skip_past(source_pos(offset) + stmt.span().end);
+                    attacher.skip_past(offset as u32 + stmt.span().end);
                 }
             }
 
@@ -7109,8 +7103,8 @@ fn convert_parsed_program<'ast>(
 
         (
             Expression::from_node(JsNode::Program {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 body: arena.alloc_js_children(body),
                 source_type: CompactString::from("module"),
@@ -7175,7 +7169,7 @@ struct ParentInfo {
 /// Port of `add_comments` from `phases/1-parse/acorn.js`, reduced to the only
 /// consumer rsvelte has for JS comment attachment: `svelte-ignore` suppression.
 ///
-/// Upstream walks the `ESTree` tree generically and gives every comment to the first
+/// Upstream walks the ESTree tree generically and gives every comment to the first
 /// node (in pre-order) that starts after it, unless a preceding node claims it as a
 /// trailing comment first. Rather than materializing `leadingComments` we record the
 /// `svelte-ignore` texts directly, keyed by the owning node's absolute start offset —
@@ -7193,14 +7187,8 @@ impl CommentAttacher<'_> {
         let Some(obj) = node.as_object() else {
             return;
         };
-        let start = obj
-            .get("start")
-            .and_then(serde_json::Value::as_u64)
-            .map(source_pos_u64);
-        let end = obj
-            .get("end")
-            .and_then(serde_json::Value::as_u64)
-            .map(source_pos_u64);
+        let start = obj.get("start").and_then(|v| v.as_u64()).map(|v| v as u32);
+        let end = obj.get("end").and_then(|v| v.as_u64()).map(|v| v as u32);
 
         if let Some(start) = start {
             while self
@@ -7323,7 +7311,7 @@ fn is_estree_node(value: &Value) -> bool {
     value
         .as_object()
         .and_then(|obj| obj.get("type"))
-        .is_some_and(serde_json::Value::is_string)
+        .is_some_and(|t| t.is_string())
 }
 
 /// Convert a statement to JSON value (for program context, no -1 offset adjustment).
@@ -7341,8 +7329,8 @@ fn convert_statement_for_program(
             let end = offset + expr_stmt.span.end as usize;
             let loc = create_typed_loc(start, end, line_offsets);
             Some(JsNode::ExpressionStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 expression: arena.alloc_js_node(expr_to_node(expr)),
             })
@@ -7369,8 +7357,8 @@ fn convert_statement_for_program(
             };
 
             Some(JsNode::VariableDeclaration {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 declarations: arena.alloc_js_children(declarations),
                 kind: CompactString::from(kind),
@@ -7464,8 +7452,8 @@ fn convert_statement_for_program(
                     });
 
                     JsNode::FunctionDeclaration {
-                        start: source_pos(func_start),
-                        end: source_pos(func_end),
+                        start: func_start as u32,
+                        end: func_end as u32,
                         loc: func_loc,
                         id: id_node,
                         params: arena.alloc_js_children(params),
@@ -7557,8 +7545,8 @@ fn convert_statement_for_program(
             };
 
             Some(JsNode::ExportDefaultDeclaration {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 declaration: arena.alloc_js_node(declaration),
             })
@@ -7582,10 +7570,7 @@ fn convert_statement_for_program(
             let source_lit = &import_decl.source;
             let source_start = offset + source_lit.span.start as usize;
             let source_end = offset + source_lit.span.end as usize;
-            let raw = source_lit
-                .raw
-                .as_ref()
-                .map_or("", oxc_ast::ast::Str::as_str);
+            let raw = source_lit.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
             let source = expr_to_node(create_string_literal(
                 &source_lit.value,
                 raw,
@@ -7601,8 +7586,8 @@ fn convert_statement_for_program(
             };
 
             Some(JsNode::ImportDeclaration {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 specifiers: arena.alloc_js_children(specifiers),
                 source: arena.alloc_js_node(source),
@@ -7624,8 +7609,8 @@ fn convert_statement_for_program(
                 .and_then(|alt| convert_statement_for_program(arena, alt, offset, line_offsets));
 
             Some(JsNode::IfStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 test: arena.alloc_js_node(expr_to_node(test)),
                 consequent: arena.alloc_js_node(consequent.unwrap_or(JsNode::Null)),
@@ -7644,8 +7629,8 @@ fn convert_statement_for_program(
                 .collect();
 
             Some(JsNode::BlockStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 body: arena.alloc_js_children(body),
             })
@@ -7668,8 +7653,8 @@ fn convert_statement_for_program(
             });
 
             Some(JsNode::ReturnStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 argument,
             })
@@ -7719,8 +7704,8 @@ fn convert_statement_for_program(
                 .unwrap_or(JsNode::Null);
 
             Some(JsNode::ForStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 init,
                 test,
@@ -7740,9 +7725,10 @@ fn convert_statement_for_program(
                 // Assignment-target left (`for (x of arr)`, `for ([a,b] of arr)`,
                 // `for (obj.p of arr)`): preserve it instead of dropping it to
                 // `Null` (which made the whole loop vanish downstream). H-127.
-                other => other.as_assignment_target().map_or(JsNode::Null, |t| {
-                    convert_assignment_target_for_program(arena, t, offset, line_offsets)
-                }),
+                other => other
+                    .as_assignment_target()
+                    .map(|t| convert_assignment_target_for_program(arena, t, offset, line_offsets))
+                    .unwrap_or(JsNode::Null),
             };
 
             let right = expr_to_node(convert_expression_for_program(
@@ -7757,8 +7743,8 @@ fn convert_statement_for_program(
                     .unwrap_or(JsNode::Null);
 
             Some(JsNode::ForOfStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 r#await: for_of_stmt.r#await,
                 left: arena.alloc_js_node(left),
@@ -7777,9 +7763,10 @@ fn convert_statement_for_program(
                 }
                 // Assignment-target left (`for (x in obj)`, `for (a.b in obj)`):
                 // preserve it instead of dropping it to `Null`. H-127.
-                other => other.as_assignment_target().map_or(JsNode::Null, |t| {
-                    convert_assignment_target_for_program(arena, t, offset, line_offsets)
-                }),
+                other => other
+                    .as_assignment_target()
+                    .map(|t| convert_assignment_target_for_program(arena, t, offset, line_offsets))
+                    .unwrap_or(JsNode::Null),
             };
 
             let right = expr_to_node(convert_expression_for_program(
@@ -7794,8 +7781,8 @@ fn convert_statement_for_program(
                     .unwrap_or(JsNode::Null);
 
             Some(JsNode::ForInStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 left: arena.alloc_js_node(left),
                 right: arena.alloc_js_node(right),
@@ -7818,8 +7805,8 @@ fn convert_statement_for_program(
                 .unwrap_or(JsNode::Null);
 
             Some(JsNode::WhileStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 test: arena.alloc_js_node(test),
                 body: arena.alloc_js_node(body),
@@ -7841,8 +7828,8 @@ fn convert_statement_for_program(
                 .filter_map(|stmt| convert_statement_for_program(arena, stmt, offset, line_offsets))
                 .collect();
             let block = JsNode::BlockStatement {
-                start: source_pos(block_start),
-                end: source_pos(block_end),
+                start: block_start as u32,
+                end: block_end as u32,
                 loc: block_loc,
                 body: arena.alloc_js_children(block_body),
             };
@@ -7874,15 +7861,15 @@ fn convert_statement_for_program(
                     })
                     .collect();
                 let body = JsNode::BlockStatement {
-                    start: source_pos(body_start),
-                    end: source_pos(body_end),
+                    start: body_start as u32,
+                    end: body_end as u32,
                     loc: body_loc,
                     body: arena.alloc_js_children(body_stmts),
                 };
 
                 arena.alloc_js_node(JsNode::CatchClause {
-                    start: source_pos(handler_start),
-                    end: source_pos(handler_end),
+                    start: handler_start as u32,
+                    end: handler_end as u32,
                     loc: handler_loc,
                     param,
                     body: arena.alloc_js_node(body),
@@ -7902,16 +7889,16 @@ fn convert_statement_for_program(
                     })
                     .collect();
                 arena.alloc_js_node(JsNode::BlockStatement {
-                    start: source_pos(finalizer_start),
-                    end: source_pos(finalizer_end),
+                    start: finalizer_start as u32,
+                    end: finalizer_end as u32,
                     loc: finalizer_loc,
                     body: arena.alloc_js_children(body_stmts),
                 })
             });
 
             Some(JsNode::TryStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 block: arena.alloc_js_node(block),
                 handler,
@@ -7931,8 +7918,8 @@ fn convert_statement_for_program(
             ));
 
             Some(JsNode::ThrowStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 argument: arena.alloc_js_node(argument),
             })
@@ -7954,8 +7941,8 @@ fn convert_statement_for_program(
             });
 
             Some(JsNode::BreakStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 label,
             })
@@ -7977,8 +7964,8 @@ fn convert_statement_for_program(
             });
 
             Some(JsNode::ContinueStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 label,
             })
@@ -8026,8 +8013,8 @@ fn convert_statement_for_program(
                         .collect();
 
                     JsNode::SwitchCase {
-                        start: source_pos(case_start),
-                        end: source_pos(case_end),
+                        start: case_start as u32,
+                        end: case_end as u32,
                         loc: case_loc,
                         test,
                         consequent: arena.alloc_js_children(consequent),
@@ -8036,8 +8023,8 @@ fn convert_statement_for_program(
                 .collect();
 
             Some(JsNode::SwitchStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 discriminant: arena.alloc_js_node(discriminant),
                 cases: arena.alloc_js_children(cases),
@@ -8060,8 +8047,8 @@ fn convert_statement_for_program(
                     .unwrap_or(JsNode::Null);
 
             Some(JsNode::DoWhileStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 test: arena.alloc_js_node(test),
                 body: arena.alloc_js_node(body),
@@ -8086,8 +8073,8 @@ fn convert_statement_for_program(
                     .unwrap_or(JsNode::Null);
 
             Some(JsNode::LabeledStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 label: arena.alloc_js_node(label),
                 body: arena.alloc_js_node(body),
@@ -8099,8 +8086,8 @@ fn convert_statement_for_program(
             let loc = create_typed_loc(start, end, line_offsets);
 
             Some(JsNode::EmptyStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
             })
         }
@@ -8110,8 +8097,8 @@ fn convert_statement_for_program(
             let loc = create_typed_loc(start, end, line_offsets);
 
             Some(JsNode::DebuggerStatement {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
             })
         }
@@ -8121,8 +8108,8 @@ fn convert_statement_for_program(
             let end = offset + enum_decl.span.end as usize;
             let loc = create_typed_loc(start, end, line_offsets);
             Some(JsNode::TSEnumDeclaration {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
             })
         }
@@ -8135,8 +8122,8 @@ fn convert_statement_for_program(
                 let start = offset + module_decl.span.start as usize;
                 let end = offset + module_decl.span.end as usize;
                 return Some(JsNode::EmptyStatement {
-                    start: source_pos(start),
-                    end: source_pos(end),
+                    start: start as u32,
+                    end: end as u32,
                     loc: create_typed_loc(start, end, line_offsets),
                 });
             }
@@ -8158,8 +8145,8 @@ fn convert_statement_for_program(
                         // Structure: node.body = { body: [...statements...] }
                         // TSModuleDeclaration body is a wrapper with inner body
                         Some(arena.alloc_js_node(JsNode::BlockStatement {
-                            start: source_pos(start),
-                            end: source_pos(end),
+                            start: start as u32,
+                            end: end as u32,
                             loc: loc.clone(),
                             body: arena.alloc_js_children(block_body),
                         }))
@@ -8172,8 +8159,8 @@ fn convert_statement_for_program(
             });
 
             Some(JsNode::TSModuleDeclaration {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 body,
             })
@@ -8232,8 +8219,8 @@ fn convert_function_declaration_as_node(
     });
 
     Some(JsNode::FunctionDeclaration {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc,
         id: id_node,
         params: arena.alloc_js_children(params),
@@ -8305,8 +8292,8 @@ fn convert_class_declaration_as_node(
                 let dec_start = offset + dec.span.start as usize;
                 let dec_end = offset + dec.span.end as usize;
                 JsNode::Decorator {
-                    start: source_pos(dec_start),
-                    end: source_pos(dec_end),
+                    start: dec_start as u32,
+                    end: dec_end as u32,
                     loc: None,
                 }
             })
@@ -8315,8 +8302,8 @@ fn convert_class_declaration_as_node(
     };
 
     JsNode::ClassDeclaration {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc,
         id,
         super_class,
@@ -8621,8 +8608,8 @@ fn convert_import_specifier(
             };
 
             JsNode::ImportSpecifier {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 imported: arena.alloc_js_node(imported),
                 local: arena.alloc_js_node(local),
@@ -8644,8 +8631,8 @@ fn convert_import_specifier(
             ));
 
             JsNode::ImportDefaultSpecifier {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 local: arena.alloc_js_node(local),
             }
@@ -8665,8 +8652,8 @@ fn convert_import_specifier(
             ));
 
             JsNode::ImportNamespaceSpecifier {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc,
                 local: arena.alloc_js_node(local),
             }
@@ -8674,7 +8661,7 @@ fn convert_import_specifier(
     }
 }
 
-/// Convert a `VariableDeclaration` to `JsNode` directly (for ForStatement/ForOfStatement/ForInStatement).
+/// Convert a VariableDeclaration to JsNode directly (for ForStatement/ForOfStatement/ForInStatement).
 fn convert_variable_declaration_as_node(
     arena: &ParseArena,
     vd: &oxc_ast::ast::VariableDeclaration,
@@ -8700,8 +8687,8 @@ fn convert_variable_declaration_as_node(
     };
 
     JsNode::VariableDeclaration {
-        start: source_pos(var_start),
-        end: source_pos(var_end),
+        start: var_start as u32,
+        end: var_end as u32,
         loc,
         declarations: arena.alloc_js_children(declarations),
         kind: CompactString::from(kind),
@@ -8709,7 +8696,7 @@ fn convert_variable_declaration_as_node(
     }
 }
 
-/// Convert a variable declarator to `JsNode` (for program context, no -1 offset adjustment).
+/// Convert a variable declarator to JsNode (for program context, no -1 offset adjustment).
 fn convert_variable_declarator_for_program(
     arena: &ParseArena,
     decl: &oxc_ast::ast::VariableDeclarator,
@@ -8749,7 +8736,7 @@ fn convert_variable_declarator_for_program(
                 ..
             } => arena.alloc_js_node(JsNode::Identifier {
                 start: id_start,
-                end: source_pos(ts_end),
+                end: ts_end as u32,
                 loc: create_typed_loc(id_start as usize, ts_end, line_offsets),
                 name,
                 optional: false,
@@ -8767,7 +8754,7 @@ fn convert_variable_declarator_for_program(
                 ..
             } => arena.alloc_js_node(JsNode::ObjectPattern {
                 start: p_start,
-                end: source_pos(ts_end),
+                end: ts_end as u32,
                 loc: create_typed_loc(p_start as usize, ts_end, line_offsets),
                 properties,
                 type_annotation: Some(Box::new(ts_value)),
@@ -8778,7 +8765,7 @@ fn convert_variable_declarator_for_program(
                 ..
             } => arena.alloc_js_node(JsNode::ArrayPattern {
                 start: p_start,
-                end: source_pos(ts_end),
+                end: ts_end as u32,
                 loc: create_typed_loc(p_start as usize, ts_end, line_offsets),
                 elements,
                 type_annotation: Some(Box::new(ts_value)),
@@ -8789,11 +8776,7 @@ fn convert_variable_declarator_for_program(
                     id_obj.set_field("typeAnnotation", ts_value);
                     id_obj.set_field("end", Value::Number((ts_end as i64).into()));
                     if let Some(loc) = create_loc(
-                        id_obj
-                            .get("start")
-                            .and_then(serde_json::Value::as_i64)
-                            .and_then(|start| usize::try_from(start).ok())
-                            .unwrap_or(0),
+                        id_obj.get("start").and_then(|v| v.as_i64()).unwrap_or(0) as usize,
                         ts_end,
                         line_offsets,
                     ) {
@@ -8814,8 +8797,8 @@ fn convert_variable_declarator_for_program(
     });
 
     Some(JsNode::VariableDeclarator {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc,
         id: id_node,
         init: init_node,
@@ -8839,13 +8822,13 @@ fn convert_expression_for_program<'a>(
         OxcExpression::NumericLiteral(num) => {
             let start = offset + num.span.start as usize;
             let end = offset + num.span.end as usize;
-            let raw = num.raw.as_ref().map_or("", oxc_ast::ast::Str::as_str);
+            let raw = num.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
             create_numeric_literal(num.value, raw, start, end, line_offsets)
         }
         OxcExpression::StringLiteral(str_lit) => {
             let start = offset + str_lit.span.start as usize;
             let end = offset + str_lit.span.end as usize;
-            let raw = str_lit.raw.as_ref().map_or("", oxc_ast::ast::Str::as_str);
+            let raw = str_lit.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
             create_string_literal(&str_lit.value, raw, start, end, line_offsets)
         }
         OxcExpression::BooleanLiteral(bool_lit) => {
@@ -8878,8 +8861,8 @@ fn convert_expression_for_program<'a>(
                         let spread_start = offset + spread.span.start as usize;
                         let spread_end = offset + spread.span.end as usize;
                         JsNode::SpreadElement {
-                            start: source_pos(spread_start),
-                            end: source_pos(spread_end),
+                            start: spread_start as u32,
+                            end: spread_end as u32,
                             loc: create_typed_loc(spread_start, spread_end, line_offsets),
                             argument: arena.alloc_js_node(expr_to_node(
                                 convert_expression_for_program(
@@ -8904,8 +8887,8 @@ fn convert_expression_for_program<'a>(
                 .collect();
 
             Expression::from_node(JsNode::CallExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 callee: arena.alloc_js_node(expr_to_node(callee)),
                 arguments: arena.alloc_js_children(args),
@@ -8924,8 +8907,8 @@ fn convert_expression_for_program<'a>(
                         let spread_start = offset + spread.span.start as usize;
                         let spread_end = offset + spread.span.end as usize;
                         Some(JsNode::SpreadElement {
-                            start: source_pos(spread_start),
-                            end: source_pos(spread_end),
+                            start: spread_start as u32,
+                            end: spread_end as u32,
                             loc: create_typed_loc(spread_start, spread_end, line_offsets),
                             argument: arena.alloc_js_node(expr_to_node(
                                 convert_expression_for_program(
@@ -8951,8 +8934,8 @@ fn convert_expression_for_program<'a>(
                 .collect();
 
             Expression::from_node(JsNode::ArrayExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 elements,
             })
@@ -8979,8 +8962,8 @@ fn convert_expression_for_program<'a>(
                             oxc_ast::ast::PropertyKind::Set => "set",
                         };
                         JsNode::Property {
-                            start: source_pos(prop_start),
-                            end: source_pos(prop_end),
+                            start: prop_start as u32,
+                            end: prop_end as u32,
                             loc: create_typed_loc(prop_start, prop_end, line_offsets),
                             method: p.method,
                             shorthand: p.shorthand,
@@ -8994,8 +8977,8 @@ fn convert_expression_for_program<'a>(
                         let spread_start = offset + spread.span.start as usize;
                         let spread_end = offset + spread.span.end as usize;
                         JsNode::SpreadElement {
-                            start: source_pos(spread_start),
-                            end: source_pos(spread_end),
+                            start: spread_start as u32,
+                            end: spread_end as u32,
                             loc: create_typed_loc(spread_start, spread_end, line_offsets),
                             argument: arena.alloc_js_node(expr_to_node(
                                 convert_expression_for_program(
@@ -9011,8 +8994,8 @@ fn convert_expression_for_program<'a>(
                 .collect();
 
             Expression::from_node(JsNode::ObjectExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 properties: arena.alloc_js_children(properties),
             })
@@ -9035,8 +9018,8 @@ fn convert_expression_for_program<'a>(
                 let argument =
                     convert_binding_pattern(arena, &rest.rest.argument, offset, line_offsets);
                 params.push(JsNode::RestElement {
-                    start: source_pos(rest_start),
-                    end: source_pos(rest_end),
+                    start: rest_start as u32,
+                    end: rest_end as u32,
                     loc: create_typed_loc(rest_start, rest_end, line_offsets),
                     argument: arena.alloc_js_node(argument),
                 });
@@ -9058,8 +9041,8 @@ fn convert_expression_for_program<'a>(
             };
 
             Expression::from_node(JsNode::ArrowFunctionExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 id: None,
                 expression: arrow.body.is_expression(),
@@ -9104,8 +9087,8 @@ fn convert_expression_for_program<'a>(
             );
 
             Expression::from_node(JsNode::MemberExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 object: arena.alloc_js_node(expr_to_node(object)),
                 property: arena.alloc_js_node(expr_to_node(property)),
@@ -9122,8 +9105,8 @@ fn convert_expression_for_program<'a>(
                 convert_expression_for_program(arena, &member.expression, offset, line_offsets);
 
             Expression::from_node(JsNode::MemberExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 object: arena.alloc_js_node(expr_to_node(object)),
                 property: arena.alloc_js_node(expr_to_node(property)),
@@ -9144,13 +9127,13 @@ fn convert_expression_for_program<'a>(
             let prop_start = offset + member.field.span.start as usize;
             let prop_end = offset + member.field.span.end as usize;
             Expression::from_node(JsNode::MemberExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 object: arena.alloc_js_node(expr_to_node(object)),
                 property: arena.alloc_js_node(JsNode::PrivateIdentifier {
-                    start: source_pos(prop_start),
-                    end: source_pos(prop_end),
+                    start: prop_start as u32,
+                    end: prop_end as u32,
                     loc: create_typed_loc(prop_start, prop_end, line_offsets),
                     name: CompactString::from(member.field.name.as_str()),
                 }),
@@ -9165,8 +9148,8 @@ fn convert_expression_for_program<'a>(
                 convert_expression_for_program(arena, &import_expr.source, offset, line_offsets);
 
             Expression::from_node(JsNode::ImportExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 source: arena.alloc_js_node(expr_to_node(source)),
             })
@@ -9190,8 +9173,8 @@ fn convert_expression_for_program<'a>(
             let operator = assignment_operator_to_str(&assign.operator);
 
             Expression::from_node(JsNode::AssignmentExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 operator: CompactString::from(operator),
                 left: arena.alloc_js_node(left),
@@ -9204,8 +9187,8 @@ fn convert_expression_for_program<'a>(
             let argument =
                 convert_expression_for_program(arena, &unary.argument, offset, line_offsets);
             Expression::from_node(JsNode::UnaryExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 operator: CompactString::from(unary.operator.as_str()),
                 prefix: true,
@@ -9225,8 +9208,8 @@ fn convert_expression_for_program<'a>(
                         let spread_start = offset + spread.span.start as usize;
                         let spread_end = offset + spread.span.end as usize;
                         JsNode::SpreadElement {
-                            start: source_pos(spread_start),
-                            end: source_pos(spread_end),
+                            start: spread_start as u32,
+                            end: spread_end as u32,
                             loc: create_typed_loc(spread_start, spread_end, line_offsets),
                             argument: arena.alloc_js_node(expr_to_node(
                                 convert_expression_for_program(
@@ -9251,8 +9234,8 @@ fn convert_expression_for_program<'a>(
                 .collect();
 
             Expression::from_node(JsNode::NewExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 callee: arena.alloc_js_node(expr_to_node(callee)),
                 arguments: arena.alloc_js_children(args),
@@ -9298,8 +9281,8 @@ fn convert_expression_for_program<'a>(
             };
 
             Expression::from_node(JsNode::ClassExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 id,
                 super_class,
@@ -9310,8 +9293,8 @@ fn convert_expression_for_program<'a>(
             let start = offset + super_expr.span.start as usize;
             let end = offset + super_expr.span.end as usize;
             Expression::from_node(JsNode::Super {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
             })
         }
@@ -9319,8 +9302,8 @@ fn convert_expression_for_program<'a>(
             let start = offset + this_expr.span.start as usize;
             let end = offset + this_expr.span.end as usize;
             Expression::from_node(JsNode::ThisExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
             })
         }
@@ -9335,8 +9318,8 @@ fn convert_expression_for_program<'a>(
                     let q_start = offset + quasi.span.start as usize;
                     let q_end = offset + quasi.span.end as usize;
                     JsNode::TemplateElement {
-                        start: source_pos(q_start),
-                        end: source_pos(q_end),
+                        start: q_start as u32,
+                        end: q_end as u32,
                         loc: create_typed_loc(q_start, q_end, line_offsets),
                         tail: quasi.tail,
                         value: TemplateElementValue {
@@ -9365,8 +9348,8 @@ fn convert_expression_for_program<'a>(
                 .collect();
 
             Expression::from_node(JsNode::TemplateLiteral {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 quasis: arena.alloc_js_children(quasis),
                 expressions: arena.alloc_js_children(expressions),
@@ -9379,8 +9362,8 @@ fn convert_expression_for_program<'a>(
             let right = convert_expression_for_program(arena, &bin.right, offset, line_offsets);
 
             Expression::from_node(JsNode::BinaryExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 left: arena.alloc_js_node(expr_to_node(left)),
                 operator: CompactString::from(binary_operator_to_str(&bin.operator)),
@@ -9394,8 +9377,8 @@ fn convert_expression_for_program<'a>(
             let right = convert_expression_for_program(arena, &logical.right, offset, line_offsets);
 
             Expression::from_node(JsNode::LogicalExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 left: arena.alloc_js_node(expr_to_node(left)),
                 operator: CompactString::from(logical_operator_to_str(&logical.operator)),
@@ -9417,8 +9400,8 @@ fn convert_expression_for_program<'a>(
             );
 
             Expression::from_node(JsNode::UpdateExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 operator: CompactString::from(operator),
                 prefix: update.prefix,
@@ -9431,8 +9414,8 @@ fn convert_expression_for_program<'a>(
             let argument =
                 convert_expression_for_program(arena, &await_expr.argument, offset, line_offsets);
             Expression::from_node(JsNode::AwaitExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 argument: arena.alloc_js_node(expr_to_node(argument)),
             })
@@ -9447,8 +9430,8 @@ fn convert_expression_for_program<'a>(
                 convert_expression_for_program(arena, &cond.alternate, offset, line_offsets);
 
             Expression::from_node(JsNode::ConditionalExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 test: arena.alloc_js_node(expr_to_node(test)),
                 consequent: arena.alloc_js_node(expr_to_node(consequent)),
@@ -9473,8 +9456,8 @@ fn convert_expression_for_program<'a>(
                 .collect();
 
             Expression::from_node(JsNode::SequenceExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expressions: arena.alloc_js_children(expressions),
             })
@@ -9483,8 +9466,8 @@ fn convert_expression_for_program<'a>(
             let start = offset + yield_expr.span.start as usize;
             let end = offset + yield_expr.span.end as usize;
             Expression::from_node(JsNode::YieldExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 delegate: yield_expr.delegate,
                 argument: yield_expr.argument.as_ref().map(|arg| {
@@ -9514,8 +9497,8 @@ fn convert_expression_for_program<'a>(
                                 let spread_start = offset + spread.span.start as usize;
                                 let spread_end = offset + spread.span.end as usize;
                                 JsNode::SpreadElement {
-                                    start: source_pos(spread_start),
-                                    end: source_pos(spread_end),
+                                    start: spread_start as u32,
+                                    end: spread_end as u32,
                                     loc: create_typed_loc(spread_start, spread_end, line_offsets),
                                     argument: arena.alloc_js_node(expr_to_node(
                                         convert_expression_for_program(
@@ -9539,8 +9522,8 @@ fn convert_expression_for_program<'a>(
                         })
                         .collect();
                     JsNode::CallExpression {
-                        start: source_pos(inner_start),
-                        end: source_pos(inner_end),
+                        start: inner_start as u32,
+                        end: inner_end as u32,
                         loc: create_typed_loc(inner_start, inner_end, line_offsets),
                         callee: arena.alloc_js_node(expr_to_node(callee)),
                         arguments: arena.alloc_js_children(args),
@@ -9557,8 +9540,8 @@ fn convert_expression_for_program<'a>(
                         line_offsets,
                     );
                     JsNode::TSNonNullExpression {
-                        start: source_pos(inner_start),
-                        end: source_pos(inner_end),
+                        start: inner_start as u32,
+                        end: inner_end as u32,
                         loc: create_typed_loc(inner_start, inner_end, line_offsets),
                         expression: arena.alloc_js_node(expr_to_node(inner)),
                     }
@@ -9577,8 +9560,8 @@ fn convert_expression_for_program<'a>(
                         line_offsets,
                     );
                     JsNode::MemberExpression {
-                        start: source_pos(inner_start),
-                        end: source_pos(inner_end),
+                        start: inner_start as u32,
+                        end: inner_end as u32,
                         loc: create_typed_loc(inner_start, inner_end, line_offsets),
                         object: arena.alloc_js_node(expr_to_node(object)),
                         property: arena.alloc_js_node(expr_to_node(property)),
@@ -9598,8 +9581,8 @@ fn convert_expression_for_program<'a>(
                         line_offsets,
                     );
                     JsNode::MemberExpression {
-                        start: source_pos(inner_start),
-                        end: source_pos(inner_end),
+                        start: inner_start as u32,
+                        end: inner_end as u32,
                         loc: create_typed_loc(inner_start, inner_end, line_offsets),
                         object: arena.alloc_js_node(expr_to_node(object)),
                         property: arena.alloc_js_node(expr_to_node(property)),
@@ -9625,8 +9608,8 @@ fn convert_expression_for_program<'a>(
                         line_offsets,
                     );
                     JsNode::MemberExpression {
-                        start: source_pos(inner_start),
-                        end: source_pos(inner_end),
+                        start: inner_start as u32,
+                        end: inner_end as u32,
                         loc: create_typed_loc(inner_start, inner_end, line_offsets),
                         object: arena.alloc_js_node(expr_to_node(object)),
                         property: arena.alloc_js_node(expr_to_node(property)),
@@ -9636,8 +9619,8 @@ fn convert_expression_for_program<'a>(
                 }
             };
             Expression::from_node(JsNode::ChainExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expression: arena.alloc_js_node(chain_inner),
             })
@@ -9658,8 +9641,8 @@ fn convert_expression_for_program<'a>(
                     let q_start = offset + quasi.span.start as usize;
                     let q_end = offset + quasi.span.end as usize;
                     JsNode::TemplateElement {
-                        start: source_pos(q_start),
-                        end: source_pos(q_end),
+                        start: q_start as u32,
+                        end: q_end as u32,
                         loc: create_typed_loc(q_start, q_end, line_offsets),
                         tail: quasi.tail,
                         value: TemplateElementValue {
@@ -9689,16 +9672,16 @@ fn convert_expression_for_program<'a>(
                 .collect();
 
             let quasi = JsNode::TemplateLiteral {
-                start: source_pos(quasi_start),
-                end: source_pos(quasi_end),
+                start: quasi_start as u32,
+                end: quasi_end as u32,
                 loc: create_typed_loc(quasi_start, quasi_end, line_offsets),
                 quasis: arena.alloc_js_children(quasis),
                 expressions: arena.alloc_js_children(quasi_expressions),
             };
 
             Expression::from_node(JsNode::TaggedTemplateExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 tag: arena.alloc_js_node(expr_to_node(tag)),
                 quasi: arena.alloc_js_node(quasi),
@@ -9724,8 +9707,8 @@ fn convert_expression_for_program<'a>(
             let type_annotation =
                 convert_ts_type(arena, &ts_as.type_annotation, offset, line_offsets);
             Expression::from_node(JsNode::TSAsExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expression: arena.alloc_js_node(expr_to_node(inner)),
                 type_annotation: Box::new(type_annotation),
@@ -9743,8 +9726,8 @@ fn convert_expression_for_program<'a>(
             let type_annotation =
                 convert_ts_type(arena, &ts_satisfies.type_annotation, offset, line_offsets);
             Expression::from_node(JsNode::TSSatisfiesExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expression: arena.alloc_js_node(expr_to_node(inner)),
                 type_annotation: Box::new(type_annotation),
@@ -9760,8 +9743,8 @@ fn convert_expression_for_program<'a>(
                 line_offsets,
             );
             Expression::from_node(JsNode::TSNonNullExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expression: arena.alloc_js_node(expr_to_node(inner)),
             })
@@ -9778,8 +9761,8 @@ fn convert_expression_for_program<'a>(
             let type_annotation =
                 convert_ts_type(arena, &ts_assertion.type_annotation, offset, line_offsets);
             Expression::from_node(JsNode::TSTypeAssertion {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expression: arena.alloc_js_node(expr_to_node(inner)),
                 type_annotation: Box::new(type_annotation),
@@ -9797,8 +9780,8 @@ fn convert_expression_for_program<'a>(
                 line_offsets,
             );
             Expression::from_node(JsNode::TSInstantiationExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expression: arena.alloc_js_node(expr_to_node(inner)),
                 type_arguments: Box::new(type_arguments),
@@ -9876,7 +9859,7 @@ enum TypedClassElem {
 /// then falls back to the `Raw(Value)` blob via `convert_class_body_for_program`).
 ///
 /// Serializes byte-identically to the Value blob (modulo the method value's
-/// `expression: false` field, which the official `ESTree` output also emits and
+/// `expression: false` field, which the official ESTree output also emits and
 /// the `convert_function_expression_for_program` Value blob was missing — same
 /// improvement landed in D2 for top-level `FunctionExpression`s).
 fn convert_class_body_for_program_as_node(
@@ -9898,8 +9881,8 @@ fn convert_class_body_for_program_as_node(
     }
 
     Some(JsNode::ClassBody {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         body: arena.alloc_js_children(members),
     })
@@ -9949,8 +9932,8 @@ fn convert_class_element_for_program_as_node(
                 false,
             );
             TypedClassElem::Node(JsNode::MethodDefinition {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 key: arena.alloc_js_node(key),
                 value: arena.alloc_js_node(value),
@@ -9989,8 +9972,8 @@ fn convert_class_element_for_program_as_node(
                 )))
             });
             TypedClassElem::Node(JsNode::PropertyDefinition {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 key: arena.alloc_js_node(key),
                 value,
@@ -10169,7 +10152,7 @@ fn convert_function_expression_for_program(
 /// `JsNode::FunctionExpression` (program-offset convention) instead of a
 /// `JsNode::Raw(Value)` blob, so the function body subtree routes through the
 /// typed analyze walker. Serializes byte-identically to the Value blob (modulo
-/// the `expression: false` field, which the official `ESTree` output also emits
+/// the `expression: false` field, which the official ESTree output also emits
 /// and the Value blob was missing). `id` is always `null` to match the Value
 /// blob, and params keep the TS-aware `convert_formal_parameter` shape (TS bits
 /// fall through to `JsNode::Raw` via `expr_to_node`).
@@ -10204,8 +10187,8 @@ fn convert_function_expression_for_program_as_node(
             line_offsets,
         );
         params.push(JsNode::RestElement {
-            start: source_pos(rest_start),
-            end: source_pos(rest_end),
+            start: rest_start as u32,
+            end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
             argument: arena.alloc_js_node(argument),
         });
@@ -10222,8 +10205,8 @@ fn convert_function_expression_for_program_as_node(
     });
 
     JsNode::FunctionExpression {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         id: None,
         params: arena.alloc_js_children(params),
@@ -10280,7 +10263,7 @@ fn convert_function_body_for_program(
     Value::Object(obj)
 }
 
-/// Convert a function body to `JsNode` (for `FunctionDeclaration` in `JsNode` path).
+/// Convert a function body to JsNode (for FunctionDeclaration in JsNode path).
 fn convert_function_body_for_program_as_node(
     arena: &ParseArena,
     body: &oxc_ast::ast::FunctionBody,
@@ -10298,8 +10281,8 @@ fn convert_function_body_for_program_as_node(
         .collect();
 
     JsNode::BlockStatement {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc,
         body: arena.alloc_js_children(statements),
     }
@@ -10330,7 +10313,7 @@ fn convert_binding_pattern(
     }
 }
 
-/// Convert an `ObjectPattern` binding to `JsNode`.
+/// Convert an ObjectPattern binding to JsNode.
 fn convert_object_pattern(
     arena: &ParseArena,
     obj_pat: &oxc_ast::ast::ObjectPattern,
@@ -10351,8 +10334,8 @@ fn convert_object_pattern(
         let rest_start = offset + rest.span.start as usize;
         let rest_end = offset + rest.span.end as usize;
         properties.push(JsNode::RestElement {
-            start: source_pos(rest_start),
-            end: source_pos(rest_end),
+            start: rest_start as u32,
+            end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
             argument: arena.alloc_js_node(convert_binding_pattern(
                 arena,
@@ -10364,15 +10347,15 @@ fn convert_object_pattern(
     }
 
     JsNode::ObjectPattern {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         properties: arena.alloc_js_children(properties),
         type_annotation: None,
     }
 }
 
-/// Convert an `ArrayPattern` binding to `JsNode`.
+/// Convert an ArrayPattern binding to JsNode.
 fn convert_array_pattern(
     arena: &ParseArena,
     arr_pat: &oxc_ast::ast::ArrayPattern,
@@ -10396,8 +10379,8 @@ fn convert_array_pattern(
         let rest_start = offset + rest.span.start as usize;
         let rest_end = offset + rest.span.end as usize;
         elements.push(Some(JsNode::RestElement {
-            start: source_pos(rest_start),
-            end: source_pos(rest_end),
+            start: rest_start as u32,
+            end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
             argument: arena.alloc_js_node(convert_binding_pattern(
                 arena,
@@ -10409,15 +10392,15 @@ fn convert_array_pattern(
     }
 
     JsNode::ArrayPattern {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         elements,
         type_annotation: None,
     }
 }
 
-/// Convert an `AssignmentPattern` binding to `JsNode`.
+/// Convert an AssignmentPattern binding to JsNode.
 fn convert_assignment_pattern(
     arena: &ParseArena,
     assign_pat: &oxc_ast::ast::AssignmentPattern,
@@ -10428,8 +10411,8 @@ fn convert_assignment_pattern(
     let end = offset + assign_pat.span.end as usize;
 
     JsNode::AssignmentPattern {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         left: arena.alloc_js_node(convert_binding_pattern(
             arena,
@@ -10481,8 +10464,8 @@ fn convert_assignment_target_for_program(
             );
 
             JsNode::MemberExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 object: arena.alloc_js_node(expr_to_node(object)),
                 property: arena.alloc_js_node(expr_to_node(property)),
@@ -10500,8 +10483,8 @@ fn convert_assignment_target_for_program(
                 convert_expression_for_program(arena, &member.expression, offset, line_offsets);
 
             JsNode::MemberExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 object: arena.alloc_js_node(expr_to_node(object)),
                 property: arena.alloc_js_node(expr_to_node(property)),
@@ -10528,13 +10511,13 @@ fn convert_assignment_target_for_program(
             let prop_start = offset + member.field.span.start as usize;
             let prop_end = offset + member.field.span.end as usize;
             JsNode::MemberExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 object: arena.alloc_js_node(expr_to_node(object)),
                 property: arena.alloc_js_node(JsNode::PrivateIdentifier {
-                    start: source_pos(prop_start),
-                    end: source_pos(prop_end),
+                    start: prop_start as u32,
+                    end: prop_end as u32,
                     loc: create_typed_loc(prop_start, prop_end, line_offsets),
                     name: CompactString::from(member.field.name.as_str()),
                 }),
@@ -10544,9 +10527,10 @@ fn convert_assignment_target_for_program(
         }
         _ => target
             .as_simple_assignment_target()
-            .map_or(JsNode::Null, |simple| {
+            .map(|simple| {
                 convert_ts_wrapper_target_for_program(arena, simple, offset, line_offsets)
-            }),
+            })
+            .unwrap_or(JsNode::Null),
     }
 }
 
@@ -10568,8 +10552,8 @@ fn convert_ts_wrapper_target_for_program(
             let type_annotation =
                 convert_ts_type(arena, &ts_as.type_annotation, offset, line_offsets);
             JsNode::TSAsExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expression: arena.alloc_js_node(expr_to_node(inner)),
                 type_annotation: Box::new(type_annotation),
@@ -10587,8 +10571,8 @@ fn convert_ts_wrapper_target_for_program(
             let type_annotation =
                 convert_ts_type(arena, &ts_satisfies.type_annotation, offset, line_offsets);
             JsNode::TSSatisfiesExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expression: arena.alloc_js_node(expr_to_node(inner)),
                 type_annotation: Box::new(type_annotation),
@@ -10604,8 +10588,8 @@ fn convert_ts_wrapper_target_for_program(
                 line_offsets,
             );
             JsNode::TSNonNullExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expression: arena.alloc_js_node(expr_to_node(inner)),
             }
@@ -10622,8 +10606,8 @@ fn convert_ts_wrapper_target_for_program(
             let type_annotation =
                 convert_ts_type(arena, &ts_assertion.type_annotation, offset, line_offsets);
             JsNode::TSTypeAssertion {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 expression: arena.alloc_js_node(expr_to_node(inner)),
                 type_annotation: Box::new(type_annotation),
@@ -10633,7 +10617,7 @@ fn convert_ts_wrapper_target_for_program(
     }
 }
 
-/// Convert an `ObjectAssignmentTarget` to a typed `ObjectPattern` `JsNode`
+/// Convert an ObjectAssignmentTarget to a typed `ObjectPattern` `JsNode`
 /// (no -1 offset adjustment).
 fn convert_object_assignment_target_for_program(
     arena: &ParseArena,
@@ -10657,8 +10641,8 @@ fn convert_object_assignment_target_for_program(
         let rest_start = offset + rest.span.start as usize;
         let rest_end = offset + rest.span.end as usize;
         properties.push(JsNode::RestElement {
-            start: source_pos(rest_start),
-            end: source_pos(rest_end),
+            start: rest_start as u32,
+            end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
             argument: arena.alloc_js_node(convert_assignment_target_for_program(
                 arena,
@@ -10670,15 +10654,15 @@ fn convert_object_assignment_target_for_program(
     }
 
     JsNode::ObjectPattern {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         properties: arena.alloc_js_children(properties),
         type_annotation: None,
     }
 }
 
-/// Convert an `ArrayAssignmentTarget` to a typed `ArrayPattern` `JsNode`
+/// Convert an ArrayAssignmentTarget to a typed `ArrayPattern` `JsNode`
 /// (no -1 offset adjustment).
 fn convert_array_assignment_target_for_program(
     arena: &ParseArena,
@@ -10709,8 +10693,8 @@ fn convert_array_assignment_target_for_program(
         let rest_start = offset + rest.span.start as usize;
         let rest_end = offset + rest.span.end as usize;
         elements.push(Some(JsNode::RestElement {
-            start: source_pos(rest_start),
-            end: source_pos(rest_end),
+            start: rest_start as u32,
+            end: rest_end as u32,
             loc: create_typed_loc(rest_start, rest_end, line_offsets),
             argument: arena.alloc_js_node(convert_assignment_target_for_program(
                 arena,
@@ -10722,15 +10706,15 @@ fn convert_array_assignment_target_for_program(
     }
 
     JsNode::ArrayPattern {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         elements,
         type_annotation: None,
     }
 }
 
-/// Convert an `AssignmentTargetProperty` to a typed `Property` `JsNode`
+/// Convert an AssignmentTargetProperty to a typed `Property` `JsNode`
 /// (no -1 offset adjustment).
 fn convert_assignment_target_property_for_program(
     arena: &ParseArena,
@@ -10761,8 +10745,8 @@ fn convert_assignment_target_property_for_program(
             let value = if let Some(init) = &id_prop.init {
                 let init_end = offset + init.span().end as usize;
                 arena.alloc_js_node(JsNode::AssignmentPattern {
-                    start: source_pos(id_start),
-                    end: source_pos(init_end),
+                    start: id_start as u32,
+                    end: init_end as u32,
                     loc: create_typed_loc(id_start, init_end, line_offsets),
                     left: arena.alloc_js_node(make_identifier()),
                     right: arena.alloc_js_node(expr_to_node(convert_expression_for_program(
@@ -10777,8 +10761,8 @@ fn convert_assignment_target_property_for_program(
             };
 
             JsNode::Property {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 key,
                 value,
@@ -10801,8 +10785,8 @@ fn convert_assignment_target_property_for_program(
             );
 
             JsNode::Property {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 key: arena.alloc_js_node(key),
                 value: arena.alloc_js_node(value),
@@ -10815,7 +10799,7 @@ fn convert_assignment_target_property_for_program(
     }
 }
 
-/// Convert a `SimpleAssignmentTarget` to `JsNode` (no -1 offset adjustment).
+/// Convert a SimpleAssignmentTarget to JsNode (no -1 offset adjustment).
 fn convert_simple_assignment_target_for_program(
     arena: &ParseArena,
     target: &oxc_ast::ast::SimpleAssignmentTarget,
@@ -10844,8 +10828,8 @@ fn convert_simple_assignment_target_for_program(
             );
 
             JsNode::MemberExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 object: arena.alloc_js_node(expr_to_node(object)),
                 property: arena.alloc_js_node(expr_to_node(property)),
@@ -10863,8 +10847,8 @@ fn convert_simple_assignment_target_for_program(
                 convert_expression_for_program(arena, &member.expression, offset, line_offsets);
 
             JsNode::MemberExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 object: arena.alloc_js_node(expr_to_node(object)),
                 property: arena.alloc_js_node(expr_to_node(property)),
@@ -10882,13 +10866,13 @@ fn convert_simple_assignment_target_for_program(
             let prop_start = offset + member.field.span.start as usize;
             let prop_end = offset + member.field.span.end as usize;
             JsNode::MemberExpression {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 object: arena.alloc_js_node(expr_to_node(object)),
                 property: arena.alloc_js_node(JsNode::PrivateIdentifier {
-                    start: source_pos(prop_start),
-                    end: source_pos(prop_end),
+                    start: prop_start as u32,
+                    end: prop_end as u32,
                     loc: create_typed_loc(prop_start, prop_end, line_offsets),
                     name: CompactString::from(member.field.name.as_str()),
                 }),
@@ -10900,7 +10884,7 @@ fn convert_simple_assignment_target_for_program(
     }
 }
 
-/// Convert an `AssignmentTargetMaybeDefault` to a typed `JsNode` (no -1 offset
+/// Convert an AssignmentTargetMaybeDefault to a typed `JsNode` (no -1 offset
 /// adjustment). A `WithDefault` becomes an `AssignmentPattern`; a bare target
 /// delegates to `convert_assignment_target_for_program`.
 fn convert_assignment_target_maybe_default_for_program(
@@ -10917,8 +10901,8 @@ fn convert_assignment_target_maybe_default_for_program(
             let end = offset + with_default.span.end as usize;
 
             JsNode::AssignmentPattern {
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 loc: create_typed_loc(start, end, line_offsets),
                 left: arena.alloc_js_node(convert_assignment_target_for_program(
                     arena,
@@ -10958,8 +10942,8 @@ fn convert_binding_property(
     let value = convert_binding_pattern(arena, &prop.value, offset, line_offsets);
 
     JsNode::Property {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc(start, end, line_offsets),
         key: arena.alloc_js_node(key),
         value: arena.alloc_js_node(value),
@@ -11031,7 +11015,10 @@ pub fn parse_binding_pattern<'a>(
     {
         return Err(crate::error::ParseError::svelte(
             "unexpected_reserved_word",
-            format!("'{trimmed}' is a reserved word in JavaScript and cannot be used here"),
+            format!(
+                "'{}' is a reserved word in JavaScript and cannot be used here",
+                trimmed
+            ),
             (offset, offset),
         ));
     }
@@ -11049,7 +11036,7 @@ pub fn parse_binding_pattern<'a>(
     with_oxc_allocator(|allocator| {
         let source_type = SourceType::mjs();
 
-        let wrapped = format!("let {content} = null");
+        let wrapped = format!("let {} = null", content);
         let parser = OxcParser::new(allocator, &wrapped, source_type);
         let result = parser.parse();
 
@@ -11057,7 +11044,7 @@ pub fn parse_binding_pattern<'a>(
             let trimmed = content.trim_ws();
             if trimmed.starts_with('{') || trimmed.starts_with('[') {
                 let err = &result.diagnostics[0];
-                let msg = format!("{err}");
+                let msg = format!("{}", err);
                 let clean_msg = msg.split('\n').next().unwrap_or(&msg).trim_ws().to_string();
                 let err_pos = offset;
                 return Err(crate::error::ParseError::svelte(
@@ -11087,13 +11074,15 @@ pub fn parse_binding_pattern<'a>(
 
         // Fallback: return as simple identifier
         let trimmed = content.trim_ws();
-        let name = trimmed.find(':').map_or(trimmed, |colon_pos| {
+        let name = if let Some(colon_pos) = trimmed.find(':') {
             if !trimmed.starts_with('{') && !trimmed.starts_with('[') {
                 trimmed[..colon_pos].trim_ws()
             } else {
                 trimmed
             }
-        });
+        } else {
+            trimmed
+        };
         Ok(create_identifier(
             name,
             offset,
@@ -11185,8 +11174,8 @@ fn convert_object_pattern_with_adjustment(
     }
 
     JsNode::ObjectPattern {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc_for_binding(start, end, line_offsets),
         properties: alloc_deser_children(properties),
         type_annotation: None,
@@ -11204,8 +11193,8 @@ fn rest_element_with_adjustment(
     let start = doc_offset + rest.span.start as usize - prefix_len;
     let end = doc_offset + rest.span.end as usize - prefix_len;
     JsNode::RestElement {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc_for_binding(start, end, line_offsets),
         argument: alloc_deser_node(convert_binding_pattern_with_adjustment(
             arena,
@@ -11255,8 +11244,8 @@ fn convert_array_pattern_with_adjustment(
     }
 
     JsNode::ArrayPattern {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc_for_binding(start, end, line_offsets),
         elements,
         type_annotation: None,
@@ -11292,8 +11281,8 @@ fn convert_assignment_pattern_with_adjustment(
     )));
 
     JsNode::AssignmentPattern {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc_for_binding(start, end, line_offsets),
         left,
         right,
@@ -11326,8 +11315,8 @@ fn convert_binding_property_with_adjustment(
     ));
 
     JsNode::Property {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc: create_typed_loc_for_binding(start, end, line_offsets),
         key,
         value,
@@ -11394,13 +11383,13 @@ fn convert_expression_with_adjustment(
         OxcExpression::NumericLiteral(lit) => {
             let start = doc_offset + lit.span.start as usize - prefix_len;
             let end = doc_offset + lit.span.end as usize - prefix_len;
-            let raw = lit.raw.as_ref().map_or("", oxc_ast::ast::Str::as_str);
+            let raw = lit.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
             create_numeric_literal_for_binding(lit.value, raw, start, end, line_offsets).to_value()
         }
         OxcExpression::StringLiteral(lit) => {
             let start = doc_offset + lit.span.start as usize - prefix_len;
             let end = doc_offset + lit.span.end as usize - prefix_len;
-            let raw = lit.raw.as_ref().map_or("", oxc_ast::ast::Str::as_str);
+            let raw = lit.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
             create_string_literal_for_binding(&lit.value, raw, start, end, line_offsets).to_value()
         }
         OxcExpression::TemplateLiteral(template) => {
@@ -11826,7 +11815,8 @@ fn create_template_literal_with_adjustment(
                     .value
                     .cooked
                     .as_ref()
-                    .map_or(Value::Null, |s| Value::String(s.to_string())),
+                    .map(|s| Value::String(s.to_string()))
+                    .unwrap_or(Value::Null),
             );
             q_obj.set_field("value", Value::Object(value_obj));
 
@@ -12087,7 +12077,7 @@ fn convert_statement_with_adjustment(
     }
 }
 
-/// Rebuild the `ESTree` `ExportNamedDeclaration` shape from the three oxc
+/// Rebuild the ESTree `ExportNamedDeclaration` shape from the three oxc
 /// statements it was split into (`export <decl>`, `export {..}`, `export {..} from`).
 #[allow(clippy::too_many_arguments)]
 fn convert_export_named_as_node(
@@ -12145,8 +12135,8 @@ fn convert_export_named_as_node(
             };
 
             JsNode::ExportSpecifier {
-                start: source_pos(spec_start),
-                end: source_pos(spec_end),
+                start: spec_start as u32,
+                end: spec_end as u32,
                 loc: spec_loc,
                 local: arena.alloc_js_node(local),
                 exported: arena.alloc_js_node(exported),
@@ -12164,7 +12154,7 @@ fn convert_export_named_as_node(
     let source = src.map(|source| {
         let source_start = offset + source.span.start as usize;
         let source_end = offset + source.span.end as usize;
-        let raw = source.raw.as_ref().map_or("", oxc_ast::ast::Str::as_str);
+        let raw = source.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
         arena.alloc_js_node(expr_to_node(create_string_literal(
             &source.value,
             raw,
@@ -12175,8 +12165,8 @@ fn convert_export_named_as_node(
     });
 
     JsNode::ExportNamedDeclaration {
-        start: source_pos(start),
-        end: source_pos(end),
+        start: start as u32,
+        end: end as u32,
         loc,
         declaration,
         specifiers: arena.alloc_js_children(specifiers),

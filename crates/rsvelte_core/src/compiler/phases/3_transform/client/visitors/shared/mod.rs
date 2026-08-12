@@ -14,7 +14,7 @@
 //! - `fragment.rs` - Fragment processing utilities
 //! - `function.rs` - Function utilities
 //! - `special_element.rs` - Special element utilities
-//! - `utils.rs` - General utilities (`build_render_statement`, etc.)
+//! - `utils.rs` - General utilities (build_render_statement, etc.)
 //!
 //! # Usage
 //!

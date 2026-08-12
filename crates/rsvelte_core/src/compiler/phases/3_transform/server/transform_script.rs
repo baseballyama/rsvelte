@@ -404,7 +404,7 @@ fn strip_top_level_reactive_labels(script: &str) -> String {
 }
 
 /// Collapse multi-line `${}` interpolation expressions within template literals.
-/// Only collapses lines that are inside `${...}` (`brace_depth` > 0), NOT raw template
+/// Only collapses lines that are inside `${...}` (brace_depth > 0), NOT raw template
 /// text lines. This matches esrap behavior: expressions within interpolations are
 /// normalized to single lines, but the template structure (including multiline HTML
 /// in createRawSnippet) is preserved.
@@ -633,7 +633,7 @@ fn format_js_line(line: &str) -> String {
     result
 }
 
-/// Transform object destructuring with $`state()` or $`state.raw()` in server-side rendering.
+/// Transform object destructuring with $state() or $state.raw() in server-side rendering.
 /// e.g., `let { num } = $state(setup())` -> `let tmp = setup(), num = tmp.num`
 /// e.g., `let { num: x } = $state(setup())` -> `let tmp = setup(), x = tmp.num`
 fn transform_object_destructure_state(script: &str) -> String {
@@ -664,28 +664,32 @@ fn transform_object_destructure_state(script: &str) -> String {
             let tmp_name = if tmp_counter == 0 {
                 "tmp".to_string()
             } else {
-                format!("tmp_{tmp_counter}")
+                format!("tmp_{}", tmp_counter)
             };
             tmp_counter += 1;
 
             // Parse the object pattern properties
             let props = parse_object_pattern_properties(obj_pattern);
 
-            let mut transformed = format!("{indent}let {tmp_name} = {value}");
+            let mut transformed = format!("{}let {} = {}", indent, tmp_name, value);
 
             for prop in &props {
                 match prop {
                     ObjectPatternProp::Simple(name) => {
                         // { a } -> a = tmp.a
-                        let _ = write!(transformed, ", {name} = {tmp_name}.{name}");
+                        let _ = write!(transformed, ", {} = {}.{}", name, tmp_name, name);
                     }
                     ObjectPatternProp::Renamed { key, value } => {
                         // { a: x } -> x = tmp.a
-                        let _ = write!(transformed, ", {value} = {tmp_name}.{key}");
+                        let _ = write!(transformed, ", {} = {}.{}", value, tmp_name, key);
                     }
                     ObjectPatternProp::WithDefault { name, default } => {
                         // { a = 5 } -> a = tmp.a ?? 5
-                        let _ = write!(transformed, ", {name} = {tmp_name}.{name} ?? {default}");
+                        let _ = write!(
+                            transformed,
+                            ", {} = {}.{} ?? {}",
+                            name, tmp_name, name, default
+                        );
                     }
                     ObjectPatternProp::RenamedWithDefault {
                         key,
@@ -693,27 +697,22 @@ fn transform_object_destructure_state(script: &str) -> String {
                         default,
                     } => {
                         // { a: x = 5 } -> x = tmp.a ?? 5
-                        let _ = write!(transformed, ", {value} = {tmp_name}.{key} ?? {default}");
+                        let _ = write!(
+                            transformed,
+                            ", {} = {}.{} ?? {}",
+                            value, tmp_name, key, default
+                        );
                     }
                     ObjectPatternProp::Rest(name) => {
                         // TODO: Handle rest pattern if needed
-                        let _ = write!(transformed, ", {name} = {tmp_name}.{name}");
+                        let _ = write!(transformed, ", {} = {}.{}", name, tmp_name, name);
                     }
                 }
             }
 
-            let match_start = usize::try_from(
-                i64::try_from(full_match.start()).expect("match offset fits i64") + offset,
-            )
-            .expect("replacement start must fit usize");
+            let match_start = (full_match.start() as i64 + offset) as usize;
             // +1 to skip the closing paren of $state()
-            let match_end = usize::try_from(
-                i64::try_from(start_pos).expect("match offset fits i64")
-                    + i64::try_from(paren_end).expect("match offset fits i64")
-                    + offset
-                    + 1,
-            )
-            .expect("replacement end must fit usize");
+            let match_end = (start_pos as i64 + paren_end as i64 + offset + 1) as usize;
 
             result = format!(
                 "{}{}{}",
@@ -819,7 +818,7 @@ fn parse_single_object_prop(prop: &str) -> ObjectPatternProp {
     ObjectPatternProp::Simple(prop.to_string())
 }
 
-/// Transform array destructuring with $`state()` in server-side rendering.
+/// Transform array destructuring with $state() in server-side rendering.
 fn transform_array_destructure_state(script: &str) -> String {
     use regex::Regex;
     use std::sync::LazyLock;
@@ -844,10 +843,10 @@ fn transform_array_destructure_state(script: &str) -> String {
 
             let (vars, has_rest) = parse_array_pattern(array_pattern);
 
-            let mut transformed = format!("{indent}let tmp = {value},\n");
+            let mut transformed = format!("{}let tmp = {},\n", indent, value);
 
             if has_rest {
-                let _ = write!(transformed, "{indent}\t$$array = $.to_array(tmp)");
+                let _ = write!(transformed, "{}\t$$array = $.to_array(tmp)", indent);
             } else {
                 let _ = write!(
                     transformed,
@@ -861,17 +860,22 @@ fn transform_array_destructure_state(script: &str) -> String {
                 let var = var.trim();
                 if var.starts_with("...") {
                     let rest_name = var.trim_start_matches("...");
-                    let _ = write!(transformed, ",\n{indent}\t{rest_name} = $$array.slice({i})");
+                    let _ = write!(
+                        transformed,
+                        ",\n{}\t{} = $$array.slice({})",
+                        indent, rest_name, i
+                    );
                 } else if var.contains('=') {
                     let parts: Vec<&str> = var.splitn(2, '=').collect();
                     let name = parts[0].trim();
-                    let default = parts.get(1).map_or("void 0", |s| s.trim());
+                    let default = parts.get(1).map(|s| s.trim()).unwrap_or("void 0");
                     let _ = write!(
                         transformed,
-                        ",\n{indent}\t{name} = $$array[{i}] ?? {default}"
+                        ",\n{}\t{} = $$array[{}] ?? {}",
+                        indent, name, i, default
                     );
                 } else {
-                    let _ = write!(transformed, ",\n{indent}\t{var} = $$array[{i}]");
+                    let _ = write!(transformed, ",\n{}\t{} = $$array[{}]", indent, var, i);
                 }
             }
 
@@ -963,7 +967,7 @@ fn find_matching_paren_for_state(s: &str) -> Option<usize> {
     None
 }
 
-/// Transform $`state.snapshot()` in server script content.
+/// Transform $state.snapshot() in server script content.
 fn transform_state_snapshot_server(script: &str, dev: bool) -> String {
     let prefix = "$state.snapshot(";
     let mut result = script.to_string();
@@ -1058,7 +1062,8 @@ pub(super) fn strip_snapshot_declarator_init_module(script: &str) -> String {
             // name must be a `const`/`let`/`var` keyword (single-declarator form).
             let name_start = h
                 .rfind(|c: char| !(c.is_alphanumeric() || c == '_' || c == '$'))
-                .map_or(0, |i| i + 1);
+                .map(|i| i + 1)
+                .unwrap_or(0);
             let name = &h[name_start..];
             if name.is_empty() {
                 return false;
@@ -1309,7 +1314,7 @@ fn collect_derived_names_from_script(script: &str) -> DerivedNameCollection {
 ///   `foo = X` from `foo == X` / `foo === X`, plus deciding what to do with
 ///   compound assignments. We do **not** rewrite assignments in this pass —
 ///   the upstream tests we care about exercise read paths, and the upstream
-///   `AssignmentExpression` diff acknowledges that assignment to a derived
+///   AssignmentExpression diff acknowledges that assignment to a derived
 ///   on the server is intentionally broken.
 fn wrap_derived_reads_in_script(script: &str, extra_derived: &FxHashSet<String>) -> String {
     let (mut derived_names, derived_var_names, derived_declarators) =
@@ -1532,7 +1537,8 @@ fn wrap_derived_reads_in_script(script: &str, extra_derived: &FxHashSet<String>)
             let name = &script[start..i];
             let is_shadowed = shadow_ranges
                 .get(name)
-                .is_some_and(|ranges| ranges.iter().any(|&(s, e)| start >= s && start < e));
+                .map(|ranges| ranges.iter().any(|&(s, e)| start >= s && start < e))
+                .unwrap_or(false);
             let is_own_declarator_lhs = declarator_lhs_positions.contains(&start);
             if !is_shadowed
                 && !is_own_declarator_lhs
@@ -2354,11 +2360,14 @@ fn wrap_derived_reads_in_script_inner_with_shadow(
             }
             let name = &script[start..i];
             let absolute_start = start + outer_offset;
-            let is_shadowed = shadow_ranges.get(name).is_some_and(|ranges| {
-                ranges
-                    .iter()
-                    .any(|&(s, e)| absolute_start >= s && absolute_start < e)
-            });
+            let is_shadowed = shadow_ranges
+                .get(name)
+                .map(|ranges| {
+                    ranges
+                        .iter()
+                        .any(|&(s, e)| absolute_start >= s && absolute_start < e)
+                })
+                .unwrap_or(false);
             let is_own_declarator_lhs = declarator_lhs_positions.contains(&absolute_start);
             if !is_shadowed
                 && !is_own_declarator_lhs
@@ -2473,7 +2482,8 @@ fn is_derived_read_position(bytes: &[u8], start: usize, end: usize) -> bool {
         let kw_end = (0..start)
             .rev()
             .find(|&i| !bytes[i].is_ascii_whitespace())
-            .map_or(0, |i| i + 1);
+            .map(|i| i + 1)
+            .unwrap_or(0);
         let _ = b;
         for kw in [
             &b"let"[..],
@@ -3567,20 +3577,20 @@ fn expand_destructured_derived(script: &str) -> String {
             let name = if n == 0 {
                 "$$d".to_string()
             } else {
-                format!("$$d_{n}")
+                format!("$$d_{}", n)
             };
             // Initializer: `$.derived(...)` — for `.by` we pass the value
             // directly; for plain `$derived(expr)` we wrap in `() => expr`.
             let init = if is_by {
-                format!("$.derived({arg_expr})")
+                format!("$.derived({})", arg_expr)
             } else {
                 let needs_paren = arg_expr.trim_start().starts_with('{');
                 if needs_paren {
-                    format!("$.derived(() => ({arg_expr}))")
+                    format!("$.derived(() => ({}))", arg_expr)
                 } else if let Some(ident) = unthunk_no_arg_ident_call(arg_expr) {
-                    format!("$.derived({ident})")
+                    format!("$.derived({})", ident)
                 } else {
-                    format!("$.derived(() => {arg_expr})")
+                    format!("$.derived(() => {})", arg_expr)
                 }
             };
             decls.push((name.clone(), init));
@@ -3601,10 +3611,10 @@ fn expand_destructured_derived(script: &str) -> String {
         // Compose declarators in upstream order: inserts (already in DFS
         // order) come before all leaf paths.
         for (name, init_expr) in &inserts {
-            decls.push((name.clone(), format!("$.derived(() => {init_expr})")));
+            decls.push((name.clone(), format!("$.derived(() => {})", init_expr)));
         }
         for (lhs, expr) in &paths {
-            decls.push((lhs.clone(), format!("$.derived(() => {expr})")));
+            decls.push((lhs.clone(), format!("$.derived(() => {})", expr)));
         }
 
         // Emit `let|const|var <lhs1> = <rhs1>, <lhs2> = <rhs2>, ...;`
@@ -3652,20 +3662,17 @@ fn extract_paths_walk(
                 if p.is_empty() || p.starts_with("...") {
                     return None;
                 }
-                let key = find_top_level_colon(p).map_or_else(
-                    || {
-                        if let Some(eq) = find_top_level_equals(p) {
-                            p[..eq].trim()
-                        } else {
-                            p
-                        }
-                    },
-                    |colon| p[..colon].trim(),
-                );
+                let key = if let Some(colon) = find_top_level_colon(p) {
+                    p[..colon].trim()
+                } else if let Some(eq) = find_top_level_equals(p) {
+                    p[..eq].trim()
+                } else {
+                    p
+                };
                 if key.starts_with('[') {
                     None
                 } else {
-                    Some(format!("\"{key}\""))
+                    Some(format!("\"{}\"", key))
                 }
             })
             .collect();
@@ -3720,17 +3727,20 @@ fn extract_paths_walk(
         let elements = split_top_level(inner, b',');
         // Determine whether the last element is a rest. If so, the
         // upstream call omits the second `to_array` arg (capacity).
-        let has_rest = elements.last().is_some_and(|e| e.trim().starts_with("..."));
+        let has_rest = elements
+            .last()
+            .map(|e| e.trim().starts_with("..."))
+            .unwrap_or(false);
         let array_name = {
             let n = derived_array_counter.fetch_add(1, Ordering::Relaxed);
             if n == 0 {
                 "$$derived_array".to_string()
             } else {
-                format!("$$derived_array_{n}")
+                format!("$$derived_array_{}", n)
             }
         };
         let to_array_call = if has_rest {
-            format!("$.to_array({initial})")
+            format!("$.to_array({})", initial)
         } else {
             format!("$.to_array({}, {})", initial, elements.len())
         };
@@ -3746,7 +3756,7 @@ fn extract_paths_walk(
                 // After wrap_derived_reads, `array_name` becomes
                 // `array_name()`. So the literal we emit is
                 // `array_name.slice(i)` which becomes `array_name().slice(i)`.
-                let rest_expr = format!("{array_name}.slice({idx})");
+                let rest_expr = format!("{}.slice({})", array_name, idx);
                 if is_plain_identifier(rest_name) {
                     paths.push((rest_name.to_string(), rest_expr));
                 } else {
@@ -3762,7 +3772,7 @@ fn extract_paths_walk(
             }
             // Element access via index. We emit `array_name[idx]` and
             // wrap_derived_reads_in_script will turn it into `array_name()[idx]`.
-            let elem_access = format!("{array_name}[{idx}]");
+            let elem_access = format!("{}[{}]", array_name, idx);
             // Default value: `name = default`
             if let Some(eq) = find_top_level_equals(elem) {
                 let name_part = elem[..eq].trim();
@@ -3802,8 +3812,11 @@ fn handle_value_pattern(
     if value_pat.starts_with('{') || value_pat.starts_with('[') {
         // Could have a trailing default after the matching bracket.
         let (sub_pattern, default) = split_pattern_default(value_pat);
-        let effective =
-            default.map_or_else(|| member.to_string(), |d| build_fallback_text(member, d));
+        let effective = if let Some(d) = default {
+            build_fallback_text(member, d)
+        } else {
+            member.to_string()
+        };
         extract_paths_walk(
             sub_pattern,
             &effective,
@@ -3859,7 +3872,7 @@ fn split_pattern_default(pattern: &str) -> (&str, Option<&str>) {
 
 /// Build `(member ?? default)` text, mirroring `build_fallback`.
 fn build_fallback_text(member: &str, default: &str) -> String {
-    format!("({member} ?? {default})")
+    format!("({} ?? {})", member, default)
 }
 
 /// Build a member-access expression: `obj.key` or `obj["complex"]` for
@@ -3868,12 +3881,12 @@ fn make_member(obj: &str, key: &str) -> String {
     let key = key.trim();
     if key.starts_with('[') && key.ends_with(']') {
         // Computed: `[expr]` → `obj[expr]`
-        format!("{obj}{key}")
+        format!("{}{}", obj, key)
     } else if is_plain_identifier(key) {
-        format!("{obj}.{key}")
+        format!("{}.{}", obj, key)
     } else {
         // Literal string key etc. — leave bracketed.
-        format!("{obj}[{key}]")
+        format!("{}[{}]", obj, key)
     }
 }
 
@@ -4093,13 +4106,14 @@ fn strip_top_level_await_from_expr(expr: &str) -> String {
     } else if let Some(rest) = trimmed.strip_prefix("await\t") {
         rest.trim_start().to_string()
     } else if let Some(rest) = trimmed.strip_prefix("await(") {
-        format!("({rest}")
+        format!("({}", rest)
     } else {
         trimmed.to_string()
     }
 }
 
-/// Return an identifier when `expr` is a simple no-argument call.
+/// If `expr` is a simple no-argument call to a bare identifier (e.g. `foo()`),
+/// return the identifier (so it can be passed as a function reference to
 /// `$.derived`, mirroring upstream `unthunk`). Otherwise return `None`.
 fn unthunk_no_arg_ident_call(expr: &str) -> Option<&str> {
     let trimmed = expr.trim();
@@ -4619,7 +4633,7 @@ fn fix_multiline_declaration_semicolons(script: &str) -> String {
                     // End of multi-line declaration: ensure semicolon
                     if !trimmed.ends_with(';') && !trimmed.is_empty() {
                         let indent = &line[..line.len() - line.trim_start().len()];
-                        result_lines.push(format!("{indent}{trimmed};"));
+                        result_lines.push(format!("{}{};", indent, trimmed));
                     } else {
                         result_lines.push(line.to_string());
                     }
@@ -4767,7 +4781,7 @@ fn add_statement_semicolon(line: &str, next_trimmed: &str) -> String {
     // e.g., `$: { ... };` → the closing `};` becomes just `}`
     if trimmed == "};" {
         let indent = &line[..line.len() - line.trim_start().len()];
-        return format!("{indent}}}");
+        return format!("{}}}", indent);
     }
 
     // Lines that are already terminated or are block delimiters
@@ -4826,7 +4840,7 @@ fn add_statement_semicolon(line: &str, next_trimmed: &str) -> String {
             || next_trimmed.starts_with("||")
             || next_trimmed.starts_with("??");
         if !is_continuation && !next_is_continuation {
-            return format!("{line};");
+            return format!("{};", line);
         }
     }
 
@@ -5030,9 +5044,9 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
     let backing_private = |name: &str| -> String {
         let mut candidate = sanitize_identifier(name);
         while existing_private_names.contains(&candidate) {
-            candidate = format!("_{candidate}");
+            candidate = format!("_{}", candidate);
         }
-        format!("#{candidate}")
+        format!("#{}", candidate)
     };
 
     let mut line_idx = 0;
@@ -5062,7 +5076,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                         let value = after_paren[..value_end].to_string();
                         let sanitized_name = sanitize_identifier(&derived_field_name);
                         let private_name = if derived_field_is_private {
-                            format!("#{sanitized_name}")
+                            format!("#{}", sanitized_name)
                         } else {
                             backing_private(&derived_field_name)
                         };
@@ -5070,9 +5084,9 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                         let wrapped_value = rune_field_value(&value);
 
                         let transformed_line = if derived_field_is_by {
-                            format!("{private_name} = $.derived({wrapped_value})")
+                            format!("{} = $.derived({})", private_name, wrapped_value)
                         } else {
-                            format!("{private_name} = $.derived(() => {wrapped_value})")
+                            format!("{} = $.derived(() => {})", private_name, wrapped_value)
                         };
 
                         members.push(ClassMember::Field(transformed_line));
@@ -5108,8 +5122,10 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                         if value.is_empty() {
                             members.push(ClassMember::Field(state_field_name.clone()));
                         } else {
-                            members
-                                .push(ClassMember::Field(format!("{state_field_name} = {value}")));
+                            members.push(ClassMember::Field(format!(
+                                "{} = {}",
+                                state_field_name, value
+                            )));
                         }
                     }
                 }
@@ -5370,7 +5386,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                     let value = after_paren[..value_end].to_string();
                     let sanitized_name = sanitize_identifier(&name);
                     let private_name = if is_private {
-                        format!("#{sanitized_name}")
+                        format!("#{}", sanitized_name)
                     } else {
                         backing_private(&name)
                     };
@@ -5378,9 +5394,9 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                     let wrapped_value = rune_field_value(&value);
 
                     let transformed_line = if is_derived_by {
-                        format!("{private_name} = $.derived({wrapped_value})")
+                        format!("{} = $.derived({})", private_name, wrapped_value)
                     } else {
-                        format!("{private_name} = $.derived(() => {wrapped_value})")
+                        format!("{} = $.derived(() => {})", private_name, wrapped_value)
                     };
 
                     members.push(ClassMember::Field(transformed_line));
@@ -5426,7 +5442,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                 if value.is_empty() {
                     members.push(ClassMember::Field(field_name.to_string()));
                 } else {
-                    members.push(ClassMember::Field(format!("{field_name} = {value}")));
+                    members.push(ClassMember::Field(format!("{} = {}", field_name, value)));
                 }
                 continue;
             } else {
@@ -5495,25 +5511,26 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                             let value = after_paren[..value_end].to_string();
                             let sanitized = sanitize_identifier(&name);
                             let private_ref = if is_private {
-                                format!("#{sanitized}")
+                                format!("#{}", sanitized)
                             } else {
                                 backing_private(&name)
                             };
 
                             let value_str = value.trim();
                             let wrapped_value = if value_str.starts_with('{') {
-                                format!("({value_str})")
+                                format!("({})", value_str)
                             } else {
                                 value_str.to_string()
                             };
 
                             let rhs = if is_derived_by {
-                                format!("$.derived({wrapped_value})")
+                                format!("$.derived({})", wrapped_value)
                             } else {
-                                format!("$.derived(() => {wrapped_value})")
+                                format!("$.derived(() => {})", wrapped_value)
                             };
 
-                            new_lines.push(format!("{indent_prefix}this.{private_ref} = {rhs};"));
+                            new_lines
+                                .push(format!("{}this.{} = {};", indent_prefix, private_ref, rhs));
 
                             derived_fields.push(DerivedField {
                                 name,
@@ -5552,9 +5569,9 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                         has_state_fields = true;
 
                         if value.is_empty() {
-                            new_lines.push(format!("{indent_prefix}this.{lhs} = void 0;"));
+                            new_lines.push(format!("{}this.{} = void 0;", indent_prefix, lhs));
                         } else {
-                            new_lines.push(format!("{indent_prefix}this.{lhs} = {value};"));
+                            new_lines.push(format!("{}this.{} = {};", indent_prefix, lhs, value));
                         }
                         continue;
                     }
@@ -5613,7 +5630,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
     {
         let private_name = backing_private(&field.name);
 
-        let _ = writeln!(new_class_body, "\t\t{private_name};");
+        let _ = writeln!(new_class_body, "\t\t{};", private_name);
         new_class_body.push('\n');
         let _ = writeln!(
             new_class_body,
@@ -5662,9 +5679,9 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                 let line_with_semi = if line.ends_with(';') || line.ends_with('}') {
                     line.to_string()
                 } else {
-                    format!("{line};")
+                    format!("{};", line)
                 };
-                let _ = writeln!(new_class_body, "\t\t{line_with_semi}");
+                let _ = writeln!(new_class_body, "\t\t{}", line_with_semi);
                 for field in derived_fields
                     .iter()
                     .filter(|f| !f.constructor_declared && !f.is_private)
@@ -5745,8 +5762,10 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
 
     let after_class_transformed = transform_class_fields_server(after_class_body);
 
-    let result =
-        format!("{before_class}{class_header}\n{new_class_body}\t}}{after_class_transformed}");
+    let result = format!(
+        "{}{}\n{}\t}}{}",
+        before_class, class_header, new_class_body, after_class_transformed
+    );
 
     result
 }
@@ -5884,7 +5903,7 @@ fn transform_private_derived_accesses_server(
     let mut result = code.to_string();
 
     for private_name in &sorted_names {
-        let search_pattern = format!(".{private_name}");
+        let search_pattern = format!(".{}", private_name);
         let mut new_result = String::new();
         let mut remaining = result.as_str();
 
@@ -6001,13 +6020,16 @@ pub(crate) fn extract_comments_from_snippet_with_pos(snippet: &str) -> Vec<(usiz
                 i += 1;
             }
             b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'/' => {
-                let eol = memchr::memchr(b'\n', &bytes[i..]).map_or(bytes.len(), |p| i + p);
+                let eol = memchr::memchr(b'\n', &bytes[i..])
+                    .map(|p| i + p)
+                    .unwrap_or(bytes.len());
                 comments.push((i, snippet[i..eol].trim_end().to_string()));
                 i = eol;
             }
             b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'*' => {
                 let close = memchr::memmem::find(&bytes[i + 2..], b"*/")
-                    .map_or(bytes.len(), |p| i + 2 + p + 2);
+                    .map(|p| i + 2 + p + 2)
+                    .unwrap_or(bytes.len());
                 comments.push((i, snippet[i..close].to_string()));
                 i = close;
             }
@@ -6106,15 +6128,18 @@ fn transform_reexported_prop_declarations(
                     let indent = &line[..line.len() - trimmed.len()];
                     let transformed = if is_simple_default_value(value) {
                         format!(
-                            "{indent}{kw} {name} = $.fallback($$props['{prop_name}'], {value});"
+                            "{}{} {} = $.fallback($$props['{}'], {});",
+                            indent, kw, name, prop_name, value
                         )
                     } else if let Some(fn_name) = is_no_arg_function_call(value) {
                         format!(
-                            "{indent}{kw} {name} = $.fallback($$props['{prop_name}'], {fn_name}, true);"
+                            "{}{} {} = $.fallback($$props['{}'], {}, true);",
+                            indent, kw, name, prop_name, fn_name
                         )
                     } else {
                         format!(
-                            "{indent}{kw} {name} = $.fallback($$props['{prop_name}'], () => ({value}), true);"
+                            "{}{} {} = $.fallback($$props['{}'], () => ({}), true);",
+                            indent, kw, name, prop_name, value
                         )
                     };
                     result.push_str(&transformed);
@@ -6130,7 +6155,7 @@ fn transform_reexported_prop_declarations(
                 let has_commas = name.contains(',');
                 if has_commas {
                     // Split multi-declarator into individual declarations
-                    let parts: Vec<&str> = name.split(',').map(str::trim).collect();
+                    let parts: Vec<&str> = name.split(',').map(|s| s.trim()).collect();
                     let any_is_prop = parts.iter().any(|part| {
                         let part_name = part.trim_end_matches(';').trim();
                         reexported_props.iter().any(|(local, _)| local == part_name)
@@ -6146,10 +6171,11 @@ fn transform_reexported_prop_declarations(
                             {
                                 let _ = write!(
                                     result,
-                                    "{indent}{kw} {part_name} = $$props['{prop_name}'];"
+                                    "{}{} {} = $$props['{}'];",
+                                    indent, kw, part_name, prop_name
                                 );
                             } else {
-                                let _ = write!(result, "{indent}{kw} {part_name};");
+                                let _ = write!(result, "{}{} {};", indent, kw, part_name);
                             }
                             result.push('\n');
                         }
@@ -6159,7 +6185,11 @@ fn transform_reexported_prop_declarations(
                     reexported_props.iter().find(|(local, _)| local == name)
                 {
                     let indent = &line[..line.len() - trimmed.len()];
-                    let _ = write!(result, "{indent}{kw} {name} = $$props['{prop_name}'];");
+                    let _ = write!(
+                        result,
+                        "{}{} {} = $$props['{}'];",
+                        indent, kw, name, prop_name
+                    );
                     result.push('\n');
                     continue;
                 }
@@ -6209,7 +6239,7 @@ fn find_simple_assignment(s: &str) -> Option<usize> {
 /// Split comma-separated variable declarations into individual statements.
 /// e.g., `const a = 1, b = 2, c = 3;` -> `const a = 1;\nconst b = 2;\nconst c = 3;`
 ///
-/// This matches the official Svelte compiler's AST-based `VariableDeclaration` splitting
+/// This matches the official Svelte compiler's AST-based VariableDeclaration splitting
 /// where each declarator becomes its own statement.
 ///
 /// Handles both single-line and multi-line declarations:
@@ -6305,9 +6335,9 @@ pub(crate) fn split_comma_separated_declarations(script: &str) -> String {
             if parts.len() > 1 {
                 // Multiple declarators - split into individual statements
                 let prefix = if is_export {
-                    format!("export {kw} ")
+                    format!("export {} ", kw)
                 } else {
-                    format!("{kw} ")
+                    format!("{} ", kw)
                 };
                 for (j, part) in parts.iter().enumerate() {
                     let (leading_comments, part) = split_leading_comment_lines(part.trim());
@@ -6548,10 +6578,11 @@ fn extract_destructured_names_simple(pattern: &str) -> Vec<String> {
         || (pattern.starts_with('[') && pattern.ends_with(']'))
     {
         // Find the = RHS part and exclude it
-        find_pattern_end_simple(pattern).map_or_else(
-            || &pattern[1..pattern.len() - 1],
-            |end| &pattern[1..end - 1],
-        )
+        if let Some(end) = find_pattern_end_simple(pattern) {
+            &pattern[1..end - 1]
+        } else {
+            &pattern[1..pattern.len() - 1]
+        }
     } else {
         return names;
     };
@@ -6572,28 +6603,32 @@ fn extract_destructured_names_simple(pattern: &str) -> Vec<String> {
                 names.append(&mut nested);
             } else {
                 // Simple rename: key: name or key: name = default
-                let name = value.find('=').map_or(value, |eq_pos| {
+                let name = if let Some(eq_pos) = value.find('=') {
                     let before_eq = value[..eq_pos].trim();
                     if !before_eq.contains('=') {
                         before_eq
                     } else {
                         value
                     }
-                });
+                } else {
+                    value
+                };
                 if is_simple_identifier_name(name) {
                     names.push(name.to_string());
                 }
             }
         } else {
             // Simple name or name = default
-            let name = part.find('=').map_or(part, |eq_pos| {
+            let name = if let Some(eq_pos) = part.find('=') {
                 let before_eq = part[..eq_pos].trim();
                 if !before_eq.contains('=') {
                     before_eq
                 } else {
                     part
                 }
-            });
+            } else {
+                part
+            };
             if is_simple_identifier_name(name) {
                 names.push(name.to_string());
             }
@@ -6683,7 +6718,7 @@ fn flatten_destructured_let_ssr(
         .trim();
 
     let mut declarations = Vec::new();
-    declarations.push(format!("tmp = {rhs}"));
+    declarations.push(format!("tmp = {}", rhs));
 
     // Upstream (server VariableDeclaration.js): when a destructuring pattern's
     // bindings include ANY bindable_prop, EVERY leaf of that pattern is emitted
@@ -6760,7 +6795,7 @@ fn flatten_destructured_let_ssr_inner(
             if let Some(colon_pos) = find_colon_at_depth_0(prop) {
                 let key = prop[..colon_pos].trim();
                 let value_pattern = prop[colon_pos + 1..].trim();
-                let new_path = format!("{base_path}.{key}");
+                let new_path = format!("{}.{}", base_path, key);
 
                 if value_pattern.starts_with('{') || value_pattern.starts_with('[') {
                     flatten_destructured_let_ssr_inner(
@@ -6783,7 +6818,7 @@ fn flatten_destructured_let_ssr_inner(
                 }
             } else {
                 let (binding_name, default_value) = split_name_default(prop);
-                let new_path = format!("{base_path}.{binding_name}");
+                let new_path = format!("{}.{}", base_path, binding_name);
                 push_leaf_declaration(
                     binding_name,
                     &new_path,
@@ -6826,11 +6861,13 @@ fn push_leaf_declaration(
         Some(prop_name) => {
             if let Some(default_val) = default_value {
                 declarations.push(format!(
-                    "{binding_name} = $.fallback($$props['{prop_name}'], () => $.fallback({new_path}, {default_val}), true)"
+                    "{} = $.fallback($$props['{}'], () => $.fallback({}, {}), true)",
+                    binding_name, prop_name, new_path, default_val
                 ));
             } else {
                 declarations.push(format!(
-                    "{binding_name} = $.fallback($$props['{prop_name}'], () => {new_path}, true)"
+                    "{} = $.fallback($$props['{}'], () => {}, true)",
+                    binding_name, prop_name, new_path
                 ));
             }
         }
@@ -6838,19 +6875,24 @@ fn push_leaf_declaration(
             // Non-reexported leaf inside a prop-bearing pattern: keyed by own name.
             if let Some(default_val) = default_value {
                 declarations.push(format!(
-                    "{binding_name} = $.fallback($$props['{binding_name}'], () => $.fallback({new_path}, {default_val}), true)"
+                    "{} = $.fallback($$props['{}'], () => $.fallback({}, {}), true)",
+                    binding_name, binding_name, new_path, default_val
                 ));
             } else {
                 declarations.push(format!(
-                    "{binding_name} = $.fallback($$props['{binding_name}'], () => {new_path}, true)"
+                    "{} = $.fallback($$props['{}'], () => {}, true)",
+                    binding_name, binding_name, new_path
                 ));
             }
         }
         None => {
             if let Some(default_val) = default_value {
-                declarations.push(format!("{binding_name} = {new_path} ?? {default_val}"));
+                declarations.push(format!(
+                    "{} = {} ?? {}",
+                    binding_name, new_path, default_val
+                ));
             } else {
-                declarations.push(format!("{binding_name} = {new_path}"));
+                declarations.push(format!("{} = {}", binding_name, new_path));
             }
         }
     }
@@ -7034,7 +7076,7 @@ fn try_normalize_iife(chars: &[char], start: usize) -> Option<(usize, String)> {
     // Build normalized form: (function...body)(args)
     let func_part: String = chars[start..func_end].iter().collect();
     let args_part: String = chars[args_start..args_end].iter().collect();
-    let normalized = format!("{func_part}){args_part}");
+    let normalized = format!("{}){}", func_part, args_part);
 
     Some((outer_end, normalized))
 }
@@ -7045,7 +7087,7 @@ fn try_normalize_iife(chars: &[char], start: usize) -> Option<(usize, String)> {
 /// followed by `(` (which would indicate an IIFE call that needs the parens).
 ///
 /// The official Svelte compiler's AST representation doesn't include
-/// `ParenthesizedExpression` nodes (acorn strips them), so when it reprints
+/// ParenthesizedExpression nodes (acorn strips them), so when it reprints
 /// the AST, arrow functions never have unnecessary wrapping parens.
 pub(crate) fn strip_arrow_function_parens(s: String) -> String {
     // Fast path: if the string doesn't contain "(() =>" there's nothing to strip.

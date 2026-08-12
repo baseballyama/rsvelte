@@ -271,7 +271,7 @@ pub fn visit_fragment(context: &mut Context, fragment: &Fragment) {
 }
 
 /// Check if a template node is a "block element" that should get its own sequence.
-/// Matches the official Svelte printer's `is_block_element` logic.
+/// Matches the official Svelte printer's is_block_element logic.
 fn is_block_element(node: &TemplateNode) -> bool {
     matches!(
         node,
@@ -316,7 +316,7 @@ fn normalize_whitespace(s: &str) -> String {
     result
 }
 
-/// Check if a node is an `ExpressionTag`
+/// Check if a node is an ExpressionTag
 fn is_expression_tag(node: Option<&TemplateNode>) -> bool {
     matches!(node, Some(TemplateNode::ExpressionTag(_)))
 }
@@ -463,7 +463,7 @@ fn visit_text(context: &mut Context, text: &Text) {
     context.write(&text.data);
 }
 
-/// Visit a regular element using the `base_element` logic.
+/// Visit a regular element using the base_element logic.
 ///
 /// # Arguments
 ///
@@ -481,11 +481,11 @@ fn visit_regular_element(context: &mut Context, element: &crate::ast::RegularEle
 }
 
 /// Base element visitor that handles the common logic for all element types.
-/// This follows the official Svelte printer's `base_element` function.
+/// This follows the official Svelte printer's base_element function.
 ///
 /// The official implementation is simple:
 /// 1. Write to a child context
-/// 2. Call `block()` for content with `allow_inline=true`
+/// 2. Call block() for content with allow_inline=true
 /// 3. Append to parent context
 ///
 /// No extra newlines before or after.
@@ -593,7 +593,7 @@ fn visit_attributes(context: &mut Context, attributes: &[Attribute]) -> bool {
     multiline
 }
 
-/// Visit an `AttributeNode` (for script tags).
+/// Visit an AttributeNode (for script tags).
 ///
 /// # Arguments
 ///
@@ -1235,7 +1235,7 @@ fn reformat_css_rule(block: &str) -> String {
             let formatted_selector = format_css_selector(selector);
 
             if inner.is_empty() {
-                return format!("{formatted_selector} {{}}");
+                return format!("{} {{}}", formatted_selector);
             }
 
             // Check if inner contains nested blocks
@@ -1253,7 +1253,7 @@ fn reformat_css_rule(block: &str) -> String {
                         let decl = part.trim();
                         if !decl.is_empty() {
                             let decl = decl.trim_end_matches(';').trim();
-                            lines.push(format!("\t{decl};"));
+                            lines.push(format!("\t{};", decl));
                         }
                     }
                 }
@@ -1266,7 +1266,7 @@ fn reformat_css_rule(block: &str) -> String {
             for decl in inner.split(';') {
                 let decl = decl.trim();
                 if !decl.is_empty() {
-                    lines.push(format!("\t{decl};"));
+                    lines.push(format!("\t{};", decl));
                 }
             }
             lines.push("}".to_string());
@@ -1369,7 +1369,7 @@ fn reformat_css_at_rule(block: &str) -> String {
             let inner = rest[..close_pos].trim();
 
             if inner.is_empty() {
-                return format!("{prelude} {{}}");
+                return format!("{} {{}}", prelude);
             }
 
             // Check if inner contains nested blocks (like @media, @keyframes)
@@ -1389,7 +1389,7 @@ fn reformat_css_at_rule(block: &str) -> String {
             for decl in inner.split(';') {
                 let decl = decl.trim();
                 if !decl.is_empty() {
-                    lines.push(format!("\t{decl};"));
+                    lines.push(format!("\t{};", decl));
                 }
             }
             lines.push("}".to_string());
@@ -1399,7 +1399,7 @@ fn reformat_css_at_rule(block: &str) -> String {
 
     // No block, just the at-rule (like @import)
     if !block.ends_with(';') {
-        format!("{block};")
+        format!("{};", block)
     } else {
         block.to_string()
     }
@@ -1451,7 +1451,7 @@ fn indent_lines(text: &str, prefix: &str) -> String {
             if line.is_empty() {
                 String::new()
             } else {
-                format!("{prefix}{line}")
+                format!("{}{}", prefix, line)
             }
         })
         .collect::<Vec<_>>()

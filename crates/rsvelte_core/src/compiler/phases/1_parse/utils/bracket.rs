@@ -26,7 +26,8 @@ fn find_string_end(string: &str, search_start_index: usize, string_start_char: u
         // we could slice at the search start index, but this way the index remains valid
         // For single/double quotes, search only until the end of the current line
         let newline_pos = memchr(b'\n', &string.as_bytes()[search_start_index..])
-            .map_or(string.len(), |p| search_start_index + p); // If no newline, use the whole string
+            .map(|p| search_start_index + p)
+            .unwrap_or(string.len()); // If no newline, use the whole string
         &string[0..newline_pos]
     };
 
@@ -247,17 +248,20 @@ pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option
                 if next_char == '/' {
                     // Line comment. An unterminated `//` (no trailing newline)
                     // bails to EOF so the outer loop terminates and returns None.
-                    i = memchr(b'\n', &bytes[i + 1..])
-                        .map_or(template.len(), |p| i + 1 + p + "\n".len());
+                    i = match memchr(b'\n', &bytes[i + 1..]) {
+                        Some(p) => i + 1 + p + "\n".len(),
+                        None => template.len(),
+                    };
                     continue;
                 }
 
                 if next_char == '*' {
                     // Block comment. An unterminated `/*` (no closing `*/`)
                     // bails to EOF so the outer loop terminates and returns None.
-                    i = BLOCK_COMMENT_END_FINDER
-                        .find(&bytes[i + 1..])
-                        .map_or(template.len(), |p| i + 1 + p + "*/".len());
+                    i = match BLOCK_COMMENT_END_FINDER.find(&bytes[i + 1..]) {
+                        Some(p) => i + 1 + p + "*/".len(),
+                        None => template.len(),
+                    };
                     continue;
                 }
 

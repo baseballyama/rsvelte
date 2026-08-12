@@ -111,7 +111,7 @@ struct MemberMutateCollector<'a> {
     replacements: Vec<Edit>,
 }
 
-impl MemberMutateCollector<'_> {
+impl<'a> MemberMutateCollector<'a> {
     /// Walk the `object` chain of a member expression down to the
     /// leftmost identifier. Returns `None` if the leftmost atom is
     /// a call, parenthesised expression, `this`, etc. — those aren't
@@ -158,7 +158,7 @@ impl MemberMutateCollector<'_> {
         // For a prop binding that means the getter call `store()`; for plain /
         // state / reactive-import stores the bare name is correct.
         let store_access = if self.prop_store_names.iter().any(|n| n == store_name) {
-            format!("{store_name}()")
+            format!("{}()", store_name)
         } else {
             store_name.to_string()
         };
@@ -174,13 +174,16 @@ impl MemberMutateCollector<'_> {
         wrapped.push(')');
         wrapped.push_str(&outer_text[re..]);
 
-        let rewrite = format!("$.store_mutate({store_access}, {wrapped}, $.untrack({store_sub}))");
+        let rewrite = format!(
+            "$.store_mutate({}, {}, $.untrack({}))",
+            store_access, wrapped, store_sub
+        );
         self.replacements
             .push((outer_span.start, outer_span.end, rewrite));
     }
 }
 
-impl<'ast> Visit<'ast> for MemberMutateCollector<'_> {
+impl<'a, 'ast> Visit<'ast> for MemberMutateCollector<'a> {
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
         walk::walk_assignment_expression(self, expr);
         if let Some((root_name, root_span)) = Self::root_of_assignment_target(&expr.left) {
@@ -396,7 +399,7 @@ thread_local! {
 }
 
 /// In-place equivalent of [`transform_store_member_mutate_ast_with_props`].
-pub fn transform_store_member_mutate_in_place(
+pub(crate) fn transform_store_member_mutate_in_place(
     source: &str,
     store_subs: &[String],
     prop_store_names: &[String],

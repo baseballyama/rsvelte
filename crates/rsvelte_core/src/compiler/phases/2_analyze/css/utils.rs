@@ -4,20 +4,19 @@
 //!
 //! Corresponds to Svelte's `2-analyze/css/utils.js`.
 /// Returns all parent rules from a rule path; root is last.
-#[must_use]
 pub fn get_parent_rules<'a>(path: &[&'a serde_json::Value]) -> Vec<&'a serde_json::Value> {
     path.iter()
         .filter(|node| {
             node.get("type")
                 .and_then(|t| t.as_str())
-                .is_some_and(|t| t == "Rule")
+                .map(|t| t == "Rule")
+                .unwrap_or(false)
         })
         .copied()
         .collect()
 }
 
 /// True if a relative selector is `:global(...)` or `:global`.
-#[must_use]
 pub fn is_global(selector: &serde_json::Value) -> bool {
     if let Some(selectors) = selector.get("selectors").and_then(|s| s.as_array())
         && let Some(first) = selectors.first()
@@ -31,7 +30,6 @@ pub fn is_global(selector: &serde_json::Value) -> bool {
 }
 
 /// `true` if is a pseudo class that cannot be or is not scoped.
-#[must_use]
 pub fn is_unscoped_pseudo_class(selector: &serde_json::Value) -> bool {
     if let Some(sel_type) = selector.get("type").and_then(|t| t.as_str())
         && sel_type == "PseudoClassSelector"
@@ -52,7 +50,6 @@ pub fn is_unscoped_pseudo_class(selector: &serde_json::Value) -> bool {
 }
 
 /// True if is `:global(...)` or `:global`, irrespective of scoped pseudo classes.
-#[must_use]
 pub fn is_outer_global(selector: &serde_json::Value) -> bool {
     if let Some(selectors) = selector.get("selectors").and_then(|s| s.as_array())
         && let Some(first) = selectors.first()
@@ -65,7 +62,7 @@ pub fn is_outer_global(selector: &serde_json::Value) -> bool {
         return selectors.iter().all(|s| {
             matches!(
                 s.get("type").and_then(|t| t.as_str()),
-                Some("PseudoClassSelector" | "PseudoElementSelector")
+                Some("PseudoClassSelector") | Some("PseudoElementSelector")
             )
         });
     }
@@ -75,7 +72,7 @@ pub fn is_outer_global(selector: &serde_json::Value) -> bool {
 /// Marker for unknown values (when we can't statically determine all possible values).
 const UNKNOWN_MARKER: &str = "__UNKNOWN__";
 
-/// Get possible values from an expression chunk (Text, `ExpressionTag`, or direct expression).
+/// Get possible values from an expression chunk (Text, ExpressionTag, or direct expression).
 ///
 /// Returns `None` if the values cannot be determined statically (dynamic expression).
 /// Returns `Some(Vec<String>)` if we can determine all possible values.
@@ -91,7 +88,6 @@ const UNKNOWN_MARKER: &str = "__UNKNOWN__";
 /// value unknown and makes `get_possible_values` return `None`. A bare
 /// `Identifier` (`class={cls}`, the common dynamic case) is in that group, so
 /// serializing the expression first is wasted work.
-#[must_use]
 pub fn get_possible_values_expr(
     expr: &crate::ast::js::Expression,
     is_class: bool,
@@ -114,7 +110,6 @@ pub fn get_possible_values_expr(
     get_possible_values(expr.as_json(), is_class)
 }
 
-#[must_use]
 pub fn get_possible_values(chunk: &serde_json::Value, is_class: bool) -> Option<Vec<String>> {
     let mut values = Vec::new();
     let chunk_type = chunk.get("type").and_then(|t| t.as_str());
@@ -259,7 +254,7 @@ fn gather_possible_values(
                     if property.get("type").and_then(|t| t.as_str()) == Some("Property") {
                         let is_computed = property
                             .get("computed")
-                            .and_then(serde_json::Value::as_bool)
+                            .and_then(|c| c.as_bool())
                             .unwrap_or(false);
 
                         if !is_computed {
@@ -318,7 +313,7 @@ fn gather_possible_values(
                         // Combine all possibilities
                         for left in &left_values {
                             for right in &right_values {
-                                values.push(format!("{left}{right}"));
+                                values.push(format!("{}{}", left, right));
                             }
                         }
                     }

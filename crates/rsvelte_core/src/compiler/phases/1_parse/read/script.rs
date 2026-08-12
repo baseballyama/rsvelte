@@ -12,7 +12,6 @@ use std::borrow::Cow;
 
 use compact_str::CompactString;
 
-use crate::ast::AttributeNodeMetadata;
 use crate::ast::arena::ParseArena;
 use crate::ast::js::Expression;
 use crate::ast::template::{
@@ -22,11 +21,7 @@ use crate::error::ParseResult;
 
 use super::super::parser::Parser;
 
-fn source_pos(offset: usize) -> u32 {
-    u32::try_from(offset).expect("source positions are limited to u32")
-}
-
-/// Ensure a Script's content has been fully parsed from `raw_content`.
+/// Ensure a Script's content has been fully parsed from raw_content.
 /// This performs the deferred OXC parse. Call this before accessing script.content in analysis.
 ///
 /// Returns the first JS parse error, if any — mirroring upstream
@@ -67,7 +62,7 @@ pub fn ensure_script_parsed(
     parse_error
 }
 
-pub fn ensure_script_parsed_retained<'source>(
+pub(crate) fn ensure_script_parsed_retained<'source>(
     arena: &ParseArena,
     script: &mut Script<'source>,
     line_offsets: &[usize],
@@ -137,16 +132,12 @@ impl<'a> Parser<'a> {
         })]
     }
 
-    /// Parse a `<script>` tag and store it in `instance_script` or `module_script`.
+    /// Parse a `<script>` tag and store it in instance_script or module_script.
     ///
     /// `self_closing` is only ever `true` in lenient (lint) mode, where a
     /// self-closed `<script />` is tolerated to mirror svelte-eslint-parser. In
     /// that case there is no content and no closing tag to consume — the `/>`
     /// has already been eaten by the caller.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error for malformed script tags or invalid script attributes.
     pub fn parse_script_tag(
         &mut self,
         start: usize,
@@ -224,7 +215,7 @@ impl<'a> Parser<'a> {
                     name: compact_str::CompactString::new("{...}"),
                     name_loc: None,
                     value: AttributeValue::True(true),
-                    metadata: AttributeNodeMetadata::default(),
+                    metadata: Default::default(),
                 });
                 continue;
             }
@@ -286,8 +277,8 @@ impl<'a> Parser<'a> {
         let script = if self.options.defer_script_parse {
             // Defer script content parsing to analysis phase for faster parse().
             let placeholder = Expression::from_node(crate::ast::typed_expr::JsNode::Program {
-                start: source_pos(content_start),
-                end: source_pos(content_start + script_content.len()),
+                start: content_start as u32,
+                end: (content_start + script_content.len()) as u32,
                 loc: None,
                 body: crate::ast::arena::IdRange::empty(),
                 source_type: CompactString::from("module"),
@@ -295,13 +286,13 @@ impl<'a> Parser<'a> {
             });
             Script {
                 node_type: ScriptType::Script,
-                start: source_pos(start),
-                end: source_pos(end),
+                start: start as u32,
+                end: end as u32,
                 context,
                 content: placeholder,
                 attributes: script_attributes,
                 raw_content: script_content,
-                content_offset: source_pos(content_start),
+                content_offset: content_start as u32,
                 is_typescript: use_typescript,
             }
         } else {
@@ -332,8 +323,8 @@ impl<'a> Parser<'a> {
                     return Err(err);
                 }
                 let placeholder = Expression::from_node(crate::ast::typed_expr::JsNode::Program {
-                    start: source_pos(content_start),
-                    end: source_pos(content_start + script_content.len()),
+                    start: content_start as u32,
+                    end: (content_start + script_content.len()) as u32,
                     loc: None,
                     body: crate::ast::arena::IdRange::empty(),
                     source_type: CompactString::from("module"),
@@ -341,25 +332,25 @@ impl<'a> Parser<'a> {
                 });
                 Script {
                     node_type: ScriptType::Script,
-                    start: source_pos(start),
-                    end: source_pos(end),
+                    start: start as u32,
+                    end: end as u32,
                     context,
                     content: placeholder,
                     attributes: script_attributes,
                     raw_content: script_content,
-                    content_offset: source_pos(content_start),
+                    content_offset: content_start as u32,
                     is_typescript: use_typescript,
                 }
             } else {
                 Script {
                     node_type: ScriptType::Script,
-                    start: source_pos(start),
-                    end: source_pos(end),
+                    start: start as u32,
+                    end: end as u32,
                     context,
                     content: program,
                     attributes: script_attributes,
                     raw_content: "",
-                    content_offset: source_pos(content_start),
+                    content_offset: content_start as u32,
                     is_typescript: use_typescript,
                 }
             }

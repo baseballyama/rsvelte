@@ -1,8 +1,8 @@
 //! Convert rsvelte's parse-phase `JsNode` AST (the ESTree-shaped representation
 //! of `<script>` blocks and template expressions) into an oxc
-//! [`oxc_ast::ast::Expression`] / [`oxc_ast::ast::Statement`].
-//!
-//! Phase 3 can then assemble an [`oxc_ast::ast::Program`] and print it with [`rsvelte_esrap::print`].
+//! [`oxc_ast::ast::Expression`] / [`oxc_ast::ast::Statement`] so Phase-3 can
+//! assemble an [`oxc_ast::ast::Program`] and print it with
+//! [`rsvelte_esrap::print`].
 //!
 //! This is a **transform-free structural conversion**: rune / prop rewriting
 //! happens later, on the oxc AST. The converter only reproduces the parsed
@@ -86,7 +86,7 @@ struct Cx<'a, 'arena> {
     arena: &'arena ParseArena,
 }
 
-impl<'a> Cx<'a, '_> {
+impl<'a, 'arena> Cx<'a, 'arena> {
     /// Allocate a string into the oxc arena, yielding an `&'a str`.
     #[inline]
     fn str(&self, s: &str) -> &'a str {
@@ -623,6 +623,14 @@ impl<'a> Cx<'a, '_> {
         func_type: FunctionType,
     ) -> Option<oxc_allocator::Box<'a, oxc_ast::ast::Function<'a>>> {
         let (id, params, body, generator, is_async) = match node {
+            JsNode::FunctionDeclaration {
+                id,
+                params,
+                body,
+                generator,
+                r#async,
+                ..
+            } => (id, *params, body, *generator, *r#async),
             JsNode::FunctionExpression {
                 id,
                 params,
@@ -1071,7 +1079,7 @@ impl<'a> Cx<'a, '_> {
         }
     }
 
-    /// Build a `MemberExpression` node from a `MemberExpression` `JsNode`. Shared
+    /// Build a `MemberExpression` node from a `MemberExpression` JsNode. Shared
     /// by the expression arm, the assignment-target helper, and the chain helper.
     fn member_expr(&self, node: &JsNode) -> Option<oxc_ast::ast::MemberExpression<'a>> {
         let JsNode::MemberExpression {
@@ -1177,6 +1185,10 @@ impl<'a> Cx<'a, '_> {
                 self.array_assignment_target(elements.iter().map(|e| e.as_ref()))
             }
             JsNode::ObjectExpression { properties, .. } => {
+                let nodes = self.arena.get_js_children(*properties);
+                self.object_assignment_target(nodes)
+            }
+            JsNode::ObjectPattern { properties, .. } => {
                 let nodes = self.arena.get_js_children(*properties);
                 self.object_assignment_target(nodes)
             }

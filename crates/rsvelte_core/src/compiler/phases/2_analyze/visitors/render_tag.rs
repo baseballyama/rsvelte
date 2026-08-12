@@ -1,4 +1,4 @@
-//! `RenderTag` visitor.
+//! RenderTag visitor.
 //!
 //! Analyzes {@render} tags.
 //!

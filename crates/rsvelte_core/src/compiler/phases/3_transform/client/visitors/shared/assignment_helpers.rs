@@ -43,6 +43,7 @@ pub fn build_assignment_value(
     right: &JsExpr,
 ) -> JsExpr {
     match operator {
+        "=" => right.clone(),
         "+=" => b::binary_str(arena, "+", left.clone(), right.clone()),
         "-=" => b::binary_str(arena, "-", left.clone(), right.clone()),
         "*=" => b::binary_str(arena, "*", left.clone(), right.clone()),

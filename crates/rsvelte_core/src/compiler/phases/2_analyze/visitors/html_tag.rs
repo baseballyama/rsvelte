@@ -1,4 +1,4 @@
-//! `HtmlTag` visitor.
+//! HtmlTag visitor.
 //!
 //! Analyzes {@html} tags.
 //!
@@ -13,8 +13,8 @@ use crate::compiler::phases::phase2_analyze::AnalysisError;
 /// Visit an HTML tag.
 ///
 /// Validates the opening tag syntax in runes mode and marks the subtree as dynamic.
-/// Populates expression metadata (`has_call`, `has_member_expression`, references, dependencies)
-/// for use by the phase 3 transform (`build_expression` needs this for `deep_read_state/untrack`).
+/// Populates expression metadata (has_call, has_member_expression, references, dependencies)
+/// for use by the phase 3 transform (build_expression needs this for deep_read_state/untrack).
 ///
 /// # Arguments
 ///

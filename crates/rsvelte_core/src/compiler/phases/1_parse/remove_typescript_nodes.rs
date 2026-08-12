@@ -140,10 +140,6 @@ fn typed_empty_statement(node: &JsNode) -> JsNode {
 
 /// Typed entry point. Mirrors upstream `remove_typescript_nodes` but operates
 /// directly on the arena-backed typed tree.
-///
-/// # Errors
-///
-/// Returns an error for unsupported TypeScript syntax such as decorators.
 pub fn remove_typescript_nodes_typed(
     node: &mut JsNode,
     arena: &ParseArena,

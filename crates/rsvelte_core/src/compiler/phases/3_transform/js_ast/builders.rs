@@ -49,27 +49,23 @@ pub fn string(value: impl Into<CompactString>) -> JsExpr {
 
 /// Create a number literal.
 #[inline]
-#[must_use]
 pub fn number(value: f64) -> JsExpr {
     JsExpr::Literal(JsLiteral::Number(value))
 }
 
 /// Create a boolean literal.
 #[inline]
-#[must_use]
 pub fn boolean(value: bool) -> JsExpr {
     JsExpr::Literal(JsLiteral::Boolean(value))
 }
 
 /// Create a null literal.
 #[inline]
-#[must_use]
 pub fn null() -> JsExpr {
     JsExpr::Literal(JsLiteral::Null)
 }
 
-/// Create a generic literal from `JsLiteral`.
-#[must_use]
+/// Create a generic literal from JsLiteral.
 pub fn literal(value: JsLiteral) -> JsExpr {
     JsExpr::Literal(value)
 }
@@ -80,13 +76,11 @@ pub fn undefined(arena: &JsArena) -> JsExpr {
 }
 
 /// Create the `true` literal.
-#[must_use]
 pub fn true_literal() -> JsExpr {
     boolean(true)
 }
 
 /// Create a `this` expression.
-#[must_use]
 pub fn this() -> JsExpr {
     JsExpr::This
 }
@@ -96,7 +90,6 @@ pub fn this() -> JsExpr {
 // ============================================================================
 
 /// Create a template literal.
-#[must_use]
 pub fn template(quasis: Vec<JsTemplateElement>, expressions: Vec<JsExpr>) -> JsExpr {
     JsExpr::TemplateLiteral(JsTemplateLiteral {
         quasis,
@@ -128,19 +121,16 @@ pub fn array(elements: Vec<JsExpr>) -> JsExpr {
 }
 
 /// Create an empty array.
-#[must_use]
 pub fn empty_array() -> JsExpr {
     array(vec![])
 }
 
 /// Create an object expression.
-#[must_use]
 pub fn object(properties: Vec<JsObjectMember>) -> JsExpr {
     JsExpr::Object(JsObjectExpression { properties })
 }
 
 /// Create an empty object.
-#[must_use]
 pub fn empty_object() -> JsExpr {
     object(vec![])
 }
@@ -358,7 +348,6 @@ pub fn arrow(arena: &JsArena, params: Vec<JsPattern>, body: JsExpr) -> JsExpr {
 
 /// Create an arrow function with block body.
 #[inline]
-#[must_use]
 pub fn arrow_block(params: Vec<JsPattern>, body: Vec<JsStatement>) -> JsExpr {
     JsExpr::Arrow(JsArrowFunction {
         params: params.into(),
@@ -389,7 +378,6 @@ pub fn async_arrow(arena: &JsArena, params: Vec<JsPattern>, body: JsExpr) -> JsE
 }
 
 /// Create an async arrow function with block body.
-#[must_use]
 pub fn async_arrow_block(params: Vec<JsPattern>, body: Vec<JsStatement>) -> JsExpr {
     JsExpr::Arrow(JsArrowFunction {
         params: params.into(),
@@ -482,7 +470,7 @@ pub fn unthunk(arena: &JsArena, expr: JsExpr) -> JsExpr {
     arena.get_expr(call.callee).clone()
 }
 
-/// Check if a `JsExpr` contains any `AwaitExpression` (not crossing function boundaries).
+/// Check if a JsExpr contains any AwaitExpression (not crossing function boundaries).
 /// Arena-aware version.
 fn has_await_expression_arena(arena: &JsArena, expr: &JsExpr) -> bool {
     match expr {
@@ -559,27 +547,36 @@ fn has_await_expression_arena(arena: &JsArena, expr: &JsExpr) -> bool {
             .as_ref()
             .is_some_and(|a| has_await_expression_arena(arena, arena.get_expr(*a))),
         JsExpr::Spread(e) => has_await_expression_arena(arena, arena.get_expr(*e)),
+        JsExpr::Void(e) => has_await_expression_arena(arena, arena.get_expr(*e)),
         // Optional-chaining wrapper — recurse into the chained expression so
         // `a?.b(await x)` / `a?.[await x]` are detected. H-069.
         JsExpr::Chain(chain) => has_await_expression_arena(arena, arena.get_expr(chain.expression)),
         // Span wrapper carries an inner expression for source maps — recurse so
         // wrapping an awaiting expression doesn't hide the await. H-069.
         JsExpr::Spanned(inner, _, _) => has_await_expression_arena(arena, arena.get_expr(*inner)),
-        _ => false,
         // Genuine leaves with no sub-expression to traverse. Class bodies are
         // function-boundary / non-async scopes, so they can't surface a
         // top-level await. The match is exhaustive (no `_`) so a future
         // `JsExpr` variant fails to compile until it is handled here.
+        JsExpr::Identifier(_)
+        | JsExpr::Literal(_)
+        | JsExpr::This
+        | JsExpr::Super
+        | JsExpr::MetaProperty(_, _)
+        | JsExpr::ImportExpression { .. }
+        | JsExpr::Raw(_)
+        | JsExpr::OpaqueIdentifier(_)
+        | JsExpr::Class(_) => false,
     }
 }
 
-/// Check if a `JsExpr` contains an await expression (not crossing function boundaries).
+/// Check if a JsExpr contains an await expression (not crossing function boundaries).
 /// Public version of the internal function for use in visitors.
 pub fn js_expr_has_await(arena: &JsArena, expr: &JsExpr) -> bool {
     has_await_expression_arena(arena, expr)
 }
 
-/// Strip the top-level `await` from a `JsExpr`.
+/// Strip the top-level `await` from a JsExpr.
 ///
 /// If the expression is `JsExpr::Await(inner_id)`, returns the inner expression.
 /// Otherwise returns the original expression unchanged.
@@ -935,13 +932,14 @@ fn apply_save_recursive(arena: &JsArena, expr: JsExpr, is_tail: bool) -> JsExpr 
         }
 
         // Don't cross function boundaries
+        JsExpr::Arrow(_) | JsExpr::Function(_) => expr,
+
         // Leaf nodes and others that don't contain sub-expressions to transform
         _ => expr,
     }
 }
 
 /// Create a thunk with a block body.
-#[must_use]
 pub fn thunk_block(statements: Vec<JsStatement>) -> JsExpr {
     arrow_block(vec![], statements)
 }
@@ -954,7 +952,7 @@ pub fn thunk_block(statements: Vec<JsStatement>) -> JsExpr {
 /// Corresponds to Svelte's `thunk(expression, true)`.
 ///
 /// Note: The `$.save()` or `$.track_reactivity_loss()` wrapping is applied
-/// at the expression level (in the `AwaitExpression` visitor / expression converter),
+/// at the expression level (in the AwaitExpression visitor / expression converter),
 /// NOT here. This matches the reference Svelte compiler behavior.
 pub fn async_thunk(arena: &JsArena, expr: JsExpr) -> JsExpr {
     let async_arrow_expr = async_arrow(arena, vec![], expr);
@@ -962,7 +960,6 @@ pub fn async_thunk(arena: &JsArena, expr: JsExpr) -> JsExpr {
 }
 
 /// Create a function expression.
-#[must_use]
 pub fn function_expr(
     id: Option<CompactString>,
     params: Vec<JsPattern>,
@@ -1046,9 +1043,8 @@ pub fn optional_call(arena: &JsArena, callee: JsExpr, arguments: Vec<JsExpr>) ->
     })
 }
 
-/// Close an optional chain by wrapping it in a `ChainExpression`.
-///
-/// A member access built on top stays *outside* the chain (upstream keeps the
+/// Close an optional chain by wrapping it in a `ChainExpression`, so a member
+/// access built on top of it stays *outside* the chain (upstream keeps the
 /// source `ChainExpression` node, which is what makes esrap parenthesize).
 /// Non-chains and already-wrapped chains are returned unchanged.
 pub fn close_optional_chain(arena: &JsArena, expr: JsExpr) -> JsExpr {
@@ -1113,10 +1109,6 @@ pub fn optional_member(
 }
 
 /// Create a member path from a dot-separated string (e.g., "$.template").
-///
-/// # Panics
-///
-/// Panics if a path segment cannot be represented as an internal identifier.
 #[inline]
 pub fn member_path(arena: &JsArena, path: &str) -> JsExpr {
     // Fast path for common "$.xxx" pattern (avoids Vec allocation)
@@ -1162,6 +1154,7 @@ pub fn binary_str(arena: &JsArena, op: &str, left: JsExpr, right: JsExpr) -> JsE
         "<<" => JsBinaryOp::Shl,
         ">>" => JsBinaryOp::Shr,
         ">>>" => JsBinaryOp::UShr,
+        "+" => JsBinaryOp::Add,
         "-" => JsBinaryOp::Sub,
         "*" => JsBinaryOp::Mul,
         "/" => JsBinaryOp::Div,
@@ -1207,16 +1200,12 @@ pub fn nullish(arena: &JsArena, left: JsExpr, right: JsExpr) -> JsExpr {
 }
 
 /// Create a logical expression from an operator string.
-///
-/// # Panics
-///
-/// Panics if `op` is not `&&`, `||`, or `??`.
 pub fn logical_str(arena: &JsArena, op: &str, left: JsExpr, right: JsExpr) -> JsExpr {
     let operator = match op {
         "&&" => JsLogicalOp::And,
         "||" => JsLogicalOp::Or,
         "??" => JsLogicalOp::NullishCoalescing,
-        _ => panic!("Invalid logical operator: {op}"),
+        _ => panic!("Invalid logical operator: {}", op),
     };
     logical(arena, operator, left, right)
 }
@@ -1247,6 +1236,7 @@ pub fn assign(arena: &JsArena, left: JsExpr, right: JsExpr) -> JsExpr {
 /// Create an assignment expression from an operator string.
 pub fn assign_op(arena: &JsArena, op: &str, left: JsExpr, right: JsExpr) -> JsExpr {
     let operator = match op {
+        "=" => JsAssignmentOp::Assign,
         "+=" => JsAssignmentOp::AddAssign,
         "-=" => JsAssignmentOp::SubAssign,
         "*=" => JsAssignmentOp::MulAssign,
@@ -1277,7 +1267,6 @@ pub fn conditional(arena: &JsArena, test: JsExpr, consequent: JsExpr, alternate:
 }
 
 /// Create a sequence expression.
-#[must_use]
 pub fn sequence(expressions: Vec<JsExpr>) -> JsExpr {
     JsExpr::Sequence(JsSequenceExpression { expressions })
 }
@@ -1326,13 +1315,11 @@ pub fn if_stmt(
 }
 
 /// Create a block statement.
-#[must_use]
 pub fn block(body: Vec<JsStatement>) -> JsStatement {
     JsStatement::Block(JsBlockStatement::with_body(body))
 }
 
 /// Create a debugger statement.
-#[must_use]
 pub fn debugger() -> JsStatement {
     JsStatement::Debugger
 }
@@ -1459,19 +1446,16 @@ pub fn export_default_function(
 // ============================================================================
 
 /// Create an array pattern.
-#[must_use]
 pub fn array_pattern(elements: Vec<Option<JsPattern>>) -> JsPattern {
     JsPattern::Array(JsArrayPattern { elements })
 }
 
 /// Create an object pattern.
-#[must_use]
 pub fn object_pattern(properties: Vec<JsObjectPatternProperty>) -> JsPattern {
     JsPattern::Object(JsObjectPattern { properties })
 }
 
 /// Create a rest pattern.
-#[must_use]
 pub fn rest_pattern(argument: JsPattern) -> JsPattern {
     JsPattern::Rest(Box::new(argument))
 }
@@ -1486,7 +1470,7 @@ pub fn svelte_call(arena: &JsArena, method: &str, args: Vec<JsExpr>) -> JsExpr {
     call(arena, callee, args)
 }
 
-/// Create $.`from_html(html)` or $.`from_html(html`, flags).
+/// Create $.from_html(html) or $.from_html(html, flags).
 pub fn svelte_from_html(
     arena: &JsArena,
     html: impl Into<CompactString>,
@@ -1494,7 +1478,7 @@ pub fn svelte_from_html(
 ) -> JsExpr {
     let mut args = vec![template_string(html)];
     if let Some(f) = flags {
-        args.push(number(f64::from(f)));
+        args.push(number(f as f64));
     }
     svelte_call(arena, "from_html", args)
 }
@@ -1509,7 +1493,6 @@ pub fn svelte_append(arena: &JsArena, anchor: JsExpr, node: JsExpr) -> JsExpr {
 // ============================================================================
 
 /// Create a new program.
-#[must_use]
 pub fn program(body: Vec<JsStatement>) -> JsProgram {
     JsProgram::with_body(body)
 }
@@ -1523,7 +1506,6 @@ pub fn raw(code: impl Into<CompactString>) -> JsExpr {
 }
 
 /// Alias for `number` to match JavaScript builder API.
-#[must_use]
 pub fn literal_number(value: f64) -> JsExpr {
     number(value)
 }

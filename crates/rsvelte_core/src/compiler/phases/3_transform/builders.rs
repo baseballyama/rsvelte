@@ -33,9 +33,8 @@ pub struct B<'a> {
     alloc: &'a oxc_allocator::Allocator,
 }
 
-/// Anything that can be coerced to an [`Expression`] in callee / object position.
-///
-/// A `&str` becomes an identifier (so `b.call("$.derived", …)` works
+/// Anything that can be coerced to an [`Expression`] in callee / object
+/// position. A `&str` becomes an identifier (so `b.call("$.derived", …)` works
 /// like the upstream `b.call('$.derived', …)`), mirroring esrap's
 /// print-the-name-verbatim behaviour.
 pub trait IntoExpr<'a> {
@@ -69,7 +68,6 @@ impl<'a> B<'a> {
     /// A fresh [`AstBuilder`] over this arena. Upstream's builder is no longer
     /// `Copy`, so `B` carries the allocator and hands one out on demand.
     #[inline]
-    #[must_use]
     pub fn ab(&self) -> AstBuilder<'a> {
         AstBuilder::new(self.alloc)
     }
@@ -77,7 +75,6 @@ impl<'a> B<'a> {
     /// Allocate `s` into the oxc arena, yielding an `&'a str` (which satisfies
     /// the `Into<Atom<'a>>` bounds the builder methods take).
     #[inline]
-    #[must_use]
     pub fn str(self, s: &str) -> &'a str {
         self.alloc.alloc_str(s)
     }
@@ -87,56 +84,48 @@ impl<'a> B<'a> {
     /// `name` — an identifier expression. The name is printed verbatim, so
     /// dotted "identifiers" like `"$.derived"` are valid (matching upstream).
     #[inline]
-    #[must_use]
     pub fn id(self, name: &str) -> Expression<'a> {
         Expression::new_identifier(SPAN, self.str(name), &self.ab())
     }
 
     /// An [`IdentifierName`] (for static member property / meta-property keys).
     #[inline]
-    #[must_use]
     pub fn id_name(self, name: &str) -> IdentifierName<'a> {
         IdentifierName::new(SPAN, self.str(name), &self.ab())
     }
 
     /// A string literal expression with the default (printer-chosen) quoting.
     #[inline]
-    #[must_use]
     pub fn string(self, value: &str) -> Expression<'a> {
         Expression::new_string_literal(SPAN, self.str(value), None, &self.ab())
     }
 
     /// A numeric literal expression (decimal).
     #[inline]
-    #[must_use]
     pub fn number(self, value: f64) -> Expression<'a> {
         Expression::new_numeric_literal(SPAN, value, None, NumberBase::Decimal, &self.ab())
     }
 
     /// A boolean literal expression.
     #[inline]
-    #[must_use]
     pub fn bool(self, value: bool) -> Expression<'a> {
         Expression::new_boolean_literal(SPAN, value, &self.ab())
     }
 
     /// `null`.
     #[inline]
-    #[must_use]
     pub fn null(self) -> Expression<'a> {
         Expression::new_null_literal(SPAN, &self.ab())
     }
 
     /// `this`.
     #[inline]
-    #[must_use]
     pub fn this(self) -> Expression<'a> {
         Expression::ThisExpression(ThisExpression::boxed(SPAN, &self.ab()))
     }
 
     /// `void 0`.
     #[inline]
-    #[must_use]
     pub fn void0(self) -> Expression<'a> {
         Expression::UnaryExpression(UnaryExpression::boxed(
             SPAN,
@@ -148,7 +137,6 @@ impl<'a> B<'a> {
 
     /// A property key: a bare identifier when `name` is a valid identifier,
     /// otherwise a string-literal key (upstream `b.key`).
-    #[must_use]
     pub fn key(self, name: &str) -> PropertyKey<'a> {
         if is_valid_identifier(name) {
             PropertyKey::new_static_identifier(SPAN, self.str(name), &self.ab())
@@ -171,7 +159,6 @@ impl<'a> B<'a> {
 
     /// `object[property]` (computed, non-optional).
     #[inline]
-    #[must_use]
     pub fn member_computed(
         self,
         object: Expression<'a>,
@@ -183,7 +170,6 @@ impl<'a> B<'a> {
     }
 
     /// `a.b.c` from a dotted path (upstream `b.member_id`).
-    #[must_use]
     pub fn member_id(self, path: &str) -> Expression<'a> {
         let mut parts = path.split('.');
         let mut expr = self.id(parts.next().unwrap_or(""));
@@ -227,7 +213,7 @@ impl<'a> B<'a> {
     }
 
     /// `callee?.(args…)` — an optional call expression (upstream `b.maybe_call`'s
-    /// `?.()` form). Used by the `RenderTag` optional-chain path.
+    /// `?.()` form). Used by the RenderTag optional-chain path.
     pub fn optional_call(
         self,
         callee: impl IntoExpr<'a>,
@@ -267,7 +253,6 @@ impl<'a> B<'a> {
     }
 
     /// Convert a `Vec<Expression>` into an arena `Vec<Argument>`.
-    #[must_use]
     pub fn args(self, exprs: Vec<Expression<'a>>) -> ArenaVec<'a, Argument<'a>> {
         let mut out = ArenaVec::with_capacity_in(exprs.len(), &self.ab());
         for e in exprs {
@@ -279,7 +264,6 @@ impl<'a> B<'a> {
     // -- operators ----------------------------------------------------------
 
     #[inline]
-    #[must_use]
     pub fn binary(
         self,
         op: BinaryOperator,
@@ -290,7 +274,6 @@ impl<'a> B<'a> {
     }
 
     #[inline]
-    #[must_use]
     pub fn logical(
         self,
         op: LogicalOperator,
@@ -301,18 +284,15 @@ impl<'a> B<'a> {
     }
 
     #[inline]
-    #[must_use]
     pub fn unary(self, op: UnaryOperator, argument: Expression<'a>) -> Expression<'a> {
         Expression::UnaryExpression(UnaryExpression::boxed(SPAN, op, argument, &self.ab()))
     }
 
     #[inline]
-    #[must_use]
     pub fn await_expr(self, argument: Expression<'a>) -> Expression<'a> {
         Expression::AwaitExpression(AwaitExpression::boxed(SPAN, argument, &self.ab()))
     }
 
-    #[must_use]
     pub fn sequence(self, expressions: Vec<Expression<'a>>) -> Expression<'a> {
         let mut out = ArenaVec::with_capacity_in(expressions.len(), &self.ab());
         for e in expressions {
@@ -324,7 +304,6 @@ impl<'a> B<'a> {
     // -- array & object -----------------------------------------------------
 
     /// `[elements…]`. `None` entries become elisions (holes).
-    #[must_use]
     pub fn array(self, elements: Vec<Option<Expression<'a>>>) -> Expression<'a> {
         let mut out = ArenaVec::with_capacity_in(elements.len(), &self.ab());
         for el in elements {
@@ -337,7 +316,6 @@ impl<'a> B<'a> {
     }
 
     /// `{ properties… }`.
-    #[must_use]
     pub fn object(self, properties: Vec<ObjectPropertyKind<'a>>) -> Expression<'a> {
         let mut out = ArenaVec::with_capacity_in(properties.len(), &self.ab());
         for p in properties {
@@ -347,7 +325,6 @@ impl<'a> B<'a> {
     }
 
     /// `name: value` object property (upstream `b.init`).
-    #[must_use]
     pub fn init(self, name: &str, value: Expression<'a>) -> ObjectPropertyKind<'a> {
         let key = self.key(name);
         ObjectPropertyKind::ObjectProperty(ObjectProperty::boxed(
@@ -364,7 +341,6 @@ impl<'a> B<'a> {
 
     /// A general property with explicit kind / method / shorthand / computed.
     #[allow(clippy::too_many_arguments)]
-    #[must_use]
     pub fn prop(
         self,
         kind: PropertyKind,
@@ -387,13 +363,11 @@ impl<'a> B<'a> {
     }
 
     /// `...expr` spread property.
-    #[must_use]
     pub fn spread(self, argument: Expression<'a>) -> ObjectPropertyKind<'a> {
         ObjectPropertyKind::SpreadProperty(SpreadElement::boxed(SPAN, argument, &self.ab()))
     }
 
     /// `get name() { body }` (upstream `b.get`).
-    #[must_use]
     pub fn get(self, name: &str, body: Vec<Statement<'a>>) -> ObjectPropertyKind<'a> {
         let key = self.key(name);
         let value = self.function_expr(None, self.empty_params(), self.body(body), false);
@@ -410,7 +384,6 @@ impl<'a> B<'a> {
     }
 
     /// `set name($$value) { body }` (upstream `b.set`).
-    #[must_use]
     pub fn set(self, name: &str, body: Vec<Statement<'a>>) -> ObjectPropertyKind<'a> {
         let key = self.key(name);
         let params = self.params(vec![self.id_pat("$$value")], None);
@@ -431,7 +404,6 @@ impl<'a> B<'a> {
 
     /// A simple identifier binding pattern.
     #[inline]
-    #[must_use]
     pub fn id_pat(self, name: &str) -> BindingPattern<'a> {
         BindingPattern::new_binding_identifier(SPAN, self.str(name), &self.ab())
     }
@@ -439,7 +411,6 @@ impl<'a> B<'a> {
     /// `{ name: value }` — a single-property object **binding pattern**
     /// (`b.object_pattern` / `b.init` for patterns). Used to lower `let:`
     /// directives into a destructured slot-function parameter.
-    #[must_use]
     pub fn object_pattern(
         self,
         properties: Vec<(String, BindingPattern<'a>)>,
@@ -475,7 +446,6 @@ impl<'a> B<'a> {
     /// - `Identifier` → binding identifier,
     /// - anything else → falls back to a binding identifier over its printed text
     ///   only when it is an identifier; otherwise the caller's `default_name`.
-    #[must_use]
     pub fn expr_to_pattern(self, expr: Expression<'a>, default_name: &str) -> BindingPattern<'a> {
         use oxc_ast::ast::{ArrayExpressionElement, ObjectPropertyKind as OPK};
         match expr {
@@ -523,26 +493,25 @@ impl<'a> B<'a> {
                         }
                         other => {
                             let e = Expression::try_from(other)
-                                .unwrap_or_else(|()| self.id(default_name));
+                                .unwrap_or_else(|_| self.id(default_name));
                             out.push(Some(self.expr_to_pattern(e, "undefined")));
                         }
                     }
                 }
                 BindingPattern::new_array_pattern(SPAN, out, rest, &self.ab())
             }
+            Expression::AssignmentExpression(_) => self.id_pat(default_name),
             _ => self.id_pat(default_name),
         }
     }
 
     /// Empty formal parameter list.
     #[inline]
-    #[must_use]
     pub fn empty_params(self) -> FormalParameters<'a> {
         self.params(vec![], None)
     }
 
     /// Build a `FormalParameters` from binding patterns + optional rest.
-    #[must_use]
     pub fn params(
         self,
         patterns: Vec<BindingPattern<'a>>,
@@ -585,7 +554,6 @@ impl<'a> B<'a> {
     }
 
     /// Build a [`FunctionBody`] from a list of statements.
-    #[must_use]
     pub fn body(self, statements: Vec<Statement<'a>>) -> FunctionBody<'a> {
         let stmts = ArenaVec::from_iter_in(statements, &self.ab());
         FunctionBody::new(SPAN, ArenaVec::new_in(&self.ab()), stmts, &self.ab())
@@ -639,7 +607,6 @@ impl<'a> B<'a> {
 
     /// `() => expr`, collapsing `() => f()` to `f` (upstream `b.thunk` +
     /// `unthunk` for the zero-parameter case).
-    #[must_use]
     pub fn thunk(self, expr: Expression<'a>, is_async: bool) -> Expression<'a> {
         if !is_async
             && let Expression::CallExpression(call) = &expr
@@ -654,7 +621,6 @@ impl<'a> B<'a> {
     }
 
     /// `() => { body }` — zero-param block-bodied arrow.
-    #[must_use]
     pub fn thunk_block(self, body: Vec<Statement<'a>>, is_async: bool) -> Expression<'a> {
         let body = self.body(body);
         self.arrow(self.empty_params(), body, false, is_async)
@@ -715,7 +681,6 @@ impl<'a> B<'a> {
     // -- declarations -------------------------------------------------------
 
     /// `const pattern = init;` (or no init).
-    #[must_use]
     pub fn const_decl(
         self,
         pattern: BindingPattern<'a>,
@@ -725,7 +690,6 @@ impl<'a> B<'a> {
     }
 
     /// `let pattern = init;`.
-    #[must_use]
     pub fn let_decl(
         self,
         pattern: BindingPattern<'a>,
@@ -735,7 +699,6 @@ impl<'a> B<'a> {
     }
 
     /// `var pattern = init;`.
-    #[must_use]
     pub fn var_decl(
         self,
         pattern: BindingPattern<'a>,
@@ -745,14 +708,12 @@ impl<'a> B<'a> {
     }
 
     /// `const x = init;` convenience (identifier binding).
-    #[must_use]
     pub fn const_id(self, name: &str, init: Expression<'a>) -> Statement<'a> {
         let pat = self.id_pat(name);
         self.const_decl(pat, Some(init))
     }
 
     /// `let x = init;` convenience (identifier binding).
-    #[must_use]
     pub fn let_id(self, name: &str, init: Option<Expression<'a>>) -> Statement<'a> {
         let pat = self.id_pat(name);
         self.let_decl(pat, init)
@@ -761,7 +722,6 @@ impl<'a> B<'a> {
     /// Build a (possibly multi-declarator) variable declaration STATEMENT from
     /// `(pattern, init)` pairs sharing one `kind` — the general form used by the
     /// script transform when re-assembling a lowered declaration.
-    #[must_use]
     pub fn var_decl_from_pairs(
         self,
         kind: VariableDeclarationKind,
@@ -800,27 +760,23 @@ impl<'a> B<'a> {
 
     /// `expr;` — expression statement.
     #[inline]
-    #[must_use]
     pub fn stmt(self, expr: Expression<'a>) -> Statement<'a> {
         Statement::ExpressionStatement(ExpressionStatement::boxed(SPAN, expr, &self.ab()))
     }
 
     /// `return expr;` / `return;`.
     #[inline]
-    #[must_use]
     pub fn return_stmt(self, argument: Option<Expression<'a>>) -> Statement<'a> {
         Statement::ReturnStatement(ReturnStatement::boxed(SPAN, argument, &self.ab()))
     }
 
     /// `{ body }` block statement.
-    #[must_use]
     pub fn block(self, body: Vec<Statement<'a>>) -> Statement<'a> {
         let stmts = ArenaVec::from_iter_in(body, &self.ab());
         Statement::BlockStatement(BlockStatement::boxed(SPAN, stmts, &self.ab()))
     }
 
     /// `if (test) consequent else alternate`.
-    #[must_use]
     pub fn if_stmt(
         self,
         test: Expression<'a>,
@@ -837,21 +793,18 @@ impl<'a> B<'a> {
     }
 
     /// `do body while (test);` (upstream `b.do_while`).
-    #[must_use]
     pub fn do_while(self, test: Expression<'a>, body: Statement<'a>) -> Statement<'a> {
         Statement::DoWhileStatement(DoWhileStatement::boxed(SPAN, body, test, &self.ab()))
     }
 
     /// `!argument` — logical-NOT unary (upstream `b.unary('!', ...)`).
     #[inline]
-    #[must_use]
     pub fn unary_not(self, argument: Expression<'a>) -> Expression<'a> {
         self.unary(UnaryOperator::LogicalNot, argument)
     }
 
     /// `;` empty statement.
     #[inline]
-    #[must_use]
     pub fn empty(self) -> Statement<'a> {
         Statement::EmptyStatement(EmptyStatement::boxed(SPAN, &self.ab()))
     }
@@ -860,9 +813,9 @@ impl<'a> B<'a> {
     ///
     /// esrap (faithful to upstream) drops bare `EmptyStatement`s from a body
     /// sequence, so a plain [`empty`](Self::empty) prints nothing. Some server
-    /// outputs, however, must preserve a literal `;` per remove`d node — e.g`. a
+    /// outputs, however, must preserve a literal `;` per removed node — e.g. a
     /// non-dev top-level `$inspect(...)` / `$inspect(...).with(...)` whose
-    /// `CallExpression` visitor returns `b.empty` as the *expression* of an
+    /// CallExpression visitor returns `b.empty` as the *expression* of an
     /// `ExpressionStatement`, printing `;;` (the empty-as-expression `;` plus the
     /// statement's own `;`). We can't build an `ExpressionStatement` wrapping an
     /// `EmptyStatement` in oxc's typed AST, so we emit two of these sentinel
@@ -872,7 +825,6 @@ impl<'a> B<'a> {
     /// the statement. `start` must be distinct per emitted sentinel so the
     /// body-sequence comment-resync logic treats them as separate nodes.
     #[inline]
-    #[must_use]
     pub fn empty_kept(self, start: u32) -> Statement<'a> {
         Statement::EmptyStatement(EmptyStatement::boxed(
             Span::new(start, u32::MAX),
@@ -882,17 +834,11 @@ impl<'a> B<'a> {
 
     /// `debugger;` statement (upstream `b.debugger`).
     #[inline]
-    #[must_use]
     pub fn debugger(self) -> Statement<'a> {
         Statement::DebuggerStatement(DebuggerStatement::boxed(SPAN, &self.ab()))
     }
 
     /// `target++` / `target--` / `++target` / `--target` (upstream `b.update`).
-    ///
-    /// # Panics
-    ///
-    /// Panics if `target` is not an identifier or member expression.
-    #[must_use]
     pub fn update(
         self,
         op: UpdateOperator,
@@ -908,7 +854,7 @@ impl<'a> B<'a> {
             ),
             other => match MemberExpression::try_from(other) {
                 Ok(member) => SimpleAssignmentTarget::from(member),
-                Err(()) => panic!("update target must be an identifier or member expression"),
+                Err(_) => panic!("update target must be an identifier or member expression"),
             },
         };
         Expression::UpdateExpression(UpdateExpression::boxed(SPAN, op, prefix, st, &self.ab()))
@@ -916,7 +862,6 @@ impl<'a> B<'a> {
 
     /// A multi-declarator variable declaration node (the boxed form, suitable as
     /// a `for` statement init). Each `(name, init)` pair is one declarator.
-    #[must_use]
     pub fn var_decl_multi_node(
         self,
         kind: VariableDeclarationKind,
@@ -959,7 +904,6 @@ impl<'a> B<'a> {
     }
 
     /// `throw new Error("…")` (upstream `b.throw_error`).
-    #[must_use]
     pub fn throw_error(self, message: &str) -> Statement<'a> {
         let err = self.new_expr("Error", vec![self.string(message)]);
         Statement::ThrowStatement(ThrowStatement::boxed(SPAN, err, &self.ab()))
@@ -972,7 +916,6 @@ impl<'a> B<'a> {
     /// The source string is emitted verbatim between single quotes (no
     /// escaping), matching the established `module_source` convention so esrap
     /// reproduces `'svelte/internal/server'` byte-for-byte.
-    #[must_use]
     pub fn import_all(self, as_name: &str, source: &str) -> Statement<'a> {
         let local = BindingIdentifier::new(SPAN, self.str(as_name), &self.ab());
         let mut specs = ArenaVec::with_capacity_in(1, &self.ab());
@@ -997,7 +940,6 @@ impl<'a> B<'a> {
     ///
     /// Each `(imported, local)` pair becomes a named specifier. An empty
     /// `parts` list yields a side-effect import `import '<source>';`.
-    #[must_use]
     pub fn imports(self, parts: Vec<(&str, &str)>, source: &str) -> Statement<'a> {
         let specifiers = if parts.is_empty() {
             None
@@ -1033,7 +975,6 @@ impl<'a> B<'a> {
     ///
     /// Accepts the [`Statement`] produced by [`B::function_declaration`] and
     /// re-wraps its inner `Function` as the default-export declaration.
-    #[must_use]
     pub fn export_default_fn(self, fn_decl: Statement<'a>) -> Statement<'a> {
         let kind = match fn_decl {
             Statement::FunctionDeclaration(func) => {
@@ -1052,7 +993,6 @@ impl<'a> B<'a> {
     }
 
     /// `export default <expr>;` (upstream `b.export_default` of an expression).
-    #[must_use]
     pub fn export_default_expr(self, expr: Expression<'a>) -> Statement<'a> {
         let kind = oxc_ast::ast::ExportDefaultDeclarationKind::from(expr);
         let decl = ModuleDeclaration::new_export_default_declaration(SPAN, kind, &self.ab());
@@ -1080,11 +1020,6 @@ impl<'a> B<'a> {
     ///
     /// `target` must be a simple assignment target — an identifier or a member
     /// expression (the only forms the entry assembly produces).
-    ///
-    /// # Panics
-    ///
-    /// Panics if `target` is not an identifier or member expression.
-    #[must_use]
     pub fn assignment(
         self,
         op: AssignmentOperator,
@@ -1102,7 +1037,7 @@ impl<'a> B<'a> {
             }
             other => match MemberExpression::try_from(other) {
                 Ok(member) => AssignmentTarget::from(member),
-                Err(()) => panic!("assignment target must be an identifier or member expression"),
+                Err(_) => panic!("assignment target must be an identifier or member expression"),
             },
         };
         Expression::AssignmentExpression(AssignmentExpression::boxed(
@@ -1134,7 +1069,6 @@ impl<'a> B<'a> {
 
     /// Build a template literal from cooked quasi strings and interpolated
     /// expressions. `quasis.len()` must be `expressions.len() + 1`.
-    #[must_use]
     pub fn template(self, quasis: Vec<&str>, expressions: Vec<Expression<'a>>) -> Expression<'a> {
         let n = quasis.len();
         let mut q = ArenaVec::with_capacity_in(n, &self.ab());

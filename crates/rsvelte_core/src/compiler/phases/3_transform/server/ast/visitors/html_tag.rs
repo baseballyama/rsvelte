@@ -36,10 +36,8 @@ use super::shared::{
 };
 
 /// Visit a `{@html expr}` tag.
-pub fn visit_html_tag(tag: &HtmlTag, state: &mut ServerTransformState<'_>) {
-    let expr_text = state
-        .expr_source(&tag.expression)
-        .map(std::string::ToString::to_string);
+pub fn visit_html_tag<'a>(tag: &HtmlTag, state: &mut ServerTransformState<'a>) {
+    let expr_text = state.expr_source(&tag.expression).map(|s| s.to_string());
     let blocker_indices: Vec<usize> = expr_text
         .as_deref()
         .map(|t| expr_text_blockers(state, t))

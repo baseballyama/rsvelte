@@ -24,16 +24,12 @@ use crate::error::ParseResult;
 use super::super::parser::{MAX_NESTING_DEPTH, Parser, is_js_whitespace};
 use super::super::utils::TrimWs;
 
-fn source_pos(offset: usize) -> u32 {
-    u32::try_from(offset).expect("source positions are limited to u32")
-}
-
 /// Returns `true` when the `<style>` has a `lang` attribute whose value is not
 /// plain CSS (e.g. `sass`, `scss`, `stylus`, `less`, `postcss`). Such a block
 /// is preprocessed before the compiler normally sees it, so its body is NOT
 /// CSS — used (in lenient/lint mode only) to skip CSS-shaped validation that
 /// would otherwise abort the whole-file parse.
-fn has_non_css_lang(attributes: &[crate::ast::Attribute<'_>]) -> bool {
+fn has_non_css_lang<'a>(attributes: &[crate::ast::Attribute<'a>]) -> bool {
     for attr in attributes {
         if let crate::ast::Attribute::Attribute(node) = attr
             && node.name.as_str() == "lang"
@@ -51,8 +47,7 @@ fn has_non_css_lang(attributes: &[crate::ast::Attribute<'_>]) -> bool {
 // Public API
 // ============================================================================
 
-/// Parse CSS content and return the children array for `StyleSheet`.
-#[must_use]
+/// Parse CSS content and return the children array for StyleSheet.
 pub fn parse_css(content: &str, offset: usize) -> Vec<Value> {
     let mut parser = CssParser::new(content, offset);
     parser.parse()
@@ -62,7 +57,7 @@ pub fn parse_css(content: &str, offset: usize) -> Vec<Value> {
 /// of silently swallowing them. Used by the style-tag parser to surface
 /// `css_expected_identifier` (and similar) errors that the official Svelte
 /// CSS parser raises in `read_identifier` / `read_selector`.
-pub fn parse_css_strict(
+pub(crate) fn parse_css_strict(
     content: &str,
     offset: usize,
 ) -> Result<Vec<Value>, crate::error::ParseError> {
@@ -104,10 +99,6 @@ fn record_first_error(
 
 impl<'a> Parser<'a> {
     /// Parse a `<style>` tag and store it in stylesheet.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error for duplicate or malformed style tags.
     pub fn parse_style_tag(
         &mut self,
         start: usize,
@@ -140,13 +131,13 @@ impl<'a> Parser<'a> {
                 .collect();
             self.stylesheet = Some(StyleSheet {
                 node_type: StyleSheetType::StyleSheet,
-                start: source_pos(start),
-                end: source_pos(here),
+                start: start as u32,
+                end: here as u32,
                 attributes: style_attributes,
                 children: Vec::new(),
                 content: StyleSheetContent {
-                    start: source_pos(here),
-                    end: source_pos(here),
+                    start: here as u32,
+                    end: here as u32,
                     styles: String::new(),
                     comment: self.pending_leading_comments.last().cloned(),
                 },
@@ -385,13 +376,13 @@ impl<'a> Parser<'a> {
 
         let stylesheet = StyleSheet {
             node_type: StyleSheetType::StyleSheet,
-            start: source_pos(start),
-            end: source_pos(end),
+            start: start as u32,
+            end: end as u32,
             attributes: style_attributes,
             children: css_children,
             content: StyleSheetContent {
-                start: source_pos(content_start),
-                end: source_pos(content_end),
+                start: content_start as u32,
+                end: content_end as u32,
                 styles: style_content.to_string(),
                 comment,
             },
@@ -517,7 +508,7 @@ impl<'a> CssParser<'a> {
         obj.insert("type".to_string(), Value::String("Atrule".to_string()));
         obj.insert("start".to_string(), Value::Number((start as i64).into()));
         obj.insert("end".to_string(), Value::Number((end as i64).into()));
-        obj.insert("name".to_string(), Value::String(name));
+        obj.insert("name".to_string(), Value::String(name.to_string()));
         obj.insert("prelude".to_string(), Value::String(prelude));
         obj.insert("block".to_string(), block);
 
@@ -1553,7 +1544,8 @@ impl<'a> CssParser<'a> {
             let upstream_property = property.split_whitespace().next().unwrap_or("");
             let upstream_value = property
                 .split_once(is_js_whitespace)
-                .map_or("", |(_, rest)| rest.trim_ws());
+                .map(|(_, rest)| rest.trim_ws())
+                .unwrap_or("");
             if upstream_value.is_empty() && !upstream_property.starts_with("--") {
                 record_first_error(
                     &self.error,
@@ -1731,8 +1723,8 @@ impl<'a> CssParser<'a> {
         }
     }
 
-    /// Alias for `eat()` to match the naming in Parser.
-    /// In `CssParser`, all `eat()` calls are optional (no error throwing).
+    /// Alias for eat() to match the naming in Parser.
+    /// In CssParser, all eat() calls are optional (no error throwing).
     #[inline]
     fn eat_optional(&mut self, s: &str) -> bool {
         self.eat(s)
@@ -2759,7 +2751,7 @@ impl<'a> SelectorParser<'a> {
             self.advance();
             if self.current_char() == '=' {
                 self.advance();
-                matcher = Some(format!("{op_char}="));
+                matcher = Some(format!("{}=", op_char));
             }
         } else if c == '=' {
             self.advance();

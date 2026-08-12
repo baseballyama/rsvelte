@@ -149,8 +149,8 @@ pub struct Source {
 
 /// Simplified decoded source map structure.
 ///
-/// This matches the JavaScript `DecodedSourceMap` format. JSON-side keys
-/// follow the `SourceMap` v3 spec (`sourcesContent`, `sourceRoot`), so
+/// This matches the JavaScript DecodedSourceMap format. JSON-side keys
+/// follow the SourceMap v3 spec (`sourcesContent`, `sourceRoot`), so
 /// user-supplied maps round-trip correctly.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SimpleDecodedMap {
@@ -231,8 +231,7 @@ pub enum PreprocessError {
 }
 
 impl MappedCode {
-    /// Create a new empty `MappedCode`.
-    #[must_use]
+    /// Create a new empty MappedCode.
     pub fn new() -> Self {
         MappedCode {
             string: String::new(),
@@ -240,8 +239,7 @@ impl MappedCode {
         }
     }
 
-    /// Create a `MappedCode` with the given string and optional map.
-    #[must_use]
+    /// Create a MappedCode with the given string and optional map.
     pub fn with_map(string: String, map: Option<SimpleDecodedMap>) -> Self {
         if let Some(map) = map {
             MappedCode { string, map }

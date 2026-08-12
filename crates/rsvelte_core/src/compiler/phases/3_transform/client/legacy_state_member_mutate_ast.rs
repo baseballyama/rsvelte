@@ -149,7 +149,7 @@ struct LegacyStateMemberMutateCollector<'a> {
     skip_assignment_spans: Vec<(u32, u32)>,
 }
 
-impl LegacyStateMemberMutateCollector<'_> {
+impl<'a> LegacyStateMemberMutateCollector<'a> {
     /// Walk the `object` chain of a member expression down to the
     /// leftmost identifier.
     fn walk_object_chain_to_root<'e>(expr: &'e Expression<'_>) -> Option<(&'e str, Span)> {
@@ -180,7 +180,7 @@ impl LegacyStateMemberMutateCollector<'_> {
     }
 }
 
-impl<'ast> Visit<'ast> for LegacyStateMemberMutateCollector<'_> {
+impl<'a, 'ast> Visit<'ast> for LegacyStateMemberMutateCollector<'a> {
     fn visit_call_expression(&mut self, call: &CallExpression<'ast>) {
         // Detect the wrap shape `$.mutate(var, <assignment>)` we
         // emit. If callee is `$.mutate` (StaticMember $ . mutate),
@@ -224,14 +224,17 @@ impl<'ast> Visit<'ast> for LegacyStateMemberMutateCollector<'_> {
         // Output uses the original assignment text verbatim, just
         // enclosed in `$.mutate(var, ...)`.
         let outer_text = &self.source[expr.span.start as usize..expr.span.end as usize];
-        let mutate = format!("$.mutate({root_name}, {outer_text})");
+        let mutate = format!("$.mutate({}, {})", root_name, outer_text);
         // If the mutated state backs a legacy `<select bind:value={state…}>`
         // referencing other scope variables, wrap in a sequence with
         // `$.invalidate_inner_signals(() => { … })` so those signals re-read.
         // Mirrors the prop-member-mutation path (`prop_member_mutate_ast`).
         let rewrite = match self.invalidate_bodies.get(root_name) {
             Some(body) if !body.is_empty() => {
-                format!("({mutate}, $.invalidate_inner_signals(() => {{ {body} }}))")
+                format!(
+                    "({}, $.invalidate_inner_signals(() => {{ {} }}))",
+                    mutate, body
+                )
             }
             _ => mutate,
         };
@@ -483,7 +486,7 @@ thread_local! {
 }
 
 /// In-place equivalent of [`transform_legacy_state_member_mutate_ast`].
-pub fn transform_legacy_state_member_mutate_in_place(
+pub(crate) fn transform_legacy_state_member_mutate_in_place(
     source: &str,
     state_vars: &[String],
     non_reactive_state_vars: &[String],
@@ -540,7 +543,7 @@ struct LegacyStateMemberMutateRewriter<'a, 'b> {
     changed: bool,
 }
 
-impl<'a> LegacyStateMemberMutateRewriter<'a, '_> {
+impl<'a, 'b> LegacyStateMemberMutateRewriter<'a, 'b> {
     fn is_eligible(&self, name: &str) -> bool {
         self.state_vars.iter().any(|s| s == name)
             && !self.non_reactive_state_vars.iter().any(|nr| nr == name)
@@ -580,7 +583,7 @@ impl<'a> LegacyStateMemberMutateRewriter<'a, '_> {
     }
 }
 
-impl<'a> oxc_ast_visit::VisitMut<'a> for LegacyStateMemberMutateRewriter<'a, '_> {
+impl<'a, 'b> oxc_ast_visit::VisitMut<'a> for LegacyStateMemberMutateRewriter<'a, 'b> {
     fn visit_expression(&mut self, expr: &mut Expression<'a>) {
         self.note_existing_wrap(expr);
         // Children first: an inner assignment is rewritten before the parent

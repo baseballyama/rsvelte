@@ -1,4 +1,4 @@
-//! `TitleElement` visitor.
+//! TitleElement visitor.
 //!
 //! Analyzes `<title>` elements inside `<svelte:head>`.
 //!

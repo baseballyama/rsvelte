@@ -39,10 +39,6 @@ use crate::ast::template::RenderTag;
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
 use serde_json::Value;
 
-fn source_index(value: u64) -> usize {
-    usize::try_from(value).expect("source positions must fit usize")
-}
-
 use super::shared::{EMPTY_COMMENT, PromiseOptimiser, TemplateEntry};
 
 /// Slice the component source `[start, end)` (the optimiser blocker / await
@@ -55,7 +51,7 @@ fn source_slice(state: &ServerTransformState<'_>, start: usize, end: usize) -> O
 }
 
 /// Visit a `{@render expr(args)}` tag (sync path).
-pub fn visit_render_tag(node: &RenderTag, state: &mut ServerTransformState<'_>) {
+pub fn visit_render_tag<'a>(node: &RenderTag, state: &mut ServerTransformState<'a>) {
     let expr_json = node.expression.as_json();
     let is_optional = node.expression.node_type() == Some("ChainExpression");
 
@@ -74,14 +70,15 @@ pub fn visit_render_tag(node: &RenderTag, state: &mut ServerTransformState<'_>) 
     }
 
     // -- callee -------------------------------------------------------------
-    let Some(callee) = call_json.get("callee") else {
-        return;
+    let callee = match call_json.get("callee") {
+        Some(c) => c,
+        None => return,
     };
     let (c_start, c_end) = match (
         callee.get("start").and_then(Value::as_u64),
         callee.get("end").and_then(Value::as_u64),
     ) {
-        (Some(s), Some(e)) => (source_index(s), source_index(e)),
+        (Some(s), Some(e)) => (s as usize, e as usize),
         _ => return,
     };
     // 写经 `context.visit(callee)`: the snippet-function expression is read-wrapped,
@@ -112,7 +109,7 @@ pub fn visit_render_tag(node: &RenderTag, state: &mut ServerTransformState<'_>) 
                 arg.get("start").and_then(Value::as_u64),
                 arg.get("end").and_then(Value::as_u64),
             ) {
-                let (a_start, a_end) = (source_index(a_start), source_index(a_end));
+                let (a_start, a_end) = (a_start as usize, a_end as usize);
                 let mut arg_expr = state.reparse_slice(a_start, a_end);
                 state.wrap_reads_in_place(&mut arg_expr);
                 if let Some(t) = source_slice(state, a_start, a_end) {

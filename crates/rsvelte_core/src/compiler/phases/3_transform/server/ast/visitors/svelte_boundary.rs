@@ -245,7 +245,8 @@ fn build_boundary_snippet<'a>(
     for param in &snippet.parameters {
         let pat_name = param
             .identifier_name()
-            .map_or_else(|| "undefined".to_string(), std::string::ToString::to_string);
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "undefined".to_string());
         patterns.push(b.id_pat(&pat_name));
     }
     let params = b.params(patterns, None);

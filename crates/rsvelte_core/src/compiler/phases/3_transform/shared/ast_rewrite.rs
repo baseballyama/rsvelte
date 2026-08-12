@@ -28,14 +28,15 @@ use oxc_span::SourceType;
 /// outlive the arena the AST was parsed into.
 pub type Edit = (u32, u32, String);
 
-/// Shared bound on fixed-point iteration.
-///
-/// Each pass reduces remaining work; the cap protects against pathological nesting.
+/// The shared bound on fixed-point iteration. Each pass strictly reduces the
+/// remaining work (a rewritten node no longer matches), so real inputs settle
+/// in one or two passes; the cap is a safety net against pathological nesting.
 pub const MAX_FIXED_POINT_ITERS: usize = 16;
 
-/// Parse `source` in `arena` and hand the program to `f`, restoring the arena afterwards.
-///
-/// Returns `None` without calling `f` when the source fails to parse.
+/// Parse `source` in `arena` and hand the program to `f`, restoring the arena
+/// afterwards so it is reused across calls. Returns `None` (without calling
+/// `f`) when the source fails to parse — a malformed intermediate is never the
+/// rewrite pass's responsibility to surface, so it is left untouched.
 ///
 /// `f` receives only `&Program`, which is enough to build an
 /// [`oxc_semantic::Semantic`] in-closure when a pass needs scope information.
@@ -74,9 +75,10 @@ pub fn with_program<R>(
     })
 }
 
-/// Outcome of an in-place pass.
-///
-/// `resolve` distinguishes no work from parse failure so no-op passes do not re-parse source.
+/// What an in-place pass did. `resolve` needs "nothing to rewrite" and "could
+/// not parse" apart: only the second has to fall back to the text path, and
+/// conflating them made every no-op pass re-parse the whole source a second
+/// time.
 #[derive(Debug)]
 pub enum Rewrite {
     /// The pass rewrote the source.
@@ -93,7 +95,6 @@ pub enum Rewrite {
 impl Rewrite {
     /// `Some` only for [`Rewrite::Changed`] — for call sites that do not care
     /// which of the negative answers they got.
-    #[must_use]
     pub fn into_option(self) -> Option<String> {
         match self {
             Rewrite::Changed(s) => Some(s),
@@ -215,9 +216,10 @@ fn statements_with_following_text(fragment: &str) -> Option<Vec<usize>> {
 const CLASS_FRAGMENT_PREFIX: &str = "class _Dummy_ {\n";
 const CLASS_FRAGMENT_INDENT: &str = "\t";
 
-/// [`with_program_mut`] for a source that may only parse as class members.
-///
-/// The wrapper is added before parsing and removed from the printed text afterwards.
+/// [`with_program_mut`] for a source that may only parse as class members — a
+/// method body extracted without its enclosing `class`. The wrapper is added
+/// before parsing and taken back off the printed text, so the caller both sees
+/// and returns the fragment it passed in.
 ///
 /// `f` additionally receives the text the program's spans index into, which is
 /// the wrapped copy whenever the bare parse failed.
@@ -310,7 +312,6 @@ fn unwrap_class_fragment(printed: &str) -> Option<String> {
 /// the collector having to reason about overlap. Passes whose edits provably
 /// never nest pass `false` and skip the O(n²) containment check.
 #[track_caller]
-#[must_use]
 pub fn splice(source: &str, edits: Vec<Edit>, innermost_only: bool) -> Option<String> {
     splice_with_deferred(source, edits, innermost_only).map(|(rewritten, _)| rewritten)
 }
@@ -321,7 +322,6 @@ pub fn splice(source: &str, edits: Vec<Edit>, innermost_only: bool) -> Option<St
 /// replacements cannot create fresh targets, may stop after this pass when the
 /// returned flag is `false` instead of re-parsing only to confirm a no-op.
 #[track_caller]
-#[must_use]
 pub fn splice_with_deferred(
     source: &str,
     mut edits: Vec<Edit>,
@@ -380,9 +380,10 @@ pub fn rewrite_once(
     })
 }
 
-/// Run several collectors against a single parse of `source`, then drive edits to a fixed point.
-///
-/// This folds compatible passes into one parse per iteration instead of one parse per pass.
+/// Run several collectors against a *single* parse of `source`, unioning their
+/// edits before one splice, then drive that to a fixed point. This folds a group
+/// of passes that share a source type and parse options — and whose edits target
+/// disjoint syntax — into one parse per iteration instead of one parse per pass.
 ///
 /// `collect` receives the parsed program and the exact text it was parsed from
 /// (so span-derived slices stay valid), and returns the union of every grouped
@@ -405,9 +406,10 @@ pub fn rewrite_batched(
     })
 }
 
-/// Drive `pass` to a fixed point, capped at [`MAX_FIXED_POINT_ITERS`].
-///
-/// Each call re-parses the previous output so outer nodes pick up rewritten children.
+/// Drive `pass` to a fixed point, capped at [`MAX_FIXED_POINT_ITERS`]. Returns
+/// `Some(rewritten)` if at least one pass changed the source, `None` if the
+/// very first pass was already a no-op. Each call to `pass` re-parses the
+/// previous output, which is how outer nodes pick up their rewritten children.
 pub fn fixed_point(source: &str, mut pass: impl FnMut(&str) -> Option<String>) -> Option<String> {
     let mut current = pass(source)?;
     for _ in 1..MAX_FIXED_POINT_ITERS {
@@ -697,9 +699,10 @@ pub mod dual_run {
         static TALLY: StdRefCell<Vec<Entry>> = const { StdRefCell::new(Vec::new()) };
     }
 
-    /// `(pass, runs, raw diffs, mismatches, unverified)`.
-    ///
-    /// `raw diffs` counts byte differences; mismatches and unverified runs are subsets.
+    /// `(pass, runs, raw diffs, mismatches, unverified)`. `raw diffs` counts
+    /// every run whose two sides differed byte for byte, so `mismatches` and
+    /// `unverified` are both subsets of it: a run can only reach normalisation
+    /// after the raw bytes have already disagreed.
     pub type Entry = (&'static str, u32, u32, u32, u32);
 
     /// What one scored run established about a pass.
@@ -750,7 +753,6 @@ pub mod dual_run {
     }
 
     #[inline]
-    #[must_use]
     pub fn enabled() -> bool {
         *ENABLED
     }
@@ -784,11 +786,11 @@ pub mod dual_run {
         TERMINATION.with(std::cell::Cell::get)
     }
 
-    /// Whether a ported pass returns its in-place result instead of the spliced one.
-    ///
-    /// `RSVELTE_AST_SPLICE` restores the text path for field attribution without a rebuild.
+    /// Whether a ported pass returns its in-place result instead of the spliced
+    /// one. On by default: the in-place path is the production path, and
+    /// `RSVELTE_AST_SPLICE` puts the text path back so a divergence found in the
+    /// field can be attributed without a rebuild.
     #[inline]
-    #[must_use]
     pub fn prefer_in_place() -> bool {
         *PREFER_IN_PLACE
     }
@@ -923,15 +925,11 @@ pub mod dual_run {
     }
 
     /// One rebuilt script: `edits` replacements applied over `moved` bytes.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `edits` exceeds `u32`.
     #[inline]
     pub fn count_splice(pass: &'static str, edits: usize, moved: u64) {
         with_work(pass, |w| {
             w.splices += 1;
-            w.edits += u32::try_from(edits).expect("edit counts are limited to u32");
+            w.edits += edits as u32;
             w.moved_bytes += moved;
         });
     }
@@ -946,7 +944,6 @@ pub mod dual_run {
     }
 
     /// `(pass, text-path work, in-place work)` for this thread, by parse count.
-    #[must_use]
     pub fn work() -> Vec<(&'static str, Work, Work)> {
         WORK.with(|w| {
             let mut v: Vec<_> = w
@@ -972,7 +969,6 @@ pub mod dual_run {
     pub struct PassGuard(Option<&'static str>);
 
     impl PassGuard {
-        #[must_use]
         pub fn enter(pass: &'static str) -> Self {
             PassGuard(CURRENT.with(|c| c.replace(Some(pass))))
         }
@@ -991,7 +987,6 @@ pub mod dual_run {
             .unwrap_or_else(|| pass_of(file))
     }
 
-    #[must_use]
     pub fn pass_of(file: &'static str) -> &'static str {
         file.rsplit('/')
             .next()
@@ -1010,7 +1005,6 @@ pub mod dual_run {
     }
 
     /// `(pass, re-parses)` for this thread, most-run first.
-    #[must_use]
     pub fn parses_by_pass() -> Vec<(&'static str, u32)> {
         let mut v: Vec<_> = work()
             .into_iter()
@@ -1020,7 +1014,6 @@ pub mod dual_run {
         v
     }
 
-    #[must_use]
     pub fn parses() -> u32 {
         work()
             .iter()
@@ -1065,10 +1058,9 @@ pub mod dual_run {
         )
     }
 
-    /// `esrap(parse(source))` — the normalisation both sides of a comparison pass through.
-    ///
-    /// `None` means neither shape parsed, so no verdict was established.
-    #[must_use]
+    /// `esrap(parse(source))` — the single normalisation both sides of a
+    /// comparison pass through. `None` when `source` reads in neither shape,
+    /// which is not a verdict but an admission that nothing was established.
     pub fn normalize(source: &str) -> Option<(Shape, String)> {
         if let Some(printed) = print_normalized(source) {
             return Some((Shape::Bare, printed));
@@ -1109,9 +1101,13 @@ pub mod dual_run {
         record(pass, &verdict);
     }
 
-    /// Score whether the `&mut Program` path lands where the splice path lands.
-    ///
-    /// Raw bytes are compared first; differing sides are normalized once each.
+    /// Score a ported pass: does the `&mut Program` path land where the splice
+    /// path lands? The raw bytes are compared first, and only a run whose sides
+    /// already differ is put through [`normalize`] once each to say whether the
+    /// difference survives esrap. Counts one run, one raw diff whenever the
+    /// bytes differ at all, and one mismatch when the difference survives
+    /// normalisation — including when one side produced a rewrite and the other
+    /// did not.
     ///
     /// Comparing only the normalised sides would report a clean port for any
     /// difference esrap cancels, which is not a class this migration may ignore:
@@ -1166,7 +1162,6 @@ pub mod dual_run {
 
     /// `(pass, runs, raw diffs, mismatches, unverified)` for this thread, by run
     /// count.
-    #[must_use]
     pub fn tally() -> Vec<Entry> {
         TALLY.with(|t| {
             let mut v = t.borrow().clone();

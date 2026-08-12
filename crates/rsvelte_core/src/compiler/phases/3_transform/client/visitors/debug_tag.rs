@@ -1,9 +1,9 @@
-//! `DebugTag` visitor for client-side transformation.
+//! DebugTag visitor for client-side transformation.
 //!
 //! Corresponds to `DebugTag` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/DebugTag.js`.
 //!
-//! The `DebugTag` visitor handles `{@debug ...}` tags. It generates code that
+//! The DebugTag visitor handles `{@debug ...}` tags. It generates code that
 //! logs variable snapshots to the console and triggers the debugger.
 
 use crate::ast::js::Expression;

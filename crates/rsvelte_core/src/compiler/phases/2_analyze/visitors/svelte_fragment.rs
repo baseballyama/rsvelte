@@ -1,4 +1,4 @@
-//! `SvelteFragment` visitor.
+//! SvelteFragment visitor.
 //!
 //! Analyzes <svelte:fragment> elements.
 //!

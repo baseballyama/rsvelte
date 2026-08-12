@@ -45,17 +45,16 @@ pub fn shadow_snippet_declarations(
 
 /// Check if `text` contains any identifier that appears in `vars`.
 ///
-/// This scans the text once (`O(text_len)`), cutting it into identifier tokens by
+/// This scans the text once (O(text_len)), cutting it into identifier tokens by
 /// the same start/continue rule the official parser uses, then checks each token
 /// against the set. This is dramatically faster than the naive approach of
-/// calling `text.contains(var)` for each variable (O(N * `text_len`)).
+/// calling `text.contains(var)` for each variable (O(N * text_len)).
 ///
 /// Note: This is a conservative approximation -- it extracts identifiers from ALL
 /// positions including inside string literals and comments. This is acceptable because
 /// it's used as a quick pre-filter: false positives just mean we do a bit more work
 /// in the downstream transform, while false negatives would cause correctness bugs.
 #[inline]
-#[must_use]
 pub fn text_contains_any_identifier(text: &str, vars: &FxHashSet<&str>) -> bool {
     if vars.is_empty() {
         return false;
@@ -126,7 +125,7 @@ fn next_identifier(text: &str, from: usize) -> Option<(usize, usize)> {
 
 /// Retain only those strings in `vars` whose name appears as an identifier in `text`.
 ///
-/// Like `text_contains_any_identifier`, this is `O(text_len` + N) rather than O(N * `text_len`).
+/// Like `text_contains_any_identifier`, this is O(text_len + N) rather than O(N * text_len).
 pub fn text_retain_matching_identifiers(text: &str, vars: &mut Vec<String>) {
     if vars.is_empty() || text.is_empty() {
         return;
@@ -136,7 +135,7 @@ pub fn text_retain_matching_identifiers(text: &str, vars: &mut Vec<String>) {
     vars.retain(|v| ids.contains(v.as_str()));
 }
 
-/// Extract all unique identifiers from text into a `FxHashSet`.
+/// Extract all unique identifiers from text into a FxHashSet.
 fn extract_identifiers(text: &str) -> FxHashSet<&str> {
     let mut set = FxHashSet::default();
     let mut i = 0;

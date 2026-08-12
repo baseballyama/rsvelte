@@ -1,11 +1,11 @@
-//! AST-based server `{let …}` / `{const …}` (`DeclarationTag`) visitor.
+//! AST-based server `{let …}` / `{const …}` (DeclarationTag) visitor.
 //!
 //! Rust port of upstream
 //! `submodules/svelte/packages/svelte/src/compiler/phases/3-transform/server/visitors/DeclarationTag.js`.
 //!
 //! The `DeclarationTag` node is the loose-mustache declaration form introduced in
 //! Svelte 5.56.0 (#18282): `{let x = $state(1)}` / `{const y = …}` /
-//! `{let a = …, b = …}` (multiple declarators). Unlike `{@const}` (`ConstTag`), it
+//! `{let a = …, b = …}` (multiple declarators). Unlike `{@const}` (ConstTag), it
 //! preserves the user's `let` / `const` keyword and may declare a mutable
 //! (`let`) binding.
 //!
@@ -27,12 +27,12 @@
 //! `$derived.by` rune in place, read-wraps each initializer so derived / store
 //! reads inside an initializer become getter calls (`d` → `d()`,
 //! `$x` → `$.store_get(…)`), and pushes the result as a
-//! [`TemplateEntry::HoistableDecl`] — the same hoisted slot the `ConstTag` visitor
+//! [`TemplateEntry::HoistableDecl`] — the same hoisted slot the ConstTag visitor
 //! uses, so a declaration tag precedes the sibling `$$renderer.push(…)` that
 //! reads it.
 //!
 //! The async path (`metadata.promises_id`, awaited / blocked initializer) is a
-//! KNOWN GAP — it mirrors the equally-deferred async `ConstTag` axis and is tracked
+//! KNOWN GAP — it mirrors the equally-deferred async ConstTag axis and is tracked
 //! by the `async-declaration-tag*` fixtures. The sync case (the overwhelming
 //! majority — every `declaration-tags*` runtime fixture) ships here.
 
@@ -45,10 +45,6 @@ use crate::compiler::phases::phase3_transform::server::ast::{
     AsyncConstsGroup, ServerTransformState,
 };
 use oxc_ast::ast::{Expression as OxcExpression, Statement};
-
-fn source_index(value: u64) -> usize {
-    usize::try_from(value).expect("source positions must fit usize")
-}
 
 /// Visit a `{let …}` / `{const …}` declaration tag — lower its declarators and
 /// emit the resulting `let`/`const` declaration as a hoistable statement.
@@ -182,7 +178,7 @@ pub fn visit_declaration_tag<'a>(node: &DeclarationTag, state: &mut ServerTransf
     // `$$derived_array` expansion) not exercised by the `declaration-tags*`
     // fixtures, so an identifier pattern is handled here and any other shape
     // falls through to a plain (read-wrapped) declarator.
-    for d in &mut vd.declarations {
+    for d in vd.declarations.iter_mut() {
         let Some(rune) = d.init.as_ref().and_then(detect_decl_rune) else {
             // Plain (non-rune) declarator — leave the init for read-wrapping.
             continue;
@@ -227,7 +223,7 @@ pub fn visit_declaration_tag<'a>(node: &DeclarationTag, state: &mut ServerTransf
     // tree-wide server `Identifier` visitor that fires on the visited
     // `VariableDeclaration`'s initializers.
     if let Statement::VariableDeclaration(vd) = &mut stmt {
-        for d in &mut vd.declarations {
+        for d in vd.declarations.iter_mut() {
             if let Some(init) = d.init.as_mut() {
                 super::super::read_wrap::wrap_reads(
                     init,
@@ -257,7 +253,7 @@ pub fn visit_declaration_tag<'a>(node: &DeclarationTag, state: &mut ServerTransf
 /// constant-fold tail). A declarator whose init evaluates to a constant — given
 /// the constants already in scope — makes a same-named template read fold to
 /// that value. Reactive (`$state` / `$derived`) inits never fold.
-fn register_constant_folds(node: &DeclarationTag, state: &mut ServerTransformState<'_>) {
+fn register_constant_folds<'a>(node: &DeclarationTag, state: &mut ServerTransformState<'a>) {
     let decl_json = node.declaration.as_json();
     let Some(decls) = decl_json.get("declarations").and_then(|d| d.as_array()) else {
         return;
@@ -273,12 +269,12 @@ fn register_constant_folds(node: &DeclarationTag, state: &mut ServerTransformSta
             continue;
         };
         let (Some(s), Some(e)) = (
-            init.get("start").and_then(serde_json::Value::as_u64),
-            init.get("end").and_then(serde_json::Value::as_u64),
+            init.get("start").and_then(|v| v.as_u64()),
+            init.get("end").and_then(|v| v.as_u64()),
         ) else {
             continue;
         };
-        let (s, e) = (source_index(s), source_index(e));
+        let (s, e) = (s as usize, e as usize);
         if s >= e || e > state.source.len() {
             continue;
         }
@@ -297,7 +293,7 @@ fn register_constant_folds(node: &DeclarationTag, state: &mut ServerTransformSta
     }
 }
 
-/// Try the async `DeclarationTag` path. Returns `true` when the tag was emitted as
+/// Try the async DeclarationTag path. Returns `true` when the tag was emitted as
 /// an async declaration (`let name;` + `$$renderer.run([...])` thunk), `false`
 /// for a plain sync declaration (caller falls back to the AST sync lowering).
 ///
@@ -307,7 +303,10 @@ fn register_constant_folds(node: &DeclarationTag, state: &mut ServerTransformSta
 /// `$derived(await …)` → `await $.async_derived(() => e)`), split `<lhs> = <rhs>`,
 /// compute cross-group blockers, and gate via
 /// `has_await || !blockers.is_empty() || async_consts.is_some()`.
-fn try_async_declaration_tag(node: &DeclarationTag, state: &mut ServerTransformState<'_>) -> bool {
+fn try_async_declaration_tag<'a>(
+    node: &DeclarationTag,
+    state: &mut ServerTransformState<'a>,
+) -> bool {
     let start = node.declaration.start().unwrap_or(0) as usize;
     let end = node.declaration.end().unwrap_or(0) as usize;
     if end <= start || end > state.source.len() {
@@ -404,7 +403,7 @@ fn try_async_declaration_tag(node: &DeclarationTag, state: &mut ServerTransformS
     true
 }
 
-/// Cross-group blockers for a `DeclarationTag` whose initializer references
+/// Cross-group blockers for a DeclarationTag whose initializer references
 /// `init_refs` (mirror of `const_tag.rs::try_async_const`'s blocker scan): a
 /// referenced binding in a DIFFERENT `const_blocker_map` group, or a top-level
 /// `$$promises[N]` blocker, contributes a wait expression. Same-group deps are
@@ -432,7 +431,7 @@ fn compute_decl_tag_blockers(state: &ServerTransformState, init_refs: &[String])
     blist
 }
 
-/// RAW source text of a single-declarator `DeclarationTag`'s `id` pattern. Used as
+/// RAW source text of a single-declarator DeclarationTag's `id` pattern. Used as
 /// the un-rewritten assignment target for a destructured async declaration.
 fn raw_declarator_id(node: &DeclarationTag, state: &ServerTransformState) -> Option<String> {
     let decl_json = node.declaration.as_json();
@@ -441,23 +440,23 @@ fn raw_declarator_id(node: &DeclarationTag, state: &ServerTransformState) -> Opt
         return None;
     }
     let id = decls[0].get("id")?;
-    let s = source_index(id.get("start").and_then(serde_json::Value::as_u64)?);
-    let e = source_index(id.get("end").and_then(serde_json::Value::as_u64)?);
+    let s = id.get("start").and_then(|v| v.as_u64())? as usize;
+    let e = id.get("end").and_then(|v| v.as_u64())? as usize;
     if s >= e || e > state.source.len() {
         return None;
     }
     Some(state.source[s..e].trim().to_string())
 }
 
-/// Emit a `DeclarationTag` through the async-declaration lowering (写经
+/// Emit a DeclarationTag through the async-declaration lowering (写经
 /// `add_async_declaration` + the oracle's `emit_async_decl_tag`): a bare
 /// `let name;` per binding, optional blocker-wait thunk(s), and the deferred
 /// assignment thunk — all collected into the per-fragment
 /// [`AsyncConstsGroup`]. Each binding's `promises[N]` blocker is registered in
 /// [`ServerTransformState::const_blocker_map`] so downstream reactive reads wrap
 /// in `$$renderer.async([promises[N]], …)`.
-fn emit_async_decl_tag(
-    state: &mut ServerTransformState<'_>,
+fn emit_async_decl_tag<'a>(
+    state: &mut ServerTransformState<'a>,
     declared_names: &[String],
     lhs: &str,
     rhs: &str,
@@ -499,25 +498,21 @@ fn emit_async_decl_tag(
 
     let is_destructuring = lhs.starts_with('{') || lhs.starts_with('[');
     let thunk_code = if has_await {
-        let save_wrapped = extract_async_derived_thunk_body(rhs).map_or_else(
-            || {
-                crate::compiler::phases::phase3_transform::server::helpers::transform_await_to_save(
-                    rhs,
-                )
-            },
-            |inner_body| {
-                // RHS is the lowered async-derived shape `await $.async_derived(() =>
-                // X)`. Upstream keeps the OUTER `await $.async_derived(...)` untouched
-                // and save-wraps the INNER thunk body (re-adding the inner `await` the
-                // rune pipeline stripped): `await $.async_derived(async () => (await
-                // $.save(X))())`.
-                let saved_body =
+        let save_wrapped = if let Some(inner_body) = extract_async_derived_thunk_body(rhs) {
+            // RHS is the lowered async-derived shape `await $.async_derived(() =>
+            // X)`. Upstream keeps the OUTER `await $.async_derived(...)` untouched
+            // and save-wraps the INNER thunk body (re-adding the inner `await` the
+            // rune pipeline stripped): `await $.async_derived(async () => (await
+            // $.save(X))())`.
+            let saved_body =
                 crate::compiler::phases::phase3_transform::server::helpers::transform_await_to_save(
                     &format!("await {inner_body}"),
                 );
-                format!("await $.async_derived(async () => {saved_body})")
-            },
-        );
+            format!("await $.async_derived(async () => {saved_body})")
+        } else {
+            // `$state(await …)` — the single outer await is the save target.
+            crate::compiler::phases::phase3_transform::server::helpers::transform_await_to_save(rhs)
+        };
         if is_destructuring {
             format!("async () => ({lhs} = {save_wrapped})")
         } else {

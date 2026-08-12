@@ -1,4 +1,4 @@
-//! `OnDirective` visitor for client-side transformation.
+//! OnDirective visitor for client-side transformation.
 //!
 //! Corresponds to `OnDirective.js` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/OnDirective.js`.
@@ -20,7 +20,7 @@ const MODIFIERS: &[&str] = &[
     "once",
 ];
 
-/// Visit an `OnDirective` node and generate event handler code.
+/// Visit an OnDirective node and generate event handler code.
 ///
 /// Corresponds to `OnDirective` in
 /// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/OnDirective.js`:

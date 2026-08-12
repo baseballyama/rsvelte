@@ -8,13 +8,11 @@ use std::borrow::Cow;
 use memchr::{memchr2, memchr3};
 
 /// Escape HTML special characters for safe insertion into HTML content.
-#[must_use]
 pub fn escape_html(s: &str) -> Cow<'_, str> {
     escape(s, false)
 }
 
 /// Escape attribute value special characters.
-#[must_use]
 pub fn escape_attr(s: &str) -> Cow<'_, str> {
     escape(s, true)
 }
@@ -55,7 +53,6 @@ fn escape(s: &str, attribute: bool) -> Cow<'_, str> {
 /// list (which includes `command` and `keygen`) plus a case-insensitive
 /// `!doctype`. Used by both the client template printer and the server, so they
 /// agree on self-closing output (`<!doctype html=""/>`).
-#[must_use]
 pub fn is_void_element(name: &str) -> bool {
     matches!(
         name,
@@ -79,7 +76,6 @@ pub fn is_void_element(name: &str) -> bool {
 }
 
 /// Sanitize a template string by escaping special characters.
-#[must_use]
 pub fn sanitize_template_string(s: &str) -> String {
     // Fast path: if no special chars, avoid allocation
     if !s.contains('\\') && !s.contains('`') && memchr::memmem::find(s.as_bytes(), b"${").is_none()
@@ -102,7 +98,6 @@ pub fn sanitize_template_string(s: &str) -> String {
 /// is emitted **literally** — escaping it as `\t` diverges from the official
 /// compiler's output (e.g. multi-line `class="…"` values keep their source
 /// tabs verbatim).
-#[must_use]
 pub fn escape_js_string(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
     for c in s.chars() {
@@ -118,9 +113,8 @@ pub fn escape_js_string(s: &str) -> String {
 }
 
 /// Check if an attribute is a boolean attribute.
-/// Must match the official Svelte compiler's `DOM_BOOLEAN_ATTRIBUTES` list exactly.
+/// Must match the official Svelte compiler's DOM_BOOLEAN_ATTRIBUTES list exactly.
 /// Reference: svelte/packages/svelte/src/utils.js
-#[must_use]
 pub fn is_boolean_attribute(name: &str) -> bool {
     matches!(
         name,

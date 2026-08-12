@@ -45,14 +45,6 @@ fn get_react_attribute_correction(name: &str) -> Option<&'static str> {
 /// Validate an element and its attributes.
 ///
 /// Corresponds to `validate_element` in the JavaScript implementation.
-///
-/// # Errors
-///
-/// Returns an error when an element or its directives violate analysis rules.
-///
-/// # Panics
-///
-/// Panics if an internal template-analysis invariant is violated.
 pub fn validate_element(
     node: &RegularElement,
     context: &mut VisitorContext,
@@ -244,7 +236,7 @@ pub fn validate_element(
                         );
                         return Err(AnalysisError::validation_at(
                             "event_handler_invalid_modifier",
-                            format!("Valid event modifiers are {list}"),
+                            format!("Valid event modifiers are {}", list),
                             attr_start,
                             attr_end,
                         ));
@@ -260,7 +252,8 @@ pub fn validate_element(
                         return Err(AnalysisError::validation_at(
                             "event_handler_invalid_modifier_combination",
                             format!(
-                                "The 'passive' and '{conflicting_passive_modifier}' modifiers cannot be used together"
+                                "The 'passive' and '{}' modifiers cannot be used together",
+                                conflicting_passive_modifier
                             ),
                             attr_start,
                             attr_end,

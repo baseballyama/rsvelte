@@ -152,12 +152,12 @@ struct FuzzySet {
     exact_set: FxHashMap<String, String>,
     /// Match dictionary: gram -> [(index, count)]
     match_dict: FxHashMap<String, Vec<(usize, usize)>>,
-    /// Items for each gram size: `gram_size` -> [(`vector_normal`, `normalized_value`)]
+    /// Items for each gram size: gram_size -> [(vector_normal, normalized_value)]
     items: FxHashMap<usize, Vec<(f64, String)>>,
 }
 
 impl FuzzySet {
-    /// Create a new `FuzzySet` from a list of strings.
+    /// Create a new FuzzySet from a list of strings.
     fn new(arr: &[&str]) -> Self {
         let mut set = FuzzySet {
             exact_set: FxHashMap::default(),
@@ -235,8 +235,9 @@ impl FuzzySet {
     fn get_with_gram_size(&self, value: &str, gram_size: usize) -> Vec<(f64, String)> {
         let normalized = value.to_lowercase();
         let gram_counts = gram_counter(&normalized, gram_size);
-        let Some(items) = self.items.get(&gram_size) else {
-            return Vec::new();
+        let items = match self.items.get(&gram_size) {
+            Some(items) => items,
+            None => return Vec::new(),
         };
 
         // Calculate match scores using cosine similarity

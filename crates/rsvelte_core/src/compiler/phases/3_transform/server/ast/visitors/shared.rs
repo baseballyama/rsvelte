@@ -30,9 +30,8 @@ use compact_str::CompactString;
 use oxc_ast::ast::{Expression as OxcExpression, Statement};
 use std::borrow::Cow;
 
-/// SSR hydration markers — Rust mirrors of upstream `b.literal(...)` constants.
-///
-/// They derive from `internal/server/hydration.js`:
+/// SSR hydration markers — the Rust mirror of the `b.literal(...)` constants in
+/// upstream `shared/utils.js` (which derive from `internal/server/hydration.js`):
 /// `BLOCK_OPEN = <!--[-->`, `BLOCK_OPEN_ELSE = <!--[!-->`,
 /// `BLOCK_CLOSE = <!--]-->`, `EMPTY_COMMENT = <!---->`.
 pub const BLOCK_OPEN: &str = "<!--[-->";
@@ -80,10 +79,9 @@ pub fn fragment_snippet_names<'a, N: AsRef<TemplateNode<'a>>>(
     out
 }
 
-/// Port of upstream `process_children`: walks sibling template nodes.
-///
-/// It joins adjacent Text / Comment / `ExpressionTag` siblings into a [`TemplateEntry::Template`]
-/// and recurses into element/block children.
+/// Port of upstream `process_children`: walk a slice of sibling template nodes,
+/// joining adjacent Text / Comment / ExpressionTag siblings into a single
+/// [`TemplateEntry::Template`] and recursing into element/block children.
 ///
 /// Mirrors `utils.js::process_children` — `sequence` accumulates the joinable
 /// run, `flush()` converts it into one template entry.
@@ -107,14 +105,13 @@ pub fn process_children<'a>(
 }
 
 /// Like [`process_children`], but with `is_block_parent` controlling the
-/// upstream `clean_nodes` → Fragment-visitor `is_text_first` anchor.
-///
-/// When the parent is a Fragment / block body (root component fragment, `{#if}` /
-/// `{#each}` / `{#key}` / `{#snippet}` / `{#await}` body, Component / `SvelteSelf`
-/// / `SvelteComponent` / `SvelteBoundary` slot) AND the first surviving (cleaned)
+/// upstream `clean_nodes` → Fragment-visitor `is_text_first` anchor: when the
+/// parent is a Fragment / block body (root component fragment, `{#if}` /
+/// `{#each}` / `{#key}` / `{#snippet}` / `{#await}` body, Component / SvelteSelf
+/// / SvelteComponent / SvelteBoundary slot) AND the first surviving (cleaned)
 /// child is a `Text` / `ExpressionTag`, a leading `<!---->` (`EMPTY_COMMENT`) is
 /// pushed so the text node isn't fused with the surrounding fragment during
-/// hydration. `RegularElement` / `TitleElement` parents pass `false` (they are not
+/// hydration. RegularElement / TitleElement parents pass `false` (they are not
 /// in upstream's `is_text_first` parent list).
 pub fn process_children_inner<'a, N: AsRef<TemplateNode<'a>>>(
     nodes: &[N],
@@ -176,7 +173,7 @@ fn process_children_scoped<'a, N: AsRef<TemplateNode<'a>>>(
     let reordered = sort_const_tags(nodes, state);
     let iter_nodes: Vec<&TemplateNode> = match reordered {
         Some(v) => v,
-        None => nodes.iter().map(std::convert::AsRef::as_ref).collect(),
+        None => nodes.iter().map(|n| n.as_ref()).collect(),
     };
 
     // 写经 upstream `get_transform`: the `{#snippet}` blocks a fragment declares
@@ -254,7 +251,7 @@ fn process_children_scoped<'a, N: AsRef<TemplateNode<'a>>>(
     // 写经 `clean_nodes` → `Fragment` visitor: when the parent is a fragment /
     // block body and the first surviving child is Text / ExpressionTag, prepend
     // `<!---->` so the leading text isn't glued to the previous fragment.
-    let first_visible = cleaned.first().map(std::convert::AsRef::as_ref);
+    let first_visible = cleaned.first().map(|c| c.as_ref());
     if is_block_parent
         && matches!(
             first_visible,
@@ -365,7 +362,7 @@ fn process_children_scoped<'a, N: AsRef<TemplateNode<'a>>>(
                     let visited = if parent.is_some() {
                         let src = state
                             .expr_source(&tag.expression)
-                            .map(std::string::ToString::to_string)
+                            .map(|s| s.to_string())
                             .unwrap_or_default();
                         // `save_wrap_expr_text` only rewrites the inline `await` into
                         // the `(await $.save(<arg>))()` shape; upstream's
@@ -542,7 +539,7 @@ fn clean_whitespace<'n, 'b>(
 
     // `<pre>`: drop a leading lone-newline Text node (browser would re-add it).
     if matches!(parent, Some(el) if el.name.as_str() == "pre")
-        && let Some(TemplateNode::Text(t)) = out.first().map(std::convert::AsRef::as_ref)
+        && let Some(TemplateNode::Text(t)) = out.first().map(|c| c.as_ref())
         && (t.data.as_ref() == "\n" || t.data.as_ref() == "\r\n")
     {
         out.remove(0);
@@ -577,7 +574,7 @@ fn is_hoisted_node(node: &TemplateNode) -> bool {
     )
 }
 
-/// Determine whether an `ExpressionTag`'s interpolation is "async" — i.e. it
+/// Determine whether an ExpressionTag's interpolation is "async" — i.e. it
 /// references an instance-level top-level-await blocker — and, if so, return the
 /// blocker indices for its `$$renderer.async([$$promises[N]…], …)` wrap.
 ///
@@ -629,7 +626,7 @@ fn expression_tag_blockers(expr: &Expression, state: &ServerTransformState) -> O
 }
 
 /// Find the per-fragment const-tag blocker EXPRESSIONS (`promises[N]` source
-/// strings) referenced by an `ExpressionTag`'s interpolation, via
+/// strings) referenced by an ExpressionTag's interpolation, via
 /// [`ServerTransformState::const_blocker_map`]. Empty when no async `{@const}`
 /// in scope blocks any read in the expression. Mirrors the text oracle's
 /// `find_const_expression_blockers`.
@@ -821,15 +818,8 @@ fn sort_const_tags<'n, 'b, N: AsRef<TemplateNode<'b>>>(
                 .and_then(|d| d.as_array())
                 .and_then(|d| d.first())
                 .and_then(|declarator| {
-                    let s = usize::try_from(
-                        declarator
-                            .get("start")
-                            .and_then(serde_json::Value::as_u64)?,
-                    )
-                    .ok()?;
-                    let e =
-                        usize::try_from(declarator.get("end").and_then(serde_json::Value::as_u64)?)
-                            .ok()?;
+                    let s = declarator.get("start").and_then(|n| n.as_u64())? as usize;
+                    let e = declarator.get("end").and_then(|n| n.as_u64())? as usize;
                     Some((s, e))
                 })
                 .unwrap_or((0, 0));
@@ -956,9 +946,6 @@ fn hoist_declarations<'a>(template: Vec<TemplateEntry<'a>>) -> Vec<TemplateEntry
     hoisted
 }
 
-/// # Panics
-///
-/// Panics if a server template transformation invariant is violated.
 pub fn build_template<'a>(
     template: Vec<TemplateEntry<'a>>,
     state: &ServerTransformState<'a>,
@@ -982,7 +969,7 @@ pub fn build_template<'a>(
     let flush = |strings: &mut Vec<String>,
                  exprs: &mut Vec<OxcExpression<'a>>,
                  statements: &mut Vec<Statement<'a>>| {
-        let quasis: Vec<&str> = strings.iter().map(std::string::String::as_str).collect();
+        let quasis: Vec<&str> = strings.iter().map(|s| s.as_str()).collect();
         let tmpl = b.template(quasis, std::mem::take(exprs));
         statements.push(b.stmt(b.call("$$renderer.push", vec![tmpl])));
         strings.clear();
@@ -1038,11 +1025,11 @@ pub fn build_template<'a>(
 /// `is_text_first_parent` gates the upstream `clean_nodes`/`Fragment` visitor
 /// `is_text_first` leading `<!---->` anchor. It must be `true` ONLY when this
 /// fragment's parent is one of upstream's `is_text_first` parents — Fragment
-/// (root), `SnippetBlock`, `EachBlock`, Component / `SvelteSelf` / `SvelteComponent`,
-/// `SvelteBoundary` — and `false` for `IfBlock` / `KeyBlock` / `AwaitBlock` / `SvelteHead`
-/// / `SvelteElement` / `SvelteFragment` / `TitleElement` bodies.
+/// (root), SnippetBlock, EachBlock, Component / SvelteSelf / SvelteComponent,
+/// SvelteBoundary — and `false` for IfBlock / KeyBlock / AwaitBlock / SvelteHead
+/// / SvelteElement / SvelteFragment / TitleElement bodies.
 /// `reset_namespace` — true when this fragment's parent is a namespace-RESETTING
-/// parent (Root / Component / `SnippetBlock` / `SlotElement`). Those run the deep
+/// parent (Root / Component / SnippetBlock / SlotElement). Those run the deep
 /// `check_nodes_for_namespace` (svg/html elements nested inside `{#if}` /
 /// `{#each}` blocks are visible); block-body fragments (`{#if}` / `{#each}` /
 /// `{#key}` / `{#await}` arms) pass `false` and keep the shallow direct-child
@@ -1260,7 +1247,7 @@ fn build_async_consts_run<'a>(
 /// Render a fragment as a `{ ... }` block statement — the Rust port of upstream's
 /// server `Fragment` visitor return value `b.block([...init, ...build_template])`.
 ///
-/// Block visitors (`IfBlock` / `EachBlock` / `KeyBlock` / `AwaitBlock`) wrap their child
+/// Block visitors (IfBlock / EachBlock / KeyBlock / AwaitBlock) wrap their child
 /// fragments through this so the nested template content renders inside a real
 /// `BlockStatement` (which [`build_template`] then flushes as an opaque `Stmt`).
 ///
@@ -1345,9 +1332,9 @@ pub fn create_child_block<'a>(
     }
 }
 
-/// Local (per-block) const blocker source strings referenced by `expr_text`.
-///
-/// These bindings are declared by an async `{@const}` / `{@let}` inside the current block.
+/// Local (per-block) const blocker SOURCE strings referenced by `expr_text` —
+/// bindings declared by an async `{@const}` / `{@let}` inside the current block
+/// whose `$$renderer.run([...])` group member (e.g. `"promises[1]"`) gates them.
 /// Mirrors `metadata.expression.blockers()` for the LOCAL portion (the instance
 /// `$$promises[N]` portion comes from [`expr_text_blockers`]). Empty when no
 /// async const is in scope.
@@ -1361,9 +1348,9 @@ pub fn expr_local_const_blockers(state: &ServerTransformState, expr_text: &str) 
     )
 }
 
-/// Build a `[$$promises[i]…, <local source>…]` blockers array.
-///
-/// It combines instance numeric indices with reparsed local const blocker source strings.
+/// Build a `[$$promises[i]…, <local source>…]` blockers array combining instance
+/// blockers (numeric indices → `$$promises[i]`) with local const blocker source
+/// strings (reparsed verbatim, e.g. `promises[1]` / `promises_1[0]`).
 pub fn blockers_array_combined<'a>(
     state: &ServerTransformState<'a>,
     indices: &[usize],
@@ -1382,9 +1369,10 @@ pub fn blockers_array_combined<'a>(
     b.array(elems)
 }
 
-/// Like `create_child_block` but accepts both instance blocker indices and local blocker strings.
-///
-/// It mirrors `create_child_block` with a mixed `blockers()` set: a non-empty combined set →
+/// Like `create_child_block` but accepts BOTH instance blocker indices and
+/// local const blocker source strings. 写经 `create_child_block` with a
+/// `blockers()` set that mixes instance `$$promises[N]` and per-block
+/// `promises[N]` members: a non-empty combined set →
 /// `$$renderer.async_block([…], fn)`, await-only → `$$renderer.child_block(fn)`,
 /// neither → the statements verbatim.
 pub fn create_child_block_combined<'a>(
@@ -1410,9 +1398,9 @@ pub fn create_child_block_combined<'a>(
     }
 }
 
-/// Shared `$.save` / await-wrap helper for block-level async test/iterable expressions.
-///
-/// Given the source text of a block's controlling expression, it
+/// The shared `$.save` / await-wrap helper — the reusable seam for block-level
+/// async test/iterable expressions (IfBlock, and later EachBlock / AwaitBlock /
+/// KeyBlock). Given the SOURCE TEXT of a block's controlling expression, it
 /// returns the oxc expression that should drive the emitted `if (...)` / `for`
 /// header:
 ///
@@ -1456,17 +1444,18 @@ pub fn save_wrap_expr_text<'a>(
     state.b.id("undefined")
 }
 
-/// Whether `expr_text` contains an inline (top-level) `await`.
-///
-/// Thin re-export so async block visitors share one await-detection predicate.
-#[must_use]
+/// Whether `expr_text` contains an inline (top-level, not nested in a
+/// function/arrow body) `await`. Thin re-export of the server helper so the
+/// async block visitors share ONE await-detection predicate
+/// (`metadata.expression.has_await`). Cheap `memmem("await")` pre-check inside.
 pub fn text_has_await(expr_text: &str) -> bool {
     crate::compiler::phases::phase3_transform::server::helpers::expr_contains_await(expr_text)
 }
 
-/// Find top-level-await blocker indices (`$$promises[N]`) referenced by `expr_text`.
-///
-/// The list is empty when async is off or the expression references no blocked binding.
+/// Find the top-level-await blocker indices (`$$promises[N]`) referenced by
+/// `expr_text` against the precomputed instance blocker map. Empty when async is
+/// off (the map is only populated under `experimental.async`) or the expression
+/// references no blocked binding. Mirrors `metadata.expression.blockers()`.
 pub fn expr_text_blockers(state: &ServerTransformState, expr_text: &str) -> Vec<usize> {
     crate::compiler::phases::phase3_transform::server::helpers::find_expression_blockers(
         expr_text,
@@ -1475,7 +1464,7 @@ pub fn expr_text_blockers(state: &ServerTransformState, expr_text: &str) -> Vec<
 }
 
 /// Build the top-level async-wrapped expression-tag push statement — the Rust
-/// mirror of the `ExpressionTag` async branch in upstream `process_children`
+/// mirror of the ExpressionTag async branch in upstream `process_children`
 /// (`shared/utils.js` lines 79-95):
 ///
 /// ```text
@@ -1509,9 +1498,11 @@ pub fn build_async_expression_push<'a>(
     b.stmt(call)
 }
 
-/// Like [`build_async_expression_push`], but accepts arbitrary expression-string blockers.
-///
-/// Each blocker source is reparsed into an oxc expression. An empty list returns the inner push.
+/// Like [`build_async_expression_push`], but the blockers are arbitrary
+/// EXPRESSION strings (`promises[N]`) rather than `$$promises[N]` indices — the
+/// async `{@const}` reader wrap (`$$renderer.async([promises[1]], …)`). Each
+/// blocker source is reparsed into an oxc expression. With an empty list the
+/// bare inner push is returned.
 pub fn build_async_expression_push_exprs<'a>(
     state: &ServerTransformState<'a>,
     expr: OxcExpression<'a>,
@@ -1541,9 +1532,9 @@ pub fn build_async_expression_push_exprs<'a>(
     b.stmt(call)
 }
 
-/// Rust port of upstream `shared/utils.js::PromiseOptimiser`.
-///
-/// Each element/component attribute, prop, or spread expression is routed through [`PromiseOptimiser::transform`]; when it
+/// Rust port of upstream `shared/utils.js::PromiseOptimiser` — the per-element /
+/// per-component async-attribute/prop optimiser. Each attribute / prop / spread
+/// value expression is routed through [`PromiseOptimiser::transform`]; when it
 /// carries an inline `await` it is hoisted into a `const $$N = …;` binding and
 /// replaced inline by the bare `$$N` identifier, so multiple async values share
 /// ONE `Promise.all` wait and ONE child wrapper.
@@ -1570,7 +1561,6 @@ pub struct PromiseOptimiser<'a> {
 }
 
 impl<'a> PromiseOptimiser<'a> {
-    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -1608,7 +1598,6 @@ impl<'a> PromiseOptimiser<'a> {
     }
 
     /// 写经 `is_async()`: any hoisted expression OR any blocker.
-    #[must_use]
     pub fn is_async(&self) -> bool {
         !self.expressions.is_empty() || !self.blockers.is_empty()
     }
@@ -1687,7 +1676,7 @@ impl<'a> PromiseOptimiser<'a> {
 }
 
 /// Infer a fragment's namespace from its children (owned-slice variant). If every
-/// direct `RegularElement` child is SVG (or every one `MathML`) the fragment adopts
+/// direct `RegularElement` child is SVG (or every one MathML) the fragment adopts
 /// that namespace, so whitespace-only text between them is removable. (Relocated
 /// from the deleted text `server/visitors/fragment.rs`.)
 ///
@@ -1710,8 +1699,8 @@ impl<'a> PromiseOptimiser<'a> {
 /// (utils.js). Walks INTO block bodies (`{#if}` / `{#each}` / `{#await}` /
 /// `{#key}` fragments) but NOT into element children, checking each
 /// `RegularElement` / `SvelteElement`'s static namespace. Runs ONLY for
-/// namespace-resetting parents (Root / Fragment / Component / `SnippetBlock` /
-/// `SlotElement`) — mirroring upstream `infer_namespace`, which invokes it just
+/// namespace-resetting parents (Root / Fragment / Component / SnippetBlock /
+/// SlotElement) — mirroring upstream `infer_namespace`, which invokes it just
 /// for those parent kinds, not for `{#if}` / `{#each}` block-body fragments
 /// (those keep the shallow direct-child inference; see #1227).
 ///
@@ -1757,11 +1746,13 @@ fn check_ns_walk(node: &TemplateNode, ns: &mut NsCheck) {
         // real `<svg>` / `<div>` RegularElement sibling still drives the verdict;
         // absent one, the shallow direct-child fallback inherits the parent
         // namespace — matching upstream's element loop, which skips SvelteElement.
+        TemplateNode::SvelteElement(_) => {}
         // Mirrors upstream Text handler: any non-whitespace text is inconclusive
         // (`maybe_html`), deferring to the shallow direct-child inference.
         TemplateNode::Text(t) if !is_svelte_whitespace_only(&t.data) => {
             *ns = NsCheck::MaybeHtml;
         }
+        TemplateNode::Text(_) => {}
         TemplateNode::IfBlock(b) => {
             for n in &b.consequent.nodes {
                 check_ns_walk(n, ns);
@@ -1831,7 +1822,7 @@ fn check_nodes_for_namespace<'t, N: AsRef<TemplateNode<'t>>>(nodes: &[N]) -> NsC
 }
 
 /// Infer a fragment's namespace for a namespace-RESETTING parent (Root /
-/// Fragment / Component / `SnippetBlock` / `SlotElement`). Runs the deep
+/// Fragment / Component / SnippetBlock / SlotElement). Runs the deep
 /// `check_nodes_for_namespace` first (which sees svg/html elements nested
 /// inside `{#if}` / `{#each}` blocks); a definitive verdict wins, otherwise
 /// falls back to the shallow direct-child inference. 写经 upstream
@@ -1874,8 +1865,7 @@ pub(crate) fn infer_namespace_from_nodes_owned<'a, N: AsRef<TemplateNode<'a>>>(
             }
         }
     }
-    found_namespace.map_or_else(
-        || parent_namespace.to_string(),
-        std::string::ToString::to_string,
-    )
+    found_namespace
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| parent_namespace.to_string())
 }

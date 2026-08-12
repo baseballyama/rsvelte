@@ -89,10 +89,10 @@ diagnostics! {
     /// `bind:%name%` can only be used with %elements%
     bind_invalid_target(name: &str, elements: &str) => "`bind:{}` can only be used with {}", name, elements;
 
-    /// Can only bind to an Identifier or `MemberExpression` or a `{get, set}` pair
+    /// Can only bind to an Identifier or MemberExpression or a `{get, set}` pair
     bind_invalid_expression() => "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression";
 
-    /// `bind:group` can only bind to an Identifier or `MemberExpression`
+    /// `bind:group` can only bind to an Identifier or MemberExpression
     bind_group_invalid_expression() => "`bind:group` can only bind to an Identifier or MemberExpression";
 
     /// Cannot `bind:group` to a snippet parameter
@@ -190,7 +190,7 @@ diagnostics! {
     /// Svelte 5.56.0 (#18282).
     declaration_tag_no_legacy_mode() => "Declaration tags cannot be used in legacy mode\nhttps://svelte.dev/e/declaration_tag_no_legacy_mode";
 
-    /// A declaration tag must contain a plain `let` or `const` `VariableDeclaration`.
+    /// A declaration tag must contain a plain `let` or `const` VariableDeclaration.
     /// Svelte 5.56.0 (#18282).
     declaration_tag_invalid_type() => "Declaration tags can only contain `let` or `const` variable declarations\nhttps://svelte.dev/e/declaration_tag_invalid_type";
 
@@ -215,7 +215,7 @@ diagnostics! {
     /// Runes cannot use computed properties
     rune_invalid_computed_property() => "Runes cannot use computed member expressions";
 
-    /// Rune %`old_name`% has been renamed to %`new_name`%
+    /// Rune %old_name% has been renamed to %new_name%
     rune_renamed(old_name: &str, new_name: &str) => "`{}` has been renamed to `{}`", old_name, new_name;
 
     /// Rune %name% has been removed
@@ -475,10 +475,17 @@ diagnostics! {
 // do not fit the declarative form above.
 
 /// `bind:%name%` is not a valid binding. %explanation%
-#[must_use]
 pub fn bind_invalid_name(name: &str, explanation: Option<&str>) -> AnalysisError {
-    let message = explanation.map_or_else(|| format!("`bind:{name}` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name"), |exp| format!(
-            "`bind:{name}` is not a valid binding. {exp}\nhttps://svelte.dev/e/bind_invalid_name"
-        ));
+    let message = if let Some(exp) = explanation {
+        format!(
+            "`bind:{}` is not a valid binding. {}\nhttps://svelte.dev/e/bind_invalid_name",
+            name, exp
+        )
+    } else {
+        format!(
+            "`bind:{}` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name",
+            name
+        )
+    };
     error("bind_invalid_name", message)
 }

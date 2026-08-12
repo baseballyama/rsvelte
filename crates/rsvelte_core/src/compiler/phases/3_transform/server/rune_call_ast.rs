@@ -44,7 +44,7 @@ thread_local! {
 /// `"$derived("`, `"$state.raw("`) to its server form. Returns `Some(rewritten)`
 /// when at least one call was rewritten, `None` on a parse failure or when
 /// nothing matched (caller falls back to the byte scanner).
-pub fn transform_rune_call_ast(script: &str, prefix: &str) -> Option<String> {
+pub(crate) fn transform_rune_call_ast(script: &str, prefix: &str) -> Option<String> {
     transform_rune_calls_combined(script, &[prefix])
 }
 
@@ -81,7 +81,7 @@ impl<'a> RuneSpec<'a> {
 /// so a call matches at most one spec and spec order is irrelevant. Returns
 /// `None` (caller falls back to the per-prefix byte scanner) on a parse failure
 /// or when nothing matched.
-pub fn transform_rune_calls_combined(script: &str, prefixes: &[&str]) -> Option<String> {
+pub(crate) fn transform_rune_calls_combined(script: &str, prefixes: &[&str]) -> Option<String> {
     if prefixes.is_empty() {
         return None;
     }
@@ -131,7 +131,7 @@ struct RuneCallCollector<'a, 'sem> {
     edits: Vec<(u32, u32, String)>,
 }
 
-impl<'a> RuneCallCollector<'a, '_> {
+impl<'a, 'sem> RuneCallCollector<'a, 'sem> {
     /// True when `ident` resolves to a real binding (a parameter / local named
     /// e.g. `$state`), in which case the call is a plain call, not a rune —
     /// mirrors upstream `get_rune` returning null when the name is bound.
@@ -168,7 +168,7 @@ impl<'a> RuneCallCollector<'a, '_> {
     }
 }
 
-impl<'ast> Visit<'ast> for RuneCallCollector<'_, '_> {
+impl<'a, 'sem, 'ast> Visit<'ast> for RuneCallCollector<'a, 'sem> {
     fn visit_call_expression(&mut self, call: &CallExpression<'ast>) {
         // Recurse first so nested rune calls (e.g. inside the argument) are
         // collected; edits are applied right-to-left so order is irrelevant.

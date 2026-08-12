@@ -1,7 +1,7 @@
 //! Script visitor for JavaScript AST traversal.
 //!
 //! This module provides functionality to walk JavaScript AST nodes
-//! and build the `js_path` for proper rune placement validation.
+//! and build the js_path for proper rune placement validation.
 
 use super::VisitorContext;
 use crate::ast::js::Expression;
@@ -21,14 +21,6 @@ use crate::compiler::phases::phase2_analyze::utils::extract_svelte_ignore;
 ///
 /// * `script_expr` - The script Expression (should be a Program)
 /// * `context` - The visitor context
-///
-/// # Errors
-///
-/// Returns an error from analysis of a script statement or expression.
-///
-/// # Panics
-///
-/// Panics if called with an unresolved lazy expression or a non-program script expression.
 pub fn visit_script_expr(
     script_expr: &Expression,
     context: &mut VisitorContext,
@@ -81,14 +73,6 @@ pub fn visit_script_expr(
 /// Walk a JavaScript expression (typed `&Expression`).
 ///
 /// Dispatches to `walk_js_node_typed` for `Typed` expressions.
-///
-/// # Errors
-///
-/// Returns an error from analysis of the expression tree.
-///
-/// # Panics
-///
-/// Panics if called with an unresolved lazy expression.
 pub fn walk_expression(
     expr: &Expression,
     context: &mut VisitorContext,
@@ -230,6 +214,25 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
     let arena = context.parse_arena;
     match node {
         // Types that handle their own child traversal
+        JsNode::CallExpression { .. }
+        | JsNode::VariableDeclarator { .. }
+        | JsNode::FunctionDeclaration { .. }
+        | JsNode::FunctionExpression { .. }
+        | JsNode::ArrowFunctionExpression { .. }
+        | JsNode::ClassDeclaration { .. }
+        | JsNode::ClassBody { .. }
+        | JsNode::PropertyDefinition { .. }
+        | JsNode::AssignmentExpression { .. }
+        | JsNode::AwaitExpression { .. }
+        | JsNode::ExpressionStatement { .. }
+        | JsNode::MemberExpression { .. }
+        | JsNode::NewExpression { .. }
+        | JsNode::UpdateExpression { .. }
+        | JsNode::LabeledStatement { .. }
+        | JsNode::ExportDefaultDeclaration { .. }
+        | JsNode::ExportNamedDeclaration { .. }
+        | JsNode::ImportDeclaration { .. } => Ok(()),
+
         // Block-like with body array (IdRange). For a BlockStatement, enter the
         // block's lexical scope (registered by scope_builder) so block-local `let`s
         // shadow outer bindings of the same name during mutation/reference
@@ -324,6 +327,13 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
         }
 
         // ArrayPattern: elements is Vec<Option<JsNode>> - kept as-is (not IdRange)
+        JsNode::ArrayPattern { elements, .. } => {
+            for e in elements.iter().flatten() {
+                walk_js_node_typed(e, context)?;
+            }
+            Ok(())
+        }
+
         // Property: key + value (JsNodeId)
         JsNode::Property {
             key,
@@ -339,6 +349,19 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
         }
 
         // MethodDefinition: key + value (JsNodeId)
+        JsNode::MethodDefinition {
+            key,
+            value,
+            computed,
+            ..
+        } => {
+            if *computed {
+                walk_js_node_typed(arena.get_js_node(*key), context)?;
+            }
+            walk_js_node_typed(arena.get_js_node(*value), context)?;
+            Ok(())
+        }
+
         // SequenceExpression: expressions (IdRange)
         JsNode::SequenceExpression { expressions, .. } => {
             for expr in arena.get_js_children(*expressions) {
@@ -419,6 +442,12 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
         }
 
         // DoWhileStatement: test + body (JsNodeId)
+        JsNode::DoWhileStatement { test, body, .. } => {
+            walk_js_node_typed(arena.get_js_node(*test), context)?;
+            walk_js_node_typed(arena.get_js_node(*body), context)?;
+            Ok(())
+        }
+
         // ReturnStatement: argument (Option<JsNodeId>)
         JsNode::ReturnStatement { argument, .. } => {
             if let Some(arg) = argument {
@@ -428,6 +457,11 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
         }
 
         // ThrowStatement: argument (JsNodeId)
+        JsNode::ThrowStatement { argument, .. } => {
+            walk_js_node_typed(arena.get_js_node(*argument), context)?;
+            Ok(())
+        }
+
         // VariableDeclaration: declarations (IdRange)
         JsNode::VariableDeclaration { declarations, .. } => {
             for decl in arena.get_js_children(*declarations) {
@@ -437,6 +471,12 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
         }
 
         // AssignmentPattern: left + right (JsNodeId)
+        JsNode::AssignmentPattern { left, right, .. } => {
+            walk_js_node_typed(arena.get_js_node(*left), context)?;
+            walk_js_node_typed(arena.get_js_node(*right), context)?;
+            Ok(())
+        }
+
         // ChainExpression: expression (JsNodeId)
         JsNode::ChainExpression { expression, .. } => {
             walk_js_node_typed(arena.get_js_node(*expression), context)?;
@@ -450,6 +490,13 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
         }
 
         // YieldExpression: argument (Option<JsNodeId>)
+        JsNode::YieldExpression { argument, .. } => {
+            if let Some(arg) = argument {
+                walk_js_node_typed(arena.get_js_node(*arg), context)?;
+            }
+            Ok(())
+        }
+
         // ForOfStatement / ForInStatement: left + right + body (JsNodeId)
         JsNode::ForOfStatement {
             left, right, body, ..

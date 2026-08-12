@@ -1,4 +1,4 @@
-//! `KeyBlock` visitor.
+//! KeyBlock visitor.
 //!
 //! Analyzes {#key} blocks.
 //!

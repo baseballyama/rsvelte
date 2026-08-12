@@ -1,4 +1,4 @@
-//! `SvelteComponent` visitor.
+//! SvelteComponent visitor.
 //!
 //! Analyzes <svelte:component> elements.
 //!

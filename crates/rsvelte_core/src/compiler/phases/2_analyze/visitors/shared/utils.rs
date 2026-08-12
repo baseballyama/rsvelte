@@ -9,14 +9,6 @@ use crate::ast::typed_expr::{JsNode, LiteralValue};
 use lazy_static::lazy_static;
 use regex::Regex;
 
-fn source_pos(value: usize) -> u32 {
-    u32::try_from(value).expect("source positions are limited to u32")
-}
-
-fn source_pos_u64(value: u64) -> Option<u32> {
-    u32::try_from(value).ok()
-}
-
 lazy_static! {
     /// Regular expression for illegal attribute characters.
     ///
@@ -68,8 +60,8 @@ pub(crate) fn validate_template_await(
 /// Check if there's a variable declaration for the given name in the current function's
 /// scope chain by looking at the JS AST path.
 ///
-/// This walks the `js_path` looking for FunctionDeclaration/FunctionExpression/ArrowFunctionExpression
-/// nodes and checks if their bodies contain a `VariableDeclaration` with the given name.
+/// This walks the js_path looking for FunctionDeclaration/FunctionExpression/ArrowFunctionExpression
+/// nodes and checks if their bodies contain a VariableDeclaration with the given name.
 ///
 /// This is used to detect if a component-level constant is being shadowed by a local variable.
 fn has_shadowing_declaration_in_path(
@@ -300,10 +292,6 @@ fn get_parent(path: &[super::super::JsPathEntry], at: isize) -> Option<&super::s
 /// * `start` - Start position of the block
 /// * `source` - The source code
 /// * `expected` - Expected character after `{`
-///
-/// # Errors
-///
-/// Returns an error when the opening tag does not contain `expected`.
 pub fn validate_opening_tag(
     start: usize,
     source: &str,
@@ -322,7 +310,7 @@ pub fn validate_opening_tag(
         {
             // avoid a sea of red and only mark the first few characters
             return Err(errors::block_unexpected_character(&expected.to_string())
-                .at(source_pos(start), source_pos(start) + 5));
+                .at(start as u32, start as u32 + 5));
         }
     }
     Ok(())
@@ -337,10 +325,6 @@ pub fn validate_opening_tag(
 /// # Arguments
 ///
 /// * `fragment` - The fragment to check
-///
-/// # Errors
-///
-/// Returns an error when the block content violates its structural constraints.
 pub fn validate_block_not_empty(
     fragment: Option<&Fragment>,
 ) -> Result<Option<warnings::AnalysisWarning>, AnalysisError> {
@@ -365,10 +349,6 @@ pub fn validate_block_not_empty(
 ///
 /// * `binding` - The binding to validate
 /// * `function_depth` - The current function depth (for legacy mode compatibility)
-///
-/// # Errors
-///
-/// Returns an error for an invalid identifier binding.
 pub fn validate_identifier_name(
     binding: &Binding,
     function_depth: Option<usize>,
@@ -409,10 +389,6 @@ pub fn validate_identifier_name(
 ///
 /// * `name` - The exported name
 /// * `context` - The visitor context
-///
-/// # Errors
-///
-/// Returns an error when the binding cannot be exported.
 pub fn validate_export(name: &str, context: &VisitorContext) -> Result<(), AnalysisError> {
     if let Some(binding_idx) = context.analysis.root.scope.declarations.get(name) {
         let binding = &context.analysis.root.bindings[*binding_idx];
@@ -433,7 +409,6 @@ pub fn validate_export(name: &str, context: &VisitorContext) -> Result<(), Analy
 }
 
 /// Check if the current context is inside an element.
-#[must_use]
 pub fn is_inside_element(context: &VisitorContext) -> bool {
     context.path.iter().any(|node| {
         matches!(
@@ -444,11 +419,6 @@ pub fn is_inside_element(context: &VisitorContext) -> bool {
 }
 
 /// Check if a name is a valid JavaScript identifier.
-///
-/// # Panics
-///
-/// Panics if a non-empty name has no first character.
-#[must_use]
 pub fn is_valid_identifier(name: &str) -> bool {
     if name.is_empty() {
         return false;
@@ -464,7 +434,6 @@ pub fn is_valid_identifier(name: &str) -> bool {
 }
 
 /// Check if an element is a void element (self-closing).
-#[must_use]
 pub fn is_void_element(name: &str) -> bool {
     matches!(
         name,
@@ -486,7 +455,6 @@ pub fn is_void_element(name: &str) -> bool {
 }
 
 /// Check if an element is an SVG element.
-#[must_use]
 pub fn is_svg_element(name: &str) -> bool {
     matches!(
         name,
@@ -551,8 +519,9 @@ pub fn is_reference_for_identifier_typed(
     parent: Option<&super::super::JsPathEntry>,
     arena: &crate::ast::arena::ParseArena,
 ) -> bool {
-    let Some(parent) = parent else {
-        return true;
+    let parent = match parent {
+        Some(p) => p,
+        None => return true,
     };
 
     let parent_type = parent.get_type_str();
@@ -631,10 +600,6 @@ pub fn is_reference_for_identifier_typed(
 /// # Returns
 ///
 /// Ok if valid, Err with appropriate warning/error otherwise
-///
-/// # Errors
-///
-/// Returns a warning when the attribute name is invalid.
 pub fn validate_attribute_name(
     name: &str,
 ) -> Result<(), crate::compiler::phases::phase2_analyze::warnings::AnalysisWarning> {
@@ -665,11 +630,10 @@ pub fn validate_attribute_name(
 /// # Arguments
 ///
 /// * `name` - The attribute name to check
-#[must_use]
 pub fn is_invalid_attribute_name(name: &str) -> bool {
     REGEX_ILLEGAL_ATTRIBUTE_CHARACTER.is_match(name)
 }
-/// Get the leftmost identifier name from a `MemberExpression` chain.
+/// Get the leftmost identifier name from a MemberExpression chain.
 /// Returns None if the base is not an Identifier. Corresponds to `object` in ast.js.
 pub fn object_node(expression: &JsNode, arena: &crate::ast::arena::ParseArena) -> Option<String> {
     let mut current = expression;
@@ -683,7 +647,7 @@ pub fn object_node(expression: &JsNode, arena: &crate::ast::arena::ParseArena) -
     }
 }
 
-/// Extracts the name from an Identifier, `PrivateIdentifier`, or Literal node.
+/// Extracts the name from an Identifier, PrivateIdentifier, or Literal node.
 fn get_name_node(node: &JsNode) -> Option<String> {
     match node {
         JsNode::Literal { value, .. } => match value {
@@ -693,7 +657,7 @@ fn get_name_node(node: &JsNode) -> Option<String> {
             LiteralValue::Null => Some("null".to_string()),
             LiteralValue::Regex(r) => Some(format!("/{}/{}", r.pattern, r.flags)),
         },
-        JsNode::PrivateIdentifier { name, .. } => Some(format!("#{name}")),
+        JsNode::PrivateIdentifier { name, .. } => Some(format!("#{}", name)),
         JsNode::Identifier { name, .. } => Some(name.to_string()),
         _ => None,
     }
@@ -754,7 +718,7 @@ fn get_global_keypath_node(
     }
 }
 
-/// Get the rune name from a `CallExpression` node, if it's a rune call.
+/// Get the rune name from a CallExpression node, if it's a rune call.
 pub fn get_rune_from_node(
     node: &JsNode,
     scope: &Scope,
@@ -774,7 +738,6 @@ pub fn get_rune_from_node(
 }
 
 /// Check if an expression is pure (has no side effects).
-#[must_use]
 pub fn is_pure_node(node: &JsNode, context: &VisitorContext) -> bool {
     let arena = context.parse_arena;
     match node {
@@ -835,7 +798,6 @@ pub fn is_pure_node(node: &JsNode, context: &VisitorContext) -> bool {
 ///
 /// A "safe" identifier means the `foo` in `foo.bar` or `foo()` will not call
 /// functions that require component context to exist.
-#[must_use]
 pub fn is_safe_identifier_node(expression: &JsNode, context: &VisitorContext) -> bool {
     let arena = context.parse_arena;
     // Navigate to the base identifier through MemberExpression chain
@@ -887,10 +849,6 @@ fn is_safe_identifier_name(name: &str, context: &VisitorContext) -> bool {
 
 /// Reject assignments to `const` bindings. Corresponds to
 /// `validate_no_const_assignment` in utils.js.
-///
-/// # Errors
-///
-/// Returns an error when the target resolves to a `const` binding.
 pub fn validate_no_const_assignment_node(
     node_span: (u32, u32),
     argument: &JsNode,
@@ -995,10 +953,6 @@ pub fn validate_no_const_assignment_node(
 
 /// Validate an assignment / update target. Corresponds to `validate_assignment`
 /// in utils.js.
-///
-/// # Errors
-///
-/// Returns an error when the assignment target is invalid or immutable.
 pub fn validate_assignment_node(
     node_span: (u32, u32),
     argument: &JsNode,
@@ -1088,8 +1042,8 @@ pub fn validate_assignment_node(
                         let field_start = field
                             .node
                             .get("start")
-                            .and_then(serde_json::Value::as_u64)
-                            .and_then(source_pos_u64);
+                            .and_then(|s| s.as_u64())
+                            .map(|n| n as u32);
 
                         if let (Some(ns), Some(fs)) = (node_start, field_start)
                             && ns < fs
@@ -1236,7 +1190,7 @@ fn get_rune_name_node(callee: &JsNode, context: &VisitorContext) -> Option<Strin
                 JsNode::Identifier { name, .. } => name.as_str(),
                 _ => return None,
             };
-            let full_name = format!("{obj_name}.{prop_name}");
+            let full_name = format!("{}.{}", obj_name, prop_name);
             if super::function::is_rune(&full_name)
                 && !context
                     .analysis
@@ -1253,15 +1207,7 @@ fn get_rune_name_node(callee: &JsNode, context: &VisitorContext) -> Option<Strin
     }
 }
 
-/// Visit a JavaScript expression (typed `JsNode`) and track identifier references.
-///
-/// # Errors
-///
-/// Returns an error from analysis of the expression tree.
-///
-/// # Panics
-///
-/// Panics if called with an unresolved lazy expression node.
+/// Visit a JavaScript expression (typed JsNode) and track identifier references.
 pub fn walk_js_expression_node(
     expression: &JsNode,
     context: &mut VisitorContext,
@@ -1641,6 +1587,10 @@ pub fn walk_js_expression_node(
             }
             context.function_depth -= 1;
         }
+        JsNode::FunctionExpression { body: None, .. }
+        | JsNode::FunctionDeclaration { body: None, .. } => {
+            // No body - nothing to walk
+        }
         JsNode::BlockStatement { body, .. } => {
             for stmt in arena.get_js_children(*body) {
                 walk_js_statement_node(stmt, context, metadata)?;
@@ -1660,6 +1610,11 @@ pub fn walk_js_expression_node(
             metadata.set_has_state(true);
             walk_js_expression_node(arena.get_js_node(*argument), context, metadata)?;
         }
+        JsNode::TemplateLiteral { expressions, .. } => {
+            for expr in arena.get_js_children(*expressions) {
+                walk_js_expression_node(expr, context, metadata)?;
+            }
+        }
         JsNode::TaggedTemplateExpression { tag, quasi, .. } => {
             walk_js_expression_node(arena.get_js_node(*tag), context, metadata)?;
             walk_js_expression_node(arena.get_js_node(*quasi), context, metadata)?;
@@ -1673,6 +1628,11 @@ pub fn walk_js_expression_node(
                 walk_js_expression_node(arg, context, metadata)?;
             }
         }
+        JsNode::ChainExpression {
+            expression: expr, ..
+        } => {
+            walk_js_expression_node(arena.get_js_node(*expr), context, metadata)?;
+        }
         JsNode::ImportExpression { source, .. } => {
             walk_js_expression_node(arena.get_js_node(*source), context, metadata)?;
         }
@@ -1682,6 +1642,7 @@ pub fn walk_js_expression_node(
         } => {
             walk_js_expression_node(arena.get_js_node(*arg), context, metadata)?;
         }
+        JsNode::YieldExpression { argument: None, .. } => {}
         // Literals and other leaf nodes - no recursion needed
         _ => {}
     }
@@ -1689,11 +1650,7 @@ pub fn walk_js_expression_node(
     Ok(())
 }
 
-/// Visit a JavaScript statement (typed `JsNode`) and track identifier references.
-///
-/// # Errors
-///
-/// Returns an error from analysis of the statement tree.
+/// Visit a JavaScript statement (typed JsNode) and track identifier references.
 pub fn walk_js_statement_node(
     statement: &JsNode,
     context: &mut VisitorContext,
@@ -1710,6 +1667,7 @@ pub fn walk_js_statement_node(
         } => {
             walk_js_expression_node(arena.get_js_node(*arg), context, metadata)?;
         }
+        JsNode::ReturnStatement { argument: None, .. } => {}
         JsNode::IfStatement {
             test,
             consequent,

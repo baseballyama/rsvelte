@@ -1,6 +1,7 @@
-//! Server visitors for special Svelte elements.
-//!
-//! Rust ports of upstream window, document, and body visitors (without a `SvelteOptions` visitor).
+//! Server visitors for the special elements `<svelte:window>`,
+//! `<svelte:document>`, `<svelte:body>` and `<svelte:options>` — the Rust ports
+//! of upstream `3-transform/server/visitors/{SvelteWindow,SvelteDocument,
+//! SvelteBody}.js` (and the *absence* of a `SvelteOptions` server visitor).
 //!
 //! Upstream (写经):
 //!
@@ -47,9 +48,9 @@ use super::shared::process_children;
 /// Upstream has no server visitor for either, so they fall through to the
 /// no-op default. They host only window/document event bindings and produce no
 /// SSR output.
-pub fn visit_svelte_window_or_document(
+pub fn visit_svelte_window_or_document<'a>(
     _node: &SvelteElement,
-    _state: &mut ServerTransformState<'_>,
+    _state: &mut ServerTransformState<'a>,
 ) {
     // No output — port of the absent upstream `SvelteWindow` / `SvelteDocument`
     // server visitors.
@@ -59,7 +60,7 @@ pub fn visit_svelte_window_or_document(
 ///
 /// `<svelte:options>` is a compile-time configuration element with no server
 /// visitor upstream; it produces no SSR output.
-pub fn visit_svelte_options(_node: &SvelteElement, _state: &mut ServerTransformState<'_>) {
+pub fn visit_svelte_options<'a>(_node: &SvelteElement, _state: &mut ServerTransformState<'a>) {
     // No output — port of the absent upstream `SvelteOptions` server visitor.
 }
 

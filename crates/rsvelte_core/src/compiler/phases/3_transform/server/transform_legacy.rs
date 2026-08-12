@@ -351,10 +351,7 @@ pub(crate) fn transform_export_let_declarations(script: &str) -> String {
                         if let Some(comma) = find_last_top_level_comma(inner) {
                             let value = inner[comma + 1..].trim().to_string();
                             let prefix = transformed[..args_start + comma + 1].to_string();
-                            let mut hex = String::with_capacity(tc.len() * 2);
-                            for byte in tc.bytes() {
-                                write!(hex, "{byte:02x}").expect("writing to a String cannot fail");
-                            }
+                            let hex: String = tc.bytes().map(|b| format!("{:02x}", b)).collect();
                             transformed = format!("{} ({}, void '$$C$${}'));", prefix, value, hex);
                         } else {
                             transformed.push(' ');
@@ -620,7 +617,7 @@ fn is_string_literal(s: &str) -> bool {
 
     // Note: backtick template literals are TemplateLiteral AST nodes (not Literal), so they
     // are NOT simple by the official Svelte compiler's definition.
-    for &quote in b"\"'" {
+    for &quote in b"\"'".iter() {
         if trimmed.as_bytes()[0] == quote && trimmed.as_bytes()[trimmed.len() - 1] == quote {
             let inner = &trimmed[1..trimmed.len() - 1];
             let bytes = inner.as_bytes();

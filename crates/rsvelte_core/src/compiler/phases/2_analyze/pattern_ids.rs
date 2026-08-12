@@ -15,7 +15,11 @@ use crate::ast::typed_expr::JsNode;
 ///
 /// For `ObjectPattern`, a `RestElement` property contributes its `argument`
 /// while a `Property` contributes its `value`; array holes are skipped.
-pub fn collect_pattern_identifiers(node: &JsNode, arena: &ParseArena, out: &mut Vec<String>) {
+pub(crate) fn collect_pattern_identifiers(
+    node: &JsNode,
+    arena: &ParseArena,
+    out: &mut Vec<String>,
+) {
     match node {
         JsNode::Identifier { name, .. } => out.push(name.to_string()),
         JsNode::ObjectPattern { properties, .. } => {
@@ -51,7 +55,7 @@ pub fn collect_pattern_identifiers(node: &JsNode, arena: &ParseArena, out: &mut 
 /// JSON twin of [`collect_pattern_identifiers`] for call sites that only have
 /// a `serde_json::Value` (template expressions where no `ParseArena` is
 /// threaded). Enumeration order and duplicate handling match the typed walker.
-pub fn collect_pattern_identifiers_json(node: &Value, names: &mut Vec<String>) {
+pub(crate) fn collect_pattern_identifiers_json(node: &Value, names: &mut Vec<String>) {
     match node.get("type").and_then(|t| t.as_str()) {
         Some("Identifier") => {
             if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
@@ -98,7 +102,7 @@ pub fn collect_pattern_identifiers_json(node: &Value, names: &mut Vec<String>) {
 ///
 /// For `selected` → `"selected"`, `selected.done` → `"selected"`,
 /// `items[0]` → `"items"`. Corresponds to the official compiler's `object()`.
-pub fn base_identifier_name(node: &JsNode, arena: &ParseArena) -> Option<String> {
+pub(crate) fn base_identifier_name(node: &JsNode, arena: &ParseArena) -> Option<String> {
     match node {
         JsNode::Identifier { name, .. } => Some(name.to_string()),
         JsNode::MemberExpression { object, .. } => {

@@ -73,7 +73,7 @@ struct ReadWrap<'a, 'b> {
     /// by block / function-body local declarations. A name present in ANY frame
     /// resolves to a LOCAL binding, so it is never wrapped (mirrors upstream's
     /// `context.state.scope.get(name)` returning the nearest enclosing
-    /// declaration rather than the component `store_sub` / derived binding).
+    /// declaration rather than the component store_sub / derived binding).
     shadowed: Vec<FxHashSet<String>>,
     /// Names of LOCAL async `{const … = $derived(await …)}` bindings in scope.
     /// The instance/root scope used for `get_binding` is "polluted" with every
@@ -113,7 +113,7 @@ enum ReadKind {
     DerivedCall,
     /// `derived` declared with `var` → `name?.()`.
     DerivedMaybeCall,
-    /// `$count` (`store_sub`) → `$.store_get($$store_subs ??= {}, "$count", count)`.
+    /// `$count` (store_sub) → `$.store_get($$store_subs ??= {}, "$count", count)`.
     StoreSub,
 }
 
@@ -127,7 +127,7 @@ enum WriteKind {
     Derived,
 }
 
-impl<'a> ReadWrap<'a, '_> {
+impl<'a, 'b> ReadWrap<'a, 'b> {
     /// Whether `name` is shadowed by an enclosing function / arrow parameter.
     fn is_shadowed(&self, name: &str) -> bool {
         self.shadowed.iter().any(|frame| frame.contains(name))
@@ -258,6 +258,7 @@ impl<'a> ReadWrap<'a, '_> {
             AssignmentOperator::LogicalNullish => b.logical(LogicalOperator::Coalesce, left, right),
             other => {
                 let bin = match other {
+                    AssignmentOperator::Addition => BinaryOperator::Addition,
                     AssignmentOperator::Subtraction => BinaryOperator::Subtraction,
                     AssignmentOperator::Multiplication => BinaryOperator::Multiplication,
                     AssignmentOperator::Division => BinaryOperator::Division,
@@ -526,7 +527,7 @@ impl<'a> ReadWrap<'a, '_> {
             .iter()
             .map(|ins| {
                 let base = ins.base.build(b);
-                let to_array = b.call("$.to_array", vec![base, b.number(f64::from(ins.len))]);
+                let to_array = b.call("$.to_array", vec![base, b.number(ins.len as f64)]);
                 (b.id_pat(&ins.name), to_array)
             })
             .collect();
@@ -611,7 +612,7 @@ impl<'a> ReadWrap<'a, '_> {
         params: &oxc_ast::ast::FormalParameters<'a>,
         out: &mut FxHashSet<String>,
     ) {
-        for p in &params.items {
+        for p in params.items.iter() {
             collect_binding_pattern_names(&p.pattern, out);
         }
         if let Some(rest) = &params.rest {
@@ -635,7 +636,7 @@ fn collect_block_decl_names(stmts: &[Statement], out: &mut FxHashSet<String>) {
     for stmt in stmts {
         match stmt {
             Statement::VariableDeclaration(vd) => {
-                for d in &vd.declarations {
+                for d in vd.declarations.iter() {
                     collect_binding_pattern_names(&d.id, out);
                 }
             }
@@ -701,7 +702,7 @@ impl AccessPath {
         for seg in &self.segs {
             expr = match seg {
                 AccessSeg::Prop(p) => b.member(expr, p),
-                AccessSeg::Index(i) => b.member_computed(expr, b.number(f64::from(*i))),
+                AccessSeg::Index(i) => b.member_computed(expr, b.number(*i as f64)),
             };
         }
         expr
@@ -739,7 +740,7 @@ fn collect_destructure_paths(
             if obj.rest.is_some() {
                 return false;
             }
-            for prop in &obj.properties {
+            for prop in obj.properties.iter() {
                 match prop {
                     oxc_ast::ast::AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(
                         p,
@@ -779,15 +780,14 @@ fn collect_destructure_paths(
             inserts.push(ArrayInsert {
                 name: array_name.clone(),
                 base: path,
-                len: u32::try_from(arr.elements.len()).expect("array lengths are limited to u32"),
+                len: arr.elements.len() as u32,
             });
             let array_root = AccessPath::root_named(&array_name);
             for (i, el) in arr.elements.iter().enumerate() {
                 let Some(el) = el else {
                     continue;
                 };
-                let sub = array_root
-                    .push_index(u32::try_from(i).expect("array indices are limited to u32"));
+                let sub = array_root.push_index(i as u32);
                 if !collect_maybe_default(el, sub, out, inserts, next_array) {
                     return false;
                 }
@@ -881,7 +881,7 @@ fn callee_is_field_rune_expr(init: &Expression) -> bool {
 /// class-field lowering (`$derived` → `$.derived`) has already run.
 fn collect_private_derived_fields(class: &oxc_ast::ast::Class, out: &mut FxHashSet<String>) {
     use oxc_ast::ast::{ClassElement, Expression as E, MethodDefinitionKind, Statement as S};
-    for el in &class.body.body {
+    for el in class.body.body.iter() {
         match el {
             ClassElement::PropertyDefinition(p) => {
                 if let Some(name) = p.key.private_name()
@@ -895,7 +895,7 @@ fn collect_private_derived_fields(class: &oxc_ast::ast::Class, out: &mut FxHashS
                 let Some(body) = m.value.body.as_ref() else {
                     continue;
                 };
-                for stmt in &body.statements {
+                for stmt in body.statements.iter() {
                     let S::ExpressionStatement(es) = stmt else {
                         continue;
                     };
@@ -923,7 +923,7 @@ fn collect_binding_pattern_names(pat: &oxc_ast::ast::BindingPattern, out: &mut F
             out.insert(id.name.to_string());
         }
         P::ObjectPattern(obj) => {
-            for prop in &obj.properties {
+            for prop in obj.properties.iter() {
                 collect_binding_pattern_names(&prop.value, out);
             }
             if let Some(rest) = &obj.rest {
@@ -944,7 +944,7 @@ fn collect_binding_pattern_names(pat: &oxc_ast::ast::BindingPattern, out: &mut F
     }
 }
 
-impl<'a> VisitMut<'a> for ReadWrap<'a, '_> {
+impl<'a, 'b> VisitMut<'a> for ReadWrap<'a, 'b> {
     fn visit_expression(&mut self, expr: &mut Expression<'a>) {
         match expr {
             // An identifier reference READ — wrap via the getter, do NOT recurse.
@@ -1089,9 +1089,11 @@ pub fn wrap_reads<'a>(
     wrap_reads_with_shadows(expr, b, analysis, scope_idx, FxHashSet::default());
 }
 
-/// Like [`wrap_reads`], but with an initial frame of `shadowed` names.
-///
-/// These are snippet / scoped-slot parameters that shadow a same-named component `$derived` / `$store` binding.
+/// Like [`wrap_reads`], but with an initial frame of `shadowed` names — bindings
+/// declared by enclosing snippet / scoped-slot parameters that shadow a same-named
+/// component-level `$derived` / `$store` binding. A name in `shadowed` is read as
+/// itself (never call-/store-wrapped), mirroring upstream's `context.state.scope`
+/// resolving to the nearest enclosing parameter declaration.
 pub fn wrap_reads_with_shadows<'a>(
     expr: &mut Expression<'a>,
     b: B<'a>,
@@ -1137,9 +1139,12 @@ pub fn wrap_reads_with_shadows_and_local_derived<'a>(
     visitor.visit_expression(expr);
 }
 
-/// Apply the read-wrapping pass to an entire `stmt` in place.
-///
-/// Every read inside the statement is wrapped per its Phase-2 binding kind, including nested bodies.
+/// Apply the read-wrapping pass to an entire `stmt` in place — every identifier
+/// READ inside the statement (RHS of assignments, `if`/loop tests, call args,
+/// nested block bodies, …) is wrapped per its Phase-2 binding kind. Used for
+/// legacy reactive `$: …` bodies, mirroring upstream's `context.visit(node.body)`
+/// in `server/visitors/LabeledStatement.js` (the statement body is visited by the
+/// global `Identifier` visitor exactly like any other instance statement).
 pub fn wrap_reads_in_statement<'a>(
     stmt: &mut Statement<'a>,
     b: B<'a>,
@@ -1150,9 +1155,9 @@ pub fn wrap_reads_in_statement<'a>(
     wrap_reads_in_statement_counted(stmt, b, analysis, scope_idx, &mut counter);
 }
 
-/// Like [`wrap_reads_in_statement`], but threads a persistent `$$array` temp counter.
-///
-/// Destructuring-assignment array temps are uniquely named across the whole instance script.
+/// Like [`wrap_reads_in_statement`], but threads a PERSISTENT `$$array` temp
+/// counter so destructuring-assignment array temps are uniquely named across the
+/// WHOLE instance script (写经 the component-wide `scope.generate('$$array')`).
 /// The legacy instance loop shares one counter across every top-level statement
 /// (and the function bodies it visits), so a second array destructure gets
 /// `$$array_1`, not a fresh `$$array`.

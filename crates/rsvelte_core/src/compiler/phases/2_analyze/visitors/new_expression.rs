@@ -1,4 +1,4 @@
-//! `NewExpression` visitor.
+//! NewExpression visitor.
 //!
 //! Analyzes new expressions and issues performance warnings for inline class instantiations.
 //!
@@ -8,7 +8,7 @@ use super::VisitorContext;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::{AnalysisError, warnings};
 
-/// Visit a new expression (typed `JsNode` path).
+/// Visit a new expression (typed JsNode path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     if let JsNode::NewExpression {
         callee,

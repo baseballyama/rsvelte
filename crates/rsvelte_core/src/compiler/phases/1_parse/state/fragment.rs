@@ -37,10 +37,6 @@ use super::super::parser::{MAX_NESTING_DEPTH, Parser};
 
 impl<'a> Parser<'a> {
     /// Parse the source into a Root AST node.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error for malformed markup or unclosed elements and blocks.
     pub fn parse(&mut self) -> ParseResult<Root<'a>> {
         use super::super::parser::StackEntry;
         use super::super::utils::is_void_element;
@@ -69,7 +65,7 @@ impl<'a> Parser<'a> {
                     ) {
                         return Err(crate::error::ParseError::svelte(
                             "element_unclosed",
-                            format!("`<{name}>` was left open"),
+                            format!("`<{}>` was left open", name),
                             (*start as usize, *start as usize + 1),
                         ));
                     }
@@ -79,11 +75,35 @@ impl<'a> Parser<'a> {
                         (*start as usize, *start as usize + 1),
                     ));
                 }
-                StackEntry::IfBlock { start }
-                | StackEntry::EachBlock { start }
-                | StackEntry::AwaitBlock { start }
-                | StackEntry::KeyBlock { start }
-                | StackEntry::SnippetBlock { start } => {
+                StackEntry::IfBlock { start } => {
+                    return Err(crate::error::ParseError::svelte(
+                        "block_unclosed",
+                        "Block was left open",
+                        (*start as usize, *start as usize + 1),
+                    ));
+                }
+                StackEntry::EachBlock { start } => {
+                    return Err(crate::error::ParseError::svelte(
+                        "block_unclosed",
+                        "Block was left open",
+                        (*start as usize, *start as usize + 1),
+                    ));
+                }
+                StackEntry::AwaitBlock { start } => {
+                    return Err(crate::error::ParseError::svelte(
+                        "block_unclosed",
+                        "Block was left open",
+                        (*start as usize, *start as usize + 1),
+                    ));
+                }
+                StackEntry::KeyBlock { start } => {
+                    return Err(crate::error::ParseError::svelte(
+                        "block_unclosed",
+                        "Block was left open",
+                        (*start as usize, *start as usize + 1),
+                    ));
+                }
+                StackEntry::SnippetBlock { start } => {
                     return Err(crate::error::ParseError::svelte(
                         "block_unclosed",
                         "Block was left open",
@@ -135,9 +155,10 @@ impl<'a> Parser<'a> {
         let script_end = self
             .instance_script
             .as_ref()
-            .map_or(0, |s| s.end)
-            .max(self.module_script.as_ref().map_or(0, |s| s.end));
-        let style_end = self.stylesheet.as_ref().map_or(0, |s| s.end);
+            .map(|s| s.end)
+            .unwrap_or(0)
+            .max(self.module_script.as_ref().map(|s| s.end).unwrap_or(0));
+        let style_end = self.stylesheet.as_ref().map(|s| s.end).unwrap_or(0);
         let max_special_end = script_end.max(style_end);
 
         // Remove trailing whitespace-only Text nodes (Svelte doesn't include them)
@@ -160,36 +181,40 @@ impl<'a> Parser<'a> {
         }
 
         // Calculate end position - consider fragment nodes, script, and style
-        let fragment_end = fragment.nodes.last().map_or(0, |node| match node {
-            TemplateNode::Text(t) => t.end,
-            TemplateNode::Comment(c) => c.end,
-            TemplateNode::ExpressionTag(e) => e.end,
-            TemplateNode::HtmlTag(h) => h.end,
-            TemplateNode::ConstTag(c) => c.end,
-            TemplateNode::DeclarationTag(d) => d.end,
-            TemplateNode::DebugTag(d) => d.end,
-            TemplateNode::RenderTag(r) => r.end,
-            TemplateNode::AttachTag(a) => a.end,
-            TemplateNode::IfBlock(b) => b.end,
-            TemplateNode::EachBlock(b) => b.end,
-            TemplateNode::AwaitBlock(b) => b.end,
-            TemplateNode::KeyBlock(b) => b.end,
-            TemplateNode::SnippetBlock(b) => b.end,
-            TemplateNode::RegularElement(e) => e.end,
-            TemplateNode::Component(c) => c.end,
-            TemplateNode::TitleElement(t) => t.end,
-            TemplateNode::SlotElement(s) => s.end,
-            TemplateNode::SvelteBody(s)
-            | TemplateNode::SvelteDocument(s)
-            | TemplateNode::SvelteFragment(s)
-            | TemplateNode::SvelteBoundary(s)
-            | TemplateNode::SvelteHead(s)
-            | TemplateNode::SvelteOptions(s)
-            | TemplateNode::SvelteSelf(s)
-            | TemplateNode::SvelteWindow(s) => s.end,
-            TemplateNode::SvelteComponent(c) => c.end,
-            TemplateNode::SvelteElement(e) => e.end,
-        });
+        let fragment_end = fragment
+            .nodes
+            .last()
+            .map(|node| match node {
+                TemplateNode::Text(t) => t.end,
+                TemplateNode::Comment(c) => c.end,
+                TemplateNode::ExpressionTag(e) => e.end,
+                TemplateNode::HtmlTag(h) => h.end,
+                TemplateNode::ConstTag(c) => c.end,
+                TemplateNode::DeclarationTag(d) => d.end,
+                TemplateNode::DebugTag(d) => d.end,
+                TemplateNode::RenderTag(r) => r.end,
+                TemplateNode::AttachTag(a) => a.end,
+                TemplateNode::IfBlock(b) => b.end,
+                TemplateNode::EachBlock(b) => b.end,
+                TemplateNode::AwaitBlock(b) => b.end,
+                TemplateNode::KeyBlock(b) => b.end,
+                TemplateNode::SnippetBlock(b) => b.end,
+                TemplateNode::RegularElement(e) => e.end,
+                TemplateNode::Component(c) => c.end,
+                TemplateNode::TitleElement(t) => t.end,
+                TemplateNode::SlotElement(s) => s.end,
+                TemplateNode::SvelteBody(s)
+                | TemplateNode::SvelteDocument(s)
+                | TemplateNode::SvelteFragment(s)
+                | TemplateNode::SvelteBoundary(s)
+                | TemplateNode::SvelteHead(s)
+                | TemplateNode::SvelteOptions(s)
+                | TemplateNode::SvelteSelf(s)
+                | TemplateNode::SvelteWindow(s) => s.end,
+                TemplateNode::SvelteComponent(c) => c.end,
+                TemplateNode::SvelteElement(e) => e.end,
+            })
+            .unwrap_or(0);
 
         // End is the maximum of fragment end, script end, and style end
         let end = fragment_end.max(max_special_end);
@@ -236,10 +261,6 @@ impl<'a> Parser<'a> {
     ///
     /// Every nested element and block re-enters here, so this is the single
     /// choke point where template recursion is bounded.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when nested markup is malformed or exceeds the nesting limit.
     pub fn parse_fragment(&mut self) -> ParseResult<Fragment<'a>> {
         if self.depth >= MAX_NESTING_DEPTH {
             return Err(crate::error::ParseError::svelte(
@@ -315,7 +336,8 @@ impl<'a> Parser<'a> {
                             return Err(crate::error::ParseError::svelte(
                                 "element_invalid_closing_tag_autoclosed",
                                 format!(
-                                    "`</{tag_name}>` attempted to close element that was already automatically closed by `<{reason}>` (cannot nest `<{reason}>` inside `</{tag_name}>`)"
+                                    "`</{}>` attempted to close element that was already automatically closed by `<{}>` (cannot nest `<{}>` inside `</{}>`)",
+                                    tag_name, reason, reason, tag_name
                                 ),
                                 (close_start, close_start),
                             ));
@@ -323,7 +345,8 @@ impl<'a> Parser<'a> {
                         return Err(crate::error::ParseError::svelte(
                             "element_invalid_closing_tag",
                             format!(
-                                "`</{tag_name}>` attempted to close an element that was not open"
+                                "`</{}>` attempted to close an element that was not open",
+                                tag_name
                             ),
                             (close_start, close_start),
                         ));
@@ -389,14 +412,18 @@ impl<'a> Parser<'a> {
                         return Err(crate::error::ParseError::svelte(
                             "element_invalid_closing_tag_autoclosed",
                             format!(
-                                "`</{tag_name}>` attempted to close element that was already automatically closed by `<{reason}>` (cannot nest `<{reason}>` inside `</{tag_name}>`)"
+                                "`</{}>` attempted to close element that was already automatically closed by `<{}>` (cannot nest `<{}>` inside `</{}>`)",
+                                tag_name, reason, reason, tag_name
                             ),
                             (close_start, close_start),
                         ));
                     }
                     return Err(crate::error::ParseError::svelte(
                         "element_invalid_closing_tag",
-                        format!("`</{tag_name}>` attempted to close an element that was not open"),
+                        format!(
+                            "`</{}>` attempted to close an element that was not open",
+                            tag_name
+                        ),
                         (close_start, close_start),
                     ));
                 }
@@ -463,10 +490,6 @@ impl<'a> Parser<'a> {
     /// - `parser.match('<')` → `element` (JS) / `parse_element_or_comment()` (Rust)
     /// - `parser.match('{')` → `tag` (JS) / `parse_mustache()` (Rust)
     /// - Otherwise → `text` (JS) / `parse_text()` (Rust)
-    ///
-    /// # Errors
-    ///
-    /// Returns an error from the parser selected for the current node.
     #[inline]
     pub fn parse_node(&mut self) -> ParseResult<Option<TemplateNode<'a>>> {
         if self.index >= self.bytes.len() {

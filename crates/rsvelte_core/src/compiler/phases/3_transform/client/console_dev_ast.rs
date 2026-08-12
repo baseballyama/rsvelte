@@ -131,7 +131,7 @@ struct ConsoleCollector<'src> {
     replacements: Vec<Edit>,
 }
 
-impl<'a> Visit<'a> for ConsoleCollector<'_> {
+impl<'a, 'src> Visit<'a> for ConsoleCollector<'src> {
     fn visit_call_expression(&mut self, call: &CallExpression<'a>) {
         walk::walk_call_expression(self, call);
 
@@ -200,15 +200,17 @@ impl<'a> Visit<'a> for ConsoleCollector<'_> {
 
         // Single quotes: the method name is a plain `b.literal`, which esrap prints
         // single-quoted, and this text path bypasses the printer.
-        let rewrite =
-            format!("console.{method}(...$.log_if_contains_state('{method}', {args_text}))");
+        let rewrite = format!(
+            "console.{}(...$.log_if_contains_state('{}', {}))",
+            method, method, args_text
+        );
         self.replacements
             .push((call.span.start, call.span.end, rewrite));
     }
 }
 
 /// True when this call's argument list is exactly the wrapper shape
-/// we emit: one `SpreadElement` whose argument is a call to
+/// we emit: one SpreadElement whose argument is a call to
 /// `$.log_if_contains_state(...)`. Detecting it prevents the
 /// fixed-point loop from re-wrapping its own output.
 fn is_already_wrapped<'a>(args: &oxc_allocator::Vec<'a, Argument<'a>>) -> bool {

@@ -1059,7 +1059,7 @@ pub(super) fn extract_member_expression_base(lhs: &str) -> Option<&str> {
         (None, Some(b)) => Some(b),
         (None, None) => None,
     };
-    sep_pos.and_then(|pos| {
+    if let Some(pos) = sep_pos {
         let base = &lhs[..pos];
         // Must be a valid identifier (alphanumeric, underscore, dollar sign)
         // and non-empty
@@ -1067,13 +1067,19 @@ pub(super) fn extract_member_expression_base(lhs: &str) -> Option<&str> {
             && base
                 .chars()
                 .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
-            && base.chars().next().is_some_and(|c| !c.is_ascii_digit())
+            && base
+                .chars()
+                .next()
+                .map(|c| !c.is_ascii_digit())
+                .unwrap_or(false)
         {
             Some(base)
         } else {
             None
         }
-    })
+    } else {
+        None
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1204,14 +1210,14 @@ pub(super) fn wrap_store_unsub_for_state_sets<'a>(
 
 /// Transform prop assignments to getter/setter function call syntax.
 ///
-/// Props in legacy mode are declared with $.`prop()` which returns a getter/setter function.
+/// Props in legacy mode are declared with $.prop() which returns a getter/setter function.
 /// So `x = value` becomes `x(value)`, and `x += 1` becomes `x(x() + 1)`.
 ///
 /// This handles:
 /// - Simple assignment: `x = value` → `x(value)`
 /// - Compound assignment: `x += value` → `x(x() + value)`
 ///
-/// Note: Update expressions (x++, --x, etc.) are handled by `transform_prop_update_expressions`
+/// Note: Update expressions (x++, --x, etc.) are handled by transform_prop_update_expressions
 /// which must be called BEFORE this function.
 pub(super) fn transform_prop_assignments<'a>(
     line: &'a str,
@@ -1235,7 +1241,7 @@ pub(super) fn transform_prop_assignments<'a>(
     }
 
     // Quick pre-check: if none of the prop vars appear as identifiers, skip expensive transforms
-    let var_set: FxHashSet<&str> = prop_vars.iter().map(std::string::String::as_str).collect();
+    let var_set: FxHashSet<&str> = prop_vars.iter().map(|v| v.as_str()).collect();
     if !super::utils::text_contains_any_identifier(line, &var_set) {
         return Cow::Borrowed(line);
     }
@@ -1336,7 +1342,7 @@ pub(super) fn split_multi_declarator(line: &str) -> Option<Vec<String>> {
     // Convert to individual declarations
     let result: Vec<String> = declarators
         .iter()
-        .map(|d| format!("{leading_ws}{keyword} {d};"))
+        .map(|d| format!("{}{} {};", leading_ws, keyword, d))
         .collect();
 
     Some(result)
@@ -1403,8 +1409,9 @@ pub(super) fn transform_legacy_destructure_declarations<'a>(
         }
     }
 
-    let Some(pattern_end) = pattern_end else {
-        return Cow::Borrowed(statement);
+    let pattern_end = match pattern_end {
+        Some(e) => e,
+        None => return Cow::Borrowed(statement),
     };
 
     let pattern_str = &rest[..=pattern_end];
@@ -1438,7 +1445,7 @@ pub(super) fn transform_legacy_destructure_declarations<'a>(
     let tmp_name = if tmp_idx == 0 {
         "tmp".to_string()
     } else {
-        format!("tmp_{tmp_idx}")
+        format!("tmp_{}", tmp_idx)
     };
 
     let immutable_arg = if immutable { ", true" } else { "" };
@@ -1458,18 +1465,18 @@ pub(super) fn transform_legacy_destructure_declarations<'a>(
     parts.extend(
         inserts
             .into_iter()
-            .map(|(name, value)| format!("{name} = $.derived(() => {value})")),
+            .map(|(name, value)| format!("{} = $.derived(() => {})", name, value)),
     );
     for (name, access) in paths {
         if legacy_state_var_names.contains(&name) {
-            let source = format!("$.mutable_source({access}{immutable_arg})");
+            let source = format!("$.mutable_source({}{})", access, immutable_arg);
             parts.push(format!(
                 "{} = {}",
                 name,
                 tag_legacy_source(source, &name, dev)
             ));
         } else {
-            parts.push(format!("{name} = {access}"));
+            parts.push(format!("{} = {}", name, access));
         }
     }
 
@@ -1501,8 +1508,10 @@ fn collect_legacy_destructure_var_names(pattern: &str, names: &mut Vec<String>) 
 
     if pattern.starts_with('{') && pattern.ends_with('}') {
         for prop in split_derived_object_properties(&pattern[1..pattern.len() - 1]) {
-            let value = find_derived_property_colon(&prop)
-                .map_or(prop.as_str(), |colon_pos| &prop[colon_pos + 1..]);
+            let value = match find_derived_property_colon(&prop) {
+                Some(colon_pos) => &prop[colon_pos + 1..],
+                None => prop.as_str(),
+            };
             collect_legacy_destructure_var_names(value, names);
         }
     } else if pattern.starts_with('[') && pattern.ends_with(']') {
@@ -1552,17 +1561,17 @@ fn break_after_line_comment(expr: &str) -> &'static str {
 
 fn tag_legacy_source(call: String, name: &str, dev: bool) -> String {
     if dev {
-        format!("$.tag({call}, '{name}')")
+        format!("$.tag({}, '{}')", call, name)
     } else {
         call
     }
 }
 
-/// Transform legacy state declarations to $.`mutable_source()` calls.
+/// Transform legacy state declarations to $.mutable_source() calls.
 ///
 /// In legacy (non-runes) mode, variables that are promoted to State kind
 /// (updated and referenced in template/$:/StyleDirective) need to be wrapped
-/// in $.`mutable_source()` for reactivity.
+/// in $.mutable_source() for reactivity.
 ///
 /// Transforms:
 /// - `let state = 'foo'` → `let state = $.mutable_source('foo')`
@@ -1622,7 +1631,7 @@ pub(super) fn transform_legacy_state_declarations<'a>(
             // matched WITHOUT a trailing space so an init that begins on the next
             // line (`let x =\n  init`) is still caught — leading whitespace after
             // `=` is skipped below before the init is read.
-            let pattern_with_init = format!("{keyword} {var} =");
+            let pattern_with_init = format!("{} {} =", keyword, var);
             // Use a loop to find the first match that is NOT inside a for-loop header.
             // For example, in `function foo() { for (let x = 0; ...) {} }`, the `let x = 0`
             // inside the for-loop should be skipped - it's a loop variable, not a state variable.
@@ -1700,8 +1709,8 @@ pub(super) fn transform_legacy_state_declarations<'a>(
 
             // Try to match `keyword varname: TYPE = value` pattern (with TS type annotation).
             // Strip the TypeScript type annotation and treat as `keyword varname = value`.
-            let pattern_with_type = format!("{keyword} {var} : ");
-            let pattern_with_type_no_space = format!("{keyword} {var}: ");
+            let pattern_with_type = format!("{} {} : ", keyword, var);
+            let pattern_with_type_no_space = format!("{} {}: ", keyword, var);
             for pat in [&pattern_with_type, &pattern_with_type_no_space] {
                 if matched {
                     break;
@@ -1776,7 +1785,7 @@ pub(super) fn transform_legacy_state_declarations<'a>(
             }
 
             // Then, try to match `keyword varname;` pattern (declaration without initializer)
-            let pattern_no_init = format!("{keyword} {var};");
+            let pattern_no_init = format!("{} {};", keyword, var);
             {
                 let mut search_offset = 0;
                 while let Some(rel_pos) = result[search_offset..].find(&pattern_no_init) {
@@ -1820,7 +1829,7 @@ pub(super) fn transform_legacy_state_declarations<'a>(
             }
 
             // Also try to match `keyword varname` without semicolon
-            let pattern_no_semi = format!("{keyword} {var}");
+            let pattern_no_semi = format!("{} {}", keyword, var);
             {
                 let mut search_offset = 0;
                 while let Some(rel_pos) = result[search_offset..].find(&pattern_no_semi) {

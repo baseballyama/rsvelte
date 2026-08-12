@@ -24,7 +24,6 @@ pub enum Namespace {
 }
 
 impl Namespace {
-    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
             Namespace::Html => "html",
@@ -93,9 +92,9 @@ fn build_locations(nodes: &[Node], locator: &Locator) -> JsExpr {
 /// * `namespace` - Element namespace (html, svg, mathml)
 /// * `flags` - Optional flags for template creation
 /// * `locator` - Optional locator function for dev mode
-pub fn transform_template(
+pub fn transform_template<'a>(
     arena: &JsArena,
-    state: &mut ComponentClientTransformState<'_>,
+    state: &mut ComponentClientTransformState<'a>,
     base_name: &str,
     namespace: Namespace,
     flags: Option<u32>,
@@ -146,7 +145,7 @@ pub fn transform_template(
         b::call(
             arena,
             function_name,
-            vec![expression, b::number(f64::from(current_flags))],
+            vec![expression, b::number(current_flags as f64)],
         )
     } else {
         b::call(arena, function_name, vec![expression])

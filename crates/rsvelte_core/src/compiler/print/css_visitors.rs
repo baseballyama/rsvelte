@@ -9,10 +9,6 @@
 use super::Context;
 use serde_json::Value;
 
-fn source_index(value: u64) -> usize {
-    usize::try_from(value).expect("CSS source positions must fit usize")
-}
-
 /// Visit a CSS node and generate appropriate code.
 ///
 /// This function dispatches to the appropriate visitor based on the node type.
@@ -64,12 +60,9 @@ fn visit_atrule(context: &mut Context, node: &Value) {
         {
             let start = node
                 .get("start")
-                .and_then(serde_json::Value::as_u64)
-                .map(source_index);
-            let end = node
-                .get("end")
-                .and_then(serde_json::Value::as_u64)
-                .map(source_index);
+                .and_then(|s| s.as_u64())
+                .map(|n| n as usize);
+            let end = node.get("end").and_then(|e| e.as_u64()).map(|n| n as usize);
             if let (Some(s), Some(e)) = (start, end)
                 && s < e
                 && e <= source.len()
@@ -147,7 +140,7 @@ fn reformat_font_face(raw: &str) -> String {
 /// # Arguments
 ///
 /// * `context` - The context to write to
-/// * `node` - The `AttributeSelector` node
+/// * `node` - The AttributeSelector node
 fn visit_attribute_selector(context: &mut Context, node: &Value) {
     if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
         context.write("[");
@@ -219,7 +212,7 @@ fn visit_block(context: &mut Context, node: &Value) {
 /// # Arguments
 ///
 /// * `context` - The context to write to
-/// * `node` - The `ClassSelector` node
+/// * `node` - The ClassSelector node
 fn visit_class_selector(context: &mut Context, node: &Value) {
     if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
         context.write(".");
@@ -234,7 +227,7 @@ fn visit_class_selector(context: &mut Context, node: &Value) {
 /// # Arguments
 ///
 /// * `context` - The context to write to
-/// * `node` - The `ComplexSelector` node
+/// * `node` - The ComplexSelector node
 fn visit_complex_selector(context: &mut Context, node: &Value) {
     if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
         for selector in children {
@@ -269,7 +262,7 @@ fn visit_declaration(context: &mut Context, node: &Value) {
 /// # Arguments
 ///
 /// * `context` - The context to write to
-/// * `node` - The `IdSelector` node
+/// * `node` - The IdSelector node
 fn visit_id_selector(context: &mut Context, node: &Value) {
     if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
         context.write("#");
@@ -284,7 +277,7 @@ fn visit_id_selector(context: &mut Context, node: &Value) {
 /// # Arguments
 ///
 /// * `context` - The context to write to
-/// * `_node` - The `NestingSelector` node
+/// * `_node` - The NestingSelector node
 fn visit_nesting_selector(context: &mut Context, _node: &Value) {
     context.write("&");
 }
@@ -321,14 +314,14 @@ fn visit_percentage(context: &mut Context, node: &Value) {
     }
 }
 
-/// Visit a pseudo-class selector (e.g., :hover, :`is()`).
+/// Visit a pseudo-class selector (e.g., :hover, :is()).
 ///
 /// Format: `:name` or `:name(arg1, arg2)`
 ///
 /// # Arguments
 ///
 /// * `context` - The context to write to
-/// * `node` - The `PseudoClassSelector` node
+/// * `node` - The PseudoClassSelector node
 fn visit_pseudo_class_selector(context: &mut Context, node: &Value) {
     if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
         context.write(":");
@@ -358,14 +351,14 @@ fn visit_pseudo_class_selector(context: &mut Context, node: &Value) {
     }
 }
 
-/// Visit a pseudo-element selector (e.g., `::before`).
+/// Visit a pseudo-element selector (e.g., ::before).
 ///
 /// Format: `::name`
 ///
 /// # Arguments
 ///
 /// * `context` - The context to write to
-/// * `node` - The `PseudoElementSelector` node
+/// * `node` - The PseudoElementSelector node
 fn visit_pseudo_element_selector(context: &mut Context, node: &Value) {
     if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
         context.write("::");
@@ -380,7 +373,7 @@ fn visit_pseudo_element_selector(context: &mut Context, node: &Value) {
 /// # Arguments
 ///
 /// * `context` - The context to write to
-/// * `node` - The `RelativeSelector` node
+/// * `node` - The RelativeSelector node
 fn visit_relative_selector(context: &mut Context, node: &Value) {
     if let Some(combinator) = node.get("combinator")
         && !combinator.is_null()
@@ -403,12 +396,9 @@ fn visit_relative_selector(context: &mut Context, node: &Value) {
             if let Some(source) = context.source
                 && let Some(s) = node
                     .get("start")
-                    .and_then(serde_json::Value::as_u64)
-                    .map(source_index)
-                && let Some(e) = node
-                    .get("end")
-                    .and_then(serde_json::Value::as_u64)
-                    .map(source_index)
+                    .and_then(|s| s.as_u64())
+                    .map(|n| n as usize)
+                && let Some(e) = node.get("end").and_then(|e| e.as_u64()).map(|n| n as usize)
                 && s < e
                 && e <= source.len()
             {
@@ -468,7 +458,7 @@ fn visit_rule(context: &mut Context, node: &Value) {
 /// # Arguments
 ///
 /// * `context` - The context to write to
-/// * `node` - The `SelectorList` node
+/// * `node` - The SelectorList node
 fn visit_selector_list(context: &mut Context, node: &Value) {
     if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
         let mut started = false;
@@ -490,7 +480,7 @@ fn visit_selector_list(context: &mut Context, node: &Value) {
 /// # Arguments
 ///
 /// * `context` - The context to write to
-/// * `node` - The `TypeSelector` node
+/// * `node` - The TypeSelector node
 fn visit_type_selector(context: &mut Context, node: &Value) {
     if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
         context.write(name);

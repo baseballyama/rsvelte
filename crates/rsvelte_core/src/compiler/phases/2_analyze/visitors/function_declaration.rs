@@ -1,4 +1,4 @@
-//! `FunctionDeclaration` visitor.
+//! FunctionDeclaration visitor.
 //!
 //! Analyzes function declarations.
 //!
@@ -10,7 +10,7 @@ use super::shared::utils::validate_identifier_name;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
-/// Visit a function declaration (typed `JsNode` path).
+/// Visit a function declaration (typed JsNode path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     if let JsNode::FunctionDeclaration {
         id, params, body, ..

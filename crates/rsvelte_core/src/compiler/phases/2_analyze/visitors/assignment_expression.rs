@@ -1,4 +1,4 @@
-//! `AssignmentExpression` visitor.
+//! AssignmentExpression visitor.
 //!
 //! Analyzes assignment expressions.
 //!
@@ -9,7 +9,7 @@ use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use crate::compiler::phases::phase2_analyze::scope::MutationKind;
 
-/// Visit an assignment expression (typed `JsNode` path).
+/// Visit an assignment expression (typed JsNode path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     if let JsNode::AssignmentExpression {
         left,
@@ -73,7 +73,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
     Ok(())
 }
 
-/// JsNode-based version of `mark_binding_mutation`.
+/// JsNode-based version of mark_binding_mutation.
 pub fn mark_binding_mutation_node(target: &JsNode, context: &mut VisitorContext) {
     match target {
         JsNode::Identifier { name, .. } => {
@@ -119,7 +119,7 @@ pub fn mark_binding_mutation_node(target: &JsNode, context: &mut VisitorContext)
     }
 }
 
-/// Get the root identifier name from a `JsNode` `MemberExpression` chain.
+/// Get the root identifier name from a JsNode MemberExpression chain.
 fn get_member_expression_root_name_node(
     expr: &JsNode,
     arena: &crate::ast::arena::ParseArena,

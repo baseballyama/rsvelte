@@ -1,4 +1,4 @@
-//! `MemberExpression` visitor.
+//! MemberExpression visitor.
 //!
 //! Analyzes member expressions (obj.prop, obj[prop]).
 //!
@@ -9,7 +9,7 @@ use super::shared::utils::{is_pure_node, is_safe_identifier_node};
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::{AnalysisError, BindingKind, errors};
 
-/// Visit a member expression (typed `JsNode` path).
+/// Visit a member expression (typed JsNode path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     if let JsNode::MemberExpression {
         object,

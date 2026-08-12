@@ -6,10 +6,10 @@ use indexmap::IndexMap;
 pub struct Element {
     pub node_type: &'static str, // Always "element"
     pub name: String,
-    /// Using `IndexMap` to preserve insertion order of attributes
+    /// Using IndexMap to preserve insertion order of attributes
     pub attributes: IndexMap<String, Option<String>>,
     pub children: Vec<Node>,
-    /// Used for populating __`svelte_meta`
+    /// Used for populating __svelte_meta
     pub start: u32,
     /// True if this is an HTML element (not SVG/MathML) - used for attribute name lowercasing
     pub is_html: bool,

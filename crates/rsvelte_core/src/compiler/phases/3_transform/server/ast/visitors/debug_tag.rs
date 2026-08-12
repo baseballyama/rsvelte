@@ -1,4 +1,4 @@
-//! AST-based server `{@debug}` (`DebugTag`) visitor.
+//! AST-based server `{@debug}` (DebugTag) visitor.
 //!
 //! Rust port of upstream
 //! `submodules/svelte/packages/svelte/src/compiler/phases/3-transform/server/visitors/DebugTag.js`.

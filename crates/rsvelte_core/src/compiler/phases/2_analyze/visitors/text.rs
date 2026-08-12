@@ -36,12 +36,10 @@ pub fn visit(text: &Text, context: &mut VisitorContext) -> Result<(), AnalysisEr
     // Upstream offsets the match into `node.data`, not `node.raw`, so an entity
     // ahead of the match shifts the reported range — mirrored deliberately.
     for m in REGEX_BIDIRECTIONAL_CONTROL_CHARACTERS.find_iter(&text.data) {
-        let start =
-            text.start + u32::try_from(m.start()).expect("source positions are limited to u32");
-        context.emit_warning(warnings::bidirectional_control_characters().at(
-            start,
-            start + u32::try_from(m.len()).expect("source positions are limited to u32"),
-        ));
+        let start = text.start + m.start() as u32;
+        context.emit_warning(
+            warnings::bidirectional_control_characters().at(start, start + m.len() as u32),
+        );
     }
 
     Ok(())

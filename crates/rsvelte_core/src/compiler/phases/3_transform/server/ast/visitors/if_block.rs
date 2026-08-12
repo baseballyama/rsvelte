@@ -24,7 +24,7 @@
 //! }
 //! ```
 //!
-//! Each branch's `BlockStatement` gets a marker push **un­shifted** to its front
+//! Each branch's BlockStatement gets a marker push **un­shifted** to its front
 //! (`<!--[0-->` consequent, `<!--[1-->`, `<!--[2-->`, … for else-ifs, `<!--[-1-->`
 //! for the final else). The whole `if/else-if/else` chain is one `Stmt`, possibly
 //! wrapped by `create_child_block`, followed by a `<!--]-->` close literal.
@@ -95,7 +95,7 @@ pub fn visit_if_block<'a>(node: &IfBlock<'a>, state: &mut ServerTransformState<'
         .push(TemplateEntry::Literal(BLOCK_CLOSE.to_string()));
 }
 
-/// Walk the flattened chain (this `IfBlock` + the else-ifs that flatten into it)
+/// Walk the flattened chain (this IfBlock + the else-ifs that flatten into it)
 /// accumulating blocker indices and `has_await` from each arm's TEST. Stops
 /// recursing at an else-if that does NOT flatten (its own test has await OR new
 /// blockers) — that arm gets its own `create_child_block` when re-visited.
@@ -161,7 +161,7 @@ fn flattens_into(elseif: &IfBlock, parent: &IfBlock, state: &ServerTransformStat
 }
 
 /// Build the `if (...) {...} else if (...) {...} else {...}` statement for an
-/// `IfBlock`, walking the FLATTENABLE `{:else if}` chain and assigning branch
+/// IfBlock, walking the FLATTENABLE `{:else if}` chain and assigning branch
 /// markers `<!--[0-->`, `<!--[1-->`, … and the final `<!--[-1-->`.
 fn build_if_chain<'a>(
     node: &IfBlock<'a>,
@@ -199,10 +199,10 @@ fn build_test<'a>(
 }
 
 /// Build the `else` arm. If `frag` is a single FLATTENABLE `{:else if}` (nested
-/// `IfBlock` with `elseif == true` whose test flattens into `node`), recurse to
+/// IfBlock with `elseif == true` whose test flattens into `node`), recurse to
 /// build it inline as `else if`. Otherwise emit a terminal `else { <!--[-1-->
 /// ... }` block — where `...` is the alternate fragment's body. A NON-flattening
-/// else-if (await / new blockers) lives in that fragment as a nested `IfBlock` and
+/// else-if (await / new blockers) lives in that fragment as a nested IfBlock and
 /// is re-visited via [`build_fragment_body`], producing its OWN
 /// `create_child_block` wrap + `<!--]-->` close.
 fn build_alternate<'a>(
@@ -236,7 +236,7 @@ fn build_alternate<'a>(
     b.block(vec![marker])
 }
 
-/// If `frag`'s single meaningful child is an `{:else if}` `IfBlock` (`elseif ==
+/// If `frag`'s single meaningful child is an `{:else if}` IfBlock (`elseif ==
 /// true`), return it; otherwise `None` (a real `{:else}` body).
 fn single_elseif<'a, 'b>(frag: &'a Fragment<'b>) -> Option<&'a IfBlock<'b>> {
     let meaningful: Vec<&TemplateNode> = frag
@@ -273,7 +273,7 @@ fn build_branch_block<'a>(
 
 /// `$$renderer.push('<!--[N-->');` — a branch open marker as a single-quoted
 /// string literal (matching upstream `b.literal(...)` and the text oracle).
-fn marker_push(b: B<'_>, index: i32) -> Statement<'_> {
+fn marker_push<'a>(b: B<'a>, index: i32) -> Statement<'a> {
     let marker = format!("<!--[{index}-->");
     b.stmt(b.call("$$renderer.push", vec![b.string(&marker)]))
 }

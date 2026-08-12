@@ -38,7 +38,7 @@
 //! Shadow detection uses `find_state_var_symbols` +
 //! `is_state_var_reference_or_unresolved` from `scope_analysis` —
 //! function params / for-loop vars / nested-let shadows resolve
-//! to different `SymbolIds` and are skipped.
+//! to different SymbolIds and are skipped.
 
 use std::cell::RefCell;
 
@@ -226,7 +226,7 @@ struct CombinedCollector<'a, 'sem> {
     replacements: Vec<Edit>,
 }
 
-impl<'ast> Visit<'ast> for CombinedCollector<'_, '_> {
+impl<'a, 'sem, 'ast> Visit<'ast> for CombinedCollector<'a, 'sem> {
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
         walk::walk_assignment_expression(self, expr);
 
@@ -259,9 +259,9 @@ impl<'ast> Visit<'ast> for CombinedCollector<'_, '_> {
                         expression_needs_proxy_with_scope(rhs_text.trim(), self.non_proxy_vars)
                     });
                 let rewrite = if needs_proxy {
-                    format!("$.set({name}, {rhs_text}, true)")
+                    format!("$.set({}, {}, true)", name, rhs_text)
                 } else {
-                    format!("$.set({name}, {rhs_text})")
+                    format!("$.set({}, {})", name, rhs_text)
                 };
                 self.replacements
                     .push((expr.span.start, expr.span.end, rewrite));
@@ -272,11 +272,14 @@ impl<'ast> Visit<'ast> for CombinedCollector<'_, '_> {
                 };
                 let rhs_trimmed = rhs_text.trim();
                 let rhs_for_output = if needs_compound_assignment_parens(rhs_trimmed, op_str) {
-                    format!("({rhs_trimmed})")
+                    format!("({})", rhs_trimmed)
                 } else {
                     rhs_trimmed.to_string()
                 };
-                let rewrite = format!("$.set({name}, $.get({name}) {op_str} {rhs_for_output})");
+                let rewrite = format!(
+                    "$.set({}, $.get({}) {} {})",
+                    name, name, op_str, rhs_for_output
+                );
                 self.replacements
                     .push((expr.span.start, expr.span.end, rewrite));
             }
@@ -295,10 +298,10 @@ impl<'ast> Visit<'ast> for CombinedCollector<'_, '_> {
         }
 
         let rewrite = match (expr.operator, expr.prefix) {
-            (UpdateOperator::Increment, false) => format!("$.update({name})"),
-            (UpdateOperator::Decrement, false) => format!("$.update({name}, -1)"),
-            (UpdateOperator::Increment, true) => format!("$.update_pre({name})"),
-            (UpdateOperator::Decrement, true) => format!("$.update_pre({name}, -1)"),
+            (UpdateOperator::Increment, false) => format!("$.update({})", name),
+            (UpdateOperator::Decrement, false) => format!("$.update({}, -1)", name),
+            (UpdateOperator::Increment, true) => format!("$.update_pre({})", name),
+            (UpdateOperator::Decrement, true) => format!("$.update_pre({}, -1)", name),
         };
         self.replacements
             .push((expr.span.start, expr.span.end, rewrite));
@@ -340,7 +343,7 @@ pub(super) fn ident_rhs_needs_proxy(
     };
     let reassigned = scoping
         .get_resolved_references(symbol_id)
-        .any(oxc_semantic::Reference::is_write);
+        .any(|r| r.is_write());
     if reassigned {
         return Some(true);
     }
@@ -465,7 +468,7 @@ struct StateAssignsFinder<'a, 'sem> {
     targets: Vec<(Span, Rewrite)>,
 }
 
-impl StateAssignsFinder<'_, '_> {
+impl<'a, 'sem> StateAssignsFinder<'a, 'sem> {
     /// `source[span]` with every already-rewritten site inside it substituted —
     /// what the next fixed-point iteration would have read.
     fn shadow_text(&self, span: Span) -> String {
@@ -497,7 +500,7 @@ impl StateAssignsFinder<'_, '_> {
     }
 }
 
-impl<'ast> Visit<'ast> for StateAssignsFinder<'_, '_> {
+impl<'a, 'sem, 'ast> Visit<'ast> for StateAssignsFinder<'a, 'sem> {
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
         walk::walk_assignment_expression(self, expr);
 
@@ -524,9 +527,9 @@ impl<'ast> Visit<'ast> for StateAssignsFinder<'_, '_> {
                         expression_needs_proxy_with_scope(rhs_text.trim(), self.non_proxy_vars)
                     });
                 let text = if needs_proxy {
-                    format!("$.set({name}, {rhs_text}, true)")
+                    format!("$.set({}, {}, true)", name, rhs_text)
                 } else {
-                    format!("$.set({name}, {rhs_text})")
+                    format!("$.set({}, {})", name, rhs_text)
                 };
                 self.record(expr.span, Rewrite::Assign { needs_proxy }, text);
             }
@@ -536,11 +539,14 @@ impl<'ast> Visit<'ast> for StateAssignsFinder<'_, '_> {
                 };
                 let rhs_trimmed = rhs_text.trim();
                 let rhs_for_output = if needs_compound_assignment_parens(rhs_trimmed, op_str) {
-                    format!("({rhs_trimmed})")
+                    format!("({})", rhs_trimmed)
                 } else {
                     rhs_trimmed.to_string()
                 };
-                let text = format!("$.set({name}, $.get({name}) {op_str} {rhs_for_output})");
+                let text = format!(
+                    "$.set({}, $.get({}) {} {})",
+                    name, name, op_str, rhs_for_output
+                );
                 self.record(expr.span, Rewrite::Compound(compound), text);
             }
         }
@@ -558,10 +564,10 @@ impl<'ast> Visit<'ast> for StateAssignsFinder<'_, '_> {
         }
 
         let text = match (expr.operator, expr.prefix) {
-            (UpdateOperator::Increment, false) => format!("$.update({name})"),
-            (UpdateOperator::Decrement, false) => format!("$.update({name}, -1)"),
-            (UpdateOperator::Increment, true) => format!("$.update_pre({name})"),
-            (UpdateOperator::Decrement, true) => format!("$.update_pre({name}, -1)"),
+            (UpdateOperator::Increment, false) => format!("$.update({})", name),
+            (UpdateOperator::Decrement, false) => format!("$.update({}, -1)", name),
+            (UpdateOperator::Increment, true) => format!("$.update_pre({})", name),
+            (UpdateOperator::Decrement, true) => format!("$.update_pre({}, -1)", name),
         };
         let rewrite = Rewrite::Update {
             prefix: expr.prefix,

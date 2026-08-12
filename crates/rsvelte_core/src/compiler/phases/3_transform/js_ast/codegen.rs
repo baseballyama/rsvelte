@@ -676,7 +676,7 @@ impl<'a> JsCodegen<'a> {
                     }
                 }
                 JsForInit::Expression(expr_id) => {
-                    self.emit_expression(self.arena.get_expr(*expr_id));
+                    self.emit_expression(self.arena.get_expr(*expr_id))
                 }
             }
         }
@@ -1458,7 +1458,7 @@ impl<'a> JsCodegen<'a> {
             self.output.push('[');
             match &member.property {
                 JsMemberProperty::Expression(expr_id) => {
-                    self.emit_expression(self.arena.get_expr(*expr_id));
+                    self.emit_expression(self.arena.get_expr(*expr_id))
                 }
                 JsMemberProperty::Identifier(name) => {
                     self.output.push('\'');
@@ -1482,7 +1482,7 @@ impl<'a> JsCodegen<'a> {
                     self.output.push_str(name);
                 }
                 JsMemberProperty::Expression(expr_id) => {
-                    self.emit_expression(self.arena.get_expr(*expr_id));
+                    self.emit_expression(self.arena.get_expr(*expr_id))
                 }
             }
         }
@@ -2068,7 +2068,7 @@ impl<'a> JsCodegen<'a> {
 
             for (i, item) in items.iter().enumerate() {
                 // Check if this item has object/array value (for margin logic)
-                let has_obj_array = has_object_or_array_value(*item);
+                let has_obj_array = has_object_or_array_value(item);
 
                 // Record position before indentation for possible margin insertion
                 let margin_insert_pos = self.output.len();
@@ -2147,8 +2147,8 @@ impl<'a> JsCodegen<'a> {
                     if i < items.len() - 1
                         && measures[i].multiline
                         && measures[i + 1].multiline
-                        && !has_object_or_array_value(*item)
-                        && !has_object_or_array_value(items[i + 1])
+                        && !has_object_or_array_value(item)
+                        && !has_object_or_array_value(&items[i + 1])
                     {
                         self.newline(); // margin
                     }
@@ -2246,7 +2246,7 @@ fn has_multiple_newlines(bytes: &[u8]) -> bool {
 /// Check if an expression is an object or array value (used for margin logic in sequence).
 /// In esrap, consecutive multiline properties with object/array values don't get extra margins.
 #[inline]
-fn has_object_or_array_value(item: Option<&JsExpr>) -> bool {
+fn has_object_or_array_value(item: &Option<&JsExpr>) -> bool {
     if let Some(expr) = item {
         matches!(expr, JsExpr::Object(_) | JsExpr::Array(_))
     } else {

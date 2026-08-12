@@ -26,14 +26,6 @@ use super::phase2_analyze::ComponentAnalysis;
 use crate::ast::template::Root;
 use crate::compiler::{CompileOptions, GenerateMode};
 
-fn source_map_index(value: usize) -> u32 {
-    u32::try_from(value).expect("source-map indexes are limited to u32")
-}
-
-fn decoded_segment(value: i64) -> u32 {
-    u32::try_from(value).expect("decoded source-map segments are non-negative u32 values")
-}
-
 /// Result of the transform phase.
 #[derive(Debug)]
 pub struct TransformResult {
@@ -87,10 +79,6 @@ pub struct TransformWarning {
 /// # Returns
 ///
 /// Returns a `TransformResult` containing the generated code.
-///
-/// # Errors
-///
-/// Returns an error if client or server transformation fails.
 pub fn transform_component(
     analysis: &ComponentAnalysis,
     ast: &Root,
@@ -221,7 +209,7 @@ pub(crate) fn transform_component_with_scripts(
                             || lower.ends_with(".less")
                             || lower.ends_with(".styl")
                         {
-                            Some(source_map_index(i))
+                            Some(i as u32)
                         } else {
                             None
                         }
@@ -235,7 +223,7 @@ pub(crate) fn transform_component_with_scripts(
     }
 
     let css = if analysis.css.has_css && !analysis.inject_styles {
-        let css_render_start = profile::timer_start();
+        let _css_start = profile::timer_start();
         let mut css_output = css::render_stylesheet_with_sourcemap_content(
             analysis,
             ast.css.as_deref(),
@@ -243,7 +231,7 @@ pub(crate) fn transform_component_with_scripts(
             options,
             include_sourcemap_content,
         )?;
-        profile::record_css_render(profile::timer_elapsed(css_render_start));
+        profile::record_css_render(profile::timer_elapsed(_css_start));
         // Apply preprocessor source map composition to CSS map if needed
         if let Some(ref pp_map_json) = options.sourcemap
             && let Some(ref css_map_json) = css_output.map
@@ -360,15 +348,14 @@ pub(crate) fn transform_component_with_scripts(
             let source_name = get_source_name(filename, output_filename, "input.svelte");
 
             // Determine the output file basename for the "file" field
-            let file_name = output_filename.map_or_else(
-                || "input.svelte.js".to_string(),
-                |f| {
+            let file_name = output_filename
+                .map(|f| {
                     f.split(['/', '\\'])
                         .next_back()
                         .unwrap_or("input.svelte.js")
                         .to_string()
-                },
-            );
+                })
+                .unwrap_or_else(|| "input.svelte.js".to_string());
 
             let mut mappings_str = encode_vlq_mappings(&js_mappings);
 
@@ -388,8 +375,7 @@ pub(crate) fn transform_component_with_scripts(
 
             // When a preprocessor map is present, use its source info
             if let Some(ref info) = pp_info {
-                let names_refs: Vec<&str> =
-                    info.names.iter().map(std::string::String::as_str).collect();
+                let names_refs: Vec<&str> = info.names.iter().map(|s| s.as_str()).collect();
 
                 if info.sources.len() > 1 {
                     // Multi-source case: only include sources actually referenced by JS mappings.
@@ -410,11 +396,11 @@ pub(crate) fn transform_component_with_scripts(
                     let mut index_remap: rustc_hash::FxHashMap<u32, u32> =
                         rustc_hash::FxHashMap::default();
                     for (new_idx, &old_idx) in used_indices.iter().enumerate() {
-                        index_remap.insert(old_idx, source_map_index(new_idx));
+                        index_remap.insert(old_idx, new_idx as u32);
                     }
 
                     // Remap source indices in JS mappings
-                    for m in &mut js_mappings {
+                    for m in js_mappings.iter_mut() {
                         if let Some(&new_idx) = index_remap.get(&m.source) {
                             m.source = new_idx;
                         }
@@ -440,13 +426,13 @@ pub(crate) fn transform_component_with_scripts(
                             if pp_src == fname_basename || pp_src == fname {
                                 multi_sources.push(source_name.clone());
                             } else {
-                                let source_path = fname
-                                    .rsplit_once('/')
-                                    .or_else(|| fname.rsplit_once('\\'))
-                                    .map_or_else(
-                                        || pp_src.clone(),
-                                        |fname_dir| format!("{}/{}", fname_dir.0, pp_src),
-                                    );
+                                let source_path = if let Some(fname_dir) =
+                                    fname.rsplit_once('/').or_else(|| fname.rsplit_once('\\'))
+                                {
+                                    format!("{}/{}", fname_dir.0, pp_src)
+                                } else {
+                                    pp_src.clone()
+                                };
                                 multi_sources.push(get_source_name(
                                     Some(&source_path),
                                     output_filename,
@@ -463,9 +449,7 @@ pub(crate) fn transform_component_with_scripts(
 
                     if multi_sources.len() == 1 {
                         // Only one source referenced - use single-source format
-                        let content = multi_contents
-                            .first()
-                            .map_or(source, std::string::String::as_str);
+                        let content = multi_contents.first().map(|s| s.as_str()).unwrap_or(source);
                         Some(generate_sourcemap_json(
                             &file_name,
                             &multi_sources[0],
@@ -474,14 +458,10 @@ pub(crate) fn transform_component_with_scripts(
                             &names_refs,
                         ))
                     } else {
-                        let sources_refs: Vec<&str> = multi_sources
-                            .iter()
-                            .map(std::string::String::as_str)
-                            .collect();
-                        let contents_refs: Vec<&str> = multi_contents
-                            .iter()
-                            .map(std::string::String::as_str)
-                            .collect();
+                        let sources_refs: Vec<&str> =
+                            multi_sources.iter().map(|s| s.as_str()).collect();
+                        let contents_refs: Vec<&str> =
+                            multi_contents.iter().map(|s| s.as_str()).collect();
                         Some(js_ast::codegen::generate_sourcemap_json_multi(
                             &file_name,
                             &sources_refs,
@@ -495,7 +475,8 @@ pub(crate) fn transform_component_with_scripts(
                     let content = info
                         .sources_content
                         .first()
-                        .map_or(source, std::string::String::as_str);
+                        .map(|s| s.as_str())
+                        .unwrap_or(source);
                     Some(generate_sourcemap_json(
                         &file_name,
                         &source_name,
@@ -520,22 +501,21 @@ pub(crate) fn transform_component_with_scripts(
             let filename = options.filename.as_deref();
             if output_filename.is_some() || filename.is_some() {
                 let source_name = get_source_name(filename, output_filename, "input.svelte");
-                let file_name = output_filename.map_or_else(
-                    || "input.svelte.js".to_string(),
-                    |f| {
+                let file_name = output_filename
+                    .map(|f| {
                         f.split(['/', '\\'])
                             .next_back()
                             .unwrap_or("input.svelte.js")
                             .to_string()
-                    },
-                );
+                    })
+                    .unwrap_or_else(|| "input.svelte.js".to_string());
 
                 // Generate line-level identity mappings (each generated line maps to line 0, col 0)
                 let line_count = js.chars().filter(|&c| c == '\n').count();
                 let mut trivial_mappings = Vec::new();
                 for line in 0..=line_count {
                     trivial_mappings.push(SourceMapping {
-                        gen_line: source_map_index(line),
+                        gen_line: line as u32,
                         gen_col: 0,
                         source: 0,
                         orig_line: 0,
@@ -588,8 +568,9 @@ pub(crate) fn remap_css_sourcemap(
         Err(_) => return css_map_json.to_string(),
     };
 
-    let Some(css_mappings_str) = css_map.get("mappings").and_then(|v| v.as_str()) else {
-        return css_map_json.to_string();
+    let css_mappings_str = match css_map.get("mappings").and_then(|v| v.as_str()) {
+        Some(s) => s,
+        None => return css_map_json.to_string(),
     };
 
     // Decode the CSS mappings
@@ -599,11 +580,11 @@ pub(crate) fn remap_css_sourcemap(
         for seg in line {
             if seg.len() >= 4 {
                 mappings.push(SourceMapping {
-                    gen_line: source_map_index(line_idx),
-                    gen_col: decoded_segment(seg[0]),
-                    source: decoded_segment(seg[1]),
-                    orig_line: decoded_segment(seg[2]),
-                    orig_col: decoded_segment(seg[3]),
+                    gen_line: line_idx as u32,
+                    gen_col: seg[0] as u32,
+                    source: seg[1] as u32,
+                    orig_line: seg[2] as u32,
+                    orig_col: seg[3] as u32,
                     name: None,
                 });
             }
@@ -640,8 +621,17 @@ pub(crate) fn remap_css_sourcemap(
         .get("file")
         .and_then(|v| v.as_str())
         .unwrap_or("input.svelte.css");
-    let source_name = options.css_output_filename.as_ref().map_or_else(
-        || {
+    let source_name = options
+        .css_output_filename
+        .as_ref()
+        .map(|css_out| {
+            get_source_name(
+                options.filename.as_deref(),
+                Some(css_out.as_str()),
+                "input.svelte",
+            )
+        })
+        .unwrap_or_else(|| {
             css_map
                 .get("sources")
                 .and_then(|v| v.as_array())
@@ -649,17 +639,9 @@ pub(crate) fn remap_css_sourcemap(
                 .and_then(|v| v.as_str())
                 .unwrap_or("input.svelte")
                 .to_string()
-        },
-        |css_out| {
-            get_source_name(
-                options.filename.as_deref(),
-                Some(css_out.as_str()),
-                "input.svelte",
-            )
-        },
-    );
+        });
 
-    let names_refs: Vec<&str> = names.iter().map(std::string::String::as_str).collect();
+    let names_refs: Vec<&str> = names.iter().map(|s| s.as_str()).collect();
     generate_sourcemap_json(
         file_name,
         &source_name,
@@ -678,17 +660,9 @@ pub(crate) fn base64_encode(data: &[u8]) -> String {
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
     for chunk in data.chunks(3) {
-        let b0 = u32::from(chunk[0]);
-        let b1 = if chunk.len() > 1 {
-            u32::from(chunk[1])
-        } else {
-            0
-        };
-        let b2 = if chunk.len() > 2 {
-            u32::from(chunk[2])
-        } else {
-            0
-        };
+        let b0 = chunk[0] as u32;
+        let b1 = if chunk.len() > 1 { chunk[1] as u32 } else { 0 };
+        let b2 = if chunk.len() > 2 { chunk[2] as u32 } else { 0 };
         let triple = (b0 << 16) | (b1 << 8) | b2;
         out.push(ALPHABET[((triple >> 18) & 0x3F) as usize] as char);
         out.push(ALPHABET[((triple >> 12) & 0x3F) as usize] as char);
@@ -712,10 +686,6 @@ pub(crate) fn base64_encode(data: &[u8]) -> String {
 /// It only transforms the module script body (rune replacements) and prepends the
 /// necessary imports. This matches the official Svelte compiler's `transform_module` /
 /// `client_module` / `server_module` behavior.
-///
-/// # Errors
-///
-/// Returns an error if module transformation or code generation fails.
 pub fn transform_module(
     analysis: &ComponentAnalysis,
     source: &str,
@@ -747,8 +717,8 @@ pub enum TransformError {
 impl std::fmt::Display for TransformError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TransformError::CodeGen(msg) => write!(f, "Code generation error: {msg}"),
-            TransformError::Css(msg) => write!(f, "CSS error: {msg}"),
+            TransformError::CodeGen(msg) => write!(f, "Code generation error: {}", msg),
+            TransformError::Css(msg) => write!(f, "CSS error: {}", msg),
         }
     }
 }
@@ -788,7 +758,7 @@ fn generate_token_mappings(generated: &str, source: &str) -> Vec<js_ast::codegen
                 .entry(text)
                 .or_default()
                 .positions
-                .push(source_map_index(offset));
+                .push(offset as u32);
         }
     });
 
@@ -816,11 +786,11 @@ fn generate_token_mappings(generated: &str, source: &str) -> Vec<js_ast::codegen
 
         // Start of token
         mappings.push(js_ast::codegen::SourceMapping {
-            gen_line: source_map_index(gen_line),
-            gen_col: source_map_index(gen_col),
+            gen_line: gen_line as u32,
+            gen_col: gen_col as u32,
             source: 0,
-            orig_line: source_map_index(orig_line),
-            orig_col: source_map_index(orig_col),
+            orig_line: orig_line as u32,
+            orig_col: orig_col as u32,
             name: None,
         });
 
@@ -836,11 +806,11 @@ fn generate_token_mappings(generated: &str, source: &str) -> Vec<js_ast::codegen
             (orig_line, orig_col + text.encode_utf16().count())
         };
         mappings.push(js_ast::codegen::SourceMapping {
-            gen_line: source_map_index(gen_line_end),
-            gen_col: source_map_index(gen_col_end),
+            gen_line: gen_line_end as u32,
+            gen_col: gen_col_end as u32,
             source: 0,
-            orig_line: source_map_index(orig_line_end),
-            orig_col: source_map_index(orig_col_end),
+            orig_line: orig_line_end as u32,
+            orig_col: orig_col_end as u32,
             name: None,
         });
     });
@@ -928,11 +898,11 @@ fn generate_rune_mappings(generated: &str, source: &str) -> Vec<js_ast::codegen:
 
             // Start mapping
             mappings.push(js_ast::codegen::SourceMapping {
-                gen_line: source_map_index(gen_line),
-                gen_col: source_map_index(gen_col),
+                gen_line: gen_line as u32,
+                gen_col: gen_col as u32,
                 source: 0,
-                orig_line: source_map_index(orig_line),
-                orig_col: source_map_index(orig_col),
+                orig_line: orig_line as u32,
+                orig_col: orig_col as u32,
                 name: None,
             });
 
@@ -944,11 +914,11 @@ fn generate_rune_mappings(generated: &str, source: &str) -> Vec<js_ast::codegen:
             let (orig_line_end, orig_col_end) =
                 offset_to_line_col_utf16(source, &src_line_starts, src_end);
             mappings.push(js_ast::codegen::SourceMapping {
-                gen_line: source_map_index(gen_line_end),
-                gen_col: source_map_index(gen_col_end),
+                gen_line: gen_line_end as u32,
+                gen_col: gen_col_end as u32,
                 source: 0,
-                orig_line: source_map_index(orig_line_end),
-                orig_col: source_map_index(orig_col_end),
+                orig_line: orig_line_end as u32,
+                orig_col: orig_col_end as u32,
                 name: None,
             });
         }

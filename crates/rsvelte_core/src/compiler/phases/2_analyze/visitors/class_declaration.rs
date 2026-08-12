@@ -1,4 +1,4 @@
-//! `ClassDeclaration` visitor.
+//! ClassDeclaration visitor.
 //!
 //! Analyzes class declarations.
 //!
@@ -9,7 +9,7 @@ use super::{AstType, VisitorContext};
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::{AnalysisError, warnings};
 
-/// Visit a class declaration (typed `JsNode` path).
+/// Visit a class declaration (typed JsNode path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     if let JsNode::ClassDeclaration { id, body, .. } = node {
         let arena = context.parse_arena;

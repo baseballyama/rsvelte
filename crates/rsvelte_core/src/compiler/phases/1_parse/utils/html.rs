@@ -63,17 +63,17 @@ pub fn validate_code(code: u32) -> u32 {
     }
 
     // Supplementary multilingual plane 0x10000 - 0x1ffff
-    if (65536..=131_071).contains(&code) {
+    if (65536..=131071).contains(&code) {
         return code;
     }
 
     // Supplementary ideographic plane 0x20000 - 0x2ffff
-    if (131_072..=196_607).contains(&code) {
+    if (131072..=196607).contains(&code) {
         return code;
     }
 
     // Supplementary special-purpose plane 0xe0000 - 0xe07f and 0xe0100 - 0xe01ef
-    if (917_504..=917_631).contains(&code) || (917_760..=917_999).contains(&code) {
+    if (917504..=917631).contains(&code) || (917760..=917999).contains(&code) {
         return code;
     }
 

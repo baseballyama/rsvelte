@@ -1,4 +1,4 @@
-//! `SvelteHead` visitor.
+//! SvelteHead visitor.
 //!
 //! Analyzes <svelte:head> elements.
 //!

@@ -96,7 +96,7 @@ pub fn transition_directive(node: &TransitionDirective, context: &mut ComponentC
 
     // Build arguments: [flags, node, () => name, (() => expression)?]
     let mut args = vec![
-        b::number(f64::from(flags)),
+        b::number(flags as f64),
         context.state.node.clone(),
         b::thunk(&context.arena, visited_name.clone()),
     ];
@@ -149,7 +149,7 @@ pub fn transition_directive(node: &TransitionDirective, context: &mut ComponentC
 }
 
 /// Collect blocker expressions for a set of JS expressions by checking
-/// all referenced identifiers against the `blocker_map`.
+/// all referenced identifiers against the blocker_map.
 ///
 /// This collects identifiers from all provided expressions and calls
 /// `get_blockers_for_names` once, which handles deduplication.
@@ -164,16 +164,13 @@ pub fn get_blockers_for_exprs(exprs: &[&JsExpr], context: &ComponentContext) -> 
             }
         }
     }
-    let name_refs: Vec<&str> = all_names
-        .iter()
-        .map(compact_str::CompactString::as_str)
-        .collect();
+    let name_refs: Vec<&str> = all_names.iter().map(|s| s.as_str()).collect();
     context
         .state
         .get_blockers_for_names(&name_refs, &context.arena)
 }
 
-/// Collect all identifier names from a `JsExpr` without crossing function boundaries.
+/// Collect all identifier names from a JsExpr without crossing function boundaries.
 /// This is used to find which variables a directive references for blocker checking.
 fn collect_expr_identifiers(
     expr: &JsExpr,
@@ -241,6 +238,7 @@ fn collect_expr_identifiers_recursive(
             collect_expr_identifiers_recursive(arena.get_expr(*inner), arena, names);
         }
         // Don't cross function boundaries
+        JsExpr::Arrow(_) | JsExpr::Function(_) => {}
         // Literals and other nodes don't contain identifier references we care about
         _ => {}
     }

@@ -1,4 +1,4 @@
-//! `FunctionExpression` visitor.
+//! FunctionExpression visitor.
 //!
 //! Analyzes function expressions and arrow function expressions.
 //!
@@ -9,7 +9,7 @@ use super::shared::function::{visit_function, visit_parameter_defaults};
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
-/// Visit a function expression or arrow function expression (typed `JsNode` path).
+/// Visit a function expression or arrow function expression (typed JsNode path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     let arena = context.parse_arena;
 

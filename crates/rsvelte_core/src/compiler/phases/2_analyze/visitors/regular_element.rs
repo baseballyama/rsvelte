@@ -1,4 +1,4 @@
-//! `RegularElement` visitor.
+//! RegularElement visitor.
 //!
 //! Analyzes regular HTML elements.
 //!
@@ -17,7 +17,6 @@ use super::shared::element::validate_element;
 use super::shared::fragment::{analyze, mark_subtree_dynamic};
 use super::spread_attribute;
 use super::use_directive;
-use crate::ast::AttributeNodeMetadata;
 use crate::ast::template::{
     Attribute, AttributeValue, AttributeValuePart, RegularElement, TemplateNode,
 };
@@ -123,7 +122,7 @@ pub fn is_svg(name: &str) -> bool {
     )
 }
 
-/// Check if an element name is a `MathML` element.
+/// Check if an element name is a MathML element.
 pub fn is_mathml(name: &str) -> bool {
     matches!(
         name,
@@ -216,27 +215,47 @@ pub(super) fn is_tag_valid_with_parent(child_tag: &str, parent_tag: &str) -> Opt
         // See: https://html.spec.whatwg.org/multipage/form-elements.html#the-option-element
         ("tr", "th" | "td" | "style" | "script" | "template") => None,
         ("tr", _) => Some(format!(
-            "`<{child_tag}>` cannot be a child of `<{parent_tag}>`. `<{parent_tag}>` only allows these children: `<th>`, `<td>`, `<style>`, `<script>`, `<template>`"
+            "`<{}>` cannot be a child of `<{}>`. `<{}>` only allows these children: `<th>`, `<td>`, `<style>`, `<script>`, `<template>`",
+            child_tag, parent_tag, parent_tag
         )),
+        ("tbody" | "thead" | "tfoot", "tr" | "style" | "script" | "template") => None,
         ("tbody" | "thead" | "tfoot", _) => Some(format!(
-            "`<{child_tag}>` cannot be a child of `<{parent_tag}>`. `<{parent_tag}>` only allows these children: `<tr>`, `<style>`, `<script>`, `<template>`"
+            "`<{}>` cannot be a child of `<{}>`. `<{}>` only allows these children: `<tr>`, `<style>`, `<script>`, `<template>`",
+            child_tag, parent_tag, parent_tag
         )),
+        ("colgroup", "col" | "template") => None,
         ("colgroup", _) => Some(format!(
-            "`<{child_tag}>` cannot be a child of `<{parent_tag}>`. `<{parent_tag}>` only allows these children: `<col>`, `<template>`"
+            "`<{}>` cannot be a child of `<{}>`. `<{}>` only allows these children: `<col>`, `<template>`",
+            child_tag, parent_tag, parent_tag
         )),
+        (
+            "table",
+            "caption" | "colgroup" | "tbody" | "thead" | "tfoot" | "style" | "script" | "template",
+        ) => None,
         ("table", _) => Some(format!(
-            "`<{child_tag}>` cannot be a child of `<{parent_tag}>`. `<{parent_tag}>` only allows these children: `<caption>`, `<colgroup>`, `<tbody>`, `<thead>`, `<tfoot>`, `<style>`, `<script>`, `<template>`"
+            "`<{}>` cannot be a child of `<{}>`. `<{}>` only allows these children: `<caption>`, `<colgroup>`, `<tbody>`, `<thead>`, `<tfoot>`, `<style>`, `<script>`, `<template>`",
+            child_tag, parent_tag, parent_tag
         )),
         // https://html.spec.whatwg.org/multipage/syntax.html#parsing-main-inhead
+        (
+            "head",
+            "base" | "basefont" | "bgsound" | "link" | "meta" | "title" | "noscript" | "noframes"
+            | "style" | "script" | "template",
+        ) => None,
         ("head", _) => Some(format!(
-            "`<{child_tag}>` cannot be a child of `<{parent_tag}>`. `<{parent_tag}>` only allows these children: `<base>`, `<basefont>`, `<bgsound>`, `<link>`, `<meta>`, `<title>`, `<noscript>`, `<noframes>`, `<style>`, `<script>`, `<template>`"
+            "`<{}>` cannot be a child of `<{}>`. `<{}>` only allows these children: `<base>`, `<basefont>`, `<bgsound>`, `<link>`, `<meta>`, `<title>`, `<noscript>`, `<noframes>`, `<style>`, `<script>`, `<template>`",
+            child_tag, parent_tag, parent_tag
         )),
         // https://html.spec.whatwg.org/multipage/semantics.html#the-html-element
+        ("html", "head" | "body" | "frameset") => None,
         ("html", _) => Some(format!(
-            "`<{child_tag}>` cannot be a child of `<{parent_tag}>`. `<{parent_tag}>` only allows these children: `<head>`, `<body>`, `<frameset>`"
+            "`<{}>` cannot be a child of `<{}>`. `<{}>` only allows these children: `<head>`, `<body>`, `<frameset>`",
+            child_tag, parent_tag, parent_tag
         )),
+        ("frameset", "frame") => None,
         ("frameset", _) => Some(format!(
-            "`<{child_tag}>` cannot be a child of `<{parent_tag}>`. `<{parent_tag}>` only allows these children: `<frame>`"
+            "`<{}>` cannot be a child of `<{}>`. `<{}>` only allows these children: `<frame>`",
+            child_tag, parent_tag, parent_tag
         )),
         // Note: <select> is not restricted here because HTML5 customizable select elements
         // allow <button> and other elements inside <select>. The official Svelte compiler
@@ -246,16 +265,20 @@ pub(super) fn is_tag_valid_with_parent(child_tag: &str, parent_tag: &str) -> Opt
             match child_tag {
                 "body" | "caption" | "col" | "colgroup" | "frameset" | "frame" | "head"
                 | "html" => Some(format!(
-                    "`<{child_tag}>` cannot be a child of `<{parent_tag}>`"
+                    "`<{}>` cannot be a child of `<{}>`",
+                    child_tag, parent_tag
                 )),
                 "thead" | "tbody" | "tfoot" => Some(format!(
-                    "`<{child_tag}>` must be the child of a `<table>`, not a `<{parent_tag}>`"
+                    "`<{}>` must be the child of a `<table>`, not a `<{}>`",
+                    child_tag, parent_tag
                 )),
                 "td" | "th" => Some(format!(
-                    "`<{child_tag}>` must be the child of a `<tr>`, not a `<{parent_tag}>`"
+                    "`<{}>` must be the child of a `<tr>`, not a `<{}>`",
+                    child_tag, parent_tag
                 )),
                 "tr" => Some(format!(
-                    "`<tr>` must be the child of a `<thead>`, `<tbody>`, or `<tfoot>`, not a `<{parent_tag}>`"
+                    "`<tr>` must be the child of a `<thead>`, `<tbody>`, or `<tfoot>`, not a `<{}>`",
+                    parent_tag
                 )),
                 _ => None,
             }
@@ -264,7 +287,7 @@ pub(super) fn is_tag_valid_with_parent(child_tag: &str, parent_tag: &str) -> Opt
 }
 
 /// Elements that cannot contain certain descendants.
-/// Based on the `disallowed_children` map from html-tree-validation.js.
+/// Based on the disallowed_children map from html-tree-validation.js.
 fn get_disallowed_descendant(
     ancestor_tag: &str,
     _child_tag: &str,
@@ -341,17 +364,23 @@ fn get_descendant_reset_by(ancestor_tag: &str) -> Option<&'static [&'static str]
 /// Corresponds to `create_attribute` in nodes.js.
 fn create_textarea_value_attribute(nodes: Vec<TemplateNode>) -> Attribute {
     // Get start/end from first and last node
-    let start = nodes.first().map_or(0, |n| match n {
-        TemplateNode::Text(t) => t.start,
-        TemplateNode::ExpressionTag(e) => e.start,
-        _ => 0,
-    });
+    let start = nodes
+        .first()
+        .map(|n| match n {
+            TemplateNode::Text(t) => t.start,
+            TemplateNode::ExpressionTag(e) => e.start,
+            _ => 0,
+        })
+        .unwrap_or(0);
 
-    let end = nodes.last().map_or(0, |n| match n {
-        TemplateNode::Text(t) => t.end,
-        TemplateNode::ExpressionTag(e) => e.end,
-        _ => 0,
-    });
+    let end = nodes
+        .last()
+        .map(|n| match n {
+            TemplateNode::Text(t) => t.end,
+            TemplateNode::ExpressionTag(e) => e.end,
+            _ => 0,
+        })
+        .unwrap_or(0);
 
     // Convert nodes to AttributeValuePart
     let parts: Vec<AttributeValuePart> = nodes
@@ -369,7 +398,7 @@ fn create_textarea_value_attribute(nodes: Vec<TemplateNode>) -> Attribute {
         name: "value".into(),
         name_loc: None,
         value: AttributeValue::Sequence(parts),
-        metadata: AttributeNodeMetadata::default(),
+        metadata: Default::default(),
     })
 }
 
@@ -469,7 +498,7 @@ pub fn visit<'a, 'b: 'a>(
                                             computed_values.clear();
                                             for pv in &prev {
                                                 for ev in &possible_vals {
-                                                    computed_values.push(format!("{pv}{ev}"));
+                                                    computed_values.push(format!("{}{}", pv, ev));
                                                 }
                                             }
                                             if computed_values.len() > 100 {
@@ -582,7 +611,7 @@ pub fn visit<'a, 'b: 'a>(
                                             let mut combined = Vec::new();
                                             for pv in &prev_values {
                                                 for rv in &remaining {
-                                                    combined.push(format!("{pv}{rv}"));
+                                                    combined.push(format!("{}{}", pv, rv));
                                                 }
                                             }
                                             prev_values = combined;
@@ -1061,11 +1090,19 @@ pub fn visit<'a, 'b: 'a>(
                     bind_directive::visit_with_element(bind, element, context)?;
                 }
             }
+            Attribute::OnDirective(_) => {
+                // Visit on: directive to track event_directive_node for mixed syntax detection
+                // Need mutable borrow so use a different approach
+            }
             Attribute::UseDirective(_) => {
                 // Re-borrow the use directive for the visit call
                 if let Attribute::UseDirective(use_dir) = &element.attributes[i] {
                     use_directive::visit(use_dir, context)?;
                 }
+            }
+            Attribute::ClassDirective(_) => {
+                // Visit happens in a second mutable pass below so that
+                // `class_directive::visit` can populate `directive.metadata`.
             }
             Attribute::StyleDirective(_) => {
                 // Re-borrow the style directive for the visit call
@@ -1268,7 +1305,7 @@ pub fn visit<'a, 'b: 'a>(
                             // select) is NOT. We use `binding.scope_index` rather than
                             // `scope.declarations` because the latter is polluted with
                             // child-scope declarations for backward compat (see scope.rs).
-                            for other_binding in &context.analysis.root.bindings {
+                            for other_binding in context.analysis.root.bindings.iter() {
                                 let name = &other_binding.name;
                                 if name == root_name {
                                     continue;
@@ -1444,6 +1481,13 @@ fn collect_subtree_component_refs(
                 TemplateNode::SvelteElement(e) => walk(&e.fragment.nodes, out),
                 TemplateNode::TitleElement(e) => walk(&e.fragment.nodes, out),
                 TemplateNode::SlotElement(e) => walk(&e.fragment.nodes, out),
+                TemplateNode::SvelteBody(e)
+                | TemplateNode::SvelteDocument(e)
+                | TemplateNode::SvelteFragment(e)
+                | TemplateNode::SvelteBoundary(e)
+                | TemplateNode::SvelteHead(e)
+                | TemplateNode::SvelteOptions(e)
+                | TemplateNode::SvelteWindow(e) => walk(&e.fragment.nodes, out),
                 TemplateNode::IfBlock(b) => {
                     walk(&b.consequent.nodes, out);
                     if let Some(alt) = &b.alternate {

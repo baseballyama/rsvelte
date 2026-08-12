@@ -18,10 +18,10 @@ use super::super::js_ast::codegen::CodegenResult;
 use crate::CompileOptions;
 use crate::ast::Root;
 
-pub mod oracle;
+pub(crate) mod oracle;
 
 /// Route the client transform through this module instead of the text pipeline.
-pub static CLIENT_AST: LazyLock<bool> =
+pub(crate) static CLIENT_AST: LazyLock<bool> =
     LazyLock::new(|| std::env::var_os("RSVELTE_CLIENT_AST").is_some());
 
 /// Transform a component with the AST pipeline.
@@ -30,7 +30,7 @@ pub static CLIENT_AST: LazyLock<bool> =
 /// yet, which asks the caller to fall back to the text pipeline. Every visitor
 /// ported in M1/M2 narrows that set; the [`oracle`] harness measures how far
 /// along that is by compiling the corpus both ways and diffing the output.
-pub fn transform_client_ast(
+pub(crate) fn transform_client_ast(
     _analysis: &ComponentAnalysis,
     _ast: &Root,
     _source: &str,

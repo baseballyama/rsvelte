@@ -28,7 +28,7 @@
 //! | `{ localName }` shorthand | `{ localName: $$props.propName }`        |
 //! | `{ localName: x }` key    | unchanged (property key untouched)       |
 //! | `obj.localName`           | unchanged (property side untouched)      |
-//! | `let localName = …`       | unchanged (`BindingIdentifier`)            |
+//! | `let localName = …`       | unchanged (BindingIdentifier)            |
 //! | `function f(localName) { localName }` | unchanged (shadow)           |
 //! | inside string literal     | unchanged (AST doesn't enter strings)    |
 //!
@@ -37,7 +37,7 @@
 //! Returns `Some(rewritten)` when at least one position was
 //! wrapped. Returns `None` if `read_only_props` is empty, no
 //! prop substring appears, the source fails to parse, the input
-//! starts with a bare `{` (`BlockStatement` ambiguity — same bail
+//! starts with a bare `{` (BlockStatement ambiguity — same bail
 //! as `state_reads_ast`), or nothing matched. Callers fall back
 //! to the text scanner on `None`.
 
@@ -181,7 +181,7 @@ struct ReadOnlyPropsCollector<'a, 'sem> {
     skip_spans: FxHashSet<u32>,
 }
 
-impl<'a> ReadOnlyPropsCollector<'a, '_> {
+impl<'a, 'sem> ReadOnlyPropsCollector<'a, 'sem> {
     /// Returns the `prop_name` for the given local name, if any.
     fn prop_name_for(&self, local_name: &str) -> Option<&'a str> {
         self.read_only_props
@@ -193,9 +193,9 @@ impl<'a> ReadOnlyPropsCollector<'a, '_> {
     /// Build the `$$props.foo` or `$$props['foo']` replacement.
     fn build_access(prop_name: &str) -> String {
         if is_valid_js_identifier(prop_name) {
-            format!("$$props.{prop_name}")
+            format!("$$props.{}", prop_name)
         } else {
-            format!("$$props['{prop_name}']")
+            format!("$$props['{}']", prop_name)
         }
     }
 
@@ -204,7 +204,7 @@ impl<'a> ReadOnlyPropsCollector<'a, '_> {
     }
 }
 
-impl<'ast> Visit<'ast> for ReadOnlyPropsCollector<'_, '_> {
+impl<'a, 'sem, 'ast> Visit<'ast> for ReadOnlyPropsCollector<'a, 'sem> {
     fn visit_identifier_reference(&mut self, ident: &IdentifierReference<'ast>) {
         if self.skip_spans.contains(&ident.span.start) {
             return;

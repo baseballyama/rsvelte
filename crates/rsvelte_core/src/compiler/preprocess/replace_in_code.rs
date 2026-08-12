@@ -9,18 +9,6 @@ use regex::Regex;
 
 use super::types::{MappedCode, PreprocessError, Replacement, SimpleDecodedMap, Source};
 
-pub(crate) fn source_pos(value: usize) -> u32 {
-    u32::try_from(value).expect("source positions are limited to u32")
-}
-
-fn map_index(value: i64) -> Option<usize> {
-    usize::try_from(value).ok()
-}
-
-fn map_component(value: usize) -> i64 {
-    i64::try_from(value).expect("source map component must fit i64")
-}
-
 // Cached regex for tokenizing lines (for source map generation)
 static REGEX_LINE_TOKEN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"([^\w\s]|\s+)").unwrap());
 
@@ -28,8 +16,7 @@ static REGEX_LINE_TOKEN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"([^\w\s
 ///
 /// This adjusts the location function to account for the offset.
 ///
-/// Corresponds to `slice_source` in `replace_in_code.js`.
-#[must_use]
+/// Corresponds to `slice_source` in replace_in_code.js.
 pub fn slice_source(code_slice: String, offset: usize, source: &Source) -> Source {
     let get_location = source.get_location.clone();
     Source {
@@ -42,7 +29,7 @@ pub fn slice_source(code_slice: String, offset: usize, source: &Source) -> Sourc
 
 /// Calculate replacements by applying a regex and async replacement function.
 ///
-/// Corresponds to `calculate_replacements` in `replace_in_code.js`.
+/// Corresponds to `calculate_replacements` in replace_in_code.js.
 async fn calculate_replacements<F, Fut>(
     re: &Regex,
     get_replacement: F,
@@ -89,9 +76,9 @@ where
     Ok(replacements)
 }
 
-/// Perform replacements on the source code, building a `MappedCode` result.
+/// Perform replacements on the source code, building a MappedCode result.
 ///
-/// Corresponds to `perform_replacements` in `replace_in_code.js`.
+/// Corresponds to `perform_replacements` in replace_in_code.js.
 fn perform_replacements(replacements: Vec<Replacement>, source: &Source) -> MappedCode {
     let mut out = MappedCode::new();
     let mut last_end = 0;
@@ -130,11 +117,7 @@ fn perform_replacements(replacements: Vec<Replacement>, source: &Source) -> Mapp
 ///
 /// This is the main entry point for code replacement with source map tracking.
 ///
-/// Corresponds to `replace_in_code` in `replace_in_code.js`.
-///
-/// # Errors
-///
-/// Returns an error from `get_replacement`.
+/// Corresponds to `replace_in_code` in replace_in_code.js.
 pub async fn replace_in_code<F, Fut>(
     regex: &Regex,
     get_replacement: F,
@@ -149,9 +132,9 @@ where
 }
 
 impl MappedCode {
-    /// Create a `MappedCode` from a Source with identity mapping.
+    /// Create a MappedCode from a Source with identity mapping.
     ///
-    /// Corresponds to `MappedCode.from_source` in `mapped_code.js`.
+    /// Corresponds to `MappedCode.from_source` in mapped_code.js.
     pub fn from_source(source: &Source) -> Self {
         let offset = (source.get_location)(0);
 
@@ -185,26 +168,26 @@ impl MappedCode {
             for token_match in REGEX_LINE_TOKEN.find_iter(line) {
                 // Add token before this match
                 if token_match.start() > last_end {
-                    let token_len = source_pos(token_match.start() - last_end);
+                    let token_len = (token_match.start() - last_end) as u32;
                     if token_len > 0 {
                         line_mappings.push(vec![
-                            i64::from(column),
+                            column as i64,
                             0,
                             (offset.line + line_idx) as i64,
-                            i64::from(column),
+                            column as i64,
                         ]);
                         column += token_len;
                     }
                 }
 
                 // Add the matched token
-                let token_len = source_pos(token_match.as_str().len());
+                let token_len = token_match.as_str().len() as u32;
                 if token_len > 0 {
                     line_mappings.push(vec![
-                        i64::from(column),
+                        column as i64,
                         0,
                         (offset.line + line_idx) as i64,
-                        i64::from(column),
+                        column as i64,
                     ]);
                     column += token_len;
                 }
@@ -213,13 +196,13 @@ impl MappedCode {
 
             // Add remaining part of line
             if last_end < line.len() {
-                let token_len = source_pos(line.len() - last_end);
+                let token_len = (line.len() - last_end) as u32;
                 if token_len > 0 {
                     line_mappings.push(vec![
-                        i64::from(column),
+                        column as i64,
                         0,
                         (offset.line + line_idx) as i64,
-                        i64::from(column),
+                        column as i64,
                     ]);
                 }
             }
@@ -242,16 +225,11 @@ impl MappedCode {
         }
     }
 
-    /// Concatenate two `MappedCode` instances.
+    /// Concatenate two MappedCode instances.
     ///
     /// This mutates `self` and returns it for chaining.
     ///
-    /// Corresponds to `MappedCode.concat` in `mapped_code.js`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if concatenation violates a source-map range invariant.
-    #[must_use]
+    /// Corresponds to `MappedCode.concat` in mapped_code.js.
     pub fn concat(mut self, other: MappedCode) -> Self {
         // noop: if one is empty, return the other
         if other.string.is_empty() {
@@ -292,17 +270,15 @@ impl MappedCode {
             for segment in line {
                 if segment.len() >= 2
                     && segment[1] >= 0
-                    && let Some(index) = map_index(segment[1])
-                    && let Some(&mapped) = new_source_idx.get(index)
+                    && let Some(&mapped) = new_source_idx.get(segment[1] as usize)
                 {
-                    segment[1] = map_component(mapped);
+                    segment[1] = mapped as i64;
                 }
                 if segment.len() >= 5
                     && segment[4] >= 0
-                    && let Some(index) = map_index(segment[4])
-                    && let Some(&mapped) = new_name_idx.get(index)
+                    && let Some(&mapped) = new_name_idx.get(segment[4] as usize)
                 {
-                    segment[4] = map_component(mapped);
+                    segment[4] = mapped as i64;
                 }
             }
         }
@@ -326,10 +302,9 @@ impl MappedCode {
         self
     }
 
-    /// Create a `MappedCode` from processed code and optional source map.
+    /// Create a MappedCode from processed code and optional source map.
     ///
-    /// Corresponds to `MappedCode.from_processed` in `mapped_code.js`.
-    #[must_use]
+    /// Corresponds to `MappedCode.from_processed` in mapped_code.js.
     pub fn from_processed(string: String, map: Option<SimpleDecodedMap>) -> Self {
         let line_count = string.split('\n').count();
 
@@ -369,7 +344,7 @@ impl MappedCode {
 
 /// Get the length of the last line in a string.
 fn last_line_length(s: &str) -> usize {
-    s.len() - s.rfind('\n').map_or(0, |i| i + 1)
+    s.len() - s.rfind('\n').map(|i| i + 1).unwrap_or(0)
 }
 
 /// Merge two tables (sources or names arrays) and return the merged table,
@@ -380,7 +355,7 @@ fn last_line_length(s: &str) -> usize {
 /// present) skips the clone entirely. The caller only uses the returned
 /// table when `changed` is `true`, so an empty `Vec` is returned otherwise.
 ///
-/// Returns: (`new_table`, `idx_map`, changed)
+/// Returns: (new_table, idx_map, changed)
 fn merge_tables<T: Clone + Eq>(this_table: &[T], other_table: &[T]) -> (Vec<T>, Vec<usize>, bool) {
     let mut new_table: Option<Vec<T>> = None;
     let mut idx_map = Vec::with_capacity(other_table.len());

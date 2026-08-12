@@ -45,19 +45,10 @@ pub use types::{
 };
 pub use visitors::AstType;
 
-use crate::ast::AttributeNodeMetadata;
 use crate::ast::arena::ParseArena;
 use crate::ast::template::Root;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::CompileOptions;
-
-fn source_index(value: u64) -> usize {
-    usize::try_from(value).expect("source positions must fit usize")
-}
-
-fn source_pos(value: usize) -> u32 {
-    u32::try_from(value).expect("source positions are limited to u32")
-}
 
 /// Analyze a parsed Svelte component.
 ///
@@ -74,10 +65,6 @@ fn source_pos(value: usize) -> u32 {
 /// # Returns
 ///
 /// Returns a `ComponentAnalysis` containing all semantic information.
-///
-/// # Errors
-///
-/// Returns an error when script, template, or CSS analysis fails.
 pub fn analyze_component(
     ast: &mut Root,
     source: &str,
@@ -195,8 +182,8 @@ pub(crate) fn analyze_prepared_component_with_retained(
         // 49-53: `remove_typescript_nodes(customElementOptions.extend)`).
         let extend = ce_opts.extend.as_ref().and_then(|expr| {
             let json = expr.as_json();
-            let start = source_index(json.get("start")?.as_u64()?);
-            let end = source_index(json.get("end")?.as_u64()?);
+            let start = json.get("start")?.as_u64()? as usize;
+            let end = json.get("end")?.as_u64()? as usize;
             let text = source.get(start..end)?.to_string();
             let is_ts = |script: &Option<Box<crate::ast::Script>>| {
                 script.as_ref().is_some_and(|s| {
@@ -224,12 +211,12 @@ pub(crate) fn analyze_prepared_component_with_retained(
         // upstream passes the AST through to `create_custom_element`
         // (transform-client.js line 641: `shadow_root_init = ce.shadow`).
         let shadow_object_source = ce_opts.shadow_object.as_ref().and_then(|obj| {
-            let start = source_index(obj.get("start")?.as_u64()?);
-            let end = source_index(obj.get("end")?.as_u64()?);
+            let start = obj.get("start")?.as_u64()? as usize;
+            let end = obj.get("end")?.as_u64()? as usize;
             Some(source.get(start..end)?.to_string())
         });
         analysis.custom_element = Some(types::CustomElementConfig {
-            tag: ce_opts.tag.as_ref().map(std::string::ToString::to_string),
+            tag: ce_opts.tag.as_ref().map(|t| t.to_string()),
             shadow: ce_opts.shadow.map(|s| match s {
                 crate::ast::template::ShadowMode::Open => "open".to_string(),
                 crate::ast::template::ShadowMode::None => "none".to_string(),
@@ -277,7 +264,7 @@ pub(crate) fn analyze_prepared_component_with_retained(
     // Timed outside the `?` so a script that errors still charges its time and
     // its call: an early return that skips the record loses both, which reads
     // as the stage being cheaper than it is.
-    let store_subs_start = profile::timer_start();
+    let _store_subs_start = profile::timer_start();
     let store_subs_result = store_subscriptions::detect_store_subscriptions(
         ast,
         &mut analysis,
@@ -285,7 +272,7 @@ pub(crate) fn analyze_prepared_component_with_retained(
         is_module_file,
         retained_scripts,
     );
-    profile::record_store_subs(profile::timer_elapsed(store_subs_start));
+    profile::record_store_subs(profile::timer_elapsed(_store_subs_start));
     store_subs_result?;
 
     // Detect await expressions and rune references in template and scripts.
@@ -335,10 +322,13 @@ pub(crate) fn analyze_prepared_component_with_retained(
     // (2-analyze/index.js, `module.scope.references.delete(name)`), so a
     // store-subscribed rune name in the script must not flip runes mode on.
     let (instance_has_await, instance_has_rune_reference) = if can_have_features {
-        ast.instance.as_ref().map_or((false, false), |inst| {
-            let r = expression_check_features(&inst.content, &ast.arena, &store_sub_names);
-            (r.has_await, r.has_rune_reference)
-        })
+        ast.instance
+            .as_ref()
+            .map(|inst| {
+                let r = expression_check_features(&inst.content, &ast.arena, &store_sub_names);
+                (r.has_await, r.has_rune_reference)
+            })
+            .unwrap_or((false, false))
     } else {
         (false, false)
     };
@@ -346,10 +336,13 @@ pub(crate) fn analyze_prepared_component_with_retained(
     // Check the module script for rune references (module scripts don't need await check
     // since the original code only checked instance script for await).
     let module_has_rune_reference = if needs_rune_detection && can_have_features {
-        ast.module.as_ref().is_some_and(|module| {
-            expression_check_features(&module.content, &ast.arena, &store_sub_names)
-                .has_rune_reference
-        })
+        ast.module
+            .as_ref()
+            .map(|module| {
+                expression_check_features(&module.content, &ast.arena, &store_sub_names)
+                    .has_rune_reference
+            })
+            .unwrap_or(false)
     } else {
         false
     };
@@ -926,7 +919,7 @@ fn deconflict_component_name(ast: &Root<'_>, analysis: &mut ComponentAnalysis) {
     let base = name.clone();
     let mut counter = 1u32;
     while used_names.contains(name.as_str()) || global_names.contains(&name) {
-        name = format!("{base}_{counter}");
+        name = format!("{}_{}", base, counter);
         counter += 1;
     }
     analysis.name = name;
@@ -1056,7 +1049,7 @@ fn synthesize_for_element_attrs(
                 raw: "".into(),
                 data: "".into(),
             })]),
-            metadata: AttributeNodeMetadata::default(),
+            metadata: Default::default(),
         }));
     }
 
@@ -1073,7 +1066,7 @@ fn synthesize_for_element_attrs(
                 raw: "".into(),
                 data: "".into(),
             })]),
-            metadata: AttributeNodeMetadata::default(),
+            metadata: Default::default(),
         }));
     }
 }
@@ -1083,7 +1076,7 @@ fn synthesize_for_element_attrs(
 /// length; a `char` count would slice a non-ASCII name mid-character.
 fn binding_node_span(binding: &Binding) -> Option<(u32, u32)> {
     let start = binding.declaration_start?;
-    Some((start, start + source_pos(binding.name.len())))
+    Some((start, start + binding.name.len() as u32))
 }
 
 /// Validate script attributes and emit warnings for unknown ones.
@@ -1196,8 +1189,8 @@ fn js_node_span(node: &JsNode) -> (u32, u32) {
 fn blob_span(node: &serde_json::Value) -> (u32, u32) {
     let field = |k: &str| {
         node.get(k)
-            .and_then(serde_json::Value::as_u64)
-            .map_or(u32::MAX, |v| u32::try_from(v).unwrap_or(u32::MAX))
+            .and_then(|v| v.as_u64())
+            .map_or(u32::MAX, |v| v as u32)
     };
     (field("start"), field("end"))
 }
@@ -1593,7 +1586,7 @@ fn cycle_collect_assignments_and_deps(
 
 /// Process legacy mode exports.
 ///
-/// In non-runes mode, every exported `let` or `var` becomes a prop (`bindable_prop`),
+/// In non-runes mode, every exported `let` or `var` becomes a prop (bindable_prop),
 /// and everything else (const, function, class) becomes an export.
 ///
 /// This must happen after script analysis but before template analysis.
@@ -1688,7 +1681,7 @@ fn process_legacy_exports(ast: &Root, analysis: &mut ComponentAnalysis) {
     }
 }
 
-/// Get (`local_name`, `exported_name`) from an `ExportSpecifier` (typed or Raw).
+/// Get (local_name, exported_name) from an `ExportSpecifier` (typed or Raw).
 fn export_specifier_local_exported<'a>(
     spec: &'a crate::ast::typed_expr::JsNode,
     arena: &'a crate::ast::arena::ParseArena,
@@ -1787,14 +1780,14 @@ fn promote_reassigned_store_variables(analysis: &mut ComponentAnalysis) {
 /// Promote bindings to 'state' kind in legacy (non-runes) mode.
 ///
 /// In legacy mode, if a binding:
-/// - Has kind 'normal' and `declaration_kind` 'let'
+/// - Has kind 'normal' and declaration_kind 'let'
 /// - Is updated (reassigned or mutated)
 /// - Is referenced in the template (Fragment)
 ///
 /// Then it needs to be promoted to 'state' kind so that:
-/// - It gets wrapped in $.`mutable_source()` in the transform phase
-/// - Template references use $.`get()` to read the value
-/// - Assignments use $.`set()` to update the value
+/// - It gets wrapped in $.mutable_source() in the transform phase
+/// - Template references use $.get() to read the value
+/// - Assignments use $.set() to update the value
 ///
 /// This enables reactive updates for variables that are modified
 /// and displayed in the template.
@@ -1853,15 +1846,15 @@ fn promote_legacy_state_bindings(analysis: &mut ComponentAnalysis) {
     }
 }
 
-/// Promote collection bindings to State using per-scope information from `scope_builder`.
+/// Promote collection bindings to State using per-scope information from scope_builder.
 ///
 /// This correctly handles cases where the each block context pattern shadows the collection
 /// variable (e.g., `{#each a as { a }}`). In such cases, `find_binding_any_scope("a")`
-/// would find the OUTER `a` (not the `EachItem` `a`), so the existing
+/// would find the OUTER `a` (not the EachItem `a`), so the existing
 /// `promote_each_expression_bindings` fails to detect the mutation.
 ///
-/// `each_block_collection_infos` stores (`parent_scope_idx`, `each_scope_idx`, `collection_names`)
-/// with updates already applied, so we can correctly check `EachItem` binding update status.
+/// `each_block_collection_infos` stores (parent_scope_idx, each_scope_idx, collection_names)
+/// with updates already applied, so we can correctly check EachItem binding update status.
 ///
 /// Mirrors official Svelte compiler index.js L638-674.
 fn promote_each_collection_from_scope_info(analysis: &mut ComponentAnalysis) {
@@ -1916,7 +1909,7 @@ fn promote_each_expression_bindings(
     }
 }
 
-/// Recursively walk the fragment to find `EachBlock` nodes and collect binding promotions.
+/// Recursively walk the fragment to find EachBlock nodes and collect binding promotions.
 fn collect_each_block_promotions(
     fragment: &crate::ast::template::Fragment,
     analysis: &ComponentAnalysis,
@@ -2055,7 +2048,7 @@ fn collect_each_block_promotions(
 /// Each such binding needs to track which other bindings it depends on (the
 /// bindings referenced on the RHS of `$: x = <rhs>`).
 ///
-/// This is needed by `collect_transitive_dependencies` in the `EachBlock` visitor
+/// This is needed by `collect_transitive_dependencies` in the EachBlock visitor
 /// to correctly follow dependency chains and promote collection bindings to `State`.
 ///
 /// Corresponds to Svelte's LabeledStatement.js lines 81-87 where
@@ -2121,10 +2114,8 @@ fn populate_legacy_dependencies(
         // For simplicity, we collect from the entire RHS.
 
         // Remove assigned names from deps (they shouldn't depend on themselves)
-        let assigned_set: rustc_hash::FxHashSet<&str> = assigned_names
-            .iter()
-            .map(std::string::String::as_str)
-            .collect();
+        let assigned_set: rustc_hash::FxHashSet<&str> =
+            assigned_names.iter().map(|n| n.as_str()).collect();
         dep_names.retain(|n| !assigned_set.contains(n.as_str()));
 
         // Look up binding indices for the dependency names
@@ -2697,8 +2688,8 @@ fn extract_param_names(param: &JsNode, arena: &ParseArena, names: &mut Vec<Strin
 }
 
 /// Extract identifier names from a destructuring pattern.
-/// Extract identifier names from a destructuring pattern (`JsNode` version).
-/// Uses JSON fallback for arena-dependent fields to avoid threading `ParseArena`.
+/// Extract identifier names from a destructuring pattern (JsNode version).
+/// Uses JSON fallback for arena-dependent fields to avoid threading ParseArena.
 fn extract_each_pattern_identifiers_node(node: &JsNode, names: &mut Vec<String>) {
     match node {
         JsNode::Identifier { name, .. } => {
@@ -2730,10 +2721,6 @@ fn extract_each_pattern_identifiers_node(node: &JsNode, names: &mut Vec<String>)
 /// # Returns
 ///
 /// Returns a `ModuleAnalysis` containing semantic information.
-///
-/// # Errors
-///
-/// Returns an error when module analysis fails.
 pub fn analyze_module(
     _source: &str,
     options: &CompileOptions,
@@ -2768,7 +2755,7 @@ pub enum AnalysisError {
     /// CSS analysis error
     Css(String),
     /// Validation error with error code (Svelte-compatible format)
-    /// The code is the Svelte error code (e.g., "`attribute_duplicate`")
+    /// The code is the Svelte error code (e.g., "attribute_duplicate")
     ValidationWithCode {
         code: String,
         message: String,
@@ -2817,11 +2804,11 @@ impl AnalysisError {
 impl std::fmt::Display for AnalysisError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AnalysisError::Scope(msg) => write!(f, "Scope error: {msg}"),
-            AnalysisError::Validation(msg) => write!(f, "Validation error: {msg}"),
-            AnalysisError::Css(msg) => write!(f, "CSS error: {msg}"),
+            AnalysisError::Scope(msg) => write!(f, "Scope error: {}", msg),
+            AnalysisError::Validation(msg) => write!(f, "Validation error: {}", msg),
+            AnalysisError::Css(msg) => write!(f, "CSS error: {}", msg),
             AnalysisError::ValidationWithCode { code, message, .. } => {
-                write!(f, "{code}: {message}")
+                write!(f, "{}: {}", code, message)
             }
         }
     }
@@ -2839,10 +2826,10 @@ impl From<crate::error::ParseError> for AnalysisError {
             } => AnalysisError::ValidationWithCode {
                 code,
                 message,
-                start: Some(source_pos(span.0)),
-                end: Some(source_pos(span.1)),
+                start: Some(span.0 as u32),
+                end: Some(span.1 as u32),
             },
-            other => AnalysisError::Validation(format!("{other}")),
+            other => AnalysisError::Validation(format!("{}", other)),
         }
     }
 }
@@ -2853,7 +2840,6 @@ pub const RESERVED: &[&str] = &["$$props", "$$restProps", "$$slots"];
 /// Get the component name from a filename.
 ///
 /// Matches Svelte's `get_component_name()` in `2-analyze/index.js`.
-#[must_use]
 pub fn get_component_name(filename: &str) -> String {
     let parts: Vec<&str> = filename.split(['/', '\\']).collect();
     let basename = parts.last().unwrap_or(&"Component");
@@ -2895,7 +2881,7 @@ pub fn get_component_name(filename: &str) -> String {
 ///
 /// # Returns
 ///
-/// Returns an ordered vector of (`statement_key`, `ReactiveStatement`) tuples sorted by dependencies.
+/// Returns an ordered vector of (statement_key, ReactiveStatement) tuples sorted by dependencies.
 /// The order is preserved using insertion order.
 ///
 /// # Errors
@@ -2940,7 +2926,7 @@ pub fn order_reactive_statements(
         // Format them as "idx1 → idx2 → idx3 → idx1"
         let cycle_str = cycle
             .iter()
-            .map(std::string::ToString::to_string)
+            .map(|idx| idx.to_string())
             .collect::<Vec<_>>()
             .join(" → ");
         return Err(errors::reactive_declaration_cycle(&cycle_str));
@@ -3018,13 +3004,13 @@ pub fn order_reactive_statements(
     Ok(reactive_declarations)
 }
 
-/// Check if a template fragment contains top-level `AwaitExpression` nodes.
+/// Check if a template fragment contains top-level AwaitExpression nodes.
 ///
-/// This walks the template AST looking for `AwaitExpression` in expression positions
-/// (e.g., `{await expr}` in `ExpressionTag`), NOT `{#await}` block syntax.
+/// This walks the template AST looking for AwaitExpression in expression positions
+/// (e.g., `{await expr}` in ExpressionTag), NOT `{#await}` block syntax.
 ///
 /// Corresponds to `has_await` from `create_scopes()` in the official Svelte compiler,
-/// which tracks `AwaitExpression` nodes not nested inside function bodies.
+/// which tracks AwaitExpression nodes not nested inside function bodies.
 /// Results from a combined fragment AST check for both await expressions and rune references.
 /// This allows a single traversal of the template AST to detect both features simultaneously.
 #[derive(Default)]
@@ -3066,10 +3052,10 @@ fn fragment_check_features(
     results
 }
 
-/// Check if a template node contains an `AwaitExpression` and/or rune references in a single walk.
+/// Check if a template node contains an AwaitExpression and/or rune references in a single walk.
 ///
 /// Key semantic differences between await and rune checks:
-/// - `SnippetBlock`: await check returns false (awaits in snippets don't affect parent),
+/// - SnippetBlock: await check returns false (awaits in snippets don't affect parent),
 ///   but rune check walks the body (rune references anywhere indicate runes mode).
 fn node_check_features(
     node: &crate::ast::template::TemplateNode,
@@ -3214,6 +3200,19 @@ fn node_check_features(
             results.merge(&frag_results);
             results
         }
+        TemplateNode::SvelteSelf(elem) => {
+            let mut results = FragmentCheckResults::default();
+            for attr in &elem.attributes {
+                let attr_results = attribute_check_features(attr, arena, store_subs);
+                results.merge(&attr_results);
+                if results.all_found() {
+                    return results;
+                }
+            }
+            let frag_results = fragment_check_features(&elem.fragment, arena, store_subs);
+            results.merge(&frag_results);
+            results
+        }
         TemplateNode::SvelteComponent(elem) => {
             let mut results = FragmentCheckResults::default();
             for attr in &elem.attributes {
@@ -3316,7 +3315,7 @@ impl JsonCheckResults {
     }
 }
 
-/// Check if an expression contains an `AwaitExpression` and/or rune references
+/// Check if an expression contains an AwaitExpression and/or rune references
 /// in a single traversal.
 ///
 /// Walks the typed `JsNode` tree directly. Falls back to the legacy
@@ -3352,7 +3351,7 @@ fn expression_check_features(
 /// Whether the await / rune-reference walk can still find something this
 /// compile will read.
 ///
-/// Every rune name starts with `$`, so `ORing` the two probes let the `$` half —
+/// Every rune name starts with `$`, so ORing the two probes let the `$` half —
 /// true for most files — decide alone and cost `await`, present in about 1% of
 /// them, its say entirely. `await` only earns one once `$` can be false: with
 /// rune detection off, the walk's sole surviving output is `has_await`, which an
@@ -3521,7 +3520,7 @@ pub(crate) fn for_each_js_child(node: &JsNode, arena: &ParseArena, f: &mut impl 
         }
 
         JsNode::ObjectExpression { properties, .. } | JsNode::ObjectPattern { properties, .. } => {
-            walk_range!(*properties);
+            walk_range!(*properties)
         }
 
         JsNode::TemplateLiteral {
@@ -3540,9 +3539,7 @@ pub(crate) fn for_each_js_child(node: &JsNode, arena: &ParseArena, f: &mut impl 
 
         JsNode::ImportExpression { source, .. } => walk_id!(*source),
 
-        JsNode::YieldExpression { argument, .. } | JsNode::ReturnStatement { argument, .. } => {
-            walk_opt_id!(argument);
-        }
+        JsNode::YieldExpression { argument, .. } => walk_opt_id!(argument),
 
         JsNode::ChainExpression { expression, .. } => walk_id!(*expression),
 
@@ -3622,12 +3619,16 @@ pub(crate) fn for_each_js_child(node: &JsNode, arena: &ParseArena, f: &mut impl 
         | JsNode::BlockStatement { body, .. }
         | JsNode::Program { body, .. } => walk_range!(*body),
 
+        JsNode::ExpressionStatement { expression, .. } => walk_id!(*expression),
+
         JsNode::VariableDeclaration { declarations, .. } => walk_range!(*declarations),
 
         JsNode::VariableDeclarator { id, init, .. } => {
             walk_id!(*id);
             walk_opt_id!(init);
         }
+
+        JsNode::ReturnStatement { argument, .. } => walk_opt_id!(argument),
 
         JsNode::IfStatement {
             test,
@@ -3753,16 +3754,15 @@ pub(crate) fn for_each_js_child(node: &JsNode, arena: &ParseArena, f: &mut impl 
             type_annotation, ..
         } => walk_id!(*type_annotation),
         JsNode::TSModuleDeclaration { body, .. } => walk_opt_id!(body),
-        JsNode::ExpressionStatement { expression, .. }
-        | JsNode::TSAsExpression { expression, .. }
-        | JsNode::TSSatisfiesExpression { expression, .. }
-        | JsNode::TSNonNullExpression { expression, .. }
-        | JsNode::TSTypeAssertion { expression, .. }
-        | JsNode::TSInstantiationExpression { expression, .. } => walk_id!(*expression),
         // Defensive: `remove_typescript_from_ast` unwraps these assertion
         // wrappers before analyze runs, so they are never actually reached here.
         // If one ever did, walk the inner expression (the `typeAnnotation` blob
         // is opaque and carries no references).
+        JsNode::TSAsExpression { expression, .. }
+        | JsNode::TSSatisfiesExpression { expression, .. }
+        | JsNode::TSNonNullExpression { expression, .. }
+        | JsNode::TSTypeAssertion { expression, .. }
+        | JsNode::TSInstantiationExpression { expression, .. } => walk_id!(*expression),
     }
 }
 
@@ -3867,8 +3867,8 @@ fn is_rune_name(name: &str) -> bool {
 /// Check if an attribute contains both await expressions and rune references in a single walk.
 ///
 /// This combines the checks previously done by `attribute_has_await` and `attribute_has_rune_reference`.
-/// Note: The await check covers more attribute types (`ClassDirective`, `StyleDirective`, `SpreadAttribute`)
-/// than the rune check (which only checks Attribute, `OnDirective`, `BindDirective`).
+/// Note: The await check covers more attribute types (ClassDirective, StyleDirective, SpreadAttribute)
+/// than the rune check (which only checks Attribute, OnDirective, BindDirective).
 fn attribute_check_features(
     attr: &crate::ast::template::Attribute,
     arena: &ParseArena,
@@ -4018,14 +4018,14 @@ fn attribute_check_features(
     }
 }
 
-/// Mark `EachBlocks` that contain bind:group directives referencing their items.
+/// Mark EachBlocks that contain bind:group directives referencing their items.
 ///
 /// This post-analysis pass walks the template recursively, maintaining a stack of
-/// ancestor `EachBlocks`. When a bind:group directive is found, it extracts the
-/// identifier from the binding expression and marks any ancestor `EachBlock` that
+/// ancestor EachBlocks. When a bind:group directive is found, it extracts the
+/// identifier from the binding expression and marks any ancestor EachBlock that
 /// declares that identifier with `contains_group_binding = true`.
 ///
-/// It also assigns unique index names ($$index, $$`index_1`, etc.) to these `EachBlocks`,
+/// It also assigns unique index names ($$index, $$index_1, etc.) to these EachBlocks,
 /// which are used by the transform phase to generate the correct `indexes` array
 /// for `$.bind_group()` calls.
 ///
@@ -4054,7 +4054,7 @@ fn mark_each_block_group_bindings(
     mark_group_bindings_in_fragment(fragment, &mut ancestor_stack, &mut assignments, analysis);
 }
 
-/// Snapshot of an ancestor `EachBlock` used while marking bind:group directives.
+/// Snapshot of an ancestor EachBlock used while marking bind:group directives.
 struct EachAncestor {
     /// Byte offset of the each block, used as its stable identity key.
     start: u32,
@@ -4064,7 +4064,7 @@ struct EachAncestor {
     expr_ids: Vec<String>,
 }
 
-/// Phase 1: Assign unique $$`index_N` names to ALL each blocks in post-order traversal.
+/// Phase 1: Assign unique $$index_N names to ALL each blocks in post-order traversal.
 /// This ensures consistent numbering that matches the official compiler.
 fn assign_each_block_indices_in_fragment(
     fragment: &mut crate::ast::template::Fragment,
@@ -4092,7 +4092,7 @@ fn assign_each_block_indices_in_node(
             let idx_name = if *index_counter == 0 {
                 "$$index".to_string()
             } else {
-                format!("$$index_{index_counter}")
+                format!("$$index_{}", index_counter)
             };
             *index_counter += 1;
             each.metadata.index = Some(idx_name);
@@ -4152,6 +4152,12 @@ fn assign_each_block_indices_in_node(
             assign_each_block_indices_in_fragment(&mut boundary.fragment, index_counter);
         }
         TemplateNode::SvelteBody(el) => {
+            assign_each_block_indices_in_fragment(&mut el.fragment, index_counter);
+        }
+        TemplateNode::SvelteWindow(el) => {
+            assign_each_block_indices_in_fragment(&mut el.fragment, index_counter);
+        }
+        TemplateNode::SvelteDocument(el) => {
             assign_each_block_indices_in_fragment(&mut el.fragment, index_counter);
         }
         TemplateNode::TitleElement(el) => {
@@ -4289,10 +4295,8 @@ fn mark_group_bindings_in_node(
                         // to uniquely identify this bind:group expression. This differentiates:
                         // - Two bind:group expressions with same keypath but different each blocks (test 4)
                         // - One bind:group expression that spans multiple ancestor each blocks (test 5)
-                        let starts: Vec<String> = matched_each_starts
-                            .iter()
-                            .map(std::string::ToString::to_string)
-                            .collect();
+                        let starts: Vec<String> =
+                            matched_each_starts.iter().map(|s| s.to_string()).collect();
                         let composite_key = format!("{}:{}", keypath, starts.join(","));
 
                         let group_name =
@@ -4304,7 +4308,7 @@ fn mark_group_bindings_in_node(
                                 let name = if group_count == 0 {
                                     "binding_group".to_string()
                                 } else {
-                                    format!("binding_group_{group_count}")
+                                    format!("binding_group_{}", group_count)
                                 };
                                 analysis
                                     .binding_groups
@@ -4332,7 +4336,7 @@ fn mark_group_bindings_in_node(
                         let group_name = if group_count == 0 {
                             "binding_group".to_string()
                         } else {
-                            format!("binding_group_{group_count}")
+                            format!("binding_group_{}", group_count)
                         };
                         analysis.binding_groups.insert(keypath, group_name);
                     }
@@ -4454,11 +4458,13 @@ fn mark_group_bindings_in_node(
 /// For `selected_array[index]`, returns `["selected_array", "index"]`.
 /// Mirrors `extract_all_identifiers_from_expression` in the official compiler.
 fn extract_all_identifiers_from_expr(expr: &serde_json::Value, ids: &mut Vec<String>) {
-    let Some(obj) = expr.as_object() else {
-        return;
+    let obj = match expr.as_object() {
+        Some(o) => o,
+        None => return,
     };
-    let Some(expr_type) = obj.get("type").and_then(|t| t.as_str()) else {
-        return;
+    let expr_type = match obj.get("type").and_then(|t| t.as_str()) {
+        Some(t) => t,
+        None => return,
     };
     match expr_type {
         "Identifier" => {
@@ -4473,7 +4479,7 @@ fn extract_all_identifiers_from_expr(expr: &serde_json::Value, ids: &mut Vec<Str
                 extract_all_identifiers_from_expr(object, ids);
             }
             // Only extract computed property identifiers (e.g., [index] in arr[index])
-            if obj.get("computed").and_then(serde_json::Value::as_bool) == Some(true)
+            if obj.get("computed").and_then(|c| c.as_bool()) == Some(true)
                 && let Some(property) = obj.get("property")
             {
                 extract_all_identifiers_from_expr(property, ids);
@@ -4512,8 +4518,8 @@ fn extract_all_identifiers_from_expr(expr: &serde_json::Value, ids: &mut Vec<Str
     }
 }
 
-/// Extract ALL identifier names from a `JsNode` expression.
-/// `JsNode` version of `extract_all_identifiers_from_expr`.
+/// Extract ALL identifier names from a JsNode expression.
+/// JsNode version of `extract_all_identifiers_from_expr`.
 ///
 /// Walks the typed tree directly through the thread-local parse arena
 /// (installed for the duration of analysis via `SerializeArenaGuard`), so the
@@ -4553,9 +4559,9 @@ fn extract_all_identifiers_from_node(node: &JsNode, ids: &mut Vec<String>) {
 
 /// Arena-backed recursion for `extract_all_identifiers_from_node`. Mirrors the
 /// field-by-field traversal of `extract_all_identifiers_from_expr` exactly:
-/// only `MemberExpression` (object always; property only when computed),
-/// `CallExpression` (callee + arguments), Binary/LogicalExpression (left + right)
-/// and `ConditionalExpression` (test + consequent + alternate) descend; every
+/// only MemberExpression (object always; property only when computed),
+/// CallExpression (callee + arguments), Binary/LogicalExpression (left + right)
+/// and ConditionalExpression (test + consequent + alternate) descend; every
 /// other node type is a no-op, matching the JSON walker's `_ => {}`.
 fn extract_all_identifiers_from_node_arena(
     node: &JsNode,
@@ -4624,11 +4630,13 @@ fn build_binding_keypath(expr: &serde_json::Value) -> String {
 }
 
 fn build_keypath_parts(expr: &serde_json::Value, parts: &mut Vec<String>) {
-    let Some(obj) = expr.as_object() else {
-        return;
+    let obj = match expr.as_object() {
+        Some(o) => o,
+        None => return,
     };
-    let Some(expr_type) = obj.get("type").and_then(|t| t.as_str()) else {
-        return;
+    let expr_type = match obj.get("type").and_then(|t| t.as_str()) {
+        Some(t) => t,
+        None => return,
     };
     match expr_type {
         "Identifier" => {
@@ -4644,13 +4652,13 @@ fn build_keypath_parts(expr: &serde_json::Value, parts: &mut Vec<String>) {
             // Handle the property part
             let computed = obj
                 .get("computed")
-                .and_then(serde_json::Value::as_bool)
+                .and_then(|c| c.as_bool())
                 .unwrap_or(false);
             if computed {
                 // Computed property: arr[idx] → push "[idx]"
                 if let Some(property) = obj.get("property") {
                     let prop_str = build_binding_keypath(property);
-                    parts.push(format!("[{prop_str}]"));
+                    parts.push(format!("[{}]", prop_str));
                 }
             } else if let Some(property) = obj.get("property")
                 && let Some(name) = property.get("name").and_then(|n| n.as_str())
@@ -4669,8 +4677,8 @@ fn build_keypath_parts(expr: &serde_json::Value, parts: &mut Vec<String>) {
     }
 }
 
-/// Build a keypath string from a `JsNode` binding expression.
-/// `JsNode` version of `build_binding_keypath`.
+/// Build a keypath string from a JsNode binding expression.
+/// JsNode version of `build_binding_keypath`.
 fn build_binding_keypath_node(node: &JsNode) -> String {
     let mut parts: Vec<String> = Vec::new();
     build_keypath_parts_node(node, &mut parts);
@@ -4759,6 +4767,9 @@ fn collect_template_component_names<'a>(
             TemplateNode::SvelteBoundary(b) => {
                 collect_template_component_names(&b.fragment.nodes, names);
             }
+            TemplateNode::SvelteSelf(_) => {
+                // svelte:self doesn't introduce a new name reference
+            }
             TemplateNode::SvelteFragment(f) => {
                 collect_template_component_names(&f.fragment.nodes, names);
             }
@@ -4806,41 +4817,41 @@ fn collect_template_reference_names(
             match attr {
                 Attribute::Attribute(a) => collect_attr_value(&a.value, out),
                 Attribute::SpreadAttribute(s) => {
-                    collect_identifier_names_from_expression(&s.expression, out);
+                    collect_identifier_names_from_expression(&s.expression, out)
                 }
                 Attribute::AttachTag(t) => {
-                    collect_identifier_names_from_expression(&t.expression, out);
+                    collect_identifier_names_from_expression(&t.expression, out)
                 }
                 Attribute::BindDirective(d) => {
-                    collect_identifier_names_from_expression(&d.expression, out);
+                    collect_identifier_names_from_expression(&d.expression, out)
                 }
                 Attribute::ClassDirective(d) => {
-                    collect_identifier_names_from_expression(&d.expression, out);
+                    collect_identifier_names_from_expression(&d.expression, out)
                 }
                 Attribute::StyleDirective(d) => collect_attr_value(&d.value, out),
                 Attribute::OnDirective(d) => {
                     if let Some(e) = &d.expression {
-                        collect_identifier_names_from_expression(e, out);
+                        collect_identifier_names_from_expression(e, out)
                     }
                 }
                 Attribute::TransitionDirective(d) => {
                     if let Some(e) = &d.expression {
-                        collect_identifier_names_from_expression(e, out);
+                        collect_identifier_names_from_expression(e, out)
                     }
                 }
                 Attribute::AnimateDirective(d) => {
                     if let Some(e) = &d.expression {
-                        collect_identifier_names_from_expression(e, out);
+                        collect_identifier_names_from_expression(e, out)
                     }
                 }
                 Attribute::UseDirective(d) => {
                     if let Some(e) = &d.expression {
-                        collect_identifier_names_from_expression(e, out);
+                        collect_identifier_names_from_expression(e, out)
                     }
                 }
                 Attribute::LetDirective(d) => {
                     if let Some(e) = &d.expression {
-                        collect_identifier_names_from_expression(e, out);
+                        collect_identifier_names_from_expression(e, out)
                     }
                 }
             }
@@ -4850,27 +4861,27 @@ fn collect_template_reference_names(
     for node in nodes {
         match node {
             TemplateNode::ExpressionTag(t) => {
-                collect_identifier_names_from_expression(&t.expression, out);
+                collect_identifier_names_from_expression(&t.expression, out)
             }
             TemplateNode::HtmlTag(t) => {
-                collect_identifier_names_from_expression(&t.expression, out);
+                collect_identifier_names_from_expression(&t.expression, out)
             }
             TemplateNode::ConstTag(t) => {
-                collect_identifier_names_from_expression(&t.declaration, out);
+                collect_identifier_names_from_expression(&t.declaration, out)
             }
             TemplateNode::DeclarationTag(t) => {
-                collect_identifier_names_from_expression(&t.declaration, out);
+                collect_identifier_names_from_expression(&t.declaration, out)
             }
             TemplateNode::DebugTag(t) => {
                 for e in &t.identifiers {
-                    collect_identifier_names_from_expression(e, out);
+                    collect_identifier_names_from_expression(e, out)
                 }
             }
             TemplateNode::RenderTag(t) => {
-                collect_identifier_names_from_expression(&t.expression, out);
+                collect_identifier_names_from_expression(&t.expression, out)
             }
             TemplateNode::AttachTag(t) => {
-                collect_identifier_names_from_expression(&t.expression, out);
+                collect_identifier_names_from_expression(&t.expression, out)
             }
             TemplateNode::IfBlock(b) => {
                 collect_identifier_names_from_expression(&b.test, out);
@@ -4977,7 +4988,7 @@ fn register_standalone_bind_group(
         let group_name = if group_count == 0 {
             "binding_group".to_string()
         } else {
-            format!("binding_group_{group_count}")
+            format!("binding_group_{}", group_count)
         };
         analysis.binding_groups.insert(keypath, group_name);
     }
@@ -5843,20 +5854,17 @@ fn collect_identifier_names_in_json(
             // `scope.reference()` semantics, which only registers actual
             // identifier *uses*, not name slots like `imported` of an import
             // specifier or `key` of a non-computed object property).
-            for (k, v) in obj {
+            for (k, v) in obj.iter() {
                 let skip = match node_type {
                     "ImportSpecifier" | "ExportSpecifier" => k == "imported" || k == "exported",
                     "MemberExpression" => {
                         // For non-computed member expressions, the property is a name slot, not a ref
                         k == "property"
-                            && obj.get("computed").and_then(serde_json::Value::as_bool)
-                                != Some(true)
+                            && obj.get("computed").and_then(|c| c.as_bool()) != Some(true)
                     }
                     "Property" | "MethodDefinition" | "PropertyDefinition" => {
                         // Non-computed object/class property keys are name slots, not refs
-                        k == "key"
-                            && obj.get("computed").and_then(serde_json::Value::as_bool)
-                                != Some(true)
+                        k == "key" && obj.get("computed").and_then(|c| c.as_bool()) != Some(true)
                     }
                     "FunctionDeclaration"
                     | "FunctionExpression"

@@ -26,10 +26,7 @@ pub(super) fn transform_store_assignments_client(
     }
 
     // Quick pre-check: if none of the store sub vars appear as identifiers, skip expensive transforms
-    let var_set: FxHashSet<&str> = store_sub_vars
-        .iter()
-        .map(std::string::String::as_str)
-        .collect();
+    let var_set: FxHashSet<&str> = store_sub_vars.iter().map(|v| v.as_str()).collect();
     if !super::utils::text_contains_any_identifier(line, &var_set) {
         return line.to_string();
     }
@@ -216,10 +213,7 @@ pub(super) fn transform_store_sub_calls(line: &str, store_sub_vars: &[String]) -
     }
 
     // Quick pre-check: if none of the store sub vars appear as identifiers, skip expensive transforms
-    let var_set: FxHashSet<&str> = store_sub_vars
-        .iter()
-        .map(std::string::String::as_str)
-        .collect();
+    let var_set: FxHashSet<&str> = store_sub_vars.iter().map(|v| v.as_str()).collect();
     if !super::utils::text_contains_any_identifier(line, &var_set) {
         return line.to_string();
     }
@@ -231,7 +225,7 @@ pub(super) fn transform_store_sub_calls(line: &str, store_sub_vars: &[String]) -
         // but NOT by `()` (which would be the getter call itself, already inserted).
         // Also skip when preceded by `const $name = ` (store getter declaration).
         // Also skip when $name appears as a function parameter.
-        let pattern = format!("{store_sub}(");
+        let pattern = format!("{}(", store_sub);
         let mut new_result = String::new();
         let mut search_start = 0;
 
@@ -320,9 +314,9 @@ pub(super) fn transform_store_sub_calls(line: &str, store_sub_vars: &[String]) -
             // Check if this is a store getter declaration: `const $name = () => $.store_get(...)`
             // We should skip this
             let trimmed_before = before_text.trim();
-            if trimmed_before.ends_with(&format!("const {store_sub} ="))
-                || trimmed_before.ends_with(&format!("let {store_sub} ="))
-                || trimmed_before.ends_with(&format!("var {store_sub} ="))
+            if trimmed_before.ends_with(&format!("const {} =", store_sub))
+                || trimmed_before.ends_with(&format!("let {} =", store_sub))
+                || trimmed_before.ends_with(&format!("var {} =", store_sub))
             {
                 // This is the getter declaration, skip
                 new_result.push_str(&result[search_start..paren_pos]);
@@ -346,7 +340,7 @@ pub(super) fn transform_store_sub_calls(line: &str, store_sub_vars: &[String]) -
     result
 }
 
-/// Transform store subscription reads to $`store()` calls.
+/// Transform store subscription reads to $store() calls.
 ///
 /// In the client runtime, store subscriptions like $count are getter functions.
 /// So `const answer = $foo` must become `const answer = $foo()`.
@@ -358,10 +352,7 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
     }
 
     // Quick pre-check: if none of the store sub vars appear as identifiers, skip expensive transforms
-    let var_set: FxHashSet<&str> = store_sub_vars
-        .iter()
-        .map(std::string::String::as_str)
-        .collect();
+    let var_set: FxHashSet<&str> = store_sub_vars.iter().map(|v| v.as_str()).collect();
     if !super::utils::text_contains_any_identifier(line, &var_set) {
         return line.to_string();
     }

@@ -1,4 +1,4 @@
-//! `ConstTag` visitor.
+//! ConstTag visitor.
 //!
 //! Analyzes {@const} tags.
 //!
@@ -28,9 +28,18 @@ pub fn visit(tag: &mut ConstTag, context: &mut VisitorContext) -> Result<(), Ana
     let fragment_owner = context.fragment_owner_stack.last().cloned();
 
     let is_valid_placement = match fragment_owner {
+        Some(FragmentOwnerType::IfBlock) => true,
+        Some(FragmentOwnerType::EachBlock) => true,
+        Some(FragmentOwnerType::AwaitBlock) => true,
+        Some(FragmentOwnerType::KeyBlock) => true,
+        Some(FragmentOwnerType::SnippetBlock(_, _)) => true,
+        Some(FragmentOwnerType::SvelteFragment) => true,
+        Some(FragmentOwnerType::SvelteBoundary) => true,
+        Some(FragmentOwnerType::Component) => true,
         // RegularElement and SvelteElement with a slot attribute are valid placements.
         // In legacy Svelte, `<div slot="name">` creates a slot boundary context,
         // so {@const} can be used inside slotted elements.
+        Some(FragmentOwnerType::RegularElementWithSlot) => true,
         Some(FragmentOwnerType::SvelteElementWithSlot) => true,
         _ => false,
     };

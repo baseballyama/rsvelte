@@ -11,10 +11,10 @@ use super::shared::utils::is_reference_for_identifier_typed;
 use crate::ast::typed_expr::JsNode;
 use crate::compiler::phases::phase2_analyze::{AnalysisError, BindingKind, errors, warnings};
 
-/// Visit an identifier (typed `JsNode` path).
+/// Visit an identifier (typed JsNode path).
 ///
 /// Fully typed implementation that avoids `to_value()` conversion.
-/// Extracts fields directly from the `JsNode::Identifier` variant,
+/// Extracts fields directly from the JsNode::Identifier variant,
 /// uses `is_reference_for_identifier_typed` for the reference check,
 /// then delegates to `visit_identifier_inner`.
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
@@ -115,9 +115,8 @@ fn visit_identifier_inner(
                 .analysis
                 .root
                 .get_binding(store_name, context.scope)
-                .is_some_and(|idx| {
-                    context.analysis.root.bindings[idx].kind == BindingKind::StoreSub
-                })
+                .map(|idx| context.analysis.root.bindings[idx].kind == BindingKind::StoreSub)
+                .unwrap_or(false)
         } else {
             false
         };
@@ -139,8 +138,9 @@ fn visit_identifier_inner(
     // This is critical: we need to find bindings in the current scope and parent scopes,
     // not just the root scope. For example, each-block items are declared in the each block's
     // scope and must be found via scope chain lookup.
-    let Some(binding_idx) = context.analysis.root.get_binding(name, context.scope) else {
-        return Ok(()); // No binding, might be a global
+    let binding_idx = match context.analysis.root.get_binding(name, context.scope) {
+        Some(idx) => idx,
+        None => return Ok(()), // No binding, might be a global
     };
 
     // Track this reference on the binding itself
@@ -281,13 +281,15 @@ fn visit_identifier_inner(
             .root
             .all_scopes
             .get(binding.scope_index)
-            .map_or(0, |s| s.function_depth);
+            .map(|s| s.function_depth)
+            .unwrap_or(0);
 
         // Compute absolute context function_depth:
         // - In module/instance scripts: function_depth already matches the scope tree's depth
         // - In template: template level is function_depth 2 (instance scope 1 + 1 for template)
         let absolute_context_depth = match context.ast_type {
-            super::AstType::Module | super::AstType::Instance => context.function_depth,
+            super::AstType::Module => context.function_depth,
+            super::AstType::Instance => context.function_depth,
             super::AstType::Template => context.function_depth + 2,
         };
 
@@ -316,6 +318,7 @@ fn visit_identifier_inner(
                     }
                 }
                 BindingKind::RawState | BindingKind::Derived => true,
+                BindingKind::Prop | BindingKind::RestProp => true,
                 _ => false,
             };
 
@@ -430,9 +433,9 @@ fn visit_identifier_inner(
     Ok(())
 }
 
-/// Check if a `CallExpression`'s callee is `$state` or `$state.raw`.
+/// Check if a CallExpression's callee is `$state` or `$state.raw`.
 ///
-/// Works with both typed and value-based `JsPathEntry`.
+/// Works with both typed and value-based JsPathEntry.
 fn check_callee_is_state_rune(
     call_entry: &super::JsPathEntry,
     arena: &crate::ast::arena::ParseArena,
@@ -518,7 +521,7 @@ fn validate_rune_usage(
         };
 
         if let Some(prop_name) = prop_name {
-            let full_name = format!("{current_rune_name}.{prop_name}");
+            let full_name = format!("{}.{}", current_rune_name, prop_name);
 
             if !is_rune(&full_name) {
                 // Check for renamed runes
@@ -567,10 +570,10 @@ pub(super) fn check_const_tag_snippet_reference_public(
 }
 
 /// Check if a {@const} binding referenced from within a named snippet of a
-/// Component or `SvelteBoundary` is invalid.
+/// Component or SvelteBoundary is invalid.
 ///
-/// Uses `fragment_owner_stack` to detect the pattern: we're inside a `SnippetBlock`
-/// that is inside a Component or `SvelteBoundary`. Then checks if the binding's
+/// Uses fragment_owner_stack to detect the pattern: we're inside a SnippetBlock
+/// that is inside a Component or SvelteBoundary. Then checks if the binding's
 /// scope matches the component/boundary's children scope.
 ///
 /// The error should only fire when a {@const} from the parent (implicit children snippet)

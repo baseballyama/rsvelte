@@ -1,9 +1,9 @@
-//! `ConstTag` visitor for client-side transformation.
+//! ConstTag visitor for client-side transformation.
 //!
 //! Corresponds to `ConstTag` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/ConstTag.js`.
 //!
-//! The `ConstTag` visitor handles `{@const}` declarations inside blocks like
+//! The ConstTag visitor handles `{@const}` declarations inside blocks like
 //! `{#if}`, `{#each}`, `{#await}`, etc. It creates derived values that track
 //! their dependencies and update reactively.
 
@@ -53,9 +53,12 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
     let declaration = &node.declaration;
 
     // Parse the declaration to get the id pattern, init, and whether it's a simple identifier
-    let Some(parsed) = parse_variable_declaration(declaration) else {
-        // If we can't parse the declaration, skip it
-        return;
+    let parsed = match parse_variable_declaration(declaration) {
+        Some(result) => result,
+        None => {
+            // If we can't parse the declaration, skip it
+            return;
+        }
     };
 
     if parsed.is_identifier {
@@ -222,7 +225,7 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
                 &context.arena,
                 JsVariableKind::Const,
                 pat,
-                Some(init_for_const),
+                Some(init_for_const.clone()),
             )
         } else {
             // Fallback: generate raw destructuring statement
@@ -232,7 +235,7 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
                     &init_for_const,
                     &context.arena,
                 );
-            JsStatement::Raw(format!("const {pattern_str} = {init_str};").into())
+            JsStatement::Raw(format!("const {} = {};", pattern_str, init_str).into())
         };
 
         // Create the return object: { x, y }
@@ -320,10 +323,10 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
 
 /// Extract all identifier names from a destructuring pattern JSON.
 ///
-/// Handles `ObjectPattern`, `ArrayPattern`, `RestElement`, and `AssignmentPattern`.
+/// Handles ObjectPattern, ArrayPattern, RestElement, and AssignmentPattern.
 /// Public wrapper: extract all declared identifier names from a declarator
-/// `id` pattern JSON (Identifier / `ObjectPattern` / `ArrayPattern`). Used by the
-/// `DeclarationTag` async destructure lowering.
+/// `id` pattern JSON (Identifier / ObjectPattern / ArrayPattern). Used by the
+/// DeclarationTag async destructure lowering.
 pub(crate) fn extract_pattern_identifiers(pattern: &serde_json::Value) -> Vec<String> {
     extract_identifiers_from_pattern(pattern)
 }
@@ -410,7 +413,7 @@ fn render_pattern_as_string(pattern: &serde_json::Value) -> String {
                                     .get("argument")
                                     .map(render_pattern_as_string)
                                     .unwrap_or_default();
-                                format!("...{arg}")
+                                format!("...{}", arg)
                             } else {
                                 let key = prop
                                     .get("key")
@@ -420,12 +423,12 @@ fn render_pattern_as_string(pattern: &serde_json::Value) -> String {
                                 let value = prop.get("value").map(render_pattern_as_string);
                                 let shorthand = prop
                                     .get("shorthand")
-                                    .and_then(serde_json::Value::as_bool)
+                                    .and_then(|s| s.as_bool())
                                     .unwrap_or(false);
                                 if shorthand || value.as_deref() == Some(key) {
                                     key.to_string()
                                 } else if let Some(val) = value {
-                                    format!("{key}: {val}")
+                                    format!("{}: {}", key, val)
                                 } else {
                                     key.to_string()
                                 }
@@ -460,7 +463,7 @@ fn render_pattern_as_string(pattern: &serde_json::Value) -> String {
                 .get("argument")
                 .map(render_pattern_as_string)
                 .unwrap_or_default();
-            format!("...{arg}")
+            format!("...{}", arg)
         }
         Some("AssignmentPattern") => {
             // We don't render defaults in the const destructuring pattern
@@ -477,7 +480,7 @@ fn render_pattern_as_string(pattern: &serde_json::Value) -> String {
 ///
 /// This walks the JSON AST of the init expression to find all Identifier nodes.
 /// Used to determine which variables are referenced by a `{@const}` init expression,
-/// which is needed for blocker detection (checking `const_blocker_map`).
+/// which is needed for blocker detection (checking const_blocker_map).
 fn extract_refs_from_json_expr(expr: &crate::ast::js::Expression) -> Vec<String> {
     let value = expr.as_json();
     let mut refs = Vec::new();
@@ -910,12 +913,12 @@ struct ParsedDeclaration<'a> {
     pattern_json: Option<serde_json::Value>,
 }
 
-/// Parse a `VariableDeclaration` or `AssignmentExpression` from an Expression to extract the id and init.
+/// Parse a VariableDeclaration or AssignmentExpression from an Expression to extract the id and init.
 ///
 /// This handles two formats:
-/// 1. `VariableDeclaration` (official Svelte parser format):
+/// 1. VariableDeclaration (official Svelte parser format):
 ///    `{ type: "VariableDeclaration", declarations: [{ id, init }] }`
-/// 2. `AssignmentExpression` (our Rust parser format):
+/// 2. AssignmentExpression (our Rust parser format):
 ///    `{ type: "AssignmentExpression", left: id, right: init }`
 fn parse_variable_declaration<'a>(expr: &Expression<'a>) -> Option<ParsedDeclaration<'a>> {
     {

@@ -1,4 +1,4 @@
-//! `HtmlTag` visitor - handles {@html} directives.
+//! HtmlTag visitor - handles {@html} directives.
 //!
 //! Corresponds to HtmlTag.js in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/HtmlTag.js`.
@@ -16,8 +16,8 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 /// 1. Pushes a comment anchor to the template (`<!>`)
 /// 2. Generates `$.html(node, expression)` call where expression is built
 ///    using `build_expression` which handles:
-///    - Transform application (prop reads become calls: foo -> `foo()`)
-///    - Legacy reactivity wrapping (`deep_read_state/untrack`) when needed
+///    - Transform application (prop reads become calls: foo -> foo())
+///    - Legacy reactivity wrapping (deep_read_state/untrack) when needed
 ///    - Thunk optimization
 ///
 /// When the expression contains `await`, wraps in `$.async()`:
@@ -26,7 +26,7 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 ///   });
 ///
 /// In the official Svelte compiler (HtmlTag.js):
-///   const expression = `build_expression(context`, node.expression, node.metadata.expression);
+///   const expression = build_expression(context, node.expression, node.metadata.expression);
 ///   b.stmt(b.call('$.html', context.state.node, b.thunk(expression), ...))
 pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
     // Svelte 5.53.8 (upstream commit `0206a2019` "fix: clean up
@@ -155,7 +155,7 @@ pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
             JsExpr::Identifier(name) => name.clone(),
             _ => "node".into(),
         };
-        let mut callback_params = vec![b::id_pattern(node_name)];
+        let mut callback_params = vec![b::id_pattern(node_name.clone())];
         if has_await {
             callback_params.push(b::id_pattern("$$html"));
         }

@@ -107,7 +107,7 @@ struct StateSetCollector<'a> {
     replacements: Vec<Edit>,
 }
 
-impl<'ast> Visit<'ast> for StateSetCollector<'_> {
+impl<'a, 'ast> Visit<'ast> for StateSetCollector<'a> {
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
         walk::walk_assignment_expression(self, expr);
 
@@ -130,7 +130,7 @@ impl<'ast> Visit<'ast> for StateSetCollector<'_> {
 
         let rhs_span = expr.right.span();
         let rhs_text = &self.source[rhs_span.start as usize..rhs_span.end as usize];
-        let rewrite = format!("$.set({name}, {rhs_text})");
+        let rewrite = format!("$.set({}, {})", name, rhs_text);
 
         self.replacements
             .push((expr.span.start, expr.span.end, rewrite));
@@ -322,7 +322,7 @@ thread_local! {
 }
 
 /// In-place equivalent of [`transform_state_set_reactive_ast`].
-pub fn transform_state_set_reactive_in_place(
+pub(crate) fn transform_state_set_reactive_in_place(
     source: &str,
     state_vars: &[String],
     non_reactive_vars: &[String],
@@ -365,7 +365,7 @@ struct StateSetRewriter<'a, 'b> {
     changed: bool,
 }
 
-impl<'a> oxc_ast_visit::VisitMut<'a> for StateSetRewriter<'a, '_> {
+impl<'a, 'b> oxc_ast_visit::VisitMut<'a> for StateSetRewriter<'a, 'b> {
     fn visit_expression(&mut self, expr: &mut Expression<'a>) {
         oxc_ast_visit::walk_mut::walk_expression(self, expr);
 

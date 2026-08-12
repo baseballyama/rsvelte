@@ -142,7 +142,7 @@ fn gather_possible_values(
                     }
                     let computed = property
                         .get("computed")
-                        .and_then(serde_json::Value::as_bool)
+                        .and_then(|c| c.as_bool())
                         .unwrap_or(false);
                     if computed {
                         *unknown = true;
@@ -254,7 +254,7 @@ fn sequence_possible_values(
                 let mut combined = Vec::new();
                 for pv in &prev_values {
                     for v in &remaining {
-                        combined.push(format!("{pv}{v}"));
+                        combined.push(format!("{}{}", pv, v));
                     }
                 }
                 prev_values = combined;
@@ -497,15 +497,16 @@ fn extract_selectors_from_css_node(
     selectors: &mut Vec<CssComplexSelector>,
     parent_selectors: &[CssComplexSelector],
 ) {
-    let Some(node_type) = node.get("type").and_then(|t| t.as_str()) else {
-        return;
+    let node_type = match node.get("type").and_then(|t| t.as_str()) {
+        Some(t) => t,
+        None => return,
     };
     match node_type {
         "Rule" => {
             if let Some(metadata) = node.get("metadata")
                 && metadata
                     .get("is_global_block")
-                    .and_then(serde_json::Value::as_bool)
+                    .and_then(|v| v.as_bool())
                     .unwrap_or(false)
             {
                 return;
@@ -691,14 +692,14 @@ fn parse_relative_selector(rel: &serde_json::Value) -> Option<CssRelativeSelecto
         } else {
             c.get("name")
                 .and_then(|n| n.as_str())
-                .map(std::string::ToString::to_string)
+                .map(|s| s.to_string())
         }
     });
 
     let is_global = rel
         .get("metadata")
         .and_then(|m| m.get("is_global"))
-        .and_then(serde_json::Value::as_bool)
+        .and_then(|v| v.as_bool())
         .unwrap_or(false);
 
     let selectors_json = rel.get("selectors")?.as_array()?;
@@ -711,7 +712,7 @@ fn parse_relative_selector(rel: &serde_json::Value) -> Option<CssRelativeSelecto
     let is_global_like = rel
         .get("metadata")
         .and_then(|m| m.get("is_global_like"))
-        .and_then(serde_json::Value::as_bool)
+        .and_then(|v| v.as_bool())
         .unwrap_or_else(|| compute_is_global_like(selectors_json));
     let mut selectors = Vec::new();
     for sel in selectors_json {
@@ -728,7 +729,7 @@ fn parse_relative_selector(rel: &serde_json::Value) -> Option<CssRelativeSelecto
     })
 }
 
-/// Mirror of upstream css-analyze.js `RelativeSelector` visitor's
+/// Mirror of upstream css-analyze.js RelativeSelector visitor's
 /// `is_global_like` computation (lines 156-181).
 fn compute_is_global_like(selectors_json: &[serde_json::Value]) -> bool {
     let ty = |s: &serde_json::Value| {
@@ -802,15 +803,15 @@ fn parse_simple_selector(sel: &serde_json::Value) -> Option<CssSimpleSelector> {
             let matcher = sel
                 .get("matcher")
                 .and_then(|m| if m.is_null() { None } else { m.as_str() })
-                .map(std::string::ToString::to_string);
+                .map(|s| s.to_string());
             let value = sel
                 .get("value")
                 .and_then(|v| if v.is_null() { None } else { v.as_str() })
-                .map(std::string::ToString::to_string);
+                .map(|s| s.to_string());
             let flags = sel
                 .get("flags")
                 .and_then(|f| if f.is_null() { None } else { f.as_str() })
-                .map(std::string::ToString::to_string);
+                .map(|s| s.to_string());
             Some(CssSimpleSelector::Attribute {
                 name,
                 matcher,
@@ -884,7 +885,8 @@ const CASE_INSENSITIVE_ATTRIBUTES: &[&str] = &[
 /// Whitelisted attributes for specific elements that should be considered as matching.
 fn whitelist_attribute_selector(tag_name: &str) -> &'static [&'static str] {
     match tag_name.to_lowercase().as_str() {
-        "details" | "dialog" => &["open"],
+        "details" => &["open"],
+        "dialog" => &["open"],
         _ => &[],
     }
 }
@@ -911,7 +913,7 @@ fn test_attribute(operator: &str, expected: &str, case_insensitive: bool, value:
     match operator {
         "=" => value == expected,
         "~=" => value.split_whitespace().any(|w| w == expected),
-        "|=" => format!("{value}-").starts_with(&format!("{expected}-")),
+        "|=" => format!("{}-", value).starts_with(&format!("{}-", expected)),
         "^=" => value.starts_with(&expected),
         "$=" => value.ends_with(&expected),
         "*=" => value.contains(&expected),
@@ -1091,7 +1093,7 @@ fn is_unscoped_or_pseudo_element(sel: &CssSimpleSelector) -> bool {
     }
 }
 
-/// Check if an element matches a set of simple selectors (one `RelativeSelector`).
+/// Check if an element matches a set of simple selectors (one RelativeSelector).
 fn element_matches_simple_selectors(
     element: &ElementInfo,
     selectors: &[CssSimpleSelector],
@@ -1130,8 +1132,8 @@ fn element_matches_simple_selectors(
 
                 let expected_value = value.as_deref().map(unquote);
 
-                let ci = flags.as_deref().is_some_and(|f| f.contains('i'))
-                    || (!flags.as_deref().is_some_and(|f| f.contains('s'))
+                let ci = flags.as_deref().map(|f| f.contains('i')).unwrap_or(false)
+                    || (!flags.as_deref().map(|f| f.contains('s')).unwrap_or(false)
                         && CASE_INSENSITIVE_ATTRIBUTES
                             .iter()
                             .any(|a| a.eq_ignore_ascii_case(name)));
@@ -1160,9 +1162,11 @@ fn element_matches_simple_selectors(
                 if (name == "is" || name == "where") && args.is_some() {
                     let args = args.as_ref().unwrap();
                     let any_matches = args.iter().any(|cs| {
-                        cs.children.last().is_some_and(|last| {
+                        if let Some(last) = cs.children.last() {
                             element_matches_simple_selectors(element, &last.selectors)
-                        })
+                        } else {
+                            false
+                        }
                     });
                     if !any_matches {
                         return false;
@@ -1197,7 +1201,7 @@ fn has_sibling_combinator(selector: &CssComplexSelector) -> bool {
     })
 }
 
-/// Extract the callee name from a `RenderTag` expression.
+/// Extract the callee name from a RenderTag expression.
 fn get_render_tag_callee_name(render_tag: &template::RenderTag) -> Option<String> {
     // Use JSON-based approach to avoid arena dependency
     let expr_json = render_tag.expression.as_json();
@@ -1217,7 +1221,7 @@ fn get_render_tag_callee_name(render_tag: &template::RenderTag) -> Option<String
     }
 }
 
-/// Extract the name of a `SnippetBlock` from its expression.
+/// Extract the name of a SnippetBlock from its expression.
 fn get_snippet_block_name(snippet: &template::SnippetBlock) -> Option<String> {
     snippet.expression.identifier_name().map(String::from)
 }
@@ -1314,7 +1318,7 @@ fn collect_render_sites_in_node(
     }
 }
 
-/// Mark `RegularElement` nodes in the fragment as scoped based on CSS selector matching.
+/// Mark RegularElement nodes in the fragment as scoped based on CSS selector matching.
 pub fn mark_elements_scoped(
     fragment: &mut Fragment,
     css_selectors: &[CssComplexSelector],
@@ -2351,13 +2355,13 @@ struct SNode {
     /// Child fragments. `None` = the fragment slot is absent in the source
     /// (e.g. an `{#if}` without `{:else}`), which makes blocks non-exhaustive.
     fragments: Vec<Option<Vec<usize>>>,
-    /// `SnippetBlock`: the snippet's name. `RenderTag`: the callee name.
+    /// SnippetBlock: the snippet's name. RenderTag: the callee name.
     name: Option<String>,
 }
 
 struct SGraph {
     nodes: Vec<SNode>,
-    /// renderer node id (`RenderTag` / Component / `SvelteComponent` / `SvelteSelf`)
+    /// renderer node id (RenderTag / Component / SvelteComponent / SvelteSelf)
     /// -> snippet node ids it may render
     renderer_snippets: FxHashMap<usize, Vec<usize>>,
     /// snippet node id -> renderer node ids ("sites")
@@ -2489,7 +2493,8 @@ fn build_sgraph(fragment: &Fragment, analysis: Option<&super::types::ComponentAn
 
             let parent_index = graph.nodes[parent].fragments[frag_idx]
                 .as_ref()
-                .map_or(0, std::vec::Vec::len);
+                .map(|f| f.len())
+                .unwrap_or(0);
             graph.nodes.push(SNode {
                 kind,
                 elem,
@@ -2513,13 +2518,7 @@ fn build_sgraph(fragment: &Fragment, analysis: Option<&super::types::ComponentAn
                 TemplateNode::SlotElement(slot) => vec![Some(&slot.fragment)],
                 TemplateNode::Component(comp) => vec![Some(&comp.fragment)],
                 TemplateNode::SvelteComponent(comp) => vec![Some(&comp.fragment)],
-                TemplateNode::SvelteSelf(el)
-                | TemplateNode::SvelteHead(el)
-                | TemplateNode::SvelteBoundary(el)
-                | TemplateNode::SvelteFragment(el)
-                | TemplateNode::SvelteBody(el)
-                | TemplateNode::SvelteDocument(el)
-                | TemplateNode::SvelteWindow(el) => vec![Some(&el.fragment)],
+                TemplateNode::SvelteSelf(el) => vec![Some(&el.fragment)],
                 TemplateNode::IfBlock(b) => {
                     vec![Some(&b.consequent), b.alternate.as_ref()]
                 }
@@ -2529,6 +2528,12 @@ fn build_sgraph(fragment: &Fragment, analysis: Option<&super::types::ComponentAn
                 }
                 TemplateNode::KeyBlock(b) => vec![Some(&b.fragment)],
                 TemplateNode::SnippetBlock(s) => vec![Some(&s.body)],
+                TemplateNode::SvelteHead(el)
+                | TemplateNode::SvelteBoundary(el)
+                | TemplateNode::SvelteFragment(el)
+                | TemplateNode::SvelteBody(el)
+                | TemplateNode::SvelteDocument(el)
+                | TemplateNode::SvelteWindow(el) => vec![Some(&el.fragment)],
                 TemplateNode::TitleElement(t) => vec![Some(&t.fragment)],
                 _ => vec![],
             };
@@ -2810,7 +2815,7 @@ fn g_descendant_elements(
     }
     if graph.node(node).kind == SKind::RenderTag {
         if let Some(snippets) = graph.renderer_snippets.get(&node) {
-            for &snippet in &snippets.clone() {
+            for &snippet in snippets.clone().iter() {
                 if seen.insert(snippet) {
                     walk_children(graph, snippet, adjacent_only, seen, &mut descendants);
                 }
@@ -2857,8 +2862,9 @@ fn g_possible_element_siblings(
     while let Some(parent) = graph.node(current).parent {
         let frag_idx = graph.node(current).parent_fragment;
         let pos = graph.node(current).parent_index as isize;
-        let Some(frag) = &graph.node(parent).fragments[frag_idx] else {
-            break;
+        let frag = match &graph.node(parent).fragments[frag_idx] {
+            Some(f) => f,
+            None => break,
         };
 
         let step: isize = if dir == Dir::Forward { 1 } else { -1 };

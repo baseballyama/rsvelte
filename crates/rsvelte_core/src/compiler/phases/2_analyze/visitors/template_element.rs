@@ -1,4 +1,4 @@
-//! `TemplateElement` visitor.
+//! TemplateElement visitor.
 //!
 //! Analyzes template literal elements, specifically checking for bidirectional control characters.
 //!
@@ -36,7 +36,7 @@ fn get_bidirectional_regex() -> &'static Regex {
     })
 }
 
-/// Visit a template element (typed `JsNode` path).
+/// Visit a template element (typed JsNode path).
 pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     if let JsNode::TemplateElement {
         value, start, end, ..

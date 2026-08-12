@@ -1,4 +1,4 @@
-//! `SvelteBoundary` visitor for client-side transformation.
+//! SvelteBoundary visitor for client-side transformation.
 //!
 //! Handles `<svelte:boundary>` elements for async error boundaries.
 //!
@@ -16,7 +16,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::snippet_block::
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 
-/// Visit a `SvelteBoundary` node and generate client-side code.
+/// Visit a SvelteBoundary node and generate client-side code.
 ///
 /// Generates code like:
 /// ```js

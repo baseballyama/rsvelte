@@ -16,8 +16,8 @@
 //! | `rest_var[i]`           | unchanged (computed access)  |
 //! | `rest_var.foo = value`  | unchanged (single-level LHS) |
 //!
-//! "Single-level LHS" means: the `rest_var.foo` `MemberExpression`
-//! is itself the direct LHS of an `AssignmentExpression`. A deeper
+//! "Single-level LHS" means: the `rest_var.foo` MemberExpression
+//! is itself the direct LHS of an AssignmentExpression. A deeper
 //! chain (`rest_var.foo.bar = value`) where `rest_var.foo` is the
 //! INNER object of a parent member is rewritten — only the outer
 //! `rest_var.foo.bar` is the LHS, and that's a different node.
@@ -80,7 +80,7 @@ pub fn transform_rest_prop_member_access_ast(
 
 struct RestPropCollector<'a> {
     rest_prop_vars: &'a [String],
-    /// Replacements: (start, end, `new_text`). The span here is the
+    /// Replacements: (start, end, new_text). The span here is the
     /// `rest_var` identifier's span, NOT the whole member chain.
     replacements: Vec<Edit>,
     /// Spans of `rest_var` identifiers whose immediate parent is a
@@ -90,13 +90,13 @@ struct RestPropCollector<'a> {
     skip_member_spans: Vec<(u32, u32)>,
 }
 
-impl RestPropCollector<'_> {
+impl<'a> RestPropCollector<'a> {
     fn is_rest_var(&self, name: &str) -> bool {
         self.rest_prop_vars.iter().any(|v| v == name)
     }
 }
 
-impl<'ast> Visit<'ast> for RestPropCollector<'_> {
+impl<'a, 'ast> Visit<'ast> for RestPropCollector<'a> {
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
         // If the LHS is a static member expression whose object is a
         // rest_var Identifier, mark that Identifier's span as

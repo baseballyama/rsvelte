@@ -63,7 +63,7 @@ thread_local! {
 /// Returns `Some(rewritten)` when at least one read was wrapped, `None` on a
 /// parse failure or when nothing matched (caller falls back to the byte
 /// scanner).
-pub fn wrap_derived_reads_ast(
+pub(crate) fn wrap_derived_reads_ast(
     script: &str,
     derived_names: &FxHashSet<String>,
     derived_var_names: &FxHashSet<String>,
@@ -130,7 +130,7 @@ struct DerivedReadCollector<'a, 'sem> {
     skip_spans: FxHashSet<u32>,
 }
 
-impl DerivedReadCollector<'_, '_> {
+impl<'a, 'sem> DerivedReadCollector<'a, 'sem> {
     /// The getter suffix for a derived name: `?.()` for `var`-declared
     /// deriveds (upstream `b.maybe_call`), `()` otherwise (`b.call`).
     fn suffix(&self, name: &str) -> &'static str {
@@ -163,7 +163,7 @@ impl DerivedReadCollector<'_, '_> {
     }
 }
 
-impl<'ast> Visit<'ast> for DerivedReadCollector<'_, '_> {
+impl<'a, 'sem, 'ast> Visit<'ast> for DerivedReadCollector<'a, 'sem> {
     fn visit_identifier_reference(&mut self, ident: &IdentifierReference<'ast>) {
         if self.skip_spans.contains(&ident.span.start) {
             return;

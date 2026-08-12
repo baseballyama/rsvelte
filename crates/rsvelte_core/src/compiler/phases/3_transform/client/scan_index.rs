@@ -102,7 +102,7 @@ impl ScanIndexBuilder {
             state,
         } = self;
         {
-            let pos = u32::try_from(i).expect("source positions are limited to u32");
+            let pos = i as u32;
             let mut partner = NONE;
             match c {
                 '{' | '[' | '(' => {

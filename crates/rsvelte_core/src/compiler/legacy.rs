@@ -32,19 +32,7 @@ use crate::ast::{
     TransitionDirective, UseDirective,
 };
 
-fn utf16_offset(value: usize) -> u32 {
-    u32::try_from(value).expect("UTF-16 positions are limited to u32")
-}
-
-fn source_index_u64(value: u64) -> usize {
-    usize::try_from(value).expect("source positions must fit usize")
-}
-
-fn source_index_u32(value: u32) -> usize {
-    usize::try_from(value).expect("source positions must fit usize")
-}
-
-/// Insert `ESTree` fields into an existing `Map`, in written order.
+/// Insert ESTree fields into an existing `Map`, in written order.
 ///
 /// `serde_json` is built with `preserve_order`, so insertion order *is* the JSON
 /// key order and therefore part of the legacy AST's compatibility contract. The
@@ -96,7 +84,6 @@ pub struct Utf8ToUtf16 {
 }
 
 impl Utf8ToUtf16 {
-    #[must_use]
     pub fn new(source: &str) -> Self {
         let mut utf16_pos = Vec::with_capacity(source.len() + 1);
         let mut utf16_idx = 0usize;
@@ -108,7 +95,7 @@ impl Utf8ToUtf16 {
             let utf8_len = c.len_utf8();
             let utf16_len = c.len_utf16();
             for _ in 0..utf8_len {
-                utf16_pos.push(utf16_offset(utf16_idx));
+                utf16_pos.push(utf16_idx as u32);
             }
             utf16_idx += utf16_len;
             byte_idx += utf8_len;
@@ -118,7 +105,7 @@ impl Utf8ToUtf16 {
                 line_starts_utf16.push(utf16_idx);
             }
         }
-        utf16_pos.push(utf16_offset(utf16_idx));
+        utf16_pos.push(utf16_idx as u32);
         Self {
             utf16_pos,
             line_starts_byte,
@@ -127,7 +114,6 @@ impl Utf8ToUtf16 {
     }
 
     #[doc(hidden)]
-    #[must_use]
     pub fn convert(&self, utf8_pos: usize) -> usize {
         if utf8_pos >= self.utf16_pos.len() {
             self.utf16_pos.last().copied().unwrap_or(0) as usize
@@ -141,7 +127,6 @@ impl Utf8ToUtf16 {
     /// (column measured from the line start). The precomputed per-byte table +
     /// binary search over line starts make this O(log lines), so converting many
     /// warning positions costs O(warnings) rather than O(sum of byte offsets).
-    #[must_use]
     pub fn position(&self, byte_offset: usize) -> (usize, usize, usize) {
         let character = self.convert(byte_offset);
         // 1-based line = number of line starts at or before the offset; the
@@ -154,7 +139,6 @@ impl Utf8ToUtf16 {
     /// Convert a column from byte offset to UTF-16 code unit offset within a line.
     /// line is 1-based, column is 0-based byte offset from line start.
     #[doc(hidden)]
-    #[must_use]
     pub fn convert_column(&self, line: usize, byte_column: usize) -> usize {
         if line == 0 || line > self.line_starts_byte.len() {
             return byte_column;
@@ -175,14 +159,12 @@ impl Utf8ToUtf16 {
 
     /// Number of lines, counted the way JavaScript's `split('\n')` does — a
     /// trailing newline yields a final empty line.
-    #[must_use]
     pub fn line_count(&self) -> usize {
         self.line_starts_byte.len()
     }
 
     /// The 0-indexed `line` of `source`, without its terminator. `source` must
     /// be the string this table was built from.
-    #[must_use]
     pub fn line_text<'s>(&self, source: &'s str, line: usize) -> &'s str {
         let start = self.line_starts_byte[line];
         let end = match self.line_starts_byte.get(line + 1) {
@@ -201,25 +183,19 @@ pub fn convert_positions_to_utf16(value: &mut Value, pos_conv: &Utf8ToUtf16) {
             if let Some(Value::Number(n)) = map.get("start")
                 && let Some(pos) = n.as_u64()
             {
-                map.insert(
-                    "start".to_string(),
-                    json!(pos_conv.convert(source_index_u64(pos))),
-                );
+                map.insert("start".to_string(), json!(pos_conv.convert(pos as usize)));
             }
             if let Some(Value::Number(n)) = map.get("end")
                 && let Some(pos) = n.as_u64()
             {
-                map.insert(
-                    "end".to_string(),
-                    json!(pos_conv.convert(source_index_u64(pos))),
-                );
+                map.insert("end".to_string(), json!(pos_conv.convert(pos as usize)));
             }
             if let Some(Value::Number(n)) = map.get("character")
                 && let Some(pos) = n.as_u64()
             {
                 map.insert(
                     "character".to_string(),
-                    json!(pos_conv.convert(source_index_u64(pos))),
+                    json!(pos_conv.convert(pos as usize)),
                 );
             }
 
@@ -230,8 +206,7 @@ pub fn convert_positions_to_utf16(value: &mut Value, pos_conv: &Utf8ToUtf16) {
                     (map.get("line"), map.get("column"))
                 && let (Some(line_num), Some(col_num)) = (line.as_u64(), col.as_u64())
             {
-                let new_col =
-                    pos_conv.convert_column(source_index_u64(line_num), source_index_u64(col_num));
+                let new_col = pos_conv.convert_column(line_num as usize, col_num as usize);
                 map.insert("column".to_string(), json!(new_col));
             }
 
@@ -289,7 +264,7 @@ fn convert_to_legacy_inner(source: &str, ast: Root) -> Value {
             end -= 1;
         }
 
-        (Some(utf16_offset(start)), Some(utf16_offset(end)))
+        (Some(start as u32), Some(end as u32))
     } else {
         (None, None)
     };
@@ -521,9 +496,9 @@ fn extract_svelte_ignore(data: &str) -> Vec<String> {
         }
         // Split by whitespace or comma and filter empty, trimming each token
         rest.split(|c: char| c.is_whitespace() || c == ',')
-            .map(str::trim)
+            .map(|s| s.trim())
             .filter(|s| !s.is_empty())
-            .map(std::string::ToString::to_string)
+            .map(|s| s.to_string())
             .collect()
     } else {
         Vec::new()
@@ -575,12 +550,9 @@ fn convert_const_tag(const_tag: &ConstTag) -> Value {
         // Calculate start position (after 'const ')
         let decl_start = declaration
             .get("start")
-            .and_then(serde_json::Value::as_u64)
+            .and_then(|s| s.as_u64())
             .unwrap_or(0);
-        let decl_end = declaration
-            .get("end")
-            .and_then(serde_json::Value::as_u64)
-            .unwrap_or(0);
+        let decl_end = declaration.get("end").and_then(|s| s.as_u64()).unwrap_or(0);
 
         return estree_obj! {
             "type": "ConstTag",
@@ -672,7 +644,8 @@ fn convert_if_block(source: &str, if_block: &IfBlock) -> Value {
         let end = find_last_brace_before(source, if_block.end as usize);
         let start = start_nodes
             .first()
-            .map_or(end, |n| get_node_start(n) as usize);
+            .map(|n| get_node_start(n) as usize)
+            .unwrap_or(end);
 
         // Remove surrounding whitespace from nodes
         let mut alt_nodes = alternate.nodes.clone();
@@ -688,15 +661,12 @@ fn convert_if_block(source: &str, if_block: &IfBlock) -> Value {
 
     // Calculate start position for elseif blocks
     let start = if if_block.elseif {
-        if_block.consequent.nodes.first().map_or_else(
-            || {
-                utf16_offset(find_last_brace_before(
-                    source,
-                    source_index_u32(if_block.end),
-                ))
-            },
-            get_node_start,
-        )
+        if_block
+            .consequent
+            .nodes
+            .first()
+            .map(get_node_start)
+            .unwrap_or_else(|| find_last_brace_before(source, if_block.end as usize) as u32)
     } else {
         if_block.start
     };
@@ -731,7 +701,8 @@ fn convert_each_block(source: &str, each_block: &EachBlock) -> Value {
         let start = fallback
             .nodes
             .first()
-            .map_or(end, |n| get_node_start(n) as usize);
+            .map(|n| get_node_start(n) as usize)
+            .unwrap_or(end);
 
         let mut fallback_nodes = fallback.nodes.clone();
         remove_surrounding_whitespace_nodes(&mut fallback_nodes);
@@ -779,8 +750,8 @@ fn convert_await_block(source: &str, await_block: &AwaitBlock) -> Value {
         .expression
         .as_json()
         .get("end")
-        .and_then(serde_json::Value::as_u64)
-        .map_or_else(|| source_index_u32(await_block.start), source_index_u64);
+        .and_then(|e| e.as_u64())
+        .unwrap_or(await_block.start as u64) as usize;
 
     // A branch that is absent in the source is emitted as a skipped placeholder.
     let skipped = |ty: &str| {
@@ -815,15 +786,12 @@ fn convert_await_block(source: &str, await_block: &AwaitBlock) -> Value {
 
     let pending_end = pending_block
         .get("end")
-        .and_then(serde_json::Value::as_u64)
-        .map(source_index_u64);
+        .and_then(|e| e.as_u64())
+        .map(|e| e as usize);
 
     if let Some(ref then) = await_block.then {
-        let first_start = then
-            .nodes
-            .first()
-            .map(|n| source_index_u32(get_node_start(n)));
-        let last_end = then.nodes.last().map(|n| source_index_u32(get_node_end(n)));
+        let first_start = then.nodes.first().map(|n| get_node_start(n) as usize);
+        let last_end = then.nodes.last().map(|n| get_node_end(n) as usize);
 
         let start = pending_end
             .or(first_start)
@@ -833,7 +801,7 @@ fn convert_await_block(source: &str, await_block: &AwaitBlock) -> Value {
         let end = last_end.unwrap_or_else(|| {
             if then.nodes.is_empty() {
                 // Error recovery case: end points backwards
-                source_index_u32(await_block.start.saturating_sub(2))
+                await_block.start.saturating_sub(2) as usize
             } else {
                 find_closing_brace_after(source, pending_end.unwrap_or(expr_end))
             }
@@ -850,18 +818,12 @@ fn convert_await_block(source: &str, await_block: &AwaitBlock) -> Value {
 
     let then_end = then_block
         .get("end")
-        .and_then(serde_json::Value::as_u64)
-        .map(source_index_u64);
+        .and_then(|e| e.as_u64())
+        .map(|e| e as usize);
 
     if let Some(ref catch) = await_block.catch {
-        let first_start = catch
-            .nodes
-            .first()
-            .map(|n| source_index_u32(get_node_start(n)));
-        let last_end = catch
-            .nodes
-            .last()
-            .map(|n| source_index_u32(get_node_end(n)));
+        let first_start = catch.nodes.first().map(|n| get_node_start(n) as usize);
+        let last_end = catch.nodes.last().map(|n| get_node_end(n) as usize);
 
         let start = then_end
             .or(pending_end)
@@ -1083,17 +1045,16 @@ fn convert_svelte_element(source: &str, element: &SvelteDynamicElement) -> Value
         .tag
         .as_json()
         .get("start")
-        .and_then(serde_json::Value::as_u64)
-        .map_or(0, source_index_u64);
+        .and_then(|s| s.as_u64())
+        .unwrap_or(0) as usize;
     let has_braces = tag_start > 0 && source.as_bytes().get(tag_start - 1) == Some(&b'{');
 
     let tag = if !has_braces {
-        element
-            .tag
-            .as_json()
-            .get("value")
-            .and_then(|v| v.as_str())
-            .map_or_else(|| element.tag.as_json().clone(), |value| json!(value))
+        if let Some(value) = element.tag.as_json().get("value").and_then(|v| v.as_str()) {
+            json!(value)
+        } else {
+            element.tag.as_json().clone()
+        }
     } else {
         element.tag.as_json().clone()
     };

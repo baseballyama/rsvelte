@@ -7,10 +7,6 @@ use crate::compiler::CompileOptions;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::ops::Range;
 
-fn source_pos(offset: usize) -> u32 {
-    u32::try_from(offset).expect("source positions are limited to u32")
-}
-
 #[cfg(test)]
 thread_local! {
     pub(crate) static STRIP_TYPESCRIPT_REPARSES: std::cell::Cell<usize> = const {
@@ -101,7 +97,7 @@ pub struct LegacyReactiveStatement {
 
 /// Pre-transformed instance script body sections.
 /// Used for optimization during code generation.
-/// Corresponds to `instance_body` in `ComponentAnalysis` (phases/types.d.ts).
+/// Corresponds to `instance_body` in ComponentAnalysis (phases/types.d.ts).
 #[derive(Debug, Default, Clone)]
 pub struct InstanceBody {
     /// Statements hoisted to the top (imports)
@@ -118,14 +114,14 @@ pub struct InstanceBody {
 /// Corresponds to items in `instance_body.async` array.
 #[derive(Debug, Clone)]
 pub struct AsyncStatement {
-    /// The statement node (`VariableDeclarator` or Statement)
+    /// The statement node (VariableDeclarator or Statement)
     pub node: serde_json::Value,
     /// Whether this statement contains await expressions
     pub has_await: bool,
 }
 
 /// Declaration for an awaited value in an await block.
-/// Corresponds to `AwaitedDeclaration` in the official compiler.
+/// Corresponds to AwaitedDeclaration in the official compiler.
 #[derive(Debug, Clone)]
 pub struct AwaitedDeclaration {
     /// The identifier being declared
@@ -441,12 +437,10 @@ fn has_rune_text_not_imported(
     !imported_names.contains(base_name)
 }
 
-/// Extract imported names from script source text, excluding `svelte/*` modules.
-///
+/// Extract imported names from script source text, excluding imports from svelte/* modules.
 /// Looks for `import { name1, name2 } from '...'` and `import name from '...'` patterns.
 /// Names imported from `svelte/store` or other `svelte/*` modules are excluded because
 /// `$derived` from `import { derived } from 'svelte/store'` is still a rune, not a store subscription.
-#[must_use]
 pub fn extract_imported_names(raw: &str) -> rustc_hash::FxHashSet<String> {
     let mut names = rustc_hash::FxHashSet::default();
 
@@ -556,10 +550,10 @@ pub fn extract_local_non_rune_declared_names(raw: &str) -> rustc_hash::FxHashSet
             None => continue,
         };
         // A declarator with no initialiser cannot be rune-initialised.
-        let (declarator, rhs) = rest.find(" = ").map_or_else(
-            || (rest.trim_end_matches(';'), ""),
-            |eq_pos| (&rest[..eq_pos], rest[eq_pos + 3..].trim()),
-        );
+        let (declarator, rhs) = match rest.find(" = ") {
+            Some(eq_pos) => (&rest[..eq_pos], rest[eq_pos + 3..].trim()),
+            None => (rest.trim_end_matches(';'), ""),
+        };
         // Drop a TypeScript annotation: `state: Writable<Record<string, any>>`.
         let name_part = declarator.split(':').next().unwrap_or(declarator).trim();
         // Only simple identifiers (no destructuring patterns)
@@ -597,7 +591,6 @@ fn extract_import_source(import_line: &str) -> Option<String> {
 ///
 /// Uses OXC parser to parse TypeScript, then walks the AST to find
 /// TypeScript-specific source regions to remove.
-#[must_use]
 pub fn strip_typescript(source: &str) -> String {
     use oxc_allocator::Allocator;
     use oxc_parser::Parser;
@@ -674,7 +667,7 @@ fn strip_typescript_from_program_impl(
             {
                 let start = search_from + rel;
                 // Ensure it's at start of line (or preceded only by whitespace)
-                let line_start = source[..start].rfind('\n').map_or(0, |n| n + 1);
+                let line_start = source[..start].rfind('\n').map(|n| n + 1).unwrap_or(0);
                 let prefix = &source[line_start..start];
                 if !prefix.chars().all(char::is_whitespace) {
                     search_from = start + keyword.len();
@@ -706,7 +699,7 @@ fn strip_typescript_from_program_impl(
                         i += 1;
                     }
                     if depth == 0 {
-                        removals.push((source_pos(start), source_pos(i)));
+                        removals.push((start as u32, i as u32));
                         search_from = i;
                         continue;
                     }
@@ -788,8 +781,8 @@ fn strip_typescript_from_program_impl(
                     for (comment_offset, comment) in
                         crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet_with_pos(removed)
                     {
-                        let comment_start = *remove_start + source_pos(comment_offset);
-                        let comment_end = comment_start + source_pos(comment.len());
+                        let comment_start = *remove_start + comment_offset as u32;
+                        let comment_end = comment_start + comment.len() as u32;
                         push_source_range(
                             source,
                             comment_start..comment_end,
@@ -815,7 +808,7 @@ fn strip_typescript_from_program_impl(
     if (pos as usize) < source.len() {
         push_source_range(
             source,
-            pos..source_pos(source.len()),
+            pos..source.len() as u32,
             &mut output,
             copied_chunks.as_mut(),
         );
@@ -823,8 +816,8 @@ fn strip_typescript_from_program_impl(
 
     let projection = copied_chunks.map(|copied_chunks| ScriptProjection {
         copied_chunks,
-        source_len: source_pos(source.len()),
-        output_len: source_pos(output.len()),
+        source_len: source.len() as u32,
+        output_len: output.len() as u32,
     });
 
     (output, projection)
@@ -840,9 +833,9 @@ fn push_source_range(
         return;
     }
 
-    let output_start = source_pos(output.len());
+    let output_start = output.len() as u32;
     output.push_str(&source[source_range.start as usize..source_range.end as usize]);
-    let output_end = source_pos(output.len());
+    let output_end = output.len() as u32;
 
     if let Some(copied_chunks) = copied_chunks {
         if let Some(last) = copied_chunks.last_mut()
@@ -862,16 +855,13 @@ fn push_source_range(
 
 /// Blank TypeScript-specific syntax with spaces instead of removing it, so the
 /// output has the same byte length as the input and byte positions are
-/// preserved.
-///
-/// Used by lexical scanners (e.g. the `$store` reference scan) that
+/// preserved. Used by lexical scanners (e.g. the `$store` reference scan) that
 /// must not see TS type-only syntax such as `interface $$Props { … }` or
 /// `let foo: $$Props['foo']` — upstream's scope analysis never registers TS
 /// type declarations/references as JS variable references.
 ///
 /// Returns the input unchanged when TS parsing fails (downstream handles those
 /// errors).
-#[must_use]
 pub fn blank_typescript(source: &str) -> String {
     use oxc_allocator::Allocator;
     use oxc_parser::Parser;
@@ -948,7 +938,7 @@ mod ts_removals {
     use super::{
         accessibility_keyword, collect_definite_marker_removal, collect_optional_marker_removal,
         is_paren_safe_to_drop, peel_ts_wrappers, remove_keyword_from_source,
-        remove_specifier_with_comma, source_pos,
+        remove_specifier_with_comma,
     };
 
     pub(super) struct TsRemovalCollector<'s, 'r> {
@@ -973,7 +963,7 @@ mod ts_removals {
                 if let Some(abstract_pos) =
                     memchr::memmem::find(class_source.as_bytes(), b"abstract")
                 {
-                    let abs_start = class.span.start + source_pos(abstract_pos);
+                    let abs_start = class.span.start + abstract_pos as u32;
                     let abs_end = abs_start + 8;
                     let space_end = if (abs_end as usize) < self.source.len()
                         && self.source.as_bytes()[abs_end as usize] == b' '
@@ -990,24 +980,21 @@ mod ts_removals {
                 return;
             }
             let last_impl = class.implements.last().unwrap();
-            let search_start = class.super_class.as_ref().map_or_else(
-                || {
-                    class.type_parameters.as_ref().map_or(
-                        class
-                            .id
-                            .as_ref()
-                            .map_or(class.span.start as usize, |id| id.span.end as usize),
-                        |type_params| type_params.span.end as usize,
-                    )
-                },
-                |super_class| super_class.span().end as usize,
-            );
+            let search_start = if let Some(super_class) = &class.super_class {
+                super_class.span().end as usize
+            } else if let Some(type_params) = &class.type_parameters {
+                type_params.span.end as usize
+            } else if let Some(id) = &class.id {
+                id.span.end as usize
+            } else {
+                class.span.start as usize
+            };
             if search_start >= class.body.span.start as usize {
                 return;
             }
             let search_source = &self.source[search_start..class.body.span.start as usize];
             if let Some(impl_pos) = memchr::memmem::find(search_source.as_bytes(), b"implements") {
-                let abs_start = source_pos(search_start) + source_pos(impl_pos);
+                let abs_start = search_start as u32 + impl_pos as u32;
                 self.remove_range(abs_start, last_impl.span.end);
                 if abs_start > 0
                     && (abs_start as usize) <= self.source.len()
@@ -1133,11 +1120,10 @@ mod ts_removals {
             }
             // `this: T` is a whole parameter, so the following comma goes too.
             if let Some(this_param) = &it.this_param {
-                let end = it
-                    .params
-                    .items
-                    .first()
-                    .map_or_else(|| this_param.span.end, |first| first.span.start);
+                let end = match it.params.items.first() {
+                    Some(first) => first.span.start,
+                    None => this_param.span.end,
+                };
                 self.remove_range(this_param.span.start, end);
             }
             walk::walk_function(self, it, flags);
@@ -1282,7 +1268,7 @@ mod ts_removals {
                         let close_pos = last_span.end as usize + close_offset + 1;
                         let before_brace = &self.source[..brace_pos];
                         let comma_start = before_brace.rfind(',').unwrap_or(brace_pos);
-                        self.remove_range(source_pos(comma_start), source_pos(close_pos));
+                        self.remove_range(comma_start as u32, close_pos as u32);
                     }
                 }
             } else {
@@ -1405,7 +1391,7 @@ fn collect_optional_marker_removal(key_end: u32, source: &str, removals: &mut Ve
     while pos < bytes.len() {
         match bytes[pos] {
             b'?' => {
-                removals.push((source_pos(start), source_pos(pos) + 1));
+                removals.push((start as u32, pos as u32 + 1));
                 return;
             }
             b']' if !seen_bracket => {
@@ -1431,8 +1417,8 @@ fn remove_keyword_from_source(
     }
     let region = &source[parent_span.start as usize..parent_span.end as usize];
     if let Some(pos) = region.find(keyword) {
-        let abs_start = parent_span.start + source_pos(pos);
-        let abs_end = abs_start + source_pos(keyword.len());
+        let abs_start = parent_span.start + pos as u32;
+        let abs_end = abs_start + keyword.len() as u32;
         let space_end =
             if (abs_end as usize) < source.len() && source.as_bytes()[abs_end as usize] == b' ' {
                 abs_end + 1
@@ -1530,7 +1516,7 @@ fn collect_definite_marker_removal(
     while start > 0 && bytes[start - 1].is_ascii_whitespace() {
         start -= 1;
     }
-    removals.push((source_pos(start), type_ann_start));
+    removals.push((start as u32, type_ann_start));
 }
 
 /// Remove a specifier from its surrounding context, including the comma.
@@ -1543,18 +1529,18 @@ fn remove_specifier_with_comma(span: oxc_span::Span, source: &str, removals: &mu
         let after = &source[end as usize..];
         let trimmed = after.trim_start();
         if trimmed.starts_with(',') {
-            end = source_pos(source.len() - trimmed.len() + 1);
+            end = (source.len() - trimmed.len() + 1) as u32;
             if (end as usize) < source.len() {
                 let after_comma = &source[end as usize..];
                 let trimmed2 = after_comma.trim_start_matches(' ');
-                end = source_pos(source.len() - trimmed2.len());
+                end = (source.len() - trimmed2.len()) as u32;
             }
         } else if start > 0 {
             // Try to remove leading comma and whitespace
             let before = &source[..start as usize];
             let trimmed = before.trim_end();
             if trimmed.ends_with(',') {
-                start = source_pos(trimmed.len() - 1);
+                start = (trimmed.len() - 1) as u32;
             }
         }
     }
@@ -1610,7 +1596,7 @@ pub struct ComponentAnalysis {
 
     /// Pre-computed result of `instance_has_legacy_patterns(ast)` — set
     /// during analyze BEFORE template visitors run so visitors like
-    /// `DeclarationTag` (Svelte 5.56.0 #18282) can make a `maybe_runes`
+    /// `DeclarationTag` (Svelte 5.56.0 #18282) can make a maybe_runes
     /// decision without waiting for the post-walk reconciliation.
     pub instance_has_legacy_patterns: bool,
 
@@ -1678,7 +1664,7 @@ pub struct ComponentAnalysis {
     /// These need special handling during code generation
     pub async_deriveds: FxHashSet<String>,
 
-    /// The identifier used for $`props.id()` (if any)
+    /// The identifier used for $props.id() (if any)
     /// Used to track the props ID declaration
     pub props_id: Option<String>,
 
@@ -1686,7 +1672,7 @@ pub struct ComponentAnalysis {
     /// This is always computed from the filename, regardless of CSS presence
     pub filename_hash: String,
 
-    /// Whether the component uses $`inspect.trace()`
+    /// Whether the component uses $inspect.trace()
     pub tracing: bool,
 
     /// Whether dev mode is enabled (needed for $inspect.trace handling)
@@ -1715,14 +1701,14 @@ pub struct ComponentAnalysis {
     pub accessors: bool,
 
     /// Await expressions needing context preservation (pickled awaits).
-    /// Stores the start position of each await expression that needs $.`save()` wrapping.
+    /// Stores the start position of each await expression that needs $.save() wrapping.
     pub pickled_awaits: FxHashSet<u32>,
 
     /// Identifiers that make up bind:group expressions -> internal group binding name
     /// Maps from (key, bindings) to the generated identifier
     pub binding_groups: FxHashMap<String, String>,
 
-    /// Slot names mapped to their `SlotElement` nodes
+    /// Slot names mapped to their SlotElement nodes
     pub slot_names: indexmap::IndexMap<String, String, rustc_hash::FxBuildHasher>,
 
     /// Every render tag/component and whether it could be definitively resolved
@@ -1738,11 +1724,11 @@ pub struct ComponentAnalysis {
     pub warnings: Vec<super::warnings::AnalysisWarning>,
 
     /// Whether the component namespace (from compile options or <svelte:options>) is SVG.
-    /// Used by `SvelteElement` analysis to determine default namespace context.
+    /// Used by SvelteElement analysis to determine default namespace context.
     pub component_namespace_is_svg: bool,
 
-    /// Whether the component namespace (from compile options or <svelte:options>) is `MathML`.
-    /// Used by `SvelteElement` analysis to determine default namespace context.
+    /// Whether the component namespace (from compile options or <svelte:options>) is MathML.
+    /// Used by SvelteElement analysis to determine default namespace context.
     pub component_namespace_is_mathml: bool,
 
     /// Whether any script in the component uses TypeScript (lang="ts" or lang="typescript").
@@ -1756,14 +1742,13 @@ pub struct ComponentAnalysis {
     pub module_scope_declarations: FxHashMap<String, usize>,
 
     /// Whether this is a .svelte.js module file compilation (as opposed to a .svelte component).
-    /// In module files, `ast_type` is null/undefined in the official compiler, meaning
-    /// certain validations (like `ExportDefaultDeclaration`) behave differently.
+    /// In module files, ast_type is null/undefined in the official compiler, meaning
+    /// certain validations (like ExportDefaultDeclaration) behave differently.
     pub is_module_file: bool,
 }
 
 impl ComponentAnalysis {
     /// Create a new component analysis.
-    #[must_use]
     pub fn new(source: &str, options: &CompileOptions) -> Self {
         // The explicit `name` option wins; otherwise derive from the filename
         // (H-088). Previously `options.name` was accepted but ignored.
@@ -1784,10 +1769,8 @@ impl ComponentAnalysis {
             .filename
             .as_ref()
             .filter(|f| *f != "(unknown)")
-            .map_or_else(
-                || "main.svelte".to_string(),
-                |f| normalize_filename(f, options.root_dir.as_deref()),
-            );
+            .map(|f| normalize_filename(f, options.root_dir.as_deref()))
+            .unwrap_or_else(|| "main.svelte".to_string());
         let filename_hash = crate::compiler::phases::phase3_transform::css::generate_raw_hash(
             &filename_hash_source,
         );
@@ -1799,10 +1782,11 @@ impl ComponentAnalysis {
             template: TemplateAnalysis::default(),
             css: CssAnalysis::default(),
             name,
-            filename: options.filename.as_ref().map_or_else(
-                || "Component".to_string(),
-                |f| normalize_filename(f, options.root_dir.as_deref()),
-            ),
+            filename: options
+                .filename
+                .as_ref()
+                .map(|f| normalize_filename(f, options.root_dir.as_deref()))
+                .unwrap_or_else(|| "Component".to_string()),
             location_filename: {
                 let fname = options
                     .filename
@@ -1865,7 +1849,8 @@ impl ComponentAnalysis {
                 || options
                     .filename
                     .as_ref()
-                    .is_some_and(|f| f.ends_with(".svelte.js") || f.ends_with(".svelte.ts")),
+                    .map(|f| f.ends_with(".svelte.js") || f.ends_with(".svelte.ts"))
+                    .unwrap_or(false),
         }
     }
 
@@ -1881,10 +1866,8 @@ impl ComponentAnalysis {
         // In Svelte, if the module script has lang="ts", the instance script
         // is also treated as TypeScript (even without its own lang attribute).
         let any_script_is_typescript =
-            Self::script_is_typescript_attr(ast.module.as_ref().map(std::convert::AsRef::as_ref))
-                || Self::script_is_typescript_attr(
-                    ast.instance.as_ref().map(std::convert::AsRef::as_ref),
-                );
+            Self::script_is_typescript_attr(ast.module.as_ref().map(|s| s.as_ref()))
+                || Self::script_is_typescript_attr(ast.instance.as_ref().map(|s| s.as_ref()));
 
         // Store the TypeScript flag for later use (e.g., scope building)
         self.is_typescript = any_script_is_typescript;
@@ -1919,10 +1902,8 @@ impl ComponentAnalysis {
                     .chain(local_non_rune.iter())
                     .map(|n| format!("${n}"))
                     .collect();
-                let subs: rustc_hash::FxHashSet<&str> = dollar_names
-                    .iter()
-                    .map(std::string::String::as_str)
-                    .collect();
+                let subs: rustc_hash::FxHashSet<&str> =
+                    dollar_names.iter().map(|s| s.as_str()).collect();
                 let r = super::expression_check_features(&script.content, &ast.arena, &subs);
                 if !r.has_rune_reference {
                     content.uses_runes = false;
@@ -1950,25 +1931,23 @@ impl ComponentAnalysis {
 
     /// Check if a script node has `lang="ts"` or `lang="typescript"` attribute.
     fn script_is_typescript_attr(script: Option<&Script>) -> bool {
-        script.is_some_and(|s| {
-            s.attributes.iter().any(|attr| {
-                if attr.name == "lang"
-                    && let crate::ast::template::AttributeValue::Sequence(parts) = &attr.value
-                    && let Some(crate::ast::template::AttributeValuePart::Text(text)) =
-                        parts.first()
-                {
-                    return text.data == "ts" || text.data == "typescript";
-                }
-                false
+        script
+            .map(|s| {
+                s.attributes.iter().any(|attr| {
+                    if attr.name == "lang"
+                        && let crate::ast::template::AttributeValue::Sequence(parts) = &attr.value
+                        && let Some(crate::ast::template::AttributeValuePart::Text(text)) =
+                            parts.first()
+                    {
+                        return text.data == "ts" || text.data == "typescript";
+                    }
+                    false
+                })
             })
-        })
+            .unwrap_or(false)
     }
 
     /// Create scopes for the component.
-    ///
-    /// # Errors
-    ///
-    /// Returns the first scope-validation error, such as an invalid binding name.
     pub fn create_scopes(
         &mut self,
         ast: &Root,
@@ -2012,10 +1991,6 @@ impl ComponentAnalysis {
     }
 
     /// Analyze CSS in the component.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when stylesheet analysis rejects the component CSS.
     pub fn analyze_css(
         &mut self,
         css: &crate::ast::css::StyleSheet,
@@ -2044,38 +2019,38 @@ impl ComponentAnalysis {
             css.content.styles.clone()
         };
 
-        self.css.hash = options.css_hash.as_ref().map_or_else(
-            || crate::compiler::phases::phase3_transform::css::generate_css_hash(&hash_source),
-            |css_hash_fn| {
-                // Use custom cssHash function
-                let component_name = options.filename.as_deref().map_or_else(
-                    || "Component".to_string(),
-                    |f| {
-                        let parts: Vec<&str> = f.split(['/', '\\']).collect();
-                        let basename = parts.last().unwrap_or(&"Component");
-                        basename
-                            .strip_suffix(".svelte")
-                            .unwrap_or(basename)
-                            .to_string()
-                    },
-                );
-                let filename = options
-                    .filename
-                    .clone()
-                    .unwrap_or_else(|| "(unknown)".to_string());
-                let input = crate::compiler::CssHashInput {
-                    name: component_name,
-                    filename,
-                    css: css.content.styles.clone(),
-                    // Matches upstream's default `cssHash` (`svelte-${hash(...)}`):
-                    // the `hash` handed to the callback is the raw digest, unprefixed.
-                    hash: std::sync::Arc::new(|s: &str| {
-                        crate::compiler::phases::phase3_transform::css::generate_raw_hash(s)
-                    }),
-                };
-                css_hash_fn(&input)
-            },
-        );
+        self.css.hash = if let Some(ref css_hash_fn) = options.css_hash {
+            // Use custom cssHash function
+            let component_name = options
+                .filename
+                .as_deref()
+                .map(|f| {
+                    let parts: Vec<&str> = f.split(['/', '\\']).collect();
+                    let basename = parts.last().unwrap_or(&"Component");
+                    basename
+                        .strip_suffix(".svelte")
+                        .unwrap_or(basename)
+                        .to_string()
+                })
+                .unwrap_or_else(|| "Component".to_string());
+            let filename = options
+                .filename
+                .clone()
+                .unwrap_or_else(|| "(unknown)".to_string());
+            let input = crate::compiler::CssHashInput {
+                name: component_name,
+                filename,
+                css: css.content.styles.clone(),
+                // Matches upstream's default `cssHash` (`svelte-${hash(...)}`):
+                // the `hash` handed to the callback is the raw digest, unprefixed.
+                hash: std::sync::Arc::new(|s: &str| {
+                    crate::compiler::phases::phase3_transform::css::generate_raw_hash(s)
+                }),
+            };
+            css_hash_fn(&input)
+        } else {
+            crate::compiler::phases::phase3_transform::css::generate_css_hash(&hash_source)
+        };
 
         // TODO: Analyze for keyframes and :global selectors
         Ok(())
@@ -2109,7 +2084,7 @@ fn normalize_filename(filename: &str, root_dir: Option<&str>) -> String {
 }
 
 /// Derive component name from filename.
-/// Matches Svelte's `get_component_name()` in phases/2-analyze/index.js
+/// Matches Svelte's get_component_name() in phases/2-analyze/index.js
 fn derive_component_name(filename: &str) -> String {
     // Find basename and parent dir without allocating a Vec
     let basename = filename.rsplit(['/', '\\']).next().unwrap_or("Component");
@@ -2254,7 +2229,7 @@ pub struct EventDirectiveInfo {
 /// A state field in a class (using $state, $state.raw, $derived, $derived.by).
 #[derive(Debug, Clone)]
 pub struct StateField {
-    /// The field node (`PropertyDefinition` or `AssignmentExpression` in JS)
+    /// The field node (PropertyDefinition or AssignmentExpression in JS)
     pub node: serde_json::Value,
 }
 
@@ -2399,16 +2374,16 @@ pub struct CssDomElement {
     /// Whether this element is a direct child of the component root
     pub is_root_child: bool,
     /// Possible previous adjacent siblings (for + combinator)
-    /// Tuple of (`element_index`, certainty)
+    /// Tuple of (element_index, certainty)
     pub possible_prev_adjacent: Vec<(usize, SiblingCertainty)>,
     /// Possible next adjacent siblings (for + combinator)
-    /// Tuple of (`element_index`, certainty)
+    /// Tuple of (element_index, certainty)
     pub possible_next_adjacent: Vec<(usize, SiblingCertainty)>,
     /// Possible previous general siblings (for ~ combinator)
-    /// Tuple of (`element_index`, certainty)
+    /// Tuple of (element_index, certainty)
     pub possible_prev_general: Vec<(usize, SiblingCertainty)>,
     /// Possible next general siblings (for ~ combinator)
-    /// Tuple of (`element_index`, certainty)
+    /// Tuple of (element_index, certainty)
     pub possible_next_general: Vec<(usize, SiblingCertainty)>,
     /// Whether this element has content (non-empty children)
     pub has_content: bool,
@@ -2445,7 +2420,7 @@ pub struct CustomElementConfig {
     pub tag: Option<String>,
     /// Shadow DOM mode
     pub shadow: Option<String>,
-    /// Source text of a `ShadowRootInit` object passed as `shadow: {...}`.
+    /// Source text of a ShadowRootInit object passed as `shadow: {...}`.
     pub shadow_object_source: Option<String>,
     /// Custom element property configuration
     pub props: Option<serde_json::Value>,
@@ -2457,7 +2432,7 @@ pub struct CustomElementConfig {
 #[cfg(test)]
 mod strip_typescript_tests {
     use super::{
-        STRIP_TYPESCRIPT_REPARSES, ScriptContent, ScriptProjection, source_pos, strip_typescript,
+        STRIP_TYPESCRIPT_REPARSES, ScriptContent, ScriptProjection, strip_typescript,
         strip_typescript_from_program, strip_typescript_from_program_with_projection,
     };
     use crate::ast::js::{Expression, LazyKind};
@@ -2524,11 +2499,11 @@ count! += 1;
         let script = Script {
             node_type: ScriptType::Script,
             start: 0,
-            end: source_pos(source.len()),
+            end: source.len() as u32,
             context: ScriptContext::Default,
             content: Expression::Lazy {
                 start: 0,
-                end: source_pos(source.len()),
+                end: source.len() as u32,
                 ts: true,
                 kind: LazyKind::Lenient,
             },
@@ -2557,11 +2532,11 @@ count! += 1;
 
         assert_eq!(output, "let count = $state(0);\ncount += 1;\n");
         assert_projection_chunks_are_exact(source, &output, &projection);
-        assert_eq!(projection.source_len, source_pos(source.len()));
-        assert_eq!(projection.output_len, source_pos(output.len()));
+        assert_eq!(projection.source_len, source.len() as u32);
+        assert_eq!(projection.output_len, output.len() as u32);
 
-        let rune_start = source_pos(source.find("$state").unwrap());
-        let rune_source = rune_start..rune_start + source_pos("$state".len());
+        let rune_start = source.find("$state").unwrap() as u32;
+        let rune_source = rune_start..rune_start + "$state".len() as u32;
         let rune_output = projection
             .output_range_for_source(rune_source.clone())
             .expect("unchanged rune name should be mapped");
@@ -2570,7 +2545,7 @@ count! += 1;
             &output[rune_output.start as usize..rune_output.end as usize]
         );
 
-        let annotation_start = source_pos(source.find(':').unwrap());
+        let annotation_start = source.find(':').unwrap() as u32;
         assert!(
             !projection
                 .copied_chunks
@@ -2578,7 +2553,7 @@ count! += 1;
                 .any(|chunk| chunk.source.start <= annotation_start
                     && annotation_start < chunk.source.end)
         );
-        let count_start = source_pos(source.find("count").unwrap());
+        let count_start = source.find("count").unwrap() as u32;
         assert!(
             projection
                 .output_range_for_source(count_start..annotation_start + 1)
@@ -2604,9 +2579,8 @@ const answer: number = 42;
         assert_eq!(output, "/** Documentation. */\n\nconst answer = 42;\n");
         assert_projection_chunks_are_exact(source, &output, &projection);
 
-        let comment_start = source_pos(source.find("/** Documentation. */").unwrap());
-        let comment_source =
-            comment_start..comment_start + source_pos("/** Documentation. */".len());
+        let comment_start = source.find("/** Documentation. */").unwrap() as u32;
+        let comment_source = comment_start..comment_start + "/** Documentation. */".len() as u32;
         let comment_output = projection
             .output_range_for_source(comment_source)
             .expect("re-emitted comments are exact copied chunks");
@@ -2615,7 +2589,7 @@ const answer: number = 42;
             "/** Documentation. */"
         );
 
-        let declaration_start = source_pos(source.find("interface").unwrap());
+        let declaration_start = source.find("interface").unwrap() as u32;
         assert!(
             !projection
                 .copied_chunks
@@ -2640,7 +2614,7 @@ const answer = 42;
 
         assert_eq!(output, "\nconst answer = 42;\n");
         assert_projection_chunks_are_exact(source, &output, &projection);
-        let declaration_start = source_pos(source.find("declare global").unwrap());
+        let declaration_start = source.find("declare global").unwrap() as u32;
         assert!(
             !projection
                 .copied_chunks

@@ -28,17 +28,17 @@
 //! - Already inside `$.get(`, `$.set(`, `$.state(`, `$.derived(`,
 //!   `$.update(`, `$.update_pre(` first-arg.
 //! - Assignment LHS (handled by `private_class_assign_ast`).
-//! - Argument of `UpdateExpression` (handled there too).
+//! - Argument of UpdateExpression (handled there too).
 //!
 //! Standalone reads (no member chain at all) are handled by
 //! `private_read_wrap_ast` (PR #206) — this helper only fires when
-//! the `PrivateField` is the `.object` of an enclosing
+//! the PrivateField is the `.object` of an enclosing
 //! StaticMember/ComputedMember/ChainExpression.
 //!
 //! ## Idempotency
 //!
-//! After wrap, the `PrivateField` becomes the argument of a
-//! `$.get(...)` `CallExpression`. `visit_call_expression` skip
+//! After wrap, the PrivateField becomes the argument of a
+//! `$.get(...)` CallExpression. `visit_call_expression` skip
 //! detection ensures the visitor doesn't re-wrap.
 
 use std::cell::RefCell;
@@ -98,7 +98,7 @@ pub fn transform_private_member_read_wrap_ast(
                     .into_iter()
                     .map(|(start, end)| {
                         let qualified = &src[start as usize..end as usize];
-                        (start, end, format!("$.get({qualified})"))
+                        (start, end, format!("$.get({})", qualified))
                     })
                     .collect()
             },
@@ -109,15 +109,15 @@ pub fn transform_private_member_read_wrap_ast(
 struct PrivateMemberReadWrapCollector<'a> {
     source: &'a str,
     qualified_names: &'a [String],
-    /// `PrivateField` spans that are the `.object` of an enclosing
+    /// PrivateField spans that are the `.object` of an enclosing
     /// static/computed member expression and match a qualified name.
     wrap_spans: Vec<(u32, u32)>,
-    /// `PrivateField` spans to skip (assignment LHS, update target,
+    /// PrivateField spans to skip (assignment LHS, update target,
     /// $.get/$.set/etc first-arg).
     skip_spans: Vec<(u32, u32)>,
 }
 
-impl PrivateMemberReadWrapCollector<'_> {
+impl<'a> PrivateMemberReadWrapCollector<'a> {
     fn is_wrap_callee(callee: &Expression<'_>) -> bool {
         let Expression::StaticMemberExpression(m) = callee else {
             return false;
@@ -150,7 +150,7 @@ impl PrivateMemberReadWrapCollector<'_> {
     }
 }
 
-impl<'ast> Visit<'ast> for PrivateMemberReadWrapCollector<'_> {
+impl<'a, 'ast> Visit<'ast> for PrivateMemberReadWrapCollector<'a> {
     fn visit_static_member_expression(&mut self, member: &StaticMemberExpression<'ast>) {
         self.consider_wrap(&member.object);
         walk::walk_static_member_expression(self, member);

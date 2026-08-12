@@ -44,7 +44,6 @@ pub struct Template {
 
 impl Template {
     /// Create a new template builder.
-    #[must_use]
     pub fn new() -> Self {
         Template {
             contains_script_tag: false,
@@ -72,7 +71,7 @@ impl Template {
                 current = &mut elem.children;
             } else {
                 // Shouldn't happen if paths are managed correctly
-                panic!("Invalid path: expected element at index {idx}");
+                panic!("Invalid path: expected element at index {}", idx);
             }
         }
 
@@ -82,7 +81,7 @@ impl Template {
             &mut elem.children
         } else {
             // Shouldn't happen
-            panic!("Invalid path: expected element at last index {last_idx}");
+            panic!("Invalid path: expected element at last index {}", last_idx);
         }
     }
 
@@ -180,14 +179,19 @@ impl Template {
 
     /// Convert template to HTML string expression.
     pub fn as_html(&self) -> JsExpr {
-        let html = self.nodes.iter().map(stringify).collect::<String>();
+        let html = self
+            .nodes
+            .iter()
+            .map(stringify)
+            .collect::<Vec<_>>()
+            .join("");
         // Escape backticks and `${` in the HTML content so they don't break
         // the surrounding JavaScript template literal (backtick string).
         let escaped = if !html.contains('\\')
             && !html.contains('`')
             && memchr::memmem::find(html.as_bytes(), b"${").is_none()
         {
-            html
+            html.to_string()
         } else {
             let result = html.replace('\\', "\\\\").replace('`', "\\`");
             if memchr::memmem::find(result.as_bytes(), b"${").is_some() {
@@ -244,7 +248,7 @@ fn stringify(item: &Node) -> String {
             if let Some(ref data) = comment.data
                 && !data.is_empty()
             {
-                format!("<!--{data}-->")
+                format!("<!--{}-->", data)
             } else {
                 "<!>".to_string()
             }
@@ -270,7 +274,14 @@ fn stringify(item: &Node) -> String {
                 str.push('>');
                 // Simply map children through stringify and join — no extra whitespace handling.
                 // Mirrors: str += item.children.map(stringify).join('');
-                str.push_str(&element.children.iter().map(stringify).collect::<String>());
+                str.push_str(
+                    &element
+                        .children
+                        .iter()
+                        .map(stringify)
+                        .collect::<Vec<_>>()
+                        .join(""),
+                );
                 let _ = write!(str, "</{}>", element.name);
             }
 
@@ -296,7 +307,7 @@ fn objectify(arena: &JsArena, item: &Node) -> Option<JsExpr> {
             .data
             .as_ref()
             .filter(|data| !data.is_empty())
-            .map(|data| b::array(vec![b::string(format!("// {data}"))])),
+            .map(|data| b::array(vec![b::string(format!("// {}", data))])),
         Node::Element(element) => {
             let mut element_array = vec![b::string(element.name.clone())];
 

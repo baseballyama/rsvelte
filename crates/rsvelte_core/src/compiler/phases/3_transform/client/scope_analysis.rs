@@ -53,7 +53,7 @@ where
     } else {
         SourceType::mjs()
     };
-    let parse_timer = super::super::profile::timer_start();
+    let _pt = super::super::profile::timer_start();
     let parser_ret = Parser::new(&allocator, source, source_type)
         .with_options(ParseOptions {
             allow_return_outside_function: true,
@@ -61,7 +61,7 @@ where
         })
         .parse();
     super::super::profile::record_direct_parse(
-        super::super::profile::timer_elapsed(parse_timer),
+        super::super::profile::timer_elapsed(_pt),
         source.len(),
     );
     if !parser_ret.diagnostics.is_empty() {
@@ -104,7 +104,7 @@ pub fn is_locally_shadowed(semantic: &Semantic, ident: &IdentifierReference) -> 
     symbol_scope != root_scope
 }
 
-/// For each name in `names`, find the `SymbolId` of the OUTERMOST
+/// For each name in `names`, find the SymbolId of the OUTERMOST
 /// declaration. Returns the set of all such "canonical" symbol ids.
 ///
 /// This is the precise answer to "which symbol is the state var?"

@@ -43,7 +43,8 @@ pub fn visit_snippet_block<'a>(node: &SnippetBlock<'a>, state: &mut ServerTransf
     let name = node
         .expression
         .identifier_name()
-        .map_or_else(|| "snippet".to_string(), std::string::ToString::to_string);
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "snippet".to_string());
 
     // -- parameters ---------------------------------------------------------
     // 写经 upstream: `[b.id('$$renderer'), ...node.parameters]` — the declared
@@ -120,20 +121,22 @@ pub fn visit_snippet_block<'a>(node: &SnippetBlock<'a>, state: &mut ServerTransf
                 .push(b.stmt(b.call("$.prevent_snippet_stringification", vec![b.id(&name)])));
         }
         state.hoisted.push(fn_decl);
-    } else if state.options.dev {
-        state
-            .template
-            .push(super::shared::TemplateEntry::HoistableDecl(b.stmt(b.call(
-                "$.prevent_snippet_stringification",
-                vec![b.id(&name)],
-            ))));
-        state
-            .template
-            .push(super::shared::TemplateEntry::HoistableDecl(fn_decl));
     } else {
-        state
-            .template
-            .push(super::shared::TemplateEntry::HoistableDecl(fn_decl));
+        if state.options.dev {
+            state
+                .template
+                .push(super::shared::TemplateEntry::HoistableDecl(b.stmt(b.call(
+                    "$.prevent_snippet_stringification",
+                    vec![b.id(&name)],
+                ))));
+            state
+                .template
+                .push(super::shared::TemplateEntry::HoistableDecl(fn_decl));
+        } else {
+            state
+                .template
+                .push(super::shared::TemplateEntry::HoistableDecl(fn_decl));
+        }
     }
 }
 
@@ -208,7 +211,7 @@ pub(super) fn extract_snippet_param(expr: &crate::ast::js::Expression, source: &
             let left = json.get("left");
             let right = json.get("right");
 
-            let left_str = left.map_or_else(String::new, |left_val| {
+            let left_str = if let Some(left_val) = left {
                 let left_expr = crate::ast::js::Expression::from_json(left_val.clone());
                 let start = left_expr.start().unwrap_or(0) as usize;
                 let end = left_expr.end().unwrap_or(0) as usize;
@@ -217,9 +220,11 @@ pub(super) fn extract_snippet_param(expr: &crate::ast::js::Expression, source: &
                 } else {
                     String::new()
                 }
-            });
+            } else {
+                String::new()
+            };
 
-            let right_str = right.map_or_else(String::new, |right_val| {
+            let right_str = if let Some(right_val) = right {
                 let right_expr = crate::ast::js::Expression::from_json(right_val.clone());
                 let start = right_expr.start().unwrap_or(0) as usize;
                 let end = right_expr.end().unwrap_or(0) as usize;
@@ -237,7 +242,9 @@ pub(super) fn extract_snippet_param(expr: &crate::ast::js::Expression, source: &
                 } else {
                     String::new()
                 }
-            });
+            } else {
+                String::new()
+            };
 
             if left_str.is_empty() {
                 String::new()

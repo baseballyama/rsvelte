@@ -25,7 +25,7 @@
 //! | `count`            | `count()`         | bare read                            |
 //! | `{ count }`        | `{ count: count() }` | shorthand expansion                 |
 //! | `count = expr`     | `count = expr`    | LHS skipped (handled downstream)     |
-//! | `count++`          | `count++`         | `UpdateExpression` arg skipped         |
+//! | `count++`          | `count++`         | UpdateExpression arg skipped         |
 //! | `obj.count`        | `obj.count`       | property side never visited          |
 //! | `{ count: 1 }`     | `{ count: 1 }`    | property key never visited           |
 //! | `function f(count) { count }` | unchanged | shadowed by function param   |
@@ -193,7 +193,7 @@ struct PropReadCollector<'a, 'sem> {
     skip_spans: FxHashSet<u32>,
 }
 
-impl PropReadCollector<'_, '_> {
+impl<'a, 'sem> PropReadCollector<'a, 'sem> {
     fn is_prop_var(&self, name: &str) -> bool {
         self.prop_vars.iter().any(|v| v.as_str() == name)
     }
@@ -214,7 +214,7 @@ impl PropReadCollector<'_, '_> {
     }
 }
 
-impl<'ast> Visit<'ast> for PropReadCollector<'_, '_> {
+impl<'a, 'sem, 'ast> Visit<'ast> for PropReadCollector<'a, 'sem> {
     fn visit_identifier_reference(&mut self, ident: &IdentifierReference<'ast>) {
         if self.skip_spans.contains(&ident.span.start) {
             return;
@@ -231,7 +231,7 @@ impl<'ast> Visit<'ast> for PropReadCollector<'_, '_> {
         }
         let name = ident.name.as_str();
         self.replacements
-            .push((ident.span.start, ident.span.end, format!("{name}()")));
+            .push((ident.span.start, ident.span.end, format!("{}()", name)));
     }
 
     fn visit_object_property(&mut self, prop: &ObjectProperty<'ast>) {
@@ -248,8 +248,11 @@ impl<'ast> Visit<'ast> for PropReadCollector<'_, '_> {
             && !is_locally_shadowed(self.semantic, value_ident)
         {
             let name = key.name.as_str();
-            self.replacements
-                .push((prop.span.start, prop.span.end, format!("{name}: {name}()")));
+            self.replacements.push((
+                prop.span.start,
+                prop.span.end,
+                format!("{}: {}()", name, name),
+            ));
             self.skip(value_ident);
             // Still descend into computed-key / method-body
             // sub-trees in case a nested function references

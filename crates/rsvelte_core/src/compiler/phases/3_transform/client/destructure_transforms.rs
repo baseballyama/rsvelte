@@ -47,9 +47,9 @@ pub(super) fn unthunk_string(expr: &str) -> String {
     // `$derived({ a: 1 }[k])` becomes `() => ({ a: 1 }[k])` rather than
     // `() => { a: 1 }[k]`. See baseballyama/rsvelte#150.
     if expr.trim_start().starts_with('{') {
-        return format!("() => ({expr})");
+        return format!("() => ({})", expr);
     }
-    format!("() => {expr}")
+    format!("() => {}", expr)
 }
 
 /// Transform destructuring assignment expressions targeting reactive variables
@@ -84,12 +84,12 @@ pub(super) fn transform_destructure_assignments(
 /// or store target (upstream routes every extracted path through the ordinary
 /// assignment lowering), and a prop on the *right-hand side* forces the IIFE
 /// form (with `$$value` caching) because the official compiler visits the RHS
-/// first, turning it into a `CallExpression`, and then checks
+/// first, turning it into a CallExpression, and then checks
 /// `should_cache = value.type !== 'Identifier'`.
 ///
 /// `non_reactive_state_vars` is subtracted from `state_vars` for that same
 /// right-hand-side test: only a state variable whose read becomes `$.get(…)`
-/// makes the visited value a `CallExpression`.
+/// makes the visited value a CallExpression.
 pub(super) fn transform_destructure_assignments_with_props<'a>(
     statement: &'a str,
     state_vars: &[String],
@@ -119,15 +119,12 @@ pub(super) fn transform_destructure_assignments_with_props<'a>(
     let mut result = Cow::Borrowed(statement);
 
     // Build HashSets once for O(1) lookups across all iterations
-    let store_set: rustc_hash::FxHashSet<&str> = store_sub_vars
-        .iter()
-        .map(std::string::String::as_str)
-        .collect();
-    let prop_set: rustc_hash::FxHashSet<&str> =
-        prop_vars.iter().map(std::string::String::as_str).collect();
+    let store_set: rustc_hash::FxHashSet<&str> =
+        store_sub_vars.iter().map(|s| s.as_str()).collect();
+    let prop_set: rustc_hash::FxHashSet<&str> = prop_vars.iter().map(|s| s.as_str()).collect();
     let reactive_state_set: rustc_hash::FxHashSet<&str> = state_vars
         .iter()
-        .map(std::string::String::as_str)
+        .map(|s| s.as_str())
         .filter(|s| !non_reactive_state_vars.iter().any(|n| n == s))
         .collect();
 
@@ -573,7 +570,11 @@ pub(super) fn extract_destructure_targets(pattern: &str) -> Vec<String> {
         }
 
         // Handle rest element: ...rest
-        let part = part.strip_prefix("...").map_or(part, |rest| rest.trim());
+        let part = if let Some(rest) = part.strip_prefix("...") {
+            rest.trim()
+        } else {
+            part
+        };
 
         // Handle default value BEFORE colon check: target = default
         // This is critical because a default value may contain a ternary expression
@@ -581,11 +582,18 @@ pub(super) fn extract_destructure_targets(pattern: &str) -> Vec<String> {
         // If we checked colon first, we'd mistake the ternary `:` for a key:value separator.
         // In valid destructuring syntax, `key: target = default` always has `:` before `=`,
         // so if `=` appears first, any `:` is part of the default expression.
-        let part = find_top_level_equals(part).map_or(part, |eq_pos| part[..eq_pos].trim());
+        let part = if let Some(eq_pos) = find_top_level_equals(part) {
+            part[..eq_pos].trim()
+        } else {
+            part
+        };
 
         // Handle object property with rename: key: value
-        let part =
-            find_top_level_colon(part).map_or(part, |colon_pos| part[colon_pos + 1..].trim());
+        let part = if let Some(colon_pos) = find_top_level_colon(part) {
+            part[colon_pos + 1..].trim()
+        } else {
+            part
+        };
 
         // Extract root identifier from the target
         // For `a`, returns `a`
@@ -831,6 +839,10 @@ pub(super) fn find_destructure_rhs_end(statement: &str, start: CharOffset) -> Ch
                 i += 1;
             }
             ';' if depth == 0 => {
+                return CharOffset::new(i);
+            }
+            ',' if depth == 0 => {
+                // Could be end of expression in sequence
                 return CharOffset::new(i);
             }
             '\n' if depth == 0 => {
@@ -1178,8 +1190,8 @@ pub(super) fn string_is_simple_expression(s: &str) -> bool {
 
     let allocator = Allocator::default();
     // Parenthesised so a leading `{` parses as an object literal, not a block.
-    let wrapped = format!("({trimmed})");
-    let parse_timer = super::super::profile::timer_start();
+    let wrapped = format!("({})", trimmed);
+    let _pt = super::super::profile::timer_start();
     let ret = Parser::new(
         &allocator,
         &wrapped,
@@ -1191,7 +1203,7 @@ pub(super) fn string_is_simple_expression(s: &str) -> bool {
     })
     .parse();
     super::super::profile::record_direct_parse(
-        super::super::profile::timer_elapsed(parse_timer),
+        super::super::profile::timer_elapsed(_pt),
         wrapped.len(),
     );
     if !ret.diagnostics.is_empty() || ret.program.body.len() != 1 {
@@ -1211,7 +1223,7 @@ pub(super) fn string_is_simple_expression(s: &str) -> bool {
 pub(super) fn literal_key_value(source: &str) -> Option<String> {
     let allocator = Allocator::default();
     let wrapped = format!("({})", source.trim());
-    let parse_timer = super::super::profile::timer_start();
+    let _pt = super::super::profile::timer_start();
     let ret = Parser::new(&allocator, &wrapped, SourceType::mjs())
         .with_options(ParseOptions {
             preserve_parens: false,
@@ -1219,7 +1231,7 @@ pub(super) fn literal_key_value(source: &str) -> Option<String> {
         })
         .parse();
     super::super::profile::record_direct_parse(
-        super::super::profile::timer_elapsed(parse_timer),
+        super::super::profile::timer_elapsed(_pt),
         wrapped.len(),
     );
     if !ret.diagnostics.is_empty() || ret.program.body.len() != 1 {
@@ -1240,7 +1252,7 @@ pub(super) fn literal_key_value(source: &str) -> Option<String> {
 /// `String(<number>)` drops the fractional part of an integer.
 pub(super) fn js_number_to_string(value: f64) -> String {
     if value.fract() == 0.0 && value.abs() < i64::MAX as f64 {
-        format!("{value:.0}")
+        (value as i64).to_string()
     } else {
         value.to_string()
     }
@@ -1295,14 +1307,14 @@ pub(super) fn build_fallback_string(access: &str, default_val: &str) -> String {
 
     // Case 1: Simple expression without await
     if string_is_simple_expression(trimmed) {
-        return format!("$.fallback({access}, {default_val})");
+        return format!("$.fallback({}, {})", access, default_val);
     }
 
     // Case 2: `await simple_expr` - unwrap await and pass inner directly
     if let Some(inner) = trimmed.strip_prefix("await ") {
         let inner = inner.trim();
         if string_is_simple_expression(inner) {
-            return format!("await $.fallback({access}, {inner})");
+            return format!("await $.fallback({}, {})", access, inner);
         }
     }
 
@@ -1342,7 +1354,7 @@ pub(super) fn build_fallback_string(access: &str, default_val: &str) -> String {
 /// callers that build the `() => expr` form directly.
 fn wrap_arrow_body(body: &str) -> String {
     if body.trim_start().starts_with('{') {
-        format!("({body})")
+        format!("({})", body)
     } else {
         body.to_string()
     }
@@ -1403,7 +1415,7 @@ pub(super) fn extract_destructure_paths(
             }
             if let Some(rest_target) = prop.strip_prefix("...") {
                 let rest_expression =
-                    format!("$.exclude_from_object({expression}, [{excluded_keys}])");
+                    format!("$.exclude_from_object({}, [{}])", expression, excluded_keys);
                 extract_destructure_paths(
                     rest_target,
                     &rest_expression,
@@ -1418,8 +1430,10 @@ pub(super) fn extract_destructure_paths(
                 Some(colon_pos) => (prop[..colon_pos].trim(), prop[colon_pos + 1..].trim()),
                 // Shorthand: the key is the name, the value is the whole
                 // property (so `{ a = 1 }` still becomes an `AssignmentPattern`).
-                None => find_default_equals(prop)
-                    .map_or((prop, prop), |eq_pos| (prop[..eq_pos].trim(), prop)),
+                None => match find_default_equals(prop) {
+                    Some(eq_pos) => (prop[..eq_pos].trim(), prop),
+                    None => (prop, prop),
+                },
             };
             let object_expression = derived_prop_access(expression, expression, key);
             extract_destructure_paths(value, &object_expression, array_read, paths, inserts);
@@ -1439,7 +1453,7 @@ pub(super) fn extract_destructure_paths(
 
         let array_var = next_script_array_var();
         let to_array = if ends_with_rest {
-            format!("$.to_array({expression})")
+            format!("$.to_array({})", expression)
         } else {
             format!("$.to_array({}, {})", expression, elements.len())
         };
@@ -1447,17 +1461,17 @@ pub(super) fn extract_destructure_paths(
 
         let helper = match array_read {
             ArrayHelperRead::Value => array_var,
-            ArrayHelperRead::Signal => format!("$.get({array_var})"),
+            ArrayHelperRead::Signal => format!("$.get({})", array_var),
         };
         for (i, element) in elements.iter().enumerate() {
             let element = element.trim();
             if element.is_empty() {
                 continue;
             }
-            let (target, element_expression) = element.strip_prefix("...").map_or_else(
-                || (element, format!("{helper}[{i}]")),
-                |rest_target| (rest_target, format!("{helper}.slice({i})")),
-            );
+            let (target, element_expression) = match element.strip_prefix("...") {
+                Some(rest_target) => (rest_target, format!("{}.slice({})", helper, i)),
+                None => (element, format!("{}[{}]", helper, i)),
+            };
             extract_destructure_paths(target, &element_expression, array_read, paths, inserts);
         }
         return;
@@ -1477,7 +1491,7 @@ pub(super) fn next_script_array_var() -> String {
     if index == 0 {
         "$$array".to_string()
     } else {
-        format!("$$array_{index}")
+        format!("$$array_{}", index)
     }
 }
 
@@ -1541,7 +1555,7 @@ pub(super) fn generate_destructure_iife(
                 if target.starts_with('$') && store_sub_vars.iter().any(|v| v == target) {
                     format!("$.store_set({}, {})", &target[1..], access)
                 } else {
-                    format!("{target} = {access}")
+                    format!("{} = {}", target, access)
                 }
             })
             .collect();
@@ -1575,7 +1589,7 @@ pub(super) fn generate_destructure_iife(
     // nested helper is declared before the paths that read it.
     let mut body_lines: Vec<String> = inserts
         .iter()
-        .map(|(name, value)| format!("\tvar {name} = {value};"))
+        .map(|(name, value)| format!("\tvar {} = {};", name, value))
         .collect();
     if !body_lines.is_empty() {
         body_lines.push(String::new());
@@ -1585,21 +1599,24 @@ pub(super) fn generate_destructure_iife(
     body_lines.extend(
         paths
             .iter()
-            .map(|(target, access)| format!("\t{target} = {access};")),
+            .map(|(target, access)| format!("\t{} = {};", target, access)),
     );
 
     if !is_standalone {
         body_lines.push(String::new());
-        body_lines.push(format!("\treturn {param_name};"));
+        body_lines.push(format!("\treturn {};", param_name));
     }
 
     let body = body_lines.join("\n");
     // When the IIFE body or RHS contains `await`, the arrow must be async and the
     // whole call must be `await`ed, matching upstream's `is_expression_async` test.
     if code_contains_await(&body) || code_contains_await(rhs_str) {
-        format!("await (async ({param_name}) => {{\n{body}\n}})({rhs_str})")
+        format!(
+            "await (async ({}) => {{\n{}\n}})({})",
+            param_name, body, rhs_str
+        )
     } else {
-        format!("(({param_name}) => {{\n{body}\n}})({rhs_str})")
+        format!("(({}) => {{\n{}\n}})({})", param_name, body, rhs_str)
     }
 }
 

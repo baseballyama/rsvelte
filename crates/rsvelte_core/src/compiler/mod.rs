@@ -48,10 +48,6 @@ pub mod utils;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-fn source_pos(value: usize) -> u32 {
-    u32::try_from(value).expect("source positions are limited to u32")
-}
-
 use crate::ast::arena::SerializeArenaGuard;
 
 #[cfg(feature = "parallel")]
@@ -84,7 +80,7 @@ pub enum Namespace {
     Html,
     /// SVG namespace.
     Svg,
-    /// `MathML` namespace.
+    /// MathML namespace.
     Mathml,
 }
 
@@ -111,9 +107,9 @@ pub enum ComponentApi {
     V5,
 }
 
-/// Svelte-4 options upstream still accepts solely to diagnose them.
-///
-/// Only presence is recorded because values never reach codegen.
+/// Svelte-4 options that upstream still accepts solely in order to diagnose
+/// them. Only presence is recorded — the values never reach codegen — because
+/// that is the whole signal upstream's `validate-options.js` acts on.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct LegacyOptions {
     /// `generate: 'dom' | 'ssr'` — the pre-Svelte-5 spellings of
@@ -241,7 +237,7 @@ pub struct CompileOptions {
     pub name: Option<String>,
     /// Enable custom element mode.
     pub custom_element: bool,
-    /// Custom element configuration (when `custom_element` is true or from svelte:options).
+    /// Custom element configuration (when custom_element is true or from svelte:options).
     pub custom_element_options: Option<CustomElementConfig>,
     /// Enable accessors for component props.
     /// @deprecated This will have no effect in runes mode.
@@ -501,16 +497,22 @@ fn generate_frame(
                     "{}^",
                     " ".repeat(digits + 2 + tabs_to_spaces_column(line, caret_column))
                 );
-                format!("{line_num:>digits$}: {line_content}\n{indicator}")
+                format!(
+                    "{:>width$}: {}\n{}",
+                    line_num,
+                    line_content,
+                    indicator,
+                    width = digits
+                )
             } else {
-                format!("{line_num:>digits$}: {line_content}")
+                format!("{:>width$}: {}", line_num, line_content, width = digits)
             }
         })
         .collect::<Vec<_>>()
         .join("\n")
 }
 
-/// Convert tabs to 2-space indentation (matching Svelte's `tabs_to_spaces` in `compile_diagnostic.js`)
+/// Convert tabs to 2-space indentation (matching Svelte's tabs_to_spaces in compile_diagnostic.js)
 fn tabs_to_spaces(s: &str) -> String {
     // Only replace leading tabs
     let leading_tabs = s.bytes().take_while(|&b| b == b'\t').count();
@@ -665,20 +667,12 @@ pub(crate) fn prepare_and_analyze<'source>(
 /// # Returns
 ///
 /// Returns a `CompileResult` containing the generated JavaScript and CSS.
-///
-/// # Errors
-///
-/// Returns an error when parsing, analysis, or transformation fails.
 pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, CompileError> {
     let generate = options.generate;
     crate::toolchain::PreparedComponent::new(source, options)?.compile_mode(generate)
 }
 
 #[doc(hidden)]
-///
-/// # Errors
-///
-/// Returns an error when parsing, analysis, or transformation fails.
 pub fn compile_with_external_sourcemap_content(
     source: &str,
     options: CompileOptions,
@@ -701,10 +695,6 @@ pub fn compile_with_external_sourcemap_content(
 /// doing the parse + analyze work only once.
 ///
 /// `options.generate` is ignored; the returned tuple is `(client, server)`.
-///
-/// # Errors
-///
-/// Returns an error when parsing, analysis, or either transformation fails.
 pub fn compile_both(
     source: &str,
     options: CompileOptions,
@@ -856,7 +846,7 @@ pub(crate) fn finalize_compile_result(
     }
 }
 
-/// Module compile options (subset of `CompileOptions` for module files).
+/// Module compile options (subset of CompileOptions for module files).
 ///
 /// These correspond to Svelte's `ModuleCompileOptions` - the options that apply
 /// to `.svelte.js` / `.svelte.ts` module files (not full Svelte components).
@@ -922,10 +912,6 @@ impl std::fmt::Debug for ModuleCompileOptions {
 /// # Returns
 ///
 /// Returns a `CompileResult` containing the generated JavaScript.
-///
-/// # Errors
-///
-/// Returns an error when module parsing, analysis, or transformation fails.
 pub fn compile_module(
     source: &str,
     options: ModuleCompileOptions,
@@ -978,7 +964,7 @@ pub fn compile_module(
         css: None,
         js: Vec::new(),
         start: 0,
-        end: source_pos(source.len()),
+        end: source.len() as u32,
         node_type: crate::ast::template::RootType::Root,
         fragment: crate::ast::template::Fragment {
             node_type: crate::ast::template::FragmentType::Fragment,
@@ -998,7 +984,7 @@ pub fn compile_module(
         module: Some(Box::new(crate::ast::template::Script {
             node_type: crate::ast::template::ScriptType::Script,
             start: 0,
-            end: source_pos(source.len()),
+            end: source.len() as u32,
             context: crate::ast::template::ScriptContext::Module,
             content: program,
             attributes: Vec::new(),
@@ -1270,7 +1256,7 @@ fn strip_ts_from_fragment(
     Ok(())
 }
 
-/// Strip TypeScript annotations from a `TemplateNode` and all its descendants.
+/// Strip TypeScript annotations from a TemplateNode and all its descendants.
 fn strip_ts_from_template_node(
     node: &mut crate::ast::template::TemplateNode,
 ) -> Result<(), crate::error::ParseError> {
@@ -1496,7 +1482,6 @@ fn strip_ts_from_attribute_value(
 /// }
 /// ```
 #[cfg(feature = "parallel")]
-#[must_use]
 pub fn compile_batch(
     inputs: &[(&str, CompileOptions)],
 ) -> Vec<Result<CompileResult, CompileError>> {
@@ -1508,7 +1493,6 @@ pub fn compile_batch(
 
 #[doc(hidden)]
 #[cfg(feature = "parallel")]
-#[must_use]
 pub fn compile_batch_with_external_sourcemap_content(
     inputs: &[(&str, CompileOptions)],
 ) -> Vec<Result<CompileResult, CompileError>> {
@@ -1536,7 +1520,7 @@ fn catch_compile_panic(
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).unwrap_or_else(|payload| {
         let msg = payload
             .downcast_ref::<&str>()
-            .map(std::string::ToString::to_string)
+            .map(|s| s.to_string())
             .or_else(|| payload.downcast_ref::<String>().cloned())
             .unwrap_or_else(|| "unknown panic payload".to_string());
         Err(CompileError::Panic(msg))
@@ -1597,7 +1581,6 @@ pub struct CompileErrorDiagnostic {
 impl CompileError {
     /// Destructure this error the way the official compiler's `CompileError`
     /// exposes itself to JS consumers (`code`, `message`, `start`/`end`).
-    #[must_use]
     pub fn diagnostic(&self) -> CompileErrorDiagnostic {
         match self {
             CompileError::Parse(e) => {
@@ -1611,7 +1594,7 @@ impl CompileError {
                 CompileErrorDiagnostic {
                     code,
                     message,
-                    span: Some((source_pos(start), source_pos(end))),
+                    span: Some((start as u32, end as u32)),
                 }
             }
             CompileError::Analysis(AnalysisError::ValidationWithCode {
@@ -1644,7 +1627,6 @@ impl CompileError {
 }
 
 /// Resolve a byte `offset` in `source` to a JS-indexed [`Position`].
-#[must_use]
 pub fn source_position(source: &str, offset: u32) -> Position {
     warning_position(&legacy::Utf8ToUtf16::new(source), offset)
 }
@@ -1662,7 +1644,6 @@ pub struct SourceSpan {
 }
 
 /// Resolve a byte span in `source`, building the line index once for all three.
-#[must_use]
 pub fn source_span(source: &str, span: (u32, u32)) -> SourceSpan {
     let table = legacy::Utf8ToUtf16::new(source);
     let start = warning_position(&table, span.0);
@@ -1674,10 +1655,10 @@ pub fn source_span(source: &str, span: (u32, u32)) -> SourceSpan {
 impl std::fmt::Display for CompileError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CompileError::Parse(e) => write!(f, "Parse error: {e:?}"),
-            CompileError::Analysis(e) => write!(f, "Analysis error: {e}"),
-            CompileError::Transform(e) => write!(f, "Transform error: {e}"),
-            CompileError::Panic(msg) => write!(f, "Internal panic: {msg}"),
+            CompileError::Parse(e) => write!(f, "Parse error: {:?}", e),
+            CompileError::Analysis(e) => write!(f, "Analysis error: {}", e),
+            CompileError::Transform(e) => write!(f, "Transform error: {}", e),
+            CompileError::Panic(msg) => write!(f, "Internal panic: {}", msg),
         }
     }
 }

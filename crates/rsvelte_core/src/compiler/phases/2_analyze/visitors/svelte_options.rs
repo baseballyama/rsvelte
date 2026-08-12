@@ -1,4 +1,4 @@
-//! `SvelteOptions` visitor.
+//! SvelteOptions visitor.
 //!
 //! Analyzes <svelte:options> elements.
 //!

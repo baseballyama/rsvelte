@@ -1,4 +1,4 @@
-//! `ClassBody` visitor.
+//! ClassBody visitor.
 //!
 //! Analyzes class bodies for state fields ($state, $derived, etc.).
 //!
@@ -16,12 +16,12 @@ use crate::compiler::phases::phase2_analyze::AnalysisError;
 
 /// Visit a class body.
 ///
-/// Corresponds to `ClassBody()` in Svelte's `2-analyze/visitors/ClassBody.js`.
+/// Corresponds to ClassBody() in Svelte's `2-analyze/visitors/ClassBody.js`.
 ///
 /// This function analyzes class bodies to find state fields (properties using $state, $derived, etc.)
-/// and validates that field names don't conflict. It handles both `PropertyDefinition` nodes
+/// and validates that field names don't conflict. It handles both PropertyDefinition nodes
 /// and assignments in the constructor (this.foo = $state(...)).
-/// Shared `ClassBody` analysis. `typed` carries the typed `JsNode::ClassBody`
+/// Shared ClassBody analysis. `typed` carries the typed `JsNode::ClassBody`
 /// (always present — only called from `visit_typed` in runes mode). The
 /// state-field analysis runs on the `&Value` form, but child traversal uses the
 /// typed walker.
@@ -31,8 +31,9 @@ fn visit_impl(
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     // Get the class body array
-    let Some(body) = node.get("body").and_then(|b| b.as_array()) else {
-        return Ok(());
+    let body = match node.get("body").and_then(|b| b.as_array()) {
+        Some(b) => b,
+        None => return Ok(()),
     };
 
     // State fields map (name -> StateField)
@@ -47,8 +48,8 @@ fn visit_impl(
 
     /// Helper function to get a node's `(start, end)` source range
     fn span(node: &Value) -> Option<(u32, u32)> {
-        let start = u32::try_from(node.get("start")?.as_u64()?).ok()?;
-        let end = u32::try_from(node.get("end")?.as_u64()?).ok()?;
+        let start = node.get("start")?.as_u64()? as u32;
+        let end = node.get("end")?.as_u64()? as u32;
         Some((start, end))
     }
 
@@ -61,22 +62,22 @@ fn visit_impl(
         }
     }
 
-    /// Helper function to get the name from a key (Identifier, `PrivateIdentifier`, or Literal)
+    /// Helper function to get the name from a key (Identifier, PrivateIdentifier, or Literal)
     fn get_name(key: &Value) -> Option<String> {
         match key.get("type").and_then(|t| t.as_str()) {
             Some("Literal") => key.get("value").and_then(|v| {
                 v.as_str()
-                    .map(std::string::ToString::to_string)
+                    .map(|s| s.to_string())
                     .or_else(|| v.as_i64().map(|n| n.to_string()))
             }),
             Some("PrivateIdentifier") => key
                 .get("name")
                 .and_then(|n| n.as_str())
-                .map(|n| format!("#{n}")),
+                .map(|n| format!("#{}", n)),
             Some("Identifier") => key
                 .get("name")
                 .and_then(|n| n.as_str())
-                .map(std::string::ToString::to_string),
+                .map(|s| s.to_string()),
             _ => None,
         }
     }
@@ -107,7 +108,7 @@ fn visit_impl(
             {
                 let obj_name = object.get("name").and_then(|n| n.as_str())?;
                 let prop_name = property.get("name").and_then(|n| n.as_str())?;
-                let full_name = format!("{obj_name}.{prop_name}");
+                let full_name = format!("{}.{}", obj_name, prop_name);
 
                 if is_state_creation_rune(&full_name) {
                     return Some(full_name);
@@ -132,8 +133,9 @@ fn visit_impl(
         fields: &mut FxHashMap<String, Vec<String>>,
         is_static: bool,
     ) -> Result<(), AnalysisError> {
-        let Some(name) = get_name(key) else {
-            return Ok(());
+        let name = match get_name(key) {
+            Some(n) => n,
+            None => return Ok(()),
         };
 
         // Check if the value is a rune call
@@ -147,7 +149,7 @@ fn visit_impl(
 
             // Create the field key (prefixed with @ for static fields)
             let field_key = if is_static {
-                format!("@{name}")
+                format!("@{}", name)
             } else {
                 name.clone()
             };
@@ -174,11 +176,11 @@ fn visit_impl(
         if child_type == Some("PropertyDefinition") {
             let computed = child
                 .get("computed")
-                .and_then(serde_json::Value::as_bool)
+                .and_then(|c| c.as_bool())
                 .unwrap_or(false);
             let is_static = child
                 .get("static")
-                .and_then(serde_json::Value::as_bool)
+                .and_then(|s| s.as_bool())
                 .unwrap_or(false);
 
             if !computed
@@ -220,7 +222,7 @@ fn visit_impl(
             } else {
                 let computed = child
                     .get("computed")
-                    .and_then(serde_json::Value::as_bool)
+                    .and_then(|c| c.as_bool())
                     .unwrap_or(false);
 
                 if !computed
@@ -229,10 +231,10 @@ fn visit_impl(
                 {
                     let is_static = child
                         .get("static")
-                        .and_then(serde_json::Value::as_bool)
+                        .and_then(|s| s.as_bool())
                         .unwrap_or(false);
                     let field_key = if is_static {
-                        format!("@{name}")
+                        format!("@{}", name)
                     } else {
                         name.clone()
                     };
@@ -284,8 +286,9 @@ fn visit_impl(
             }
 
             // Must be AssignmentExpression
-            let Some(expr) = statement.get("expression") else {
-                continue;
+            let expr = match statement.get("expression") {
+                Some(e) => e,
+                None => continue,
             };
 
             if expr.get("type").and_then(|t| t.as_str()) != Some("AssignmentExpression") {
@@ -293,16 +296,18 @@ fn visit_impl(
             }
 
             // Left side must be MemberExpression with ThisExpression
-            let Some(left) = expr.get("left") else {
-                continue;
+            let left = match expr.get("left") {
+                Some(l) => l,
+                None => continue,
             };
 
             if left.get("type").and_then(|t| t.as_str()) != Some("MemberExpression") {
                 continue;
             }
 
-            let Some(object) = left.get("object") else {
-                continue;
+            let object = match left.get("object") {
+                Some(o) => o,
+                None => continue,
             };
 
             if object.get("type").and_then(|t| t.as_str()) != Some("ThisExpression") {
@@ -312,7 +317,7 @@ fn visit_impl(
             // Skip computed properties with non-literal keys
             let computed = left
                 .get("computed")
-                .and_then(serde_json::Value::as_bool)
+                .and_then(|c| c.as_bool())
                 .unwrap_or(false);
             if computed
                 && let Some(property) = left.get("property")
@@ -360,7 +365,7 @@ fn visit_impl(
     Ok(())
 }
 
-/// Typed visitor for `ClassBody`.
+/// Typed visitor for ClassBody.
 ///
 /// For non-runes mode (the common case), walks children directly using the typed
 /// traversal path, avoiding the expensive `to_value()` conversion entirely.
