@@ -689,7 +689,8 @@ impl FunctionRecursion<'_> {
         let Some((body, parameters)) = self.func_map.get(function_name) else {
             return;
         };
-        if !self.processed.insert(node_start(body).unwrap_or(u32::MAX)) {
+        let body_key = node_start(body).unwrap_or(u32::MAX);
+        if self.processed.contains(&body_key) {
             return;
         }
         let reactive_names: HashSet<String> = self
@@ -699,6 +700,7 @@ impl FunctionRecursion<'_> {
             .cloned()
             .collect();
         if reactive_names.is_empty() {
+            self.processed.insert(body_key);
             return;
         }
         let mut chain = call_chain.to_vec();
