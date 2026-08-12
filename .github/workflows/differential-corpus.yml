@@ -1,0 +1,98 @@
+name: Differential corpus output preservation
+
+# This is intentionally opt-in. A compiler change that claims to preserve
+# output can request the `output-preserving` label and is then measured against
+# the exact merge ref it would land on, rather than a base that may move while
+# the PR waits in the queue.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+env:
+  CARGO_PROFILE_RELEASE_LTO: "off"
+  CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
+
+jobs:
+  differential-corpus:
+    name: Output-preserving corpus diff
+    if: contains(github.event.pull_request.labels.*.name, 'output-preserving')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      # `refs/pull/.../merge` is the current merge ref. Checking out the head
+      # would make this a stale-base check again whenever main advances.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          fetch-depth: 1
+          submodules: false
+
+      - uses: ./.github/actions/setup-rust
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - name: Checkout corpus source submodules (shallow)
+        run: pnpm run corpus:sync
+
+      - name: Collect the corpus once for both compiler builds
+        run: node scripts/compat-corpus/collect.mjs
+
+      - name: Build current-merge compiler hash binary
+        run: |
+          cargo build --release -p rsvelte_devtools --bin corpus_hash --target-dir .differential/target/arm
+          mkdir -p .differential/bin
+          cp .differential/target/arm/release/corpus_hash .differential/bin/arm-corpus-hash
+
+      - name: Build base rsvelte_core with the current merge-ref harness
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          mkdir -p .differential/base-tree
+          git archive "$BASE_SHA" crates/rsvelte_core | tar -x -C .differential/base-tree
+
+          restore_core() {
+            git restore --source=HEAD --staged --worktree crates/rsvelte_core
+          }
+          trap restore_core EXIT
+          rm -rf crates/rsvelte_core
+          mv .differential/base-tree/crates/rsvelte_core crates/rsvelte_core
+          cargo build --release -p rsvelte_devtools --bin corpus_hash --target-dir .differential/target/base
+          cp .differential/target/base/release/corpus_hash .differential/bin/base-corpus-hash
+          restore_core
+          trap - EXIT
+          git diff --exit-code -- crates/rsvelte_core Cargo.lock
+
+      - name: Prove a changed core produced two distinct binaries
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet "$BASE_SHA" HEAD -- crates/rsvelte_core; then
+            base_hash=$(sha256sum .differential/bin/base-corpus-hash | awk '{print $1}')
+            arm_hash=$(sha256sum .differential/bin/arm-corpus-hash | awk '{print $1}')
+            test "$base_hash" != "$arm_hash"
+          fi
+
+      - name: Diff every compiler output target
+        run: |
+          set -euo pipefail
+          for target in client server client-dev server-dev; do
+            case "$target" in
+              client) args=() ;;
+              server) args=(--server) ;;
+              client-dev) args=(--dev) ;;
+              server-dev) args=(--server --dev) ;;
+            esac
+            .differential/bin/base-corpus-hash compatibility/sources --label base "${args[@]}" > ".differential/base-$target.txt"
+            .differential/bin/arm-corpus-hash compatibility/sources --label arm "${args[@]}" > ".differential/arm-$target.txt"
+            node scripts/dev/diff-corpus-hash.mjs ".differential/base-$target.txt" ".differential/arm-$target.txt"
+          done

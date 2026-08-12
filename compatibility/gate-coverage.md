@@ -108,11 +108,30 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 22 | NAPI option boundary | per declared option key: baseline vs. one-key variant, through the raw addon | it never compares against **official** — a key wired to the wrong semantics stays green | [S] |
 | 23 | Escaped-quote lookback shape | one line of Rust source, over every `.rs` under `crates/` + `apps/` | it matches a **spelling**; a scanner with *no* escape check at all produces no line to match | [D] |
 | 24 | `await_waterfall` runtime parity | the `await_waterfall` warnings a **mounted** rsvelte-compiled component logs vs. official's, 3 cases | one warning code, one component shape; nothing else about the running component is observed | [D] |
+| 25 | Differential output-preservation corpus hash | per `.svelte` source × client/server/client-dev/server-dev hash from base-core vs merge-ref-core | changes outside `crates/rsvelte_core`; every PR without the maintainer-applied `output-preserving` label | [S] |
 
 Cross-cutting blind spots (**ratchet keys losing in both directions**, path filters, ratchet-doc
 drift, vacuity floors, the **performance**
 gates' population, and **an uninitialised corpus source shrinking every corpus gate silently**)
 are in [§ Cross-cutting](#cross-cutting) at the end.
+
+## 25. Differential output-preservation corpus hash
+
+**Unit.** For every collected `.svelte` source and each of the four compiler targets, the
+`corpus_hash` rows from a binary built with the merge-ref harness plus base
+`crates/rsvelte_core` are compared to a binary built from the same merge ref. The job is
+`.github/workflows/differential-corpus.yml`; `scripts/dev/diff-corpus-hash.mjs` rejects equal
+labels, target mismatches and file-count mismatches instead of treating them as a zero diff.
+
+**Blind spot 25a — the opt-in population.** Only PRs carrying `output-preserving` run this job:
+the job condition reads the PR label in `differential-corpus.yml`, and the workflow only
+observes source in `crates/rsvelte_core` when it makes its base arm (`git archive "$BASE_SHA"
+crates/rsvelte_core`). An output-preserving change in another crate, or a core change whose
+author does not request the label, receives no differential measurement. This is intentional:
+the ordinary four-target official parity gate covers every compiler change, while forcing a
+second full sweep on every docs-only PR would worsen the branch-update queue it is meant to make
+evidence robust against. **Evidence [S]:** the label condition and base archive command in
+`differential-corpus.yml` are the respective filters.
 
 ---
 

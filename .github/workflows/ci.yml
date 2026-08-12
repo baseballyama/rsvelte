@@ -1135,6 +1135,9 @@ jobs:
       - name: Run workflow trigger guard tests
         run: node scripts/ci/test-workflow-trigger-guard.mjs
 
+      - name: Run differential corpus workflow tests
+        run: node scripts/ci/test-differential-corpus-workflow.mjs
+
   prereq-coverage-guard:
     name: Prerequisite coverage guard
     runs-on: ubuntu-latest

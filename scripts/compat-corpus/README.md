@@ -644,6 +644,16 @@ node scripts/compat-corpus/svelte2tsx-cluster.mjs            # size the burn-dow
   pin automatically refreshes the corpus *and* its expectations; the fmt oracle
   is cached by a combined hash of all source SHAs + the `pattern` source's file
   contents + oxfmt + config.
+- `.github/workflows/differential-corpus.yml` — an opt-in guard for a PR marked
+  `output-preserving`. It checks out the PR's **current merge ref**, builds the
+  current `corpus_hash` harness once with the merge ref's core and once with
+  only `crates/rsvelte_core` substituted from the base, requires distinct binary
+  hashes when that core changed, then compares all four targets. It is not a
+  general parity gate: it deliberately cannot see output changes outside
+  `rsvelte_core`, and a maintainer must add the label. The label avoids making
+  every docs-only PR pay for a second whole-corpus sweep; it does not make a
+  repeatedly updated branch cheaper, because each update correctly reruns the
+  merge-ref measurement.
 - Source bumps arrive via `auto-update-submodules.yml` (weekly PR per submodule —
   svelte.dev and each real-world project) and `auto-update-svelte.yml` (the
   compiler). Both trigger corpus-compat through its submodule path filters, which
