@@ -259,7 +259,7 @@ and #2023 were all filed as "not emitted" and all turned out to be emitted in
 the right number and the wrong place.
 
 
-## Server dev (`known-failures.server-dev.json`, 356 entries)
+## Server dev (`known-failures.server-dev.json`, 284 entries)
 
 `server-dev` is SSR with `dev: true`. It was enrolled after the client-dev
 target, so this is a new measured population rather than a regression in any
@@ -270,25 +270,23 @@ generated renderer plumbing. #2844 fixes the two minimal snippet forms that
 first exposed the target; the remaining corpus population is retained as this
 shrink-only baseline until those lowering paths are ported.
 
-Component-child snippets now carry the same guards, reducing this population by
-1,322 entries. Partition by corpus source: `218 + 37 + 21 + 15 + 14 + 9 + 8 +
-6 + 6 + 5 + 4 + 3 + 2 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 = 356`.
+Component-child snippets reduced this population by 1,322 entries; non-hoistable
+snippet guards now share upstream's init placement, removing another 72.
+Partition by corpus source: `196 + 31 + 10 + 9 + 7 + 5 + 5 + 4 + 3 + 3 + 2 +
+2 + 1 + 1 + 1 + 1 + 1 + 1 + 1 = 284`.
 
 | source | entries |
 | --- | ---: |
-| `svelte` | 218 |
-| `svelte.dev` | 37 |
-| `flowbite-svelte` | 21 |
-| `pattern` | 15 |
-| `shadcn-svelte` | 14 |
+| `svelte` | 196 |
+| `svelte.dev` | 31 |
+| `flowbite-svelte` | 10 |
 | `svelte-form-builder` | 9 |
-| `skeleton` | 8 |
-| `bits-ui`, `layerchart` | 6 each |
-| `layercake` | 5 |
-| `melt-ui` | 4 |
-| `svar-core` | 3 |
-| `svelte-ux` | 2 |
-| `powertable`, `runed`, `svelte-formly`, `svelte-maplibre`, `svelte-notifications`, `svelte-sonner`, `svelte-table`, `sveltestrap` | 1 each |
+| `skeleton` | 7 |
+| `shadcn-svelte`, `layercake` | 5 each |
+| `pattern` | 4 |
+| `bits-ui`, `layerchart` | 3 each |
+| `melt-ui`, `svelte-ux` | 2 each |
+| `powertable`, `svar-core`, `svelte-formly`, `svelte-maplibre`, `svelte-notifications`, `svelte-table`, `sveltestrap` | 1 each |
 
 ## Hard-cluster warnings for future work
 
