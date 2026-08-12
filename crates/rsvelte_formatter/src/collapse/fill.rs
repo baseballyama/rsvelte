@@ -543,10 +543,11 @@ pub(super) fn fill(text: &str, width: usize, tw: usize) -> Vec<String> {
             cur.push_str(word);
         } else if cur.visual_width(tw) + 1 + word.visual_width(tw) <= width {
             cur.push(' ');
+            cur.push_str(word);
         } else {
             lines.push(std::mem::take(&mut cur));
+            cur.push_str(word);
         }
-        cur.push_str(word);
     }
     if !cur.is_empty() {
         lines.push(cur);

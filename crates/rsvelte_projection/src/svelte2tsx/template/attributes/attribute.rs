@@ -44,7 +44,7 @@ pub fn format_attribute_node(node: &AttributeNode, source: &str, is_element: boo
         }
     }
 
-    let value = match &node.value {
+    match &node.value {
         AttributeValue::True(_) => {
             // Boolean attribute: `disabled` → `"disabled":true,`
             // For data-* on elements the boolean value is still `true` — official
@@ -127,8 +127,7 @@ pub fn format_attribute_node(node: &AttributeNode, source: &str, is_element: boo
             let inner = format!("\"{}\":`{}`", name, value_parts.join(""));
             wrap(&inner, is_data_attr, is_css_prop)
         }
-    };
-    value
+    }
 }
 
 /// Structured-bake variant of [`format_attribute_node`]. Wraps every

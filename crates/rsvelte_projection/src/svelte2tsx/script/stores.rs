@@ -721,7 +721,7 @@ fn is_dollar_binding_shadowed(
     name: &str,
     pos: usize,
 ) -> bool {
-    shadow.get(name).map_or(false, |spans| {
+    shadow.get(name).is_some_and(|spans| {
         let p = source_offset(pos);
         spans.iter().any(|&(s, e)| p >= s && p < e)
     })

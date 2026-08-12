@@ -406,7 +406,7 @@ pub(super) fn resolve_hoistable_type_decls(
         return;
     }
     let mut candidate_indices: FxHashMap<&str, u32> =
-        FxHashMap::with_capacity_and_hasher(candidates.len(), FxBuildHasher::default());
+        FxHashMap::with_capacity_and_hasher(candidates.len(), FxBuildHasher);
     for (index, candidate) in candidates.iter().enumerate() {
         candidate_indices
             .entry(candidate.name.as_str())

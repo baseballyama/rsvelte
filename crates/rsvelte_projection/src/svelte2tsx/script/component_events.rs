@@ -283,7 +283,7 @@ fn scan_dispatch_calls_with_observer<'source>(
     mut observe_identifier: impl FnMut(),
 ) -> DispatchScan<'source> {
     let mut dispatcher_indices: FxHashMap<&str, (usize, usize)> =
-        FxHashMap::with_capacity_and_hasher(decls.len(), FxBuildHasher::default());
+        FxHashMap::with_capacity_and_hasher(decls.len(), FxBuildHasher);
     let mut next_dispatcher = vec![usize::MAX; decls.len()];
     for (index, (name, _)) in decls.iter().enumerate() {
         dispatcher_indices

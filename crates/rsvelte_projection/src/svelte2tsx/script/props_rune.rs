@@ -642,31 +642,28 @@ pub(super) fn extract_props_from_binding_pattern_runes(
     exported_names: &mut ExportedNames,
     raw_content: &str,
 ) {
-    match pattern {
-        oxc::BindingPattern::ObjectPattern(obj_pat) => {
-            for prop in &obj_pat.properties {
-                let key_name = property_key_to_string(&prop.key);
-                let (local_name, has_default, is_bindable) =
-                    if let oxc::BindingPattern::AssignmentPattern(assign) = &prop.value {
-                        // { a = 1 } or { a = $bindable() }
-                        let name = binding_pattern_simple_name(&assign.left);
-                        let (bindable, _) = is_bindable_call(&assign.right, raw_content);
-                        (name, true, bindable)
-                    } else {
-                        let name = binding_pattern_simple_name(&prop.value);
-                        (name, false, false)
-                    };
+    if let oxc::BindingPattern::ObjectPattern(obj_pat) = pattern {
+        for prop in &obj_pat.properties {
+            let key_name = property_key_to_string(&prop.key);
+            let (local_name, has_default, is_bindable) =
+                if let oxc::BindingPattern::AssignmentPattern(assign) = &prop.value {
+                    // { a = 1 } or { a = $bindable() }
+                    let name = binding_pattern_simple_name(&assign.left);
+                    let (bindable, _) = is_bindable_call(&assign.right, raw_content);
+                    (name, true, bindable)
+                } else {
+                    let name = binding_pattern_simple_name(&prop.value);
+                    (name, false, false)
+                };
 
-                if let Some(ref key) = key_name {
-                    let local = local_name.unwrap_or(key).to_owned();
-                    exported_names.add(key.clone(), local, has_default, None, true);
-                    if is_bindable {
-                        exported_names.bindable_props.push(key.clone());
-                    }
+            if let Some(ref key) = key_name {
+                let local = local_name.unwrap_or(key).to_owned();
+                exported_names.add(key.clone(), local, has_default, None, true);
+                if is_bindable {
+                    exported_names.bindable_props.push(key.clone());
                 }
             }
         }
-        _ => {}
     }
 }
 

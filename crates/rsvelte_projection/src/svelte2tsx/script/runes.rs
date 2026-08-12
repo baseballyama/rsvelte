@@ -235,9 +235,9 @@ fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSet<String>) 
                 }),
                 // ForStatementInit inherits Expression variants; use to_expression()
                 // for all non-VariableDeclaration arms.
-                _ => init.as_expression().map_or(false, |expression| {
-                    detect_rune_in_expr(expression, declared_names)
-                }),
+                _ => init
+                    .as_expression()
+                    .is_some_and(|expression| detect_rune_in_expr(expression, declared_names)),
             }) || for_stmt
                 .test
                 .as_ref()

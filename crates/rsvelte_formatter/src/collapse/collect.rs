@@ -812,10 +812,11 @@ pub(super) fn try_collapse(
                     <= avail_for(fill_lines.len())
                 {
                     cur.push(' ');
+                    cur.push_str(word);
                 } else {
                     fill_lines.push(std::mem::take(&mut cur));
+                    cur.push_str(word);
                 }
-                cur.push_str(word);
             }
             if !cur.is_empty() {
                 fill_lines.push(cur);
