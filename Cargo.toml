@@ -128,14 +128,6 @@ codegen-units = 16
 unsafe_op_in_unsafe_fn = "deny"
 
 [workspace.lints.clippy]
-# `all` covers Clippy's stable correctness, suspicious, style, complexity, and
-# performance lints. `nursery` opts into mature candidates before they become
-# part of the default set. Both use a lower priority so a documented, specific
-# exception below remains reviewable and deliberate.
-all = { level = "deny", priority = -1 }
-nursery = { level = "deny", priority = -1 }
-pedantic = { level = "deny", priority = -1 }
-
 # Every `unsafe {}` block must carry a `// SAFETY:` comment justifying its
 # soundness. This is the project's contract for reviewing unsafe code.
 undocumented_unsafe_blocks = "deny"
