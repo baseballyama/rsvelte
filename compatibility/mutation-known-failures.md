@@ -8,13 +8,13 @@ Re-baseline with `pnpm run corpus:mutate:update`.
 what the normalizer absorbs, so these verdicts are only comparable across runs on the same
 version — which is why the gate prints the version it used. Re-deriving this baseline from
 0.61.0 to 0.62.0 moved the gated bucket from 213 to 525; see "Sensitivity to the normalizer".
-The bucket has since been burned down from 525 to **32**, and `unparseable` from 2 to **0**.
+The bucket has since been burned down from 525 to **37**, and `unparseable` from 2 to **0**.
 
 ## Why this gate exists
 
 The collected corpus is at **0 known failures on all three targets** — it is saturated. That
 does not mean the compiler is correct; it means this input distribution has nothing left to
-teach. So the 14,198 entries stop being the test set and become a **seed set**: insert one
+teach. So the 14,197 entries stop being the test set and become a **seed set**: insert one
 semantics-preserving comment at a line boundary inside a `<script>` region and require parity
 on the mutant.
 
@@ -45,7 +45,7 @@ whitespace and trailing commas away:
 | `comment-mismatch` | **no** | the comment was dropped, duplicated or relocated, or a line broke differently |
 
 The split is the difference between a gate and a backlog dump. The full sweep produces
-**14,797** comment-only divergences against **32** code ones — ratcheting per id without the
+**17,388** comment-only divergences against **37** code ones — ratcheting per id without the
 split would mean a 13,000-entry file that churns on every submodule bump and buries the class
 that matters. Comment fidelity is already ratcheted per id by Gate 2
 (`matrix-known-failures.md`), on **generated** seeds that do not move when a submodule bumps,
@@ -63,22 +63,22 @@ re-measured under 0.62, so it is in for honest reporting rather than to change a
 the gate prints must be the reason for the verdict, and before this a reviewer could see
 `import 'x'` vs `import "x"` and dismiss a real finding sitting further down the same file.
 
-## Mutation known failures (`mutation-known-failures.json`, 32 entries)
+## Mutation known failures (`mutation-known-failures.json`, 37 entries)
 
-Full sweep: 14,198 seeds → 10,607 mutants → 42,428 comparisons, under oxfmt 0.62.0.
+Full sweep: 14,197 seeds → 12,208 mutants → 48,832 comparisons, under oxfmt 0.62.0.
 
-The `mutation-known-failures.provenance.json` file records 15 entries, one SHA-256 seed-content
+The `mutation-known-failures.provenance.json` file records 17 entries, one SHA-256 seed-content
 hash for each source represented by the failure ratchet. A full sweep reports a changed
 hash as re-keyed instead of claiming that the old mutation now passes.
 
 | verdict | entries |
 |---|---|
-| `code-mismatch` | 32 |
+| `code-mismatch` | 37 |
 | `unparseable` | **0** |
 | `compiler-crash` | 0 |
 | `error-mismatch` | 0 |
 
-By target: `client` 14, `client-dev` 8, `server` 5, `server-dev` 5.
+By target: `client` 15, `client-dev` 10, `server` 6, `server-dev` 6.
 
 ### `unparseable` is now 0 — [#2546](https://github.com/baseballyama/rsvelte/issues/2546) closed
 
@@ -136,24 +136,24 @@ consolidated five such scans behind `shared/js_scan.rs::skip_opaque`.
 The paren mechanism recorded here — official emitting `() => (items())` where rsvelte emits
 `() => items()`, with the two agreeing on the unmutated seed — was measured as **353 of 525** of
 first-differences against the 525-entry baseline. That figure is historical and does not carry
-over; the section below re-derives the split against the 32.
+over; the section below re-derives the split against the 37.
 
-### What the 32 are
+### What the 37 are
 
 The gate prints one first-difference line per **regression**, so a passing run prints none. To
-get all 32, empty the ratchet, run `--full --max-print 40`, and restore it — which needs no
+get all 37, empty the ratchet, run `--full --max-print 40`, and restore it — which needs no
 artifacts and no re-compile. Classifying every entry by the first rule that matches:
 
 | class | entries | example (official → rsvelte) |
 |---|---|---|
 | empty-statement / `;` placement | 19 | `export default class {};` → `export default class {}` |
-| optional-chain parenthesisation | 8 | `(e?.target)?.closest(…)` → `e?.target?.closest(…)` |
+| optional-chain parenthesisation | 12 | `(e?.target)?.closest(…)` → `e?.target?.closest(…)` |
 | missing `$.get` on a reactive read | 3 | `() => $.get(circles)` → `() => circles` |
 | `$$DOUBLE_SEMI$$` sentinel reaches the output | 0 | — |
 | `$props()` destructure left in the output | 2 | *(absent)* → `let { visible, class: className } = $props();` |
-| `$.snapshot` second argument dropped | 0 | — |
+| `$.snapshot` second argument dropped | 1 | `$.snapshot(arr, true)` → `$.snapshot(arr)` |
 
-`() => (items())` — the shape the 353 counted — does **not** appear among the 32 at all. The 8
+`() => (items())` — the shape the 353 counted — does **not** appear among the 37 at all. The 12
 parenthesisation entries are a different one: a parenthesised optional-chain link. So the
 mechanism that dominated the 525 is not merely a smaller share now, it is absent from the
 residue, and quoting any paren share of the current bucket from the historical number would be
@@ -164,7 +164,7 @@ rsvelte emitting more empty statements than official, 3 × fewer, 1 × an empty 
 `switch` case, 1 × other placement.
 
 **"Known failure" is not "accepted output" here, and the table is what separates the two.** The
-first two classes — 27 of 32 — are cosmetic: a redundant paren and an empty statement change no
+first two classes — 31 of 37 — are cosmetic: a redundant paren and an empty statement change no
 behaviour. The remaining 6 do. A missing `$.get` is lost reactivity; a leaked `$$DOUBLE_SEMI$$`
 is an internal marker shipped to users; a `$props()` destructure surviving into the compiled
 module references a rune that does not exist at runtime. Anyone burning this bucket down should
@@ -178,16 +178,16 @@ of these six classes.
 
 ### By source repository
 
-`svelte` 13, `svelte.dev` 5, `flowbite-svelte` 4, `layerchart` 4, `layercake` 2,
+`svelte` 14, `svelte.dev` 5, `flowbite-svelte` 4, `layerchart` 4, `layercake` 2, `powertable` 4,
 `runed` 2, `svelte-sonner` 2.
 
-**Two of the 32 are `runed`, and that is the reason this table is worth reading.** `runed` was
+**Two of the 37 are `runed`, and that is the reason this table is worth reading.** `runed` was
 one of two corpus submodules absent from the tree during the first attempt at this
 re-baseline. `collect.mjs` skips a missing source with a warning and exits 0, so the run
 measured 14,035 entries and looked complete — and `--update-baseline` would have deleted both of
 this as fixed while it still diverges, after which CI would have reported it as new. The
 `MIN_FULL_CORPUS_ENTRIES` floor cannot catch that: 14,035 clears a 12,000 lower bound. Only 2
-of the 32 corpus sources are marked `required`.
+of the 37 corpus sources are marked `required`.
 
 ### Sensitivity to the normalizer
 
@@ -231,4 +231,4 @@ Ids are `<corpus id with __m<n>__<kind> before the extension> [verdict] (target)
   divergence that had not changed.
 - Seeds already listed in `known-failures.<target>.json` are excluded: they diverge before
   anything is inserted, so a divergent mutant of one is not attributable to the mutation. **0**
-of 14,198 entries are currently excluded on that basis — the collected corpus is saturated.
+of 14,197 entries are currently excluded on that basis — the collected corpus is saturated.
