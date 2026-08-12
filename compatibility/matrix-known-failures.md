@@ -28,9 +28,9 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 904 entries)
+## Matrix known failures (`matrix-known-failures.json`, 872 entries)
 
-Partition of `matrix-known-failures.json` by family: `4 + 316 + 8 + 24 + 60 + 114 + 180 + 198`
+Partition of `matrix-known-failures.json` by family: `4 + 316 + 8 + 24 + 60 + 82 + 180 + 198`
 
 ### `binding-position` — 4 entries
 
@@ -248,7 +248,7 @@ on `client` and `client-dev`. `server` has no dependency list and matches everyw
 
 Partition of `matrix-known-failures.json` entries under `param-pattern/` by shape: `12 + 12 + 12 + 12 + 12`
 
-### `directive-element` — 114 entries
+### `directive-element` — 82 entries
 
 19 directive kinds × 13 element kinds × 2 modes (runes / legacy), 1482 comparisons. Every one
 of these 62 entries is a **live rsvelte defect**, not accepted behaviour; none was known before
@@ -260,7 +260,7 @@ The single most useful fact about the set is where it is **not**: zero entries o
 official across every kind and both modes; the special elements are where per-parent handling has
 drifted from upstream's one predicate per directive.
 
-Partition of `matrix-known-failures.json` entries under `directive-element/` by verdict and host: `24 + 2 + 12 + 12 + 6 + 6 + 52`
+Partition of `matrix-known-failures.json` entries under `directive-element/` by verdict and host: `24 + 2 + 12 + 12 + 6 + 6 + 20`
 
 | verdict | host | entries | cause |
 |---|---|---:|---|
@@ -271,8 +271,9 @@ Partition of `matrix-known-failures.json` entries under `directive-element/` by 
 | `error-mismatch` | `svelte-element` | 6 | `animate:` outside a keyed `{#each}` is accepted (`animation_invalid_placement`). |
 | `error-mismatch` | `svelte-component` | 6 | `on:click\|preventDefault` is accepted (`event_handler_invalid_component_modifier`). |
 
-The `js-mismatch` rows are `client` and `client-dev` only — the server target emits nothing for a
-transition on either compiler, so it agrees by construction and is not evidence of anything.
+The `js-mismatch` rows are `client` and `client-dev` only. Development SSR now matches the
+identifier-tag path on every generated `svelte-element` directive row, while the server target
+emits nothing for a transition on either compiler.
 
 **The `warning-missing:a11y_no_static_element_interactions` row — 24 entries on `svelte-element`
 — is fixed by #2523 and no longer listed.** It read as one missing warning on four handler
