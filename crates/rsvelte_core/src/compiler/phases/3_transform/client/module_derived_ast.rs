@@ -167,14 +167,12 @@ impl<'a> ModuleDerivedCollector<'a> {
             &mut declarations,
             &mut array_counter,
             self.dev.then_some(label),
+            if self.server {
+                "$$derived_array"
+            } else {
+                "$$array"
+            },
         )?;
-        if self.server {
-            for declaration in &mut declarations {
-                *declaration = declaration
-                    .replace("$$array_", "$$derived_array_")
-                    .replace("$$array", "$$derived_array");
-            }
-        }
         if self.dev {
             for declaration in declarations.iter_mut().skip(1) {
                 let Some((name, init)) = declaration.split_once(" = ") else {

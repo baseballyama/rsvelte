@@ -1412,6 +1412,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             &mut declarations,
             &mut array_counter,
             insert_label,
+            "$$array",
         )
         .is_none()
         {
@@ -1498,6 +1499,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             &mut declarations,
             &mut array_counter,
             insert_label,
+            "$$array",
         )
         .is_none()
         {

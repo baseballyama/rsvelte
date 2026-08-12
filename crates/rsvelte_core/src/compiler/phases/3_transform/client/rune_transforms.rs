@@ -769,6 +769,7 @@ pub(super) fn process_derived_destructuring_pattern(
     declarations: &mut Vec<String>,
     array_counter: &mut usize,
     insert_label: Option<&str>,
+    array_temp_prefix: &str,
 ) -> Option<()> {
     let pattern = pattern.trim();
     if pattern.starts_with('{') && pattern.ends_with('}') {
@@ -780,6 +781,7 @@ pub(super) fn process_derived_destructuring_pattern(
             declarations,
             array_counter,
             insert_label,
+            array_temp_prefix,
         )
     } else if pattern.starts_with('[') && pattern.ends_with(']') {
         let inner = &pattern[1..pattern.len() - 1];
@@ -790,6 +792,7 @@ pub(super) fn process_derived_destructuring_pattern(
             declarations,
             array_counter,
             insert_label,
+            array_temp_prefix,
         )
     } else {
         None
@@ -909,6 +912,7 @@ pub(super) fn process_derived_object_pattern(
     declarations: &mut Vec<String>,
     array_counter: &mut usize,
     insert_label: Option<&str>,
+    array_temp_prefix: &str,
 ) -> Option<()> {
     let properties = split_derived_object_properties(inner);
 
@@ -930,6 +934,7 @@ pub(super) fn process_derived_object_pattern(
                     &prop_access,
                     declarations,
                     insert_label,
+                    array_temp_prefix,
                 )?;
             }
         }
@@ -995,6 +1000,7 @@ pub(super) fn process_derived_object_pattern(
                     &effective_access,
                     declarations,
                     array_counter,
+                    array_temp_prefix,
                 )?;
             } else {
                 // Handle renamed properties with default values
@@ -1056,6 +1062,7 @@ pub(super) fn collect_array_helpers_only(
     base_expr: &str,
     declarations: &mut Vec<String>,
     insert_label: Option<&str>,
+    array_temp_prefix: &str,
 ) -> Option<()> {
     let pattern = pattern.trim();
     if pattern.starts_with('[') && pattern.ends_with(']') {
@@ -1070,9 +1077,9 @@ pub(super) fn collect_array_helpers_only(
         });
 
         let array_var = if global_counter == 0 {
-            "$$array".to_string()
+            array_temp_prefix.to_string()
         } else {
-            format!("$$array_{}", global_counter)
+            format!("{}_{}", array_temp_prefix, global_counter)
         };
 
         declarations.push(format!(
@@ -1092,7 +1099,13 @@ pub(super) fn collect_array_helpers_only(
             }
             let element_access = format!("$.get({})[{}]", array_var, index);
             if element.starts_with('[') || element.starts_with('{') {
-                collect_array_helpers_only(element, &element_access, declarations, insert_label)?;
+                collect_array_helpers_only(
+                    element,
+                    &element_access,
+                    declarations,
+                    insert_label,
+                    array_temp_prefix,
+                )?;
             }
         }
     } else if pattern.starts_with('{') && pattern.ends_with('}') {
@@ -1115,6 +1128,7 @@ pub(super) fn collect_array_helpers_only(
                         &prop_access,
                         declarations,
                         insert_label,
+                        array_temp_prefix,
                     )?;
                 }
             }
@@ -1130,6 +1144,7 @@ pub(super) fn process_nested_pattern_elements(
     base_expr: &str,
     declarations: &mut Vec<String>,
     _array_counter: &mut usize,
+    array_temp_prefix: &str,
 ) -> Option<()> {
     let pattern = pattern.trim();
     if pattern.starts_with('[') && pattern.ends_with(']') {
@@ -1138,7 +1153,7 @@ pub(super) fn process_nested_pattern_elements(
 
         // Get the array variable that was already created by collect_array_helpers_only
         // We need to track which $$array we're using - use a separate counter for lookups
-        let array_var = get_current_array_var_for_base(base_expr);
+        let array_var = get_current_array_var_for_base(base_expr, array_temp_prefix);
 
         for (index, element) in elements.iter().enumerate() {
             let element = element.trim();
@@ -1160,6 +1175,7 @@ pub(super) fn process_nested_pattern_elements(
                     &element_access,
                     declarations,
                     _array_counter,
+                    array_temp_prefix,
                 )?;
             } else if let Some(eq_pos) = find_default_equals(element) {
                 let name = element[..eq_pos].trim();
@@ -1224,6 +1240,7 @@ pub(super) fn process_nested_pattern_elements(
                         &effective_access,
                         declarations,
                         _array_counter,
+                        array_temp_prefix,
                     )?;
                 } else {
                     // Handle default values for renamed properties
@@ -1295,7 +1312,7 @@ pub(super) fn split_nested_pattern_default(pattern: &str) -> (&str, Option<&str>
 /// Helper to determine which $$array variable corresponds to a given base expression.
 /// This is needed because we pre-generate $$array helpers in the first pass,
 /// and need to reference the correct one in the second pass.
-pub(super) fn get_current_array_var_for_base(_base_expr: &str) -> String {
+pub(super) fn get_current_array_var_for_base(_base_expr: &str, array_temp_prefix: &str) -> String {
     // The $$array variables are generated in order during collect_array_helpers_only.
     // We use the module-level ARRAY_LOOKUP_COUNTER to track which $$array we're on.
     // This counter is reset at the start of each component transformation along with
@@ -1307,9 +1324,9 @@ pub(super) fn get_current_array_var_for_base(_base_expr: &str) -> String {
     });
 
     if counter == 0 {
-        "$$array".to_string()
+        array_temp_prefix.to_string()
     } else {
-        format!("$$array_{}", counter)
+        format!("{}_{}", array_temp_prefix, counter)
     }
 }
 
@@ -1323,6 +1340,7 @@ pub(super) fn process_derived_array_pattern(
     declarations: &mut Vec<String>,
     _array_counter: &mut usize,
     insert_label: Option<&str>,
+    array_temp_prefix: &str,
 ) -> Option<()> {
     let elements = split_derived_array_elements(inner);
 
@@ -1335,9 +1353,9 @@ pub(super) fn process_derived_array_pattern(
     });
 
     let array_var = if global_counter == 0 {
-        "$$array".to_string()
+        array_temp_prefix.to_string()
     } else {
-        format!("$$array_{}", global_counter)
+        format!("{}_{}", array_temp_prefix, global_counter)
     };
 
     declarations.push(format!(
@@ -1372,6 +1390,7 @@ pub(super) fn process_derived_array_pattern(
                 declarations,
                 &mut nested_counter,
                 insert_label,
+                array_temp_prefix,
             )?;
         } else if let Some(eq_pos) = find_default_equals(element) {
             let name = element[..eq_pos].trim();
