@@ -474,9 +474,8 @@ pub fn visit_template_node(context: &mut Context, node: &TemplateNode) {
 /// * `context` - The context to write to
 /// * `text` - The text node
 fn visit_text(context: &mut Context, text: &Text) {
-    // Use data (official printer uses data, not raw)
     if context.preserve_whitespace > 0 {
-        context.write_verbatim(&text.data);
+        context.write_verbatim(&text.raw);
     } else {
         context.write(&text.data);
     }

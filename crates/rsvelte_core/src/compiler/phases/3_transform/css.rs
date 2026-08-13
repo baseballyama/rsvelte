@@ -495,6 +495,16 @@ fn render_stylesheet_internal(
 
         // Transform the CSS
         let mut writer = transform_css(children, &selector, hash, css_content, css_start, &ctx);
+        if let Some(stylesheet) = ast {
+            for comment in &stylesheet.comments {
+                if let Some(start) = comment.get("start").and_then(Value::as_u64) {
+                    writer.mark(start as usize);
+                }
+                if let Some(end) = comment.get("end").and_then(Value::as_u64) {
+                    writer.mark(end as usize);
+                }
+            }
+        }
 
         // Post-process: replace animation keyframe references. Upstream inserts
         // the prefix through MagicString, so the mapping is only accurate while
