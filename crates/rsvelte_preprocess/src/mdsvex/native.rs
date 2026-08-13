@@ -63,6 +63,7 @@ pub fn render_standard(source: &str) -> StandardResult {
 /// layout stages around this renderer before exposing it as an mdsvex result.
 #[must_use]
 pub fn render_markdown(source: &str) -> String {
+    let (preamble, source) = split_leading_script(source);
     let mut options = Options::default();
     options.parse.smart = true;
     options.render.r#unsafe = true;
@@ -70,7 +71,11 @@ pub fn render_markdown(source: &str) -> String {
     options.extension.table = true;
     options.extension.autolink = true;
     options.extension.tasklist = true;
-    format!("\n{}", escape_code(markdown_to_html(source, &options)))
+    let html = format!(
+        "\n{}",
+        restore_svelte_urls(escape_code(markdown_to_html(source, &options)))
+    );
+    preamble.map_or(html.clone(), |script| format!("{script}\n\n{html}"))
 }
 
 fn escape_code(mut html: String) -> String {
@@ -95,6 +100,25 @@ fn escape_code(mut html: String) -> String {
     html
 }
 
+fn restore_svelte_urls(mut html: String) -> String {
+    let mut cursor = 0;
+    while let Some(relative_open) = html[cursor..].find('<') {
+        let open = cursor + relative_open;
+        let Some(relative_end) = html[open..].find('>') else {
+            break;
+        };
+        let end = open + relative_end + 1;
+        if html[open..end].starts_with("<a ") || html[open..end].starts_with("<img ") {
+            let restored = html[open..end].replace("%7B", "{").replace("%7D", "}");
+            html.replace_range(open..end, &restored);
+            cursor = open + restored.len();
+        } else {
+            cursor = end;
+        }
+    }
+    html
+}
+
 fn split_frontmatter(source: &str) -> (Option<&str>, &str) {
     let Some(rest) = source.strip_prefix("---\n") else {
         return (None, source);
@@ -105,4 +129,15 @@ fn split_frontmatter(source: &str) -> (Option<&str>, &str) {
     let yaml = &rest[..end];
     let markdown = &rest[end + "\n---\n".len()..];
     (Some(yaml), markdown)
+}
+
+fn split_leading_script(source: &str) -> (Option<&str>, &str) {
+    if !source.starts_with("<script") {
+        return (None, source);
+    }
+    let Some(end) = source.find("</script>") else {
+        return (None, source);
+    };
+    let end = end + "</script>".len();
+    (Some(&source[..end]), source[end..].trim_start_matches('\n'))
 }

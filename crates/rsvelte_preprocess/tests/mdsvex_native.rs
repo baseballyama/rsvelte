@@ -85,6 +85,14 @@ fn standard_markdown_matches_mdsvex_fixtures() {
             "inline-code",
             "Please don't use any `<blink>` tags.\n\n`&#8212;` is the decimal-encoded equivalent of `&mdash;`.\n\nthis `inline **code** has ___magic___` chars",
         ),
+        ("template-expression", "Hello {name}"),
+        ("component", "<Component answer={42} />"),
+        ("component-in-heading", "## Hello {name}"),
+        (
+            "svelte-script",
+            "<script>let answer = 42;</script>\n\n# {answer}",
+        ),
+        ("link-expression", "[link](/things/{id})"),
     ] {
         assert_parity(name, source);
     }
