@@ -159,7 +159,11 @@ pub fn visit_declaration_tag<'a>(node: &DeclarationTag, state: &mut ServerTransf
     // `reparse_statement` parses plain mjs, so a `: type` annotation would make
     // it bail and silently drop the whole declaration. The official output is
     // the type-stripped JS (`const x = …`).
-    decl_src = strip_declarator_type_annotation(&decl_src);
+    decl_src = if state.analysis.is_typescript {
+        crate::compiler::phases::phase2_analyze::types::strip_typescript(&decl_src)
+    } else {
+        strip_declarator_type_annotation(&decl_src)
+    };
     if !decl_src.ends_with(';') {
         decl_src.push(';');
     }

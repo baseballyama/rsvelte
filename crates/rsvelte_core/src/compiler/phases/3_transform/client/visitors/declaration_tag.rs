@@ -92,7 +92,13 @@ pub fn declaration_tag(node: &DeclarationTag, context: &mut ComponentContext) {
     // for the keyword, locate the top-level `=`, then strip the top-level `:`
     // annotation from the LHS pattern.
     // Mirrors upstream's reliance on OXC's TS-aware parse/emit.
-    let body_stripped = strip_ts_annotation_body(body);
+    let body_stripped = if context.state.analysis.is_typescript {
+        std::borrow::Cow::Owned(
+            crate::compiler::phases::phase2_analyze::types::strip_typescript(body),
+        )
+    } else {
+        strip_ts_annotation_body(body)
+    };
     let body = body_stripped.trim();
 
     // Ensure the statement ends with `;` so the rune-rewriting pipeline (which
