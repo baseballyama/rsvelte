@@ -6,7 +6,7 @@
 
 use super::VisitorContext;
 use super::shared::fragment::mark_subtree_dynamic;
-use super::shared::utils::walk_js_expression_node;
+use super::shared::utils::{validate_opening_tag, walk_js_expression_node};
 use crate::ast::template::HtmlTag;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
@@ -21,11 +21,8 @@ use crate::compiler::phases::phase2_analyze::AnalysisError;
 /// * `tag` - The {@html} tag node
 /// * `context` - The visitor context
 pub fn visit(tag: &mut HtmlTag, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    // In runes mode, validate the opening tag format
     if context.analysis.runes {
-        // TODO: Implement validate_opening_tag
-        // For now, we skip validation as it requires access to source code
-        // validate_opening_tag(tag.start, source, '@')?;
+        validate_opening_tag(tag.start as usize, &context.analysis.source, '@')?;
     }
 
     // Mark the subtree as dynamic
