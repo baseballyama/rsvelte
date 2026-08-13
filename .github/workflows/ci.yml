@@ -926,6 +926,7 @@ jobs:
           # corrective PR into an unreviewable circular dependency. Rebuild the
           # report from that exact tree; the already-installed dependencies are
           # setup state only and the compiler source remains the merge base.
+          git fetch --no-tags --depth 1 origin "$BASE_SHA"
           git checkout --detach "$BASE_SHA"
           git submodule update --init --depth 1 submodules/svelte submodules/language-tools
           pnpm run generate-fixtures

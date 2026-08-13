@@ -331,32 +331,7 @@ pub(super) fn collect(
                     collect(out, &c.fragment, line_width, false, options, edits);
                 }
             }
-            TemplateNode::TitleElement(t) => {
-                if let Some(edit) = try_collapse(
-                    out,
-                    t.name.as_str(),
-                    t.start,
-                    t.end,
-                    &t.fragment,
-                    line_width,
-                    options,
-                    None,
-                ) {
-                    edits.push(edit);
-                } else if let Some(edit) = try_hug_mixed(
-                    out,
-                    t.name.as_str(),
-                    t.start,
-                    t.end,
-                    &t.fragment,
-                    line_width,
-                    options,
-                ) {
-                    edits.push(edit);
-                } else {
-                    collect(out, &t.fragment, line_width, false, options, edits);
-                }
-            }
+            TemplateNode::TitleElement(_) => {}
             TemplateNode::SlotElement(s) => {
                 // A run fill already reflowed this slot inline — its layout is
                 // owned by that edit, so recursing would risk an overlapping edit.

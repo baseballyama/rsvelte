@@ -626,9 +626,7 @@ fn recurse_into_children(
         TemplateNode::Component(c) => {
             collect_indent_edits(source, &c.fragment, next_depth, options, edits)?;
         }
-        TemplateNode::TitleElement(t) => {
-            collect_indent_edits(source, &t.fragment, next_depth, options, edits)?;
-        }
+        TemplateNode::TitleElement(_) => {}
         TemplateNode::SlotElement(s) => {
             collect_indent_edits(source, &s.fragment, next_depth, options, edits)?;
         }

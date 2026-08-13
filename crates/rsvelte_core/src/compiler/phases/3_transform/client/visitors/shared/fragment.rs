@@ -452,12 +452,14 @@ pub fn process_children<F>(
                     let css_hash = &context.state.analysis.css.hash;
                     let preserve_comments = context.state.options.preserve_comments;
                     let in_text_element = context.state.metadata.in_text_element;
+                    let preserve_whitespace = context.state.preserve_whitespace;
                     let had_lone_script = push_static_element_to_template(
                         node,
                         &mut context.state.template,
                         &context.state.metadata.namespace,
                         css_hash,
                         preserve_comments,
+                        preserve_whitespace,
                         in_text_element,
                     );
 
@@ -605,6 +607,7 @@ fn push_static_element_to_template(
     namespace: &str,
     css_hash: &str,
     preserve_comments: bool,
+    preserve_whitespace: bool,
     in_text_element: bool,
 ) -> bool {
     push_static_element_to_template_inner(
@@ -613,7 +616,7 @@ fn push_static_element_to_template(
         namespace,
         css_hash,
         preserve_comments,
-        false,
+        preserve_whitespace,
         in_text_element,
     )
 }
