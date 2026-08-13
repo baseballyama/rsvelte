@@ -85,6 +85,12 @@ pub enum Job {
         text: Arc<String>,
         hierarchical: bool,
     },
+    PullDiagnostics {
+        id: RequestId,
+        path: PathBuf,
+        text: Arc<String>,
+        warnings: CompilerWarnings,
+    },
     /// Drop the resolved `rsvelte-lint.json` / `.oxfmtrc` caches so the next
     /// job re-reads them from disk.
     ClearCaches,
@@ -124,6 +130,10 @@ pub enum Outcome {
     DocumentSymbols {
         id: RequestId,
         symbols: DocumentSymbolResponse,
+    },
+    PulledDiagnostics {
+        id: RequestId,
+        diagnostics: Vec<Diagnostic>,
     },
 }
 
@@ -282,6 +292,22 @@ fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>) {
                 })
                 .unwrap_or_else(|| DocumentSymbolResponse::Nested(Vec::new())),
             },
+            Job::PullDiagnostics {
+                id,
+                path,
+                text,
+                warnings,
+            } => {
+                let config = lint_configs.get(path.parent().unwrap_or(Path::new(".")));
+                let diagnostics = guard("pull diagnostics", &path, || {
+                    crate::lint::lint(&path, &text, &config)
+                        .iter()
+                        .filter_map(|d| crate::diagnostics::to_lsp(d, &warnings))
+                        .collect()
+                })
+                .unwrap_or_default();
+                Outcome::PulledDiagnostics { id, diagnostics }
+            }
         };
         if outcomes.send(outcome).is_err() {
             break;

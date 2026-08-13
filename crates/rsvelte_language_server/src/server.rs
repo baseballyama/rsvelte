@@ -10,13 +10,15 @@ use lsp_server::{Connection, ErrorCode, Message, Notification, Request, RequestI
 use lsp_types::{
     CodeActionKind, CodeActionOptions, CodeActionOrCommand, CodeActionParams,
     CodeActionProviderCapability, CompletionOptions, CompletionParams, ConfigurationItem,
-    ConfigurationParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
-    DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentFormattingParams,
-    DocumentSymbolParams, DocumentSymbolResponse, FoldingRange, FoldingRangeParams,
-    FoldingRangeProviderCapability, HoverParams, HoverProviderCapability, OneOf,
-    PublishDiagnosticsParams, SelectionRangeParams, SelectionRangeProviderCapability,
-    ServerCapabilities, TextDocumentPositionParams, TextDocumentSyncCapability,
-    TextDocumentSyncKind, TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit, Uri,
+    ConfigurationParams, DiagnosticOptions, DiagnosticServerCapabilities,
+    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+    DidSaveTextDocumentParams, DocumentDiagnosticParams, DocumentDiagnosticReport,
+    DocumentFormattingParams, DocumentSymbolParams, DocumentSymbolResponse, FoldingRange,
+    FoldingRangeParams, FoldingRangeProviderCapability, FullDocumentDiagnosticReport, HoverParams,
+    HoverProviderCapability, OneOf, PublishDiagnosticsParams, RelatedFullDocumentDiagnosticReport,
+    SelectionRangeParams, SelectionRangeProviderCapability, ServerCapabilities,
+    TextDocumentPositionParams, TextDocumentSyncCapability, TextDocumentSyncKind,
+    TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit, Uri,
 };
 
 use crate::client::ClientState;
@@ -55,7 +57,7 @@ pub fn run_stdio() -> Result<ExitCode> {
     connection.initialize_finish(
         id,
         serde_json::json!({
-            "capabilities": capabilities(),
+            "capabilities": capabilities(&client),
             "serverInfo": { "name": SERVER_NAME, "version": VERSION },
         }),
     )?;
@@ -76,7 +78,7 @@ pub fn run_stdio() -> Result<ExitCode> {
     Ok(code)
 }
 
-fn capabilities() -> ServerCapabilities {
+fn capabilities(client: &ClientState) -> ServerCapabilities {
     ServerCapabilities {
         text_document_sync: Some(TextDocumentSyncCapability::Options(
             TextDocumentSyncOptions {
@@ -99,6 +101,14 @@ fn capabilities() -> ServerCapabilities {
         folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
         selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
         document_symbol_provider: Some(OneOf::Left(true)),
+        diagnostic_provider: client.pull_diagnostics.then(|| {
+            DiagnosticServerCapabilities::Options(DiagnosticOptions {
+                identifier: Some(SERVER_NAME.to_string()),
+                inter_file_dependencies: false,
+                workspace_diagnostics: false,
+                ..DiagnosticOptions::default()
+            })
+        }),
         ..ServerCapabilities::default()
     }
 }
@@ -114,6 +124,7 @@ enum Pending {
     FoldingRange,
     SelectionRange,
     DocumentSymbol,
+    DocumentDiagnostic,
 }
 
 /// A request this server sent to the client, keyed by the id the client will
@@ -223,6 +234,7 @@ impl Server {
             "textDocument/foldingRange" => self.on_folding_range(request),
             "textDocument/selectionRange" => self.on_selection_range(request),
             "textDocument/documentSymbol" => self.on_document_symbol(request),
+            "textDocument/diagnostic" => self.on_document_diagnostic(request),
             _ => self.respond(Response::new_err(
                 request.id,
                 ErrorCode::MethodNotFound as i32,
@@ -258,6 +270,34 @@ impl Server {
         };
         self.pending.insert(id, Pending::Formatting);
         self.worker.submit(job);
+    }
+
+    fn on_document_diagnostic(&mut self, request: Request) {
+        let id = request.id;
+        let params = match serde_json::from_value::<DocumentDiagnosticParams>(request.params) {
+            Ok(params) => params,
+            Err(err) => {
+                log::warn(format_args!("textDocument/diagnostic: {err}"));
+                self.respond_diagnostic_report(id, Vec::new());
+                return;
+            }
+        };
+        let uri = params.text_document.uri;
+        let Some(document) = self.documents.get(&uri) else {
+            self.respond_diagnostic_report(id, Vec::new());
+            return;
+        };
+        if !self.settings.lint_enable || !is_lint_target(document) {
+            self.respond_diagnostic_report(id, Vec::new());
+            return;
+        }
+        self.pending.insert(id.clone(), Pending::DocumentDiagnostic);
+        self.worker.submit(Job::PullDiagnostics {
+            id,
+            path: uri_to_path(uri.as_str()),
+            text: document.shared_text(),
+            warnings: self.settings.compiler_warnings.clone(),
+        });
     }
 
     fn on_completion(&mut self, request: Request) {
@@ -483,7 +523,9 @@ impl Server {
                         let key = doc.uri.as_str().to_string();
                         self.documents
                             .open(doc.uri, doc.language_id, doc.version, doc.text);
-                        self.schedule_lint(key, Duration::ZERO);
+                        if !self.client.pull_diagnostics {
+                            self.schedule_lint(key, Duration::ZERO);
+                        }
                     }
                     Err(err) => log::warn(format_args!("{method}: {err}")),
                 }
@@ -494,7 +536,9 @@ impl Server {
                         let key = params.text_document.uri.as_str().to_string();
                         if let Some(document) = self.documents.get_mut(&params.text_document.uri) {
                             document.apply(params.text_document.version, &params.content_changes);
-                            self.schedule_lint(key, LINT_DEBOUNCE);
+                            if !self.client.pull_diagnostics {
+                                self.schedule_lint(key, LINT_DEBOUNCE);
+                            }
                         }
                     }
                     Err(err) => log::warn(format_args!("{method}: {err}")),
@@ -502,10 +546,14 @@ impl Server {
             }
             "textDocument/didSave" => {
                 match serde_json::from_value::<DidSaveTextDocumentParams>(notification.params) {
-                    Ok(params) => self.schedule_lint(
-                        params.text_document.uri.as_str().to_string(),
-                        Duration::ZERO,
-                    ),
+                    Ok(params) => {
+                        if !self.client.pull_diagnostics {
+                            self.schedule_lint(
+                                params.text_document.uri.as_str().to_string(),
+                                Duration::ZERO,
+                            );
+                        }
+                    }
                     Err(err) => log::warn(format_args!("{method}: {err}")),
                 }
             }
@@ -516,7 +564,9 @@ impl Server {
                         self.scheduled.remove(uri.as_str());
                         self.linted.remove(uri.as_str());
                         let version = self.documents.close(&uri).map_or(0, |d| d.version);
-                        self.publish(uri, version, Vec::new());
+                        if !self.client.pull_diagnostics {
+                            self.publish(uri, version, Vec::new());
+                        }
                     }
                     Err(err) => log::warn(format_args!("{method}: {err}")),
                 }
@@ -530,7 +580,9 @@ impl Server {
                     self.request_configuration();
                 } else {
                     self.settings = Settings::default();
-                    self.relint_open_documents();
+                    if !self.client.pull_diagnostics {
+                        self.relint_open_documents();
+                    }
                 }
             }
             "exit" => self.exiting = true,
@@ -559,7 +611,9 @@ impl Server {
                         Settings::default()
                     }
                 };
-                self.relint_open_documents();
+                if !self.client.pull_diagnostics {
+                    self.relint_open_documents();
+                }
             }
         }
     }
@@ -601,6 +655,11 @@ impl Server {
             Outcome::DocumentSymbols { id, symbols } => {
                 if self.pending.remove(&id).is_some() {
                     self.respond(Response::new_ok(id, symbols));
+                }
+            }
+            Outcome::PulledDiagnostics { id, diagnostics } => {
+                if self.pending.remove(&id).is_some() {
+                    self.respond_diagnostic_report(id, diagnostics);
                 }
             }
             Outcome::Diagnostics {
@@ -701,6 +760,17 @@ impl Server {
                 version: Some(version),
             },
         ));
+    }
+
+    fn respond_diagnostic_report(&self, id: RequestId, diagnostics: Vec<lsp_types::Diagnostic>) {
+        let report = DocumentDiagnosticReport::Full(RelatedFullDocumentDiagnosticReport {
+            related_documents: None,
+            full_document_diagnostic_report: FullDocumentDiagnosticReport {
+                result_id: None,
+                items: diagnostics,
+            },
+        });
+        self.respond(Response::new_ok(id, report));
     }
 
     fn respond_no_edits(&self, id: RequestId) {

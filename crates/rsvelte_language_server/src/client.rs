@@ -28,6 +28,8 @@ pub struct ClientState {
     /// Whether the client understands a tree of document symbols rather than a
     /// flat list.
     pub hierarchical_document_symbols: bool,
+    /// Whether the client supports LSP 3.17 pull diagnostics.
+    pub pull_diagnostics: bool,
 }
 
 impl ClientState {
@@ -48,6 +50,9 @@ impl ClientState {
                 params,
                 "/capabilities/textDocument/documentSymbol/hierarchicalDocumentSymbolSupport",
             ),
+            pull_diagnostics: params
+                .pointer("/capabilities/textDocument/diagnostic")
+                .is_some(),
         }
     }
 }
@@ -96,6 +101,7 @@ mod tests {
         assert!(state.pull_configuration);
         assert!(state.line_folding_only);
         assert!(state.hierarchical_document_symbols);
+        assert!(!state.pull_diagnostics);
     }
 
     #[test]
@@ -105,6 +111,7 @@ mod tests {
         }));
         assert!(!state.line_folding_only);
         assert!(!state.hierarchical_document_symbols);
+        assert!(!state.pull_diagnostics);
     }
 
     #[test]

@@ -191,6 +191,14 @@ impl Server {
         self.response(id)
     }
 
+    fn pull_diagnostics(&mut self, uri: &str) -> Value {
+        let id = self.request(
+            "textDocument/diagnostic",
+            json!({ "textDocument": { "uri": uri } }),
+        );
+        self.response(id)
+    }
+
     /// Read until diagnostics for `uri` arrive.
     fn diagnostics(&mut self, uri: &str) -> Vec<Value> {
         loop {
@@ -487,6 +495,45 @@ fn serves_diagnostics_and_formatting() {
     );
     server.cleared_diagnostics(&uri);
 
+    assert_eq!(server.shutdown(), Some(0));
+}
+
+#[test]
+fn serves_pull_diagnostics_without_push_notifications() {
+    let path = temp_component();
+    let uri = file_uri(&path);
+    let mut server = Server::start();
+    let id = server.request(
+        "initialize",
+        json!({
+            "processId": Value::Null,
+            "rootUri": Value::Null,
+            "capabilities": { "textDocument": { "diagnostic": {} } },
+        }),
+    );
+    let capabilities = server.response(id)["capabilities"].clone();
+    assert_eq!(
+        capabilities["diagnosticProvider"]["interFileDependencies"],
+        json!(false)
+    );
+    assert_eq!(
+        capabilities["diagnosticProvider"]["workspaceDiagnostics"],
+        json!(false)
+    );
+    server.notify("initialized", json!({}));
+    did_open(&mut server, &uri, SOURCE);
+
+    let mut config_cache = rsvelte_language_server::lint::LintConfigCache::default();
+    let config = config_cache.get(path.parent().unwrap());
+    let warnings = rsvelte_language_server::settings::CompilerWarnings::default();
+    let expected: Vec<Value> = rsvelte_language_server::lint::lint(&path, SOURCE, &config)
+        .iter()
+        .filter_map(|d| rsvelte_language_server::diagnostics::to_lsp(d, &warnings))
+        .map(|d| serde_json::to_value(d).unwrap())
+        .collect();
+    let report = server.pull_diagnostics(&uri);
+    assert_eq!(report["kind"], json!("full"));
+    assert_eq!(report["items"], json!(expected));
     assert_eq!(server.shutdown(), Some(0));
 }
 
