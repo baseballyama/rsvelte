@@ -1125,7 +1125,9 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
                 generate: GenerateMode::Server,
                 filename: Some(input_filename.clone()),
                 css: CssMode::External,
-                dev: fixture_options.dev,
+                // Runtime fixture SSR is always production, while sourcemap
+                // fixtures intentionally preserve their configured dev mode.
+                dev: category == "sourcemaps" && fixture_options.dev,
                 experimental: ExperimentalOptions {
                     r#async: fixture_options.r#async,
                 },
