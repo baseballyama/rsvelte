@@ -437,11 +437,33 @@ impl<'source> PreparedComponent<'source> {
             root.entry("comments")
                 .or_insert_with(|| Value::Array(Vec::new()));
         }
+        add_stylesheet_comments(&mut value);
         if !self.source.is_ascii() {
             let positions = crate::compiler::legacy::Utf8ToUtf16::new(self.source);
             crate::compiler::legacy::convert_positions_to_utf16(&mut value, &positions);
         }
         serde_json::to_string(&value).expect("the public AST JSON is serializable")
+    }
+}
+
+fn add_stylesheet_comments(value: &mut Value) {
+    match value {
+        Value::Object(object) => {
+            if object.get("type").and_then(Value::as_str) == Some("StyleSheet") {
+                object
+                    .entry("comments")
+                    .or_insert_with(|| Value::Array(Vec::new()));
+            }
+            for child in object.values_mut() {
+                add_stylesheet_comments(child);
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                add_stylesheet_comments(item);
+            }
+        }
+        _ => {}
     }
 }
 
