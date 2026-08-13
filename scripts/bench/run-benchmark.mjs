@@ -11,6 +11,7 @@
  */
 
 import { execSync, spawn, spawnSync } from "child_process";
+import { createHash } from "crypto";
 import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from "fs";
 import { arch as nodeArch, cpus, loadavg as osLoadAvg, platform as nodePlatform, tmpdir } from "os";
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from "fs";
@@ -105,7 +106,7 @@ function ensureBenchDeps() {
   // against) rather than as a root devDependency.
   if (!built("scripts/compat-corpus/lint-oracle/node_modules/eslint-plugin-svelte")) {
     console.error("[run-benchmark] installing lint oracle (one-time)…");
-    run("npm install --no-package-lock", "scripts/compat-corpus/lint-oracle");
+    run("npm ci", "scripts/compat-corpus/lint-oracle");
   }
 }
 
@@ -700,6 +701,15 @@ async function runFmtTask(files) {
 const LINT_BENCH_BIN = join(REPO_ROOT, "target/release/lint_benchmark_runner");
 const LINT_ORACLE_DIR = join(REPO_ROOT, "scripts/compat-corpus/lint-oracle");
 
+function lintOracleMetadata() {
+  const packageJson = JSON.parse(readFileSync(join(LINT_ORACLE_DIR, "package.json"), "utf8"));
+  const lockfile = readFileSync(join(LINT_ORACLE_DIR, "package-lock.json"));
+  return {
+    eslintPluginSvelte: packageJson.dependencies["eslint-plugin-svelte"],
+    lockfileSha256: createHash("sha256").update(lockfile).digest("hex"),
+  };
+}
+
 function ensureLintBenchRunnerBuilt() {
   if (existsSync(LINT_BENCH_BIN)) return;
   console.error("  Building lint_benchmark_runner (one-time)...");
@@ -1265,6 +1275,7 @@ async function main() {
           lint: {
             ...asTaskResults(results.lint),
             rulesCount: results.lint.rulesCount,
+            oracle: lintOracleMetadata(),
           },
         }
       : {}),

@@ -27,8 +27,9 @@ used only for the untimed completion check. Incomplete output is shown with its 
 and elapsed time, but is not ranked as equivalent work.
 
 The JSON records the rsvelte and Svelte commits, CPU, platform, Node version, run counts, raw
-compiler samples, and a SHA-256 hash of the measured file set. This makes the conditions auditable;
-results from different machines or non-equivalent workloads must not be combined into one ranking.
+compiler samples, a SHA-256 hash of the measured file set, and the lint oracle package version plus
+lockfile SHA-256. This makes the conditions auditable; results from different machines or
+non-equivalent workloads must not be combined into one ranking.
 
 The root dependencies and Git submodules must already be initialized:
 
