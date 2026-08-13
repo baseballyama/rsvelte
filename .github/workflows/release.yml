@@ -52,9 +52,9 @@ jobs:
         with:
           # changeset version (bump versions, write CHANGELOG)
           # + sync-version.mjs (mirror the bump into Cargo.toml/Cargo.lock)
-          version: pnpm run version-packages
-          commit: 'chore(release): version packages'
-          title: 'chore(release): version packages'
+          version-script: pnpm run version-packages
+          commit-message: 'chore(release): version packages'
+          pr-title: 'chore(release): version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -561,9 +561,9 @@ jobs:
           # changeset publish (pnpm publish all workspace packages).
           # No `version` input here — version bumping happens in the separate
           # `version-pr` job, decoupled from the binary builds this job needs.
-          publish: pnpm run release
-          commit: 'chore(release): version packages'
-          title: 'chore(release): version packages'
+          publish-script: pnpm run release
+          commit-message: 'chore(release): version packages'
+          pr-title: 'chore(release): version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
