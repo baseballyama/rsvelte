@@ -6,11 +6,11 @@
  */
 
 const IMPORT_MAP = {
-	imports: {
-		svelte: 'https://esm.sh/svelte@5.56.8',
-		'svelte/internal/disclose-version': 'https://esm.sh/svelte@5.56.8/internal/disclose-version',
-		'svelte/internal/client': 'https://esm.sh/svelte@5.56.8/internal/client'
-	}
+  imports: {
+    svelte: "https://esm.sh/svelte@5.56.8",
+    "svelte/internal/disclose-version": "https://esm.sh/svelte@5.56.8/internal/disclose-version",
+    "svelte/internal/client": "https://esm.sh/svelte@5.56.8/internal/client",
+  },
 };
 
 const BASE_STYLES = `
@@ -18,27 +18,81 @@ const BASE_STYLES = `
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 1rem; background: white; color: #333; }
 `.trim();
 
-/**
- * Transform the compiled JS to make it usable in the browser.
- * Converts `export default function` to a named const for mounting.
- */
-function transformCompiledJs(js: string): string {
-	return js.replace(/export\s+default\s+function/, 'const Component = function');
+export interface PreviewModule {
+  filename: string;
+  js: string;
+  css: string;
+}
+
+function toDataUrl(source: string): string {
+  const bytes = new TextEncoder().encode(source);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return `data:text/javascript;base64,${btoa(binary)}`;
+}
+
+function resolveModule(
+  from: string,
+  specifier: string,
+  modules: Map<string, PreviewModule>,
+): string {
+  const base = new URL(from, "https://playground.rsvelte.local/");
+  const resolved = new URL(specifier, base).pathname.replace(/^\//, "");
+  for (const candidate of [resolved, `${resolved}.svelte`, `${resolved}/index.svelte`]) {
+    if (modules.has(candidate)) return candidate;
+  }
+  throw new Error(`${from}: Cannot resolve ${specifier}`);
+}
+
+function moduleSpecifier(filename: string): string {
+  return `@rsvelte/playground/${encodeURIComponent(filename)}`;
+}
+
+function buildModuleUrls(modules: PreviewModule[]): Map<string, string> {
+  const byName = new Map(modules.map((module) => [module.filename, module]));
+  const urls = new Map<string, string>();
+  const relativeImport = /((?:from\s*|import\s*\(\s*|import\s*)['"])(\.{1,2}\/[^'"]+)(['"])/g;
+
+  for (const module of modules) {
+    const js = module.js.replace(relativeImport, (_match, before, specifier, after) => {
+      const dependency = resolveModule(module.filename, specifier, byName);
+      return `${before}${moduleSpecifier(dependency)}${after}`;
+    });
+    urls.set(module.filename, toDataUrl(js));
+  }
+  return urls;
 }
 
 /**
  * Generate the complete HTML document for the preview iframe.
  */
 export function generatePreviewHtml(js: string, css: string): string {
-	const transformedJs = transformCompiledJs(js);
-	const componentCss = css || '';
+  return generateProjectPreviewHtml("App.svelte", [{ filename: "App.svelte", js, css }]);
+}
 
-	return `<!DOCTYPE html>
+/** Generate a preview for a virtual project of compiled Svelte components. */
+export function generateProjectPreviewHtml(entry: string, modules: PreviewModule[]): string {
+  const urls = buildModuleUrls(modules);
+  if (!urls.has(entry)) throw new Error(`Missing entry component: ${entry}`);
+  const importMap = {
+    imports: {
+      ...IMPORT_MAP.imports,
+      ...Object.fromEntries([...urls].map(([filename, url]) => [moduleSpecifier(filename), url])),
+    },
+  };
+  const componentCss = modules
+    .map((module) => module.css)
+    .filter(Boolean)
+    .join("\n");
+
+  return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <script type="importmap">
-${JSON.stringify(IMPORT_MAP, null, 2)}
+${JSON.stringify(importMap, null, 2)}
 </script>
 <style>
 ${BASE_STYLES}
@@ -49,7 +103,7 @@ ${componentCss}
 <div id="app"></div>
 <script type="module">
 import { mount } from "svelte";
-${transformedJs}
+import Component from ${JSON.stringify(moduleSpecifier(entry))};
 const target = document.getElementById("app");
 mount(Component, { target });
 </script>

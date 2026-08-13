@@ -17,17 +17,29 @@
 		type LintDiagnostic
 	} from '$lib/compiler';
 	import { initFmt, formatSvelte, getFmtVersion } from '$lib/fmt';
-	import { generatePreviewHtml } from '$lib/preview';
-	import { encodeCode, readSharedCode } from '$lib/share';
+	import { generateProjectPreviewHtml } from '$lib/preview';
+	import {
+		encodeCode,
+		encodeProject,
+		readSharedCode,
+		readSharedProject
+	} from '$lib/share';
 	import { DEFAULT_EXAMPLE } from '$lib/examples';
 	import { TOOLS, toolById, isToolId, type ToolId } from '$lib/tools';
 	import MonacoEditor from '$lib/monaco/MonacoEditor.svelte';
 	import AstViewer from '$lib/components/AstViewer.svelte';
-	import CodeBlock from '$lib/components/CodeBlock.svelte';
 	import SiteNav from '$lib/components/SiteNav.svelte';
 
+	interface PlaygroundFile {
+		id: number;
+		name: string;
+		code: string;
+	}
+
 	let tool = $state<ToolId>('compiler');
-	let input = $state(DEFAULT_EXAMPLE);
+	let nextFileId = 2;
+	let files = $state<PlaygroundFile[]>([{ id: 1, name: 'App.svelte', code: DEFAULT_EXAMPLE }]);
+	let activeFileId = $state(1);
 
 	let mode: CompileMode = $state('client');
 	let activeTab: OutputTab = $state('result');
@@ -65,7 +77,9 @@
 	let copied = $state(false);
 	let copyTimer: ReturnType<typeof setTimeout>;
 
-	const currentTool = $derived(toolById(tool)!);
+	const runnableTools = TOOLS.filter((entry) => entry.runnable);
+	const activeFile = $derived(files.find((file) => file.id === activeFileId) ?? files[0]);
+	const input = $derived(activeFile?.code ?? '');
 
 	// Reflect the current tool + editor contents into the URL so the page can be
 	// shared by copying the link. The source rides in the hash (`#code=…`) to
@@ -75,7 +89,10 @@
 		try {
 			const url = new URL(page.url);
 			url.searchParams.set('tool', tool);
-			url.hash = input ? `code=${encodeCode(input)}` : '';
+			url.hash =
+				files.length === 1 && files[0].name === 'App.svelte'
+					? `code=${encodeCode(files[0].code)}`
+					: `project=${encodeProject(files.map(({ name, code }) => ({ name, code })))}`;
 			replaceState(url, page.state);
 		} catch {
 			// replaceState can throw if the router isn't ready yet — the in-memory
@@ -102,8 +119,12 @@
 		error = '';
 		const startTime = performance.now();
 		try {
-			const clientResult = compileClient(input, 'Component');
-			const result = mode === 'client' ? clientResult : compileServer(input, 'Component');
+			const componentName = activeFile.name
+				.replace(/^.*\//, '')
+				.replace(/\.svelte$/, '')
+				.replace(/[^A-Za-z0-9_$]/g, '_');
+			const clientResult = compileClient(input, componentName);
+			const result = mode === 'client' ? clientResult : compileServer(input, componentName);
 			const endTime = performance.now();
 
 			if (!result.success) {
@@ -115,9 +136,28 @@
 			outputJs = result.js;
 			outputCss = result.css || '/* No CSS */';
 
-			if (clientResult.success) {
-				previewHtml = generatePreviewHtml(clientResult.js, clientResult.css || '');
+			const previewModules = [];
+			for (const file of files) {
+				const fileResult =
+					file.id === activeFile.id
+						? clientResult
+						: compileClient(
+								file.code,
+								file.name
+									.replace(/^.*\//, '')
+									.replace(/\.svelte$/, '')
+									.replace(/[^A-Za-z0-9_$]/g, '_')
+							);
+				if (!fileResult.success) {
+					throw new Error(`${file.name}: ${fileResult.error || 'Compilation failed'}`);
+				}
+				previewModules.push({
+					filename: file.name,
+					js: fileResult.js,
+					css: fileResult.css || ''
+				});
 			}
+			previewHtml = generateProjectPreviewHtml(activeFile.name, previewModules);
 
 			const parseResult = parse(input);
 			if (parseResult.success) {
@@ -149,7 +189,7 @@
 		tsxError = '';
 		try {
 			const res = svelte2tsx(input, {
-				filename: 'Component.svelte',
+				filename: activeFile.name,
 				isTsFile: true,
 				mode: tsxMode
 			});
@@ -198,7 +238,7 @@
 	function runLint() {
 		if (!wasmReady) return;
 		// Surfaces compiler warnings/errors + a11y + the native rsvelte-lint rules.
-		lintDiagnostics = lint(input, 'Component.svelte');
+		lintDiagnostics = lint(input, activeFile.name);
 	}
 
 	function run() {
@@ -218,18 +258,77 @@
 
 	function applyFormatted() {
 		if (fmtOutput) {
-			input = fmtOutput;
+			activeFile.code = fmtOutput;
 			fmtChanged = false;
 			syncUrl();
 		}
 	}
 
-	function handleInputChange() {
+	function handleInputChange(code: string) {
+		activeFile.code = code;
 		clearTimeout(debounceTimer);
 		debounceTimer = setTimeout(() => {
 			run();
 			syncUrl();
 		}, 300);
+	}
+
+	function selectFile(id: number) {
+		if (id === activeFileId) return;
+		activeFileId = id;
+		selectedAstRange = null;
+		cursorPosition = 0;
+		run();
+	}
+
+	function validateFilename(value: string): string | null {
+		const name = value.trim().replace(/^\/+/, '');
+		if (!name || name.includes('..') || !/^[\w./-]+\.svelte$/.test(name)) return null;
+		return name;
+	}
+
+	function addFile() {
+		let index = files.length + 1;
+		while (files.some((file) => file.name === `Component${index}.svelte`)) index += 1;
+		const entered = window.prompt('New component filename', `Component${index}.svelte`);
+		if (entered === null) return;
+		const name = validateFilename(entered);
+		if (!name || files.some((file) => file.name === name)) {
+			window.alert('Use a unique .svelte filename without “..”.');
+			return;
+		}
+		const file = {
+			id: nextFileId++,
+			name,
+			code: '<script>\n\t// New component\n<' + '/script>\n\n<h2>New component</h2>\n'
+		};
+		files.push(file);
+		activeFileId = file.id;
+		run();
+		syncUrl();
+	}
+
+	function renameFile(file: PlaygroundFile) {
+		const entered = window.prompt('Rename component', file.name);
+		if (entered === null || entered === file.name) return;
+		const name = validateFilename(entered);
+		if (!name || files.some((candidate) => candidate.id !== file.id && candidate.name === name)) {
+			window.alert('Use a unique .svelte filename without “..”.');
+			return;
+		}
+		file.name = name;
+		run();
+		syncUrl();
+	}
+
+	function removeFile(file: PlaygroundFile) {
+		if (files.length === 1) return;
+		if (!window.confirm(`Delete ${file.name}?`)) return;
+		const index = files.findIndex((candidate) => candidate.id === file.id);
+		files.splice(index, 1);
+		if (activeFileId === file.id) activeFileId = files[Math.max(0, index - 1)].id;
+		run();
+		syncUrl();
 	}
 
 	function handleCursorPositionChange(offset: number) {
@@ -243,9 +342,15 @@
 
 	onMount(async () => {
 		const t = page.url.searchParams.get('tool');
-		if (t && isToolId(t)) tool = t;
-		const shared = readSharedCode(page.url.hash);
-		if (shared !== null) input = shared;
+		if (t && isToolId(t) && toolById(t)?.runnable) tool = t;
+		const sharedProject = readSharedProject(page.url.hash);
+		if (sharedProject) {
+			files = sharedProject.map((file) => ({ ...file, id: nextFileId++ }));
+			activeFileId = files[0].id;
+		} else {
+			const shared = readSharedCode(page.url.hash);
+			if (shared !== null) files[0].code = shared;
+		}
 		try {
 			await initCompiler();
 			wasmReady = true;
@@ -289,21 +394,6 @@
 		{ id: 'ast', label: 'AST' }
 	]);
 
-	const cliFor = (id: ToolId): { lang: string; code: string } => {
-		if (id === 'svelte-check') {
-			return { lang: 'bash', code: 'pnpm add -D @rsvelte/svelte-check\nrsvelte-check --watch' };
-		}
-		if (id === 'language-server') {
-			return {
-				lang: 'bash',
-				code: 'pnpm add -D @rsvelte/language-server\nrsvelte-language-server'
-			};
-		}
-		return {
-			lang: 'js',
-			code: `import { svelte } from '@rsvelte/vite-plugin-svelte';\n\nexport default { plugins: [svelte()] };`
-		};
-	};
 </script>
 
 <svelte:head>
@@ -324,48 +414,58 @@
 			</nav>
 			<h1 class="title">Playground</h1>
 			<p class="play-description">
-				Edit a Svelte component and inspect the generated output.{#if version}
+				Edit a Svelte project and inspect the generated output.{#if version}
 					<span class="version">rsvelte {version}</span>{/if}
 			</p>
 		</div>
 
-		{#if currentTool.runnable}
-			<button
-				class="share"
-				class:copied
-				onclick={copyShareLink}
-				title="Copy a link to this code"
-			>
-				{copied ? 'Link copied' : 'Share'}
-			</button>
-		{/if}
-
-		<div class="tool-switch" role="tablist" aria-label="Tool">
-			{#each TOOLS as t (t.id)}
-				<button
-					role="tab"
-					aria-selected={tool === t.id}
-					class:active={tool === t.id}
-					class:muted={!t.runnable}
-					title={t.tagline}
-					onclick={() => selectTool(t.id)}
-				>
-					{t.label}
-				</button>
-			{/each}
-		</div>
+		<button
+			class="share"
+			class:copied
+			onclick={copyShareLink}
+			title="Copy a link to this project"
+		>
+			{copied ? 'Link copied' : 'Share'}
+		</button>
 	</header>
 
-	{#if currentTool.runnable}
-		<main class="workspace">
+	<main class="workspace">
 			<section class="panel panel-input">
-				<header class="panel-head">
-					<h2 class="panel-title">App.svelte</h2>
+				<header class="panel-head file-head">
+					<div class="file-tabs" role="tablist" aria-label="Project files">
+						{#each files as file (file.id)}
+							<div class="file-tab" class:active={file.id === activeFileId}>
+								<button
+									class="file-select"
+									role="tab"
+									aria-selected={file.id === activeFileId}
+									onclick={() => selectFile(file.id)}
+									ondblclick={() => renameFile(file)}
+									title="Double-click to rename"
+								>
+									{file.name}
+								</button>
+								{#if files.length > 1}
+									<button
+										class="file-close"
+										aria-label={`Delete ${file.name}`}
+										onclick={(event) => {
+											event.stopPropagation();
+											removeFile(file);
+										}}
+									>×</button>
+								{/if}
+							</div>
+						{/each}
+					</div>
+					<button class="file-add" onclick={addFile} title="Add component" aria-label="Add component">
+						+
+					</button>
 				</header>
 				<div class="panel-body editor-host">
 					{#if wasmReady}
 						<MonacoEditor
-							bind:value={input}
+							value={input}
 							onchange={handleInputChange}
 							onCursorPositionChange={handleCursorPositionChange}
 							highlightRange={inputHighlightRange}
@@ -377,6 +477,20 @@
 			</section>
 
 			<section class="panel panel-output">
+				<div class="tool-switch" role="tablist" aria-label="Tool">
+					{#each runnableTools as t (t.id)}
+						<button
+							role="tab"
+							aria-selected={tool === t.id}
+							class:active={tool === t.id}
+							title={t.tagline}
+							onclick={() => selectTool(t.id)}
+						>
+							{t.label}
+						</button>
+					{/each}
+				</div>
+
 				{#if tool === 'compiler'}
 					<header class="panel-head tab-head" role="tablist" aria-label="Output tab">
 						{#each tabs as t (t.id)}
@@ -540,21 +654,6 @@
 				</footer>
 			</section>
 		</main>
-	{:else}
-		<main class="explainer">
-			<div class="explain-card">
-				<p class="package-name">{currentTool.pkg}</p>
-				<h2 class="explain-title">{currentTool.label} can't run in a browser</h2>
-				<p class="explain-body">{currentTool.cantRunReason}</p>
-				<div class="explain-actions">
-					<a class="btn primary" href="{base}/docs/{currentTool.id}">Read the guide →</a>
-				</div>
-				<div class="explain-code">
-					<CodeBlock code={cliFor(currentTool.id).code} lang={cliFor(currentTool.id).lang} />
-				</div>
-			</div>
-		</main>
-	{/if}
 </div>
 
 <style>
@@ -570,11 +669,11 @@
 	}
 
 	.play-head {
-		max-width: 1440px;
+		max-width: none;
 		margin: 0 auto;
 		width: 100%;
 		box-sizing: border-box;
-		padding: 2.75rem clamp(1rem, 3vw, 2rem) 1rem;
+		padding: 2.25rem clamp(0.75rem, 1.5vw, 1.5rem) 1rem;
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) auto;
 		align-items: end;
@@ -654,12 +753,13 @@
 	}
 
 	.tool-switch {
-		grid-column: 1 / -1;
 		display: grid;
-		grid-template-columns: repeat(6, minmax(0, 1fr));
+		grid-template-columns: repeat(4, minmax(0, 1fr));
 		gap: 0;
 		width: 100%;
+		background: var(--paper);
 		border-bottom: 1px solid var(--rule);
+		flex-shrink: 0;
 	}
 
 	.tool-switch button {
@@ -686,18 +786,14 @@
 		border-bottom-color: var(--accent);
 	}
 
-	.tool-switch button.muted:not(.active) {
-		color: var(--ink-faint);
-	}
-
 	.workspace {
-		max-width: 1440px;
+		max-width: none;
 		margin: 0 auto;
 		width: 100%;
 		box-sizing: border-box;
-		padding: 0 clamp(1rem, 3vw, 2rem) clamp(1.5rem, 4vh, 2.5rem);
+		padding: 0 clamp(0.75rem, 1.5vw, 1.5rem) clamp(1.5rem, 4vh, 2.5rem);
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
 		gap: 0.85rem;
 		flex: 1;
 		min-height: 0;
@@ -737,6 +833,71 @@
 		color: var(--ink);
 		margin: 0;
 		flex: 1;
+	}
+
+	.file-head {
+		gap: 0;
+		padding: 0;
+		overflow: hidden;
+	}
+
+	.file-tabs {
+		min-width: 0;
+		flex: 1;
+		display: flex;
+		overflow-x: auto;
+		scrollbar-width: thin;
+	}
+
+	.file-tab {
+		display: flex;
+		align-items: center;
+		flex: none;
+		border-right: 1px solid var(--rule);
+		border-bottom: 2px solid transparent;
+		background: var(--paper);
+	}
+
+	.file-tab.active {
+		background: var(--editor-bg);
+		border-bottom-color: var(--accent);
+	}
+
+	.file-select,
+	.file-close,
+	.file-add {
+		font-family: var(--font-ui);
+		color: var(--ink-soft);
+		background: transparent;
+		border: 0;
+		cursor: pointer;
+	}
+
+	.file-select {
+		padding: 0.68rem 0.25rem 0.62rem 0.9rem;
+		font-size: 0.8rem;
+	}
+
+	.file-tab.active .file-select {
+		color: var(--ink);
+		font-weight: 600;
+	}
+
+	.file-close {
+		padding: 0.62rem 0.55rem 0.62rem 0.35rem;
+		font-size: 1rem;
+	}
+
+	.file-close:hover,
+	.file-add:hover {
+		color: var(--accent);
+	}
+
+	.file-add {
+		align-self: stretch;
+		padding: 0 0.9rem;
+		font-size: 1.1rem;
+		border-left: 1px solid var(--rule);
 	}
 
 	.panel-meta {
@@ -1050,70 +1211,10 @@
 		flex: 1;
 	}
 
-	/* NON-RUNNABLE TOOL EXPLAINER */
-	.explainer {
-		flex: 1;
-		display: flex;
-		align-items: flex-start;
-		justify-content: center;
-		padding: clamp(1.5rem, 5vh, 3.5rem) clamp(1rem, 4vw, 2rem) 3rem;
-	}
-
-	.explain-card {
-		width: 100%;
-		max-width: 40rem;
-		padding: clamp(1rem, 3vw, 2rem) 0;
-	}
-
-	.package-name {
-		margin: 0 0 0.55rem;
-		font-family: var(--font-code);
-		font-size: 0.75rem;
-		color: var(--ink-faint);
-	}
-
-	.explain-title {
-		font-family: var(--font-ui);
-		font-weight: 700;
-		font-size: clamp(1.3rem, 3vw, 1.7rem);
-		letter-spacing: -0.02em;
-		color: var(--ink);
-		margin: 0 0 0.7rem;
-	}
-
-	.explain-body {
-		font-size: 0.96rem;
-		line-height: 1.7;
-		color: var(--ink-soft);
-		margin: 0 0 1.3rem;
-	}
-
-	.explain-actions {
-		margin-bottom: 1.2rem;
-	}
-
-	.btn {
-		display: inline-flex;
-		align-items: center;
-		font-size: 0.88rem;
-		font-weight: 600;
-		padding: 0.5rem 1rem;
-		border-radius: 5px;
-	}
-
-	.btn.primary {
-		background: var(--svelte);
-		color: #fff;
-	}
-
-	.btn.primary:hover {
-		background: var(--svelte-hover);
-	}
-
 	/* RESPONSIVE */
 	@media (max-width: 880px) {
 		.tool-switch {
-			grid-template-columns: repeat(3, minmax(0, 1fr));
+			grid-template-columns: repeat(4, minmax(0, 1fr));
 		}
 
 		.workspace {
