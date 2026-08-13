@@ -100,23 +100,6 @@
 				</div>
 			</section>
 
-			{#if report.benchmarkCoverage?.length}
-				<section class="coverage" aria-labelledby="coverage-title">
-					<div class="coverage-head">
-						<h2 id="coverage-title">Benchmark coverage</h2>
-						<strong>{report.benchmarkCoverage.filter((item) => item.status === 'measured').length}<span> / {report.benchmarkCoverage.length}</span></strong>
-					</div>
-					<div class="coverage-grid">
-						{#each report.benchmarkCoverage as item}
-							<div class:measured={item.status === 'measured'} class:unsupported={item.status === 'unsupported'}>
-								<i></i><span>{item.label}<small>{item.detail}</small></span><b>{item.status === 'measured' ? 'Measured' : item.status === 'unsupported' ? 'Unsupported' : 'Not measured'}</b>
-							</div>
-						{/each}
-					</div>
-					<p class="note">Surfaces follow <a href="https://github.com/pikax/svelte-benchmarks">pikax/svelte-benchmarks</a>. Results from a different machine or workload are not mixed into this report.</p>
-				</section>
-			{/if}
-
 			<section class="alternatives" aria-labelledby="alternatives-title">
 				<div class="comparison-head">
 					<h2 id="alternatives-title">Implementation comparison</h2>
@@ -216,22 +199,6 @@
 	.alternatives { padding-top: 2rem; border-top: 1px solid var(--rule); }
 	.comparison-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
 	.comparison-head p { margin: 0; color: var(--ink-faint); font-size: .8rem; }
-	.coverage { padding-top: 2rem; border-top: 1px solid var(--rule); }
-	.coverage-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 1rem; }
-	.coverage-head strong { color: var(--ok); font-size: 2rem; letter-spacing: -.05em; }
-	.coverage-head strong span { color: var(--ink-faint); font-size: 1rem; }
-	.coverage-grid { display: grid; grid-template-columns: repeat(2, 1fr); overflow: hidden; border: 1px solid var(--rule); border-radius: 10px; }
-	.coverage-grid > div { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .7rem; align-items: center; padding: .9rem 1rem; border-bottom: 1px solid var(--rule); }
-	.coverage-grid > div:nth-child(odd) { border-right: 1px solid var(--rule); }
-	.coverage-grid > div:nth-last-child(-n + 2) { border-bottom: 0; }
-	.coverage-grid i { width: .55rem; height: .55rem; border-radius: 50%; background: var(--ink-faint); }
-	.coverage-grid .measured i { background: var(--ok); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 14%, transparent); }
-	.coverage-grid .unsupported i { background: var(--warn); }
-	.coverage-grid span { font-size: .88rem; font-weight: 650; }
-	.coverage-grid small { display: block; margin-top: .15rem; color: var(--ink-faint); font-size: .7rem; font-weight: 400; }
-	.coverage-grid b { color: var(--ink-faint); font-size: .68rem; font-weight: 500; text-transform: uppercase; }
-	.coverage-grid .measured b { color: var(--ok); }
-	.coverage a { color: var(--accent); }
 	.alternative-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
 	.alternative-grid > article { padding: 1.25rem; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); }
 	.alternative-grid h3 { display: flex; justify-content: space-between; gap: 1rem; margin: 0 0 .8rem; font-size: 1rem; }
@@ -269,6 +236,6 @@
 	details li { margin: .45rem 0; line-height: 1.5; }
 	details a, .links a { color: var(--accent); }
 	.links { margin-top: 1.5rem; font-size: .82rem; }
-	@media (max-width: 820px) { .alternative-grid, .coverage-grid { grid-template-columns: 1fr; } .coverage-grid > div, .coverage-grid > div:nth-child(odd) { border-right: 0; border-bottom: 1px solid var(--rule); } .coverage-grid > div:last-child { border-bottom: 0; } .section-head, .comparison-head { align-items: flex-start; flex-direction: column; } .comparison-table { overflow-x: auto; } .table-head, .comparison-row { min-width: 680px; } }
+	@media (max-width: 820px) { .alternative-grid { grid-template-columns: 1fr; } .section-head, .comparison-head { align-items: flex-start; flex-direction: column; } .comparison-table { overflow-x: auto; } .table-head, .comparison-row { min-width: 680px; } }
 	@media (max-width: 640px) { main { padding: 3rem 1rem 5rem; } .result-grid { grid-template-columns: 1fr; } .result-card { padding: 1.2rem; } .section-head p { line-height: 1.7; } }
 </style>
