@@ -177,6 +177,28 @@ assert(
 	out?.code,
 );
 
+// Sass and other preprocessors return source-map instances with methods. The
+// N-API boundary must consume the documented fields without JSON-serializing
+// arbitrary callback objects (which rejects functions).
+const sourcemapped = await r.preprocess('<h1>map</h1>', [
+	{
+		markup: ({ content }) => ({
+			code: content,
+			ignoredCallbackState: () => {},
+			map: {
+				toString() {
+					return JSON.stringify({ version: 3, sources: ['Input.svelte'], names: [], mappings: '' });
+				},
+			},
+		}),
+	},
+]);
+assert(
+	'preprocess() accepts callable source-map instances and ignores unrelated callback functions',
+	typeof sourcemapped?.code === 'string' && sourcemapped?.map?.version === 3,
+	JSON.stringify(sourcemapped),
+);
+
 // 6. VERSION constant — feature detection in the shim
 assert(
 	'VERSION exposes upstream Svelte semver',

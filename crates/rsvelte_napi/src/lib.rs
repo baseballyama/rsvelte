@@ -1507,8 +1507,15 @@ mod preprocess_bridge {
     // `CalleeHandled = false` const generic suppresses the legacy
     // err-as-first-arg shape that would otherwise break every preprocessor
     // that destructures `{ content, filename }`.
-    pub type Tsfn =
-        ThreadsafeFunction<Value, MaybePromise<Option<Value>>, Value, Status, false, false, 0>;
+    pub type Tsfn = ThreadsafeFunction<
+        Value,
+        MaybePromise<Option<JsProcessed>>,
+        Value,
+        Status,
+        false,
+        false,
+        0,
+    >;
     pub type ArcTsfn = std::sync::Arc<Tsfn>;
 
     pub struct Extracted {
@@ -1553,8 +1560,7 @@ mod preprocess_bridge {
                         "content": opts.content,
                         "filename": opts.filename,
                     });
-                    let ret_val = await_tsfn(&tsfn, arg).await?;
-                    Ok(json_to_processed(&ret_val))
+                    await_tsfn(&tsfn, arg).await
                 })
             },
         )
@@ -1570,13 +1576,12 @@ mod preprocess_bridge {
                     "markup": opts.markup,
                     "filename": opts.filename,
                 });
-                let ret_val = await_tsfn(&tsfn, arg).await?;
-                Ok(json_to_processed(&ret_val))
+                await_tsfn(&tsfn, arg).await
             })
         })
     }
 
-    async fn await_tsfn(tsfn: &Tsfn, arg: Value) -> Result<Value, PreprocessError> {
+    async fn await_tsfn(tsfn: &Tsfn, arg: Value) -> Result<Option<Processed>, PreprocessError> {
         // The upstream Svelte preprocessor contract allows the callback to
         // return `Processed | Promise<Processed> | undefined | null`,
         // sync or async. `MaybePromise<Option<Value>>` probes `napi_is_promise`
@@ -1587,13 +1592,96 @@ mod preprocess_bridge {
         // `Option` collapses `undefined`/`null` to `None` on both paths.
         match tsfn.call_async(arg).await {
             Ok(MaybePromise::Promise(promise)) => match promise.await {
-                Ok(Some(v)) => Ok(v),
-                Ok(None) => Ok(Value::Null),
+                Ok(Some(v)) => Ok(Some(v.into_processed())),
+                Ok(None) => Ok(None),
                 Err(e) => Err(PreprocessError::Other(format!("{e}"))),
             },
-            Ok(MaybePromise::Value(Some(v))) => Ok(v),
-            Ok(MaybePromise::Value(None)) => Ok(Value::Null),
+            Ok(MaybePromise::Value(Some(v))) => Ok(Some(v.into_processed())),
+            Ok(MaybePromise::Value(None)) => Ok(None),
             Err(e) => Err(PreprocessError::Other(format!("{e}"))),
+        }
+    }
+
+    /// The JS contract permits source-map objects such as Sass's `SourceMapGenerator`,
+    /// whose `toString` is a function. Decode only the fields we consume instead of
+    /// asking napi-rs to JSON-serialize the entire user-controlled return object.
+    pub struct JsProcessed {
+        code: String,
+        map: Option<SourceMapInput>,
+        dependencies: Vec<String>,
+        attributes: Option<FxHashMap<String, RsAttrValue>>,
+    }
+
+    impl JsProcessed {
+        fn into_processed(self) -> Processed {
+            Processed {
+                code: self.code,
+                map: self.map,
+                dependencies: self.dependencies,
+                attributes: self.attributes,
+            }
+        }
+    }
+
+    impl FromNapiValue for JsProcessed {
+        unsafe fn from_napi_value(
+            env: napi::sys::napi_env,
+            napi_val: napi::sys::napi_value,
+        ) -> napi::Result<Self> {
+            let obj = Object::from_raw(env, napi_val);
+            let code = obj.get::<String>("code")?.ok_or_else(|| {
+                napi::Error::from_reason("preprocessor result is missing string `code`")
+            })?;
+            let map = obj
+                .get::<JsSourceMap>("map")?
+                .and_then(JsSourceMap::into_input);
+            let dependencies = obj.get::<Vec<String>>("dependencies")?.unwrap_or_default();
+            let attributes = obj
+                .get::<Value>("attributes")?
+                .as_ref()
+                .and_then(json_to_attributes);
+            Ok(Self {
+                code,
+                map,
+                dependencies,
+                attributes,
+            })
+        }
+    }
+
+    enum JsSourceMap {
+        Json(Value),
+        Stringified(String),
+    }
+
+    impl JsSourceMap {
+        fn into_input(self) -> Option<SourceMapInput> {
+            match self {
+                Self::Json(value) => json_to_sourcemap_input(&value),
+                Self::Stringified(json) => json_to_sourcemap_input(&Value::String(json)),
+            }
+        }
+    }
+
+    impl FromNapiValue for JsSourceMap {
+        unsafe fn from_napi_value(
+            env: napi::sys::napi_env,
+            napi_val: napi::sys::napi_value,
+        ) -> napi::Result<Self> {
+            // SAFETY: Node passed this valid value to `FromNapiValue`.
+            if let Ok(value) = unsafe { Value::from_napi_value(env, napi_val) } {
+                return Ok(Self::Json(value));
+            }
+
+            let obj = Object::from_raw(env, napi_val);
+            let stringify = obj
+                .get::<napi::bindgen_prelude::Function<(), String>>("toString")?
+                .ok_or_else(|| {
+                    napi::Error::from_reason(
+                        "preprocessor source map is neither JSON-serializable nor stringifiable",
+                    )
+                })?;
+            Ok(Self::Stringified(stringify.apply(obj, ())?))
         }
     }
 
@@ -1609,33 +1697,6 @@ mod preprocess_bridge {
             );
         }
         Value::Object(map)
-    }
-
-    fn json_to_processed(val: &Value) -> Option<Processed> {
-        let obj = val.as_object()?;
-
-        let code = obj.get("code").and_then(|v| v.as_str()).map(String::from)?;
-
-        let map = obj.get("map").and_then(json_to_sourcemap_input);
-
-        let dependencies = obj
-            .get("dependencies")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str().map(String::from))
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-
-        let attributes = obj.get("attributes").and_then(json_to_attributes);
-
-        Some(Processed {
-            code,
-            map,
-            dependencies,
-            attributes,
-        })
     }
 
     fn json_to_sourcemap_input(val: &Value) -> Option<SourceMapInput> {
