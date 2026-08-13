@@ -308,8 +308,12 @@ fn restore_comment_adjacent_selector_indent(source: &str, formatted: String) -> 
         .filter_map(|(previous, line)| {
             let indent_len = leading_ascii_ws(line);
             let indent = &line[..indent_len];
-            (indent.contains('\t') && previous.contains(',') && previous.contains("/*"))
-                .then_some((line.trim_start(), indent))
+            (indent.contains('\t')
+                && previous.contains(',')
+                && previous.contains("/*")
+                && line.contains("/*")
+                && line.contains('{'))
+            .then_some((line.trim_start(), indent))
         })
         .collect();
     if preserved.is_empty() {

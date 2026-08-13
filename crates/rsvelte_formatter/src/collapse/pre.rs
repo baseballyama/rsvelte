@@ -117,12 +117,12 @@ pub(super) fn fragment_has_block(fragment: &Fragment) -> bool {
     })
 }
 
-fn fragment_has_raw_content_element(fragment: &Fragment) -> bool {
+fn fragment_needs_block_reformat(fragment: &Fragment) -> bool {
     fragment.nodes.iter().any(|n| {
         matches!(n, TemplateNode::RegularElement(e) if matches!(e.name.as_str(), "script" | "style"))
             || child_fragments(n)
                 .iter()
-                .any(|f| fragment_has_raw_content_element(f))
+                .any(|f| fragment_has_block(f) || fragment_needs_block_reformat(f))
     })
 }
 
@@ -145,8 +145,7 @@ pub(super) fn collect_pre_block_reformats(
         if let TemplateNode::RegularElement(e) = node
             && matches!(e.name.as_str(), "pre" | "textarea")
             && (fragment_has_element_with_children(&e.fragment)
-                || (fragment_has_block(&e.fragment)
-                    && fragment_has_raw_content_element(&e.fragment)))
+                || fragment_needs_block_reformat(&e.fragment))
         {
             if let Some(edit) = reformat_pre_inner(out, e, depth + 1, options) {
                 edits.push(edit);
@@ -156,7 +155,7 @@ pub(super) fn collect_pre_block_reformats(
         if let TemplateNode::RegularElement(e) = node
             && matches!(e.name.as_str(), "pre" | "textarea")
         {
-            collect_pre_block_body_indents(out, &e.fragment, depth + 1, options, edits);
+            collect_direct_pre_block_body_indents(out, &e.fragment, depth + 1, options, edits);
             continue;
         }
         for child in child_fragments(node) {
@@ -165,7 +164,7 @@ pub(super) fn collect_pre_block_reformats(
     }
 }
 
-fn collect_pre_block_body_indents(
+fn collect_direct_pre_block_body_indents(
     out: &str,
     fragment: &Fragment,
     depth: usize,
@@ -191,9 +190,6 @@ fn collect_pre_block_body_indents(
                     format!("\n{indent}"),
                 ));
             }
-        }
-        for child in child_fragments(node) {
-            collect_pre_block_body_indents(out, child, depth + 1, options, edits);
         }
     }
 }
