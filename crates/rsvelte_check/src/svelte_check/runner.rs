@@ -306,18 +306,20 @@ fn apply_warning_filter(diagnostics: &mut Vec<Diagnostic>, options: &RunOptions)
     else {
         return;
     };
-    let Some(env) = super::warning_filter::SidecarEnv::from_env() else {
-        // Once per process, so `--watch` doesn't re-print it on every rebuild.
-        static NO_NODE_NOTE: std::sync::Once = std::sync::Once::new();
-        NO_NODE_NOTE.call_once(|| {
-            eprintln!(
-                "rsvelte-check: warning: `compilerOptions.warningFilter` is set but could not be \
-                 evaluated (no Node sidecar available). All warnings are shown."
-            );
-        });
-        return;
+    let failure = match super::warning_filter::SidecarEnv::from_env() {
+        Some(env) => super::warning_filter::apply(&env, &config_path, diagnostics).err(),
+        None => Some("no runnable Node warning-filter sidecar is available".into()),
     };
-    super::warning_filter::apply(&env, &config_path, diagnostics);
+    if let Some(message) = failure {
+        diagnostics.push(Diagnostic {
+            file: config_path,
+            severity: DiagnosticSeverity::Error,
+            code: Some("warning_filter_failed".into()),
+            message,
+            range: None,
+            source: "svelte",
+        });
+    }
 }
 
 /// Drop diagnostics whose file lives outside the checked workspace root.

@@ -196,7 +196,7 @@ fn no_warning_filter_configured_does_not_change_output() {
 }
 
 #[test]
-fn missing_sidecar_fails_open_with_note() {
+fn missing_sidecar_reports_a_structured_error() {
     // A function warningFilter is declared but no Node sidecar is available:
     // the run must keep every warning and print a one-time stderr note.
     let dir = workspace("failopen");
@@ -209,20 +209,20 @@ fn missing_sidecar_fails_open_with_note() {
 
     let out = run_without_sidecar(&dir, &["--no-type-check"]);
     let stdout = String::from_utf8_lossy(&out.stdout);
-    let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
         stdout.contains("Unused CSS selector"),
-        "with no sidecar the warning must still be shown (fail open); got:\n{stdout}"
+        "the original warning remains visible; got:\n{stdout}"
     );
     assert!(
-        stderr.contains("warningFilter"),
-        "a fail-open must explain why the filter was skipped; got:\n{stderr}"
+        stdout.contains("no runnable Node warning-filter sidecar")
+            && stdout.contains("1 error and 1 warning"),
+        "missing sidecar must be a structured error; got:\n{stdout}"
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
-fn broken_config_fails_open() {
+fn broken_config_reports_a_structured_error() {
     if !node_available() {
         eprintln!("[warning-filter] no `node` on $PATH; skipping.");
         return;
@@ -240,8 +240,8 @@ fn broken_config_fails_open() {
     let out = run_with_sidecar(&dir, &["--no-type-check"]);
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(
-        stdout.contains("Unused CSS selector"),
-        "a config that fails to import must fail open; got:\n{stdout}"
+        stdout.contains("could not evaluate compilerOptions.warningFilter"),
+        "got:\n{stdout}"
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -354,7 +354,7 @@ fn apply_drops_rejected_warning_keeps_others() {
     };
     let (env, script) = env_with_script(node, FAKE_SIDECAR, DEFAULT_TIMEOUT);
     let mut diags = vec![warn("drop_me"), warn("keep_me")];
-    apply(&env, Path::new("svelte.config.js"), &mut diags);
+    apply(&env, Path::new("svelte.config.js"), &mut diags).unwrap();
     let codes: Vec<_> = diags.iter().map(|d| d.code.clone().unwrap()).collect();
     assert_eq!(codes, vec!["keep_me".to_string()]);
     let _ = std::fs::remove_file(script);
@@ -372,7 +372,7 @@ fn apply_hung_sidecar_times_out_and_keeps_all() {
         Duration::from_millis(200),
     );
     let mut diags = vec![warn("a"), warn("b")];
-    apply(&env, Path::new("svelte.config.js"), &mut diags);
+    assert!(apply(&env, Path::new("svelte.config.js"), &mut diags).is_err());
     assert_eq!(diags.len(), 2, "a timeout must keep every warning");
     let _ = std::fs::remove_file(script);
 }
@@ -389,7 +389,7 @@ fn apply_malformed_response_keeps_all() {
         DEFAULT_TIMEOUT,
     );
     let mut diags = vec![warn("a")];
-    apply(&env, Path::new("svelte.config.js"), &mut diags);
+    assert!(apply(&env, Path::new("svelte.config.js"), &mut diags).is_err());
     assert_eq!(diags.len(), 1);
     let _ = std::fs::remove_file(script);
 }
@@ -417,7 +417,7 @@ fn apply_leaves_non_svelte_and_error_diagnostics_untouched() {
     let mut ts = warn("y");
     ts.source = "ts";
     let mut diags = vec![warn("droppable"), err, ts];
-    apply(&env, Path::new("svelte.config.js"), &mut diags);
+    apply(&env, Path::new("svelte.config.js"), &mut diags).unwrap();
     // Only the single svelte warning is removed.
     assert_eq!(diags.len(), 2);
     assert!(diags.iter().all(|d| d.code.as_deref() != Some("droppable")));

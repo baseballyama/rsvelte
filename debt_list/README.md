@@ -42,7 +42,6 @@ The former aggregate #033 has been split along independently removable productio
 - [023 — client code generation still reparses opaque Raw chunks and falls back to text printing](023-client-codegen-retains-raw-text-fallback.md)
 - [024 — core compiler responsibilities are concentrated in multi-thousand-line modules](024-giant-modules-concentrate-change-risk.md)
 - [026 — overlay source-map persistence errors are ignored](026-overlay-source-map-write-errors-are-ignored.md)
-- [027 — warningFilter failures silently change svelte-check results](027-warning-filter-fails-open.md)
 - [028 — every OXC dependency is overridden to a development Git revision](028-oxc-git-patch-is-workspace-wide.md)
 - [032 — AST representation creates roughly one heap allocation per source byte](032-ast-representation-causes-allocation-per-source-byte.md)
 - [033 — legacy reactive statements are re-derived and lowered from text](033-legacy-reactive-statements-are-lowered-from-text.md)

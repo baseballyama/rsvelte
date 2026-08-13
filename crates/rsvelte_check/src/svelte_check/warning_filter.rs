@@ -69,7 +69,11 @@ impl SidecarEnv {
 /// Applies the config's `warningFilter` to Svelte warnings in place.
 ///
 /// Errors and non-Svelte diagnostics are unchanged; sidecar failures retain all diagnostics.
-pub fn apply(env: &SidecarEnv, config_path: &Path, diagnostics: &mut Vec<Diagnostic>) {
+pub fn apply(
+    env: &SidecarEnv,
+    config_path: &Path,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> Result<(), String> {
     // Indices of the Svelte warnings the filter is allowed to judge, in order.
     let indices: Vec<usize> = diagnostics
         .iter()
@@ -78,7 +82,7 @@ pub fn apply(env: &SidecarEnv, config_path: &Path, diagnostics: &mut Vec<Diagnos
         .map(|(i, _)| i)
         .collect();
     if indices.is_empty() {
-        return;
+        return Ok(());
     }
 
     let warnings: Vec<_> = indices
@@ -86,16 +90,7 @@ pub fn apply(env: &SidecarEnv, config_path: &Path, diagnostics: &mut Vec<Diagnos
         .map(|&i| warning_json(&diagnostics[i]))
         .collect();
     let Some(keep) = run_sidecar(env, config_path, &warnings) else {
-        // Once per process, so `--watch` doesn't re-print it on every rebuild.
-        static FAILED_NOTE: std::sync::Once = std::sync::Once::new();
-        FAILED_NOTE.call_once(|| {
-            eprintln!(
-                "rsvelte-check: warning: `compilerOptions.warningFilter` left unapplied — the Node \
-                 sidecar could not evaluate it (is Node available and the config importable?). All \
-                 warnings are shown."
-            );
-        });
-        return;
+        return Err("the Node sidecar could not evaluate compilerOptions.warningFilter".into());
     };
 
     // `keep[k]` corresponds to `indices[k]`; drop the rejected originals.
@@ -105,7 +100,7 @@ pub fn apply(env: &SidecarEnv, config_path: &Path, diagnostics: &mut Vec<Diagnos
         .filter_map(|(&i, k)| (!k).then_some(i))
         .collect();
     if drop.is_empty() {
-        return;
+        return Ok(());
     }
     let mut i = 0;
     diagnostics.retain(|_| {
@@ -113,6 +108,7 @@ pub fn apply(env: &SidecarEnv, config_path: &Path, diagnostics: &mut Vec<Diagnos
         i += 1;
         keep
     });
+    Ok(())
 }
 
 /// The warning object shape the official svelte-check passes to `warningFilter`
