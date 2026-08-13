@@ -929,6 +929,7 @@ jobs:
           git fetch --no-tags --depth 1 origin "$BASE_SHA"
           git checkout --detach "$BASE_SHA"
           git submodule update --init --depth 1 submodules/svelte submodules/language-tools
+          pnpm install --no-frozen-lockfile
           pnpm run generate-fixtures
           RUST_TEST_THREADS=1 RUST_MIN_STACK=33554432 CARGO_PROFILE_RELEASE_LTO=off \
             cargo test --release --test compatibility_report generate_compatibility_report -- --ignored --nocapture

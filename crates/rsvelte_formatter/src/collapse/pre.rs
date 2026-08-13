@@ -104,7 +104,7 @@ pub(super) fn fragment_has_element_with_children(fragment: &Fragment) -> bool {
     })
 }
 
-fn fragment_has_block(fragment: &Fragment) -> bool {
+pub(super) fn fragment_has_block(fragment: &Fragment) -> bool {
     fragment.nodes.iter().any(|n| {
         matches!(
             n,
@@ -117,17 +117,9 @@ fn fragment_has_block(fragment: &Fragment) -> bool {
     })
 }
 
-fn fragment_has_raw_content_element(fragment: &Fragment) -> bool {
-    fragment.nodes.iter().any(|n| {
-        matches!(n, TemplateNode::RegularElement(e) if matches!(e.name.as_str(), "script" | "style"))
-            || child_fragments(n)
-                .iter()
-                .any(|f| fragment_has_raw_content_element(f))
-    })
-}
-
-/// Walk the tree (tracking nesting depth) and, for each `<pre>`/`<textarea>` with
-/// a complex attributed child or raw script/style content plus a block, push an edit
+/// Walk the tree (tracking nesting depth) and, for each `<pre>`/`<textarea>` whose
+/// content contains a block OR has element children with their own non-text children,
+/// push an edit
 /// re-formatting its inner content with the pre hybrid rule
 /// (see [`reformat_pre_inner`]).
 pub(super) fn collect_pre_block_reformats(
@@ -144,9 +136,7 @@ pub(super) fn collect_pre_block_reformats(
         }
         if let TemplateNode::RegularElement(e) = node
             && matches!(e.name.as_str(), "pre" | "textarea")
-            && (fragment_has_element_with_children(&e.fragment)
-                || (fragment_has_block(&e.fragment)
-                    && fragment_has_raw_content_element(&e.fragment)))
+            && (fragment_has_block(&e.fragment) || fragment_has_element_with_children(&e.fragment))
         {
             if let Some(edit) = reformat_pre_inner(out, e, depth + 1, options) {
                 edits.push(edit);
