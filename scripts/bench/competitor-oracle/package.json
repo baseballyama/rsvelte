@@ -8,6 +8,6 @@
     "@typescript/native-preview": "7.0.0-dev.20260707.2",
     "@verter/wasm": "0.0.1-beta.3",
     "svelte-check-rs": "0.11.0",
-    "svelte-mrwaip-reference": "npm:svelte@5.56.8"
+    "svelte-mrwaip-reference": "npm:svelte@5.56.9"
   }
 }
