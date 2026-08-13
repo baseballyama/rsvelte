@@ -55,6 +55,26 @@ impl ClientState {
                 .is_some(),
         }
     }
+
+    /// Apply the LSP workspace-folder delta, preserving the client order for
+    /// all folders that remain.
+    pub fn update_workspace_folders(
+        &mut self,
+        added: Vec<WorkspaceFolder>,
+        removed: &[WorkspaceFolder],
+    ) {
+        self.workspace_folders
+            .retain(|folder| !removed.iter().any(|removed| removed.uri == folder.uri));
+        for folder in added {
+            if !self
+                .workspace_folders
+                .iter()
+                .any(|current| current.uri == folder.uri)
+            {
+                self.workspace_folders.push(folder);
+            }
+        }
+    }
 }
 
 fn flag(params: &Value, pointer: &str) -> bool {
@@ -133,5 +153,33 @@ mod tests {
         assert!(state.workspace_folders.is_empty());
         assert!(!state.pull_configuration);
         assert_eq!(ClientState::from_initialize(&Value::Null).root_uri, None);
+    }
+
+    #[test]
+    fn updates_workspace_folders_from_lsp_deltas() {
+        let mut state = ClientState::from_initialize(&json!({
+            "workspaceFolders": [
+                { "uri": "file:///workspace/a", "name": "a" },
+                { "uri": "file:///workspace/b", "name": "b" },
+            ],
+        }));
+        let added: Vec<WorkspaceFolder> = serde_json::from_value(json!([
+            { "uri": "file:///workspace/c", "name": "c" },
+            { "uri": "file:///workspace/a", "name": "duplicate" },
+        ]))
+        .unwrap();
+        let removed: Vec<WorkspaceFolder> = serde_json::from_value(json!([
+            { "uri": "file:///workspace/b", "name": "b" },
+        ]))
+        .unwrap();
+        state.update_workspace_folders(added, &removed);
+        assert_eq!(
+            state
+                .workspace_folders
+                .iter()
+                .map(|folder| folder.uri.as_str())
+                .collect::<Vec<_>>(),
+            ["file:///workspace/a", "file:///workspace/c"]
+        );
     }
 }

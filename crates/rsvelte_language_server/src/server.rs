@@ -11,14 +11,15 @@ use lsp_types::{
     CancelParams, CodeActionKind, CodeActionOptions, CodeActionOrCommand, CodeActionParams,
     CodeActionProviderCapability, CompletionOptions, CompletionParams, ConfigurationItem,
     ConfigurationParams, DiagnosticOptions, DiagnosticServerCapabilities,
-    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    DidSaveTextDocumentParams, DocumentDiagnosticParams, DocumentDiagnosticReport,
-    DocumentFormattingParams, DocumentSymbolParams, DocumentSymbolResponse, FoldingRange,
-    FoldingRangeParams, FoldingRangeProviderCapability, FullDocumentDiagnosticReport, HoverParams,
-    HoverProviderCapability, NumberOrString, OneOf, PublishDiagnosticsParams,
-    RelatedFullDocumentDiagnosticReport, SelectionRangeParams, SelectionRangeProviderCapability,
-    ServerCapabilities, TextDocumentPositionParams, TextDocumentSyncCapability,
-    TextDocumentSyncKind, TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit, Uri,
+    DidChangeTextDocumentParams, DidChangeWorkspaceFoldersParams, DidCloseTextDocumentParams,
+    DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentDiagnosticParams,
+    DocumentDiagnosticReport, DocumentFormattingParams, DocumentSymbolParams,
+    DocumentSymbolResponse, FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability,
+    FullDocumentDiagnosticReport, HoverParams, HoverProviderCapability, NumberOrString, OneOf,
+    PublishDiagnosticsParams, RelatedFullDocumentDiagnosticReport, SelectionRangeParams,
+    SelectionRangeProviderCapability, ServerCapabilities, TextDocumentPositionParams,
+    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
+    TextDocumentSyncSaveOptions, TextEdit, Uri, WorkspaceFoldersServerCapabilities,
 };
 
 use crate::client::ClientState;
@@ -108,6 +109,13 @@ fn capabilities(client: &ClientState) -> ServerCapabilities {
                 workspace_diagnostics: false,
                 ..DiagnosticOptions::default()
             })
+        }),
+        workspace: Some(lsp_types::WorkspaceServerCapabilities {
+            workspace_folders: Some(WorkspaceFoldersServerCapabilities {
+                supported: Some(true),
+                change_notifications: Some(OneOf::Left(true)),
+            }),
+            ..lsp_types::WorkspaceServerCapabilities::default()
         }),
         ..ServerCapabilities::default()
     }
@@ -519,6 +527,15 @@ impl Server {
             "$/cancelRequest" => {
                 match serde_json::from_value::<CancelParams>(notification.params) {
                     Ok(params) => self.cancel_request(params.id),
+                    Err(err) => log::warn(format_args!("{method}: {err}")),
+                }
+            }
+            "workspace/didChangeWorkspaceFolders" => {
+                match serde_json::from_value::<DidChangeWorkspaceFoldersParams>(notification.params)
+                {
+                    Ok(params) => self
+                        .client
+                        .update_workspace_folders(params.event.added, &params.event.removed),
                     Err(err) => log::warn(format_args!("{method}: {err}")),
                 }
             }

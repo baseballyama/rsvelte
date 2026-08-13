@@ -428,6 +428,10 @@ fn serves_diagnostics_and_formatting() {
         result["capabilities"]["codeActionProvider"]["codeActionKinds"],
         json!(["quickfix"])
     );
+    assert_eq!(
+        result["capabilities"]["workspace"]["workspaceFolders"],
+        json!({ "supported": true, "changeNotifications": true })
+    );
 
     server.notify("initialized", json!({}));
     server.notify(
