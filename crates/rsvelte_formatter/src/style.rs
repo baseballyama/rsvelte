@@ -152,7 +152,8 @@ fn format_nested_style(
     let width = css_width(options, &body_indent);
     let dedented = dedent(body);
     let css_output = formatter(&dedented, "css", width).map_err(FormatError::StyleFormat)?;
-    let reindented = reindent(&css_output, &body_indent);
+    let reindented =
+        restore_comment_adjacent_selector_indent(body, reindent(&css_output, &body_indent));
     let spliced = format!("\n{reindented}\n{tag_indent}");
     edits.push((
         start + crate::source_offset(open_end),
@@ -215,7 +216,8 @@ pub fn collect_style_edit(
     let width = css_width(options, &body_indent);
     let dedented = dedent(body);
     let css_output = formatter(&dedented, &lang, width).map_err(FormatError::StyleFormat)?;
-    let reindented = reindent(&css_output, &body_indent);
+    let reindented =
+        restore_comment_adjacent_selector_indent(body, reindent(&css_output, &body_indent));
     let spliced = format!("\n{reindented}\n{tag_indent}");
 
     edits.push((css.content.start, css.content.end, spliced));
@@ -297,6 +299,39 @@ fn dedent(s: &str) -> String {
 /// byte length that slices mid-character).
 fn leading_ascii_ws(l: &str) -> usize {
     l.bytes().take_while(|&b| b == b' ' || b == b'\t').count()
+}
+
+fn restore_comment_adjacent_selector_indent(source: &str, formatted: String) -> String {
+    let preserved: Vec<(&str, &str)> = source
+        .lines()
+        .zip(source.lines().skip(1))
+        .filter_map(|(previous, line)| {
+            let indent_len = leading_ascii_ws(line);
+            let indent = &line[..indent_len];
+            (indent.contains('\t') && previous.contains(',') && previous.contains("/*"))
+                .then_some((line.trim_start(), indent))
+        })
+        .collect();
+    if preserved.is_empty() {
+        return formatted;
+    }
+
+    let mut restored = String::with_capacity(formatted.len());
+    for line in formatted.split_inclusive('\n') {
+        let content = line.strip_suffix('\n').unwrap_or(line);
+        let newline = &line[content.len()..];
+        if let Some((_, indent)) = preserved
+            .iter()
+            .find(|(selector, _)| content.trim_start() == *selector)
+        {
+            restored.push_str(indent);
+            restored.push_str(content.trim_start());
+            restored.push_str(newline);
+        } else {
+            restored.push_str(line);
+        }
+    }
+    restored
 }
 
 /// Prefix every non-empty line of `s` with `indent`, dropping any trailing

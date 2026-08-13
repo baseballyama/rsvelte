@@ -186,7 +186,7 @@ pub(super) fn is_whitespace_preserving(tag: &str) -> bool {
 /// Its edge whitespace is still trimmed via `is_component_tag` in the `trims_edge`
 /// computation, so one-line edge spaces are suppressed without blocking hug.
 pub(super) fn trims_edge_whitespace(tag: &str) -> bool {
-    is_block_display(tag) || matches!(tag, "slot" | "svelte:boundary")
+    is_block_display(tag) || matches!(tag, "slot" | "title" | "svelte:boundary")
 }
 
 /// Whether `tag` names a Svelte component (or component-like element) rather
