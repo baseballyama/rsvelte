@@ -8,17 +8,17 @@ use anyhow::Result;
 use crossbeam_channel::{Receiver, Sender, after, never, select, unbounded};
 use lsp_server::{Connection, ErrorCode, Message, Notification, Request, RequestId, Response};
 use lsp_types::{
-    CodeActionKind, CodeActionOptions, CodeActionOrCommand, CodeActionParams,
+    CancelParams, CodeActionKind, CodeActionOptions, CodeActionOrCommand, CodeActionParams,
     CodeActionProviderCapability, CompletionOptions, CompletionParams, ConfigurationItem,
     ConfigurationParams, DiagnosticOptions, DiagnosticServerCapabilities,
     DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
     DidSaveTextDocumentParams, DocumentDiagnosticParams, DocumentDiagnosticReport,
     DocumentFormattingParams, DocumentSymbolParams, DocumentSymbolResponse, FoldingRange,
     FoldingRangeParams, FoldingRangeProviderCapability, FullDocumentDiagnosticReport, HoverParams,
-    HoverProviderCapability, OneOf, PublishDiagnosticsParams, RelatedFullDocumentDiagnosticReport,
-    SelectionRangeParams, SelectionRangeProviderCapability, ServerCapabilities,
-    TextDocumentPositionParams, TextDocumentSyncCapability, TextDocumentSyncKind,
-    TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit, Uri,
+    HoverProviderCapability, NumberOrString, OneOf, PublishDiagnosticsParams,
+    RelatedFullDocumentDiagnosticReport, SelectionRangeParams, SelectionRangeProviderCapability,
+    ServerCapabilities, TextDocumentPositionParams, TextDocumentSyncCapability,
+    TextDocumentSyncKind, TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit, Uri,
 };
 
 use crate::client::ClientState;
@@ -516,6 +516,12 @@ impl Server {
     fn on_notification(&mut self, notification: Notification) {
         let method = notification.method.clone();
         match method.as_str() {
+            "$/cancelRequest" => {
+                match serde_json::from_value::<CancelParams>(notification.params) {
+                    Ok(params) => self.cancel_request(params.id),
+                    Err(err) => log::warn(format_args!("{method}: {err}")),
+                }
+            }
             "textDocument/didOpen" => {
                 match serde_json::from_value::<DidOpenTextDocumentParams>(notification.params) {
                     Ok(params) => {
@@ -587,6 +593,20 @@ impl Server {
             }
             "exit" => self.exiting = true,
             _ => {}
+        }
+    }
+
+    fn cancel_request(&mut self, id: NumberOrString) {
+        let id = match id {
+            NumberOrString::Number(id) => RequestId::from(id),
+            NumberOrString::String(id) => RequestId::from(id),
+        };
+        if self.pending.remove(&id).is_some() {
+            self.respond(Response::new_err(
+                id,
+                ErrorCode::RequestCanceled as i32,
+                "request cancelled by client".to_string(),
+            ));
         }
     }
 

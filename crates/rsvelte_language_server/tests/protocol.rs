@@ -116,10 +116,14 @@ impl Server {
     /// Read until the response to `id` arrives, answering any
     /// `workspace/configuration` the server asks for on the way.
     fn response(&mut self, id: i64) -> Value {
+        self.response_message(id)["result"].clone()
+    }
+
+    fn response_message(&mut self, id: i64) -> Value {
         loop {
             let message = self.read();
             if message.get("id").and_then(Value::as_i64) == Some(id) {
-                return message["result"].clone();
+                return message;
             }
             self.answer_server_request(&message);
         }
@@ -863,6 +867,29 @@ fn a_notification_between_shutdown_and_exit_is_harmless() {
     server.response(id);
     server.notify("$/cancelRequest", json!({ "id": 1 }));
     assert_eq!(server.exit(), Some(0));
+}
+
+#[test]
+fn cancellation_returns_the_lsp_cancelled_error() {
+    let dir = temp_dir("cancel");
+    let uri = file_uri(&dir.join("App.svelte"));
+    let mut server = initialized_server();
+    did_open(
+        &mut server,
+        &uri,
+        &format!("{}{}", "<div>".repeat(500), "</div>".repeat(500)),
+    );
+    let id = server.request(
+        "textDocument/formatting",
+        json!({
+            "textDocument": { "uri": uri },
+            "options": { "tabSize": 2, "insertSpaces": true },
+        }),
+    );
+    server.notify("$/cancelRequest", json!({ "id": id }));
+    let response = server.response_message(id);
+    assert_eq!(response["error"]["code"], json!(-32800));
+    assert_eq!(server.shutdown(), Some(0));
 }
 
 /// Editing `rsvelte-lint.json` reaches the server as a configuration change,
