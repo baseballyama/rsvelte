@@ -28,9 +28,9 @@ use super::diagnostic::{Diagnostic, DiagnosticSeverity, Range};
 ///
 /// Bump on any breaking change — including one to the
 /// *content* an entry stands for, which `(mtime, size)` cannot detect: a cache
-/// written before v2 holds shadows that still carry svelte's ambient `*.svelte`
+/// written before v3 holds shadows that still carry svelte's ambient `*.svelte`
 /// wildcard into the program through their type reference (#2061).
-pub const MANIFEST_VERSION: u32 = 2;
+pub const MANIFEST_VERSION: u32 = 3;
 
 /// Sidecar cache of per-file `Diagnostic`s.
 ///
@@ -40,7 +40,7 @@ pub const MANIFEST_VERSION: u32 = 2;
 /// stats skip recompilation and emit the cached diagnostics directly,
 /// so warnings persist across runs (matching the JS reference's
 /// `--incremental` behaviour).
-pub const WARNINGS_VERSION: u32 = 1;
+pub const WARNINGS_VERSION: u32 = 2;
 
 /// One cached entry per `.svelte` source. Keyed in `Manifest::entries`
 /// by the absolute path to the source `.svelte` file.
@@ -58,6 +58,9 @@ pub struct ManifestEntry {
     pub mtime_ms: i64,
     /// `len()` of `source_path`.
     pub size: u64,
+    /// Stable digest of the source contents. Metadata is only a prefilter;
+    /// this prevents stale cache hits after a same-size edit with restored mtime.
+    pub content_digest: u64,
     /// Was the `.svelte`'s `<script>` `lang="ts"` at the time of the
     /// last emit? Cached so we don't have to re-read the source file
     /// just to decide whether to pass `isTsFile=true` to svelte2tsx.
@@ -122,6 +125,8 @@ pub fn load(manifest_path: &Path, workspace: &Path) -> Manifest {
         #[serde(default)]
         size: u64,
         #[serde(default)]
+        content_digest: u64,
+        #[serde(default)]
         is_ts_file: bool,
     }
     let parsed: OnDiskManifest = match serde_json::from_str(&text) {
@@ -142,6 +147,7 @@ pub fn load(manifest_path: &Path, workspace: &Path) -> Manifest {
                 dts_path: absolutize(workspace, Path::new(&raw.dts_path)),
                 mtime_ms: raw.mtime_ms,
                 size: raw.size,
+                content_digest: raw.content_digest,
                 is_ts_file: raw.is_ts_file,
             },
         );
@@ -179,6 +185,7 @@ pub fn save(manifest_path: &Path, manifest: &Manifest, workspace: &Path) -> std:
         dts_path: String,
         mtime_ms: i64,
         size: u64,
+        content_digest: u64,
         is_ts_file: bool,
     }
     let mut out_entries: HashMap<String, OnDiskEntry> =
@@ -192,6 +199,7 @@ pub fn save(manifest_path: &Path, manifest: &Manifest, workspace: &Path) -> std:
                 dts_path: relativize(workspace, &entry.dts_path),
                 mtime_ms: entry.mtime_ms,
                 size: entry.size,
+                content_digest: entry.content_digest,
                 is_ts_file: entry.is_ts_file,
             },
         );
@@ -241,6 +249,23 @@ pub fn current_stats(path: &Path) -> Option<(i64, u64)> {
     Some((ms, meta.len()))
 }
 
+/// A stable, fast digest for persisted cache identity.
+#[must_use]
+pub fn content_digest(source: &str) -> u64 {
+    let mut hash = 0xcbf2_9ce4_8422_2325_u64;
+    for byte in source.bytes() {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    hash
+}
+
+pub fn current_content_digest(path: &Path) -> Option<u64> {
+    fs::read_to_string(path)
+        .ok()
+        .map(|source| content_digest(&source))
+}
+
 fn system_time_to_millis(t: SystemTime) -> i64 {
     match t.duration_since(SystemTime::UNIX_EPOCH) {
         Ok(duration) => i64::try_from(duration.as_millis()).unwrap_or(i64::MAX),
@@ -272,6 +297,7 @@ fn relativize(workspace: &Path, path: &Path) -> String {
 pub struct CachedDiagnostics {
     pub mtime_ms: i64,
     pub size: u64,
+    pub content_digest: u64,
     pub diagnostics: Vec<SerializableDiagnostic>,
 }
 
@@ -370,6 +396,8 @@ pub fn load_warnings(path: &Path, workspace: &Path) -> WarningCache {
         mtime_ms: i64,
         size: u64,
         #[serde(default)]
+        content_digest: u64,
+        #[serde(default)]
         diagnostics: Vec<OnDiskDiagnostic>,
     }
     #[derive(Deserialize)]
@@ -410,6 +438,7 @@ pub fn load_warnings(path: &Path, workspace: &Path) -> WarningCache {
             CachedDiagnostics {
                 mtime_ms: raw.mtime_ms,
                 size: raw.size,
+                content_digest: raw.content_digest,
                 diagnostics,
             },
         );
@@ -444,6 +473,7 @@ pub fn save_warnings(path: &Path, cache: &WarningCache, workspace: &Path) -> std
     struct OnDiskEntry<'a> {
         mtime_ms: i64,
         size: u64,
+        content_digest: u64,
         diagnostics: Vec<OnDiskDiagnostic<'a>>,
     }
     #[derive(Serialize)]
@@ -476,6 +506,7 @@ pub fn save_warnings(path: &Path, cache: &WarningCache, workspace: &Path) -> std
             OnDiskEntry {
                 mtime_ms: entry.mtime_ms,
                 size: entry.size,
+                content_digest: entry.content_digest,
                 diagnostics: diags,
             },
         );
@@ -511,6 +542,7 @@ mod tests {
             dts_path: PathBuf::from(format!(".svelte-check/svelte/{name}.svelte.d.ts")),
             mtime_ms: mtime,
             size,
+            content_digest: 0,
             is_ts_file: false,
         }
     }
@@ -531,6 +563,7 @@ mod tests {
                 dts_path: tmp.join(".svelte-check/svelte/Foo.svelte.d.ts"),
                 mtime_ms: 12345,
                 size: 67,
+                content_digest: 42,
                 is_ts_file: true,
             },
         );
@@ -547,6 +580,7 @@ mod tests {
         let got = round.entries.get(&abs).expect("absolute key restored");
         assert_eq!(got.size, 67);
         assert_eq!(got.mtime_ms, 12345);
+        assert_eq!(got.content_digest, 42);
         assert!(got.is_ts_file);
     }
 
@@ -625,6 +659,7 @@ mod tests {
             CachedDiagnostics {
                 mtime_ms: 99,
                 size: 100,
+                content_digest: 123,
                 diagnostics: vec![SerializableDiagnostic {
                     file: abs.clone(),
                     severity: DiagnosticSeverity::Warning,
@@ -681,6 +716,7 @@ mod tests {
         let mk = |p: &Path| CachedDiagnostics {
             mtime_ms: 0,
             size: 0,
+            content_digest: 0,
             diagnostics: vec![SerializableDiagnostic {
                 file: p.to_path_buf(),
                 severity: DiagnosticSeverity::Warning,

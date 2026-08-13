@@ -26,7 +26,6 @@ The former aggregate #033 has been split along independently removable productio
 - [006 — special elements bypass shared directive validation and lowering](006-special-element-directive-validation-drift.md)
 - [007 — experimental async-derived lowering has multiple semantic failures](007-async-derived-lowering-is-incomplete.md)
 - [008 — semantics-preserving comments still change generated behavior](008-mutation-gate-has-behavioral-code-mismatches.md)
-- [010 — incremental svelte-check cache can reuse stale generated code](010-incremental-cache-key-can-reuse-stale-tsx.md)
 - [011 — client source maps cannot identify token-level origins](011-client-source-maps-are-chunk-granular.md)
 - [012 — Vite plugin mutates compiled JavaScript without updating its map](012-vite-postprocessing-invalidates-source-maps.md)
 - [013 — compile-error messages and spans remain substantially incompatible](013-error-diagnostics-do-not-match-official.md)

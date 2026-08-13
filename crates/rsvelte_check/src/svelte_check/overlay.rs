@@ -31,7 +31,9 @@ use rayon::prelude::*;
 use super::config::CompilerOptionsSettings;
 use super::diagnostic::{Diagnostic, DiagnosticSeverity, Position, Range};
 use super::kit_file::{self, AddedCode, KitFilesSettings};
-use super::manifest::{self, Manifest, ManifestEntry, current_stats};
+use super::manifest::{
+    self, Manifest, ManifestEntry, content_digest, current_content_digest, current_stats,
+};
 use crate::svelte2tsx::{
     RewriteExternalImportsOptions, Svelte2TsxMode, Svelte2TsxNamespace, Svelte2TsxOptions,
     SvelteVersion, svelte2tsx,
@@ -624,6 +626,7 @@ pub fn materialize_overlay_with(
                 (Some((mtime, size)), Some(entry)) => {
                     entry.mtime_ms == mtime
                         && entry.size == size
+                        && current_content_digest(abs_source) == Some(entry.content_digest)
                         && entry.out_path == tsx_path
                         && entry.dts_path == dts_path
                 }
@@ -712,6 +715,7 @@ pub fn materialize_overlay_with(
                     dts_path: dts_path.clone(),
                     mtime_ms: mtime,
                     size,
+                    content_digest: content_digest(&source),
                     is_ts_file,
                 });
 
@@ -4140,6 +4144,20 @@ mod tests {
         assert_ne!(
             regenerated, "// intentionally broken",
             "incremental run should have re-emitted after the source changed"
+        );
+
+        let original_time = fs::metadata(&svelte_path).unwrap().modified().unwrap();
+        fs::write(&entry3.tsx_path, "// stale same-stat cache entry").unwrap();
+        fs::write(&svelte_path, b"<script>let z = 2;</script>{z}").unwrap();
+        fs::File::open(&svelte_path)
+            .unwrap()
+            .set_times(fs::FileTimes::new().set_modified(original_time))
+            .unwrap();
+        let layout4 = materialize_overlay_with(&tmp, &files, None, true, &[]).unwrap();
+        assert_ne!(
+            fs::read_to_string(&layout4.entries[0].tsx_path).unwrap(),
+            "// stale same-stat cache entry",
+            "same-size content change with restored mtime must re-emit"
         );
 
         let _ = fs::remove_dir_all(&tmp);
