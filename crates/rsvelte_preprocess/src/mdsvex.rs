@@ -13,6 +13,8 @@ use rsvelte_core::compiler::preprocess::types::PreprocessorGroup;
 
 use crate::bridge::{MarkupBridge, markup_group};
 
+pub mod native;
+
 const SCRIPT: &str = include_str!("../js/mdsvex-bridge.mjs");
 
 /// Build the `mdsvex` `PreprocessorGroup`.

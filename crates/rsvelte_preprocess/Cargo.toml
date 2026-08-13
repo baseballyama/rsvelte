@@ -31,7 +31,8 @@ less = ["dep:serde_json"]
 # scss, typescript). Reuses the `sass` backend for scss.
 svelte-preprocess = ["sass", "dep:regex"]
 # JS-fallback markdown/CSS-modules ports (bridge to the installed upstream tool).
-mdsvex = ["bridge"]
+mdsvex = ["bridge", "mdsvex-native"]
+mdsvex-native = ["dep:comrak"]
 modular-css = ["bridge", "dep:regex"]
 markdown = ["bridge"]
 sveltex = ["bridge"]
@@ -41,6 +42,7 @@ rsvelte_core = { path = "../rsvelte_core", default-features = false }
 grass = { version = "0.13", optional = true }
 serde_json = { version = "1", optional = true }
 regex = { version = "1.11", optional = true }
+comrak = { version = "0.54", default-features = false, optional = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }
