@@ -704,9 +704,9 @@ pub fn materialize_overlay_with(
                 // Persist the source map so the next incremental run can
                 // recover it without re-running svelte2tsx.
                 if let Some(map) = &result.map {
-                    let _ = fs::write(&map_path, map);
-                } else {
-                    let _ = fs::remove_file(&map_path);
+                    fs::write(&map_path, map)?;
+                } else if map_path.exists() {
+                    fs::remove_file(&map_path)?;
                 }
 
                 let manifest_entry = stats.map(|(mtime, size)| ManifestEntry {
