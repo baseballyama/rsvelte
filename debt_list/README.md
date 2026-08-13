@@ -71,7 +71,6 @@ The former aggregate #033 has been split along independently removable productio
 
 ### P3
 
-- [025 — blocker analysis is an unused placeholder presented as an implementation](025-unused-blocker-analysis-is-placeholder-code.md)
 - [029 — benchmark installs its lint oracle without a lockfile](029-benchmark-installs-unlocked-oracle.md)
 - [030 — dormant helpers and future migration scaffolding remain in production modules](030-dormant-dead-code-and-future-scaffolding.md)
 - [041 — large production modules also contain thousands of lines of inline tests](041-production-modules-contain-thousands-of-test-lines.md)
