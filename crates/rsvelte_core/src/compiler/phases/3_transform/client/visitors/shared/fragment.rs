@@ -254,7 +254,7 @@ pub fn process_children<F>(
 ) where
     F: FnMut(bool) -> JsExpr,
 {
-    let within_bound_contenteditable = false; // TODO: implement bound_contenteditable tracking
+    let within_bound_contenteditable = context.state.metadata.bound_contenteditable;
 
     // After the first flush, `prev` always returns a cached `JsExpr` clone.
     // Express the two states as an enum so we don't `Box::new` a new

@@ -2655,6 +2655,9 @@ pub struct ComponentMetadata {
     /// `clean_nodes`' `path.some((n) => n.type === 'RegularElement' && n.name ===
     /// 'text')`, because this port never populates `context.path`.
     pub in_text_element: bool,
+
+    /// Whether the current fragment is inside a bound editable element.
+    pub bound_contenteditable: bool,
 }
 
 impl Default for ComponentMetadata {
@@ -2664,6 +2667,7 @@ impl Default for ComponentMetadata {
             scoped: false,
             svelte_element_child: false,
             in_text_element: false,
+            bound_contenteditable: false,
         }
     }
 }

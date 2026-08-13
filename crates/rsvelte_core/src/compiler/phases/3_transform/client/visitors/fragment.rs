@@ -176,6 +176,7 @@ pub fn fragment(
             // needed to prevent namespace inference at the immediate child level
             svelte_element_child: false,
             in_text_element: context.state.metadata.in_text_element,
+            bound_contenteditable: context.state.metadata.bound_contenteditable,
         },
         in_constructor: false,
         in_derived: false,

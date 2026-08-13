@@ -836,6 +836,26 @@ pub fn visit_regular_element(
     let saved_in_text_element = context.state.metadata.in_text_element;
     context.state.metadata.in_text_element = saved_in_text_element || node.name == "text";
 
+    let saved_bound_contenteditable = context.state.metadata.bound_contenteditable;
+    context.state.metadata.bound_contenteditable = saved_bound_contenteditable
+        || (bindings.contains_key("innerHTML")
+            || bindings.contains_key("innerText")
+            || bindings.contains_key("textContent"))
+            && attributes.iter().any(|attribute| {
+                let Attribute::Attribute(attribute) = attribute else {
+                    return false;
+                };
+
+                attribute.name == "contenteditable"
+                    && (matches!(attribute.value, AttributeValue::True(_))
+                        || (is_text_attribute(attribute)
+                            && matches!(
+                                attribute.value,
+                                AttributeValue::Sequence(ref parts)
+                                    if matches!(parts.first(), Some(crate::ast::template::AttributeValuePart::Text(text)) if text.data == "true")
+                            )))
+            });
+
     let cleaned = clean_nodes(
         crate::compiler::phases::phase3_transform::utils::ParentRef::RegularElement(node),
         &node.fragment.nodes,
@@ -1607,6 +1627,7 @@ pub fn visit_regular_element(
     // Restore namespace after processing children
     context.state.metadata.namespace = saved_namespace;
     context.state.metadata.in_text_element = saved_in_text_element;
+    context.state.metadata.bound_contenteditable = saved_bound_contenteditable;
 
     // Restore original transforms that were saved before let: directives
     for (name, saved) in &let_directive_result.saved_transforms {
