@@ -37,7 +37,6 @@ The former aggregate #033 has been split along independently removable productio
 - [014 — warning presence and locations still diverge from official Svelte](014-warning-code-and-position-parity-gaps.md)
 - [015 — native lint output has 32 false positives and 72 false negatives](015-lint-corpus-has-104-divergences.md)
 - [016 — formatter output diverges on six real-world layout clusters](016-formatter-has-six-residual-layout-clusters.md)
-- [019 — runes-mode `{@html}` opening-tag validation is skipped](019-html-tag-runes-validation-is-unimplemented.md)
 - [020 — ESTree fallback printer silently replaces unknown nodes with a comment](020-estree-printer-silently-erases-unknown-nodes.md)
 - [021 — analysis and transform paths still materialize typed AST as JSON](021-phase2-phase3-materialize-json-ast.md)
 - [022 — prop-read rewriting repeatedly scans and reallocates whole expressions](022-prop-read-transform-rebuilds-expression-per-prop.md)
