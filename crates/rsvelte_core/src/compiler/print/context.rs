@@ -10,6 +10,7 @@
 //! Reference: esrap npm package Context API
 
 use oxc_allocator::Allocator;
+use std::collections::HashSet;
 
 /// Default indentation string (1 tab, as per Svelte's print output).
 const INDENT_STRING: &str = "\t";
@@ -38,6 +39,9 @@ pub struct Context<'a> {
     needs_newline: bool,
     /// Deferred margin flag (like esrap's needs_margin)
     needs_margin: bool,
+    /// Nesting depth of elements whose text content is emitted verbatim.
+    pub preserve_whitespace: usize,
+    verbatim_lines: HashSet<usize>,
 }
 
 impl<'a> Context<'a> {
@@ -56,6 +60,8 @@ impl<'a> Context<'a> {
             source: None,
             needs_newline: false,
             needs_margin: false,
+            preserve_whitespace: 0,
+            verbatim_lines: HashSet::new(),
         }
     }
 
@@ -70,6 +76,8 @@ impl<'a> Context<'a> {
             source,
             needs_newline: false,
             needs_margin: false,
+            preserve_whitespace: 0,
+            verbatim_lines: HashSet::new(),
         }
     }
 
@@ -107,6 +115,19 @@ impl<'a> Context<'a> {
         }
 
         self.buffer.push_str(text);
+    }
+
+    pub fn write_verbatim(&mut self, text: &str) {
+        let line = self.buffer.bytes().filter(|&byte| byte == b'\n').count();
+        for (offset, _) in text.match_indices('\n') {
+            let next = text[..offset].bytes().filter(|&byte| byte == b'\n').count() + 1;
+            self.verbatim_lines.insert(line + next);
+        }
+        self.write(text);
+        if text.contains('\n') {
+            self.multiline = true;
+            self.at_line_start = text.ends_with('\n');
+        }
     }
 
     /// Add a newline to the output.
@@ -193,6 +214,7 @@ impl<'a> Context<'a> {
             self.needs_margin = false;
         }
 
+        let base_line = self.buffer.bytes().filter(|&byte| byte == b'\n').count();
         // Add indentation for each line in the other context
         let indent = INDENT_STRING.repeat(self.indent_level);
         for (i, line) in other.buffer.split('\n').enumerate() {
@@ -200,11 +222,16 @@ impl<'a> Context<'a> {
                 self.buffer.push('\n');
             }
             // Add indentation at line start
-            if ((i == 0 && self.at_line_start) || i > 0) && !line.is_empty() {
+            if ((i == 0 && self.at_line_start) || i > 0)
+                && !line.is_empty()
+                && !other.verbatim_lines.contains(&i)
+            {
                 self.buffer.push_str(&indent);
             }
             self.buffer.push_str(line);
         }
+        self.verbatim_lines
+            .extend(other.verbatim_lines.iter().map(|line| base_line + line));
         self.at_line_start = other.buffer.ends_with('\n');
         if other.multiline {
             self.multiline = true;
@@ -234,6 +261,8 @@ impl<'a> Context<'a> {
             source: self.source,
             needs_newline: false,
             needs_margin: false,
+            preserve_whitespace: self.preserve_whitespace,
+            verbatim_lines: HashSet::new(),
         }
     }
 

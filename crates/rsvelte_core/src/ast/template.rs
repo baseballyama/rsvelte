@@ -43,7 +43,7 @@ pub struct Root<'a> {
     /// Includes comments in element openers (between attributes) plus
     /// comments captured by the JS parser inside `{...}` expressions
     /// and `<script>` blocks.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub comments: Vec<JsComment>,
     /// Instance script, serialized only if present.
     #[serde(skip_serializing_if = "Option::is_none")]

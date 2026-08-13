@@ -150,6 +150,13 @@ fn visit_script_attributes(attributes: &[crate::ast::AttributeNode], context: &m
 /// * `context` - The context to write to
 /// * `fragment` - The fragment node
 pub fn visit_fragment(context: &mut Context, fragment: &Fragment) {
+    if context.preserve_whitespace > 0 {
+        for node in &fragment.nodes {
+            visit_template_node(context, node);
+        }
+        return;
+    }
+
     // Group nodes into sequences separated by whitespace and block elements
     let mut items: Vec<Vec<ProcessedNode>> = Vec::new();
     let mut sequence: Vec<ProcessedNode> = Vec::new();
@@ -460,7 +467,11 @@ pub fn visit_template_node(context: &mut Context, node: &TemplateNode) {
 /// * `text` - The text node
 fn visit_text(context: &mut Context, text: &Text) {
     // Use data (official printer uses data, not raw)
-    context.write(&text.data);
+    if context.preserve_whitespace > 0 {
+        context.write_verbatim(&text.data);
+    } else {
+        context.write(&text.data);
+    }
 }
 
 /// Visit a regular element using the base_element logic.
@@ -525,7 +536,17 @@ fn visit_base_element(
         }
     } else {
         child_context.write(">");
+        let preserve_whitespace = matches!(
+            name.to_ascii_lowercase().as_str(),
+            "pre" | "textarea" | "title"
+        );
+        if preserve_whitespace {
+            child_context.preserve_whitespace += 1;
+        }
         block(&mut child_context, fragment, true);
+        if preserve_whitespace {
+            child_context.preserve_whitespace -= 1;
+        }
         child_context.write("</");
         child_context.write(name);
         child_context.write(">");
@@ -536,6 +557,10 @@ fn visit_base_element(
 
 /// Block helper function - processes content and handles inline vs multiline formatting.
 fn block(context: &mut Context, fragment: &Fragment, allow_inline: bool) {
+    if context.preserve_whitespace > 0 {
+        visit_fragment(context, fragment);
+        return;
+    }
     let mut child_context = context.child();
     visit_fragment(&mut child_context, fragment);
 

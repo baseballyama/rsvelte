@@ -69,6 +69,67 @@ pub(crate) fn parse_css_strict(
     Ok(rules)
 }
 
+fn collect_css_comments(content: &str, offset: usize) -> Vec<Value> {
+    let mut comments = Vec::new();
+    let bytes = content.as_bytes();
+    let mut index = 0;
+    let mut quote = None;
+
+    while index < bytes.len() {
+        let byte = bytes[index];
+        if byte == b'\\' {
+            index += 1;
+            if index < bytes.len() {
+                index += content[index..].chars().next().map_or(1, char::len_utf8);
+            }
+            continue;
+        }
+        if let Some(mark) = quote {
+            if byte == mark {
+                quote = None;
+            }
+            index += 1;
+            continue;
+        }
+        if byte == b'\'' || byte == b'\"' {
+            quote = Some(byte);
+            index += 1;
+            continue;
+        }
+        if byte == b'/' && bytes.get(index + 1) == Some(&b'*') {
+            let start = index;
+            index += 2;
+            let value_start = index;
+            while index + 1 < bytes.len() && !(bytes[index] == b'*' && bytes[index + 1] == b'/') {
+                index += content[index..].chars().next().map_or(1, char::len_utf8);
+            }
+            let value_end = index;
+            if index + 1 < bytes.len() {
+                index += 2;
+            }
+            let mut comment = Map::new();
+            comment.insert("type".to_string(), Value::String("CSSComment".to_string()));
+            comment.insert(
+                "value".to_string(),
+                Value::String(content[value_start..value_end].to_string()),
+            );
+            comment.insert(
+                "start".to_string(),
+                Value::Number(((offset + start) as i64).into()),
+            );
+            comment.insert(
+                "end".to_string(),
+                Value::Number(((offset + index) as i64).into()),
+            );
+            comments.push(Value::Object(comment));
+            continue;
+        }
+        index += content[index..].chars().next().map_or(1, char::len_utf8);
+    }
+
+    comments
+}
+
 /// Helper: build a CSS `Block` node.
 fn block_value(start: usize, end: usize, children: Vec<Value>) -> Value {
     let mut obj = Map::new();
@@ -135,6 +196,7 @@ impl<'a> Parser<'a> {
                 end: here as u32,
                 attributes: style_attributes,
                 children: Vec::new(),
+                comments: Vec::new(),
                 content: StyleSheetContent {
                     start: here as u32,
                     end: here as u32,
@@ -380,6 +442,7 @@ impl<'a> Parser<'a> {
             end: end as u32,
             attributes: style_attributes,
             children: css_children,
+            comments: collect_css_comments(style_content, content_start),
             content: StyleSheetContent {
                 start: content_start as u32,
                 end: content_end as u32,
@@ -2026,16 +2089,10 @@ impl<'a> SelectorParser<'a> {
 
         let name = self.read_identifier();
 
-        // Record end position right after the name, BEFORE any arguments
-        // This matches the official Svelte compiler behavior
-        let end = self.offset + self.index;
-
-        // Consume any arguments in parentheses (e.g., ::view-transition-group(foo))
-        // Arguments are consumed but NOT included in the end position
-        if self.current_char() == '(' {
+        let args = if self.current_char() == '(' {
+            let args_start = self.offset + self.index + 1;
             self.advance(); // consume '('
-
-            // Skip content inside parentheses
+            let content_start = self.index;
             let mut depth = 1;
             while !self.is_eof() && depth > 0 {
                 let c = self.current_char();
@@ -2058,9 +2115,21 @@ impl<'a> SelectorParser<'a> {
                 }
                 self.advance();
             }
-
+            let content_end = self.index;
             self.advance(); // consume ')'
-        }
+            let content = &self.source[content_start..content_end];
+            let leading = content.len() - content.trim_start_ws().len();
+            let trailing = content.len() - content.trim_end_ws().len();
+            Some(self.parse_args_selector_list(
+                content.trim_ws(),
+                args_start + leading,
+                self.offset + content_end - trailing,
+            ))
+        } else {
+            None
+        };
+
+        let end = self.offset + self.index;
 
         let mut obj = Map::new();
         obj.insert(
@@ -2068,6 +2137,9 @@ impl<'a> SelectorParser<'a> {
             Value::String("PseudoElementSelector".to_string()),
         );
         obj.insert("name".to_string(), Value::String(name));
+        if let Some(args) = args {
+            obj.insert("args".to_string(), args);
+        }
         obj.insert("start".to_string(), Value::Number((start as i64).into()));
         obj.insert("end".to_string(), Value::Number((end as i64).into()));
 

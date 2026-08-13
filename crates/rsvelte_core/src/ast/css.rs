@@ -15,6 +15,7 @@ pub struct StyleSheet {
     pub end: u32,
     pub attributes: Vec<serde_json::Value>,
     pub children: Vec<serde_json::Value>,
+    pub comments: Vec<serde_json::Value>,
     pub content: StyleSheetContent,
 }
 
