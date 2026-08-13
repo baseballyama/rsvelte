@@ -917,8 +917,24 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           base_run_id="$(gh run list --workflow ci.yml --branch "$GITHUB_BASE_REF" --commit "$BASE_SHA" --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
-          test -n "$base_run_id"
-          gh run download "$base_run_id" --name "compatibility-report-$BASE_SHA" --dir base-report
+          if [ -n "$base_run_id" ]; then
+            gh run download "$base_run_id" --name "compatibility-report-$BASE_SHA" --dir base-report
+            exit 0
+          fi
+
+          # A red merge base has no artifact, but it must not turn the first
+          # corrective PR into an unreviewable circular dependency. Rebuild the
+          # report from that exact tree; the already-installed dependencies are
+          # setup state only and the compiler source remains the merge base.
+          git checkout --detach "$BASE_SHA"
+          git submodule update --init --depth 1 submodules/svelte submodules/language-tools
+          pnpm run generate-fixtures
+          RUST_TEST_THREADS=1 RUST_MIN_STACK=33554432 CARGO_PROFILE_RELEASE_LTO=off \
+            cargo test --release --test compatibility_report generate_compatibility_report -- --ignored --nocapture
+          mkdir -p base-report
+          base_report="$(find fixtures -type f -name compatibility-report.json -print -quit)"
+          test -n "$base_report"
+          cp "$base_report" base-report/compatibility-report.json
 
       - name: Compare with base (PR only)
         if: github.event_name == 'pull_request'
