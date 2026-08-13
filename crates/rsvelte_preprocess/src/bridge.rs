@@ -105,7 +105,8 @@ pub struct MarkupBridge {
 /// Build a markup `PreprocessorGroup` that delegates to a Node bridge script.
 ///
 /// The script receives `{ content, filename, options }` on stdin and must reply
-/// with `{ ok: { code, map } }`, `{ bridgeError }`, or `{ renderError }`.
+/// with `{ ok: { code, map } }`, `{ skip: true }`, `{ bridgeError }`, or
+/// `{ renderError }`.
 #[must_use]
 pub fn markup_group(
     name: &'static str,
@@ -131,6 +132,9 @@ pub fn markup_group(
                     let value =
                         run(script, &request, &config.bridge).map_err(PreprocessError::Other)?;
 
+                    if value.get("skip").and_then(|v| v.as_bool()) == Some(true) {
+                        return Ok(None);
+                    }
                     if let Some(err) = value.get("renderError").and_then(|v| v.as_str()) {
                         return Err(PreprocessError::Other(err.to_string()));
                     }

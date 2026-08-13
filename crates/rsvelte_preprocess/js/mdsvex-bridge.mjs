@@ -1,5 +1,6 @@
 // JS-fallback bridge for mdsvex. Reads `{ content, filename, options }` on
-// stdin and writes `{ ok: { code, map } }` / `{ renderError }` / `{ bridgeError }`.
+// stdin and writes `{ ok: { code, map } }` / `{ skip: true }` /
+// `{ renderError }` / `{ bridgeError }`.
 let input = '';
 for await (const chunk of process.stdin) input += chunk;
 const { content, filename, options } = JSON.parse(input);
@@ -19,6 +20,10 @@ try {
 try {
   const pp = await mdsvex(options || {});
   const res = await pp.markup({ content, filename });
+  if (!res) {
+    process.stdout.write(JSON.stringify({ skip: true }));
+    process.exit(0);
+  }
   const map = res && res.map ? (typeof res.map === 'string' ? res.map : JSON.stringify(res.map)) : null;
   process.stdout.write(
     JSON.stringify({ ok: { code: res && res.code != null ? res.code : content, map } }),

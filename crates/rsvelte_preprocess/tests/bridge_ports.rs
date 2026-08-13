@@ -75,6 +75,30 @@ fn mdsvex_renders_markdown() {
 }
 
 #[test]
+fn mdsvex_skips_non_matching_extensions() {
+    let mut group = rsvelte_preprocess::mdsvex(bridge_at(repo_root(), serde_json::json!({})));
+    let markup = group.markup.take().unwrap();
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+    let result = rt.block_on(markup(
+        rsvelte_core::compiler::preprocess::types::MarkupPreprocessorOptions {
+            content: "# Hello".to_string(),
+            filename: Some("test.svelte".to_string()),
+        },
+    ));
+
+    match result {
+        Ok(None) => {}
+        Ok(Some(processed)) => panic!("expected mdsvex to skip, got {}", processed.code),
+        Err(err) if err.to_string().contains("Cannot find module") => {
+            eprintln!("skipping: bridge tool unavailable: {err}");
+        }
+        Err(err) => panic!("bridge error: {err}"),
+    }
+}
+
+#[test]
 fn markdown_renders_component_in_markdown() {
     let group = rsvelte_preprocess::markdown(bridge_at(repo_root(), serde_json::json!(null)));
     let Some(out) = guard(run("# Hello\n\nsome **bold** text", "test.md", group)) else {
