@@ -5,7 +5,7 @@ use std::{
     process::{Command, Stdio},
 };
 
-use rsvelte_preprocess::mdsvex::native::render_markdown;
+use rsvelte_preprocess::mdsvex::native::{render_markdown, render_standard};
 
 fn official(source: &str) -> String {
     const SCRIPT: &str = r#"
@@ -38,6 +38,37 @@ fn assert_parity(name: &str, source: &str) {
     assert_eq!(render_markdown(source), official(source), "{name}");
 }
 
+fn official_with_data(source: &str) -> (String, serde_json::Value) {
+    const SCRIPT: &str = r#"
+        import { mdsvex } from 'mdsvex';
+        let input = '';
+        for await (const chunk of process.stdin) input += chunk;
+        const pp = mdsvex({ extensions: ['.md'], highlight: false });
+        const result = await pp.markup({ content: JSON.parse(input), filename: 'fixture.md' });
+        process.stdout.write(JSON.stringify({ code: result.code, data: result.data }));
+    "#;
+    let mut child = Command::new("node")
+        .args(["--input-type=module", "-e", SCRIPT])
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(serde_json::to_string(source).unwrap().as_bytes())
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success());
+    let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    (
+        result["code"].as_str().unwrap().to_owned(),
+        result["data"]["fm"].clone(),
+    )
+}
+
 #[test]
 fn standard_markdown_matches_mdsvex_fixtures() {
     for (name, source) in [
@@ -56,5 +87,19 @@ fn standard_markdown_matches_mdsvex_fixtures() {
         ),
     ] {
         assert_parity(name, source);
+    }
+}
+
+#[test]
+fn yaml_frontmatter_matches_mdsvex_output_and_data() {
+    for (name, source) in [
+        ("basic", "---\ntitle: Hello\nprice: '$10'\n---\n\n# Heading"),
+        ("hyphenated-key", "---\nfoo-bar: 1\n---\n\nHi"),
+        ("script-tag", "---\ntitle: '<script>'\n---\n\nHi"),
+    ] {
+        let native = render_standard(source);
+        let (code, data) = official_with_data(source);
+        assert_eq!(native.code, code, "{name}: code");
+        assert_eq!(native.data, Some(data), "{name}: data");
     }
 }

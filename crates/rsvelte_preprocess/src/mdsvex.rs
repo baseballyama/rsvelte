@@ -2,12 +2,10 @@
 //! Svelte preprocessing.
 //!
 //! mdsvex's output is defined by its `unified`/remark/rehype pipeline (custom
-//! remark/rehype plugins, layouts, frontmatter, code highlighting). There is no
-//! pure-Rust engine that reproduces that output byte-for-byte, so this port
-//! follows the plan's JS-fallback boundary (§2.2 / §3): the rsvelte
-//! `PreprocessorGroup` delegates to the user's installed `mdsvex` over a Node
-//! bridge (`js/mdsvex-bridge.mjs`), making it a faithful drop-in on the
-//! rsvelte preprocess pipeline. A pure-Rust core is future work.
+//! remark/rehype plugins, layouts, frontmatter, code highlighting). The native
+//! module ports deterministic standard stages; the public `PreprocessorGroup`
+//! continues to delegate configurations requiring remaining stages or arbitrary
+//! JavaScript callbacks to the installed `mdsvex` package.
 
 use rsvelte_core::compiler::preprocess::types::PreprocessorGroup;
 

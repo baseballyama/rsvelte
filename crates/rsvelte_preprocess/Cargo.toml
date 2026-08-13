@@ -32,7 +32,7 @@ less = ["dep:serde_json"]
 svelte-preprocess = ["sass", "dep:regex"]
 # JS-fallback markdown/CSS-modules ports (bridge to the installed upstream tool).
 mdsvex = ["bridge", "mdsvex-native"]
-mdsvex-native = ["dep:comrak"]
+mdsvex-native = ["dep:comrak", "dep:serde_yaml"]
 modular-css = ["bridge", "dep:regex"]
 markdown = ["bridge"]
 sveltex = ["bridge"]
@@ -43,6 +43,7 @@ grass = { version = "0.13", optional = true }
 serde_json = { version = "1", optional = true }
 regex = { version = "1.11", optional = true }
 comrak = { version = "0.54", default-features = false, optional = true }
+serde_yaml = { version = "0.9", optional = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }

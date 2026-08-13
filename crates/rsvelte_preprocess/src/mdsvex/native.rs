@@ -6,6 +6,56 @@
 //! verified against mdsvex fixtures.
 
 use comrak::{Options, markdown_to_html};
+use serde_json::Value;
+
+/// The deterministic result of the standard MDsveX Markdown and frontmatter
+/// stages.
+#[derive(Debug, PartialEq)]
+pub struct StandardResult {
+    /// Svelte source emitted by the standard transform.
+    pub code: String,
+    /// The parsed YAML frontmatter, when present.
+    pub data: Option<Value>,
+}
+
+/// Render the standard Markdown and YAML-frontmatter portion of MDsveX.
+///
+/// This deliberately excludes option callbacks, layouts and Prism highlighting:
+/// callers with those options must use the official-package fallback until their
+/// native equivalents are complete.
+#[must_use]
+pub fn render_standard(source: &str) -> StandardResult {
+    let (frontmatter, markdown) = split_frontmatter(source);
+    let data: Option<Value> = frontmatter.and_then(|yaml| serde_yaml::from_str(yaml).ok());
+    let mut code = render_markdown(markdown);
+
+    if let Some(metadata) = &data
+        && let Some(object) = metadata.as_object()
+    {
+        let serialized = serde_json::to_string(metadata)
+            .expect("serde_json::Value always serializes")
+            .replace("<script", "<\"+\"script")
+            .replace("</script", "<\"+\"/script")
+            .replace("<style", "<\"+\"style")
+            .replace("</style", "<\"+\"/style");
+        let bindings = object
+            .keys()
+            .map(|key| {
+                if key.contains('-') {
+                    format!("'{key}': {}", key.replace('-', "_"))
+                } else {
+                    key.to_owned()
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        code = format!(
+            "<script context=\"module\">\n\texport const metadata = {serialized};\n\tconst {{ {bindings} }} = metadata;\n</script>\n{code}"
+        );
+    }
+
+    StandardResult { code, data }
+}
 
 /// Render the CommonMark/GFM portion of mdsvex's standard pipeline.
 ///
@@ -43,4 +93,16 @@ fn escape_code(mut html: String) -> String {
         cursor = body + escaped.len() + "</code>".len();
     }
     html
+}
+
+fn split_frontmatter(source: &str) -> (Option<&str>, &str) {
+    let Some(rest) = source.strip_prefix("---\n") else {
+        return (None, source);
+    };
+    let Some(end) = rest.find("\n---\n") else {
+        return (None, source);
+    };
+    let yaml = &rest[..end];
+    let markdown = &rest[end + "\n---\n".len()..];
+    (Some(yaml), markdown)
 }
