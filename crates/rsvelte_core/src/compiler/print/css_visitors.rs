@@ -180,8 +180,9 @@ fn visit_attribute_selector(context: &mut Context, node: &Value) {
 fn visit_block(context: &mut Context, node: &Value) {
     context.write("{");
 
+    let end = node.get("end").and_then(Value::as_u64).unwrap_or(0);
     if let Some(children) = node.get("children").and_then(|c| c.as_array())
-        && !children.is_empty()
+        && (!children.is_empty() || context.has_css_comment_before(end))
     {
         context.indent();
         context.newline();
@@ -189,12 +190,27 @@ fn visit_block(context: &mut Context, node: &Value) {
         let mut started = false;
 
         for child in children {
+            let start = child.get("start").and_then(Value::as_u64).unwrap_or(0);
+            while context.has_css_comment_before(start) {
+                if started {
+                    context.newline();
+                }
+                context.write_css_comments_before(start, false);
+                started = true;
+            }
             if started {
                 context.newline();
             }
 
             visit_css_node(context, child);
 
+            started = true;
+        }
+        while context.has_css_comment_before(end) {
+            if started {
+                context.newline();
+            }
+            context.write_css_comments_before(end, false);
             started = true;
         }
 
@@ -363,6 +379,17 @@ fn visit_pseudo_element_selector(context: &mut Context, node: &Value) {
     if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
         context.write("::");
         context.write(name);
+        if let Some(args) = node.get("args")
+            && !args.is_null()
+        {
+            context.write("(");
+            visit_selector_list(context, args);
+            let end = node.get("end").and_then(Value::as_u64).unwrap_or(0);
+            if context.write_css_comments_before(end, true) {
+                context.write(" ");
+            }
+            context.write(")");
+        }
     }
 }
 
@@ -431,22 +458,27 @@ fn visit_rule(context: &mut Context, node: &Value) {
     if let Some(prelude) = node.get("prelude")
         && let Some(children) = prelude.get("children").and_then(|c| c.as_array())
     {
-        let mut started = false;
-
-        for selector in children {
-            if started {
+        for (index, selector) in children.iter().enumerate() {
+            visit_css_node(context, selector);
+            if let Some(next) = children.get(index + 1) {
                 context.write(",");
+                let start = next.get("start").and_then(Value::as_u64).unwrap_or(0);
+                if context.has_css_comment_before(start) {
+                    context.write(" ");
+                    context.write_css_comments_before(start, true);
+                }
                 context.newline();
             }
-
-            visit_css_node(context, selector);
-            started = true;
         }
     }
 
     context.write(" ");
 
     if let Some(block) = node.get("block") {
+        let start = block.get("start").and_then(Value::as_u64).unwrap_or(0);
+        if context.write_css_comments_before(start, true) {
+            context.write(" ");
+        }
         visit_css_node(context, block);
     }
 }
@@ -463,6 +495,14 @@ fn visit_selector_list(context: &mut Context, node: &Value) {
     if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
         let mut started = false;
         for selector in children {
+            let start = selector.get("start").and_then(Value::as_u64).unwrap_or(0);
+            if context.has_css_comment_before(start) {
+                if started {
+                    context.write(" ");
+                }
+                context.write_css_comments_before(start, true);
+                context.write(" ");
+            }
             if started {
                 context.write(", ");
             }

@@ -107,6 +107,13 @@ fn collect_css_comments(content: &str, offset: usize) -> Vec<Value> {
             if index + 1 < bytes.len() {
                 index += 2;
             }
+            let prev = content[..start].chars().rev().find(|c| !c.is_whitespace());
+            let next = content[index..].chars().find(|c| !c.is_whitespace());
+            if prev.is_some_and(|c| c.is_ascii_alphanumeric() || c == '-')
+                && next.is_some_and(|c| c.is_ascii_alphanumeric() || c == '-')
+            {
+                continue;
+            }
             let mut comment = Map::new();
             comment.insert("type".to_string(), Value::String("CSSComment".to_string()));
             comment.insert(

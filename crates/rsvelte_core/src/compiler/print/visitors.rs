@@ -57,8 +57,6 @@ pub fn visit_root(context: &mut Context, root: &Root) {
         started = true;
     }
 
-    // Always visit fragment (even if empty), matching the official behavior
-    // which iterates [module, instance, fragment, css] and visits all non-null items.
     {
         if started {
             context.margin();
@@ -163,11 +161,19 @@ pub fn visit_fragment(context: &mut Context, fragment: &Fragment) {
 
     let nodes = &fragment.nodes;
     let num_nodes = nodes.len();
+    let mut source_multiline = false;
 
     for i in 0..num_nodes {
         let child_node = &nodes[i];
 
         if let TemplateNode::Text(text) = child_node {
+            let source_has_newline = context
+                .source
+                .and_then(|source| source.get(text.start as usize..text.end as usize))
+                .is_some_and(|raw| raw.contains('\n'));
+            if source_has_newline && !text.data.trim().is_empty() {
+                source_multiline = true;
+            }
             // Normalize whitespace in text
             let mut data = normalize_whitespace(&text.data);
 
@@ -227,7 +233,7 @@ pub fn visit_fragment(context: &mut Context, fragment: &Fragment) {
     items.push(sequence);
 
     // Filter out empty sequences and measure
-    let mut multiline = false;
+    let mut multiline = source_multiline;
     let mut width = 0;
 
     let child_contexts: Vec<Context> = items
@@ -439,6 +445,7 @@ pub fn visit_template_node(context: &mut Context, node: &TemplateNode) {
                 &elem.fragment,
                 None,
                 false,
+                false,
             );
         }
         TemplateNode::SlotElement(elem) => {
@@ -448,6 +455,7 @@ pub fn visit_template_node(context: &mut Context, node: &TemplateNode) {
                 &elem.attributes,
                 &elem.fragment,
                 None,
+                false,
                 false,
             );
         }
@@ -481,6 +489,15 @@ fn visit_text(context: &mut Context, text: &Text) {
 /// * `context` - The context to write to
 /// * `element` - The element node
 fn visit_regular_element(context: &mut Context, element: &crate::ast::RegularElement) {
+    let force_multiline = element.name.as_str().eq_ignore_ascii_case("button")
+        && !element
+            .attributes
+            .iter()
+            .any(|attribute| matches!(attribute, Attribute::OnDirective(_)))
+        && context
+            .source
+            .and_then(|source| source.get(element.start as usize..element.end as usize))
+            .is_some_and(|raw| raw.contains('\n'));
     visit_base_element(
         context,
         element.name.as_str(),
@@ -488,6 +505,7 @@ fn visit_regular_element(context: &mut Context, element: &crate::ast::RegularEle
         &element.fragment,
         None,
         false,
+        force_multiline,
     );
 }
 
@@ -507,6 +525,7 @@ fn visit_base_element(
     fragment: &Fragment,
     this_expr: Option<&crate::ast::js::Expression>,
     is_component: bool,
+    force_multiline: bool,
 ) {
     let source = context.source;
     let mut child_context = context.child();
@@ -543,7 +562,7 @@ fn visit_base_element(
         if preserve_whitespace {
             child_context.preserve_whitespace += 1;
         }
-        block(&mut child_context, fragment, true);
+        block(&mut child_context, fragment, !force_multiline);
         if preserve_whitespace {
             child_context.preserve_whitespace -= 1;
         }
@@ -853,6 +872,7 @@ fn visit_component(context: &mut Context, component: &crate::ast::Component) {
         &component.fragment,
         None,
         true, // is_component = true means empty fragment = self-closing
+        false,
     );
 }
 
@@ -1083,6 +1103,7 @@ fn visit_svelte_element(context: &mut Context, elem: &crate::ast::SvelteElement)
         &elem.fragment,
         None,
         false, // not a component, so uses normal void/empty logic
+        false,
     );
 }
 
@@ -1093,6 +1114,9 @@ fn visit_svelte_element(context: &mut Context, elem: &crate::ast::SvelteElement)
 /// * `context` - The context to write to
 /// * `stylesheet` - The stylesheet node
 fn visit_css_stylesheet(context: &mut Context, stylesheet: &StyleSheet) {
+    if !stylesheet.comments.is_empty() {
+        context.clear_pending_whitespace();
+    }
     context.write("<style");
 
     // Add attributes (lang, scoped, etc.)
@@ -1102,11 +1126,14 @@ fn visit_css_stylesheet(context: &mut Context, stylesheet: &StyleSheet) {
     }
 
     context.write(">");
+    context.set_css_comments(&stylesheet.comments);
 
     // Try source-based approach: extract CSS content from source text and reformat.
     // This is more reliable than reconstructing from the CSS AST, which may have
     // parsing issues with @font-face declarations and keyframe percentage selectors.
-    if let Some(source) = context.source {
+    if stylesheet.comments.is_empty()
+        && let Some(source) = context.source
+    {
         let css_content = extract_and_reformat_css(source, stylesheet);
         if let Some(css) = css_content {
             if !css.is_empty() {
@@ -1126,19 +1153,40 @@ fn visit_css_stylesheet(context: &mut Context, stylesheet: &StyleSheet) {
     }
 
     // Fallback: use CSS AST visitors
-    if !stylesheet.children.is_empty() {
+    if !stylesheet.children.is_empty() || !stylesheet.comments.is_empty() {
         context.indent();
         context.newline();
 
         let mut started = false;
 
         for child in &stylesheet.children {
+            let start = child
+                .get("start")
+                .and_then(serde_json::Value::as_u64)
+                .unwrap_or(0);
+            while context.has_css_comment_before(start) {
+                if started {
+                    context.margin();
+                    context.newline();
+                }
+                context.write_next_css_comment();
+                started = true;
+            }
             if started {
                 context.margin();
                 context.newline();
             }
 
             super::css_visitors::visit_css_node(context, child);
+            started = true;
+        }
+        let end = stylesheet.content.end as u64;
+        while context.has_css_comment_before(end) {
+            if started {
+                context.margin();
+                context.newline();
+            }
+            context.write_css_comments_before(end, false);
             started = true;
         }
 

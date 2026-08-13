@@ -42,6 +42,8 @@ pub struct Context<'a> {
     /// Nesting depth of elements whose text content is emitted verbatim.
     pub preserve_whitespace: usize,
     verbatim_lines: HashSet<usize>,
+    css_comments: Vec<serde_json::Value>,
+    css_comment_index: usize,
 }
 
 impl<'a> Context<'a> {
@@ -62,6 +64,8 @@ impl<'a> Context<'a> {
             needs_margin: false,
             preserve_whitespace: 0,
             verbatim_lines: HashSet::new(),
+            css_comments: Vec::new(),
+            css_comment_index: 0,
         }
     }
 
@@ -78,6 +82,8 @@ impl<'a> Context<'a> {
             needs_margin: false,
             preserve_whitespace: 0,
             verbatim_lines: HashSet::new(),
+            css_comments: Vec::new(),
+            css_comment_index: 0,
         }
     }
 
@@ -127,6 +133,58 @@ impl<'a> Context<'a> {
         if text.contains('\n') {
             self.multiline = true;
             self.at_line_start = text.ends_with('\n');
+        }
+    }
+
+    pub fn set_css_comments(&mut self, comments: &[serde_json::Value]) {
+        self.css_comments = comments.to_vec();
+        self.css_comment_index = 0;
+    }
+
+    pub fn has_css_comment_before(&self, end: u64) -> bool {
+        self.css_comments
+            .get(self.css_comment_index)
+            .and_then(|comment| comment.get("start"))
+            .and_then(serde_json::Value::as_u64)
+            .is_some_and(|start| start < end)
+    }
+
+    pub fn write_css_comments_before(&mut self, end: u64, inline: bool) -> bool {
+        let mut written = false;
+        while self.has_css_comment_before(end) {
+            if inline && written {
+                self.write(" ");
+            }
+            let value = self.css_comments[self.css_comment_index]
+                .get("value")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("")
+                .to_string();
+            self.write("/*");
+            self.write(&value);
+            self.write("*/");
+            self.css_comment_index += 1;
+            written = true;
+        }
+        written
+    }
+
+    pub fn write_next_css_comment(&mut self) {
+        let value = self.css_comments[self.css_comment_index]
+            .get("value")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("")
+            .to_string();
+        self.write("/*");
+        self.write(&value);
+        self.write("*/");
+        self.css_comment_index += 1;
+    }
+
+    pub fn clear_pending_whitespace(&mut self) {
+        if self.buffer.is_empty() {
+            self.needs_newline = false;
+            self.needs_margin = false;
         }
     }
 
@@ -263,6 +321,8 @@ impl<'a> Context<'a> {
             needs_margin: false,
             preserve_whitespace: self.preserve_whitespace,
             verbatim_lines: HashSet::new(),
+            css_comments: Vec::new(),
+            css_comment_index: 0,
         }
     }
 
