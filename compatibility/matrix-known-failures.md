@@ -28,9 +28,9 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 700 entries)
+## Matrix known failures (`matrix-known-failures.json`, 532 entries)
 
-Partition of `matrix-known-failures.json` by family: `4 + 316 + 8 + 24 + 180 + 168`
+Partition of `matrix-known-failures.json` by family: `4 + 316 + 8 + 24 + 180`
 
 ### `binding-position` — 4 entries
 
@@ -252,6 +252,10 @@ entry it lists, so these 66 ids are now blind to any *further* regression on the
 until their issues are fixed.
 
 ---
+
+### `async-derived` — 0 entries
+
+Partition of `matrix-known-failures.json` entries under `async-derived/` by cause: `0`
 
 ### `constant-fold` — 8 entries
 
