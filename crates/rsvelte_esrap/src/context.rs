@@ -25,6 +25,7 @@ pub struct Context {
 
 pub(crate) struct Scope {
     measure_base: usize,
+    event_len: usize,
     has_newline: bool,
     multiline: bool,
 }
@@ -122,6 +123,7 @@ impl Context {
     pub(crate) fn begin_scope(&mut self) -> Scope {
         let scope = Scope {
             measure_base: self.measure_base,
+            event_len: self.buffer.events.len(),
             has_newline: self.has_newline,
             multiline: self.multiline,
         };
@@ -137,6 +139,14 @@ impl Context {
         self.has_newline = scope.has_newline;
         self.multiline = scope.multiline || scope.has_newline || child_multiline;
         child_multiline
+    }
+
+    pub(crate) fn discard_scope(&mut self, scope: Scope) {
+        self.buffer.text.truncate(self.measure_base);
+        self.buffer.events.truncate(scope.event_len);
+        self.measure_base = scope.measure_base;
+        self.has_newline = scope.has_newline;
+        self.multiline = scope.multiline;
     }
 
     pub(crate) fn event_mark(&self) -> EventMark {
@@ -266,5 +276,17 @@ mod tests {
         assert!(ctx.end_scope(scope));
         ctx.insert_event(mark, EventKind::Margin);
         assert_eq!(print(&ctx.into_buffer(), "\t", 0), "a\n\nbc\nd");
+    }
+
+    #[test]
+    fn discarded_scope_removes_text_and_layout_events() {
+        let mut ctx = Context::new();
+        ctx.write("a");
+        let scope = ctx.begin_scope();
+        ctx.newline();
+        ctx.write("bc");
+        ctx.discard_scope(scope);
+        ctx.write("d");
+        assert_eq!(print(&ctx.into_buffer(), "\t", 0), "ad");
     }
 }

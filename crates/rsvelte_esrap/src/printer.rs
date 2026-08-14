@@ -1641,7 +1641,8 @@ impl<'opt> Printer<'opt> {
     fn class_body(&mut self, body: &ClassBody, ctx: &mut Context) {
         let span = body.span();
         ctx.write("{");
-        let mut child = ctx.child();
+        let mark = ctx.event_mark();
+        let scope = ctx.begin_scope();
         let elems = body
             .body
             .iter()
@@ -1649,11 +1650,13 @@ impl<'opt> Printer<'opt> {
             // not statements and have no printer mapping here, so drop them.
             .filter(|e| !matches!(e, ClassElement::TSIndexSignature(_)))
             .map(BodyElem::ClassMember);
-        self.body_elems(elems, Some(span.start), span.end, &mut child);
-        if !child.empty() {
-            ctx.indent();
-            ctx.newline();
-            ctx.append(child);
+        self.body_elems(elems, Some(span.start), span.end, ctx);
+        if ctx.empty() {
+            ctx.discard_scope(scope);
+        } else {
+            ctx.end_scope(scope);
+            ctx.insert_event(mark, EventKind::Newline);
+            ctx.insert_event(mark, EventKind::Indent);
             ctx.dedent();
             ctx.newline();
         }
@@ -2206,18 +2209,19 @@ impl<'opt> Printer<'opt> {
         }
     }
 
-    /// esrap's `BlockStatement|ClassBody`: build the body into a child context,
-    /// and only break it across lines when it has real content (so an empty body
-    /// stays `{}`). The `Newline`s are idempotent flags, so body's trailing
-    /// newline and the closing one collapse to a single line break before `}`.
+    /// esrap's `BlockStatement|ClassBody`: only break a body across lines when
+    /// it has real content, so an empty body stays `{}`.
     fn block(&mut self, body: &[Statement], body_start: u32, body_end: u32, ctx: &mut Context) {
         ctx.write("{");
-        let mut child = ctx.child();
-        self.body(body, body_start, body_end, &mut child);
-        if !child.empty() {
-            ctx.indent();
-            ctx.newline();
-            ctx.append(child);
+        let mark = ctx.event_mark();
+        let scope = ctx.begin_scope();
+        self.body(body, body_start, body_end, ctx);
+        if ctx.empty() {
+            ctx.discard_scope(scope);
+        } else {
+            ctx.end_scope(scope);
+            ctx.insert_event(mark, EventKind::Newline);
+            ctx.insert_event(mark, EventKind::Indent);
             ctx.dedent();
             ctx.newline();
         }
