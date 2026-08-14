@@ -31,7 +31,7 @@ impl Buffer {
         });
     }
 
-    pub fn append(&mut self, mut child: Self) {
+    pub fn append(&mut self, child: &mut Self) {
         let base = u32::try_from(self.text.len()).expect("esrap output exceeds u32");
         self.text.push_str(&child.text);
         self.events.extend(child.events.drain(..).map(|event| {
@@ -43,7 +43,6 @@ impl Buffer {
             }
         }));
         child.text.clear();
-        crate::pool::give(child);
     }
 }
 

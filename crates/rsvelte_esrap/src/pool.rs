@@ -12,22 +12,29 @@ thread_local! {
     static BUFFERS: RefCell<Vec<Buffer>> = const { RefCell::new(Vec::new()) };
 }
 
-pub fn take() -> Buffer {
-    BUFFERS.with(|buffers| buffers.borrow_mut().pop().unwrap_or_default())
+pub fn take() -> Vec<Buffer> {
+    BUFFERS.with(|buffers| std::mem::take(&mut *buffers.borrow_mut()))
 }
 
-pub fn give(mut buffer: Buffer) {
-    buffer.text.clear();
-    buffer.events.clear();
-    if buffer.text.capacity() > MAX_TEXT_CAPACITY || buffer.events.capacity() > MAX_EVENT_CAPACITY {
-        return;
+pub fn give(mut root: Buffer, mut returned: Vec<Buffer>) {
+    root.text.clear();
+    root.events.clear();
+    if root.text.capacity() <= MAX_TEXT_CAPACITY && root.events.capacity() <= MAX_EVENT_CAPACITY {
+        returned.push(root);
     }
     BUFFERS.with(|buffers| {
         let Ok(mut buffers) = buffers.try_borrow_mut() else {
             return;
         };
-        if buffers.len() < MAX_BUFFERS {
-            buffers.push(buffer);
+        while buffers.len() < MAX_BUFFERS {
+            let Some(buffer) = returned.pop() else {
+                break;
+            };
+            if buffer.text.capacity() <= MAX_TEXT_CAPACITY
+                && buffer.events.capacity() <= MAX_EVENT_CAPACITY
+            {
+                buffers.push(buffer);
+            }
         }
     });
 }

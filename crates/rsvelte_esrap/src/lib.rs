@@ -114,9 +114,9 @@ pub fn print_with(program: &Program<'_>, source: &str, options: &PrintOptions) -
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
     let capacity = ctx.measure();
-    let buffer = ctx.into_buffer();
+    let (buffer, returned) = ctx.into_parts();
     let code = command::print(&buffer, &options.indent, capacity);
-    pool::give(buffer);
+    pool::give(buffer, returned);
     code
 }
 
@@ -154,7 +154,7 @@ pub fn print_split(
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
     let capacity = ctx.measure();
-    let buffer = ctx.into_buffer();
+    let (buffer, returned) = ctx.into_parts();
     let output = if map_source.is_some() {
         let (code, mappings) = command::flatten_with_map(&buffer, &options.indent, capacity);
         PrintWithMap { code, mappings }
@@ -164,7 +164,7 @@ pub fn print_split(
             mappings: Vec::new(),
         }
     };
-    pool::give(buffer);
+    pool::give(buffer, returned);
     output
 }
 
@@ -192,9 +192,9 @@ pub fn print_with_map(program: &Program<'_>, source: &str, options: &PrintOption
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
     let capacity = ctx.measure();
-    let buffer = ctx.into_buffer();
+    let (buffer, returned) = ctx.into_parts();
     let (code, mappings) = command::flatten_with_map(&buffer, &options.indent, capacity);
-    pool::give(buffer);
+    pool::give(buffer, returned);
     PrintWithMap { code, mappings }
 }
 

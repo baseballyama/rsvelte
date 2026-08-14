@@ -7,13 +7,15 @@
 //! kinds), so `Context` is purely the output API: `write`, whitespace events,
 //! `append` (splice a child buffer), `measure`, and `empty`.
 
+use std::{cell::RefCell, rc::Rc};
+
 use crate::command::{Buffer, EventKind};
 
 /// Accumulates output for one syntactic unit. Build a child with
 /// [`Context::child`], fill it, then [`Context::append`] it into the parent.
-#[derive(Default)]
 pub struct Context {
     buffer: Buffer,
+    returned: Rc<RefCell<Vec<Buffer>>>,
     has_newline: bool,
     /// `true` once this context (or an appended child) emitted a newline.
     /// Visitors read it to pick a layout.
@@ -23,16 +25,26 @@ pub struct Context {
 impl Context {
     /// A fresh, empty context.
     pub fn new() -> Self {
+        let returned = Rc::new(RefCell::new(crate::pool::take()));
+        let buffer = returned.borrow_mut().pop().unwrap_or_default();
         Self {
-            buffer: crate::pool::take(),
-            ..Self::default()
+            buffer,
+            returned,
+            has_newline: false,
+            multiline: false,
         }
     }
 
     /// A fresh child context. Named `child` rather than mirroring esrap's `new`
     /// because in this port it carries no shared visitor table.
-    pub fn child() -> Self {
-        Self::new()
+    pub fn child(&self) -> Self {
+        let buffer = self.returned.borrow_mut().pop().unwrap_or_default();
+        Self {
+            buffer,
+            returned: Rc::clone(&self.returned),
+            has_newline: false,
+            multiline: false,
+        }
     }
 
     /// Grow the newline indentation by one level for subsequent newlines.
@@ -84,7 +96,9 @@ impl Context {
     /// Splice `child`'s output in place, propagating its multiline state.
     pub fn append(&mut self, child: Self) {
         let child_multiline = child.multiline;
-        self.buffer.append(child.buffer);
+        let mut child_buffer = child.buffer;
+        self.buffer.append(&mut child_buffer);
+        self.returned.borrow_mut().push(child_buffer);
         if self.has_newline || child_multiline {
             self.multiline = true;
         }
@@ -103,8 +117,17 @@ impl Context {
 
     /// Consume the context, yielding its flat output buffer (for the top-level
     /// [`print`](crate::command::print) call).
+    pub(crate) fn into_parts(self) -> (Buffer, Vec<Buffer>) {
+        let returned = match Rc::try_unwrap(self.returned) {
+            Ok(returned) => returned.into_inner(),
+            Err(_) => unreachable!("all child contexts must be consumed before printing"),
+        };
+        (self.buffer, returned)
+    }
+
+    #[cfg(test)]
     pub(crate) fn into_buffer(self) -> Buffer {
-        self.buffer
+        self.into_parts().0
     }
 }
 
@@ -137,7 +160,7 @@ mod tests {
     #[test]
     fn append_propagates_multiline() {
         let mut parent = Context::new();
-        let mut child = Context::child();
+        let mut child = parent.child();
         child.newline();
         child.write("x");
         assert!(child.multiline);
@@ -150,7 +173,7 @@ mod tests {
     fn append_splices_child_output() {
         let mut parent = Context::new();
         parent.write("(");
-        let mut child = Context::child();
+        let mut child = parent.child();
         child.write("x");
         child.space();
         child.write("y");

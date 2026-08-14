@@ -762,7 +762,7 @@ impl<'opt> Printer<'opt> {
         // a leading comment.
         let mut items: Vec<SeqItem> = Vec::with_capacity(n);
         for (i, node) in nodes.iter_mut().enumerate() {
-            let mut child = Context::child();
+            let mut child = parent.child();
             (node.render)(self, &mut child);
 
             let node_multiline = child.multiline;
@@ -907,7 +907,7 @@ impl<'opt> Printer<'opt> {
 
         let mut prev: Option<(&BodyElem, bool)> = None;
         for (i, elem) in non_empty.iter().enumerate() {
-            let mut child = Context::child();
+            let mut child = ctx.child();
             elem.print(self, &mut child);
 
             if let Some((prev_elem, prev_multiline)) = prev {
@@ -1504,7 +1504,7 @@ impl<'opt> Printer<'opt> {
     fn class_body(&mut self, body: &ClassBody, ctx: &mut Context) {
         let span = body.span();
         ctx.write("{");
-        let mut child = Context::child();
+        let mut child = ctx.child();
         let elems: Vec<BodyElem> = body
             .body
             .iter()
@@ -2074,7 +2074,7 @@ impl<'opt> Printer<'opt> {
     /// newline and the closing one collapse to a single line break before `}`.
     fn block(&mut self, body: &[Statement], body_start: u32, body_end: u32, ctx: &mut Context) {
         ctx.write("{");
-        let mut child = Context::child();
+        let mut child = ctx.child();
         self.body(body, body_start, body_end, &mut child);
         if !child.empty() {
             ctx.indent();
@@ -2114,7 +2114,7 @@ impl<'opt> Printer<'opt> {
         let mut total_measure = keyword.len();
         let mut any_multiline = false;
         for declarator in &decl.declarations {
-            let mut child = Context::child();
+            let mut child = ctx.child();
             let start = declarator.span().start;
             self.flush_leading(&mut child, start);
             self.binding_pattern(&declarator.id, &mut child);
@@ -2761,9 +2761,9 @@ impl<'opt> Printer<'opt> {
     fn conditional_expression(&mut self, node: &ConditionalExpression, ctx: &mut Context) {
         self.child_with_parens(&node.test, 5, ctx);
 
-        let mut consequent = Context::child();
+        let mut consequent = ctx.child();
         self.print_expression(&node.consequent, &mut consequent);
-        let mut alternate = Context::child();
+        let mut alternate = ctx.child();
         self.print_expression(&node.alternate, &mut alternate);
 
         let multiline = consequent.multiline
@@ -2999,7 +2999,7 @@ impl<'opt> Printer<'opt> {
                 force_multiline = true;
             }
 
-            let mut child = Context::child();
+            let mut child = ctx.child();
             match arg {
                 Argument::SpreadElement(s) => {
                     child.write("...");
