@@ -1,12 +1,4 @@
-//! Which comments survive a SERVER `.svelte.(js|ts)` compile.
-//!
-//! `server_module()` hands esrap the same builder-made, `loc`-less program the
-//! client path does, so the same rule applies: the program's statement list
-//! discards every pending comment and only a nested body that carries a
-//! location re-finds its own. Expected strings are the official compiler's
-//! output. The `@__PURE__` case is the reported symptom — esbuild's TS strip
-//! puts that annotation on a default-parameter initializer, a program-level
-//! position, and both compilers receive it.
+//! Comment ownership in a server `.svelte.(js|ts)` compile.
 
 use rsvelte_core::compiler::ModuleCompileOptions;
 use rsvelte_core::{GenerateMode, compile_module};
@@ -81,8 +73,6 @@ fn a_comment_inside_a_located_body_survives() {
     }
 }
 
-/// A comment leading the *expression* body of an arrow has no statement list to
-/// be re-found by, so it goes with the rest.
 #[test]
 fn an_arrow_expression_body_comment_is_dropped() {
     let out = tail("export const f = () => (/* c */ x);\n");

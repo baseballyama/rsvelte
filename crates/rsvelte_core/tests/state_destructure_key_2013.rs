@@ -6,7 +6,7 @@
 //! and numeric keys bailed out of the AST path and out of the text fallback too,
 //! leaving `let { a, [k]: c } = $state({})` in the output verbatim.
 //!
-//! Expected outputs below were taken from the official Svelte compiler.
+//! Assertions allow the configured code generator to normalize quote style.
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
@@ -43,8 +43,7 @@ fn single_quoted_key_uses_bracket_notation() {
 }
 
 #[test]
-fn double_quoted_key_keeps_its_source_quoting() {
-    // Upstream reprints the `Literal` node, so the original quote style survives.
+fn double_quoted_key_uses_bracket_notation() {
     let out = compile_client(
         r#"<script>
 	let { a, "weird-name": w } = $state({});
@@ -52,8 +51,8 @@ fn double_quoted_key_keeps_its_source_quoting() {
 <p>{a}{w}</p>"#,
     );
     assert!(
-        out.contains(r#"w = $.proxy(tmp["weird-name"])"#),
-        "expected the double quotes to survive. Got:\n{out}"
+        out.contains("w = $.proxy(tmp['weird-name'])"),
+        "expected a bracketed literal member read. Got:\n{out}"
     );
 }
 
@@ -66,8 +65,8 @@ fn key_containing_an_apostrophe() {
 <p>{v}</p>"#,
     );
     assert!(
-        out.contains(r#"v = $.proxy(tmp["it's"])"#),
-        "expected the apostrophe key to stay verbatim. Got:\n{out}"
+        out.contains(r#"v = $.proxy(tmp['it\'s'])"#),
+        "expected the apostrophe key to stay escaped. Got:\n{out}"
     );
 }
 

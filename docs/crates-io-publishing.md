@@ -1,7 +1,7 @@
 # Publishing the rsvelte Rust crates
 
-This document owns the crates.io release policy for `rsvelte_esrap`,
-`rsvelte_core`, `rsvelte_projection`, and `rsvelte`. Publishing is permanent:
+This document owns the crates.io release policy for `rsvelte_core`,
+`rsvelte_projection`, and `rsvelte`. Publishing is permanent:
 an uploaded version cannot be overwritten or deleted, so the release process
 fails closed.
 
@@ -15,20 +15,17 @@ are the normative references. Trusted Publishing follows the
 
 The dependency and publication order is:
 
-1. `rsvelte_esrap` — low-level OXC AST printer. Its public OXC version is part
-   of its compatibility contract.
-2. `rsvelte_core` — compiler implementation, with an exact dependency on
-   `rsvelte_esrap`.
-3. `rsvelte_projection` — Svelte-to-TypeScript projection engine, with an exact
+1. `rsvelte_core` — compiler implementation.
+2. `rsvelte_projection` — Svelte-to-TypeScript projection engine, with an exact
    dependency on `rsvelte_core`.
-4. `rsvelte` — stable, compiler-neutral toolchain facade, with exact
+3. `rsvelte` — stable, compiler-neutral toolchain facade, with exact
    dependencies on `rsvelte_core` and the optional `rsvelte_projection`.
 
 `rsvelte_core` does not publish binaries or own CLI parsing, filesystem
 traversal, file watching, module resolution, JavaScript/Wasm bindings,
 allocator selection, profiling, or benchmarks.
 
-All four crates:
+All three crates:
 
 - require Rust 1.95 or newer;
 - have an empty default feature set;
@@ -59,11 +56,6 @@ Use a clean, reviewed commit from `main`. Never publish with `--allow-dirty`,
 ```sh
 git status --short
 node scripts/ci/check-crates-io-packages.mjs
-
-cargo check --locked -p rsvelte_esrap
-cargo test --locked -p rsvelte_esrap
-RUSTDOCFLAGS="-D warnings" cargo doc --locked -p rsvelte_esrap --no-deps
-cargo package --locked -p rsvelte_esrap
 
 cargo check --locked -p rsvelte_core --all-features --lib
 cargo test --locked -p rsvelte_core --all-features --lib
@@ -110,27 +102,13 @@ Publisher cannot be configured until the crate exists. Consume and merge the
 Version Packages PR first, then create the protected
 `rsvelte-crates-v<toolchain-version>` tag at that reviewed `main` commit.
 `rsvelte_core`, `rsvelte_projection`, and `rsvelte` must have the same version;
-`rsvelte_esrap` is versioned independently.
 
 1. Sign in to crates.io with the maintainer account, verify its email address,
    enable strong account security, and create a short-lived API token.
 2. Store the token with `cargo login`. Never paste it into an issue, PR, shell
    transcript, repository file, or GitHub secret.
 3. Re-run the release candidate checks from the exact reviewed commit.
-4. Publish `rsvelte_esrap`:
-
-   ```sh
-   cargo publish --locked -p rsvelte_esrap --all-features
-   ```
-
-5. Wait until the exact version is visible to Cargo:
-
-   ```sh
-   cargo info rsvelte_esrap@<version>
-   ```
-
-6. Verify and publish `rsvelte_core` against the registry copy of
-   `rsvelte_esrap`:
+4. Verify and publish `rsvelte_core`:
 
    ```sh
    cargo publish --dry-run --locked -p rsvelte_core --all-features
@@ -138,7 +116,7 @@ Version Packages PR first, then create the protected
    cargo info rsvelte_core@<version>
    ```
 
-7. Wait for `rsvelte_core@<version>` to resolve, then verify and publish
+5. Wait for `rsvelte_core@<version>` to resolve, then verify and publish
    `rsvelte_projection`:
 
    ```sh
@@ -147,7 +125,7 @@ Version Packages PR first, then create the protected
    cargo info rsvelte_projection@<version>
    ```
 
-8. Verify and publish the stable `rsvelte` facade:
+6. Verify and publish the stable `rsvelte` facade:
 
    ```sh
    cargo publish --dry-run --locked -p rsvelte --all-features
@@ -155,12 +133,12 @@ Version Packages PR first, then create the protected
    cargo info rsvelte@<version>
    ```
 
-9. Build new throwaway consumers outside this workspace with exact `=version`
+7. Build new throwaway consumers outside this workspace with exact `=version`
    requirements for both the runtime-only default surface and
    `features = ["projection"]`. Their lockfiles must contain registry sources
-   only for all four published rsvelte crates.
-10. Revoke the bootstrap API token and run `cargo logout`.
-11. Add at least one additional crate owner so releases do not depend on one
+   only for all three published rsvelte crates.
+8. Revoke the bootstrap API token and run `cargo logout`.
+9. Add at least one additional crate owner so releases do not depend on one
     account.
 
 If the uploaded artifact is broken, yank the version and release a new patch.
@@ -169,7 +147,7 @@ Do not attempt to reuse the version.
 ## Trusted Publishing after bootstrap
 
 After bootstrap, configure a Trusted Publisher separately on the crates.io
-settings page for all four crates. Restrict it to this repository,
+settings page for all three crates. Restrict it to this repository,
 `.github/workflows/publish-crates.yml`, and the `crates-io` GitHub Environment.
 Configure that Environment with required reviewers, prevent self-review, and
 restrict deployment branches/tags to `rsvelte-crates-v*`. Protect that tag
@@ -191,8 +169,8 @@ The publish job must:
 - serialize releases with a concurrency group and never cancel an in-progress
   publish.
 
-Dispatch `Publish crates.io` from the protected release tag and enter both the
-toolchain release-set version and independent esrap version. The workflow
+Dispatch `Publish crates.io` from the protected release tag and enter the
+toolchain release-set version. The workflow
 checks that the tag name, input versions, manifests, exact dependency edges,
 lockfile, and checked-out SHA agree; it also requires the tag commit to be an
 ancestor of `main`. The preflight job has read-only permissions and records a
@@ -201,7 +179,7 @@ publish/skip plan. The publishing job starts only after Environment approval.
 The workflow is retry-safe for a partially completed release: an exact version
 already visible in the registry is skipped, while missing dependents are still
 dry-run and published in order. A failed upload is checked against the index
-before a retry is attempted. After all four versions are visible, a throwaway
+before a retry is attempted. After all three versions are visible, a throwaway
 registry-only consumer builds the facade with `features = ["projection"]`.
 
 Do not add a long-lived crates.io token to repository or environment secrets
@@ -217,14 +195,7 @@ candidate; it does not publish Cargo packages. Create the protected release tag
 and run the separately approved crates.io workflow promptly after the version
 merge.
 
-`rsvelte_esrap` is deliberately independent. Any source change must bump its
-Cargo version in the same PR. Because `rsvelte_core` pins it exactly, that
-change must also update the core requirement and include a compiler changeset
-so the full toolchain release set advances. CI enforces both the esrap bump and
-the compiler changeset ownership rules.
-
 A release change must update every exact internal dependency requirement in
-the four-crate publication graph.
 
 While the crates are pre-1.0, breaking public API and MSRV changes require a
 minor release. Removing a feature, removing a feature from another feature, or

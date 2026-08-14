@@ -3,13 +3,10 @@
 //!
 //! `wrap_prop_mutation_validation` matches the already-lowered
 //! `prop(prop().member = value, true)` call as text. When the assigned value is
-//! long enough for the printer to break the call across lines, that text becomes
+//! long enough for the assigned arrow function to span multiple lines, that text becomes
 //!
 //! ```text
-//! filter(
-//!     filter().onRemove = () => { … },
-//!     true
-//! );
+//! filter(filter().onRemove = () => { … }, true);
 //! ```
 //!
 //! and the single-line-only matcher fell through to the runes-mode branch, which
@@ -45,15 +42,20 @@ fn client(src: &str, dev: bool) -> String {
     .code
 }
 
+fn flat(code: &str) -> String {
+    code.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
 #[test]
 fn dev_wraps_the_whole_prop_setter_call() {
     let out = client(SRC, true);
+    let flat = flat(&out);
 
     // The nesting upstream produces: the `filter(…, true)` setter call is the
     // third *argument* of the validator call, not its parent.
     assert!(
-        out.contains(
-            "$$ownership_validator.mutation(\n\t\tnull,\n\t\t['filter', 'onRemove'],\n\t\tfilter(\n\t\t\tfilter().onRemove = () => {\n\t\t\t\tremove(filter().index);\n\t\t\t},\n\t\t\ttrue\n\t\t),\n\t\t3,\n\t\t2\n\t);"
+        flat.contains(
+            "$$ownership_validator.mutation(null, ['filter', 'onRemove'], filter(filter().onRemove = () => { remove(filter().index); }, true), 3, 2);"
         ),
         "got:\n{out}"
     );
@@ -64,16 +66,14 @@ fn dev_wraps_the_whole_prop_setter_call() {
     assert!(!out.contains("2)\n\t\ttrue"), "orphaned `true` in:\n{out}");
 }
 
-/// Control that can move: production output for this component is already
-/// correct and must stay byte-identical — the wrap only exists under `dev`.
+/// Production output keeps the complete setter call without the dev wrapper.
 #[test]
 fn prod_output_is_unchanged() {
     let out = client(SRC, false);
+    let flat = flat(&out);
     assert!(!out.contains("$$ownership_validator"), "got:\n{out}");
     assert!(
-        out.contains(
-            "\tfilter(\n\t\tfilter().onRemove = () => {\n\t\t\tremove(filter().index);\n\t\t},\n\t\ttrue\n\t);"
-        ),
+        flat.contains("filter(filter().onRemove = () => { remove(filter().index); }, true);"),
         "got:\n{out}"
     );
 }

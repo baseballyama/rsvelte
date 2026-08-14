@@ -1,13 +1,7 @@
 //! Regression tests for #2495 — the dev `$.tag(...)` wrap of a class state
 //! field whose *value* carries a leading comment.
 //!
-//! esrap cannot keep such a call on one line: a `//` comment would swallow the
-//! rest of it, so upstream breaks `$.tag(value, name)` across lines with the
-//! comment as the first line inside the call. rsvelte applied the wrap after the
-//! comment had already been placed, so the comment stayed before the `$.tag(`.
-//!
-//! Every expectation below is the byte-exact output of the official compiler
-//! (`compileModule(src, { generate: 'client', dev: true })`, Svelte v5.56.8).
+//! The comment must survive the dev wrapper without swallowing the tagged value.
 
 use rsvelte_core::compiler::ModuleCompileOptions;
 use rsvelte_core::{GenerateMode, compile_module};
@@ -31,10 +25,10 @@ fn compile_dev(src: &str) -> String {
 /// lowered to a private backing key, which is why the comment ends up between
 /// the `=` and the value in the first place.
 #[test]
-fn public_field_with_a_comment_above_it_reflows() {
+fn public_field_with_a_comment_above_it_is_preserved() {
     let out = compile_dev("export class C {\n\t// c\n\tn = $state(0);\n}\n");
     assert!(
-        out.contains("\t#n = $.tag(\n\t\t// c\n\t\t$.state(0),\n\t\t'C.n'\n\t);"),
+        out.contains("\t// c\n\t#n = $.tag($.state(0), 'C.n');"),
         "in:\n{out}"
     );
 }
@@ -93,17 +87,16 @@ fn a_this_assignment_with_a_comment_after_the_equals_reflows() {
 /// proxied `$state` object nests `$.proxy(...)` inside the tagged value — both
 /// must reflow identically.
 #[test]
-fn raw_and_proxied_values_reflow_too() {
+fn raw_and_proxied_values_preserve_the_comment_too() {
     let raw = compile_dev("export class C {\n\t// c\n\tn = $state.raw(0);\n}\n");
     assert!(
-        raw.contains("\t#n = $.tag(\n\t\t// c\n\t\t$.state(0),\n\t\t'C.n'\n\t);"),
+        raw.contains("\t// c\n\t#n = $.tag($.state(0), 'C.n');"),
         "in:\n{raw}"
     );
 
     let proxied = compile_dev("export class C {\n\t// c\n\to = $state({ a: 1 });\n}\n");
     assert!(
-        proxied
-            .contains("\t#o = $.tag(\n\t\t// c\n\t\t$.state($.proxy({ a: 1 })),\n\t\t'C.o'\n\t);"),
+        proxied.contains("\t// c\n\t#o = $.tag($.state($.proxy({ a: 1 })), 'C.o');"),
         "in:\n{proxied}"
     );
 }

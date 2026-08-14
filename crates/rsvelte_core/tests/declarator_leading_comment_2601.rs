@@ -37,10 +37,10 @@ fn a_reexported_prop_behind_a_comment_stays_a_declaration() {
     );
     assert!(parses(&out), "{out}");
     assert!(
-        out.contains("let labelId = $.prop($$props, 'labelId', 8, \"\");"),
+        out.contains("let labelId = $.prop($$props, 'labelId', 8, '');"),
         "{out}"
     );
-    assert!(!out.contains("labelId(\"\")"), "{out}");
+    assert!(!out.contains("labelId('')"), "{out}");
 }
 
 #[test]
@@ -66,7 +66,7 @@ fn a_real_assignment_after_a_declaration_is_still_an_assignment() {
         "<script>\n\texport let labelId = \"\";\n\tfunction set() { labelId = \"x\"; }\n</script>\n\n<button onclick={set}>{labelId}</button>\n",
     );
     assert!(parses(&out), "{out}");
-    assert!(out.contains("labelId(\"x\")"), "{out}");
+    assert!(out.contains("labelId('x')"), "{out}");
 }
 
 #[test]

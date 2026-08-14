@@ -104,7 +104,7 @@ fn a_closed_statement_before_the_wrapper_is_left_alone() {
 "#,
     );
     assert!(
-        out.contains("}\n\n\t\t(await"),
+        out.contains("}\n\t\t(await"),
         "a block needs no terminator, got:\n{out}"
     );
 }

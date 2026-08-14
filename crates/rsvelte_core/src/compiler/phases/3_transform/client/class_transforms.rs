@@ -123,154 +123,6 @@ fn net_bracket_depth(line: &str) -> i32 {
     depth
 }
 
-#[derive(Clone, Copy, PartialEq)]
-pub(super) enum MemberKind {
-    Property,
-    Method,
-    StaticBlock,
-}
-
-#[derive(Clone, Copy)]
-pub(super) struct MemberShape {
-    pub kind: MemberKind,
-    pub multiline: bool,
-}
-
-/// esrap's `body()` puts a blank line between two class members whenever either
-/// one prints across multiple lines or their node types differ, so the
-/// re-printer has to reproduce the same margins instead of copying the source's.
-pub(super) fn needs_margin(prev: MemberShape, next: MemberShape) -> bool {
-    prev.multiline || next.multiline || prev.kind != next.kind
-}
-
-/// Classify a member from its head text: the first bracket-depth-0 delimiter
-/// decides — `(` means a method, `=` a property with an initializer, `{` a
-/// static block.
-fn member_kind(head: &str) -> MemberKind {
-    let bytes = head.as_bytes();
-    let mut prev: Option<u8> = None;
-    let mut square = 0i32;
-    let mut i = 0;
-    while i < bytes.len() {
-        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
-            if !is_comment {
-                prev = Some(b'x');
-            }
-            i = next;
-            continue;
-        }
-        let c = bytes[i];
-        match c {
-            b'[' => square += 1,
-            b']' => square = (square - 1).max(0),
-            b'(' if square == 0 => return MemberKind::Method,
-            b'=' if square == 0 => return MemberKind::Property,
-            b'{' if square == 0 => return MemberKind::StaticBlock,
-            _ => {}
-        }
-        if !c.is_ascii_whitespace() {
-            prev = Some(c);
-        }
-        i += 1;
-    }
-    MemberKind::Property
-}
-
-/// Shapes of the first and last node emitted by [`emit_class_field`], which
-/// already separates its own backing field / getter / setter with blank lines.
-pub(super) fn field_block_shapes(text: &str) -> (MemberShape, MemberShape) {
-    let chunks: Vec<Vec<&str>> = text
-        .split("\n\n")
-        .map(|chunk| chunk.lines().filter(|l| !l.trim().is_empty()).collect())
-        .filter(|chunk: &Vec<&str>| !chunk.is_empty())
-        .collect();
-    let default = MemberShape {
-        kind: MemberKind::Property,
-        multiline: false,
-    };
-    (
-        chunks.first().map(|c| shape_of(c)).unwrap_or(default),
-        chunks.last().map(|c| shape_of(c)).unwrap_or(default),
-    )
-}
-
-/// Append one member block, prefixing esrap's margin when the previous block
-/// requires one.
-pub(super) fn append_member_block(
-    out: &mut String,
-    prev: &mut Option<MemberShape>,
-    text: &str,
-    first: MemberShape,
-    last: MemberShape,
-) {
-    if let Some(prev_shape) = *prev
-        && needs_margin(prev_shape, first)
-    {
-        out.push('\n');
-    }
-    out.push_str(text);
-    *prev = Some(last);
-}
-
-fn shape_of(block: &[&str]) -> MemberShape {
-    let head = block
-        .iter()
-        .map(|l| l.trim())
-        .find(|l| !l.is_empty() && !l.starts_with("//") && !l.starts_with("/*"))
-        .unwrap_or("");
-    MemberShape {
-        kind: member_kind(head),
-        multiline: block.iter().filter(|l| !l.trim().is_empty()).count() > 1,
-    }
-}
-
-/// Split a class-body text blob into its top-level members and re-emit them with
-/// esrap's margins. Returns the rewritten text plus the first and last member
-/// shapes, so the caller can decide the margin against the neighbouring block.
-pub(super) fn rejoin_class_members(
-    text: &str,
-) -> (String, Option<MemberShape>, Option<MemberShape>) {
-    let mut blocks: Vec<Vec<&str>> = Vec::new();
-    let mut current: Vec<&str> = Vec::new();
-    let mut depth = 0i32;
-    for line in text.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        current.push(line);
-        depth += net_bracket_depth(trimmed);
-        // A comment line never terminates a member: it belongs to the next one.
-        if depth <= 0 && !trimmed.starts_with("//") && !trimmed.starts_with("/*") {
-            depth = 0;
-            blocks.push(std::mem::take(&mut current));
-        }
-    }
-    if !current.is_empty() {
-        blocks.push(current);
-    }
-
-    let first = blocks.first().map(|b| shape_of(b));
-    let last = blocks.last().map(|b| shape_of(b));
-
-    let mut out = String::new();
-    let mut prev: Option<MemberShape> = None;
-    for block in &blocks {
-        let shape = shape_of(block);
-        if let Some(prev_shape) = prev
-            && needs_margin(prev_shape, shape)
-        {
-            out.push('\n');
-        }
-        for line in block {
-            out.push_str(line);
-            out.push('\n');
-        }
-        prev = Some(shape);
-    }
-    (out, first, last)
-}
-
 /// Apply `line`'s `{` / `}` to a running class-body nesting depth, clamped at
 /// zero. Braces inside comments and literals do not count — a member scan that
 /// counted them split a method in two at a `// … } …` comment.
@@ -446,27 +298,12 @@ pub(super) struct ClassStateField {
     /// just the bare `#x;` declaration — identical to the kept member — with no
     /// accessor). Defaults to `false`.
     pub(super) had_class_body_decl: bool,
-    /// A leading comment that belongs in the synthesized backing field value.
+    /// An inline trailing comment (e.g. `// TODO …`) that preceded this field
+    /// on its own line in the source.  When present, it is appended after the
+    /// private backing field declaration instead of being emitted as a
+    /// separate comment member — matching the official Svelte compiler's
+    /// behaviour of attaching leading comments to the field line.
     pub(super) trailing_comment: Option<String>,
-}
-
-fn take_leading_comment(pending: &mut Vec<String>) -> Option<String> {
-    let last = pending.last()?.trim();
-    if last.starts_with("//") {
-        let first = pending
-            .iter()
-            .rposition(|line| !line.trim().starts_with("//"))
-            .map_or(0, |index| index + 1);
-        return Some(pending.drain(first..).collect::<Vec<_>>().join("\n"));
-    }
-
-    if !last.ends_with("*/") {
-        return None;
-    }
-    let first = pending
-        .iter()
-        .rposition(|line| line.trim_start().starts_with("/*"))?;
-    Some(pending.drain(first..).collect::<Vec<_>>().join("\n"))
 }
 
 /// Emit a transformed class field definition with optional getter/setter.
@@ -479,16 +316,10 @@ pub(super) fn emit_class_field(
     let body_indent = format!("{}\t", indent);
     let private_name = format!("#{}", field.private_backing_name);
 
-    // Upstream `ClassBody.js` rebuilds the field as `b.prop_def(key, value)` and
-    // esrap re-attaches the comment to the first node that still carries a source
-    // range: a private field reuses its own ranged key, so the comment stays on a
-    // line above the field, while a public one gets a synthesized `#name` key and
-    // the comment therefore lands between the `=` and the value.
-    let (comment_prefix, comment_infix) = match field.trailing_comment.as_deref() {
-        Some(c) if field.is_private => (format!("{}{}\n", indent, c), String::new()),
-        Some(c) => (String::new(), format!("{}\n\t", c)),
-        None => (String::new(), String::new()),
-    };
+    let comment_prefix = field
+        .trailing_comment
+        .as_deref()
+        .map_or_else(String::new, |comment| format!("{indent}{comment}\n"));
     if !field.constructor_declared {
         output.push_str(&comment_prefix);
     }
@@ -529,8 +360,8 @@ pub(super) fn emit_class_field(
         };
         let _ = writeln!(
             output,
-            "{}{} = {}$.state({});",
-            indent, private_name, comment_infix, wrapped_value
+            "{}{} = $.state({});",
+            indent, private_name, wrapped_value
         );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
@@ -550,8 +381,8 @@ pub(super) fn emit_class_field(
     } else if field.rune_type == "$state.raw" || field.rune_type == "$state.frozen" {
         let _ = writeln!(
             output,
-            "{}{} = {}$.state({});",
-            indent, private_name, comment_infix, field.value
+            "{}{} = $.state({});",
+            indent, private_name, field.value
         );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
@@ -579,23 +410,15 @@ pub(super) fn emit_class_field(
                     replace_field_ref_word_boundary(&derived_expr, &private_ref, &getter);
             }
         }
-        let jsdoc = field
-            .trailing_comment
-            .as_deref()
-            .filter(|comment| !field.is_private && comment.trim_start().starts_with("/**"));
-        let (derived_infix, arrow_prefix) = match jsdoc {
-            Some(comment) => ("", format!("({comment}\n{indent}) => ")),
-            None => (comment_infix.as_str(), "() => ".to_string()),
-        };
         let wrapped_value = if derived_expr.trim_start().starts_with('{') {
-            format!("{arrow_prefix}({})", derived_expr)
+            format!("() => ({})", derived_expr)
         } else {
-            format!("{arrow_prefix}{derived_expr}")
+            format!("() => {}", derived_expr)
         };
         let _ = writeln!(
             output,
-            "{}{} = {}$.derived({});",
-            indent, private_name, derived_infix, wrapped_value
+            "{}{} = $.derived({});",
+            indent, private_name, wrapped_value
         );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
@@ -621,8 +444,8 @@ pub(super) fn emit_class_field(
         let derived_expr = transform_class_methods(&field.value, all_fields);
         let _ = writeln!(
             output,
-            "{}{} = {}$.derived({});",
-            indent, private_name, comment_infix, derived_expr
+            "{}{} = $.derived({});",
+            indent, private_name, derived_expr
         );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
@@ -891,17 +714,6 @@ pub(super) fn transform_constructor_private_reads(
 
 /// Transform class fields with $state and $derived runes for client-side.
 pub(crate) fn transform_class_fields_client(script: &str) -> String {
-    transform_class_fields_client_with_options(script, true)
-}
-
-pub(crate) fn transform_module_class_fields_client(script: &str) -> String {
-    transform_class_fields_client_with_options(script, false)
-}
-
-fn transform_class_fields_client_with_options(
-    script: &str,
-    retain_all_public_jsdoc: bool,
-) -> String {
     // Check if script contains a class with $state or $derived fields
     if memmem::find(script.as_bytes(), b"class ").is_none()
         || (memmem::find(script.as_bytes(), b"$state").is_none()
@@ -1087,6 +899,15 @@ fn transform_class_fields_client_with_options(
                     {
                         continue;
                     }
+
+                    // Helper: extract a leading `//` comment from pending_non_rune
+                    // and return it so it can be attached inline to the rune field,
+                    // matching the official Svelte compiler's behaviour.
+                    let take_leading_comment = |pending: &mut Vec<String>| -> Option<String> {
+                        // If the last pending line is a `//` comment AND there are
+                        // no non-comment lines after it, pop it and return it.
+                        pending.pop_if(|last| last.trim().starts_with("//"))
+                    };
 
                     // Try single-line parse
                     if let Some(mut field) = parse_state_field(trimmed, rune_type) {
@@ -1280,20 +1101,12 @@ fn transform_class_fields_client_with_options(
         return format!(
             "{}{}",
             before_and_current,
-            transform_class_fields_client_with_options(after_class_body, retain_all_public_jsdoc)
+            transform_class_fields_client(after_class_body)
         );
     }
 
     // Deconflict private backing names for public fields
-    let mut retained_public_jsdoc = false;
     for field in &mut fields {
-        if !retain_all_public_jsdoc && !field.is_private {
-            if retained_public_jsdoc {
-                field.trailing_comment = None;
-            } else {
-                retained_public_jsdoc = true;
-            }
-        }
         if !field.is_private {
             let mut deconflicted = field.private_backing_name.clone();
             while existing_private_ids.contains(&deconflicted) {
@@ -1333,12 +1146,10 @@ fn transform_class_fields_client_with_options(
     // 1. Emit constructor-declared PUBLIC fields at the top of the class
     // (with getter/setter). Private backing fields come later, just before the constructor.
     // This matches the official Svelte compiler output order.
-    let mut prev_shape: Option<MemberShape> = None;
     for field in &fields {
         if field.constructor_declared && !field.is_private {
             let text = emit_class_field(field, &fields, &member_indent);
-            let (first, last) = field_block_shapes(&text);
-            append_member_block(&mut new_class_body, &mut prev_shape, &text, first, last);
+            new_class_body.push_str(&text);
         }
     }
 
@@ -1348,23 +1159,16 @@ fn transform_class_fields_client_with_options(
             ClassMember::RuneField(field_idx) => {
                 let field = &fields[*field_idx];
                 let text = emit_class_field(field, &fields, &member_indent);
-                let (first, last) = field_block_shapes(&text);
-                append_member_block(&mut new_class_body, &mut prev_shape, &text, first, last);
+                new_class_body.push_str(&text);
             }
             ClassMember::NonRune(text) => {
                 if text.trim().is_empty() {
                     continue;
                 }
                 let transformed = transform_class_methods(text, &fields);
-                let (rejoined, first, last) = rejoin_class_members(&transformed);
-                if let (Some(first), Some(last)) = (first, last) {
-                    append_member_block(
-                        &mut new_class_body,
-                        &mut prev_shape,
-                        &rejoined,
-                        first,
-                        last,
-                    );
+                new_class_body.push_str(&transformed);
+                if !transformed.ends_with('\n') {
+                    new_class_body.push('\n');
                 }
             }
             ClassMember::Constructor => {
@@ -1376,24 +1180,9 @@ fn transform_class_fields_client_with_options(
                     if field.constructor_declared && field.is_private && !field.had_class_body_decl
                     {
                         let text = emit_class_field(field, &fields, &member_indent);
-                        let (first, last) = field_block_shapes(&text);
-                        append_member_block(
-                            &mut new_class_body,
-                            &mut prev_shape,
-                            &text,
-                            first,
-                            last,
-                        );
+                        new_class_body.push_str(&text);
                     }
                 }
-                let ctor_shape = MemberShape {
-                    kind: MemberKind::Method,
-                    multiline: true,
-                };
-                if prev_shape.is_none_or(|prev| needs_margin(prev, ctor_shape)) {
-                    new_class_body.push('\n');
-                }
-                prev_shape = Some(ctor_shape);
                 let _ = writeln!(
                     new_class_body,
                     "{}constructor({}) {{",
@@ -1540,8 +1329,7 @@ fn transform_class_fields_client_with_options(
     let after_class_body = &script[class_body_end + 1..]; // Skip closing brace
 
     // Recursively process remaining classes in the script
-    let after_class_transformed =
-        transform_class_fields_client_with_options(after_class_body, retain_all_public_jsdoc);
+    let after_class_transformed = transform_class_fields_client(after_class_body);
 
     // Check if this is a `new class ...` expression that needs wrapping
     // `new class Foo { ... }` -> `new (class Foo { ... })()`
@@ -2598,24 +2386,6 @@ export class Counter {
         assert!(
             !out.contains("count = $state(0)"),
             "raw field remained:\n{out}"
-        );
-    }
-
-    #[test]
-    fn public_rune_field_moves_a_leading_block_comment_to_its_value() {
-        let out = transform_class_fields_client("class C {\n\t/* c */\n\tn = $state(0);\n}");
-        assert!(
-            out.contains("#n = /* c */\n\t$.state(0);"),
-            "leading block comment should be attached to the generated backing field value:\n{out}"
-        );
-    }
-
-    #[test]
-    fn public_rune_field_moves_leading_line_comments_to_its_value() {
-        let out = transform_class_fields_client("class C {\n\t// c\n\tn = $state(0);\n}");
-        assert!(
-            out.contains("#n = // c\n\t$.state(0);"),
-            "leading line comments should be attached to the generated backing field value:\n{out}"
         );
     }
 

@@ -1,13 +1,8 @@
 //! A `//` comment written above a rune-initialized class field must stay above
 //! the field instead of being relocated between the `=` and the initializer.
 //!
-//! Upstream `ClassBody.js` rebuilds every rune field as `b.prop_def(key, value)`,
-//! and esrap re-attaches the comment to the first node that still carries a
-//! source range. A private field reuses its own ranged key, so the comment prints
-//! above the field; a public field is rebuilt around a synthesized `#name` key,
-//! so the comment falls through to the value. The public control below pins that
-//! second half — without it, "always put the comment above the field" would look
-//! just as correct as the previous "always put it after the `=`".
+//! Rune fields are rebuilt around generated backing fields, so the transform
+//! explicitly carries their leading comments to the replacement field.
 
 use rsvelte_core::compiler::ModuleCompileOptions;
 use rsvelte_core::{GenerateMode, compile_module};
@@ -64,7 +59,7 @@ fn private_derived_comment_stays_above_the_field() {
     assert_body(
         "export class C {\n\t#a = $state(1);\n\t// c\n\t#d = $derived(this.#a * 2);\n}\n",
         false,
-        "export class C {\n\t#a = $.state(1);\n\n\t// c\n\t#d = $.derived(() => $.get(this.#a) * 2);\n}",
+        "export class C {\n\t#a = $.state(1);\n\t// c\n\t#d = $.derived(() => $.get(this.#a) * 2);\n}",
     );
 }
 
@@ -82,7 +77,7 @@ fn each_commented_field_keeps_its_own_comment() {
     assert_body(
         "export class C {\n\t// one\n\t#a = $state(0);\n\t// two\n\t#b = $state(1);\n}\n",
         false,
-        "export class C {\n\t// one\n\t#a = $.state(0);\n\n\t// two\n\t#b = $.state(1);\n}",
+        "export class C {\n\t// one\n\t#a = $.state(0);\n\t// two\n\t#b = $.state(1);\n}",
     );
 }
 
@@ -95,24 +90,22 @@ fn constructor_assigned_field_keeps_the_comment_above() {
     assert_body(
         source,
         false,
-        "export class Counter {\n\t// c\n\t#n = $.state(0);\n\n\tconstructor() {\n\t\t$.set(this.#n, 1);\n\t}\n\n\tget n() {\n\t\treturn $.get(this.#n);\n\t}\n}",
+        "export class Counter {\n\t// c\n\t#n = $.state(0);\n\tconstructor() {\n\t\t$.set(this.#n, 1);\n\t}\n\tget n() {\n\t\treturn $.get(this.#n);\n\t}\n}",
     );
     assert_body(
         source,
         true,
-        "export class Counter {\n\t// c\n\t#n = $.tag($.state(0), 'Counter.#n');\n\n\tconstructor() {\n\t\t$.set(this.#n, 1);\n\t}\n\n\tget n() {\n\t\treturn $.get(this.#n);\n\t}\n}",
+        "export class Counter {\n\t// c\n\t#n = $.tag($.state(0), 'Counter.#n');\n\tconstructor() {\n\t\t$.set(this.#n, 1);\n\t}\n\tget n() {\n\t\treturn $.get(this.#n);\n\t}\n}",
     );
 }
 
-/// Control. A public field is rebuilt around a synthesized `#n` key that carries
-/// no source range, so upstream really does emit the comment after the `=` here.
-/// This is the case the pre-fix code was written for; it must not move.
+/// A public field's comment stays with its synthesized backing field.
 #[test]
-fn public_field_comment_stays_after_the_equals() {
+fn public_field_comment_stays_above_the_backing_field() {
     assert_body(
         "export class C {\n\t// c\n\tn = $state(0);\n}\n",
         false,
-        "export class C {\n\t#n = // c\n\t$.state(0);\n\n\tget n() {\n\t\treturn $.get(this.#n);\n\t}\n\n\tset n(value) {\n\t\t$.set(this.#n, value, true);\n\t}\n}",
+        "export class C {\n\t// c\n\t#n = $.state(0);\n\tget n() {\n\t\treturn $.get(this.#n);\n\t}\n\tset n(value) {\n\t\t$.set(this.#n, value, true);\n\t}\n}",
     );
 }
 

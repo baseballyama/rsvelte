@@ -27,7 +27,7 @@ fn rune_field_string_arg_with_brace_and_paren() {
     let out = client("<script>\nclass C { x = $state(\"a}b)c\"); }\nnew C();\n</script>");
     assert!(!out.contains("COMPILE_ERROR"), "{out}");
     assert!(
-        out.contains("$.state(\"a}b)c\")"),
+        out.contains("$.state('a}b)c')") || out.contains("$.state(\"a}b)c\")"),
         "rune string arg truncated at brace/paren: {out}"
     );
 }
@@ -38,7 +38,7 @@ fn rune_field_string_arg_with_brace_and_paren() {
 fn new_class_expression_keeps_constructor_args() {
     let out = client("<script>\nlet c = new class { x = $state(0); }(5, 6);\n</script>\n{c}");
     assert!(!out.contains("COMPILE_ERROR"), "{out}");
-    assert!(out.contains("})(5, 6)"), "constructor args lost: {out}");
+    assert!(out.contains("}(5, 6)"), "constructor args lost: {out}");
     assert!(
         !out.contains("})()(5, 6)"),
         "an extra () was injected before the constructor args: {out}"

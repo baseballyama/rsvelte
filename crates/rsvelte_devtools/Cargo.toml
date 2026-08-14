@@ -34,7 +34,6 @@ oxc-formatter-probe = ["dep:oxc_formatter"]
 [dependencies]
 rsvelte_ast_equiv = { path = "../rsvelte_ast_equiv" }
 rsvelte_core = { path = "../rsvelte_core", default-features = false }
-rsvelte_esrap = { path = "../rsvelte_esrap" }
 rsvelte_projection = { path = "../rsvelte_projection" }
 
 backtrace = "0.3"

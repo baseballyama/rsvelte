@@ -13,7 +13,6 @@ const repoRoot = path.resolve(
 const MINIMUM_MSRV = "1.95";
 // Dependency order is also the only safe first-publication order.
 const CRATES = [
-  "rsvelte_esrap",
   "rsvelte_core",
   "rsvelte_projection",
   "rsvelte",
@@ -227,8 +226,6 @@ for (const name of CRATES) {
 
 const core = packages.get("rsvelte_core");
 if (core) checkCore(core);
-if (core) checkExactInternalDependency(core, "rsvelte_esrap");
-
 const projection = packages.get("rsvelte_projection");
 if (projection) checkExactInternalDependency(projection, "rsvelte_core");
 

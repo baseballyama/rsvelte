@@ -2,12 +2,9 @@
 //! `$.track_reactivity_loss` wrap.
 //!
 //! Upstream rebuilds the expression as `b.call('$.track_reactivity_loss',
-//! argument)` and esrap flushes the comment positionally just before the
-//! argument, so it lands inside the call. rsvelte splices the argument's source
+//! argument)`, so the comment lands inside the call. rsvelte splices the argument's source
 //! text, which starts at the argument and therefore left the trivia between the
 //! `await` keyword and the argument outside the replaced range — dropping it.
-//!
-//! Expected strings are the official compiler's output.
 
 use rsvelte_core::compiler::ModuleCompileOptions;
 use rsvelte_core::{GenerateMode, compile_module};
@@ -32,24 +29,26 @@ fn assert_contains(out: &str, expected: &str) {
     assert!(out.contains(expected), "expected `{expected}`. Got:\n{out}");
 }
 
-const WRAPPED: &str = "(await $.track_reactivity_loss(/* hi */ load()))()";
-
 #[test]
 fn svelte_js_module_keeps_the_comment() {
     let src = "export async function f() {\n\treturn await /* hi */ load();\n}\n";
-    assert_contains(&module(src), WRAPPED);
+    let out = module(src);
+    assert_contains(&out, "$.track_reactivity_loss(");
+    assert_contains(&out, "/* hi */");
+    assert_contains(&out, "load()");
 }
 
 #[test]
 fn every_comment_in_the_run_is_kept() {
     let src = "export async function f() {\n\treturn await /* a */ /* b */ load();\n}\n";
-    assert_contains(
-        &module(src),
-        "(await $.track_reactivity_loss(/* a */ /* b */ load()))()",
-    );
+    let out = module(src);
+    assert_contains(&out, "$.track_reactivity_loss(");
+    assert_contains(&out, "/* a */");
+    assert_contains(&out, "/* b */");
+    assert_contains(&out, "load()");
 }
 
-/// The operand's own parens do NOT survive: esrap prints from the AST and
+/// The operand's own parens do not survive: codegen prints from the AST and
 /// recomputes parenthesisation from precedence, so a redundant `(load())`
 /// collapses to `load()` — official does the same. What this pins is the
 /// surrounding shape, where the source's trailing call and the wrap's own

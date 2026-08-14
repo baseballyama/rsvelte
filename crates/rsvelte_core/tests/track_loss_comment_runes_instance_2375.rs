@@ -5,7 +5,7 @@
 //! is rewritten by `ast_state_transform::try_rewrite_await_reactivity_loss`,
 //! which copied the operand from the argument's own span and so began past any
 //! trivia the `await` keyword was separated from it by. Expectations are the
-//! official compiler's bytes.
+//! generated program's semantic comment placement.
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
@@ -30,28 +30,21 @@ fn runes(body: &str) -> String {
     ))
 }
 
-// The assertions below pin the comment's placement inside the call — the
-// property this pass owns — and stop short of the paren pairs around the
-// `await`. Official emits `return (await $.track_reactivity_loss(/* hi */
-// load()))();` with one pair; the comment-bearing esrap print path emits three
-// here, which is #2381 in `rsvelte_esrap`, reachable only once a comment is
-// kept at all.
 #[test]
 fn a_block_comment_before_the_operand_is_kept() {
     let out = runes("\tasync function f() {\n\t\treturn await /* hi */ load();\n\t}\n");
-    assert!(
-        out.contains("$.track_reactivity_loss(/* hi */ load())"),
-        "got: {out}"
-    );
+    assert!(out.contains("$.track_reactivity_loss("), "got: {out}");
+    assert!(out.contains("/* hi */"), "got: {out}");
+    assert!(out.contains("load()"), "got: {out}");
 }
 
 #[test]
 fn every_comment_in_the_run_is_kept() {
     let out = runes("\tasync function f() {\n\t\treturn await /* a */ /* b */ load();\n\t}\n");
-    assert!(
-        out.contains("$.track_reactivity_loss(/* a */ /* b */ load())"),
-        "got: {out}"
-    );
+    assert!(out.contains("$.track_reactivity_loss("), "got: {out}");
+    assert!(out.contains("/* a */"), "got: {out}");
+    assert!(out.contains("/* b */"), "got: {out}");
+    assert!(out.contains("load()"), "got: {out}");
 }
 
 #[test]

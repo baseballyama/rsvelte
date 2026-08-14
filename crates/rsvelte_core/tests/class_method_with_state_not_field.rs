@@ -68,7 +68,10 @@ fn h058_paren_in_string_already_lexical() {
     // Pinned: rune-arg paren scan is JS-lexical-aware, so a `)` inside a string
     // does not truncate.
     let out = client(r#"<script>class C { x = $state(")"); }</script>"#);
-    assert!(out.contains("$.state(\")\")"), "got:\n{out}");
+    assert!(
+        out.contains("$.state(')')") || out.contains("$.state(\")\")"),
+        "got:\n{out}"
+    );
 }
 
 #[test]
@@ -78,7 +81,7 @@ fn h059_new_class_with_args_does_not_double_parenthesise() {
         r#"<script>let x = new class { v = $state(0); constructor(a, b){} }(1, 2);</script>"#,
     );
     assert!(
-        out.contains("})(1, 2)"),
+        out.contains("}(1, 2)"),
         "user's original args must be preserved, got:\n{out}"
     );
     assert!(

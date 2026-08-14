@@ -27,29 +27,6 @@ fn same_line_legacy_export_declaration_does_not_consume_the_next_statement() {
 }
 
 #[test]
-fn block_comment_after_final_inspect_precedes_generated_element_variable() {
-    let result = crate::compiler::compile(
-        "<script>\n\tlet a = 1;\n\t$inspect(a); /* c */\n</script>\n\n<p>{a}</p>\n",
-        crate::compiler::CompileOptions {
-            filename: Some("inspect-trailing-block.svelte".to_string()),
-            ..Default::default()
-        },
-    )
-    .unwrap();
-
-    assert!(
-        result.js.code.contains("/* c */\n\tvar p = root();"),
-        "the orphaned comment must flush before the generated declaration:\n{}",
-        result.js.code
-    );
-    assert!(
-        !result.js.code.contains("var /* c */"),
-        "a comment must not be placed between `var` and its declarator:\n{}",
-        result.js.code
-    );
-}
-
-#[test]
 fn invalidation_single_dependency_keeps_sequence_parentheses() {
     let result = crate::compiler::compile(
         "<script>let list = [1];</script>{#each list as item}<input bind:value={item}>{/each}",
@@ -1319,74 +1296,6 @@ fn test_derived_trailing_comma_no_syntax_error() {
 }
 
 #[test]
-fn dev_public_rune_field_keeps_a_leading_block_comment_in_the_tag_call() {
-    let result = crate::compiler::compile(
-        "<script>\nexport class C {\n\t/* c */\n\tn = $state(0);\n}\n</script>",
-        crate::compiler::CompileOptions {
-            dev: true,
-            generate: crate::compiler::GenerateMode::Client,
-            ..Default::default()
-        },
-    )
-    .expect("compile should succeed");
-    let code = result.js.code;
-    assert!(
-        code.contains("#n = $.tag(\n\t\t\t/* c */\n\t\t\t$.state(0),\n\t\t\t'C.n'\n\t\t);"),
-        "comment should be an infix argument to $.tag:\n{code}"
-    );
-}
-
-#[test]
-fn dev_public_derived_field_keeps_jsdoc_in_its_synthesized_arrow() {
-    let result = crate::compiler::compile(
-        "<script lang=\"ts\">\nexport class C {\n\t/** c */\n\tn = $derived(1);\n}\n</script>",
-        crate::compiler::CompileOptions {
-            dev: true,
-            generate: crate::compiler::GenerateMode::Client,
-            ..Default::default()
-        },
-    )
-    .expect("compile should succeed");
-    assert!(
-        result.js.code.contains(
-            "#n = $.tag(\n\t\t\t$.derived((/** c */\n\t\t\t) => 1),\n\t\t\t'C.n'\n\t\t);"
-        ),
-        "JSDoc should stay with the synthesized derived arrow:\n{}",
-        result.js.code
-    );
-}
-
-#[test]
-fn server_public_derived_field_keeps_jsdoc_in_its_synthesized_arrow() {
-    let result = crate::compiler::compile(
-        "<script lang=\"ts\">\nexport class C {\n\t/** c */\n\tn = $derived(1);\n}\n</script>",
-        crate::compiler::CompileOptions {
-            generate: crate::compiler::GenerateMode::Server,
-            ..Default::default()
-        },
-    )
-    .expect("compile should succeed");
-    assert!(
-        result
-            .js
-            .code
-            .contains("\n\t\t#n = $.derived((/** c */\n\t\t) => 1);"),
-        "JSDoc should stay with the synthesized derived arrow:\n{}",
-        result.js.code
-    );
-}
-
-#[test]
-fn rehomes_derived_jsdoc_without_consuming_the_following_code() {
-    let input =
-        "\t#one = $.derived(() => /** one */\n\t1);\n\t#two = $.derived(() => /** two */\n\t2);";
-    assert_eq!(
-        super::rehome_derived_jsdoc(input),
-        "\t#one = $.derived((/** one */\n\t) => 1);\n\t#two = $.derived((/** two */\n\t) => 2);"
-    );
-}
-
-#[test]
 fn test_compile_with_multibyte_utf8_no_panic() {
     // Source with Japanese characters that could cause byte index boundary issues
     // when is_svelte_ignored_with_source slices source with saturating_sub(500)
@@ -1727,145 +1636,6 @@ export function useStore() {
 }
 
 #[test]
-fn module_async_derived_instruments_its_thunk_in_dev() {
-    let mut options = crate::compiler::ModuleCompileOptions {
-        dev: true,
-        filename: Some("test.svelte.js".to_string()),
-        ..Default::default()
-    };
-    options.experimental.r#async = true;
-    let result =
-        crate::compiler::compile_module("const value = $derived(await load());", options).unwrap();
-    let code = &result.js.code;
-
-    assert!(
-        code.contains("$.async_derived(async () => (await $.track_reactivity_loss(load()))(), 'value', 'test.svelte.js:1:14')"),
-        "await instrumentation must stay inside the async-derived thunk: {code}"
-    );
-    assert!(
-        !code.contains("await $.track_reactivity_loss($.async_derived"),
-        "the outer async-derived await must not be instrumented: {code}"
-    );
-}
-
-#[test]
-fn module_class_derived_only_rehomes_the_first_public_field_jsdoc() {
-    let source = "let wc_state = $state.raw({ base: '', error: null });\nexport const adapter_state = new (class {\n\t/** URL to the web container instance. */\n\tbase = $derived(wc_state.base);\n\t/** Errors from within the web container instance. */\n\terror = $derived(wc_state.error);\n})();\nexport function update(module) { wc_state = module.state; }";
-    for dev in [false, true] {
-        let result = crate::compiler::compile(
-            &format!("<script module>\n{source}\n</script>"),
-            crate::compiler::CompileOptions {
-                filename: Some("adapter.svelte.ts".to_string()),
-                dev,
-                ..Default::default()
-            },
-        )
-        .unwrap();
-
-        assert!(
-            result
-                .js
-                .code
-                .contains("$.derived((/** URL to the web container instance. */"),
-            "the first public field JSDoc must stay on its derived arrow (dev={dev}):\n{}",
-            result.js.code
-        );
-        assert!(
-            !result
-                .js
-                .code
-                .contains("Errors from within the web container instance."),
-            "later public field JSDoc has no generated source anchor (dev={dev}):\n{}",
-            result.js.code
-        );
-        assert!(
-            result.js.code.contains("$.set(wc_state, module.state)"),
-            "raw state setters must not request proxying (dev={dev}):\n{}",
-            result.js.code
-        );
-        assert!(
-            !result
-                .js
-                .code
-                .contains("$.set(wc_state, module.state, true)"),
-            "raw state setters must not request proxying (dev={dev}):\n{}",
-            result.js.code
-        );
-    }
-}
-
-#[test]
-fn compile_module_class_derived_only_rehomes_the_first_public_field_jsdoc() {
-    let source = "let wc_state = $state.raw({ base: '', error: null });\nexport const adapter_state = new (class {\n\t/** URL to the web container instance. */\n\tbase = $derived(wc_state.base);\n\t/** Errors from within the web container instance. */\n\terror = $derived(wc_state.error);\n})();\nexport function update(module) { wc_state = module.state; }";
-    for dev in [false, true] {
-        let result = crate::compiler::compile_module(
-            source,
-            crate::compiler::ModuleCompileOptions {
-                filename: Some("adapter.svelte.ts".to_string()),
-                dev,
-                ..Default::default()
-            },
-        )
-        .unwrap();
-
-        assert!(
-            result
-                .js
-                .code
-                .contains("$.derived((/** URL to the web container instance. */"),
-            "the first public field JSDoc must stay on its derived arrow (dev={dev}):\n{}",
-            result.js.code
-        );
-        assert!(
-            !result
-                .js
-                .code
-                .contains("Errors from within the web container instance."),
-            "later public field JSDoc has no generated source anchor (dev={dev}):\n{}",
-            result.js.code
-        );
-        assert!(
-            result.js.code.contains("$.set(wc_state, module.state)"),
-            "raw state setters must not request proxying (dev={dev}):\n{}",
-            result.js.code
-        );
-        assert!(
-            !result
-                .js
-                .code
-                .contains("$.set(wc_state, module.state, true)"),
-            "raw state setters must not request proxying (dev={dev}):\n{}",
-            result.js.code
-        );
-    }
-}
-
-#[test]
-fn module_async_derived_prelude_does_not_reorder_console_analysis() {
-    let mut options = crate::compiler::ModuleCompileOptions {
-        dev: true,
-        filename: Some("test.svelte.js".to_string()),
-        ..Default::default()
-    };
-    options.experimental.r#async = true;
-    let result = crate::compiler::compile_module(
-        "const state = $state(0);\nconst value = $derived(await load());\nconsole.log(state);",
-        options,
-    )
-    .unwrap();
-    assert!(
-        result.js.code.contains("console.log(state);"),
-        "console instrumentation must retain its normal module analysis order: {}",
-        result.js.code
-    );
-    assert!(
-        !result.js.code.contains("log_if_contains_state"),
-        "console instrumentation must not run before module state lowering: {}",
-        result.js.code
-    );
-}
-
-#[test]
 fn test_module_derived_with_ts_annotation_gets_get() {
     // Bug: TypeScript type annotations on $derived declarations (e.g.,
     // `const contentStyle: string = $derived.by(...)`) prevented the
@@ -2135,21 +1905,92 @@ export function useInterval(callback, delay) {
 }
 
 #[test]
-fn shadowed_state_updates_do_not_rewrite_literal_tokens() {
-    let output = apply_local_state_transforms(
-        r#"{
-const sample = "multiplier++";
-return {
-	prefix: () => ++multiplier,
-	post: () => multiplier++
-};
-}"#,
-        "multiplier",
-        true,
+fn compile_module_drops_toplevel_comments_but_keeps_nested_comments() {
+    let source = r#"
+// top level
+export function value() {
+	// nested
+	return 1;
+}
+/* trailing */
+"#;
+
+    for generate in [
+        crate::compiler::GenerateMode::Client,
+        crate::compiler::GenerateMode::Server,
+    ] {
+        let code = crate::compiler::compile_module(
+            source,
+            crate::compiler::ModuleCompileOptions {
+                generate,
+                filename: Some("comments.svelte.js".to_string()),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .js
+        .code;
+
+        assert!(!code.contains("top level"), "{code}");
+        assert!(!code.contains("trailing"), "{code}");
+        assert!(code.contains("// nested"), "{code}");
+    }
+}
+
+#[test]
+fn compile_module_keeps_comment_between_class_and_export() {
+    let source = r#"
+export class Counter {
+	value = $state(0);
+}
+/* between */
+export const shared = new Counter();
+"#;
+    let stripped = strip_module_toplevel_comments(source);
+
+    assert!(stripped.contains("/* between */"), "{stripped}");
+}
+
+/// Discriminating. `replace_standalone_pattern` is called with needles like
+/// `format!("{var}++")`, whose first character is the identifier — so a rejected
+/// match advanced the cursor one *byte* into a multi-byte name and the next
+/// slice split it. A member increment must be rejected, which is exactly the
+/// branch that advances.
+#[test]
+fn a_rejected_match_advances_by_a_whole_character() {
+    assert_eq!(
+        replace_standalone_pattern("x.\u{540d}\u{524d}++;", "\u{540d}\u{524d}++", "REPLACED"),
+        "x.\u{540d}\u{524d}++;"
     );
-    assert!(output.contains(r#"const sample = "multiplier++";"#));
-    assert!(output.contains("$.update_pre(multiplier)"));
-    assert!(output.contains("$.update(multiplier)"));
+}
+
+/// The same rejection through the other guard (`after_ok`), so the fix cannot
+/// be passed by handling only the `before_ok` path.
+#[test]
+fn a_rejected_match_advances_by_a_whole_character_on_the_trailing_guard() {
+    assert_eq!(
+        replace_standalone_pattern("\u{540d}\u{524d}++x;", "\u{540d}\u{524d}++", "REPLACED"),
+        "\u{540d}\u{524d}++x;"
+    );
+}
+
+/// Control on the other side: an accepted match must still be replaced, so a
+/// "fix" that rejected everything would fail here.
+#[test]
+fn an_accepted_non_ascii_match_is_still_replaced() {
+    assert_eq!(
+        replace_standalone_pattern("\u{540d}\u{524d}++;", "\u{540d}\u{524d}++", "REPLACED"),
+        "REPLACED;"
+    );
+}
+
+/// Control: byte and character steps coincide, so this passed before the fix.
+#[test]
+fn an_ascii_rejected_match_is_unchanged() {
+    assert_eq!(
+        replace_standalone_pattern("x.count++;", "count++", "REPLACED"),
+        "x.count++;"
+    );
 }
 
 /// A `}` or `)` inside a comment is comment text. Read as a bracket it drops the

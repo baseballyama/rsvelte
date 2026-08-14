@@ -3,17 +3,17 @@
 //!
 //! Phase-3 visitors build an `oxc_ast::ast::Program` directly (no intermediate
 //! string codegen and no custom IR), then print it once with
-//! [`rsvelte_esrap::print`]. This module is the equivalent of upstream's `b.*`
+//! [`oxc_codegen`]. This module is the equivalent of upstream's `b.*`
 //! helper namespace: every function returns a real oxc AST node allocated in
 //! the arena behind the [`AstBuilder`], so a visitor port reads almost
 //! 1:1 with the upstream JavaScript visitor.
 //!
 //! All construction patterns here are lifted verbatim from the proven
 //! `js_ast::to_oxc` converter (which is variant-complete against oxc 0.136), so
-//! the nodes they produce print byte-identically through esrap.
+//! the nodes they produce preserve the established output shape.
 //!
-//! Spans are always the dummy [`oxc_span::SPAN`]: esrap formats structurally,
-//! so spans do not affect comment-free output.
+//! Spans are always the dummy [`oxc_span::SPAN`]; they do not affect
+//! comment-free output.
 
 use oxc_allocator::{ArenaBox, ArenaVec};
 use oxc_ast::ast::*;
@@ -35,8 +35,7 @@ pub struct B<'a> {
 
 /// Anything that can be coerced to an [`Expression`] in callee / object
 /// position. A `&str` becomes an identifier (so `b.call("$.derived", …)` works
-/// like the upstream `b.call('$.derived', …)`), mirroring esrap's
-/// print-the-name-verbatim behaviour.
+/// like the upstream `b.call('$.derived', …)`).
 pub trait IntoExpr<'a> {
     fn into_expr(self, b: B<'a>) -> Expression<'a>;
 }
@@ -807,10 +806,10 @@ impl<'a> B<'a> {
         Statement::EmptyStatement(EmptyStatement::boxed(SPAN, &self.ab()))
     }
 
-    /// A *kept* `;` empty statement — one the esrap printer must NOT elide.
+    /// A *kept* `;` empty statement — one the code generator must not elide.
     ///
-    /// esrap (faithful to upstream) drops bare `EmptyStatement`s from a body
-    /// sequence, so a plain [`empty`](Self::empty) prints nothing. Some server
+    /// Bare `EmptyStatement`s are dropped from body sequences to match upstream,
+    /// so a plain [`empty`](Self::empty) prints nothing. Some server
     /// outputs, however, must preserve a literal `;` per removed node — e.g. a
     /// non-dev top-level `$inspect(...)` / `$inspect(...).with(...)` whose
     /// CallExpression visitor returns `b.empty` as the *expression* of an
@@ -1047,7 +1046,7 @@ impl<'a> B<'a> {
     }
 
     /// Assemble a module [`Program`] from top-level
-    /// statements, ready for [`rsvelte_esrap::print`].
+    /// statements, ready for [`oxc_codegen`].
     pub fn program(self, body: Vec<Statement<'a>>) -> oxc_ast::ast::Program<'a> {
         let body = ArenaVec::from_iter_in(body, &self.ab());
         Program::new(
@@ -1119,7 +1118,7 @@ fn is_valid_identifier(name: &str) -> bool {
 mod tests {
     use super::*;
 
-    /// Build a program with `B` and round-trip it through esrap, asserting the
+    /// Build a program with `B` and print it with `oxc_codegen`, asserting the
     /// printed source. This validates that the `b.*` layer produces oxc nodes
     /// the printer renders exactly as upstream's builders would.
     fn print(build: impl for<'a> FnOnce(B<'a>) -> Vec<oxc_ast::ast::Statement<'a>>) -> String {
@@ -1127,7 +1126,7 @@ mod tests {
         let b = B::new(&allocator);
         let body = build(b);
         let program = b.program(body);
-        rsvelte_esrap::print(&program, "")
+        crate::compiler::phases::phase3_transform::oxc_codegen::print(&program)
     }
 
     #[test]
@@ -1200,7 +1199,7 @@ mod tests {
             let getter = b.get("x", vec![b.return_stmt(Some(b.number(1.0)))]);
             vec![b.stmt(b.object(vec![getter]))]
         });
-        assert_eq!(out.trim(), "({\n\tget x() {\n\t\treturn 1;\n\t}\n});");
+        assert_eq!(out.trim(), "({ get x() {\n\treturn 1;\n} });");
     }
 
     #[test]
@@ -1277,7 +1276,7 @@ mod tests {
 
     /// Architectural spike: prove an oxc 0.136 AST parsed from source can be
     /// MUTATED IN PLACE through `&mut` (no `VisitMut`, no text splicing) and
-    /// re-printed with esrap. This is the core mechanism of the Phase-3 rewrite:
+    /// re-printed with `oxc_codegen`. This is the core mechanism of the Phase-3 rewrite:
     /// parse JS faithfully with oxc, transform the oxc AST by hand-written
     /// mutable recursive descent, print once. Lowers `$state(0)` -> `$.state(0)`.
     #[test]
@@ -1308,7 +1307,7 @@ mod tests {
             }
         }
 
-        let out = rsvelte_esrap::print(&ret.program, src);
+        let out = crate::compiler::phases::phase3_transform::oxc_codegen::print(&ret.program);
         assert_eq!(out.trim(), "const x = $.state(0);");
     }
 }

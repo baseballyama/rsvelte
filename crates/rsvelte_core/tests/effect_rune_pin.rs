@@ -45,7 +45,7 @@ fn h122_user_dollar_prefix_param_shadows_rune() {
     // and the call is emitted verbatim instead of being lowered.
     let out = client(r#"<script>function f($effect){ $effect("x"); }</script>"#);
     assert!(
-        out.contains(r#"$effect("x")"#) && !out.contains("$.user_effect"),
+        out.contains("$effect('x')") && !out.contains("$.user_effect"),
         "shadowed $effect param must not lower to $.user_effect, got:\n{out}"
     );
 }

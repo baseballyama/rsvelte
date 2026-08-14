@@ -134,7 +134,8 @@ pub fn with_program_mut(
             let out = if !parsed.diagnostics.is_empty() {
                 Rewrite::NotParsed
             } else if f(&allocator, &mut parsed.program) {
-                let mut printed = rsvelte_esrap::print(&parsed.program, source);
+                let mut printed =
+                    crate::compiler::phases::phase3_transform::oxc_codegen::print(&parsed.program);
                 dual_run::count_print(pass, printed.len());
                 keep_fragment_termination(source, &mut printed);
                 if printed == source {
@@ -259,7 +260,8 @@ pub fn with_class_fragment_program_mut(
                 // `unwrap_class_fragment` strips exactly one level of the
                 // printer's indentation, so `CLASS_FRAGMENT_INDENT` has to stay
                 // equal to the printer's — which is what it is set to.
-                let printed = rsvelte_esrap::print(&parsed.program, parse_str);
+                let printed =
+                    crate::compiler::phases::phase3_transform::oxc_codegen::print(&parsed.program);
                 dual_run::count_print(pass, printed.len());
                 let Some(mut printed) = (if wrapped {
                     unwrap_class_fragment(&printed)
@@ -611,11 +613,11 @@ mod tests {
 /// A pass is being rewritten from "collect edits, splice the source" to
 /// "mutate the shared `Program` in place". Most of the two sides' raw output
 /// differs for reasons that do not matter — the splice version returns the
-/// original text with holes replaced, the in-place version is printed by esrap,
-/// and esrap normalises. So equivalence is judged after putting BOTH sides
-/// through esrap exactly once: `normalize(spliced) == print(mutated)`. That is
+/// original text with holes replaced, while the in-place version is printed by
+/// `oxc_codegen`. Equivalence is judged after putting both sides through the
+/// code generator once: `normalize(spliced) == print(mutated)`. That is
 /// the property the final pipeline actually needs, because it prints the
-/// mutated program with esrap too.
+/// mutated program with `oxc_codegen` too.
 ///
 /// But normalisation is not free of consequence: it also cancels differences
 /// that the *callers* of these passes can see, because a pass returns a
@@ -623,7 +625,7 @@ mod tests {
 /// counted too, as their own class, and a report that gives a mismatch count
 /// without the raw-diff count beside it is not a report on this migration.
 ///
-/// That basis is only sound if esrap normalisation is idempotent — otherwise
+/// That basis is only sound if codegen normalisation is idempotent — otherwise
 /// `normalize` would keep moving and comparing across it would be meaningless.
 /// [`dual_run::check_normalize_idempotent`] asserts that on every real pass
 /// output when `RSVELTE_AST_DUAL_RUN=1`, so the assumption is measured on the
@@ -1054,7 +1056,7 @@ pub mod dual_run {
                 allow_return_outside_function: true,
                 ..ParseOptions::default()
             },
-            |program| Some(rsvelte_esrap::print(program, source)),
+            |program| Some(crate::compiler::phases::phase3_transform::oxc_codegen::print(program)),
         )
     }
 

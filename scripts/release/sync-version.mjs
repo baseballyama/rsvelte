@@ -82,9 +82,7 @@ const MAPPINGS = [
 ];
 
 // Exact crates.io edges whose requirement must move with the mapped compiler
-// crate versions. `rsvelte_core -> rsvelte_esrap` is intentionally absent:
-// esrap is versioned independently and that edge is updated when esrap itself
-// is released.
+// crate versions.
 const EXACT_INTERNAL_EDGES = [
 	{
 		cargoToml: 'crates/rsvelte_projection/Cargo.toml',

@@ -2,7 +2,7 @@
 //!
 //! This is the additive, in-progress replacement for the string-surgery server
 //! pipeline in [`super`]. It assembles the SSR output as a real `oxc` AST and
-//! prints it ONCE with [`rsvelte_esrap::print`] — zero text processing.
+//! prints it once with [`oxc_codegen`] — zero text processing.
 //!
 //! It mirrors the program-assembly shape of upstream's
 //! `submodules/svelte/packages/svelte/src/compiler/phases/3-transform/server/transform-server.js`
@@ -712,7 +712,7 @@ impl<'a> ServerTransformState<'a> {
         // Lower value-position `$effect.tracking()` → `false`,
         // `$effect.root(…)` → `() => {}`, `$effect.pending()` → `0` inside the
         // template expression (写经 server `CallExpression` visitor).
-        script::lower_effect_value_runes_expr(&mut out, self.b, self.options.dev, self.source);
+        script::lower_effect_value_runes_expr(&mut out, self.b);
         // Drop statement-position `$effect(…)` / `$effect.pre(…)` / `$inspect(…)`
         // calls nested in a template-expression IIFE arrow / function body (写经
         // server `ExpressionStatement` visitor → `b.empty`).
@@ -1602,16 +1602,7 @@ See https://svelte.dev/docs/svelte/v5-migration-guide#Components-are-no-longer-c
     }
 
     let mut program = b.program(program_body);
-    // `main`'s `record_esrap_server` timed the bare `rsvelte_esrap::print` that
-    // used to stand here. Comment preservation replaces that call, so the timer
-    // moves onto its replacement rather than being dropped: the site is the
-    // same one, and leaving it untimed would silently empty a bucket that the
-    // esrap breakdown still reports.
-    let _t = crate::compiler::phases::phase3_transform::profile::timer_start();
     let code = comments::print_with_comments(&mut program, &state.comments, allocator);
-    crate::compiler::phases::phase3_transform::profile::record_esrap_server(
-        crate::compiler::phases::phase3_transform::profile::timer_elapsed(_t),
-    );
     comment_stats::dump();
     let code = rehome_derived_jsdoc(&code);
     Ok(match state.analysis.instance_script_content.as_ref() {

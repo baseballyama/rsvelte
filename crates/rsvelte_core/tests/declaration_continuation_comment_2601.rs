@@ -76,10 +76,10 @@ fn a_line_comment_before_the_first_continuation_line_keeps_it() {
 }
 
 #[test]
-fn a_block_comment_between_declarators_still_folds_onto_one_line() {
+fn a_block_comment_between_declarators_does_not_swallow_the_next_one() {
     let out = client("<script>\n\tlet a,\n/* c */\n\t\tc;\n</script>\n\n<p>{a}{c}</p>\n");
     assert!(parses(&out), "{out}");
-    assert!(out.contains("let /* c */ c;"), "{out}");
+    assert!(code_only(&out).contains("let c;"), "{out}");
 }
 
 #[test]

@@ -24,6 +24,10 @@ fn compile_client(src: &str, dev: bool) -> String {
     .code
 }
 
+fn without_whitespace(source: &str) -> String {
+    source.chars().filter(|ch| !ch.is_whitespace()).collect()
+}
+
 const OBJECT_REST: &str = r#"<script>
 	let { a, b, ...rest } = { a: 1, b: 2, c: 3 };
 	function f() {
@@ -85,9 +89,10 @@ fn computed_and_literal_keys_are_lowered_like_upstream() {
 </script>
 <button onclick={f}>{a} {bc} {three} {dee} {e} {JSON.stringify(rest)}</button>"#;
     let out = compile_client(src, false);
+    let compact = without_whitespace(&out);
     assert!(
-        out.contains(
-            "rest = $.mutable_source($.exclude_from_object(tmp, ['a', 'b-c', '3', String(key), 'e']))"
+        compact.contains(
+            "rest=$.mutable_source($.exclude_from_object(tmp,['a','b-c','3',String(key),'e']))"
         ),
         "in:\n{out}"
     );
@@ -128,7 +133,8 @@ fn array_expansion_stays_one_chained_declaration() {
 </script>
 <button onclick={f}>{a} {b} {JSON.stringify(rest)}</button>"#;
     let out = compile_client(src, false);
-    assert!(out.contains("let tmp = [1, 2, 3],"), "in:\n{out}");
+    let compact = without_whitespace(&out);
+    assert!(compact.contains("lettmp=[1,2,3],"), "in:\n{out}");
     assert!(!out.contains("let $$array"), "in:\n{out}");
     assert!(out.contains("rest = $.get($$array).slice(2)"), "in:\n{out}");
 }

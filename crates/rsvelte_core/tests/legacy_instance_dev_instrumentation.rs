@@ -62,7 +62,7 @@ fn legacy_reactive_statement_body_is_instrumented() {
 #[test]
 fn legacy_instance_await_is_instrumented() {
     let src = "<script>\n\tasync function load() {\n\t\tconst r = await fetch(\"/x\");\n\t\treturn r;\n\t}\n</script>\n\n<button on:click={load}>go</button>";
-    assert_emits(src, "(await $.track_reactivity_loss(fetch(\"/x\")))()");
+    assert_emits(src, "(await $.track_reactivity_loss(fetch('/x')))()");
 }
 
 #[test]

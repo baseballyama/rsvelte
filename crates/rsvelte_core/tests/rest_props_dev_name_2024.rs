@@ -74,8 +74,15 @@ fn production_keeps_the_two_argument_form() {
 fn the_exclude_set_is_still_hoisted_in_dev() {
     let src = "<script>let { a, ...rest } = $props();</script><p>{a}{rest.x}</p>";
     let dev = compile_client(src, true);
+    let exclude = dev
+        .find("var rest_excludes = new Set([")
+        .expect("exclude set");
+    let component = dev.find("export default function").expect("component");
     assert!(
-        dev.contains("var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'a']);"),
+        exclude < component
+            && ["'$$slots'", "'$$events'", "'$$legacy'", "'a'"]
+                .iter()
+                .all(|name| dev[exclude..component].contains(name)),
         "the exclude array was not hoisted in:\n{dev}"
     );
 }

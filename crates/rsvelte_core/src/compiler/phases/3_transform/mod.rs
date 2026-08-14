@@ -14,6 +14,7 @@ pub mod client;
 pub mod css;
 pub mod js_ast;
 pub mod jsnode_to_oxc;
+pub mod oxc_codegen;
 pub mod profile;
 pub mod server;
 pub mod shared;

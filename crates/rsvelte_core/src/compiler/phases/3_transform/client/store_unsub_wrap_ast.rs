@@ -372,7 +372,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             out,
-            r#"$.store_unsub($.set(foo, "hello)world"), '$foo', $$stores);"#
+            "$.store_unsub($.set(foo, 'hello)world'), '$foo', $$stores);"
         );
     }
 

@@ -1125,23 +1125,14 @@ pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
         return result;
     }
 
-    // Slow path: parse and re-print with the `rsvelte_esrap` printer — the
-    // printer the official Svelte compiler uses (esrap). It preserves literal
-    // raw spellings (quotes, numbers), threads comments positionally (with the
-    // ` * ` block-comment dedent), keeps short arrays inline, applies esrap's
-    // blank-line margins, and emits `[a,, b]` holes directly — so the entire
-    // tail of oxc_codegen string fix-ups (`restore_original_quotes`,
-    // `restore_number_literals`, `restore_block_comment_alignment`,
-    // `join_oxc_multiline_arrays`, `add_esrap_blank_lines`,
-    // `remove_blank_lines_before_closing_braces`, `fix_array_holes`,
-    // `rejoin_tmp_destructure_declarations`) is no longer needed.
+    // Slow path: parse and re-print with `oxc_codegen` so unsupported IR still
+    // shares the final printer with the AST path.
     use oxc_parser::Parser;
     use oxc_span::SourceType;
 
     // Preserve `;;` markers ($inspect-removal empty-statement pairs) across the
-    // parse+print: both oxc and esrap drop empty statements, so smuggle them as
-    // a void-expression pair and restore afterwards. Single-quoted to match
-    // esrap's preserved quote style.
+    // parse+print drops empty statements, so smuggle them as a void-expression
+    // pair and restore afterwards.
     const DOUBLE_SEMI_PLACEHOLDER: &str = "void '$$DOUBLE_SEMI$$';void '$$DOUBLE_SEMI$$'";
     let has_double_semi = memmem::find(js.as_bytes(), b";;").is_some();
     let protected = if has_double_semi {
@@ -1162,10 +1153,7 @@ pub(crate) fn normalize_js_with_oxc(js: &str, indent_level: usize) -> String {
             return js.to_string();
         }
         restore_pre_effect_thunk_parens(&mut parsed.program, allocator);
-        let _t = super::super::profile::timer_start();
-        let printed = rsvelte_esrap::print(&parsed.program, &protected);
-        super::super::profile::record_esrap_normalize(super::super::profile::timer_elapsed(_t));
-        printed
+        super::super::oxc_codegen::print(&parsed.program)
     });
 
     // Restore `;;` after esrap has chosen its own whitespace between the pair.

@@ -41,7 +41,7 @@ fn client_keeps_the_arrow_body() {
 fn server_keeps_the_arrow_body() {
     let out = compile_to(GenerateMode::Server);
     assert!(
-        out.contains("$.fallback($$props['fmt'], (n) => `${n} items`)"),
+        out.contains("$.fallback($$props['fmt'], ((n) => `${n} items`))"),
         "arrow body was severed from its `=>`:\n{out}"
     );
 }
@@ -64,7 +64,7 @@ fn a_trailing_arrow_inside_a_string_is_not_a_continuation() {
     .js
     .code;
     assert!(
-        out.contains("$.prop($$props, 'label', 8, \"a =>\")")
+        out.contains("$.prop($$props, 'label', 8, 'a =>')")
             && out.contains("$.prop($$props, 'other', 8, 1)"),
         "the two declarations were merged:\n{out}"
     );

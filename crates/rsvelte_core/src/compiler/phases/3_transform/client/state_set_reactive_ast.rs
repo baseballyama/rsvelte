@@ -288,13 +288,13 @@ mod tests {
     fn rhs_with_object_literal() {
         let out =
             transform_state_set_reactive_ast("x = { a: 1, b: 2 };", &ssv(&["x"]), &[]).unwrap();
-        assert_eq!(out, "$.set(x, { a: 1, b: 2 });");
+        assert_eq!(out, "$.set(x, {\n\ta: 1,\n\tb: 2\n});");
     }
 
     #[test]
     fn rhs_with_array_literal() {
         let out = transform_state_set_reactive_ast("x = [1, 2, 3];", &ssv(&["x"]), &[]).unwrap();
-        assert_eq!(out, "$.set(x, [1, 2, 3]);");
+        assert_eq!(out, "$.set(x, [\n\t1,\n\t2,\n\t3\n]);");
     }
 
     #[test]

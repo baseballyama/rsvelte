@@ -82,7 +82,6 @@ use store_transforms::*;
 
 // Explicit re-exports for functions used outside the client module.
 pub(crate) use class_transforms::transform_class_fields_client;
-use class_transforms::transform_module_class_fields_client;
 pub(crate) use expression_utils::find_matching_paren;
 pub(crate) use formatting::normalize_js_with_oxc;
 
@@ -99,7 +98,7 @@ use regex::Regex;
 use super::TransformError;
 use super::js_ast::{
     builders::{self as b},
-    codegen::{CodegenResult, SourceMapping, generate, generate_with_sourcemap},
+    codegen::{CodegenResult, generate, generate_with_sourcemap},
     nodes::{
         JsBlockStatement, JsExportDefault, JsExportDefaultDeclaration, JsExpr,
         JsFunctionDeclaration, JsImportDeclaration, JsImportSpecifier, JsObjectMember, JsPattern,
@@ -313,7 +312,7 @@ pub fn transform_client_module(
     }
 
     // Transform the module source (rune replacements, class fields, etc.)
-    let class_transformed = transform_module_class_fields_client(source);
+    let class_transformed = transform_class_fields_client(source);
 
     // Transform destructured assignments whose LHS contains state variables into
     // IIFE / sequence form (mirrors upstream `visit_assignment_expression` in
@@ -361,6 +360,7 @@ pub fn transform_client_module(
     let has_effect_rune =
         class_transformed.contains("$effect") || class_transformed.contains("$inspect");
     let transformed = transform_module_script_runes(&class_transformed, analysis, options.dev);
+    let transformed = strip_module_toplevel_comments(&transformed);
 
     // The transformed source includes everything (imports + body).
     // We need to split imports from body to avoid duplicate svelte import.
@@ -404,30 +404,17 @@ pub(crate) fn print_module_program(
     let arena = super::js_ast::arena::JsArena::new();
     let alloc = oxc_allocator::Allocator::default();
     if let Some(code) =
-        super::js_ast::to_oxc::program_to_oxc(&program, &arena, &alloc).map(|converted| {
-            let print_opts = rsvelte_esrap::PrintOptions::default()
-                .with_empty_statements(true)
-                .with_unlocated_program(true);
-            match &converted.comment_source {
-                Some(cs) => {
-                    rsvelte_esrap::print_split(
-                        &converted.program,
-                        cs,
-                        converted.loc_base,
-                        None,
-                        &converted.loc_map,
-                        &print_opts,
-                    )
-                    .code
-                }
-                None => rsvelte_esrap::print_with(&converted.program, "", &print_opts),
+        super::js_ast::to_oxc::program_to_oxc(&program, &arena, &alloc).map(|mut converted| {
+            if let Some(source) = &converted.comment_source {
+                converted.program.source_text = alloc.alloc_str(source);
             }
+            super::oxc_codegen::print(&converted.program)
         })
     {
-        return Ok(format!("{header}\n{}", rehome_derived_jsdoc(&code)));
+        return Ok(format!("{header}\n{code}"));
     }
     generate(&program, &arena)
-        .map(|code| format!("{header}\n{}", rehome_derived_jsdoc(&code)))
+        .map(|code| format!("{header}\n{code}"))
         .map_err(TransformError::CodeGen)
 }
 
@@ -439,7 +426,7 @@ pub(crate) fn transform_module_source_for_module(
     dev: bool,
     server: bool,
 ) -> String {
-    let class_transformed = transform_module_class_fields_client(source);
+    let class_transformed = transform_class_fields_client(source);
     transform_module_script_runes_with_target(&class_transformed, analysis, dev, server)
 }
 
@@ -1290,6 +1277,8 @@ fn transform_client_with_visitors(
                 ) {
                     let cleaned_output = strip_async_noop_placeholders(async_result.output.trim());
                     let normalized = normalize_js_with_oxc(cleaned_output.trim(), script_indent);
+                    let normalized =
+                        restore_async_derived_ignore_comments(&content.raw, normalized);
                     component_body.push(script_raw_statement(
                         normalized,
                         script_source_offset,
@@ -2058,7 +2047,7 @@ fn transform_client_with_visitors(
     // Transform class fields first (before rune transforms strip the rune names)
     // Then transform remaining rune calls ($state, $derived, etc.) in module-level script
     if let Some((non_imports, retained_comment_stripped)) = module_script_non_imports {
-        let class_transformed = transform_module_class_fields_client(&non_imports);
+        let class_transformed = transform_class_fields_client(&non_imports);
         let has_effect_rune =
             class_transformed.contains("$effect") || class_transformed.contains("$inspect");
         let transformed = transform_module_script_runes(&class_transformed, analysis, options.dev);
@@ -2388,63 +2377,52 @@ fn transform_client_with_visitors(
     let _codegen_start = super::profile::timer_start();
 
     // Scriptless components use the faster handwritten printer. Scripts need
-    // OXC/esrap for official formatting and coordinate-aware comment placement.
-    if *CLIENT_USE_OXC || ast.instance.is_some() || ast.module.is_some() {
+    // OXC AST codegen for formatting and coordinate-aware comment placement.
+    let has_async_derived_ignore = analysis
+        .instance_script_content
+        .as_ref()
+        .is_some_and(|script| script.raw.contains("svelte-ignore await_waterfall"));
+    if !has_async_derived_ignore
+        && (*CLIENT_USE_OXC || ast.instance.is_some() || ast.module.is_some())
+    {
         let converted = CLIENT_TO_OXC_ALLOCATOR.with(|cell| {
             let mut alloc = cell.borrow_mut();
             alloc.reset();
             super::js_ast::to_oxc::program_to_oxc(&program, &context.arena, &alloc).map(
-                |converted| {
-                    // Keep `;` empty statements: the parsed-`Raw` `;;` are real
-                    // EmptyStatement nodes the official compiler output preserves.
-                    let print_opts =
-                        rsvelte_esrap::PrintOptions::default().with_empty_statements(true);
-                    let oxc_prog = &converted.program;
-                    match &converted.comment_source {
-                        // The program carries comments, so it prints in the
-                        // unified comment coordinate space `to_oxc` built.
-                        Some(comment_source) => {
-                            let map_source = options.enable_sourcemap.then_some(source);
-                            let _t = super::profile::timer_start();
-                            let pm = rsvelte_esrap::print_split(
-                                oxc_prog,
-                                comment_source,
-                                converted.loc_base,
-                                map_source,
-                                &converted.loc_map,
-                                &print_opts,
-                            );
-                            super::profile::record_esrap_client_split(
-                                super::profile::timer_elapsed(_t),
-                            );
-                            (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
+                |mut converted| {
+                    if options.enable_sourcemap {
+                        let printed =
+                            if let Some(comment_source) = &converted.comment_source {
+                                converted.program.source_text = alloc.alloc_str(comment_source);
+                                super::oxc_codegen::print_split_with_map(
+                                    &converted.program,
+                                    source,
+                                    converted.loc_base,
+                                    &converted.loc_map,
+                                )
+                            } else {
+                                let mut map_source = source.to_owned();
+                                if map_source.len() < converted.source_extent as usize {
+                                    map_source.push_str(&" ".repeat(
+                                        converted.source_extent as usize - map_source.len(),
+                                    ));
+                                }
+                                converted.program.source_text = alloc.alloc_str(&map_source);
+                                super::oxc_codegen::print_with_map(&converted.program, source)
+                            };
+                        (printed.code, printed.mappings)
+                    } else {
+                        if let Some(comment_source) = &converted.comment_source {
+                            converted.program.source_text = alloc.alloc_str(comment_source);
                         }
-                        None if options.enable_sourcemap => {
-                            let _t = super::profile::timer_start();
-                            let pm = rsvelte_esrap::print_with_map(oxc_prog, source, &print_opts);
-                            super::profile::record_esrap_client_map(super::profile::timer_elapsed(
-                                _t,
-                            ));
-                            (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
-                        }
-                        None => {
-                            let _t = super::profile::timer_start();
-                            let code = rsvelte_esrap::print_with(oxc_prog, "", &print_opts);
-                            super::profile::record_esrap_client_plain(
-                                super::profile::timer_elapsed(_t),
-                            );
-                            (code, Vec::new())
-                        }
+                        (super::oxc_codegen::print(&converted.program), Vec::new())
                     }
                 },
             )
         });
         if let Some((code, mappings)) = converted {
             super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
-            return Ok(CodegenResult {
-                code: rehome_derived_jsdoc(&code),
-                mappings,
-            });
+            return Ok(CodegenResult { code, mappings });
         } else if *CLIENT_TO_OXC_DEBUG {
             // Corpus workers share one stderr and a multi-part write interleaves,
             // gluing records together; emit the whole line in one call.
@@ -2466,102 +2444,10 @@ fn transform_client_with_visitors(
         let code = generate(&program, &context.arena).map_err(TransformError::CodeGen)?;
         super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
         Ok(CodegenResult {
-            code: rehome_derived_jsdoc(&code),
+            code,
             mappings: vec![],
         })
     }
-}
-
-fn rehome_derived_jsdoc(code: &str) -> String {
-    let code = rehome_tag_derived_line_comments(code);
-    let mut result = String::with_capacity(code.len());
-    let mut rest = code.as_str();
-    const PREFIX: &str = "$.derived(() => /**";
-
-    while let Some(start) = rest.find(PREFIX) {
-        result.push_str(&rest[..start]);
-        let comment_start = start + "$.derived(() => ".len();
-        let Some(comment_end) = rest[comment_start + 3..].find("*/") else {
-            result.push_str(&rest[start..]);
-            return result;
-        };
-        let comment_end = comment_start + 3 + comment_end + 2;
-        let expression = rest[comment_end..].trim_start();
-        if expression.is_empty() {
-            result.push_str(&rest[start..]);
-            return result;
-        }
-        let line_start = rest[..start].rfind('\n').map_or(0, |index| index + 1);
-        let line = &rest[line_start..start];
-        let indent = &line[..line.len() - line.trim_start_matches([' ', '\t']).len()];
-        result.push_str("$.derived((");
-        result.push_str(&rest[comment_start..comment_end]);
-        result.push('\n');
-        result.push_str(indent);
-        result.push_str(") => ");
-        rest = expression;
-    }
-    result.push_str(rest);
-    result
-}
-
-fn rehome_tag_derived_line_comments(code: &str) -> String {
-    let mut result = String::with_capacity(code.len());
-    let mut rest = code;
-    const PREFIX: &str = "$.tag(\n";
-    const DERIVED: &str = "$.derived(() => ";
-
-    while let Some(start) = rest.find(PREFIX) {
-        let comment_start = start + PREFIX.len();
-        let indent_end = rest[comment_start..]
-            .find(|c: char| !matches!(c, ' ' | '\t'))
-            .map_or(rest.len(), |index| comment_start + index);
-        let indent = &rest[comment_start..indent_end];
-        let Some(comment_end_relative) = rest[indent_end..].find('\n') else {
-            result.push_str(&rest[..start + PREFIX.len()]);
-            rest = &rest[start + PREFIX.len()..];
-            continue;
-        };
-        let comment_end = indent_end + comment_end_relative;
-        let after_comment = comment_end + 1;
-
-        if !rest[indent_end..].starts_with("//")
-            || !rest[after_comment..].starts_with(indent)
-            || !rest[after_comment + indent.len()..].starts_with(DERIVED)
-        {
-            result.push_str(&rest[..start + PREFIX.len()]);
-            rest = &rest[start + PREFIX.len()..];
-            continue;
-        }
-
-        result.push_str(&rest[..indent_end]);
-        result.push_str("$.derived((");
-        result.push_str(&rest[indent_end..comment_end]);
-        result.push('\n');
-        result.push_str(indent);
-        result.push_str(") => ");
-        rest = &rest[after_comment + indent.len() + DERIVED.len()..];
-    }
-    result.push_str(rest);
-    result
-}
-
-/// Convert esrap's flat, generated-order mapping list into the
-/// [`SourceMapping`] list the downstream VLQ encoder (`encode_vlq_mappings`)
-/// consumes.
-fn esrap_mappings_to_source_mappings(mappings: &[rsvelte_esrap::Mapping]) -> Vec<SourceMapping> {
-    mappings
-        .iter()
-        .map(|m| SourceMapping {
-            gen_line: m.gen_line,
-            gen_col: m.gen_column,
-            // esrap only ever maps a single source.
-            source: 0,
-            orig_line: m.source_line,
-            orig_col: m.source_column,
-            name: None,
-        })
-        .collect()
 }
 
 // Thread-local OXC allocator for the client `to_oxc` direct-AST print path.
@@ -2720,9 +2606,7 @@ fn is_client_template_factory(arena: &super::js_ast::JsArena, stmt: &JsStatement
             .and_then(|d| d.init)
             .is_some_and(|id| callee_is_factory(arena, arena.get_expr(id))),
         JsStatement::Raw(s) => stmt_text_has_factory(s),
-        JsStatement::RawMapped { code, .. } | JsStatement::RawMappedEffect { code, .. } => {
-            stmt_text_has_factory(code)
-        }
+        JsStatement::RawMapped { code, .. } => stmt_text_has_factory(code),
         _ => false,
     }
 }
@@ -2780,24 +2664,7 @@ fn script_raw_statement(code: String, source_offset: u32, has_effect_rune: bool)
 ///   bar,
 /// } from './module';
 /// ```
-/// Drop module-`<script>`-level comments that the official compiler's esrap
-/// output omits.
-///
-/// The client program's top-level `Program` node is synthetic (no `loc`), so
-/// esrap's `reset_comment_index` fast-forwards the comment cursor past every
-/// comment before the module body is printed. A module comment is therefore
-/// only re-emitted if it is nested inside a `loc`-bearing block that esrap
-/// re-enters via `body()` — i.e. a function or class body. Every other module
-/// comment is dropped: a leading JSDoc before a surviving `export const`, and
-/// the per-field JSDoc that `strip_typescript` re-emits when it removes an
-/// `export type` / `interface` body (that re-emission is correct for the
-/// instance script, whose statements keep their `loc` inside the component
-/// block, but wrong for the module).
-///
-/// Mirror that here for the module non-import content: keep only comments that
-/// fall inside a function/class body span; splice the rest out. Leftover blank
-/// lines are absorbed by downstream normalization. Returns the input unchanged
-/// on a parse failure or when there is nothing to drop.
+/// Drop leading and trailing module comments omitted by the official compiler.
 pub(crate) fn strip_module_toplevel_comments(src: &str) -> String {
     use oxc_allocator::Allocator;
     use oxc_parser::Parser;
@@ -2828,6 +2695,7 @@ fn strip_module_toplevel_comments_from_program(
 ) -> String {
     use oxc_ast::ast::{ClassBody, FunctionBody};
     use oxc_ast_visit::{Visit, walk};
+    use oxc_span::GetSpan;
 
     struct BodyCollector {
         spans: Vec<(u32, u32)>,
@@ -2850,7 +2718,6 @@ fn strip_module_toplevel_comments_from_program(
 
     let mut collector = BodyCollector { spans: Vec::new() };
     collector.visit_program(program);
-
     let mut removals: Vec<(usize, usize)> = Vec::new();
     for c in &program.comments {
         let (cs, ce) = (c.span.start, c.span.end);
@@ -2858,7 +2725,27 @@ fn strip_module_toplevel_comments_from_program(
             .spans
             .iter()
             .any(|(bs, be)| cs >= *bs && ce <= *be);
-        if !inside {
+        let previous = program
+            .body
+            .iter()
+            .filter(|statement| statement.span().end <= cs)
+            .max_by_key(|statement| statement.span().end);
+        let follows_class = previous.is_some_and(|statement| match statement {
+            oxc_ast::ast::Statement::ClassDeclaration(_) => true,
+            oxc_ast::ast::Statement::ExportDeclaration(export) => matches!(
+                export.declaration,
+                oxc_ast::ast::Declaration::ClassDeclaration(_)
+            ),
+            oxc_ast::ast::Statement::ExportDefaultDeclaration(export) => matches!(
+                export.declaration,
+                oxc_ast::ast::ExportDefaultDeclarationKind::ClassDeclaration(_)
+            ),
+            _ => false,
+        }) && program
+            .body
+            .iter()
+            .any(|statement| statement.span().start >= ce);
+        if !inside && !follows_class {
             removals.push((cs as usize, ce as usize));
         }
     }
@@ -4043,8 +3930,8 @@ fn transform_module_script_runes_with_target(
     // CallExpressions and asks "is the callee `$state`/`$derived` with type
     // arguments?". Falls back to the original `result` when the source isn't
     // TS (generics aren't legal) or fails to parse.
-    let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
     {
+        let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
         if let Some(rewritten) =
             strip_rune_generics_ast::strip_rune_generic_params_ast(&result, is_ts)
         {
@@ -4347,6 +4234,7 @@ fn transform_module_script_runes_with_target(
 
     // Transform $derived() to $.derived(() => expr) or $.async_derived() for async
     // Need to wrap state variable references inside the expression with $.get()
+    let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
     let module_async_derived_locations = dev.then(|| {
         let script_content = analysis.module_script_content.as_ref();
         let (script_start, original_script) = script_content.map_or((0, script), |content| {
@@ -4409,13 +4297,13 @@ fn transform_module_script_runes_with_target(
                 let saved_content = wrap_await_with_save_in_async_derived(wrapped_content.trim());
                 let inner_expr = strip_top_level_await_from_expr(&saved_content);
                 let inner_has_nested_await = contains_direct_await_in_expression(&inner_expr);
-
                 let var_name = extract_var_name_before_rune(&result[..pos]);
                 let dev_tail = async_derived_dev::dev_args(
                     module_async_derived_locations.as_ref(),
                     &var_name,
                     &var_name,
                 );
+
                 let new_derived = if inner_has_nested_await {
                     let is_object = saved_content.trim().starts_with('{');
                     if is_object {
@@ -4582,7 +4470,7 @@ fn transform_module_script_runes_with_target(
         result = wrap_state_derived_with_tag(&result);
     }
 
-    result
+    rehome_effect_trailing_comments(result)
 }
 
 /// Transform instance script content for the visitor-based code generation.
@@ -7452,7 +7340,131 @@ fn transform_instance_script_for_visitors(
 
     super::profile::record_st_post_passes(super::profile::timer_elapsed(_stage));
 
-    result
+    rehome_effect_trailing_comments(result)
+}
+
+fn rehome_effect_trailing_comments(mut script: String) -> String {
+    const CALLEES: [&str; 3] = ["$.user_effect(", "$.user_pre_effect(", "$.effect_root("];
+    let mut search_from = 0;
+    while let Some((comment_start, is_line)) = [
+        script[search_from..]
+            .find("//")
+            .map(|offset| (search_from + offset, true)),
+        script[search_from..]
+            .find("/*")
+            .map(|offset| (search_from + offset, false)),
+    ]
+    .into_iter()
+    .flatten()
+    .min_by_key(|(offset, _)| *offset)
+    {
+        let comment_end = if is_line {
+            script[comment_start..]
+                .find('\n')
+                .map_or(script.len(), |offset| comment_start + offset)
+        } else {
+            let Some(offset) = script[comment_start..].find("*/") else {
+                break;
+            };
+            comment_start + offset + 2
+        };
+        if !is_line {
+            search_from = comment_end;
+            continue;
+        }
+        let before = &script[..comment_start];
+        let Some(semicolon) = before.rfind(';') else {
+            search_from = comment_end;
+            continue;
+        };
+        if !before[semicolon + 1..].trim().is_empty() {
+            search_from = comment_end;
+            continue;
+        }
+        let Some(start) = CALLEES
+            .iter()
+            .filter_map(|callee| before[..semicolon].rfind(callee))
+            .max()
+        else {
+            search_from = comment_end;
+            continue;
+        };
+        let Some(open) = script[start..semicolon]
+            .find('(')
+            .map(|offset| start + offset)
+        else {
+            search_from = comment_end;
+            continue;
+        };
+        let Some(close) = script[..semicolon].rfind(')') else {
+            search_from = comment_end;
+            continue;
+        };
+        let line_start = script[..start].rfind('\n').map_or(0, |offset| offset + 1);
+        let indent = &script[line_start..start];
+        if !indent.chars().all(char::is_whitespace) {
+            search_from = comment_end;
+            continue;
+        }
+        let callee = &script[start..open];
+        let argument = script[open + 1..close].trim();
+        let comment = &script[comment_start..comment_end];
+        let marked_comment = format!("// __rsvelte_effect_trailing__line__{}", &comment[2..]);
+        let replacement = format!("{callee}(\n{indent}\t{argument}, {marked_comment}\n{indent});");
+        script.replace_range(start..comment_end, &replacement);
+        search_from = start + replacement.len();
+    }
+    script
+}
+
+fn restore_async_derived_ignore_comments(source: &str, mut transformed: String) -> String {
+    let mut search_from = 0;
+    while let Some(relative) = source[search_from..].find("svelte-ignore await_waterfall") {
+        let ignore = search_from + relative;
+        let comment_start = source[..ignore]
+            .rfind("/*")
+            .or_else(|| source[..ignore].rfind("//"));
+        let Some(comment_start) = comment_start else {
+            search_from = ignore + "svelte-ignore await_waterfall".len();
+            continue;
+        };
+        let comment_end = if source[comment_start..].starts_with("/*") {
+            source[comment_start..]
+                .find("*/")
+                .map(|end| comment_start + end + 2)
+        } else {
+            source[comment_start..]
+                .find('\n')
+                .map(|end| comment_start + end)
+                .or(Some(source.len()))
+        };
+        let Some(comment_end) = comment_end else {
+            break;
+        };
+        let rest = source[comment_end..].trim_start();
+        let Some((_, rest)) = ["const ", "let ", "var "]
+            .iter()
+            .find_map(|kind| rest.strip_prefix(kind).map(|rest| (*kind, rest)))
+        else {
+            search_from = comment_end;
+            continue;
+        };
+        let declaration = if matches!(rest.as_bytes().first(), Some(b'{' | b'[')) {
+            "var ".to_string()
+        } else {
+            let name_end = rest
+                .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '$'))
+                .unwrap_or(rest.len());
+            format!("var {};", &rest[..name_end])
+        };
+        if let Some(pos) = transformed.find(&declaration) {
+            let comment = &source[comment_start..comment_end];
+            transformed = transformed.replace(comment, "");
+            transformed.insert_str(pos + "var ".len(), &format!("{comment} "));
+        }
+        search_from = comment_end;
+    }
+    transformed
 }
 
 /// Transform shadowed local reactive variables within their enclosing function bodies.
@@ -7617,16 +7629,24 @@ fn apply_local_state_transforms(func_body: &str, var_name: &str, is_state: bool)
     result = state_reads_ast::transform_state_reads_ast(&result, &[var_name.to_string()], &[])
         .unwrap_or(result);
 
-    // Updates must precede sets, so `x++` becomes `$.update(x)` rather than
-    // a set around an update target. The AST pass keeps tokens in literals and
-    // comments out of this rewrite.
-    if let Some(transformed) = reactive_update_ast::transform_reactive_update_ast(
-        &result,
-        &[],
-        &[var_name.to_string()],
-        &[],
-    ) {
-        result = transformed;
+    // Apply $.update() for `var++`, `var--`, `++var`, `--var` patterns
+    // These must be applied BEFORE $.set() transforms since `x++` should become `$.update(x)`
+    // not `$.set(x, $.get(x)++, true)`
+    let update_patterns = [
+        (format!("{}++", var_name), format!("$.update({})", var_name)),
+        (
+            format!("{}--", var_name),
+            format!("$.update({}, -1)", var_name),
+        ),
+        (format!("++{}", var_name), format!("$.update({})", var_name)),
+        (
+            format!("--{}", var_name),
+            format!("$.update({}, -1)", var_name),
+        ),
+    ];
+
+    for (from, to) in &update_patterns {
+        result = replace_standalone_pattern(&result, from, to);
     }
 
     // Apply $.set() for direct assignments (only for $state, not $derived)
@@ -7634,6 +7654,37 @@ fn apply_local_state_transforms(func_body: &str, var_name: &str, is_state: bool)
         result = apply_local_set_transforms(&result, var_name);
     }
 
+    result
+}
+
+/// Replace a pattern only when it appears as a standalone expression.
+fn replace_standalone_pattern(text: &str, from: &str, to: &str) -> String {
+    let mut result = String::new();
+    let mut search_from = 0;
+
+    while let Some(pos) = text[search_from..].find(from) {
+        let abs_pos = search_from + pos;
+        let before_ok = abs_pos == 0 || {
+            let b = text.as_bytes()[abs_pos - 1];
+            !b.is_ascii_alphanumeric() && b != b'_' && b != b'$' && b != b'.'
+        };
+        let after_pos = abs_pos + from.len();
+        let after_ok = after_pos >= text.len() || {
+            let b = text.as_bytes()[after_pos];
+            !b.is_ascii_alphanumeric() && b != b'_'
+        };
+
+        if before_ok && after_ok {
+            result.push_str(&text[search_from..abs_pos]);
+            result.push_str(to);
+            search_from = after_pos;
+        } else {
+            let next = crate::compiler::utils::next_char_boundary(text, abs_pos);
+            result.push_str(&text[search_from..next]);
+            search_from = next;
+        }
+    }
+    result.push_str(&text[search_from..]);
     result
 }
 

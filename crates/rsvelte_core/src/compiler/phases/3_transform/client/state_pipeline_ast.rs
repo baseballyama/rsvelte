@@ -534,7 +534,7 @@ mod tests {
             &[],
         )
         .unwrap();
-        assert_eq!(out, "let count;\nlet total;\n\n$.set(total, $.get(count));");
+        assert_eq!(out, "let count;\nlet total;\n$.set(total, $.get(count));");
     }
 
     #[test]
@@ -550,7 +550,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             out,
-            "let count;\nlet total;\n\n$.set(total, $.get(total) + $.get(count));"
+            "let count;\nlet total;\n$.set(total, $.get(total) + $.get(count));"
         );
     }
 
@@ -579,7 +579,7 @@ mod tests {
             &[],
         )
         .unwrap();
-        assert_eq!(out, "let count;\n\n$.update(count);");
+        assert_eq!(out, "let count;\n$.update(count);");
     }
 
     #[test]
@@ -624,7 +624,7 @@ mod tests {
             &ssv(&["count"]),
         )
         .unwrap();
-        assert_eq!(out, "let count;\n\n$.set(count, 5);");
+        assert_eq!(out, "let count;\n$.set(count, 5);");
     }
 
     #[test]
@@ -640,7 +640,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             out,
-            "let outer;\nlet inner;\n\n$.set(outer, $.set(inner, 1));"
+            "let outer;\nlet inner;\n$.set(outer, $.set(inner, 1));"
         );
     }
 
@@ -649,7 +649,7 @@ mod tests {
         let out =
             transform_state_pipeline_ast("let x; x = { a: 1 };", &ssv(&["x"]), &[], true, &[], &[])
                 .unwrap();
-        assert_eq!(out, "let x;\n\n$.set(x, { a: 1 }, true);");
+        assert_eq!(out, "let x;\n$.set(x, { a: 1 }, true);");
     }
 
     #[test]
@@ -680,7 +680,7 @@ mod tests {
             &[],
         )
         .unwrap();
-        assert_eq!(out, "let x;\n\n$.set(x, { a: 1 });");
+        assert_eq!(out, "let x;\n$.set(x, { a: 1 });");
     }
 
     #[test]

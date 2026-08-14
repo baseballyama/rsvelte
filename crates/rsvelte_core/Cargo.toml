@@ -94,7 +94,7 @@ oxc_ast = { version = "0.144", features = ["serialize"] }
 oxc_span = "0.144"
 oxc_diagnostics = "0.144"
 oxc_codegen = "0.144"
-rsvelte_esrap = { version = "=0.10.8", path = "../rsvelte_esrap" }
+oxc_sourcemap = "8.1"
 oxc_syntax = "0.144"
 oxc_semantic = "0.144"
 
@@ -129,6 +129,9 @@ getrandom = { version = "0.4", optional = true }
 lazy_static = "1.5.0"
 indexmap = { version = "2.13.0", features = ["serde"] }
 oxc_ast_visit = "0.144"
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+stacker = "0.1.24"
 
 [dev-dependencies]
 # Testing

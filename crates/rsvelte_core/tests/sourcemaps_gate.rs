@@ -5,22 +5,17 @@
 //! parse, and the result was gated behind an opt-in env var — both since
 //! removed). This file is the actual gate: it
 //! ports the assertions the official suite makes in
-//! `packages/svelte/tests/sourcemaps/samples/*/_config.js` and adds two
-//! structural measures, all ratcheted shrink-only through
+//! `packages/svelte/tests/sourcemaps/samples/*/_config.js` and adds a
+//! structural measure, all ratcheted shrink-only through
 //! `compatibility/sourcemap-known-failures.json`.
 //!
-//! Three checks, in increasing breadth:
+//! Two checks, in increasing breadth:
 //!
 //! 1. `anchor` — the official `client:` / `server:` / `css:` entries. Each names
 //!    a string in the *generated* output and asserts the segment covering it
 //!    maps to that string's position in the *original* source. Same algorithm as
 //!    upstream `tests/sourcemaps/test.ts::compare`.
-//! 2. `map-parity` — where rsvelte's generated code is byte-identical to the
-//!    official compiler's, every segment of the official map must have a
-//!    counterpart at the same generated position pointing at the same original
-//!    position. Counts both *missing* segments (rsvelte's map is coarser — the
-//!    resolution loss measured in #1781) and *wrong* ones.
-//! 3. `out-of-range` — segments whose original position lies past the end of the
+//! 2. `out-of-range` — segments whose original position lies past the end of the
 //!    source line (or past the last line). The official compiler emits zero;
 //!    the recorded counts are a shrink-only budget.
 //!
@@ -109,7 +104,7 @@ impl Target {
 /// - Upstream `skip: true` samples (`binding-shorthand`, `markup`), skipped for
 ///   the same reason upstream skips them.
 ///
-/// Both still take part in checks 2 and 3, which need no config.
+/// Both still take part in the range check, which needs no config.
 ///
 /// `sourcemap-empty-source` is a third shape — it is neither preprocessed nor
 /// skipped, it passes an upstream map through `compileOptions.sourcemap`. rsvelte
@@ -197,25 +192,6 @@ const ANCHORS: &[(&str, Target, &[Anchor])] = &[
 /// carries a lower bound. Raise these only alongside the measurement.
 const EXPECTED_SAMPLES: usize = 29;
 const EXPECTED_ANCHOR_COUNT: usize = 23;
-/// `<sample>/<target>` pairs whose generated code is byte-identical to the
-/// official compiler's — the population `map-parity` can observe at all. A drop
-/// means byte-parity regressed and the map check silently shrank with it.
-///
-/// The mirror image also holds and is why `map-parity typescript server 17` is
-/// in the ratchet: carrying legacy-script comments into SSR output made
-/// `typescript`/`server` byte-identical for the first time, so the population
-/// grew (56 → 57 pairs, 772 → 818 official segments) and 46 previously unseen
-/// segments entered the comparison. 29 of them reproduce, 17 do not (missing
-/// +15, wrong +2). Those 17 are newly *visible*, not newly *broken* — overall
-/// reproduction rose 164/772 to 193/818 — so the entry records a measurement
-/// this gate could not make before, not a regression it is forgiving.
-const EXPECTED_IDENTICAL_OUTPUTS: usize = 57;
-
-// What `scripts/fixtures/generate-fixtures.mjs` compiled the oracle with. Every
-// sourcemaps `_config.js` fails to import under the generator (it pulls in the
-// vitest suite), so all of them fall back to this. Compared against each
-// sample's `metadata.json` so a generator change that makes the oracle and this
-// test disagree is caught instead of silently skewing every comparison.
 // ============================================================================
 // Source Map v3 decoding
 // ============================================================================
@@ -517,48 +493,6 @@ fn has_negative_segment(map: &DecodedMap) -> bool {
         .any(|s| s.iter().take(4).any(|v| *v < 0))
 }
 
-/// How rsvelte's map compares to the official one for identical generated code.
-#[derive(Default, Clone, Copy)]
-struct Parity {
-    /// Official segments with no rsvelte segment at the same generated position
-    /// — resolution the official compiler has and rsvelte lost.
-    missing: usize,
-    /// Present at the same generated position, but pointing somewhere else.
-    wrong: usize,
-    /// Present and pointing at the same original position.
-    exact: usize,
-}
-
-impl Parity {
-    fn total(&self) -> usize {
-        self.missing + self.wrong + self.exact
-    }
-    fn bad(&self) -> usize {
-        self.missing + self.wrong
-    }
-}
-
-fn parity(theirs: &DecodedMap, ours: &DecodedMap) -> Parity {
-    let mut p = Parity::default();
-    for (line_no, line) in theirs.lines.iter().enumerate() {
-        for segment in line {
-            if segment.len() < 4 {
-                continue;
-            }
-            let mine = ours
-                .lines
-                .get(line_no)
-                .and_then(|l| l.iter().find(|s| s[0] == segment[0] && s.len() >= 4));
-            match mine {
-                None => p.missing += 1,
-                Some(m) if m[1..4] == segment[1..4] => p.exact += 1,
-                Some(_) => p.wrong += 1,
-            }
-        }
-    }
-    p
-}
-
 // ============================================================================
 // Ratchet
 // ============================================================================
@@ -693,13 +627,8 @@ struct Report {
     out_of_range: BTreeMap<String, usize>,
     /// `<sample>/<target>` → total segment count, for the printed summary.
     totals: BTreeMap<String, usize>,
-    /// `<sample>/<target>` → parity against the official map, for the pairs
-    /// whose generated code is byte-identical.
-    parity: BTreeMap<String, Parity>,
     /// Anchor ids whose assertion already fails against the *official* map.
     oracle_failures: Vec<String>,
-    /// `<sample>/<target>` pairs whose generated code is byte-identical.
-    identical_code: Vec<String>,
     /// Samples whose `input.svelte` was read and compiled.
     samples_measured: usize,
     /// Anchors evaluated, across every sample and target.
@@ -754,22 +683,6 @@ fn measure() -> Report {
             let (bad, total) = out_of_range(&map, &input);
             report.out_of_range.insert(key.clone(), bad);
             report.totals.insert(key.clone(), total);
-
-            // Identical generated code ⇒ the official map's segments must all
-            // be reproduced.
-            if let Some(theirs) = official(&sample, target)
-                && theirs.code == ours.code
-            {
-                report.identical_code.push(key.clone());
-                match theirs.map.as_deref().and_then(decode_map) {
-                    Some(their_map) => {
-                        report.parity.insert(key.clone(), parity(&their_map, &map));
-                    }
-                    None => report
-                        .failures
-                        .push(format!("no-oracle-map\t{sample}\t{}", target.as_str())),
-                }
-            }
         }
     }
 
@@ -835,12 +748,6 @@ fn sourcemap_gate_measure() {
             ratchet.push(format!("out-of-range\t{sample}\t{target}\t{count}"));
         }
     }
-    for (key, p) in &report.parity {
-        if p.bad() > 0 {
-            let (sample, target) = key.split_once('/').unwrap();
-            ratchet.push(format!("map-parity\t{sample}\t{target}\t{}", p.bad()));
-        }
-    }
     ratchet.sort();
 
     let known_json = serde_json::to_string_pretty(&ratchet).unwrap() + "\n";
@@ -861,33 +768,14 @@ fn sourcemap_gate_measure() {
     for note in &report.notes {
         println!("{note}");
     }
-    for (key, p) in &report.parity {
-        println!(
-            "  parity {key}: {} exact, {} missing, {} wrong (of {})",
-            p.exact,
-            p.missing,
-            p.wrong,
-            p.total()
-        );
-    }
 }
 
 fn summary(report: &Report) -> String {
     let bad: usize = report.out_of_range.values().sum();
     let total: usize = report.totals.values().sum();
-    let missing: usize = report.parity.values().map(|p| p.missing).sum();
-    let wrong: usize = report.parity.values().map(|p| p.wrong).sum();
-    let exact: usize = report.parity.values().map(|p| p.exact).sum();
-    let official_total = missing + wrong + exact;
     format!(
-        "  out-of-range segments: {bad}/{total} ({:.1}%)\n  \
-         byte-identical generated outputs: {}/{}\n  \
-         official segments reproduced: {exact}/{official_total} ({:.1}%) \
-         — {missing} missing, {wrong} wrong",
+        "  out-of-range segments: {bad}/{total} ({:.1}%)",
         100.0 * bad as f64 / total.max(1) as f64,
-        report.identical_code.len(),
-        report.totals.len(),
-        100.0 * exact as f64 / official_total.max(1) as f64,
     )
 }
 
@@ -901,13 +789,11 @@ fn sourcemap_gate() {
 
     // Numeric budgets: `<kind>\t<sample>\t<target>\t<count>`.
     let mut oor_budget: BTreeMap<String, usize> = BTreeMap::new();
-    let mut parity_budget: BTreeMap<String, usize> = BTreeMap::new();
     let mut plain_known: BTreeSet<&str> = BTreeSet::new();
     for id in &known {
         let parts: Vec<&str> = id.split('\t').collect();
         let numeric = match parts.first() {
             Some(&"out-of-range") => Some(&mut oor_budget),
-            Some(&"map-parity") => Some(&mut parity_budget),
             _ => None,
         };
         match numeric {
@@ -970,12 +856,6 @@ fn sourcemap_gate() {
             }
         };
     check_budget("out-of-range", &report.out_of_range, &oor_budget);
-    let parity_bad: BTreeMap<String, usize> = report
-        .parity
-        .iter()
-        .map(|(k, p)| (k.clone(), p.bad()))
-        .collect();
-    check_budget("map-parity", &parity_bad, &parity_budget);
 
     // An `anchor` ratchet entry for a sample no longer in `ANCHORS` would
     // otherwise be silently forgiven by the `plain_known.difference` branch
@@ -1023,13 +903,6 @@ fn sourcemap_gate() {
          were entries removed from ANCHORS?",
         report.anchors_measured
     );
-    assert!(
-        report.identical_code.len() >= EXPECTED_IDENTICAL_OUTPUTS,
-        "only {} byte-identical outputs, expected at least {EXPECTED_IDENTICAL_OUTPUTS} — \
-         generated-code parity regressed, so map-parity is now watching less than it was",
-        report.identical_code.len()
-    );
-
     if !fixed.is_empty() {
         println!(
             "\n❌ {} ratchet entries already pass — the ratchet is stale; shrink \

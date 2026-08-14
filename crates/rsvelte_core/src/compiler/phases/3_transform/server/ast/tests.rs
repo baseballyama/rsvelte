@@ -2589,7 +2589,7 @@ fn ast_matches_oracle_component_api_v4() {
         "v4 import missing:\n{ours}"
     );
     assert!(
-        ours.contains("App.render = function ($$props, $$opts)"),
+        ours.contains("App.render = function($$props, $$opts)"),
         "v4 render wrapper missing:\n{ours}"
     );
     assert!(
@@ -3018,7 +3018,7 @@ fn ast_matches_oracle_script_samples() {
         // $derived.by(fn) -> $.derived(fn)
         (
             "<script>let d = $derived.by(() => 1 + 1);</script><p>x</p>",
-            "let d = $.derived(() => 1 + 1);",
+            "let d = $.derived((() => 1 + 1));",
         ),
         // (a) class-field $state -> `count = 0`
         (
@@ -3312,6 +3312,19 @@ fn module_script_at_module_scope() {
         "module decl must be at module scope (before component fn):\n{out}"
     );
     assert!(out.contains("let c = 0;"), "missing instance decl:\n{out}");
+}
+
+#[test]
+fn module_script_drops_toplevel_comments_but_keeps_nested_comments() {
+    for options in ["", "<svelte:options runes={true} />"] {
+        let out = run(&format!(
+            "{options}<script module>\n// top level\nexport function value() {{\n\t// nested\n\treturn 1;\n}}\n/* trailing */\n</script><p>x</p>"
+        ));
+
+        assert!(!out.contains("top level"), "{out}");
+        assert!(!out.contains("trailing"), "{out}");
+        assert!(out.contains("// nested"), "{out}");
+    }
 }
 
 /// TypeScript instance scripts: the script slice is `strip_typescript`-ed
@@ -3901,7 +3914,7 @@ fn canon(code: &str) -> Option<String> {
     if ret.panicked || !ret.diagnostics.is_empty() {
         return None;
     }
-    Some(rsvelte_esrap::print(&ret.program, code))
+    Some(crate::compiler::phases::phase3_transform::oxc_codegen::print(&ret.program))
 }
 
 /// Feature keywords to detect in source for mismatch clustering.
@@ -5202,9 +5215,10 @@ fn ast_matches_oracle_async_const_cluster() {
 /// to cover the statement itself for its interior positions to exist at all.
 ///
 /// Every expectation below is the official compiler's `generate: 'server'`
-/// output for the same source at the pinned `submodules/svelte`. The last three
-/// cases are the CONTROL: a leading comment, a same-line trailing comment and a
-/// hoisted import were already carried, and must not move.
+/// output for the same source at the pinned `submodules/svelte`, except that
+/// `oxc_codegen` emits a trailing line comment on its own line. The last three
+/// cases are controls for a leading comment, a trailing comment and a hoisted
+/// import.
 #[test]
 fn server_ast_keeps_interior_script_comments() {
     let cases: &[(&str, &str, &str)] = &[
@@ -5251,7 +5265,7 @@ fn server_ast_keeps_interior_script_comments() {
         (
             "CONTROL: same-line trailing comment inside a statement",
             "<script>\n\tlet b = 0;\n\tif (b) {\n\t\tb = 1; // tail\n\t}\n</script>\n{b}",
-            "\tif (b) {\n\t\tb = 1; // tail\n\t}",
+            "\tif (b) {\n\t\tb = 1;\n\t\t// tail\n\t}",
         ),
         (
             // Upstream hoists the import out of the component function but

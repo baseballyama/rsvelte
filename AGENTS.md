@@ -35,7 +35,7 @@ The `@rsvelte/vite-plugin-svelte` Vite plugin (a fork of `@sveltejs/vite-plugin-
 is vendored as a workspace package at `apps/npm/vite-plugin-svelte`, not a submodule.
 
 **Phase-3 output codegen is AST-based.** Server SSR is pure-AST (the legacy text generator
-is deleted); client CSR defaults to `js_ast::to_oxc` → `rsvelte_esrap`, with the text printer
+is deleted); client CSR defaults to `js_ast::to_oxc` → `oxc_codegen`, with the text printer
 kept only as a fallback for comment-bearing / unsupported-node programs. The remaining string
 processing (client visitors building `Raw` strings, `shared/async_body.rs`, the `.svelte.js`
 module path) is internal IR construction with unchanged output — a maintainability cleanup only.
@@ -497,10 +497,10 @@ under the shape rule while the count rule still reports **333/333**. Cite the nu
 The `Sourcemaps` row above only compares generated `client.js` / `server.js` output. Map
 *correctness* is gated by
 `crates/rsvelte_core/tests/sourcemaps_gate.rs`, which ports the `_config.js` anchor assertions
-from `packages/svelte/tests/sourcemaps` and adds two structural budgets (official segments
-reproduced; segments pointing outside the source), ratcheted shrink-only through
+from `packages/svelte/tests/sourcemaps` and rejects segments pointing outside the source,
+ratcheted shrink-only through
 `compatibility/sourcemap-known-failures.json` with per-entry justification in the paired `.md`.
-Server maps are accurate; client maps are chunk-granular (issue #1781) and are the burndown
+Client maps are chunk-granular (issue #1781) and are the burndown
 target — regenerate the baseline with `UPDATE_SOURCEMAP_RATCHET=1 cargo test -p rsvelte_core
 --test sourcemaps_gate -- --ignored sourcemap_gate_measure`.
 
@@ -571,7 +571,7 @@ the crate, weekly, and on dispatch.
 
 Because it is a separate workspace, its `Cargo.lock` is never re-resolved by the root
 `cargo test` — any in-repo crate version bump (a Changesets release, a manual
-`rsvelte_esrap` bump) staleifies it, and the `--locked` suite above only notices on the
+`rsvelte_core` bump) staleifies it, and the `--locked` suite above only notices on the
 next PR that happens to touch the lint crates. The `Lint-types lockfile` job in `ci.yml`
 runs `scripts/ci/check-lint-types-lock.mjs` on **every** PR (resolution only — no
 compilation) so drift fails on the PR that introduces it; `pnpm run fix:lint-types-lock`

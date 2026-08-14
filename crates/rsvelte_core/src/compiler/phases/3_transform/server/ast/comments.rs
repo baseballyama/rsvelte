@@ -5,16 +5,16 @@
 //! producer that keeps a statement *registers* the comment region around it and
 //! places the emitted statement on the returned base ([`Place`]), parking it in
 //! a provisional address range. Once the program is assembled, only the ranges the
-//! walk actually reaches are laid out into a synthetic
+//! walk actually reaches are laid out — in encounter order — into a synthetic
 //! buffer, every span is remapped onto it, and the surviving comments go to
-//! [`rsvelte_esrap::print_split`].
+//! [`oxc_codegen::Codegen`].
 //!
 //! A region whose statement the transform dropped is never reached, so its
 //! comments are dropped with it instead of being flushed inside an unrelated
 //! node.
 
 use oxc_allocator::{Allocator, Vec as ArenaVec};
-use oxc_ast::ast::{Comment, Program, Statement};
+use oxc_ast::ast::{Comment, CommentContent, CommentPosition, Program, Statement};
 use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_span::{GetSpan, Span};
 
@@ -39,8 +39,6 @@ struct Chunk {
     text: String,
     /// Comments with spans relative to `text`.
     comments: Vec<Comment>,
-    position_only: bool,
-    expression_anchor: bool,
     component_tail: bool,
 }
 
@@ -60,8 +58,7 @@ impl ChunkRegistry {
         self.register_inner(text, comments, false)
     }
 
-    /// Register a region whose anchor is a template expression rather than a
-    /// statement.
+    /// Register a region whose anchor is a template expression rather than a statement.
     pub fn register_expression(&mut self, text: &str, comments: &[Comment]) -> Option<u32> {
         self.register_inner(text, comments, true)
     }
@@ -70,7 +67,7 @@ impl ChunkRegistry {
         &mut self,
         text: &str,
         comments: &[Comment],
-        expression_anchor: bool,
+        _expression_anchor: bool,
     ) -> Option<u32> {
         if comments.is_empty() || text.is_empty() {
             return None;
@@ -83,32 +80,10 @@ impl ChunkRegistry {
             prov_base,
             text: text.to_string(),
             comments: comments.to_vec(),
-            position_only: false,
-            expression_anchor,
             component_tail: false,
         });
         super::comment_stats::bump::REGISTERED_CHUNKS(1);
         super::comment_stats::bump::REGISTERED_COMMENTS(comments.len() as u64);
-        Some(prov_base)
-    }
-
-    /// Register a source position that does not own a comment. This is only
-    /// needed when a preceding comment-owning statement is reordered past it.
-    pub fn register_position(&mut self, text: &str) -> Option<u32> {
-        if text.is_empty() {
-            return None;
-        }
-        let len = u32::try_from(text.len()).ok()?;
-        let prov_base = PROV_BASE.checked_add(self.next_prov)?;
-        self.next_prov = self.next_prov.checked_add(len)?.checked_add(1)?;
-        self.chunks.push(Chunk {
-            prov_base,
-            text: text.to_string(),
-            comments: Vec::new(),
-            position_only: true,
-            expression_anchor: false,
-            component_tail: false,
-        });
         Some(prov_base)
     }
 
@@ -230,7 +205,7 @@ pub fn print_with_comments<'a>(
     allocator: &'a Allocator,
 ) -> String {
     if registry.is_empty() {
-        return rsvelte_esrap::print(program, "");
+        return crate::compiler::phases::phase3_transform::oxc_codegen::print(program);
     }
 
     let bases: Vec<(u32, u32)> = registry
@@ -260,25 +235,7 @@ pub fn print_with_comments<'a>(
     let mut buf = String::from(PAD);
     let mut shift: Vec<Option<i64>> = vec![None; bases.len()];
     let mut comments: Vec<Comment> = Vec::new();
-    let order: Vec<usize> = if registry.chunks.iter().any(|chunk| chunk.position_only) {
-        (0..registry.chunks.len())
-            .filter(|&i| {
-                !registry.chunks[i].component_tail
-                    && (encounter.via_stmt[i] || registry.chunks[i].expression_anchor)
-            })
-            .collect()
-    } else {
-        encounter
-            .order
-            .iter()
-            .copied()
-            .filter(|&i| {
-                !registry.chunks[i].component_tail
-                    && (encounter.via_stmt[i] || registry.chunks[i].expression_anchor)
-            })
-            .collect()
-    };
-    for i in order {
+    for &i in encounter.order.iter().filter(|&&i| encounter.via_stmt[i]) {
         let chunk = &registry.chunks[i];
         let base = buf.len() as u32;
         shift[i] = Some(i64::from(base) - i64::from(chunk.prov_base));
@@ -289,7 +246,7 @@ pub fn print_with_comments<'a>(
         comments.extend(chunk.comments.iter().map(|c| {
             let mut c = *c;
             c.span = Span::new(c.span.start + base, c.span.end + base);
-            c.attached_to = c.span.end;
+            c.attached_to += base;
             c
         }));
     }
@@ -300,29 +257,21 @@ pub fn print_with_comments<'a>(
     };
     remap.visit_program(program);
 
-    let mut code = if comments.is_empty() {
-        rsvelte_esrap::print(program, "")
-    } else {
-        comments.sort_by_key(|c| c.span.start);
-        super::comment_stats::bump::EMITTED_COMMENTS(comments.len() as u64);
-        program.comments = ArenaVec::from_iter_in(comments, &allocator);
-        rsvelte_esrap::print_split(
-            program,
-            &buf,
-            PAD.len() as u32,
-            None,
-            &[],
-            &rsvelte_esrap::PrintOptions::default(),
-        )
-        .code
-    };
-    for chunk in registry.chunks.iter().filter(|chunk| chunk.component_tail) {
-        for comment in &chunk.comments {
-            let raw = &chunk.text[comment.span.start as usize..comment.span.end as usize];
-            if let Some(at) = code.rfind("\n}") {
-                code.insert_str(at, &format!("\n\t{raw}"));
-            }
+    for comment in &mut comments {
+        comment.content = CommentContent::CoverageIgnoreFile;
+        if comment.position == CommentPosition::Trailing {
+            comment.position = CommentPosition::Leading;
+            comment.attached_to = comment.span.end;
         }
     }
-    code
+
+    if comments.is_empty() {
+        return crate::compiler::phases::phase3_transform::oxc_codegen::print(program);
+    }
+    comments.sort_by_key(|c| c.span.start);
+    super::comment_stats::bump::EMITTED_COMMENTS(comments.len() as u64);
+    program.comments = ArenaVec::from_iter_in(comments, &allocator);
+    program.source_text = allocator.alloc_str(&buf);
+
+    crate::compiler::phases::phase3_transform::oxc_codegen::print(program)
 }

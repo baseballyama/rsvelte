@@ -51,7 +51,7 @@ jobs:
           submodules: false
 
       - name: Checkout test submodules (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev submodules/language-tools submodules/eslint-plugin-svelte submodules/esrap submodules/svelte-switch-case submodules/svelte-preprocess-sass
+        run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev submodules/language-tools submodules/eslint-plugin-svelte submodules/svelte-switch-case submodules/svelte-preprocess-sass
 
       - uses: ./.github/actions/setup-rust
         with:

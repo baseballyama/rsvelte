@@ -676,21 +676,21 @@ mod tests {
     fn simple_assignment() {
         let out =
             transform_state_assigns_ast("let x; x = 5;", &ssv(&["x"]), &[], false, &[]).unwrap();
-        assert_eq!(out, "let x;\n\n$.set(x, 5);");
+        assert_eq!(out, "let x;\n$.set(x, 5);");
     }
 
     #[test]
     fn compound_addition() {
         let out =
             transform_state_assigns_ast("let x; x += 5;", &ssv(&["x"]), &[], false, &[]).unwrap();
-        assert_eq!(out, "let x;\n\n$.set(x, $.get(x) + 5);");
+        assert_eq!(out, "let x;\n$.set(x, $.get(x) + 5);");
     }
 
     #[test]
     fn update_post_increment() {
         let out =
             transform_state_assigns_ast("let x; x++;", &ssv(&["x"]), &[], false, &[]).unwrap();
-        assert_eq!(out, "let x;\n\n$.update(x);");
+        assert_eq!(out, "let x;\n$.update(x);");
     }
 
     #[test]
@@ -707,7 +707,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             out,
-            "let x;\nlet y;\nlet z;\n\n$.set(x, 1);\n$.set(y, $.get(y) + 2);\n$.update(z);"
+            "let x;\nlet y;\nlet z;\n$.set(x, 1);\n$.set(y, $.get(y) + 2);\n$.update(z);"
         );
     }
 
@@ -725,7 +725,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             out,
-            "let outer;\nlet inner;\n\n$.set(outer, $.set(inner, 1));"
+            "let outer;\nlet inner;\n$.set(outer, $.set(inner, 1));"
         );
     }
 
@@ -741,7 +741,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             out,
-            "let outer;\nlet middle;\nlet inner;\n\n$.set(outer, $.set(middle, $.set(inner, $.get(inner) + 1)));"
+            "let outer;\nlet middle;\nlet inner;\n$.set(outer, $.set(middle, $.set(inner, $.get(inner) + 1)));"
         );
     }
 
@@ -749,7 +749,7 @@ mod tests {
     fn proxy_flag_in_runes() {
         let out = transform_state_assigns_ast("let x; x = { a: 1 };", &ssv(&["x"]), &[], true, &[])
             .unwrap();
-        assert_eq!(out, "let x;\n\n$.set(x, { a: 1 }, true);");
+        assert_eq!(out, "let x;\n$.set(x, { a: 1 }, true);");
     }
 
     #[test]
@@ -762,7 +762,7 @@ mod tests {
             &[],
         )
         .unwrap();
-        assert_eq!(out, "let x;\n\n$.set(x, { a: 1 });");
+        assert_eq!(out, "let x;\n$.set(x, { a: 1 });");
     }
 
     #[test]

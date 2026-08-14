@@ -4,7 +4,7 @@
 // That crate is its own Cargo workspace (it path-depends on
 // `submodules/corsa-bind`), so nothing in the root workspace ever re-resolves
 // its lock. Every in-repo crate version bump — a Changesets release, a manual
-// `rsvelte_esrap` bump — silently staleifies it, and the only job that consumes
+// an in-repo crate bump — silently staleifies it, and the only job that consumes
 // it (`type-aware-lint.yml`, `--locked`) is path-filtered to the lint crates.
 // The drift therefore detonates on an unrelated later PR instead of the one
 // that introduced it. This check runs on every PR so it fails at introduction.

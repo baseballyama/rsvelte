@@ -33,7 +33,7 @@ const SLASH_IN_CLASS: &str = "<script>\n  export let v;\n  let k;\n  $: k = type
 fn client_keeps_a_regex_after_typeof() {
     let out = compile_to(SLASH_IN_CLASS, GenerateMode::Client);
     assert!(
-        out.contains("typeof (/[//]/).exec(String(v()))"),
+        out.contains("typeof /[//]/.exec(String(v()))"),
         "the regex after `typeof` was read as a division:\n{out}"
     );
 }
@@ -42,7 +42,7 @@ fn client_keeps_a_regex_after_typeof() {
 fn server_keeps_a_regex_after_typeof() {
     let out = compile_to(SLASH_IN_CLASS, GenerateMode::Server);
     assert!(
-        out.contains("typeof (/[//]/).exec(String(v))"),
+        out.contains("typeof /[//]/.exec(String(v))"),
         "the regex after `typeof` was read as a division:\n{out}"
     );
 }
@@ -53,7 +53,7 @@ fn client_keeps_a_regex_after_return() {
     let source = "<script>\n  export let v;\n  let k;\n  $: k = (() => { return /[;{})(]/.test(String(v)); })();\n</script>\n\n<p>{k}</p>\n";
     let out = compile_to(source, GenerateMode::Client);
     assert!(
-        out.contains("(/[;{})(]/).test(String(v()))"),
+        out.contains("/[;{})(]/.test(String(v()))"),
         "the regex after `return` was read as a division:\n{out}"
     );
 }

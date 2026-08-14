@@ -1,5 +1,5 @@
 //! A comment preceding a legacy `$:` statement belongs to the labeled
-//! statement's body, so SSR prints `$: // c` and the body on the next line.
+//! statement's body, so SSR keeps it between the label and the body.
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
@@ -25,17 +25,23 @@ fn source_with(comment: &str) -> String {
     )
 }
 
+fn assert_between_label_and_body(out: &str, comment: &str) {
+    let label = out.find("$:").expect("reactive label");
+    let comment = out.find(comment).expect("comment");
+    let body = out.find("b = a * 2;").expect("reactive body");
+    assert!(label < comment && comment < body, "{out}");
+}
+
 #[test]
 fn line_comment_follows_the_reactive_label() {
     let out = server(&source_with("// c"));
-    assert!(out.contains("$: // c\n\tb = a * 2;"), "{out}");
+    assert_between_label_and_body(&out, "// c");
 }
 
 #[test]
 fn block_comment_follows_the_reactive_label() {
     let out = server(&source_with("/* } c */"));
-    assert!(out.contains("$: /* } c */"), "{out}");
-    assert!(!out.contains("/* } c */\n\t$:"), "{out}");
+    assert_between_label_and_body(&out, "/* } c */");
 }
 
 #[test]
@@ -43,10 +49,7 @@ fn svelte_ignore_comment_follows_the_reactive_label() {
     let out = server(&source_with(
         "// svelte-ignore a11y_no_static_element_interactions",
     ));
-    assert!(
-        out.contains("$: // svelte-ignore a11y_no_static_element_interactions"),
-        "{out}"
-    );
+    assert_between_label_and_body(&out, "// svelte-ignore a11y_no_static_element_interactions");
 }
 
 #[test]

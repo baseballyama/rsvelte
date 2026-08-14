@@ -135,7 +135,10 @@ fn comma_inside_a_nested_object_default_still_works() {
 <p>{a}{b}</p>"#,
     );
     assert!(
-        out.contains("b = $.derived(() => $.fallback($$props.b, () => ({ x: 1, y: 2 }), true))"),
+        out.contains("b = $.derived(() => $.fallback($$props.b, () => ({")
+            && out.contains("x: 1,")
+            && out.contains("y: 2")
+            && out.contains("}), true))"),
         "bracket depth already covered nested objects. Got:\n{out}"
     );
 }

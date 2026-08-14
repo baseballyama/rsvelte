@@ -587,7 +587,7 @@ mod tests {
     #[test]
     fn state_assign_with_proxy_array_literal() {
         let out = method_body("this.#list = [1, 2, 3];", &ssv(&["this.#list"]), &[]).unwrap();
-        assert_eq!(out, "$.set(this.#list, [1, 2, 3], true);");
+        assert_eq!(out, "$.set(this.#list, [\n\t1,\n\t2,\n\t3\n], true);");
     }
 
     #[test]
@@ -622,7 +622,7 @@ mod tests {
             &[],
         )
         .unwrap();
-        assert_eq!(out, "const fps = 1000 / delta;\n\n$.set(this.#fps, fps);");
+        assert_eq!(out, "const fps = 1e3 / delta;\n$.set(this.#fps, fps);");
     }
 
     #[test]

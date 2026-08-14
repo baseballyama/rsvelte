@@ -29,7 +29,6 @@ copy_library_crate() {
   fi
 }
 
-copy_library_crate rsvelte_esrap
 # Not published (dev-dependency of rsvelte_core's test suite), but its manifest
 # must exist for cargo to load the workspace members that name it.
 copy_library_crate rsvelte_ast_equiv
@@ -44,7 +43,6 @@ members = [
   "crates/rsvelte",
   "crates/rsvelte_ast_equiv",
   "crates/rsvelte_core",
-  "crates/rsvelte_esrap",
   "crates/rsvelte_projection",
 ]
 
@@ -64,8 +62,6 @@ EOF
 # their reviewed sibling paths.
 CARGO_TARGET_DIR="$registry_target_dir" cargo check \
   --manifest-path "$temp_root/Cargo.toml" --workspace --all-features --lib
-CARGO_TARGET_DIR="$registry_target_dir" cargo test \
-  --manifest-path "$temp_root/Cargo.toml" -p rsvelte_esrap --lib
 CARGO_TARGET_DIR="$registry_target_dir" cargo test \
   --manifest-path "$temp_root/Cargo.toml" -p rsvelte_core --no-default-features --lib
 CARGO_TARGET_DIR="$registry_target_dir" cargo test \

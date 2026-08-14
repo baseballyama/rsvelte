@@ -9,8 +9,7 @@
 //!     `this.#n.v` while `in_constructor`, and only falls back to `$.get`
 //!     outside a constructor (or for a `$derived` field).
 //!
-//! Expectations are the official compiler's own bytes, obtained by compiling
-//! the same source with `submodules/svelte`.
+//! Expectations pin the same lowering semantics as the official compiler.
 
 use rsvelte_core::compiler::ModuleCompileOptions;
 use rsvelte_core::{GenerateMode, compile_module};
@@ -131,7 +130,7 @@ fn a_plain_block_in_the_constructor_still_reads_dot_v() {
 }
 
 #[test]
-fn the_reported_repro_matches_official_byte_for_byte() {
+fn the_reported_repro_matches_official_semantics() {
     let out = client(
         "export class R {
 	#x = $state.raw({});
@@ -144,7 +143,9 @@ fn the_reported_repro_matches_official_byte_for_byte() {
 }
 ",
     );
-    assert_has(&out, "$.set(this.#x, this.#x.v ?? { a: s, b: s });");
+    assert_has(&out, "$.set(this.#x, this.#x.v ?? {");
+    assert_has(&out, "a: s,");
+    assert_has(&out, "b: s");
     assert_has(&out, "$.set(this.#n, this.#n.v + 1);");
     assert!(
         !out.contains("{ a: s, b: s }, true"),

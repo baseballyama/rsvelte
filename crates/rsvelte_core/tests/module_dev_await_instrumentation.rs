@@ -51,7 +51,7 @@ fn script_module_await_is_instrumented() {
     let src = "<script module>\n\texport async function load() {\n\t\tconst r = await fetch(\"/x\");\n\t\treturn r;\n\t}\n</script>\n\n<p>hi</p>";
     assert_contains(
         &compile_component(src, true),
-        "(await $.track_reactivity_loss(fetch(\"/x\")))()",
+        "(await $.track_reactivity_loss(fetch('/x')))()",
     );
 }
 
@@ -62,7 +62,7 @@ fn legacy_component_script_module_await_is_instrumented() {
     let src = "<script module>\n\texport async function load() {\n\t\treturn await fetch(\"/x\");\n\t}\n</script>\n\n<script>\n\texport let a = 1;\n</script>\n\n<p>{a}</p>";
     assert_contains(
         &compile_component(src, true),
-        "(await $.track_reactivity_loss(fetch(\"/x\")))()",
+        "(await $.track_reactivity_loss(fetch('/x')))()",
     );
 }
 
@@ -72,7 +72,7 @@ fn svelte_js_await_is_instrumented() {
         "export async function load() {\n\tconst r = await fetch(\"/x\");\n\treturn r;\n}",
         true,
     );
-    assert_contains(&out, "(await $.track_reactivity_loss(fetch(\"/x\")))()");
+    assert_contains(&out, "(await $.track_reactivity_loss(fetch('/x')))()");
 }
 
 #[test]

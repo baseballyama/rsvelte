@@ -20,8 +20,10 @@
 //! gating.
 
 use oxc_allocator::Allocator;
+use oxc_ast::ast::{ArrowFunctionExpression, Function};
+use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_codegen::{Codegen, CodegenOptions, CommentOptions, LegalComment};
-use oxc_parser::Parser;
+use oxc_parser::{ParseOptions, Parser};
 use oxc_span::SourceType;
 
 /// Which language the input is written in.
@@ -149,7 +151,12 @@ pub fn canonicalize_with(code: &str, options: Options) -> Result<Canonical, Pars
         Dialect::Esm => SourceType::mjs(),
         Dialect::Tsx => SourceType::tsx(),
     };
-    let parsed = Parser::new(&allocator, code, source_type).parse();
+    let mut parsed = Parser::new(&allocator, code, source_type)
+        .with_options(ParseOptions {
+            preserve_parens: false,
+            ..ParseOptions::default()
+        })
+        .parse();
     if parsed.panicked || !parsed.diagnostics.is_empty() {
         let message = parsed
             .diagnostics
@@ -157,6 +164,30 @@ pub fn canonicalize_with(code: &str, options: Options) -> Result<Canonical, Pars
             .map_or_else(|| "parser panicked".to_string(), ToString::to_string);
         return Err(ParseFailure { message });
     }
+
+    // Parenthesized-IIFE markers are printer metadata, not semantic syntax.
+    struct ClearPife;
+
+    impl<'a> VisitMut<'a> for ClearPife {
+        fn visit_arrow_function_expression(
+            &mut self,
+            expression: &mut ArrowFunctionExpression<'a>,
+        ) {
+            expression.pife = false;
+            walk_mut::walk_arrow_function_expression(self, expression);
+        }
+
+        fn visit_function(
+            &mut self,
+            function: &mut Function<'a>,
+            flags: oxc_syntax::scope::ScopeFlags,
+        ) {
+            function.pife = false;
+            walk_mut::walk_function(self, function, flags);
+        }
+    }
+
+    ClearPife.visit_program(&mut parsed.program);
 
     let comments = match options.comments {
         CommentPolicy::Ignore => Vec::new(),

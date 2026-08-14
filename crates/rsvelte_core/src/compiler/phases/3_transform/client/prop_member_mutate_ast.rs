@@ -495,7 +495,7 @@ mod tests {
             transform_prop_member_mutate_ast("field.x = {};", &ssv(&["field"]), &[], &map).unwrap();
         assert_eq!(
             out,
-            "(\n\tfield(field().x = {}, true),\n\t$.invalidate_inner_signals(() => {\n\t\ta;\n\t\tb();\n\t})\n);"
+            "field(field().x = {}, true), $.invalidate_inner_signals(() => {\n\ta;\n\tb();\n});"
         );
     }
 

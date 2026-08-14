@@ -13,7 +13,6 @@ import { fileURLToPath } from 'node:url';
 import {
   PREREQ_ENV,
   checkCoverage,
-  findGuardedTargets,
   parseWorkflow,
   runSelectsTarget,
   shardExclusions,
@@ -38,7 +37,7 @@ function assert(cond, message) {
   if (!cond) throw new Error(message);
 }
 
-const LIB = { crate: 'rsvelte_esrap', kind: 'lib', target: 'rsvelte_esrap' };
+const LIB = { crate: 'rsvelte_core', kind: 'lib', target: 'rsvelte_core' };
 const TEST = { crate: 'rsvelte_fmt', kind: 'test', target: 'cli' };
 const EXCLUDED = { crate: 'rsvelte_formatter', kind: 'test', target: 'svelte_dev_corpus' };
 const NO_EXCLUSIONS = [];
@@ -48,29 +47,13 @@ console.log('prereq-coverage-guard self-test');
 
 // --- Target selection ---------------------------------------------------------
 
-check('a workspace `--lib` run selects a lib target', () => {
-  assert(runSelectsTarget('cargo nextest run --profile ci --lib', LIB, NO_EXCLUSIONS), 'expected selected');
-});
-
 check('a `--lib` run does not select an integration-test target', () => {
   assert(!runSelectsTarget('cargo nextest run --profile ci --lib', TEST, NO_EXCLUSIONS), 'expected not selected');
-});
-
-check('`-p <crate> --lib` selects only that crate', () => {
-  assert(runSelectsTarget('cargo test --locked -p rsvelte_esrap --lib', LIB, NO_EXCLUSIONS), 'expected selected');
-  assert(!runSelectsTarget('cargo test --locked -p rsvelte_core --lib', LIB, NO_EXCLUSIONS), 'expected not selected');
 });
 
 check('`--test <name>` selects that binary and not the lib', () => {
   assert(runSelectsTarget('cargo nextest run -p rsvelte_fmt --test cli', TEST, NO_EXCLUSIONS), 'expected selected');
   assert(!runSelectsTarget('cargo nextest run -p rsvelte_fmt --test cli', LIB, NO_EXCLUSIONS), 'expected not selected');
-});
-
-check('`--exclude` is honoured', () => {
-  assert(
-    !runSelectsTarget('cargo nextest run --workspace --exclude rsvelte_esrap --lib', LIB, NO_EXCLUSIONS),
-    'an excluded crate must not be credited',
-  );
 });
 
 check('a trailing test-name filter is not credited with covering the target', () => {
@@ -91,7 +74,7 @@ check('the shard script covers every non-excluded integration target', () => {
   const run = 'bash scripts/ci/run-test-shard.sh 1 3';
   assert(runSelectsTarget(run, TEST, EXCLUSIONS), 'expected the shard to cover a non-excluded target');
   assert(!runSelectsTarget(run, EXCLUDED, EXCLUSIONS), 'an excluded target must not be credited to the shard');
-  assert(!runSelectsTarget(run, LIB, EXCLUSIONS), 'the shard runs no lib targets');
+  assert(!runSelectsTarget(run, { crate: 'rsvelte_core', kind: 'lib', target: 'rsvelte_core' }, EXCLUSIONS), 'the shard runs no lib targets');
 });
 
 check('a folded (`>-`) run is one command, not one per line', () => {
@@ -115,13 +98,12 @@ check('a folded (`>-`) run is one command, not one per line', () => {
   );
   const step = workflow.jobs[0].steps[0];
   assert(runSelectsTarget(step.run, TEST, NO_EXCLUSIONS), 'expected the named test target to be selected');
-  assert(!runSelectsTarget(step.run, LIB, NO_EXCLUSIONS), 'a folded run must not be credited with the lib target');
+  assert(!runSelectsTarget(step.run, { crate: 'rsvelte_core', kind: 'lib', target: 'rsvelte_core' }, NO_EXCLUSIONS), 'a folded run must not be credited with the lib target');
 });
 
 // --- Source-to-target mapping -------------------------------------------------
 
 check('sources map to the cargo target that carries them', () => {
-  assert(targetForSource('crates/rsvelte_esrap/src/internal_tests/golden.rs').kind === 'lib', 'src/ is the lib');
   const cliMod = targetForSource('crates/rsvelte_fmt/tests/cli/daemon.rs');
   assert(cliMod.kind === 'test' && cliMod.target === 'cli', `expected test:cli, got ${cliMod.kind}:${cliMod.target}`);
   const embed = targetForSource('crates/rsvelte_fmt/tests/embed.rs');
@@ -269,16 +251,6 @@ check('every guarded target in the shipped tree is enforced by some job', () => 
   const { violations, targets } = checkCoverage(REPO_ROOT);
   assert(targets.length > 0, 'expected to discover guarded targets');
   assert(violations.length === 0, `expected clean, got ${JSON.stringify(violations, null, 2)}`);
-});
-
-check('discovery finds the esrap golden ratchet, the target the guard was written for', () => {
-  const targets = findGuardedTargets(REPO_ROOT);
-  const esrapLib = targets.find((t) => t.crate === 'rsvelte_esrap' && t.kind === 'lib');
-  assert(esrapLib, 'expected the rsvelte_esrap lib target to be discovered');
-  assert(
-    esrapLib.sources.some((s) => s.endsWith('internal_tests/golden.rs')),
-    `expected golden.rs among ${esrapLib.sources.join(', ')}`,
-  );
 });
 
 console.log(

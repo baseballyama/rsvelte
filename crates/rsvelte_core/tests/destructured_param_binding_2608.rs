@@ -60,7 +60,7 @@ fn a_pattern_slot_is_never_wrapped() {
         ),
         (
             "$: out = items.map(([...id]) => id);",
-            "items().map(([...id]) => id)",
+            "items().map(([ ...id]) => id)",
         ),
         (
             "$: out = items.map(({ items: id }) => id);",

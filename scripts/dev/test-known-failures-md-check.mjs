@@ -201,16 +201,16 @@ withCorpus(
 );
 
 // A sub-population partition must be checked against that sub-population, not
-// against the whole ratchet — `comment-slot`'s 316 is not the matrix ratchet's 904.
+// against the whole ratchet — `comment-slot`'s 172 is not the matrix ratchet's 641.
 withCorpus(
 	(d) =>
 		edit(
 			d,
 			'matrix-known-failures.md',
-			'by seed: `56 + 28 + 24 + 24 + 24 + 24 + 8 + 8 + 8 + 8 + 104`',
-			'by seed: `56 + 30 + 24 + 24 + 24 + 24 + 8 + 8 + 8 + 8 + 104`',
+            'by seed: `36 + 40 + 32 + 16 + 16 + 16 + 16`',
+            'by seed: `36 + 41 + 32 + 16 + 16 + 16 + 16`',
 		),
-	(r) => check('a sub-population partition is bound to its prefix', [r.code, /has 316 entries/.test(r.out)], [1, true]),
+	(r) => check('a sub-population partition is bound to its prefix', [r.code, /has 172 entries/.test(r.out)], [1, true]),
 );
 
 withCorpus(

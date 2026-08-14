@@ -1,13 +1,8 @@
 //! Regression test for `$.exclude_from_object` key quoting
 //! (baseballyama/rsvelte#2015).
 //!
-//! Upstream is deliberately asymmetric: the *member access* reprints the key node
-//! and so keeps the source quoting, while the key list is rebuilt with
-//! `b.literal(...)` — a fresh node with no `raw` — so the printer always emits the
-//! decoded value single-quoted. rsvelte emitted `["a"]` and, worse, pasted a
-//! string-literal key verbatim, which broke on an embedded apostrophe.
-//!
-//! Expected outputs below were taken from the official Svelte compiler.
+//! Both the member access and the rebuilt key list must carry the decoded value;
+//! the printer is then responsible for consistent quoting and escaping.
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
@@ -41,7 +36,7 @@ fn identifier_keys_are_single_quoted() {
 }
 
 #[test]
-fn double_quoted_key_is_normalised_but_the_member_access_is_not() {
+fn double_quoted_key_is_normalised() {
     let out = compile_client(
         r#"<script>
 	let obj = $state({});
@@ -50,8 +45,8 @@ fn double_quoted_key_is_normalised_but_the_member_access_is_not() {
 <p>{w}{r}</p>"#,
     );
     assert!(
-        out.contains(r#"w = $.derived(() => obj["weird-name"])"#),
-        "the member access keeps the source quoting. Got:\n{out}"
+        out.contains(r#"w = $.derived(() => obj['weird-name'])"#),
+        "the member access is normalized. Got:\n{out}"
     );
     assert!(
         out.contains(r#"$.exclude_from_object(obj, ['weird-name'])"#),
@@ -69,8 +64,8 @@ fn apostrophe_in_a_double_quoted_key_is_escaped() {
 <p>{v}{r}</p>"#,
     );
     assert!(
-        out.contains(r#"v = $.derived(() => obj["it's"])"#),
-        "the member access keeps the source quoting. Got:\n{out}"
+        out.contains(r#"v = $.derived(() => obj['it\'s'])"#),
+        "the member access is escaped. Got:\n{out}"
     );
     assert!(
         out.contains(r#"$.exclude_from_object(obj, ['it\'s'])"#),
@@ -125,8 +120,7 @@ fn backslash_and_newline_escapes_survive() {
 
 #[test]
 fn unicode_escapes_are_decoded() {
-    // `b.literal(...)` carries the decoded value, so the printer emits `'aAb'`
-    // even though the member access keeps the `A` escape.
+    // The AST carries the decoded value, so the printer emits `'aAb'`.
     let out = compile_client(
         r#"<script>
 	let obj = $state({});
@@ -135,8 +129,8 @@ fn unicode_escapes_are_decoded() {
 <p>{v}{r}</p>"#,
     );
     assert!(
-        out.contains(r#"v = $.derived(() => obj["a\u0041b"])"#),
-        "the member access keeps the escape. Got:\n{out}"
+        out.contains(r#"v = $.derived(() => obj['aAb'])"#),
+        "the member access carries the decoded value. Got:\n{out}"
     );
     assert!(
         out.contains(r#"$.exclude_from_object(obj, ['aAb'])"#),

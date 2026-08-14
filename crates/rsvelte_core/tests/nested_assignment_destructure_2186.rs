@@ -90,7 +90,7 @@ fn an_identifier_rhs_lowers_to_a_sequence() {
         "{b}",
     );
     let out = flat(&compile_client(&src, false));
-    assert!(out.contains("($.set(b, src.a.b, true));"), "in:\n{out}");
+    assert!(out.contains("$.set(b, src.a.b, true);"), "in:\n{out}");
     assert!(!out.contains("$$value"), "in:\n{out}");
 }
 
@@ -146,8 +146,8 @@ fn a_nested_rest_excludes_from_the_nested_base() {
     let out = flat(&compile_client(&src, false));
     assert!(
         out.contains(
-            "( $.set(b, src.a.b, true), \
-             $.set(r, $.exclude_from_object(src.a, ['b']), true) );"
+            "$.set(b, src.a.b, true), \
+             $.set(r, $.exclude_from_object(src.a, ['b']), true);"
         ),
         "in:\n{out}"
     );
@@ -166,7 +166,7 @@ fn defaults_nest_on_both_sides() {
     );
     let out = flat(&compile_client(&leaf, false));
     assert!(
-        out.contains("($.set(b, $.fallback(src.a.b, 5), true));"),
+        out.contains("$.set(b, $.fallback(src.a.b, 5), true);"),
         "in:\n{out}"
     );
 
@@ -177,7 +177,7 @@ fn defaults_nest_on_both_sides() {
     );
     let out = flat(&compile_client(&pattern, false));
     assert!(
-        out.contains("($.set(b, $.fallback(src.a, () => ({ b: 3 }), true).b, true));"),
+        out.contains("$.set(b, $.fallback(src.a, () => ({ b: 3 }), true).b, true);"),
         "in:\n{out}"
     );
 }
@@ -253,7 +253,7 @@ fn a_nested_store_target_is_lowered_in_the_sequence() {
 </script>
 <button onclick={go}>{$a}</button>"#;
     let out = flat(&compile_client(src, false));
-    assert!(out.contains("($.store_set(a, src.o.a));"), "in:\n{out}");
+    assert!(out.contains("$.store_set(a, src.o.a);"), "in:\n{out}");
 }
 
 /// The nested leaf is labelled in dev exactly like a flat one.

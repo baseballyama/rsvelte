@@ -67,8 +67,7 @@ fn a_semicolon_in_a_line_comment_does_not_end_the_import() {
     let out = compile_with(&src, GenerateMode::Client, false);
     assert_parses(&out, "line comment with a semicolon");
     assert!(
-        out.contains("import { A, B } from \"somewhere\"")
-            || out.contains("B\n} from \"somewhere\""),
+        out.contains("import { A, B } from 'somewhere'") || out.contains("B\n} from 'somewhere'"),
         "the specifier list lost `B`: {out}"
     );
     assert_all_targets_parse(&src, "line comment with a semicolon");
@@ -104,10 +103,7 @@ fn a_semicolon_inside_the_specifier_string_still_does_not_end_the_import() {
     let src = "<script>\n  import A from \"a;b\";\n  let n = 1;\n</script>\n\n<p>{n}{A}</p>";
     let out = compile_with(src, GenerateMode::Client, false);
     assert_parses(&out, "semicolon inside the specifier");
-    assert!(
-        out.contains("\"a;b\""),
-        "the specifier was truncated: {out}"
-    );
+    assert!(out.contains("'a;b'"), "the specifier was truncated: {out}");
 }
 
 /// Control: a comment with no delimiter in it. This one passes without the fix,

@@ -2,7 +2,7 @@
 //! of `<script>` blocks and template expressions) into an oxc
 //! [`oxc_ast::ast::Expression`] / [`oxc_ast::ast::Statement`] so Phase-3 can
 //! assemble an [`oxc_ast::ast::Program`] and print it with
-//! [`rsvelte_esrap::print`].
+//! [`oxc_codegen`].
 //!
 //! This is a **transform-free structural conversion**: rune / prop rewriting
 //! happens later, on the oxc AST. The converter only reproduces the parsed
@@ -22,8 +22,8 @@
 //!
 //! All construction patterns are lifted verbatim from the proven
 //! `js_ast::to_oxc` converter (variant-complete against oxc 0.136), so the
-//! nodes produced print byte-identically through esrap. All spans are the
-//! dummy [`oxc_span::SPAN`]: esrap formats structurally.
+//! nodes produced preserve the established output shape. All spans are the
+//! dummy [`oxc_span::SPAN`].
 
 use crate::ast::arena::{IdRange, JsNodeId, ParseArena};
 use crate::ast::typed_expr::{JsNode, LiteralValue};
@@ -52,7 +52,7 @@ pub fn jsnode_to_oxc_expr<'a>(
 }
 
 /// Convert a [`JsNode::Program`] into an oxc [`oxc_ast::ast::Program`], ready
-/// for [`rsvelte_esrap::print`]. Returns `None` if `node` is not a `Program`
+/// for [`oxc_codegen`]. Returns `None` if `node` is not a `Program`
 /// or any statement is not faithfully convertible.
 pub fn jsnode_to_oxc_program<'a>(
     node: &JsNode,
@@ -1711,14 +1711,16 @@ mod tests {
         (arena, node)
     }
 
-    /// Round-trip: parse `src`, convert the program to oxc, esrap-print it, and
+    /// Round-trip: parse `src`, convert the program to oxc, print it, and
     /// return the printed (trimmed) source. Panics if conversion bails.
     fn roundtrip(src: &str) -> String {
         let (arena, program) = parse(src);
         let allocator = Allocator::default();
         let oxc_program = jsnode_to_oxc_program(&program, &arena, &allocator)
             .unwrap_or_else(|| panic!("conversion bailed for {src:?}"));
-        rsvelte_esrap::print(&oxc_program, "").trim().to_string()
+        crate::compiler::phases::phase3_transform::oxc_codegen::print(&oxc_program)
+            .trim()
+            .to_string()
     }
 
     /// Assert the round-trip output exactly equals `expected`.
@@ -1762,7 +1764,7 @@ mod tests {
     fn literals() {
         // A leading string-literal statement is a directive prologue (no body
         // node), so test the string literal in a non-directive position.
-        assert_rt("let s = \"hello\";", "let s = \"hello\";");
+        assert_rt("let s = \"hello\";", "let s = 'hello';");
         assert_rt("42;", "42;");
         assert_rt("1.5;", "1.5;");
         assert_rt("true;", "true;");
@@ -1796,18 +1798,15 @@ mod tests {
 
     #[test]
     fn object_property_shapes() {
-        assert_rt("({ a: 1, b });", "({ a: 1, b });");
+        assert_rt("({ a: 1, b });", "({\n\ta: 1,\n\tb\n});");
         assert_rt("({ ...rest });", "({ ...rest });");
         assert_rt("({ [k]: v });", "({ [k]: v });");
         // Getter / method values are now typed and round-trip faithfully.
         assert_rt(
             "({ get x() { return 1; } });",
-            "({\n\tget x() {\n\t\treturn 1;\n\t}\n});",
+            "({ get x() {\n\treturn 1;\n} });",
         );
-        assert_rt(
-            "({ m() { return 2; } });",
-            "({\n\tm() {\n\t\treturn 2;\n\t}\n});",
-        );
+        assert_rt("({ m() { return 2; } });", "({ m() {\n\treturn 2;\n} });");
     }
 
     #[test]
@@ -1852,19 +1851,18 @@ mod tests {
         // Destructuring assignment targets (`[a]=` / `{a}=`) are now typed in
         // the parse IR and round-trip faithfully.
         assert_rt("[a, b] = c;", "[a, b] = c;");
-        assert_rt("({ a, b } = c);", "({ a, b } = c);");
+        assert_rt("({ a, b } = c);", "({a, b} = c);");
     }
 
     #[test]
     fn control_flow_statements() {
-        // esrap prints `catch(e)` with no space before the parameter list.
         assert_rt(
             "try { a(); } catch (e) { b(); } finally { c(); }",
-            "try {\n\ta();\n} catch(e) {\n\tb();\n} finally {\n\tc();\n}",
+            "try {\n\ta();\n} catch (e) {\n\tb();\n} finally {\n\tc();\n}",
         );
         assert_rt(
             "switch (x) { case 1: a(); break; default: b(); }",
-            "switch (x) {\n\tcase 1:\n\t\ta();\n\t\tbreak;\n\n\tdefault:\n\t\tb();\n}",
+            "switch (x) {\n\tcase 1:\n\t\ta();\n\t\tbreak;\n\tdefault: b();\n}",
         );
         assert_rt(
             "for (const x of xs) { f(x); }",
@@ -1902,7 +1900,7 @@ mod tests {
         // now typed in the parse IR and round-trip faithfully (previously these
         // were opaque `JsNode::Raw` and the converter bailed).
         assert_rt("() => { f(); };", "() => {\n\tf();\n};");
-        assert_rt("(function () {})();", "(function () {})();");
+        assert_rt("(function () {})();", "(function() {})();");
         assert_rt("[a] = b;", "[a] = b;");
     }
 
@@ -1933,6 +1931,9 @@ mod tests {
             ArenaVec::from_value_in(stmt, &ab),
             &ab,
         );
-        assert_eq!(rsvelte_esrap::print(&program, "").trim(), "a + b;");
+        assert_eq!(
+            crate::compiler::phases::phase3_transform::oxc_codegen::print(&program).trim(),
+            "a + b;"
+        );
     }
 }

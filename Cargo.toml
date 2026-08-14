@@ -10,7 +10,6 @@ members = [
     "crates/rsvelte_core",
     "crates/rsvelte_devtools",
     "crates/rsvelte_diagnostics",
-    "crates/rsvelte_esrap",
     "crates/rsvelte_fmt",
     "crates/rsvelte_fmt_wasm",
     "crates/rsvelte_formatter",

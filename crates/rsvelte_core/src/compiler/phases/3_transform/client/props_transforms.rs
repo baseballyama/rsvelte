@@ -3514,9 +3514,12 @@ pub(super) fn wrap_prop_mutation_validation(
             // Upstream builds the `$.invalidate_inner_signals` sequence first and
             // passes the whole thing to `validate_mutation`, so the sequence has to
             // go inside the wrap rather than around it.
-            let (abs_start, end_pos) = expand_to_invalidate_sequence(&result, abs_start, end_pos)
-                .unwrap_or((abs_start, end_pos));
-            let full_original_expr = result[abs_start..end_pos].to_string();
+            let sequence_span = expand_to_invalidate_sequence(&result, abs_start, end_pos);
+            let (abs_start, end_pos) = sequence_span.unwrap_or((abs_start, end_pos));
+            let mut full_original_expr = result[abs_start..end_pos].to_string();
+            if sequence_span.is_some() && !full_original_expr.starts_with('(') {
+                full_original_expr = format!("({full_original_expr})");
+            }
 
             // Each mutation reports its own source position.
             let (line_num, col_num) = sites
@@ -3560,29 +3563,60 @@ fn skip_leading_ws(text: &str, from: usize) -> usize {
 /// The span of `(<mutation>, $.invalidate_inner_signals(…))` around the
 /// `prop(...)` call at `start..end`, when a legacy indirect binding put one there.
 fn expand_to_invalidate_sequence(text: &str, start: usize, end: usize) -> Option<(usize, usize)> {
-    let open = text[..start].trim_end().len().checked_sub(1)?;
-    if text.as_bytes()[open] != b'(' {
+    let comma = skip_leading_ws(text, end);
+    if text.as_bytes().get(comma) != Some(&b',') {
         return None;
     }
-    let rest = text[end..].trim_start().strip_prefix(',')?;
-    if !rest.trim_start().starts_with("$.invalidate_inner_signals") {
+    let invalidate = skip_leading_ws(text, comma + 1);
+    let call = "$.invalidate_inner_signals";
+    if !text[invalidate..].starts_with(call) {
         return None;
     }
+    let call_open = skip_leading_ws(text, invalidate + call.len());
+    if text.as_bytes().get(call_open) != Some(&b'(') {
+        return None;
+    }
+
     let mut depth = 0i32;
-    for (offset, ch) in text[open..].char_indices() {
+    let mut sequence_end = None;
+    for (offset, ch) in text[call_open..].char_indices() {
         match ch {
             '(' | '[' | '{' => depth += 1,
             ')' | ']' | '}' => {
                 depth -= 1;
                 if depth == 0 {
-                    let close = open + offset + 1;
-                    return (close > end).then_some((open, close));
+                    sequence_end = Some(call_open + offset + 1);
+                    break;
                 }
             }
             _ => {}
         }
     }
-    None
+    let sequence_end = sequence_end?;
+
+    if let Some(open) = text[..start].trim_end().len().checked_sub(1)
+        && text.as_bytes()[open] == b'('
+    {
+        let mut depth = 0i32;
+        for (offset, ch) in text[open..].char_indices() {
+            match ch {
+                '(' | '[' | '{' => depth += 1,
+                ')' | ']' | '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        let close = open + offset + 1;
+                        if close >= sequence_end {
+                            return Some((open, close));
+                        }
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    Some((start, sequence_end))
 }
 
 /// One mutation of a prop as it is written in the source.

@@ -65,7 +65,7 @@ fn module_effect_keeps_the_leading_and_interior_comments() {
     );
     assert_body(
         &out,
-        "import * as $ from 'svelte/internal/server';\n\nexport function f(a) {\n\t// leading\n\t// interior\n\tconsole.log(2);\n}",
+        "import * as $ from 'svelte/internal/server';\nexport function f(a) {\n\t// leading\n\t// interior\n\tconsole.log(2);\n}",
     );
 }
 
@@ -78,7 +78,7 @@ fn module_effect_with_no_successor_keeps_both_comments() {
     );
     assert_body(
         &out,
-        "import * as $ from 'svelte/internal/server';\n\nexport function f() {\n\t// keep\n\t// gone with the effect\n}",
+        "import * as $ from 'svelte/internal/server';\nexport function f() {\n\t// keep\n\t// gone with the effect\n}",
     );
 }
 
@@ -89,7 +89,7 @@ fn instance_effect_keeps_the_leading_and_interior_comments() {
     );
     assert_body(
         &out,
-        "import * as $ from 'svelte/internal/server';\n\nexport default function A($$renderer, $$props) {\n\t$$renderer.component(($$renderer) => {\n\t\tlet a = 1;\n\n\t\t// leading\n\t\t// interior\n\t\tconsole.log(2);\n\n\t\t$$renderer.push(`<p>1</p>`);\n\t});\n}",
+        "import * as $ from 'svelte/internal/server';\nexport default function A($$renderer, $$props) {\n\t$$renderer.component(($$renderer) => {\n\t\tlet a = 1;\n\t\t// leading\n\t\t// interior\n\t\tconsole.log(2);\n\t\t$$renderer.push(`<p>1</p>`);\n\t});\n}",
     );
 }
 
@@ -103,7 +103,7 @@ fn effect_nested_in_a_function_keeps_both_comments() {
     );
     assert_body(
         &out,
-        "import * as $ from 'svelte/internal/server';\n\nexport default function A($$renderer, $$props) {\n\t$$renderer.component(($$renderer) => {\n\t\tlet a = 1;\n\n\t\tfunction f() {\n\t\t\t// leading\n\t\t\t// interior\n\t\t}\n\n\t\tf();\n\t\t$$renderer.push(`<p>1</p>`);\n\t});\n}",
+        "import * as $ from 'svelte/internal/server';\nexport default function A($$renderer, $$props) {\n\t$$renderer.component(($$renderer) => {\n\t\tlet a = 1;\n\t\tfunction f() {\n\t\t\t// leading\n\t\t\t// interior\n\t\t}\n\t\tf();\n\t\t$$renderer.push(`<p>1</p>`);\n\t});\n}",
     );
 }
 

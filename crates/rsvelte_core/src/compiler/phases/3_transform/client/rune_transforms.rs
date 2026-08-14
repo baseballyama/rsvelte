@@ -255,6 +255,12 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
                     return Cow::Owned(format!("/* $$async_hole:{} */", args));
                 } else {
                     let trailing_comment = after.strip_prefix(';').unwrap_or(after).trim_start();
+                    if before.is_empty()
+                        && (trailing_comment.starts_with("//")
+                            || trailing_comment.starts_with("/*"))
+                    {
+                        return Cow::Owned(format!("{}{}", &result[..pos], trailing_comment));
+                    }
                     let marker = if before.is_empty() && trailing_comment.starts_with("/*") {
                         "/* $$inspect_removed$$ */"
                     } else {

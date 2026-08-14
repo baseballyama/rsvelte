@@ -54,7 +54,7 @@ use crate::ast::template::Script;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::builders::B;
 use oxc_ast::ast::{Comment, Expression as OxcExpression, Statement, VariableDeclarationKind};
-use oxc_ast_visit::VisitMut;
+use oxc_ast_visit::{Visit, VisitMut, walk};
 use oxc_span::{GetSpan, Span};
 use regex::Regex;
 use std::sync::LazyLock;
@@ -156,7 +156,7 @@ pub(super) fn rune_callee_name<'a>(init: &OxcExpression<'a>) -> Option<&'a str> 
 /// `/* $$async_hole */` marker in the text-based server `transform_script.rs`).
 ///
 /// We emit a bare identifier-reference expression statement (`$$async_hole;`)
-/// because it round-trips losslessly through the esrap printer — a string
+/// because it round-trips losslessly through `oxc_codegen` — a string
 /// literal would be parsed as a directive prologue (dropped from `program.body`)
 /// and a bare comment marker would risk being stripped — and the printed text
 /// carries the marker that `transform_async_body` matches on. The placeholder
@@ -316,6 +316,7 @@ fn register_comment_region(
     all: &[Comment],
     prev_end: u32,
     region_end: u32,
+    reattach: Option<(u32, u32)>,
 ) -> Option<u32> {
     if region_end <= prev_end {
         return None;
@@ -327,6 +328,10 @@ fn register_comment_region(
         .map(|c| {
             let mut c = *c;
             c.span = Span::new(c.span.start - prev_end, c.span.end - prev_end);
+            let attached_to = reattach
+                .filter(|(from, _)| c.attached_to == *from)
+                .map_or(c.attached_to, |(_, to)| to);
+            c.attached_to = attached_to.checked_sub(prev_end).unwrap_or(c.span.end);
             c
         })
         .collect();
@@ -376,23 +381,6 @@ fn trailing_comment_end(src: &str, all: &[Comment], stmt_end: u32) -> u32 {
     }
 }
 
-/// The legacy reactive label itself may contain a block, or directly wrap an
-/// `if` whose branch does. Those retained blocks are the locations that rewind
-/// esrap's comment cursor after the label has been reordered.
-fn reactive_body_has_direct_block(stmt: &Statement<'_>) -> bool {
-    match stmt {
-        Statement::BlockStatement(_) => true,
-        Statement::IfStatement(if_stmt) => {
-            matches!(&if_stmt.consequent, Statement::BlockStatement(_))
-                || if_stmt
-                    .alternate
-                    .as_ref()
-                    .is_some_and(|alternate| matches!(alternate, Statement::BlockStatement(_)))
-        }
-        _ => false,
-    }
-}
-
 /// Resolve a top-level statement's registered region into the [`comments::Place`]
 /// its emitted statement is stamped with. `verbatim` is the source range the
 /// statement was re-parsed from, when it was re-parsed whole.
@@ -403,6 +391,7 @@ fn place_on_region(
     prev_end: u32,
     stmt: Span,
     verbatim: Option<Span>,
+    reattach: Option<(u32, u32)>,
 ) -> Option<comments::Place> {
     let trailing_end = trailing_comment_end(src, all, stmt.end);
     let region_end = if verbatim.is_some() || trailing_end > stmt.end {
@@ -410,22 +399,11 @@ fn place_on_region(
     } else {
         stmt.start
     };
-    let base = register_comment_region(registry, src, all, prev_end, region_end)?;
+    let base = register_comment_region(registry, src, all, prev_end, region_end, reattach)?;
     Some(match verbatim {
         Some(v) => comments::Place::Shift(base + reparse_origin(src, v.start, v.end) - prev_end),
         None => comments::Place::At(base + stmt.start - prev_end),
     })
-}
-
-fn place_on_position(
-    registry: &mut comments::ChunkRegistry,
-    _src: &str,
-    _prev_end: u32,
-    _stmt: Span,
-    _verbatim: Option<Span>,
-) -> Option<comments::Place> {
-    let base = registry.register_position(" ")?;
-    Some(comments::Place::At(base))
 }
 
 /// Split a script's comments into the three classes the carry-over sees:
@@ -453,6 +431,40 @@ fn classify_comments(body: &[Statement<'_>], all: &[Comment]) {
             Some(_) => super::comment_stats::bump::SCRIPT_COMMENTS_INTERIOR(1),
         }
     }
+}
+
+fn module_body_comments(program: &oxc_ast::ast::Program<'_>) -> Vec<Comment> {
+    use oxc_ast::ast::{ClassBody, FunctionBody};
+
+    struct BodyCollector {
+        spans: Vec<Span>,
+    }
+
+    impl<'a> Visit<'a> for BodyCollector {
+        fn visit_function_body(&mut self, body: &FunctionBody<'a>) {
+            self.spans.push(body.span);
+            walk::walk_function_body(self, body);
+        }
+
+        fn visit_class_body(&mut self, body: &ClassBody<'a>) {
+            self.spans.push(body.span);
+            walk::walk_class_body(self, body);
+        }
+    }
+
+    let mut collector = BodyCollector { spans: Vec::new() };
+    collector.visit_program(program);
+    program
+        .comments
+        .iter()
+        .copied()
+        .filter(|comment| {
+            collector
+                .spans
+                .iter()
+                .any(|body| comment.span.start >= body.start && comment.span.end <= body.end)
+        })
+        .collect()
 }
 
 /// Comments fully inside `[lo, hi]`, for attributing an INTERIOR subset to the
@@ -530,7 +542,14 @@ fn transform_script<'a>(
         return Vec::new();
     }
 
-    classify_comments(&ret.program.body, &ret.program.comments);
+    let module_comments;
+    let script_comments = if is_instance {
+        ret.program.comments.as_slice()
+    } else {
+        module_comments = module_body_comments(&ret.program);
+        module_comments.as_slice()
+    };
+    classify_comments(&ret.program.body, script_comments);
 
     let mut out: Vec<Statement<'a>> = Vec::new();
     // Start of the region the next EMITTED statement carries. A statement the
@@ -566,7 +585,7 @@ fn transform_script<'a>(
                     let lowered =
                         lower_variable_declaration(vd, src, is_instance, state, &mut verbatim);
                     if verbatim.is_none() {
-                        count_non_reparse(&ret.program.comments, vd.span);
+                        count_non_reparse(script_comments, vd.span);
                     }
                     out.extend(lowered);
                 }
@@ -587,11 +606,7 @@ fn transform_script<'a>(
                 Statement::ExportDeclaration(exp) if is_instance => {
                     match &exp.declaration {
                         oxc_ast::ast::Declaration::VariableDeclaration(vd) => {
-                            count_export_keyword(
-                                &ret.program.comments,
-                                exp.span.start,
-                                vd.span.start,
-                            );
+                            count_export_keyword(script_comments, exp.span.start, vd.span.start);
                             let lowered = lower_variable_declaration(
                                 vd,
                                 src,
@@ -600,7 +615,7 @@ fn transform_script<'a>(
                                 &mut verbatim,
                             );
                             if verbatim.is_none() {
-                                count_non_reparse(&ret.program.comments, vd.span);
+                                count_non_reparse(script_comments, vd.span);
                             }
                             out.extend(lowered);
                         }
@@ -609,7 +624,7 @@ fn transform_script<'a>(
                             // declaration verbatim (re-parsed from its source span)
                             // with the same read-wrap every re-homed statement gets.
                             let span = decl.span();
-                            count_export_keyword(&ret.program.comments, exp.span.start, span.start);
+                            count_export_keyword(script_comments, exp.span.start, span.start);
                             let slice = &src[span.start as usize..span.end as usize];
                             if let Some(mut rehomed) = state.reparse_statement(slice) {
                                 verbatim = Some(span);
@@ -732,8 +747,8 @@ fn transform_script<'a>(
                         //
                         // `$effect` / `$effect.pre` / `$effect.root` / `$inspect.trace`
                         // are removed by the `ExpressionStatement` visitor itself
-                        // returning `b.empty` — a *bare* `EmptyStatement` that esrap
-                        // elides (prints nothing), so those keep being dropped.
+                        // returning `b.empty` — a *bare* `EmptyStatement` that the
+                        // codegen wrapper elides, so those keep being dropped.
                         if inspect_kind(&es.expression).is_some() {
                             out.push(state.b.empty_kept(es.span.start));
                             out.push(state.b.empty_kept(es.span.start + 1));
@@ -789,10 +804,11 @@ fn transform_script<'a>(
         if let Some(mut place) = place_on_region(
             &mut state.comments,
             src,
-            &ret.program.comments,
+            script_comments,
             region_start,
             stmt_span,
             verbatim,
+            None,
         ) {
             if into_sink {
                 if let Some(sink) = import_sink.as_deref_mut()
@@ -856,23 +872,14 @@ pub(super) fn lower_effect_value_runes<'a>(
     stmt: &mut Statement<'a>,
     state: &ServerTransformState<'a>,
 ) {
-    let mut v = EffectValueLower {
-        b: state.b,
-        dev: state.options.dev,
-        source: state.source,
-    };
+    let mut v = EffectValueLower { b: state.b };
     v.visit_statement(stmt);
 }
 
 /// Expression-position variant of [`lower_effect_value_runes`] used by the
 /// template expression path (`visit_expr`).
-pub(super) fn lower_effect_value_runes_expr<'a>(
-    expr: &mut OxcExpression<'a>,
-    b: B<'a>,
-    dev: bool,
-    source: &'a str,
-) {
-    let mut v = EffectValueLower { b, dev, source };
+pub(super) fn lower_effect_value_runes_expr<'a>(expr: &mut OxcExpression<'a>, b: B<'a>) {
+    let mut v = EffectValueLower { b };
     v.visit_expression(expr);
 }
 
@@ -898,12 +905,6 @@ pub(super) fn lower_nested_runes_in_expr<'a>(expr: &mut OxcExpression<'a>, b: B<
 
 struct EffectValueLower<'a> {
     b: B<'a>,
-    dev: bool,
-    source: &'a str,
-}
-
-fn snapshot_ignore(source: &str, _start: u32) -> bool {
-    source.contains("svelte-ignore state_snapshot_uncloneable")
 }
 
 impl<'a> EffectValueLower<'a> {
@@ -985,30 +986,19 @@ impl<'a> VisitMut<'a> for EffectValueLower<'a> {
         // in `{#if $state.eager(x) !== x}` tests, `$.escape($state.eager(v))`
         // template interpolations, and instance statements alike.
         if let Some(kind) = state_dot_rune(expr) {
-            let (arg, ignored) = match std::mem::replace(expr, self.b.void0()) {
-                OxcExpression::CallExpression(call) => {
-                    let call = call.unbox();
-                    let ignored = self.dev && snapshot_ignore(self.source, call.span.start);
-                    (
-                        call.arguments
-                            .into_iter()
-                            .next()
-                            .and_then(|a| OxcExpression::try_from(a).ok()),
-                        ignored,
-                    )
-                }
-                _ => (None, false),
+            let arg = match std::mem::replace(expr, self.b.void0()) {
+                OxcExpression::CallExpression(call) => call
+                    .unbox()
+                    .arguments
+                    .drain(..)
+                    .next()
+                    .and_then(|a| OxcExpression::try_from(a).ok()),
+                _ => None,
             };
             let arg = arg.unwrap_or_else(|| self.b.void0());
             *expr = match kind {
                 StateDotRune::Eager => arg,
-                StateDotRune::Snapshot => {
-                    let mut args = vec![arg];
-                    if ignored {
-                        args.push(self.b.bool(true));
-                    }
-                    self.b.call("$.snapshot", args)
-                }
+                StateDotRune::Snapshot => self.b.call("$.snapshot", vec![arg]),
             };
             // Recurse: the unwrapped/wrapped argument may itself contain runes.
             self.visit_expression(expr);
@@ -2887,7 +2877,14 @@ fn transform_script_legacy<'a>(
         return Vec::new();
     }
 
-    classify_comments(&ret.program.body, &ret.program.comments);
+    let module_comments;
+    let script_comments = if is_instance {
+        ret.program.comments.as_slice()
+    } else {
+        module_comments = module_body_comments(&ret.program);
+        module_comments.as_slice()
+    };
+    classify_comments(&ret.program.body, script_comments);
 
     let mut out: Vec<Statement<'a>> = Vec::new();
     // Reactive `$:` statements are appended AFTER all other statements (mirrors
@@ -2905,23 +2902,15 @@ fn transform_script_legacy<'a>(
     // See the runes loop: a dropped statement does not advance the region, so its
     // comments are re-homed onto the next survivor instead of dying with it.
     let mut region_start: u32 = 0;
-    let mut reactive_leading_comment_pending = false;
-    let mut deferred_reactive_comment: Option<usize> = None;
 
     for stmt in ret.program.body.iter() {
         let stmt_span = stmt.span();
-        let is_reactive = matches!(stmt, Statement::LabeledStatement(ls) if is_instance && ls.label.name.as_str() == "$");
-        let reactive_leading_comment = is_reactive
-            && ret.program.comments.iter().any(|comment| {
-                comment.span.start >= region_start && comment.span.end <= stmt_span.start
-            });
         let out_len = out.len();
         let reactive_len = reactive.len();
         let sink_len = import_sink.as_deref().map_or(0, Vec::len);
         // Set by every branch that re-parses the statement WHOLE from a source
         // range, to that range.
         let mut verbatim: Option<Span> = None;
-        let mut defer_block_reactive_trailing = false;
 
         'emit: {
             match stmt {
@@ -2971,11 +2960,7 @@ fn transform_script_legacy<'a>(
                     // `VariableDeclaration` branch).
                     match &exp.declaration {
                         oxc_ast::ast::Declaration::VariableDeclaration(vd) => {
-                            count_export_keyword(
-                                &ret.program.comments,
-                                exp.span.start,
-                                vd.span.start,
-                            );
+                            count_export_keyword(script_comments, exp.span.start, vd.span.start);
                             let lowered = lower_legacy_var_decl(
                                 vd,
                                 src,
@@ -2985,7 +2970,7 @@ fn transform_script_legacy<'a>(
                                 &mut verbatim,
                             );
                             if verbatim.is_none() {
-                                count_non_reparse(&ret.program.comments, vd.span);
+                                count_non_reparse(script_comments, vd.span);
                             }
                             out.extend(lowered);
                         }
@@ -2998,7 +2983,7 @@ fn transform_script_legacy<'a>(
                             let is_fn =
                                 matches!(other, oxc_ast::ast::Declaration::FunctionDeclaration(_));
                             let span = other.span();
-                            count_export_keyword(&ret.program.comments, exp.span.start, span.start);
+                            count_export_keyword(script_comments, exp.span.start, span.start);
                             let slice = &src[span.start as usize..span.end as usize];
                             if let Some(mut rehomed) = state.reparse_statement(slice) {
                                 verbatim = Some(span);
@@ -3026,7 +3011,7 @@ fn transform_script_legacy<'a>(
                         &mut verbatim,
                     );
                     if verbatim.is_none() {
-                        count_non_reparse(&ret.program.comments, vd.span);
+                        count_non_reparse(script_comments, vd.span);
                     }
                     out.extend(lowered);
                 }
@@ -3063,24 +3048,6 @@ fn transform_script_legacy<'a>(
                             assigns,
                             deps,
                         });
-                        let trailing_end =
-                            trailing_comment_end(src, &ret.program.comments, stmt_span.end);
-                        defer_block_reactive_trailing = trailing_end > stmt_span.end
-                            && reactive_body_has_direct_block(&ls.body)
-                            && !ret.program.comments.iter().any(|comment| {
-                                comment.span.start >= region_start
-                                    && comment.span.end <= stmt_span.start
-                            });
-                        if defer_block_reactive_trailing {
-                            let index = state.pending_reactive_comments.len();
-                            state.defer_reactive_block_comments(
-                                src,
-                                &ret.program.comments,
-                                stmt_span.end,
-                                trailing_end,
-                            );
-                            deferred_reactive_comment = Some(index);
-                        }
                     }
                 }
                 Statement::ExpressionStatement(es) => {
@@ -3150,9 +3117,6 @@ fn transform_script_legacy<'a>(
             }
         }
 
-        if defer_block_reactive_trailing {
-            continue;
-        }
         let into_sink = import_sink.as_deref().is_some_and(|s| s.len() > sink_len);
         let anchor = out.iter().skip(out_len).position(anchors_a_region);
         if !into_sink && anchor.is_none() && reactive.len() == reactive_len {
@@ -3160,18 +3124,20 @@ fn transform_script_legacy<'a>(
         }
         // Anchor the region on the first statement this source statement emitted
         // that can carry one.
-        let mut place = place_on_region(
+        if let Some(mut place) = place_on_region(
             &mut state.comments,
             src,
-            &ret.program.comments,
+            script_comments,
             region_start,
             stmt_span,
             verbatim,
-        );
-        if place.is_none() && reactive_leading_comment_pending && !into_sink && anchor.is_some() {
-            place = place_on_position(&mut state.comments, src, region_start, stmt_span, verbatim);
-        }
-        if let Some(mut place) = place {
+            match stmt {
+                Statement::LabeledStatement(ls) if is_instance && ls.label.name.as_str() == "$" => {
+                    Some((ls.span.start, ls.body.span().start))
+                }
+                _ => None,
+            },
+        ) {
             if into_sink {
                 if let Some(sink) = import_sink.as_deref_mut()
                     && let Some(first) = sink.get_mut(sink_len)
@@ -3193,14 +3159,6 @@ fn transform_script_legacy<'a>(
                     other => place.visit_statement(other),
                 }
             }
-            if let Some(index) = deferred_reactive_comment.take() {
-                state.mark_deferred_reactive_comment_landed(index);
-            }
-        }
-        if is_reactive && reactive_leading_comment {
-            reactive_leading_comment_pending = true;
-        } else if !is_reactive && anchor.is_some() {
-            reactive_leading_comment_pending = false;
         }
         let trailing_end = trailing_comment_end(src, &ret.program.comments, stmt_span.end);
         region_start = if verbatim.is_some() || trailing_end > stmt_span.end {
@@ -3917,10 +3875,7 @@ pub fn transform_instance<'a>(
     // only sync instance statements falls through unchanged. `use_async` is
     // false for every ordinary component, so this never touches sync output.
     if state.eval_inputs.use_async && !body.is_empty() {
-        use crate::compiler::phases::phase3_transform::profile;
-        let _t = profile::timer_start();
         let body_text = state.b.program(body_clone(state, &body)).pipe_print();
-        let print_elapsed = profile::timer_elapsed(_t);
         if let Some(result) =
             crate::compiler::phases::phase3_transform::shared::async_body::transform_async_body_dev(
                 body_text.trim(),
@@ -3928,14 +3883,10 @@ pub fn transform_instance<'a>(
                 state.options.dev,
             )
         {
-            let _t = profile::timer_start();
             let reparsed = state.reparse_program(result.output.trim());
-            profile::record_esrap_pipe(print_elapsed, profile::timer_elapsed(_t));
             if !reparsed.is_empty() {
                 return reparsed;
             }
-        } else {
-            profile::record_esrap_pipe(print_elapsed, std::time::Duration::ZERO);
         }
     }
 
@@ -3947,7 +3898,7 @@ pub fn transform_instance<'a>(
     // async-flagged-but-await-free component.
     //
     //   * `$$async_hole`  ($effect-family)  → `b.empty()` (a bare `EmptyStatement`,
-    //     elided by esrap → prints nothing — matches upstream's `ExpressionStatement`
+    //     elided by the codegen wrapper → prints nothing — matches upstream's `ExpressionStatement`
     //     visitor returning `b.empty`).
     //   * `$$inspect_hole` ($inspect / $inspect().with) → a `;;` pair, mirroring the
     //     sync-prelude path (upstream keeps the `ExpressionStatement`, its
@@ -3962,7 +3913,6 @@ pub fn transform_instance<'a>(
             rebuilt.push(state.b.empty_kept(start));
             rebuilt.push(state.b.empty_kept(start + 1));
         } else if is_async_hole_stmt(&stmt) {
-            rebuilt.push(state.b.empty());
         } else {
             rebuilt.push(stmt);
         }
@@ -3998,7 +3948,7 @@ fn is_async_hole_stmt(stmt: &Statement) -> bool {
     matches!(expr, Expression::Identifier(id) if id.name == "$$async_hole")
 }
 
-/// Print a slice of oxc statements to JS source text via the esrap printer
+/// Print a slice of oxc statements to JS source text via `oxc_codegen`
 /// (used to round-trip the lowered instance body through the text-based
 /// `transform_async_body`). Consumes a freshly-cloned copy so the original
 /// statements stay usable.
@@ -4007,7 +3957,7 @@ trait PipePrint {
 }
 impl<'a> PipePrint for oxc_ast::ast::Program<'a> {
     fn pipe_print(self) -> String {
-        rsvelte_esrap::print(&self, "")
+        crate::compiler::phases::phase3_transform::oxc_codegen::print(&self)
     }
 }
 

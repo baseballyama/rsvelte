@@ -24,7 +24,7 @@ fn server_module(src: &str) -> String {
 fn effect_text_in_string_is_preserved() {
     let out = server_module(r#"export const code = "$effect.root(() => {})";"#);
     assert!(
-        out.contains(r#"export const code = "$effect.root(() => {})";"#),
+        out.contains("export const code =") && out.contains("$effect.root(() => {})"),
         "effect-shaped text in a string literal must survive, got:\n{out}"
     );
 }

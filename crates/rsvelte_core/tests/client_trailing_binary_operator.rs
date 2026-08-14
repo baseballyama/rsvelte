@@ -136,7 +136,7 @@ fn every_continuing_operator_keeps_its_right_operand() {
 fn a_trailing_comma_keeps_its_right_operand() {
     let out = compile_to(&operator_matrix_source(","), GenerateMode::Client);
     assert!(
-        out.contains("(kind = item().a, item().b)"),
+        out.contains("kind = item().a, item().b;"),
         "a line ending in `,` cut the sequence:\n{out}"
     );
 }

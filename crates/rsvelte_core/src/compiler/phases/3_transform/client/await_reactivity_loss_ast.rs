@@ -250,7 +250,6 @@ pub(super) fn collect_await_reactivity_loss_edits(
 ) -> Vec<Edit> {
     let mut collector = AwaitCollector {
         source,
-        runs: AwaitCommentRuns::collect(program),
         ignored: collect_await_ignore_ranges(program, source, is_runes),
         separators: rustc_hash::FxHashMap::default(),
         experimental_async,
@@ -260,117 +259,8 @@ pub(super) fn collect_await_reactivity_loss_edits(
     collector.edits
 }
 
-/// Where the comments in front of an `await` keyword end up once the wrapper
-/// replaces it.
-///
-/// Upstream rebuilds the expression from position-less nodes and keeps only the
-/// argument's original span, so esrap — which flushes a pending comment at the
-/// first *located* node it reaches that starts after it — cannot flush the run
-/// before the wrapper and defers it to the argument. Two of esrap's other flush
-/// points still catch a run first: an enclosing node that starts on the `await`
-/// keyword itself, and the same-line trailing flush after a list element.
-#[derive(Default)]
-pub(super) struct AwaitCommentRuns {
-    /// `(start, end, is_line)` per comment, in source order.
-    comments: Vec<(u32, u32, bool)>,
-    /// Offsets where a node other than an `await` begins. A node starting on an
-    /// `await` keyword can only be one of that `await`'s ancestors, because
-    /// spans sharing a start nest and no child of an `await` reaches its `a`.
-    enclosing_starts: rustc_hash::FxHashSet<u32>,
-}
-
-impl AwaitCommentRuns {
-    pub(super) fn collect(program: &Program<'_>) -> Self {
-        if program.comments.is_empty() {
-            return Self::default();
-        }
-        let mut scan = StartScan {
-            starts: rustc_hash::FxHashSet::default(),
-        };
-        scan.visit_program(program);
-        Self {
-            comments: program
-                .comments
-                .iter()
-                .map(|comment| (comment.span.start, comment.span.end, comment.is_line()))
-                .collect(),
-            enclosing_starts: scan.starts,
-        }
-    }
-
-    /// The run to move, as `(start of the run, text to re-emit before the
-    /// argument)`, or `None` when it belongs outside the wrapper.
-    pub(super) fn relocatable_run(&self, source: &str, await_start: u32) -> Option<(u32, String)> {
-        if self.enclosing_starts.contains(&await_start) {
-            return None;
-        }
-
-        let mut run_start = await_start;
-        let mut first = self.comments.len();
-        for (index, &(start, end, _)) in self.comments.iter().enumerate().rev() {
-            if end > run_start {
-                continue;
-            }
-            if !source[end as usize..run_start as usize].trim().is_empty() {
-                break;
-            }
-            run_start = start;
-            first = index;
-        }
-        if first == self.comments.len() || flushed_as_a_trailing_comment(source, run_start) {
-            return None;
-        }
-
-        let mut text = String::new();
-        for (index, &(start, end, is_line)) in self.comments[first..].iter().enumerate() {
-            if start >= await_start {
-                break;
-            }
-            text.push_str(&source[start as usize..end as usize]);
-            let next = self.comments[first + index + 1..]
-                .first()
-                .map_or(await_start, |&(next_start, ..)| next_start.min(await_start));
-            // Whether the comment stood on a line of its own survives the move,
-            // because the printer reproduces that break rather than the offset.
-            // A line comment always breaks, or it would swallow the wrapper.
-            let broken = is_line || source[end as usize..next as usize].contains('\n');
-            text.push(if broken { '\n' } else { ' ' });
-        }
-        Some((run_start, text))
-    }
-}
-
-/// Whether the run at `run_start` sits on the same line as the end of the list
-/// element it follows, separated from it only by that list's `,` — the shape
-/// esrap prints as a trailing comment of the element instead.
-///
-/// A statement's `;` cannot reach here: it would make the `await` the first
-/// token of the next statement, which the enclosing-start check already
-/// rejects. Treating `;` as a separator would only misread a `for` head.
-fn flushed_as_a_trailing_comment(source: &str, run_start: u32) -> bool {
-    let before = source[..run_start as usize].trim_end();
-    if !before.ends_with(',') {
-        return false;
-    }
-    let previous = before[..before.len() - 1].trim_end();
-    !previous.is_empty() && !source[previous.len()..run_start as usize].contains('\n')
-}
-
-struct StartScan {
-    starts: rustc_hash::FxHashSet<u32>,
-}
-
-impl<'a> Visit<'a> for StartScan {
-    fn enter_node(&mut self, kind: AstKind<'a>) {
-        if !matches!(kind, AstKind::AwaitExpression(_)) {
-            self.starts.insert(kind.span().start);
-        }
-    }
-}
-
 struct AwaitCollector<'src> {
     source: &'src str,
-    runs: AwaitCommentRuns,
     ignored: AwaitIgnoreRanges,
     /// Statement start → end of the statement a `;` has to separate it from.
     separators: rustc_hash::FxHashMap<u32, u32>,
@@ -426,15 +316,7 @@ impl<'a, 'src> Visit<'a> for AwaitCollector<'src> {
                     track_reactivity_loss_wrap(arg_text)
                 ),
             ),
-            // A statement whose own start is the `await` is exactly the shape
-            // that keeps its leading comments outside, so the two never mix.
-            None => match self.runs.relocatable_run(self.source, expr.span.start) {
-                Some((run_start, comments)) => (
-                    run_start,
-                    track_reactivity_loss_wrap(&format!("{comments}{arg_text}")),
-                ),
-                None => (expr.span.start, track_reactivity_loss_wrap(arg_text)),
-            },
+            None => (expr.span.start, track_reactivity_loss_wrap(arg_text)),
         };
         self.edits.push((start, expr.span.end, replacement));
     }

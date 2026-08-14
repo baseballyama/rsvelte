@@ -47,7 +47,7 @@ pub fn transform_server(
     options: &CompileOptions,
 ) -> Result<String, TransformError> {
     // Pure-AST SSR pipeline (`server/ast/`): builds a real oxc AST and prints it
-    // once with `rsvelte_esrap` — zero text post-processing. This replaced the
+    // once with `oxc_codegen` — zero text post-processing. This replaced the
     // legacy text `ServerCodeGenerator` (deleted) after reaching byte-parity
     // across the curated runtime / `compiler_fixtures` / `ssr` suites and a net
     // corpus improvement. An internal assembly failure surfaces as an error
@@ -152,6 +152,7 @@ pub fn transform_server_module(
     // variable-declarator init, where it is redundant and strips to the bare arg
     // (e.g. melt-ui Popover / selection-state `const prev = $state.snapshot(this.x)`).
     let transformed = transform_script::strip_snapshot_declarator_init_module(&transformed);
+    let transformed = super::client::strip_module_toplevel_comments(&transformed);
 
     // Split imports from body
     let (script_imports, script_rest) = super::client::extract_imports_str(&transformed);

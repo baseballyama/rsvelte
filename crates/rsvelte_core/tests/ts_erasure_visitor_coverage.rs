@@ -68,7 +68,7 @@ fn destructuring_assignment_targets() {
     );
     assert_erased(
         "const src = { x: 1 };\n\tconst obj: any = {};\n\t({ x: obj!.x } = src);\n\tconsole.log(obj);",
-        &["{ x: obj.x } = src"],
+        &["{x: obj.x} = src"],
         &["obj!.x"],
     );
 }

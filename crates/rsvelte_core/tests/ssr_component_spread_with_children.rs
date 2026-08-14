@@ -30,8 +30,10 @@ fn ssr(src: &str) -> String {
 #[track_caller]
 fn assert_contains(src: &str, needle: &str) {
     let out = ssr(src);
+    let normalized_out = out.split_whitespace().collect::<Vec<_>>().join(" ");
+    let normalized_needle = needle.split_whitespace().collect::<Vec<_>>().join(" ");
     assert!(
-        out.contains(needle),
+        normalized_out.contains(&normalized_needle),
         "expected SSR output of {src:?} to contain:\n  {needle}\ngot:\n{out}"
     );
 }

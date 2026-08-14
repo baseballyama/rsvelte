@@ -3286,9 +3286,10 @@ mod tests {
         let handwritten = generate(&prog, &arena).unwrap();
         let allocator = oxc_allocator::Allocator::default();
         let converted = super::super::to_oxc::program_to_oxc(&prog, &arena, &allocator).unwrap();
-        let esrap = rsvelte_esrap::print(&converted.program, "");
+        let generated =
+            crate::compiler::phases::phase3_transform::oxc_codegen::print(&converted.program);
 
-        for (printer, code) in [("handwritten", handwritten), ("oxc/esrap", esrap)] {
+        for (printer, code) in [("handwritten", handwritten), ("oxc_codegen", generated)] {
             let parse_allocator = oxc_allocator::Allocator::default();
             let parsed =
                 oxc_parser::Parser::new(&parse_allocator, &code, oxc_span::SourceType::mjs())

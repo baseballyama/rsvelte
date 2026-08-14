@@ -25,10 +25,8 @@ fn compile_client(src: &str) -> String {
     .code
 }
 
-/// Collapse the sequence expression the printer spreads over several lines so a
-/// single `assert!` can pin the whole lowering.
 fn flat(code: &str) -> String {
-    code.split_whitespace().collect::<Vec<_>>().join(" ")
+    code.chars().filter(|ch| !ch.is_whitespace()).collect()
 }
 
 #[test]
@@ -42,7 +40,7 @@ fn object_rest_with_identifier_rhs_is_a_sequence_not_an_iife() {
     let out = flat(&compile_client(src));
     assert!(
         out.contains(
-            "( $.set(a, obj.a), $.set(b, obj.b), $.set(rest, $.exclude_from_object(obj, ['a', 'b'])) );"
+            "$.set(a,obj.a),$.set(b,obj.b),$.set(rest,$.exclude_from_object(obj,['a','b']));"
         ),
         "in:\n{out}"
     );
@@ -61,7 +59,7 @@ fn object_rest_with_call_rhs_keeps_the_iife() {
     let out = flat(&compile_client(src));
     assert!(
         out.contains(
-            "(($$value) => { $.set(a, $$value.a); $.set(rest, $.exclude_from_object($$value, ['a'])); })(get());"
+            "(($$value)=>{$.set(a,$$value.a);$.set(rest,$.exclude_from_object($$value,['a']));})(get());"
         ),
         "in:\n{out}"
     );
@@ -82,11 +80,11 @@ fn literal_and_computed_keys_are_lowered_like_upstream() {
 </script>
 <button onclick={f}>{a} {bc} {three} {dee} {JSON.stringify(rest)}</button>"#;
     let out = flat(&compile_client(src));
-    assert!(out.contains("$.set(bc, obj['b-c'])"), "in:\n{out}");
-    assert!(out.contains("$.set(three, obj[3])"), "in:\n{out}");
-    assert!(out.contains("$.set(dee, obj[key])"), "in:\n{out}");
+    assert!(out.contains("$.set(bc,obj['b-c'])"), "in:\n{out}");
+    assert!(out.contains("$.set(three,obj[3])"), "in:\n{out}");
+    assert!(out.contains("$.set(dee,obj[key])"), "in:\n{out}");
     assert!(
-        out.contains("$.set(rest, $.exclude_from_object(obj, ['a', 'b-c', '3', String(key)]))"),
+        out.contains("$.set(rest,$.exclude_from_object(obj,['a','b-c','3',String(key)]))"),
         "in:\n{out}"
     );
 }
@@ -103,9 +101,7 @@ fn store_and_prop_targets_keep_their_setters_next_to_a_rest() {
 <button onclick={f}>{$s1} {JSON.stringify(rest)}</button>"#;
     let out = flat(&compile_client(store));
     assert!(
-        out.contains(
-            "( $.store_set(s1, obj.s1), $.set(rest, $.exclude_from_object(obj, ['s1'])) );"
-        ),
+        out.contains("$.store_set(s1,obj.s1),$.set(rest,$.exclude_from_object(obj,['s1']));"),
         "in:\n{out}"
     );
 
@@ -118,7 +114,7 @@ fn store_and_prop_targets_keep_their_setters_next_to_a_rest() {
 <button onclick={f}>{a} {JSON.stringify(rest)}</button>"#;
     let out = flat(&compile_client(prop));
     assert!(
-        out.contains("(a(obj.a), $.set(rest, $.exclude_from_object(obj, ['a'])));"),
+        out.contains("a(obj.a),$.set(rest,$.exclude_from_object(obj,['a']));"),
         "in:\n{out}"
     );
 }
@@ -135,9 +131,7 @@ fn defaults_and_non_standalone_destructures_match_upstream() {
 <button onclick={f}>{a} {JSON.stringify(rest)}</button>"#;
     let out = flat(&compile_client(src));
     assert!(
-        out.contains(
-            "( $.set(a, $.fallback(obj.a, 5)), $.set(rest, $.exclude_from_object(obj, ['a'])) );"
-        ),
+        out.contains("$.set(a,$.fallback(obj.a,5)),$.set(rest,$.exclude_from_object(obj,['a']));"),
         "in:\n{out}"
     );
 
@@ -151,7 +145,7 @@ fn defaults_and_non_standalone_destructures_match_upstream() {
     let out = flat(&compile_client(src));
     assert!(
         out.contains(
-            "$.set(out, ( $.set(a, obj.a), $.set(rest, $.exclude_from_object(obj, ['a'])), obj ));"
+            "$.set(out,($.set(a,obj.a),$.set(rest,$.exclude_from_object(obj,['a'])),obj));"
         ),
         "in:\n{out}"
     );

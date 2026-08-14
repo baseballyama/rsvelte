@@ -62,18 +62,18 @@ fn repeated_mutations_of_one_member_keep_their_source_order() {
 </script>
 "#,
     );
-    let first = out.find("= \"a\"").expect("first mutation");
-    let second = out.find("= \"b\"").expect("second mutation");
+    let first = out.find("= 'a'").expect("first mutation");
+    let second = out.find("= 'b'").expect("second mutation");
     assert!(
         first < second,
         "output order should follow source, got:\n{out}"
     );
     assert!(
-        out[first..].starts_with("= \"a\", true), 4, 15)"),
+        out[first..].starts_with("= 'a', true), 4, 15)"),
         "the first should report line 4, got:\n{out}"
     );
     assert!(
-        out[second..].starts_with("= \"b\", true), 5, 15)"),
+        out[second..].starts_with("= 'b', true), 5, 15)"),
         "the second should report line 5, got:\n{out}"
     );
 }

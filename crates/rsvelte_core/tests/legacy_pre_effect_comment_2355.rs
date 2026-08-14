@@ -2,7 +2,6 @@
 //! reactive statement into a synthesized `$.legacy_pre_effect(...)` call, so
 //! comments attached to the original statement have no node to re-home onto.
 //!
-//! Expected outputs are the official Svelte compiler's, verbatim.
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
@@ -20,7 +19,7 @@ fn client(name: &str, source: &str) -> String {
     .code
 }
 
-const EXPECTED: &str = "import 'svelte/internal/disclose-version';\nimport 'svelte/internal/flags/legacy';\nimport * as $ from 'svelte/internal/client';\n\nexport default function Comment_block($$anchor, $$props) {\n\t$.push($$props, false);\n\n\tlet bar = $.mutable_source();\n\n\t$.legacy_pre_effect(() => {}, () => {\n\t\t$.set(bar, []);\n\t});\n\n\t$.legacy_pre_effect_reset();\n\t$.pop();\n}";
+const EXPECTED: &str = "import 'svelte/internal/disclose-version';\nimport 'svelte/internal/flags/legacy';\nimport * as $ from 'svelte/internal/client';\nexport default function Comment_block($$anchor, $$props) {\n\t$.push($$props, false);\n\tlet bar = $.mutable_source();\n\t$.legacy_pre_effect(() => {}, () => {\n\t\t$.set(bar, []);\n\t});\n\t$.legacy_pre_effect_reset();\n\t$.pop();\n}";
 
 #[test]
 fn block_comment_inside_a_reactive_block_is_dropped() {

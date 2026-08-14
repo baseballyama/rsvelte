@@ -667,7 +667,7 @@ pub(crate) fn prepare_and_analyze<'source>(
 /// # Returns
 ///
 /// Returns a `CompileResult` containing the generated JavaScript and CSS.
-pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, CompileError> {
+fn compile_inner(source: &str, options: CompileOptions) -> Result<CompileResult, CompileError> {
     let generate = options.generate;
     crate::toolchain::PreparedComponent::new(source, options)?.compile_mode(generate)
 }
@@ -684,6 +684,21 @@ pub fn compile_client_with_program_sink(
 ) -> Result<CompileResult, CompileError> {
     crate::toolchain::PreparedComponent::new(source, options)?
         .compile_client_with_program_sink(sink)
+}
+
+pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, CompileError> {
+    #[cfg(not(target_family = "wasm"))]
+    {
+        let has_deep_expression = source
+            .bytes()
+            .filter(|byte| matches!(byte, b'+' | b'-' | b'*' | b'%' | b'&' | b'|' | b'^'))
+            .count()
+            >= 24;
+        if has_deep_expression {
+            return stacker::grow(16 * 1024 * 1024, || compile_inner(source, options));
+        }
+    }
+    compile_inner(source, options)
 }
 
 #[doc(hidden)]

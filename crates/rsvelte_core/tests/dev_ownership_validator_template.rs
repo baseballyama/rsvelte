@@ -22,6 +22,10 @@ fn compile_client_dev(src: &str) -> String {
     result.js.code
 }
 
+fn without_whitespace(source: &str) -> String {
+    source.chars().filter(|ch| !ch.is_whitespace()).collect()
+}
+
 #[test]
 fn handler_block_body_mutation_is_ownership_validated() {
     let src = "<script>let { listEl } = $props();</script>\n\
@@ -31,9 +35,10 @@ fn handler_block_body_mutation_is_ownership_validated() {
         out.contains("$ownership_validator = $.create_ownership_validator($$props)"),
         "expected the ownership validator preamble, got:\n{out}"
     );
+    let compact = without_whitespace(&out);
     assert!(
-        out.contains(
-            "$ownership_validator.mutation('listEl', ['listEl', 'style', 'overflow'], listEl().style.overflow = \"hidden\", 2, 25)"
+        compact.contains(
+            "$ownership_validator.mutation('listEl',['listEl','style','overflow'],listEl().style.overflow='hidden',2,25)"
         ),
         "expected the mutation to be wrapped, got:\n{out}"
     );
@@ -44,9 +49,10 @@ fn handler_expression_body_mutation_is_ownership_validated() {
     let src = "<script>let { listEl } = $props();</script>\n\
                <button onclick={() => (listEl.style.overflow = \"hidden\")}>x</button>\n";
     let out = compile_client_dev(src);
+    let compact = without_whitespace(&out);
     assert!(
-        out.contains(
-            "$ownership_validator.mutation('listEl', ['listEl', 'style', 'overflow'], listEl().style.overflow = \"hidden\", 2, 24)"
+        compact.contains(
+            "$ownership_validator.mutation('listEl',['listEl','style','overflow'],listEl().style.overflow='hidden',2,24)"
         ),
         "expected the mutation to be wrapped, got:\n{out}"
     );

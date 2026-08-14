@@ -43,7 +43,7 @@ fn object_pattern_of_props_becomes_a_sequence_of_setter_calls() {
 </script>
 <button onclick={f}>{a} {b}</button>"#;
     let out = flat(&compile_client(src));
-    assert!(out.contains("(a(obj.a), b(obj.b));"), "in:\n{out}");
+    assert!(out.contains("a(obj.a), b(obj.b);"), "in:\n{out}");
     assert!(!out.contains("} = obj"), "in:\n{out}");
 }
 
@@ -78,7 +78,7 @@ fn rest_target_of_a_props_only_pattern_keeps_the_sequence() {
 <button onclick={f}>{a} {JSON.stringify(rest)}</button>"#;
     let out = flat(&compile_client(src));
     assert!(
-        out.contains("(a(obj.a), rest($.exclude_from_object(obj, ['a'])));"),
+        out.contains("a(obj.a), rest($.exclude_from_object(obj, ['a']));"),
         "in:\n{out}"
     );
 }
@@ -134,5 +134,5 @@ fn mixed_prop_and_state_targets_are_both_lowered() {
 </script>
 <button onclick={f}>{a} {s}</button>"#;
     let out = flat(&compile_client(src));
-    assert!(out.contains("(a(obj.a), $.set(s, obj.s));"), "in:\n{out}");
+    assert!(out.contains("a(obj.a), $.set(s, obj.s);"), "in:\n{out}");
 }

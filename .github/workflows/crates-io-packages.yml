@@ -11,14 +11,12 @@ on:
       - "apps/npm/compiler/package.json"
       - "crates/rsvelte/**"
       - "crates/rsvelte_core/**"
-      - "crates/rsvelte_esrap/**"
       - "crates/rsvelte_projection/**"
       - "docs/crates-io-publishing.md"
       - "package.json"
       - "scripts/ci/check-crates-io-packages.mjs"
       - "scripts/ci/verify-registry-dependency-surface.sh"
       - "scripts/release/check-core-consumer-changesets.mjs"
-      - "scripts/release/check-esrap-version-bump.mjs"
       - "scripts/release/sync-version.mjs"
   push:
     branches: [main]
@@ -31,14 +29,12 @@ on:
       - "apps/npm/compiler/package.json"
       - "crates/rsvelte/**"
       - "crates/rsvelte_core/**"
-      - "crates/rsvelte_esrap/**"
       - "crates/rsvelte_projection/**"
       - "docs/crates-io-publishing.md"
       - "package.json"
       - "scripts/ci/check-crates-io-packages.mjs"
       - "scripts/ci/verify-registry-dependency-surface.sh"
       - "scripts/release/check-core-consumer-changesets.mjs"
-      - "scripts/release/check-esrap-version-bump.mjs"
       - "scripts/release/sync-version.mjs"
   workflow_dispatch:
 
@@ -78,14 +74,12 @@ jobs:
 
       - name: Check minimal libraries on the declared MSRV
         run: |
-          cargo check --locked -p rsvelte_esrap --lib
           cargo check --locked -p rsvelte_core --no-default-features --lib
           cargo check --locked -p rsvelte_projection --no-default-features --lib
           cargo check --locked -p rsvelte --all-features --lib
 
       - name: Test minimal libraries on the declared MSRV
         run: |
-          cargo test --locked -p rsvelte_esrap --lib
           cargo test --locked -p rsvelte_core --no-default-features --lib
           cargo test --locked -p rsvelte_projection --no-default-features --lib
           cargo test --locked -p rsvelte --all-features
@@ -94,21 +88,9 @@ jobs:
         env:
           RUSTDOCFLAGS: -D warnings
         run: |
-          cargo doc --locked -p rsvelte_esrap --no-deps
           cargo doc --locked -p rsvelte_core --no-default-features --no-deps
           cargo doc --locked -p rsvelte_projection --no-default-features --no-deps
           cargo doc --locked -p rsvelte --all-features --no-deps
-
-      - name: Build and verify the rsvelte_esrap package
-        run: cargo package --locked -p rsvelte_esrap
-
-      - name: Enforce the crates.io archive size limit
-        run: |
-          version="$(cargo metadata --locked --no-deps --format-version 1 \
-            | jq -er '.packages[] | select(.name == "rsvelte_esrap") | .version')"
-          archive="target/package/rsvelte_esrap-${version}.crate"
-          test -f "$archive"
-          test "$(stat -c '%s' "$archive")" -lt 10485760
 
       - name: Detect whether this exact release set exists on crates.io
         id: registry-release
@@ -120,7 +102,7 @@ jobs:
             jq -er --arg name "$1" '.packages[] | select(.name == $name) | .version' <<<"$metadata"
           }
           ready=true
-          for crate in rsvelte_esrap rsvelte_core rsvelte_projection; do
+          for crate in rsvelte_core rsvelte_projection; do
             version="$(version_of "$crate")"
             if ! cargo info "${crate}@${version}" --registry crates-io >/dev/null 2>&1; then
               ready=false

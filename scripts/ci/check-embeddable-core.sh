@@ -12,6 +12,3 @@ for tooling_dependency in chrono clap notify oxc_formatter oxc_resolver walkdir;
     exit 1
   fi
 done
-
-# rsvelte_core can be published after this leaf crate is present in crates.io.
-cargo package --locked -p rsvelte_esrap --no-verify
