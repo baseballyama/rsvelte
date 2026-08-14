@@ -100,7 +100,7 @@ fn capabilities(client: &ClientState) -> ServerCapabilities {
             code_action_kinds: Some(vec![
                 CodeActionKind::QUICKFIX,
                 CodeActionKind::REFACTOR_REWRITE,
-                CodeActionKind::SOURCE_FIX_ALL,
+                CodeActionKind::from(crate::code_actions::FIX_ALL_KIND),
             ]),
             ..CodeActionOptions::default()
         })),
@@ -417,11 +417,9 @@ impl Server {
             return;
         };
         if params.context.diagnostics.is_empty()
-            && params
-                .context
-                .only
-                .as_ref()
-                .is_none_or(|kinds| !kinds.contains(&CodeActionKind::SOURCE_FIX_ALL))
+            && params.context.only.as_ref().is_none_or(|kinds| {
+                !kinds.contains(&CodeActionKind::from(crate::code_actions::FIX_ALL_KIND))
+            })
         {
             self.respond_no_actions(id);
             return;
@@ -435,7 +433,9 @@ impl Server {
             diagnostics: params.context.diagnostics,
             quickfix: only.is_none_or(|kinds| kinds.contains(&CodeActionKind::QUICKFIX)),
             suggestions: only.is_none_or(|kinds| kinds.contains(&CodeActionKind::REFACTOR_REWRITE)),
-            fix_all: only.is_none_or(|kinds| kinds.contains(&CodeActionKind::SOURCE_FIX_ALL)),
+            fix_all: only.is_none_or(|kinds| {
+                kinds.contains(&CodeActionKind::from(crate::code_actions::FIX_ALL_KIND))
+            }),
         };
         self.pending.insert(id, Pending::CodeAction);
         self.worker.submit(job);
