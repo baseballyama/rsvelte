@@ -14,12 +14,12 @@ use lsp_types::{
     DiagnosticServerCapabilities, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
     DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentDiagnosticParams,
     DocumentDiagnosticReport, DocumentFormattingParams, DocumentSymbolParams,
-    DocumentSymbolResponse, FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability,
-    FullDocumentDiagnosticReport, HoverParams, HoverProviderCapability, NumberOrString, OneOf,
-    PublishDiagnosticsParams, RelatedFullDocumentDiagnosticReport, SelectionRangeParams,
-    SelectionRangeProviderCapability, ServerCapabilities, TextDocumentPositionParams,
-    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
-    TextDocumentSyncSaveOptions, TextEdit, Uri,
+    DocumentSymbolResponse, ExecuteCommandOptions, ExecuteCommandParams, FoldingRange,
+    FoldingRangeParams, FoldingRangeProviderCapability, FullDocumentDiagnosticReport, HoverParams,
+    HoverProviderCapability, NumberOrString, OneOf, PublishDiagnosticsParams,
+    RelatedFullDocumentDiagnosticReport, SelectionRangeParams, SelectionRangeProviderCapability,
+    ServerCapabilities, TextDocumentPositionParams, TextDocumentSyncCapability,
+    TextDocumentSyncKind, TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit, Uri,
 };
 
 use crate::client::ClientState;
@@ -102,6 +102,10 @@ fn capabilities(client: &ClientState) -> ServerCapabilities {
         code_lens_provider: Some(CodeLensOptions {
             resolve_provider: Some(false),
         }),
+        execute_command_provider: Some(ExecuteCommandOptions {
+            commands: vec![crate::extract::COMMAND.to_string()],
+            ..ExecuteCommandOptions::default()
+        }),
         folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
         selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
         document_symbol_provider: Some(OneOf::Left(true)),
@@ -126,6 +130,7 @@ enum Pending {
     Hover,
     CodeAction,
     CodeLens,
+    ExtractComponent,
     FoldingRange,
     SelectionRange,
     DocumentSymbol,
@@ -237,6 +242,7 @@ impl Server {
             "textDocument/hover" => self.on_hover(request),
             "textDocument/codeAction" => self.on_code_action(request),
             "textDocument/codeLens" => self.on_code_lens(request),
+            "workspace/executeCommand" => self.on_execute_command(request),
             "textDocument/foldingRange" => self.on_folding_range(request),
             "textDocument/selectionRange" => self.on_selection_range(request),
             "textDocument/documentSymbol" => self.on_document_symbol(request),
@@ -441,6 +447,51 @@ impl Server {
         };
         self.pending.insert(id, Pending::CodeLens);
         self.worker.submit(job);
+    }
+
+    fn on_execute_command(&mut self, request: Request) {
+        let id = request.id;
+        let params = match serde_json::from_value::<ExecuteCommandParams>(request.params) {
+            Ok(params) if params.command == crate::extract::COMMAND => params,
+            Ok(_) => return self.respond_nothing(id),
+            Err(err) => {
+                log::warn(format_args!("workspace/executeCommand: {err}"));
+                return self.respond_nothing(id);
+            }
+        };
+        let Some(args) = params.arguments.into_iter().nth(1) else {
+            return self.respond_nothing(id);
+        };
+        let Some(uri) = args.get("uri").and_then(serde_json::Value::as_str) else {
+            return self.respond_nothing(id);
+        };
+        let Ok(uri) = uri.parse::<Uri>() else {
+            return self.respond_nothing(id);
+        };
+        let Some(document) = self.component_document(&uri) else {
+            return self.respond_nothing(id);
+        };
+        let text = document.shared_text();
+        let Some(range) = args
+            .get("range")
+            .cloned()
+            .and_then(|value| serde_json::from_value(value).ok())
+        else {
+            return self.respond_nothing(id);
+        };
+        let file_path = args
+            .get("filePath")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default()
+            .to_string();
+        self.pending.insert(id.clone(), Pending::ExtractComponent);
+        self.worker.submit(Job::ExtractComponent {
+            id,
+            uri,
+            text,
+            range,
+            file_path,
+        });
     }
 
     fn on_folding_range(&mut self, request: Request) {
@@ -698,6 +749,11 @@ impl Server {
             Outcome::CodeLenses { id, lenses } => {
                 if self.pending.remove(&id).is_some() {
                     self.respond(Response::new_ok(id, lenses));
+                }
+            }
+            Outcome::ExtractedComponent { id, result } => {
+                if self.pending.remove(&id).is_some() {
+                    self.respond(Response::new_ok(id, result));
                 }
             }
             Outcome::FoldingRanges { id, ranges } => {

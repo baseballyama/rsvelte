@@ -21,6 +21,7 @@ use lsp_types::{
     CodeActionOrCommand, CodeLens, CompletionList, Diagnostic, DocumentSymbolResponse,
     FoldingRange, Hover, Range, SelectionRange, TextEdit, Uri,
 };
+use serde_json::Value;
 
 use crate::format::FormatSessions;
 use crate::lint::LintConfigCache;
@@ -70,6 +71,13 @@ pub enum Job {
         id: RequestId,
         path: PathBuf,
         text: Arc<String>,
+    },
+    ExtractComponent {
+        id: RequestId,
+        uri: Uri,
+        text: Arc<String>,
+        range: Range,
+        file_path: String,
     },
     FoldingRange {
         id: RequestId,
@@ -127,6 +135,10 @@ pub enum Outcome {
     CodeLenses {
         id: RequestId,
         lenses: Vec<CodeLens>,
+    },
+    ExtractedComponent {
+        id: RequestId,
+        result: Value,
     },
     FoldingRanges {
         id: RequestId,
@@ -270,6 +282,20 @@ fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>) {
                     crate::code_lens::code_lenses(&text, &path)
                 })
                 .unwrap_or_default(),
+            },
+            Job::ExtractComponent {
+                id,
+                uri,
+                text,
+                range,
+                file_path,
+            } => Outcome::ExtractedComponent {
+                id,
+                result: guard("extract component", Path::new(uri.as_str()), || {
+                    crate::extract::component(&text, uri.as_str(), range, &file_path)
+                })
+                .unwrap_or_else(|| Err("Invalid selection range".to_string()))
+                .map_or_else(Value::String, |edit| edit),
             },
             Job::FoldingRange {
                 id,
