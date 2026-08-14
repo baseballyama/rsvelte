@@ -47,7 +47,7 @@
   "map-parity\tsourcemap-basename-without-outputname\tclient\t4",
   "map-parity\tsourcemap-concat\tclient\t14",
   "map-parity\tsourcemap-concat\tserver\t4",
-  "map-parity\tsourcemap-empty-source\tclient\t21",
+  "map-parity\tsourcemap-empty-source\tclient\t18",
   "map-parity\tsourcemap-empty-source\tserver\t6",
   "map-parity\tsourcemap-names\tclient\t36",
   "map-parity\tsourcemap-names\tserver\t6",

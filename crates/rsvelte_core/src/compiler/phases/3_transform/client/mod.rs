@@ -570,6 +570,7 @@ fn transform_client_with_visitors(
     // statements at module-body assembly (below) rather than spliced into the
     // final printed output.
     let mut rest_excludes_hoists: Vec<(String, String)> = Vec::new();
+    let mut ast_islands = Vec::new();
 
     // Transform the instance script once with the real reactive_import_names.
     // This also determines how many $$array names it consumes (for template generation)
@@ -1322,11 +1323,33 @@ fn transform_client_with_visitors(
                     // the official Svelte compiler's esrap output (consistent spacing,
                     // semicolons, etc.)
                     let normalized = normalize_js_with_oxc(trimmed, script_indent);
-                    component_body.push(script_raw_statement(
-                        normalized,
-                        script_source_offset,
-                        has_effect_rune,
-                    ));
+                    let retained = retained_scripts
+                        .and_then(|scripts| scripts.instance.as_ref())
+                        .filter(|retained| {
+                            !analysis.is_typescript
+                                && retained.source() == content.raw
+                                && retained.program().comments.is_empty()
+                                && transformed_script.trim() == content.raw.trim()
+                        });
+                    if let Some(retained) = retained {
+                        let index = ast_islands.len();
+                        ast_islands.push(super::js_ast::to_oxc::AstIsland {
+                            program: retained,
+                            source_offset: content.start,
+                        });
+                        component_body.push(JsStatement::RetainedAst {
+                            index,
+                            fallback: normalized.into(),
+                            source_offset: script_source_offset,
+                            has_effect_rune,
+                        });
+                    } else {
+                        component_body.push(script_raw_statement(
+                            normalized,
+                            script_source_offset,
+                            has_effect_rune,
+                        ));
+                    }
                 }
             }
         }
@@ -2394,51 +2417,52 @@ fn transform_client_with_visitors(
         let converted = CLIENT_TO_OXC_ALLOCATOR.with(|cell| {
             let mut alloc = cell.borrow_mut();
             alloc.reset();
-            super::js_ast::to_oxc::program_to_oxc(&program, &context.arena, &alloc).map(
-                |converted| {
-                    // Keep `;` empty statements: the parsed-`Raw` `;;` are real
-                    // EmptyStatement nodes the official compiler output preserves.
-                    let print_opts =
-                        rsvelte_esrap::PrintOptions::default().with_empty_statements(true);
-                    let oxc_prog = &converted.program;
-                    match &converted.comment_source {
-                        // The program carries comments, so it prints in the
-                        // unified comment coordinate space `to_oxc` built.
-                        Some(comment_source) => {
-                            let map_source = options.enable_sourcemap.then_some(source);
-                            let _t = super::profile::timer_start();
-                            let pm = rsvelte_esrap::print_split(
-                                oxc_prog,
-                                comment_source,
-                                converted.loc_base,
-                                map_source,
-                                &converted.loc_map,
-                                &print_opts,
-                            );
-                            super::profile::record_esrap_client_split(
-                                super::profile::timer_elapsed(_t),
-                            );
-                            (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
-                        }
-                        None if options.enable_sourcemap => {
-                            let _t = super::profile::timer_start();
-                            let pm = rsvelte_esrap::print_with_map(oxc_prog, source, &print_opts);
-                            super::profile::record_esrap_client_map(super::profile::timer_elapsed(
-                                _t,
-                            ));
-                            (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
-                        }
-                        None => {
-                            let _t = super::profile::timer_start();
-                            let code = rsvelte_esrap::print_with(oxc_prog, "", &print_opts);
-                            super::profile::record_esrap_client_plain(
-                                super::profile::timer_elapsed(_t),
-                            );
-                            (code, Vec::new())
-                        }
-                    }
-                },
+            super::js_ast::to_oxc::program_to_oxc_with_islands(
+                &program,
+                &context.arena,
+                &alloc,
+                &ast_islands,
             )
+            .map(|converted| {
+                // Keep `;` empty statements: the parsed-`Raw` `;;` are real
+                // EmptyStatement nodes the official compiler output preserves.
+                let print_opts = rsvelte_esrap::PrintOptions::default().with_empty_statements(true);
+                let oxc_prog = &converted.program;
+                match &converted.comment_source {
+                    // The program carries comments, so it prints in the
+                    // unified comment coordinate space `to_oxc` built.
+                    Some(comment_source) => {
+                        let map_source = options.enable_sourcemap.then_some(source);
+                        let _t = super::profile::timer_start();
+                        let pm = rsvelte_esrap::print_split(
+                            oxc_prog,
+                            comment_source,
+                            converted.loc_base,
+                            map_source,
+                            &converted.loc_map,
+                            &print_opts,
+                        );
+                        super::profile::record_esrap_client_split(super::profile::timer_elapsed(
+                            _t,
+                        ));
+                        (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
+                    }
+                    None if options.enable_sourcemap => {
+                        let _t = super::profile::timer_start();
+                        let pm = rsvelte_esrap::print_with_map(oxc_prog, source, &print_opts);
+                        super::profile::record_esrap_client_map(super::profile::timer_elapsed(_t));
+                        (pm.code, esrap_mappings_to_source_mappings(&pm.mappings))
+                    }
+                    None => {
+                        let _t = super::profile::timer_start();
+                        let code = rsvelte_esrap::print_with(oxc_prog, "", &print_opts);
+                        super::profile::record_esrap_client_plain(super::profile::timer_elapsed(
+                            _t,
+                        ));
+                        (code, Vec::new())
+                    }
+                }
+            })
         });
         if let Some((code, mappings)) = converted {
             super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));

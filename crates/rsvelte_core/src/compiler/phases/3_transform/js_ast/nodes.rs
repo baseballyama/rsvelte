@@ -91,6 +91,13 @@ pub enum JsStatement {
         code: CompactString,
         source_offset: u32,
     },
+    /// A retained source AST inserted directly into the final OXC program.
+    RetainedAst {
+        index: usize,
+        fallback: CompactString,
+        source_offset: u32,
+        has_effect_rune: bool,
+    },
 }
 
 /// Import declaration.

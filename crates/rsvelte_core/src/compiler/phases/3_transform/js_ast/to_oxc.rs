@@ -56,6 +56,7 @@
 
 use super::arena::{ExprId, JsArena};
 use super::nodes::*;
+use crate::ast::oxc_program::RetainedProgram;
 use oxc_allocator::{ArenaBox, ArenaVec, GetAllocator, ReplaceWith};
 use oxc_ast::ast::*;
 use oxc_ast::builder::AstBuilder;
@@ -75,6 +76,12 @@ pub struct Converted<'a> {
     pub comment_source: Option<String>,
     pub loc_base: u32,
     pub loc_map: Vec<(u32, u32, Option<u32>)>,
+}
+
+/// A retained source program to clone into the final OXC allocator.
+pub struct AstIsland<'source> {
+    pub program: &'source RetainedProgram<'source>,
+    pub source_offset: u32,
 }
 
 thread_local! {
@@ -108,13 +115,23 @@ pub fn program_to_oxc<'a>(
     arena: &JsArena,
     allocator: &'a oxc_allocator::Allocator,
 ) -> Option<Converted<'a>> {
+    program_to_oxc_with_islands(program, arena, allocator, &[])
+}
+
+/// Convert an IR program while inserting retained source ASTs directly.
+pub fn program_to_oxc_with_islands<'a, 'source>(
+    program: &JsProgram,
+    arena: &JsArena,
+    allocator: &'a oxc_allocator::Allocator,
+    islands: &[AstIsland<'source>],
+) -> Option<Converted<'a>> {
     note_fallback(UNSUPPORTED);
-    let (probe, synth) = convert_once(program, arena, allocator, None)?;
+    let (probe, synth) = convert_once(program, arena, allocator, islands, None)?;
     if !synth.saw_comments {
         return Some(probe);
     }
     let loc_base = synth.max_span.saturating_add(2);
-    let (converted, synth) = convert_once(program, arena, allocator, Some(loc_base))?;
+    let (converted, synth) = convert_once(program, arena, allocator, islands, Some(loc_base))?;
     // Every span the pass produced outside a chunk region must stay below
     // `loc_base`, or the printer would mistake it for a real location.
     if synth.max_span >= loc_base {
@@ -124,15 +141,17 @@ pub fn program_to_oxc<'a>(
     Some(converted)
 }
 
-fn convert_once<'a>(
+fn convert_once<'a, 'source>(
     program: &JsProgram,
     arena: &JsArena,
     allocator: &'a oxc_allocator::Allocator,
+    islands: &[AstIsland<'source>],
     loc_base: Option<u32>,
 ) -> Option<(Converted<'a>, Synth)> {
     let cx = Cx {
         ab: AstBuilder::new(allocator),
         arena,
+        islands,
         synth: RefCell::new(Synth::new(loc_base)),
     };
 
@@ -351,13 +370,14 @@ pub(crate) const SINGLE_TARGET_DESTRUCTURE_SEQUENCE_MARKER: &str = "__rsvelte_se
 
 /// Conversion context: holds the oxc [`AstBuilder`] and the IR arena used to
 /// resolve [`ExprId`] handles.
-struct Cx<'a, 'arena> {
+struct Cx<'a, 'arena, 'source> {
     ab: AstBuilder<'a>,
     arena: &'arena JsArena,
+    islands: &'arena [AstIsland<'source>],
     synth: RefCell<Synth>,
 }
 
-impl<'a, 'arena> Cx<'a, 'arena> {
+impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
     /// Allocate a string into the oxc arena and return it as an `&'a str`,
     /// which satisfies the `Into<Atom<'a>>` / `Into<Str<'a>>` bounds used by
     /// the builder helpers.
@@ -546,6 +566,7 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 code,
                 source_offset,
             } => self.raw_single_statement(code, Some(*source_offset), true),
+            JsStatement::RetainedAst { .. } => None,
         }
     }
 
@@ -1425,6 +1446,16 @@ impl<'a, 'arena> Cx<'a, 'arena> {
     /// block bodies) so a multi-statement `Raw` flattens inline.
     fn expand_stmt(&self, stmt: &JsStatement) -> Option<Vec<Statement<'a>>> {
         match stmt {
+            JsStatement::RetainedAst { index, .. } => {
+                let island = self.islands.get(*index)?;
+                if !island.program.program().comments.is_empty() {
+                    return None;
+                }
+                let program = island
+                    .program
+                    .clone_program_into_at(self.ab.allocator(), island.source_offset);
+                Some(program.body.into_iter().collect())
+            }
             JsStatement::Raw(code) => {
                 let stmts = self.parse_raw_statements(code, false)?;
                 self.take_chunk_region(None);
@@ -2259,5 +2290,40 @@ fn unary_op(op: JsUnaryOp) -> UnaryOperator {
         JsUnaryOp::TypeOf => UnaryOperator::Typeof,
         JsUnaryOp::Void => UnaryOperator::Void,
         JsUnaryOp::Delete => UnaryOperator::Delete,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{AstIsland, program_to_oxc_with_islands};
+    use crate::ast::oxc_program::RetainedProgram;
+    use crate::compiler::phases::phase3_transform::js_ast::{JsArena, JsProgram, JsStatement};
+    use oxc_allocator::Allocator;
+    use oxc_span::GetSpan;
+
+    #[test]
+    fn retained_island_keeps_absolute_source_spans() {
+        let retained = RetainedProgram::parse("let value = 1;", false);
+        let program = JsProgram::with_body(vec![JsStatement::RetainedAst {
+            index: 0,
+            fallback: "let value = 1;".into(),
+            source_offset: 12,
+            has_effect_rune: false,
+        }]);
+        let arena = JsArena::new();
+        let allocator = Allocator::default();
+        let converted = program_to_oxc_with_islands(
+            &program,
+            &arena,
+            &allocator,
+            &[AstIsland {
+                program: &retained,
+                source_offset: 12,
+            }],
+        )
+        .expect("retained AST is supported");
+
+        assert_eq!(converted.program.body[0].span().start, 12);
+        assert_eq!(converted.program.body[0].span().end, 26);
     }
 }

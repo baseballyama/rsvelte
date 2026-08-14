@@ -412,6 +412,14 @@ impl<'a> JsCodegen<'a> {
                 self.emit_raw_mapped(code, *source_offset);
                 self.needs_semicolon = false;
             }
+            JsStatement::RetainedAst {
+                fallback,
+                source_offset,
+                ..
+            } => {
+                self.emit_raw_mapped(fallback, *source_offset);
+                self.needs_semicolon = false;
+            }
         }
     }
 
@@ -2285,6 +2293,7 @@ fn stmt_type_name(stmt: &JsStatement) -> &'static str {
         JsStatement::RawMapped { code, .. } => raw_stmt_type_name(code),
         JsStatement::RawEffect(code) => raw_stmt_type_name(code),
         JsStatement::RawMappedEffect { code, .. } => raw_stmt_type_name(code),
+        JsStatement::RetainedAst { fallback, .. } => raw_stmt_type_name(fallback),
     }
 }
 
