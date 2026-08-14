@@ -96,7 +96,11 @@ fn capabilities(client: &ClientState) -> ServerCapabilities {
         }),
         hover_provider: Some(HoverProviderCapability::Simple(true)),
         code_action_provider: Some(CodeActionProviderCapability::Options(CodeActionOptions {
-            code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
+            code_action_kinds: Some(vec![
+                CodeActionKind::QUICKFIX,
+                CodeActionKind::REFACTOR_REWRITE,
+                CodeActionKind::new(crate::code_actions::FIX_ALL_KIND),
+            ]),
             ..CodeActionOptions::default()
         })),
         code_lens_provider: Some(CodeLensOptions {
@@ -400,14 +404,24 @@ impl Server {
             self.respond_no_actions(id);
             return;
         };
-        // A client asking only for other kinds (organize imports, refactorings)
-        // gets nothing rather than a quickfix it did not ask for.
         let wants_quickfix = params
             .context
             .only
             .as_ref()
             .is_none_or(|kinds| kinds.contains(&CodeActionKind::QUICKFIX));
-        if params.context.diagnostics.is_empty() || !wants_quickfix {
+        let wants_refactor = params.context.only.as_ref().is_none_or(|kinds| {
+            kinds
+                .iter()
+                .any(|kind| kind.as_str().starts_with(CodeActionKind::REFACTOR.as_str()))
+        });
+        let fix_all = params.context.only.as_ref().is_some_and(|kinds| {
+            kinds
+                .iter()
+                .any(|kind| kind.as_str() == crate::code_actions::FIX_ALL_KIND)
+        });
+        if (!wants_quickfix && !wants_refactor && !fix_all)
+            || (params.context.diagnostics.is_empty() && !fix_all)
+        {
             self.respond_no_actions(id);
             return;
         }
@@ -417,6 +431,9 @@ impl Server {
             text: document.shared_text(),
             uri,
             diagnostics: params.context.diagnostics,
+            quickfix: wants_quickfix,
+            suggestions: wants_refactor,
+            fix_all,
         };
         self.pending.insert(id, Pending::CodeAction);
         self.worker.submit(job);

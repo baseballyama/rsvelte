@@ -16,6 +16,8 @@ use rsvelte_core::ast::template::{Fragment, Root, TemplateNode};
 use crate::diagnostics::{COMPILER_SOURCE, is_compiler_code};
 use crate::text::{LineIndex, source_offset};
 
+pub const FIX_ALL_KIND: &str = "source.fixAll.rsvelte";
+
 /// Warnings a `svelte-ignore` comment cannot suppress, in both the spelling the
 /// official server lists and the one Svelte 5 emits.
 const NON_IGNORABLE: &[&str] = &[
@@ -46,8 +48,188 @@ pub fn quickfixes(source: &str, uri: &Uri, diagnostics: &[Diagnostic]) -> Vec<Co
     let mut actions = Vec::new();
     for diagnostic in diagnostics {
         for_diagnostic(source, &index, root.as_ref(), uri, diagnostic, &mut actions);
+        if code_of(diagnostic) == Some("security-anchor-rel-noreferrer") {
+            if let Some(action) = add_noreferrer(source, &index, uri, diagnostic) {
+                actions.push(action);
+            }
+        }
     }
     actions
+}
+
+/// Actions for rsvelte-lint's native fixes and editor-only suggestions.
+pub fn lint_actions(
+    source: &str,
+    path: &std::path::Path,
+    uri: &Uri,
+    config: &rsvelte_lint::LintConfig,
+    diagnostics: &[Diagnostic],
+    include_fixes: bool,
+    include_suggestions: bool,
+    include_fix_all: bool,
+) -> Vec<CodeActionOrCommand> {
+    let options = rsvelte_core::CompileOptions {
+        filename: Some(path.display().to_string()),
+        ..rsvelte_core::CompileOptions::default()
+    };
+    let messages = rsvelte_lint::lint_source_messages(source, path, &options, config);
+    let index = LineIndex::new(source);
+    let mut actions = Vec::new();
+
+    for message in &messages {
+        let Some((start, end)) = message.span else {
+            continue;
+        };
+        let range = Range::new(
+            index.position(source, start as usize),
+            index.position(source, end as usize),
+        );
+        let Some(code) = message.diagnostic.code.as_deref() else {
+            continue;
+        };
+        let matches_diagnostic = diagnostics.iter().any(|diagnostic| {
+            diagnostic.source.as_deref() == Some("rsvelte")
+                && code_of(diagnostic) == Some(code)
+                && diagnostic.range == range
+        });
+        if !matches_diagnostic {
+            continue;
+        }
+        if include_fixes && let Some(fix) = &message.fix {
+            actions.push(action(
+                uri,
+                &index,
+                source,
+                &fix.message,
+                CodeActionKind::QUICKFIX,
+                &fix.edits,
+            ));
+        }
+        for suggestion in include_suggestions
+            .then_some(&message.suggestions)
+            .into_iter()
+            .flatten()
+        {
+            actions.push(action(
+                uri,
+                &index,
+                source,
+                &suggestion.desc,
+                CodeActionKind::REFACTOR_REWRITE,
+                &suggestion.fix.edits,
+            ));
+        }
+    }
+
+    if include_fix_all {
+        let mut fixes: Vec<_> = messages
+            .into_iter()
+            .filter_map(|message| message.fix)
+            .collect();
+        fixes.sort_by_key(|fix| {
+            fix.edits
+                .iter()
+                .map(|edit| edit.start)
+                .min()
+                .unwrap_or(u32::MAX)
+        });
+        let mut edits = Vec::new();
+        let mut occupied = 0;
+        for fix in fixes {
+            let mut candidate = fix.edits;
+            candidate.sort_by_key(|edit| edit.start);
+            if candidate.iter().all(|edit| edit.start >= occupied) {
+                occupied = candidate
+                    .iter()
+                    .map(|edit| edit.end)
+                    .max()
+                    .unwrap_or(occupied);
+                edits.extend(candidate);
+            }
+        }
+        if !edits.is_empty() {
+            actions.push(action(
+                uri,
+                &index,
+                source,
+                "Fix all auto-fixable rsvelte problems",
+                CodeActionKind::new(FIX_ALL_KIND),
+                &edits,
+            ));
+        }
+    }
+    actions
+}
+
+fn action(
+    uri: &Uri,
+    index: &LineIndex,
+    source: &str,
+    title: &str,
+    kind: CodeActionKind,
+    edits: &[rsvelte_lint::TextEdit],
+) -> CodeActionOrCommand {
+    let edits = edits
+        .iter()
+        .map(|edit| TextEdit {
+            range: Range::new(
+                index.position(source, edit.start as usize),
+                index.position(source, edit.end as usize),
+            ),
+            new_text: edit.new_text.clone(),
+        })
+        .collect();
+    CodeActionOrCommand::CodeAction(CodeAction {
+        title: title.to_string(),
+        kind: Some(kind),
+        edit: Some(WorkspaceEdit {
+            changes: Some(HashMap::from([(uri.clone(), edits)])),
+            ..WorkspaceEdit::default()
+        }),
+        ..CodeAction::default()
+    })
+}
+
+fn add_noreferrer(
+    source: &str,
+    index: &LineIndex,
+    uri: &Uri,
+    diagnostic: &Diagnostic,
+) -> Option<CodeActionOrCommand> {
+    let start = index.offset(source, diagnostic.range.start);
+    let open = source[..start].rfind("<a")?;
+    let close = source[start..].find('>')? + start;
+    let tag = &source[open..=close];
+    let edit = if let Some(rel) = tag.find("rel=") {
+        let quote = tag[rel + 4..].chars().next()?;
+        if quote != '\'' && quote != '"' {
+            return None;
+        }
+        let value_start = open + rel + 5;
+        let value_end = source[value_start..].find(quote)? + value_start;
+        TextEdit {
+            range: Range::new(
+                index.position(source, value_end),
+                index.position(source, value_end),
+            ),
+            new_text: " noreferrer".to_string(),
+        }
+    } else {
+        let insert = index.position(source, close);
+        TextEdit {
+            range: Range::new(insert, insert),
+            new_text: " rel=\"noreferrer\"".to_string(),
+        }
+    };
+    Some(CodeActionOrCommand::CodeAction(CodeAction {
+        title: "(svelte) Add missing attribute rel=\"noreferrer\"".to_string(),
+        kind: Some(CodeActionKind::QUICKFIX),
+        edit: Some(WorkspaceEdit {
+            changes: Some(HashMap::from([(uri.clone(), vec![edit])])),
+            ..WorkspaceEdit::default()
+        }),
+        ..CodeAction::default()
+    }))
 }
 
 fn for_diagnostic(
@@ -274,6 +456,26 @@ mod tests {
 
     fn range(start: (u32, u32), end: (u32, u32)) -> Range {
         Range::new(Position::new(start.0, start.1), Position::new(end.0, end.1))
+    }
+
+    fn lint_diagnostic(source: &str, config: &rsvelte_lint::LintConfig, code: &str) -> Diagnostic {
+        let path = std::path::Path::new("App.svelte");
+        let options = rsvelte_core::CompileOptions::default();
+        let message = rsvelte_lint::lint_source_messages(source, path, &options, config)
+            .into_iter()
+            .find(|message| message.diagnostic.code.as_deref() == Some(code))
+            .expect("fixture should produce the requested lint finding");
+        let (start, end) = message.span.expect("native lint finding");
+        let index = LineIndex::new(source);
+        Diagnostic {
+            range: Range::new(
+                index.position(source, start as usize),
+                index.position(source, end as usize),
+            ),
+            code: Some(NumberOrString::String(code.to_string())),
+            source: Some("rsvelte".to_string()),
+            ..Diagnostic::default()
+        }
     }
 
     /// The (title, edit) pairs of every action, flattened for assertion.
@@ -525,5 +727,72 @@ mod tests {
             ],
         );
         assert_eq!(fixes.len(), 2);
+    }
+
+    #[test]
+    fn lint_suggestions_are_editor_actions_not_fix_all_edits() {
+        let source = "<p>{@debug value}</p>";
+        let config = rsvelte_lint::LintConfig::recommended();
+        let diagnostic = lint_diagnostic(source, &config, "svelte/no-at-debug-tags");
+        let actions = lint_actions(
+            source,
+            std::path::Path::new("App.svelte"),
+            &uri(),
+            &config,
+            &[diagnostic],
+            false,
+            true,
+            true,
+        );
+        assert_eq!(actions.len(), 1);
+        let CodeActionOrCommand::CodeAction(action) = &actions[0] else {
+            panic!("a command, not a code action");
+        };
+        assert_eq!(action.title, "Remove `{@debug}` from the source");
+        assert_eq!(action.kind, Some(CodeActionKind::REFACTOR_REWRITE));
+        assert_eq!(
+            action.edit.as_ref().unwrap().changes.as_ref().unwrap()[&uri()][0].new_text,
+            ""
+        );
+    }
+
+    #[test]
+    fn lint_fixes_and_fix_all_are_workspace_edits() {
+        let source = "<p>{ value }</p>";
+        let config = rsvelte_lint::LintConfig::from_json_str(
+            r#"{ "rules": { "svelte/mustache-spacing": "error" } }"#,
+        )
+        .unwrap();
+        let diagnostic = lint_diagnostic(source, &config, "svelte/mustache-spacing");
+        let actions = lint_actions(
+            source,
+            std::path::Path::new("App.svelte"),
+            &uri(),
+            &config,
+            &[diagnostic],
+            true,
+            false,
+            true,
+        );
+        assert!(actions.iter().any(|action| matches!(action, CodeActionOrCommand::CodeAction(action) if action.kind == Some(CodeActionKind::QUICKFIX))));
+        assert!(actions.iter().any(|action| matches!(action, CodeActionOrCommand::CodeAction(action) if action.kind.as_ref().is_some_and(|kind| kind.as_str() == FIX_ALL_KIND))));
+    }
+
+    #[test]
+    fn anchor_warning_offers_the_noreferrer_edit() {
+        let source = r#"<a target="_blank">link</a>"#;
+        let actions = fixes(
+            source,
+            &[diagnostic(
+                "security-anchor-rel-noreferrer",
+                range((0, 3), (0, 18)),
+            )],
+        );
+        assert_eq!(actions.len(), 2);
+        assert_eq!(
+            actions[1].0,
+            "(svelte) Add missing attribute rel=\"noreferrer\""
+        );
+        assert_eq!(actions[1].1.new_text, " rel=\"noreferrer\"");
     }
 }

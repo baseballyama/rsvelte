@@ -66,6 +66,9 @@ pub enum Job {
         path: PathBuf,
         text: Arc<String>,
         diagnostics: Vec<Diagnostic>,
+        quickfix: bool,
+        suggestions: bool,
+        fix_all: bool,
     },
     CodeLens {
         id: RequestId,
@@ -269,9 +272,28 @@ fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>) {
                 path,
                 text,
                 diagnostics,
+                quickfix,
+                suggestions,
+                fix_all,
             } => {
+                let config = lint_configs.get(path.parent().unwrap_or(Path::new(".")));
                 let actions = guard("code action", &path, || {
-                    crate::code_actions::quickfixes(&text, &uri, &diagnostics)
+                    let mut actions = if quickfix {
+                        crate::code_actions::quickfixes(&text, &uri, &diagnostics)
+                    } else {
+                        Vec::new()
+                    };
+                    actions.extend(crate::code_actions::lint_actions(
+                        &text,
+                        &path,
+                        &uri,
+                        &config,
+                        &diagnostics,
+                        quickfix,
+                        suggestions,
+                        fix_all,
+                    ));
+                    actions
                 })
                 .unwrap_or_default();
                 Outcome::CodeActions { id, actions }

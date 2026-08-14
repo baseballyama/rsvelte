@@ -434,7 +434,7 @@ fn serves_diagnostics_and_formatting() {
     );
     assert_eq!(
         result["capabilities"]["codeActionProvider"]["codeActionKinds"],
-        json!(["quickfix"])
+        json!(["quickfix", "refactor.rewrite", "source.fixAll.rsvelte"])
     );
     assert_eq!(
         result["capabilities"]["workspace"]["workspaceFolders"],
