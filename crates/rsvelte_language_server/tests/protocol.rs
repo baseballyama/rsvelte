@@ -184,6 +184,14 @@ impl Server {
         self.response(id).as_array().cloned().unwrap_or_default()
     }
 
+    fn code_lenses(&mut self, uri: &str) -> Vec<Value> {
+        let id = self.request(
+            "textDocument/codeLens",
+            json!({ "textDocument": { "uri": uri } }),
+        );
+        self.response(id).as_array().cloned().unwrap_or_default()
+    }
+
     fn hover(&mut self, uri: &str, line: u32, character: u32) -> Value {
         let id = self.request(
             "textDocument/hover",
@@ -1042,6 +1050,61 @@ fn serves_folding_selection_and_symbols() {
         "a tree carries ranges, not locations"
     );
 
+    assert_eq!(server.shutdown(), Some(0));
+}
+
+#[test]
+fn serves_runes_legacy_mode_code_lenses() {
+    let dir = temp_dir("code-lens");
+    let uri = file_uri(&dir.join("App.svelte"));
+    let mut server = initialized_server();
+
+    did_open(&mut server, &uri, "<script>let count = $state(0);</script>");
+    assert_eq!(
+        server.code_lenses(&uri),
+        json!([{
+            "range": {
+                "start": { "line": 0, "character": 0 },
+                "end": { "line": 0, "character": 0 }
+            },
+            "command": {
+                "title": "Runes mode",
+                "command": "svelte.openLink",
+                "arguments": ["https://svelte.dev/docs/svelte/legacy-overview"]
+            }
+        }])
+        .as_array()
+        .unwrap()
+        .clone()
+    );
+
+    server.notify(
+        "textDocument/didChange",
+        json!({
+            "textDocument": { "uri": uri, "version": 2 },
+            "contentChanges": [{ "text": "<script>let count = 0;</script>" }],
+        }),
+    );
+    assert_eq!(
+        server.code_lenses(&uri)[0]["command"]["title"],
+        "Legacy mode"
+    );
+    assert_eq!(server.shutdown(), Some(0));
+}
+
+#[test]
+fn code_lens_respects_its_setting() {
+    let dir = temp_dir("code-lens-disabled");
+    let uri = file_uri(&dir.join("App.svelte"));
+    let mut server = initialized_server();
+    server.settings = json!({ "runesLegacyModeCodeLens": { "enable": false } });
+    server.notify(
+        "workspace/didChangeConfiguration",
+        json!({ "settings": Value::Null }),
+    );
+    server.settle_configuration();
+    did_open(&mut server, &uri, "<p>legacy</p>");
+    assert!(server.code_lenses(&uri).is_empty());
     assert_eq!(server.shutdown(), Some(0));
 }
 

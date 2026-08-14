@@ -26,6 +26,7 @@ pub struct Settings {
     pub folding_range_enable: bool,
     pub selection_range_enable: bool,
     pub document_symbol_enable: bool,
+    pub runes_legacy_mode_code_lens_enable: bool,
     pub compiler_warnings: CompilerWarnings,
 }
 
@@ -39,6 +40,7 @@ impl Default for Settings {
             folding_range_enable: true,
             selection_range_enable: true,
             document_symbol_enable: true,
+            runes_legacy_mode_code_lens_enable: true,
             compiler_warnings: CompilerWarnings::default(),
         }
     }
@@ -61,6 +63,8 @@ impl Settings {
                 .unwrap_or(default.selection_range_enable),
             document_symbol_enable: enabled(value, "documentSymbol")
                 .unwrap_or(default.document_symbol_enable),
+            runes_legacy_mode_code_lens_enable: enabled(value, "runesLegacyModeCodeLens")
+                .unwrap_or(default.runes_legacy_mode_code_lens_enable),
             compiler_warnings: compiler_warnings(value),
         }
     }
@@ -100,6 +104,7 @@ mod tests {
             "foldingRange": { "enable": false },
             "selectionRange": { "enable": true },
             "documentSymbol": { "enable": false }
+            ,"runesLegacyModeCodeLens": { "enable": true }
         }));
         assert_eq!(
             s,
@@ -111,6 +116,7 @@ mod tests {
                 folding_range_enable: false,
                 selection_range_enable: true,
                 document_symbol_enable: false,
+                runes_legacy_mode_code_lens_enable: true,
                 compiler_warnings: CompilerWarnings::default(),
             }
         );

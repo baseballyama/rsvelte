@@ -18,8 +18,8 @@ use std::thread::JoinHandle;
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use lsp_server::RequestId;
 use lsp_types::{
-    CodeActionOrCommand, CompletionList, Diagnostic, DocumentSymbolResponse, FoldingRange, Hover,
-    Range, SelectionRange, TextEdit, Uri,
+    CodeActionOrCommand, CodeLens, CompletionList, Diagnostic, DocumentSymbolResponse,
+    FoldingRange, Hover, Range, SelectionRange, TextEdit, Uri,
 };
 
 use crate::format::FormatSessions;
@@ -65,6 +65,11 @@ pub enum Job {
         path: PathBuf,
         text: Arc<String>,
         diagnostics: Vec<Diagnostic>,
+    },
+    CodeLens {
+        id: RequestId,
+        path: PathBuf,
+        text: Arc<String>,
     },
     FoldingRange {
         id: RequestId,
@@ -118,6 +123,10 @@ pub enum Outcome {
     CodeActions {
         id: RequestId,
         actions: Vec<CodeActionOrCommand>,
+    },
+    CodeLenses {
+        id: RequestId,
+        lenses: Vec<CodeLens>,
     },
     FoldingRanges {
         id: RequestId,
@@ -255,6 +264,13 @@ fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>) {
                 .unwrap_or_default();
                 Outcome::CodeActions { id, actions }
             }
+            Job::CodeLens { id, path, text } => Outcome::CodeLenses {
+                id,
+                lenses: guard("code lens", &path, || {
+                    crate::code_lens::code_lenses(&text, &path)
+                })
+                .unwrap_or_default(),
+            },
             Job::FoldingRange {
                 id,
                 path,

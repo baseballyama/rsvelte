@@ -9,18 +9,17 @@ use crossbeam_channel::{Receiver, Sender, after, never, select, unbounded};
 use lsp_server::{Connection, ErrorCode, Message, Notification, Request, RequestId, Response};
 use lsp_types::{
     CancelParams, CodeActionKind, CodeActionOptions, CodeActionOrCommand, CodeActionParams,
-    CodeActionProviderCapability, CompletionOptions, CompletionParams, ConfigurationItem,
-    ConfigurationParams, DiagnosticOptions, DiagnosticServerCapabilities,
-    DidChangeTextDocumentParams, DidChangeWatchedFilesParams, DidChangeWorkspaceFoldersParams,
-    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
-    DocumentDiagnosticParams, DocumentDiagnosticReport, DocumentFormattingParams,
-    DocumentSymbolParams, DocumentSymbolResponse, FoldingRange, FoldingRangeParams,
-    FoldingRangeProviderCapability, FullDocumentDiagnosticReport, HoverParams,
-    HoverProviderCapability, NumberOrString, OneOf, PublishDiagnosticsParams,
-    RelatedFullDocumentDiagnosticReport, SelectionRangeParams, SelectionRangeProviderCapability,
-    ServerCapabilities, TextDocumentPositionParams, TextDocumentSyncCapability,
-    TextDocumentSyncKind, TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit, Uri,
-    WorkspaceFoldersServerCapabilities,
+    CodeActionProviderCapability, CodeLens, CodeLensOptions, CodeLensParams, CompletionOptions,
+    CompletionParams, ConfigurationItem, ConfigurationParams, DiagnosticOptions,
+    DiagnosticServerCapabilities, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
+    DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentDiagnosticParams,
+    DocumentDiagnosticReport, DocumentFormattingParams, DocumentSymbolParams,
+    DocumentSymbolResponse, FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability,
+    FullDocumentDiagnosticReport, HoverParams, HoverProviderCapability, NumberOrString, OneOf,
+    PublishDiagnosticsParams, RelatedFullDocumentDiagnosticReport, SelectionRangeParams,
+    SelectionRangeProviderCapability, ServerCapabilities, TextDocumentPositionParams,
+    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
+    TextDocumentSyncSaveOptions, TextEdit, Uri,
 };
 
 use crate::client::ClientState;
@@ -100,6 +99,9 @@ fn capabilities(client: &ClientState) -> ServerCapabilities {
             code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
             ..CodeActionOptions::default()
         })),
+        code_lens_provider: Some(CodeLensOptions {
+            resolve_provider: Some(false),
+        }),
         folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
         selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
         document_symbol_provider: Some(OneOf::Left(true)),
@@ -110,13 +112,6 @@ fn capabilities(client: &ClientState) -> ServerCapabilities {
                 workspace_diagnostics: false,
                 ..DiagnosticOptions::default()
             })
-        }),
-        workspace: Some(lsp_types::WorkspaceServerCapabilities {
-            workspace_folders: Some(WorkspaceFoldersServerCapabilities {
-                supported: Some(true),
-                change_notifications: Some(OneOf::Left(true)),
-            }),
-            ..lsp_types::WorkspaceServerCapabilities::default()
         }),
         ..ServerCapabilities::default()
     }
@@ -130,6 +125,7 @@ enum Pending {
     Completion,
     Hover,
     CodeAction,
+    CodeLens,
     FoldingRange,
     SelectionRange,
     DocumentSymbol,
@@ -140,7 +136,6 @@ enum Pending {
 /// echo back.
 enum Outgoing {
     Configuration,
-    WatchedFilesRegistration,
 }
 
 struct Server {
@@ -188,9 +183,6 @@ impl Server {
     fn run(&mut self, connection: &Connection) -> Result<ExitCode> {
         if self.client.pull_configuration {
             self.request_configuration();
-        }
-        if self.client.dynamic_watched_files {
-            self.register_watched_files();
         }
         // Cloned out of `self` so the handlers below can still borrow it.
         let outcomes = self.outcomes.clone();
@@ -244,6 +236,7 @@ impl Server {
             "textDocument/completion" => self.on_completion(request),
             "textDocument/hover" => self.on_hover(request),
             "textDocument/codeAction" => self.on_code_action(request),
+            "textDocument/codeLens" => self.on_code_lens(request),
             "textDocument/foldingRange" => self.on_folding_range(request),
             "textDocument/selectionRange" => self.on_selection_range(request),
             "textDocument/documentSymbol" => self.on_document_symbol(request),
@@ -423,6 +416,33 @@ impl Server {
         self.worker.submit(job);
     }
 
+    fn on_code_lens(&mut self, request: Request) {
+        let id = request.id;
+        let params = match serde_json::from_value::<CodeLensParams>(request.params) {
+            Ok(params) => params,
+            Err(err) => {
+                log::warn(format_args!("textDocument/codeLens: {err}"));
+                self.respond_no_lenses(id);
+                return;
+            }
+        };
+        if !self.settings.runes_legacy_mode_code_lens_enable {
+            self.respond_no_lenses(id);
+            return;
+        }
+        let Some((path, text)) = self.component(&params.text_document.uri) else {
+            self.respond_no_lenses(id);
+            return;
+        };
+        let job = Job::CodeLens {
+            id: id.clone(),
+            path,
+            text,
+        };
+        self.pending.insert(id, Pending::CodeLens);
+        self.worker.submit(job);
+    }
+
     fn on_folding_range(&mut self, request: Request) {
         let id = request.id;
         let params = match serde_json::from_value::<FoldingRangeParams>(request.params) {
@@ -535,29 +555,6 @@ impl Server {
                     Err(err) => log::warn(format_args!("{method}: {err}")),
                 }
             }
-            "workspace/didChangeWorkspaceFolders" => {
-                match serde_json::from_value::<DidChangeWorkspaceFoldersParams>(notification.params)
-                {
-                    Ok(params) => self
-                        .client
-                        .update_workspace_folders(params.event.added, &params.event.removed),
-                    Err(err) => log::warn(format_args!("{method}: {err}")),
-                }
-            }
-            "workspace/didChangeWatchedFiles" => {
-                match serde_json::from_value::<DidChangeWatchedFilesParams>(notification.params) {
-                    Ok(params)
-                        if params
-                            .changes
-                            .iter()
-                            .any(|change| is_project_config(&change.uri)) =>
-                    {
-                        self.invalidate_project_config();
-                    }
-                    Ok(_) => {}
-                    Err(err) => log::warn(format_args!("{method}: {err}")),
-                }
-            }
             "textDocument/didOpen" => {
                 match serde_json::from_value::<DidOpenTextDocumentParams>(notification.params) {
                     Ok(params) => {
@@ -617,11 +614,14 @@ impl Server {
                 // A `rsvelte-lint.json` / `.oxfmtrc` edit reaches the server as
                 // a configuration change too, so the resolved-config caches are
                 // dropped along with the client settings.
-                self.invalidate_project_config();
+                self.worker.submit(Job::ClearCaches);
                 if self.client.pull_configuration {
                     self.request_configuration();
                 } else {
                     self.settings = Settings::default();
+                    if !self.client.pull_diagnostics {
+                        self.relint_open_documents();
+                    }
                 }
             }
             "exit" => self.exiting = true,
@@ -640,13 +640,6 @@ impl Server {
                 ErrorCode::RequestCanceled as i32,
                 "request cancelled by client".to_string(),
             ));
-        }
-    }
-
-    fn invalidate_project_config(&mut self) {
-        self.worker.submit(Job::ClearCaches);
-        if !self.client.pull_diagnostics {
-            self.relint_open_documents();
         }
     }
 
@@ -675,7 +668,6 @@ impl Server {
                     self.relint_open_documents();
                 }
             }
-            Outgoing::WatchedFilesRegistration => {}
         }
     }
 
@@ -701,6 +693,11 @@ impl Server {
             Outcome::CodeActions { id, actions } => {
                 if self.pending.remove(&id).is_some() {
                     self.respond(Response::new_ok(id, actions));
+                }
+            }
+            Outcome::CodeLenses { id, lenses } => {
+                if self.pending.remove(&id).is_some() {
+                    self.respond(Response::new_ok(id, lenses));
                 }
             }
             Outcome::FoldingRanges { id, ranges } => {
@@ -749,28 +746,6 @@ impl Server {
                     section: Some(CONFIG_SECTION.to_string()),
                 }],
             },
-        ));
-    }
-
-    fn register_watched_files(&mut self) {
-        self.next_request_id += 1;
-        let id = RequestId::from(format!("rsvelte-watch-files-{}", self.next_request_id));
-        self.outgoing
-            .insert(id.clone(), Outgoing::WatchedFilesRegistration);
-        self.send(Request::new(
-            id,
-            "client/registerCapability".to_string(),
-            serde_json::json!({
-                "registrations": [{
-                    "id": "rsvelte-project-configs",
-                    "method": "workspace/didChangeWatchedFiles",
-                    "registerOptions": {
-                        "watchers": project_config_names().iter().map(|name| serde_json::json!({
-                            "globPattern": format!("**/{name}"),
-                        })).collect::<Vec<_>>(),
-                    },
-                }],
-            }),
         ));
     }
 
@@ -869,6 +844,10 @@ impl Server {
         self.respond(Response::new_ok(id, Vec::<CodeActionOrCommand>::new()));
     }
 
+    fn respond_no_lenses(&self, id: RequestId) {
+        self.respond(Response::new_ok(id, Vec::<CodeLens>::new()));
+    }
+
     fn respond_no_ranges(&self, id: RequestId) {
         self.respond(Response::new_ok(id, Vec::<FoldingRange>::new()));
     }
@@ -896,21 +875,4 @@ fn is_lint_target(document: &Document) -> bool {
     }
     let uri = document.uri.as_str();
     uri.ends_with(".svelte.js") || uri.ends_with(".svelte.ts")
-}
-
-fn is_project_config(uri: &Uri) -> bool {
-    project_config_names()
-        .iter()
-        .any(|name| uri.as_str().rsplit('/').next() == Some(name))
-}
-
-const fn project_config_names() -> &'static [&'static str] {
-    &[
-        "rsvelte-lint.json",
-        ".rsvelte-lintrc.json",
-        ".oxfmtrc.json",
-        ".oxfmtrc.jsonc",
-        "oxfmt.config.ts",
-        "oxfmt.config.mts",
-    ]
 }
