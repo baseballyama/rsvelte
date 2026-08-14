@@ -1,4 +1,4 @@
-use oxc_allocator::Allocator;
+use oxc_allocator::{Allocator, CloneIn};
 use oxc_ast::ast::Program;
 use oxc_diagnostics::OxcDiagnostic;
 use oxc_parser::Parser;
@@ -64,6 +64,11 @@ impl<'source> RetainedProgram<'source> {
     }
 
     #[must_use]
+    pub fn clone_program_into<'alloc>(&self, allocator: &'alloc Allocator) -> Program<'alloc> {
+        self.program().clone_in(allocator)
+    }
+
+    #[must_use]
     pub fn source(&self) -> &str {
         self.borrow_owner().source()
     }
@@ -102,6 +107,8 @@ pub(crate) struct RetainedScripts<'source> {
 #[cfg(test)]
 mod tests {
     use super::RetainedProgram;
+    use oxc_allocator::Allocator;
+    use oxc_span::GetSpan;
 
     #[test]
     fn retains_program_after_move() {
@@ -118,5 +125,15 @@ mod tests {
     fn is_send_when_owner_and_program_move_together() {
         fn assert_send<T: Send>() {}
         assert_send::<RetainedProgram<'static>>();
+    }
+
+    #[test]
+    fn clone_into_preserves_source_spans() {
+        let retained = RetainedProgram::parse("let answer = 42;", false);
+        let allocator = Allocator::default();
+        let cloned = retained.clone_program_into(&allocator);
+
+        assert_eq!(cloned.span, retained.program().span);
+        assert_eq!(cloned.body[0].span(), retained.program().body[0].span());
     }
 }
