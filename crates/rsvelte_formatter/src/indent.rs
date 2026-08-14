@@ -385,6 +385,13 @@ fn collect_indent_edits_inner(
             // inline layout. Only break them when the surrounding fragment is already
             // broken (has whitespace-with-newline text nodes). Block-display elements
             // (`<div>`, `<p>`, etc.) are always broken regardless.
+            if matches!(a, TemplateNode::Comment(_))
+                && matches!(b, TemplateNode::Comment(_))
+                && !a_is_block
+                && !b_is_block
+            {
+                continue;
+            }
             if is_comment && !a_is_block && !b_is_block && !fragment_is_broken {
                 continue;
             }
