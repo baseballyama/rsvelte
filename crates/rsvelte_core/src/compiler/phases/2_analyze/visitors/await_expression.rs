@@ -56,7 +56,10 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
         // See `visit` above — mirrors upstream's `state.expression` being set
         // for the direct argument of `$derived(...)`.
         suspend = true;
-    } else if context.in_expression_tag && !crosses_function_boundary(&context.js_path) {
+    } else if context.in_expression_tag
+        && !context.in_template_function
+        && !crosses_function_boundary(&context.js_path)
+    {
         suspend = true;
     }
 

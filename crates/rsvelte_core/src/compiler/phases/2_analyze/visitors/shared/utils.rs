@@ -1539,13 +1539,16 @@ pub fn walk_js_expression_node(
                 }
             }
 
+            let saved_in_template_function = context.in_template_function;
+            context.in_template_function = true;
+            for param in arena.get_js_children(*params) {
+                walk_parameter_evaluations(param, context, metadata)?;
+            }
+
             let saved_expression = context.expression;
             context.expression = None;
             // Awaits inside a function body are not suspending (upstream sets
             // `expression: null` on function entry — function.js L19-23).
-            let saved_in_template_function = context.in_template_function;
-            context.in_template_function = true;
-
             // Visit function body
             let mut inner_metadata = crate::ast::template::ExpressionMetadata::default();
             walk_js_expression_node(arena.get_js_node(*body), context, &mut inner_metadata)?;
@@ -1647,6 +1650,71 @@ pub fn walk_js_expression_node(
         _ => {}
     }
 
+    Ok(())
+}
+
+fn walk_parameter_evaluations(
+    param: &JsNode,
+    context: &mut VisitorContext,
+    metadata: &mut crate::ast::template::ExpressionMetadata,
+) -> Result<(), AnalysisError> {
+    let arena = context.parse_arena;
+    match param {
+        JsNode::AssignmentPattern { left, right, .. } => {
+            walk_parameter_evaluations(arena.get_js_node(*left), context, metadata)?;
+            walk_parameter_expression(arena.get_js_node(*right), context, metadata)?;
+        }
+        JsNode::RestElement { argument, .. } => {
+            walk_parameter_evaluations(arena.get_js_node(*argument), context, metadata)?;
+        }
+        JsNode::ObjectPattern { properties, .. } => {
+            for property in arena.get_js_children(*properties) {
+                match property {
+                    JsNode::Property {
+                        key,
+                        value,
+                        computed,
+                        ..
+                    } => {
+                        if *computed {
+                            walk_parameter_expression(arena.get_js_node(*key), context, metadata)?;
+                        }
+                        walk_parameter_evaluations(arena.get_js_node(*value), context, metadata)?;
+                    }
+                    JsNode::RestElement { argument, .. } => {
+                        walk_parameter_evaluations(
+                            arena.get_js_node(*argument),
+                            context,
+                            metadata,
+                        )?;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        JsNode::ArrayPattern { elements, .. } => {
+            for element in elements.iter().flatten() {
+                walk_parameter_evaluations(element, context, metadata)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn walk_parameter_expression(
+    expression: &JsNode,
+    context: &mut VisitorContext,
+    metadata: &mut crate::ast::template::ExpressionMetadata,
+) -> Result<(), AnalysisError> {
+    let mut evaluated = crate::ast::template::ExpressionMetadata::default();
+    walk_js_expression_node(expression, context, &mut evaluated)?;
+    let has_state = evaluated.has_state();
+    metadata.dependencies.extend(evaluated.dependencies);
+    metadata.references.extend(evaluated.references);
+    if has_state {
+        metadata.set_has_state(true);
+    }
     Ok(())
 }
 

@@ -133,6 +133,52 @@ fn extract_pattern_names(pattern: &JsPattern, names: &mut FxHashSet<String>) {
     }
 }
 
+fn collect_pattern_evaluations(
+    pattern: &JsPattern,
+    context: &ComponentContext,
+    getters: &mut Vec<JsExpr>,
+    seen: &mut FxHashSet<String>,
+) {
+    match pattern {
+        JsPattern::Assignment(assign) => {
+            collect_pattern_evaluations(&assign.left, context, getters, seen);
+            collect_reactive_references_inner(
+                context.arena.get_expr(assign.right),
+                context,
+                getters,
+                seen,
+            );
+        }
+        JsPattern::Rest(inner) => collect_pattern_evaluations(inner, context, getters, seen),
+        JsPattern::Array(array) => {
+            for element in array.elements.iter().flatten() {
+                collect_pattern_evaluations(element, context, getters, seen);
+            }
+        }
+        JsPattern::Object(object) => {
+            for property in &object.properties {
+                match property {
+                    JsObjectPatternProperty::Property { key, value, .. } => {
+                        if let JsPropertyKey::Computed(key) = key {
+                            collect_reactive_references_inner(
+                                context.arena.get_expr(*key),
+                                context,
+                                getters,
+                                seen,
+                            );
+                        }
+                        collect_pattern_evaluations(value, context, getters, seen);
+                    }
+                    JsObjectPatternProperty::Rest(rest) => {
+                        collect_pattern_evaluations(rest, context, getters, seen);
+                    }
+                }
+            }
+        }
+        JsPattern::Identifier(_) => {}
+    }
+}
+
 /// Extract all identifier names from a pattern and add them to a LocalScope as shadowed.
 fn extract_pattern_names_to_scope(pattern: &JsPattern, scope: &mut LocalScope) {
     let mut names = FxHashSet::default();
@@ -2741,6 +2787,9 @@ fn collect_reactive_references_inner(
                 .filter(|n| seen.insert((*n).clone()))
                 .cloned()
                 .collect();
+            for param in &arrow.params {
+                collect_pattern_evaluations(param, context, getters, seen);
+            }
             match &arrow.body {
                 JsArrowBody::Expression(body_expr) => {
                     collect_reactive_references_inner(
@@ -2774,6 +2823,9 @@ fn collect_reactive_references_inner(
                 .filter(|n| seen.insert((*n).clone()))
                 .cloned()
                 .collect();
+            for param in &func.params {
+                collect_pattern_evaluations(param, context, getters, seen);
+            }
             for stmt in &func.body.body {
                 collect_reactive_references_from_statement(stmt, context, getters, seen);
             }

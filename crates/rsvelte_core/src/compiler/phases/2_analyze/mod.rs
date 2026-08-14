@@ -2269,6 +2269,11 @@ fn collect_reactive_refs(
             for p in arena.get_js_children(*params) {
                 extract_param_names(p, arena, locals);
             }
+            for param in arena.get_js_children(*params) {
+                collect_param_evaluations(param, arena, &mut |evaluated| {
+                    collect_reactive_refs(evaluated, arena, path, locals, order, included);
+                });
+            }
             path.push(reactive_path_entry(node, arena));
             collect_reactive_refs(
                 arena.get_js_node(*body),
@@ -2286,6 +2291,11 @@ fn collect_reactive_refs(
             let locals_mark = locals.len();
             for p in arena.get_js_children(*params) {
                 extract_param_names(p, arena, locals);
+            }
+            for param in arena.get_js_children(*params) {
+                collect_param_evaluations(param, arena, &mut |evaluated| {
+                    collect_reactive_refs(evaluated, arena, path, locals, order, included);
+                });
             }
             path.push(reactive_path_entry(node, arena));
             if let Some(b) = body {
@@ -2520,6 +2530,11 @@ fn collect_identifiers_from_expr_with_locals(
             for param in arena.get_js_children(*params) {
                 extract_param_names(param, arena, locals);
             }
+            for param in arena.get_js_children(*params) {
+                collect_param_evaluations(param, arena, &mut |evaluated| {
+                    collect_identifiers_from_expr_with_locals(evaluated, arena, names, locals);
+                });
+            }
             collect_identifiers_from_expr_with_locals(
                 arena.get_js_node(*body),
                 arena,
@@ -2533,6 +2548,11 @@ fn collect_identifiers_from_expr_with_locals(
             let locals_mark = locals.len();
             for param in arena.get_js_children(*params) {
                 extract_param_names(param, arena, locals);
+            }
+            for param in arena.get_js_children(*params) {
+                collect_param_evaluations(param, arena, &mut |evaluated| {
+                    collect_identifiers_from_expr_with_locals(evaluated, arena, names, locals);
+                });
             }
             if let Some(b) = body {
                 collect_identifiers_from_expr_with_locals(
@@ -2643,6 +2663,46 @@ fn collect_identifiers_from_expr_with_locals(
                 collect_identifiers_from_expr_with_locals(child, arena, names, locals);
             });
         }
+    }
+}
+
+/// Defaults and computed keys are expressions, unlike parameter bindings.
+fn collect_param_evaluations(param: &JsNode, arena: &ParseArena, visit: &mut impl FnMut(&JsNode)) {
+    match param {
+        JsNode::AssignmentPattern { left, right, .. } => {
+            collect_param_evaluations(arena.get_js_node(*left), arena, visit);
+            visit(arena.get_js_node(*right));
+        }
+        JsNode::RestElement { argument, .. } => {
+            collect_param_evaluations(arena.get_js_node(*argument), arena, visit);
+        }
+        JsNode::ObjectPattern { properties, .. } => {
+            for property in arena.get_js_children(*properties) {
+                match property {
+                    JsNode::Property {
+                        key,
+                        value,
+                        computed,
+                        ..
+                    } => {
+                        if *computed {
+                            visit(arena.get_js_node(*key));
+                        }
+                        collect_param_evaluations(arena.get_js_node(*value), arena, visit);
+                    }
+                    JsNode::RestElement { argument, .. } => {
+                        collect_param_evaluations(arena.get_js_node(*argument), arena, visit);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        JsNode::ArrayPattern { elements, .. } => {
+            for element in elements.iter().flatten() {
+                collect_param_evaluations(element, arena, visit);
+            }
+        }
+        _ => {}
     }
 }
 
