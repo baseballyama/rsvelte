@@ -15,12 +15,13 @@ each sample's recorded `metadata.json` still says exactly that).
 | `map-parity` | `map-parity\t<sample>\t<target>\t<count>` | budget: official map segments that rsvelte does not reproduce, where the generated code is byte-identical (missing + wrong) |
 | `out-of-range` | `out-of-range\t<sample>\t<target>\t<count>` | budget: segments whose original position lies past the end of that source line, or past the last line |
 
-**Current baseline: `sourcemap-known-failures.json`, 74 entries.** The
+**Current baseline: `sourcemap-known-failures.json`, 73 entries.** The
 before/after tables further down record what one specific change did at the time
 it landed; they are history, not the current size. Reading the newest number in
 those tables as today's count is the mistake this line exists to prevent — the
 `73` under the anchoring fix was correct when written (#2264 took the list 75 →
-73), and #2312 later took it to 74.
+73), #2312 later took it to 74, and the location-less comment cursor brought it
+back to 73.
 
 Ratchet semantics, matching `fmt-verify.mjs` / `verify.mjs`:
 
@@ -164,6 +165,17 @@ map).
 | client `wrong` segments | 81 | **72** |
 | ratchet entries | 75 | **73** |
 
+### Fourth catch: location-less comment cursor
+
+Marking synthesized client nodes as location-less removes the last
+`sourcemap-offsets` client segment whose origin pointed past its source line.
+Generated output and the sample's `map-parity` budget are unchanged.
+
+| | before | after |
+|---|---|---|
+| `sourcemap-offsets` client — out-of-range | 1 | **0** |
+| ratchet entries | 74 | **73** |
+
 ## Root cause
 
 The client entries all share one cause, tracked in issue #1781: the client AST
@@ -212,10 +224,10 @@ No entry is accepted as correct behaviour; all are burndown targets.
   chunk is anchored at the file start, so the whole block is off by the
   `<script module>` line) and `sourcemap-empty-source`/client maps to `0:8`
   instead of `2:1`.
-- **`map-parity` (46)** — one per byte-identical pair that loses official
+- **`map-parity` (47)** — one per byte-identical pair that loses official
   segments. Client counts (4–52) are dominated by `missing`; server counts (4–13)
   are mostly `missing`-only, except `preprocessed-styles` and
   `source-map-generator`, which contribute the 7 server `wrong` segments.
-- **`out-of-range` (14)** — 1–3 segments per client map. These are the segments
+- **`out-of-range` (13)** — 1–3 segments per client map. These are the segments
   that break downstream consumers outright (a devtools frame resolving past the
   end of a line), so this is the budget to burn down first.

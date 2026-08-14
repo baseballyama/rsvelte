@@ -71,6 +71,5 @@
   "out-of-range\tscript-after-comment\tclient\t3",
   "out-of-range\tsourcemap-empty-source\tclient\t1",
   "out-of-range\tsourcemap-names\tclient\t1",
-  "out-of-range\tsourcemap-offsets\tclient\t1",
   "out-of-range\tsourcemap-sources\tclient\t1"
 ]
