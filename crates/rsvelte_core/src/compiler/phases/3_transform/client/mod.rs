@@ -5177,6 +5177,25 @@ fn top_level_statement_end_lines(
     fresh
 }
 
+fn has_snapshot_ignore_before(output: &str) -> bool {
+    for line in output.lines().rev() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if memmem::find(trimmed.as_bytes(), b"svelte-ignore").is_some()
+            && memmem::find(trimmed.as_bytes(), b"state_snapshot_uncloneable").is_some()
+        {
+            return true;
+        }
+        if trimmed.starts_with("//") || (trimmed.starts_with("/*") && trimmed.ends_with("*/")) {
+            continue;
+        }
+        break;
+    }
+    false
+}
+
 fn transform_instance_script_for_visitors(
     script: &str,
     analysis: &ComponentAnalysis,
@@ -6460,23 +6479,7 @@ fn transform_instance_script_for_visitors(
             let _pa =
                 super::profile::pa_guard(super::profile::PA_SNAPSHOT_DEV, transformed.len() as u64);
             if dev && memmem::find(transformed.as_bytes(), b"$state.snapshot(").is_some() {
-                let prev_has_ignore = {
-                    let mut found = false;
-                    for line in result.lines().rev() {
-                        let trimmed = line.trim();
-                        if trimmed.is_empty() {
-                            continue;
-                        }
-                        if memmem::find(trimmed.as_bytes(), b"svelte-ignore").is_some()
-                            && memmem::find(trimmed.as_bytes(), b"state_snapshot_uncloneable")
-                                .is_some()
-                        {
-                            found = true;
-                        }
-                        break;
-                    }
-                    found
-                };
+                let prev_has_ignore = has_snapshot_ignore_before(&result);
                 if prev_has_ignore {
                     let mut new_transformed = String::new();
                     let mut remaining: &str = &transformed;
