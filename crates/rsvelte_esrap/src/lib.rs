@@ -110,8 +110,7 @@ pub fn print(program: &Program<'_>, source: &str) -> String {
 
 /// Print `program` to JavaScript with explicit options, interleaving comments.
 pub fn print_with(program: &Program<'_>, source: &str, options: &PrintOptions) -> String {
-    let line_starts = printer::line_starts(source);
-    let comments = printer::build_comments(program, source, &line_starts);
+    let (comments, line_starts) = comments_and_line_starts(program, source);
     let mut printer = printer::Printer::with_comments(options, comments, line_starts);
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
@@ -149,8 +148,7 @@ pub fn print_split(
     loc_map: &[(u32, u32, Option<u32>)],
     options: &PrintOptions,
 ) -> PrintWithMap {
-    let line_starts = printer::line_starts(comment_source);
-    let comments = printer::build_comments(program, comment_source, &line_starts);
+    let (comments, line_starts) = comments_and_line_starts(program, comment_source);
     let map_line_starts = map_source.map(printer::line_starts).unwrap_or_default();
     let mut printer = printer::Printer::with_comments(options, comments, line_starts)
         .with_split_coordinates(map_line_starts, loc_base, loc_map, map_source.is_some());
@@ -199,4 +197,13 @@ pub fn print_with_map(program: &Program<'_>, source: &str, options: &PrintOption
     let (code, mappings) = command::flatten_with_map(&commands, &options.indent, capacity);
     pool::recycle(commands);
     PrintWithMap { code, mappings }
+}
+
+fn comments_and_line_starts(program: &Program<'_>, source: &str) -> (Vec<printer::Cmt>, Vec<u32>) {
+    if program.comments.is_empty() {
+        return (Vec::new(), Vec::new());
+    }
+    let line_starts = printer::line_starts(source);
+    let comments = printer::build_comments(program, source, &line_starts);
+    (comments, line_starts)
 }

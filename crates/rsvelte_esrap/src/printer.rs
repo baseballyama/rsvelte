@@ -663,7 +663,7 @@ impl<'opt> Printer<'opt> {
         prev_end: u32,
         next: Option<u32>,
     ) -> bool {
-        if !self.has_loc(prev_end) {
+        if self.comments.is_empty() || !self.has_loc(prev_end) {
             return false;
         }
         // A `next` boundary that is itself synthesized bounds nothing (esrap's
@@ -720,11 +720,11 @@ impl<'opt> Printer<'opt> {
     }
 
     /// The `_` wildcard's leading flush: emit comments positioned before `node`.
-    fn flush_leading(&mut self, ctx: &mut Context, node_start: u32, node_start_line: u32) {
+    fn flush_leading(&mut self, ctx: &mut Context, node_start: u32) {
         if self.comments.is_empty() {
             return;
         }
-        self.flush_comments_until(ctx, node_start, node_start_line, None, true);
+        self.flush_comments_until(ctx, node_start, self.line_of(node_start), None, true);
     }
 
     /// Port of esrap's `sequence` (`languages/ts/index.js`). Lays `nodes` out as
@@ -949,7 +949,7 @@ impl<'opt> Printer<'opt> {
     /// string-literal `ExpressionStatement` esrap sees.
     fn print_directive(&mut self, d: &Directive, ctx: &mut Context) {
         let start = d.span.start;
-        self.flush_leading(ctx, start, self.line_of(start));
+        self.flush_leading(ctx, start);
         ctx.write(Self::string_literal(&d.expression));
         ctx.write(";");
     }
@@ -958,7 +958,7 @@ impl<'opt> Printer<'opt> {
     fn print_statement(&mut self, stmt: &Statement, ctx: &mut Context) {
         // esrap's `_` wildcard: emit comments positioned before this node first.
         let start = stmt.span().start;
-        self.flush_leading(ctx, start, self.line_of(start));
+        self.flush_leading(ctx, start);
         match stmt {
             Statement::ExpressionStatement(s) => {
                 // esrap wraps a leading object/function-expression statement in
@@ -1528,7 +1528,7 @@ impl<'opt> Printer<'opt> {
         // esrap's `_` wildcard flushes any comment positioned before the member
         // (e.g. a leading JSDoc block) before visiting it.
         let start = element.span().start;
-        self.flush_leading(ctx, start, self.line_of(start));
+        self.flush_leading(ctx, start);
         match element {
             ClassElement::MethodDefinition(m) => self.method_definition(m, ctx),
             ClassElement::PropertyDefinition(p) => self.property_definition(p, ctx),
@@ -1874,7 +1874,7 @@ impl<'opt> Printer<'opt> {
                         // comment also forces the sequence multiline (via the
                         // `newline()` in `write_comment`), so it can't swallow the
                         // following token (`tabindex = // c 0` → unparseable).
-                        p.flush_leading(child, span.start, p.line_of(span.start));
+                        p.flush_leading(child, span.start);
                         p.binding_property(prop, child);
                     }),
                 }
@@ -1888,7 +1888,7 @@ impl<'opt> Printer<'opt> {
                 obj_or_array: false,
                 is_elision: false,
                 render: Box::new(move |p: &mut Printer, child: &mut Context| {
-                    p.flush_leading(child, span.start, p.line_of(span.start));
+                    p.flush_leading(child, span.start);
                     child.write("...");
                     p.binding_pattern(&rest.argument, child);
                 }),
@@ -2116,7 +2116,7 @@ impl<'opt> Printer<'opt> {
         for declarator in &decl.declarations {
             let mut child = Context::child();
             let start = declarator.span().start;
-            self.flush_leading(&mut child, start, self.line_of(start));
+            self.flush_leading(&mut child, start);
             self.binding_pattern(&declarator.id, &mut child);
             if declarator.definite {
                 child.write("!");
@@ -2179,7 +2179,7 @@ impl<'opt> Printer<'opt> {
     fn print_expression(&mut self, expr: &Expression, ctx: &mut Context) {
         // esrap's `_` wildcard: emit comments positioned before this node first.
         let start = expr.span().start;
-        self.flush_leading(ctx, start, self.line_of(start));
+        self.flush_leading(ctx, start);
         match expr {
             Expression::ParenthesizedExpression(p) => {
                 // esrap parses with acorn, which ELIDES parentheses — there is
@@ -2864,7 +2864,7 @@ impl<'opt> Printer<'opt> {
                         // esrap's `sequence` visits each property through the `_`
                         // wildcard, which flushes any comment positioned before
                         // it (`{ /** doc */ key: … }`). Mirror that per property.
-                        p.flush_leading(child, span.start, p.line_of(span.start));
+                        p.flush_leading(child, span.start);
                         match prop {
                             ObjectPropertyKind::ObjectProperty(prop) => {
                                 p.object_property(prop, child);
