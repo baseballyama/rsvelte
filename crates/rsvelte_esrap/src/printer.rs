@@ -2218,6 +2218,24 @@ impl<'opt> Printer<'opt> {
         }
         kw.write(ctx, keyword);
 
+        if let [declarator] = decl.declarations.as_slice() {
+            let mut child = ctx.child();
+            self.flush_leading(&mut child, declarator.span().start);
+            self.binding_pattern(&declarator.id, &mut child);
+            if declarator.definite {
+                child.write("!");
+            }
+            if let Some(ann) = &declarator.type_annotation {
+                self.type_annotation(ann, &mut child);
+            }
+            if let Some(init) = &declarator.init {
+                child.write(" = ");
+                self.print_expression(init, &mut child);
+            }
+            ctx.append(child);
+            return;
+        }
+
         let n = decl.declarations.len();
         let mut rendered: Vec<Context> = Vec::with_capacity(n);
         // esrap measures the whole `child_context`, which includes the keyword,
