@@ -971,9 +971,12 @@ impl<'opt> Printer<'opt> {
         // an acorn AST) sees them as leading string-literal ExpressionStatements
         // in `body`; thread them through the same `body` sequence so margins and
         // leading comments are computed identically.
-        let mut elems: Vec<BodyElem> = program.directives.iter().map(BodyElem::Directive).collect();
-        elems.extend(program.body.iter().map(BodyElem::Statement));
-        self.body_elems(&elems, body_start, span.end, ctx);
+        let elems = program
+            .directives
+            .iter()
+            .map(BodyElem::Directive)
+            .chain(program.body.iter().map(BodyElem::Statement));
+        self.body_elems(elems, body_start, span.end, ctx);
     }
 
     /// esrap's `body`: statements on their own lines, with a blank line between
@@ -988,19 +991,25 @@ impl<'opt> Printer<'opt> {
         body_end: u32,
         ctx: &mut Context,
     ) {
-        let elems: Vec<BodyElem> = statements.iter().map(BodyElem::Statement).collect();
-        self.body_elems(&elems, Some(body_start), body_end, ctx);
+        self.body_elems(
+            statements.iter().map(BodyElem::Statement),
+            Some(body_start),
+            body_end,
+            ctx,
+        );
     }
 
     /// The element-based core of [`Self::body`], shared by `print_program` so a
     /// program's leading directives participate in the same margin/comment pass.
-    fn body_elems(
+    fn body_elems<'a, 'b>(
         &mut self,
-        elems: &[BodyElem],
+        elems: impl IntoIterator<Item = BodyElem<'a, 'b>>,
         body_start: Option<u32>,
         body_end: u32,
         ctx: &mut Context,
-    ) {
+    ) where
+        'a: 'b,
+    {
         // esrap filters `EmptyStatement` (`;`) nodes from statement-list bodies
         // (matching the server AST + official esrap). The client `to_oxc` path,
         // which parses string-codegen `Raw` `;;` into real EmptyStatement nodes the
@@ -1011,17 +1020,17 @@ impl<'opt> Printer<'opt> {
 
         let keep_empty = self.options.keep_empty_statements;
         let mut elems = elems
-            .iter()
+            .into_iter()
             .filter(|elem| keep_empty || !elem.is_empty_stmt())
             .peekable();
-        let mut prev: Option<(&BodyElem, bool)> = None;
+        let mut prev: Option<(BodyElem<'a, 'b>, bool)> = None;
         let mut last_end = None;
         while let Some(elem) = elems.next() {
             let mut child = ctx.child();
             elem.print(self, &mut child);
 
-            if let Some((prev_elem, prev_multiline)) = prev {
-                if child.multiline || prev_multiline || !elem.same_kind(prev_elem) {
+            if let Some((prev_elem, prev_multiline)) = &prev {
+                if child.multiline || *prev_multiline || !elem.same_kind(prev_elem) {
                     ctx.margin();
                 }
                 ctx.newline();
@@ -1029,10 +1038,11 @@ impl<'opt> Printer<'opt> {
             let multiline = child.multiline;
             ctx.append(child);
 
-            let next = elems.peek().map(|e| e.span_end());
-            self.flush_trailing_comments(ctx, elem.span_end(), next);
+            let end = elem.span_end();
+            let next = elems.peek().map(BodyElem::span_end);
+            self.flush_trailing_comments(ctx, end, next);
 
-            last_end = Some(elem.span_end());
+            last_end = Some(end);
             prev = Some((elem, multiline));
         }
 
@@ -1614,15 +1624,14 @@ impl<'opt> Printer<'opt> {
         let span = body.span();
         ctx.write("{");
         let mut child = ctx.child();
-        let elems: Vec<BodyElem> = body
+        let elems = body
             .body
             .iter()
             // esrap's `body` only skips `EmptyStatement`; TS index signatures are
             // not statements and have no printer mapping here, so drop them.
             .filter(|e| !matches!(e, ClassElement::TSIndexSignature(_)))
-            .map(BodyElem::ClassMember)
-            .collect();
-        self.body_elems(&elems, Some(span.start), span.end, &mut child);
+            .map(BodyElem::ClassMember);
+        self.body_elems(elems, Some(span.start), span.end, &mut child);
         if !child.empty() {
             ctx.indent();
             ctx.newline();
@@ -3957,9 +3966,12 @@ impl<'opt> Printer<'opt> {
         ctx.write(" {");
         ctx.indent();
         ctx.newline();
-        let mut elems: Vec<BodyElem> = node.directives.iter().map(BodyElem::Directive).collect();
-        elems.extend(node.body.iter().map(BodyElem::Statement));
-        self.body_elems(&elems, Some(node.span.start), node.span.end, ctx);
+        let elems = node
+            .directives
+            .iter()
+            .map(BodyElem::Directive)
+            .chain(node.body.iter().map(BodyElem::Statement));
+        self.body_elems(elems, Some(node.span.start), node.span.end, ctx);
         ctx.dedent();
         ctx.newline();
         ctx.write("}");
