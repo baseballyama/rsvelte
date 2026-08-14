@@ -45,6 +45,7 @@ source with `node scripts/compat-corpus/compile.mjs --filter pattern/`.
 
 | File | Issue | What it pins |
 |---|---|---|
+| `008-comment-shadowed-state.svelte` | [debt 008](../../debt_list/008-mutation-gate-has-behavioral-code-mismatches.md) | A comment containing `}` between a shadowed local `$state` declaration and its reads. The local binding must still win over the outer function of the same name, so reads and updates remain `$.get(multiplier)` / `$.update(multiplier)` rather than becoming plain values. |
 | `1973-derived-ternary-default.svelte` | [#1973](https://github.com/baseballyama/rsvelte/issues/1973) | Destructured `$derived` with a **ternary** default — the property splitter must not mistake the ternary's `:` for the key separator |
 | `1974-legacy-render-tag-memo.svelte` | [#1974](https://github.com/baseballyama/rsvelte/issues/1974) | A memoized `{@render}` argument in **legacy** mode must use `$.derived_safe_equal`, not `$.derived` |
 | `1975-adjacent-comment-whitespace.svelte` | [#1975](https://github.com/baseballyama/rsvelte/issues/1975) | Whitespace run around **two adjacent removed comments** inside a nested element (static-template builder path) |

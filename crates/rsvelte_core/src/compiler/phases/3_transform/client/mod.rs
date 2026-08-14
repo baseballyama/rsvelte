@@ -7616,45 +7616,44 @@ fn index_shadowed_decls(
 
 /// Find the enclosing function body (from `{` to matching `}`) that contains `pos`.
 fn find_enclosing_function_body(script: &str, pos: usize) -> Option<(usize, usize)> {
-    let bytes = script.as_bytes();
+    use oxc_allocator::Allocator;
+    use oxc_ast::ast::FunctionBody;
+    use oxc_ast_visit::{Visit, walk};
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
 
-    // Scan backwards from pos to find the opening `{` of the enclosing function
-    let mut brace_depth = 0i32;
-    let mut func_open = None;
-    let mut i = pos;
-    while i > 0 {
-        i -= 1;
-        match bytes[i] {
-            b'}' => brace_depth += 1,
-            b'{' => {
-                if brace_depth == 0 {
-                    func_open = Some(i);
-                    break;
-                }
-                brace_depth -= 1;
+    struct BodyFinder {
+        pos: u32,
+        body: Option<(u32, u32)>,
+    }
+
+    impl<'a> Visit<'a> for BodyFinder {
+        fn visit_function_body(&mut self, body: &FunctionBody<'a>) {
+            if body.span.start < self.pos
+                && self.pos < body.span.end
+                && self
+                    .body
+                    .is_none_or(|(start, end)| body.span.end - body.span.start < end - start)
+            {
+                self.body = Some((body.span.start, body.span.end));
             }
-            _ => {}
+            walk::walk_function_body(self, body);
         }
     }
-    let func_start = func_open?;
 
-    // Find the matching closing `}` by scanning forward
-    let mut brace_depth = 0i32;
-    let mut func_end = None;
-    for (j, &byte) in bytes.iter().enumerate().take(script.len()).skip(func_start) {
-        match byte {
-            b'{' => brace_depth += 1,
-            b'}' => {
-                brace_depth -= 1;
-                if brace_depth == 0 {
-                    func_end = Some(j + 1);
-                    break;
-                }
-            }
-            _ => {}
-        }
+    let allocator = Allocator::default();
+    let parsed = Parser::new(&allocator, script, SourceType::mjs()).parse();
+    if parsed.panicked || !parsed.diagnostics.is_empty() {
+        return None;
     }
-    Some((func_start, func_end?))
+    let mut finder = BodyFinder {
+        pos: pos as u32,
+        body: None,
+    };
+    finder.visit_program(&parsed.program);
+    finder
+        .body
+        .map(|(start, end)| (start as usize, end as usize))
 }
 
 /// Apply `$.get()`, `$.set()`, `$.update()` transforms for a variable within a function body.

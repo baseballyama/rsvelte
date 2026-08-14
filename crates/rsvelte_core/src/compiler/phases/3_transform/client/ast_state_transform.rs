@@ -254,6 +254,7 @@ struct StateVarCollector<'a, 's> {
     /// Each scope level tracks variables declared in that scope
     /// (function params, let/const/var declarations, catch params, for-loop vars).
     scoped_vars: Vec<FxHashSet<String>>,
+    active_state_vars: Vec<FxHashSet<String>>,
     /// Stack tracking whether we're currently inside a shorthand property.
     /// When inside a shorthand property like `{ foo }`, the IdentifierReference
     /// for `foo` needs special handling: `{ foo: $.get(foo) }`.
@@ -392,6 +393,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             replacements: Vec::new(),
             replacements_sorted: true,
             scoped_vars: vec![FxHashSet::default()],
+            active_state_vars: vec![FxHashSet::default()],
             in_shorthand_property: false,
             await_ignore_ranges: Default::default(),
             await_comment_runs: Default::default(),
@@ -419,13 +421,30 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     fn is_active_state_var(&self, name: &str) -> bool {
         self.state_vars.contains(name)
             && !self.non_reactive_vars.contains(name)
-            && !self.is_shadowed(name)
+            && !self.is_state_var_shadowed(name)
     }
 
     /// Check if a name is a state variable (including non-reactive),
     /// used for assignment transforms which apply to all state vars.
     fn is_any_state_var(&self, name: &str) -> bool {
-        self.state_vars.contains(name) && !self.is_shadowed(name)
+        self.state_vars.contains(name) && !self.is_state_var_shadowed(name)
+    }
+
+    fn is_state_var_shadowed(&self, name: &str) -> bool {
+        for (state_scope, scope) in self
+            .active_state_vars
+            .iter()
+            .rev()
+            .zip(self.scoped_vars.iter().rev())
+        {
+            if state_scope.contains(name) {
+                return false;
+            }
+            if scope.contains(name) {
+                return true;
+            }
+        }
+        false
     }
 
     /// Check if a variable is shadowed by any enclosing scope.
@@ -456,11 +475,13 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     /// Push a new scope level.
     fn push_scope(&mut self) {
         self.scoped_vars.push(FxHashSet::default());
+        self.active_state_vars.push(FxHashSet::default());
     }
 
     /// Pop the current scope level.
     fn pop_scope(&mut self) {
         self.scoped_vars.pop();
+        self.active_state_vars.pop();
     }
 
     /// Get the appropriate getter function for a state variable.
@@ -2241,7 +2262,12 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                     && self.is_any_known_transform_var(&id.name)
                     && !shadows_non_reactive
                 {
-                    // Don't register - this is a known transform variable at program scope
+                    if self.state_vars.contains(id.name.as_str()) {
+                        self.active_state_vars
+                            .last_mut()
+                            .expect("scope stacks stay aligned")
+                            .insert(id.name.to_string());
+                    }
                 } else {
                     self.declare_in_current_scope(&id.name);
                 }
@@ -4829,6 +4855,13 @@ mod tests {
     #[test]
     fn test_simple_get_wrapping() {
         assert_eq!(transform("count", &["count"]), "$.get(count)");
+    }
+
+    #[test]
+    fn comment_between_state_declaration_and_read_keeps_reactivity() {
+        let script = "const multiplier = () => {\n\tlet multiplier = $state(2);\n\t// } comment\n\tlet multiple = $derived(count * multiplier);\n\treturn multiple;\n};";
+        let output = transform(script, &["multiplier"]);
+        assert!(output.contains("$.get(multiplier)"), "{output}");
     }
 
     #[test]
