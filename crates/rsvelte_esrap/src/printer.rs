@@ -1005,17 +1005,18 @@ impl<'opt> Printer<'opt> {
         // (matching the server AST + official esrap). The client `to_oxc` path,
         // which parses string-codegen `Raw` `;;` into real EmptyStatement nodes the
         // official COMPILER output keeps, opts into preserving them.
-        let non_empty: Vec<&BodyElem> = if self.options.keep_empty_statements {
-            elems.iter().collect()
-        } else {
-            elems.iter().filter(|e| !e.is_empty_stmt()).collect()
-        };
         // Re-sync to the body's own start so a leading comment that precedes the
         // first statement (e.g. a file header) isn't skipped over.
         self.reset_comment_index(body_start);
 
+        let keep_empty = self.options.keep_empty_statements;
+        let mut elems = elems
+            .iter()
+            .filter(|elem| keep_empty || !elem.is_empty_stmt())
+            .peekable();
         let mut prev: Option<(&BodyElem, bool)> = None;
-        for (i, elem) in non_empty.iter().enumerate() {
+        let mut last_end = None;
+        while let Some(elem) = elems.next() {
             let mut child = ctx.child();
             elem.print(self, &mut child);
 
@@ -1028,9 +1029,10 @@ impl<'opt> Printer<'opt> {
             let multiline = child.multiline;
             ctx.append(child);
 
-            let next = non_empty.get(i + 1).map(|e| e.span_end());
+            let next = elems.peek().map(|e| e.span_end());
             self.flush_trailing_comments(ctx, elem.span_end(), next);
 
+            last_end = Some(elem.span_end());
             prev = Some((elem, multiline));
         }
 
@@ -1045,9 +1047,7 @@ impl<'opt> Printer<'opt> {
             && body_start.is_some_and(|start| self.has_loc(start))
             && self.has_loc(body_end)
         {
-            let from_line = non_empty
-                .last()
-                .map(|e| e.span_end())
+            let from_line = last_end
                 .filter(|&end| self.has_loc(end))
                 .map(|end| self.line_of(end));
             self.flush_comments_until(ctx, body_end, self.line_of(body_end), from_line, false);
