@@ -419,11 +419,13 @@ pub fn restore_async_derived_ignore_comments(source: &str, mut transformed: Stri
     let mut search_from = 0;
     while let Some(relative) = source[search_from..].find("svelte-ignore ") {
         let ignore = search_from + relative;
-        let comment_start = source[..ignore]
-            .rfind("/*")
-            .or_else(|| source[..ignore].rfind("//"));
+        let next_search = ignore + "svelte-ignore ".len();
+        let comment_start = [source[..ignore].rfind("/*"), source[..ignore].rfind("//")]
+            .into_iter()
+            .flatten()
+            .max();
         let Some(comment_start) = comment_start else {
-            search_from = ignore + "svelte-ignore ".len();
+            search_from = next_search;
             continue;
         };
         let comment_end = if source[comment_start..].starts_with("/*") {
@@ -441,24 +443,24 @@ pub fn restore_async_derived_ignore_comments(source: &str, mut transformed: Stri
         };
         let rest = source[comment_end..].trim_start();
         let Some(declaration) = split_top_level_statements(rest).into_iter().next() else {
-            search_from = comment_end;
+            search_from = comment_end.max(next_search);
             continue;
         };
         if !declaration.contains("= $derived(") && !declaration.contains("= $derived.by(") {
-            search_from = comment_end;
+            search_from = comment_end.max(next_search);
             continue;
         }
         let Some(name) = extract_var_declarations(&declaration)
             .first()
             .map(|declaration| declaration.name.clone())
         else {
-            search_from = comment_end;
+            search_from = comment_end.max(next_search);
             continue;
         };
         let comment = &source[comment_start..comment_end];
         let hoisted = format!("var {comment} {name};");
         if transformed.contains(&hoisted) {
-            search_from = comment_end;
+            search_from = comment_end.max(next_search);
             continue;
         }
         let hoisted_pos = [format!("var {name};"), format!("var {name},")]
@@ -481,7 +483,7 @@ pub fn restore_async_derived_ignore_comments(source: &str, mut transformed: Stri
             transformed = transformed.replace(comment, "");
             transformed.insert_str(pos, &format!("{comment}\n"));
         }
-        search_from = comment_end;
+        search_from = comment_end.max(next_search);
     }
 
     transformed
@@ -493,11 +495,13 @@ pub fn strip_module_async_derived_ignore_comments(source: &str, mut transformed:
     let mut search_from = 0;
     while let Some(relative) = source[search_from..].find("svelte-ignore ") {
         let ignore = search_from + relative;
-        let comment_start = source[..ignore]
-            .rfind("/*")
-            .or_else(|| source[..ignore].rfind("//"));
+        let next_search = ignore + "svelte-ignore ".len();
+        let comment_start = [source[..ignore].rfind("/*"), source[..ignore].rfind("//")]
+            .into_iter()
+            .flatten()
+            .max();
         let Some(comment_start) = comment_start else {
-            search_from = ignore + "svelte-ignore ".len();
+            search_from = next_search;
             continue;
         };
         let comment_end = if source[comment_start..].starts_with("/*") {
@@ -515,15 +519,15 @@ pub fn strip_module_async_derived_ignore_comments(source: &str, mut transformed:
         };
         let rest = source[comment_end..].trim_start();
         let Some(declaration) = split_top_level_statements(rest).into_iter().next() else {
-            search_from = comment_end;
+            search_from = comment_end.max(next_search);
             continue;
         };
         if !declaration.contains("= $derived(") && !declaration.contains("= $derived.by(") {
-            search_from = comment_end;
+            search_from = comment_end.max(next_search);
             continue;
         }
         transformed = transformed.replace(&source[comment_start..comment_end], "");
-        search_from = comment_end;
+        search_from = comment_end.max(next_search);
     }
 
     transformed
@@ -3144,6 +3148,26 @@ mod tests {
         assert_eq!(
             strip_module_async_derived_ignore_comments(source, transformed.to_string()),
             " const a = await $.async_derived(() => p);"
+        );
+    }
+
+    #[test]
+    fn unrelated_line_ignore_after_block_comment_makes_progress() {
+        let source = concat!(
+            "/** prior */\n",
+            "let x = $state(0);\n",
+            "// svelte-ignore state_referenced_locally\n",
+            "const y = x;"
+        );
+        let transformed = "let x = $.state(0);\nconst y = $.get(x);";
+
+        assert_eq!(
+            restore_async_derived_ignore_comments(source, transformed.to_string()),
+            transformed
+        );
+        assert_eq!(
+            strip_module_async_derived_ignore_comments(source, transformed.to_string()),
+            transformed
         );
     }
 
