@@ -46,7 +46,7 @@ use compact_str::{CompactString, format_compact};
 
 use crate::PrintOptions;
 use crate::command::EventKind;
-use crate::context::Context;
+use crate::context::{Context, EventMark};
 
 fn usize_to_u32(value: usize) -> u32 {
     u32::try_from(value).expect("source positions exceed the u32 AST coordinate range")
@@ -852,27 +852,28 @@ impl<'opt> Printer<'opt> {
     ) {
         let mut multiline = false;
         let mut length: i64 = -1;
-        let mut items: Vec<SeqItem> = Vec::with_capacity(n);
+        let mut items: Vec<SeqLayout> = Vec::with_capacity(n);
 
         for i in 0..n {
             let node_meta = meta(i);
-            let mut child = parent.child();
-            render(self, i, &mut child);
+            let mark = parent.event_mark();
+            let scope = parent.begin_scope();
+            render(self, i, parent);
 
-            let node_multiline = child.multiline;
+            let node_multiline = parent.multiline;
             if i < n - 1 || node_meta.is_elision {
-                child.write(separator);
+                parent.write(separator);
             }
 
             let next = if i == n - 1 { until } else { meta(i + 1).start };
             if let Some(end) = node_meta.end {
-                self.flush_trailing_comments(&mut child, end, next);
+                self.flush_trailing_comments(parent, end, next);
             }
 
-            length += usize_to_i64(child.measure()) + 1;
-            multiline |= child.multiline;
-            items.push(SeqItem {
-                ctx: child,
+            length += usize_to_i64(parent.measure()) + 1;
+            multiline |= parent.end_scope(scope);
+            items.push(SeqLayout {
+                mark,
                 multiline: node_multiline,
                 obj_or_array: node_meta.obj_or_array,
                 is_elision: node_meta.is_elision,
@@ -881,29 +882,36 @@ impl<'opt> Printer<'opt> {
 
         multiline |= length > 60;
 
-        if multiline {
-            parent.indent();
-            parent.newline();
-        } else if pad && length > 0 {
-            parent.write(" ");
-        }
-
-        let mut prev: Option<(bool, bool)> = None;
-        for item in items {
-            if let Some((prev_multiline, prev_obj)) = prev {
-                if prev_multiline && item.multiline && !(prev_obj && item.obj_or_array) {
-                    parent.margin();
-                }
+        for i in (0..items.len()).rev() {
+            let item = items[i];
+            if i > 0 {
+                let prev = items[i - 1];
+                let margin =
+                    prev.multiline && item.multiline && !(prev.obj_or_array && item.obj_or_array);
                 if !item.is_elision {
-                    if multiline {
-                        parent.newline();
-                    } else {
-                        parent.write(" ");
-                    }
+                    parent.insert_event(
+                        item.mark,
+                        if multiline {
+                            EventKind::Newline
+                        } else {
+                            EventKind::Space
+                        },
+                    );
+                }
+                if margin {
+                    parent.insert_event(item.mark, EventKind::Margin);
                 }
             }
-            prev = Some((item.multiline, item.obj_or_array));
-            parent.append(item.ctx);
+        }
+
+        if let Some(first) = items.first() {
+            if multiline {
+                parent.insert_event(first.mark, EventKind::Newline);
+                parent.insert_event(first.mark, EventKind::Indent);
+                parent.multiline = true;
+            } else if pad && length > 0 {
+                parent.insert_event(first.mark, EventKind::Space);
+            }
         }
 
         if let Some(until) = until {
@@ -1274,22 +1282,24 @@ impl<'opt> Printer<'opt> {
         }
         if !named.is_empty() {
             ctx.write("{");
-            let nodes: Vec<SeqNode> = named
-                .iter()
-                .map(|s| {
+            self.sequence_slice(
+                &named,
+                |s| {
                     let span = s.span();
-                    SeqNode {
+                    SeqMeta {
                         start: Some(span.start),
                         end: Some(span.end),
                         obj_or_array: false,
                         is_elision: false,
-                        render: Box::new(move |_p: &mut Printer, child: &mut Context| {
-                            Printer::import_specifier(s, child);
-                        }),
                     }
-                })
-                .collect();
-            self.sequence(nodes, None, true, ",", true, ctx);
+                },
+                |_p, s, child| Printer::import_specifier(s, child),
+                None,
+                true,
+                ",",
+                true,
+                ctx,
+            );
             ctx.write("}");
         }
         ctx.write(" from ");
@@ -1368,22 +1378,24 @@ impl<'opt> Printer<'opt> {
             kw.write(ctx, "type ");
         }
         ctx.write("{");
-        let nodes: Vec<SeqNode> = specifiers
-            .iter()
-            .map(|s| {
+        self.sequence_slice(
+            specifiers,
+            |s| {
                 let span = s.span();
-                SeqNode {
+                SeqMeta {
                     start: Some(span.start),
                     end: Some(span.end),
                     obj_or_array: false,
                     is_elision: false,
-                    render: Box::new(move |_p: &mut Printer, child: &mut Context| {
-                        Printer::export_specifier(s, child);
-                    }),
                 }
-            })
-            .collect();
-        self.sequence(nodes, None, true, ",", true, ctx);
+            },
+            |_p, s, child| Printer::export_specifier(s, child),
+            None,
+            true,
+            ",",
+            true,
+            ctx,
+        );
         ctx.write("}");
     }
 
@@ -3970,6 +3982,14 @@ struct SeqItem {
     /// This item is an array elision (a hole, `[a, , b]`). esrap still writes
     /// the hole's separator but omits the inter-element space/newline *before*
     /// it, so consecutive holes read `,,` rather than `, ,`.
+    is_elision: bool,
+}
+
+#[derive(Clone, Copy)]
+struct SeqLayout {
+    mark: EventMark,
+    multiline: bool,
+    obj_or_array: bool,
     is_elision: bool,
 }
 
