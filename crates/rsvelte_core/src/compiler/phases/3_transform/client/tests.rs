@@ -9,6 +9,12 @@ fn snapshot_ignore_survives_an_intervening_comment() {
 }
 
 #[test]
+fn shadowed_state_scan_ignores_comment_braces() {
+    let script = "let value = 0;\nconst factory = () => {\n  let value = $state(1);\n  /* } comment */\n  return value;\n};";
+    assert!(extract_shadowed_state_names(script).contains("value"));
+}
+
+#[test]
 fn same_line_legacy_export_declaration_does_not_consume_the_next_statement() {
     use oxc_allocator::Allocator;
     use oxc_parser::Parser;

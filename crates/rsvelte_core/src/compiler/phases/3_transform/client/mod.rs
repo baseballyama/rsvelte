@@ -3608,14 +3608,7 @@ fn extract_shadowed_state_names(script: &str) -> rustc_hash::FxHashSet<String> {
         // Check if this line is at the top level BEFORE counting braces in this line
         let line_starts_at_top = brace_depth == 0;
 
-        // Track brace depth (simple heuristic - doesn't handle strings/comments)
-        for ch in trimmed.chars() {
-            match ch {
-                '{' => brace_depth += 1,
-                '}' => brace_depth -= 1,
-                _ => {}
-            }
-        }
+        advance_brace_depth_lexical(trimmed, &mut brace_depth);
 
         // Check if this is a let/const/var declaration
         let has_decl = trimmed.starts_with("let ")
@@ -3674,6 +3667,28 @@ fn extract_shadowed_state_names(script: &str) -> rustc_hash::FxHashSet<String> {
         .intersection(&inner_state)
         .cloned()
         .collect()
+}
+
+fn advance_brace_depth_lexical(line: &str, depth: &mut i32) {
+    let bytes = line.as_bytes();
+    let mut prev = None;
+    let mut i = 0;
+    while i < bytes.len() {
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            if !is_comment {
+                prev = Some(b'x');
+            }
+            i = next;
+            continue;
+        }
+        match bytes[i] {
+            b'{' => *depth += 1,
+            b'}' => *depth -= 1,
+            c if !c.is_ascii_whitespace() => prev = Some(c),
+            _ => {}
+        }
+        i += 1;
+    }
 }
 /// Every identifier in `script` that is written to, found in one pass.
 ///
