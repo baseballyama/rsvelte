@@ -1,5 +1,17 @@
 # @rsvelte/compiler
 
+## 0.10.13
+
+### Patch Changes
+
+- 84a0f5c: Match Svelte 5.56.9 CSS parser and whitespace-preserving print behavior.
+- 58cd109: Align OXC dependencies with Rolldown and expose the client program sink for native bundlers.
+  `rsvelte_esrap` is released as 0.10.8 and `rsvelte_core` pins the new exact requirement.
+- 58cd109: Match Svelte's bound contenteditable child-update behavior and runes-mode `{@html}` validation.
+- 4d6d06a: Compile TypeScript generic rune calls in template declarations without leaking `$state` into browser output.
+- 58e6772: Preserve same-line comments at the preceding statement boundary during client code generation.
+  `rsvelte_esrap` is released as 0.10.7 and `rsvelte_core` pins the new exact requirement.
+
 ## 0.10.12
 
 ### Patch Changes

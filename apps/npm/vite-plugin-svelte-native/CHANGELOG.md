@@ -1,5 +1,11 @@
 # @rsvelte/vite-plugin-svelte-native
 
+## 0.3.7
+
+### Patch Changes
+
+- 68f5049: Accept callable source maps returned by Svelte preprocessors such as SCSS.
+
 ## 0.3.6
 
 ### Patch Changes
