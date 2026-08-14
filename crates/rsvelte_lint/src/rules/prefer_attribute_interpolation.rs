@@ -5,7 +5,7 @@
 
 use serde_json::Value;
 
-use rsvelte_core::ast::template::{Attribute, AttributeValue, ExpressionTag};
+use rsvelte_core::ast::template::{Attribute, AttributeValue, AttributeValuePart, ExpressionTag};
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
@@ -161,8 +161,15 @@ impl Rule for PreferAttributeInterpolation {
         let Attribute::Attribute(node) = attr else {
             return;
         };
-        let AttributeValue::Expression(tag) = &node.value else {
-            return;
+        let tag = match &node.value {
+            AttributeValue::Expression(tag) => tag,
+            // Quoted `attr="{`...`}"` is represented as a sequence even when
+            // its sole value is the mustache tag.
+            AttributeValue::Sequence(parts) => match parts.as_slice() {
+                [AttributeValuePart::ExpressionTag(tag)] => tag,
+                _ => return,
+            },
+            AttributeValue::True(_) => return,
         };
         if should_report(ctx, tag) {
             ctx.report(tag.start, tag.end, MESSAGE);
