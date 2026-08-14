@@ -134,10 +134,6 @@ impl<'a> Collector<'a> {
                     path.push(self.generated[span.start as usize..span.end as usize].to_string());
                     current = &member.object;
                 }
-                Expression::Identifier(identifier) => {
-                    path.reverse();
-                    return Some((identifier.name.to_string(), path));
-                }
                 Expression::CallExpression(call) if call.arguments.is_empty() => {
                     let Expression::Identifier(identifier) = &call.callee else {
                         return None;
@@ -333,5 +329,16 @@ mod tests {
         assert!(output.starts_with(
             "$$ownership_validator.mutation('item', ['item', `${key}`], item()[`${key}`] = value"
         ));
+    }
+
+    #[test]
+    fn ignores_plain_prop_member_assignments() {
+        let output = wrap_prop_mutation_validation_ast(
+            "item.value = value;",
+            &[("item".to_string(), Some("item".to_string()))],
+            "<script>let { item = $bindable() } = $props(); item.value = value;</script>",
+        )
+        .unwrap();
+        assert_eq!(output, "item.value = value;");
     }
 }
