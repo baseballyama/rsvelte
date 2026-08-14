@@ -3135,14 +3135,7 @@ impl<'opt> Printer<'opt> {
     /// argument can span lines while the call stays on one line
     /// (`$.run([ … ])`, `foo(a, b, () => { … })`). Length is not a factor.
     #[inline]
-    fn call_argument_direct(
-        &mut self,
-        arg: &Argument,
-        next: Option<u32>,
-        comma: bool,
-        ctx: &mut Context,
-    ) -> bool {
-        let scope = ctx.begin_scope();
+    fn print_argument(&mut self, arg: &Argument, ctx: &mut Context) {
         match arg {
             Argument::SpreadElement(spread) => {
                 ctx.write("...");
@@ -3153,6 +3146,18 @@ impl<'opt> Printer<'opt> {
                 None => self.unsupported("Argument", ctx),
             },
         }
+    }
+
+    #[inline]
+    fn call_argument_direct(
+        &mut self,
+        arg: &Argument,
+        next: Option<u32>,
+        comma: bool,
+        ctx: &mut Context,
+    ) -> bool {
+        let scope = ctx.begin_scope();
+        self.print_argument(arg, ctx);
         if comma {
             ctx.write(",");
         }
@@ -3160,7 +3165,97 @@ impl<'opt> Printer<'opt> {
         ctx.end_scope(scope) || (comma && emitted_line)
     }
 
+    #[inline]
+    fn call_argument_plain(&mut self, arg: &Argument, comma: bool, ctx: &mut Context) -> bool {
+        let scope = ctx.begin_scope();
+        self.print_argument(arg, ctx);
+        if comma {
+            ctx.write(",");
+        }
+        ctx.end_scope(scope)
+    }
+
+    fn call_arguments_plain(&mut self, args: &[Argument], ctx: &mut Context) {
+        match args {
+            [] => ctx.write("()"),
+            [arg] => {
+                ctx.write("(");
+                self.print_argument(arg, ctx);
+                ctx.write(")");
+            }
+            [first, last] => {
+                ctx.write("(");
+                let start = ctx.event_mark();
+                let multiline = self.call_argument_plain(first, true, ctx);
+                let separator = ctx.event_mark();
+                ctx.space();
+                self.print_argument(last, ctx);
+                if multiline {
+                    ctx.insert_event(separator, EventKind::Newline);
+                    ctx.insert_event(start, EventKind::Newline);
+                    ctx.insert_event(start, EventKind::Indent);
+                    ctx.dedent();
+                    ctx.newline();
+                }
+                ctx.write(")");
+            }
+            [first, second, last] => {
+                ctx.write("(");
+                let start = ctx.event_mark();
+                let first_multiline = self.call_argument_plain(first, true, ctx);
+                let first_separator = ctx.event_mark();
+                ctx.space();
+                let second_multiline = self.call_argument_plain(second, true, ctx);
+                let second_separator = ctx.event_mark();
+                ctx.space();
+                self.print_argument(last, ctx);
+                if first_multiline || second_multiline {
+                    ctx.insert_event(second_separator, EventKind::Newline);
+                    ctx.insert_event(first_separator, EventKind::Newline);
+                    ctx.insert_event(start, EventKind::Newline);
+                    ctx.insert_event(start, EventKind::Indent);
+                    ctx.dedent();
+                    ctx.newline();
+                }
+                ctx.write(")");
+            }
+            _ => {
+                ctx.write("(");
+                let start = ctx.event_mark();
+                let mut separators = Vec::with_capacity(args.len() - 1);
+                let mut multiline = false;
+                for (i, arg) in args.iter().enumerate() {
+                    let is_last = i == args.len() - 1;
+                    if i > 0 {
+                        separators.push(ctx.event_mark());
+                        ctx.space();
+                    }
+                    if is_last {
+                        self.print_argument(arg, ctx);
+                    } else {
+                        multiline |= self.call_argument_plain(arg, true, ctx);
+                    }
+                }
+                if multiline {
+                    for separator in separators.into_iter().rev() {
+                        ctx.insert_event(separator, EventKind::Newline);
+                    }
+                    ctx.insert_event(start, EventKind::Newline);
+                    ctx.insert_event(start, EventKind::Indent);
+                    ctx.dedent();
+                    ctx.newline();
+                }
+                ctx.write(")");
+            }
+        }
+    }
+
     fn call_arguments(&mut self, args: &[Argument], call_end: u32, ctx: &mut Context) {
+        if self.comments.is_empty() {
+            self.call_arguments_plain(args, ctx);
+            return;
+        }
+
         let n = args.len();
 
         if let [arg] = args {
@@ -3177,16 +3272,7 @@ impl<'opt> Printer<'opt> {
                 ctx.indent();
                 ctx.newline();
             }
-            match arg {
-                Argument::SpreadElement(spread) => {
-                    ctx.write("...");
-                    self.print_expression(&spread.argument, ctx);
-                }
-                _ => match arg.as_expression() {
-                    Some(expression) => self.print_expression(expression, ctx),
-                    None => self.unsupported("Argument", ctx),
-                },
-            }
+            self.print_argument(arg, ctx);
             self.flush_trailing_comments(ctx, arg.span().end, Some(call_end));
             if wrap {
                 ctx.dedent();
