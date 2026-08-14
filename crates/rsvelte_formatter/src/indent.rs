@@ -375,9 +375,14 @@ fn collect_indent_edits_inner(
             }
             let is_comment =
                 matches!(a, TemplateNode::Comment(_)) || matches!(b, TemplateNode::Comment(_));
+            let both_comments =
+                matches!(a, TemplateNode::Comment(_)) && matches!(b, TemplateNode::Comment(_));
             let a_is_block = matches!(a, TemplateNode::RegularElement(e) if is_prettier_block_element(e.name.as_str()));
             let b_is_block = matches!(b, TemplateNode::RegularElement(e) if is_prettier_block_element(e.name.as_str()));
             if !is_comment && !a_is_block && !b_is_block {
+                continue;
+            }
+            if both_comments {
                 continue;
             }
             // Adjacent comments that are already inline (no newline in the fragment's

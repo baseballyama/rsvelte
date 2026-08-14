@@ -13,6 +13,18 @@ fn default_options_indent_with_two_spaces() {
 }
 
 #[test]
+fn adjacent_comments_stay_glued_in_a_broken_fragment() {
+    let src = "<svelte:head>\n<!-- eslint-disable-next-line --><!-- svelte-ignore hydration_html_changed -->\n{@html '<script></script>'}\n</svelte:head>";
+    let out = format(src, &FormatOptions::default()).expect("format ok");
+    assert!(
+        out.contains(
+            "<!-- eslint-disable-next-line --><!-- svelte-ignore hydration_html_changed -->"
+        ),
+        "adjacent directive comments must remain glued:\n{out}"
+    );
+}
+
+#[test]
 fn tab_indent_style_uses_tabs_for_outer_wrap() {
     let opts = FormatOptions {
         js: JsFormatOptions {
