@@ -30,6 +30,8 @@ pub struct ClientState {
     pub hierarchical_document_symbols: bool,
     /// Whether the client supports LSP 3.17 pull diagnostics.
     pub pull_diagnostics: bool,
+    /// Whether the client accepts dynamic watched-file registrations.
+    pub dynamic_watched_files: bool,
 }
 
 impl ClientState {
@@ -53,6 +55,10 @@ impl ClientState {
             pull_diagnostics: params
                 .pointer("/capabilities/textDocument/diagnostic")
                 .is_some(),
+            dynamic_watched_files: flag(
+                params,
+                "/capabilities/workspace/didChangeWatchedFiles/dynamicRegistration",
+            ),
         }
     }
 
@@ -100,7 +106,10 @@ mod tests {
             "workspaceFolders": [{ "uri": "file:///home/u/app", "name": "app" }],
             "clientInfo": { "name": "Visual Studio Code", "version": "1.99.0" },
             "capabilities": {
-                "workspace": { "configuration": true },
+                "workspace": {
+                    "configuration": true,
+                    "didChangeWatchedFiles": { "dynamicRegistration": true },
+                },
                 "general": { "positionEncodings": ["utf-16"] },
                 "textDocument": {
                     "foldingRange": { "lineFoldingOnly": true },
@@ -122,6 +131,7 @@ mod tests {
         assert!(state.line_folding_only);
         assert!(state.hierarchical_document_symbols);
         assert!(!state.pull_diagnostics);
+        assert!(state.dynamic_watched_files);
     }
 
     #[test]
@@ -132,6 +142,7 @@ mod tests {
         assert!(!state.line_folding_only);
         assert!(!state.hierarchical_document_symbols);
         assert!(!state.pull_diagnostics);
+        assert!(!state.dynamic_watched_files);
     }
 
     #[test]

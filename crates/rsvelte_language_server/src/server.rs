@@ -140,6 +140,7 @@ enum Pending {
 /// echo back.
 enum Outgoing {
     Configuration,
+    WatchedFilesRegistration,
 }
 
 struct Server {
@@ -187,6 +188,9 @@ impl Server {
     fn run(&mut self, connection: &Connection) -> Result<ExitCode> {
         if self.client.pull_configuration {
             self.request_configuration();
+        }
+        if self.client.dynamic_watched_files {
+            self.register_watched_files();
         }
         // Cloned out of `self` so the handlers below can still borrow it.
         let outcomes = self.outcomes.clone();
@@ -671,6 +675,7 @@ impl Server {
                     self.relint_open_documents();
                 }
             }
+            Outgoing::WatchedFilesRegistration => {}
         }
     }
 
@@ -744,6 +749,28 @@ impl Server {
                     section: Some(CONFIG_SECTION.to_string()),
                 }],
             },
+        ));
+    }
+
+    fn register_watched_files(&mut self) {
+        self.next_request_id += 1;
+        let id = RequestId::from(format!("rsvelte-watch-files-{}", self.next_request_id));
+        self.outgoing
+            .insert(id.clone(), Outgoing::WatchedFilesRegistration);
+        self.send(Request::new(
+            id,
+            "client/registerCapability".to_string(),
+            serde_json::json!({
+                "registrations": [{
+                    "id": "rsvelte-project-configs",
+                    "method": "workspace/didChangeWatchedFiles",
+                    "registerOptions": {
+                        "watchers": project_config_names().iter().map(|name| serde_json::json!({
+                            "globPattern": format!("**/{name}"),
+                        })).collect::<Vec<_>>(),
+                    },
+                }],
+            }),
         ));
     }
 
@@ -872,13 +899,18 @@ fn is_lint_target(document: &Document) -> bool {
 }
 
 fn is_project_config(uri: &Uri) -> bool {
-    [
+    project_config_names()
+        .iter()
+        .any(|name| uri.as_str().rsplit('/').next() == Some(name))
+}
+
+const fn project_config_names() -> &'static [&'static str] {
+    &[
         "rsvelte-lint.json",
         ".rsvelte-lintrc.json",
-        ".oxfmtrc",
         ".oxfmtrc.json",
         ".oxfmtrc.jsonc",
+        "oxfmt.config.ts",
+        "oxfmt.config.mts",
     ]
-    .iter()
-    .any(|name| uri.as_str().ends_with(name))
 }
