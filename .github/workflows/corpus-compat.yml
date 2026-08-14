@@ -170,7 +170,8 @@ jobs:
   corpus:
     name: Compiler parity
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Full compilation can consume the former hour before verification begins.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
