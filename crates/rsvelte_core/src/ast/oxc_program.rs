@@ -1,5 +1,6 @@
 use oxc_allocator::{Allocator, CloneIn};
 use oxc_ast::ast::Program;
+use oxc_ast_visit::VisitMut;
 use oxc_diagnostics::OxcDiagnostic;
 use oxc_parser::Parser;
 use oxc_span::SourceType;
@@ -69,6 +70,22 @@ impl<'source> RetainedProgram<'source> {
     }
 
     #[must_use]
+    pub fn clone_program_into_at<'alloc>(
+        &self,
+        allocator: &'alloc Allocator,
+        offset: u32,
+    ) -> Program<'alloc> {
+        let mut program = self.clone_program_into(allocator);
+        ShiftSpans(offset).visit_program(&mut program);
+        for comment in &mut program.comments {
+            comment.span.start += offset;
+            comment.span.end += offset;
+            comment.attached_to += offset;
+        }
+        program
+    }
+
+    #[must_use]
     pub fn source(&self) -> &str {
         self.borrow_owner().source()
     }
@@ -80,6 +97,15 @@ impl<'source> RetainedProgram<'source> {
     #[must_use]
     pub fn panicked(&self) -> bool {
         self.borrow_dependent().panicked
+    }
+}
+
+struct ShiftSpans(u32);
+
+impl VisitMut<'_> for ShiftSpans {
+    fn visit_span(&mut self, span: &mut oxc_span::Span) {
+        span.start += self.0;
+        span.end += self.0;
     }
 }
 
@@ -135,5 +161,43 @@ mod tests {
 
         assert_eq!(cloned.span, retained.program().span);
         assert_eq!(cloned.body[0].span(), retained.program().body[0].span());
+    }
+
+    #[test]
+    fn clone_into_at_offsets_source_spans() {
+        let retained = RetainedProgram::parse("let answer = 42;", false);
+        let allocator = Allocator::default();
+        let cloned = retained.clone_program_into_at(&allocator, 7);
+
+        assert_eq!(cloned.span.start, retained.program().span.start + 7);
+        assert_eq!(cloned.span.end, retained.program().span.end + 7);
+        assert_eq!(
+            cloned.body[0].span().start,
+            retained.program().body[0].span().start + 7
+        );
+        assert_eq!(
+            cloned.body[0].span().end,
+            retained.program().body[0].span().end + 7
+        );
+    }
+
+    #[test]
+    fn clone_into_at_offsets_comments() {
+        let retained = RetainedProgram::parse("// note\nlet answer = 42;", false);
+        let allocator = Allocator::default();
+        let cloned = retained.clone_program_into_at(&allocator, 7);
+
+        assert_eq!(
+            cloned.comments[0].span.start,
+            retained.program().comments[0].span.start + 7
+        );
+        assert_eq!(
+            cloned.comments[0].span.end,
+            retained.program().comments[0].span.end + 7
+        );
+        assert_eq!(
+            cloned.comments[0].attached_to,
+            retained.program().comments[0].attached_to + 7
+        );
     }
 }
