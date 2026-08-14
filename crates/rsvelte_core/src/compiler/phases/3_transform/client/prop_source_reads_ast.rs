@@ -64,7 +64,7 @@ use oxc_ast::ast::*;
 use oxc_ast_visit::{Visit, walk};
 use oxc_parser::ParseOptions;
 use oxc_semantic::{Semantic, SemanticBuilder};
-use oxc_span::SourceType;
+use oxc_span::{GetSpan, SourceType};
 
 use crate::compiler::phases::phase3_transform::shared::js_scan::contains_identifier;
 use rustc_hash::FxHashSet;
@@ -176,6 +176,65 @@ pub fn wrap_prop_source_reads_ast(
             Some(out)
         },
     )
+}
+
+/// Rewrite prop reads in the fourth argument of generated `$.prop` calls.
+///
+/// Export-let lowering creates these calls before ordinary prop-source reads
+/// run, so they need their own AST pass. Keeping the call and argument spans
+/// from OXC avoids treating commas, templates, comments, or regexes as
+/// delimiters.
+pub fn wrap_prop_reads_in_defaults_ast(source: &str, prop_vars: &[String]) -> Option<String> {
+    if prop_vars.is_empty() || !source.contains("$.prop(") {
+        return None;
+    }
+
+    ast_rewrite::with_program(
+        &PROP_READ_ALLOC,
+        source,
+        SourceType::mjs(),
+        ParseOptions::default(),
+        |program| {
+            let mut collector = PropDefaultCollector {
+                source,
+                prop_vars,
+                replacements: Vec::new(),
+            };
+            collector.visit_program(program);
+            ast_rewrite::splice(source, collector.replacements, false)
+                .or_else(|| Some(source.to_string()))
+        },
+    )
+}
+
+struct PropDefaultCollector<'a> {
+    source: &'a str,
+    prop_vars: &'a [String],
+    replacements: Vec<ast_rewrite::Edit>,
+}
+
+impl<'a, 'ast> Visit<'ast> for PropDefaultCollector<'a> {
+    fn visit_call_expression(&mut self, call: &CallExpression<'ast>) {
+        if let Expression::StaticMemberExpression(member) = &call.callee
+            && let Expression::Identifier(object) = &member.object
+            && object.name == "$"
+            && member.property.name == "prop"
+            && let Some(default) = call.arguments.get(3)
+        {
+            let span = default.span();
+            let default_source = &self.source[span.start as usize..span.end as usize];
+            let is_bare_prop = matches!(default, Argument::Identifier(id)
+                if self.prop_vars.iter().any(|prop| prop == id.name.as_str()));
+            if !is_bare_prop {
+                let rewritten = wrap_prop_source_reads_ast(default_source, self.prop_vars, &[])
+                    .unwrap_or_else(|| default_source.to_string());
+                if rewritten != default_source {
+                    self.replacements.push((span.start, span.end, rewritten));
+                }
+            }
+        }
+        walk::walk_call_expression(self, call);
+    }
 }
 
 struct PropReadCollector<'a, 'sem> {

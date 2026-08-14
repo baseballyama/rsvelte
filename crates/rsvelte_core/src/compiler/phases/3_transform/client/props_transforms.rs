@@ -754,6 +754,14 @@ pub(super) fn transform_let_with_reexported_props(
 /// e.g.: `export let click_1 = () => { logs.push('click_1'); }`
 /// where `logs` is a prop and should become `logs()` inside the default value.
 pub(super) fn apply_prop_reads_in_prop_default_values(line: &str, prop_vars: &[String]) -> String {
+    if let Some(rewritten) =
+        super::prop_source_reads_ast::wrap_prop_reads_in_defaults_ast(line, prop_vars)
+    {
+        return rewritten;
+    }
+
+    // A malformed intermediate cannot be parsed into spans. Keep this legacy
+    // path only for that explicitly unparseable fallback.
     // Split $.prop() calls into prefix + default-value + suffix, transform the default value only.
     // The pattern is: $.prop($$props, 'name', N, DEFAULT)
     // We find each $.prop( and extract the 4th argument.
@@ -4569,6 +4577,30 @@ mod split_declarators_tests {
                 &props
             ),
             "let f = $.prop($$props, 'f', 24, () => logs().push(1));"
+        );
+    }
+
+    #[test]
+    fn prop_default_reads_use_ast_spans_for_grammar_combinations() {
+        let props = vec!["café".to_string()];
+        assert_eq!(
+            apply_prop_reads_in_prop_default_values(
+                "let value = $.prop($$props, 'value', 24, () => /[,)]/.test(`x${café /* , ) */}`) ? café : '\\\\');\ncafé;",
+                &props,
+            ),
+            "let value = $.prop($$props, 'value', 24, () => /[,)]/.test(`x${café() /* , ) */}`) ? café() : '\\\\');\ncafé;",
+        );
+    }
+
+    #[test]
+    fn prop_default_reads_handle_semicolon_free_generated_statements() {
+        let props = vec!["value".to_string()];
+        assert_eq!(
+            apply_prop_reads_in_prop_default_values(
+                "let current = $.prop($$props, 'current', 24, () => value)\nvalue",
+                &props,
+            ),
+            "let current = $.prop($$props, 'current', 24, () => value())\nvalue",
         );
     }
 

@@ -21,7 +21,6 @@ The former aggregate #033 has been split along independently removable productio
 
 ### P1
 
-- [004 — prop transforms parse generated JavaScript with ad-hoc character scanners](004-prop-transforms-parse-javascript-as-text.md)
 - [005 — parameter defaults and computed keys lose reactive dependencies](005-parameter-defaults-lose-reactive-dependencies.md)
 - [006 — special elements bypass shared directive validation and lowering](006-special-element-directive-validation-drift.md)
 - [007 — experimental async-derived lowering has multiple semantic failures](007-async-derived-lowering-is-incomplete.md)

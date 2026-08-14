@@ -37,6 +37,7 @@ mod private_read_wrap_ast;
 mod private_v_suffix_ast;
 mod prop_assign_ast;
 mod prop_member_mutate_ast;
+mod prop_mutation_validation_ast;
 mod prop_source_reads_ast;
 mod props_transforms;
 mod reactive_transforms;
@@ -7428,7 +7429,14 @@ fn transform_instance_script_for_visitors(
     // form, which does not exist yet while the per-statement pipeline is still running.
     // Reference: validate_mutation() in shared/utils.js
     if !prop_mutation_vars.is_empty() {
-        result = wrap_prop_mutation_validation(&result, &prop_mutation_vars, &analysis.source);
+        result = prop_mutation_validation_ast::wrap_prop_mutation_validation_ast(
+            &result,
+            &prop_mutation_vars,
+            &analysis.source,
+        )
+        .unwrap_or_else(|| {
+            wrap_prop_mutation_validation(&result, &prop_mutation_vars, &analysis.source)
+        });
     }
 
     // Dev-mode equality / `await` instrumentation for legacy components. Upstream
