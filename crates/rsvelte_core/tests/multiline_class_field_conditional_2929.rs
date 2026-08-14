@@ -59,6 +59,14 @@ fn multiline_conditional_class_field_remains_a_single_expression_in_every_mode()
                     "private method result was not proxied in dev={dev}:\n{}",
                     result.js.code
                 );
+                assert!(
+                    result
+                        .js
+                        .code
+                        .contains("$.state($.proxy(this.#defaultValue))"),
+                    "private member value was not proxied in dev={dev}:\n{}",
+                    result.js.code
+                );
             }
             let allocator = Allocator::default();
             let parsed = Parser::new(&allocator, &result.js.code, SourceType::mjs()).parse();

@@ -2481,6 +2481,10 @@ pub(super) fn is_member_expression(expr: &str) -> bool {
         if part.is_empty() {
             return false;
         }
+        let part = part.strip_prefix('#').unwrap_or(part);
+        if part.is_empty() {
+            return false;
+        }
         let first = part.chars().next().unwrap();
         if !first.is_alphabetic() && first != '_' && first != '$' {
             return false;
