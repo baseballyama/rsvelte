@@ -16,10 +16,23 @@ use crate::command::{Buffer, EventKind};
 pub struct Context {
     buffer: Buffer,
     returned: Rc<RefCell<Vec<Buffer>>>,
+    measure_base: usize,
     has_newline: bool,
     /// `true` once this context (or an appended child) emitted a newline.
     /// Visitors read it to pick a layout.
     pub multiline: bool,
+}
+
+pub(crate) struct Scope {
+    measure_base: usize,
+    has_newline: bool,
+    multiline: bool,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct EventMark {
+    index: usize,
+    offset: u32,
 }
 
 impl Context {
@@ -30,6 +43,7 @@ impl Context {
         Self {
             buffer,
             returned,
+            measure_base: 0,
             has_newline: false,
             multiline: false,
         }
@@ -42,6 +56,7 @@ impl Context {
         Self {
             buffer,
             returned: Rc::clone(&self.returned),
+            measure_base: 0,
             has_newline: false,
             multiline: false,
         }
@@ -104,15 +119,52 @@ impl Context {
         }
     }
 
+    pub(crate) fn begin_scope(&mut self) -> Scope {
+        let scope = Scope {
+            measure_base: self.measure_base,
+            has_newline: self.has_newline,
+            multiline: self.multiline,
+        };
+        self.measure_base = self.buffer.text.len();
+        self.has_newline = false;
+        self.multiline = false;
+        scope
+    }
+
+    pub(crate) fn end_scope(&mut self, scope: Scope) -> bool {
+        let child_multiline = self.multiline;
+        self.measure_base = scope.measure_base;
+        self.has_newline = scope.has_newline;
+        self.multiline = scope.multiline || scope.has_newline || child_multiline;
+        child_multiline
+    }
+
+    pub(crate) fn event_mark(&self) -> EventMark {
+        EventMark {
+            index: self.buffer.events.len(),
+            offset: u32::try_from(self.buffer.text.len()).expect("esrap output exceeds u32"),
+        }
+    }
+
+    pub(crate) fn insert_event(&mut self, mark: EventMark, kind: EventKind) {
+        self.buffer.events.insert(
+            mark.index,
+            crate::command::Event {
+                offset: mark.offset,
+                kind,
+            },
+        );
+    }
+
     /// `true` when nothing with visible content has been written.
     pub const fn empty(&self) -> bool {
-        self.buffer.text.is_empty()
+        self.buffer.text.len() == self.measure_base
     }
 
     /// Total length of the literal strings in this context, ignoring whitespace
     /// sentinels — esrap's `measure`, used to decide if a layout fits on a line.
     pub const fn measure(&self) -> usize {
-        self.buffer.text.len()
+        self.buffer.text.len() - self.measure_base
     }
 
     /// Consume the context, yielding its flat output buffer (for the top-level
@@ -198,5 +250,21 @@ mod tests {
         ctx.space();
         ctx.write("");
         assert_eq!(print(&ctx.into_buffer(), "\t", 0), " ");
+    }
+
+    #[test]
+    fn scope_tracks_local_layout_without_a_child_buffer() {
+        let mut ctx = Context::new();
+        ctx.write("a");
+        let mark = ctx.event_mark();
+        ctx.newline();
+        let scope = ctx.begin_scope();
+        ctx.write("bc");
+        assert_eq!(ctx.measure(), 2);
+        ctx.newline();
+        ctx.write("d");
+        assert!(ctx.end_scope(scope));
+        ctx.insert_event(mark, EventKind::Margin);
+        assert_eq!(print(&ctx.into_buffer(), "\t", 0), "a\n\nbc\nd");
     }
 }

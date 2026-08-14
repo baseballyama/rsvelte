@@ -45,6 +45,7 @@ use oxc_syntax::operator::UnaryOperator;
 use compact_str::{CompactString, format_compact};
 
 use crate::PrintOptions;
+use crate::command::EventKind;
 use crate::context::Context;
 
 fn usize_to_u32(value: usize) -> u32 {
@@ -1026,17 +1027,22 @@ impl<'opt> Printer<'opt> {
         let mut prev: Option<(BodyElem<'a, 'b>, bool)> = None;
         let mut last_end = None;
         while let Some(elem) = elems.next() {
-            let mut child = ctx.child();
-            elem.print(self, &mut child);
-
+            let layout_mark = ctx.event_mark();
+            let mut has_margin = false;
             if let Some((prev_elem, prev_multiline)) = &prev {
-                if child.multiline || *prev_multiline || !elem.same_kind(prev_elem) {
+                has_margin = *prev_multiline || !elem.same_kind(prev_elem);
+                if has_margin {
                     ctx.margin();
                 }
                 ctx.newline();
             }
-            let multiline = child.multiline;
-            ctx.append(child);
+
+            let scope = ctx.begin_scope();
+            elem.print(self, ctx);
+            let multiline = ctx.end_scope(scope);
+            if multiline && prev.is_some() && !has_margin {
+                ctx.insert_event(layout_mark, EventKind::Margin);
+            }
 
             let end = elem.span_end();
             let next = elems.peek().map(BodyElem::span_end);
