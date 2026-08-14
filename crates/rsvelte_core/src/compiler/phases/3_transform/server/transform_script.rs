@@ -5009,6 +5009,7 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
     // where the `{` is inside the initializer and spans multiple lines.
     let mut in_plain_field = false;
     let mut plain_field_lines: Vec<String> = Vec::new();
+    let mut plain_field_is_conditional = false;
 
     // For block comments (`/** … */` / `/* … */`) inside class bodies: accumulate
     // lines until the closing `*/` and push them as a `ClassMember::Comment` so the
@@ -5138,8 +5139,11 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         // single Field member so the emitter can write it verbatim.
         if in_plain_field {
             plain_field_lines.push(line.to_string());
-            if code_bracket_depth(&plain_field_lines.join("\n")) <= 0 {
+            if code_bracket_depth(&plain_field_lines.join("\n")) <= 0
+                && (!plain_field_is_conditional || trimmed.starts_with(':'))
+            {
                 in_plain_field = false;
+                plain_field_is_conditional = false;
                 // Emit the full multi-line field as a single Field entry whose
                 // text is the source lines joined. The emitter handles it
                 // specially when it sees newlines inside the Field value.
@@ -5461,8 +5465,24 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         // the depth returns to 0 so the full initializer is emitted verbatim
         // instead of just the first line with a spurious `;` appended.
         let field_bracket_depth = code_bracket_depth(trimmed);
-        if field_bracket_depth > 0 {
+        let next_nonempty_lines: Vec<&str> = all_lines[line_idx..]
+            .iter()
+            .filter_map(|next| {
+                let next = next.trim();
+                (!next.is_empty()).then_some(next)
+            })
+            .take(2)
+            .collect();
+        let starts_plain_field_conditional = next_nonempty_lines
+            .first()
+            .is_some_and(|next| next.starts_with('?'))
+            || (trimmed.ends_with('=')
+                && next_nonempty_lines
+                    .get(1)
+                    .is_some_and(|next| next.starts_with('?')));
+        if field_bracket_depth > 0 || starts_plain_field_conditional {
             in_plain_field = true;
+            plain_field_is_conditional = starts_plain_field_conditional;
             plain_field_lines.clear();
             plain_field_lines.push(line.to_string());
         } else {
