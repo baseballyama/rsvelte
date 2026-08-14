@@ -19,7 +19,8 @@ use crate::rules::{
     no_restricted_html_elements::NoRestrictedHtmlElements, no_svelte_internal::NoSvelteInternal,
     no_target_blank::NoTargetBlank, no_top_level_browser_globals::NoTopLevelBrowserGlobals,
     no_useless_children_snippet::NoUselessChildrenSnippet,
-    no_useless_mustaches::NoUselessMustaches, prefer_const::PreferConst,
+    no_useless_mustaches::NoUselessMustaches,
+    prefer_attribute_interpolation::PreferAttributeInterpolation, prefer_const::PreferConst,
     require_each_key::RequireEachKey, valid_each_key::ValidEachKey,
 };
 
@@ -119,6 +120,7 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(NoSvelteInternal),
         Box::new(NoInspect),
         Box::new(NoUselessMustaches),
+        Box::new(PreferAttributeInterpolation),
         Box::new(NoTargetBlank),
         Box::new(crate::rules::no_at_const_tags::NoAtConstTags),
         Box::new(crate::rules::no_dynamic_slot_name::NoDynamicSlotName),

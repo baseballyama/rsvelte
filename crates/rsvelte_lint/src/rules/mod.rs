@@ -76,6 +76,7 @@ pub mod no_unused_svelte_ignore;
 pub mod no_unused_vars;
 pub mod no_useless_children_snippet;
 pub mod no_useless_mustaches;
+pub mod prefer_attribute_interpolation;
 pub mod prefer_class_directive;
 pub mod prefer_const;
 pub mod prefer_derived_over_derived_by;
