@@ -43,6 +43,7 @@ pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
                 SvelteTag::Each => Some(tag_completions(EACH_CLOSE)),
                 SvelteTag::Await => Some(tag_completions(AWAIT_CLOSE)),
                 SvelteTag::Key => Some(tag_completions(KEY_CLOSE)),
+                SvelteTag::Snippet => Some(tag_completions(SNIPPET_CLOSE)),
                 _ => None,
             },
             _ => None,
@@ -222,6 +223,12 @@ const IF_CLOSE: &[TagItem] = &[TagItem {
 const KEY_CLOSE: &[TagItem] = &[TagItem {
     label: "key",
     tag: SvelteTag::Key,
+    insert_text: None,
+}];
+
+const SNIPPET_CLOSE: &[TagItem] = &[TagItem {
+    label: "snippet",
+    tag: SvelteTag::Snippet,
     insert_text: None,
 }];
 
@@ -426,6 +433,7 @@ mod tests {
         assert_eq!(labels("{#each}{/").unwrap(), ["each"]);
         assert_eq!(labels("{#await}{/").unwrap(), ["await"]);
         assert_eq!(labels("{#key}{/").unwrap(), ["key"]);
+        assert_eq!(labels("{#snippet example()}{/").unwrap(), ["snippet"]);
         assert_eq!(labels("{#if}{/if}{#if}{#await}{/").unwrap(), ["await"]);
     }
 
