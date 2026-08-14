@@ -2234,20 +2234,18 @@ impl<'opt> Printer<'opt> {
         kw.write(ctx, keyword);
 
         if let [declarator] = decl.declarations.as_slice() {
-            let mut child = ctx.child();
-            self.flush_leading(&mut child, declarator.span().start);
-            self.binding_pattern(&declarator.id, &mut child);
+            self.flush_leading(ctx, declarator.span().start);
+            self.binding_pattern(&declarator.id, ctx);
             if declarator.definite {
-                child.write("!");
+                ctx.write("!");
             }
             if let Some(ann) = &declarator.type_annotation {
-                self.type_annotation(ann, &mut child);
+                self.type_annotation(ann, ctx);
             }
             if let Some(init) = &declarator.init {
-                child.write(" = ");
-                self.print_expression(init, &mut child);
+                ctx.write(" = ");
+                self.print_expression(init, ctx);
             }
-            ctx.append(child);
             return;
         }
 
