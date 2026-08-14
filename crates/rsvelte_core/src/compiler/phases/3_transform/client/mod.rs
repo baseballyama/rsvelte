@@ -6494,7 +6494,7 @@ fn transform_instance_script_for_visitors(
             let _pa =
                 super::profile::pa_guard(super::profile::PA_SNAPSHOT_DEV, transformed.len() as u64);
             if dev && memmem::find(transformed.as_bytes(), b"$state.snapshot(").is_some() {
-                let prev_has_ignore = has_snapshot_ignore_before(&result);
+                let prev_has_ignore = has_snapshot_ignore_before(result);
                 if prev_has_ignore {
                     let mut new_transformed = String::new();
                     let mut remaining: &str = &transformed;

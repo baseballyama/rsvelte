@@ -1266,8 +1266,9 @@ fn scan_nodes_for_namespace(nodes: &[TemplateNode], ns: &mut NsScan) -> bool {
 /// `$props`. `$props` is a compiler rune (not a user value when unshadowed),
 /// so collapsing the call whitespace is always semantics-preserving.
 pub(crate) fn canonicalize_props_call(s: &str) -> Cow<'_, str> {
-    static REGEX_PROPS_ASSIGN: std::sync::LazyLock<regex::Regex> =
-        std::sync::LazyLock::new(|| regex::Regex::new(r"=\s*\$props\s*\(\s*\)").unwrap());
+    static REGEX_PROPS_ASSIGN: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(r"=\s*(?:(?://[^\n]*\n|/\*(?s:.*?)\*/\s*))*\$props\s*\(\s*\)").unwrap()
+    });
     // `$$` is the regex-crate escape for a literal `$` in the replacement
     // string (a bare `$props` would be read as a capture-group reference).
     REGEX_PROPS_ASSIGN.replace_all(s, "= $$props()")
@@ -1335,6 +1336,10 @@ mod tests {
         );
         assert_eq!(
             canonicalize_props_call("let { x } = $props( )"),
+            "let { x } = $props()"
+        );
+        assert_eq!(
+            canonicalize_props_call("let { x } = /* ) comment */\n$props()"),
             "let { x } = $props()"
         );
         // Unrelated `=` and defaults are untouched.
