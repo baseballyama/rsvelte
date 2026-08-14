@@ -120,6 +120,8 @@ jobs:
             path: submodules/svelthree
           - name: runed
             path: submodules/runed
+          - name: mode-watcher
+            path: submodules/mode-watcher
           - name: svelte-toolbelt
             path: submodules/svelte-toolbelt
           - name: cmsaasstarter

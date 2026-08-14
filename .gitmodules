@@ -339,3 +339,10 @@
 	branch = main
 	ignore = dirty
 	shallow = true
+
+[submodule "submodules/mode-watcher"]
+	path = submodules/mode-watcher
+	url = https://github.com/svecosystem/mode-watcher.git
+	branch = main
+	ignore = dirty
+	shallow = true
