@@ -201,7 +201,7 @@ withCorpus(
 );
 
 // A sub-population partition must be checked against that sub-population, not
-// against the whole ratchet — `comment-slot`'s 172 is not the matrix ratchet's 508.
+// against the whole ratchet — `comment-slot`'s 172 is not the matrix ratchet's 388.
 withCorpus(
 	(d) =>
 		edit(
