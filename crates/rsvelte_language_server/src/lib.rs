@@ -12,10 +12,12 @@
 
 pub mod client;
 pub mod code_actions;
+pub mod code_lens;
 pub mod completions;
 pub mod context;
 pub mod diagnostics;
 pub mod document;
+pub mod extract;
 pub mod folding;
 pub mod format;
 pub mod hover;
