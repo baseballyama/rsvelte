@@ -1,6 +1,7 @@
 import * as svelte from '@rsvelte/vite-plugin-svelte-native';
 import { safeBase64Hash } from './hash.js';
 import { log } from './log.js';
+import { addPartialAcceptExports, applyMapEdits } from './map-edits.js';
 
 import { mapToRelative } from './sourcemaps.js';
 import { enhanceCompileError } from './error.js';
@@ -109,12 +110,11 @@ export function createCompileSvelte() {
 			// TODO remove later
 			if (
 				options.server?.config.experimental.hmrPartialAccept &&
-				compiled.js.code.includes('import.meta.hot.accept(')
+				compiled.js.code.includes('import.meta.hot')
 			) {
-				compiled.js.code = compiled.js.code.replaceAll(
-					'import.meta.hot.accept(',
-					'import.meta.hot.acceptExports(["default"],'
-				);
+				applyMapEdits(compiled, filename, (editor, generated) => {
+					addPartialAcceptExports(editor, generated);
+				});
 			}
 		} catch (e) {
 			enhanceCompileError(e, code, options.preprocess);
@@ -137,8 +137,9 @@ export function createCompileSvelte() {
 			const hasCss = compiled.css?.code?.trim()?.length ?? 0 > 0;
 			// compiler might not emit css with mode none or it may be empty
 			if (emitCss && hasCss) {
-				// TODO properly update sourcemap?
-				compiled.js.code += `\nimport ${JSON.stringify(cssId)};\n`;
+				applyMapEdits(compiled, filename, (editor) => {
+					editor.append(`\nimport ${JSON.stringify(cssId)};\n`);
+				});
 			}
 		}
 
