@@ -48,10 +48,10 @@ pub fn quickfixes(source: &str, uri: &Uri, diagnostics: &[Diagnostic]) -> Vec<Co
     let mut actions = Vec::new();
     for diagnostic in diagnostics {
         for_diagnostic(source, &index, root.as_ref(), uri, diagnostic, &mut actions);
-        if code_of(diagnostic) == Some("security-anchor-rel-noreferrer") {
-            if let Some(action) = add_noreferrer(source, &index, uri, diagnostic) {
-                actions.push(action);
-            }
+        if code_of(diagnostic) == Some("security-anchor-rel-noreferrer")
+            && let Some(action) = add_noreferrer(source, &index, uri, diagnostic)
+        {
+            actions.push(action);
         }
     }
     actions

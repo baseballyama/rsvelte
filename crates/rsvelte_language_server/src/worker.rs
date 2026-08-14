@@ -317,7 +317,7 @@ fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>) {
                     crate::extract::component(&text, uri.as_str(), range, &file_path)
                 })
                 .unwrap_or_else(|| Err("Invalid selection range".to_string()))
-                .map_or_else(Value::String, |edit| edit),
+                .unwrap_or_else(Value::String),
             },
             Job::FoldingRange {
                 id,
