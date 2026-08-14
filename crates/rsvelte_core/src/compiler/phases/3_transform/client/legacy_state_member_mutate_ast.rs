@@ -576,10 +576,12 @@ impl<'a, 'b> LegacyStateMemberMutateRewriter<'a, 'b> {
             return None;
         }
         let stmts: Vec<Statement<'a>> = parsed.program.body.into_iter().collect();
-        Some(self.b.call(
+        let mut call = self.b.call(
             "$.invalidate_inner_signals",
             vec![self.b.thunk_block(stmts, false)],
-        ))
+        );
+        ast_rewrite::mark_synthesized_expression(&mut call);
+        Some(call)
     }
 }
 

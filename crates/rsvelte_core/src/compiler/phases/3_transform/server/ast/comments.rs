@@ -14,8 +14,8 @@
 //! node.
 
 use oxc_allocator::{Allocator, Vec as ArenaVec};
-use oxc_ast::ast::{Comment, Program, Statement};
-use oxc_ast_visit::{VisitMut, walk_mut};
+use oxc_ast::ast::{Comment, FunctionBody, Program, Statement};
+use oxc_ast_visit::{Visit, VisitMut, walk_mut};
 use oxc_span::{GetSpan, Span};
 
 /// Base of the provisional address range. Registered anchors live above it;
@@ -27,10 +27,16 @@ const PROV_BASE: u32 = 1 << 30;
 /// comment's dedent walks back to the preceding newline for its indent.
 const PAD: &str = "\n";
 
+const COMPONENT_BODY_MARKER: Span = Span::new(u32::MAX - 1, u32::MAX - 1);
+
 /// A deliberately-kept `EmptyStatement` (`B::empty_kept`) encodes itself in its
 /// span end, so neither pass may rewrite it.
 fn is_sentinel(span: Span) -> bool {
     span.end == u32::MAX
+}
+
+pub fn mark_component_body(body: &mut FunctionBody<'_>) {
+    body.span = COMPONENT_BODY_MARKER;
 }
 
 /// One registered comment region.
@@ -197,7 +203,7 @@ struct Remap<'m> {
 
 impl VisitMut<'_> for Remap<'_> {
     fn visit_span(&mut self, span: &mut Span) {
-        if is_sentinel(*span) {
+        if is_sentinel(*span) || *span == COMPONENT_BODY_MARKER {
             return;
         }
         match chunk_of(self.bases, *span).and_then(|i| self.shift[i]) {
@@ -207,6 +213,60 @@ impl VisitMut<'_> for Remap<'_> {
             }
             None => *span = Span::new(0, 0),
         }
+    }
+}
+
+struct BodyRegions<'m> {
+    regions: &'m [(u32, u32)],
+    first: Option<u32>,
+    last: Option<u32>,
+}
+
+impl Visit<'_> for BodyRegions<'_> {
+    fn visit_span(&mut self, span: &Span) {
+        if *span == COMPONENT_BODY_MARKER || *span == Span::new(0, 0) {
+            return;
+        }
+        let Some(i) = self
+            .regions
+            .partition_point(|&(start, _)| start <= span.start)
+            .checked_sub(1)
+            .filter(|&i| span.start <= self.regions[i].1)
+        else {
+            return;
+        };
+        self.first = Some(
+            self.first
+                .map_or(self.regions[i].0, |v| v.min(self.regions[i].0)),
+        );
+        self.last = Some(
+            self.last
+                .map_or(self.regions[i].1, |v| v.max(self.regions[i].1)),
+        );
+    }
+}
+
+struct ResolveComponentBody<'m> {
+    regions: &'m [(u32, u32)],
+}
+
+impl<'a> VisitMut<'a> for ResolveComponentBody<'_> {
+    fn visit_function_body(&mut self, body: &mut FunctionBody<'a>) {
+        if body.span == COMPONENT_BODY_MARKER {
+            let mut bounds = BodyRegions {
+                regions: self.regions,
+                first: None,
+                last: None,
+            };
+            for statement in &body.statements {
+                bounds.visit_statement(statement);
+            }
+            body.span = bounds
+                .first
+                .zip(bounds.last)
+                .map_or(Span::new(0, 0), |(start, end)| Span::new(start, end));
+        }
+        walk_mut::walk_function_body(self, body);
     }
 }
 
@@ -299,6 +359,19 @@ pub fn print_with_comments<'a>(
         shift: &shift,
     };
     remap.visit_program(program);
+    let regions: Vec<(u32, u32)> = bases
+        .iter()
+        .zip(&shift)
+        .filter_map(|(&(start, end), &delta)| {
+            delta.map(|delta| {
+                (
+                    (i64::from(start) + delta) as u32,
+                    (i64::from(end) + delta) as u32,
+                )
+            })
+        })
+        .collect();
+    ResolveComponentBody { regions: &regions }.visit_program(program);
 
     let mut code = if comments.is_empty() {
         rsvelte_esrap::print(program, "")

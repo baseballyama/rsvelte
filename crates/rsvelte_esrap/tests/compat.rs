@@ -2,9 +2,10 @@
 //! TS `declare module` + mapped type all print as expected.
 
 use oxc_allocator::Allocator;
+use oxc_ast::ast::Statement;
 use oxc_parser::Parser;
 use oxc_span::SourceType;
-use rsvelte_esrap::print;
+use rsvelte_esrap::{UNLOCATED_SPAN, print};
 
 fn print_src(source: &str, ts: bool) -> String {
     let alloc = Allocator::default();
@@ -21,6 +22,19 @@ fn print_src(source: &str, ts: bool) -> String {
 #[test]
 fn plain_js() {
     assert_eq!(print_src("const x = 1;", false), "const x = 1;");
+}
+
+#[test]
+fn unlocated_fragment_body_exhausts_comments() {
+    let source = "{\n\t// discarded\n\tconst x = 1;\n}";
+    let alloc = Allocator::default();
+    let mut ret = Parser::new(&alloc, source, SourceType::mjs()).parse();
+    let Statement::BlockStatement(block) = &mut ret.program.body[0] else {
+        panic!("expected block statement")
+    };
+    block.span = UNLOCATED_SPAN;
+
+    assert_eq!(print(&ret.program, source), "{\n\tconst x = 1;\n}");
 }
 
 /// A NON-optional call whose callee is an optional chain must parenthesize the

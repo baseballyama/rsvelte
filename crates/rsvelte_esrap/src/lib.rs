@@ -43,6 +43,12 @@ mod internal_tests;
 pub use command::Mapping;
 
 use oxc_ast::ast::Program;
+use oxc_span::Span;
+
+const UNLOCATED_OFFSET: u32 = u32::MAX;
+
+/// Span reserved for synthesized nodes that carry no source location.
+pub const UNLOCATED_SPAN: Span = Span::new(UNLOCATED_OFFSET, UNLOCATED_OFFSET);
 
 /// Options controlling output layout. Defaults match esrap's defaults and
 /// rsvelte's conventions (tab indent, single quotes).

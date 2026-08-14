@@ -408,10 +408,12 @@ impl<'a> PropMemberMutateRewriter<'a, '_> {
             return None;
         }
         let stmts: Vec<_> = ret.program.body.into_iter().collect();
-        Some(self.b.call(
+        let mut call = self.b.call(
             "$.invalidate_inner_signals",
             vec![self.b.thunk_block(stmts, false)],
-        ))
+        );
+        ast_rewrite::mark_synthesized_expression(&mut call);
+        Some(call)
     }
 }
 

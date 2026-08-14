@@ -13,7 +13,7 @@
 //! chunk parses from `pad + text` so its spans land at its region.
 
 use oxc_allocator::{Allocator, GetAllocator, Vec as ArenaVec};
-use oxc_ast::ast::{Program, Statement};
+use oxc_ast::ast::{BlockStatement, Program, Statement};
 use oxc_ast::builder::AstBuilder;
 use oxc_parser::Parser;
 use oxc_span::{SourceType, Span};
@@ -95,6 +95,14 @@ impl<'a> Assembler<'a> {
         self.loc_map
             .push((base, base + source_offset(text.len()), maps_to));
         self.body.extend(program.body);
+    }
+
+    fn wrap_body(&mut self, span: Span) {
+        let body = ArenaVec::from_iter_in(std::mem::take(&mut self.body), &self.ab);
+        self.body
+            .push(Statement::BlockStatement(BlockStatement::boxed(
+                span, body, &self.ab,
+            )));
     }
 
     fn finish(self) -> Assembled<'a> {
@@ -219,6 +227,29 @@ fn two_chunks_keep_their_comments_in_order() {
         first < decl_a && decl_a < between && between < second && second < decl_b,
         "chunk comments must stay with their own chunk:\n{out}"
     );
+}
+
+#[test]
+fn synthesized_body_exhausts_the_comment_cursor() {
+    let allocator = Allocator::default();
+    let mut a = Assembler::new(&allocator, 512);
+    a.push_chunk("// discarded\nconst x = 1;", None);
+    a.wrap_body(Span::new(0, 0));
+    let out = a.finish().print();
+
+    assert_eq!(out, "{\n\tconst x = 1;\n}");
+}
+
+#[test]
+fn located_body_resynchronizes_the_comment_cursor() {
+    let allocator = Allocator::default();
+    let mut a = Assembler::new(&allocator, 512);
+    a.push_chunk("// kept\nconst x = 1;", None);
+    let span = Span::new(a.loc_base, source_offset(a.source.len()));
+    a.wrap_body(span);
+    let out = a.finish().print();
+
+    assert_eq!(out, "{\n\t// kept\n\tconst x = 1;\n}");
 }
 
 #[test]

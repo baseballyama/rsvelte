@@ -2426,7 +2426,9 @@ fn transform_client_with_visitors(
             .map(|converted| {
                 // Keep `;` empty statements: the parsed-`Raw` `;;` are real
                 // EmptyStatement nodes the official compiler output preserves.
-                let print_opts = rsvelte_esrap::PrintOptions::default().with_empty_statements(true);
+                let print_opts = rsvelte_esrap::PrintOptions::default()
+                    .with_empty_statements(true)
+                    .with_unlocated_program(true);
                 let oxc_prog = &converted.program;
                 match &converted.comment_source {
                     // The program carries comments, so it prints in the

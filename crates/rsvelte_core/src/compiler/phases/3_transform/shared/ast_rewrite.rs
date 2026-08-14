@@ -19,7 +19,8 @@ use std::cell::RefCell;
 use std::thread::LocalKey;
 
 use oxc_allocator::Allocator;
-use oxc_ast::ast::Program;
+use oxc_ast::ast::{Expression, Program};
+use oxc_ast_visit::VisitMut;
 use oxc_parser::{ParseOptions, Parser};
 use oxc_span::SourceType;
 
@@ -32,6 +33,18 @@ pub type Edit = (u32, u32, String);
 /// remaining work (a rewritten node no longer matches), so real inputs settle
 /// in one or two passes; the cap is a safety net against pathological nesting.
 pub const MAX_FIXED_POINT_ITERS: usize = 16;
+
+struct SynthesizedUnlocator;
+
+impl<'a> VisitMut<'a> for SynthesizedUnlocator {
+    fn visit_span(&mut self, span: &mut oxc_span::Span) {
+        *span = rsvelte_esrap::UNLOCATED_SPAN;
+    }
+}
+
+pub fn mark_synthesized_expression(expression: &mut Expression<'_>) {
+    SynthesizedUnlocator.visit_expression(expression);
+}
 
 /// Parse `source` in `arena` and hand the program to `f`, restoring the arena
 /// afterwards so it is reused across calls. Returns `None` (without calling

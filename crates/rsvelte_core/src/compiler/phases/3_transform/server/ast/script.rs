@@ -787,14 +787,18 @@ fn transform_script<'a>(
         }
         // Anchor the region on the first statement this source statement emitted
         // that can carry one.
-        if let Some(mut place) = place_on_region(
+        let mut place = place_on_region(
             &mut state.comments,
             src,
             &ret.program.comments,
             region_start,
             stmt_span,
             verbatim,
-        ) {
+        );
+        if place.is_none() && verbatim.is_some() && !ret.program.comments.is_empty() {
+            place = place_on_position(&mut state.comments, src, region_start, stmt_span, verbatim);
+        }
+        if let Some(mut place) = place {
             if into_sink {
                 if let Some(sink) = import_sink.as_deref_mut()
                     && let Some(first) = sink.get_mut(sink_len)
@@ -3170,6 +3174,15 @@ fn transform_script_legacy<'a>(
         }
 
         if defer_block_reactive_trailing {
+            if let Some(mut place) =
+                place_on_position(&mut state.comments, src, region_start, stmt_span, verbatim)
+                && let Some(entry) = reactive.get_mut(reactive_len)
+            {
+                match &mut entry.stmt {
+                    Statement::LabeledStatement(ls) => place.visit_statement(&mut ls.body),
+                    other => place.visit_statement(other),
+                }
+            }
             continue;
         }
         let into_sink = import_sink.as_deref().is_some_and(|s| s.len() > sink_len);
@@ -3187,6 +3200,9 @@ fn transform_script_legacy<'a>(
             stmt_span,
             verbatim,
         );
+        if place.is_none() && verbatim.is_some() && !ret.program.comments.is_empty() {
+            place = place_on_position(&mut state.comments, src, region_start, stmt_span, verbatim);
+        }
         if place.is_none() && reactive_leading_comment_pending && !into_sink && anchor.is_some() {
             place = place_on_position(&mut state.comments, src, region_start, stmt_span, verbatim);
         }

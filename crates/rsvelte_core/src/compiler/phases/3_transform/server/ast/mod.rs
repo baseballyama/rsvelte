@@ -398,6 +398,9 @@ impl<'a> ServerTransformState<'a> {
             return;
         };
         for comment in pending {
+            if comment.replay_at_tail {
+                continue;
+            }
             let first = comment
                 .comments
                 .iter()
@@ -1364,7 +1367,8 @@ pub fn server_component_ast<'a>(
     if should_inject_context {
         // ($$renderer) => { <block_body> }
         let inner_params = b.params(vec![b.id_pat("$$renderer")], None);
-        let inner_body = b.body(block_body);
+        let mut inner_body = b.body(block_body);
+        comments::mark_component_body(&mut inner_body);
         let arrow = b.arrow(inner_params, inner_body, false, false);
         // 2nd arg: `dev && component_name` → the bare identifier in dev, omitted
         // (no 2nd arg) otherwise.
@@ -1490,7 +1494,10 @@ pub fn server_component_ast<'a>(
     } else {
         b.params(vec![b.id_pat("$$renderer")], None)
     };
-    let fn_body = b.body(final_body);
+    let mut fn_body = b.body(final_body);
+    if !should_inject_context {
+        comments::mark_component_body(&mut fn_body);
+    }
     let component_fn = b.function_declaration(component_name, params, fn_body, false);
 
     // -- program assembly ---------------------------------------------------

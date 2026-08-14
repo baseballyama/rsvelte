@@ -470,7 +470,7 @@ impl<'opt> Printer<'opt> {
     /// esrap's `if (node.loc)`: whether a span offset is a real source position
     /// (and so may carry comments) rather than a synthesized node's placeholder.
     fn has_loc(&self, offset: u32) -> bool {
-        self.loc_base.is_none_or(|base| offset >= base)
+        offset != crate::UNLOCATED_SPAN.start && self.loc_base.is_none_or(|base| offset >= base)
     }
 
     /// Convert a byte offset to `(line_1based, column_0based)` using
@@ -479,6 +479,9 @@ impl<'opt> Printer<'opt> {
     /// source this equals the UTF-16 column esrap uses. Returns `None` when
     /// there are no line starts (printing without source context).
     fn offset_to_line_col(&self, offset: u32) -> Option<(u32, u32)> {
+        if !self.has_loc(offset) {
+            return None;
+        }
         let map_line_starts = self.map_line_starts.as_deref().unwrap_or(&self.line_starts);
         if map_line_starts.is_empty() {
             return None;
@@ -668,14 +671,15 @@ impl<'opt> Printer<'opt> {
 
     /// esrap's `reset_comment_index`: re-sync the cursor to the first comment
     /// at/after `node_start` (so a nested body doesn't replay earlier comments).
-    /// `None` is esrap's `!node.loc`, which discards every pending comment
-    /// instead of carrying the cursor forward.
+    /// `None` and synthesized offsets are esrap's `!node.loc`, which discards
+    /// every pending comment instead of carrying the cursor forward.
     fn reset_comment_index(&mut self, node_start: Option<u32>) {
         let Some(node_start) = node_start else {
             self.comment_index = self.comments.len();
             return;
         };
         if !self.has_loc(node_start) {
+            self.comment_index = self.comments.len();
             return;
         }
         let cur = self.comments.get(self.comment_index);
@@ -906,7 +910,10 @@ impl<'opt> Printer<'opt> {
         // block (`() => { /* x */ }`); the lone pending newline keeps the block
         // `empty()`, so a comment-free `{}` is unaffected.
         ctx.newline();
-        if !self.comments.is_empty() {
+        if !self.comments.is_empty()
+            && body_start.is_some_and(|start| self.has_loc(start))
+            && self.has_loc(body_end)
+        {
             let from_line = non_empty
                 .last()
                 .map(|e| e.span_end())
