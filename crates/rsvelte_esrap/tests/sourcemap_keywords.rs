@@ -134,6 +134,14 @@ fn declare_let_maps_declare_and_let() {
     let seg_let = mapping_at_substring(&m.code, "let", &m.mappings);
     assert_eq!(seg_let[2], 0);
     assert_eq!(seg_let[3], src_col(&m.source, "let"));
+
+    let end = u32::try_from("declare let ".len()).unwrap();
+    assert!(m.mappings.iter().any(|mapping| {
+        mapping.gen_line == 0
+            && mapping.gen_column == end
+            && mapping.source_line == 0
+            && mapping.source_column == end
+    }));
 }
 
 #[test]

@@ -76,7 +76,9 @@ impl KeywordCursor {
         if let Some((line, col)) = self.cursor {
             ctx.location(line, col);
             ctx.write(fragment);
-            self.cursor = Some((line, col + usize_to_u32(fragment.len())));
+            let next_col = col + usize_to_u32(fragment.len());
+            ctx.location(line, next_col);
+            self.cursor = Some((line, next_col));
         } else {
             ctx.write(fragment);
         }
