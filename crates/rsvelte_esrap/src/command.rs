@@ -60,23 +60,60 @@ pub struct Mapping {
 }
 
 pub(crate) fn print(buffer: &Buffer, indent: &str, capacity: usize) -> String {
-    let mut driver = CodeDriver {
-        code: String::with_capacity(capacity),
-        current_newline: String::from("\n"),
-        indent,
-        needs_newline: false,
-        needs_margin: false,
-        needs_space: false,
-    };
-    drive(buffer, |text, event| {
-        if !text.is_empty() {
-            driver.append(text);
+    let mut code = String::with_capacity(capacity);
+    let mut current_newline = String::from("\n");
+    let mut needs_newline = false;
+    let mut needs_margin = false;
+    let mut needs_space = false;
+    let mut cursor = 0;
+
+    macro_rules! flush_pending {
+        () => {{
+            if needs_newline {
+                if needs_margin {
+                    code.push('\n');
+                }
+                code.push_str(&current_newline);
+            } else if needs_space {
+                code.push(' ');
+            }
+            needs_newline = false;
+            needs_margin = false;
+            needs_space = false;
+        }};
+    }
+
+    for item in &buffer.events {
+        let offset = item.offset as usize;
+        if offset > cursor {
+            flush_pending!();
+            code.push_str(&buffer.text[cursor..offset]);
+            cursor = offset;
         }
-        if let Some(event) = event {
-            driver.event(event);
+        match item.kind {
+            EventKind::Newline => needs_newline = true,
+            EventKind::Margin => needs_margin = true,
+            EventKind::Space => needs_space = true,
+            EventKind::Indent => current_newline.push_str(indent),
+            EventKind::Dedent => {
+                let len = current_newline.len().saturating_sub(indent.len());
+                current_newline.truncate(len);
+            }
+            EventKind::Flush | EventKind::Location { .. } => flush_pending!(),
         }
-    });
-    driver.code
+    }
+    if cursor < buffer.text.len() {
+        if needs_newline {
+            if needs_margin {
+                code.push('\n');
+            }
+            code.push_str(&current_newline);
+        } else if needs_space {
+            code.push(' ');
+        }
+        code.push_str(&buffer.text[cursor..]);
+    }
+    code
 }
 
 pub(crate) fn flatten_with_map(
@@ -119,50 +156,6 @@ fn drive(buffer: &Buffer, mut visit: impl FnMut(&str, Option<EventKind>)) {
     }
     if cursor < buffer.text.len() {
         visit(&buffer.text[cursor..], None);
-    }
-}
-
-struct CodeDriver<'a> {
-    code: String,
-    current_newline: String,
-    indent: &'a str,
-    needs_newline: bool,
-    needs_margin: bool,
-    needs_space: bool,
-}
-
-impl CodeDriver<'_> {
-    fn event(&mut self, event: EventKind) {
-        match event {
-            EventKind::Newline => self.needs_newline = true,
-            EventKind::Margin => self.needs_margin = true,
-            EventKind::Space => self.needs_space = true,
-            EventKind::Indent => self.current_newline.push_str(self.indent),
-            EventKind::Dedent => {
-                let len = self.current_newline.len().saturating_sub(self.indent.len());
-                self.current_newline.truncate(len);
-            }
-            EventKind::Flush | EventKind::Location { .. } => self.flush_pending(),
-        }
-    }
-
-    fn append(&mut self, text: &str) {
-        self.flush_pending();
-        self.code.push_str(text);
-    }
-
-    fn flush_pending(&mut self) {
-        if self.needs_newline {
-            if self.needs_margin {
-                self.code.push('\n');
-            }
-            self.code.push_str(&self.current_newline);
-        } else if self.needs_space {
-            self.code.push(' ');
-        }
-        self.needs_newline = false;
-        self.needs_margin = false;
-        self.needs_space = false;
     }
 }
 

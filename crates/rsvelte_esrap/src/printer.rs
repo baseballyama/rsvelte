@@ -1218,14 +1218,22 @@ impl<'opt> Printer<'opt> {
                 self.print_statement(&s.body, ctx);
             }
             Statement::EmptyStatement(_) => ctx.write(";"),
-            Statement::BreakStatement(s) => match &s.label {
-                Some(l) => ctx.write(format_compact!("break {};", l.name)),
-                None => ctx.write("break;"),
-            },
-            Statement::ContinueStatement(s) => match &s.label {
-                Some(l) => ctx.write(format_compact!("continue {};", l.name)),
-                None => ctx.write("continue;"),
-            },
+            Statement::BreakStatement(s) => {
+                ctx.write("break");
+                if let Some(label) = &s.label {
+                    ctx.write(" ");
+                    ctx.write(label.name.as_str());
+                }
+                ctx.write(";");
+            }
+            Statement::ContinueStatement(s) => {
+                ctx.write("continue");
+                if let Some(label) = &s.label {
+                    ctx.write(" ");
+                    ctx.write(label.name.as_str());
+                }
+                ctx.write(";");
+            }
             Statement::TSTypeAliasDeclaration(d) => self.type_alias_declaration(d, ctx),
             Statement::TSInterfaceDeclaration(d) => self.interface_declaration(d, ctx),
             Statement::TSEnumDeclaration(d) => self.enum_declaration(d, ctx),
@@ -1278,7 +1286,8 @@ impl<'opt> Printer<'opt> {
             }
         }
         if let Some(ns) = namespace_spec {
-            ctx.write(format_compact!("* as {}", ns.local.name));
+            ctx.write("* as ");
+            ctx.write(ns.local.name.as_str());
         }
         if !named.is_empty() {
             ctx.write("{");
@@ -1445,7 +1454,8 @@ impl<'opt> Printer<'opt> {
         ctx.write("`");
         for (i, expr) in node.expressions.iter().enumerate() {
             let raw = node.quasis.get(i).map_or("", |q| q.value.raw.as_str());
-            ctx.write(format_compact!("{raw}${{"));
+            ctx.write(raw);
+            ctx.write("${");
             self.print_expression(expr, ctx);
             ctx.write("}");
             // A newline *inside* the literal makes the enclosing context
@@ -1456,7 +1466,8 @@ impl<'opt> Printer<'opt> {
         }
         if let Some(last) = node.quasis.last() {
             let raw = last.value.raw.as_str();
-            ctx.write(format_compact!("{raw}`"));
+            ctx.write(raw);
+            ctx.write("`");
             if raw.contains('\n') {
                 ctx.multiline = true;
             }
@@ -1756,7 +1767,8 @@ impl<'opt> Printer<'opt> {
             self.decorator(decorator, ctx);
         }
         if let Some(acc) = &node.accessibility {
-            ctx.write(format_compact!("{} ", accessibility_str(*acc)));
+            ctx.write(accessibility_str(*acc));
+            ctx.write(" ");
         }
         if matches!(
             node.r#type,
@@ -1804,7 +1816,8 @@ impl<'opt> Printer<'opt> {
             self.decorator(decorator, ctx);
         }
         if let Some(acc) = &node.accessibility {
-            ctx.write(format_compact!("{} ", accessibility_str(*acc)));
+            ctx.write(accessibility_str(*acc));
+            ctx.write(" ");
         }
         if matches!(
             node.r#type,
@@ -2140,7 +2153,8 @@ impl<'opt> Printer<'opt> {
                 } else if i - this_len < item_len {
                     let param = &params.items[i - this_len];
                     if let Some(acc) = &param.accessibility {
-                        child.write(format_compact!("{} ", accessibility_str(*acc)));
+                        child.write(accessibility_str(*acc));
+                        child.write(" ");
                     }
                     if param.readonly {
                         child.write("readonly ");
@@ -2396,7 +2410,8 @@ impl<'opt> Printer<'opt> {
             Expression::PrivateFieldExpression(m) => {
                 self.child_with_parens(&m.object, 19, ctx);
                 ctx.write(if m.optional { "?." } else { "." });
-                ctx.write(format_compact!("#{}", m.field.name));
+                ctx.write("#");
+                ctx.write(m.field.name.as_str());
             }
             Expression::ImportMeta(_) => {
                 ctx.write("import");
@@ -2683,14 +2698,18 @@ impl<'opt> Printer<'opt> {
     fn binary_expression(&mut self, node: &BinaryExpression, ctx: &mut Context) {
         let op = node.operator.as_str();
         self.binary_child(&node.left, false, op, false, ctx);
-        ctx.write(format_compact!(" {op} "));
+        ctx.write(" ");
+        ctx.write(op);
+        ctx.write(" ");
         self.binary_child(&node.right, false, op, true, ctx);
     }
 
     fn logical_expression(&mut self, node: &LogicalExpression, ctx: &mut Context) {
         let op = node.operator.as_str();
         self.binary_child(&node.left, true, op, false, ctx);
-        ctx.write(format_compact!(" {op} "));
+        ctx.write(" ");
+        ctx.write(op);
+        ctx.write(" ");
         self.binary_child(&node.right, true, op, true, ctx);
     }
 
@@ -2721,7 +2740,8 @@ impl<'opt> Printer<'opt> {
             node.operator,
             UnaryOperator::Typeof | UnaryOperator::Void | UnaryOperator::Delete
         ) {
-            ctx.write(format_compact!("{op} "));
+            ctx.write(op);
+            ctx.write(" ");
         } else {
             ctx.write(op);
         }
@@ -2767,7 +2787,9 @@ impl<'opt> Printer<'opt> {
     fn assignment_expression(&mut self, node: &AssignmentExpression, ctx: &mut Context) {
         // esrap visits both sides without adding parens.
         self.assignment_target(&node.left, ctx);
-        ctx.write(format_compact!(" {} ", node.operator.as_str()));
+        ctx.write(" ");
+        ctx.write(node.operator.as_str());
+        ctx.write(" ");
         self.print_expression(&node.right, ctx);
     }
 
@@ -2781,7 +2803,8 @@ impl<'opt> Printer<'opt> {
             SimpleAssignmentTarget::PrivateFieldExpression(m) => {
                 self.child_with_parens(&m.object, 19, ctx);
                 ctx.write(if m.optional { "?." } else { "." });
-                ctx.write(format_compact!("#{}", m.field.name));
+                ctx.write("#");
+                ctx.write(m.field.name.as_str());
             }
             _ => self.unsupported("SimpleAssignmentTarget", ctx),
         }
@@ -2795,7 +2818,8 @@ impl<'opt> Printer<'opt> {
             AssignmentTarget::PrivateFieldExpression(m) => {
                 self.child_with_parens(&m.object, 19, ctx);
                 ctx.write(if m.optional { "?." } else { "." });
-                ctx.write(format_compact!("#{}", m.field.name));
+                ctx.write("#");
+                ctx.write(m.field.name.as_str());
             }
             AssignmentTarget::ArrayAssignmentTarget(a) => {
                 ctx.write("[");
@@ -3113,7 +3137,10 @@ impl<'opt> Printer<'opt> {
     fn property_key(&mut self, key: &PropertyKey, ctx: &mut Context) {
         match key {
             PropertyKey::StaticIdentifier(id) => ctx.write(id.name.as_str()),
-            PropertyKey::PrivateIdentifier(id) => ctx.write(format_compact!("#{}", id.name)),
+            PropertyKey::PrivateIdentifier(id) => {
+                ctx.write("#");
+                ctx.write(id.name.as_str());
+            }
             PropertyKey::StringLiteral(s) => ctx.write(Self::string_literal(s)),
             PropertyKey::NumericLiteral(n) => ctx.write(literal_raw(
                 n.raw.as_ref().map(oxc_ast::ast::Str::as_str),
@@ -3515,7 +3542,8 @@ impl<'opt> Printer<'opt> {
             }
             TSType::TSLiteralType(t) => self.ts_literal(&t.literal, ctx),
             TSType::TSTypeOperatorType(t) => {
-                ctx.write(format_compact!("{} ", ts_type_operator_str(t.operator)));
+                ctx.write(ts_type_operator_str(t.operator));
+                ctx.write(" ");
                 self.print_type(&t.type_annotation, ctx);
             }
             TSType::TSTypeQuery(t) => {
@@ -3582,7 +3610,8 @@ impl<'opt> Printer<'opt> {
                 ctx.write("`");
                 for (i, inner) in t.types.iter().enumerate() {
                     let raw = t.quasis.get(i).map_or("", |q| q.value.raw.as_str());
-                    ctx.write(format_compact!("{raw}${{"));
+                    ctx.write(raw);
+                    ctx.write("${");
                     self.print_type(inner, ctx);
                     ctx.write("}");
                     if raw.contains('\n') {
@@ -3590,7 +3619,8 @@ impl<'opt> Printer<'opt> {
                     }
                 }
                 if let Some(last) = t.quasis.last() {
-                    ctx.write(format_compact!("{}`", last.value.raw));
+                    ctx.write(last.value.raw.as_str());
+                    ctx.write("`");
                 }
             }
             other => self.unsupported(ts_type_kind(other), ctx),
