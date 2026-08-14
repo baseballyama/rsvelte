@@ -28,9 +28,9 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 842 entries)
+## Matrix known failures (`matrix-known-failures.json`, 782 entries)
 
-Partition of `matrix-known-failures.json` by family: `4 + 316 + 8 + 24 + 60 + 82 + 180 + 168`
+Partition of `matrix-known-failures.json` by family: `4 + 316 + 8 + 24 + 82 + 180 + 168`
 
 ### `binding-position` — 4 entries
 
@@ -210,6 +210,12 @@ Worth stating because it is the generalization argument for the comparison: a fa
 a *parser* question, by another author, with no warning intent, contributes 60 warned (case,
 target) pairs and 18 divergences. The comparison earns its place on populations nobody built for
 it.
+
+### `param-pattern` — 0 entries
+
+Parameter defaults and computed keys now contribute their enclosing reactive dependencies.
+
+Partition of `matrix-known-failures.json` entries under `param-pattern/` by shape: `0`
 
 ### `directive-element` — 82 entries
 
