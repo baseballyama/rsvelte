@@ -1,5 +1,18 @@
 # @rsvelte/svelte2tsx
 
+## 0.2.17
+
+### Patch Changes
+
+- e419e69: Align OXC dependencies with Rolldown and expose the client program sink for native bundlers.
+  `rsvelte_esrap` is released as 0.10.8 and `rsvelte_core` pins the new exact requirement.
+- Updated dependencies [67eeff1]
+- Updated dependencies [e419e69]
+- Updated dependencies [e419e69]
+- Updated dependencies [e46368f]
+- Updated dependencies [8a745c9]
+  - @rsvelte/compiler@0.10.14
+
 ## 0.2.16
 
 ### Patch Changes

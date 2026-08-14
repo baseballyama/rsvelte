@@ -1,5 +1,11 @@
 # @rsvelte/fmt
 
+## 0.7.11
+
+### Patch Changes
+
+- a65426a: Preserve adjacent template directive comments when formatting a broken fragment.
+
 ## 0.7.10
 
 ### Patch Changes

@@ -1,5 +1,16 @@
 # @rsvelte/compiler
 
+## 0.10.14
+
+### Patch Changes
+
+- 67eeff1: Replace fragile generated-JavaScript prop scanners with OXC AST/span rewrites.
+- e419e69: Align OXC dependencies with Rolldown and expose the client program sink for native bundlers.
+  `rsvelte_esrap` is released as 0.10.8 and `rsvelte_core` pins the new exact requirement.
+- e419e69: Match Svelte's bound contenteditable child-update behavior and runes-mode `{@html}` validation.
+- e46368f: Track reactive reads in function parameter defaults and computed keys.
+- 8a745c9: Match directive validation for `svelte:body`, `svelte:element`, and `svelte:component`.
+
 ## 0.10.13
 
 ### Patch Changes
