@@ -11,15 +11,16 @@ use lsp_types::{
     CancelParams, CodeActionKind, CodeActionOptions, CodeActionOrCommand, CodeActionParams,
     CodeActionProviderCapability, CompletionOptions, CompletionParams, ConfigurationItem,
     ConfigurationParams, DiagnosticOptions, DiagnosticServerCapabilities,
-    DidChangeTextDocumentParams, DidChangeWorkspaceFoldersParams, DidCloseTextDocumentParams,
-    DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentDiagnosticParams,
-    DocumentDiagnosticReport, DocumentFormattingParams, DocumentSymbolParams,
-    DocumentSymbolResponse, FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability,
-    FullDocumentDiagnosticReport, HoverParams, HoverProviderCapability, NumberOrString, OneOf,
-    PublishDiagnosticsParams, RelatedFullDocumentDiagnosticReport, SelectionRangeParams,
-    SelectionRangeProviderCapability, ServerCapabilities, TextDocumentPositionParams,
-    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
-    TextDocumentSyncSaveOptions, TextEdit, Uri, WorkspaceFoldersServerCapabilities,
+    DidChangeTextDocumentParams, DidChangeWatchedFilesParams, DidChangeWorkspaceFoldersParams,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
+    DocumentDiagnosticParams, DocumentDiagnosticReport, DocumentFormattingParams,
+    DocumentSymbolParams, DocumentSymbolResponse, FoldingRange, FoldingRangeParams,
+    FoldingRangeProviderCapability, FullDocumentDiagnosticReport, HoverParams,
+    HoverProviderCapability, NumberOrString, OneOf, PublishDiagnosticsParams,
+    RelatedFullDocumentDiagnosticReport, SelectionRangeParams, SelectionRangeProviderCapability,
+    ServerCapabilities, TextDocumentPositionParams, TextDocumentSyncCapability,
+    TextDocumentSyncKind, TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit, Uri,
+    WorkspaceFoldersServerCapabilities,
 };
 
 use crate::client::ClientState;
@@ -539,6 +540,20 @@ impl Server {
                     Err(err) => log::warn(format_args!("{method}: {err}")),
                 }
             }
+            "workspace/didChangeWatchedFiles" => {
+                match serde_json::from_value::<DidChangeWatchedFilesParams>(notification.params) {
+                    Ok(params)
+                        if params
+                            .changes
+                            .iter()
+                            .any(|change| is_project_config(&change.uri)) =>
+                    {
+                        self.invalidate_project_config();
+                    }
+                    Ok(_) => {}
+                    Err(err) => log::warn(format_args!("{method}: {err}")),
+                }
+            }
             "textDocument/didOpen" => {
                 match serde_json::from_value::<DidOpenTextDocumentParams>(notification.params) {
                     Ok(params) => {
@@ -598,14 +613,11 @@ impl Server {
                 // A `rsvelte-lint.json` / `.oxfmtrc` edit reaches the server as
                 // a configuration change too, so the resolved-config caches are
                 // dropped along with the client settings.
-                self.worker.submit(Job::ClearCaches);
+                self.invalidate_project_config();
                 if self.client.pull_configuration {
                     self.request_configuration();
                 } else {
                     self.settings = Settings::default();
-                    if !self.client.pull_diagnostics {
-                        self.relint_open_documents();
-                    }
                 }
             }
             "exit" => self.exiting = true,
@@ -624,6 +636,13 @@ impl Server {
                 ErrorCode::RequestCanceled as i32,
                 "request cancelled by client".to_string(),
             ));
+        }
+    }
+
+    fn invalidate_project_config(&mut self) {
+        self.worker.submit(Job::ClearCaches);
+        if !self.client.pull_diagnostics {
+            self.relint_open_documents();
         }
     }
 
@@ -850,4 +869,16 @@ fn is_lint_target(document: &Document) -> bool {
     }
     let uri = document.uri.as_str();
     uri.ends_with(".svelte.js") || uri.ends_with(".svelte.ts")
+}
+
+fn is_project_config(uri: &Uri) -> bool {
+    [
+        "rsvelte-lint.json",
+        ".rsvelte-lintrc.json",
+        ".oxfmtrc",
+        ".oxfmtrc.json",
+        ".oxfmtrc.jsonc",
+    ]
+    .iter()
+    .any(|name| uri.as_str().ends_with(name))
 }

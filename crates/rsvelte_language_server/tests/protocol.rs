@@ -930,6 +930,34 @@ fn a_config_change_invalidates_the_resolved_lint_config() {
     assert_eq!(server.shutdown(), Some(0));
 }
 
+#[test]
+fn a_watched_config_change_invalidates_the_resolved_lint_config() {
+    let dir = temp_dir("watched-lint-config");
+    let uri = file_uri(&dir.join("App.svelte"));
+    let config_uri = file_uri(&dir.join("rsvelte-lint.json"));
+    let mut server = initialized_server();
+
+    fn reports_at_html(diagnostics: &[Value]) -> bool {
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic["code"] == "svelte/no-at-html-tags")
+    }
+
+    did_open(&mut server, &uri, "<div>{@html value}</div>\n");
+    server.diagnostics_matching(&uri, reports_at_html);
+    std::fs::write(
+        dir.join("rsvelte-lint.json"),
+        r#"{ "rules": { "svelte/no-at-html-tags": "off" } }"#,
+    )
+    .unwrap();
+    server.notify(
+        "workspace/didChangeWatchedFiles",
+        json!({ "changes": [{ "uri": config_uri, "type": 2 }] }),
+    );
+    server.diagnostics_matching(&uri, |diagnostics| !reports_at_html(diagnostics));
+    assert_eq!(server.shutdown(), Some(0));
+}
+
 /// What a VS Code-like client — folding whole lines, reading a symbol tree —
 /// gets for a component with elements, blocks, regions, imports and both
 /// embedded languages.
