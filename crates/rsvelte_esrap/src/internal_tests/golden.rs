@@ -95,7 +95,7 @@ fn reprint(source: &str) -> Option<Reprint> {
     let mut ctx = Context::new();
     printer.print_program(&ret.program, &mut ctx);
     Some(Reprint {
-        output: command::print(&ctx.into_commands(), &opts.indent),
+        output: command::print(&ctx.into_commands(), &opts.indent, 0),
         missing: printer.missing.map(|m| m.0.to_string()),
     })
 }

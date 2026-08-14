@@ -115,8 +115,9 @@ pub fn print_with(program: &Program<'_>, source: &str, options: &PrintOptions) -
     let mut printer = printer::Printer::with_comments(options, comments, line_starts);
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
+    let capacity = ctx.measure();
     let commands = ctx.into_commands();
-    let code = command::print(&commands, &options.indent);
+    let code = command::print(&commands, &options.indent, capacity);
     pool::recycle(commands);
     code
 }
@@ -152,16 +153,17 @@ pub fn print_split(
     let comments = printer::build_comments(program, comment_source, &line_starts);
     let map_line_starts = map_source.map(printer::line_starts).unwrap_or_default();
     let mut printer = printer::Printer::with_comments(options, comments, line_starts)
-        .with_split_coordinates(map_line_starts, loc_base, loc_map);
+        .with_split_coordinates(map_line_starts, loc_base, loc_map, map_source.is_some());
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
+    let capacity = ctx.measure();
     let commands = ctx.into_commands();
     let output = if map_source.is_some() {
-        let (code, mappings) = command::flatten_with_map(&commands, &options.indent);
+        let (code, mappings) = command::flatten_with_map(&commands, &options.indent, capacity);
         PrintWithMap { code, mappings }
     } else {
         PrintWithMap {
-            code: command::print(&commands, &options.indent),
+            code: command::print(&commands, &options.indent, capacity),
             mappings: Vec::new(),
         }
     };
@@ -188,11 +190,13 @@ pub struct PrintWithMap {
 pub fn print_with_map(program: &Program<'_>, source: &str, options: &PrintOptions) -> PrintWithMap {
     let line_starts = printer::line_starts(source);
     let comments = printer::build_comments(program, source, &line_starts);
-    let mut printer = printer::Printer::with_comments(options, comments, line_starts);
+    let mut printer =
+        printer::Printer::with_comments(options, comments, line_starts).with_source_map();
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
+    let capacity = ctx.measure();
     let commands = ctx.into_commands();
-    let (code, mappings) = command::flatten_with_map(&commands, &options.indent);
+    let (code, mappings) = command::flatten_with_map(&commands, &options.indent, capacity);
     pool::recycle(commands);
     PrintWithMap { code, mappings }
 }

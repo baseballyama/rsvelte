@@ -83,6 +83,7 @@ impl KeywordCursor {
 
 pub struct Printer<'opt> {
     options: &'opt PrintOptions,
+    emit_locations: bool,
     /// Set by the first unsupported node encountered; printing continues so the
     /// harness gets a single representative miss per file.
     pub missing: Option<Unsupported>,
@@ -417,6 +418,7 @@ impl<'opt> Printer<'opt> {
     pub const fn new(options: &'opt PrintOptions) -> Self {
         Self {
             options,
+            emit_locations: false,
             missing: None,
             comments: Vec::new(),
             comment_index: 0,
@@ -436,6 +438,7 @@ impl<'opt> Printer<'opt> {
     ) -> Self {
         Self {
             options,
+            emit_locations: false,
             missing: None,
             comments,
             comment_index: 0,
@@ -455,10 +458,18 @@ impl<'opt> Printer<'opt> {
         map_line_starts: Vec<u32>,
         loc_base: u32,
         loc_map: &[(u32, u32, Option<u32>)],
+        emit_locations: bool,
     ) -> Self {
+        self.emit_locations = emit_locations;
         self.map_line_starts = Some(map_line_starts);
         self.loc_base = Some(loc_base);
         self.loc_map = loc_map.to_vec();
+        self
+    }
+
+    /// Enable source-map anchor commands for this print.
+    pub const fn with_source_map(mut self) -> Self {
+        self.emit_locations = true;
         self
     }
 
@@ -527,6 +538,11 @@ impl<'opt> Printer<'opt> {
     /// the offset can't be resolved (no source context), falls back to a plain
     /// `keyword + suffix` write.
     fn write_keyword(&self, ctx: &mut Context, start: u32, keyword: &str, suffix: &str) {
+        if !self.emit_locations {
+            ctx.write(keyword);
+            ctx.write(suffix);
+            return;
+        }
         if let Some((line, column)) = self.offset_to_line_col(start) {
             Self::write_source_keyword(ctx, line, column, keyword);
             if !suffix.is_empty() {
@@ -544,7 +560,7 @@ impl<'opt> Printer<'opt> {
     /// unmapped. Implemented as an explicit [`KeywordCursor`] because Rust closures
     /// can't borrow `self` mutably across calls the way the JS closure does.
     fn keyword_cursor(&self, start: u32, map_ok: bool) -> KeywordCursor {
-        let cursor = if map_ok {
+        let cursor = if map_ok && self.emit_locations {
             self.offset_to_line_col(start)
         } else {
             None
@@ -556,6 +572,9 @@ impl<'opt> Printer<'opt> {
     /// offsets are only trustworthy when the `function` token shares a line with
     /// `async`, anchored by the id or body starting on the same line as the node.
     fn function_async_offset_ok(&self, node: &Function) -> bool {
+        if !self.emit_locations {
+            return false;
+        }
         let Some((line, _)) = self.offset_to_line_col(node.span().start) else {
             return false;
         };
@@ -576,6 +595,9 @@ impl<'opt> Printer<'opt> {
     /// there are no decorators and the id (or body, if anonymous) starts on the
     /// node's start line.
     fn class_modifier_map_ok(&self, node: &Class) -> bool {
+        if !self.emit_locations {
+            return false;
+        }
         if !node.decorators.is_empty() {
             return false;
         }
@@ -3868,7 +3890,7 @@ mod tests {
         let mut ctx = Context::new();
         printer.print_program(&ret.program, &mut ctx);
         (
-            crate::command::print(&ctx.into_commands(), &opts.indent),
+            crate::command::print(&ctx.into_commands(), &opts.indent, 0),
             printer.missing,
         )
     }
@@ -3895,7 +3917,7 @@ mod tests {
         let mut printer = Printer::with_comments(&opts, comments, line_starts(src));
         let mut ctx = Context::new();
         printer.print_program(&ret.program, &mut ctx);
-        let out = crate::command::print(&ctx.into_commands(), &opts.indent);
+        let out = crate::command::print(&ctx.into_commands(), &opts.indent, 0);
         assert!(
             printer.missing.is_none(),
             "unsupported node: {:?}",

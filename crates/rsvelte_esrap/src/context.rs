@@ -72,11 +72,23 @@ impl Context {
 
     /// Append literal `content`. If a newline is already pending in this
     /// context, writing after it makes the context multiline (mirrors esrap).
-    pub fn write(&mut self, content: impl Into<CompactString>) {
-        let content = content.into();
+    pub fn write(&mut self, content: impl AsRef<str>) {
+        let content = content.as_ref();
         self.measure += content.len();
         self.has_content |= !content.is_empty();
-        self.commands.push(Command::Str(content));
+        let can_inline = self.commands.last().is_some_and(|command| {
+            matches!(command, Command::Str(text) if !text.is_heap_allocated()
+                && text.len() + content.len() <= text.capacity())
+        });
+        if can_inline {
+            let Some(Command::Str(text)) = self.commands.last_mut() else {
+                unreachable!();
+            };
+            text.push_str(content);
+        } else {
+            self.commands
+                .push(Command::Str(CompactString::new(content)));
+        }
         if self.has_newline {
             self.multiline = true;
         }
@@ -164,6 +176,16 @@ mod tests {
         child.write("y");
         parent.append(child);
         parent.write(")");
-        assert_eq!(print(&parent.into_commands(), "\t"), "(x y)");
+        assert_eq!(print(&parent.into_commands(), "\t", 0), "(x y)");
+    }
+
+    #[test]
+    fn adjacent_inline_writes_share_one_command() {
+        let mut ctx = Context::new();
+        ctx.write("const");
+        ctx.write(" ");
+        ctx.write("x");
+        assert_eq!(ctx.commands.len(), 1);
+        assert_eq!(print(&ctx.into_commands(), "\t", 0), "const x");
     }
 }

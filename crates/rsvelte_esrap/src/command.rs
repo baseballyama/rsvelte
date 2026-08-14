@@ -65,13 +65,13 @@ pub struct Mapping {
 /// Flatten `commands` into source text, using `indent` (e.g. `"\t"` or a run
 /// of spaces) for each indentation level. Faithful port of the `run`/`append`
 /// loop in esrap's `print`.
-pub fn print(commands: &[Command], indent: &str) -> String {
-    flatten_without_map(commands, indent)
+pub fn print(commands: &[Command], indent: &str, capacity: usize) -> String {
+    flatten_without_map(commands, indent, capacity)
 }
 
-fn flatten_without_map(commands: &[Command], indent: &str) -> String {
+fn flatten_without_map(commands: &[Command], indent: &str, capacity: usize) -> String {
     let mut driver = CodeDriver {
-        code: String::new(),
+        code: String::with_capacity(capacity),
         current_newline: String::from("\n"),
         indent,
         needs_newline: false,
@@ -140,9 +140,13 @@ impl CodeDriver<'_> {
 /// indices). This port derives source columns from byte offsets, so the two
 /// agree for ASCII / BMP source (which covers the keyword sites). Generated
 /// columns are likewise tracked in `char`s of the emitted code.
-pub fn flatten_with_map(commands: &[Command], indent: &str) -> (String, Vec<Mapping>) {
+pub fn flatten_with_map(
+    commands: &[Command],
+    indent: &str,
+    capacity: usize,
+) -> (String, Vec<Mapping>) {
     let mut driver = Driver {
-        code: String::new(),
+        code: String::with_capacity(capacity),
         current_newline: String::from("\n"),
         indent,
         needs_newline: false,
@@ -251,7 +255,7 @@ mod tests {
     use super::*;
 
     fn cmds(v: &[Command]) -> String {
-        print(v, "\t")
+        print(v, "\t", 0)
     }
 
     #[test]
@@ -394,8 +398,8 @@ mod tests {
         ];
 
         assert_eq!(
-            flatten_without_map(&commands, "  "),
-            flatten_with_map(&commands, "  ").0
+            flatten_without_map(&commands, "  ", 0),
+            flatten_with_map(&commands, "  ", 0).0
         );
     }
 }
