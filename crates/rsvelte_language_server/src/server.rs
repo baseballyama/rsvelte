@@ -11,15 +11,16 @@ use lsp_types::{
     CancelParams, CodeActionKind, CodeActionOptions, CodeActionOrCommand, CodeActionParams,
     CodeActionProviderCapability, CodeLens, CodeLensOptions, CodeLensParams, CompletionOptions,
     CompletionParams, ConfigurationItem, ConfigurationParams, DiagnosticOptions,
-    DiagnosticServerCapabilities, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
-    DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentDiagnosticParams,
-    DocumentDiagnosticReport, DocumentFormattingParams, DocumentSymbolParams,
-    DocumentSymbolResponse, ExecuteCommandOptions, ExecuteCommandParams, FoldingRange,
-    FoldingRangeParams, FoldingRangeProviderCapability, FullDocumentDiagnosticReport, HoverParams,
-    HoverProviderCapability, NumberOrString, OneOf, PublishDiagnosticsParams,
-    RelatedFullDocumentDiagnosticReport, SelectionRangeParams, SelectionRangeProviderCapability,
-    ServerCapabilities, TextDocumentPositionParams, TextDocumentSyncCapability,
-    TextDocumentSyncKind, TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit, Uri,
+    DiagnosticServerCapabilities, DidChangeTextDocumentParams, DidChangeWatchedFilesParams,
+    DidChangeWorkspaceFoldersParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+    DidSaveTextDocumentParams, DocumentDiagnosticParams, DocumentDiagnosticReport,
+    DocumentFormattingParams, DocumentSymbolParams, DocumentSymbolResponse, ExecuteCommandOptions,
+    ExecuteCommandParams, FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability,
+    FullDocumentDiagnosticReport, HoverParams, HoverProviderCapability, NumberOrString, OneOf,
+    PublishDiagnosticsParams, RelatedFullDocumentDiagnosticReport, SelectionRangeParams,
+    SelectionRangeProviderCapability, ServerCapabilities, TextDocumentPositionParams,
+    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
+    TextDocumentSyncSaveOptions, TextEdit, Uri, WorkspaceFoldersServerCapabilities,
 };
 
 use crate::client::ClientState;
@@ -99,7 +100,7 @@ fn capabilities(client: &ClientState) -> ServerCapabilities {
             code_action_kinds: Some(vec![
                 CodeActionKind::QUICKFIX,
                 CodeActionKind::REFACTOR_REWRITE,
-                CodeActionKind::new(crate::code_actions::FIX_ALL_KIND),
+                CodeActionKind::SOURCE_FIX_ALL,
             ]),
             ..CodeActionOptions::default()
         })),
@@ -120,6 +121,13 @@ fn capabilities(client: &ClientState) -> ServerCapabilities {
                 workspace_diagnostics: false,
                 ..DiagnosticOptions::default()
             })
+        }),
+        workspace: Some(lsp_types::WorkspaceServerCapabilities {
+            workspace_folders: Some(WorkspaceFoldersServerCapabilities {
+                supported: Some(true),
+                change_notifications: Some(OneOf::Left(true)),
+            }),
+            ..lsp_types::WorkspaceServerCapabilities::default()
         }),
         ..ServerCapabilities::default()
     }
@@ -145,6 +153,7 @@ enum Pending {
 /// echo back.
 enum Outgoing {
     Configuration,
+    WatchedFilesRegistration,
 }
 
 struct Server {
@@ -192,6 +201,9 @@ impl Server {
     fn run(&mut self, connection: &Connection) -> Result<ExitCode> {
         if self.client.pull_configuration {
             self.request_configuration();
+        }
+        if self.client.dynamic_watched_files {
+            self.register_watched_files();
         }
         // Cloned out of `self` so the handlers below can still borrow it.
         let outcomes = self.outcomes.clone();
@@ -404,36 +416,26 @@ impl Server {
             self.respond_no_actions(id);
             return;
         };
-        let wants_quickfix = params
-            .context
-            .only
-            .as_ref()
-            .is_none_or(|kinds| kinds.contains(&CodeActionKind::QUICKFIX));
-        let wants_refactor = params.context.only.as_ref().is_none_or(|kinds| {
-            kinds
-                .iter()
-                .any(|kind| kind.as_str().starts_with(CodeActionKind::REFACTOR.as_str()))
-        });
-        let fix_all = params.context.only.as_ref().is_some_and(|kinds| {
-            kinds
-                .iter()
-                .any(|kind| kind.as_str() == crate::code_actions::FIX_ALL_KIND)
-        });
-        if (!wants_quickfix && !wants_refactor && !fix_all)
-            || (params.context.diagnostics.is_empty() && !fix_all)
+        if params.context.diagnostics.is_empty()
+            && params
+                .context
+                .only
+                .as_ref()
+                .is_none_or(|kinds| !kinds.contains(&CodeActionKind::SOURCE_FIX_ALL))
         {
             self.respond_no_actions(id);
             return;
         }
+        let only = params.context.only.as_ref();
         let job = Job::CodeAction {
             id: id.clone(),
             path: uri_to_path(uri.as_str()),
             text: document.shared_text(),
             uri,
             diagnostics: params.context.diagnostics,
-            quickfix: wants_quickfix,
-            suggestions: wants_refactor,
-            fix_all,
+            quickfix: only.is_none_or(|kinds| kinds.contains(&CodeActionKind::QUICKFIX)),
+            suggestions: only.is_none_or(|kinds| kinds.contains(&CodeActionKind::REFACTOR_REWRITE)),
+            fix_all: only.is_none_or(|kinds| kinds.contains(&CodeActionKind::SOURCE_FIX_ALL)),
         };
         self.pending.insert(id, Pending::CodeAction);
         self.worker.submit(job);
@@ -441,48 +443,35 @@ impl Server {
 
     fn on_code_lens(&mut self, request: Request) {
         let id = request.id;
-        let params = match serde_json::from_value::<CodeLensParams>(request.params) {
-            Ok(params) => params,
-            Err(err) => {
-                log::warn(format_args!("textDocument/codeLens: {err}"));
-                self.respond_no_lenses(id);
-                return;
-            }
+        let Ok(params) = serde_json::from_value::<CodeLensParams>(request.params) else {
+            return self.respond_no_lenses(id);
         };
         if !self.settings.runes_legacy_mode_code_lens_enable {
-            self.respond_no_lenses(id);
-            return;
+            return self.respond_no_lenses(id);
         }
         let Some((path, text)) = self.component(&params.text_document.uri) else {
-            self.respond_no_lenses(id);
-            return;
+            return self.respond_no_lenses(id);
         };
-        let job = Job::CodeLens {
-            id: id.clone(),
-            path,
-            text,
-        };
-        self.pending.insert(id, Pending::CodeLens);
-        self.worker.submit(job);
+        self.pending.insert(id.clone(), Pending::CodeLens);
+        self.worker.submit(Job::CodeLens { id, path, text });
     }
 
     fn on_execute_command(&mut self, request: Request) {
         let id = request.id;
-        let params = match serde_json::from_value::<ExecuteCommandParams>(request.params) {
-            Ok(params) if params.command == crate::extract::COMMAND => params,
-            Ok(_) => return self.respond_nothing(id),
-            Err(err) => {
-                log::warn(format_args!("workspace/executeCommand: {err}"));
-                return self.respond_nothing(id);
-            }
+        let Ok(params) = serde_json::from_value::<ExecuteCommandParams>(request.params) else {
+            return self.respond_nothing(id);
         };
+        if params.command != crate::extract::COMMAND {
+            return self.respond_nothing(id);
+        }
         let Some(args) = params.arguments.into_iter().nth(1) else {
             return self.respond_nothing(id);
         };
-        let Some(uri) = args.get("uri").and_then(serde_json::Value::as_str) else {
-            return self.respond_nothing(id);
-        };
-        let Ok(uri) = uri.parse::<Uri>() else {
+        let Some(uri) = args
+            .get("uri")
+            .and_then(serde_json::Value::as_str)
+            .and_then(|uri| uri.parse::<Uri>().ok())
+        else {
             return self.respond_nothing(id);
         };
         let Some(document) = self.component_document(&uri) else {
@@ -623,6 +612,29 @@ impl Server {
                     Err(err) => log::warn(format_args!("{method}: {err}")),
                 }
             }
+            "workspace/didChangeWorkspaceFolders" => {
+                match serde_json::from_value::<DidChangeWorkspaceFoldersParams>(notification.params)
+                {
+                    Ok(params) => self
+                        .client
+                        .update_workspace_folders(params.event.added, &params.event.removed),
+                    Err(err) => log::warn(format_args!("{method}: {err}")),
+                }
+            }
+            "workspace/didChangeWatchedFiles" => {
+                match serde_json::from_value::<DidChangeWatchedFilesParams>(notification.params) {
+                    Ok(params)
+                        if params
+                            .changes
+                            .iter()
+                            .any(|change| is_project_config(&change.uri)) =>
+                    {
+                        self.invalidate_project_config();
+                    }
+                    Ok(_) => {}
+                    Err(err) => log::warn(format_args!("{method}: {err}")),
+                }
+            }
             "textDocument/didOpen" => {
                 match serde_json::from_value::<DidOpenTextDocumentParams>(notification.params) {
                     Ok(params) => {
@@ -682,14 +694,11 @@ impl Server {
                 // A `rsvelte-lint.json` / `.oxfmtrc` edit reaches the server as
                 // a configuration change too, so the resolved-config caches are
                 // dropped along with the client settings.
-                self.worker.submit(Job::ClearCaches);
+                self.invalidate_project_config();
                 if self.client.pull_configuration {
                     self.request_configuration();
                 } else {
                     self.settings = Settings::default();
-                    if !self.client.pull_diagnostics {
-                        self.relint_open_documents();
-                    }
                 }
             }
             "exit" => self.exiting = true,
@@ -708,6 +717,13 @@ impl Server {
                 ErrorCode::RequestCanceled as i32,
                 "request cancelled by client".to_string(),
             ));
+        }
+    }
+
+    fn invalidate_project_config(&mut self) {
+        self.worker.submit(Job::ClearCaches);
+        if !self.client.pull_diagnostics {
+            self.relint_open_documents();
         }
     }
 
@@ -736,6 +752,7 @@ impl Server {
                     self.relint_open_documents();
                 }
             }
+            Outgoing::WatchedFilesRegistration => {}
         }
     }
 
@@ -819,6 +836,28 @@ impl Server {
                     section: Some(CONFIG_SECTION.to_string()),
                 }],
             },
+        ));
+    }
+
+    fn register_watched_files(&mut self) {
+        self.next_request_id += 1;
+        let id = RequestId::from(format!("rsvelte-watch-files-{}", self.next_request_id));
+        self.outgoing
+            .insert(id.clone(), Outgoing::WatchedFilesRegistration);
+        self.send(Request::new(
+            id,
+            "client/registerCapability".to_string(),
+            serde_json::json!({
+                "registrations": [{
+                    "id": "rsvelte-project-configs",
+                    "method": "workspace/didChangeWatchedFiles",
+                    "registerOptions": {
+                        "watchers": project_config_names().iter().map(|name| serde_json::json!({
+                            "globPattern": format!("**/{name}"),
+                        })).collect::<Vec<_>>(),
+                    },
+                }],
+            }),
         ));
     }
 
@@ -948,4 +987,21 @@ fn is_lint_target(document: &Document) -> bool {
     }
     let uri = document.uri.as_str();
     uri.ends_with(".svelte.js") || uri.ends_with(".svelte.ts")
+}
+
+fn is_project_config(uri: &Uri) -> bool {
+    project_config_names()
+        .iter()
+        .any(|name| uri.as_str().rsplit('/').next() == Some(name))
+}
+
+const fn project_config_names() -> &'static [&'static str] {
+    &[
+        "rsvelte-lint.json",
+        ".rsvelte-lintrc.json",
+        ".oxfmtrc.json",
+        ".oxfmtrc.jsonc",
+        "oxfmt.config.ts",
+        "oxfmt.config.mts",
+    ]
 }
