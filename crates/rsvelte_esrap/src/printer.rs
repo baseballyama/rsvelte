@@ -838,6 +838,115 @@ impl<'opt> Printer<'opt> {
         }
     }
 
+    fn sequence_indexed(
+        &mut self,
+        n: usize,
+        mut meta: impl FnMut(usize) -> SeqMeta,
+        mut render: impl FnMut(&mut Self, usize, &mut Context),
+        until: Option<u32>,
+        pad: bool,
+        separator: &'static str,
+        trailing_newline: bool,
+        parent: &mut Context,
+    ) {
+        let mut multiline = false;
+        let mut length: i64 = -1;
+        let mut items: Vec<SeqItem> = Vec::with_capacity(n);
+
+        for i in 0..n {
+            let node_meta = meta(i);
+            let mut child = parent.child();
+            render(self, i, &mut child);
+
+            let node_multiline = child.multiline;
+            if i < n - 1 || node_meta.is_elision {
+                child.write(separator);
+            }
+
+            let next = if i == n - 1 { until } else { meta(i + 1).start };
+            if let Some(end) = node_meta.end {
+                self.flush_trailing_comments(&mut child, end, next);
+            }
+
+            length += usize_to_i64(child.measure()) + 1;
+            multiline |= child.multiline;
+            items.push(SeqItem {
+                ctx: child,
+                multiline: node_multiline,
+                obj_or_array: node_meta.obj_or_array,
+                is_elision: node_meta.is_elision,
+            });
+        }
+
+        multiline |= length > 60;
+
+        if multiline {
+            parent.indent();
+            parent.newline();
+        } else if pad && length > 0 {
+            parent.write(" ");
+        }
+
+        let mut prev: Option<(bool, bool)> = None;
+        for item in items {
+            if let Some((prev_multiline, prev_obj)) = prev {
+                if prev_multiline && item.multiline && !(prev_obj && item.obj_or_array) {
+                    parent.margin();
+                }
+                if !item.is_elision {
+                    if multiline {
+                        parent.newline();
+                    } else {
+                        parent.write(" ");
+                    }
+                }
+            }
+            prev = Some((item.multiline, item.obj_or_array));
+            parent.append(item.ctx);
+        }
+
+        if let Some(until) = until {
+            let from_line = n
+                .checked_sub(1)
+                .and_then(|i| meta(i).end)
+                .filter(|&e| self.has_loc(e))
+                .map(|e| self.line_of(e));
+            self.flush_comments_until(parent, until, self.line_of(until), from_line, false);
+        }
+
+        if multiline {
+            parent.dedent();
+            if trailing_newline {
+                parent.newline();
+            }
+        } else if pad && length > 0 {
+            parent.write(" ");
+        }
+    }
+
+    fn sequence_slice<T>(
+        &mut self,
+        nodes: &[T],
+        mut meta: impl FnMut(&T) -> SeqMeta,
+        mut render: impl FnMut(&mut Self, &T, &mut Context),
+        until: Option<u32>,
+        pad: bool,
+        separator: &'static str,
+        trailing_newline: bool,
+        parent: &mut Context,
+    ) {
+        self.sequence_indexed(
+            nodes.len(),
+            |i| meta(&nodes[i]),
+            |printer, i, child| render(printer, &nodes[i], child),
+            until,
+            pad,
+            separator,
+            trailing_newline,
+            parent,
+        );
+    }
+
     fn unsupported(&mut self, kind: &'static str, ctx: &mut Context) {
         if self.missing.is_none() {
             self.missing = Some(Unsupported(kind));
@@ -1856,45 +1965,43 @@ impl<'opt> Printer<'opt> {
 
     fn object_pattern(&mut self, node: &ObjectPattern, ctx: &mut Context) {
         ctx.write("{");
-        let mut nodes: Vec<SeqNode> = node
-            .properties
-            .iter()
-            .map(|prop| {
-                let span = prop.span();
-                SeqNode {
+        let property_len = node.properties.len();
+        let n = property_len + usize::from(node.rest.is_some());
+        self.sequence_indexed(
+            n,
+            |i| {
+                let span = if i < property_len {
+                    node.properties[i].span()
+                } else {
+                    node.rest.as_ref().unwrap().span()
+                };
+                SeqMeta {
                     start: Some(span.start),
                     end: Some(span.end),
                     obj_or_array: false,
                     is_elision: false,
-                    render: Box::new(move |p: &mut Printer, child: &mut Context| {
-                        // esrap's `sequence` visits each property through the `_`
-                        // wildcard, which flushes any comment positioned before it
-                        // (`{ a, /* c */ b } = x` or a `// line` comment before a
-                        // destructured prop). Mirror that per property — a `// line`
-                        // comment also forces the sequence multiline (via the
-                        // `newline()` in `write_comment`), so it can't swallow the
-                        // following token (`tabindex = // c 0` → unparseable).
-                        p.flush_leading(child, span.start);
-                        p.binding_property(prop, child);
-                    }),
                 }
-            })
-            .collect();
-        if let Some(rest) = &node.rest {
-            let span = rest.span();
-            nodes.push(SeqNode {
-                start: Some(span.start),
-                end: Some(span.end),
-                obj_or_array: false,
-                is_elision: false,
-                render: Box::new(move |p: &mut Printer, child: &mut Context| {
+            },
+            |p, i, child| {
+                if i < property_len {
+                    let prop = &node.properties[i];
+                    let span = prop.span();
+                    p.flush_leading(child, span.start);
+                    p.binding_property(prop, child);
+                } else {
+                    let rest = node.rest.as_ref().unwrap();
+                    let span = rest.span();
                     p.flush_leading(child, span.start);
                     child.write("...");
                     p.binding_pattern(&rest.argument, child);
-                }),
-            });
-        }
-        self.sequence(nodes, Some(node.span().end), true, ",", true, ctx);
+                }
+            },
+            Some(node.span().end),
+            true,
+            ",",
+            true,
+            ctx,
+        );
         ctx.write("}");
     }
 
@@ -1916,38 +2023,46 @@ impl<'opt> Printer<'opt> {
 
     fn array_pattern(&mut self, node: &ArrayPattern, ctx: &mut Context) {
         ctx.write("[");
-        let mut nodes: Vec<SeqNode> = node
-            .elements
-            .iter()
-            .map(|el| {
-                let span = el.as_ref().map(oxc_span::GetSpan::span);
-                SeqNode {
-                    start: span.map(|s| s.start),
-                    end: span.map(|s| s.end),
-                    obj_or_array: false,
-                    is_elision: el.is_none(),
-                    render: Box::new(move |p: &mut Printer, child: &mut Context| {
-                        if let Some(pattern) = el {
-                            p.binding_pattern(pattern, child);
-                        }
-                    }),
+        let element_len = node.elements.len();
+        let n = element_len + usize::from(node.rest.is_some());
+        self.sequence_indexed(
+            n,
+            |i| {
+                if i < element_len {
+                    let span = node.elements[i].as_ref().map(oxc_span::GetSpan::span);
+                    SeqMeta {
+                        start: span.map(|s| s.start),
+                        end: span.map(|s| s.end),
+                        obj_or_array: false,
+                        is_elision: span.is_none(),
+                    }
+                } else {
+                    let span = node.rest.as_ref().unwrap().span();
+                    SeqMeta {
+                        start: Some(span.start),
+                        end: Some(span.end),
+                        obj_or_array: false,
+                        is_elision: false,
+                    }
                 }
-            })
-            .collect();
-        if let Some(rest) = &node.rest {
-            let span = rest.span();
-            nodes.push(SeqNode {
-                start: Some(span.start),
-                end: Some(span.end),
-                obj_or_array: false,
-                is_elision: false,
-                render: Box::new(move |p: &mut Printer, child: &mut Context| {
+            },
+            |p, i, child| {
+                if i < element_len {
+                    if let Some(pattern) = &node.elements[i] {
+                        p.binding_pattern(pattern, child);
+                    }
+                } else {
+                    let rest = node.rest.as_ref().unwrap();
                     child.write("...");
                     p.binding_pattern(&rest.argument, child);
-                }),
-            });
-        }
-        self.sequence(nodes, Some(node.span().end), false, ",", true, ctx);
+                }
+            },
+            Some(node.span().end),
+            false,
+            ",",
+            true,
+            ctx,
+        );
         ctx.write("]");
     }
 
@@ -1965,31 +2080,35 @@ impl<'opt> Printer<'opt> {
         until: Option<u32>,
         ctx: &mut Context,
     ) {
-        let mut nodes: Vec<SeqNode> = Vec::new();
-        if let Some(tp) = this_param {
-            let span = tp.span;
-            nodes.push(SeqNode {
-                start: Some(span.start),
-                end: Some(span.end),
-                obj_or_array: false,
-                is_elision: false,
-                render: Box::new(move |p: &mut Printer, child: &mut Context| {
+        let this_len = usize::from(this_param.is_some());
+        let item_len = params.items.len();
+        let n = this_len + item_len + usize::from(params.rest.is_some());
+        self.sequence_indexed(
+            n,
+            |i| {
+                let span = if i < this_len {
+                    this_param.unwrap().span
+                } else if i - this_len < item_len {
+                    params.items[i - this_len].span()
+                } else {
+                    params.rest.as_ref().unwrap().span()
+                };
+                SeqMeta {
+                    start: Some(span.start),
+                    end: Some(span.end),
+                    obj_or_array: false,
+                    is_elision: false,
+                }
+            },
+            |p, i, child| {
+                if i < this_len {
+                    let tp = this_param.unwrap();
                     child.write("this");
                     if let Some(ann) = &tp.type_annotation {
                         p.type_annotation(ann, child);
                     }
-                }),
-            });
-        }
-        nodes.extend(params.items.iter().map(|param| {
-            let span = param.span();
-            SeqNode {
-                start: Some(span.start),
-                end: Some(span.end),
-                obj_or_array: false,
-                is_elision: false,
-                render: Box::new(move |p: &mut Printer, child: &mut Context| {
-                    // TS parameter properties (`constructor(private readonly x: T)`).
+                } else if i - this_len < item_len {
+                    let param = &params.items[i - this_len];
                     if let Some(acc) = &param.accessibility {
                         child.write(format_compact!("{} ", accessibility_str(*acc)));
                     }
@@ -2006,33 +2125,25 @@ impl<'opt> Printer<'opt> {
                     if let Some(ann) = &param.type_annotation {
                         p.type_annotation(ann, child);
                     }
-                    // Default value: oxc stores parameter defaults on
-                    // `FormalParameter::initializer`, not as an
-                    // `AssignmentPattern`.
                     if let Some(init) = &param.initializer {
                         child.write(" = ");
                         p.print_expression(init, child);
                     }
-                }),
-            }
-        }));
-        if let Some(rest) = &params.rest {
-            let span = rest.span();
-            nodes.push(SeqNode {
-                start: Some(span.start),
-                end: Some(span.end),
-                obj_or_array: false,
-                is_elision: false,
-                render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                } else {
+                    let rest = params.rest.as_ref().unwrap();
                     child.write("...");
                     p.binding_pattern(&rest.rest.argument, child);
                     if let Some(ann) = &rest.type_annotation {
                         p.type_annotation(ann, child);
                     }
-                }),
-            });
-        }
-        self.sequence(nodes, until, false, ",", true, ctx);
+                }
+            },
+            until,
+            false,
+            ",",
+            true,
+            ctx,
+        );
     }
 
     /// esrap's `ArrowFunctionExpression`: `[async ](params) => body`, wrapping an
@@ -2641,72 +2752,82 @@ impl<'opt> Printer<'opt> {
             }
             AssignmentTarget::ArrayAssignmentTarget(a) => {
                 ctx.write("[");
-                let mut nodes: Vec<SeqNode> = a
-                    .elements
-                    .iter()
-                    .map(|el| {
-                        let span = el.as_ref().map(oxc_span::GetSpan::span);
-                        SeqNode {
-                            start: span.map(|s| s.start),
-                            end: span.map(|s| s.end),
-                            obj_or_array: false,
-                            is_elision: el.is_none(),
-                            render: Box::new(move |p: &mut Printer, child: &mut Context| {
-                                if let Some(t) = el {
-                                    p.assignment_target_maybe_default(t, child);
-                                }
-                            }),
+                let element_len = a.elements.len();
+                let n = element_len + usize::from(a.rest.is_some());
+                self.sequence_indexed(
+                    n,
+                    |i| {
+                        if i < element_len {
+                            let span = a.elements[i].as_ref().map(oxc_span::GetSpan::span);
+                            SeqMeta {
+                                start: span.map(|s| s.start),
+                                end: span.map(|s| s.end),
+                                obj_or_array: false,
+                                is_elision: span.is_none(),
+                            }
+                        } else {
+                            let span = a.rest.as_ref().unwrap().span();
+                            SeqMeta {
+                                start: Some(span.start),
+                                end: Some(span.end),
+                                obj_or_array: false,
+                                is_elision: false,
+                            }
                         }
-                    })
-                    .collect();
-                if let Some(rest) = &a.rest {
-                    let span = rest.span();
-                    nodes.push(SeqNode {
-                        start: Some(span.start),
-                        end: Some(span.end),
-                        obj_or_array: false,
-                        is_elision: false,
-                        render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                    },
+                    |p, i, child| {
+                        if i < element_len {
+                            if let Some(target) = &a.elements[i] {
+                                p.assignment_target_maybe_default(target, child);
+                            }
+                        } else {
+                            let rest = a.rest.as_ref().unwrap();
                             child.write("...");
                             p.assignment_target(&rest.target, child);
-                        }),
-                    });
-                }
-                self.sequence(nodes, Some(a.span().end), false, ",", true, ctx);
+                        }
+                    },
+                    Some(a.span().end),
+                    false,
+                    ",",
+                    true,
+                    ctx,
+                );
                 ctx.write("]");
             }
             AssignmentTarget::ObjectAssignmentTarget(o) => {
                 ctx.write("{");
-                let mut nodes: Vec<SeqNode> = o
-                    .properties
-                    .iter()
-                    .map(|prop| {
-                        let span = prop.span();
-                        SeqNode {
+                let property_len = o.properties.len();
+                let n = property_len + usize::from(o.rest.is_some());
+                self.sequence_indexed(
+                    n,
+                    |i| {
+                        let span = if i < property_len {
+                            o.properties[i].span()
+                        } else {
+                            o.rest.as_ref().unwrap().span()
+                        };
+                        SeqMeta {
                             start: Some(span.start),
                             end: Some(span.end),
                             obj_or_array: false,
                             is_elision: false,
-                            render: Box::new(move |p: &mut Printer, child: &mut Context| {
-                                p.assignment_target_property(prop, child);
-                            }),
                         }
-                    })
-                    .collect();
-                if let Some(rest) = &o.rest {
-                    let span = rest.span();
-                    nodes.push(SeqNode {
-                        start: Some(span.start),
-                        end: Some(span.end),
-                        obj_or_array: false,
-                        is_elision: false,
-                        render: Box::new(move |p: &mut Printer, child: &mut Context| {
+                    },
+                    |p, i, child| {
+                        if i < property_len {
+                            p.assignment_target_property(&o.properties[i], child);
+                        } else {
+                            let rest = o.rest.as_ref().unwrap();
                             child.write("...");
                             p.assignment_target(&rest.target, child);
-                        }),
-                    });
-                }
-                self.sequence(nodes, Some(o.span().end), true, ",", true, ctx);
+                        }
+                    },
+                    Some(o.span().end),
+                    true,
+                    ",",
+                    true,
+                    ctx,
+                );
                 ctx.write("}");
             }
             _ => self.unsupported("AssignmentTarget", ctx),
@@ -2789,33 +2910,35 @@ impl<'opt> Printer<'opt> {
 
     fn array_expression(&mut self, node: &ArrayExpression, ctx: &mut Context) {
         ctx.write("[");
-        let nodes: Vec<SeqNode> = node
-            .elements
-            .iter()
-            .map(|el| {
-                let is_elision = matches!(el, ArrayExpressionElement::Elision(_));
+        self.sequence_slice(
+            &node.elements,
+            |el| {
                 let span = el.span();
-                SeqNode {
+                SeqMeta {
                     start: Some(span.start),
                     end: Some(span.end),
                     obj_or_array: false,
-                    is_elision,
-                    render: Box::new(move |p: &mut Printer, child: &mut Context| match el {
-                        ArrayExpressionElement::SpreadElement(s) => {
-                            child.write("...");
-                            p.print_expression(&s.argument, child);
-                        }
-                        ArrayExpressionElement::Elision(_) => {}
-                        _ => {
-                            if let Some(e) = el.as_expression() {
-                                p.print_expression(e, child);
-                            }
-                        }
-                    }),
+                    is_elision: matches!(el, ArrayExpressionElement::Elision(_)),
                 }
-            })
-            .collect();
-        self.sequence(nodes, Some(node.span().end), false, ",", true, ctx);
+            },
+            |p, el, child| match el {
+                ArrayExpressionElement::SpreadElement(s) => {
+                    child.write("...");
+                    p.print_expression(&s.argument, child);
+                }
+                ArrayExpressionElement::Elision(_) => {}
+                _ => {
+                    if let Some(e) = el.as_expression() {
+                        p.print_expression(e, child);
+                    }
+                }
+            },
+            Some(node.span().end),
+            false,
+            ",",
+            true,
+            ctx,
+        );
         ctx.write("]");
     }
 
@@ -2823,62 +2946,62 @@ impl<'opt> Printer<'opt> {
     /// comma list out with the shared `sequence` machinery.
     fn sequence_expression(&mut self, node: &SequenceExpression, ctx: &mut Context) {
         ctx.write("(");
-        let nodes: Vec<SeqNode> = node
-            .expressions
-            .iter()
-            .map(|e| {
+        self.sequence_slice(
+            &node.expressions,
+            |e| {
                 let span = e.span();
-                SeqNode {
+                SeqMeta {
                     start: Some(span.start),
                     end: Some(span.end),
                     obj_or_array: false,
                     is_elision: false,
-                    render: Box::new(move |p: &mut Printer, child: &mut Context| {
-                        p.print_expression(e, child);
-                    }),
                 }
-            })
-            .collect();
-        self.sequence(nodes, Some(node.span().end), false, ",", true, ctx);
+            },
+            |p, e, child| p.print_expression(e, child),
+            Some(node.span().end),
+            false,
+            ",",
+            true,
+            ctx,
+        );
         ctx.write(")");
     }
 
     fn object_expression(&mut self, node: &ObjectExpression, ctx: &mut Context) {
         ctx.write("{");
-        let nodes: Vec<SeqNode> = node
-            .properties
-            .iter()
-            .map(|prop| {
+        self.sequence_slice(
+            &node.properties,
+            |prop| {
                 let span = prop.span();
                 let obj_or_array = matches!(prop, ObjectPropertyKind::ObjectProperty(p)
                 if matches!(
                     &p.value,
                     Expression::ObjectExpression(_) | Expression::ArrayExpression(_)
                 ));
-                SeqNode {
+                SeqMeta {
                     start: Some(span.start),
                     end: Some(span.end),
                     obj_or_array,
                     is_elision: false,
-                    render: Box::new(move |p: &mut Printer, child: &mut Context| {
-                        // esrap's `sequence` visits each property through the `_`
-                        // wildcard, which flushes any comment positioned before
-                        // it (`{ /** doc */ key: … }`). Mirror that per property.
-                        p.flush_leading(child, span.start);
-                        match prop {
-                            ObjectPropertyKind::ObjectProperty(prop) => {
-                                p.object_property(prop, child);
-                            }
-                            ObjectPropertyKind::SpreadProperty(s) => {
-                                child.write("...");
-                                p.print_expression(&s.argument, child);
-                            }
-                        }
-                    }),
                 }
-            })
-            .collect();
-        self.sequence(nodes, Some(node.span().end), true, ",", true, ctx);
+            },
+            |p, prop, child| {
+                let span = prop.span();
+                p.flush_leading(child, span.start);
+                match prop {
+                    ObjectPropertyKind::ObjectProperty(prop) => p.object_property(prop, child),
+                    ObjectPropertyKind::SpreadProperty(s) => {
+                        child.write("...");
+                        p.print_expression(&s.argument, child);
+                    }
+                }
+            },
+            Some(node.span().end),
+            true,
+            ",",
+            true,
+            ctx,
+        );
         ctx.write("}");
     }
 
@@ -2998,6 +3121,121 @@ impl<'opt> Printer<'opt> {
                 ctx.newline();
             } else {
                 ctx.append(child);
+            }
+            ctx.write(")");
+            return;
+        }
+
+        if let [first, second] = args {
+            let second_start = second
+                .as_expression()
+                .map_or_else(|| second.span().start, |e| unparen(e).span().start);
+            let force_multiline = self.comments.get(self.comment_index).is_some_and(|c| {
+                c.start < second_start && c.start_line < self.line_of(second_start)
+            });
+
+            let mut first_child = ctx.child();
+            match first {
+                Argument::SpreadElement(spread) => {
+                    first_child.write("...");
+                    self.print_expression(&spread.argument, &mut first_child);
+                }
+                _ => match first.as_expression() {
+                    Some(expression) => self.print_expression(expression, &mut first_child),
+                    None => self.unsupported("Argument", &mut first_child),
+                },
+            }
+            first_child.write(",");
+            if self.flush_trailing_comments(
+                &mut first_child,
+                first.span().end,
+                Some(second.span().start),
+            ) {
+                first_child.multiline = true;
+            }
+
+            let mut second_child = ctx.child();
+            match second {
+                Argument::SpreadElement(spread) => {
+                    second_child.write("...");
+                    self.print_expression(&spread.argument, &mut second_child);
+                }
+                _ => match second.as_expression() {
+                    Some(expression) => self.print_expression(expression, &mut second_child),
+                    None => self.unsupported("Argument", &mut second_child),
+                },
+            }
+            self.flush_trailing_comments(&mut second_child, second.span().end, Some(call_end));
+
+            ctx.write("(");
+            if force_multiline || first_child.multiline {
+                ctx.indent();
+                ctx.newline();
+                ctx.append(first_child);
+                ctx.newline();
+                ctx.append(second_child);
+                ctx.dedent();
+                ctx.newline();
+            } else {
+                ctx.append(first_child);
+                ctx.write(" ");
+                ctx.append(second_child);
+            }
+            ctx.write(")");
+            return;
+        }
+
+        if let [_, _, last] = args {
+            let last_start = last
+                .as_expression()
+                .map_or_else(|| last.span().start, |e| unparen(e).span().start);
+            let force_multiline = self
+                .comments
+                .get(self.comment_index)
+                .is_some_and(|c| c.start < last_start && c.start_line < self.line_of(last_start));
+            let mut rendered = [ctx.child(), ctx.child(), ctx.child()];
+
+            for (i, (arg, child)) in args.iter().zip(&mut rendered).enumerate() {
+                match arg {
+                    Argument::SpreadElement(spread) => {
+                        child.write("...");
+                        self.print_expression(&spread.argument, child);
+                    }
+                    _ => match arg.as_expression() {
+                        Some(expression) => self.print_expression(expression, child),
+                        None => self.unsupported("Argument", child),
+                    },
+                }
+                if i < 2 {
+                    child.write(",");
+                }
+                let next = if i == 2 {
+                    Some(call_end)
+                } else {
+                    Some(args[i + 1].span().start)
+                };
+                if self.flush_trailing_comments(child, arg.span().end, next) && i < 2 {
+                    child.multiline = true;
+                }
+            }
+
+            let wrap = force_multiline || rendered[0].multiline || rendered[1].multiline;
+            ctx.write("(");
+            if wrap {
+                ctx.indent();
+                for child in rendered {
+                    ctx.newline();
+                    ctx.append(child);
+                }
+                ctx.dedent();
+                ctx.newline();
+            } else {
+                for (i, child) in rendered.into_iter().enumerate() {
+                    if i > 0 {
+                        ctx.write(" ");
+                    }
+                    ctx.append(child);
+                }
             }
             ctx.write(")");
             return;
@@ -3776,6 +4014,14 @@ struct SeqItem {
     /// This item is an array elision (a hole, `[a, , b]`). esrap still writes
     /// the hole's separator but omits the inter-element space/newline *before*
     /// it, so consecutive holes read `,,` rather than `, ,`.
+    is_elision: bool,
+}
+
+#[derive(Clone, Copy)]
+struct SeqMeta {
+    start: Option<u32>,
+    end: Option<u32>,
+    obj_or_array: bool,
     is_elision: bool,
 }
 
