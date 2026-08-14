@@ -2967,6 +2967,42 @@ impl<'opt> Printer<'opt> {
     fn call_arguments(&mut self, args: &[Argument], call_end: u32, ctx: &mut Context) {
         let n = args.len();
 
+        if let [arg] = args {
+            let arg_start = arg
+                .as_expression()
+                .map_or_else(|| arg.span().start, |e| unparen(e).span().start);
+            let wrap = self
+                .comments
+                .get(self.comment_index)
+                .is_some_and(|c| c.start < arg_start && c.start_line < self.line_of(arg_start));
+
+            let mut child = ctx.child();
+            match arg {
+                Argument::SpreadElement(spread) => {
+                    child.write("...");
+                    self.print_expression(&spread.argument, &mut child);
+                }
+                _ => match arg.as_expression() {
+                    Some(expression) => self.print_expression(expression, &mut child),
+                    None => self.unsupported("Argument", &mut child),
+                },
+            }
+            self.flush_trailing_comments(&mut child, arg.span().end, Some(call_end));
+
+            ctx.write("(");
+            if wrap {
+                ctx.indent();
+                ctx.newline();
+                ctx.append(child);
+                ctx.dedent();
+                ctx.newline();
+            } else {
+                ctx.append(child);
+            }
+            ctx.write(")");
+            return;
+        }
+
         // Render each argument into its own context (non-final ones carry the
         // trailing comma), flushing each arg's trailing comments in source order
         // — esrap threads comments through the single `comment_index` cursor in
