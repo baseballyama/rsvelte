@@ -65,7 +65,10 @@ export const EXCLUDE = new Set([
 	//    oracle, not the lint port. Comparing them here just re-surfaces
 	//    compiler-level differences already tracked elsewhere.
 	'svelte/valid-compile',
-	'svelte/valid-style-parse'
+	'svelte/valid-style-parse',
+	// `no-conflicting-module-names` resolves same-directory sibling files. The
+	// oracle receives isolated corpus copies, while rsvelte receives source paths.
+	'svelte/no-conflicting-module-names'
 ]);
 
 /**
