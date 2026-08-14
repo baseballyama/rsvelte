@@ -859,6 +859,138 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         trailing_newline: bool,
         parent: &mut Context,
     ) {
+        if n == 0 {
+            if let Some(until) = until {
+                self.flush_comments_until(parent, until, self.line_of(until), None, false);
+            }
+            return;
+        }
+
+        if n == 1 {
+            let node_meta = meta(0);
+            let mark = parent.event_mark();
+            let scope = parent.begin_scope();
+            render(self, 0, parent);
+            if node_meta.is_elision {
+                parent.write(separator);
+            }
+            if let Some(end) = node_meta.end {
+                self.flush_trailing_comments(parent, end, until);
+            }
+            let length = parent.measure();
+            let multiline = parent.end_scope(scope);
+
+            if multiline {
+                parent.insert_event(mark, EventKind::Newline);
+                parent.insert_event(mark, EventKind::Indent);
+                parent.multiline = true;
+            } else if pad && length > 0 {
+                parent.insert_event(mark, EventKind::Space);
+            }
+
+            if let Some(until) = until {
+                let from_line = node_meta
+                    .end
+                    .filter(|&end| self.has_loc(end))
+                    .map(|end| self.line_of(end));
+                self.flush_comments_until(parent, until, self.line_of(until), from_line, false);
+            }
+
+            if multiline {
+                parent.dedent();
+                if trailing_newline {
+                    parent.newline();
+                }
+            } else if pad && length > 0 {
+                parent.write(" ");
+            }
+            return;
+        }
+
+        if n <= 3 {
+            let mut multiline = false;
+            let mut length: i64 = -1;
+            let mut items = [None; 3];
+
+            for (i, item) in items.iter_mut().enumerate().take(n) {
+                let node_meta = meta(i);
+                let mark = parent.event_mark();
+                let scope = parent.begin_scope();
+                render(self, i, parent);
+
+                let node_multiline = parent.multiline;
+                if i < n - 1 || node_meta.is_elision {
+                    parent.write(separator);
+                }
+
+                let next = if i == n - 1 { until } else { meta(i + 1).start };
+                if let Some(end) = node_meta.end {
+                    self.flush_trailing_comments(parent, end, next);
+                }
+
+                length += usize_to_i64(parent.measure()) + 1;
+                multiline |= parent.end_scope(scope);
+                *item = Some(SeqLayout {
+                    mark,
+                    multiline: node_multiline,
+                    obj_or_array: node_meta.obj_or_array,
+                    is_elision: node_meta.is_elision,
+                });
+            }
+
+            multiline |= length > 60;
+
+            for i in (0..n).rev() {
+                let item = items[i].unwrap();
+                if i > 0 {
+                    let prev = items[i - 1].unwrap();
+                    let margin = prev.multiline
+                        && item.multiline
+                        && !(prev.obj_or_array && item.obj_or_array);
+                    if !item.is_elision {
+                        parent.insert_event(
+                            item.mark,
+                            if multiline {
+                                EventKind::Newline
+                            } else {
+                                EventKind::Space
+                            },
+                        );
+                    }
+                    if margin {
+                        parent.insert_event(item.mark, EventKind::Margin);
+                    }
+                }
+            }
+
+            let first = items[0].unwrap();
+            if multiline {
+                parent.insert_event(first.mark, EventKind::Newline);
+                parent.insert_event(first.mark, EventKind::Indent);
+                parent.multiline = true;
+            } else if pad && length > 0 {
+                parent.insert_event(first.mark, EventKind::Space);
+            }
+
+            if let Some(until) = until {
+                let from_line = meta(n - 1)
+                    .end
+                    .filter(|&end| self.has_loc(end))
+                    .map(|end| self.line_of(end));
+                self.flush_comments_until(parent, until, self.line_of(until), from_line, false);
+            }
+
+            if multiline {
+                parent.dedent();
+                if trailing_newline {
+                    parent.newline();
+                }
+            } else if pad && length > 0 {
+                parent.write(" ");
+            }
+            return;
+        }
+
         let mut multiline = false;
         let mut length: i64 = -1;
         let mut items: Vec<SeqLayout> = Vec::with_capacity(n);
