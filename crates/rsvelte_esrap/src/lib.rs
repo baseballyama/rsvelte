@@ -12,10 +12,9 @@
 //!
 //! ## Model
 //!
-//! Printing is two internal layers, mirroring esrap:
-//! - a command buffer with a flattening driver (whitespace/indent
-//!   sentinels + literal strings), and
-//! - a context the visitors push commands onto, tracking the
+//! Printing is two internal layers, mirroring esrap's semantics:
+//! - a flat text buffer with offset-based whitespace, indentation, and mapping events, and
+//! - a context the visitors write into, tracking the
 //!   `multiline` signal used to choose layouts.
 //!
 //! The printer walks the oxc AST. Where esrap dispatches through a
@@ -115,9 +114,9 @@ pub fn print_with(program: &Program<'_>, source: &str, options: &PrintOptions) -
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
     let capacity = ctx.measure();
-    let commands = ctx.into_commands();
-    let code = command::print(&commands, &options.indent, capacity);
-    pool::recycle(commands);
+    let buffer = ctx.into_buffer();
+    let code = command::print(&buffer, &options.indent, capacity);
+    pool::give(buffer);
     code
 }
 
@@ -155,17 +154,17 @@ pub fn print_split(
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
     let capacity = ctx.measure();
-    let commands = ctx.into_commands();
+    let buffer = ctx.into_buffer();
     let output = if map_source.is_some() {
-        let (code, mappings) = command::flatten_with_map(&commands, &options.indent, capacity);
+        let (code, mappings) = command::flatten_with_map(&buffer, &options.indent, capacity);
         PrintWithMap { code, mappings }
     } else {
         PrintWithMap {
-            code: command::print(&commands, &options.indent, capacity),
+            code: command::print(&buffer, &options.indent, capacity),
             mappings: Vec::new(),
         }
     };
-    pool::recycle(commands);
+    pool::give(buffer);
     output
 }
 
@@ -193,9 +192,9 @@ pub fn print_with_map(program: &Program<'_>, source: &str, options: &PrintOption
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
     let capacity = ctx.measure();
-    let commands = ctx.into_commands();
-    let (code, mappings) = command::flatten_with_map(&commands, &options.indent, capacity);
-    pool::recycle(commands);
+    let buffer = ctx.into_buffer();
+    let (code, mappings) = command::flatten_with_map(&buffer, &options.indent, capacity);
+    pool::give(buffer);
     PrintWithMap { code, mappings }
 }
 

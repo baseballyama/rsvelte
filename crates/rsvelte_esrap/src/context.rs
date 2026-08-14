@@ -1,28 +1,20 @@
-//! The visitor-facing command builder.
+//! The visitor-facing output builder.
 //!
 //! A port of esrap's `Context` (`src/context.js`). A [`Context`] accumulates
-//! [`Command`]s and tracks whether it has gone multiline, which is the signal
+//! literal text and deferred layout events while tracking whether it has gone multiline, the signal
 //! visitors use to decide between a one-line and a broken-out layout. Unlike
 //! upstream, dispatch (`visit`) lives in the printer (a `match` over oxc node
-//! kinds), so `Context` is purely the buffer API: `write`, the whitespace
-//! sentinels, `append` (splice a child buffer), `measure`, and `empty`.
+//! kinds), so `Context` is purely the output API: `write`, whitespace events,
+//! `append` (splice a child buffer), `measure`, and `empty`.
 
-use compact_str::CompactString;
+use crate::command::{Buffer, EventKind};
 
-use crate::command::Command;
-
-/// Accumulates commands for one syntactic unit. Build a child with
+/// Accumulates output for one syntactic unit. Build a child with
 /// [`Context::child`], fill it, then [`Context::append`] it into the parent.
 #[derive(Default)]
 pub struct Context {
-    commands: Vec<Command>,
+    buffer: Buffer,
     has_newline: bool,
-    /// Running total of the literal string lengths written so far, so
-    /// [`Context::measure`] is O(1) instead of a re-walk of the command tree.
-    measure: usize,
-    /// `true` once a non-empty literal has been written (the inverse of
-    /// [`Context::empty`], tracked for the same reason as `measure`).
-    has_content: bool,
     /// `true` once this context (or an appended child) emitted a newline.
     /// Visitors read it to pick a layout.
     pub multiline: bool,
@@ -32,7 +24,7 @@ impl Context {
     /// A fresh, empty context.
     pub fn new() -> Self {
         Self {
-            commands: crate::pool::take(),
+            buffer: crate::pool::take(),
             ..Self::default()
         }
     }
@@ -45,49 +37,39 @@ impl Context {
 
     /// Grow the newline indentation by one level for subsequent newlines.
     pub fn indent(&mut self) {
-        self.commands.push(Command::Indent);
+        self.buffer.event(EventKind::Indent);
     }
 
     /// Shrink the newline indentation by one level.
     pub fn dedent(&mut self) {
-        self.commands.push(Command::Dedent);
+        self.buffer.event(EventKind::Dedent);
     }
 
     /// Request a blank line ahead of the next newline.
     pub fn margin(&mut self) {
-        self.commands.push(Command::Margin);
+        self.buffer.event(EventKind::Margin);
     }
 
     /// Emit an indentation-aware newline before the next write. Marks the
     /// context multiline.
     pub fn newline(&mut self) {
         self.has_newline = true;
-        self.commands.push(Command::Newline);
+        self.buffer.event(EventKind::Newline);
     }
 
     /// Emit a single space before the next write.
     pub fn space(&mut self) {
-        self.commands.push(Command::Space);
+        self.buffer.event(EventKind::Space);
     }
 
     /// Append literal `content`. If a newline is already pending in this
     /// context, writing after it makes the context multiline (mirrors esrap).
     pub fn write(&mut self, content: impl AsRef<str>) {
         let content = content.as_ref();
-        self.measure += content.len();
-        self.has_content |= !content.is_empty();
-        let can_inline = self.commands.last().is_some_and(|command| {
-            matches!(command, Command::Str(text) if !text.is_heap_allocated()
-                && text.len() + content.len() <= text.capacity())
-        });
-        if can_inline {
-            let Some(Command::Str(text)) = self.commands.last_mut() else {
-                unreachable!();
-            };
-            text.push_str(content);
+        if content.is_empty() {
+            self.buffer.event(EventKind::Flush);
         } else {
-            self.commands
-                .push(Command::Str(CompactString::new(content)));
+            self.buffer.text.push_str(content);
         }
         if self.has_newline {
             self.multiline = true;
@@ -96,15 +78,13 @@ impl Context {
 
     /// Record a source-map anchor (1-based line, 0-based column).
     pub fn location(&mut self, line: u32, column: u32) {
-        self.commands.push(Command::Location { line, column });
+        self.buffer.event(EventKind::Location { line, column });
     }
 
-    /// Splice `child`'s commands in place, propagating its multiline state.
+    /// Splice `child`'s output in place, propagating its multiline state.
     pub fn append(&mut self, child: Self) {
         let child_multiline = child.multiline;
-        self.measure += child.measure;
-        self.has_content |= child.has_content;
-        self.commands.push(Command::Nested(child.commands));
+        self.buffer.append(child.buffer);
         if self.has_newline || child_multiline {
             self.multiline = true;
         }
@@ -112,19 +92,19 @@ impl Context {
 
     /// `true` when nothing with visible content has been written.
     pub const fn empty(&self) -> bool {
-        !self.has_content
+        self.buffer.text.is_empty()
     }
 
     /// Total length of the literal strings in this context, ignoring whitespace
     /// sentinels — esrap's `measure`, used to decide if a layout fits on a line.
     pub const fn measure(&self) -> usize {
-        self.measure
+        self.buffer.text.len()
     }
 
-    /// Consume the context, yielding its raw command buffer (for the top-level
+    /// Consume the context, yielding its flat output buffer (for the top-level
     /// [`print`](crate::command::print) call).
-    pub fn into_commands(self) -> Vec<Command> {
-        self.commands
+    pub(crate) fn into_buffer(self) -> Buffer {
+        self.buffer
     }
 }
 
@@ -176,16 +156,24 @@ mod tests {
         child.write("y");
         parent.append(child);
         parent.write(")");
-        assert_eq!(print(&parent.into_commands(), "\t", 0), "(x y)");
+        assert_eq!(print(&parent.into_buffer(), "\t", 0), "(x y)");
     }
 
     #[test]
-    fn adjacent_inline_writes_share_one_command() {
+    fn adjacent_writes_share_the_text_buffer() {
         let mut ctx = Context::new();
         ctx.write("const");
         ctx.write(" ");
         ctx.write("x");
-        assert_eq!(ctx.commands.len(), 1);
-        assert_eq!(print(&ctx.into_commands(), "\t", 0), "const x");
+        assert_eq!(ctx.buffer.text, "const x");
+        assert_eq!(print(&ctx.into_buffer(), "\t", 0), "const x");
+    }
+
+    #[test]
+    fn empty_write_flushes_pending_whitespace() {
+        let mut ctx = Context::new();
+        ctx.space();
+        ctx.write("");
+        assert_eq!(print(&ctx.into_buffer(), "\t", 0), " ");
     }
 }

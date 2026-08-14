@@ -467,7 +467,7 @@ impl<'opt> Printer<'opt> {
         self
     }
 
-    /// Enable source-map anchor commands for this print.
+    /// Enable source-map anchor events for this print.
     pub const fn with_source_map(mut self) -> Self {
         self.emit_locations = true;
         self
@@ -3890,7 +3890,7 @@ mod tests {
         let mut ctx = Context::new();
         printer.print_program(&ret.program, &mut ctx);
         (
-            crate::command::print(&ctx.into_commands(), &opts.indent, 0),
+            crate::command::print(&ctx.into_buffer(), &opts.indent, 0),
             printer.missing,
         )
     }
@@ -3917,7 +3917,7 @@ mod tests {
         let mut printer = Printer::with_comments(&opts, comments, line_starts(src));
         let mut ctx = Context::new();
         printer.print_program(&ret.program, &mut ctx);
-        let out = crate::command::print(&ctx.into_commands(), &opts.indent, 0);
+        let out = crate::command::print(&ctx.into_buffer(), &opts.indent, 0);
         assert!(
             printer.missing.is_none(),
             "unsupported node: {:?}",

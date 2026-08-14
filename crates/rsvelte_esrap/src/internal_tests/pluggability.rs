@@ -22,6 +22,6 @@ fn custom_printer_via_context_buffer() {
     ctx.write(value);
     ctx.write(" - (:");
 
-    let code = command::print(&ctx.into_commands(), "\t", 0);
+    let code = command::print(&ctx.into_buffer(), "\t", 0);
     assert_eq!(code, ":) - testing 123 - (:");
 }
