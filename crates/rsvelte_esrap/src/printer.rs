@@ -2238,6 +2238,27 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     /// esrap's `BlockStatement|ClassBody`: only break a body across lines when
     /// it has real content, so an empty body stays `{}`.
     fn block(&mut self, body: &[Statement], body_start: u32, body_end: u32, ctx: &mut Context) {
+        if !HAS_COMMENTS {
+            let keep_empty = self.options.keep_empty_statements;
+            let has_content = body.iter().any(|statement| {
+                keep_empty
+                    || !matches!(statement, Statement::EmptyStatement(empty) if empty.span.end != u32::MAX)
+            });
+            if !has_content {
+                ctx.write("{}");
+                return;
+            }
+
+            ctx.write("{");
+            ctx.indent();
+            ctx.newline();
+            self.body(body, body_start, body_end, ctx);
+            ctx.dedent();
+            ctx.newline();
+            ctx.write("}");
+            return;
+        }
+
         ctx.write("{");
         let mark = ctx.event_mark();
         let scope = ctx.begin_scope();
