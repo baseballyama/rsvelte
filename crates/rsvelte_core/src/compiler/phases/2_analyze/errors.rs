@@ -449,6 +449,9 @@ diagnostics! {
     /// `<%name%>` does not support non-event attributes or spread attributes
     illegal_element_attribute(element: &str) => "`<{}>` does not support non-event attributes or spread attributes\nhttps://svelte.dev/e/illegal_element_attribute", element;
 
+    /// `<svelte:body>` does not support non-event attributes or spread attributes
+    svelte_body_illegal_attribute() => "`<svelte:body>` does not support non-event attributes or spread attributes\nhttps://svelte.dev/e/svelte_body_illegal_attribute";
+
     /// `{@debug ...}` arguments must be identifiers
     debug_tag_invalid_arguments() => "{@debug ...} arguments must be identifiers, not arbitrary expressions\nhttps://svelte.dev/e/debug_tag_invalid_arguments";
 

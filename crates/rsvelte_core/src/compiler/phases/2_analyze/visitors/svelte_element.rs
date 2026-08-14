@@ -254,6 +254,11 @@ pub fn visit<'a, 'b: 'a>(
     // Check for invalid bindings on svelte:element
     // bind:value, bind:files, bind:group can only be used with specific elements
     for attr in &element.attributes {
+        if let Attribute::AnimateDirective(animate) = attr
+            && context.each_block_stack.last().is_none()
+        {
+            return Err(errors::animation_invalid_placement().at(animate.start, animate.end));
+        }
         if let Attribute::BindDirective(bind) = attr {
             super::shared::attribute::record_assign_exempt_expression(
                 context,

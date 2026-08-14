@@ -60,6 +60,12 @@ pub fn visit<'a, 'b: 'a>(
                 super::script::walk_expression(&bind.expression, context)?;
             }
             Attribute::OnDirective(on) => {
+                if on.modifiers.len() > 1 || on.modifiers.iter().any(|modifier| modifier != "once")
+                {
+                    return Err(
+                        errors::event_handler_invalid_component_modifier().at(on.start, on.end)
+                    );
+                }
                 // Note: Event forwarding (on:foo without handler) sets needs_props
                 // in the CLIENT transform phase, not here. See OnDirective.js line 21.
                 // Walk event handler expression if present

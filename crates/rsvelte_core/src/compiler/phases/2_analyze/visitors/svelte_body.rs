@@ -7,6 +7,7 @@
 use super::super::AnalysisError;
 use super::super::errors;
 use super::VisitorContext;
+use super::bind_directive;
 use super::on_directive;
 use crate::ast::template::{Attribute, SvelteElement};
 
@@ -35,14 +36,23 @@ pub fn visit(body: &mut SvelteElement, context: &mut VisitorContext) -> Result<(
     for attr in &mut body.attributes {
         match attr {
             Attribute::BindDirective(bind) => {
-                super::shared::attribute::record_assign_exempt_expression(
-                    context,
-                    &bind.expression,
-                    true,
-                );
+                bind_directive::visit_with_svelte_element(bind, "svelte:body", context)?;
             }
             Attribute::OnDirective(on) => on_directive::visit(on, context)?,
+            Attribute::LetDirective(let_dir) => {
+                return Err(
+                    errors::let_directive_invalid_placement().at(let_dir.start, let_dir.end)
+                );
+            }
+            Attribute::SpreadAttribute(spread) => {
+                return Err(errors::svelte_body_illegal_attribute().at(spread.start, spread.end));
+            }
             Attribute::Attribute(attribute) => {
+                if !attribute.name.starts_with("on") {
+                    return Err(
+                        errors::svelte_body_illegal_attribute().at(attribute.start, attribute.end)
+                    );
+                }
                 super::attribute::visit_attribute_value_expressions(&mut attribute.value, context)?;
             }
             _ => {}
