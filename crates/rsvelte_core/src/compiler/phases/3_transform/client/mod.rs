@@ -20,7 +20,7 @@ mod console_wrap;
 mod derived_by_ast;
 mod destructure_transforms;
 mod effect_rune_ast;
-mod expression_utils;
+pub(crate) mod expression_utils;
 mod formatting;
 mod inspect_rune_ast;
 mod instance_dev_tail_ast;
@@ -2442,10 +2442,21 @@ fn transform_client_with_visitors(
         });
         if let Some((code, mappings)) = converted {
             super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
-            return Ok(CodegenResult {
-                code: rehome_derived_jsdoc(&code),
-                mappings,
-            });
+            let code = rehome_derived_jsdoc(&code);
+            let code = if let Some(script) = analysis.instance_script_content.as_ref() {
+                super::shared::async_body::restore_async_derived_ignore_comments(&script.raw, code)
+            } else {
+                code
+            };
+            let code = if let Some(script) = analysis.module_script_content.as_ref() {
+                super::shared::async_body::strip_module_async_derived_ignore_comments(
+                    &script.raw,
+                    code,
+                )
+            } else {
+                code
+            };
+            return Ok(CodegenResult { code, mappings });
         } else if *CLIENT_TO_OXC_DEBUG {
             // Corpus workers share one stderr and a multi-part write interleaves,
             // gluing records together; emit the whole line in one call.
@@ -2466,8 +2477,19 @@ fn transform_client_with_visitors(
     } else {
         let code = generate(&program, &context.arena).map_err(TransformError::CodeGen)?;
         super::profile::record_codegen(super::profile::timer_elapsed(_codegen_start));
+        let code = rehome_derived_jsdoc(&code);
+        let code = if let Some(script) = analysis.instance_script_content.as_ref() {
+            super::shared::async_body::restore_async_derived_ignore_comments(&script.raw, code)
+        } else {
+            code
+        };
+        let code = if let Some(script) = analysis.module_script_content.as_ref() {
+            super::shared::async_body::strip_module_async_derived_ignore_comments(&script.raw, code)
+        } else {
+            code
+        };
         Ok(CodegenResult {
-            code: rehome_derived_jsdoc(&code),
+            code,
             mappings: vec![],
         })
     }

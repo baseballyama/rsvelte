@@ -2033,6 +2033,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     fn try_rewrite_await_reactivity_loss(&mut self, expr: &AwaitExpression<'_>) -> bool {
         if !self.dev
             || self.is_await_reactivity_loss_ignored(expr.span.start)
+            || super::await_reactivity_loss_ast::is_save_call(&expr.argument)
             || super::await_reactivity_loss_ast::is_destructuring_iife_call(&expr.argument)
         {
             return false;

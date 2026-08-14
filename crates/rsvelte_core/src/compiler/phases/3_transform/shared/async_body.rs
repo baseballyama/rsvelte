@@ -44,16 +44,20 @@ pub fn compute_blocker_map(raw_script: &str) -> rustc_hash::FxHashMap<String, us
     }
 
     let statements = split_top_level_statements(trimmed);
+    let uncommented_statements: Vec<String> = statements
+        .iter()
+        .map(|stmt| split_leading_comments(stmt.trim()).1.to_string())
+        .collect();
 
     // First pass: collect all declared variable names from the entire script.
     // This is used to identify which referenced identifiers are instance-scope variables.
-    let all_declared_vars = collect_all_declared_variables(&statements);
+    let all_declared_vars = collect_all_declared_variables(&uncommented_statements);
 
     // Collect function bodies by name for transitive dependency resolution.
     // When a function is called from an async thunk, all variables referenced in that
     // function's body should also be considered blocked (the official compiler traces
     // mutations through function calls via its AST-based dependency analysis).
-    let function_bodies = collect_function_bodies(&statements);
+    let function_bodies = collect_function_bodies(&uncommented_statements);
 
     // Collect variable initializer expressions by binding name. Mirrors the
     // upstream `touch` walk through `binding.assignments`: when a later async
@@ -61,7 +65,7 @@ pub fn compute_blocker_map(raw_script: &str) -> rustc_hash::FxHashMap<String, us
     // which transitively pulls in every identifier referenced by `x`'s init
     // (e.g. `let b = $derived(await delay(a * 2))` makes `a` reachable from
     // anywhere that reads `b`). Used by `apply_blocker_with_transitive`.
-    let var_init_map = collect_var_init_map(&statements);
+    let var_init_map = collect_var_init_map(&uncommented_statements);
 
     let mut found_await = false;
     let mut blocker_map = rustc_hash::FxHashMap::default();
@@ -83,6 +87,7 @@ pub fn compute_blocker_map(raw_script: &str) -> rustc_hash::FxHashMap<String, us
 
     for stmt in &statements {
         let trimmed_stmt = stmt.trim();
+        let (_, trimmed_stmt) = split_leading_comments(trimmed_stmt);
         if trimmed_stmt.is_empty() {
             continue;
         }
@@ -408,21 +413,17 @@ pub fn transform_async_body_dev(script: &str, runner: &str, dev: bool) -> Option
     transform_async_body_inner(script, runner, dev)
 }
 
-/// Reattach `svelte-ignore await_waterfall` comments that an AST lowering has
-/// detached before this text transform can hoist the declaration.
+/// Reattach `svelte-ignore` comments that an AST lowering has detached before
+/// this text transform can hoist the declaration.
 pub fn restore_async_derived_ignore_comments(source: &str, mut transformed: String) -> String {
-    if transformed.contains("svelte-ignore await_waterfall") {
-        return transformed;
-    }
-
     let mut search_from = 0;
-    while let Some(relative) = source[search_from..].find("svelte-ignore await_waterfall") {
+    while let Some(relative) = source[search_from..].find("svelte-ignore ") {
         let ignore = search_from + relative;
         let comment_start = source[..ignore]
             .rfind("/*")
             .or_else(|| source[..ignore].rfind("//"));
         let Some(comment_start) = comment_start else {
-            search_from = ignore + "svelte-ignore await_waterfall".len();
+            search_from = ignore + "svelte-ignore ".len();
             continue;
         };
         let comment_end = if source[comment_start..].starts_with("/*") {
@@ -439,38 +440,89 @@ pub fn restore_async_derived_ignore_comments(source: &str, mut transformed: Stri
             break;
         };
         let rest = source[comment_end..].trim_start();
-        let Some((_, rest)) = ["const ", "let ", "var "]
-            .iter()
-            .find_map(|kind| rest.strip_prefix(kind).map(|rest| (*kind, rest)))
+        let Some(declaration) = split_top_level_statements(rest).into_iter().next() else {
+            search_from = comment_end;
+            continue;
+        };
+        if !declaration.contains("= $derived(") && !declaration.contains("= $derived.by(") {
+            search_from = comment_end;
+            continue;
+        }
+        let Some(name) = extract_var_declarations(&declaration)
+            .first()
+            .map(|declaration| declaration.name.clone())
         else {
             search_from = comment_end;
             continue;
         };
-        let name_end = rest
-            .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '$'))
-            .unwrap_or(rest.len());
-        let name = &rest[..name_end];
-        if !rest[name_end..].trim_start().starts_with("= $derived(") {
+        let comment = &source[comment_start..comment_end];
+        let hoisted = format!("var {comment} {name};");
+        if transformed.contains(&hoisted) {
             search_from = comment_end;
             continue;
         }
-        let needle = format!("{name} = await $.async_derived");
-        if let Some(name_pos) = transformed.find(&needle)
-            && let Some(pos) = ["const ", "let ", "var "]
-                .iter()
-                .filter_map(|kind| transformed[..name_pos].rfind(kind))
-                .max()
+        let hoisted_pos = [format!("var {name};"), format!("var {name},")]
+            .iter()
+            .find_map(|needle| transformed.find(needle));
+        if let Some(pos) = hoisted_pos {
+            // The AST printer may retain the source comment beside `$$promises`.
+            // It belongs on the declaration hoisted by the async-body transform.
+            transformed = transformed.replace(comment, "");
+            let suffix = if comment.starts_with("//") {
+                format!("{comment}\n")
+            } else {
+                format!("{comment} ")
+            };
+            transformed.insert_str(pos + "var ".len(), &suffix);
+        } else if let Some(pos) = ["const ", "let ", "var "]
+            .iter()
+            .find_map(|kind| transformed.find(&format!("{kind}{name} = await $.async_derived")))
         {
-            transformed.insert_str(pos, &format!("{}\n", &source[comment_start..comment_end]));
-        } else {
-            let needle = format!("var {name};");
-            if let Some(pos) = transformed.find(&needle) {
-                transformed.insert_str(
-                    pos + "var ".len(),
-                    &format!("{} ", &source[comment_start..comment_end]),
-                );
-            }
+            transformed = transformed.replace(comment, "");
+            transformed.insert_str(pos, &format!("{comment}\n"));
         }
+        search_from = comment_end;
+    }
+
+    transformed
+}
+
+/// Module declarations are not hoisted through the async body, so their
+/// `svelte-ignore` comments are consumed with the source declaration.
+pub fn strip_module_async_derived_ignore_comments(source: &str, mut transformed: String) -> String {
+    let mut search_from = 0;
+    while let Some(relative) = source[search_from..].find("svelte-ignore ") {
+        let ignore = search_from + relative;
+        let comment_start = source[..ignore]
+            .rfind("/*")
+            .or_else(|| source[..ignore].rfind("//"));
+        let Some(comment_start) = comment_start else {
+            search_from = ignore + "svelte-ignore ".len();
+            continue;
+        };
+        let comment_end = if source[comment_start..].starts_with("/*") {
+            source[comment_start..]
+                .find("*/")
+                .map(|end| comment_start + end + 2)
+        } else {
+            source[comment_start..]
+                .find('\n')
+                .map(|end| comment_start + end)
+                .or(Some(source.len()))
+        };
+        let Some(comment_end) = comment_end else {
+            break;
+        };
+        let rest = source[comment_end..].trim_start();
+        let Some(declaration) = split_top_level_statements(rest).into_iter().next() else {
+            search_from = comment_end;
+            continue;
+        };
+        if !declaration.contains("= $derived(") && !declaration.contains("= $derived.by(") {
+            search_from = comment_end;
+            continue;
+        }
+        transformed = transformed.replace(&source[comment_start..comment_end], "");
         search_from = comment_end;
     }
 
@@ -662,6 +714,20 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
                         analyzer_has_await: has_await_in_init,
                     });
                 } else if active_decls.len() > 1 {
+                    if active_decls.iter().all(|decl| {
+                        decl.init
+                            .as_ref()
+                            .is_some_and(|init| has_await_in_expr(init))
+                    }) {
+                        for decl in active_decls {
+                            async_stmts.push(AsyncStmt {
+                                kind: AsyncStmtKind::VarDecl(decl),
+                                has_await: true,
+                                analyzer_has_await: true,
+                            });
+                        }
+                        continue;
+                    }
                     // Multiple declarators from same statement: group into a block thunk.
                     // This handles patterns like:
                     //   let $$d = await ..., squared = ..., cubed = ...;
@@ -1751,12 +1817,13 @@ fn split_top_level_statements(script: &str) -> Vec<String> {
                 // (e.g., `const some = { fn: () => {} }`)
                 if brace_depth == 0 && paren_depth == 0 && bracket_depth == 0 {
                     let stmt_so_far = script[stmt_start..=i].trim();
-                    let is_block_end = !stmt_so_far.starts_with("let ")
-                        && !stmt_so_far.starts_with("const ")
-                        && !stmt_so_far.starts_with("var ")
-                        && !stmt_so_far.starts_with("return ")
+                    let (_, uncommented_stmt) = split_leading_comments(stmt_so_far);
+                    let is_block_end = !uncommented_stmt.starts_with("let ")
+                        && !uncommented_stmt.starts_with("const ")
+                        && !uncommented_stmt.starts_with("var ")
+                        && !uncommented_stmt.starts_with("return ")
                         // Expression statements with object patterns (assignments)
-                        && !is_object_expr_context(stmt_so_far);
+                        && !is_object_expr_context(uncommented_stmt);
                     if is_block_end {
                         // Check if the next token is `catch` or `finally` - if so,
                         // this is a try-catch/try-finally and should NOT be split here.
@@ -3015,6 +3082,72 @@ mod tests {
     use super::*;
 
     #[test]
+    fn restores_ignore_comment_from_promise_prelude_to_hoisted_declaration() {
+        let source = "/* svelte-ignore await_waterfall */ const a = $derived(await p);";
+        let transformed = concat!(
+            "var a;\n",
+            "/* svelte-ignore await_waterfall */\n",
+            "var $$promises = $.run([async () => (a = await $.async_derived(() => p))]);"
+        );
+
+        assert_eq!(
+            restore_async_derived_ignore_comments(source, transformed.to_string()),
+            "var /* svelte-ignore await_waterfall */ a;\n\nvar $$promises = $.run([async () => (a = await $.async_derived(() => p))]);"
+        );
+    }
+
+    #[test]
+    fn restores_ignore_comment_to_a_destructured_hoist() {
+        let source = "/* svelte-ignore await_waterfall */ const { a, b } = $derived(await p);";
+        let transformed = concat!(
+            "var a, b;\n",
+            "/* svelte-ignore await_waterfall */\n",
+            "var $$promises = $.run([async () => ({ a, b } = await $.async_derived(() => p))]);"
+        );
+
+        assert_eq!(
+            restore_async_derived_ignore_comments(source, transformed.to_string()),
+            "var /* svelte-ignore await_waterfall */ a, b;\n\nvar $$promises = $.run([async () => ({ a, b } = await $.async_derived(() => p))]);"
+        );
+    }
+
+    #[test]
+    fn restores_line_ignore_comment_with_a_declaration_newline() {
+        let source = "// svelte-ignore await_waterfall\nconst a = $derived(await p);";
+        let transformed =
+            "var a;\nvar $$promises = $.run([async () => (a = await $.async_derived(() => p))]);";
+
+        assert_eq!(
+            restore_async_derived_ignore_comments(source, transformed.to_string()),
+            "var // svelte-ignore await_waterfall\na;\nvar $$promises = $.run([async () => (a = await $.async_derived(() => p))]);"
+        );
+    }
+
+    #[test]
+    fn restores_unrelated_ignore_comment_to_a_hoisted_declaration() {
+        let source = "// svelte-ignore state_referenced_locally\nconst a = $derived(await p);";
+        let transformed =
+            "var a;\nvar $$promises = $.run([async () => (a = await $.async_derived(() => p))]);";
+
+        assert_eq!(
+            restore_async_derived_ignore_comments(source, transformed.to_string()),
+            "var // svelte-ignore state_referenced_locally\na;\nvar $$promises = $.run([async () => (a = await $.async_derived(() => p))]);"
+        );
+    }
+
+    #[test]
+    fn strips_ignore_comment_from_a_module_async_derived_declaration() {
+        let source = "/* svelte-ignore await_waterfall */ const a = $derived(await p);";
+        let transformed =
+            "/* svelte-ignore await_waterfall */ const a = await $.async_derived(() => p);";
+
+        assert_eq!(
+            strip_module_async_derived_ignore_comments(source, transformed.to_string()),
+            " const a = await $.async_derived(() => p);"
+        );
+    }
+
+    #[test]
     fn test_simple_await_expression() {
         let script = "await 1;";
         let result = transform_async_body(script, "$.run").unwrap();
@@ -3030,6 +3163,61 @@ mod tests {
         assert!(result.output.contains("var y;"));
         assert!(result.output.contains("() => 0"));
         assert!(result.output.contains("() => y = 2"));
+    }
+
+    #[test]
+    fn splits_multi_declarator_async_entries() {
+        let script = "const a = await p, b = await q;";
+        let result = transform_async_body(script, "$.run").unwrap();
+
+        assert!(result.output.contains("async () => a = await p"));
+        assert!(result.output.contains("async () => b = await q"));
+        assert!(!result.output.contains("async () => {"));
+    }
+
+    #[test]
+    fn block_inline_comment_keeps_async_derived_blocker() {
+        let script =
+            "/* svelte-ignore await_waterfall */ const a = await $.async_derived(() => p);";
+        let result = transform_async_body(script, "$.run").unwrap();
+
+        assert_eq!(result.blocker_map.get("a"), Some(&0));
+    }
+
+    #[test]
+    fn raw_block_inline_comment_keeps_async_derived_blocker() {
+        let script = "/* svelte-ignore await_waterfall */ const a = $derived(await p);";
+
+        assert_eq!(compute_blocker_map(script).get("a"), Some(&0));
+    }
+
+    #[test]
+    fn raw_block_inline_comment_keeps_destructured_async_derived_blockers() {
+        let script = "/* svelte-ignore await_waterfall */ const { a, b } = $derived(await p);";
+        let blockers = compute_blocker_map(script);
+
+        let declarations = extract_var_declarations("const { a, b } = $derived(await p);");
+        assert_eq!(
+            declarations
+                .iter()
+                .map(|declaration| declaration.name.as_str())
+                .collect::<Vec<_>>(),
+            ["a", "b"]
+        );
+        assert!(!declarations[0].hoist_only);
+        assert!(has_top_level_await(script));
+        assert!(has_top_level_await_in_statement(
+            "const { a, b } = $derived(await p);"
+        ));
+        assert_eq!(
+            split_top_level_statements(script)
+                .iter()
+                .map(|statement| split_leading_comments(statement.trim()).1.trim())
+                .collect::<Vec<_>>(),
+            ["const { a, b } = $derived(await p);"]
+        );
+        assert_eq!(blockers.get("a"), Some(&0));
+        assert_eq!(blockers.get("b"), Some(&0));
     }
 
     #[test]

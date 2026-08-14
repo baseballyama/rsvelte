@@ -134,6 +134,10 @@ fn is_async_derived_call(expr: &Expression<'_>) -> bool {
     is_internal_call(expr, "async_derived")
 }
 
+pub(super) fn is_save_call(expr: &Expression<'_>) -> bool {
+    is_internal_call(expr, "save")
+}
+
 /// The `for await` wrapper is likewise re-collected by the fixed-point loop.
 pub(super) fn is_for_await_track_reactivity_loss_call(expr: &Expression<'_>) -> bool {
     is_internal_call(expr, "for_await_track_reactivity_loss")
@@ -402,6 +406,7 @@ impl<'a, 'src> Visit<'a> for AwaitCollector<'src> {
 
         if is_track_reactivity_loss_call(&expr.argument)
             || is_async_derived_call(&expr.argument)
+            || is_save_call(&expr.argument)
             || is_destructuring_iife_call(&expr.argument)
             || self.ignored.contains(expr.span.start)
         {

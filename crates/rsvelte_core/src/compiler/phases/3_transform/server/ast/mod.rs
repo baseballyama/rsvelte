@@ -1614,13 +1614,20 @@ See https://svelte.dev/docs/svelte/v5-migration-guide#Components-are-no-longer-c
     );
     comment_stats::dump();
     let code = rehome_derived_jsdoc(&code);
-    Ok(match state.analysis.instance_script_content.as_ref() {
+    let code = match state.analysis.instance_script_content.as_ref() {
         Some(script) => {
             crate::compiler::phases::phase3_transform::shared::async_body::restore_async_derived_ignore_comments(
                 &script.raw,
                 code,
             )
         }
+        None => code,
+    };
+    Ok(match state.analysis.module_script_content.as_ref() {
+        Some(script) => crate::compiler::phases::phase3_transform::shared::async_body::strip_module_async_derived_ignore_comments(
+            &script.raw,
+            code,
+        ),
         None => code,
     })
 }

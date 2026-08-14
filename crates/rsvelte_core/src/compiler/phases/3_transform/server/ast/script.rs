@@ -53,6 +53,7 @@ use super::comments;
 use crate::ast::template::Script;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::builders::B;
+use crate::compiler::phases::phase3_transform::client::expression_utils::wrap_await_with_save_in_async_derived;
 use oxc_ast::ast::{Comment, Expression as OxcExpression, Statement, VariableDeclarationKind};
 use oxc_ast_visit::VisitMut;
 use oxc_span::{GetSpan, Span};
@@ -1925,6 +1926,15 @@ fn lower_variable_declaration<'a>(
     // destructured `$state` → `tmp, $$array, x, y`) stays COMBINED in one
     // statement, because the source had no top-level comma between them.
     let mut out: Vec<Statement<'a>> = Vec::new();
+    let combine_module_derived = !is_instance
+        && vd.declarations.iter().all(|d| {
+            matches!(d.id, oxc_ast::ast::BindingPattern::BindingIdentifier(_))
+                && matches!(
+                    declarator_rune(d, is_instance, state),
+                    Some(DeclRune::Derived | DeclRune::DerivedBy)
+                )
+        });
+    let mut combined_decls = Vec::new();
 
     for d in vd.declarations.iter() {
         // Per-source-declarator pair accumulator.
@@ -2020,8 +2030,15 @@ fn lower_variable_declaration<'a>(
         }
 
         if !decls.is_empty() {
-            out.push(b.var_decl_from_pairs(kind, decls));
+            if combine_module_derived {
+                combined_decls.extend(decls);
+            } else {
+                out.push(b.var_decl_from_pairs(kind, decls));
+            }
         }
+    }
+    if !combined_decls.is_empty() {
+        out.push(b.var_decl_from_pairs(kind, combined_decls));
     }
 
     out
@@ -2606,8 +2623,10 @@ fn lower_decl_init<'a>(
     let arg_expr = |state: &ServerTransformState<'a>| -> OxcExpression<'a> {
         match first_arg_slice {
             Some(slice) => {
+                let rewritten = (matches!(rune, DeclRune::Derived) && state.eval_inputs.use_async)
+                    .then(|| wrap_await_with_save_in_async_derived(slice));
                 let mut e = state
-                    .reparse_slice_owned(slice)
+                    .reparse_slice_owned(rewritten.as_deref().unwrap_or(slice))
                     .unwrap_or_else(|| state.b.void0());
                 // Read-wrap the init/thunk body so derived/store reads inside a
                 // `$state(...)` / `$derived(...)` initializer become getters

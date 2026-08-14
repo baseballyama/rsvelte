@@ -2971,7 +2971,7 @@ pub(super) fn strip_top_level_await_from_expr(expr: &str) -> String {
 ///
 /// The rule: if the `await expr` is not the entirety of the expression (i.e., there's
 /// more code after it), wrap with `$.save()` and add `()` invocation after the await.
-pub(super) fn wrap_await_with_save_in_async_derived(expr: &str) -> String {
+pub(crate) fn wrap_await_with_save_in_async_derived(expr: &str) -> String {
     let trimmed = expr.trim();
     let chars: Vec<char> = trimmed.chars().collect();
     let len = chars.len();
@@ -3125,17 +3125,34 @@ pub(super) fn wrap_await_with_save_in_async_derived(expr: &str) -> String {
                 // Check if there's more expression after this await+arg
                 let remaining: String = chars[j..].iter().collect();
                 let remaining_trimmed = remaining.trim();
-                let has_more_after = !await_arg_trimmed.starts_with("$.track_reactivity_loss(")
-                    && !remaining_trimmed.is_empty()
-                    && remaining_trimmed != ")"
-                    && remaining_trimmed != "))"
-                    && remaining_trimmed != ";"
-                    && !remaining_trimmed.starts_with(':');
+                let tracked_argument = await_arg_trimmed
+                    .strip_prefix("$.track_reactivity_loss(")
+                    .and_then(|argument| argument.strip_suffix(')'));
+                let remaining_after_tracking = tracked_argument
+                    .and_then(|_| remaining_trimmed.strip_prefix(")()"))
+                    .unwrap_or(remaining_trimmed)
+                    .trim();
+                let has_more_after = !remaining_after_tracking.is_empty()
+                    && remaining_after_tracking != ")"
+                    && remaining_after_tracking != "))"
+                    && remaining_after_tracking != ";"
+                    && !remaining_after_tracking.starts_with(':');
 
                 if has_more_after {
                     // Wrap with $.save: `await expr` -> `(await $.save(expr))()`
-                    let _ = write!(result, "(await $.save({}))()", await_arg_trimmed);
-                    i = j;
+                    if tracked_argument.is_some() && remaining_trimmed.starts_with(")()") {
+                        result.pop();
+                    }
+                    let _ = write!(
+                        result,
+                        "(await $.save({}))()",
+                        tracked_argument.unwrap_or(await_arg_trimmed)
+                    );
+                    i = if tracked_argument.is_some() && remaining_trimmed.starts_with(")()") {
+                        j + 3
+                    } else {
+                        j
+                    };
                 } else {
                     // Last expression - keep as is
                     result.push_str("await ");
@@ -3164,6 +3181,16 @@ mod proxy_detection_tests {
     fn save_wrapping_leaves_dev_await_tracking_intact() {
         let input = "(await $.track_reactivity_loss(p))()";
         assert_eq!(wrap_await_with_save_in_async_derived(input), input);
+    }
+
+    #[test]
+    fn save_wrapping_replaces_non_final_dev_await_tracking() {
+        assert_eq!(
+            wrap_await_with_save_in_async_derived(
+                "(await $.track_reactivity_loss(p))() + (await $.track_reactivity_loss(q))()"
+            ),
+            "(await $.save(p))() + (await $.track_reactivity_loss(q))()"
+        );
     }
 
     #[test]
