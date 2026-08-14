@@ -110,7 +110,21 @@ pub fn print(program: &Program<'_>, source: &str) -> String {
 /// Print `program` to JavaScript with explicit options, interleaving comments.
 pub fn print_with(program: &Program<'_>, source: &str, options: &PrintOptions) -> String {
     let (comments, line_starts) = comments_and_line_starts(program, source);
-    let mut printer = printer::Printer::with_comments(options, comments, line_starts);
+    if comments.is_empty() {
+        print_with_impl::<false>(program, options, comments, line_starts)
+    } else {
+        print_with_impl::<true>(program, options, comments, line_starts)
+    }
+}
+
+fn print_with_impl<const HAS_COMMENTS: bool>(
+    program: &Program<'_>,
+    options: &PrintOptions,
+    comments: Vec<printer::Cmt>,
+    line_starts: Vec<u32>,
+) -> String {
+    let mut printer =
+        printer::Printer::<HAS_COMMENTS>::with_comments(options, comments, line_starts);
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
     let capacity = ctx.measure();
@@ -149,8 +163,45 @@ pub fn print_split(
 ) -> PrintWithMap {
     let (comments, line_starts) = comments_and_line_starts(program, comment_source);
     let map_line_starts = map_source.map(printer::line_starts).unwrap_or_default();
-    let mut printer = printer::Printer::with_comments(options, comments, line_starts)
-        .with_split_coordinates(map_line_starts, loc_base, loc_map, map_source.is_some());
+    if comments.is_empty() {
+        print_split_impl::<false>(
+            program,
+            loc_base,
+            map_source,
+            loc_map,
+            options,
+            comments,
+            line_starts,
+            map_line_starts,
+        )
+    } else {
+        print_split_impl::<true>(
+            program,
+            loc_base,
+            map_source,
+            loc_map,
+            options,
+            comments,
+            line_starts,
+            map_line_starts,
+        )
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn print_split_impl<const HAS_COMMENTS: bool>(
+    program: &Program<'_>,
+    loc_base: u32,
+    map_source: Option<&str>,
+    loc_map: &[(u32, u32, Option<u32>)],
+    options: &PrintOptions,
+    comments: Vec<printer::Cmt>,
+    line_starts: Vec<u32>,
+    map_line_starts: Vec<u32>,
+) -> PrintWithMap {
+    let mut printer =
+        printer::Printer::<HAS_COMMENTS>::with_comments(options, comments, line_starts)
+            .with_split_coordinates(map_line_starts, loc_base, loc_map, map_source.is_some());
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
     let capacity = ctx.measure();
@@ -187,8 +238,22 @@ pub struct PrintWithMap {
 pub fn print_with_map(program: &Program<'_>, source: &str, options: &PrintOptions) -> PrintWithMap {
     let line_starts = printer::line_starts(source);
     let comments = printer::build_comments(program, source, &line_starts);
+    if comments.is_empty() {
+        print_with_map_impl::<false>(program, options, comments, line_starts)
+    } else {
+        print_with_map_impl::<true>(program, options, comments, line_starts)
+    }
+}
+
+fn print_with_map_impl<const HAS_COMMENTS: bool>(
+    program: &Program<'_>,
+    options: &PrintOptions,
+    comments: Vec<printer::Cmt>,
+    line_starts: Vec<u32>,
+) -> PrintWithMap {
     let mut printer =
-        printer::Printer::with_comments(options, comments, line_starts).with_source_map();
+        printer::Printer::<HAS_COMMENTS>::with_comments(options, comments, line_starts)
+            .with_source_map();
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
     let capacity = ctx.measure();

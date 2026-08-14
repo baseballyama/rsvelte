@@ -91,7 +91,7 @@ fn reprint(source: &str) -> Option<Reprint> {
     let opts = PrintOptions::default();
     let line_starts = crate::printer::line_starts(source);
     let comments = crate::printer::build_comments(&ret.program, source, &line_starts);
-    let mut printer = Printer::with_comments(&opts, comments, line_starts);
+    let mut printer = Printer::<true>::with_comments(&opts, comments, line_starts);
     let mut ctx = Context::new();
     printer.print_program(&ret.program, &mut ctx);
     Some(Reprint {
