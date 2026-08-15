@@ -226,7 +226,7 @@ fn print_split_impl<const HAS_COMMENTS: bool>(
     line_starts: Vec<u32>,
     map_line_starts: Vec<u32>,
 ) -> PrintWithMap {
-    if map_source.is_none() {
+    if !HAS_COMMENTS && map_source.is_none() {
         let mut printer =
             printer::Printer::<HAS_COMMENTS, true>::with_comments(options, comments, line_starts)
                 .with_split_coordinates(map_line_starts, loc_base, loc_map, false);

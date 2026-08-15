@@ -329,3 +329,49 @@ fn unmapped_chunks_emit_no_source_positions() {
         mapped.mappings
     );
 }
+
+/// A reassembled program's own span starts at 0 — below `loc_base` — because
+/// the `Program` node is synthesized even when its statements are not. The
+/// program-level `reset_comment_index` therefore discards the pending cursor,
+/// and only a printer that re-syncs on the located descendants still emits
+/// their interior comments.
+///
+/// Every other case in this file builds a program whose span starts *at*
+/// `loc_base`, which is what let a regression through: the server SSR path
+/// prints exactly this shape and lost every interior script comment.
+#[test]
+fn an_unlocated_program_keeps_its_statements_interior_comments() {
+    let cases: &[(&str, &str, &str)] = &[
+        (
+            "function body",
+            "\n\n\texport function g() {\n\t\t/* mod */\n\t\treturn 1;\n\t}\n",
+            "/* mod */",
+        ),
+        (
+            "nested block",
+            "\n\n\tfunction g() {\n\t\tif (1) {\n\t\t\t// deep\n\t\t\treturn 2;\n\t\t}\n\t}\n",
+            "// deep",
+        ),
+        (
+            "trailing in body",
+            "\n\n\tfunction g() {\n\t\treturn 1; // tail\n\t}\n",
+            "// tail",
+        ),
+    ];
+
+    for &(name, source, needle) in cases {
+        let allocator = Allocator::default();
+        let program = Parser::new(&allocator, source, SourceType::mjs())
+            .parse()
+            .program;
+        assert_eq!(
+            program.span.start, 0,
+            "{name}: program starts below loc_base"
+        );
+        let printed = print_split(&program, source, 1, None, &[], &PrintOptions::default()).code;
+        assert!(
+            printed.contains(needle),
+            "{name}: lost {needle} from\n{printed}"
+        );
+    }
+}
