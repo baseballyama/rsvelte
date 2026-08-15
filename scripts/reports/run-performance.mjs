@@ -643,6 +643,29 @@ const toolTasks = [
   }),
 ];
 
+console.error("[report] benchmarking JavaScript printers");
+const printerBenchmark = spawnSync(
+  process.execPath,
+  [join(root, "scripts/bench/run-printer-benchmark.mjs")],
+  {
+    cwd: root,
+    encoding: "utf8",
+    maxBuffer: 1 << 24,
+    env: {
+      ...process.env,
+      PRINTER_BENCHMARK_WARMUPS: String(warmups),
+      PRINTER_BENCHMARK_RUNS: String(runs),
+    },
+  },
+);
+if (printerBenchmark.stderr) process.stderr.write(printerBenchmark.stderr);
+if (printerBenchmark.status !== 0) {
+  throw new Error(`Printer benchmark exited ${printerBenchmark.status}`);
+}
+const printerBenchmarks = JSON.parse(printerBenchmark.stdout);
+const printerOutputPath = join(root, "apps/playground/static/printer-performance-report.json");
+writeFileSync(printerOutputPath, `${JSON.stringify(printerBenchmarks, null, 2)}\n`);
+
 const git = (...args) => {
   try {
     return execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
@@ -654,7 +677,7 @@ const fileSetHash = createHash("sha256")
   .update(selectedEntries.map(({ id }) => id).join("\n"))
   .digest("hex");
 const result = {
-  schemaVersion: 9,
+  schemaVersion: 10,
   kind: "rsvelte-performance-report",
   generatedAt: new Date().toISOString(),
   provenance: {
@@ -664,6 +687,7 @@ const result = {
     competitorPackages: [
       "@mrwaip/svelte-rs@0.0.0-canary.13.1",
       "@verter/wasm@0.0.1-beta.3",
+      "esrap@2.3.2",
       "oxfmt@0.62.0",
       `svelte-check@${svelteCheckVersion}`,
       `svelte-check-rs@${svelteCheckRsVersion}`,
@@ -697,8 +721,15 @@ const result = {
   },
   surfaces,
   toolTasks,
+  printerBenchmarks,
   benchmarkCoverage: [
     { id: "compiler", label: "Compiler", status: "measured", detail: "CSR, SSR, CSR dev, SSR dev" },
+    {
+      id: "printer",
+      label: "JavaScript printer",
+      status: "measured",
+      detail: "Code, decoded source maps, and common comments",
+    },
     { id: "parser", label: "Parser", status: "measured", detail: "Complete accepted corpus" },
     { id: "projection", label: "TS projection", status: "measured", detail: "svelte2tsx" },
     {
@@ -785,9 +816,11 @@ const result = {
     "A competitor stays unranked unless every complete-corpus input has the same acceptance outcome and every accepted input has equivalent normalized JavaScript and identical CSS output.",
     "Compiler elapsed time and correctness use the same complete corpus, with rejections included; partial implementations remain visible but are not equivalent-work speed rankings.",
     "Verter's published Node package requires an asset-path adapter; initialization is excluded from timed samples.",
+    "Printer rows use a fixed generated-JavaScript corpus and native wall time. Each backend retains its parsed AST; parsing and process startup are excluded.",
   ],
 };
 
 writeFileSync(outputPath, `${JSON.stringify(result, null, 2)}\n`);
 execFileSync(join(root, "node_modules/.bin/oxfmt"), [outputPath], { stdio: "ignore" });
+execFileSync(join(root, "node_modules/.bin/oxfmt"), [printerOutputPath], { stdio: "ignore" });
 console.error(`[report] wrote ${outputPath}`);

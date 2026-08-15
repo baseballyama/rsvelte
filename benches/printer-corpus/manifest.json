@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "generatorCommit": "38b4f2a56",
+  "source": "benches/corpus/*.svelte CSR output",
+  "workloadSha256": "ff9da0754e9b93046a3958e914e569586cebbea81299a5c438aaed5d94130dc6",
+  "files": [
+    {
+      "path": "01-runes-counter.esrap.js",
+      "sha256": "26d407458363392d9f633df10c94f194d91f6955b06b3771926739b9a948c378"
+    },
+    {
+      "path": "02-todo-app.esrap.js",
+      "sha256": "2ed35f734e1903c1a393ef2de09ee9b23a5071e4ef3edb92fde571d652f40a43"
+    },
+    {
+      "path": "03-data-table.esrap.js",
+      "sha256": "c50b2df461e2da9b39da58a22ccca993f937356371d2c4e02cafe78492df2f83"
+    },
+    {
+      "path": "04-form-bindings.esrap.js",
+      "sha256": "c47fe89e462a887bafa2af6668158178c74c76387ea4daba85475cfdb2d3e157"
+    },
+    {
+      "path": "05-legacy-reactive.esrap.js",
+      "sha256": "122dd701c0c1a24f37cb6cbd575babd2f8380475b905cb16d292207aec3738b2"
+    },
+    {
+      "path": "06-css-heavy.esrap.js",
+      "sha256": "e0760d8d2b54bb3d8a8ed70782f3db3cc3728f50c4722713ea2bbe86c51e2aa1"
+    },
+    {
+      "path": "07-snippets.esrap.js",
+      "sha256": "f00cf06c3a2415ba0007c30116ab0abf5f8e545e2ac26f38b1adb06c9256ff05"
+    },
+    {
+      "path": "08-control-flow.esrap.js",
+      "sha256": "def7d347d396579d4b67c9117c4d5b4b7cd08e78d23fb6dcdfabc2fa0865c5b5"
+    },
+    {
+      "path": "09-typescript-generics.esrap.js",
+      "sha256": "58c9d86a5b009a4963347ccd6cbdc3e2f223632e04db0c0dd8f282cb846bbf71"
+    },
+    {
+      "path": "10-legacy-typescript-props.esrap.js",
+      "sha256": "4544980d58194d4d74a22de86dc5c58a3c58021f0cd3142137bfe0c9dfe0cb49"
+    },
+    {
+      "path": "11-store-heavy-legacy.esrap.js",
+      "sha256": "7e85cc3ee962fb3bd81db11c6dc463c62a8c56eecee9b02ccbeb428e8b7c4be6"
+    },
+    {
+      "path": "12-comments-common.js",
+      "sha256": "0f1d2759952408d0ae0ab37d5c92929df95dab845133415c137ceff59df6bbc5"
+    }
+  ]
+}

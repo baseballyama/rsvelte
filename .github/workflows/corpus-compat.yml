@@ -5,8 +5,8 @@ name: Corpus Compat
 # svelte.dev, and the real-world projects bits-ui / flowbite-svelte / melt-ui /
 # shadcn-svelte, each pinned by its submodule gitlink (see
 # scripts/compat-corpus/corpus-sources.json) — with BOTH the official Svelte
-# compiler and rsvelte, for the client (CSR), server (SSR) and client-dev
-# (CSR with `dev: true`) targets, normalizes both output trees with oxfmt, and
+# compiler and rsvelte, for the client (CSR), server (SSR), client-dev
+# (CSR with `dev: true`) and server-dev targets, normalizes both output trees with oxfmt, and
 # requires the results to be byte-identical.
 # The same corpus also drives a svelte2tsx TSX output-parity check (official
 # svelte2tsx from submodules/language-tools vs rsvelte's port) plus a structural
@@ -241,10 +241,11 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
-      - name: Build rsvelte NAPI binding + AST comparator
+      - name: Build rsvelte NAPI binding + corpus gates
         run: |
           cargo build --release -p rsvelte_napi --lib
           cargo build --release --bin ast_equiv_batch
+          cargo build --release -p rsvelte_devtools --bin esrap_corpus
           mkdir -p .corpus-cache
           cp target/release/librsvelte_napi.so .corpus-cache/rsvelte.node.staging
           # Replace, never overwrite: if anything still has the old library mapped
@@ -257,6 +258,9 @@ jobs:
 
       - name: Compile corpus (official svelte + rsvelte, CSR + SSR + CSR dev)
         run: node scripts/compat-corpus/compile.mjs
+
+      - name: Verify esrap round-trip, comments, and source maps
+        run: node scripts/compat-corpus/esrap-verify.mjs
 
       - name: Verify (oxfmt-normalized outputs must be identical)
         run: node scripts/compat-corpus/verify.mjs
@@ -310,6 +314,7 @@ jobs:
           name: corpus-report
           path: |
             compatibility/report.json
+            compatibility/esrap-report.json
             compatibility/report-s2t.json
             compatibility/manifest.json
             compatibility/cluster.txt

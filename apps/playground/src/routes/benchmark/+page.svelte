@@ -16,6 +16,10 @@
 		if (typeof ms !== 'number' || !Number.isFinite(ms)) return '—';
 		return ms >= 1000 ? `${(ms / 1000).toFixed(2)}s` : `${ms.toFixed(ms < 10 ? 1 : 0)}ms`;
 	};
+	const printerDuration = (ms?: number) => {
+		if (typeof ms !== 'number' || !Number.isFinite(ms)) return '—';
+		return ms < 1 ? `${(ms * 1000).toFixed(1)}µs` : `${ms.toFixed(2)}ms`;
+	};
 	const formatDate = (iso: string) => {
 		const date = new Date(iso);
 		return Number.isNaN(date.getTime())
@@ -48,7 +52,7 @@
 	<title>Performance · rsvelte</title>
 	<meta
 		name="description"
-		content="Measured compiler, parser, formatter, linter, and svelte2tsx performance."
+		content="Measured compiler, JavaScript printer, parser, formatter, linter, and svelte2tsx performance."
 	/>
 </svelte:head>
 
@@ -99,6 +103,31 @@
 					{/each}
 				</div>
 			</section>
+
+			{#if report.printerBenchmarks}
+				<section class="printers" aria-labelledby="printers-title">
+					<div class="comparison-head">
+						<h2 id="printers-title">JavaScript printer</h2>
+						<p>Fixed generated-JavaScript workload · parsing excluded</p>
+					</div>
+					<div class="printer-grid">
+						{#each report.printerBenchmarks.cases as benchmark}
+							{@const baseline = benchmark.variants.find((variant) => variant.id === 'rsvelte-esrap')}
+							<article>
+								<h3>{benchmark.label}<span>{benchmark.files} {benchmark.files === 1 ? 'file' : 'files'}</span></h3>
+								{#each benchmark.variants as variant}
+									<div class:rsvelte-row={variant.id === 'rsvelte-esrap'} class="printer-row">
+										<b>{variant.label}</b>
+										<strong>{printerDuration(variant.medianMs)}</strong>
+										<em>{relativeToRsvelte(variant.medianMs, baseline?.medianMs)}</em>
+									</div>
+								{/each}
+							</article>
+						{/each}
+					</div>
+					<p class="note">Native wall time on {report.printerBenchmarks.runner.cpuModel}, recorded {formatDate(report.printerBenchmarks.generatedAt)}. The three printers receive the same source workload and retain their parser-specific ASTs; code, decoded-map, and common-comment paths are reported separately.</p>
+				</section>
+			{/if}
 
 			<section class="alternatives" aria-labelledby="alternatives-title">
 				<div class="comparison-head">
@@ -196,6 +225,15 @@
 	.bar-row .track { height: .55rem; margin-top: .4rem; overflow: hidden; border-radius: 99px; background: color-mix(in srgb, var(--rule) 60%, transparent); }
 	.bar-row .track i { display: block; width: 100%; height: 100%; min-width: 3px; border-radius: inherit; background: var(--ok); }
 	.bar-row.reference .track i { background: var(--ink-faint); }
+	.printer-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+	.printer-grid article { padding: 1.25rem; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); }
+	.printer-grid h3 { display: flex; justify-content: space-between; gap: .75rem; margin: 0 0 .75rem; font-size: .95rem; }
+	.printer-grid h3 span { color: var(--ink-faint); font-size: .7rem; font-weight: 400; }
+	.printer-row { display: grid; grid-template-columns: 1fr auto auto; align-items: baseline; gap: .75rem; padding: .55rem 0; border-top: 1px solid var(--rule); }
+	.printer-row b { font-size: .82rem; }
+	.printer-row strong { font-size: .9rem; }
+	.printer-row em { min-width: 6rem; color: var(--ink-faint); font-size: .7rem; font-style: normal; text-align: right; }
+	.printer-row.rsvelte-row { color: var(--ok); }
 	.alternatives { padding-top: 2rem; border-top: 1px solid var(--rule); }
 	.comparison-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
 	.comparison-head p { margin: 0; color: var(--ink-faint); font-size: .8rem; }
@@ -236,6 +274,6 @@
 	details li { margin: .45rem 0; line-height: 1.5; }
 	details a, .links a { color: var(--accent); }
 	.links { margin-top: 1.5rem; font-size: .82rem; }
-	@media (max-width: 820px) { .alternative-grid { grid-template-columns: 1fr; } .section-head, .comparison-head { align-items: flex-start; flex-direction: column; } .comparison-table { overflow-x: auto; } .table-head, .comparison-row { min-width: 680px; } }
+	@media (max-width: 820px) { .alternative-grid, .printer-grid { grid-template-columns: 1fr; } .section-head, .comparison-head { align-items: flex-start; flex-direction: column; } .comparison-table { overflow-x: auto; } .table-head, .comparison-row { min-width: 680px; } }
 	@media (max-width: 640px) { main { padding: 3rem 1rem 5rem; } .result-grid { grid-template-columns: 1fr; } .result-card { padding: 1.2rem; } .section-head p { line-height: 1.7; } }
 </style>

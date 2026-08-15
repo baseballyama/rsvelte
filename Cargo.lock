@@ -2477,7 +2477,13 @@ name = "rsvelte_bench"
 version = "0.0.0"
 dependencies = [
  "codspeed-criterion-compat",
+ "oxc_allocator",
+ "oxc_ast",
+ "oxc_codegen",
+ "oxc_parser",
+ "oxc_span",
  "rsvelte_core",
+ "rsvelte_esrap",
 ]
 
 [[package]]
@@ -2576,6 +2582,7 @@ dependencies = [
  "codspeed-criterion-compat",
  "mimalloc",
  "oxc_allocator",
+ "oxc_ast",
  "oxc_codegen",
  "oxc_formatter",
  "oxc_parser",
@@ -2605,7 +2612,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_esrap"
-version = "0.10.26"
+version = "0.10.27"
 dependencies = [
  "compact_str 0.10.0",
  "memchr",

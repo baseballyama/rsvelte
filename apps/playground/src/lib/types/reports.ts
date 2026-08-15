@@ -87,10 +87,51 @@ export interface PerformanceReport {
   };
   surfaces: PerformanceSurface[];
   toolTasks: PerformanceToolTask[];
+  printerBenchmarks?: PrinterBenchmarks;
   benchmarkCoverage?: BenchmarkCoverage[];
   alternativeProducts?: AlternativeProduct[];
   unsupported: UnsupportedCompetitor[];
   methodology: string[];
+}
+
+export interface PrinterBenchmarks {
+  schemaVersion: number;
+  measurementKind: "native-wall";
+  generatedAt: string;
+  workloadHash: string;
+  versions: {
+    rsvelteEsrap: string;
+    oxcCodegen: string;
+    javascriptEsrap: string;
+  };
+  runner: {
+    label: string;
+    platform: string;
+    arch: string;
+    cpus: number;
+    cpuModel: string;
+    node: string;
+    loadAvg1min: number;
+  };
+  warmups: number;
+  runs: number;
+  batch: number;
+  cases: {
+    id: "parsed-no-map" | "decoded-map" | "comments-common";
+    label: string;
+    comparability: string;
+    files: number;
+    bytes: number;
+    variants: {
+      id: "rsvelte-esrap" | "oxc-codegen" | "javascript-esrap";
+      label: string;
+      medianMs: number;
+      cvPct: number;
+      timesMs: number[];
+      relativeToRsvelte: number;
+      workGate: "parseable-output";
+    }[];
+  }[];
 }
 
 export interface PerformanceSurface {

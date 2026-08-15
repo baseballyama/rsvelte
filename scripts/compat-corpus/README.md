@@ -151,7 +151,12 @@ Pipeline stages (all idempotent, everything under `compatibility/` except
    `compatibility/{expected,actual}/<id>/{client.js,server.js,server-dev.js,client-dev.js,client.css,client-dev.css,error.json}`.
    Sharded across worker processes; a Rust panic is recorded as a `rust_panic`
    error for that entry instead of killing the run.
-3. `verify.mjs` — oxfmt-normalizes both trees, byte-compares, writes `report.json`,
+3. `esrap-verify.mjs` — re-parses every generated JavaScript output from both
+   compiler trees and all four targets, then requires `rsvelte_esrap` code-only and
+   mapped printing to agree, preserve AST semantics and ordered raw comments, and
+   produce ordered in-bounds source mappings. Each tree/target must contain at least
+   12,000 outputs, so a missing or partial tree cannot pass vacuously.
+4. `verify.mjs` — oxfmt-normalizes both trees, byte-compares, writes `report.json`,
    and ratchets each target independently against
    `compatibility/known-failures.client.json` (CSR),
    `compatibility/known-failures.server.json` (SSR) and

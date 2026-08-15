@@ -5,12 +5,15 @@ on:
     branches: [main]
     paths:
       - 'crates/rsvelte_core/**'
+      - 'crates/rsvelte_esrap/**'
+      - 'crates/rsvelte_bench/**'
       - 'crates/rsvelte_devtools/**'
       - 'crates/rsvelte_formatter/**'
       - 'crates/rsvelte_fmt/**'
       - 'crates/rsvelte_lint/**'
       - 'crates/rsvelte_projection/**'
       - 'benches/corpus/**'
+      - 'benches/printer-corpus/**'
       - 'benches/common/**'
       - 'Cargo.toml'
       - 'Cargo.lock'

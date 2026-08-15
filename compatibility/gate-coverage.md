@@ -109,11 +109,34 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 23 | Escaped-quote lookback shape | one line of Rust source, over every `.rs` under `crates/` + `apps/` | it matches a **spelling**; a scanner with *no* escape check at all produces no line to match | [D] |
 | 24 | `await_waterfall` runtime parity | the `await_waterfall` warnings a **mounted** rsvelte-compiled component logs vs. official's, 3 cases | one warning code, one component shape; nothing else about the running component is observed | [D] |
 | 25 | Differential output-preservation corpus hash | per `.svelte` source × client/server/client-dev/server-dev hash from base-core vs merge-ref-core | changes outside `crates/rsvelte_core`; every PR without the maintainer-applied `output-preserving` label | [S] |
+| 26 | esrap generated-output corpus | parsed JS output × official/rsvelte tree × 4 targets; AST equivalence, raw comments, code/map equality, map bounds/order | production synthetic AST spans and whether a mapping points at the corresponding source token | [S] |
 
 Cross-cutting blind spots (**ratchet keys losing in both directions**, path filters, ratchet-doc
 drift, vacuity floors, the **performance**
 gates' population, and **an uninitialised corpus source shrinking every corpus gate silently**)
 are in [§ Cross-cutting](#cross-cutting) at the end.
+
+## 26. esrap generated-output corpus — `scripts/compat-corpus/esrap-verify.mjs`
+
+**Unit.** Every available JavaScript output in both `expected/` and `actual/`, across
+client, server, client-dev and server-dev, is parsed with OXC and printed by
+`rsvelte_esrap` with and without mappings. The gate requires semantic AST equivalence,
+identical code from the mapped and unmapped APIs, ordered raw comment-text preservation,
+and ordered in-bounds mapping coordinates. It rejects fewer than 12,000 outputs in any
+tree/target and records the measured population in `esrap-report.json`.
+
+**Blind spot 26a — reparsing erases production AST provenance.** The gate consumes compiler
+text from `expected/` and `actual/` and constructs a fresh OXC `Program`; it never
+passes rsvelte's synthetic phase-3 AST, its `loc_map`, or original synthesized spans to the
+printer. A defect reachable only before compiler output is materialized is therefore outside
+this population. **Evidence [S]:** `esrap-verify.mjs` passes only file paths to
+`esrap_corpus`, whose `parse` function constructs every tested `Program` from file text.
+
+**Blind spot 26b — mapping validity is structural, not semantic.** `validate_mappings`
+checks generated ordering and source/generated bounds, but it does not resolve a mapping and
+compare the generated token with the source token. A mapping can point to the wrong in-bounds
+location and pass. **Evidence [S]:** those are the only predicates read from each `Mapping`
+in `esrap_corpus.rs`.
 
 ## 25. Differential output-preservation corpus hash
 
@@ -2025,6 +2048,7 @@ while `sourcemap-known-failures.json` has 74.** Already drifted, in an unchecked
 | Gate | Floor | Cite |
 |---|---|---|
 | corpus verify | manifest ≥ 1000; ≥99% compiled; ≥12000 to rebaseline | `verify.mjs:204,224`; `artifacts.mjs:79` |
+| esrap generated-output corpus | ≥12000 JavaScript outputs and ≥1 comment-bearing output in each tree × target | `esrap-verify.mjs` population loop and per-population `esrap_corpus` invocation |
 | svelte2tsx verify | manifest ≥ 1000 components; ≥12000 to rebaseline | `svelte2tsx-verify.mjs:85,237` |
 | fmt verify | `included` ≥ 1000 — **but not the comparisons performed** | `fmt-verify.mjs:69`; gap at `:97` |
 | lint verify | manifest ≥ 1000; ≥99% with a source on disk; ≥6000 **and** repo set == `CI_REPOS` to rebaseline; ≥1 module compared; 0 unmeasured | `lint-verify.mjs:39,44,47,218-236`; **no universe floor** — gap at `:239` |

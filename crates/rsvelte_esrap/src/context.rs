@@ -15,6 +15,7 @@ const PENDING_NEWLINE: u8 = 1 << 0;
 const PENDING_MARGIN: u8 = 1 << 1;
 const PENDING_SPACE: u8 = 1 << 2;
 const PENDING_OPTIMISTIC_SPACE: u8 = 1 << 3;
+const FAST_INDENT_BYTES: usize = 32;
 
 #[inline(always)]
 fn push_str_small(text: &mut String, value: &str) {
@@ -465,6 +466,9 @@ impl<const DIRECT: bool> Context<DIRECT> {
         if self.pending == 0 {
             return;
         }
+        if self.try_flush_direct_newline() {
+            return;
+        }
         self.flush_direct_slow();
     }
 
@@ -473,7 +477,49 @@ impl<const DIRECT: bool> Context<DIRECT> {
         if self.pending & !PENDING_OPTIMISTIC_SPACE == 0 {
             return;
         }
+        if self.try_flush_direct_newline() {
+            return;
+        }
         self.flush_direct_slow();
+    }
+
+    #[inline(never)]
+    fn try_flush_direct_newline(&mut self) -> bool {
+        let depth = self.indent_depth as usize;
+        if self.pending & PENDING_NEWLINE == 0
+            || self.pending & PENDING_MARGIN != 0
+            || self.indent.as_bytes() != b"\t"
+            || depth > FAST_INDENT_BYTES
+            || self.buffer.text.capacity() - self.buffer.text.len() < FAST_INDENT_BYTES + 1
+            || self.buffer.layouts.len() == self.buffer.layouts.capacity()
+        {
+            return false;
+        }
+
+        let text_len = self.buffer.text.len();
+        let start = u32::try_from(text_len).expect("esrap output exceeds u32");
+        let raw_len = depth + 1;
+        // SAFETY: the fast-path capacity check leaves room for the fixed write.
+        unsafe {
+            let bytes = self.buffer.text.as_mut_vec();
+            let dst = bytes.as_mut_ptr().add(text_len);
+            dst.write(b'\n');
+            dst.add(1)
+                .cast::<[u8; FAST_INDENT_BYTES]>()
+                .write([b'\t'; FAST_INDENT_BYTES]);
+            bytes.set_len(text_len + raw_len);
+        }
+        self.layout_bytes += raw_len;
+        self.buffer.layouts.push(LayoutSpan {
+            start,
+            raw_len: raw_len as u32,
+            depth: self.indent_depth,
+            newline: true,
+            margin: false,
+            dirty: false,
+        });
+        self.pending = 0;
+        true
     }
 
     #[cold]
@@ -688,6 +734,66 @@ mod tests {
         ctx.write("");
         ctx.cancel_optimistic_space();
         assert_eq!(direct_output(ctx), "\n");
+    }
+
+    #[test]
+    fn direct_fast_newline_preserves_layout_span() {
+        let mut ctx = Context::new_direct("\t", 64);
+        ctx.buffer.layouts.reserve(1);
+        for _ in 0..FAST_INDENT_BYTES {
+            ctx.indent();
+        }
+        ctx.newline();
+        ctx.write_ascii(b'x');
+
+        assert_eq!(ctx.buffer.text, format!("\n{}x", "\t".repeat(32)));
+        assert_eq!(ctx.layout_bytes, 33);
+        assert_eq!(
+            ctx.buffer.layouts,
+            [LayoutSpan {
+                start: 0,
+                raw_len: 33,
+                depth: 32,
+                newline: true,
+                margin: false,
+                dirty: false,
+            }]
+        );
+    }
+
+    #[test]
+    fn direct_fast_newline_falls_back_for_other_layouts() {
+        let mut custom = Context::new_direct("  ", 64);
+        custom.buffer.layouts.reserve(1);
+        custom.indent();
+        custom.newline();
+        custom.write_ascii(b'x');
+        assert_eq!(direct_output(custom), "\n  x");
+
+        let mut margin = Context::new_direct("\t", 64);
+        margin.buffer.layouts.reserve(1);
+        margin.indent();
+        margin.margin();
+        margin.newline();
+        margin.write_ascii(b'x');
+        assert_eq!(direct_output(margin), "\n\n\tx");
+
+        let mut deep = Context::new_direct("\t", 128);
+        deep.buffer.layouts.reserve(1);
+        for _ in 0..=FAST_INDENT_BYTES {
+            deep.indent();
+        }
+        deep.newline();
+        deep.write_ascii(b'x');
+        assert_eq!(direct_output(deep), format!("\n{}x", "\t".repeat(33)));
+
+        let mut growth = Context::new_direct("\t", 0);
+        growth.buffer.text = String::new();
+        growth.buffer.layouts = Vec::new();
+        growth.indent();
+        growth.newline();
+        growth.write_ascii(b'x');
+        assert_eq!(direct_output(growth), "\n\tx");
     }
 
     #[test]

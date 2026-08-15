@@ -1,0 +1,168 @@
+{
+  "schemaVersion": 1,
+  "measurementKind": "native-wall",
+  "generatedAt": "2026-08-15T09:55:53.924Z",
+  "workloadHash": "sha256:ff9da0754e9b93046a3958e914e569586cebbea81299a5c438aaed5d94130dc6",
+  "versions": {
+    "rsvelteEsrap": "0.10.27",
+    "oxcCodegen": "0.144.0",
+    "javascriptEsrap": "2.3.2"
+  },
+  "runner": {
+    "label": "local",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpus": 10,
+    "cpuModel": "Apple M1 Pro",
+    "node": "25.7.0",
+    "loadAvg1min": 7.91796875
+  },
+  "warmups": 3,
+  "runs": 11,
+  "batch": 200,
+  "cases": [
+    {
+      "id": "parsed-no-map",
+      "label": "Parsed JavaScript, code only",
+      "comparability": "same-source-retained-parser-specific-ast",
+      "files": 11,
+      "bytes": 50417,
+      "variants": [
+        {
+          "id": "rsvelte-esrap",
+          "label": "rsvelte/esrap",
+          "medianMs": 0.10036167000000001,
+          "cvPct": 4.127761829685891,
+          "timesMs": [
+            0.10033521000000001, 0.10429479000000001, 0.09640874999999999, 0.09406541500000001,
+            0.099374375, 0.108176875, 0.10123770500000001, 0.10075771000000001, 0.10036167000000001,
+            0.10276228999999999, 0.093356875
+          ],
+          "workGate": "parseable-output",
+          "relativeToRsvelte": 1
+        },
+        {
+          "id": "oxc-codegen",
+          "label": "oxc_codegen",
+          "medianMs": 0.10986083500000002,
+          "cvPct": 4.106873086617713,
+          "timesMs": [
+            0.106189795, 0.10470853999999999, 0.11145791499999999, 0.113626665, 0.11744104,
+            0.11383167, 0.11002187499999999, 0.10237666499999999, 0.106334795, 0.10452853999999999,
+            0.10986083500000002
+          ],
+          "workGate": "parseable-output",
+          "relativeToRsvelte": 1.0946493317618171
+        },
+        {
+          "id": "javascript-esrap",
+          "label": "esrap",
+          "medianMs": 2.3336047899999994,
+          "cvPct": 0.9034887381382445,
+          "timesMs": [
+            2.3378943750000007, 2.358095000000003, 2.3154983300000005, 2.3336047899999994,
+            2.346233124999999, 2.362911039999999, 2.310263749999999, 2.286853125000002,
+            2.3306795850000026, 2.3179408349999995, 2.338062290000007
+          ],
+          "workGate": "parseable-output",
+          "relativeToRsvelte": 23.251952563164792
+        }
+      ]
+    },
+    {
+      "id": "decoded-map",
+      "label": "Parsed JavaScript, decoded source map",
+      "comparability": "same-source-retained-parser-specific-ast",
+      "files": 11,
+      "bytes": 50417,
+      "variants": [
+        {
+          "id": "rsvelte-esrap",
+          "label": "rsvelte/esrap",
+          "medianMs": 0.23450270499999998,
+          "cvPct": 2.3172839093263717,
+          "timesMs": [
+            0.225839585, 0.22625708500000002, 0.24070749999999996, 0.23450270499999998, 0.235205415,
+            0.23915312500000002, 0.23452333499999997, 0.237026665, 0.223221665, 0.23251729,
+            0.230687295
+          ],
+          "workGate": "parseable-output",
+          "relativeToRsvelte": 1
+        },
+        {
+          "id": "oxc-codegen",
+          "label": "oxc_codegen",
+          "medianMs": 0.27619729,
+          "cvPct": 2.2526028886148763,
+          "timesMs": [
+            0.27619729, 0.28469917, 0.278318955, 0.282911665, 0.28766396, 0.271324375, 0.270198125,
+            0.27293604, 0.270197295, 0.268055835, 0.27634479500000003
+          ],
+          "workGate": "parseable-output",
+          "relativeToRsvelte": 1.1778000172748542
+        },
+        {
+          "id": "javascript-esrap",
+          "label": "esrap",
+          "medianMs": 3.0018120850000014,
+          "cvPct": 0.7943366951889387,
+          "timesMs": [
+            3.0289568750000035, 2.9890737499999975, 2.9709739549999994, 3.0466522900000017,
+            2.989178334999997, 3.0072385399999986, 3.0361372949999987, 2.990361250000005,
+            3.007874790000005, 3.0018120850000014, 2.97176895999999
+          ],
+          "workGate": "parseable-output",
+          "relativeToRsvelte": 12.800756754596932
+        }
+      ]
+    },
+    {
+      "id": "comments-common",
+      "label": "Statement-level comments, code only",
+      "comparability": "same-source-retained-parser-specific-ast",
+      "files": 1,
+      "bytes": 234,
+      "variants": [
+        {
+          "id": "rsvelte-esrap",
+          "label": "rsvelte/esrap",
+          "medianMs": 0.00068340835,
+          "cvPct": 4.764896294522646,
+          "timesMs": [
+            0.0006677125000000001, 0.0007648042000000001, 0.00068340835, 0.0006739833500000001,
+            0.00069660625, 0.0006790604, 0.00071548955, 0.0007260375000000001, 0.0007584271,
+            0.0006718895499999999, 0.0006768583499999999
+          ],
+          "workGate": "parseable-output",
+          "relativeToRsvelte": 1
+        },
+        {
+          "id": "oxc-codegen",
+          "label": "oxc_codegen",
+          "medianMs": 0.0003574375,
+          "cvPct": 4.550916853488458,
+          "timesMs": [
+            0.00035384794999999996, 0.00036106045, 0.0003574375, 0.00037167705,
+            0.00035043959999999996, 0.00034666039999999996, 0.0003908125, 0.00039458335,
+            0.00038112295, 0.00035265625000000005, 0.00034810835
+          ],
+          "workGate": "parseable-output",
+          "relativeToRsvelte": 0.5230218506987806
+        },
+        {
+          "id": "javascript-esrap",
+          "label": "esrap",
+          "medianMs": 0.009915220849999969,
+          "cvPct": 1.54761914025275,
+          "timesMs": [
+            0.009583716650000133, 0.009694306249999863, 0.009915220849999969, 0.009966439549999996,
+            0.00960004584999988, 0.009993908300000113, 0.009899029149999843, 0.00994601249999996,
+            0.009838756250000006, 0.00992476874999993, 0.010057118750000154
+          ],
+          "workGate": "parseable-output",
+          "relativeToRsvelte": 14.508486543952774
+        }
+      ]
+    }
+  ]
+}

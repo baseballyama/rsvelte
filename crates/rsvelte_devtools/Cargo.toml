@@ -40,6 +40,7 @@ rsvelte_projection = { path = "../rsvelte_projection" }
 backtrace = "0.3"
 chrono = "0.4"
 oxc_allocator = "0.144"
+oxc_ast = "0.144"
 oxc_codegen = "0.144"
 oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "b6f1458dece6bbd7f934d1d26c049d0d0c2bd68c", optional = true }
 oxc_parser = "0.144"

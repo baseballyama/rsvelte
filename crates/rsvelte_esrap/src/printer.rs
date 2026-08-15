@@ -623,22 +623,31 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     // ----- comments ---------------------------------------------------------
 
     /// esrap's `flush_comments_until`: emit every pending comment that starts
-    /// before `to` (byte offset / `to_line`). The `from_line` margin rule adds a
+    /// before `to`. The `from` margin rule adds a
     /// blank line before a detached leading comment block.
     fn flush_comments_until(
         &mut self,
         ctx: &mut Context<DIRECT>,
         to: u32,
-        to_line: u32,
-        from_line: Option<u32>,
+        from: Option<u32>,
         pad: bool,
     ) {
-        if !HAS_COMMENTS {
+        if !HAS_COMMENTS || self.comment_index == self.comments.len() {
             return;
         }
         if !self.has_loc(to) {
             return;
         }
+        let Some(next_comment) = self.comments.get(self.comment_index) else {
+            return;
+        };
+        if next_comment.start >= to {
+            return;
+        }
+        let to_line = self.line_of(to);
+        let from_line = from
+            .filter(|&offset| self.has_loc(offset))
+            .map(|offset| self.line_of(offset));
         let mut first = true;
         while self.comment_index < self.comments.len() {
             let cmt = &self.comments[self.comment_index];
@@ -675,7 +684,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         prev_end: u32,
         next: Option<u32>,
     ) -> bool {
-        if !HAS_COMMENTS || !self.has_loc(prev_end) {
+        if !HAS_COMMENTS || self.comment_index == self.comments.len() || !self.has_loc(prev_end) {
             return false;
         }
         // A `next` boundary that is itself synthesized bounds nothing (esrap's
@@ -739,7 +748,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if !HAS_COMMENTS {
             return;
         }
-        self.flush_comments_until(ctx, node_start, self.line_of(node_start), None, true);
+        self.flush_comments_until(ctx, node_start, None, true);
     }
 
     /// Port of esrap's `sequence` (`languages/ts/index.js`). Lays `nodes` out as
@@ -836,12 +845,8 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
 
         // esrap: flush_comments_until(context, lastNode.loc.end, until, false).
         if let Some(until) = until {
-            let from_line = nodes
-                .last()
-                .and_then(|node| node.end)
-                .filter(|&e| self.has_loc(e))
-                .map(|e| self.line_of(e));
-            self.flush_comments_until(parent, until, self.line_of(until), from_line, false);
+            let from = nodes.last().and_then(|node| node.end);
+            self.flush_comments_until(parent, until, from, false);
         }
 
         if multiline {
@@ -867,7 +872,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     ) {
         if n == 0 {
             if let Some(until) = until {
-                self.flush_comments_until(parent, until, self.line_of(until), None, false);
+                self.flush_comments_until(parent, until, None, false);
             }
             return;
         }
@@ -907,11 +912,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             }
 
             if let Some(until) = until {
-                let from_line = node_meta
-                    .end
-                    .filter(|&end| self.has_loc(end))
-                    .map(|end| self.line_of(end));
-                self.flush_comments_until(parent, until, self.line_of(until), from_line, false);
+                self.flush_comments_until(parent, until, node_meta.end, false);
             }
 
             if multiline {
@@ -1006,11 +1007,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             }
 
             if let Some(until) = until {
-                let from_line = meta(n - 1)
-                    .end
-                    .filter(|&end| self.has_loc(end))
-                    .map(|end| self.line_of(end));
-                self.flush_comments_until(parent, until, self.line_of(until), from_line, false);
+                self.flush_comments_until(parent, until, meta(n - 1).end, false);
             }
 
             if multiline {
@@ -1104,12 +1101,8 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         }
 
         if let Some(until) = until {
-            let from_line = n
-                .checked_sub(1)
-                .and_then(|i| meta(i).end)
-                .filter(|&e| self.has_loc(e))
-                .map(|e| self.line_of(e));
-            self.flush_comments_until(parent, until, self.line_of(until), from_line, false);
+            let from = n.checked_sub(1).and_then(|i| meta(i).end);
+            self.flush_comments_until(parent, until, from, false);
         }
 
         if multiline {
@@ -1265,10 +1258,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             && body_start.is_some_and(|start| self.has_loc(start))
             && self.has_loc(body_end)
         {
-            let from_line = last_end
-                .filter(|&end| self.has_loc(end))
-                .map(|end| self.line_of(end));
-            self.flush_comments_until(ctx, body_end, self.line_of(body_end), from_line, false);
+            self.flush_comments_until(ctx, body_end, last_end, false);
         }
     }
 

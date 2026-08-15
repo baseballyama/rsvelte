@@ -7,6 +7,8 @@
     "@mrwaip/svelte-rs": "0.0.0-canary.13.1",
     "@typescript/native-preview": "7.0.0-dev.20260707.2",
     "@verter/wasm": "0.0.1-beta.3",
+    "acorn": "8.18.0",
+    "esrap": "2.3.2",
     "svelte-check-rs": "0.11.0",
     "svelte-mrwaip-reference": "npm:svelte@5.56.9"
   }

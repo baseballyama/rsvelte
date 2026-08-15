@@ -59,7 +59,7 @@ jobs:
           cache-on-failure: true
 
       - name: Build Rust benchmark runner
-        run: cargo build --release -p rsvelte_devtools --bin benchmark_runner
+        run: cargo build --release -p rsvelte_devtools --bin benchmark_runner --bin printer_benchmark_runner
 
       - name: Collect real-world source corpus
         run: pnpm run corpus:collect
@@ -76,12 +76,14 @@ jobs:
         run: |
           echo '### Real-world compiler report' >> "$GITHUB_STEP_SUMMARY"
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
-          jq '{generatedAt,corpus,runner,surfaces:[.surfaces[]|{id,classes:[.comparisonClasses[]|{id,files,variants:[.variants[]|{id,status,compiledFiles,speedup,cvPct}]}]}]}' apps/playground/static/performance-report.json >> "$GITHUB_STEP_SUMMARY"
+          jq '{generatedAt,corpus,runner,printerBenchmarks,surfaces:[.surfaces[]|{id,classes:[.comparisonClasses[]|{id,files,variants:[.variants[]|{id,status,compiledFiles,speedup,cvPct}]}]}]}' apps/playground/static/performance-report.json >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload performance JSON
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: performance-report
-          path: apps/playground/static/performance-report.json
+          path: |
+            apps/playground/static/performance-report.json
+            apps/playground/static/printer-performance-report.json
           retention-days: 30

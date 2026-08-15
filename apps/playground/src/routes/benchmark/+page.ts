@@ -1,6 +1,6 @@
 import { base } from "$app/paths";
 import type { PageLoad } from "./$types";
-import type { PerformanceReport } from "$lib/types/reports";
+import type { PerformanceReport, PrinterBenchmarks } from "$lib/types/reports";
 
 export const load: PageLoad = async ({ fetch }) => {
   try {
@@ -14,6 +14,15 @@ export const load: PageLoad = async ({ fetch }) => {
       };
     }
     const results: PerformanceReport = await response.json();
+    if (!results.printerBenchmarks) {
+      const printerResponse = await fetch(
+        `${base}/printer-performance-report.json?refresh=${Date.now()}`,
+        { cache: "no-store" },
+      );
+      if (printerResponse.ok) {
+        results.printerBenchmarks = (await printerResponse.json()) as PrinterBenchmarks;
+      }
+    }
     return { results, error: null };
   } catch {
     return {
