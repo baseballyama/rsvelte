@@ -110,19 +110,28 @@ pub fn print(program: &Program<'_>, source: &str) -> String {
 /// Print `program` to JavaScript with explicit options, interleaving comments.
 pub fn print_with(program: &Program<'_>, source: &str, options: &PrintOptions) -> String {
     if program.comments.is_empty() {
-        print_direct::<false>(program, options, source.len(), Vec::new(), Vec::new(), None)
+        print_direct(program, options, source.len())
     } else if printer::comments_are_program_level(program) {
         print_direct_outer_comments(program, source, options)
     } else {
-        print_direct::<true>(
-            program,
-            options,
-            source.len(),
-            Vec::new(),
-            Vec::new(),
-            Some(source),
-        )
+        // Interior comments still go through the deferred printer: the direct
+        // one emits some that have no located node left to attach to, which the
+        // official compiler drops.
+        print_interleaved(program, source, options)
     }
+}
+
+fn print_interleaved(program: &Program<'_>, source: &str, options: &PrintOptions) -> String {
+    let mut printer =
+        printer::Printer::<true, false>::with_comments(options, Vec::new(), Vec::new())
+            .with_borrowed_comments(&program.comments, source);
+    let mut ctx = context::Context::new();
+    printer.print_program(program, &mut ctx);
+    let capacity = ctx.measure();
+    let (buffer, returned) = ctx.into_parts();
+    let code = command::print(&buffer, &options.indent, capacity);
+    pool::give(buffer, returned);
+    code
 }
 
 fn print_direct_outer_comments(
@@ -140,19 +149,9 @@ fn print_direct_outer_comments(
     code
 }
 
-fn print_direct<'a, const HAS_COMMENTS: bool>(
-    program: &'a Program<'a>,
-    options: &'a PrintOptions,
-    capacity: usize,
-    comments: Vec<printer::Cmt>,
-    line_starts: Vec<u32>,
-    comment_source: Option<&'a str>,
-) -> String {
+fn print_direct(program: &Program<'_>, options: &PrintOptions, capacity: usize) -> String {
     let mut printer =
-        printer::Printer::<HAS_COMMENTS, true>::with_comments(options, comments, line_starts);
-    if let Some(source) = comment_source {
-        printer = printer.with_borrowed_comments(&program.comments, source);
-    }
+        printer::Printer::<false, true>::with_comments(options, Vec::new(), Vec::new());
     let mut ctx = context::Context::new_direct(&options.indent, capacity);
     printer.print_program(program, &mut ctx);
     let (buffer, returned, indent, dirty) = ctx.into_direct_parts();
