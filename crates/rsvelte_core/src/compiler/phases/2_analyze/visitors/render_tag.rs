@@ -127,8 +127,8 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
 
     // Validate arguments - no spread elements allowed
     for arg in arguments {
-        if matches!(arg, JsNode::SpreadElement { .. }) {
-            return Err(errors::render_tag_invalid_spread_argument());
+        if let JsNode::SpreadElement { start, end, .. } = arg {
+            return Err(errors::render_tag_invalid_spread_argument().at(*start, *end));
         }
     }
 
@@ -137,7 +137,7 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
         && let JsNode::Identifier { name, .. } = arena.get_js_node(*property)
         && matches!(name.as_str(), "bind" | "apply" | "call")
     {
-        return Err(errors::render_tag_invalid_call_expression());
+        return Err(errors::render_tag_invalid_call_expression().at(tag.start, tag.end));
     }
 
     // Mark the subtree as dynamic (render tags inject dynamic content)

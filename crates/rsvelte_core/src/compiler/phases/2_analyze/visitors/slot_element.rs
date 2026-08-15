@@ -68,7 +68,8 @@ pub fn visit<'a, 'b: 'a>(
             }
             _ => {
                 // All other directives are invalid on slots
-                return Err(errors::slot_element_invalid_attribute());
+                let (start, end) = attr.span();
+                return Err(errors::slot_element_invalid_attribute().at(start, end));
             }
         }
     }
