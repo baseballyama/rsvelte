@@ -1354,7 +1354,7 @@ fn run_preprocess_tests() -> CategoryResult {
         };
         let filename = common::preprocess_fixtures::filename_for(&name);
 
-        let (status, error) = match runtime.block_on(preprocess(input, preprocessors, filename)) {
+        let (status, error) = match runtime.block_on(preprocess(input, &preprocessors, filename)) {
             Ok(processed) => {
                 if processed.code == expected {
                     (TestStatus::Passed, None)

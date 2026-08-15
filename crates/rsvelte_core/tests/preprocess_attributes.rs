@@ -22,7 +22,7 @@ fn run(source: &str, group: PreprocessorGroup) -> String {
         .unwrap();
     rt.block_on(preprocess(
         source.to_string(),
-        vec![group],
+        &[group],
         Some("T.svelte".to_string()),
     ))
     .unwrap()

@@ -35,7 +35,7 @@ fn run(code: &str) -> Result<String, String> {
     rt.block_on(async {
         preprocess(
             minify(code),
-            vec![switch_case()],
+            &[switch_case()],
             Some("test.svelte".to_string()),
         )
         .await

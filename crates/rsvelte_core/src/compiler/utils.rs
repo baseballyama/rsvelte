@@ -245,9 +245,23 @@ pub fn get_basename(filename: &str) -> String {
         .to_string()
 }
 
-/// Get a location function for finding line/column from character offset.
+/// Number of UTF-16 code units in `s`.
+///
+/// Source-map columns are JavaScript string indices, which count UTF-16 code
+/// units rather than bytes.
+pub fn utf16_len(s: &str) -> usize {
+    if s.is_ascii() {
+        s.len()
+    } else {
+        s.chars().map(char::len_utf16).sum()
+    }
+}
+
+/// Get a location function mapping a byte offset to a line and a UTF-16 column.
 ///
 /// This creates a closure that can efficiently look up locations in the source.
+///
+/// Corresponds to `getLocator` from locate-character.
 pub fn get_locator(
     source: &str,
 ) -> std::sync::Arc<dyn Fn(usize) -> crate::compiler::preprocess::types::Location + Send + Sync> {
@@ -259,9 +273,12 @@ pub fn get_locator(
         }
     }
 
-    let source_len = source.len();
+    let source = source.to_string();
     std::sync::Arc::new(move |index| {
-        let index = index.min(source_len);
+        let mut index = index.min(source.len());
+        while !source.is_char_boundary(index) {
+            index -= 1;
+        }
 
         // Binary search for the line
         let line = match line_starts.binary_search(&index) {
@@ -269,7 +286,8 @@ pub fn get_locator(
             Err(insert_pos) => insert_pos.saturating_sub(1),
         };
 
-        let column = index - line_starts.get(line).copied().unwrap_or(0);
+        let line_start = line_starts.get(line).copied().unwrap_or(0);
+        let column = utf16_len(&source[line_start..index]);
 
         crate::compiler::preprocess::types::Location { line, column }
     })

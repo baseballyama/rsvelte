@@ -1436,7 +1436,7 @@ pub fn napi_preprocess(
 
     env.execute_tokio_future(
         async move {
-            rsvelte_core::compiler::preprocess::preprocess(source, rust_groups, filename)
+            rsvelte_core::compiler::preprocess::preprocess(source, &rust_groups, filename)
                 .await
                 .map_err(|e| napi::Error::from_reason(format!("{e}")))
         },
@@ -1448,6 +1448,7 @@ mod preprocess_bridge {
     use napi::Status;
     use napi::bindgen_prelude::{FromNapiValue, Object, Promise};
     use napi::threadsafe_function::ThreadsafeFunction;
+    use rsvelte_core::compiler::preprocess::encode_sourcemap::decoded_to_v3_json;
     use rsvelte_core::compiler::preprocess::types::{
         AttributeValue as RsAttrValue, MarkupPreprocessorFn, MarkupPreprocessorOptions,
         PreprocessError, PreprocessorFn, PreprocessorGroup, PreprocessorOptions,
@@ -1744,116 +1745,6 @@ mod preprocess_bridge {
             "map": map,
             "dependencies": deps,
         })
-    }
-
-    /// Serialize a `SimpleDecodedMap` to a standard [Source Map v3] JSON
-    /// object — camelCase keys (`sourcesContent`, `sourceRoot`) and a
-    /// VLQ-encoded `mappings` string — so downstream tools (Vite,
-    /// Rolldown, magic-string consumers) can ingest it directly.
-    ///
-    /// [Source Map v3]: https://sourcemaps.info/spec.html
-    fn decoded_to_v3_json(map: &SimpleDecodedMap) -> Value {
-        let mut obj = serde_json::Map::new();
-        obj.insert(
-            "version".to_string(),
-            Value::Number(serde_json::Number::from(map.version.unwrap_or(3))),
-        );
-        if let Some(ref file) = map.file {
-            obj.insert("file".to_string(), Value::String(file.clone()));
-        }
-        if let Some(ref source_root) = map.source_root {
-            obj.insert("sourceRoot".to_string(), Value::String(source_root.clone()));
-        }
-        obj.insert(
-            "sources".to_string(),
-            Value::Array(map.sources.iter().cloned().map(Value::String).collect()),
-        );
-        if let Some(ref contents) = map.sources_content {
-            obj.insert(
-                "sourcesContent".to_string(),
-                Value::Array(
-                    contents
-                        .iter()
-                        .map(|c| c.clone().map_or(Value::Null, Value::String))
-                        .collect(),
-                ),
-            );
-        }
-        obj.insert(
-            "names".to_string(),
-            Value::Array(map.names.iter().cloned().map(Value::String).collect()),
-        );
-        obj.insert(
-            "mappings".to_string(),
-            Value::String(encode_mappings(&map.mappings)),
-        );
-        Value::Object(obj)
-    }
-
-    /// VLQ-encode a decoded `mappings` array (`Vec<Vec<Vec<i64>>>`) into
-    /// the Source Map v3 string form: lines separated by `;`, segments
-    /// within a line separated by `,`, fields within a segment as
-    /// relative-encoded VLQs.
-    fn encode_mappings(mappings: &[Vec<Vec<i64>>]) -> String {
-        let mut out = String::new();
-        // Source index / original line / original column / name index
-        // run relative to the *previous segment*, regardless of line.
-        // Generated column resets at each `;` (per spec).
-        let mut prev_source: i64 = 0;
-        let mut prev_orig_line: i64 = 0;
-        let mut prev_orig_col: i64 = 0;
-        let mut prev_name: i64 = 0;
-        for (i, line) in mappings.iter().enumerate() {
-            if i > 0 {
-                out.push(';');
-            }
-            let mut prev_gen_col: i64 = 0;
-            for (j, segment) in line.iter().enumerate() {
-                if j > 0 {
-                    out.push(',');
-                }
-                if segment.is_empty() {
-                    continue;
-                }
-                let gen_col = segment[0];
-                vlq_encode(&mut out, gen_col - prev_gen_col);
-                prev_gen_col = gen_col;
-                if segment.len() >= 4 {
-                    let src = segment[1];
-                    let orig_line = segment[2];
-                    let orig_col = segment[3];
-                    vlq_encode(&mut out, src - prev_source);
-                    vlq_encode(&mut out, orig_line - prev_orig_line);
-                    vlq_encode(&mut out, orig_col - prev_orig_col);
-                    prev_source = src;
-                    prev_orig_line = orig_line;
-                    prev_orig_col = orig_col;
-                    if segment.len() >= 5 {
-                        let name = segment[4];
-                        vlq_encode(&mut out, name - prev_name);
-                        prev_name = name;
-                    }
-                }
-            }
-        }
-        out
-    }
-
-    const BASE64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-    fn vlq_encode(out: &mut String, value: i64) {
-        let mut vlq = (value.cast_unsigned() << 1) ^ (value >> 63).cast_unsigned();
-        loop {
-            let mut digit = (vlq & 0x1f) as u8;
-            vlq >>= 5;
-            if vlq > 0 {
-                digit |= 0x20;
-            }
-            out.push(BASE64[digit as usize] as char);
-            if vlq == 0 {
-                break;
-            }
-        }
     }
 }
 

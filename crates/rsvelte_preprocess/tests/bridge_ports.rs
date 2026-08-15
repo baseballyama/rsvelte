@@ -41,14 +41,10 @@ fn run(template: &str, filename: &str, group: PreprocessorGroup) -> Result<Strin
         .build()
         .unwrap();
     rt.block_on(async {
-        preprocess(
-            template.to_string(),
-            vec![group],
-            Some(filename.to_string()),
-        )
-        .await
-        .map(|p| p.code)
-        .map_err(|e| e.to_string())
+        preprocess(template.to_string(), &[group], Some(filename.to_string()))
+            .await
+            .map(|p| p.code)
+            .map_err(|e| e.to_string())
     })
 }
 

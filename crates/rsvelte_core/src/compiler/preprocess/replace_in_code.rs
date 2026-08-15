@@ -8,9 +8,13 @@ use std::sync::LazyLock;
 use regex::Regex;
 
 use super::types::{MappedCode, PreprocessError, Replacement, SimpleDecodedMap, Source};
+use crate::compiler::utils::utf16_len;
 
-// Cached regex for tokenizing lines (for source map generation)
-static REGEX_LINE_TOKEN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"([^\w\s]|\s+)").unwrap());
+// Cached regex for tokenizing lines (for source map generation). The word class
+// is spelled out because JavaScript's `\w` is ASCII-only, so a non-ASCII letter
+// is its own token upstream but would join a word run under Unicode `\w`.
+static REGEX_LINE_TOKEN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"([^0-9A-Za-z_\s]|\s+)").unwrap());
 
 /// Create a slice of a Source at a given offset.
 ///
@@ -161,14 +165,14 @@ impl MappedCode {
 
         for (line_idx, line) in line_list.iter().enumerate() {
             let mut line_mappings = vec![];
-            let mut column = 0u32;
+            let mut column = 0usize;
 
             // Split line into tokens
             let mut last_end = 0;
             for token_match in REGEX_LINE_TOKEN.find_iter(line) {
                 // Add token before this match
                 if token_match.start() > last_end {
-                    let token_len = (token_match.start() - last_end) as u32;
+                    let token_len = utf16_len(&line[last_end..token_match.start()]);
                     if token_len > 0 {
                         line_mappings.push(vec![
                             column as i64,
@@ -181,7 +185,7 @@ impl MappedCode {
                 }
 
                 // Add the matched token
-                let token_len = token_match.as_str().len() as u32;
+                let token_len = utf16_len(token_match.as_str());
                 if token_len > 0 {
                     line_mappings.push(vec![
                         column as i64,
@@ -196,7 +200,7 @@ impl MappedCode {
 
             // Add remaining part of line
             if last_end < line.len() {
-                let token_len = (line.len() - last_end) as u32;
+                let token_len = utf16_len(&line[last_end..]);
                 if token_len > 0 {
                     line_mappings.push(vec![
                         column as i64,
@@ -342,9 +346,9 @@ impl MappedCode {
     }
 }
 
-/// Get the length of the last line in a string.
+/// UTF-16 length of the last line in a string — the column its end sits at.
 fn last_line_length(s: &str) -> usize {
-    s.len() - s.rfind('\n').map(|i| i + 1).unwrap_or(0)
+    utf16_len(&s[s.rfind('\n').map(|i| i + 1).unwrap_or(0)..])
 }
 
 /// Merge two tables (sources or names arrays) and return the merged table,

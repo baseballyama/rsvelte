@@ -22,7 +22,7 @@ fn run(template: &str, opts: AutoOptions) -> String {
     rt.block_on(async {
         preprocess(
             template.to_string(),
-            vec![svelte_preprocess(opts)],
+            &[svelte_preprocess(opts)],
             Some("/App.svelte".to_string()),
         )
         .await

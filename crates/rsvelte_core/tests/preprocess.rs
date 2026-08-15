@@ -85,7 +85,7 @@ pub fn run_preprocess_fixture(fixture: &PreprocessFixture) -> PreprocessResult {
 
     let result = runtime.block_on(preprocess(
         fixture.input.clone(),
-        preprocessors,
+        &preprocessors,
         fixture.filename.clone(),
     ));
 

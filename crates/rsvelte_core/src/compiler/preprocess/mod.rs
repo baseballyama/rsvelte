@@ -6,13 +6,18 @@
 //!
 //! Corresponds to the implementation in `svelte/packages/svelte/src/compiler/preprocess/`.
 
+mod combine_sourcemaps;
 pub mod decode_sourcemap;
+pub mod encode_sourcemap;
+mod parse_attached_sourcemap;
 pub mod replace_in_code;
 pub mod types;
 
-use crate::compiler::utils::{get_basename, get_locator};
+use crate::compiler::utils::{get_basename, get_locator, utf16_len};
+use combine_sourcemaps::combine_sourcemaps;
 use decode_sourcemap::decode_map;
 use lazy_static::lazy_static;
+use parse_attached_sourcemap::parse_attached_sourcemap;
 use regex::Regex;
 use replace_in_code::{replace_in_code, slice_source};
 use rustc_hash::FxHashMap;
@@ -148,7 +153,7 @@ fn processed_content_to_code(
 ///
 /// Corresponds to `processed_tag_to_code` in index.js.
 fn processed_tag_to_code(
-    processed: &Processed,
+    processed: &mut Processed,
     tag_name: &str,
     original_attributes: &str,
     generated_attributes: &str,
@@ -166,33 +171,18 @@ fn processed_tag_to_code(
 
     let tag_open_code = if original_tag_open != tag_open {
         // Generate a source map for the open tag
-        let mut mappings = vec![vec![
-            vec![0, 0, 0, 0],
-            vec![
-                format!("<{}", tag_name).len() as i64,
-                0,
-                0,
-                format!("<{}", tag_name).len() as i64,
-            ],
-        ]];
+        let name_column = utf16_len(&format!("<{}", tag_name)) as i64;
+        let mut mappings = vec![vec![vec![0, 0, 0, 0], vec![name_column, 0, 0, name_column]]];
 
         let line = tag_open.split('\n').count() - 1;
-        let column = if line == 0 {
-            tag_open.len()
-        } else {
-            tag_open.len() - tag_open.rfind('\n').unwrap() - 1
-        };
+        let column = last_line_utf16_len(&tag_open);
 
         while mappings.len() <= line {
-            mappings.push(vec![vec![0, 0, 0, format!("<{}", tag_name).len() as i64]]);
+            mappings.push(vec![vec![0, 0, 0, name_column]]);
         }
 
         let original_line = original_tag_open.split('\n').count() - 1;
-        let original_column = if original_line == 0 {
-            original_tag_open.len()
-        } else {
-            original_tag_open.len() - original_tag_open.rfind('\n').unwrap() - 1
-        };
+        let original_column = last_line_utf16_len(&original_tag_open);
 
         mappings[line].push(vec![
             column as i64,
@@ -221,7 +211,7 @@ fn processed_tag_to_code(
     let tag_close_code =
         build_mapped_code(tag_close, original_tag_open.len() + source.source.len());
 
-    // TODO: parse_attached_sourcemap equivalent if needed
+    parse_attached_sourcemap(processed, tag_name);
     let content_code = processed_content_to_code(
         processed,
         get_location(original_tag_open.len()),
@@ -229,6 +219,12 @@ fn processed_tag_to_code(
     );
 
     tag_open_code.concat(content_code).concat(tag_close_code)
+}
+
+/// UTF-16 length of the last line of `s` — the column a source-map segment at
+/// the end of `s` sits at.
+fn last_line_utf16_len(s: &str) -> usize {
+    utf16_len(&s[s.rfind('\n').map(|i| i + 1).unwrap_or(0)..])
 }
 
 /// Parse tag attributes from a string.
@@ -349,7 +345,7 @@ async fn process_tag(
 
             let processed_opt = preprocessor(options).await?;
 
-            if let Some(processed) = processed_opt {
+            if let Some(mut processed) = processed_opt {
                 if !processed.dependencies.is_empty()
                     && let Ok(mut deps) = dependencies.lock()
                 {
@@ -383,7 +379,7 @@ async fn process_tag(
                 };
 
                 Ok(processed_tag_to_code(
-                    &processed,
+                    &mut processed,
                     &tag_name,
                     attributes,
                     &final_attributes,
@@ -462,24 +458,24 @@ async fn process_markup(
 /// Corresponds to the default export `preprocess` function in index.js.
 pub async fn preprocess(
     source: String,
-    preprocessors: Vec<PreprocessorGroup>,
+    preprocessors: &[PreprocessorGroup],
     filename: Option<String>,
 ) -> Result<Processed, PreprocessError> {
     let mut result = PreprocessResult::new(source, filename);
 
     for preprocessor in preprocessors {
-        if let Some(markup) = preprocessor.markup {
-            let update = process_markup(&markup, &result.as_source()).await?;
+        if let Some(markup) = &preprocessor.markup {
+            let update = process_markup(markup, &result.as_source()).await?;
             result.update_source(update);
         }
 
-        if let Some(script) = preprocessor.script {
-            let update = process_tag("script", &script, &result.as_source()).await?;
+        if let Some(script) = &preprocessor.script {
+            let update = process_tag("script", script, &result.as_source()).await?;
             result.update_source(update);
         }
 
-        if let Some(style) = preprocessor.style {
-            let update = process_tag("style", &style, &result.as_source()).await?;
+        if let Some(style) = &preprocessor.style {
+            let update = process_tag("style", style, &result.as_source()).await?;
             result.update_source(update);
         }
     }
@@ -511,30 +507,6 @@ fn sourcemap_add_offset(map: &mut SimpleDecodedMap, offset: Location, source_ind
             }
         }
     }
-}
-
-/// Combine multiple source maps into one.
-///
-/// Corresponds to `combine_sourcemaps` in mapped_code.js.
-fn combine_sourcemaps(
-    filename: &str,
-    sourcemap_list: &[SimpleDecodedMap],
-) -> Option<SimpleDecodedMap> {
-    if sourcemap_list.is_empty() {
-        return None;
-    }
-
-    // For simplicity, we'll use a basic implementation that takes the first map
-    // A full implementation would use proper source map remapping
-    // TODO: Implement full remapping logic similar to @jridgewell/remapping
-    let mut combined = sourcemap_list[0].clone();
-
-    // Ensure sources contains the filename
-    if combined.sources.is_empty() {
-        combined.sources = vec![filename.to_string()];
-    }
-
-    Some(combined)
 }
 
 #[cfg(test)]
