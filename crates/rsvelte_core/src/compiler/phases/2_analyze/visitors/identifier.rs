@@ -509,7 +509,7 @@ fn validate_rune_usage(
 
         // Check for computed property
         if parent.get_field_bool("computed").unwrap_or(false) {
-            return Err(errors::rune_invalid_computed_property());
+            return Err(errors::rune_invalid_computed_property().at(current_span.0, current_span.1));
         }
 
         // Build the full rune name
