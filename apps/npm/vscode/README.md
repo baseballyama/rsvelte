@@ -19,6 +19,9 @@ and launches it over stdio.
 - **Inline diagnostics** from the bundled `rsvelte_lint` engine (compiler
   warnings + a11y + native rules). No extra install — the linter ships inside
   the extension as wasm.
+- **Native template and CSS assistance** — HTML/Svelte tag and attribute
+  completions, directive and binding documentation, tag-linked editing, CSS
+  property/value and selector completions, CSS hovers, selections, and colours.
 
 That's the full feature set — hover, completion, go-to-definition, rename,
 find-references, and TypeScript diagnostics are **not** provided (this is a
@@ -27,6 +30,17 @@ formatter + linter, not a full language server). Those wait on
 upstream; until then, use
 [`@rsvelte/svelte-check`](https://www.npmjs.com/package/@rsvelte/svelte-check)
 for batch type-checking.
+
+## Emmet
+
+VS Code's built-in Emmet extension supplies Emmet expansion. Configure it for
+Svelte with:
+
+```jsonc
+{
+  "emmet.includeLanguages": { "svelte": "html" }
+}
+```
 
 ## Requirements
 

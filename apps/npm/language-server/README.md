@@ -21,12 +21,16 @@ toolchain.
   open, on change (300 ms debounced), and on save. The rule set comes from the
   project's own [`rsvelte-lint.json`](#lint-configuration).
 
-That's the full v1 surface — hover, completion, go-to-definition, rename,
-find-references, and TypeScript diagnostics are **not** implemented. Those
-wait on [tsgo](https://github.com/microsoft/typescript-go)'s `tsserver` mode
-landing upstream; until then, use
+Template and CSS completion/hover and structure features are supplied by the
+native server. Go-to-definition, rename, find-references, and TypeScript
+diagnostics wait on [tsgo](https://github.com/microsoft/typescript-go)'s
+`tsserver` mode landing upstream; until then, use
 [`@rsvelte/svelte-check`](https://www.npmjs.com/package/@rsvelte/svelte-check)
 as a batch type-checker.
+
+For VS Code, Emmet remains the built-in extension's responsibility. Enable its
+HTML abbreviations in Svelte documents with
+`"emmet.includeLanguages": { "svelte": "html" }`.
 
 ## Settings
 
