@@ -5,7 +5,7 @@ use oxc_allocator::Allocator;
 use oxc_ast::ast::Statement;
 use oxc_parser::Parser;
 use oxc_span::SourceType;
-use rsvelte_esrap::{UNLOCATED_SPAN, print};
+use rsvelte_esrap::{PrintOptions, UNLOCATED_SPAN, print, print_with_map};
 
 fn print_src(source: &str, ts: bool) -> String {
     let alloc = Allocator::default();
@@ -22,6 +22,36 @@ fn print_src(source: &str, ts: bool) -> String {
 #[test]
 fn plain_js() {
     assert_eq!(print_src("const x = 1;", false), "const x = 1;");
+}
+
+#[test]
+fn comment_free_direct_matches_deferred_sequences() {
+    let cases = [
+        "const x = { a: 1 };",
+        "const x = { a: 1, b: 2, c: 3, d: 4 };",
+        "const x = [a, b, c, d];",
+        "const x = [a, , b];",
+        "function f(a, b, c, d) { return a + b + c + d; }",
+        "const { a, b, c, d } = value;",
+        "const x = (a, b, c, d);",
+        "const x = [{ alpha: very_long_identifier_name, beta: another_long_identifier_name }, { gamma: third_long_identifier_name }];",
+    ];
+
+    for source in cases {
+        let alloc = Allocator::default();
+        let ret = Parser::new(&alloc, source, SourceType::default().with_module(true)).parse();
+        assert!(
+            ret.diagnostics.is_empty(),
+            "parse error for {source:?}: {:?}",
+            ret.diagnostics
+        );
+        let options = PrintOptions::default();
+        assert_eq!(
+            print(&ret.program, source),
+            print_with_map(&ret.program, source, &options).code,
+            "direct/deferred mismatch for {source:?}"
+        );
+    }
 }
 
 #[test]

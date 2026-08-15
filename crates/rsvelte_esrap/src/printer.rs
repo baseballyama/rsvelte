@@ -921,6 +921,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             for (i, item) in items.iter_mut().enumerate().take(n) {
                 let node_meta = meta(i);
                 let mark = parent.event_mark();
+                if DIRECT && (pad || i > 0) && !node_meta.is_elision {
+                    parent.space();
+                }
                 let scope = parent.begin_scope();
                 render(self, i, parent);
 
@@ -953,7 +956,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                     let margin = prev.multiline
                         && item.multiline
                         && !(prev.obj_or_array && item.obj_or_array);
-                    if !item.is_elision {
+                    if !item.is_elision && (multiline || !DIRECT) {
                         parent.insert_event(
                             item.mark,
                             if multiline {
@@ -974,7 +977,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 parent.insert_event(first.mark, EventKind::Newline);
                 parent.insert_event(first.mark, EventKind::Indent);
                 parent.multiline = true;
-            } else if pad && length > 0 {
+            } else if !DIRECT && pad && length > 0 {
                 parent.insert_event(first.mark, EventKind::Space);
             }
 
@@ -1004,6 +1007,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         for i in 0..n {
             let node_meta = meta(i);
             let mark = parent.event_mark();
+            if DIRECT && (pad || i > 0) && !node_meta.is_elision {
+                parent.space();
+            }
             let scope = parent.begin_scope();
             render(self, i, parent);
 
@@ -1035,7 +1041,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 let prev = items[i - 1];
                 let margin =
                     prev.multiline && item.multiline && !(prev.obj_or_array && item.obj_or_array);
-                if !item.is_elision {
+                if !item.is_elision && (multiline || !DIRECT) {
                     parent.insert_event(
                         item.mark,
                         if multiline {
@@ -1056,7 +1062,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 parent.insert_event(first.mark, EventKind::Newline);
                 parent.insert_event(first.mark, EventKind::Indent);
                 parent.multiline = true;
-            } else if pad && length > 0 {
+            } else if !DIRECT && pad && length > 0 {
                 parent.insert_event(first.mark, EventKind::Space);
             }
         }
@@ -4538,6 +4544,78 @@ mod tests {
             printer.missing
         );
         out
+    }
+
+    fn synthetic_sequence_deferred(n: usize, unsupported: bool) -> String {
+        let opts = PrintOptions::default();
+        let mut printer = Printer::<false>::new(&opts);
+        let mut ctx = Context::new();
+        ctx.write("[");
+        printer.sequence_indexed(
+            n,
+            |_| SeqMeta {
+                start: None,
+                end: None,
+                obj_or_array: false,
+                is_elision: false,
+            },
+            |printer, i, child| {
+                if unsupported && i + 1 == n {
+                    printer.unsupported("Synthetic", child);
+                }
+            },
+            None,
+            true,
+            ",",
+            true,
+            &mut ctx,
+        );
+        ctx.write("]");
+        let capacity = ctx.measure();
+        crate::command::print(&ctx.into_buffer(), &opts.indent, capacity)
+    }
+
+    fn synthetic_sequence_direct(n: usize, unsupported: bool) -> String {
+        let opts = PrintOptions::default();
+        let mut printer = Printer::<false, true>::new(&opts);
+        let mut ctx = Context::new_direct(&opts.indent, 32);
+        ctx.write("[");
+        printer.sequence_indexed(
+            n,
+            |_| SeqMeta {
+                start: None,
+                end: None,
+                obj_or_array: false,
+                is_elision: false,
+            },
+            |printer, i, child| {
+                if unsupported && i + 1 == n {
+                    printer.unsupported("Synthetic", child);
+                }
+            },
+            None,
+            true,
+            ",",
+            true,
+            &mut ctx,
+        );
+        ctx.write("]");
+        let (buffer, _, indent, dirty) = ctx.into_direct_parts();
+        crate::command::finish_direct(buffer, &indent, dirty).0
+    }
+
+    #[test]
+    fn optimistic_sequence_matches_empty_and_unsupported_renderers() {
+        for n in [1, 2] {
+            assert_eq!(
+                synthetic_sequence_direct(n, false),
+                synthetic_sequence_deferred(n, false)
+            );
+            assert_eq!(
+                synthetic_sequence_direct(n, true),
+                synthetic_sequence_deferred(n, true)
+            );
+        }
     }
 
     #[test]
