@@ -1596,7 +1596,7 @@ impl CompileError {
     /// Destructure this error the way the official compiler's `CompileError`
     /// exposes itself to JS consumers (`code`, `message`, `start`/`end`).
     pub fn diagnostic(&self) -> CompileErrorDiagnostic {
-        match self {
+        let mut diagnostic = match self {
             CompileError::Parse(e) => {
                 let (code, message) = match e {
                     crate::error::ParseError::SvelteError { code, message, .. } => {
@@ -1636,7 +1636,18 @@ impl CompileError {
                 message: format!("Internal panic: {msg}"),
                 span: None,
             },
+        };
+
+        if let Some(code) = diagnostic.code.as_deref() {
+            let docs_url = format!("\nhttps://svelte.dev/e/{code}");
+            if diagnostic.message.ends_with(&docs_url) {
+                diagnostic
+                    .message
+                    .truncate(diagnostic.message.len() - docs_url.len());
+            }
         }
+
+        diagnostic
     }
 }
 
@@ -1709,6 +1720,21 @@ mod tests {
         assert!(!d.message.starts_with("Analysis("), "{}", d.message);
         let (start, _) = d.span.expect("attribute_duplicate carries a span");
         assert_eq!(&source[start as usize..], "a=\"2\"></div>");
+    }
+
+    #[test]
+    fn diagnostic_omits_documentation_url_from_the_message() {
+        let diagnostic = compile(
+            "<script>function a(x) {} a($state(1));</script>",
+            CompileOptions::default(),
+        )
+        .unwrap_err()
+        .diagnostic();
+        assert_eq!(diagnostic.code.as_deref(), Some("state_invalid_placement"));
+        assert_eq!(
+            diagnostic.message,
+            "`$state(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor."
+        );
     }
 
     #[test]
