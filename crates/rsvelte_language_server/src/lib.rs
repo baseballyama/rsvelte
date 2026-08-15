@@ -21,6 +21,7 @@ pub mod extract;
 pub mod folding;
 pub mod format;
 pub mod hover;
+pub mod html_tags;
 pub mod indent_folding;
 pub mod lint;
 pub mod log;

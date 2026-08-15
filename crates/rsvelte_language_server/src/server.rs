@@ -14,13 +14,15 @@ use lsp_types::{
     DiagnosticServerCapabilities, DidChangeTextDocumentParams, DidChangeWatchedFilesParams,
     DidChangeWorkspaceFoldersParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
     DidSaveTextDocumentParams, DocumentDiagnosticParams, DocumentDiagnosticReport,
-    DocumentFormattingParams, DocumentSymbolParams, DocumentSymbolResponse, ExecuteCommandOptions,
-    ExecuteCommandParams, FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability,
-    FullDocumentDiagnosticReport, HoverParams, HoverProviderCapability, NumberOrString, OneOf,
-    PublishDiagnosticsParams, RelatedFullDocumentDiagnosticReport, SelectionRangeParams,
-    SelectionRangeProviderCapability, ServerCapabilities, TextDocumentPositionParams,
-    TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
-    TextDocumentSyncSaveOptions, TextEdit, Uri, WorkspaceFoldersServerCapabilities,
+    DocumentFormattingParams, DocumentHighlightParams, DocumentSymbolParams,
+    DocumentSymbolResponse, ExecuteCommandOptions, ExecuteCommandParams, FoldingRange,
+    FoldingRangeParams, FoldingRangeProviderCapability, FullDocumentDiagnosticReport, HoverParams,
+    HoverProviderCapability, LinkedEditingRangeParams, LinkedEditingRangeServerCapabilities,
+    NumberOrString, OneOf, PublishDiagnosticsParams, RelatedFullDocumentDiagnosticReport,
+    SelectionRangeParams, SelectionRangeProviderCapability, ServerCapabilities,
+    TextDocumentPositionParams, TextDocumentSyncCapability, TextDocumentSyncKind,
+    TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit, Uri,
+    WorkspaceFoldersServerCapabilities,
 };
 
 use crate::client::ClientState;
@@ -114,6 +116,8 @@ fn capabilities(client: &ClientState) -> ServerCapabilities {
         folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
         selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
         document_symbol_provider: Some(OneOf::Left(true)),
+        linked_editing_range_provider: Some(LinkedEditingRangeServerCapabilities::Simple(true)),
+        document_highlight_provider: Some(OneOf::Left(true)),
         diagnostic_provider: client.pull_diagnostics.then(|| {
             DiagnosticServerCapabilities::Options(DiagnosticOptions {
                 identifier: Some(SERVER_NAME.to_string()),
@@ -262,6 +266,8 @@ impl Server {
             "textDocument/foldingRange" => self.on_folding_range(request),
             "textDocument/selectionRange" => self.on_selection_range(request),
             "textDocument/documentSymbol" => self.on_document_symbol(request),
+            "textDocument/linkedEditingRange" => self.on_linked_editing_range(request),
+            "textDocument/documentHighlight" => self.on_document_highlight(request),
             "textDocument/diagnostic" => self.on_document_diagnostic(request),
             _ => self.respond(Response::new_err(
                 request.id,
@@ -382,6 +388,47 @@ impl Server {
             }
             None => self.respond_nothing(id),
         }
+    }
+
+    fn on_linked_editing_range(&mut self, request: Request) {
+        let id = request.id;
+        let params = match serde_json::from_value::<LinkedEditingRangeParams>(request.params) {
+            Ok(params) => params.text_document_position_params,
+            Err(err) => {
+                log::warn(format_args!("textDocument/linkedEditingRange: {err}"));
+                self.respond_nothing(id);
+                return;
+            }
+        };
+        let Some((_, text, offset)) = self.locate(&params) else {
+            self.respond_nothing(id);
+            return;
+        };
+        self.respond(Response::new_ok(
+            id,
+            crate::html_tags::linked_ranges(text.as_str(), offset),
+        ));
+    }
+
+    fn on_document_highlight(&mut self, request: Request) {
+        let id = request.id;
+        let params = match serde_json::from_value::<DocumentHighlightParams>(request.params) {
+            Ok(params) => params.text_document_position_params,
+            Err(err) => {
+                log::warn(format_args!("textDocument/documentHighlight: {err}"));
+                self.respond(Response::new_ok(
+                    id,
+                    Vec::<lsp_types::DocumentHighlight>::new(),
+                ));
+                return;
+            }
+        };
+        let highlights = self
+            .locate(&params)
+            .map_or_else(Vec::new, |(_, text, offset)| {
+                crate::html_tags::highlights(text.as_str(), offset)
+            });
+        self.respond(Response::new_ok(id, highlights));
     }
 
     /// Resolve a position in an open component to what the worker needs. Only
