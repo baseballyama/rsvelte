@@ -3010,16 +3010,17 @@ pub(super) fn transform_rest_prop_member_access(line: &str, rest_prop_vars: &[St
                 new_result.push_str(mat.as_str());
             } else {
                 // Find the end of the property name
-                let mut prop_end = 0;
+                let mut prop_end = CharOffset::ZERO;
                 for (i, c) in after_match.chars().enumerate() {
                     if c.is_alphanumeric() || c == '_' || c == '$' {
-                        prop_end = i + 1;
+                        prop_end = CharOffset::new(i).next();
                     } else {
                         break;
                     }
                 }
 
-                let after_prop = &after_match[prop_end..].trim_start();
+                let char_to_byte = CharToByte::new(after_match);
+                let after_prop = char_to_byte.byte(prop_end).after(after_match).trim_start();
                 let is_direct_assignment =
                     after_prop.starts_with('=') && !after_prop.starts_with("==");
                 let has_deeper_access = after_prop.starts_with('.');
@@ -4498,6 +4499,20 @@ mod prop_mutation_location_tests {
         assert_eq!(
             wrap_prop_mutation_validation("item().name = 1", &prop_vars, source),
             "$$ownership_validator.mutation('item', ['item', 'name'], item().name = 1, 3, 23)"
+        );
+    }
+}
+
+#[cfg(test)]
+mod rest_prop_fallback_tests {
+    use super::transform_rest_prop_member_access;
+
+    #[test]
+    fn keeps_non_ascii_property_boundaries() {
+        let input = "@ rest.名前 = 1";
+        assert_eq!(
+            transform_rest_prop_member_access(input, &["rest".to_string()]),
+            input,
         );
     }
 }
