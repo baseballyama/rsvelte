@@ -770,7 +770,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
         }
         Some("$props") => {
             if context.has_props_rune {
-                return Err(errors::props_duplicate("$props"));
+                return Err(errors::props_duplicate("$props").at(*start, *end));
             }
             context.has_props_rune = true;
             if context.ast_type != super::AstType::Instance || !is_props_valid_placement(context) {
@@ -782,7 +782,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
         }
         Some("$props.id") => {
             if context.analysis.props_id.is_some() {
-                return Err(errors::props_duplicate("$props.id"));
+                return Err(errors::props_duplicate("$props.id").at(*start, *end));
             }
             if !is_props_id_valid_placement(context) {
                 return Err(errors::props_id_invalid_placement());

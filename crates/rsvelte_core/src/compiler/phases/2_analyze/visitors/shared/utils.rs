@@ -1001,7 +1001,7 @@ pub fn validate_assignment_node(
                     .root
                     .is_scope_ancestor_of(binding.scope_index, context.scope)
             {
-                return Err(errors::each_item_invalid_assignment());
+                return Err(errors::each_item_invalid_assignment().at(node_span.0, node_span.1));
             }
 
             if matches!(binding.kind, BindingKind::SnippetParam) {

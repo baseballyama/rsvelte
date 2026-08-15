@@ -77,7 +77,7 @@ fn visit_identifier_inner(
         });
 
         if !is_in_function {
-            return Err(errors::invalid_arguments_usage());
+            return Err(errors::invalid_arguments_usage().at(start, end));
         }
     }
 
@@ -130,7 +130,7 @@ fn visit_identifier_inner(
             && !has_store_sub_binding
         {
             // This is a rune - validate it
-            return validate_rune_usage(name, &context.js_path, context.parse_arena);
+            return validate_rune_usage(name, start, end, &context.js_path, context.parse_arena);
         }
     }
 
@@ -479,6 +479,8 @@ fn check_callee_is_state_rune(
 /// Handles validation of rune syntax like `$state()`, `$derived.by()`, etc.
 fn validate_rune_usage(
     rune_name: &str,
+    start: u32,
+    end: u32,
     js_path: &[super::JsPathEntry],
     arena: &crate::ast::arena::ParseArena,
 ) -> Result<(), AnalysisError> {
@@ -489,6 +491,7 @@ fn validate_rune_usage(
     };
 
     let mut current_rune_name = rune_name.to_string();
+    let mut current_span = (start, end);
 
     // Walk up through MemberExpression chain to build the full rune name
     while path_idx > 0 {
@@ -496,6 +499,12 @@ fn validate_rune_usage(
 
         if parent.get_type_str() != Some("MemberExpression") {
             break;
+        }
+
+        if let (Some(start), Some(end)) =
+            (parent.get_field_u64("start"), parent.get_field_u64("end"))
+        {
+            current_span = (start as u32, end as u32);
         }
 
         // Check for computed property
@@ -551,7 +560,7 @@ fn validate_rune_usage(
     if path_idx > 0 {
         let parent = &js_path[path_idx];
         if parent.get_type_str() != Some("CallExpression") {
-            return Err(errors::rune_missing_parentheses());
+            return Err(errors::rune_missing_parentheses().at(current_span.0, current_span.1));
         }
     }
 
