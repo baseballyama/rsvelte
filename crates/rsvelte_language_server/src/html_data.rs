@@ -6,6 +6,13 @@ pub struct TagData {
     pub description: &'static str,
 }
 
+/// An attribute or directive understood by the Svelte template language.
+pub struct AttributeData {
+    pub name: &'static str,
+    pub description: &'static str,
+    pub elements: &'static [&'static str],
+}
+
 pub const TAGS: &[TagData] = &[
     TagData {
         name: "a",
@@ -120,4 +127,226 @@ pub const TAGS: &[TagData] = &[
 #[must_use]
 pub fn tag(name: &str) -> Option<&'static TagData> {
     TAGS.iter().find(|candidate| candidate.name == name)
+}
+
+const ALL: &[&str] = &[];
+
+pub const ATTRIBUTES: &[AttributeData] = &[
+    AttributeData {
+        name: "id",
+        description: "Gives the element a document-unique identifier.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "class",
+        description: "Sets the element's CSS classes.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "style",
+        description: "Sets inline CSS declarations.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "slot",
+        description: "Assigns this element to a component slot.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "bind:this",
+        description: "Binds the element or component instance to a variable.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "bind:innerHTML",
+        description: "Binds an element's `innerHTML`.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "bind:textContent",
+        description: "Binds an element's `textContent`.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "bind:clientWidth",
+        description: "Observes an element's client width.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "bind:clientHeight",
+        description: "Observes an element's client height.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "bind:offsetWidth",
+        description: "Observes an element's offset width.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "bind:offsetHeight",
+        description: "Observes an element's offset height.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "use:",
+        description: "Applies a Svelte action.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "transition:",
+        description: "Runs a transition when the element enters or leaves.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "in:",
+        description: "Runs an intro transition.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "out:",
+        description: "Runs an outro transition.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "animate:",
+        description: "Applies an animation to a keyed each-block child.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "style:",
+        description: "Sets a single CSS property reactively.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "on:click",
+        description: "Listens for the `click` event.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "on:input",
+        description: "Listens for the `input` event.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "on:change",
+        description: "Listens for the `change` event.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "on:submit",
+        description: "Listens for the `submit` event.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "on:keydown",
+        description: "Listens for the `keydown` event.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "on:keyup",
+        description: "Listens for the `keyup` event.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "on:focus",
+        description: "Listens for the `focus` event.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "on:blur",
+        description: "Listens for the `blur` event.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "bind:value",
+        description: "Binds the selected value.",
+        elements: &["input", "select", "textarea"],
+    },
+    AttributeData {
+        name: "bind:group",
+        description: "Binds a checkbox or radio group.",
+        elements: &["input"],
+    },
+    AttributeData {
+        name: "bind:checked",
+        description: "Binds a checkbox's checked state.",
+        elements: &["input"],
+    },
+    AttributeData {
+        name: "bind:files",
+        description: "Binds an input's selected files.",
+        elements: &["input"],
+    },
+    AttributeData {
+        name: "bind:naturalWidth",
+        description: "Observes an image's intrinsic width.",
+        elements: &["img"],
+    },
+    AttributeData {
+        name: "bind:naturalHeight",
+        description: "Observes an image's intrinsic height.",
+        elements: &["img"],
+    },
+    AttributeData {
+        name: "bind:open",
+        description: "Binds whether the details element is open.",
+        elements: &["details"],
+    },
+    AttributeData {
+        name: "bind:currentTime",
+        description: "Binds a media element's playback position.",
+        elements: &["audio", "video"],
+    },
+    AttributeData {
+        name: "bind:paused",
+        description: "Binds whether media playback is paused.",
+        elements: &["audio", "video"],
+    },
+    AttributeData {
+        name: "bind:volume",
+        description: "Binds a media element's volume.",
+        elements: &["audio", "video"],
+    },
+    AttributeData {
+        name: "bind:muted",
+        description: "Binds whether media is muted.",
+        elements: &["audio", "video"],
+    },
+    AttributeData {
+        name: "data-sveltekit-keepfocus",
+        description: "Keeps focus after SvelteKit navigation.",
+        elements: &["a", "form"],
+    },
+    AttributeData {
+        name: "data-sveltekit-noscroll",
+        description: "Prevents scroll reset after SvelteKit navigation.",
+        elements: &["a", "form"],
+    },
+    AttributeData {
+        name: "data-sveltekit-preload-code",
+        description: "Preloads SvelteKit route code.",
+        elements: &["a"],
+    },
+    AttributeData {
+        name: "data-sveltekit-reload",
+        description: "Forces a full-document SvelteKit navigation.",
+        elements: &["a", "form"],
+    },
+    AttributeData {
+        name: "data-sveltekit-replacestate",
+        description: "Replaces history instead of pushing it.",
+        elements: &["a", "form"],
+    },
+];
+
+#[must_use]
+pub fn attributes(element: &str) -> impl Iterator<Item = &'static AttributeData> {
+    ATTRIBUTES.iter().filter(move |attribute| {
+        attribute.elements.is_empty() || attribute.elements.contains(&element)
+    })
+}
+
+#[must_use]
+pub fn attribute(element: &str, name: &str) -> Option<&'static AttributeData> {
+    attributes(element).find(|candidate| candidate.name == name)
 }

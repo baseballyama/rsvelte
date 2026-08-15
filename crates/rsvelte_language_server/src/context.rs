@@ -113,6 +113,38 @@ pub struct AttributeContext<'a> {
     pub element_tag: &'a str,
 }
 
+/// The unfinished attribute word at a cursor in an opening tag.
+pub struct AttributePrefixContext<'a> {
+    pub prefix: &'a str,
+    pub element_tag: &'a str,
+}
+
+#[must_use]
+pub fn attribute_prefix_context(text: &str, offset: usize) -> Option<AttributePrefixContext<'_>> {
+    let before = text.get(..offset)?;
+    let open = before.rfind('<')?;
+    let start = before.get(open + 1..)?;
+    if start.starts_with(['/', '!', '?']) || start.contains('>') {
+        return None;
+    }
+    let tag_end = start
+        .find(|c: char| c.is_ascii_whitespace() || c == '/')
+        .unwrap_or(start.len());
+    let element_tag = &start[..tag_end];
+    if element_tag.is_empty() || !element_tag.as_bytes().first()?.is_ascii_alphabetic() {
+        return None;
+    }
+    let tail = &start[tag_end..];
+    if tail.contains('=') || tail.ends_with(['"', '\'', '}']) {
+        return None;
+    }
+    let prefix = tail.rsplit(char::is_whitespace).next().unwrap_or("");
+    (!prefix.contains(['<', '>', '/', '|'])).then_some(AttributePrefixContext {
+        prefix,
+        element_tag,
+    })
+}
+
 impl AttributeContext<'_> {
     /// Event modifiers exist on elements only, and only after the `|` that
     /// starts the modifier list.

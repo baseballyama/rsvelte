@@ -8,8 +8,8 @@ use lsp_types::{
     MarkupContent, MarkupKind,
 };
 
-use crate::context::{EmbeddedRegions, attribute_context};
-use crate::html_data::TAGS;
+use crate::context::{EmbeddedRegions, attribute_context, attribute_prefix_context};
+use crate::html_data::{TAGS, attributes};
 use crate::modifiers::MODIFIERS;
 use crate::tags::{SvelteTag, latest_opening_tag};
 
@@ -31,6 +31,13 @@ pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
 
     if let Some(prefix) = tag_prefix(text, offset) {
         return Some(html_tag_completions(prefix));
+    }
+
+    if let Some(context) = attribute_prefix_context(text, offset) {
+        return Some(html_attribute_completions(
+            context.element_tag,
+            context.prefix,
+        ));
     }
 
     if preceded_by_opening_brace(before) {
@@ -65,12 +72,29 @@ pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
     component_documentation(before)
 }
 
+fn html_attribute_completions(element: &str, prefix: &str) -> CompletionList {
+    CompletionList {
+        is_incomplete: false,
+        items: attributes(element)
+            .filter(|attribute| attribute.name.starts_with(prefix))
+            .map(|attribute| CompletionItem {
+                label: attribute.name.to_string(),
+                kind: Some(CompletionItemKind::PROPERTY),
+                documentation: Some(markdown(attribute.description.to_string())),
+                ..CompletionItem::default()
+            })
+            .collect(),
+    }
+}
+
 fn tag_prefix(text: &str, offset: usize) -> Option<&str> {
     let before = text.get(..offset)?;
     let start = before.rfind('<')?;
     let prefix = &before[start + 1..];
-    (!prefix.starts_with('/') && !prefix.contains('>') && !prefix.chars().any(char::is_whitespace))
-        .then_some(prefix)
+    (!prefix.starts_with(['/', '!', '?'])
+        && !prefix.contains('>')
+        && !prefix.chars().any(char::is_whitespace))
+    .then_some(prefix)
 }
 
 fn html_tag_completions(prefix: &str) -> CompletionList {
@@ -361,7 +385,30 @@ mod tests {
     fn completes_native_html_and_svelte_tags() {
         assert!(labels("<sv").unwrap().contains(&"svelte:self".to_string()));
         assert_eq!(labels("<tex").unwrap(), ["textarea"]);
-        assert!(labels("<div ").is_none());
+    }
+
+    #[test]
+    fn completes_svelte_directives_and_element_bindings() {
+        assert!(
+            labels("<div tra")
+                .unwrap()
+                .contains(&"transition:".to_string())
+        );
+        assert!(
+            labels("<input bind:")
+                .unwrap()
+                .contains(&"bind:checked".to_string())
+        );
+        assert!(
+            !labels("<img bind:")
+                .unwrap()
+                .contains(&"bind:checked".to_string())
+        );
+        assert!(
+            labels("<a data-sveltekit-")
+                .unwrap()
+                .contains(&"data-sveltekit-preload-code".to_string())
+        );
     }
 
     #[test]

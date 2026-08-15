@@ -6,6 +6,7 @@
 use lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind};
 
 use crate::context::{EmbeddedRegions, attribute_context};
+use crate::html_data::attribute as html_attribute;
 use crate::modifiers::MODIFIERS;
 use crate::tags::{SvelteTag, latest_opening_tag};
 
@@ -42,6 +43,11 @@ pub fn hover(text: &str, offset: usize) -> Option<Hover> {
     }
 
     let attribute = attribute_context(text, offset)?;
+    if !attribute.in_value {
+        if let Some(data) = html_attribute(attribute.element_tag, attribute.name) {
+            return Some(markdown(data.description.to_string()));
+        }
+    }
     if !attribute.can_have_event_modifier() {
         return None;
     }
@@ -233,7 +239,22 @@ mod tests {
 
     #[test]
     fn a_plain_event_directive_has_no_modifier_hover() {
-        expect_none("<div on:click />", 12);
+        assert_eq!(
+            hovered_tag("<div on:click />", 12).as_deref(),
+            Some("Listens for the `click` event.")
+        );
+    }
+
+    #[test]
+    fn native_directives_and_bindings_hover() {
+        assert_eq!(
+            hovered_tag("<div transition: />", 8).as_deref(),
+            Some("Runs a transition when the element enters or leaves.")
+        );
+        assert_eq!(
+            hovered_tag("<input bind:checked />", 13).as_deref(),
+            Some("Binds a checkbox's checked state.")
+        );
     }
 
     #[test]
