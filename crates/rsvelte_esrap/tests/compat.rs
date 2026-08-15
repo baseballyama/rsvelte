@@ -25,7 +25,7 @@ fn plain_js() {
 }
 
 #[test]
-fn comment_free_direct_matches_deferred_sequences() {
+fn direct_matches_deferred_sequences_and_comments() {
     let cases = [
         "const x = { a: 1 };",
         "const x = { a: 1, b: 2, c: 3, d: 4 };",
@@ -40,6 +40,13 @@ fn comment_free_direct_matches_deferred_sequences() {
         "call(head, { alpha: very_long_identifier_name, beta: another_long_identifier_name }, tail);",
         "let first = very_long_identifier_name, second = another_long_identifier_name, third = final_long_identifier_name;",
         "const x = { only: { alpha: very_long_identifier_name, beta: another_long_identifier_name } };",
+        "// lead\nconst x = 1; // tail",
+        "const x = [a, /* between */ b, c];",
+        "const value = [a, // first\n b, /* middle */ c];",
+        "function f() {\n\t// before return\n\treturn (/* value */ x);\n}",
+        "const {\n\ta,\n\t// before property\n\tb,\n\tc\n} = value;",
+        "const x = 1;\n\n\n// detached\nconst y = 2;",
+        "/**\n * alpha\n * beta\n */\nconst x = 1;",
     ];
 
     for source in cases {

@@ -109,38 +109,44 @@ pub fn print(program: &Program<'_>, source: &str) -> String {
 
 /// Print `program` to JavaScript with explicit options, interleaving comments.
 pub fn print_with(program: &Program<'_>, source: &str, options: &PrintOptions) -> String {
-    let (comments, line_starts) = comments_and_line_starts(program, source);
-    if comments.is_empty() {
-        print_direct(program, options, source.len())
+    if program.comments.is_empty() {
+        print_direct::<false>(program, options, source.len(), Vec::new(), Vec::new())
+    } else if printer::comments_are_program_level(program) {
+        print_direct_outer_comments(program, source, options)
     } else {
-        print_with_impl::<true>(program, options, comments, line_starts)
+        let (comments, line_starts) = comments_and_line_starts(program, source);
+        print_direct::<true>(program, options, source.len(), comments, line_starts)
     }
 }
 
-fn print_direct(program: &Program<'_>, options: &PrintOptions, capacity: usize) -> String {
+fn print_direct_outer_comments(
+    program: &Program<'_>,
+    source: &str,
+    options: &PrintOptions,
+) -> String {
     let mut printer =
         printer::Printer::<false, true>::with_comments(options, Vec::new(), Vec::new());
-    let mut ctx = context::Context::new_direct(&options.indent, capacity);
-    printer.print_program(program, &mut ctx);
+    let mut ctx = context::Context::new_direct(&options.indent, source.len());
+    printer.print_program_with_outer_comments(program, source, &mut ctx);
     let (buffer, returned, indent, dirty) = ctx.into_direct_parts();
     let (code, buffer) = command::finish_direct(buffer, &indent, dirty);
     pool::give(buffer, returned);
     code
 }
 
-fn print_with_impl<const HAS_COMMENTS: bool>(
+fn print_direct<const HAS_COMMENTS: bool>(
     program: &Program<'_>,
     options: &PrintOptions,
+    capacity: usize,
     comments: Vec<printer::Cmt>,
     line_starts: Vec<u32>,
 ) -> String {
     let mut printer =
-        printer::Printer::<HAS_COMMENTS, false>::with_comments(options, comments, line_starts);
-    let mut ctx = context::Context::new();
+        printer::Printer::<HAS_COMMENTS, true>::with_comments(options, comments, line_starts);
+    let mut ctx = context::Context::new_direct(&options.indent, capacity);
     printer.print_program(program, &mut ctx);
-    let capacity = ctx.measure();
-    let (buffer, returned) = ctx.into_parts();
-    let code = command::print(&buffer, &options.indent, capacity);
+    let (buffer, returned, indent, dirty) = ctx.into_direct_parts();
+    let (code, buffer) = command::finish_direct(buffer, &indent, dirty);
     pool::give(buffer, returned);
     code
 }
@@ -210,9 +216,10 @@ fn print_split_impl<const HAS_COMMENTS: bool>(
     line_starts: Vec<u32>,
     map_line_starts: Vec<u32>,
 ) -> PrintWithMap {
-    if !HAS_COMMENTS && map_source.is_none() {
+    if map_source.is_none() {
         let mut printer =
-            printer::Printer::<false, true>::with_comments(options, Vec::new(), Vec::new());
+            printer::Printer::<HAS_COMMENTS, true>::with_comments(options, comments, line_starts)
+                .with_split_coordinates(map_line_starts, loc_base, loc_map, false);
         let mut ctx = context::Context::new_direct(&options.indent, program.source_text.len());
         printer.print_program(program, &mut ctx);
         let (buffer, returned, indent, dirty) = ctx.into_direct_parts();

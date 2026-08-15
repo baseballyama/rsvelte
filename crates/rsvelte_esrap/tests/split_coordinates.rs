@@ -230,6 +230,20 @@ fn two_chunks_keep_their_comments_in_order() {
 }
 
 #[test]
+fn comment_direct_matches_deferred_split_output() {
+    let map_source = "<script>\n\tlet count = 0;\n</script>\n";
+    let anchor = source_offset(map_source.find("let count").expect("anchor in map source"));
+    let allocator = Allocator::default();
+    let mut a = Assembler::new(&allocator, 512);
+    a.push_chunk("// first\nconst a = 1; /* tail */", Some(anchor));
+    a.push_synthesized("between();");
+    a.push_chunk("\n\n// detached\nconst b = 2;", Some(anchor));
+    let assembled = a.finish();
+
+    assert_eq!(assembled.print(), assembled.print_mapped(map_source).code);
+}
+
+#[test]
 fn synthesized_body_exhausts_the_comment_cursor() {
     let allocator = Allocator::default();
     let mut a = Assembler::new(&allocator, 512);
