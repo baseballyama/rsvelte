@@ -10,9 +10,14 @@ use super::diagnostic::diagnostics;
 
 /// Create an error with a specific code and message.
 fn error(code: &str, message: impl Into<String>) -> AnalysisError {
+    let mut message = message.into();
+    if !message.contains("\nhttps://svelte.dev/e/") {
+        message.push_str("\nhttps://svelte.dev/e/");
+        message.push_str(code);
+    }
     AnalysisError::ValidationWithCode {
         code: code.to_string(),
-        message: message.into(),
+        message,
         start: None,
         end: None,
     }
