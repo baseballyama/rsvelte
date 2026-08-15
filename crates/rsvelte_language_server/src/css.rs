@@ -89,6 +89,26 @@ pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
     {
         return Some(selector_completions(text, *marker as char, prefix));
     }
+    if prefix_start
+        .checked_sub(1)
+        .and_then(|index| before.as_bytes().get(index))
+        == Some(&b':')
+        && "global".starts_with(prefix)
+    {
+        return Some(CompletionList {
+            is_incomplete: false,
+            items: vec![CompletionItem {
+                label: ":global".to_string(),
+                insert_text: Some("global($0)".to_string()),
+                kind: Some(CompletionItemKind::FUNCTION),
+                documentation: Some(Documentation::MarkupContent(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: "`:global(...)` prevents Svelte CSS scoping for a selector.".to_string(),
+                })),
+                ..CompletionItem::default()
+            }],
+        });
+    }
     let value = before
         .rfind(':')
         .is_some_and(|colon| before[colon + 1..].find([';', '{', '}']).is_none());
@@ -111,6 +131,9 @@ pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
 /// The CSS property under `offset`, including a compact native description.
 #[must_use]
 pub fn hover(text: &str, offset: usize) -> Option<String> {
+    if text.get(..offset)?.ends_with(":global") || word_at(text, offset) == Some("global") {
+        return Some("`:global(...)` prevents Svelte CSS scoping for a selector.".to_string());
+    }
     let property = word_at(text, offset)?;
     KNOWN_CSS_PROPERTIES
         .contains(&property)
@@ -277,6 +300,17 @@ mod tests {
         assert!(
             labels("<div class=\"button\" id=\"main\"></div><style>#ma")
                 .contains(&"#main".to_string())
+        );
+    }
+
+    #[test]
+    fn completes_and_documents_global_selectors() {
+        let items = labels("<style>:glo");
+        assert!(items.contains(&":global".to_string()));
+        assert!(
+            hover("<style>:global(.external) {}</style>", 14)
+                .unwrap()
+                .contains("prevents")
         );
     }
 }
