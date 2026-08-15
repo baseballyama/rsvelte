@@ -2445,29 +2445,33 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         }
 
         let n = decl.declarations.len();
-        let mut rendered: Vec<Context> = Vec::with_capacity(n);
         // esrap measures the whole `child_context`, which includes the keyword,
         // so the fit test sees `let `/`const ` etc. as part of the length.
         let mut total_measure = keyword.len();
         let mut any_multiline = false;
-        for declarator in &decl.declarations {
-            let mut child = ctx.child();
+        let first = ctx.event_mark();
+        let mut separators = Vec::with_capacity(n.saturating_sub(1));
+        for (index, declarator) in decl.declarations.iter().enumerate() {
+            if index > 0 {
+                ctx.write(",");
+                separators.push(ctx.event_mark());
+            }
+            let scope = ctx.begin_scope();
             let start = declarator.span().start;
-            self.flush_leading(&mut child, start);
-            self.binding_pattern(&declarator.id, &mut child);
+            self.flush_leading(ctx, start);
+            self.binding_pattern(&declarator.id, ctx);
             if declarator.definite {
-                child.write("!");
+                ctx.write("!");
             }
             if let Some(ann) = &declarator.type_annotation {
-                self.type_annotation(ann, &mut child);
+                self.type_annotation(ann, ctx);
             }
             if let Some(init) = &declarator.init {
-                child.write(" = ");
-                self.print_expression(init, &mut child);
+                ctx.write(" = ");
+                self.print_expression(init, ctx);
             }
-            total_measure += child.measure();
-            any_multiline |= child.multiline;
-            rendered.push(child);
+            total_measure += ctx.measure();
+            any_multiline |= ctx.end_scope(scope);
         }
 
         let length = total_measure + 2 * n.saturating_sub(1);
@@ -2475,24 +2479,18 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
 
         if multiline {
             if n > 1 {
-                ctx.indent();
+                ctx.insert_event(first, EventKind::Indent);
             }
-            for (i, child) in rendered.into_iter().enumerate() {
-                if i > 0 {
-                    ctx.write(",");
-                    ctx.newline();
-                }
-                ctx.append(child);
+            for separator in separators.into_iter().rev() {
+                ctx.insert_event(separator, EventKind::Newline);
             }
             if n > 1 {
                 ctx.dedent();
             }
+            ctx.multiline = true;
         } else {
-            for (i, child) in rendered.into_iter().enumerate() {
-                if i > 0 {
-                    ctx.write(", ");
-                }
-                ctx.append(child);
+            for separator in separators.into_iter().rev() {
+                ctx.insert_event(separator, EventKind::Space);
             }
         }
     }
