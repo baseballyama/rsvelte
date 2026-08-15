@@ -356,6 +356,26 @@ pub const ATTRIBUTES: &[AttributeData] = &[
         elements: ALL,
     },
     AttributeData {
+        name: "on:introstart",
+        description: "Listens for a Svelte intro transition starting.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "on:introend",
+        description: "Listens for a Svelte intro transition ending.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "on:outrostart",
+        description: "Listens for a Svelte outro transition starting.",
+        elements: ALL,
+    },
+    AttributeData {
+        name: "on:outroend",
+        description: "Listens for a Svelte outro transition ending.",
+        elements: ALL,
+    },
+    AttributeData {
         name: "bind:value",
         description: "Binds the selected value.",
         elements: &["input", "select", "textarea"],
@@ -409,6 +429,61 @@ pub const ATTRIBUTES: &[AttributeData] = &[
         name: "bind:muted",
         description: "Binds whether media is muted.",
         elements: &["audio", "video"],
+    },
+    AttributeData {
+        name: "bind:duration",
+        description: "Observes media duration.",
+        elements: &["audio", "video"],
+    },
+    AttributeData {
+        name: "bind:buffered",
+        description: "Observes buffered media ranges.",
+        elements: &["audio", "video"],
+    },
+    AttributeData {
+        name: "bind:seekable",
+        description: "Observes seekable media ranges.",
+        elements: &["audio", "video"],
+    },
+    AttributeData {
+        name: "bind:played",
+        description: "Observes played media ranges.",
+        elements: &["audio", "video"],
+    },
+    AttributeData {
+        name: "bind:seeking",
+        description: "Observes whether media is seeking.",
+        elements: &["audio", "video"],
+    },
+    AttributeData {
+        name: "bind:ended",
+        description: "Observes whether media ended.",
+        elements: &["audio", "video"],
+    },
+    AttributeData {
+        name: "bind:playbackRate",
+        description: "Binds media playback rate.",
+        elements: &["audio", "video"],
+    },
+    AttributeData {
+        name: "bind:readyState",
+        description: "Observes media ready state.",
+        elements: &["audio", "video"],
+    },
+    AttributeData {
+        name: "bind:videoWidth",
+        description: "Observes a video's intrinsic width.",
+        elements: &["video"],
+    },
+    AttributeData {
+        name: "bind:videoHeight",
+        description: "Observes a video's intrinsic height.",
+        elements: &["video"],
+    },
+    AttributeData {
+        name: "generics",
+        description: "Declares generic type parameters for a component script.",
+        elements: &["script"],
     },
     AttributeData {
         name: "data-sveltekit-keepfocus",

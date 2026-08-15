@@ -445,6 +445,16 @@ mod tests {
                 .unwrap()
                 .contains(&"data-sveltekit-preload-code".to_string())
         );
+        assert!(
+            labels("<video bind:")
+                .unwrap()
+                .contains(&"bind:duration".to_string())
+        );
+        assert!(
+            labels("<script gen")
+                .unwrap()
+                .contains(&"generics".to_string())
+        );
     }
 
     #[test]
