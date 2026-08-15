@@ -1616,6 +1616,7 @@ mod tests {
 
         let changed = overlay.open_or_update(&app, "<p>buffer</p>", 7).unwrap();
         assert_eq!(changed.version, 7);
+        assert_eq!(fs::read_to_string(&app).unwrap(), "<p>disk</p>");
         assert_eq!(
             overlay
                 .entries
@@ -1624,6 +1625,7 @@ mod tests {
                 .source_text,
             "<p>buffer</p>"
         );
+        write(&app, "<p>disk</p>");
         let reverted = overlay.close(&app).unwrap().unwrap();
         assert_eq!(reverted.version, 8);
         assert_eq!(
