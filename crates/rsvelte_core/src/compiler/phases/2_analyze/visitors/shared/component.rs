@@ -311,6 +311,7 @@ fn validate_slot_attributes(component: &Component) -> Result<(), AnalysisError> 
     let mut seen_slots: FxHashSet<String> = FxHashSet::default();
     let mut has_explicit_default = false;
     let mut has_implicit_default = false;
+    let mut implicit_default_span = None;
     let mut has_children_snippet = false;
     let mut has_other_content = false;
 
@@ -340,6 +341,7 @@ fn validate_slot_attributes(component: &Component) -> Result<(), AnalysisError> 
                 TemplateNode::Text(text) => {
                     if !text.data.trim().is_empty() {
                         has_implicit_default = true;
+                        implicit_default_span.get_or_insert((text.start, text.end));
                         has_other_content = true;
                     }
                 }
@@ -351,6 +353,7 @@ fn validate_slot_attributes(component: &Component) -> Result<(), AnalysisError> 
                 }
                 _ => {
                     has_implicit_default = true;
+                    implicit_default_span.get_or_insert(node.span());
                     has_other_content = true;
                 }
             }
@@ -365,7 +368,8 @@ fn validate_slot_attributes(component: &Component) -> Result<(), AnalysisError> 
 
     // Check for slot_default_duplicate error
     if has_explicit_default && has_implicit_default {
-        return Err(errors::slot_default_duplicate());
+        let (start, end) = implicit_default_span.expect("implicit default content has a span");
+        return Err(errors::slot_default_duplicate().at(start, end));
     }
 
     Ok(())

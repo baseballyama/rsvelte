@@ -1762,6 +1762,17 @@ mod tests {
     }
 
     #[test]
+    fn diagnostic_locates_default_slot_content_conflict() {
+        let source = "<Component><div slot=\"default\" /><p>implicit</p></Component>";
+        let diagnostic = compile(source, CompileOptions::default())
+            .unwrap_err()
+            .diagnostic();
+        assert_eq!(diagnostic.code.as_deref(), Some("slot_default_duplicate"));
+        let (start, end) = diagnostic.span.expect("implicit content has a span");
+        assert_eq!(&source[start as usize..end as usize], "<p>implicit</p>");
+    }
+
+    #[test]
     fn diagnostics_locate_global_css_validation_nodes() {
         for (fixture, code, span) in [
             (
