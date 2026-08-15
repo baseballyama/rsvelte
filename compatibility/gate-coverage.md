@@ -122,8 +122,9 @@ are in [§ Cross-cutting](#cross-cutting) at the end.
 client, server, client-dev and server-dev, is parsed with OXC and printed by
 `rsvelte_esrap` with and without mappings. The gate requires semantic AST equivalence,
 identical code from the mapped and unmapped APIs, ordered comment kind/body preservation,
-and ordered in-bounds mapping coordinates. Block bodies use esrap's own indentation dedent,
-so layout-only re-indentation is not a content divergence. It rejects fewer than 12,000 outputs in any
+and ordered in-bounds mapping coordinates. Block bodies discard the common indentation of
+their continuation lines, so layout-only re-indentation is not a content divergence while
+relative indentation remains observable. It rejects fewer than 12,000 outputs in any
 tree/target and records the measured population in `esrap-report.json`.
 
 **Blind spot 26a — reparsing erases production AST provenance.** The gate consumes compiler

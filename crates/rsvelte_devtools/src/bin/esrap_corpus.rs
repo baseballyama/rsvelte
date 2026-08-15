@@ -179,7 +179,7 @@ fn comment_bodies(program: &Program<'_>, source: &str) -> Vec<(bool, String)> {
                     .strip_prefix("/*")
                     .and_then(|text| text.strip_suffix("*/"))
                     .unwrap_or(raw);
-                dedent_comment(source, span.start, inner)
+                normalize_block_comment(inner)
             } else {
                 raw.strip_prefix("//").unwrap_or(raw).to_string()
             };
@@ -188,26 +188,41 @@ fn comment_bodies(program: &Program<'_>, source: &str) -> Vec<(bool, String)> {
         .collect()
 }
 
-fn dedent_comment(source: &str, start: u32, inner: &str) -> String {
+fn normalize_block_comment(inner: &str) -> String {
     if !inner.contains('\n') {
         return inner.to_string();
     }
-    let bytes = source.as_bytes();
-    let mut line_start = start as usize;
-    while line_start > 0 && bytes[line_start - 1] != b'\n' {
-        line_start -= 1;
+
+    let mut common_indent: Option<&str> = None;
+    for line in inner.split('\n').skip(1) {
+        let indent_len = line
+            .as_bytes()
+            .iter()
+            .take_while(|&&byte| matches!(byte, b' ' | b'\t'))
+            .count();
+        let indentation = &line[..indent_len];
+        common_indent = Some(match common_indent {
+            None => indentation,
+            Some(common) => {
+                let common_len = common
+                    .bytes()
+                    .zip(indentation.bytes())
+                    .take_while(|(left, right)| left == right)
+                    .count();
+                &common[..common_len]
+            }
+        });
     }
-    let mut content_start = line_start;
-    while content_start < bytes.len() && matches!(bytes[content_start], b' ' | b'\t') {
-        content_start += 1;
-    }
-    let indentation = &source[line_start..content_start];
-    if indentation.is_empty() {
-        return inner.to_string();
-    }
+
+    let common_indent = common_indent.unwrap_or_default();
     let mut normalized = String::with_capacity(inner.len());
-    for line in inner.split_inclusive('\n') {
-        normalized.push_str(line.strip_prefix(indentation).unwrap_or(line));
+    for (index, line) in inner.split('\n').enumerate() {
+        if index > 0 {
+            normalized.push('\n');
+            normalized.push_str(line.strip_prefix(common_indent).unwrap_or(line));
+        } else {
+            normalized.push_str(line);
+        }
     }
     normalized
 }
@@ -256,8 +271,8 @@ mod tests {
 
     #[test]
     fn comment_bodies_ignore_printer_reindentation() {
-        let input_source = "/** first\n * second */";
-        let output_source = "\t/** first\n\t * second */";
+        let input_source = "/** first\n\t * second\n\t */";
+        let output_source = "\t/** first\n\t\t * second\n\t\t */";
         let input_allocator = Allocator::default();
         let output_allocator = Allocator::default();
         let input = parse(&input_allocator, input_source);
