@@ -78,6 +78,36 @@ pub struct Converted<'a> {
     pub loc_map: Vec<(u32, u32, Option<u32>)>,
 }
 
+impl<'a> Converted<'a> {
+    /// Strip every coordinate, yielding a program that indexes **no** text.
+    ///
+    /// A consumer that wants the AST rather than the printed code cannot use
+    /// these spans: they index the `.svelte` input (or, for a comment-bearing
+    /// program, a synthetic buffer above `loc_base`), while the text it will
+    /// slice is the generated JavaScript. A span that points into another text
+    /// is worse than no span, so the ones that would lie are removed — and
+    /// comments go with them, because a comment's position is a coordinate too.
+    ///
+    /// The program is no longer printable by [`rsvelte_esrap`]'s comment-aware
+    /// entry points; print first, then call this on the same conversion.
+    pub fn into_coordinate_free_program(mut self) -> Program<'a> {
+        SpanEraser.visit_program(&mut self.program);
+        self.program.comments.clear();
+        self.program.span = SPAN;
+        self.program
+    }
+}
+
+/// Sets every span the walk reaches to [`SPAN`]. `visit_span` is called once per
+/// node by the generated walk, so this reaches all of them without naming any.
+struct SpanEraser;
+
+impl<'a> VisitMut<'a> for SpanEraser {
+    fn visit_span(&mut self, span: &mut Span) {
+        *span = SPAN;
+    }
+}
+
 /// A retained source program to clone into the final OXC allocator.
 pub struct AstIsland<'source> {
     pub program: &'source RetainedProgram<'source>,
