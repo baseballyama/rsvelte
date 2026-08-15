@@ -1736,6 +1736,19 @@ mod tests {
     }
 
     #[test]
+    fn diagnostic_locates_dollar_binding_imports() {
+        let source = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../submodules/svelte/packages/svelte/tests/compiler-errors/samples/dollar-binding-import/main.svelte"
+        ));
+        let diagnostic = compile(source, CompileOptions::default())
+            .unwrap_err()
+            .diagnostic();
+        assert_eq!(diagnostic.code.as_deref(), Some("dollar_binding_invalid"));
+        assert_eq!(diagnostic.span, Some((19, 20)));
+    }
+
+    #[test]
     fn diagnostic_locates_invalid_svelte_self() {
         let source = "<svelte:self />";
         let err = compile(source, CompileOptions::default()).unwrap_err();
