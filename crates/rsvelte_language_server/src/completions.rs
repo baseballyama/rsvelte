@@ -14,7 +14,7 @@ use crate::modifiers::MODIFIERS;
 use crate::tags::{SvelteTag, latest_opening_tag};
 
 /// The characters that put the client in a position to want these items.
-pub const TRIGGER_CHARACTERS: [&str; 5] = ["#", "@", ":", "/", "|"];
+pub const TRIGGER_CHARACTERS: [&str; 7] = ["<", " ", "#", "@", ":", "/", "|"];
 
 const HTML_COMMENT_START: &str = "<!--";
 

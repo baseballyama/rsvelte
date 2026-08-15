@@ -48,6 +48,19 @@ pub fn highlights(text: &str, offset: usize) -> Vec<DocumentHighlight> {
         .collect()
 }
 
+/// Completion text for the `html/tag` compatibility request.
+#[must_use]
+pub fn close_tag(text: &str, offset: usize) -> Option<String> {
+    let before = text.get(..offset)?;
+    let end = before.strip_suffix('>')?;
+    let open = end.rfind('<')?;
+    let name = end[open + 1..]
+        .split(|character: char| character.is_ascii_whitespace() || character == '/')
+        .next()?;
+    (!name.is_empty() && !name.starts_with(['/', '!', '?']) && !is_void(name))
+        .then(|| format!("</{name}>"))
+}
+
 fn range(index: &LineIndex, text: &str, span: ByteRange<usize>) -> Range {
     Range::new(
         index.position(text, span.start),
@@ -156,5 +169,11 @@ mod tests {
     #[test]
     fn highlights_both_names() {
         assert_eq!(highlights("<section>x</section>", 3).len(), 2);
+    }
+
+    #[test]
+    fn completes_a_just_opened_tag() {
+        assert_eq!(close_tag("<section>", 9).as_deref(), Some("</section>"));
+        assert_eq!(close_tag("<img>", 5), None);
     }
 }

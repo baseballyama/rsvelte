@@ -270,6 +270,7 @@ impl Server {
             "textDocument/documentSymbol" => self.on_document_symbol(request),
             "textDocument/linkedEditingRange" => self.on_linked_editing_range(request),
             "textDocument/documentHighlight" => self.on_document_highlight(request),
+            "html/tag" => self.on_tag_close(request),
             "textDocument/documentColor" => self.on_document_color(request),
             "textDocument/colorPresentation" => self.on_color_presentation(request),
             "textDocument/diagnostic" => self.on_document_diagnostic(request),
@@ -433,6 +434,19 @@ impl Server {
                 crate::html_tags::highlights(text.as_str(), offset)
             });
         self.respond(Response::new_ok(id, highlights));
+    }
+
+    fn on_tag_close(&mut self, request: Request) {
+        let id = request.id;
+        let Ok(params) = serde_json::from_value::<TextDocumentPositionParams>(request.params)
+        else {
+            self.respond_nothing(id);
+            return;
+        };
+        let completion = self
+            .locate(&params)
+            .and_then(|(_, text, offset)| crate::html_tags::close_tag(&text, offset));
+        self.respond(Response::new_ok(id, completion));
     }
 
     fn on_document_color(&mut self, request: Request) {
