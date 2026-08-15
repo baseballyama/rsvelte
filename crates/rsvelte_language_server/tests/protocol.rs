@@ -572,7 +572,7 @@ fn serves_completions_and_hover() {
     let capabilities = server.response(id)["capabilities"].clone();
     assert_eq!(
         capabilities["completionProvider"]["triggerCharacters"],
-        json!(["#", "@", ":", "/", "|"])
+        json!(["<", " ", "#", "@", ":", "/", "|"])
     );
     assert_eq!(capabilities["hoverProvider"], json!(true));
     server.notify("initialized", json!({}));
