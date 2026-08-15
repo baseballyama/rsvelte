@@ -104,7 +104,7 @@ const KEYWORDS_BEFORE_REGEX: &[&[u8]] = &[
     b"yield",
 ];
 
-fn is_ident_byte(b: u8) -> bool {
+pub(crate) fn is_ident_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || matches!(b, b'_' | b'$') || b >= 0x80
 }
 

@@ -40,11 +40,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { flattenTemplateHoles, stripBlankLines, firstDiffLine, oxfmtTree } from '../normalize.mjs';
+import {
+	flattenTemplateHoles,
+	stripBlankLines,
+	firstDiffLine,
+	oxfmtTree,
+	codeIdentity,
+} from '../normalize.mjs';
 import { selectTargets, TARGET_KEYS } from '../targets.mjs';
 import { refuseUnrepresentativeBaseline } from '../baseline-guard.mjs';
 import { unattributedBindingReason } from '../binding.mjs';
 import { errorCode } from '../error-code.mjs';
+import { parseFailure } from '../parseable.mjs';
 import { generate, FAMILIES } from './generate.mjs';
 
 const require = createRequire(import.meta.url);
@@ -121,10 +128,14 @@ const counts = {
 	match: 0,
 	'error-parity': 0,
 	'js-mismatch': 0,
+	'comment-mismatch': 0,
 	'error-mismatch': 0,
 	'error-code-mismatch': 0,
 	'warning-mismatch': 0,
+	'output-unparseable': 0,
 };
+/** Official outputs the parse oracle rejected — an oracle fault, never a finding. */
+const oracleRejections = [];
 /** Pending byte comparisons, resolved after the trees are normalized. */
 const pending = [];
 const failures = [];
@@ -235,6 +246,29 @@ for (const testCase of cases) {
 			failures.push({ id: testCase.id, target: target.key, verdict, detail: verdict });
 		}
 
+		// "Is what rsvelte emitted even JavaScript?" — a question the byte
+		// comparison cannot ask, because a wrong-text and a not-JavaScript output
+		// produce the same `js-mismatch` row and the same ratchet entry. #2986
+		// emitted `#const_flag = …` outside a class body: the collected gate
+		// separates the two verdicts (verify.mjs), this one folded them together,
+		// so a listed js-mismatch here silently covers a degradation into
+		// non-JavaScript. The verdict is its own so the ratchet key carries it.
+		const oracleParse = parseFailure(expected);
+		if (oracleParse) {
+			oracleRejections.push({ id: testCase.id, target: target.key, why: oracleParse });
+		} else {
+			const why = parseFailure(actual);
+			if (why) {
+				counts['output-unparseable'] += 1;
+				failures.push({
+					id: testCase.id,
+					target: target.key,
+					verdict: 'output-unparseable',
+					detail: why,
+				});
+			}
+		}
+
 		const dir = path.join(TREE, testCase.id);
 		fs.mkdirSync(path.join(dir, 'expected'), { recursive: true });
 		fs.mkdirSync(path.join(dir, 'actual'), { recursive: true });
@@ -242,6 +276,19 @@ for (const testCase of cases) {
 		fs.writeFileSync(path.join(dir, 'actual', `${target.key}.js`), actual);
 		pending.push({ id: testCase.id, target: target.key, dir });
 	}
+}
+
+// An official output the oracle rejects has no exclusion list here on purpose:
+// the generated cases are small and authored, so the fix is to change the case
+// or widen `parseable.mjs` — never to carry a permanent exemption.
+if (oracleRejections.length) {
+	console.error(`\n[matrix] ❌ the parse oracle rejected ${oracleRejections.length} OFFICIAL output(s)`);
+	for (const { id, target, why } of oracleRejections.slice(0, MAX_PRINT)) {
+		console.error(`  - ${id} (${target}): ${why}`);
+	}
+	console.error('  decide which it is: acorn rejects legal output -> widen OPTIONS in');
+	console.error('  scripts/compat-corpus/parseable.mjs; the generated case is degenerate -> fix the axis.');
+	cleanup(2);
 }
 
 // ---- normalization (must match verify.mjs exactly) -------------------------
@@ -271,9 +318,18 @@ for (const item of pending) {
 		counts.match += 1;
 		continue;
 	}
-	counts['js-mismatch'] += 1;
+	// A difference that survives comment + whitespace normalization is a code
+	// divergence; one that does not is comment fidelity. Both stay ratcheted —
+	// the split is about the KEY, not about tolerance. Under one flat
+	// `js-mismatch` an id whose comments already diverge absorbs a later code
+	// regression on the same id for free: the `opaque-keyword` family is the
+	// sharpest case (its comment carriers all diverge on comment placement, so
+	// re-breaking #2986 would have reproduced an already-listed key), and the
+	// same argument holds for every `comment-slot` entry.
+	const verdict = codeIdentity(expected) === codeIdentity(actual) ? 'comment-mismatch' : 'js-mismatch';
+	counts[verdict] += 1;
 	const diff = firstDiffLine(expected, actual);
-	failures.push({ id: item.id, target: item.target, verdict: 'js-mismatch', ...diff });
+	failures.push({ id: item.id, target: item.target, verdict, ...diff });
 }
 
 // ---- report ----------------------------------------------------------------

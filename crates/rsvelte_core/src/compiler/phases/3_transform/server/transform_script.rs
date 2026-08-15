@@ -9,7 +9,9 @@ use super::transform_legacy::transform_export_let_declarations;
 use super::transform_store::{
     transform_store_assignments, transform_store_destructure_assignments,
 };
-use crate::compiler::phases::phase3_transform::shared::class_body::split_class_members_onto_lines;
+use crate::compiler::phases::phase3_transform::shared::class_body::{
+    find_class_header, split_class_members_onto_lines,
+};
 use crate::compiler::utils::{is_escaped, is_escaped_char};
 use memchr::memmem;
 use rustc_hash::FxHashSet;
@@ -4915,7 +4917,7 @@ fn code_bracket_depth(s: &str) -> i32 {
 /// Transform class fields with $derived runes for server-side.
 pub(crate) fn transform_class_fields_server(script: &str) -> String {
     let script_bytes = script.as_bytes();
-    if memmem::find(script_bytes, b"class ").is_none()
+    if memmem::find(script_bytes, b"class").is_none()
         || (memmem::find(script_bytes, b"$derived(").is_none()
             && memmem::find(script_bytes, b"$derived.by(").is_none()
             && memmem::find(script_bytes, b"$state(").is_none()
@@ -4924,18 +4926,20 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
         return script.to_string();
     }
 
-    let Some(class_pos) = memmem::find(script_bytes, b"class ") else {
+    // Both offsets have to come from the lexical scan: a `class ` inside a
+    // comment or a string used to become a "class header" whose "body" was the
+    // next function, lowering its locals into private class fields in statement
+    // position — output no JS parser accepts (#2986).
+    let Some(header) = find_class_header(script) else {
         return script.to_string();
     };
+    let class_pos = header.keyword;
+    let brace_pos = header.body_brace - class_pos;
 
     let after_class = &script[class_pos..];
-    let Some(brace_pos) = after_class.find('{') else {
-        return script.to_string();
-    };
-
     let class_header = &after_class[..brace_pos + 1];
 
-    let class_body_start = class_pos + brace_pos + 1;
+    let class_body_start = header.body_brace + 1;
     // Lexically aware match: a `}` inside a comment, string, template or regex
     // (e.g. `// returns { ok }`) must not close the class body and silently
     // delete every member after it (#2253).

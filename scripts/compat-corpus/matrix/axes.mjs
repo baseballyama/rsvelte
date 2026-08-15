@@ -1487,3 +1487,158 @@ export const PRIVATE_FIELD_PREAMBLE = `export class R {
 %s
 }
 `;
+
+/**
+ * A token the transforms scan for RAW, carried inside a region where it is text
+ * rather than code — and the only family whose subject is where a construct is
+ * judged to BEGIN.
+ *
+ * `find_matching_bracket` and `code_bracket_depth` have been comment/string
+ * aware since #2253, but the scans that decide *where to start counting from*
+ * stayed plain byte searches. `transform_class_fields_server` took the first
+ * `class ` in the file and the first `{` after it, so a doc comment reading
+ * "we avoid class here" made the following factory function a class body and
+ * lowered its locals to `#private` fields in statement position — output no JS
+ * parser accepts (#2986). The defect is not one missing guard: an entry-point
+ * scan and a body scan are different code, and hardening the second says
+ * nothing about the first.
+ *
+ * The keyword axis is derived from the transforms rather than invented: these
+ * are source-level tokens `memmem::find` is called with under
+ * `phases/3_transform/{server,client,shared}`. A scan that only bails out early
+ * is sound on any of them and a scan that returns an offset is not — but the
+ * two are the same grep, so the family carries the token set and lets the
+ * comparison decide which is which.
+ *
+ * Regex bodies are spelled so the LITERAL bytes of the keyword survive
+ * (`/$derived(x)/` is a valid regex containing `$derived(`); escaping them would
+ * test the escape rather than the scanner.
+ */
+export const OPAQUE_KEYWORDS = {
+	class: { text: 'class ', regex: 'class ' },
+	constructor: { text: 'constructor(', regex: 'constructor(x)' },
+	derived: { text: '$derived(', regex: '$derived(x)' },
+	state: { text: '$state(', regex: '$state(x)' },
+	arrow: { text: '=>', regex: '=>' },
+};
+
+/**
+ * The opaque region the keyword is carried in. `skip_opaque` handles `'`, `"`
+ * and `` ` `` in one arm, so a double-quoted row could not move independently of
+ * the single-quoted one and is left out; `/** … *\/` likewise reaches every
+ * scanner as the `/* … *\/` row does, and `comment-slot` already crosses jsdoc
+ * against its own axis. The template row stays because its `${…}` holes are
+ * skipped by a different branch, and the regex row because telling a regex from
+ * a division is the branch with a heuristic in it.
+ *
+ * Each carrier has a statement form and a class-member form: the same text is
+ * not valid in both positions, and a family that only emitted statements would
+ * never place a carrier where a class-body scan can see it.
+ */
+export const OPAQUE_CARRIERS = {
+	'line-comment': { stmt: '// %k', member: '// %k' },
+	'block-comment': { stmt: '/* %k */', member: '/* %k */' },
+	string: { stmt: "const _c = '%k';", member: "_c = '%k';" },
+	template: { stmt: 'const _c = `%k`;', member: '_c = `%k`;' },
+	regex: { stmt: 'const _c = /%r/;', member: '_c = /%r/;' },
+};
+
+/**
+ * Where the carrier sits relative to the construct whose boundaries a scan has
+ * to find. `slot` selects the carrier's statement or class-member form.
+ *
+ * `before-factory` is the reported repro and `inside-factory` the same defect
+ * one nesting level in. The four class hosts exist because a class is what the
+ * scan is looking for: with a real class present the keyword no longer decides
+ * whether a header is found but WHICH one — a different failure that a
+ * class-free host cannot express, and the one `between-classes` isolates.
+ */
+export const OPAQUE_HOSTS = {
+	'before-factory': {
+		slot: 'stmt',
+		wrap: (carrier) => `let a = 1;
+let b = 2;
+
+${carrier}
+export function make() {
+	const flag = $derived(a !== b);
+	return { read: () => flag };
+}
+`,
+	},
+	'inside-factory': {
+		slot: 'stmt',
+		wrap: (carrier) => `let a = 1;
+let b = 2;
+
+export function make() {
+	${carrier}
+	const flag = $derived(a !== b);
+	return { read: () => flag };
+}
+`,
+	},
+	'before-class': {
+		slot: 'stmt',
+		wrap: (carrier) => `${carrier}
+export class Store {
+	value = $state(0);
+	double = $derived(this.value * 2);
+}
+`,
+	},
+	'class-member': {
+		slot: 'member',
+		wrap: (carrier) => `export class Store {
+	${carrier}
+	value = $state(0);
+	double = $derived(this.value * 2);
+}
+`,
+	},
+	'method-body': {
+		slot: 'stmt',
+		wrap: (carrier) => `export class Store {
+	value = $state(0);
+
+	read() {
+		${carrier}
+		const local = $derived(this.value + 1);
+		return local;
+	}
+}
+`,
+	},
+	'between-classes': {
+		slot: 'stmt',
+		wrap: (carrier) => `export class First {
+	value = $state(0);
+}
+
+${carrier}
+export class Second {
+	value = $state(1);
+	double = $derived(this.value * 2);
+}
+`,
+	},
+};
+
+/**
+ * The two entry points this family crosses. `compileModule` is where #2986 was
+ * reported; the instance script is a different parse function and a different
+ * transform, and `param-default` is the recorded precedent for a fix that was
+ * complete on one of them and absent on the other (#2547).
+ */
+export const OPAQUE_ENTRIES = {
+	module: { ext: '.svelte.js', kind: 'module', wrap: (body) => body },
+	instance: {
+		ext: '.svelte',
+		wrap: (body) =>
+			`<script>\n${body
+				.trimEnd()
+				.split('\n')
+				.map((line) => (line ? `\t${line}` : line))
+				.join('\n')}\n</script>\n\n<p>ok</p>\n`,
+	},
+};

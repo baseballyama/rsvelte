@@ -63,6 +63,10 @@ import {
 	PRIVATE_FIELD_OPERATORS,
 	PRIVATE_FIELD_UPDATE_OPERATORS,
 	PRIVATE_FIELD_PREAMBLE,
+	OPAQUE_KEYWORDS,
+	OPAQUE_CARRIERS,
+	OPAQUE_HOSTS,
+	OPAQUE_ENTRIES,
 } from './axes.mjs';
 import { commentMutants } from './mutate.mjs';
 
@@ -425,6 +429,28 @@ function privateFieldCases() {
 	return cases;
 }
 
+function opaqueKeywordCases() {
+	const cases = [];
+	for (const [keywordName, keyword] of Object.entries(OPAQUE_KEYWORDS)) {
+		for (const [carrierName, carrier] of Object.entries(OPAQUE_CARRIERS)) {
+			for (const [hostName, host] of Object.entries(OPAQUE_HOSTS)) {
+				const text = carrier[host.slot]
+					.replaceAll('%k', () => keyword.text)
+					.replaceAll('%r', () => keyword.regex);
+				const body = host.wrap(text);
+				for (const [entryName, entry] of Object.entries(OPAQUE_ENTRIES)) {
+					cases.push({
+						id: `opaque-keyword/${keywordName}__${carrierName}__${hostName}__${entryName}${entry.ext}`,
+						source: entry.wrap(body),
+						...(entry.kind ? { kind: entry.kind } : {}),
+					});
+				}
+			}
+		}
+	}
+	return cases;
+}
+
 export const FAMILIES = {
 	'binding-position': bindingPositionCases,
 	'async-derived': asyncDerivedCases,
@@ -440,6 +466,7 @@ export const FAMILIES = {
 	'bind-setter': bindSetterShapeCases,
 	'removed-statement-comment': removedStatementCommentCases,
 	'private-field': privateFieldCases,
+	'opaque-keyword': opaqueKeywordCases,
 };
 
 export function generate(families = Object.keys(FAMILIES)) {

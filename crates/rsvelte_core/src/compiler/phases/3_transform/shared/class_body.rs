@@ -9,6 +9,7 @@
 use memchr::memmem;
 
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
+use crate::compiler::phases::phase3_transform::shared::js_scan;
 use crate::compiler::phases::phase3_transform::shared::js_scan::slash_starts_regex_at;
 use crate::compiler::utils::is_js_ident_continue;
 
@@ -121,6 +122,100 @@ fn brace_opens_constructor_body(prefix: &str) -> bool {
         }
     }
     false
+}
+
+/// Where a class declaration or expression begins in a script: the offset of
+/// the `class` keyword and the offset of the `{` that opens its body.
+pub(crate) struct ClassHeader {
+    pub(crate) keyword: usize,
+    pub(crate) body_brace: usize,
+}
+
+/// Locate the first `class` declaration or expression in `source`.
+///
+/// Both offsets come from the lexical scan, so a `class ` inside a comment or a
+/// string cannot start a "class header" and turn the function that follows into
+/// a class body (#2986), and an `{` inside a comment or inside the `extends`
+/// clause's arguments cannot be mistaken for the body brace.
+pub(crate) fn find_class_header(source: &str) -> Option<ClassHeader> {
+    let bytes = source.as_bytes();
+    // Start of the identifier run in progress, and the significant code byte
+    // that preceded it (`obj.class` and `this.#class` are property names).
+    let mut run_start: Option<usize> = None;
+    let mut run_prev: Option<u8> = None;
+    let mut prev_sig: Option<u8> = None;
+    // One past the previously yielded byte: a run interrupted by a comment or a
+    // literal is two identifiers, not one.
+    let mut prev_end = 0usize;
+    let mut keyword: Option<usize> = None;
+    let mut seen_after_keyword = false;
+    let mut nesting = 0i32;
+    let mut angle = 0i32;
+
+    for (i, byte) in js_scan::code_bytes(bytes) {
+        if let Some(start) = run_start
+            && (i != prev_end || !js_scan::is_ident_byte(byte))
+        {
+            run_start = None;
+            if keyword.is_none()
+                && &bytes[start..prev_end] == b"class"
+                && !matches!(run_prev, Some(b'.') | Some(b'#'))
+            {
+                keyword = Some(start);
+                seen_after_keyword = false;
+                nesting = 0;
+                angle = 0;
+            }
+        }
+        prev_end = i + 1;
+
+        if js_scan::is_ident_byte(byte) {
+            if run_start.is_none() {
+                run_start = Some(i);
+                run_prev = prev_sig;
+                // A name, `extends`, `implements` — the keyword is a real one.
+                seen_after_keyword = true;
+            }
+            prev_sig = Some(byte);
+            continue;
+        }
+        if byte.is_ascii_whitespace() {
+            continue;
+        }
+        prev_sig = Some(byte);
+
+        let Some(start) = keyword else { continue };
+        if !seen_after_keyword {
+            // `class {` is the only punctuation that can follow the keyword; a
+            // `:` (object key), `(` (method name) or `?` (optional member) means
+            // this `class` was a property name after all.
+            if byte == b'{' {
+                return Some(ClassHeader {
+                    keyword: start,
+                    body_brace: i,
+                });
+            }
+            keyword = None;
+            continue;
+        }
+        match byte {
+            b'(' | b'[' => nesting += 1,
+            b')' | b']' => nesting -= 1,
+            // Only a TypeScript type parameter list can bracket a class header.
+            b'<' if nesting == 0 => angle += 1,
+            b'>' if nesting == 0 && angle > 0 => angle -= 1,
+            b'{' if nesting == 0 && angle == 0 => {
+                return Some(ClassHeader {
+                    keyword: start,
+                    body_brace: i,
+                });
+            }
+            // No class header contains a statement terminator.
+            b';' if nesting == 0 => keyword = None,
+            _ => {}
+        }
+    }
+    None
 }
 
 /// Given the offset just past a member terminator, return the offset at which a
@@ -310,7 +405,7 @@ pub(crate) fn split_class_members_onto_lines(class_body: &str) -> std::borrow::C
 
 #[cfg(test)]
 mod tests {
-    use super::{brace_opens_class_body, split_class_members_onto_lines};
+    use super::{brace_opens_class_body, find_class_header, split_class_members_onto_lines};
 
     #[test]
     fn conventionally_formatted_class_body_is_not_resplit() {
@@ -356,6 +451,60 @@ mod tests {
             ),
             "\tmethod() { return /[//]/.test(value); }\n\tnext = $state(1);\n"
         );
+    }
+
+    /// `find_class_header` returns the offsets; these tests state them as the
+    /// header text they delimit, which is what the caller splices.
+    fn header_of(source: &str) -> Option<&str> {
+        find_class_header(source).map(|h| &source[h.keyword..=h.body_brace])
+    }
+
+    #[test]
+    fn class_header_is_located_lexically() {
+        for (source, header) in [
+            ("class Foo {}", "class Foo {"),
+            ("const C = class {};", "class {"),
+            ("export class Foo extends Bar {}", "class Foo extends Bar {"),
+            (
+                "class Foo extends mixin({ a: 1 }) {}",
+                "class Foo extends mixin({ a: 1 }) {",
+            ),
+            (
+                "class Foo<T extends { a: string }> {}",
+                "class Foo<T extends { a: string }> {",
+            ),
+            (
+                "abstract class Foo implements Bar {}",
+                "class Foo implements Bar {",
+            ),
+            ("class/*c*/Foo{}", "class/*c*/Foo{"),
+            // A comment or a string mentioning the keyword is text, not code.
+            ("// we avoid class here\nclass Foo {}", "class Foo {"),
+            ("const s = 'class name';\nclass Foo {}", "class Foo {"),
+            ("/* class Foo { */\nclass Bar {}", "class Bar {"),
+            ("const r = /class /;\nclass Foo {}", "class Foo {"),
+            // `class` as a property name is not a class.
+            ("f({ class: 'a' });\nclass Foo {}", "class Foo {"),
+            ("f({ class() {} });\nclass Foo {}", "class Foo {"),
+            ("el.class = 'a';\nclass Foo {}", "class Foo {"),
+            ("this.#class = 1;\nclass Foo {}", "class Foo {"),
+            ("let superclass = 1;\nclass Foo {}", "class Foo {"),
+        ] {
+            assert_eq!(header_of(source), Some(header), "{source:?}");
+        }
+    }
+
+    #[test]
+    fn no_class_header_where_there_is_no_class() {
+        for source in [
+            "// we avoid class here\nexport const make = () => {};",
+            "const label = 'class name';\nexport const make = () => {};",
+            "const styles = { class: 'a' };",
+            "el.classList.add('x');",
+            "const superclass = Base;",
+        ] {
+            assert!(header_of(source).is_none(), "{source:?}");
+        }
     }
 
     #[test]

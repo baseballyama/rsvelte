@@ -272,3 +272,46 @@ export function firstDiffLine(a, b) {
 	}
 	return null;
 }
+
+const COMMENT_RE = /\/\/[^\n]*|\/\*[\s\S]*?\*\//g;
+
+/**
+ * What is left of a program once everything a relocated comment can move is
+ * gone: the comments, all whitespace, and the trailing comma oxfmt adds when
+ * (and only when) it breaks a construct across lines. A comma preceded by
+ * another comma is array elision and stays.
+ *
+ * Two gates classify a divergence with this — `mutate-corpus.mjs`, whose
+ * `code-mismatch` / `comment-mismatch` split it defines, and `matrix/run.mjs`.
+ * It is a classifier, never a comparison: what a gate reports as the divergence
+ * is always the un-normalized text.
+ */
+export function codeIdentity(source) {
+	return (
+		source
+			.replace(COMMENT_RE, '')
+			.replace(/\s+/g, '')
+			.replace(/([^,]),(?=[)\]}])/g, '$1')
+			// Quote style is oxfmt's to choose, and it only survives here on pairs
+			// oxfmt could not parse. Verified to reclassify 0 of 213 entries — it is
+			// in for honest reporting (the first difference shown must be the reason
+			// for the verdict), not to change any verdict.
+			.replace(/'((?:[^'\\\n]|\\.)*)'/g, (m, inner) => (inner.includes('"') ? m : `"${inner}"`))
+	);
+}
+
+/**
+ * Where the two programs first differ IN THE STRING THE VERDICT WAS COMPUTED
+ * FROM. A line-based diff cannot do this job: the leading textual difference is
+ * routinely a quote style (oxfmt could not format the pair) or a line break,
+ * both of which `codeIdentity` ignores — so a reviewer sees something cosmetic
+ * and dismisses a real finding further down.
+ */
+export function codeDiffWindow(expected, actual) {
+	const a = codeIdentity(expected);
+	const b = codeIdentity(actual);
+	let i = 0;
+	while (i < a.length && i < b.length && a[i] === b[i]) i++;
+	const from = Math.max(0, i - 40);
+	return { expected: a.slice(from, i + 60), actual: b.slice(from, i + 60) };
+}
