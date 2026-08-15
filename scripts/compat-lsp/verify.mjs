@@ -202,6 +202,7 @@ const initializationOptions = {
   configuration: {
     svelte: { plugin: {} },
     typescript: {
+      suggest: { autoImports: false },
       inlayHints: {
         enumMemberValues: { enabled: true },
         functionLikeReturnTypes: { enabled: true },
@@ -214,6 +215,7 @@ const initializationOptions = {
         variableTypes: { enabled: true, suppressWhenTypeMatchesName: false },
       },
     },
+    javascript: { suggest: { autoImports: false } },
   },
 };
 const capabilities = {

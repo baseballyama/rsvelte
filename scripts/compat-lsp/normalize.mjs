@@ -3,8 +3,14 @@ import { pathToFileURL } from "node:url";
 
 function replaceUris(value, workspace) {
   if (typeof value === "string") {
-    const workspaceUri = pathToFileURL(workspace).href.replace(/\/$/, "");
-    let normalized = value.replaceAll(workspaceUri, "<workspaceUri>");
+    const workspacePath = path.resolve(workspace);
+    const workspaceUri = pathToFileURL(workspacePath).href.replace(/\/$/, "");
+    let normalized = value
+      .replaceAll(workspaceUri, "<workspaceUri>")
+      .replaceAll(workspacePath, "<workspacePath>");
+    const slashPath = workspacePath.replaceAll(path.sep, "/");
+    if (slashPath !== workspacePath)
+      normalized = normalized.replaceAll(slashPath, "<workspacePath>");
     const nodeModules = normalized.lastIndexOf("/node_modules/");
     if (nodeModules >= 0)
       normalized = `<node_modules>${normalized.slice(nodeModules + "/node_modules".length)}`;
