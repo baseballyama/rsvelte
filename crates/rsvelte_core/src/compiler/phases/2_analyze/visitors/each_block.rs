@@ -72,7 +72,13 @@ pub fn visit<'a, 'b: 'a>(
 
     // If keyed but no context, error
     if is_keyed && block.context.is_none() {
-        return Err(errors::each_key_without_as());
+        let key = block.key.as_ref().expect("keyed blocks have a key");
+        return Err(errors::each_key_without_as().at(
+            key.as_node()
+                .start()
+                .expect("parsed expressions have a start"),
+            key.as_node().end().expect("parsed expressions have an end"),
+        ));
     }
 
     // Visit the expression in parent scope
