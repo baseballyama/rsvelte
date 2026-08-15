@@ -24,6 +24,8 @@ pub mod bridge;
 
 #[cfg(feature = "sass")]
 pub mod sass;
+#[cfg(feature = "sass")]
+mod sass_fs;
 
 #[cfg(feature = "less")]
 pub mod less;

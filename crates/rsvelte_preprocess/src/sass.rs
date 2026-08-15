@@ -13,6 +13,7 @@ use rsvelte_core::compiler::preprocess::types::{
 };
 
 use crate::filter::{FilterOptions, matches};
+use crate::sass_fs::RecordingFs;
 
 /// Options forwarded to the Sass compiler (subset of the dart-sass options
 /// object the JS package accepts).
@@ -71,7 +72,8 @@ pub fn preprocess_sass(
     // upstream spreads `...sassOptions` after the computed `indentedSyntax`.
     let indented = sass_options.indented_syntax.unwrap_or(indented_syntax);
 
-    let mut options = grass::Options::default();
+    let fs = RecordingFs::default();
+    let mut options = grass::Options::default().fs(&fs);
     if indented {
         options = options.input_syntax(grass::InputSyntax::Sass);
     }
@@ -94,6 +96,7 @@ pub fn preprocess_sass(
 
     Ok(Some(Processed {
         code: css,
+        dependencies: fs.dependencies(),
         ..Default::default()
     }))
 }

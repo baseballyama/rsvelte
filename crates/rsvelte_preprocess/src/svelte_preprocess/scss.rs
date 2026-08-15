@@ -4,6 +4,8 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::sass_fs::RecordingFs;
+
 /// Options for the scss transform (subset of the dart-sass legacy options).
 #[derive(Debug, Clone, Default)]
 pub struct ScssOptions {
@@ -42,7 +44,8 @@ pub fn transform(
         return Ok(ScssOutput::default());
     }
 
-    let mut grass_options = grass::Options::default();
+    let fs = RecordingFs::default();
+    let mut grass_options = grass::Options::default().fs(&fs);
     if indented {
         grass_options = grass_options.input_syntax(grass::InputSyntax::Sass);
     }
@@ -65,6 +68,6 @@ pub fn transform(
 
     Ok(ScssOutput {
         code: css,
-        dependencies: Vec::new(),
+        dependencies: fs.dependencies(),
     })
 }
