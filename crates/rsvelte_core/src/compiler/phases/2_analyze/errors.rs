@@ -70,7 +70,7 @@ diagnostics! {
     rune_invalid_spread(rune: &str) => "`{}` cannot be called with a spread argument", rune;
 
     /// `%rune%` requires %expected%
-    rune_invalid_arguments_length(rune: &str, expected: &str) => "`{}` requires {}", rune, expected;
+    rune_invalid_arguments_length(rune: &str, expected: &str) => "`{}` must be called with {}", rune, expected;
 
     /// `%rune%` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.
     state_invalid_placement(rune: &str) => "`{}(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement", rune;

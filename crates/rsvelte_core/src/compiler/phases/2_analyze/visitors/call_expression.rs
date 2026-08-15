@@ -753,7 +753,8 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                 return Err(errors::rune_invalid_arguments_length(
                     "$bindable",
                     "zero or one arguments",
-                ));
+                )
+                .at(*start, *end));
             }
             if !is_bindable_valid_placement(context) {
                 return Err(errors::bindable_invalid_location());
@@ -812,13 +813,15 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                     return Err(errors::rune_invalid_arguments_length(
                         rune_name,
                         "exactly one argument",
-                    ));
+                    )
+                    .at(*start, *end));
                 }
             } else if arg_count > 1 {
                 return Err(errors::rune_invalid_arguments_length(
                     rune_name,
                     "zero or one arguments",
-                ));
+                )
+                .at(*start, *end));
             }
         }
         Some("$effect") | Some("$effect.pre") => {
@@ -829,7 +832,8 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                 return Err(errors::rune_invalid_arguments_length(
                     rune.as_deref().unwrap(),
                     "exactly one argument",
-                ));
+                )
+                .at(*start, *end));
             }
             context.analysis.needs_context = true;
         }
@@ -840,27 +844,30 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             return Err(errors::rune_invalid_arguments_length(
                 "$effect.root",
                 "exactly one argument",
-            ));
+            )
+            .at(*start, *end));
         }
         Some("$effect.pending") => {}
         Some("$inspect") if arg_count < 1 => {
-            return Err(errors::rune_invalid_arguments_length(
-                "$inspect",
-                "one or more arguments",
-            ));
+            return Err(
+                errors::rune_invalid_arguments_length("$inspect", "one or more arguments")
+                    .at(*start, *end),
+            );
         }
         Some("$inspect().with") if arg_count != 1 => {
             return Err(errors::rune_invalid_arguments_length(
                 "$inspect().with",
                 "exactly one argument",
-            ));
+            )
+            .at(*start, *end));
         }
         Some("$inspect.trace") => {
             if arg_count > 1 {
                 return Err(errors::rune_invalid_arguments_length(
                     "$inspect.trace",
                     "zero or one arguments",
-                ));
+                )
+                .at(*start, *end));
             }
             if !is_inspect_trace_valid_placement(context) {
                 return Err(errors::inspect_trace_invalid_placement());
@@ -876,13 +883,15 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             return Err(errors::rune_invalid_arguments_length(
                 "$state.eager",
                 "exactly one argument",
-            ));
+            )
+            .at(*start, *end));
         }
         Some("$state.snapshot") if arg_count != 1 => {
             return Err(errors::rune_invalid_arguments_length(
                 "$state.snapshot",
                 "exactly one argument",
-            ));
+            )
+            .at(*start, *end));
         }
         _ => {}
     }

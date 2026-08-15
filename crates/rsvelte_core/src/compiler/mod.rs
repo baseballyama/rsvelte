@@ -1738,6 +1738,24 @@ mod tests {
     }
 
     #[test]
+    fn rune_argument_diagnostic_uses_call_message_and_span() {
+        let source = "<script>let value = $derived(1, 2);</script>";
+        let diagnostic = compile(source, CompileOptions::default())
+            .unwrap_err()
+            .diagnostic();
+        assert_eq!(
+            diagnostic.code.as_deref(),
+            Some("rune_invalid_arguments_length")
+        );
+        assert_eq!(
+            diagnostic.message,
+            "`$derived` must be called with exactly one argument"
+        );
+        let (start, end) = diagnostic.span.expect("rune call has a span");
+        assert_eq!(&source[start as usize..end as usize], "$derived(1, 2)");
+    }
+
+    #[test]
     fn dollar_import_diagnostic_uses_the_imported_identifier() {
         let source = "<script>\n\timport { $ } from './store';\n</script>";
         let diagnostic = compile(source, CompileOptions::default())
