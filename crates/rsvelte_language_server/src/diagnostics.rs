@@ -6,6 +6,7 @@ use lsp_types::{
     CodeDescription, Diagnostic, DiagnosticSeverity, NumberOrString, Position, Range, Uri,
 };
 use rsvelte_diagnostics::{Diagnostic as LintDiagnostic, DiagnosticSeverity as LintSeverity};
+use sourcemap::SourceMap;
 
 use crate::settings::{CompilerWarnings, WarningLevel};
 
@@ -66,6 +67,156 @@ pub fn to_lsp(diagnostic: &LintDiagnostic, warnings: &CompilerWarnings) -> Optio
         message: diagnostic.message.clone(),
         ..Diagnostic::default()
     })
+}
+
+/// Compiler diagnostics that raw preprocessor syntax would make unreliable.
+#[must_use]
+pub fn keep_raw_compiler_diagnostic(diagnostic: &Diagnostic, source: &str) -> bool {
+    let languages = language_attributes(source);
+    let code = diagnostic.code.as_ref().and_then(|code| match code {
+        NumberOrString::String(code) => Some(code.as_str()),
+        NumberOrString::Number(_) => None,
+    });
+    if diagnostic.severity == Some(DiagnosticSeverity::ERROR)
+        && diagnostic.message.contains("expected")
+        && languages.any()
+    {
+        return false;
+    }
+    if (languages.template || languages.script_non_ts)
+        && code.is_none_or(|code| !code.starts_with("a11y"))
+    {
+        return false;
+    }
+    if languages.style && matches!(code, Some("css-unused-selector" | "css_unused_selector")) {
+        return false;
+    }
+    if matches!(code, Some("unused-export-let" | "export_let_unused")) {
+        let name = diagnostic
+            .message
+            .split_once('\'')
+            .and_then(|(_, tail)| tail.split_once('\''))
+            .map(|(name, _)| name)
+            .unwrap_or_default();
+        if !name.is_empty()
+            && ["enum", "namespace"].iter().any(|kind| {
+                source.contains(&format!("export {kind} {name}"))
+                    || source.contains(&format!("export\t{kind} {name}"))
+            })
+        {
+            return false;
+        }
+    }
+    true
+}
+
+/// Map a diagnostic emitted against preprocessed Svelte back to editor source.
+#[must_use]
+pub fn map_preprocessed_diagnostic(
+    mut diagnostic: Diagnostic,
+    source_map: &str,
+) -> Option<Diagnostic> {
+    let map = SourceMap::from_slice(source_map.as_bytes()).ok()?;
+    diagnostic.range.start = original_position(&map, diagnostic.range.start)?;
+    diagnostic.range.end = original_position(&map, diagnostic.range.end)?;
+    if diagnostic.range.end < diagnostic.range.start {
+        std::mem::swap(&mut diagnostic.range.start, &mut diagnostic.range.end);
+    }
+    Some(diagnostic)
+}
+
+/// Diagnostic shown without disabling raw-language editor features.
+#[must_use]
+pub fn preprocess_failure(message: impl Into<String>) -> Diagnostic {
+    Diagnostic {
+        range: Range::new(Position::new(0, 0), Position::new(0, 5)),
+        severity: Some(DiagnosticSeverity::WARNING),
+        source: Some(COMPILER_SOURCE.to_string()),
+        message: format!("Preprocessing failed\n\n{}", message.into()),
+        ..Diagnostic::default()
+    }
+}
+
+fn original_position(map: &SourceMap, position: Position) -> Option<Position> {
+    let token = map.lookup_token(position.line, position.character)?;
+    token
+        .get_source()
+        .map(|_| Position::new(token.get_src_line(), token.get_src_col()))
+}
+
+#[derive(Default)]
+struct LanguageAttributes {
+    script_non_ts: bool,
+    style: bool,
+    template: bool,
+}
+
+impl LanguageAttributes {
+    const fn any(&self) -> bool {
+        self.script_non_ts || self.style || self.template
+    }
+}
+
+fn language_attributes(source: &str) -> LanguageAttributes {
+    let script = tag_language(source, "script");
+    LanguageAttributes {
+        script_non_ts: script.as_deref().is_some_and(|lang| lang != "ts"),
+        style: tag_language(source, "style").is_some(),
+        template: tag_language(source, "template").is_some(),
+    }
+}
+
+fn tag_language(source: &str, tag: &str) -> Option<String> {
+    let needle = format!("<{tag}");
+    let start = source.find(&needle)? + needle.len();
+    let end = source[start..].find('>')? + start;
+    let attributes = &source[start..end];
+    attribute_value(attributes, "lang")
+        .or_else(|| attribute_value(attributes, "type"))
+        .map(|value| value.trim_start_matches("text/").to_ascii_lowercase())
+}
+
+fn attribute_value(attributes: &str, name: &str) -> Option<String> {
+    let bytes = attributes.as_bytes();
+    let mut offset = 0;
+    while offset < bytes.len() {
+        while offset < bytes.len() && bytes[offset].is_ascii_whitespace() {
+            offset += 1;
+        }
+        let start = offset;
+        while offset < bytes.len()
+            && (bytes[offset].is_ascii_alphanumeric() || matches!(bytes[offset], b'-' | b'_'))
+        {
+            offset += 1;
+        }
+        let key = attributes.get(start..offset)?;
+        while offset < bytes.len() && bytes[offset].is_ascii_whitespace() {
+            offset += 1;
+        }
+        if bytes.get(offset) != Some(&b'=') {
+            offset = offset.saturating_add(1);
+            continue;
+        }
+        offset += 1;
+        while offset < bytes.len() && bytes[offset].is_ascii_whitespace() {
+            offset += 1;
+        }
+        let quote = *bytes.get(offset)?;
+        if !matches!(quote, b'\'' | b'"') {
+            offset = offset.saturating_add(1);
+            continue;
+        }
+        offset += 1;
+        let value_start = offset;
+        while offset < bytes.len() && bytes[offset] != quote {
+            offset += 1;
+        }
+        if key.eq_ignore_ascii_case(name) {
+            return Some(attributes.get(value_start..offset)?.to_string());
+        }
+        offset = offset.saturating_add(1);
+    }
+    None
 }
 
 /// The documentation link for a compiler code, mirroring the official server:
@@ -221,6 +372,53 @@ mod tests {
         assert_eq!(
             d.code_description.unwrap().href.as_str(),
             "https://svelte.dev/docs/svelte/compiler-warnings#state_referenced_locally"
+        );
+    }
+
+    #[test]
+    fn raw_language_attributes_suppress_only_upstream_false_positives() {
+        let warning = |code: &str| Diagnostic {
+            code: Some(NumberOrString::String(code.to_string())),
+            severity: Some(DiagnosticSeverity::WARNING),
+            message: "warning".to_string(),
+            ..Diagnostic::default()
+        };
+        let source = r#"<script lang="coffee">x = 1</script>
+<style lang="scss">$x: red</style><template lang="pug">p hi</template>"#;
+        assert!(!keep_raw_compiler_diagnostic(
+            &warning("state_referenced_locally"),
+            source
+        ));
+        assert!(!keep_raw_compiler_diagnostic(
+            &warning("css_unused_selector"),
+            source
+        ));
+        assert!(keep_raw_compiler_diagnostic(
+            &warning("a11y_missing_attribute"),
+            source
+        ));
+        assert!(keep_raw_compiler_diagnostic(
+            &warning("state_referenced_locally"),
+            r#"<script lang="ts">let x: number</script>"#
+        ));
+    }
+
+    #[test]
+    fn preprocessing_map_returns_utf16_positions_to_raw_source() {
+        let mut builder = sourcemap::SourceMapBuilder::new(None);
+        builder.add(1, 2, 0, 3, Some("App.svelte"), None, false);
+        builder.add(1, 4, 0, 5, Some("App.svelte"), None, false);
+        let mut encoded = Vec::new();
+        builder.into_sourcemap().to_writer(&mut encoded).unwrap();
+        let map = String::from_utf8(encoded).unwrap();
+        let diagnostic = Diagnostic {
+            range: Range::new(Position::new(1, 2), Position::new(1, 4)),
+            message: "mapped".to_string(),
+            ..Diagnostic::default()
+        };
+        assert_eq!(
+            map_preprocessed_diagnostic(diagnostic, &map).unwrap().range,
+            Range::new(Position::new(0, 3), Position::new(0, 5))
         );
     }
 

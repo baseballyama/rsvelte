@@ -44,6 +44,7 @@ pub enum Job {
         version: i32,
         path: PathBuf,
         text: Arc<String>,
+        preprocessed: Option<PreprocessedAnalysis>,
         warnings: CompilerWarnings,
     },
     Format {
@@ -109,6 +110,7 @@ pub enum Job {
         id: RequestId,
         path: PathBuf,
         text: Arc<String>,
+        preprocessed: Option<PreprocessedAnalysis>,
         warnings: CompilerWarnings,
     },
     FileReferences {
@@ -120,6 +122,13 @@ pub enum Job {
     /// Drop the resolved `rsvelte-lint.json` / `.oxfmtrc` caches so the next
     /// job re-reads them from disk.
     ClearCaches,
+}
+
+#[derive(Clone)]
+pub struct PreprocessedAnalysis {
+    pub text: Arc<String>,
+    pub map: Option<Arc<String>>,
+    pub identity: bool,
 }
 
 pub enum Outcome {
@@ -239,14 +248,18 @@ fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>) {
                 version,
                 path,
                 text,
+                preprocessed,
                 warnings,
             } => {
                 let config = lint_configs.get(path.parent().unwrap_or(Path::new(".")));
                 let diagnostics = guard("lint", &path, || {
-                    let mut diagnostics: Vec<_> = crate::lint::lint(&path, &text, &config)
-                        .iter()
-                        .filter_map(|d| crate::diagnostics::to_lsp(d, &warnings))
-                        .collect();
+                    let mut diagnostics = lint_with_preprocessor(
+                        &path,
+                        &text,
+                        preprocessed.as_ref(),
+                        &config,
+                        &warnings,
+                    );
                     diagnostics.extend(crate::css::diagnostics(&text));
                     diagnostics
                 })
@@ -382,14 +395,18 @@ fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>) {
                 id,
                 path,
                 text,
+                preprocessed,
                 warnings,
             } => {
                 let config = lint_configs.get(path.parent().unwrap_or(Path::new(".")));
                 let diagnostics = guard("pull diagnostics", &path, || {
-                    let mut diagnostics: Vec<_> = crate::lint::lint(&path, &text, &config)
-                        .iter()
-                        .filter_map(|d| crate::diagnostics::to_lsp(d, &warnings))
-                        .collect();
+                    let mut diagnostics = lint_with_preprocessor(
+                        &path,
+                        &text,
+                        preprocessed.as_ref(),
+                        &config,
+                        &warnings,
+                    );
                     diagnostics.extend(crate::css::diagnostics(&text));
                     diagnostics
                 })
@@ -410,6 +427,55 @@ fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>) {
             break;
         }
     }
+}
+
+fn lint_with_preprocessor(
+    path: &Path,
+    raw: &str,
+    preprocessed: Option<&PreprocessedAnalysis>,
+    config: &rsvelte_lint::LintConfig,
+    warnings: &CompilerWarnings,
+) -> Vec<Diagnostic> {
+    let mut diagnostics = crate::lint::lint(path, raw, config)
+        .iter()
+        .filter_map(|diagnostic| {
+            let compiler = diagnostic
+                .code
+                .as_deref()
+                .is_some_and(crate::diagnostics::is_compiler_code);
+            if compiler && preprocessed.is_some() {
+                return None;
+            }
+            let diagnostic = crate::diagnostics::to_lsp(diagnostic, warnings)?;
+            (!compiler || crate::diagnostics::keep_raw_compiler_diagnostic(&diagnostic, raw))
+                .then_some(diagnostic)
+        })
+        .collect::<Vec<_>>();
+    let Some(preprocessed) = preprocessed else {
+        return diagnostics;
+    };
+    let processed_diagnostics = crate::lint::lint(path, &preprocessed.text, config);
+    let mapped = processed_diagnostics
+        .into_iter()
+        .filter(|diagnostic| {
+            diagnostic
+                .code
+                .as_deref()
+                .is_some_and(crate::diagnostics::is_compiler_code)
+        })
+        .filter_map(|diagnostic| crate::diagnostics::to_lsp(&diagnostic, warnings))
+        .filter_map(|diagnostic| {
+            if preprocessed.identity {
+                Some(diagnostic)
+            } else {
+                crate::diagnostics::map_preprocessed_diagnostic(
+                    diagnostic,
+                    preprocessed.map.as_deref()?,
+                )
+            }
+        });
+    diagnostics.extend(mapped);
+    diagnostics
 }
 
 fn file_references(

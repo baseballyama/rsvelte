@@ -61,7 +61,14 @@ if (override) {
 	}
 }
 
-const result = spawnSync(command, args, { stdio: 'inherit', windowsHide: true });
+const result = spawnSync(command, args, {
+	stdio: 'inherit',
+	windowsHide: true,
+	env: {
+		...process.env,
+		RSVELTE_PREPROCESS_NODE: process.env.RSVELTE_PREPROCESS_NODE ?? process.execPath,
+	},
+});
 
 if (result.error) {
 	console.error(

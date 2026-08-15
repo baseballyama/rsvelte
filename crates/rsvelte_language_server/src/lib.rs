@@ -28,6 +28,7 @@ pub mod lint;
 pub mod log;
 pub mod modifiers;
 pub mod nodes;
+pub mod preprocess_sidecar;
 pub mod selection_ranges;
 pub mod server;
 pub mod settings;

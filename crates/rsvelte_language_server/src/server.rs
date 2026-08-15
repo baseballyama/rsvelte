@@ -1,10 +1,11 @@
 //! The LSP message loop.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
@@ -37,6 +38,10 @@ use crate::client::ClientState;
 use crate::completions::TRIGGER_CHARACTERS;
 use crate::document::{Document, DocumentStore};
 use crate::log;
+use crate::preprocess_sidecar::{
+    PreprocessEvent, PreprocessInput, PreprocessSidecar, PreprocessSidecarConfig,
+    find_preprocess_config,
+};
 use crate::settings::Settings;
 use crate::tsgo_client::{OpenBuffer, TsgoClient, TsgoConfig, TsgoEvent};
 use crate::tsgo_code_actions::{
@@ -62,8 +67,8 @@ use crate::tsgo_rename::{
     rewrite_prepare_response, rewrite_workspace_edit,
 };
 use crate::tsgo_response::{RequestDocumentContext, TsgoResponseMapper};
-use crate::uri::uri_to_path;
-use crate::worker::{FileReferenceSource, Job, Outcome, Worker};
+use crate::uri::{path_to_uri, uri_to_path};
+use crate::worker::{FileReferenceSource, Job, Outcome, PreprocessedAnalysis, Worker};
 
 pub const SERVER_NAME: &str = "rsvelte-language-server";
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -347,6 +352,7 @@ struct PendingCodeLensResolve {
 enum Outgoing {
     Configuration,
     WatchedFilesRegistration,
+    DiagnosticRefresh,
     Tsgo { child_id: RequestId },
 }
 
@@ -354,6 +360,18 @@ struct TsgoRuntime {
     client: TsgoClient,
     overlays: Vec<TsgoOverlay>,
     generation: Option<u64>,
+}
+
+struct PreprocessRuntime {
+    client: PreprocessSidecar,
+    generation: Option<u64>,
+}
+
+struct PreprocessDocumentState {
+    version: i32,
+    text: Arc<String>,
+    map: Option<Arc<String>>,
+    identity: bool,
 }
 
 impl TsgoRuntime {
@@ -441,6 +459,14 @@ impl TsgoRuntime {
             .max_by_key(|overlay| overlay.workspace().components().count())
     }
 
+    fn overlay_for_source(&self, source: &Path) -> Option<&TsgoOverlay> {
+        let source = fs::canonicalize(source).unwrap_or_else(|_| source.to_path_buf());
+        self.overlays
+            .iter()
+            .filter(|overlay| source.starts_with(overlay.workspace()))
+            .max_by_key(|overlay| overlay.workspace().components().count())
+    }
+
     fn completion_document_context(
         &self,
         params: &serde_json::Value,
@@ -490,6 +516,13 @@ struct Server {
     outgoing: HashMap<RequestId, Outgoing>,
     next_request_id: u32,
     tsgo: Option<TsgoRuntime>,
+    preprocess: Option<PreprocessRuntime>,
+    preprocess_events: Receiver<PreprocessEvent>,
+    preprocess_event_sender: Sender<PreprocessEvent>,
+    preprocess_failures: HashMap<PathBuf, (i32, String)>,
+    preprocess_documents: HashMap<PathBuf, PreprocessDocumentState>,
+    preprocess_dependencies: HashMap<PathBuf, HashSet<PathBuf>>,
+    watched_preprocess_directories: HashSet<PathBuf>,
     initialize_params: serde_json::Value,
     shutdown_requested: bool,
     exiting: bool,
@@ -504,6 +537,7 @@ impl Server {
         tsgo: Option<TsgoRuntime>,
         initialize_params: serde_json::Value,
     ) -> Self {
+        let (preprocess_event_sender, preprocess_events) = unbounded();
         Self {
             sender,
             client,
@@ -525,6 +559,13 @@ impl Server {
             outgoing: HashMap::new(),
             next_request_id: 0,
             tsgo,
+            preprocess: None,
+            preprocess_events,
+            preprocess_event_sender,
+            preprocess_failures: HashMap::new(),
+            preprocess_documents: HashMap::new(),
+            preprocess_dependencies: HashMap::new(),
+            watched_preprocess_directories: HashSet::new(),
             initialize_params,
             shutdown_requested: false,
             exiting: false,
@@ -534,12 +575,15 @@ impl Server {
     fn run(&mut self, connection: &Connection) -> Result<ExitCode> {
         if self.client.pull_configuration {
             self.request_configuration();
+        } else {
+            self.ensure_preprocess_runtime();
         }
         if self.client.dynamic_watched_files {
             self.register_watched_files();
         }
         // Cloned out of `self` so the handlers below can still borrow it.
         let outcomes = self.outcomes.clone();
+        let preprocess_events = self.preprocess_events.clone();
         let tsgo_events = self
             .tsgo
             .as_ref()
@@ -566,6 +610,10 @@ impl Server {
                 recv(tsgo_events) -> event => match event {
                     Ok(event) => self.on_tsgo_event(event),
                     Err(_) => self.tsgo = None,
+                },
+                recv(preprocess_events) -> event => match event {
+                    Ok(event) => self.on_preprocess_event(event),
+                    Err(_) => self.preprocess = None,
                 },
                 recv(timer) -> _ => self.run_scheduled_lints(),
             }
@@ -693,6 +741,7 @@ impl Server {
             id,
             path: uri_to_path(uri.as_str()),
             text: document.shared_text(),
+            preprocessed: self.preprocessed_analysis(&uri_to_path(uri.as_str()), document.version),
             warnings: self.settings.compiler_warnings.clone(),
         });
     }
@@ -1500,6 +1549,7 @@ impl Server {
                         self.client
                             .update_workspace_folders(params.event.added, &params.event.removed);
                         self.ensure_tsgo_runtime();
+                        self.restart_preprocessing();
                         if let Some(runtime) = &self.tsgo {
                             let workspace_folders = self.client.workspace_folders.clone();
                             let root_uri = workspace_folders
@@ -1537,9 +1587,17 @@ impl Server {
                             .changes
                             .iter()
                             .any(|change| is_project_config(&change.uri));
-                        if project_changed {
+                        let dependency_changed = params.changes.iter().any(|change| {
+                            let path = uri_to_path(change.uri.as_str());
+                            let path = fs::canonicalize(&path).unwrap_or(path);
+                            self.preprocess_dependencies
+                                .values()
+                                .any(|dependencies| dependencies.contains(&path))
+                        });
+                        if project_changed || dependency_changed {
                             self.invalidate_project_config();
                             self.rebuild_tsgo_overlays();
+                            self.restart_preprocessing();
                         } else {
                             self.refresh_tsgo_overlays();
                         }
@@ -1558,7 +1616,8 @@ impl Server {
                         self.documents
                             .open(doc.uri, doc.language_id, doc.version, doc.text);
                         self.sync_tsgo_document(&key);
-                        if !self.client.pull_diagnostics {
+                        let preprocessing = self.queue_preprocess_document(&key);
+                        if !self.client.pull_diagnostics && !preprocessing {
                             self.schedule_lint(key, Duration::ZERO);
                         }
                     }
@@ -1569,13 +1628,16 @@ impl Server {
                 match serde_json::from_value::<DidChangeTextDocumentParams>(notification.params) {
                     Ok(params) => {
                         let key = params.text_document.uri.as_str().to_string();
+                        let mut changed = false;
                         if let Some(document) = self.documents.get_mut(&params.text_document.uri) {
                             document.apply(params.text_document.version, &params.content_changes);
-                            if !self.client.pull_diagnostics {
-                                self.schedule_lint(key.clone(), LINT_DEBOUNCE);
-                            }
+                            changed = true;
                         }
                         self.sync_tsgo_document(&key);
+                        let preprocessing = self.queue_preprocess_document(&key);
+                        if changed && !self.client.pull_diagnostics && !preprocessing {
+                            self.schedule_lint(key, LINT_DEBOUNCE);
+                        }
                     }
                     Err(err) => log::warn(format_args!("{method}: {err}")),
                 }
@@ -1889,6 +1951,7 @@ impl Server {
         let version = document.version;
         let text = document.text().to_string();
         let path = uri_to_path(uri.as_str());
+        let path = fs::canonicalize(&path).unwrap_or(path);
         let Some(runtime) = &mut self.tsgo else {
             return;
         };
@@ -1937,36 +2000,50 @@ impl Server {
         };
         let language_id = document.language_id.clone();
         let path = uri_to_path(uri.as_str());
-        let Some(runtime) = &mut self.tsgo else {
-            return;
-        };
+        let path = fs::canonicalize(&path).unwrap_or(path);
         if is_svelte_document(&language_id, &path) {
-            let Some(overlay) = runtime.overlay_for_source_mut(&path) else {
-                return;
-            };
-            let shadow_uri = overlay
-                .shadow_for_source(&path)
-                .map(|shadow| shadow.shadow_uri.clone());
-            match overlay.close(&path) {
-                Ok(Some(shadow)) => {
-                    let _ = runtime.client.change_buffer(OpenBuffer::new(
-                        shadow.shadow_uri,
-                        shadow.language_id,
-                        shadow.version,
-                        shadow.text,
-                    ));
-                }
-                Ok(None) => {
-                    if let Some(shadow_uri) = shadow_uri {
-                        let _ = runtime.client.close_buffer(shadow_uri);
+            let mut closed_source = None;
+            if let Some(runtime) = &mut self.tsgo
+                && let Some(overlay) = runtime.overlay_for_source_mut(&path)
+            {
+                let shadow_uri = overlay
+                    .shadow_for_source(&path)
+                    .map(|shadow| shadow.shadow_uri.clone());
+                match overlay.close(&path) {
+                    Ok(Some(shadow)) => {
+                        closed_source = overlay
+                            .source_text(&path)
+                            .map(|text| (shadow.version, text.to_string()));
+                        let _ = runtime.client.change_buffer(OpenBuffer::new(
+                            shadow.shadow_uri,
+                            shadow.language_id,
+                            shadow.version,
+                            shadow.text,
+                        ));
                     }
+                    Ok(None) => {
+                        if let Some(shadow_uri) = shadow_uri {
+                            let _ = runtime.client.close_buffer(shadow_uri);
+                        }
+                    }
+                    Err(error) => log::warn(format_args!(
+                        "could not close tsgo shadow for {}: {error}",
+                        path.display()
+                    )),
                 }
-                Err(error) => log::warn(format_args!(
-                    "could not close tsgo shadow for {}: {error}",
-                    path.display()
-                )),
+            }
+            self.preprocess_failures.remove(&path);
+            self.preprocess_documents.remove(&path);
+            self.preprocess_dependencies.remove(&path);
+            if let Some((version, text)) = closed_source {
+                let _ = self.queue_preprocess_path(path, version, text);
+            } else if let Some(runtime) = &self.preprocess {
+                let _ = runtime.client.remove(path);
             }
         } else if is_typescript_or_javascript(&language_id, &path) {
+            let Some(runtime) = &mut self.tsgo else {
+                return;
+            };
             let Some(overlay) = runtime.overlay_for_source_mut(&path) else {
                 return;
             };
@@ -2135,6 +2212,444 @@ impl Server {
         }
     }
 
+    fn ensure_preprocess_runtime(&mut self) {
+        if !self.client.is_trusted || !self.settings.preprocess_enable {
+            self.preprocess = None;
+            self.preprocess_failures.clear();
+            self.preprocess_documents.clear();
+            self.preprocess_dependencies.clear();
+            return;
+        }
+        if self.preprocess.is_some() {
+            return;
+        }
+        let inputs = self.preprocess_inputs();
+        if inputs.is_empty() {
+            return;
+        }
+        let client = match PreprocessSidecar::spawn(
+            PreprocessSidecarConfig::default(),
+            self.preprocess_event_sender.clone(),
+        ) {
+            Ok(client) => client,
+            Err(error) => {
+                log::warn(format_args!(
+                    "could not start preprocess supervisor: {error}"
+                ));
+                return;
+            }
+        };
+        for input in inputs {
+            let _ = client.preprocess(input);
+        }
+        self.preprocess = Some(PreprocessRuntime {
+            client,
+            generation: None,
+        });
+    }
+
+    fn preprocess_inputs(&self) -> Vec<PreprocessInput> {
+        let mut inputs = HashMap::<PathBuf, PreprocessInput>::new();
+        if let Some(runtime) = &self.tsgo {
+            for overlay in &runtime.overlays {
+                for shadow in overlay.eager_shadows() {
+                    let filename = uri_to_path(shadow.source_uri.as_str());
+                    if find_preprocess_config(&filename, overlay.workspace()).is_none() {
+                        continue;
+                    }
+                    let Some(text) = overlay.source_text(&filename) else {
+                        continue;
+                    };
+                    inputs.insert(
+                        filename.clone(),
+                        PreprocessInput {
+                            workspace: overlay.workspace().to_path_buf(),
+                            filename,
+                            version: shadow.version,
+                            text: text.to_string(),
+                        },
+                    );
+                }
+            }
+        }
+        for document in self.documents.iter() {
+            let filename = uri_to_path(document.uri.as_str());
+            let Some(workspace) = self.preprocess_workspace_for_path(&filename) else {
+                continue;
+            };
+            if find_preprocess_config(&filename, &workspace).is_none() {
+                continue;
+            }
+            inputs.insert(
+                filename.clone(),
+                PreprocessInput {
+                    workspace,
+                    filename,
+                    version: document.version,
+                    text: document.text().to_string(),
+                },
+            );
+        }
+        inputs.into_values().collect()
+    }
+
+    fn queue_preprocess_document(&mut self, key: &str) -> bool {
+        self.ensure_preprocess_runtime();
+        let Some(document) = self.documents.get_by_key(key) else {
+            return false;
+        };
+        let filename = uri_to_path(document.uri.as_str());
+        let filename = fs::canonicalize(&filename).unwrap_or(filename);
+        self.preprocess_failures.remove(&filename);
+        self.preprocess_documents.remove(&filename);
+        self.queue_preprocess_path(filename, document.version, document.text().to_string())
+    }
+
+    fn queue_preprocess_path(&mut self, filename: PathBuf, version: i32, text: String) -> bool {
+        let Some(workspace) = self.preprocess_workspace_for_path(&filename) else {
+            return false;
+        };
+        if find_preprocess_config(&filename, &workspace).is_none() {
+            if let Some(runtime) = &self.preprocess {
+                let _ = runtime.client.remove(filename);
+            }
+            return false;
+        }
+        if let Some(runtime) = &self.preprocess {
+            return runtime
+                .client
+                .preprocess(PreprocessInput {
+                    workspace,
+                    filename,
+                    version,
+                    text,
+                })
+                .is_ok();
+        }
+        false
+    }
+
+    fn preprocess_workspace_for_path(&self, path: &Path) -> Option<PathBuf> {
+        if let Some(runtime) = &self.tsgo
+            && let Some(overlay) = runtime
+                .overlays
+                .iter()
+                .filter(|overlay| path.starts_with(overlay.workspace()))
+                .max_by_key(|overlay| overlay.workspace().components().count())
+        {
+            return Some(overlay.workspace().to_path_buf());
+        }
+        self.client
+            .workspace_folders
+            .iter()
+            .map(|folder| uri_to_path(folder.uri.as_str()))
+            .chain(
+                self.client
+                    .root_uri
+                    .iter()
+                    .map(|root| uri_to_path(root.as_str())),
+            )
+            .filter(|workspace| path.starts_with(workspace))
+            .max_by_key(|workspace| workspace.components().count())
+    }
+
+    fn register_preprocess_dependencies(
+        &mut self,
+        filename: &Path,
+        config_path: Option<&Path>,
+        dependencies: &[PathBuf],
+    ) {
+        let base = config_path
+            .and_then(Path::parent)
+            .or_else(|| filename.parent())
+            .unwrap_or(Path::new("."));
+        let dependencies = dependencies
+            .iter()
+            .map(|dependency| {
+                let dependency = if dependency.is_absolute() {
+                    dependency.clone()
+                } else {
+                    base.join(dependency)
+                };
+                fs::canonicalize(&dependency).unwrap_or(dependency)
+            })
+            .collect::<HashSet<_>>();
+        self.preprocess_dependencies
+            .insert(filename.to_path_buf(), dependencies.clone());
+        if !self.client.dynamic_watched_files {
+            return;
+        }
+        let candidate_directories = dependencies
+            .into_iter()
+            .filter_map(|dependency| {
+                self.preprocess_workspace_for_path(&dependency)?;
+                dependency.parent().map(Path::to_path_buf)
+            })
+            .collect::<Vec<_>>();
+        let watch_directories = candidate_directories
+            .into_iter()
+            .filter(|directory| {
+                self.watched_preprocess_directories
+                    .insert(directory.clone())
+            })
+            .collect::<Vec<_>>();
+        let watchers = watch_directories
+            .into_iter()
+            .filter_map(|directory| {
+                let base_uri = path_to_uri(&directory)?;
+                Some(serde_json::json!({
+                    "globPattern": {
+                        "baseUri": base_uri,
+                        "pattern": "*",
+                    }
+                }))
+            })
+            .collect::<Vec<_>>();
+        if watchers.is_empty() {
+            return;
+        }
+        self.next_request_id += 1;
+        let id = RequestId::from(format!(
+            "rsvelte-preprocess-dependencies-{}",
+            self.next_request_id
+        ));
+        self.outgoing
+            .insert(id.clone(), Outgoing::WatchedFilesRegistration);
+        self.send(Request::new(
+            id,
+            "client/registerCapability".to_string(),
+            serde_json::json!({
+                "registrations": [{
+                    "id": format!("rsvelte-preprocess-dependencies-{}", self.next_request_id),
+                    "method": "workspace/didChangeWatchedFiles",
+                    "registerOptions": { "watchers": watchers },
+                }],
+            }),
+        ));
+    }
+
+    fn restart_preprocessing(&mut self) {
+        self.preprocess_failures.clear();
+        self.preprocess_documents.clear();
+        self.preprocess_dependencies.clear();
+        self.preprocess = None;
+        self.ensure_preprocess_runtime();
+    }
+
+    fn on_preprocess_event(&mut self, event: PreprocessEvent) {
+        match event {
+            PreprocessEvent::Ready { generation } => {
+                if let Some(runtime) = &mut self.preprocess {
+                    runtime.generation = Some(generation);
+                }
+            }
+            PreprocessEvent::Result(output) => {
+                if self
+                    .preprocess
+                    .as_ref()
+                    .and_then(|runtime| runtime.generation)
+                    != Some(output.generation)
+                {
+                    return;
+                }
+                let filename = fs::canonicalize(&output.filename).unwrap_or(output.filename);
+                let original = self
+                    .documents
+                    .iter()
+                    .find(|document| {
+                        let path = uri_to_path(document.uri.as_str());
+                        fs::canonicalize(&path).unwrap_or(path) == filename
+                    })
+                    .filter(|document| document.version == output.version)
+                    .map(|document| document.text().to_string())
+                    .or_else(|| {
+                        self.tsgo.as_ref().and_then(|runtime| {
+                            let overlay = runtime.overlay_for_source(&filename)?;
+                            overlay
+                                .shadow_for_source(&filename)
+                                .filter(|shadow| shadow.version == output.version)
+                                .and_then(|_| overlay.source_text(&filename).map(str::to_string))
+                        })
+                    });
+                let Some(original) = original else {
+                    return;
+                };
+                self.preprocess_failures.remove(&filename);
+                if output.has_preprocessor {
+                    self.preprocess_documents.insert(
+                        filename.clone(),
+                        PreprocessDocumentState {
+                            version: output.version,
+                            text: Arc::new(output.code.clone()),
+                            map: output.map.clone().map(Arc::new),
+                            identity: original == output.code,
+                        },
+                    );
+                } else {
+                    self.preprocess_documents.remove(&filename);
+                }
+                self.register_preprocess_dependencies(
+                    &filename,
+                    output.config_path.as_deref(),
+                    &output.dependencies,
+                );
+                let mut projection_error = None;
+                if let Some(runtime) = &mut self.tsgo
+                    && let Some(overlay) = runtime.overlay_for_source_mut(&filename)
+                {
+                    match overlay.open_or_update_preprocessed(
+                        &filename,
+                        &original,
+                        &output.code,
+                        output.map.as_deref(),
+                        output.version,
+                    ) {
+                        Ok(shadow) => {
+                            let _ = runtime.client.change_buffer(OpenBuffer::new(
+                                shadow.shadow_uri,
+                                shadow.language_id,
+                                shadow.version,
+                                shadow.text,
+                            ));
+                        }
+                        Err(error) => projection_error = Some(error.to_string()),
+                    }
+                }
+                let open_key = self
+                    .documents
+                    .iter()
+                    .find(|document| {
+                        let path = uri_to_path(document.uri.as_str());
+                        fs::canonicalize(&path).unwrap_or(path) == filename
+                            && document.version == output.version
+                    })
+                    .map(|document| document.uri.as_str().to_string());
+                if let Some(error) = projection_error {
+                    let message = format!("could not project preprocessed document: {error}");
+                    log::warn(format_args!("{}: {message}", filename.display()));
+                    self.preprocess_documents.remove(&filename);
+                    self.preprocess_failures
+                        .insert(filename, (output.version, message));
+                    if let Some(key) = open_key {
+                        self.refresh_document_diagnostics(key);
+                    }
+                    return;
+                }
+                if let Some(key) = open_key {
+                    self.refresh_document_diagnostics(key);
+                }
+            }
+            PreprocessEvent::Failed {
+                generation,
+                filename,
+                version,
+                message,
+            } => {
+                if self
+                    .preprocess
+                    .as_ref()
+                    .and_then(|runtime| runtime.generation)
+                    != Some(generation)
+                {
+                    return;
+                }
+                log::warn(format_args!("preprocessing failed: {message}"));
+                if let (Some(filename), Some(version)) = (filename, version) {
+                    let filename = fs::canonicalize(&filename).unwrap_or(filename);
+                    self.preprocess_failures
+                        .insert(filename.clone(), (version, message));
+                    self.preprocess_documents.remove(&filename);
+                    self.preprocess_dependencies.remove(&filename);
+                    if let Some(runtime) = &mut self.tsgo
+                        && let Some(overlay) = runtime.overlay_for_source_mut(&filename)
+                        && let Some(original) = self
+                            .documents
+                            .iter()
+                            .find(|document| {
+                                let path = uri_to_path(document.uri.as_str());
+                                fs::canonicalize(&path).unwrap_or(path) == filename
+                                    && document.version == version
+                            })
+                            .map(|document| document.text().to_string())
+                            .or_else(|| overlay.source_text(&filename).map(str::to_string))
+                    {
+                        match overlay.open_or_update(&filename, &original, version) {
+                            Ok(shadow) => {
+                                let _ = runtime.client.change_buffer(OpenBuffer::new(
+                                    shadow.shadow_uri,
+                                    shadow.language_id,
+                                    shadow.version,
+                                    shadow.text,
+                                ));
+                            }
+                            Err(error) => log::warn(format_args!(
+                                "could not restore raw shadow for {}: {error}",
+                                filename.display()
+                            )),
+                        }
+                    }
+                    let open_key = self
+                        .documents
+                        .iter()
+                        .find(|document| {
+                            let path = uri_to_path(document.uri.as_str());
+                            fs::canonicalize(&path).unwrap_or(path) == filename
+                                && document.version == version
+                        })
+                        .map(|document| document.uri.as_str().to_string());
+                    if let Some(key) = open_key {
+                        self.refresh_document_diagnostics(key);
+                    }
+                }
+            }
+            PreprocessEvent::Crashed {
+                generation,
+                status,
+                error,
+            } => {
+                if let Some(runtime) = &mut self.preprocess
+                    && runtime.generation == Some(generation)
+                {
+                    runtime.generation = None;
+                }
+                log::warn(format_args!(
+                    "preprocess sidecar crashed ({status:?}): {error}"
+                ));
+            }
+            PreprocessEvent::CircuitOpen {
+                generation,
+                crashes,
+                error,
+            } => {
+                if let Some(runtime) = &mut self.preprocess
+                    && runtime.generation == Some(generation)
+                {
+                    runtime.generation = None;
+                }
+                log::warn(format_args!(
+                    "preprocess sidecar restart circuit opened after {crashes} crashes: {error}"
+                ));
+                for input in self.preprocess_inputs() {
+                    self.preprocess_documents.remove(&input.filename);
+                    self.preprocess_failures
+                        .insert(input.filename.clone(), (input.version, error.clone()));
+                    let open_key = self
+                        .documents
+                        .iter()
+                        .find(|document| {
+                            let path = uri_to_path(document.uri.as_str());
+                            fs::canonicalize(&path).unwrap_or(path) == input.filename
+                                && document.version == input.version
+                        })
+                        .map(|document| document.uri.as_str().to_string());
+                    if let Some(key) = open_key {
+                        self.refresh_document_diagnostics(key);
+                    }
+                }
+            }
+        }
+    }
+
     fn on_response(&mut self, mut response: Response) {
         let Some(outgoing) = self.outgoing.remove(&response.id) else {
             log::warn(format_args!("response to unknown request {}", response.id));
@@ -2142,6 +2657,7 @@ impl Server {
         };
         match outgoing {
             Outgoing::Configuration => {
+                let preprocessing_was_enabled = self.settings.preprocess_enable;
                 self.settings = match response.response_result {
                     Ok(value) => {
                         let items = value.as_array();
@@ -2184,11 +2700,21 @@ impl Server {
                 {
                     log::warn(format_args!("could not update tsgo settings: {error}"));
                 }
+                if preprocessing_was_enabled && !self.settings.preprocess_enable {
+                    self.preprocess = None;
+                    self.preprocess_failures.clear();
+                    self.preprocess_documents.clear();
+                    self.preprocess_dependencies.clear();
+                    self.rebuild_tsgo_overlays();
+                } else {
+                    self.ensure_preprocess_runtime();
+                }
                 if !self.client.pull_diagnostics {
                     self.relint_open_documents();
                 }
             }
             Outgoing::WatchedFilesRegistration => {}
+            Outgoing::DiagnosticRefresh => {}
             Outgoing::Tsgo { child_id } => {
                 response.id = child_id;
                 if let Some(runtime) = &self.tsgo {
@@ -2901,10 +3427,22 @@ impl Server {
                     );
                 }
             }
-            Outcome::PulledDiagnostics { id, diagnostics } => {
+            Outcome::PulledDiagnostics {
+                id,
+                mut diagnostics,
+            } => {
                 if let Some(Pending::DocumentDiagnostic { tsgo_fallback }) =
                     self.pending.remove(&id)
                 {
+                    if let Some(uri) = text_document_request_uri(&tsgo_fallback)
+                        && let Some((_, message)) = {
+                            let path = uri_to_path(uri.as_str());
+                            let path = fs::canonicalize(&path).unwrap_or(path);
+                            self.preprocess_failures.get(&path)
+                        }
+                    {
+                        diagnostics.push(crate::diagnostics::preprocess_failure(message));
+                    }
                     self.forward_tsgo_request_with_fallback(
                         tsgo_fallback,
                         serde_json::to_value(diagnostic_report(diagnostics)).ok(),
@@ -2920,9 +3458,17 @@ impl Server {
                 key,
                 uri,
                 version,
-                diagnostics,
+                mut diagnostics,
             } => {
                 if self.documents.get_by_key(&key).is_some() {
+                    if let Some((failed_version, message)) = {
+                        let path = uri_to_path(uri.as_str());
+                        let path = fs::canonicalize(&path).unwrap_or(path);
+                        self.preprocess_failures.get(&path)
+                    } && *failed_version == version
+                    {
+                        diagnostics.push(crate::diagnostics::preprocess_failure(message));
+                    }
                     self.pull_and_publish_tsgo_diagnostics(uri, version, diagnostics);
                 }
             }
@@ -2978,6 +3524,34 @@ impl Server {
 
     fn schedule_lint(&mut self, key: String, delay: Duration) {
         self.scheduled.insert(key, Instant::now() + delay);
+    }
+
+    fn refresh_document_diagnostics(&mut self, key: String) {
+        self.linted.remove(&key);
+        if !self.client.pull_diagnostics {
+            self.schedule_lint(key, Duration::ZERO);
+            return;
+        }
+        if !self.client.diagnostic_refresh
+            || self
+                .outgoing
+                .values()
+                .any(|outgoing| matches!(outgoing, Outgoing::DiagnosticRefresh))
+        {
+            return;
+        }
+        self.next_request_id += 1;
+        let id = RequestId::from(format!(
+            "rsvelte-diagnostic-refresh-{}",
+            self.next_request_id
+        ));
+        self.outgoing
+            .insert(id.clone(), Outgoing::DiagnosticRefresh);
+        self.send(Request::new(
+            id,
+            "workspace/diagnostic/refresh".to_string(),
+            serde_json::Value::Null,
+        ));
     }
 
     /// Re-lint everything after the settings changed — the results may differ
@@ -3040,8 +3614,22 @@ impl Server {
             version,
             path: uri_to_path(key),
             text: document.shared_text(),
+            preprocessed: self.preprocessed_analysis(&uri_to_path(key), version),
             warnings: self.settings.compiler_warnings.clone(),
         });
+    }
+
+    fn preprocessed_analysis(&self, path: &Path, version: i32) -> Option<PreprocessedAnalysis> {
+        let path = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        let state = self.preprocess_documents.get(&path)?;
+        if state.version != version {
+            return None;
+        }
+        Some(PreprocessedAnalysis {
+            text: Arc::clone(&state.text),
+            map: state.map.as_ref().map(Arc::clone),
+            identity: state.identity,
+        })
     }
 
     fn publish(&self, uri: Uri, version: i32, diagnostics: Vec<lsp_types::Diagnostic>) {
@@ -3144,6 +3732,14 @@ fn custom_request_uri(params: &serde_json::Value) -> Option<Uri> {
         .or_else(|| params.get("uri").and_then(serde_json::Value::as_str))?
         .parse()
         .ok()
+}
+
+fn text_document_request_uri(request: &Request) -> Option<Uri> {
+    request
+        .params
+        .pointer("/textDocument/uri")
+        .cloned()
+        .and_then(|uri| serde_json::from_value(uri).ok())
 }
 
 /// Svelte components plus the `.svelte.js` / `.svelte.ts` module dialect.

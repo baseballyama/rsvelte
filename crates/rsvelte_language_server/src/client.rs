@@ -30,12 +30,16 @@ pub struct ClientState {
     pub hierarchical_document_symbols: bool,
     /// Whether the client supports LSP 3.17 pull diagnostics.
     pub pull_diagnostics: bool,
+    /// Whether the client accepts `workspace/diagnostic/refresh` requests.
+    pub diagnostic_refresh: bool,
     /// Whether the client accepts dynamic watched-file registrations.
     pub dynamic_watched_files: bool,
     /// Semantic token types the client advertised, in client order.
     pub semantic_token_types: Vec<String>,
     /// Semantic token modifiers the client advertised, in client order.
     pub semantic_token_modifiers: Vec<String>,
+    /// Whether project JavaScript such as `svelte.config.js` may be executed.
+    pub is_trusted: bool,
 }
 
 impl ClientState {
@@ -59,6 +63,7 @@ impl ClientState {
             pull_diagnostics: params
                 .pointer("/capabilities/textDocument/diagnostic")
                 .is_some(),
+            diagnostic_refresh: flag(params, "/capabilities/workspace/diagnostics/refreshSupport"),
             dynamic_watched_files: flag(
                 params,
                 "/capabilities/workspace/didChangeWatchedFiles/dynamicRegistration",
@@ -71,6 +76,10 @@ impl ClientState {
                 params.pointer("/capabilities/textDocument/semanticTokens/tokenModifiers"),
             )
             .unwrap_or_default(),
+            is_trusted: params
+                .pointer("/initializationOptions/isTrusted")
+                .and_then(Value::as_bool)
+                .unwrap_or(true),
         }
     }
 
@@ -117,10 +126,12 @@ mod tests {
             "rootUri": "file:///home/u/app",
             "workspaceFolders": [{ "uri": "file:///home/u/app", "name": "app" }],
             "clientInfo": { "name": "Visual Studio Code", "version": "1.99.0" },
+            "initializationOptions": { "isTrusted": false },
             "capabilities": {
                 "workspace": {
                     "configuration": true,
                     "didChangeWatchedFiles": { "dynamicRegistration": true },
+                    "diagnostics": { "refreshSupport": true },
                 },
                 "general": { "positionEncodings": ["utf-16"] },
                 "textDocument": {
@@ -147,9 +158,11 @@ mod tests {
         assert!(state.line_folding_only);
         assert!(state.hierarchical_document_symbols);
         assert!(!state.pull_diagnostics);
+        assert!(state.diagnostic_refresh);
         assert!(state.dynamic_watched_files);
         assert_eq!(state.semantic_token_types, ["namespace", "class"]);
         assert_eq!(state.semantic_token_modifiers, ["declaration", "readonly"]);
+        assert!(!state.is_trusted);
     }
 
     #[test]
@@ -160,7 +173,9 @@ mod tests {
         assert!(!state.line_folding_only);
         assert!(!state.hierarchical_document_symbols);
         assert!(!state.pull_diagnostics);
+        assert!(!state.diagnostic_refresh);
         assert!(!state.dynamic_watched_files);
+        assert!(state.is_trusted);
     }
 
     #[test]

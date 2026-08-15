@@ -216,6 +216,7 @@ function createClient(
   const clientOptions: LanguageClientOptions = {
     documentSelector: DOCUMENT_SELECTOR,
     outputChannel: channel,
+    initializationOptions: { isTrusted: workspace.isTrusted },
     synchronize: {
       // Forward `rsvelte.*` configuration changes to the server.
       configurationSection: "rsvelte",
@@ -545,6 +546,7 @@ export function activate(context: ExtensionContext): void {
         void client.setTrace(traceFromConfig());
       }
     }),
+    workspace.onDidGrantWorkspaceTrust(() => restartLanguageServer()),
   );
 }
 

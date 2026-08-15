@@ -347,6 +347,71 @@ fn initialized_server() -> Server {
     server
 }
 
+fn workspace_server(root: &Path, is_trusted: bool) -> Server {
+    let mut server = Server::start();
+    let id = server.request(
+        "initialize",
+        json!({
+            "processId": Value::Null,
+            "rootUri": file_uri(root),
+            "initializationOptions": { "isTrusted": is_trusted },
+            "capabilities": { "workspace": { "configuration": true } },
+        }),
+    );
+    server.response(id);
+    server.notify("initialized", json!({}));
+    server.settle_configuration();
+    server
+}
+
+fn write_preprocess_fixture(root: &Path, marker: &Path) {
+    let package = root.join("node_modules/svelte");
+    std::fs::create_dir_all(&package).unwrap();
+    std::fs::write(
+        package.join("package.json"),
+        r#"{"name":"svelte","type":"module","exports":{"./compiler":"./compiler.js"}}"#,
+    )
+    .unwrap();
+    std::fs::write(
+        package.join("compiler.js"),
+        r#"
+export async function preprocess(source, configured, options) {
+  const group = Array.isArray(configured) ? configured[0] : configured;
+  const result = await group.markup({ content: source, filename: options?.filename });
+  return { code: result.code, map: result.map, dependencies: result.dependencies ?? [] };
+}
+"#,
+    )
+    .unwrap();
+    let marker = serde_json::to_string(&marker.to_string_lossy()).unwrap();
+    std::fs::write(
+        root.join("svelte.config.mjs"),
+        format!(
+            r#"
+import {{ writeFileSync }} from 'node:fs';
+writeFileSync({marker}, 'executed');
+export default {{
+  preprocess: {{
+    markup({{ content }}) {{
+      return {{
+        code: '<img>',
+        map: {{
+          version: 3,
+          sources: ['App.svelte'],
+          names: [],
+          mappings: 'AAAA',
+          sourcesContent: [content]
+        }}
+      }};
+    }}
+  }}
+}};
+"#
+        ),
+    )
+    .unwrap();
+}
+
 /// The same, with `textDocument` capabilities of the client's choosing, and the
 /// capabilities the server answered with.
 fn server_with(text_document: Value) -> (Server, Value) {
@@ -589,6 +654,94 @@ fn serves_pull_diagnostics_without_push_notifications() {
     let report = server.pull_diagnostics(&uri);
     assert_eq!(report["kind"], json!("full"));
     assert_eq!(report["items"], json!(expected));
+    assert_eq!(server.shutdown(), Some(0));
+}
+
+#[test]
+fn preprocessing_runs_only_in_trusted_workspaces_and_maps_diagnostics() {
+    if Command::new("node").arg("--version").output().is_err() {
+        return;
+    }
+    let root = temp_dir("preprocess-trusted");
+    let marker = root.join("config-executed");
+    write_preprocess_fixture(&root, &marker);
+    let path = root.join("App.svelte");
+    let uri = file_uri(&path);
+    let raw = r#"<template lang="pug">p image</template>"#;
+
+    let mut server = workspace_server(&root, true);
+    did_open(&mut server, &uri, raw);
+    let diagnostics = server.diagnostics_matching(&uri, |diagnostics| {
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic["code"] == "a11y_missing_attribute")
+    });
+    let warning = diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic["code"] == "a11y_missing_attribute")
+        .unwrap();
+    assert_eq!(
+        warning["range"]["start"],
+        json!({ "line": 0, "character": 0 })
+    );
+    assert!(marker.is_file());
+    assert_eq!(server.shutdown(), Some(0));
+
+    let root = temp_dir("preprocess-untrusted");
+    let marker = root.join("config-executed");
+    write_preprocess_fixture(&root, &marker);
+    let path = root.join("App.svelte");
+    let uri = file_uri(&path);
+    let mut server = workspace_server(&root, false);
+    did_open(&mut server, &uri, raw);
+    let _ = server.diagnostics(&uri);
+    assert!(!marker.exists(), "untrusted config was executed");
+    assert_eq!(server.shutdown(), Some(0));
+}
+
+#[test]
+fn preprocessing_failure_keeps_raw_language_features_available() {
+    if Command::new("node").arg("--version").output().is_err() {
+        return;
+    }
+    let root = temp_dir("preprocess-failure");
+    let marker = root.join("config-executed");
+    write_preprocess_fixture(&root, &marker);
+    std::fs::write(
+        root.join("svelte.config.mjs"),
+        r#"
+export default {
+  preprocess: {
+    markup() { throw new Error('fixture preprocessing failure'); }
+  }
+};
+"#,
+    )
+    .unwrap();
+    let path = root.join("App.svelte");
+    let uri = file_uri(&path);
+    let source = "<style>.x { color: #ffffff; }</style>\n<div>\n  <\n</div>\n";
+    let mut server = workspace_server(&root, true);
+    did_open(&mut server, &uri, source);
+    let diagnostics = server.diagnostics_matching(&uri, |diagnostics| {
+        diagnostics.iter().any(|diagnostic| {
+            diagnostic["message"]
+                .as_str()
+                .is_some_and(|message| message.contains("fixture preprocessing failure"))
+        })
+    });
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic["message"]
+            .as_str()
+            .is_some_and(|message| message.starts_with("Preprocessing failed"))
+    }));
+    assert!(!server.completion(&uri, 2, 3).is_empty());
+    assert!(!server.folding_ranges(&uri).is_empty());
+    let id = server.request(
+        "textDocument/documentColor",
+        json!({ "textDocument": { "uri": uri } }),
+    );
+    assert_eq!(server.response(id).as_array().map(Vec::len), Some(1));
     assert_eq!(server.shutdown(), Some(0));
 }
 

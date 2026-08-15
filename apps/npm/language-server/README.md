@@ -26,6 +26,12 @@ symbols, code actions, code lenses and pull diagnostics through tsgo. Svelte
 components use eagerly opened, diskless `.svelte.tsx` shadows; plain `.ts` and
 `.js` documents share the same project.
 
+In trusted workspaces, the server loads the nearest `svelte.config.*` through a
+supervised Node sidecar and applies its preprocessors before generating the
+TypeScript shadow. Preprocessor source maps keep diagnostics and TypeScript
+locations in original-source coordinates. Config files are never executed in
+an untrusted workspace.
+
 Install TypeScript 7 in the workspace, or set `TSGO_BIN` to its executable:
 
 ```sh
@@ -47,6 +53,7 @@ The server reads these from the client's `rsvelte.*` configuration:
 | --- | --- | --- |
 | `rsvelte.format.enable` | `true` | Enable formatting via `rsvelte-fmt`. |
 | `rsvelte.lint.enable` | `true` | Enable linting via the bundled engine. |
+| `rsvelte.preprocess.enable` | `true` | Apply preprocessors from `svelte.config.*` in trusted workspaces. |
 | `rsvelte.rsvelteFmtPath` | `""` | Explicit path to a `rsvelte-fmt` binary (overrides resolution). |
 
 ## Lint configuration

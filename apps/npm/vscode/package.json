@@ -256,6 +256,11 @@
           "default": true,
           "description": "Enable linting via the bundled rsvelte_lint engine."
         },
+        "rsvelte.preprocess.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "In trusted workspaces, load svelte.config.* and run project preprocessors for editor features. Disable to prevent starting the Node sidecar."
+        },
         "rsvelte.rsvelteFmtPath": {
           "type": "string",
           "default": "",

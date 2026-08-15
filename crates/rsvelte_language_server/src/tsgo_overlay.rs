@@ -18,7 +18,7 @@ use rsvelte_projection::{
     Svelte2TsxNamespace, Svelte2TsxOptions, SvelteVersion,
 };
 use serde_json::json;
-use sourcemap::SourceMap;
+use sourcemap::{SourceMap, SourceMapBuilder};
 
 use crate::text::LineIndex;
 
@@ -143,12 +143,42 @@ struct MappingToken {
     source: Option<(u32, u32)>,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct ReverseMappingToken {
+    source_line: u32,
+    source_column: u32,
+    generated_line: u32,
+    generated_column: u32,
+}
+
+#[derive(Debug, Default)]
+struct PreprocessMappings {
+    generated: Vec<MappingToken>,
+    original: Vec<ReverseMappingToken>,
+}
+
+/// Whether a Svelte projection used a user-preprocessed document.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PreprocessStatus {
+    /// Original and preprocessed texts are identical.
+    Identity,
+    /// Changed preprocessed text has a usable source map back to the original.
+    Mapped,
+    /// Changed preprocessed text has no source map and cannot be mapped safely.
+    Unmapped,
+}
+
 struct ShadowState {
     document: ShadowDocument,
     source_path: PathBuf,
     shadow_path: PathBuf,
     source_text: String,
     source_index: LineIndex,
+    preprocessed_text: Option<String>,
+    preprocessed_index: Option<LineIndex>,
+    preprocess_map: Option<String>,
+    preprocess_mappings: PreprocessMappings,
+    preprocess_status: PreprocessStatus,
     generated_index: LineIndex,
     exact_map: ProjectionMap,
     source_map: Option<String>,
@@ -254,21 +284,57 @@ impl TsgoOverlay {
         text: &str,
         version: i32,
     ) -> Result<ShadowDocument, TsgoOverlayError> {
+        self.open_or_update_preprocessed(source_path, text, text, None, version)
+    }
+
+    /// Generate or replace one virtual shadow from a preprocessed Svelte document.
+    ///
+    /// `preprocess_map` is a standard v3 map from `preprocessed_text` back to
+    /// `original_text`. Changed text without a map remains usable by tsgo, but
+    /// editor positions cannot be mapped safely.
+    pub fn open_or_update_preprocessed(
+        &mut self,
+        source_path: &Path,
+        original_text: &str,
+        preprocessed_text: &str,
+        preprocess_map: Option<&str>,
+        version: i32,
+    ) -> Result<ShadowDocument, TsgoOverlayError> {
         let source_path = self.confined_source(source_path)?;
         let shadow_path = self.shadow_path_for(&source_path)?;
         self.ensure_shadow_parent(&shadow_path)?;
 
-        let options = self.projection_options(&source_path, &shadow_path, text);
-        let artifact =
-            self.engine
-                .project(text, options)
-                .map_err(|error| TsgoOverlayError::Projection {
-                    path: source_path.clone(),
-                    message: error.to_string(),
-                })?;
-        let mut exact_map = artifact.exact_mappings.unwrap_or_default();
-        let source_map = artifact.source_map;
-        let mut tokens = parse_mapping_tokens(&source_path, source_map.as_deref())?;
+        let preprocess_status = if original_text == preprocessed_text {
+            PreprocessStatus::Identity
+        } else if preprocess_map.is_some() {
+            PreprocessStatus::Mapped
+        } else {
+            PreprocessStatus::Unmapped
+        };
+        let preprocess_mappings = if preprocess_status == PreprocessStatus::Mapped {
+            parse_preprocess_mappings(
+                &source_path,
+                preprocess_map.expect("mapped preprocessing has a map"),
+            )?
+        } else {
+            PreprocessMappings::default()
+        };
+
+        let options = self.projection_options(&source_path, &shadow_path, preprocessed_text);
+        let artifact = self
+            .engine
+            .project(preprocessed_text, options)
+            .map_err(|error| TsgoOverlayError::Projection {
+                path: source_path.clone(),
+                message: error.to_string(),
+            })?;
+        let mut exact_map = if preprocess_status == PreprocessStatus::Identity {
+            artifact.exact_mappings.unwrap_or_default()
+        } else {
+            ProjectionMap::default()
+        };
+        let projection_source_map = artifact.source_map;
+        let mut tokens = parse_mapping_tokens(&source_path, projection_source_map.as_deref())?;
         let original_generated = artifact.code;
         let original_index = LineIndex::new(&original_generated);
         let (generated_text, import_insertions) = rewrite_plain_svelte_imports(&original_generated);
@@ -294,6 +360,18 @@ impl TsgoOverlay {
         for (_, generated_range) in &import_insertions {
             exact_map.insert_generated(generated_range.start as u32, generated_range.len() as u32);
         }
+        let generated_index = LineIndex::new(&generated_text);
+        let source_map = compose_source_map(
+            &source_path,
+            original_text,
+            projection_source_map.as_deref(),
+            &tokens,
+            &preprocess_mappings,
+            preprocess_status,
+            &generated_text,
+            &generated_index,
+            &import_insertions,
+        )?;
         let document = ShadowDocument {
             source_uri: path_to_uri(&source_path)?,
             shadow_uri: path_to_uri(&shadow_path)?,
@@ -310,9 +388,16 @@ impl TsgoOverlay {
         let state = ShadowState {
             source_path: source_path.clone(),
             shadow_path: shadow_path.clone(),
-            source_text: text.to_string(),
-            source_index: LineIndex::new(text),
-            generated_index: LineIndex::new(&document.text),
+            source_text: original_text.to_string(),
+            source_index: LineIndex::new(original_text),
+            preprocessed_text: (preprocess_status != PreprocessStatus::Identity)
+                .then(|| preprocessed_text.to_string()),
+            preprocessed_index: (preprocess_status != PreprocessStatus::Identity)
+                .then(|| LineIndex::new(preprocessed_text)),
+            preprocess_map: preprocess_map.map(str::to_string),
+            preprocess_mappings,
+            preprocess_status,
+            generated_index,
             exact_map,
             source_map,
             tokens,
@@ -359,6 +444,11 @@ impl TsgoOverlay {
             shadow_path: shadow_path.clone(),
             source_text: text.to_string(),
             source_index: LineIndex::new(text),
+            preprocessed_text: None,
+            preprocessed_index: None,
+            preprocess_map: None,
+            preprocess_mappings: PreprocessMappings::default(),
+            preprocess_status: PreprocessStatus::Identity,
             generated_index: LineIndex::new(text),
             exact_map: ProjectionMap::default(),
             tokens: Vec::new(),
@@ -519,6 +609,34 @@ impl TsgoOverlay {
             .map(|entry| entry.source_text.as_str())
     }
 
+    /// Preprocessed Svelte text used as input to svelte2tsx.
+    #[must_use]
+    pub fn preprocessed_text(&self, source_path: &Path) -> Option<&str> {
+        let path = self.lookup_source_path(source_path);
+        self.entries.get(&path).map(|entry| {
+            entry
+                .preprocessed_text
+                .as_deref()
+                .unwrap_or(&entry.source_text)
+        })
+    }
+
+    /// Standard v3 source map supplied by the preprocessor.
+    #[must_use]
+    pub fn preprocess_map(&self, source_path: &Path) -> Option<&str> {
+        let path = self.lookup_source_path(source_path);
+        self.entries
+            .get(&path)
+            .and_then(|entry| entry.preprocess_map.as_deref())
+    }
+
+    /// Mapping status of the preprocessed Svelte input.
+    #[must_use]
+    pub fn preprocess_status(&self, source_path: &Path) -> Option<PreprocessStatus> {
+        let path = self.lookup_source_path(source_path);
+        self.entries.get(&path).map(|entry| entry.preprocess_status)
+    }
+
     /// Standard source map retained for rewritten-template position fallback.
     #[must_use]
     pub fn source_map(&self, source_path: &Path) -> Option<&str> {
@@ -546,14 +664,29 @@ impl TsgoOverlay {
             return Some(utf8_position(&entry.document.text, generated_offset));
         }
 
-        if let Some(generated) = exact_source_offset(&entry.exact_map, source_offset) {
+        if entry.preprocess_status == PreprocessStatus::Identity
+            && let Some(generated) = exact_source_offset(&entry.exact_map, source_offset)
+        {
             return Some(utf8_position(&entry.document.text, generated as usize));
         }
 
-        let source_position = entry
+        let original_position = entry
             .source_index
             .position(&entry.source_text, source_offset);
-        let token = closest_source_token(&entry.tokens, source_position)?;
+        let preprocessed_position = map_original_to_preprocessed(entry, original_position)?;
+        let preprocessed_text = entry
+            .preprocessed_text
+            .as_deref()
+            .unwrap_or(&entry.source_text);
+        let preprocessed_index = entry
+            .preprocessed_index
+            .as_ref()
+            .unwrap_or(&entry.source_index);
+        let preprocessed_position = preprocessed_index.position(
+            preprocessed_text,
+            preprocessed_index.offset(preprocessed_text, preprocessed_position),
+        );
+        let token = closest_source_token(&entry.tokens, preprocessed_position)?;
         let generated_offset = entry.generated_index.offset(
             &entry.document.text,
             Position::new(token.generated_line, token.generated_column),
@@ -608,7 +741,9 @@ impl TsgoOverlay {
             return None;
         }
 
-        if let Some(source) = exact_generated_offset(&entry.exact_map, generated_offset) {
+        if entry.preprocess_status == PreprocessStatus::Identity
+            && let Some(source) = exact_generated_offset(&entry.exact_map, generated_offset)
+        {
             return Some(
                 entry
                     .source_index
@@ -624,12 +759,13 @@ impl TsgoOverlay {
                 <= (generated_utf16.line, generated_utf16.character)
         });
         let previous = index.checked_sub(1).and_then(|i| entry.tokens.get(i))?;
-        if generated_is_unmapped_gap(&entry.tokens, index, generated_utf16) {
+        if previous.generated_line != generated_utf16.line
+            || generated_is_unmapped_gap(&entry.tokens, index, generated_utf16)
+        {
             return None;
         }
-        previous
-            .source
-            .map(|(line, column)| Position::new(line, column))
+        let (line, column) = previous.source?;
+        map_preprocessed_to_original(entry, Position::new(line, column))
     }
 
     /// Map a tsgo UTF-8 range back to the editor's UTF-16 source range.
@@ -1189,6 +1325,135 @@ fn parse_mapping_tokens(
     Ok(tokens)
 }
 
+fn parse_preprocess_mappings(
+    source_path: &Path,
+    raw: &str,
+) -> Result<PreprocessMappings, TsgoOverlayError> {
+    let map = SourceMap::from_slice(raw.as_bytes()).map_err(|error| {
+        TsgoOverlayError::InvalidSourceMap {
+            path: source_path.to_path_buf(),
+            message: error.to_string(),
+        }
+    })?;
+    let single_source = map.get_source_count() == 1;
+    let mut mappings = PreprocessMappings::default();
+    for token in map.tokens() {
+        let belongs_to_document = token
+            .get_source()
+            .is_some_and(|source| single_source || source_matches(source_path, source));
+        let source = belongs_to_document.then(|| (token.get_src_line(), token.get_src_col()));
+        mappings.generated.push(MappingToken {
+            generated_line: token.get_dst_line(),
+            generated_column: token.get_dst_col(),
+            source,
+        });
+        if let Some((source_line, source_column)) = source {
+            mappings.original.push(ReverseMappingToken {
+                source_line,
+                source_column,
+                generated_line: token.get_dst_line(),
+                generated_column: token.get_dst_col(),
+            });
+        }
+    }
+    mappings
+        .generated
+        .sort_by_key(|token| (token.generated_line, token.generated_column));
+    mappings.original.sort_by_key(|token| {
+        (
+            token.source_line,
+            token.source_column,
+            token.generated_line,
+            token.generated_column,
+        )
+    });
+    Ok(mappings)
+}
+
+fn source_matches(source_path: &Path, source: &str) -> bool {
+    let expected = source_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default();
+    source == source_path.to_string_lossy()
+        || source
+            .rsplit(['/', '\\'])
+            .next()
+            .is_some_and(|name| name == expected)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn compose_source_map(
+    source_path: &Path,
+    original_text: &str,
+    projection_source_map: Option<&str>,
+    projection_tokens: &[MappingToken],
+    preprocess_mappings: &PreprocessMappings,
+    preprocess_status: PreprocessStatus,
+    generated_text: &str,
+    generated_index: &LineIndex,
+    import_insertions: &[(usize, std::ops::Range<usize>)],
+) -> Result<Option<String>, TsgoOverlayError> {
+    if projection_source_map.is_none() || preprocess_status == PreprocessStatus::Unmapped {
+        return Ok(None);
+    }
+
+    let mut composed = projection_tokens
+        .iter()
+        .map(|token| {
+            let source = token.source.and_then(|(line, column)| {
+                let position = Position::new(line, column);
+                match preprocess_status {
+                    PreprocessStatus::Identity => Some(position),
+                    PreprocessStatus::Mapped => {
+                        map_generated_tokens(&preprocess_mappings.generated, position)
+                    }
+                    PreprocessStatus::Unmapped => None,
+                }
+            });
+            (token.generated_line, token.generated_column, source)
+        })
+        .collect::<Vec<_>>();
+    composed.extend(import_insertions.iter().map(|(_, range)| {
+        let position = generated_index.position(generated_text, range.start);
+        (position.line, position.character, None)
+    }));
+    composed.sort_by_key(|(line, column, source)| (*line, *column, source.is_some()));
+
+    let source_name = source_path.to_string_lossy();
+    let mut builder = SourceMapBuilder::new(None);
+    let source_id = builder.add_source(&source_name);
+    builder.set_source_contents(source_id, Some(original_text));
+    for (generated_line, generated_column, source) in composed {
+        let (source_line, source_column, source_name) = source.map_or((0, 0, None), |position| {
+            (
+                position.line,
+                position.character,
+                Some(source_name.as_ref()),
+            )
+        });
+        builder.add(
+            generated_line,
+            generated_column,
+            source_line,
+            source_column,
+            source_name,
+            None,
+            false,
+        );
+    }
+    let map = builder.into_sourcemap();
+    let mut encoded = Vec::new();
+    map.to_writer(&mut encoded)
+        .map_err(|error| TsgoOverlayError::InvalidSourceMap {
+            path: source_path.to_path_buf(),
+            message: error.to_string(),
+        })?;
+    Ok(Some(
+        String::from_utf8(encoded).expect("source-map JSON is UTF-8"),
+    ))
+}
+
 fn rewrite_plain_svelte_imports(source: &str) -> (String, Vec<(usize, std::ops::Range<usize>)>) {
     let bytes = source.as_bytes();
     let mut insertions = Vec::new();
@@ -1252,10 +1517,62 @@ fn closest_source_token(tokens: &[MappingToken], source: Position) -> Option<Map
         .iter()
         .filter_map(|token| {
             let (line, column) = token.source?;
-            (line == source.line).then_some((column.abs_diff(source.character), *token))
+            (line == source.line && column <= source.character)
+                .then(|| (source.character - column, *token))
         })
         .min_by_key(|(distance, token)| (*distance, token.generated_line, token.generated_column))
         .map(|(_, token)| token)
+}
+
+fn map_original_to_preprocessed(entry: &ShadowState, position: Position) -> Option<Position> {
+    match entry.preprocess_status {
+        PreprocessStatus::Identity => Some(position),
+        PreprocessStatus::Mapped => {
+            map_original_tokens(&entry.preprocess_mappings.original, position)
+        }
+        PreprocessStatus::Unmapped => None,
+    }
+}
+
+fn map_preprocessed_to_original(entry: &ShadowState, position: Position) -> Option<Position> {
+    match entry.preprocess_status {
+        PreprocessStatus::Identity => Some(position),
+        PreprocessStatus::Mapped => {
+            map_generated_tokens(&entry.preprocess_mappings.generated, position)
+        }
+        PreprocessStatus::Unmapped => None,
+    }
+}
+
+fn map_generated_tokens(tokens: &[MappingToken], position: Position) -> Option<Position> {
+    let index = tokens.partition_point(|token| {
+        (token.generated_line, token.generated_column) <= (position.line, position.character)
+    });
+    let previous = index.checked_sub(1).and_then(|index| tokens.get(index))?;
+    if previous.generated_line != position.line
+        || generated_is_unmapped_gap(tokens, index, position)
+    {
+        return None;
+    }
+    previous
+        .source
+        .map(|(line, column)| Position::new(line, column))
+}
+
+fn map_original_tokens(tokens: &[ReverseMappingToken], position: Position) -> Option<Position> {
+    let key = (position.line, position.character);
+    let first_equal_or_greater =
+        tokens.partition_point(|token| (token.source_line, token.source_column) < key);
+    let token = tokens
+        .get(first_equal_or_greater)
+        .filter(|token| (token.source_line, token.source_column) == key)
+        .or_else(|| {
+            first_equal_or_greater
+                .checked_sub(1)
+                .and_then(|index| tokens.get(index))
+        })?;
+    (token.source_line == position.line)
+        .then_some(Position::new(token.generated_line, token.generated_column))
 }
 
 fn exact_source_offset(map: &ProjectionMap, offset: usize) -> Option<u32> {
@@ -1522,6 +1839,52 @@ mod tests {
         fs::write(path, text).unwrap();
     }
 
+    fn encoded_preprocess_map(
+        source_path: &Path,
+        original_text: &str,
+        mappings: &[(Position, Option<Position>)],
+    ) -> String {
+        let source_name = source_path.file_name().unwrap().to_string_lossy();
+        let mut builder = SourceMapBuilder::new(None);
+        let source_id = builder.add_source(&source_name);
+        builder.set_source_contents(source_id, Some(original_text));
+        let mut mappings = mappings.to_vec();
+        mappings.sort_by_key(|(generated, _)| (generated.line, generated.character));
+        for (generated, original) in mappings {
+            let (line, column, source) = original.map_or((0, 0, None), |original| {
+                (
+                    original.line,
+                    original.character,
+                    Some(source_name.as_ref()),
+                )
+            });
+            builder.add(
+                generated.line,
+                generated.character,
+                line,
+                column,
+                source,
+                None,
+                false,
+            );
+        }
+        let mut output = Vec::new();
+        builder.into_sourcemap().to_writer(&mut output).unwrap();
+        String::from_utf8(output).unwrap()
+    }
+
+    fn positions_of(text: &str, needle: &str) -> Vec<(Position, Position)> {
+        let index = LineIndex::new(text);
+        text.match_indices(needle)
+            .map(|(offset, value)| {
+                (
+                    index.position(text, offset),
+                    index.position(text, offset + value.len()),
+                )
+            })
+            .collect()
+    }
+
     #[test]
     fn an_existing_leaf_does_not_gain_an_empty_path_component() {
         let existing = PathBuf::from("/workspace/src/App.svelte");
@@ -1762,6 +2125,130 @@ mod tests {
             .map_generated_position(&shadow_path, generated)
             .expect("generated identifier maps back");
         assert_eq!(back, source_position);
+    }
+
+    #[test]
+    fn preprocessing_composes_original_preprocessed_and_tsx_positions() {
+        let workspace = TestWorkspace::new("preprocess-compose");
+        let app = workspace.0.join("src/App.svelte");
+        let original = concat!(
+            "<script lang=\"ts\">\r\n",
+            "const emoji = \"😀\"; let value = 1;\r\n",
+            "</script>\r\n",
+            "<p>{value}</p>\r\n"
+        );
+        let preprocessed = format!("<!-- generated -->\n{original}");
+        write(&app, original);
+        let original_values = positions_of(original, "value");
+        let preprocessed_values = positions_of(&preprocessed, "value");
+        let mappings = preprocessed_values
+            .iter()
+            .zip(&original_values)
+            .flat_map(
+                |(&(generated_start, generated_end), &(source_start, source_end))| {
+                    [
+                        (generated_start, Some(source_start)),
+                        (generated_end, Some(source_end)),
+                    ]
+                },
+            )
+            .collect::<Vec<_>>();
+        let preprocess_map = encoded_preprocess_map(&app, original, &mappings);
+        let mut overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let shadow = overlay
+            .open_or_update_preprocessed(&app, original, &preprocessed, Some(&preprocess_map), 4)
+            .unwrap();
+        let shadow_path = overlay.shadow_dir.join("src/App.svelte.tsx");
+
+        assert_eq!(
+            overlay.preprocess_status(&app),
+            Some(PreprocessStatus::Mapped)
+        );
+        assert_eq!(overlay.preprocessed_text(&app), Some(preprocessed.as_str()));
+        assert_eq!(overlay.preprocess_map(&app), Some(preprocess_map.as_str()));
+        assert!(overlay.projection_map(&app).unwrap().segments().is_empty());
+
+        let source_start = original_values[0].0;
+        let source_offset = original.find("value").unwrap();
+        let line_start = original[..source_offset].rfind('\n').map_or(0, |at| at + 1);
+        assert_eq!(
+            u32::try_from(source_offset - line_start).unwrap(),
+            source_start.character + 2,
+            "the source position must count the astral character as two UTF-16 units"
+        );
+        let generated_start = overlay
+            .map_source_position(&app, source_start)
+            .expect("original position maps through preprocessing and TSX");
+        assert_eq!(
+            overlay.map_generated_position(&shadow_path, generated_start),
+            Some(source_start)
+        );
+
+        let source_range = Range::new(original_values[0].0, original_values[1].1);
+        let generated_range = overlay
+            .map_source_range(&app, source_range)
+            .expect("multiline range maps through all layers");
+        assert_eq!(
+            overlay.map_generated_range(&shadow_path, generated_range),
+            Some(source_range)
+        );
+
+        let generated_offset = utf8_offset(&shadow.text, generated_start);
+        let generated_utf16 = LineIndex::new(&shadow.text).position(&shadow.text, generated_offset);
+        let composed = SourceMap::from_slice(overlay.source_map(&app).unwrap().as_bytes()).unwrap();
+        let token = composed
+            .lookup_token(generated_utf16.line, generated_utf16.character)
+            .unwrap();
+        assert_eq!(token.get_src(), (source_start.line, source_start.character));
+    }
+
+    #[test]
+    fn preprocessing_rejects_removed_and_generated_only_positions() {
+        let workspace = TestWorkspace::new("preprocess-unmapped");
+        let app = workspace.0.join("App.svelte");
+        let original = "<script>\nlet kept = 1;\nlet removed = 2;\n</script>\n";
+        let preprocessed = "<script>\nlet kept = 1;\nlet injected = 3;\n</script>\n";
+        write(&app, original);
+        let original_kept = positions_of(original, "kept")[0].0;
+        let preprocessed_kept = positions_of(preprocessed, "kept")[0].0;
+        let original_end = Position::new(3, 0);
+        let preprocessed_end = Position::new(3, 0);
+        let injected = positions_of(preprocessed, "injected")[0].0;
+        let preprocess_map = encoded_preprocess_map(
+            &app,
+            original,
+            &[
+                (preprocessed_kept, Some(original_kept)),
+                (injected, None),
+                (preprocessed_end, Some(original_end)),
+            ],
+        );
+        let mut overlay = TsgoOverlay::build(&workspace.0, None).unwrap();
+        let shadow = overlay
+            .open_or_update_preprocessed(&app, original, preprocessed, Some(&preprocess_map), 1)
+            .unwrap();
+        let shadow_path = overlay.shadow_dir.join("App.svelte.tsx");
+
+        let removed = positions_of(original, "removed")[0].0;
+        assert_eq!(overlay.map_source_position(&app, removed), None);
+        let generated_injected = shadow.text.find("injected").unwrap();
+        assert_eq!(
+            overlay.map_generated_position(
+                &shadow_path,
+                utf8_position(&shadow.text, generated_injected)
+            ),
+            None
+        );
+
+        overlay
+            .open_or_update_preprocessed(&app, original, preprocessed, None, 2)
+            .unwrap();
+        assert_eq!(
+            overlay.preprocess_status(&app),
+            Some(PreprocessStatus::Unmapped)
+        );
+        assert_eq!(overlay.source_map(&app), None);
+        assert_eq!(overlay.map_source_position(&app, original_kept), None);
     }
 
     #[test]

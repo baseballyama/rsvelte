@@ -25,6 +25,9 @@ and launches it over stdio.
 - **TypeScript language features** — hover, component-aware completion,
   definitions, references, rename, diagnostics, semantic tokens, code actions
   and reference/implementation code lenses through the native tsgo proxy.
+- **Project preprocessors** — trusted workspaces apply the nearest
+  `svelte.config.*` before type projection, with source-mapped diagnostics and
+  TypeScript locations. Workspace config is never executed in restricted mode.
 
 TypeScript features require TypeScript 7 in the workspace (or `TSGO_BIN`);
 native formatting, linting and template/CSS providers remain available without
@@ -88,6 +91,7 @@ doesn't conflict with the official Svelte extension):
 | --- | --- | --- |
 | `rsvelte.format.enable` | `true` | Enable formatting via `rsvelte-fmt`. |
 | `rsvelte.lint.enable` | `true` | Enable linting via the bundled engine. |
+| `rsvelte.preprocess.enable` | `true` | Apply preprocessors from `svelte.config.*` in trusted workspaces. |
 | `rsvelte.rsvelteFmtPath` | `""` | Explicit path to a `rsvelte-fmt` binary. |
 
 ## Lint configuration

@@ -27,6 +27,7 @@ pub struct Settings {
     pub selection_range_enable: bool,
     pub document_symbol_enable: bool,
     pub runes_legacy_mode_code_lens_enable: bool,
+    pub preprocess_enable: bool,
     pub compiler_warnings: CompilerWarnings,
 }
 
@@ -41,6 +42,7 @@ impl Default for Settings {
             selection_range_enable: true,
             document_symbol_enable: true,
             runes_legacy_mode_code_lens_enable: true,
+            preprocess_enable: true,
             compiler_warnings: CompilerWarnings::default(),
         }
     }
@@ -65,6 +67,7 @@ impl Settings {
                 .unwrap_or(default.document_symbol_enable),
             runes_legacy_mode_code_lens_enable: enabled(value, "runesLegacyModeCodeLens")
                 .unwrap_or(default.runes_legacy_mode_code_lens_enable),
+            preprocess_enable: enabled(value, "preprocess").unwrap_or(default.preprocess_enable),
             compiler_warnings: compiler_warnings(value),
         }
     }
@@ -103,8 +106,9 @@ mod tests {
             "hover": { "enable": false },
             "foldingRange": { "enable": false },
             "selectionRange": { "enable": true },
-            "documentSymbol": { "enable": false }
-            ,"runesLegacyModeCodeLens": { "enable": true }
+            "documentSymbol": { "enable": false },
+            "runesLegacyModeCodeLens": { "enable": true },
+            "preprocess": { "enable": false }
         }));
         assert_eq!(
             s,
@@ -117,6 +121,7 @@ mod tests {
                 selection_range_enable: true,
                 document_symbol_enable: false,
                 runes_legacy_mode_code_lens_enable: true,
+                preprocess_enable: false,
                 compiler_warnings: CompilerWarnings::default(),
             }
         );
