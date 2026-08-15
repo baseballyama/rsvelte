@@ -7,7 +7,7 @@
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
-fn try_compile(src: &str) -> Result<(), (String, usize, usize)> {
+fn try_compile(src: &str) -> Result<(), (String, String, usize, usize)> {
     match compile(
         src,
         CompileOptions {
@@ -28,6 +28,12 @@ fn try_compile(src: &str) -> Result<(), (String, usize, usize)> {
                 .and_then(|t| t.split('"').next())
                 .unwrap_or("")
                 .to_string();
+            let message = s
+                .split("message: \"")
+                .nth(1)
+                .and_then(|t| t.split("\", span:").next())
+                .unwrap_or("")
+                .replace("\\n", "\n");
             let span = s
                 .split("span: (")
                 .nth(1)
@@ -39,7 +45,7 @@ fn try_compile(src: &str) -> Result<(), (String, usize, usize)> {
                     (a, b)
                 })
                 .unwrap_or((0, 0));
-            Err((code, span.0, span.1))
+            Err((code, message, span.0, span.1))
         }
     }
 }
@@ -48,10 +54,15 @@ fn try_compile(src: &str) -> Result<(), (String, usize, usize)> {
 fn assert_invalid(src: &str, start: usize, end: usize) {
     match try_compile(src) {
         Ok(()) => panic!("expected `render_tag_invalid_expression` for {src:?}, but it compiled"),
-        Err((code, s, e)) => {
+        Err((code, message, s, e)) => {
             assert_eq!(
                 code, "render_tag_invalid_expression",
                 "for {src:?} expected `render_tag_invalid_expression`, got `{code}`"
+            );
+            assert_eq!(
+                message,
+                "`{@render ...}` tags can only contain call expressions\nhttps://svelte.dev/e/render_tag_invalid_expression",
+                "wrong message for {src:?}"
             );
             assert_eq!((s, e), (start, end), "wrong span for {src:?}");
         }
@@ -60,7 +71,7 @@ fn assert_invalid(src: &str, start: usize, end: usize) {
 
 #[track_caller]
 fn assert_compiles(src: &str) {
-    if let Err((code, _, _)) = try_compile(src) {
+    if let Err((code, _, _, _)) = try_compile(src) {
         panic!("expected {src:?} to compile, got error `{code}`");
     }
 }

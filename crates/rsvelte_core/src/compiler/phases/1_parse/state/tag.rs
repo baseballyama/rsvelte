@@ -1956,7 +1956,7 @@ impl<'a> Parser<'a> {
                     let err_end = expression.end().map(|e| e as usize).unwrap_or(end);
                     return Err(crate::error::ParseError::svelte(
                         "render_tag_invalid_expression",
-                        "`{@render ...}` tags can only contain call expressions",
+                        "`{@render ...}` tags can only contain call expressions\nhttps://svelte.dev/e/render_tag_invalid_expression",
                         (err_start, err_end),
                     ));
                 }

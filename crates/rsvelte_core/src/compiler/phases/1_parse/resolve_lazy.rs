@@ -156,7 +156,7 @@ fn resolve_template_node(
                 let err_end = tag.expression.end().unwrap_or(tag.end) as usize;
                 *first_error = Some(crate::error::ParseError::svelte(
                     "render_tag_invalid_expression",
-                    "`{@render ...}` tags can only contain call expressions",
+                    "`{@render ...}` tags can only contain call expressions\nhttps://svelte.dev/e/render_tag_invalid_expression",
                     (err_start, err_end),
                 ));
             }
