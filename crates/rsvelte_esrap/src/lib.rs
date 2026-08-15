@@ -110,12 +110,18 @@ pub fn print(program: &Program<'_>, source: &str) -> String {
 /// Print `program` to JavaScript with explicit options, interleaving comments.
 pub fn print_with(program: &Program<'_>, source: &str, options: &PrintOptions) -> String {
     if program.comments.is_empty() {
-        print_direct::<false>(program, options, source.len(), Vec::new(), Vec::new())
+        print_direct::<false>(program, options, source.len(), Vec::new(), Vec::new(), None)
     } else if printer::comments_are_program_level(program) {
         print_direct_outer_comments(program, source, options)
     } else {
-        let (comments, line_starts) = comments_and_line_starts(program, source);
-        print_direct::<true>(program, options, source.len(), comments, line_starts)
+        print_direct::<true>(
+            program,
+            options,
+            source.len(),
+            Vec::new(),
+            Vec::new(),
+            Some(source),
+        )
     }
 }
 
@@ -134,15 +140,19 @@ fn print_direct_outer_comments(
     code
 }
 
-fn print_direct<const HAS_COMMENTS: bool>(
-    program: &Program<'_>,
-    options: &PrintOptions,
+fn print_direct<'a, const HAS_COMMENTS: bool>(
+    program: &'a Program<'a>,
+    options: &'a PrintOptions,
     capacity: usize,
     comments: Vec<printer::Cmt>,
     line_starts: Vec<u32>,
+    comment_source: Option<&'a str>,
 ) -> String {
     let mut printer =
         printer::Printer::<HAS_COMMENTS, true>::with_comments(options, comments, line_starts);
+    if let Some(source) = comment_source {
+        printer = printer.with_borrowed_comments(&program.comments, source);
+    }
     let mut ctx = context::Context::new_direct(&options.indent, capacity);
     printer.print_program(program, &mut ctx);
     let (buffer, returned, indent, dirty) = ctx.into_direct_parts();

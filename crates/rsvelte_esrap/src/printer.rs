@@ -96,11 +96,13 @@ pub struct Printer<'opt, const HAS_COMMENTS: bool = true, const DIRECT: bool = f
     /// threads comments positionally (leading before a node, trailing on a
     /// node's last line) rather than attaching them to AST nodes.
     comments: Vec<Cmt>,
+    borrowed_comments: Option<&'opt [oxc_ast::ast::Comment]>,
     comment_index: usize,
     /// Byte offsets of each line start in the buffer the comment spans index
     /// into, for offset→line lookups when placing comments. Empty when printing
     /// without comments.
     line_starts: Vec<u32>,
+    comment_source: Option<&'opt str>,
     /// Byte offsets of each line start in the buffer source-map positions are
     /// resolved against. Same as `line_starts` unless the caller split the two
     /// coordinate spaces (see [`crate::print_split`]).
@@ -139,10 +141,61 @@ fn write_comment<const DIRECT: bool>(cmt: &Cmt, ctx: &mut Context<DIRECT>) {
     }
 }
 
+fn write_borrowed_comment_span<const DIRECT: bool>(
+    start: u32,
+    end: u32,
+    block: bool,
+    source: &str,
+    ctx: &mut Context<DIRECT>,
+) {
+    let raw = source.get(start as usize..end as usize).unwrap_or_default();
+    if !block {
+        ctx.write(raw);
+        return;
+    }
+    let inner = raw
+        .strip_prefix("/*")
+        .and_then(|text| text.strip_suffix("*/"))
+        .unwrap_or(raw);
+    if !inner.contains('\n') {
+        ctx.write(raw);
+        return;
+    }
+
+    let line_start = source[..start as usize]
+        .rfind('\n')
+        .map_or(0, |index| index + 1);
+    let opener_line = &source[line_start..start as usize];
+    let indent_len = opener_line
+        .as_bytes()
+        .iter()
+        .take_while(|&&byte| matches!(byte, b' ' | b'\t'))
+        .count();
+    let indentation = &opener_line[..indent_len];
+
+    ctx.write_ascii_bytes(b"/*");
+    for (index, line) in inner.split('\n').enumerate() {
+        if index > 0 {
+            ctx.newline();
+        }
+        ctx.write(line.strip_prefix(indentation).unwrap_or(line));
+    }
+    ctx.write_ascii_bytes(b"*/");
+    ctx.newline();
+}
+
 struct BorrowedCommentDriver<'a> {
     comments: &'a [oxc_ast::ast::Comment],
     source: &'a str,
     index: usize,
+}
+
+#[derive(Clone, Copy)]
+struct CommentMeta {
+    start: u32,
+    end: u32,
+    start_line: u32,
+    block: bool,
 }
 
 impl<'a> BorrowedCommentDriver<'a> {
@@ -276,7 +329,6 @@ pub struct Cmt {
     pub start: u32,
     pub end: u32,
     pub start_line: u32,
-    pub end_line: u32,
     pub block: bool,
     pub value: String,
 }
@@ -317,7 +369,6 @@ pub fn build_comments(program: &Program<'_>, source: &str, starts: &[u32]) -> Ve
                 start,
                 end,
                 start_line: line_of(start),
-                end_line: line_of(end),
                 block,
                 value,
             }
@@ -584,8 +635,10 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             emit_locations: false,
             missing: None,
             comments: Vec::new(),
+            borrowed_comments: None,
             comment_index: 0,
             line_starts: Vec::new(),
+            comment_source: None,
             map_line_starts: None,
             loc_base: None,
             loc_map: Vec::new(),
@@ -604,12 +657,24 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             emit_locations: false,
             missing: None,
             comments,
+            borrowed_comments: None,
             comment_index: 0,
             map_line_starts: None,
             line_starts,
+            comment_source: None,
             loc_base: None,
             loc_map: Vec::new(),
         }
+    }
+
+    pub(crate) const fn with_borrowed_comments(
+        mut self,
+        comments: &'opt [oxc_ast::ast::Comment],
+        source: &'opt str,
+    ) -> Self {
+        self.borrowed_comments = Some(comments);
+        self.comment_source = Some(source);
+        self
     }
 
     /// Resolve source-map positions against a different buffer than the one the
@@ -639,6 +704,27 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     /// 1-based line of a byte offset (number of line starts at/before it).
     fn line_of(&self, offset: u32) -> u32 {
         usize_to_u32(self.line_starts.partition_point(|&s| s <= offset))
+    }
+
+    fn has_newline_between(&self, start: u32, end: u32) -> bool {
+        if start >= end {
+            return false;
+        }
+        self.comment_source.map_or_else(
+            || self.line_of(start) < self.line_of(end),
+            |source| {
+                source
+                    .get(start as usize..end as usize)
+                    .is_some_and(|text| text.as_bytes().contains(&b'\n'))
+            },
+        )
+    }
+
+    fn comment_starts_on_earlier_line(&self, comment: CommentMeta, offset: u32) -> bool {
+        self.comment_source.map_or_else(
+            || comment.start_line < self.line_of(offset),
+            |_| self.has_newline_between(comment.start, offset),
+        )
     }
 
     /// esrap's `if (node.loc)`: whether a span offset is a real source position
@@ -776,6 +862,47 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
 
     // ----- comments ---------------------------------------------------------
 
+    fn comment_len(&self) -> usize {
+        self.borrowed_comments
+            .map_or(self.comments.len(), <[_]>::len)
+    }
+
+    fn comment_at(&self, index: usize) -> Option<CommentMeta> {
+        if let Some(comments) = self.borrowed_comments {
+            return comments.get(index).map(|comment| CommentMeta {
+                start: comment.span.start,
+                end: comment.span.end,
+                start_line: 0,
+                block: !matches!(comment.kind, oxc_ast::ast::CommentKind::Line),
+            });
+        }
+        self.comments.get(index).map(|comment| CommentMeta {
+            start: comment.start,
+            end: comment.end,
+            start_line: comment.start_line,
+            block: comment.block,
+        })
+    }
+
+    fn comment_partition_point(&self, offset: u32) -> usize {
+        self.borrowed_comments.map_or_else(
+            || {
+                self.comments
+                    .partition_point(|comment| comment.start < offset)
+            },
+            |comments| comments.partition_point(|comment| comment.span.start < offset),
+        )
+    }
+
+    fn write_comment_at(&self, index: usize, ctx: &mut Context<DIRECT>) {
+        if let Some(source) = self.comment_source {
+            let comment = self.comment_at(index).expect("pending comment");
+            write_borrowed_comment_span(comment.start, comment.end, comment.block, source, ctx);
+        } else {
+            write_comment(&self.comments[index], ctx);
+        }
+    }
+
     /// esrap's `flush_comments_until`: emit every pending comment that starts
     /// before `to`. The `from` margin rule adds a
     /// blank line before a detached leading comment block.
@@ -786,38 +913,36 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         from: Option<u32>,
         pad: bool,
     ) {
-        if !HAS_COMMENTS || self.comment_index == self.comments.len() {
+        if !HAS_COMMENTS || self.comment_index == self.comment_len() {
             return;
         }
         if !self.has_loc(to) {
             return;
         }
-        let Some(next_comment) = self.comments.get(self.comment_index) else {
+        let Some(next_comment) = self.comment_at(self.comment_index) else {
             return;
         };
         if next_comment.start >= to {
             return;
         }
-        let to_line = self.line_of(to);
-        let from_line = from
-            .filter(|&offset| self.has_loc(offset))
-            .map(|offset| self.line_of(offset));
         let mut first = true;
-        while self.comment_index < self.comments.len() {
-            let cmt = &self.comments[self.comment_index];
+        while self.comment_index < self.comment_len() {
+            let cmt = self
+                .comment_at(self.comment_index)
+                .expect("pending comment");
             if cmt.start >= to {
                 break;
             }
             if first
-                && let Some(from_line) = from_line
-                && cmt.start_line > from_line
+                && let Some(from) = from.filter(|&offset| self.has_loc(offset))
+                && self.has_newline_between(from, cmt.start)
             {
                 ctx.margin();
                 ctx.newline();
             }
             first = false;
-            write_comment(cmt, ctx);
-            if cmt.end_line < to_line {
+            self.write_comment_at(self.comment_index, ctx);
+            if self.has_newline_between(cmt.end, to) {
                 ctx.newline();
             } else if pad {
                 ctx.write_ascii(b' ');
@@ -838,22 +963,24 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         prev_end: u32,
         next: Option<u32>,
     ) -> bool {
-        if !HAS_COMMENTS || self.comment_index == self.comments.len() || !self.has_loc(prev_end) {
+        if !HAS_COMMENTS || self.comment_index == self.comment_len() || !self.has_loc(prev_end) {
             return false;
         }
         // A `next` boundary that is itself synthesized bounds nothing (esrap's
         // `next` is `null` when the following node has no `loc`).
         let next = next.filter(|n| self.has_loc(*n));
-        let prev_end_line = self.line_of(prev_end);
         let mut emitted_line_newline = false;
-        while self.comment_index < self.comments.len() {
-            let cmt = &self.comments[self.comment_index];
-            let fits = cmt.start_line == prev_end_line && next.is_none_or(|n| cmt.end < n);
+        while self.comment_index < self.comment_len() {
+            let cmt = self
+                .comment_at(self.comment_index)
+                .expect("pending comment");
+            let fits =
+                !self.has_newline_between(prev_end, cmt.start) && next.is_none_or(|n| cmt.end < n);
             if !fits {
                 break;
             }
             ctx.write_ascii(b' ');
-            write_comment(cmt, ctx);
+            self.write_comment_at(self.comment_index, ctx);
             let is_block = cmt.block;
             self.comment_index += 1;
             if is_block {
@@ -875,18 +1002,18 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             return;
         }
         let Some(node_start) = node_start else {
-            self.comment_index = self.comments.len();
+            self.comment_index = self.comment_len();
             return;
         };
         if !self.has_loc(node_start) {
-            self.comment_index = self.comments.len();
+            self.comment_index = self.comment_len();
             return;
         }
-        let cur = self.comments.get(self.comment_index);
+        let cur = self.comment_at(self.comment_index);
         let prev = self
             .comment_index
             .checked_sub(1)
-            .and_then(|i| self.comments.get(i));
+            .and_then(|i| self.comment_at(i));
         let synced =
             cur.is_some_and(|c| c.start >= node_start) && prev.is_none_or(|p| p.start < node_start);
         if synced {
@@ -894,7 +1021,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         }
         // `comments` is in source order (ascending `start`), so binary-search the
         // first comment at/after `node_start` instead of a linear scan.
-        self.comment_index = self.comments.partition_point(|c| c.start < node_start);
+        self.comment_index = self.comment_partition_point(node_start);
     }
 
     /// The `_` wildcard's leading flush: emit comments positioned before `node`.
@@ -1026,14 +1153,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     ) {
         // A comment can introduce a newline while rendering, so only clean sequences pre-indent.
         let has_sequence_comments = DIRECT && HAS_COMMENTS && n > 0 && {
-            let before_until = |cmt: &Cmt| until.is_none_or(|end| cmt.start < end);
+            let before_until = |cmt: CommentMeta| until.is_none_or(|end| cmt.start < end);
             let pending = self
-                .comments
-                .get(self.comment_index)
+                .comment_at(self.comment_index)
                 .is_some_and(before_until);
             let in_nodes = meta(0).start.is_none_or(|start| {
-                let index = self.comments.partition_point(|cmt| cmt.start < start);
-                self.comments.get(index).is_some_and(before_until)
+                let index = self.comment_partition_point(start);
+                self.comment_at(index).is_some_and(before_until)
             });
             pending || in_nodes
         };
@@ -1415,6 +1541,86 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         );
     }
 
+    fn comments_are_outer_to_block(
+        &self,
+        statements: &[Statement],
+        body_start: u32,
+        body_end: u32,
+    ) -> bool {
+        if !self.has_loc(body_start) || !self.has_loc(body_end) {
+            return false;
+        }
+        let mut index = self.comment_partition_point(body_start);
+        for statement in statements {
+            let span = statement.span();
+            if !self.has_loc(span.start) || !self.has_loc(span.end) {
+                return false;
+            }
+            while let Some(comment) = self.comment_at(index) {
+                if comment.start >= body_end || comment.end > span.start {
+                    break;
+                }
+                index += 1;
+            }
+            if self
+                .comment_at(index)
+                .is_some_and(|comment| comment.start < span.end && comment.end > span.start)
+            {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn block_comment_island(
+        &mut self,
+        statements: &[Statement],
+        body_start: u32,
+        body_end: u32,
+        ctx: &mut Context<DIRECT>,
+    ) {
+        self.reset_comment_index(Some(body_start));
+        let keep_empty = self.options.keep_empty_statements;
+        let mut statements = statements
+            .iter()
+            .filter(|statement| {
+                keep_empty
+                    || !matches!(statement, Statement::EmptyStatement(empty) if empty.span.end != u32::MAX)
+            })
+            .peekable();
+        let mut prev: Option<(&Statement<'_>, bool)> = None;
+        let mut last_end = None;
+        while let Some(statement) = statements.next() {
+            let layout_mark = ctx.event_mark();
+            let mut has_margin = false;
+            if let Some((prev_statement, prev_multiline)) = prev {
+                has_margin = prev_multiline
+                    || std::mem::discriminant(prev_statement) != std::mem::discriminant(statement);
+                if has_margin {
+                    ctx.margin();
+                }
+                ctx.newline();
+            }
+
+            let scope = ctx.begin_scope();
+            self.flush_leading(ctx, statement.span().start);
+            self.comment_free().print_statement(statement, ctx);
+            let multiline = ctx.end_scope(scope);
+            if multiline && prev.is_some() && !has_margin {
+                ctx.insert_event(layout_mark, EventKind::Margin);
+            }
+
+            let end = statement.span().end;
+            let next = statements.peek().map(|statement| statement.span().end);
+            self.flush_trailing_comments(ctx, end, next);
+            last_end = Some(end);
+            prev = Some((statement, multiline));
+        }
+
+        ctx.newline();
+        self.flush_comments_until(ctx, body_end, last_end, false);
+    }
+
     /// The element-based core of [`Self::body`], shared by `print_program` so a
     /// program's leading directives participate in the same margin/comment pass.
     fn body_elems<'a, 'b>(
@@ -1458,8 +1664,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 let end = elem.span_end();
                 self.flush_leading(ctx, start);
                 let contains_comment = self
-                    .comments
-                    .get(self.comment_index)
+                    .comment_at(self.comment_index)
                     .is_some_and(|comment| comment.start < end);
                 if !contains_comment && self.has_loc(start) && self.has_loc(end) {
                     elem.print(self.comment_free(), ctx);
@@ -1547,8 +1752,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                     // precedes the comment, and the rule would never fire.
                     let contains_comment = HAS_COMMENTS
                         && self
-                            .comments
-                            .get(self.comment_index)
+                            .comment_at(self.comment_index)
                             .is_some_and(|c| c.start < unparen(arg).span().start);
                     let start = s.span().start;
                     if contains_comment {
@@ -2080,12 +2284,103 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         ctx.newline();
     }
 
+    fn comments_are_outer_to_class(&self, body: &ClassBody) -> bool {
+        let span = body.span();
+        if !self.has_loc(span.start) || !self.has_loc(span.end) {
+            return false;
+        }
+        let mut index = self.comment_partition_point(span.start);
+        for element in body
+            .body
+            .iter()
+            .filter(|element| !matches!(element, ClassElement::TSIndexSignature(_)))
+        {
+            let element_span = element.span();
+            if !self.has_loc(element_span.start) || !self.has_loc(element_span.end) {
+                return false;
+            }
+            while let Some(comment) = self.comment_at(index) {
+                if comment.start >= span.end || comment.end > element_span.start {
+                    break;
+                }
+                index += 1;
+            }
+            if self.comment_at(index).is_some_and(|comment| {
+                comment.start < element_span.end && comment.end > element_span.start
+            }) {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn class_comment_island(&mut self, body: &ClassBody, ctx: &mut Context<DIRECT>) {
+        let span = body.span();
+        self.reset_comment_index(Some(span.start));
+        let mut elements = body
+            .body
+            .iter()
+            .filter(|element| !matches!(element, ClassElement::TSIndexSignature(_)))
+            .peekable();
+        let mut prev: Option<(&ClassElement<'_>, bool)> = None;
+        let mut last_end = None;
+        while let Some(element) = elements.next() {
+            let layout_mark = ctx.event_mark();
+            let mut has_margin = false;
+            if let Some((prev_element, prev_multiline)) = prev {
+                has_margin = prev_multiline
+                    || std::mem::discriminant(prev_element) != std::mem::discriminant(element);
+                if has_margin {
+                    ctx.margin();
+                }
+                ctx.newline();
+            }
+
+            let scope = ctx.begin_scope();
+            self.flush_leading(ctx, element.span().start);
+            self.comment_free().class_element(element, ctx);
+            let multiline = ctx.end_scope(scope);
+            if multiline && prev.is_some() && !has_margin {
+                ctx.insert_event(layout_mark, EventKind::Margin);
+            }
+
+            let end = element.span().end;
+            let next = elements.peek().map(|element| element.span().end);
+            self.flush_trailing_comments(ctx, end, next);
+            last_end = Some(end);
+            prev = Some((element, multiline));
+        }
+
+        ctx.newline();
+        self.flush_comments_until(ctx, span.end, last_end, false);
+    }
+
     /// esrap's `BlockStatement|ClassBody`: route class members through the shared
     /// `body` machinery (one-per-line, blank line between two multiline members
     /// or a change of member kind) so leading / trailing / end-of-body comments
     /// are interleaved identically to a statement block.
     fn class_body(&mut self, body: &ClassBody, ctx: &mut Context<DIRECT>) {
         let span = body.span();
+        if HAS_COMMENTS && DIRECT && self.comments_are_outer_to_class(body) {
+            let has_element = body
+                .body
+                .iter()
+                .any(|element| !matches!(element, ClassElement::TSIndexSignature(_)));
+            let first_comment = self.comment_partition_point(span.start);
+            let has_comment = self
+                .comment_at(first_comment)
+                .is_some_and(|comment| comment.start < span.end);
+            if has_element || has_comment {
+                ctx.write_ascii(b'{');
+                ctx.indent();
+                ctx.newline();
+                self.class_comment_island(body, ctx);
+                ctx.dedent();
+                ctx.newline();
+                ctx.write_ascii(b'}');
+                return;
+            }
+        }
         ctx.write_ascii(b'{');
         let mark = ctx.event_mark();
         let scope = ctx.begin_scope();
@@ -2686,6 +2981,28 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             ctx.newline();
             ctx.write_ascii(b'}');
             return;
+        }
+
+        if DIRECT && self.comments_are_outer_to_block(body, body_start, body_end) {
+            let keep_empty = self.options.keep_empty_statements;
+            let has_statement = body.iter().any(|statement| {
+                keep_empty
+                    || !matches!(statement, Statement::EmptyStatement(empty) if empty.span.end != u32::MAX)
+            });
+            let first_comment = self.comment_partition_point(body_start);
+            let has_comment = self
+                .comment_at(first_comment)
+                .is_some_and(|comment| comment.start < body_end);
+            if has_statement || has_comment {
+                ctx.write_ascii(b'{');
+                ctx.indent();
+                ctx.newline();
+                self.block_comment_island(body, body_start, body_end, ctx);
+                ctx.dedent();
+                ctx.newline();
+                ctx.write_ascii(b'}');
+                return;
+            }
         }
 
         ctx.write_ascii(b'{');
@@ -3809,10 +4126,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             let arg_start = arg
                 .as_expression()
                 .map_or_else(|| arg.span().start, |e| unparen(e).span().start);
-            let wrap = self
-                .comments
-                .get(self.comment_index)
-                .is_some_and(|c| c.start < arg_start && c.start_line < self.line_of(arg_start));
+            let wrap = self.comment_at(self.comment_index).is_some_and(|c| {
+                c.start < arg_start && self.comment_starts_on_earlier_line(c, arg_start)
+            });
 
             ctx.write_ascii(b'(');
             if wrap {
@@ -3833,8 +4149,8 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             let second_start = second
                 .as_expression()
                 .map_or_else(|| second.span().start, |e| unparen(e).span().start);
-            let force_multiline = self.comments.get(self.comment_index).is_some_and(|c| {
-                c.start < second_start && c.start_line < self.line_of(second_start)
+            let force_multiline = self.comment_at(self.comment_index).is_some_and(|c| {
+                c.start < second_start && self.comment_starts_on_earlier_line(c, second_start)
             });
 
             ctx.write_ascii(b'(');
@@ -3860,10 +4176,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             let last_start = last
                 .as_expression()
                 .map_or_else(|| last.span().start, |e| unparen(e).span().start);
-            let force_multiline = self
-                .comments
-                .get(self.comment_index)
-                .is_some_and(|c| c.start < last_start && c.start_line < self.line_of(last_start));
+            let force_multiline = self.comment_at(self.comment_index).is_some_and(|c| {
+                c.start < last_start && self.comment_starts_on_earlier_line(c, last_start)
+            });
             ctx.write_ascii(b'(');
             let start = ctx.event_mark();
             let first_multiline =
@@ -3906,9 +4221,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 .map_or_else(|| arg.span().start, |e| unparen(e).span().start);
 
             if is_last
-                && let Some(c) = self.comments.get(self.comment_index)
+                && let Some(c) = self.comment_at(self.comment_index)
                 && c.start < arg_start
-                && c.start_line < self.line_of(arg_start)
+                && self.comment_starts_on_earlier_line(c, arg_start)
             {
                 force_multiline = true;
             }
