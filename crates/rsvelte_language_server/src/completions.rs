@@ -9,7 +9,7 @@ use lsp_types::{
 };
 
 use crate::context::{EmbeddedRegions, attribute_context, attribute_prefix_context};
-use crate::html_data::{TAGS, attributes};
+use crate::html_data::{STANDARD_TAGS, TAGS, attributes};
 use crate::modifiers::MODIFIERS;
 use crate::tags::{SvelteTag, latest_opening_tag};
 
@@ -112,6 +112,17 @@ fn html_tag_completions(prefix: &str) -> CompletionList {
                 documentation: Some(markdown(tag.description.to_string())),
                 ..CompletionItem::default()
             })
+            .chain(
+                STANDARD_TAGS
+                    .iter()
+                    .filter(|tag| tag.starts_with(prefix))
+                    .map(|tag| CompletionItem {
+                        label: (*tag).to_string(),
+                        kind: Some(CompletionItemKind::CLASS),
+                        documentation: Some(markdown("A standard HTML element.".to_string())),
+                        ..CompletionItem::default()
+                    }),
+            )
             .collect(),
     }
 }
