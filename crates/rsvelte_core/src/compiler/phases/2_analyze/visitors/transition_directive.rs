@@ -35,7 +35,7 @@ pub fn visit(
         let node = expr.as_node();
         walk_js_expression_node(&node, context, &mut scratch)?;
         if scratch.has_await() {
-            return Err(errors::illegal_await_expression());
+            return Err(errors::illegal_await_expression().at(directive.start, directive.end));
         }
     }
 
