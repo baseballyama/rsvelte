@@ -439,9 +439,12 @@ pub fn validate_component(
 
         if let Some(name) = attr_name {
             if seen_names.contains(&name) {
-                return Err(AnalysisError::validation(
+                let (start, end) = attr.span();
+                return Err(AnalysisError::validation_at(
                     "attribute_duplicate",
                     "Attributes need to be unique",
+                    start,
+                    end,
                 ));
             }
             seen_names.insert(name);

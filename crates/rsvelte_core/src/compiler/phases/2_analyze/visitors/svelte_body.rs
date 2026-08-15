@@ -15,13 +15,13 @@ use crate::ast::template::{Attribute, SvelteElement};
 pub fn visit(body: &mut SvelteElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Check for duplicate
     if context.has_svelte_body {
-        return Err(errors::svelte_meta_duplicate("svelte:body"));
+        return Err(errors::svelte_meta_duplicate("svelte:body").at(body.start, body.end));
     }
     context.has_svelte_body = true;
 
     // Validate placement (must be at top level)
     if context.is_inside_element_or_block() {
-        return Err(errors::svelte_meta_invalid_placement("svelte:body"));
+        return Err(errors::svelte_meta_invalid_placement("svelte:body").at(body.start, body.end));
     }
 
     // svelte:body cannot have children
