@@ -48,8 +48,8 @@ diagnostics! {
     /// `$host()` can only be used inside custom element component instances
     host_invalid_placement() => "`$host()` can only be used inside custom element component instances";
 
-    /// `$props()` can only be used as a variable declaration initializer at the top level of the `<script>` tag
-    props_invalid_placement() => "`$props()` can only be used as a variable declaration initializer at the top level of the `<script>` tag";
+    /// `$props()` can only be used at the component top level as a variable declaration initializer.
+    props_invalid_placement() => "`$props()` can only be used at the top level of components as a variable declaration initializer";
 
     /// `$props()` can only be used with an object destructuring pattern or an identifier
     props_invalid_identifier() => "`$props()` can only be used with an object destructuring pattern or an identifier";

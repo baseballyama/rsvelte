@@ -774,7 +774,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             }
             context.has_props_rune = true;
             if context.ast_type != super::AstType::Instance || !is_props_valid_placement(context) {
-                return Err(errors::props_invalid_placement());
+                return Err(errors::props_invalid_placement().at(*start, *end));
             }
             if arg_count > 0 {
                 return Err(errors::rune_invalid_arguments("$props"));

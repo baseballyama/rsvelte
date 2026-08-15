@@ -1756,6 +1756,21 @@ mod tests {
     }
 
     #[test]
+    fn props_placement_diagnostic_uses_call_message_and_span() {
+        let source = "<script>function invalid() { $props(); }</script>";
+        let diagnostic = compile(source, CompileOptions::default())
+            .unwrap_err()
+            .diagnostic();
+        assert_eq!(diagnostic.code.as_deref(), Some("props_invalid_placement"));
+        assert_eq!(
+            diagnostic.message,
+            "`$props()` can only be used at the top level of components as a variable declaration initializer"
+        );
+        let (start, end) = diagnostic.span.expect("$props call has a span");
+        assert_eq!(&source[start as usize..end as usize], "$props()");
+    }
+
+    #[test]
     fn dollar_import_diagnostic_uses_the_imported_identifier() {
         let source = "<script>\n\timport { $ } from './store';\n</script>";
         let diagnostic = compile(source, CompileOptions::default())
