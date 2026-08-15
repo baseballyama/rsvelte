@@ -577,8 +577,11 @@ impl<'a> ScopeBuilder<'a> {
         }
 
         let idx = self.bindings.len();
-        let binding =
+        let mut binding =
             Binding::with_declaration_kind(name.clone(), kind, declaration_kind, target_scope);
+        if let Some((start, _)) = span {
+            binding.declaration_start = Some(start);
+        }
 
         // Validate identifier name (check for invalid $ prefixes)
         // In runes mode: validate without function_depth (all levels validated)

@@ -172,8 +172,8 @@ diagnostics! {
     /// Cannot reassign or bind to snippet parameter
     snippet_parameter_assignment() => "Cannot reassign or bind to snippet parameter";
 
-    /// Cannot use `$` as a variable name
-    dollar_binding_invalid() => "Cannot use `$` as a variable name";
+    /// The `$` name is reserved for Svelte's internal namespace.
+    dollar_binding_invalid() => "The $ name is reserved, and cannot be used for variables and imports";
 
     /// Variable name cannot start with `$`
     dollar_prefix_invalid() => "Variable name cannot start with `$` except for special Svelte stores";

@@ -365,14 +365,24 @@ pub fn validate_identifier_name(
 
         // Check for bare '$'
         if name == "$" {
-            return Err(errors::dollar_binding_invalid());
+            let error = errors::dollar_binding_invalid();
+            return Err(if let Some(start) = binding.declaration_start {
+                error.at(start, start + u32::try_from(name.len()).unwrap())
+            } else {
+                error
+            });
         }
 
         // Check for names starting with '$'
         if name.starts_with('$') {
             // TODO: Filter out type imports in migration script
             // For now, allow all $ prefixed names
-            return Err(errors::dollar_prefix_invalid());
+            let error = errors::dollar_prefix_invalid();
+            return Err(if let Some(start) = binding.declaration_start {
+                error.at(start, start + u32::try_from(name.len()).unwrap())
+            } else {
+                error
+            });
         }
     }
 

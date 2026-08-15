@@ -1712,6 +1712,21 @@ mod tests {
     }
 
     #[test]
+    fn dollar_import_diagnostic_uses_the_imported_identifier() {
+        let source = "<script>\n\timport { $ } from './store';\n</script>";
+        let diagnostic = compile(source, CompileOptions::default())
+            .unwrap_err()
+            .diagnostic();
+        assert_eq!(diagnostic.code.as_deref(), Some("dollar_binding_invalid"));
+        assert_eq!(
+            diagnostic.message,
+            "The $ name is reserved, and cannot be used for variables and imports"
+        );
+        let (start, end) = diagnostic.span.expect("import binding has a span");
+        assert_eq!(&source[start as usize..end as usize], "$");
+    }
+
+    #[test]
     fn diagnostic_span_is_a_utf16_position_not_a_byte_offset() {
         // The JS side indexes by UTF-16 unit; a byte offset would report 30.
         let source = "<!-- ééééé --><div a=\"1\" a=\"2\"></div>";

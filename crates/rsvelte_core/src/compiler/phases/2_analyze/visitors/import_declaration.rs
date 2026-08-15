@@ -51,8 +51,11 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                 | JsNode::ImportDefaultSpecifier { local, .. }
                 | JsNode::ImportNamespaceSpecifier { local, .. } => {
                     let local_node = arena.get_js_node(*local);
-                    if let JsNode::Identifier { name, .. } = local_node {
-                        Some(name.as_str())
+                    if let JsNode::Identifier {
+                        name, start, end, ..
+                    } = local_node
+                    {
+                        Some((name.as_str(), *start, *end))
                     } else {
                         None
                     }
@@ -60,12 +63,12 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                 _ => None,
             };
 
-            if let Some(name) = local_name {
+            if let Some((name, start, end)) = local_name {
                 if name == "$" {
-                    return Err(errors::dollar_binding_invalid());
+                    return Err(errors::dollar_binding_invalid().at(start, end));
                 }
                 if name.starts_with('$') {
-                    return Err(errors::dollar_prefix_invalid());
+                    return Err(errors::dollar_prefix_invalid().at(start, end));
                 }
             }
         }
