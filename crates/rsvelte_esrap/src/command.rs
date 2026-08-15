@@ -60,7 +60,11 @@ pub struct Mapping {
 }
 
 pub(crate) fn print(buffer: &Buffer, indent: &str, capacity: usize) -> String {
-    let mut code = String::with_capacity(capacity);
+    let layout_capacity = buffer
+        .events
+        .len()
+        .saturating_mul(indent.len().saturating_add(2));
+    let mut code = String::with_capacity(capacity.saturating_add(layout_capacity));
     let mut current_newline = String::from("\n");
     let mut needs_newline = false;
     let mut needs_margin = false;
@@ -122,7 +126,14 @@ pub(crate) fn flatten_with_map(
     capacity: usize,
 ) -> (String, Vec<Mapping>) {
     let mut driver = Driver {
-        code: String::with_capacity(capacity),
+        code: String::with_capacity(
+            capacity.saturating_add(
+                buffer
+                    .events
+                    .len()
+                    .saturating_mul(indent.len().saturating_add(2)),
+            ),
+        ),
         current_newline: String::from("\n"),
         indent,
         needs_newline: false,
