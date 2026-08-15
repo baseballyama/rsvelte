@@ -707,25 +707,43 @@ records for `POSITIONS` and `mutate.mjs`. And the family reaches only comments a
 statement the transform *removes*; a comment attached to one it keeps and *rewrites* is covered
 by `comment-slot`, not here. **[S]**
 
-### Blind spot 5l — identical garbage is a pass, and 5f/5h's closing note is its general form
+### Blind spot 5l — CLOSED: the parse oracle runs here too, and the verdict carries the class
 
-5f and 5h each end on "the comparison scores text equality, not whether rsvelte's text is
-JavaScript". The sharpest statement of that is the case where **both** compilers emit text no
-parser accepts: `run.mjs` then scores `match`, and the gate reports success for reproducing
-invalid output. It has no counterpart to `verify.mjs`'s `output-unparseable` verdict
-(`verify.mjs:101-112`).
+Originally: `run.mjs` compared bytes and nothing else, so "wrong text" and "text no JS parser
+accepts" produced the same `js-mismatch` row and the same ratchet entry, and a case where **both**
+compilers emitted invalid text scored `match` outright. It now runs the same acorn oracle
+`verify.mjs` does (`parseable.mjs`) on both sides of every accepted pair: an official output the
+oracle rejects fails the run as an oracle fault (no exclusion list — the cases are authored, so
+the fix is to change the case), and an rsvelte output it rejects is its own
+`output-unparseable` verdict.
 
-**[D]** — the `private-field` family's 784 cases include 240 server cells where upstream itself
-emits an assignment to a call expression (`this.#f()++`, `inst.#f() += 1`); the discriminating one
-is `private-field/derived__this__ctor-root__post-increment.svelte.js` on `server`, whose two
-outputs are the same invalid module. Only
-`crates/rsvelte_core/tests/private_field_constructor_grid_2573.rs` observes it, by parsing every
-cell it generates.
+The second half of the same fix is the **code / comment split**. A divergence that survives
+`codeIdentity` normalization stays `js-mismatch`; one that does not is `comment-mismatch`. Both
+are ratcheted two-sided, so nothing is tolerated that was not before — the split is about the
+KEY, and it is the #2521 lesson applied to this gate. **[D]**: every comment carrier in the
+`opaque-keyword` family diverges on comment placement, so under one flat verdict re-breaking
+#2986 would have reproduced an already-listed key on the very cases written to catch it. The
+`comment-slot` family carries the same hazard on all of its entries.
 
-The mirror form matters too: oxfmt cannot format an unparseable file, so those cells fall back to
-comparing **raw** text, and an unrelated whitespace difference surfaces as a `js-mismatch` there
-and nowhere else. Both directions argue for the same fix — parse both sides here as `verify.mjs`
-does.
+Two limits remain. The oracle only runs where **both** compilers accepted, so a both-reject cell
+is still compared on the error code alone (blind spot 5d), and a case that opts out of a target
+(5m) opts out of the parse check on that target too. **[S]**
+
+### Blind spot 5o — the `opaque-keyword` keyword axis is a sample of the raw-scan set
+
+Family `opaque-keyword` (5 keywords × 5 carriers × 6 hosts × 2 entry points) exists because
+#2986's `class ` was located by a raw byte scan, and a keyword hidden in a comment, a string, a
+template or a regex is the population that separates such a scan from a lexical one. Its keyword
+axis is **derived** from the transforms — the source-level tokens `memmem::find` is called with
+under `phases/3_transform/{server,client,shared}` — but it is a *sample* of that set, not the set:
+the grep behind it returns ~30 distinct literals and the family carries 5. A token that only some
+other pass scans for raw is unreached here. **[S]**
+
+Two defects the family found on its first run are its calibration, not a claim of coverage: a
+`'$derived('` inside a string, template or comment stops the real `$derived` in the same module
+from being lowered at all — the module then throws at import (#2987) — and a `/$derived(x)/`
+**regex literal** is itself rewritten to `/$.derived(() => x)/` (#2988). Both outputs parse, so
+the parse oracle above is blind to both; only output equality reports them.
 
 ### Blind spot 5m — a case may opt out of a target
 

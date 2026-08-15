@@ -37,8 +37,20 @@ is vendored as a workspace package at `apps/npm/vite-plugin-svelte`, not a submo
 **Phase-3 output codegen is AST-based.** Server SSR is pure-AST (the legacy text generator
 is deleted); client CSR defaults to `js_ast::to_oxc` → `rsvelte_esrap`, with the text printer
 kept only as a fallback for comment-bearing / unsupported-node programs. The remaining string
-processing (client visitors building `Raw` strings, `shared/async_body.rs`, the `.svelte.js`
-module path) is internal IR construction with unchanged output — a maintainability cleanup only.
+processing (client visitors building `Raw` strings, `shared/async_body.rs`) is internal IR
+construction with unchanged output — a maintainability cleanup only.
+
+**The `.svelte.(js|ts)` module path is not in that "cleanup only" set, and calling it one was
+wrong.** `compileModule` rewrites source text, and its scans decide structure: #2986 located a
+class with `memmem::find(b"class ")` over the whole script, so a comment mentioning `class` made
+the next factory function a class body and its locals came out as `#private` fields in statement
+position — invalid JS from a call that returned successfully. The generalization
+(`opaque-keyword`, below) immediately found two more in the same pipeline: #2987, where a
+`'$derived('` in a string stops the real `$derived` from being lowered at all, and #2988, where a
+`/$derived(x)/` regex literal is rewritten as code. **Two properties separate this from the
+client instance-script row below**: it is `compileModule`-only (the same shapes are correct in a
+component's instance script), and two of the three outputs *parse*, so the parse gate cannot see
+them — only output equality can.
 
 **The client instance-script pipeline is the exception, and it is a correctness hazard, not a
 cleanup.** That pipeline still decides where a statement or an expression ends by scanning
@@ -210,14 +222,38 @@ whole-corpus `rust_panic` when `sources/` is missing, are tracked in #2707.
 
 A **generated**, not collected, differential corpus (`pnpm run corpus:matrix`, #2281 Gate 2),
 ratcheted through `compatibility/matrix-known-failures.json` with per-cluster justification in
-the paired `.md`. Ten declarative axis families in `matrix/axes.mjs` — binding kind × syntactic
+the paired `.md`. Declarative axis families in `matrix/axes.mjs` — binding kind × syntactic
 position, comment kind × insertion slot, invalid `bind:` target × directive slot,
 string-literal escape × template expression slot, `await`/`yield` in a formal parameter list
 × function form × entry point, `{#each}` collection expression × item use, the token a `/`
 follows × host, a name's slot in a binding pattern × statement context, directive kind ×
-element kind × mode, and `bind:` setter shape × element kind — expanded into ~8,900 comparisons
-at **~20 s of CPU** and need
+element kind × mode, `bind:` setter shape × element kind, and a raw-scanned keyword × the opaque
+region carrying it × host × entry point — expanded into ~20,000 comparisons
+in well under a minute of CPU, needing
 only `submodules/svelte` plus the NAPI binding, so it gates every PR.
+
+**Two comparisons were added to this gate after it shipped, and both are about the KEY rather
+than about tolerance.** It now runs the acorn parse oracle (`parseable.mjs`) on both sides of
+every accepted pair, so "text no JS parser accepts" is its own `output-unparseable` verdict
+instead of one more `js-mismatch`; and a divergence a comment/whitespace normalization absorbs is
+`comment-mismatch` rather than `js-mismatch`. Both stay ratcheted two-sided. The reason is
+measurable rather than tidy: a ratchet entry suppresses everything its key cannot tell apart, and
+every comment carrier in the `opaque-keyword` family diverges on comment placement — under one
+flat verdict, re-breaking #2986 would have reproduced an *already-listed* key on the very cases
+written to catch it.
+
+The `opaque-keyword` family is the generalization of #2986, and its subject is where a construct
+is judged to **begin**. `find_matching_bracket` and `code_bracket_depth` have been comment- and
+string-aware since #2253, but the scans deciding where to start counting from stayed plain byte
+searches — `transform_class_fields_server` took the first `class ` in the file and the first `{`
+after it, so a doc comment reading "we avoid class here" made the following factory function a
+class body. **Hardening a body scan says nothing about the entry-point scan that feeds it.** Its
+keyword axis is *derived* — the source-level tokens `memmem::find` is called with under
+`phases/3_transform/{server,client,shared}` — but it samples 5 of ~30, which gate-coverage 5o
+records. It paid for itself on the first run: #2987 (a `'$derived('` in a string, template or
+comment stops the real `$derived` in that module from being lowered at all, so the module throws
+at import) and #2988 (a `/$derived(x)/` regex literal is itself rewritten). Both outputs parse,
+so the parse oracle is blind to both — only output equality reports them.
 
 The `bind:` and `param-default` families are the odd ones out and the reason is worth stating:
 their inputs are programs the official compiler **rejects**, which is a population no collected corpus can hold, because

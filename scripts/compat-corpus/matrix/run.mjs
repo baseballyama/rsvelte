@@ -27,6 +27,18 @@
  * 5244 accepted (case, target) pairs, so on those the comparison runs on an
  * empty population. Positions are deliberately left to the collected gate.
  *
+ * Two comparisons here are about the ratchet KEY rather than about tolerance,
+ * because a listed entry suppresses everything its key cannot tell apart:
+ *
+ *   - the acorn parse oracle runs on both sides of every accepted pair, so
+ *     "text no JS parser accepts" is `output-unparseable` and not one more
+ *     `js-mismatch`. An OFFICIAL output it rejects fails the run outright —
+ *     these cases are authored, so the fix is the case, never an exemption.
+ *   - a divergence that comment + whitespace normalization absorbs is
+ *     `comment-mismatch`. Both verdicts stay ratcheted two-sided; the split
+ *     stops a comment-fidelity entry from covering a later code regression on
+ *     the same id, which is what would have happened to `opaque-keyword`.
+ *
  * Ratchet: compatibility/matrix-known-failures.json, shrink-only and two-sided
  * (a new failure AND a listed entry that already passes both fail), justified
  * per entry in the paired .md.
@@ -110,7 +122,7 @@ const rsvelte = require(BINDING);
 
 // ---- generate + compile ----------------------------------------------------
 
-// The axes generate 2963 cases on an unmodified tree; the floor only has to
+// The axes generate 5011 cases on an unmodified tree; the floor only has to
 // separate "generation broke" from "the gate got easier".
 const MIN_MATRIX_CASES = 1000;
 
@@ -345,7 +357,7 @@ if (UPDATE_BASELINE) {
 	// ratchet. This one is absolute.
 	if (cases.length < MIN_MATRIX_CASES) {
 		console.error(`\n[matrix] refusing to baseline from ${cases.length} generated cases (expected >= ${MIN_MATRIX_CASES}).`);
-		console.error('  the axes generate ~2963; far below that means generation broke, not that the gate got easier.');
+		console.error('  the axes generate ~5011; far below that means generation broke, not that the gate got easier.');
 		process.exit(2);
 	}
 	fs.writeFileSync(BASELINE, JSON.stringify([...ids].sort(), null, '\t') + '\n');
