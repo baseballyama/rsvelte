@@ -1,5 +1,40 @@
 # @rsvelte/compiler
 
+## 0.10.15
+
+### Patch Changes
+
+- 48b454f: Keep retained script AST spans and comments in component-source coordinates when moving them into the final OXC allocator.
+- 46cbf7c: Write common indented newlines with fixed-width stores and avoid unnecessary source-line lookups on exhausted comment paths. Release `rsvelte_esrap` 0.10.27 and update the compiler's exact dependency.
+- 72ffbb1: Match Svelte's comment cursor behavior for synthesized transforms and component wrappers.
+- 2cfed50: Preserve rune transformations when comments appear in instance scripts.
+- 5ba4367: Compose the source maps of every preprocessor in the chain, consume an attached `//# sourceMappingURL` comment, and count map columns in UTF-16 code units. Also fixes the VLQ sign encoding, which made every negative delta in a preprocess map one too small.
+- 38a34eb: Add `Converted::into_coordinate_free_program`, so a consumer that wants the client OXC `Program` instead of the printed JavaScript can adopt it without re-parsing. Measured on 5,836 shipped components, the share a native bundler can take directly goes from 3.02% to 100%, replacing a re-parse worth 7.5% of compile with a strip worth 0.79%.
+- 0050fd4: Render esrap block bodies directly into their parent buffer and specialize comment-free call arguments. Release `rsvelte_esrap` 0.10.17 and update the compiler's exact dependency.
+- 627a956: Render multi-declarator variable statements in one output buffer. Release `rsvelte_esrap` 0.10.22 and update the compiler's exact dependency.
+- 3da139c: Write comment-free esrap output directly and patch only retroactively changed layout spans. Release `rsvelte_esrap` 0.10.24 and update the compiler's exact dependency.
+- c442bdc: Write short esrap fragments with fixed-width copies and decide indentation before rendering hot sequences. Release `rsvelte_esrap` 0.10.26 and update the compiler's exact dependency.
+- ec7a9b7: Reduce `rsvelte_esrap` printer overhead by coalescing adjacent inline command text, skipping source-map anchors for plain output, avoiding line indexing for comment-free programs, and reserving the final output buffer. Release `rsvelte_esrap` 0.10.10 and update the compiler's exact dependency.
+- a53ab3b: Flatten plain output in one pass and write short syntax fragments without temporary formatting buffers. Release `rsvelte_esrap` 0.10.18 and update the compiler's exact dependency.
+- 07f478e: Replace esrap's nested command tree with flat text and offset-based layout events, and release `rsvelte_esrap` 0.10.11.
+- cab1a0a: Render esrap statement bodies and single declarators directly into their parent buffer. Release `rsvelte_esrap` 0.10.15 and update the compiler's exact dependency.
+- f7f386d: Render esrap call arguments and typed sequences directly into their parent buffer. Release `rsvelte_esrap` 0.10.16 and update the compiler's exact dependency.
+- e00bb80: Keep interior script comments in server output: a reassembled program's comment cursor was discarded before its located statements were printed.
+- 216fda9: Locate the SSR module class header lexically: a `class ` inside a comment or a string made the following factory function a class body, lowering its locals into `#private` fields in statement position and emitting a module no JS parser accepts.
+- 68f52f1: Reuse esrap context buffers through one print-local cache, and release `rsvelte_esrap` 0.10.12.
+- 05acba5: Write flat esrap sequence spacing before rendering to avoid retroactive output copies. Release `rsvelte_esrap` 0.10.25 and update the compiler's exact dependency.
+- 1fe6b2e: Render comment-free statement bodies without speculative scopes or retroactive layout insertion. Release `rsvelte_esrap` 0.10.20 and update the compiler's exact dependency.
+- 68a92fa: Specialize esrap's comment-free printer so comment placement checks are eliminated from its hot AST traversal. Release `rsvelte_esrap` 0.10.19 and update the compiler's exact dependency.
+- a595a34: Reserve space for deferred esrap layout bytes before rendering. Release `rsvelte_esrap` 0.10.23 and update the compiler's exact dependency.
+- 72ff779: Preserve source spans when transferring retained compiler programs into a new OXC allocator.
+- 957459f: Keep layout metadata for sequences of up to three nodes inline. Release `rsvelte_esrap` 0.10.21 and update the compiler's exact dependency.
+- 086b4ac: Avoid allocating a temporary argument vector for one-argument calls, and release `rsvelte_esrap` 0.10.13.
+- 316643e: Print comment-bearing JavaScript faster while preserving all comments. Release `rsvelte_esrap` 0.10.28 and update the compiler's exact dependency.
+- 4af8585: Fix async-derived lowering with comments, destructuring, and non-final awaits.
+- 38b4f2a: Preserve source locations for unchanged client instance scripts in generated source maps.
+- 2a0f401: Remove per-element closure allocations from hot esrap sequences and specialize common multi-argument calls. Release `rsvelte_esrap` 0.10.14 and update the compiler's exact dependency.
+- 6628144: Prevent non-ASCII text from corrupting legacy client transform boundaries by keeping character and byte offsets as distinct types.
+
 ## 0.10.14
 
 ### Patch Changes

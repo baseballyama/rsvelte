@@ -1,5 +1,11 @@
 # @sveltejs/vite-plugin-svelte
 
+## 0.5.1
+
+### Patch Changes
+
+- b1f9bec: Preserve source maps when the Vite integration rewrites generated HMR code or appends CSS imports.
+
 ## 0.5.0
 
 ### Minor Changes

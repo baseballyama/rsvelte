@@ -1,5 +1,18 @@
 # @rsvelte/language-server
 
+## 0.5.0
+
+### Minor Changes
+
+- e69cf32: Ship the complete native editor distribution: upstream-compatible VS Code settings and commands, native VSIX binaries, standalone release archives, and setup for Neovim, Zed, Sublime Text, Helix, and Emacs.
+- 8689058: Add native Svelte code lenses, extract-component refactoring, and lint code actions.
+- 8ac8590: Add the full TypeScript language surface through a supervised tsgo LSP child and diskless Svelte shadow workspace.
+
+### Patch Changes
+
+- f679440: Add native HTML and CSS language assistance for Svelte documents.
+- 3dbee3b: Apply trusted-workspace Svelte preprocessors through a supervised Node sidecar and compose their source maps with TypeScript shadow mappings.
+
 ## 0.4.1
 
 ### Patch Changes
