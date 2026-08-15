@@ -81,7 +81,7 @@ fn main() {
             report.comment_files += 1;
             report.comments += parsed.program.comments.len();
         }
-        let input_comments = comment_texts(&parsed.program, &source);
+        let input_comments = comment_bodies(&parsed.program, &source);
         let plain = rsvelte_esrap::print_with(&parsed.program, &source, &options);
         let mapped = rsvelte_esrap::print_with_map(&parsed.program, &source, &options);
         if plain != mapped.code {
@@ -113,10 +113,10 @@ fn main() {
             ));
             continue;
         }
-        let output_comments = comment_texts(&output.program, &plain);
+        let output_comments = comment_bodies(&output.program, &plain);
         if input_comments != output_comments {
             failures.push(format!(
-                "{}: comments changed: input={input_comments:?}, output={output_comments:?}",
+                "{}: comment kinds or bodies changed: input={input_comments:?}, output={output_comments:?}",
                 path.display()
             ));
             continue;
@@ -166,12 +166,50 @@ fn parse<'a>(allocator: &'a Allocator, source: &'a str) -> oxc_parser::ParserRet
         .parse()
 }
 
-fn comment_texts(program: &Program<'_>, source: &str) -> Vec<String> {
+fn comment_bodies(program: &Program<'_>, source: &str) -> Vec<(bool, String)> {
     program
         .comments
         .iter()
-        .map(|comment| comment.span().source_text(source).to_string())
+        .map(|comment| {
+            let span = comment.span();
+            let raw = span.source_text(source);
+            let block = !matches!(comment.kind, oxc_ast::ast::CommentKind::Line);
+            let value = if block {
+                let inner = raw
+                    .strip_prefix("/*")
+                    .and_then(|text| text.strip_suffix("*/"))
+                    .unwrap_or(raw);
+                dedent_comment(source, span.start, inner)
+            } else {
+                raw.strip_prefix("//").unwrap_or(raw).to_string()
+            };
+            (block, value)
+        })
         .collect()
+}
+
+fn dedent_comment(source: &str, start: u32, inner: &str) -> String {
+    if !inner.contains('\n') {
+        return inner.to_string();
+    }
+    let bytes = source.as_bytes();
+    let mut line_start = start as usize;
+    while line_start > 0 && bytes[line_start - 1] != b'\n' {
+        line_start -= 1;
+    }
+    let mut content_start = line_start;
+    while content_start < bytes.len() && matches!(bytes[content_start], b' ' | b'\t') {
+        content_start += 1;
+    }
+    let indentation = &source[line_start..content_start];
+    if indentation.is_empty() {
+        return inner.to_string();
+    }
+    let mut normalized = String::with_capacity(inner.len());
+    for line in inner.split_inclusive('\n') {
+        normalized.push_str(line.strip_prefix(indentation).unwrap_or(line));
+    }
+    normalized
 }
 
 fn validate_mappings(
@@ -209,4 +247,25 @@ fn parse_usize(value: Option<String>, fallback: usize) -> usize {
     value
         .and_then(|value| value.parse().ok())
         .unwrap_or(fallback)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{comment_bodies, parse};
+    use oxc_allocator::Allocator;
+
+    #[test]
+    fn comment_bodies_ignore_printer_reindentation() {
+        let input_source = "/** first\n * second */";
+        let output_source = "\t/** first\n\t * second */";
+        let input_allocator = Allocator::default();
+        let output_allocator = Allocator::default();
+        let input = parse(&input_allocator, input_source);
+        let output = parse(&output_allocator, output_source);
+
+        assert_eq!(
+            comment_bodies(&input.program, input_source),
+            comment_bodies(&output.program, output_source)
+        );
+    }
 }

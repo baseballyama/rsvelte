@@ -109,7 +109,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 23 | Escaped-quote lookback shape | one line of Rust source, over every `.rs` under `crates/` + `apps/` | it matches a **spelling**; a scanner with *no* escape check at all produces no line to match | [D] |
 | 24 | `await_waterfall` runtime parity | the `await_waterfall` warnings a **mounted** rsvelte-compiled component logs vs. official's, 3 cases | one warning code, one component shape; nothing else about the running component is observed | [D] |
 | 25 | Differential output-preservation corpus hash | per `.svelte` source × client/server/client-dev/server-dev hash from base-core vs merge-ref-core | changes outside `crates/rsvelte_core`; every PR without the maintainer-applied `output-preserving` label | [S] |
-| 26 | esrap generated-output corpus | parsed JS output × official/rsvelte tree × 4 targets; AST equivalence, raw comments, code/map equality, map bounds/order | production synthetic AST spans and whether a mapping points at the corresponding source token | [S] |
+| 26 | esrap generated-output corpus | parsed JS output × official/rsvelte tree × 4 targets; AST equivalence, comment kind/body sequence, code/map equality, map bounds/order | production synthetic AST spans and whether a mapping points at the corresponding source token | [S] |
 
 Cross-cutting blind spots (**ratchet keys losing in both directions**, path filters, ratchet-doc
 drift, vacuity floors, the **performance**
@@ -121,8 +121,9 @@ are in [§ Cross-cutting](#cross-cutting) at the end.
 **Unit.** Every available JavaScript output in both `expected/` and `actual/`, across
 client, server, client-dev and server-dev, is parsed with OXC and printed by
 `rsvelte_esrap` with and without mappings. The gate requires semantic AST equivalence,
-identical code from the mapped and unmapped APIs, ordered raw comment-text preservation,
-and ordered in-bounds mapping coordinates. It rejects fewer than 12,000 outputs in any
+identical code from the mapped and unmapped APIs, ordered comment kind/body preservation,
+and ordered in-bounds mapping coordinates. Block bodies use esrap's own indentation dedent,
+so layout-only re-indentation is not a content divergence. It rejects fewer than 12,000 outputs in any
 tree/target and records the measured population in `esrap-report.json`.
 
 **Blind spot 26a — reparsing erases production AST provenance.** The gate consumes compiler
