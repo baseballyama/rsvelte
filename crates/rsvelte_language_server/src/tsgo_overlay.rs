@@ -411,15 +411,20 @@ impl TsgoOverlay {
         source_path: &Path,
     ) -> Result<Option<ShadowDocument>, TsgoOverlayError> {
         let source_path = self.confined_source(source_path)?;
-        if source_path.is_file() {
-            let next_version = self
-                .entries
-                .get(&source_path)
-                .map_or(0, |entry| entry.document.version.saturating_add(1));
-            return self.update_from_disk(&source_path, next_version).map(Some);
+        let next_version = self
+            .entries
+            .get(&source_path)
+            .map_or(0, |entry| entry.document.version.saturating_add(1));
+        match fs::read_to_string(&source_path) {
+            Ok(text) => self
+                .open_or_update(&source_path, &text, next_version)
+                .map(Some),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                self.remove_source(&source_path)?;
+                Ok(None)
+            }
+            Err(error) => Err(error.into()),
         }
-        self.remove_source(&source_path)?;
-        Ok(None)
     }
 
     /// Reconcile eager shadows with the current workspace tree.
@@ -1625,7 +1630,6 @@ mod tests {
                 .source_text,
             "<p>buffer</p>"
         );
-        write(&app, "<p>disk</p>");
         let reverted = overlay.close(&app).unwrap().unwrap();
         assert_eq!(reverted.version, 8);
         assert_eq!(
