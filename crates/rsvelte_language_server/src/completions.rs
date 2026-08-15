@@ -9,6 +9,7 @@ use lsp_types::{
 };
 
 use crate::context::{EmbeddedRegions, attribute_context};
+use crate::html_data::TAGS;
 use crate::modifiers::MODIFIERS;
 use crate::tags::{SvelteTag, latest_opening_tag};
 
@@ -27,6 +28,10 @@ pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
         return None;
     }
     let before = preceding(text, offset);
+
+    if let Some(prefix) = tag_prefix(text, offset) {
+        return Some(html_tag_completions(prefix));
+    }
 
     if preceded_by_opening_brace(before) {
         return trigger_character(before).and_then(|trigger| match trigger {
@@ -58,6 +63,30 @@ pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
     }
 
     component_documentation(before)
+}
+
+fn tag_prefix(text: &str, offset: usize) -> Option<&str> {
+    let before = text.get(..offset)?;
+    let start = before.rfind('<')?;
+    let prefix = &before[start + 1..];
+    (!prefix.starts_with('/') && !prefix.contains('>') && !prefix.chars().any(char::is_whitespace))
+        .then_some(prefix)
+}
+
+fn html_tag_completions(prefix: &str) -> CompletionList {
+    CompletionList {
+        is_incomplete: false,
+        items: TAGS
+            .iter()
+            .filter(|tag| tag.name.starts_with(prefix))
+            .map(|tag| CompletionItem {
+                label: tag.name.to_string(),
+                kind: Some(CompletionItemKind::CLASS),
+                documentation: Some(markdown(tag.description.to_string())),
+                ..CompletionItem::default()
+            })
+            .collect(),
+    }
 }
 
 /// The up-to-`WINDOW` characters in front of `offset`.
@@ -326,6 +355,13 @@ mod tests {
 
     fn all_modifiers() -> Vec<String> {
         MODIFIERS.iter().map(|m| m.name.to_string()).collect()
+    }
+
+    #[test]
+    fn completes_native_html_and_svelte_tags() {
+        assert!(labels("<sv").unwrap().contains(&"svelte:self".to_string()));
+        assert_eq!(labels("<tex").unwrap(), ["textarea"]);
+        assert!(labels("<div ").is_none());
     }
 
     #[test]
