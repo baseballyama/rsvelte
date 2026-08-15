@@ -7,6 +7,7 @@ use crate::command::Buffer;
 const MAX_BUFFERS: usize = 8192;
 const MAX_TEXT_CAPACITY: usize = 16 * 1024;
 const MAX_EVENT_CAPACITY: usize = 1024;
+const MAX_LAYOUT_CAPACITY: usize = 1024;
 
 thread_local! {
     static BUFFERS: RefCell<Vec<Buffer>> = const { RefCell::new(Vec::new()) };
@@ -19,7 +20,11 @@ pub fn take() -> Vec<Buffer> {
 pub fn give(mut root: Buffer, mut returned: Vec<Buffer>) {
     root.text.clear();
     root.events.clear();
-    if root.text.capacity() <= MAX_TEXT_CAPACITY && root.events.capacity() <= MAX_EVENT_CAPACITY {
+    root.layouts.clear();
+    if root.text.capacity() <= MAX_TEXT_CAPACITY
+        && root.events.capacity() <= MAX_EVENT_CAPACITY
+        && root.layouts.capacity() <= MAX_LAYOUT_CAPACITY
+    {
         returned.push(root);
     }
     BUFFERS.with(|buffers| {
@@ -32,6 +37,7 @@ pub fn give(mut root: Buffer, mut returned: Vec<Buffer>) {
             };
             if buffer.text.capacity() <= MAX_TEXT_CAPACITY
                 && buffer.events.capacity() <= MAX_EVENT_CAPACITY
+                && buffer.layouts.capacity() <= MAX_LAYOUT_CAPACITY
             {
                 buffers.push(buffer);
             }

@@ -111,10 +111,21 @@ pub fn print(program: &Program<'_>, source: &str) -> String {
 pub fn print_with(program: &Program<'_>, source: &str, options: &PrintOptions) -> String {
     let (comments, line_starts) = comments_and_line_starts(program, source);
     if comments.is_empty() {
-        print_with_impl::<false>(program, options, comments, line_starts)
+        print_direct(program, options, source.len())
     } else {
         print_with_impl::<true>(program, options, comments, line_starts)
     }
+}
+
+fn print_direct(program: &Program<'_>, options: &PrintOptions, capacity: usize) -> String {
+    let mut printer =
+        printer::Printer::<false, true>::with_comments(options, Vec::new(), Vec::new());
+    let mut ctx = context::Context::new_direct(&options.indent, capacity);
+    printer.print_program(program, &mut ctx);
+    let (buffer, returned, indent, dirty) = ctx.into_direct_parts();
+    let (code, buffer) = command::finish_direct(buffer, &indent, dirty);
+    pool::give(buffer, returned);
+    code
 }
 
 fn print_with_impl<const HAS_COMMENTS: bool>(
@@ -124,7 +135,7 @@ fn print_with_impl<const HAS_COMMENTS: bool>(
     line_starts: Vec<u32>,
 ) -> String {
     let mut printer =
-        printer::Printer::<HAS_COMMENTS>::with_comments(options, comments, line_starts);
+        printer::Printer::<HAS_COMMENTS, false>::with_comments(options, comments, line_starts);
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
     let capacity = ctx.measure();
@@ -199,8 +210,21 @@ fn print_split_impl<const HAS_COMMENTS: bool>(
     line_starts: Vec<u32>,
     map_line_starts: Vec<u32>,
 ) -> PrintWithMap {
+    if !HAS_COMMENTS && map_source.is_none() {
+        let mut printer =
+            printer::Printer::<false, true>::with_comments(options, Vec::new(), Vec::new());
+        let mut ctx = context::Context::new_direct(&options.indent, program.source_text.len());
+        printer.print_program(program, &mut ctx);
+        let (buffer, returned, indent, dirty) = ctx.into_direct_parts();
+        let (code, buffer) = command::finish_direct(buffer, &indent, dirty);
+        pool::give(buffer, returned);
+        return PrintWithMap {
+            code,
+            mappings: Vec::new(),
+        };
+    }
     let mut printer =
-        printer::Printer::<HAS_COMMENTS>::with_comments(options, comments, line_starts)
+        printer::Printer::<HAS_COMMENTS, false>::with_comments(options, comments, line_starts)
             .with_split_coordinates(map_line_starts, loc_base, loc_map, map_source.is_some());
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);
@@ -252,7 +276,7 @@ fn print_with_map_impl<const HAS_COMMENTS: bool>(
     line_starts: Vec<u32>,
 ) -> PrintWithMap {
     let mut printer =
-        printer::Printer::<HAS_COMMENTS>::with_comments(options, comments, line_starts)
+        printer::Printer::<HAS_COMMENTS, false>::with_comments(options, comments, line_starts)
             .with_source_map();
     let mut ctx = context::Context::new();
     printer.print_program(program, &mut ctx);

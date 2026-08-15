@@ -72,7 +72,7 @@ struct KeywordCursor {
 impl KeywordCursor {
     /// Write one fragment (e.g. `"declare "`, `"class "`). Mapped if a cursor is
     /// active, otherwise a plain write.
-    fn write(&mut self, ctx: &mut Context, fragment: &str) {
+    fn write<const DIRECT: bool>(&mut self, ctx: &mut Context<DIRECT>, fragment: &str) {
         if let Some((line, col)) = self.cursor {
             ctx.location(line, col);
             ctx.write(fragment);
@@ -85,7 +85,8 @@ impl KeywordCursor {
     }
 }
 
-pub struct Printer<'opt, const HAS_COMMENTS: bool = true> {
+#[repr(C)]
+pub struct Printer<'opt, const HAS_COMMENTS: bool = true, const DIRECT: bool = false> {
     options: &'opt PrintOptions,
     emit_locations: bool,
     /// Set by the first unsupported node encountered; printing continues so the
@@ -117,7 +118,7 @@ pub struct Printer<'opt, const HAS_COMMENTS: bool = true> {
 /// body across `newline`s so its interior re-indents to the current level. A
 /// free function so the comment-flush loops can hold a `&Cmt` borrowed straight
 /// out of `self.comments` without cloning it.
-fn write_comment(cmt: &Cmt, ctx: &mut Context) {
+fn write_comment<const DIRECT: bool>(cmt: &Cmt, ctx: &mut Context<DIRECT>) {
     let value = &cmt.value;
     if !cmt.block {
         ctx.write(format_compact!("//{value}"));
@@ -417,7 +418,11 @@ fn arrow_concise_body_needs_wrap(body: &Expression) -> bool {
     }
 }
 
-impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
+impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMMENTS, DIRECT> {
+    fn deferred(&mut self) -> &mut Printer<'opt, HAS_COMMENTS, false> {
+        // SAFETY: the const parameter does not affect the repr(C) field layout.
+        unsafe { &mut *(std::ptr::from_mut(self).cast()) }
+    }
     #[cfg(test)]
     pub const fn new(options: &'opt PrintOptions) -> Self {
         Self {
@@ -531,7 +536,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
 
     /// esrap's `write_source_keyword`: bracket the literal `keyword` with
     /// source-map anchors for its exact span, so breakpoints land on the keyword.
-    fn write_source_keyword(ctx: &mut Context, line: u32, column: u32, keyword: &str) {
+    fn write_source_keyword(ctx: &mut Context<DIRECT>, line: u32, column: u32, keyword: &str) {
         ctx.location(line, column);
         ctx.write(keyword);
         ctx.location(line, column + usize_to_u32(keyword.len()));
@@ -541,7 +546,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     /// `start` (resolved to a source `loc`), then append an unmapped `suffix`. If
     /// the offset can't be resolved (no source context), falls back to a plain
     /// `keyword + suffix` write.
-    fn write_keyword(&self, ctx: &mut Context, start: u32, keyword: &str, suffix: &str) {
+    fn write_keyword(&self, ctx: &mut Context<DIRECT>, start: u32, keyword: &str, suffix: &str) {
         if !self.emit_locations {
             ctx.write(keyword);
             ctx.write(suffix);
@@ -622,7 +627,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     /// blank line before a detached leading comment block.
     fn flush_comments_until(
         &mut self,
-        ctx: &mut Context,
+        ctx: &mut Context<DIRECT>,
         to: u32,
         to_line: u32,
         from_line: Option<u32>,
@@ -666,7 +671,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     /// on to force the wrapped one-arg-per-line form.
     fn flush_trailing_comments(
         &mut self,
-        ctx: &mut Context,
+        ctx: &mut Context<DIRECT>,
         prev_end: u32,
         next: Option<u32>,
     ) -> bool {
@@ -730,7 +735,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     }
 
     /// The `_` wildcard's leading flush: emit comments positioned before `node`.
-    fn flush_leading(&mut self, ctx: &mut Context, node_start: u32) {
+    fn flush_leading(&mut self, ctx: &mut Context<DIRECT>, node_start: u32) {
         if !HAS_COMMENTS {
             return;
         }
@@ -755,7 +760,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         pad: bool,
         separator: &'static str,
         trailing_newline: bool,
-        parent: &mut Context,
+        parent: &mut Context<DIRECT>,
     ) {
         let n = nodes.len();
         let mut multiline = false;
@@ -773,7 +778,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         let mut items: Vec<SeqItem> = Vec::with_capacity(n);
         for (i, node) in nodes.iter_mut().enumerate() {
             let mut child = parent.child();
-            (node.render)(self, &mut child);
+            (node.render)(self.deferred(), &mut child);
 
             let node_multiline = child.multiline;
 
@@ -787,7 +792,8 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
             // start, or `until` for the final node.
             let next = if i == n - 1 { until } else { starts[i + 1] };
             if let Some(end) = node.end {
-                self.flush_trailing_comments(&mut child, end, next);
+                self.deferred()
+                    .flush_trailing_comments(&mut child, end, next);
             }
 
             length += usize_to_i64(child.measure()) + 1;
@@ -852,12 +858,12 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         &mut self,
         n: usize,
         mut meta: impl FnMut(usize) -> SeqMeta,
-        mut render: impl FnMut(&mut Self, usize, &mut Context),
+        mut render: impl FnMut(&mut Self, usize, &mut Context<DIRECT>),
         until: Option<u32>,
         pad: bool,
         separator: &'static str,
         trailing_newline: bool,
-        parent: &mut Context,
+        parent: &mut Context<DIRECT>,
     ) {
         if n == 0 {
             if let Some(until) = until {
@@ -1078,12 +1084,12 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         &mut self,
         nodes: &[T],
         mut meta: impl FnMut(&T) -> SeqMeta,
-        mut render: impl FnMut(&mut Self, &T, &mut Context),
+        mut render: impl FnMut(&mut Self, &T, &mut Context<DIRECT>),
         until: Option<u32>,
         pad: bool,
         separator: &'static str,
         trailing_newline: bool,
-        parent: &mut Context,
+        parent: &mut Context<DIRECT>,
     ) {
         self.sequence_indexed(
             nodes.len(),
@@ -1097,7 +1103,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         );
     }
 
-    fn unsupported(&mut self, kind: &'static str, ctx: &mut Context) {
+    fn unsupported(&mut self, kind: &'static str, ctx: &mut Context<DIRECT>) {
         if self.missing.is_none() {
             self.missing = Some(Unsupported(kind));
         }
@@ -1108,7 +1114,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
 
     // ----- statements -------------------------------------------------------
 
-    pub fn print_program(&mut self, program: &Program, ctx: &mut Context) {
+    pub fn print_program(&mut self, program: &Program, ctx: &mut Context<DIRECT>) {
         let span = program.span();
         // Upstream's program is builder-made and carries no `loc`, so its
         // statement list discards the pending comments and only a nested body
@@ -1139,7 +1145,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         statements: &[Statement],
         body_start: u32,
         body_end: u32,
-        ctx: &mut Context,
+        ctx: &mut Context<DIRECT>,
     ) {
         self.body_elems(
             statements.iter().map(BodyElem::Statement),
@@ -1156,7 +1162,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         elems: impl IntoIterator<Item = BodyElem<'a, 'b>>,
         body_start: Option<u32>,
         body_end: u32,
-        ctx: &mut Context,
+        ctx: &mut Context<DIRECT>,
     ) where
         'a: 'b,
     {
@@ -1221,7 +1227,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
 
     /// A program/function-body directive (`"use strict";`), printed like the
     /// string-literal `ExpressionStatement` esrap sees.
-    fn print_directive(&mut self, d: &Directive, ctx: &mut Context) {
+    fn print_directive(&mut self, d: &Directive, ctx: &mut Context<DIRECT>) {
         let start = d.span.start;
         self.flush_leading(ctx, start);
         ctx.write(Self::string_literal(&d.expression));
@@ -1229,7 +1235,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     }
 
     #[allow(clippy::too_many_lines)]
-    fn print_statement(&mut self, stmt: &Statement, ctx: &mut Context) {
+    fn print_statement(&mut self, stmt: &Statement, ctx: &mut Context<DIRECT>) {
         // esrap's `_` wildcard: emit comments positioned before this node first.
         let start = stmt.span().start;
         self.flush_leading(ctx, start);
@@ -1396,7 +1402,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         }
     }
 
-    fn import_declaration(&mut self, node: &ImportDeclaration, ctx: &mut Context) {
+    fn import_declaration(&mut self, node: &ImportDeclaration, ctx: &mut Context<DIRECT>) {
         if node.specifiers.as_ref().is_none_or(|v| v.is_empty()) {
             ctx.write("import ");
             ctx.write(Self::string_literal(&node.source));
@@ -1444,7 +1450,9 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
                         is_elision: false,
                     }
                 },
-                |_p, s, child| Printer::<HAS_COMMENTS>::import_specifier(s, child),
+                |_p, s, child| {
+                    Printer::<HAS_COMMENTS, DIRECT>::import_specifier(s, child);
+                },
                 None,
                 true,
                 ",",
@@ -1460,7 +1468,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     }
 
     /// esrap's import-attributes tail: ` with { key: value, … }`.
-    fn import_attributes(clause: Option<&WithClause>, ctx: &mut Context) {
+    fn import_attributes(clause: Option<&WithClause>, ctx: &mut Context<DIRECT>) {
         let Some(clause) = clause else { return };
         if clause.with_entries.is_empty() {
             return;
@@ -1480,7 +1488,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         ctx.write(" }");
     }
 
-    fn import_specifier(node: &ImportSpecifier, ctx: &mut Context) {
+    fn import_specifier(node: &ImportSpecifier, ctx: &mut Context<DIRECT>) {
         if matches!(node.import_kind, ImportOrExportKind::Type) {
             ctx.write("type ");
         }
@@ -1500,7 +1508,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         ctx.write(node.local.name.as_str());
     }
 
-    fn export_declaration(&mut self, node: &ExportDeclaration, ctx: &mut Context) {
+    fn export_declaration(&mut self, node: &ExportDeclaration, ctx: &mut Context<DIRECT>) {
         // A class declaration's decorators are printed *before* `export`.
         if let Declaration::ClassDeclaration(c) = &node.declaration
             && !c.decorators.is_empty()
@@ -1521,7 +1529,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         span_start: u32,
         specifiers: &[ExportSpecifier],
         export_kind: ImportOrExportKind,
-        ctx: &mut Context,
+        ctx: &mut Context<DIRECT>,
     ) {
         let mut kw = self.keyword_cursor(span_start, true);
         kw.write(ctx, "export ");
@@ -1540,7 +1548,9 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
                     is_elision: false,
                 }
             },
-            |_p, s, child| Printer::<HAS_COMMENTS>::export_specifier(s, child),
+            |_p, s, child| {
+                Printer::<HAS_COMMENTS, DIRECT>::export_specifier(s, child);
+            },
             None,
             true,
             ",",
@@ -1550,19 +1560,27 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         ctx.write("}");
     }
 
-    fn export_named_declaration(&mut self, node: &ExportNamedDeclaration, ctx: &mut Context) {
+    fn export_named_declaration(
+        &mut self,
+        node: &ExportNamedDeclaration,
+        ctx: &mut Context<DIRECT>,
+    ) {
         self.export_specifier_list(node.span().start, &node.specifiers, node.export_kind, ctx);
         ctx.write(";");
     }
 
-    fn export_from_declaration(&mut self, node: &ExportFromDeclaration, ctx: &mut Context) {
+    fn export_from_declaration(&mut self, node: &ExportFromDeclaration, ctx: &mut Context<DIRECT>) {
         self.export_specifier_list(node.span().start, &node.specifiers, node.export_kind, ctx);
         ctx.write(" from ");
         ctx.write(Self::string_literal(&node.source));
         ctx.write(";");
     }
 
-    fn export_default_declaration(&mut self, node: &ExportDefaultDeclaration, ctx: &mut Context) {
+    fn export_default_declaration(
+        &mut self,
+        node: &ExportDefaultDeclaration,
+        ctx: &mut Context<DIRECT>,
+    ) {
         // esrap: `export ` then `default ` via a keyword cursor, mapped only when
         // the export is single-line (`single_line_node`).
         let map_ok = self
@@ -1592,7 +1610,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         }
     }
 
-    fn template_literal(&mut self, node: &TemplateLiteral, ctx: &mut Context) {
+    fn template_literal(&mut self, node: &TemplateLiteral, ctx: &mut Context<DIRECT>) {
         ctx.write("`");
         for (i, expr) in node.expressions.iter().enumerate() {
             let raw = node.quasis.get(i).map_or("", |q| q.value.raw.as_str());
@@ -1616,7 +1634,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         }
     }
 
-    fn export_specifier(node: &ExportSpecifier, ctx: &mut Context) {
+    fn export_specifier(node: &ExportSpecifier, ctx: &mut Context<DIRECT>) {
         if matches!(node.export_kind, ImportOrExportKind::Type) {
             ctx.write("type ");
         }
@@ -1631,7 +1649,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
 
     /// Print a `Declaration` node (the RHS of `export <decl>` and standalone
     /// declarations). Only the variable form is wired so far.
-    fn declaration(&mut self, decl: &Declaration, ctx: &mut Context) {
+    fn declaration(&mut self, decl: &Declaration, ctx: &mut Context<DIRECT>) {
         match decl {
             Declaration::VariableDeclaration(d) => {
                 self.variable_declaration(d, ctx);
@@ -1651,7 +1669,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
 
     /// esrap's `FunctionDeclaration|FunctionExpression`:
     /// `[async ]function[* ] id(params) { body }`.
-    fn function(&mut self, node: &Function, ctx: &mut Context) {
+    fn function(&mut self, node: &Function, ctx: &mut Context<DIRECT>) {
         if node.declare {
             ctx.write("declare ");
         }
@@ -1715,7 +1733,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     }
 
     /// esrap's `ClassDeclaration|ClassExpression`: `class [id ][extends sup ]{…}`.
-    fn class_node(&mut self, node: &Class, ctx: &mut Context) {
+    fn class_node(&mut self, node: &Class, ctx: &mut Context<DIRECT>) {
         for decorator in &node.decorators {
             self.decorator(decorator, ctx);
         }
@@ -1724,7 +1742,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
 
     /// The class body sans leading decorators (already emitted by the caller —
     /// e.g. `export @dec class`, which prints decorators before `export`).
-    fn class_node_no_decorators(&mut self, node: &Class, ctx: &mut Context) {
+    fn class_node_no_decorators(&mut self, node: &Class, ctx: &mut Context<DIRECT>) {
         // esrap's class modifier keyword cursor: `declare `/`abstract `/`class `
         // mapped to their source span when `class_modifier_keywords_map_ok`
         // (no decorators, id/body on the node's start line).
@@ -1768,7 +1786,8 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
                         obj_or_array: false,
                         is_elision: false,
                         render: Box::new(
-                            move |p: &mut Printer<'_, HAS_COMMENTS>, child: &mut Context| {
+                            move |p: &mut Printer<'_, HAS_COMMENTS, false>,
+                                  child: &mut Context<false>| {
                                 Printer::<HAS_COMMENTS>::print_type_name(&imp.expression, child);
                                 if let Some(ta) = &imp.type_arguments {
                                     p.type_parameter_instantiation(ta, child);
@@ -1783,7 +1802,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         self.class_body(&node.body, ctx);
     }
 
-    fn decorator(&mut self, node: &Decorator, ctx: &mut Context) {
+    fn decorator(&mut self, node: &Decorator, ctx: &mut Context<DIRECT>) {
         ctx.write("@");
         self.print_expression(&node.expression, ctx);
         ctx.newline();
@@ -1793,7 +1812,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     /// `body` machinery (one-per-line, blank line between two multiline members
     /// or a change of member kind) so leading / trailing / end-of-body comments
     /// are interleaved identically to a statement block.
-    fn class_body(&mut self, body: &ClassBody, ctx: &mut Context) {
+    fn class_body(&mut self, body: &ClassBody, ctx: &mut Context<DIRECT>) {
         let span = body.span();
         ctx.write("{");
         let mark = ctx.event_mark();
@@ -1818,7 +1837,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         ctx.write("}");
     }
 
-    fn class_element(&mut self, element: &ClassElement, ctx: &mut Context) {
+    fn class_element(&mut self, element: &ClassElement, ctx: &mut Context<DIRECT>) {
         // esrap's `_` wildcard flushes any comment positioned before the member
         // (e.g. a leading JSDoc block) before visiting it.
         let start = element.span().start;
@@ -1836,7 +1855,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         }
     }
 
-    fn method_definition(&mut self, node: &MethodDefinition, ctx: &mut Context) {
+    fn method_definition(&mut self, node: &MethodDefinition, ctx: &mut Context<DIRECT>) {
         for decorator in &node.decorators {
             self.decorator(decorator, ctx);
         }
@@ -1906,7 +1925,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         }
     }
 
-    fn property_definition(&mut self, node: &PropertyDefinition, ctx: &mut Context) {
+    fn property_definition(&mut self, node: &PropertyDefinition, ctx: &mut Context<DIRECT>) {
         for decorator in &node.decorators {
             self.decorator(decorator, ctx);
         }
@@ -1955,7 +1974,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         ctx.write(";");
     }
 
-    fn accessor_property(&mut self, node: &AccessorProperty, ctx: &mut Context) {
+    fn accessor_property(&mut self, node: &AccessorProperty, ctx: &mut Context<DIRECT>) {
         for decorator in &node.decorators {
             self.decorator(decorator, ctx);
         }
@@ -1993,7 +2012,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         ctx.write(";");
     }
 
-    fn if_statement(&mut self, node: &IfStatement, ctx: &mut Context) {
+    fn if_statement(&mut self, node: &IfStatement, ctx: &mut Context<DIRECT>) {
         self.write_keyword(ctx, node.span().start, "if", " (");
         self.print_expression(&node.test, ctx);
         ctx.write(") ");
@@ -2019,7 +2038,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         }
     }
 
-    fn do_while_statement(&mut self, node: &DoWhileStatement, ctx: &mut Context) {
+    fn do_while_statement(&mut self, node: &DoWhileStatement, ctx: &mut Context<DIRECT>) {
         self.write_keyword(ctx, node.span().start, "do", " ");
         self.print_statement(&node.body, ctx);
         // esrap maps the trailing `while` to a computed offset (one past the body
@@ -2038,7 +2057,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         ctx.write(");");
     }
 
-    fn for_statement(&mut self, node: &ForStatement, ctx: &mut Context) {
+    fn for_statement(&mut self, node: &ForStatement, ctx: &mut Context<DIRECT>) {
         ctx.write("for (");
         if let Some(init) = &node.init {
             match init {
@@ -2063,7 +2082,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     }
 
     /// The binding of a `for…in` / `for…of` head: a declaration or a target.
-    fn for_statement_left(&mut self, left: &ForStatementLeft, ctx: &mut Context) {
+    fn for_statement_left(&mut self, left: &ForStatementLeft, ctx: &mut Context<DIRECT>) {
         match left {
             ForStatementLeft::VariableDeclaration(d) => self.variable_declaration(d, ctx),
             _ => match left.as_assignment_target() {
@@ -2074,7 +2093,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     }
 
     /// esrap's `TryStatement`: `try {…}` + optional `catch (p) {…}` + `finally {…}`.
-    fn try_statement(&mut self, node: &TryStatement, ctx: &mut Context) {
+    fn try_statement(&mut self, node: &TryStatement, ctx: &mut Context<DIRECT>) {
         self.write_keyword(ctx, node.span().start, "try", " ");
         let span = node.block.span();
         self.block(&node.block.body, span.start, span.end, ctx);
@@ -2118,7 +2137,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
 
     /// esrap's `SwitchStatement`: `switch (disc) {`, each case indented with a
     /// blank-line margin between cases, statements one-per-line.
-    fn switch_statement(&mut self, node: &SwitchStatement, ctx: &mut Context) {
+    fn switch_statement(&mut self, node: &SwitchStatement, ctx: &mut Context<DIRECT>) {
         self.write_keyword(ctx, node.span().start, "switch", " (");
         self.print_expression(&node.discriminant, ctx);
         ctx.write(") {");
@@ -2150,7 +2169,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         ctx.write("}");
     }
 
-    fn object_pattern(&mut self, node: &ObjectPattern, ctx: &mut Context) {
+    fn object_pattern(&mut self, node: &ObjectPattern, ctx: &mut Context<DIRECT>) {
         ctx.write("{");
         let property_len = node.properties.len();
         let n = property_len + usize::from(node.rest.is_some());
@@ -2192,7 +2211,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         ctx.write("}");
     }
 
-    fn binding_property(&mut self, node: &BindingProperty, ctx: &mut Context) {
+    fn binding_property(&mut self, node: &BindingProperty, ctx: &mut Context<DIRECT>) {
         if node.shorthand {
             self.binding_pattern(&node.value, ctx);
             return;
@@ -2208,7 +2227,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         self.binding_pattern(&node.value, ctx);
     }
 
-    fn array_pattern(&mut self, node: &ArrayPattern, ctx: &mut Context) {
+    fn array_pattern(&mut self, node: &ArrayPattern, ctx: &mut Context<DIRECT>) {
         ctx.write("[");
         let element_len = node.elements.len();
         let n = element_len + usize::from(node.rest.is_some());
@@ -2254,7 +2273,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     }
 
     /// Parameter list via esrap's `sequence` (no padding): `a, b, ...rest`.
-    fn formal_parameters(&mut self, params: &FormalParameters, ctx: &mut Context) {
+    fn formal_parameters(&mut self, params: &FormalParameters, ctx: &mut Context<DIRECT>) {
         self.formal_parameters_with_this(params, None, Some(params.span().end), ctx);
     }
 
@@ -2265,7 +2284,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         params: &FormalParameters,
         this_param: Option<&TSThisParameter>,
         until: Option<u32>,
-        ctx: &mut Context,
+        ctx: &mut Context<DIRECT>,
     ) {
         let this_len = usize::from(this_param.is_some());
         let item_len = params.items.len();
@@ -2336,7 +2355,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
 
     /// esrap's `ArrowFunctionExpression`: `[async ](params) => body`, wrapping an
     /// object concise body in parens so it isn't read as a block.
-    fn arrow_function(&mut self, node: &ArrowFunctionExpression, ctx: &mut Context) {
+    fn arrow_function(&mut self, node: &ArrowFunctionExpression, ctx: &mut Context<DIRECT>) {
         if node.r#async {
             ctx.write("async ");
         }
@@ -2369,7 +2388,13 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
 
     /// esrap's `BlockStatement|ClassBody`: only break a body across lines when
     /// it has real content, so an empty body stays `{}`.
-    fn block(&mut self, body: &[Statement], body_start: u32, body_end: u32, ctx: &mut Context) {
+    fn block(
+        &mut self,
+        body: &[Statement],
+        body_start: u32,
+        body_end: u32,
+        ctx: &mut Context<DIRECT>,
+    ) {
         if !HAS_COMMENTS {
             let keep_empty = self.options.keep_empty_statements;
             let has_content = body.iter().any(|statement| {
@@ -2411,7 +2436,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     /// declarators one-per-line — joined by `,\n` and indented — when any
     /// declarator is itself multiline (e.g. carries a leading comment) or there
     /// is more than one and they don't fit (`measure + 2*(n-1) > 50`).
-    fn variable_declaration(&mut self, decl: &VariableDeclaration, ctx: &mut Context) {
+    fn variable_declaration(&mut self, decl: &VariableDeclaration, ctx: &mut Context<DIRECT>) {
         // esrap's `handle_var_declaration`: a keyword cursor anchored at the
         // declaration start writes `declare ` (if present) then the kind keyword,
         // each mapped to its source span so breakpoints land on `let`/`const`/etc.
@@ -2495,7 +2520,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         }
     }
 
-    fn binding_pattern(&mut self, pattern: &BindingPattern, ctx: &mut Context) {
+    fn binding_pattern(&mut self, pattern: &BindingPattern, ctx: &mut Context<DIRECT>) {
         match pattern {
             BindingPattern::BindingIdentifier(id) => ctx.write(id.name.as_str()),
             BindingPattern::AssignmentPattern(a) => {
@@ -2511,7 +2536,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     // ----- expressions ------------------------------------------------------
 
     #[allow(clippy::too_many_lines)]
-    fn print_expression(&mut self, expr: &Expression, ctx: &mut Context) {
+    fn print_expression(&mut self, expr: &Expression, ctx: &mut Context<DIRECT>) {
         // esrap's `_` wildcard: emit comments positioned before this node first.
         let start = expr.span().start;
         self.flush_leading(ctx, start);
@@ -2692,7 +2717,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
 
     // ----- JSX (port of esrap's `languages/tsx`) ---------------------------
 
-    fn jsx_element(&mut self, node: &JSXElement, ctx: &mut Context) {
+    fn jsx_element(&mut self, node: &JSXElement, ctx: &mut Context<DIRECT>) {
         // oxc derives self-closing from the absence of a closing element.
         self.jsx_opening_element(&node.opening_element, node.closing_element.is_none(), ctx);
         if !node.children.is_empty() {
@@ -2711,7 +2736,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         }
     }
 
-    fn jsx_fragment(&mut self, node: &JSXFragment, ctx: &mut Context) {
+    fn jsx_fragment(&mut self, node: &JSXFragment, ctx: &mut Context<DIRECT>) {
         ctx.write("<>");
         if !node.children.is_empty() {
             ctx.indent();
@@ -2729,7 +2754,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         &mut self,
         node: &JSXOpeningElement,
         self_closing: bool,
-        ctx: &mut Context,
+        ctx: &mut Context<DIRECT>,
     ) {
         ctx.write("<");
         Self::jsx_element_name(&node.name, ctx);
@@ -2759,7 +2784,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         ctx.write(">");
     }
 
-    fn jsx_child(&mut self, child: &JSXChild, ctx: &mut Context) {
+    fn jsx_child(&mut self, child: &JSXChild, ctx: &mut Context<DIRECT>) {
         match child {
             JSXChild::Text(t) => ctx.write(t.value.as_str()),
             JSXChild::Element(e) => self.jsx_element(e, ctx),
@@ -2773,7 +2798,11 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         }
     }
 
-    fn jsx_expression_container(&mut self, node: &JSXExpressionContainer, ctx: &mut Context) {
+    fn jsx_expression_container(
+        &mut self,
+        node: &JSXExpressionContainer,
+        ctx: &mut Context<DIRECT>,
+    ) {
         ctx.write("{");
         // A `JSXEmptyExpression` (e.g. `{}` or `{/* comment */}`) prints nothing.
         if let Some(expr) = node.expression.as_expression() {
@@ -2782,7 +2811,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         ctx.write("}");
     }
 
-    fn jsx_attribute_value(&mut self, value: &JSXAttributeValue, ctx: &mut Context) {
+    fn jsx_attribute_value(&mut self, value: &JSXAttributeValue, ctx: &mut Context<DIRECT>) {
         match value {
             JSXAttributeValue::StringLiteral(s) => ctx.write(Self::string_literal(s)),
             JSXAttributeValue::ExpressionContainer(c) => self.jsx_expression_container(c, ctx),
@@ -2791,7 +2820,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         }
     }
 
-    fn jsx_attribute_name(name: &JSXAttributeName, ctx: &mut Context) {
+    fn jsx_attribute_name(name: &JSXAttributeName, ctx: &mut Context<DIRECT>) {
         match name {
             JSXAttributeName::Identifier(id) => ctx.write(id.name.as_str()),
             JSXAttributeName::NamespacedName(n) => {
@@ -2802,7 +2831,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         }
     }
 
-    fn jsx_element_name(name: &JSXElementName, ctx: &mut Context) {
+    fn jsx_element_name(name: &JSXElementName, ctx: &mut Context<DIRECT>) {
         match name {
             JSXElementName::Identifier(id) => ctx.write(id.name.as_str()),
             JSXElementName::IdentifierReference(id) => ctx.write(id.name.as_str()),
@@ -2816,7 +2845,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         }
     }
 
-    fn jsx_member_expression(node: &JSXMemberExpression, ctx: &mut Context) {
+    fn jsx_member_expression(node: &JSXMemberExpression, ctx: &mut Context<DIRECT>) {
         match &node.object {
             JSXMemberExpressionObject::IdentifierReference(id) => ctx.write(id.name.as_str()),
             JSXMemberExpressionObject::MemberExpression(m) => Self::jsx_member_expression(m, ctx),
@@ -2834,7 +2863,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     /// `ChainExpression` at the top, so its inner member objects are plain
     /// members/identifiers and never trip this — only an explicitly nested chain
     /// (the snippet-argument base) does.
-    fn member_object_with_parens(&mut self, object: &Expression, ctx: &mut Context) {
+    fn member_object_with_parens(&mut self, object: &Expression, ctx: &mut Context<DIRECT>) {
         // oxc keeps a `ParenthesizedExpression` around the nested chain, which
         // `print_expression` would then drop — look through it as the callee
         // rule does, so the required parens are not lost.
@@ -2848,7 +2877,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     }
 
     /// Print `child` parenthesised iff its precedence is below `min`.
-    fn child_with_parens(&mut self, child: &Expression, min: u8, ctx: &mut Context) {
+    fn child_with_parens(&mut self, child: &Expression, min: u8, ctx: &mut Context<DIRECT>) {
         if expr_precedence(child) < min {
             ctx.write("(");
             self.print_expression(child, ctx);
@@ -2858,7 +2887,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         }
     }
 
-    fn binary_expression(&mut self, node: &BinaryExpression, ctx: &mut Context) {
+    fn binary_expression(&mut self, node: &BinaryExpression, ctx: &mut Context<DIRECT>) {
         let op = node.operator.as_str();
         self.binary_child(&node.left, false, op, false, ctx);
         ctx.write(" ");
@@ -2867,7 +2896,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         self.binary_child(&node.right, false, op, true, ctx);
     }
 
-    fn logical_expression(&mut self, node: &LogicalExpression, ctx: &mut Context) {
+    fn logical_expression(&mut self, node: &LogicalExpression, ctx: &mut Context<DIRECT>) {
         let op = node.operator.as_str();
         self.binary_child(&node.left, true, op, false, ctx);
         ctx.write(" ");
@@ -2885,7 +2914,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         parent_is_logical: bool,
         parent_op: &str,
         is_right: bool,
-        ctx: &mut Context,
+        ctx: &mut Context<DIRECT>,
     ) {
         if binary_needs_parens(child, parent_is_logical, parent_op, is_right) {
             ctx.write("(");
@@ -2896,7 +2925,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         }
     }
 
-    fn unary_expression(&mut self, node: &UnaryExpression, ctx: &mut Context) {
+    fn unary_expression(&mut self, node: &UnaryExpression, ctx: &mut Context<DIRECT>) {
         let op = node.operator.as_str();
         // `typeof`/`void`/`delete` are word operators and need a trailing space.
         if matches!(
@@ -2911,7 +2940,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         self.child_with_parens(&node.argument, 15, ctx);
     }
 
-    fn call_expression(&mut self, node: &CallExpression, ctx: &mut Context) {
+    fn call_expression(&mut self, node: &CallExpression, ctx: &mut Context<DIRECT>) {
         // esrap's `CallExpression|NewExpression` wrap rule: parenthesize the
         // callee when it is a ChainExpression — otherwise a NON-optional call on
         // an optional-chain callee (`(a?.b)(c)`) would be mis-printed as the
@@ -2931,13 +2960,13 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         self.call_arguments(&node.arguments, node.span().end, ctx);
     }
 
-    fn static_member(&mut self, node: &StaticMemberExpression, ctx: &mut Context) {
+    fn static_member(&mut self, node: &StaticMemberExpression, ctx: &mut Context<DIRECT>) {
         self.member_object_with_parens(&node.object, ctx);
         ctx.write(if node.optional { "?." } else { "." });
         ctx.write(node.property.name.as_str());
     }
 
-    fn computed_member(&mut self, node: &ComputedMemberExpression, ctx: &mut Context) {
+    fn computed_member(&mut self, node: &ComputedMemberExpression, ctx: &mut Context<DIRECT>) {
         self.member_object_with_parens(&node.object, ctx);
         if node.optional {
             ctx.write("?.");
@@ -2947,7 +2976,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         ctx.write("]");
     }
 
-    fn assignment_expression(&mut self, node: &AssignmentExpression, ctx: &mut Context) {
+    fn assignment_expression(&mut self, node: &AssignmentExpression, ctx: &mut Context<DIRECT>) {
         // esrap visits both sides without adding parens.
         self.assignment_target(&node.left, ctx);
         ctx.write(" ");
@@ -2958,7 +2987,11 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
 
     /// A `SimpleAssignmentTarget` (the operand of `++`/`--`, a subset of
     /// `AssignmentTarget`).
-    fn simple_assignment_target(&mut self, target: &SimpleAssignmentTarget, ctx: &mut Context) {
+    fn simple_assignment_target(
+        &mut self,
+        target: &SimpleAssignmentTarget,
+        ctx: &mut Context<DIRECT>,
+    ) {
         match target {
             SimpleAssignmentTarget::AssignmentTargetIdentifier(id) => ctx.write(id.name.as_str()),
             SimpleAssignmentTarget::StaticMemberExpression(m) => self.static_member(m, ctx),
@@ -2973,7 +3006,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         }
     }
 
-    fn assignment_target(&mut self, target: &AssignmentTarget, ctx: &mut Context) {
+    fn assignment_target(&mut self, target: &AssignmentTarget, ctx: &mut Context<DIRECT>) {
         match target {
             AssignmentTarget::AssignmentTargetIdentifier(id) => ctx.write(id.name.as_str()),
             AssignmentTarget::StaticMemberExpression(m) => self.static_member(m, ctx),
@@ -3071,7 +3104,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     fn assignment_target_maybe_default(
         &mut self,
         target: &AssignmentTargetMaybeDefault,
-        ctx: &mut Context,
+        ctx: &mut Context<DIRECT>,
     ) {
         match target {
             AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(d) => {
@@ -3086,7 +3119,11 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         }
     }
 
-    fn assignment_target_property(&mut self, prop: &AssignmentTargetProperty, ctx: &mut Context) {
+    fn assignment_target_property(
+        &mut self,
+        prop: &AssignmentTargetProperty,
+        ctx: &mut Context<DIRECT>,
+    ) {
         match prop {
             AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(p) => {
                 ctx.write(p.binding.name.as_str());
@@ -3113,13 +3150,15 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     /// precedence); the branches are emitted as-is. When either branch is
     /// multiline or the two together exceed 50 columns, break onto indented
     /// `? …` / `: …` lines.
-    fn conditional_expression(&mut self, node: &ConditionalExpression, ctx: &mut Context) {
+    fn conditional_expression(&mut self, node: &ConditionalExpression, ctx: &mut Context<DIRECT>) {
         self.child_with_parens(&node.test, 5, ctx);
 
         let mut consequent = ctx.child();
-        self.print_expression(&node.consequent, &mut consequent);
+        self.deferred()
+            .print_expression(&node.consequent, &mut consequent);
         let mut alternate = ctx.child();
-        self.print_expression(&node.alternate, &mut alternate);
+        self.deferred()
+            .print_expression(&node.alternate, &mut alternate);
 
         let multiline = consequent.multiline
             || alternate.multiline
@@ -3142,7 +3181,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         }
     }
 
-    fn array_expression(&mut self, node: &ArrayExpression, ctx: &mut Context) {
+    fn array_expression(&mut self, node: &ArrayExpression, ctx: &mut Context<DIRECT>) {
         ctx.write("[");
         self.sequence_slice(
             &node.elements,
@@ -3178,7 +3217,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
 
     /// esrap always parenthesizes a sequence expression (`(a, b)`), laying the
     /// comma list out with the shared `sequence` machinery.
-    fn sequence_expression(&mut self, node: &SequenceExpression, ctx: &mut Context) {
+    fn sequence_expression(&mut self, node: &SequenceExpression, ctx: &mut Context<DIRECT>) {
         ctx.write("(");
         self.sequence_slice(
             &node.expressions,
@@ -3201,7 +3240,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         ctx.write(")");
     }
 
-    fn object_expression(&mut self, node: &ObjectExpression, ctx: &mut Context) {
+    fn object_expression(&mut self, node: &ObjectExpression, ctx: &mut Context<DIRECT>) {
         ctx.write("{");
         self.sequence_slice(
             &node.properties,
@@ -3239,7 +3278,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         ctx.write("}");
     }
 
-    fn object_property(&mut self, prop: &ObjectProperty, ctx: &mut Context) {
+    fn object_property(&mut self, prop: &ObjectProperty, ctx: &mut Context<DIRECT>) {
         // Shorthand `{ x }` when key and value are the same identifier.
         if !prop.computed
             && prop.kind == PropertyKind::Init
@@ -3297,7 +3336,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         self.print_expression(&prop.value, ctx);
     }
 
-    fn property_key(&mut self, key: &PropertyKey, ctx: &mut Context) {
+    fn property_key(&mut self, key: &PropertyKey, ctx: &mut Context<DIRECT>) {
         match key {
             PropertyKey::StaticIdentifier(id) => ctx.write(id.name.as_str()),
             PropertyKey::PrivateIdentifier(id) => {
@@ -3325,7 +3364,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     /// argument can span lines while the call stays on one line
     /// (`$.run([ … ])`, `foo(a, b, () => { … })`). Length is not a factor.
     #[inline]
-    fn print_argument(&mut self, arg: &Argument, ctx: &mut Context) {
+    fn print_argument(&mut self, arg: &Argument, ctx: &mut Context<DIRECT>) {
         match arg {
             Argument::SpreadElement(spread) => {
                 ctx.write("...");
@@ -3344,7 +3383,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         arg: &Argument,
         next: Option<u32>,
         comma: bool,
-        ctx: &mut Context,
+        ctx: &mut Context<DIRECT>,
     ) -> bool {
         let scope = ctx.begin_scope();
         self.print_argument(arg, ctx);
@@ -3356,7 +3395,12 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     }
 
     #[inline]
-    fn call_argument_plain(&mut self, arg: &Argument, comma: bool, ctx: &mut Context) -> bool {
+    fn call_argument_plain(
+        &mut self,
+        arg: &Argument,
+        comma: bool,
+        ctx: &mut Context<DIRECT>,
+    ) -> bool {
         let scope = ctx.begin_scope();
         self.print_argument(arg, ctx);
         if comma {
@@ -3365,7 +3409,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         ctx.end_scope(scope)
     }
 
-    fn call_arguments_plain(&mut self, args: &[Argument], ctx: &mut Context) {
+    fn call_arguments_plain(&mut self, args: &[Argument], ctx: &mut Context<DIRECT>) {
         match args {
             [] => ctx.write("()"),
             [arg] => {
@@ -3440,7 +3484,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         }
     }
 
-    fn call_arguments(&mut self, args: &[Argument], call_end: u32, ctx: &mut Context) {
+    fn call_arguments(&mut self, args: &[Argument], call_end: u32, ctx: &mut Context<DIRECT>) {
         if !HAS_COMMENTS {
             self.call_arguments_plain(args, ctx);
             return;
@@ -3583,7 +3627,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     // ----- TypeScript types -------------------------------------------------
 
     /// esrap's `TSTypeAnnotation`: `: ` + the type.
-    fn type_annotation(&mut self, node: &TSTypeAnnotation, ctx: &mut Context) {
+    fn type_annotation(&mut self, node: &TSTypeAnnotation, ctx: &mut Context<DIRECT>) {
         ctx.write(": ");
         self.print_type(&node.type_annotation, ctx);
     }
@@ -3592,7 +3636,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     fn type_parameter_instantiation(
         &mut self,
         node: &TSTypeParameterInstantiation,
-        ctx: &mut Context,
+        ctx: &mut Context<DIRECT>,
     ) {
         ctx.write("<");
         for (i, p) in node.params.iter().enumerate() {
@@ -3605,7 +3649,11 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     }
 
     /// esrap's `TSTypeParameterDeclaration`: `<T, U extends V = W>`.
-    fn type_parameter_declaration(&mut self, node: &TSTypeParameterDeclaration, ctx: &mut Context) {
+    fn type_parameter_declaration(
+        &mut self,
+        node: &TSTypeParameterDeclaration,
+        ctx: &mut Context<DIRECT>,
+    ) {
         ctx.write("<");
         for (i, p) in node.params.iter().enumerate() {
             if i > 0 {
@@ -3616,7 +3664,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         ctx.write(">");
     }
 
-    fn type_parameter(&mut self, node: &TSTypeParameter, ctx: &mut Context) {
+    fn type_parameter(&mut self, node: &TSTypeParameter, ctx: &mut Context<DIRECT>) {
         ctx.write(node.name.name.as_str());
         if let Some(constraint) = &node.constraint {
             ctx.write(" extends ");
@@ -3629,7 +3677,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     }
 
     /// esrap's `TSTypeName` (`IdentifierReference` / `TSQualifiedName`).
-    fn print_type_name(name: &TSTypeName, ctx: &mut Context) {
+    fn print_type_name(name: &TSTypeName, ctx: &mut Context<DIRECT>) {
         match name {
             TSTypeName::IdentifierReference(id) => ctx.write(id.name.as_str()),
             TSTypeName::QualifiedName(q) => {
@@ -3643,7 +3691,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
 
     /// The core type dispatcher (esrap's TS type visitors).
     #[allow(clippy::too_many_lines)]
-    fn print_type(&mut self, ty: &TSType, ctx: &mut Context) {
+    fn print_type(&mut self, ty: &TSType, ctx: &mut Context<DIRECT>) {
         match ty {
             TSType::TSAnyKeyword(_) => ctx.write("any"),
             TSType::TSBigIntKeyword(_) => ctx.write("bigint"),
@@ -3792,7 +3840,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
 
     /// esrap's `TSImportType`: `import('src')[.qualifier]`. (Type-argument
     /// support is unused by the samples.)
-    fn import_type(node: &TSImportType, ctx: &mut Context) {
+    fn import_type(node: &TSImportType, ctx: &mut Context<DIRECT>) {
         ctx.write("import(");
         ctx.write(Self::string_literal(&node.source));
         ctx.write(")");
@@ -3802,7 +3850,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         }
     }
 
-    fn import_type_qualifier(q: &TSImportTypeQualifier, ctx: &mut Context) {
+    fn import_type_qualifier(q: &TSImportTypeQualifier, ctx: &mut Context<DIRECT>) {
         match q {
             TSImportTypeQualifier::Identifier(id) => ctx.write(id.name.as_str()),
             TSImportTypeQualifier::QualifiedName(qn) => {
@@ -3814,7 +3862,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     }
 
     /// esrap's `TSNamedTupleMember`: `label[?]: type`.
-    fn named_tuple_member(&mut self, node: &TSNamedTupleMember, ctx: &mut Context) {
+    fn named_tuple_member(&mut self, node: &TSNamedTupleMember, ctx: &mut Context<DIRECT>) {
         ctx.write(node.label.name.as_str());
         if node.optional {
             ctx.write("?");
@@ -3823,7 +3871,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         self.tuple_element(&node.element_type, ctx);
     }
 
-    fn tuple_element(&mut self, el: &TSTupleElement, ctx: &mut Context) {
+    fn tuple_element(&mut self, el: &TSTupleElement, ctx: &mut Context<DIRECT>) {
         match el {
             TSTupleElement::TSOptionalType(t) => {
                 self.print_type(&t.type_annotation, ctx);
@@ -3842,7 +3890,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     }
 
     /// esrap's `TSMappedType`: `{[K in C]: T}` (no inner spaces).
-    fn mapped_type(&mut self, node: &TSMappedType, ctx: &mut Context) {
+    fn mapped_type(&mut self, node: &TSMappedType, ctx: &mut Context<DIRECT>) {
         ctx.write("{");
         if let Some(readonly) = node.readonly {
             ctx.write(mapped_modifier_prefix(readonly, "readonly"));
@@ -3867,14 +3915,14 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     }
 
     /// esrap's `TSTypeLiteral`: `{ ` + `;`-separated members + ` }`.
-    fn type_literal(&mut self, node: &TSTypeLiteral, ctx: &mut Context) {
+    fn type_literal(&mut self, node: &TSTypeLiteral, ctx: &mut Context<DIRECT>) {
         ctx.write("{ ");
         let nodes = Self::signature_seq_nodes(&node.members);
         self.sequence(nodes, Some(node.span.end), false, ";", true, ctx);
         ctx.write(" }");
     }
 
-    fn ts_literal(&mut self, lit: &TSLiteral, ctx: &mut Context) {
+    fn ts_literal(&mut self, lit: &TSLiteral, ctx: &mut Context<DIRECT>) {
         match lit {
             TSLiteral::BooleanLiteral(b) => ctx.write(if b.value { "true" } else { "false" }),
             TSLiteral::NumericLiteral(n) => ctx.write(literal_raw(
@@ -3903,7 +3951,8 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
                     obj_or_array: false,
                     is_elision: false,
                     render: Box::new(
-                        move |p: &mut Printer<'_, HAS_COMMENTS>, child: &mut Context| {
+                        move |p: &mut Printer<'_, HAS_COMMENTS, false>,
+                              child: &mut Context<false>| {
                             p.print_type(ty, child);
                         },
                     ),
@@ -3924,7 +3973,8 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
                     obj_or_array: false,
                     is_elision: false,
                     render: Box::new(
-                        move |p: &mut Printer<'_, HAS_COMMENTS>, child: &mut Context| {
+                        move |p: &mut Printer<'_, HAS_COMMENTS, false>,
+                              child: &mut Context<false>| {
                             p.tuple_element(el, child);
                         },
                     ),
@@ -3944,7 +3994,8 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
                     obj_or_array: false,
                     is_elision: false,
                     render: Box::new(
-                        move |p: &mut Printer<'_, HAS_COMMENTS>, child: &mut Context| {
+                        move |p: &mut Printer<'_, HAS_COMMENTS, false>,
+                              child: &mut Context<false>| {
                             p.signature(m, child);
                         },
                     ),
@@ -3954,7 +4005,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     }
 
     /// esrap's `TSSignature` visitors (members of an interface / type literal).
-    fn signature(&mut self, sig: &TSSignature, ctx: &mut Context) {
+    fn signature(&mut self, sig: &TSSignature, ctx: &mut Context<DIRECT>) {
         match sig {
             TSSignature::TSPropertySignature(s) => {
                 if s.readonly {
@@ -4033,7 +4084,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
 
     // ----- TypeScript declarations ------------------------------------------
 
-    fn type_alias_declaration(&mut self, node: &TSTypeAliasDeclaration, ctx: &mut Context) {
+    fn type_alias_declaration(&mut self, node: &TSTypeAliasDeclaration, ctx: &mut Context<DIRECT>) {
         if node.declare {
             ctx.write("declare ");
         }
@@ -4047,7 +4098,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         ctx.write(";");
     }
 
-    fn interface_declaration(&mut self, node: &TSInterfaceDeclaration, ctx: &mut Context) {
+    fn interface_declaration(&mut self, node: &TSInterfaceDeclaration, ctx: &mut Context<DIRECT>) {
         if node.declare {
             ctx.write("declare ");
         }
@@ -4069,8 +4120,12 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
                         obj_or_array: false,
                         is_elision: false,
                         render: Box::new(
-                            move |p: &mut Printer<'_, HAS_COMMENTS>, child: &mut Context| {
-                                Self::print_type_name(&h.type_name, child);
+                            move |p: &mut Printer<'_, HAS_COMMENTS, false>,
+                                  child: &mut Context<false>| {
+                                Printer::<HAS_COMMENTS, false>::print_type_name(
+                                    &h.type_name,
+                                    child,
+                                );
                                 if let Some(ta) = &h.type_arguments {
                                     p.type_parameter_instantiation(ta, child);
                                 }
@@ -4088,7 +4143,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         ctx.write("}");
     }
 
-    fn enum_declaration(&mut self, node: &TSEnumDeclaration, ctx: &mut Context) {
+    fn enum_declaration(&mut self, node: &TSEnumDeclaration, ctx: &mut Context<DIRECT>) {
         if node.declare {
             ctx.write("declare ");
         }
@@ -4112,7 +4167,8 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
                     obj_or_array: false,
                     is_elision: false,
                     render: Box::new(
-                        move |p: &mut Printer<'_, HAS_COMMENTS>, child: &mut Context| {
+                        move |p: &mut Printer<'_, HAS_COMMENTS, false>,
+                              child: &mut Context<false>| {
                             p.enum_member(m, child);
                         },
                     ),
@@ -4125,7 +4181,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         ctx.write("}");
     }
 
-    fn enum_member(&mut self, node: &TSEnumMember, ctx: &mut Context) {
+    fn enum_member(&mut self, node: &TSEnumMember, ctx: &mut Context<DIRECT>) {
         match &node.id {
             TSEnumMemberName::Identifier(id) => ctx.write(id.name.as_str()),
             TSEnumMemberName::String(s) => ctx.write(Self::string_literal(s)),
@@ -4149,7 +4205,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     fn external_module_declaration(
         &mut self,
         node: &TSExternalModuleDeclaration,
-        ctx: &mut Context,
+        ctx: &mut Context<DIRECT>,
     ) {
         if node.declare {
             ctx.write("declare ");
@@ -4165,7 +4221,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         &mut self,
         node: &TSNamespaceDeclaration,
         include_keyword: bool,
-        ctx: &mut Context,
+        ctx: &mut Context<DIRECT>,
     ) {
         if include_keyword {
             if node.declare {
@@ -4186,7 +4242,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         }
     }
 
-    fn global_declaration(&mut self, node: &TSGlobalDeclaration, ctx: &mut Context) {
+    fn global_declaration(&mut self, node: &TSGlobalDeclaration, ctx: &mut Context<DIRECT>) {
         if node.declare {
             ctx.write("declare ");
         }
@@ -4195,7 +4251,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
     }
 
     /// esrap's `TSModuleBlock`: ` {` + indented body + `}`.
-    fn module_block(&mut self, node: &TSModuleBlock, ctx: &mut Context) {
+    fn module_block(&mut self, node: &TSModuleBlock, ctx: &mut Context<DIRECT>) {
         ctx.write(" {");
         ctx.indent();
         ctx.newline();
@@ -4210,7 +4266,7 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         ctx.write("}");
     }
 
-    fn import_equals_declaration(node: &TSImportEqualsDeclaration, ctx: &mut Context) {
+    fn import_equals_declaration(node: &TSImportEqualsDeclaration, ctx: &mut Context<DIRECT>) {
         ctx.write("import ");
         ctx.write(node.id.name.as_str());
         ctx.write(" = ");
@@ -4271,7 +4327,7 @@ fn quote(value: &str) -> CompactString {
 /// whether it's a property with an object/array value (which suppresses the
 /// blank-line margin between adjacent multiline elements).
 struct SeqItem {
-    ctx: Context,
+    ctx: Context<false>,
     multiline: bool,
     obj_or_array: bool,
     /// This item is an array elision (a hole, `[a, , b]`). esrap still writes
@@ -4300,7 +4356,7 @@ struct SeqMeta {
 /// node's source span (so trailing comments can be flushed in source order) and
 /// a closure that renders it into a child context.
 type SeqRenderer<'p, const HAS_COMMENTS: bool> =
-    dyn FnMut(&mut Printer<'_, HAS_COMMENTS>, &mut Context) + 'p;
+    dyn FnMut(&mut Printer<'_, HAS_COMMENTS, false>, &mut Context<false>) + 'p;
 
 struct SeqNode<'p, const HAS_COMMENTS: bool> {
     /// Node `loc.end` byte offset, or `None` for a synthetic node without a
@@ -4401,10 +4457,10 @@ impl<'a> BodyElem<'a, '_> {
         }
     }
 
-    fn print<const HAS_COMMENTS: bool>(
+    fn print<const HAS_COMMENTS: bool, const DIRECT: bool>(
         &self,
-        printer: &mut Printer<'_, HAS_COMMENTS>,
-        ctx: &mut Context,
+        printer: &mut Printer<'_, HAS_COMMENTS, DIRECT>,
+        ctx: &mut Context<DIRECT>,
     ) {
         match self {
             BodyElem::Directive(d) => printer.print_directive(d, ctx),

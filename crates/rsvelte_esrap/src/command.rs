@@ -17,10 +17,21 @@ pub(crate) struct Event {
     pub kind: EventKind,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct LayoutSpan {
+    pub start: u32,
+    pub raw_len: u32,
+    pub depth: u32,
+    pub newline: bool,
+    pub margin: bool,
+    pub dirty: bool,
+}
+
 #[derive(Default)]
 pub(crate) struct Buffer {
     pub text: String,
     pub events: Vec<Event>,
+    pub layouts: Vec<LayoutSpan>,
 }
 
 impl Buffer {
@@ -43,6 +54,88 @@ impl Buffer {
             }
         }));
         child.text.clear();
+    }
+}
+
+pub(crate) fn finish_direct(mut buffer: Buffer, indent: &str, dirty: bool) -> (String, Buffer) {
+    if dirty {
+        patch_layouts(&mut buffer.text, &buffer.layouts, indent);
+    }
+    buffer.layouts.clear();
+    let text = std::mem::take(&mut buffer.text);
+    (text, buffer)
+}
+
+fn patch_layouts(text: &mut String, layouts: &[LayoutSpan], indent: &str) {
+    let old_len = text.len();
+    let new_len = layouts
+        .iter()
+        .filter(|span| span.dirty)
+        .fold(old_len, |len, span| {
+            let growth = rendered_layout_len(*span, indent.len())
+                .checked_sub(span.raw_len as usize)
+                .expect("retroactive layout edits only grow");
+            len.checked_add(growth).expect("esrap output exceeds usize")
+        });
+    debug_assert!(new_len >= old_len);
+    text.reserve(new_len - old_len);
+
+    // SAFETY: ordered non-overlapping spans only grow during the reverse rewrite.
+    unsafe {
+        let bytes = text.as_mut_vec();
+        bytes.resize(new_len, 0);
+        let ptr = bytes.as_mut_ptr();
+        let mut src = old_len;
+        let mut dst = new_len;
+
+        for span in layouts.iter().rev().filter(|span| span.dirty) {
+            let start = span.start as usize;
+            let end = start + span.raw_len as usize;
+            debug_assert!(end <= src);
+
+            let trailing = src - end;
+            dst -= trailing;
+            std::ptr::copy(ptr.add(end), ptr.add(dst), trailing);
+
+            let rendered_len = rendered_layout_len(*span, indent.len());
+            dst -= rendered_len;
+            write_layout(ptr.add(dst), *span, indent);
+            src = start;
+        }
+
+        debug_assert_eq!(dst, src);
+    }
+}
+
+fn rendered_layout_len(span: LayoutSpan, indent_len: usize) -> usize {
+    if span.newline {
+        1 + usize::from(span.margin) + span.depth as usize * indent_len
+    } else {
+        1
+    }
+}
+
+unsafe fn write_layout(mut dst: *mut u8, span: LayoutSpan, indent: &str) {
+    if !span.newline {
+        // SAFETY: caller reserved one byte for the space.
+        unsafe { dst.write(b' ') };
+        return;
+    }
+    if span.margin {
+        // SAFETY: caller reserved the rendered layout length.
+        unsafe { dst.write(b'\n') };
+        // SAFETY: the margin byte is within that reserved range.
+        dst = unsafe { dst.add(1) };
+    }
+    // SAFETY: caller reserved the rendered layout length.
+    unsafe { dst.write(b'\n') };
+    // SAFETY: the newline byte is within that reserved range.
+    dst = unsafe { dst.add(1) };
+    for _ in 0..span.depth {
+        // SAFETY: caller reserved the rendered layout length and indent is valid bytes.
+        unsafe { std::ptr::copy_nonoverlapping(indent.as_ptr(), dst, indent.len()) };
+        // SAFETY: each indent copy advances within that reserved range.
+        dst = unsafe { dst.add(indent.len()) };
     }
 }
 
