@@ -63,6 +63,9 @@ pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
     }
 
     if let Some(attribute) = attribute_context(text, offset) {
+        if attribute.in_value && attribute.name == "lang" {
+            return Some(language_completions(attribute.element_tag));
+        }
         if attribute.in_value && attribute.name == "style" {
             return crate::css::completions(text, offset);
         }
@@ -73,6 +76,25 @@ pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
     }
 
     component_documentation(before)
+}
+
+fn language_completions(element: &str) -> CompletionList {
+    let languages: &[&str] = match element {
+        "script" => &["js", "ts"],
+        "style" => &["css", "scss", "less", "sass", "postcss"],
+        _ => &[],
+    };
+    CompletionList {
+        is_incomplete: false,
+        items: languages
+            .iter()
+            .map(|language| CompletionItem {
+                label: (*language).to_string(),
+                kind: Some(CompletionItemKind::VALUE),
+                ..CompletionItem::default()
+            })
+            .collect(),
+    }
 }
 
 fn html_attribute_completions(element: &str, prefix: &str) -> CompletionList {
@@ -422,6 +444,20 @@ mod tests {
             labels("<a data-sveltekit-")
                 .unwrap()
                 .contains(&"data-sveltekit-preload-code".to_string())
+        );
+    }
+
+    #[test]
+    fn completes_embedded_language_values() {
+        assert!(
+            labels("<script lang=\"")
+                .unwrap()
+                .contains(&"ts".to_string())
+        );
+        assert!(
+            labels("<style lang=\"")
+                .unwrap()
+                .contains(&"scss".to_string())
         );
     }
 
