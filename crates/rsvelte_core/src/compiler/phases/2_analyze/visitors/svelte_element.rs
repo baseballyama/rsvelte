@@ -142,7 +142,7 @@ pub fn visit<'a, 'b: 'a>(
     let has_valid_this = element.tag.node_type().is_some();
 
     if !has_valid_this {
-        return Err(errors::svelte_element_missing_this());
+        return Err(errors::svelte_element_missing_this().at(element.start, element.end));
     }
 
     // Upstream runs the shared a11y checker from both element visitors; the tag
