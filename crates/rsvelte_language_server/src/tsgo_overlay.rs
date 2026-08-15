@@ -857,7 +857,7 @@ impl TsgoOverlay {
         let suffix = lexical
             .strip_prefix(existing)
             .expect("nearest existing path is an ancestor");
-        let real = real_existing.join(suffix);
+        let real = join_existing_suffix(real_existing, suffix);
         if !real.starts_with(&self.workspace) {
             return Err(TsgoOverlayError::InvalidSource {
                 path: lexical,
@@ -878,7 +878,7 @@ impl TsgoOverlay {
         let suffix = lexical
             .strip_prefix(existing)
             .expect("nearest existing path is an ancestor");
-        let real = real_existing.join(suffix);
+        let real = join_existing_suffix(real_existing, suffix);
         if !real.starts_with(&self.workspace) {
             return Err(TsgoOverlayError::InvalidSource {
                 path: lexical,
@@ -1431,6 +1431,14 @@ fn nearest_existing_path(path: &Path) -> io::Result<&Path> {
     ))
 }
 
+fn join_existing_suffix(existing: PathBuf, suffix: &Path) -> PathBuf {
+    if suffix.as_os_str().is_empty() {
+        existing
+    } else {
+        existing.join(suffix)
+    }
+}
+
 fn absolute_normalized(path: &Path) -> PathBuf {
     let path = if path.is_absolute() {
         path.to_path_buf()
@@ -1512,6 +1520,15 @@ mod tests {
     fn write(path: &Path, text: &str) {
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(path, text).unwrap();
+    }
+
+    #[test]
+    fn an_existing_leaf_does_not_gain_an_empty_path_component() {
+        let existing = PathBuf::from("/workspace/src/App.svelte");
+        assert_eq!(
+            join_existing_suffix(existing.clone(), Path::new("")),
+            existing
+        );
     }
 
     #[test]
