@@ -48,6 +48,34 @@ pub fn color_presentations(color: Color) -> Vec<ColorPresentation> {
     }]
 }
 
+/// Selection expansion spans, innermost first, for a CSS declaration.
+#[must_use]
+pub fn selection_spans(text: &str, offset: usize) -> Vec<(u32, u32)> {
+    let Some(body) = style_body_range(text, offset) else {
+        return Vec::new();
+    };
+    let before = &text[body.start..offset.min(body.end)];
+    let declaration_start = before
+        .rfind([';', '{', '}'])
+        .map_or(body.start, |i| body.start + i + 1);
+    let declaration_end = text[offset.min(body.end)..body.end]
+        .find([';', '}'])
+        .map_or(body.end, |i| offset + i);
+    let word = word_at(text, offset).and_then(|word| {
+        let start = word.as_ptr() as usize - text.as_ptr() as usize;
+        u32::try_from(start)
+            .ok()
+            .zip(u32::try_from(start + word.len()).ok())
+    });
+    word.into_iter()
+        .chain(std::iter::once((
+            declaration_start as u32,
+            declaration_end as u32,
+        )))
+        .chain(std::iter::once((body.start as u32, body.end as u32)))
+        .collect()
+}
+
 /// CSS completions at `offset`, when it is in a declaration name or value.
 #[must_use]
 pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
@@ -96,14 +124,17 @@ fn css_prefix(text: &str, offset: usize) -> Option<&str> {
 }
 
 fn style_body(text: &str, offset: usize) -> bool {
-    let before = &text[..offset.min(text.len())];
-    let Some(open) = before.rfind("<style") else {
-        return false;
-    };
-    let Some(end) = before[open..].find('>').map(|index| index + open) else {
-        return false;
-    };
-    end < offset && !before[end + 1..].contains("</style")
+    style_body_range(text, offset).is_some()
+}
+
+fn style_body_range(text: &str, offset: usize) -> Option<std::ops::Range<usize>> {
+    let before = text.get(..offset.min(text.len()))?;
+    let open = before.rfind("<style")?;
+    let start = before[open..].find('>')? + open + 1;
+    let end = text[start..]
+        .find("</style")
+        .map_or(text.len(), |index| start + index);
+    (start <= offset && offset <= end).then_some(start..end)
 }
 
 fn static_style_value(text: &str, offset: usize) -> bool {

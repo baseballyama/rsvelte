@@ -30,6 +30,10 @@ pub fn selection_ranges(text: &str, offsets: &[usize]) -> Option<Vec<SelectionRa
     let chains: Vec<Vec<Span>> = offsets
         .iter()
         .map(|&offset| {
+            let css = crate::css::selection_spans(text, offset);
+            if !css.is_empty() {
+                return css;
+            }
             if embedded.iter().any(|body| body.contains(&offset)) {
                 return Vec::new();
             }
@@ -238,8 +242,8 @@ mod tests {
     }
 
     #[test]
-    fn nothing_inside_style_or_script() {
-        assert_eq!(selection_ranges("<style>x</style>", &[7]), None);
+    fn style_selection_expands_while_scripts_remain_excluded() {
+        assert!(selection_ranges("<style>a { color: red }</style>", &[13]).is_some());
         assert_eq!(selection_ranges("<script>x</script>", &[8]), None);
     }
 
