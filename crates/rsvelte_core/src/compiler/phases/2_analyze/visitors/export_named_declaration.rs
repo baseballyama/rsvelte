@@ -44,19 +44,21 @@ fn check_export_bindings(
     pattern: &JsNode,
     arena: &ParseArena,
     context: &VisitorContext,
+    start: u32,
+    end: u32,
 ) -> Result<(), AnalysisError> {
     for name in super::shared::utils::extract_identifiers_node(pattern, arena) {
         if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name.as_str()) {
             let binding = &context.analysis.root.bindings[binding_idx];
 
             if binding.kind == BindingKind::Derived {
-                return Err(errors::derived_invalid_export());
+                return Err(errors::derived_invalid_export().at(start, end));
             }
 
             if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
                 && binding.reassigned
             {
-                return Err(errors::state_invalid_export());
+                return Err(errors::state_invalid_export().at(start, end));
             }
         }
     }
@@ -144,12 +146,12 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                 {
                     let binding = &context.analysis.root.bindings[binding_idx];
                     if binding.kind == BindingKind::Derived {
-                        return Err(errors::derived_invalid_export());
+                        return Err(errors::derived_invalid_export().at(*start, *end));
                     }
                     if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
                         && binding.reassigned
                     {
-                        return Err(errors::state_invalid_export());
+                        return Err(errors::state_invalid_export().at(*start, *end));
                     }
                 }
 
@@ -213,7 +215,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                     kind, declarations, ..
                 } => {
                     if kind == "let" {
-                        return Err(errors::legacy_export_invalid());
+                        return Err(errors::legacy_export_invalid().at(*start, *end));
                     }
 
                     if kind == "const" {
@@ -300,7 +302,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
         if let Some(JsNode::VariableDeclaration { declarations, .. }) = decl_node {
             for declarator in arena.get_js_children(*declarations) {
                 if let JsNode::VariableDeclarator { id, .. } = declarator {
-                    check_export_bindings(arena.get_js_node(*id), arena, context)?;
+                    check_export_bindings(arena.get_js_node(*id), arena, context, *start, *end)?;
                 }
             }
         }

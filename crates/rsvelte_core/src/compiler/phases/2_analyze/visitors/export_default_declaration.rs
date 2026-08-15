@@ -25,7 +25,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
         if context.analysis.is_module_file {
             // In .svelte.js module files, check for invalid state/derived exports
             if let JsNode::Identifier { name, .. } = decl_node {
-                validate_export(name.as_str(), context)?;
+                validate_export(name.as_str(), context, *start, *end)?;
             }
             Ok(())
         } else {
@@ -38,17 +38,22 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
 
 /// Validate that an exported binding is not derived or reassigned state.
 /// Corresponds to `validate_export()` in the official Svelte compiler.
-fn validate_export(name: &str, context: &VisitorContext) -> Result<(), AnalysisError> {
+fn validate_export(
+    name: &str,
+    context: &VisitorContext,
+    start: u32,
+    end: u32,
+) -> Result<(), AnalysisError> {
     if let Some(binding_idx) = context.analysis.root.get_binding(name, context.scope) {
         let binding = &context.analysis.root.bindings[binding_idx];
 
         if binding.kind == BindingKind::Derived {
-            return Err(errors::derived_invalid_export());
+            return Err(errors::derived_invalid_export().at(start, end));
         }
 
         if matches!(binding.kind, BindingKind::State | BindingKind::RawState) && binding.reassigned
         {
-            return Err(errors::state_invalid_export());
+            return Err(errors::state_invalid_export().at(start, end));
         }
     }
     Ok(())
