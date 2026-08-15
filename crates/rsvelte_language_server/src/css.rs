@@ -2,7 +2,8 @@
 
 use lsp_types::{
     Color, ColorInformation, ColorPresentation, CompletionItem, CompletionItemKind, CompletionList,
-    Documentation, MarkupContent, MarkupKind, Range,
+    Diagnostic, DiagnosticSeverity, Documentation, MarkupContent, MarkupKind, NumberOrString,
+    Range,
 };
 
 use rsvelte_lint::rules::data::known_css_properties::KNOWN_CSS_PROPERTIES;
@@ -32,6 +33,59 @@ pub fn colors(text: &str) -> Vec<ColorInformation> {
             })
         })
         .collect()
+}
+
+#[must_use]
+pub fn diagnostics(text: &str) -> Vec<Diagnostic> {
+    let index = LineIndex::new(text);
+    let mut diagnostics = Vec::new();
+    let mut from = 0;
+    while let Some(open) = text[from..].find("<style") {
+        let open = from + open;
+        let Some(start) = text[open..].find('>').map(|at| open + at + 1) else {
+            break;
+        };
+        let end = text[start..]
+            .find("</style")
+            .map_or(text.len(), |at| start + at);
+        let body = &text[start..end];
+        let mut line_offset = 0;
+        for line in body.split_inclusive('\n') {
+            let current_line_offset = line_offset;
+            line_offset += line.len();
+            let Some(colon) = line.find(':') else {
+                continue;
+            };
+            let property = line[..colon]
+                .rsplit(['{', '}', ';'])
+                .next()
+                .unwrap_or("")
+                .trim();
+            if property.is_empty()
+                || property.starts_with("--")
+                || !property
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphabetic() || byte == b'-')
+                || KNOWN_CSS_PROPERTIES.contains(&property)
+            {
+                continue;
+            }
+            let property_start = start + current_line_offset + line.find(property).unwrap_or(0);
+            diagnostics.push(Diagnostic {
+                range: Range::new(
+                    index.position(text, property_start),
+                    index.position(text, property_start + property.len()),
+                ),
+                severity: Some(DiagnosticSeverity::WARNING),
+                code: Some(NumberOrString::String("css_unknown_property".to_string())),
+                source: Some("rsvelte-css".to_string()),
+                message: format!("Unknown CSS property `{property}`."),
+                ..Diagnostic::default()
+            });
+        }
+        from = end.saturating_add(8);
+    }
+    diagnostics
 }
 
 #[must_use]
@@ -311,6 +365,16 @@ mod tests {
             hover("<style>:global(.external) {}</style>", 14)
                 .unwrap()
                 .contains("prevents")
+        );
+    }
+
+    #[test]
+    fn reports_unknown_css_properties() {
+        let diagnostics = diagnostics("<style>a { colro: red; --theme: blue }</style>");
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(
+            diagnostics[0].code,
+            Some(NumberOrString::String("css_unknown_property".to_string()))
         );
     }
 }

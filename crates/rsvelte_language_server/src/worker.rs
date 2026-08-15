@@ -223,10 +223,12 @@ fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>) {
             } => {
                 let config = lint_configs.get(path.parent().unwrap_or(Path::new(".")));
                 let diagnostics = guard("lint", &path, || {
-                    crate::lint::lint(&path, &text, &config)
+                    let mut diagnostics: Vec<_> = crate::lint::lint(&path, &text, &config)
                         .iter()
                         .filter_map(|d| crate::diagnostics::to_lsp(d, &warnings))
-                        .collect()
+                        .collect();
+                    diagnostics.extend(crate::css::diagnostics(&text));
+                    diagnostics
                 })
                 .unwrap_or_default();
                 Outcome::Diagnostics {
@@ -364,10 +366,12 @@ fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>) {
             } => {
                 let config = lint_configs.get(path.parent().unwrap_or(Path::new(".")));
                 let diagnostics = guard("pull diagnostics", &path, || {
-                    crate::lint::lint(&path, &text, &config)
+                    let mut diagnostics: Vec<_> = crate::lint::lint(&path, &text, &config)
                         .iter()
                         .filter_map(|d| crate::diagnostics::to_lsp(d, &warnings))
-                        .collect()
+                        .collect();
+                    diagnostics.extend(crate::css::diagnostics(&text));
+                    diagnostics
                 })
                 .unwrap_or_default();
                 Outcome::PulledDiagnostics { id, diagnostics }
