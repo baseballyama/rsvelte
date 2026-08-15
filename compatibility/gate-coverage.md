@@ -110,6 +110,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 24 | `await_waterfall` runtime parity | the `await_waterfall` warnings a **mounted** rsvelte-compiled component logs vs. official's, 3 cases | one warning code, one component shape; nothing else about the running component is observed | [D] |
 | 25 | Differential output-preservation corpus hash | per `.svelte` source × client/server/client-dev/server-dev hash from base-core vs merge-ref-core | changes outside `crates/rsvelte_core`; every PR without the maintainer-applied `output-preserving` label | [S] |
 | 26 | esrap generated-output corpus | parsed JS output × official/rsvelte tree × 4 targets; AST equivalence, comment kind/body sequence, code/map equality, map bounds/order | production synthetic AST spans and whether a mapping points at the corresponding source token | [S] |
+| 27 | LSP differential parity | normalized JSON response field per request against the pinned official server and selected upstream snapshots | **every server notification**; incremental edit and resolve sequences | [S] |
 
 Cross-cutting blind spots (**ratchet keys losing in both directions**, path filters, ratchet-doc
 drift, vacuity floors, the **performance**
@@ -157,6 +158,58 @@ the ordinary four-target official parity gate covers every compiler change, whil
 second full sweep on every docs-only PR would worsen the branch-update queue it is meant to make
 evidence robust against. **Evidence [S]:** the label condition and base archive command in
 `differential-corpus.yml` are the respective filters.
+
+---
+
+## 27. LSP differential parity — `scripts/compat-lsp/verify.mjs`
+
+**Unit.** The harness sends the same JSON-RPC request id and parameters to the pinned official
+language server and rsvelte, normalizes the two results, and records every differing JSON field.
+Completion items, diagnostics, locations, folding ranges and inlay hints are paired by a
+method-specific semantic identity before their fields are diffed (`diff.mjs`). The committed
+fixture population additionally compares rsvelte with the selected upstream expected snapshot.
+The real-project population requests hover, definition and completion at every lexically matched
+identifier position in the four pinned repositories.
+
+### Blind spot 27a — server notifications are discarded [S]
+
+`LspProcess.#dispatch` in `protocol.mjs` returns for every message carrying `method`; it answers a
+message with an `id`, but stores neither branch when the message has no `id`. Consequently
+`textDocument/publishDiagnostics`, progress, log messages and refresh notifications are outside
+the comparison even though both servers emit them during the measured session. Pull diagnostics
+are compared separately, so this is specifically the push/notification surface.
+
+### Blind spot 27b — each document has one immutable request phase [S]
+
+The case loop in `verify.mjs` sends `didOpen`, executes the case's requests, then sends `didClose`.
+It never sends `didChange`, configuration changes, watched-file notifications or workspace-folder
+changes, and it does not feed a completion/code-action/code-lens result into its corresponding
+resolve request. The robustness suite exercises malformed mid-edits and cancellation for rsvelte,
+but it is not differential and cannot reveal a state-transition difference from the official
+server.
+
+### Blind spot 27c — two response fields and machine paths are normalized away [S]
+
+`normalizeResponse` deletes `initialize.serverInfo` and pull-diagnostic `resultId` before the
+comparison. `replaceUris` rewrites the workspace prefix and the path prefix through
+`node_modules`. Version/name regressions in `serverInfo`, result-id stability, and a difference
+that exists only in the erased part of either absolute path therefore score equal by contract.
+
+### Blind spot 27d — collected projects run without executing their configuration [S]
+
+`verify.mjs` sets `initializationOptions.isTrusted` to false whenever the corpus suite is selected.
+This makes the four-repository sweep reproducible without installing or executing arbitrary
+`svelte.config.js` dependency graphs, but it also means a parity defect that requires one of those
+projects' preprocessors, aliases or default-language settings is outside that population. Trusted
+configuration and preprocess behavior is exercised by committed fixtures instead of the collected
+repositories.
+
+### Blind spot 27e — two slow responses compare equal without comparing their bodies [S]
+
+After a required project-ready TypeScript hover succeeds, each corpus request has a two-second
+deadline. `requestBoth` converts a timeout into the same stable transport-error object on the side
+that timed out and cancels that request. If both servers exceed the deadline at the same position,
+the two timeout objects compare equal and the eventual response bodies are never observed.
 
 ---
 
@@ -2049,19 +2102,19 @@ fixture gate runs on every PR. `corpus-compat.yml` **is** path-filtered (`push:`
   documents and guards against. `capi.yml:26` carries the comment `# Unfiltered: see ci.yml.`
   immediately above a `paths:` filter (`:27-33`).
 
-### C2. Ratchet documentation is checked for 3 of 16 families
+### C2. Ratchet documentation coverage is declared, but the reasons are prose
 
-`known-failures-md-check.mjs` covers `known-failures.md` (`:37`), `warning-known-failures.md`
-(`:89`) and `matrix-known-failures.md` (`:153`). `ls compatibility/*.md` returns **16**.
+`known-failures-md-check.mjs` now enumerates every `*known-failures*`, `*excluded*` and
+`*not-comparable*` JSON on disk and fails if it is absent from `RATCHETS`. For every declaration
+it checks each count written beside the JSON filename, and `PARTITIONS` makes deletion or
+mis-summing of a declared cluster partition fail. This closes the former filename/count drift
+hole, including for the LSP ratchet.
 
-It runs from two places: `corpus-compat.yml:183` (path-filtered on both triggers, see C1) and
-`ci.yml`'s `ratchet-doc-guard` job (unfiltered). The second site exists because the assertion is
-over the **union** of two branches, which no `pull_request` run can observe — its merge ref is
-frozen when the event is created — so the only run that can decide it is the push to `main`, and
-the path filter meant most merges never started one.
-
-**[D] `compatibility/sourcemap-known-failures.md:158` says `| ratchet entries | 75 | **73** |`
-while `sourcemap-known-failures.json` has 74.** Already drifted, in an unchecked family.
+**[S] The checker never interprets a justification.** An accurate total beside a paragraph that
+explains none of its entries passes. A cluster assignment is exhaustive only when somebody first
+declares that partition in `PARTITIONS`; a new document with no partition line has no per-entry
+reason check. The remaining contract is therefore reviewable prose, not a machine-checked mapping
+from every ratchet key to a cause.
 
 ### C3. Population floors — who has one
 
@@ -2078,6 +2131,7 @@ while `sourcemap-known-failures.json` has 74.** Already drifted, in an unchecked
 | svelte2tsx fixtures | `total_tested >= 254`, absolute | `svelte2tsx_fixtures.rs:30,155` |
 | **css-prune sweep** | **none** | `css-prune-sweep.mjs:482` is a `console.log` |
 | check / check-e2e | scenarios > 0; **no diagnostic floor**, ratchets are `[]` | `check-verify.mjs:179`; gap at `:240` |
+| LSP differential | exact per-repository files, identifiers and requests; eight stable-hash shard union + one fixture artifact required to rebaseline | `corpus-population.json`; `artifacts.mjs`; `verify.mjs` postconditions |
 
 ### C7. An uninitialised corpus source shrinks the population silently, and no floor catches it
 

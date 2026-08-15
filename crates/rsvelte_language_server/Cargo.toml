@@ -29,5 +29,8 @@ sourcemap = "9.0"
 regex = "1.11"
 oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "b6f1458dece6bbd7f934d1d26c049d0d0c2bd68c" }
 
+[dev-dependencies]
+url = "2"
+
 [lints]
 workspace = true

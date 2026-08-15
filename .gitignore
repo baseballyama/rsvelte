@@ -170,6 +170,8 @@ scripts/compat-corpus/check-tsgo/package-lock.json
 compatibility/check-report.json
 compatibility/check-report.tsgo.json
 compatibility/check-e2e-report.json
+compatibility/lsp-report.json
+compatibility/lsp-current-*.json
 
 # Dedicated CARGO_TARGET_DIRs used during Phase-3 corpus burndown (never commit)
 /target-ast/

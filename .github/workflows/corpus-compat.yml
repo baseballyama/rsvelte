@@ -39,6 +39,7 @@ on:
     paths:
       - 'crates/**'
       - 'scripts/compat-corpus/**'
+      - 'scripts/compat-lsp/**'
       - 'scripts/fixtures/fmt-corpus.oxfmtrc.json'
       - 'pnpm-lock.yaml'
       - 'compatibility/**'
@@ -91,6 +92,7 @@ on:
     paths:
       - 'crates/**'
       - 'scripts/compat-corpus/**'
+      - 'scripts/compat-lsp/**'
       - 'scripts/fixtures/fmt-corpus.oxfmtrc.json'
       - 'pnpm-lock.yaml'
       - 'compatibility/**'
@@ -670,3 +672,127 @@ jobs:
           path: compatibility/matrix-artifacts
           if-no-files-found: ignore
           retention-days: 14
+
+  lsp-fixtures-current:
+    name: LSP fixture parity current
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      - name: Checkout LSP oracle (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte submodules/language-tools
+
+      - uses: ./.github/actions/setup-rust
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - name: Install and build official svelte-language-server oracle
+        run: |
+          cd submodules/language-tools
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm --filter svelte-language-server... build
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: lsp-corpus
+          cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build native language server
+        run: cargo build -p rsvelte_language_server --bin rsvelte-language-server
+
+      - name: Measure fixture and pinned upstream parity
+        run: >-
+          node scripts/compat-lsp/verify.mjs
+          --suites fixtures,upstream-features,upstream-testfiles
+          --write-current compatibility/lsp-current-fixtures.json
+
+      - name: Upload LSP current artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: lsp-current-fixtures
+          path: compatibility/lsp-current-fixtures.json
+          if-no-files-found: error
+          retention-days: 14
+
+  lsp-corpus:
+    name: LSP real-world parity (stable shard ${{ matrix.shard }}/8)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      - name: Verify known-failures docs match the JSON ratchets
+        run: node scripts/compat-corpus/known-failures-md-check.mjs
+
+      - name: Checkout LSP oracle and corpus sources (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte submodules/language-tools submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte
+
+      - uses: ./.github/actions/setup-rust
+
+      - uses: ./.github/actions/setup-node-pnpm
+
+      - name: Install and build official svelte-language-server oracle
+        run: |
+          cd submodules/language-tools
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm --filter svelte-language-server... build
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: lsp-corpus
+          cache-on-failure: true
+          save-if: false
+
+      - name: Build native language server
+        run: cargo build -p rsvelte_language_server --bin rsvelte-language-server
+
+      - name: Compare every identifier in this stable file shard
+        run: >-
+          node scripts/compat-lsp/verify.mjs
+          --suites corpus
+          --corpus-repos bits-ui,flowbite-svelte,melt-ui,shadcn-svelte
+          --shard "${{ matrix.shard }}/8"
+          --concurrency 64
+          --write-current "compatibility/lsp-current-corpus-${{ matrix.shard }}.json"
+
+      - name: Upload LSP current artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: lsp-current-corpus-${{ matrix.shard }}
+          path: compatibility/lsp-current-corpus-${{ matrix.shard }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+  lsp-current-merge:
+    name: LSP full-population ratchet
+    if: always()
+    needs: [lsp-fixtures-current, lsp-corpus]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: lsp-current-*
+          path: .lsp-current
+          merge-multiple: true
+
+      - name: Verify complete artifact union and shrink-only baseline
+        run: node scripts/compat-lsp/merge-current.mjs .lsp-current

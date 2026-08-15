@@ -1,0 +1,107 @@
+name: LSP Benchmark
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  benchmark:
+    name: Official vs rsvelte
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      - name: Checkout pinned benchmark inputs
+        run: >-
+          git submodule update --init --depth 1
+          submodules/svelte
+          submodules/language-tools
+          submodules/bits-ui
+
+      - uses: ./.github/actions/setup-rust
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          cache: "true"
+          cache-dependency-path: |
+            submodules/language-tools/pnpm-lock.yaml
+            submodules/bits-ui/pnpm-lock.yaml
+
+      - name: Cache cargo registry and target
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: lsp-benchmark
+          cache-on-failure: true
+
+      - name: Build official svelte-language-server
+        run: |
+          cd submodules/language-tools
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm --filter svelte-language-server... build
+
+      - name: Install bits-ui dependencies
+        run: >-
+          pnpm --dir submodules/bits-ui install
+          --frozen-lockfile
+          --ignore-scripts
+
+      - name: Build native rsvelte language server
+        run: >-
+          cargo build --release
+          -p rsvelte_language_server
+          --bin rsvelte-language-server
+
+      - name: Run LSP benchmark
+        run: >-
+          node scripts/bench-lsp/run.mjs
+          --project submodules/bits-ui
+          --max-files 250
+          --iterations 100
+          --warmup 10
+          --output lsp-benchmark.json
+        timeout-minutes: 45
+
+      - name: Validate LSP benchmark report
+        if: always()
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import { readFileSync } from "node:fs";
+
+          const report = JSON.parse(readFileSync("lsp-benchmark.json", "utf8"));
+          assert.equal(report.sources.length, 250, "expected exactly 250 sources");
+          for (const name of ["official", "rsvelte"]) {
+            const result = report.servers[name];
+            assert.equal(result.status, "ok", `${name} benchmark failed`);
+            assert.deepEqual(
+              result.typescriptPositiveControl,
+              { hover: true, completion: true },
+              `${name} TypeScript positive control failed`,
+            );
+            assert.ok(
+              Number.isFinite(result.firstDiagnosticsMs),
+              `${name} did not publish first diagnostics`,
+            );
+            assert.equal(result.hover.errors, 0, `${name} hover errors`);
+            assert.equal(result.completion.errors, 0, `${name} completion errors`);
+          }
+          NODE
+
+      - name: Upload LSP benchmark report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: lsp-benchmark-${{ github.run_id }}
+          path: lsp-benchmark.json
+          if-no-files-found: error
+          retention-days: 30

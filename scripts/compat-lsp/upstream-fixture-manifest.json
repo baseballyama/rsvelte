@@ -1,0 +1,2270 @@
+{
+  "schema_version": 1,
+  "upstream_root": "submodules/language-tools/packages/language-server/test/plugins",
+  "snapshot_suites": [
+    {
+      "id": "typescript-diagnostics",
+      "root": "typescript/features/diagnostics/fixtures",
+      "request": "textDocument/diagnostic",
+      "input": "input.svelte",
+      "expected_priority": [
+        "expected_tsgo_svelte_5.json",
+        "expected_svelte_5.json",
+        "expected_tsgo.json",
+        "expectedv2.json"
+      ],
+      "fixture_count": 94
+    },
+    {
+      "id": "typescript-folding-range",
+      "root": "typescript/features/folding-range/fixtures",
+      "request": "textDocument/foldingRange",
+      "input": "input.svelte",
+      "expected_priority": ["expectedv2.json"],
+      "fixture_count": 15
+    },
+    {
+      "id": "typescript-inlay-hints",
+      "root": "typescript/features/inlayHints/fixtures",
+      "request": "textDocument/inlayHint",
+      "input": "input.svelte",
+      "expected_priority": ["expectedv2.json"],
+      "fixture_count": 18
+    }
+  ],
+  "testfiles": {
+    "root": "typescript/testfiles",
+    "file_count": 174,
+    "svelte_count": 143,
+    "extensions": {
+      "js": 1,
+      "json": 7,
+      "map": 1,
+      "prettierrc": 1,
+      "svelte": 143,
+      "ts": 21
+    }
+  },
+  "unit_coverage": {
+    "upstream_it_call_sites": 168,
+    "ported_behavior_cases": 168,
+    "exact_behavior_cases": 109,
+    "known_difference_cases": 59,
+    "unported_it_call_sites": 0
+  },
+  "unit_suites": [
+    {
+      "path": "svelte/SvelteDocument.test.ts",
+      "it_call_sites": 8,
+      "providers": ["document", "preprocess-source-map"],
+      "rsvelte_modules": [
+        "document.rs",
+        "preprocess_sidecar.rs",
+        "tsgo_overlay.rs"
+      ],
+      "disposition": "native-adapted",
+      "ported_behavior_cases": 8,
+      "unported_it_call_sites": 0
+    },
+    {
+      "path": "svelte/SveltePlugin.test.ts",
+      "it_call_sites": 15,
+      "providers": ["diagnostics", "format", "cancellation"],
+      "rsvelte_modules": ["diagnostics.rs", "format.rs", "server.rs"],
+      "disposition": "native-adapted",
+      "ported_behavior_cases": 15,
+      "unported_it_call_sites": 0
+    },
+    {
+      "path": "svelte/features/getCodeAction.test.ts",
+      "it_call_sites": 19,
+      "providers": ["code-action", "extract-component"],
+      "rsvelte_modules": ["code_actions.rs", "extract.rs"],
+      "disposition": "native-adapted",
+      "ported_behavior_cases": 19,
+      "unported_it_call_sites": 0
+    },
+    {
+      "path": "svelte/features/getCompletions.test.ts",
+      "it_call_sites": 25,
+      "providers": ["svelte-completion"],
+      "rsvelte_modules": ["completions.rs", "modifiers.rs"],
+      "disposition": "native-adapted",
+      "ported_behavior_cases": 25,
+      "unported_it_call_sites": 0
+    },
+    {
+      "path": "svelte/features/getDiagnostics.test.ts",
+      "it_call_sites": 15,
+      "providers": ["compiler-diagnostics", "warning-filter"],
+      "rsvelte_modules": ["diagnostics.rs"],
+      "disposition": "native-adapted",
+      "ported_behavior_cases": 15,
+      "unported_it_call_sites": 0
+    },
+    {
+      "path": "svelte/features/getHoverInfo.test.ts",
+      "it_call_sites": 13,
+      "providers": ["svelte-hover"],
+      "rsvelte_modules": ["hover.rs"],
+      "disposition": "native-adapted",
+      "ported_behavior_cases": 13,
+      "unported_it_call_sites": 0
+    },
+    {
+      "path": "svelte/features/getSelectionRange.test.ts",
+      "it_call_sites": 3,
+      "providers": ["selection-range"],
+      "rsvelte_modules": ["selection_ranges.rs"],
+      "disposition": "native-adapted",
+      "ported_behavior_cases": 3,
+      "unported_it_call_sites": 0
+    },
+    {
+      "path": "html/HTMLPlugin.test.ts",
+      "it_call_sites": 25,
+      "providers": [
+        "html-hover",
+        "html-completion",
+        "rename",
+        "linked-editing",
+        "folding",
+        "highlight"
+      ],
+      "rsvelte_modules": [
+        "html_tags.rs",
+        "tags.rs",
+        "completions.rs",
+        "hover.rs",
+        "folding.rs"
+      ],
+      "disposition": "native-adapted",
+      "ported_behavior_cases": 25,
+      "unported_it_call_sites": 0
+    },
+    {
+      "path": "html/getFoldingRange.test.ts",
+      "it_call_sites": 10,
+      "providers": ["html-folding"],
+      "rsvelte_modules": ["folding.rs", "indent_folding.rs"],
+      "disposition": "native-adapted",
+      "ported_behavior_cases": 10,
+      "unported_it_call_sites": 0
+    },
+    {
+      "path": "css/CSSPlugin.test.ts",
+      "it_call_sites": 30,
+      "providers": [
+        "css-completion",
+        "css-hover",
+        "css-diagnostics",
+        "colors",
+        "selection",
+        "folding",
+        "highlight"
+      ],
+      "rsvelte_modules": ["css.rs"],
+      "disposition": "native-adapted",
+      "ported_behavior_cases": 30,
+      "unported_it_call_sites": 0
+    },
+    {
+      "path": "css/features/getIdClassCompletion.test.ts",
+      "it_call_sites": 5,
+      "providers": ["css-id-class-completion"],
+      "rsvelte_modules": ["css.rs"],
+      "disposition": "native-adapted",
+      "ported_behavior_cases": 5,
+      "unported_it_call_sites": 0
+    }
+  ],
+  "behavior_cases": [
+    {
+      "id": "svelte-document-text",
+      "upstream_suite": "svelte/SvelteDocument.test.ts",
+      "upstream_test": "gets the parents text",
+      "method": "document/text",
+      "source": "\n        <p>jo</p>\n        <script>const a = true</script>\n        <h1>Hello, world!</h1>\n        <style>.bla {}</style>\n        ",
+      "expected": { "text_equals_source": true }
+    },
+    {
+      "id": "svelte-plugin-warning",
+      "upstream_suite": "svelte/SveltePlugin.test.ts",
+      "upstream_test": "provides diagnostic warnings",
+      "method": "textDocument/diagnostic",
+      "source": "<h1>Hello, world!</h1>\n<img src=\"hello.png\">",
+      "expected": { "codes": ["a11y_missing_attribute"] }
+    },
+    {
+      "id": "svelte-code-action-ignore",
+      "upstream_suite": "svelte/features/getCodeAction.test.ts",
+      "upstream_test": "should provide ignore comment",
+      "method": "textDocument/codeAction",
+      "source": "<img>\n\n{#if true}\n    <a></a>\n\n    <a\n        href=\"\"\n    >about</a>\n{/if}\n\n<script>\n\tlet value = $state(\"\");\n\n\tlet x = value;\n</script>\n",
+      "params": {
+        "diagnostic_code": "a11y-missing-attribute",
+        "range": {
+          "start": { "line": 0, "character": 0 },
+          "end": { "line": 0, "character": 6 }
+        }
+      },
+      "expected": {
+        "titles": ["(svelte) Disable a11y-missing-attribute for this line"]
+      }
+    },
+    {
+      "id": "svelte-block-completions",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "should return completions for #",
+      "method": "textDocument/completion",
+      "source": "{#¦",
+      "expected": {
+        "labels": ["if", "each", "await :then", "await then", "key", "snippet"]
+      }
+    },
+    {
+      "id": "svelte-diagnostic-filter",
+      "upstream_suite": "svelte/features/getDiagnostics.test.ts",
+      "upstream_test": "filter out false positive warning (export enum)",
+      "method": "textDocument/diagnostic",
+      "source": "<script context=\"module\">export enum A { B }</script>",
+      "params": {
+        "diagnostic_code": "unused-export-let",
+        "message": "Component has unused export property 'A'. If it is for external reference only, please consider using `export const A`"
+      },
+      "expected": { "keep": false }
+    },
+    {
+      "id": "svelte-if-hover",
+      "upstream_suite": "svelte/features/getHoverInfo.test.ts",
+      "upstream_test": "should return hover for :else if opening tag before that",
+      "method": "textDocument/hover",
+      "source": "{#if}{:e¦lse}",
+      "expected": { "markdown_contains": "{#if ...}" }
+    },
+    {
+      "id": "svelte-element-selection",
+      "upstream_suite": "svelte/features/getSelectionRange.test.ts",
+      "upstream_test": "get selection range for element and attribute",
+      "method": "textDocument/selectionRange",
+      "source": "<h1 title=\"foo¦\"></h1>",
+      "expected": {
+        "ranges": [
+          {
+            "start": { "line": 0, "character": 11 },
+            "end": { "line": 0, "character": 14 }
+          },
+          {
+            "start": { "line": 0, "character": 4 },
+            "end": { "line": 0, "character": 15 }
+          },
+          {
+            "start": { "line": 0, "character": 0 },
+            "end": { "line": 0, "character": 21 }
+          }
+        ]
+      },
+      "native_expected": {
+        "ranges": [
+          {
+            "start": { "line": 0, "character": 11 },
+            "end": { "line": 0, "character": 14 }
+          },
+          {
+            "start": { "line": 0, "character": 4 },
+            "end": { "line": 0, "character": 15 }
+          },
+          {
+            "start": { "line": 0, "character": 0 },
+            "end": { "line": 0, "character": 16 }
+          },
+          {
+            "start": { "line": 0, "character": 0 },
+            "end": { "line": 0, "character": 21 }
+          }
+        ]
+      },
+      "difference_reason": "rsvelte currently inserts an opening-element range between the attribute and whole-element ranges."
+    },
+    {
+      "id": "html-document-highlight",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "provide document highlight",
+      "method": "textDocument/documentHighlight",
+      "source": "<d¦iv></div>",
+      "expected": {
+        "ranges": [
+          {
+            "start": { "line": 0, "character": 1 },
+            "end": { "line": 0, "character": 4 }
+          },
+          {
+            "start": { "line": 0, "character": 7 },
+            "end": { "line": 0, "character": 10 }
+          }
+        ]
+      }
+    },
+    {
+      "id": "html-folding",
+      "upstream_suite": "html/getFoldingRange.test.ts",
+      "upstream_test": "Fold one level",
+      "method": "textDocument/foldingRange",
+      "source": "<html>\nHello\n</html>",
+      "expected": { "line_ranges": [[0, 1]] }
+    },
+    {
+      "id": "css-unknown-property",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "- has error",
+      "method": "textDocument/diagnostic",
+      "source": "<style>h1 {iDunnoDisProperty:blue;}</style>",
+      "expected": { "codes": ["unknownProperties"] },
+      "native_expected": { "codes": ["css_unknown_property"] },
+      "difference_reason": "rsvelte publishes the Svelte-style css_unknown_property code instead of vscode-css-languageservice's unknownProperties code."
+    },
+    {
+      "id": "css-selector-completion",
+      "upstream_suite": "css/features/getIdClassCompletion.test.ts",
+      "upstream_test": "provides css classes completion for class attribute",
+      "method": "textDocument/completion",
+      "source": "<div class=¦></div><style>.abc{}</style>",
+      "expected": { "labels": ["abc"] },
+      "native_expected": { "response": null },
+      "difference_reason": "rsvelte does not yet complete class attributes from selectors declared in a style block."
+    },
+    {
+      "id": "completion-style-null",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "if position inside style",
+      "method": "textDocument/completion",
+      "source": "<style>h1{¦color:blue;}</style><p>test</p>",
+      "expected": { "labels": null },
+      "native_expected": { "response": "nonempty" },
+      "difference_reason": "rsvelte's combined completion provider returns CSS completions where the upstream Svelte-only unit returns null."
+    },
+    {
+      "id": "completion-script-null",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "if position inside script",
+      "method": "textDocument/completion",
+      "source": "<script>co¦nst a = true</script><p>test</p>",
+      "expected": { "labels": null }
+    },
+    {
+      "id": "completion-invalid-1",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "if not preceeded by valid content #1",
+      "method": "textDocument/completion",
+      "source": "{nope¦",
+      "expected": { "labels": null }
+    },
+    {
+      "id": "completion-invalid-2",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "if not preceeded by valid content #2",
+      "method": "textDocument/completion",
+      "source": "not really¦",
+      "expected": { "labels": null }
+    },
+    {
+      "id": "completion-invalid-3",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "if not preceeded by valid content #3",
+      "method": "textDocument/completion",
+      "source": "{#awa.¦",
+      "expected": { "labels": null }
+    },
+    {
+      "id": "completion-at",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "should return completions for @",
+      "method": "textDocument/completion",
+      "source": "{@¦",
+      "expected": { "labels": ["html", "debug", "const", "render", "attach"] }
+    },
+    {
+      "id": "completion-colon-no-open",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": " when no open tag before that",
+      "method": "textDocument/completion",
+      "source": "{:¦",
+      "expected": { "labels": null }
+    },
+    {
+      "id": "completion-colon-completed",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": " when only completed tag before that",
+      "method": "textDocument/completion",
+      "source": "{#if}{/if}{:¦",
+      "expected": { "labels": null }
+    },
+    {
+      "id": "completion-slash-no-open",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "when no open tag before that",
+      "method": "textDocument/completion",
+      "source": "{/¦",
+      "expected": { "labels": null }
+    },
+    {
+      "id": "completion-slash-completed",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "when only completed tag before that",
+      "method": "textDocument/completion",
+      "source": "{#if}{/if}{/¦",
+      "expected": { "labels": null }
+    },
+    {
+      "id": "completion-slash-whitespace",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "when the only completed tag before it has white space before close symbol",
+      "method": "textDocument/completion",
+      "source": "{#if}{ /if}{/¦",
+      "expected": { "labels": null }
+    },
+    {
+      "id": "completion-colon-if",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "for if [continuation]",
+      "method": "textDocument/completion",
+      "source": "{#if}{:¦",
+      "expected": { "labels": ["else", "else if"] }
+    },
+    {
+      "id": "completion-colon-each",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "for each [continuation]",
+      "method": "textDocument/completion",
+      "source": "{#each}{:¦",
+      "expected": { "labels": ["else"] }
+    },
+    {
+      "id": "completion-colon-await",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "for await [continuation]",
+      "method": "textDocument/completion",
+      "source": "{#await}{:¦",
+      "expected": { "labels": ["then", "catch"] }
+    },
+    {
+      "id": "completion-colon-last",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "for last open tag [continuation]",
+      "method": "textDocument/completion",
+      "source": "{#if}{/if}{#if}{#await}{:¦",
+      "expected": { "labels": ["then", "catch"] }
+    },
+    {
+      "id": "completion-close-if",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "for if [closing]",
+      "method": "textDocument/completion",
+      "source": "{#if}{/¦",
+      "expected": { "labels": ["if"] }
+    },
+    {
+      "id": "completion-close-each",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "for each [closing]",
+      "method": "textDocument/completion",
+      "source": "{#each}{/¦",
+      "expected": { "labels": ["each"] }
+    },
+    {
+      "id": "completion-close-await",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "for await [closing]",
+      "method": "textDocument/completion",
+      "source": "{#await}{/¦",
+      "expected": { "labels": ["await"] }
+    },
+    {
+      "id": "completion-close-key",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "for key [closing]",
+      "method": "textDocument/completion",
+      "source": "{#key}{/¦",
+      "expected": { "labels": ["key"] }
+    },
+    {
+      "id": "completion-close-last",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "for last open tag [closing]",
+      "method": "textDocument/completion",
+      "source": "{#if}{/if}{#if}{#await}{/¦",
+      "expected": { "labels": ["await"] }
+    },
+    {
+      "id": "completion-component-doc",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "should return completion for component documentation comment",
+      "method": "textDocument/completion",
+      "source": "<!--@¦",
+      "expected": { "first_insert_text": "component\n$1\n" }
+    },
+    {
+      "id": "completion-modifiers",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "can provides modifiers",
+      "method": "textDocument/completion",
+      "source": "<div on:click|¦ />",
+      "expected": {
+        "labels": [
+          "preventDefault",
+          "stopPropagation",
+          "passive",
+          "nonpassive",
+          "capture",
+          "once",
+          "self",
+          "trusted"
+        ]
+      }
+    },
+    {
+      "id": "completion-modifier-dedup",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "can chain modifier and does not provide duplicated modifier",
+      "method": "textDocument/completion",
+      "source": "<div on:click|stopPropagation|¦ />",
+      "expected": {
+        "labels": [
+          "preventDefault",
+          "passive",
+          "nonpassive",
+          "capture",
+          "once",
+          "self",
+          "trusted"
+        ]
+      }
+    },
+    {
+      "id": "completion-modifier-incompatible",
+      "upstream_suite": "svelte/features/getCompletions.test.ts",
+      "upstream_test": "can chain modifier and does not provide modifier that can't used together",
+      "method": "textDocument/completion",
+      "source": "<div on:click|preventDefault|¦ />",
+      "expected": {
+        "labels": [
+          "stopPropagation",
+          "nonpassive",
+          "capture",
+          "once",
+          "self",
+          "trusted"
+        ]
+      }
+    },
+    {
+      "id": "hover-style-null",
+      "upstream_suite": "svelte/features/getHoverInfo.test.ts",
+      "upstream_test": "if position inside style",
+      "method": "textDocument/hover",
+      "source": "<style>h1{¦color:blue;}</style><p>test</p>",
+      "expected": { "markdown_contains": null },
+      "native_expected": { "markdown_contains": "color" },
+      "difference_reason": "rsvelte's combined hover provider returns CSS hover where the upstream Svelte-only unit returns null."
+    },
+    {
+      "id": "hover-script-null",
+      "upstream_suite": "svelte/features/getHoverInfo.test.ts",
+      "upstream_test": "if position inside script",
+      "method": "textDocument/hover",
+      "source": "<script>co¦nst a = true</script><p>test</p>",
+      "expected": { "markdown_contains": null }
+    },
+    {
+      "id": "hover-invalid-1",
+      "upstream_suite": "svelte/features/getHoverInfo.test.ts",
+      "upstream_test": "if not valid content #1",
+      "method": "textDocument/hover",
+      "source": "{n¦ope",
+      "expected": { "markdown_contains": null }
+    },
+    {
+      "id": "hover-invalid-2",
+      "upstream_suite": "svelte/features/getHoverInfo.test.ts",
+      "upstream_test": "if not valid content #2",
+      "method": "textDocument/hover",
+      "source": "no¦t really",
+      "expected": { "markdown_contains": null }
+    },
+    {
+      "id": "hover-invalid-3",
+      "upstream_suite": "svelte/features/getHoverInfo.test.ts",
+      "upstream_test": "if not valid content #3",
+      "method": "textDocument/hover",
+      "source": "{#a¦wait.",
+      "expected": { "markdown_contains": null }
+    },
+    {
+      "id": "hover-else-no-open",
+      "upstream_suite": "svelte/features/getHoverInfo.test.ts",
+      "upstream_test": " when no open tag before that",
+      "method": "textDocument/hover",
+      "source": "{:e¦lse}",
+      "expected": { "markdown_contains": null }
+    },
+    {
+      "id": "hover-else-completed",
+      "upstream_suite": "svelte/features/getHoverInfo.test.ts",
+      "upstream_test": " when only completed tag before that",
+      "method": "textDocument/hover",
+      "source": "{#if}{/if}{:el¦se}",
+      "expected": { "markdown_contains": null }
+    },
+    {
+      "id": "hover-closing-tags",
+      "upstream_suite": "svelte/features/getHoverInfo.test.ts",
+      "upstream_test": "(/${tag})",
+      "method": "textDocument/hover",
+      "source": "{/i¦f}",
+      "params": {
+        "samples": [
+          { "source": "{/i¦f ", "markdown_contains": "{#if ...}" },
+          { "source": "{/e¦ach}", "markdown_contains": "{#each ...}" },
+          { "source": "{/e¦ach ", "markdown_contains": "{#each ...}" },
+          { "source": "{/a¦wait}", "markdown_contains": "{#await ...}" },
+          { "source": "{/a¦wait ", "markdown_contains": "{#await ...}" }
+        ]
+      },
+      "expected": { "markdown_contains": "{#if ...}" }
+    },
+    {
+      "id": "hover-opening-tags",
+      "upstream_suite": "svelte/features/getHoverInfo.test.ts",
+      "upstream_test": "(#${tag})",
+      "method": "textDocument/hover",
+      "source": "{#i¦f}",
+      "params": {
+        "samples": [
+          { "source": "{#i¦f ", "markdown_contains": "{#if ...}" },
+          { "source": "{#e¦ach}", "markdown_contains": "{#each ...}" },
+          { "source": "{#e¦ach ", "markdown_contains": "{#each ...}" },
+          { "source": "{#a¦wait}", "markdown_contains": "{#await ...}" },
+          { "source": "{#a¦wait ", "markdown_contains": "{#await ...}" },
+          { "source": "{#k¦ey}", "markdown_contains": "{#key expression}" },
+          { "source": "{#k¦ey ", "markdown_contains": "{#key expression}" }
+        ]
+      },
+      "expected": { "markdown_contains": "{#if ...}" }
+    },
+    {
+      "id": "hover-at-tags",
+      "upstream_suite": "svelte/features/getHoverInfo.test.ts",
+      "upstream_test": "(@${tag})",
+      "method": "textDocument/hover",
+      "source": "{@d¦ebug}",
+      "params": {
+        "samples": [
+          { "source": "{@d¦ebug ", "markdown_contains": "{@debug" },
+          { "source": "{@h¦tml}", "markdown_contains": "{@html" },
+          { "source": "{@h¦tml ", "markdown_contains": "{@html" }
+        ]
+      },
+      "expected": { "markdown_contains": "{@debug" }
+    },
+    {
+      "id": "hover-definite-continuations",
+      "upstream_suite": "svelte/features/getHoverInfo.test.ts",
+      "upstream_test": "(:${tag[1]})",
+      "method": "textDocument/hover",
+      "source": "{:e¦lse if}",
+      "params": {
+        "samples": [
+          { "source": "{:e¦lse if ", "markdown_contains": "{#if ...}" },
+          { "source": "{:t¦hen}", "markdown_contains": "{#await ...}" },
+          { "source": "{:t¦hen ", "markdown_contains": "{#await ...}" },
+          { "source": "{:c¦atch}", "markdown_contains": "{#await ...}" },
+          { "source": "{:c¦atch ", "markdown_contains": "{#await ...}" }
+        ]
+      },
+      "expected": { "markdown_contains": "{#if ...}" }
+    },
+    {
+      "id": "hover-event-modifier",
+      "upstream_suite": "svelte/features/getHoverInfo.test.ts",
+      "upstream_test": "should return hover event modifier",
+      "method": "textDocument/hover",
+      "source": "<div on:click|p¦reventDefault />",
+      "expected": { "markdown_contains": "`preventDefault` event modifier" }
+    },
+    {
+      "id": "fold-two-level",
+      "upstream_suite": "html/getFoldingRange.test.ts",
+      "upstream_test": "Fold two level",
+      "method": "textDocument/foldingRange",
+      "source": "<html>\n<head>\nHello\n</head>\n</html>",
+      "expected": {
+        "ranges": [
+          [0, 3, null],
+          [1, 2, null]
+        ]
+      }
+    },
+    {
+      "id": "fold-siblings",
+      "upstream_suite": "html/getFoldingRange.test.ts",
+      "upstream_test": "Fold siblings",
+      "method": "textDocument/foldingRange",
+      "source": "<html>\n<head>\nHead\n</head>\n<body class=\"f\">\nBody\n</body>\n</html>",
+      "expected": {
+        "ranges": [
+          [0, 6, null],
+          [1, 2, null],
+          [4, 5, null]
+        ]
+      }
+    },
+    {
+      "id": "fold-self-closing",
+      "upstream_suite": "html/getFoldingRange.test.ts",
+      "upstream_test": "Fold self-closing tags",
+      "method": "textDocument/foldingRange",
+      "source": "<div>\n<a href=\"top\"/>\n<img src=\"s\">\n<br/>\n<br>\n<img class=\"c\"\n     src=\"top\"\n>\n</div>",
+      "expected": {
+        "ranges": [
+          [0, 7, null],
+          [5, 6, null]
+        ]
+      }
+    },
+    {
+      "id": "fold-comment",
+      "upstream_suite": "html/getFoldingRange.test.ts",
+      "upstream_test": "Fold comment",
+      "method": "textDocument/foldingRange",
+      "source": "<!--\n multi line\n-->\n<!-- some stuff\n some more stuff -->",
+      "expected": {
+        "ranges": [
+          [0, 2, "comment"],
+          [3, 4, "comment"]
+        ]
+      }
+    },
+    {
+      "id": "fold-regions",
+      "upstream_suite": "html/getFoldingRange.test.ts",
+      "upstream_test": "Fold regions",
+      "method": "textDocument/foldingRange",
+      "source": "<!-- #region -->\n<!-- #region -->\n<!-- #endregion -->\n<!-- #endregion -->",
+      "expected": {
+        "ranges": [
+          [0, 3, "region"],
+          [1, 2, "region"]
+        ]
+      }
+    },
+    {
+      "id": "fold-incomplete",
+      "upstream_suite": "html/getFoldingRange.test.ts",
+      "upstream_test": "Fold incomplete",
+      "method": "textDocument/foldingRange",
+      "source": "<body>\n<div></div>\nHello\n</div>\n</body>",
+      "expected": { "ranges": [[0, 3, null]] },
+      "native_expected": { "ranges": [] },
+      "difference_reason": "rsvelte drops the malformed unmatched-container fold that vscode-html-languageservice retains."
+    },
+    {
+      "id": "fold-incomplete-2",
+      "upstream_suite": "html/getFoldingRange.test.ts",
+      "upstream_test": "Fold incomplete 2",
+      "method": "textDocument/foldingRange",
+      "source": "<be><div>\n<!-- #endregion -->\n</div>",
+      "expected": { "ranges": [[0, 1, null]] }
+    },
+    {
+      "id": "fold-intersecting-region",
+      "upstream_suite": "html/getFoldingRange.test.ts",
+      "upstream_test": "Fold intersecting region",
+      "method": "textDocument/foldingRange",
+      "source": "<body>\n<!-- #region -->\nHello\n<div></div>\n</body>\n<!-- #endregion -->",
+      "expected": { "ranges": [[0, 3, null]] }
+    },
+    {
+      "id": "fold-intersecting-region-2",
+      "upstream_suite": "html/getFoldingRange.test.ts",
+      "upstream_test": "Fold intersecting region 2",
+      "method": "textDocument/foldingRange",
+      "source": "<!-- #region -->\n<body>\nHello\n<!-- #endregion -->\n<div></div>\n</body>",
+      "expected": { "ranges": [[0, 3, "region"]] }
+    },
+    {
+      "id": "selection-embedded-null",
+      "upstream_suite": "svelte/features/getSelectionRange.test.ts",
+      "upstream_test": "should return null for style and script",
+      "method": "textDocument/selectionRange",
+      "source": "<style>¦</style>",
+      "params": {
+        "samples": [{ "source": "<script>¦</script>", "native_ranges": null }]
+      },
+      "expected": { "ranges": null },
+      "native_expected": {
+        "ranges": [
+          {
+            "start": { "line": 0, "character": 7 },
+            "end": { "line": 0, "character": 7 }
+          },
+          {
+            "start": { "line": 0, "character": 7 },
+            "end": { "line": 0, "character": 7 }
+          }
+        ]
+      },
+      "difference_reason": "rsvelte returns duplicate empty style-region selection ranges where the upstream Svelte provider returns null."
+    },
+    {
+      "id": "selection-block",
+      "upstream_suite": "svelte/features/getSelectionRange.test.ts",
+      "upstream_test": "get selection range for svelte blocks",
+      "method": "textDocument/selectionRange",
+      "source": "{#if a > 1}¦foo{/if}",
+      "expected": {
+        "ranges": [
+          {
+            "start": { "line": 0, "character": 11 },
+            "end": { "line": 0, "character": 14 }
+          },
+          {
+            "start": { "line": 0, "character": 0 },
+            "end": { "line": 0, "character": 19 }
+          }
+        ]
+      }
+    },
+    {
+      "id": "document-compile-filename",
+      "upstream_suite": "svelte/SvelteDocument.test.ts",
+      "upstream_test": "passes the document filepath to compile for warningFilter filename support",
+      "method": "document/diagnostic",
+      "source": "<img>",
+      "params": { "path": "/hello.svelte" },
+      "expected": { "diagnostic_file": "/hello.svelte" }
+    },
+    {
+      "id": "document-map-string-script",
+      "upstream_suite": "svelte/SvelteDocument.test.ts",
+      "upstream_test": "should map correctly within string valued sourcemapped script",
+      "method": "document/projectionMap",
+      "source": "\n        <p>jo</p>\n        <script>co¦nst a = true</script>\n        <h1>Hello, world!</h1>\n        <style>.bla {}</style>\n        ",
+      "expected": { "roundtrip": true }
+    },
+    {
+      "id": "document-map-object-script",
+      "upstream_suite": "svelte/SvelteDocument.test.ts",
+      "upstream_test": "should map correctly within object valued sourcemapped script",
+      "method": "document/projectionMap",
+      "source": "\n        <p>jo</p>\n        <script>co¦nst a = true</script>\n        <h1>Hello, world!</h1>\n        <style>.bla {}</style>\n        ",
+      "expected": { "roundtrip": true }
+    },
+    {
+      "id": "document-map-class-script",
+      "upstream_suite": "svelte/SvelteDocument.test.ts",
+      "upstream_test": "should map correctly within class valued sourcemapped script",
+      "method": "document/projectionMap",
+      "source": "\n        <p>jo</p>\n        <script>co¦nst a = true</script>\n        <h1>Hello, world!</h1>\n        <style>.bla {}</style>\n        ",
+      "expected": { "roundtrip": true }
+    },
+    {
+      "id": "document-map-template-before",
+      "upstream_suite": "svelte/SvelteDocument.test.ts",
+      "upstream_test": "should map correctly in template before script",
+      "method": "document/projectionMap",
+      "source": "\n        <p>j¦o</p>\n        <script>const a = true</script>\n        <h1>Hello, world!</h1>\n        <style>.bla {}</style>\n        ",
+      "expected": { "roundtrip": true },
+      "native_expected": { "mapped": false },
+      "difference_reason": "rsvelte's exact TS projection map does not map literal template text."
+    },
+    {
+      "id": "document-map-template-after",
+      "upstream_suite": "svelte/SvelteDocument.test.ts",
+      "upstream_test": "should map correctly in template after script",
+      "method": "document/projectionMap",
+      "source": "\n        <p>jo</p>\n        <script>const a = true</script>\n        <h1>H¦ello, world!</h1>\n        <style>.bla {}</style>\n        ",
+      "expected": { "roundtrip": true },
+      "native_expected": { "mapped": false },
+      "difference_reason": "rsvelte's exact TS projection map does not map literal template text."
+    },
+    {
+      "id": "document-map-style",
+      "upstream_suite": "svelte/SvelteDocument.test.ts",
+      "upstream_test": "should map correctly in style",
+      "method": "document/projectionMap",
+      "source": "\n        <p>jo</p>\n        <script>const a = true</script>\n        <h1>Hello, world!</h1>\n        <style>.b¦la {}</style>\n        ",
+      "expected": { "roundtrip": true },
+      "native_expected": { "mapped": false },
+      "difference_reason": "rsvelte's exact TS projection map does not map style text."
+    },
+    {
+      "id": "plugin-diagnostic-error",
+      "upstream_suite": "svelte/SveltePlugin.test.ts",
+      "upstream_test": "provides diagnostic errors",
+      "method": "textDocument/diagnostic",
+      "source": "<div bind:whatever></div>",
+      "expected": { "codes": ["bind_invalid_name"] }
+    },
+    {
+      "id": "plugin-diagnostic-untrusted",
+      "upstream_suite": "svelte/SveltePlugin.test.ts",
+      "upstream_test": "provides no diagnostic errors when untrusted",
+      "method": "textDocument/diagnostic",
+      "source": "<div bind:whatever></div>",
+      "expected": { "codes": [] },
+      "native_expected": { "codes": ["bind_invalid_name"] },
+      "difference_reason": "rsvelte has no workspace-trust diagnostic gate and continues native analysis."
+    },
+    {
+      "id": "plugin-format-config",
+      "upstream_suite": "svelte/SveltePlugin.test.ts",
+      "upstream_test": "should use config for formatting",
+      "method": "textDocument/formatting",
+      "source": "unformatted",
+      "expected": { "engine": "prettier-config" },
+      "native_expected": { "contains": "unformatted" },
+      "difference_reason": "rsvelte formats in process and does not call Prettier with the resolved config object."
+    },
+    {
+      "id": "plugin-format-resolve-plugin",
+      "upstream_suite": "svelte/SveltePlugin.test.ts",
+      "upstream_test": "can resolve plugin for formatting",
+      "method": "textDocument/formatting",
+      "source": "unformatted",
+      "expected": { "engine": "prettier-plugin" },
+      "native_expected": { "contains": "unformatted" },
+      "difference_reason": "rsvelte's native formatter does not resolve prettier-plugin-svelte."
+    },
+    {
+      "id": "plugin-format-fallback-config",
+      "upstream_suite": "svelte/SveltePlugin.test.ts",
+      "upstream_test": "should use prettier fallback config for formatting",
+      "method": "textDocument/formatting",
+      "source": "unformatted",
+      "expected": { "engine": "prettier-fallback" },
+      "native_expected": { "contains": "unformatted" },
+      "difference_reason": "rsvelte maps supported editor settings into its native formatter instead of Prettier fallback config."
+    },
+    {
+      "id": "plugin-format-options",
+      "upstream_suite": "svelte/SveltePlugin.test.ts",
+      "upstream_test": "should use FormattingOptions for formatting",
+      "method": "textDocument/formatting",
+      "source": "unformatted",
+      "expected": { "engine": "prettier-options" },
+      "native_expected": { "contains": "unformatted" },
+      "difference_reason": "rsvelte uses native formatter options rather than constructing Prettier arguments."
+    },
+    {
+      "id": "plugin-format-empty-config-options",
+      "upstream_suite": "svelte/SveltePlugin.test.ts",
+      "upstream_test": "should use FormattingOptions for formatting when configs are empty objects",
+      "method": "textDocument/formatting",
+      "source": "unformatted",
+      "expected": { "engine": "prettier-options" },
+      "native_expected": { "contains": "unformatted" },
+      "difference_reason": "rsvelte uses native formatter options rather than constructing Prettier arguments."
+    },
+    {
+      "id": "plugin-format-user-prettier-v2",
+      "upstream_suite": "svelte/SveltePlugin.test.ts",
+      "upstream_test": "should load the user prettier version (version 2) [sync support info]",
+      "method": "textDocument/formatting",
+      "source": "unformatted",
+      "expected": { "engine": "user-prettier-v2" },
+      "native_expected": { "contains": "unformatted" },
+      "difference_reason": "rsvelte does not load a user-installed Prettier runtime."
+    },
+    {
+      "id": "plugin-format-module-plugin",
+      "upstream_suite": "svelte/SveltePlugin.test.ts",
+      "upstream_test": "should load user plugin if it's module",
+      "method": "textDocument/formatting",
+      "source": "unformatted",
+      "expected": { "engine": "user-prettier-module" },
+      "native_expected": { "contains": "unformatted" },
+      "difference_reason": "rsvelte does not load JavaScript Prettier plugin modules."
+    },
+    {
+      "id": "plugin-format-user-prettier-v2-async",
+      "upstream_suite": "svelte/SveltePlugin.test.ts",
+      "upstream_test": "should load the user prettier version (version 2) [async support info]",
+      "method": "textDocument/formatting",
+      "source": "unformatted",
+      "expected": { "engine": "user-prettier-v2" },
+      "native_expected": { "contains": "unformatted" },
+      "difference_reason": "rsvelte does not load a user-installed Prettier runtime."
+    },
+    {
+      "id": "plugin-format-builtin-fallback",
+      "upstream_suite": "svelte/SveltePlugin.test.ts",
+      "upstream_test": "should fall back to built-in prettier version",
+      "method": "textDocument/formatting",
+      "source": "unformatted",
+      "expected": { "engine": "builtin-prettier" },
+      "native_expected": { "contains": "unformatted" },
+      "difference_reason": "rsvelte uses its native formatter instead of falling back between Prettier runtimes."
+    },
+    {
+      "id": "plugin-format-plugin-resolution-fallback",
+      "upstream_suite": "svelte/SveltePlugin.test.ts",
+      "upstream_test": "should fall back to built-in prettier version when failing to resolve plugins config",
+      "method": "textDocument/formatting",
+      "source": "unformatted",
+      "expected": { "engine": "builtin-prettier" },
+      "native_expected": { "contains": "unformatted" },
+      "difference_reason": "rsvelte does not resolve Prettier plugins and always uses its native formatter."
+    },
+    {
+      "id": "plugin-cancel-completion",
+      "upstream_suite": "svelte/SveltePlugin.test.ts",
+      "upstream_test": "can cancel completion before promise resolved",
+      "method": "textDocument/completion",
+      "source": "{#¦",
+      "expected": { "labels": null },
+      "native_expected": {
+        "labels": ["if", "each", "await :then", "await then", "key", "snippet"]
+      },
+      "difference_reason": "the direct native provider is synchronous; cancellation is enforced by the server request layer."
+    },
+    {
+      "id": "plugin-cancel-code-action",
+      "upstream_suite": "svelte/SveltePlugin.test.ts",
+      "upstream_test": "can cancel code action before promise resolved",
+      "method": "textDocument/codeAction",
+      "source": "<a></a>",
+      "params": {
+        "diagnostic_code": "a11y-missing-content",
+        "range": {
+          "start": { "line": 0, "character": 0 },
+          "end": { "line": 0, "character": 7 }
+        }
+      },
+      "expected": { "titles": [] },
+      "native_expected": {
+        "titles": ["(svelte) Disable a11y-missing-content for this line"]
+      },
+      "difference_reason": "the direct native code-action provider is synchronous; cancellation is enforced by the server request layer."
+    },
+    {
+      "id": "code-action-foreign",
+      "upstream_suite": "svelte/features/getCodeAction.test.ts",
+      "upstream_test": "if no svelte diagnostic",
+      "method": "textDocument/codeAction",
+      "source": "",
+      "params": {
+        "diagnostic_code": "whatever",
+        "diagnostic_source": "eslint",
+        "severity": "warning",
+        "range": {
+          "start": { "line": 0, "character": 0 },
+          "end": { "line": 0, "character": 1 }
+        }
+      },
+      "expected": { "titles": [] }
+    },
+    {
+      "id": "code-action-no-code",
+      "upstream_suite": "svelte/features/getCodeAction.test.ts",
+      "upstream_test": "if no diagnostic code",
+      "method": "textDocument/codeAction",
+      "source": "",
+      "params": {
+        "diagnostic_source": "svelte",
+        "severity": "warning",
+        "range": {
+          "start": { "line": 0, "character": 0 },
+          "end": { "line": 0, "character": 1 }
+        }
+      },
+      "expected": { "titles": [] }
+    },
+    {
+      "id": "code-action-error",
+      "upstream_suite": "svelte/features/getCodeAction.test.ts",
+      "upstream_test": "if diagnostic is error",
+      "method": "textDocument/codeAction",
+      "source": "",
+      "params": {
+        "diagnostic_source": "svelte",
+        "severity": "error",
+        "range": {
+          "start": { "line": 0, "character": 0 },
+          "end": { "line": 0, "character": 1 }
+        }
+      },
+      "expected": { "titles": [] }
+    },
+    {
+      "id": "code-action-anchor-add",
+      "upstream_suite": "svelte/features/getCodeAction.test.ts",
+      "upstream_test": "Should provide svelte anchor add missing attribute",
+      "method": "textDocument/codeAction",
+      "fixture": "svelte/testfiles/svelte-anchor-missing-attribute-code-action.svelte",
+      "source": "",
+      "params": {
+        "diagnostic_code": "security-anchor-rel-noreferrer",
+        "diagnostic_source": "svelte",
+        "severity": "warning",
+        "range": {
+          "start": { "line": 0, "character": 0 },
+          "end": { "line": 0, "character": 55 }
+        }
+      },
+      "expected": {
+        "titles": [
+          "(svelte) Add missing attribute rel=\"noreferrer\"",
+          "(svelte) Disable security-anchor-rel-noreferrer for this line"
+        ]
+      },
+      "native_expected": {
+        "titles": [
+          "(svelte) Disable security-anchor-rel-noreferrer for this line"
+        ]
+      },
+      "difference_reason": "rsvelte does not derive the noreferrer edit from the upstream whole-element diagnostic range."
+    },
+    {
+      "id": "code-action-anchor-rel",
+      "upstream_suite": "svelte/features/getCodeAction.test.ts",
+      "upstream_test": "Should not duplicate rel attribute",
+      "method": "textDocument/codeAction",
+      "fixture": "svelte/testfiles/svelte-anchor-missing-attribute-code-action-rel.svelte",
+      "source": "",
+      "params": {
+        "diagnostic_code": "security-anchor-rel-noreferrer",
+        "diagnostic_source": "svelte",
+        "severity": "warning",
+        "range": {
+          "start": { "line": 0, "character": 0 },
+          "end": { "line": 0, "character": 70 }
+        }
+      },
+      "expected": {
+        "titles": [
+          "(svelte) Add missing attribute rel=\"noreferrer\"",
+          "(svelte) Disable security-anchor-rel-noreferrer for this line"
+        ]
+      },
+      "native_expected": {
+        "titles": [
+          "(svelte) Disable security-anchor-rel-noreferrer for this line"
+        ]
+      },
+      "difference_reason": "rsvelte does not derive the noreferrer edit from the upstream whole-element diagnostic range."
+    },
+    {
+      "id": "code-action-ignore-indent",
+      "upstream_suite": "svelte/features/getCodeAction.test.ts",
+      "upstream_test": "should provide ignore comment with indent",
+      "method": "textDocument/codeAction",
+      "fixture": "svelte/testfiles/svelte-ignore-code-action.svelte",
+      "source": "",
+      "params": {
+        "diagnostic_code": "a11y-missing-attribute",
+        "diagnostic_source": "svelte",
+        "severity": "warning",
+        "range": {
+          "start": { "line": 3, "character": 4 },
+          "end": { "line": 3, "character": 11 }
+        }
+      },
+      "expected": {
+        "titles": ["(svelte) Disable a11y-missing-attribute for this line"]
+      }
+    },
+    {
+      "id": "code-action-ignore-parent",
+      "upstream_suite": "svelte/features/getCodeAction.test.ts",
+      "upstream_test": "should provide ignore comment with indent of parent tag",
+      "method": "textDocument/codeAction",
+      "fixture": "svelte/testfiles/svelte-ignore-code-action.svelte",
+      "source": "",
+      "params": {
+        "diagnostic_code": "a11y-invalid-attribute",
+        "diagnostic_source": "svelte",
+        "severity": "warning",
+        "range": {
+          "start": { "line": 6, "character": 8 },
+          "end": { "line": 6, "character": 15 }
+        }
+      },
+      "expected": {
+        "titles": ["(svelte) Disable a11y-invalid-attribute for this line"]
+      }
+    },
+    {
+      "id": "code-action-ignore-script",
+      "upstream_suite": "svelte/features/getCodeAction.test.ts",
+      "upstream_test": "should provide ignore comment in script tags",
+      "method": "textDocument/codeAction",
+      "fixture": "svelte/testfiles/svelte-ignore-code-action.svelte",
+      "source": "",
+      "params": {
+        "diagnostic_code": "state_referenced_locally",
+        "diagnostic_source": "svelte",
+        "severity": "warning",
+        "range": {
+          "start": { "line": 13, "character": 9 },
+          "end": { "line": 13, "character": 14 }
+        }
+      },
+      "expected": {
+        "titles": ["(svelte) Disable state_referenced_locally for this line"]
+      }
+    },
+    {
+      "id": "code-action-ignore-script-between",
+      "upstream_suite": "svelte/features/getCodeAction.test.ts",
+      "upstream_test": "should properly place svelte ignore code actions when the html is on both sides of the script tag",
+      "method": "textDocument/codeAction",
+      "source": "<script context=\"module\">\n</script>\n\n<p></p>\n\n<script>\n\tlet a = $state(1);\n\tlet b = $state(a);\n</script>\n\n<p></p>\n",
+      "params": {
+        "diagnostic_code": "state_referenced_locally",
+        "diagnostic_source": "svelte",
+        "severity": "warning",
+        "range": {
+          "start": { "line": 7, "character": 16 },
+          "end": { "line": 7, "character": 17 }
+        }
+      },
+      "expected": {
+        "titles": ["(svelte) Disable state_referenced_locally for this line"]
+      }
+    },
+    {
+      "id": "code-action-ignore-ts",
+      "upstream_suite": "svelte/features/getCodeAction.test.ts",
+      "upstream_test": "should provide ignore comment [TypeScript]",
+      "method": "textDocument/codeAction",
+      "fixture": "svelte/testfiles/svelte-ignore-code-action-ts.svelte",
+      "source": "",
+      "params": {
+        "diagnostic_code": "a11y-missing-attribute",
+        "diagnostic_source": "svelte",
+        "severity": "warning",
+        "range": {
+          "start": { "line": 7, "character": 0 },
+          "end": { "line": 7, "character": 6 }
+        }
+      },
+      "expected": {
+        "titles": ["(svelte) Disable a11y-missing-attribute for this line"]
+      }
+    },
+    {
+      "id": "code-action-ignore-ts-indent",
+      "upstream_suite": "svelte/features/getCodeAction.test.ts",
+      "upstream_test": "should provide ignore comment with indent [TypeScript]",
+      "method": "textDocument/codeAction",
+      "fixture": "svelte/testfiles/svelte-ignore-code-action-ts.svelte",
+      "source": "",
+      "params": {
+        "diagnostic_code": "a11y-missing-attribute",
+        "diagnostic_source": "svelte",
+        "severity": "warning",
+        "range": {
+          "start": { "line": 10, "character": 4 },
+          "end": { "line": 10, "character": 11 }
+        }
+      },
+      "expected": {
+        "titles": ["(svelte) Disable a11y-missing-attribute for this line"]
+      }
+    },
+    {
+      "id": "code-action-ignore-ts-parent",
+      "upstream_suite": "svelte/features/getCodeAction.test.ts",
+      "upstream_test": "should provide ignore comment with indent of parent tag [TypeScript]",
+      "method": "textDocument/codeAction",
+      "fixture": "svelte/testfiles/svelte-ignore-code-action-ts.svelte",
+      "source": "",
+      "params": {
+        "diagnostic_code": "a11y-invalid-attribute",
+        "diagnostic_source": "svelte",
+        "severity": "warning",
+        "range": {
+          "start": { "line": 13, "character": 8 },
+          "end": { "line": 13, "character": 15 }
+        }
+      },
+      "expected": {
+        "titles": ["(svelte) Disable a11y-invalid-attribute for this line"]
+      }
+    },
+    {
+      "id": "code-action-extract-relative-no-ext",
+      "upstream_suite": "svelte/features/getCodeAction.test.ts",
+      "upstream_test": "should extract component (no .svelte at the end)",
+      "method": "workspace/executeCommand",
+      "source": "\n        <script>\n        const bla = true;\n        </script>\n        <p>something else</p>\n        <p>extract me</p>\n        <style>p{color: blue}</style>",
+      "params": {
+        "path": "./NewComp",
+        "range": {
+          "start": { "line": 5, "character": 8 },
+          "end": { "line": 5, "character": 25 }
+        }
+      },
+      "expected": { "replacement": "<NewComp></NewComp>" }
+    },
+    {
+      "id": "code-action-extract-no-ext",
+      "upstream_suite": "svelte/features/getCodeAction.test.ts",
+      "upstream_test": "should extract component (no .svelte at the end, no relative path)",
+      "method": "workspace/executeCommand",
+      "source": "\n        <script>\n        const bla = true;\n        </script>\n        <p>something else</p>\n        <p>extract me</p>\n        <style>p{color: blue}</style>",
+      "params": {
+        "path": "NewComp",
+        "range": {
+          "start": { "line": 5, "character": 8 },
+          "end": { "line": 5, "character": 25 }
+        }
+      },
+      "expected": { "replacement": "<NewComp></NewComp>" }
+    },
+    {
+      "id": "code-action-extract-ext",
+      "upstream_suite": "svelte/features/getCodeAction.test.ts",
+      "upstream_test": "should extract component (.svelte at the end, no relative path",
+      "method": "workspace/executeCommand",
+      "source": "\n        <script>\n        const bla = true;\n        </script>\n        <p>something else</p>\n        <p>extract me</p>\n        <style>p{color: blue}</style>",
+      "params": {
+        "path": "NewComp.svelte",
+        "range": {
+          "start": { "line": 5, "character": 8 },
+          "end": { "line": 5, "character": 25 }
+        }
+      },
+      "expected": { "replacement": "<NewComp></NewComp>" }
+    },
+    {
+      "id": "code-action-extract-relative-ext",
+      "upstream_suite": "svelte/features/getCodeAction.test.ts",
+      "upstream_test": "should extract component (.svelte at the end, relative path)",
+      "method": "workspace/executeCommand",
+      "source": "\n        <script>\n        const bla = true;\n        </script>\n        <p>something else</p>\n        <p>extract me</p>\n        <style>p{color: blue}</style>",
+      "params": {
+        "path": "./NewComp.svelte",
+        "range": {
+          "start": { "line": 5, "character": 8 },
+          "end": { "line": 5, "character": 25 }
+        }
+      },
+      "expected": { "replacement": "<NewComp></NewComp>" }
+    },
+    {
+      "id": "code-action-extract-invalid",
+      "upstream_suite": "svelte/features/getCodeAction.test.ts",
+      "upstream_test": "should return \"Invalid selection range\"",
+      "method": "workspace/executeCommand",
+      "source": "\n        <script>\n        const bla = true;\n        </script>\n        <p>something else</p>\n        <p>extract me</p>\n        <style>p{color: blue}</style>",
+      "params": {
+        "path": "Bla",
+        "range": {
+          "start": { "line": 6, "character": 8 },
+          "end": { "line": 6, "character": 25 }
+        }
+      },
+      "expected": { "error": "Invalid selection range" }
+    },
+    {
+      "id": "code-action-extract-imports",
+      "upstream_suite": "svelte/features/getCodeAction.test.ts",
+      "upstream_test": "should update relative imports",
+      "method": "workspace/executeCommand",
+      "source": "<script>\n            import OtherComponent from './OtherComponent.svelte';\n            import {test} from '../test';\n            </script>\n            toExtract\n            <style>\n            @import './style.css';\n            </style>",
+      "params": {
+        "path": "../NewComp",
+        "uri": "file:///tmp/path/File.svelte",
+        "range": {
+          "start": { "line": 4, "character": 12 },
+          "end": { "line": 4, "character": 21 }
+        }
+      },
+      "expected": {
+        "created_contains": [
+          "./path/OtherComponent.svelte",
+          "./test",
+          "./path/style.css"
+        ]
+      }
+    },
+    {
+      "id": "diagnostics-preprocess-config",
+      "upstream_suite": "svelte/features/getDiagnostics.test.ts",
+      "upstream_test": "expect svelte.config.js error",
+      "method": "textDocument/diagnostic",
+      "source": "",
+      "params": { "message": "Error: svelte.config.js" },
+      "expected": {
+        "severity": "error",
+        "source": "svelte",
+        "message_contains": "Error in svelte.config.js"
+      },
+      "native_expected": {
+        "severity": "warning",
+        "source": "svelte",
+        "message_contains": "Preprocessing failed"
+      },
+      "difference_reason": "rsvelte reports configuration/preprocess failures through one warning diagnostic."
+    },
+    {
+      "id": "diagnostics-preprocess-script",
+      "upstream_suite": "svelte/features/getDiagnostics.test.ts",
+      "upstream_test": "expect script transpilation error",
+      "method": "textDocument/diagnostic",
+      "source": "<script lang=\"coffee\"></script>",
+      "params": { "message": "Script" },
+      "expected": {
+        "severity": "error",
+        "source": "svelte(script)",
+        "message_contains": "Script"
+      },
+      "native_expected": {
+        "severity": "warning",
+        "source": "svelte",
+        "message_contains": "Preprocessing failed"
+      },
+      "difference_reason": "rsvelte reports configuration/preprocess failures through one warning diagnostic."
+    },
+    {
+      "id": "diagnostics-preprocess-style",
+      "upstream_suite": "svelte/features/getDiagnostics.test.ts",
+      "upstream_test": "expect style transpilation error",
+      "method": "textDocument/diagnostic",
+      "source": "<style lang=\"scss\"></style>",
+      "params": { "message": "Style" },
+      "expected": {
+        "severity": "error",
+        "source": "svelte(style)",
+        "message_contains": "Style"
+      },
+      "native_expected": {
+        "severity": "warning",
+        "source": "svelte",
+        "message_contains": "Preprocessing failed"
+      },
+      "difference_reason": "rsvelte reports configuration/preprocess failures through one warning diagnostic."
+    },
+    {
+      "id": "diagnostics-preprocess-style-position",
+      "upstream_suite": "svelte/features/getDiagnostics.test.ts",
+      "upstream_test": "expect style transpilation error with line/columns",
+      "method": "textDocument/diagnostic",
+      "source": "<style lang=\"scss\"></style>",
+      "params": { "message": "Style" },
+      "expected": {
+        "severity": "error",
+        "source": "svelte(style)",
+        "message_contains": "Style"
+      },
+      "native_expected": {
+        "severity": "warning",
+        "source": "svelte",
+        "message_contains": "Preprocessing failed"
+      },
+      "difference_reason": "rsvelte's generic preprocess failure does not retain language-specific error positions."
+    },
+    {
+      "id": "diagnostics-convert-compilation-error",
+      "upstream_suite": "svelte/features/getDiagnostics.test.ts",
+      "upstream_test": "expect compilation error",
+      "method": "textDocument/diagnostic",
+      "source": "",
+      "params": { "code": "123", "severity": "error", "message": "ERROR" },
+      "expected": { "numeric_code": 123, "severity": "error" },
+      "native_expected": { "code": "123", "severity": "error" },
+      "difference_reason": "rsvelte diagnostic codes are strings; the mocked upstream error uses a numeric code."
+    },
+    {
+      "id": "diagnostics-convert-expected-error",
+      "upstream_suite": "svelte/features/getDiagnostics.test.ts",
+      "upstream_test": "expect compilation error with expected",
+      "method": "textDocument/diagnostic",
+      "source": "",
+      "params": {
+        "code": "123",
+        "severity": "error",
+        "message": "expected x to not be here",
+        "range": {
+          "start": { "line": 1, "column": 8 },
+          "end": { "line": 1, "column": 8 }
+        }
+      },
+      "expected": { "numeric_code": 123, "severity": "error" },
+      "native_expected": { "code": "123", "severity": "error" },
+      "difference_reason": "rsvelte diagnostic codes are strings; the mocked upstream error uses a numeric code."
+    },
+    {
+      "id": "diagnostics-convert-valid-position",
+      "upstream_suite": "svelte/features/getDiagnostics.test.ts",
+      "upstream_test": "expect valid position for compilation error",
+      "method": "textDocument/diagnostic",
+      "source": "",
+      "params": {
+        "code": "123",
+        "severity": "error",
+        "message": "ERROR",
+        "range": {
+          "start": { "line": 2, "column": 4 },
+          "end": { "line": 2, "column": 7 }
+        }
+      },
+      "expected": { "numeric_code": 123, "severity": "error" },
+      "native_expected": { "code": "123", "severity": "error" },
+      "difference_reason": "rsvelte diagnostic codes are strings; the mocked upstream error uses a numeric code."
+    },
+    {
+      "id": "diagnostics-convert-warning",
+      "upstream_suite": "svelte/features/getDiagnostics.test.ts",
+      "upstream_test": "expect warnings",
+      "method": "textDocument/diagnostic",
+      "source": "",
+      "params": {
+        "code": "123",
+        "severity": "warning",
+        "message": "warning",
+        "range": {
+          "start": { "line": 1, "column": 0 },
+          "end": { "line": 1, "column": 0 }
+        }
+      },
+      "expected": { "numeric_code": 123, "severity": "warning" },
+      "native_expected": { "code": "123", "severity": "warning" },
+      "difference_reason": "rsvelte diagnostic codes are strings; the mocked upstream warning uses a numeric code."
+    },
+    {
+      "id": "diagnostics-filter-namespace",
+      "upstream_suite": "svelte/features/getDiagnostics.test.ts",
+      "upstream_test": "filter out false positive warning (export namespace)",
+      "method": "textDocument/diagnostic",
+      "source": "<script context=\"module\">export namespace foo { export function bar() {} }</script>",
+      "params": {
+        "diagnostic_code": "unused-export-let",
+        "message": "Component has unused export property 'foo'."
+      },
+      "expected": { "keep": false }
+    },
+    {
+      "id": "diagnostics-convert-ignore",
+      "upstream_suite": "svelte/features/getDiagnostics.test.ts",
+      "upstream_test": "filter out warnings",
+      "method": "textDocument/diagnostic",
+      "source": "",
+      "params": {
+        "code": "123",
+        "severity": "warning",
+        "message": "warning",
+        "warning_level": "ignore"
+      },
+      "expected": { "response": null }
+    },
+    {
+      "id": "diagnostics-convert-as-error",
+      "upstream_suite": "svelte/features/getDiagnostics.test.ts",
+      "upstream_test": "treat warnings as error",
+      "method": "textDocument/diagnostic",
+      "source": "",
+      "params": {
+        "code": "123",
+        "severity": "warning",
+        "message": "warning",
+        "warning_level": "error"
+      },
+      "expected": { "severity": "error" }
+    },
+    {
+      "id": "diagnostics-convert-position",
+      "upstream_suite": "svelte/features/getDiagnostics.test.ts",
+      "upstream_test": "should correctly determine diagnostic position",
+      "method": "textDocument/diagnostic",
+      "source": "",
+      "params": {
+        "code": "warning",
+        "severity": "warning",
+        "message": "warning",
+        "range": {
+          "start": { "line": 3, "column": 4 },
+          "end": { "line": 3, "column": 9 }
+        }
+      },
+      "expected": {
+        "range": {
+          "start": { "line": 2, "character": 4 },
+          "end": { "line": 2, "character": 9 }
+        }
+      }
+    },
+    {
+      "id": "diagnostics-convert-module-position",
+      "upstream_suite": "svelte/features/getDiagnostics.test.ts",
+      "upstream_test": "should correctly determine diagnostic position for context=\"module\"",
+      "method": "textDocument/diagnostic",
+      "source": "",
+      "params": {
+        "code": "warning",
+        "severity": "warning",
+        "message": "warning",
+        "range": {
+          "start": { "line": 2, "column": 1 },
+          "end": { "line": 2, "column": 5 }
+        }
+      },
+      "expected": {
+        "range": {
+          "start": { "line": 1, "character": 1 },
+          "end": { "line": 1, "character": 5 }
+        }
+      }
+    },
+    {
+      "id": "diagnostics-convert-script-module-position",
+      "upstream_suite": "svelte/features/getDiagnostics.test.ts",
+      "upstream_test": "should correctly determine diagnostic position for script when theres also context=\"module\"",
+      "method": "textDocument/diagnostic",
+      "source": "",
+      "params": {
+        "code": "warning",
+        "severity": "warning",
+        "message": "warning",
+        "range": {
+          "start": { "line": 5, "column": 2 },
+          "end": { "line": 5, "column": 6 }
+        }
+      },
+      "expected": {
+        "range": {
+          "start": { "line": 4, "character": 2 },
+          "end": { "line": 4, "character": 6 }
+        }
+      }
+    },
+    {
+      "id": "html-smoke-hover-h1",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "provides hover info",
+      "method": "textDocument/hover",
+      "source": "<h¦1>Hello, world!</h1>",
+      "params": { "adapter": "hover" },
+      "expected": { "response": "some" },
+      "native_expected": { "response": "none" },
+      "difference_reason": "rsvelte does not embed vscode-html-languageservice's rich HTML element hover data."
+    },
+    {
+      "id": "html-smoke-hover-uppercase",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "does not provide hover info for component having the same name as a html element but being uppercase",
+      "method": "textDocument/hover",
+      "source": "<D¦iv></Div>",
+      "params": { "adapter": "hover" },
+      "expected": { "response": "none" }
+    },
+    {
+      "id": "html-smoke-completions",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "provides completions",
+      "method": "textDocument/completion",
+      "source": "<¦",
+      "params": { "adapter": "completion" },
+      "expected": { "response": "some" }
+    },
+    {
+      "id": "html-smoke-event-completions",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "provide event handler completions",
+      "method": "textDocument/completion",
+      "source": "<div on¦",
+      "params": { "adapter": "completion" },
+      "expected": { "response": "some" }
+    },
+    {
+      "id": "html-smoke-event-completions-strict",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "provide event handler completions in svelte strict mode",
+      "method": "textDocument/completion",
+      "source": "<div on¦",
+      "params": { "adapter": "completion" },
+      "expected": { "response": "some" }
+    },
+    {
+      "id": "html-smoke-moustache-completion",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "does not provide completions inside of moustache tag",
+      "method": "textDocument/completion",
+      "source": "<div on:click={() =>¦",
+      "params": { "adapter": "completion" },
+      "expected": { "response": "none" }
+    },
+    {
+      "id": "html-smoke-outside-moustache",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "does provide completions outside of moustache tag",
+      "method": "textDocument/completion",
+      "source": "<div on:click={bla} >¦",
+      "params": { "adapter": "completion" },
+      "expected": { "response": "some" },
+      "native_expected": { "response": "none" },
+      "difference_reason": "rsvelte's native completion provider does not emit HTML service completions after a closed start tag."
+    },
+    {
+      "id": "html-smoke-lang",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "does provide lang in completions",
+      "method": "textDocument/completion",
+      "source": "<sty¦",
+      "params": { "adapter": "completion" },
+      "expected": { "response": "some" }
+    },
+    {
+      "id": "html-smoke-no-lang-attribute",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "does not provide lang in completions for attributes",
+      "method": "textDocument/completion",
+      "source": "<div sty¦",
+      "params": { "adapter": "completion" },
+      "expected": { "response": "some" }
+    },
+    {
+      "id": "html-smoke-trigger-skip",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "skip HTML completions for non-HTML trigger characters",
+      "method": "textDocument/completion",
+      "source": "<div>¦<div>",
+      "params": { "adapter": "completion" },
+      "expected": { "response": "none" }
+    },
+    {
+      "id": "html-smoke-emmet",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "provide emmet completions with >",
+      "method": "textDocument/completion",
+      "source": "div>¦",
+      "params": { "adapter": "completion" },
+      "expected": { "response": "some" },
+      "native_expected": { "response": "none" },
+      "difference_reason": "rsvelte does not embed the Emmet completion engine."
+    },
+    {
+      "id": "html-smoke-emmet-after-close",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "skip emmet completions right after start tag close",
+      "method": "textDocument/completion",
+      "source": "Test.¦a>",
+      "params": { "adapter": "completion" },
+      "expected": { "response": "none" }
+    },
+    {
+      "id": "html-smoke-rename-uppercase",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "does not provide rename for element being uppercase",
+      "method": "textDocument/prepareRename",
+      "source": "<D¦iv></Div>",
+      "params": { "adapter": "linked" },
+      "expected": { "response": "none" },
+      "native_expected": { "response": "some", "count": 2 },
+      "difference_reason": "rsvelte links uppercase component-like tag names while the HTML plugin excludes them."
+    },
+    {
+      "id": "html-smoke-rename-invalid-1",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "does not provide rename for valid element but incorrect position #1",
+      "method": "textDocument/prepareRename",
+      "source": "<div on:click={ab¦ => ab}>asd</div>",
+      "params": { "adapter": "linked" },
+      "expected": { "response": "none" }
+    },
+    {
+      "id": "html-smoke-rename-invalid-2",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "does not provide rename for valid element but incorrect position #2",
+      "method": "textDocument/prepareRename",
+      "source": "<svelte:window on:click={ab => ab} ¦/>",
+      "params": { "adapter": "linked" },
+      "expected": { "response": "none" }
+    },
+    {
+      "id": "html-smoke-rename",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "provides rename for element",
+      "method": "textDocument/prepareRename",
+      "source": "<d¦iv on:click={() => {}}></div>",
+      "params": { "adapter": "linked" },
+      "expected": { "response": "some", "count": 2 }
+    },
+    {
+      "id": "html-smoke-linked",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "provides linked editing ranges",
+      "method": "textDocument/linkedEditingRange",
+      "source": "<di¦v></div>",
+      "params": { "adapter": "linked" },
+      "expected": { "response": "some", "count": 2 }
+    },
+    {
+      "id": "html-smoke-fold",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "provides folding range",
+      "method": "textDocument/foldingRange",
+      "source": "<div>\n  <div>\n  </div>\n  </div>",
+      "params": { "adapter": "fold" },
+      "expected": { "ranges": [[0, 2]] }
+    },
+    {
+      "id": "html-smoke-fold-arrow",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "provides folding range for element with arrow function handler [self-closing]",
+      "method": "textDocument/foldingRange",
+      "source": "<div \non:click={() => {}}\n />",
+      "params": { "adapter": "fold" },
+      "expected": { "ranges": [[0, 1]] }
+    },
+    {
+      "id": "html-smoke-fold-template",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "provides indent based folding range for template tag",
+      "method": "textDocument/foldingRange",
+      "source": "<template>\n  <div>\n  </div>\n</template>",
+      "params": { "adapter": "fold" },
+      "expected": {
+        "ranges": [
+          [0, 2],
+          [1, 1]
+        ]
+      },
+      "native_expected": { "ranges": [[0, 2]] },
+      "difference_reason": "rsvelte omits the zero-height nested fold returned by the HTML service."
+    },
+    {
+      "id": "html-smoke-fold-arrow-element",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "provides folding range for element with arrow function handler [element]",
+      "method": "textDocument/foldingRange",
+      "source": "<div>\n<button on:click={() => {}}>\ntext\n</button>\n</div>",
+      "params": { "adapter": "fold" },
+      "expected": {
+        "ranges": [
+          [0, 3],
+          [1, 2]
+        ]
+      }
+    },
+    {
+      "id": "html-smoke-word-highlight",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "provide word highlight for unsupported languages",
+      "method": "textDocument/documentHighlight",
+      "source": "<template lang=\"pug\">\n  di¦v\n  p</template>",
+      "params": { "adapter": "highlight" },
+      "expected": { "count": 0 }
+    },
+    {
+      "id": "html-smoke-directive-completion",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "provide directive completions",
+      "method": "textDocument/completion",
+      "source": "<div t¦",
+      "params": { "adapter": "completion" },
+      "expected": { "response": "some", "labels_contain": ["transition:"] }
+    },
+    {
+      "id": "html-smoke-event-svelte5",
+      "upstream_suite": "html/HTMLPlugin.test.ts",
+      "upstream_test": "provide event handler completions (svelte 5+)",
+      "method": "textDocument/completion",
+      "source": "<div on¦",
+      "params": { "adapter": "completion" },
+      "expected": { "response": "some" }
+    },
+    {
+      "id": "css-smoke-hover-normal",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "for normal css [hover]",
+      "method": "textDocument/hover",
+      "source": "<style>h¦1 {}</style>",
+      "params": { "adapter": "hover" },
+      "expected": { "response": "some" },
+      "native_expected": { "response": "none" },
+      "difference_reason": "rsvelte CSS hover documents properties but not selector specificity."
+    },
+    {
+      "id": "css-smoke-hover-sass",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "not for SASS [hover]",
+      "method": "textDocument/hover",
+      "source": "<style lang=\"sass\">h¦1 {}</style>",
+      "params": { "adapter": "hover" },
+      "expected": { "response": "none" }
+    },
+    {
+      "id": "css-smoke-hover-stylus",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "not for stylus [hover]",
+      "method": "textDocument/hover",
+      "source": "<style lang=\"stylus\">h¦1 {}</style>",
+      "params": { "adapter": "hover" },
+      "expected": { "response": "none" }
+    },
+    {
+      "id": "css-smoke-hover-attribute",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "for style attribute [hover]",
+      "method": "textDocument/hover",
+      "source": "<div style=\"h¦eight: auto;\"></div>",
+      "params": { "adapter": "hover" },
+      "expected": { "response": "some" }
+    },
+    {
+      "id": "css-smoke-hover-interpolation",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "not for style attribute with interpolation [hover]",
+      "method": "textDocument/hover",
+      "source": "<div style=\"h¦eight: {}\"></div>",
+      "params": { "adapter": "hover" },
+      "expected": { "response": "none" },
+      "native_expected": { "response": "some" },
+      "difference_reason": "rsvelte still recognizes the static property name before an interpolated value."
+    },
+    {
+      "id": "css-smoke-hover-nested",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "provides hover info inside nested style tag",
+      "method": "textDocument/hover",
+      "source": "<svelte:head><style>h¦1 {}</style></svelte:head>",
+      "params": { "adapter": "hover" },
+      "expected": { "response": "some" },
+      "native_expected": { "response": "none" },
+      "difference_reason": "rsvelte CSS hover does not provide selector-specific hover."
+    },
+    {
+      "id": "css-smoke-completion-normal",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "for normal css [completion]",
+      "method": "textDocument/completion",
+      "source": "<style>¦</style>",
+      "params": { "adapter": "completion" },
+      "expected": { "response": "some" }
+    },
+    {
+      "id": "css-smoke-completion-global",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "for :global modifier",
+      "method": "textDocument/completion",
+      "source": "<style>:g¦</style>",
+      "params": { "adapter": "completion" },
+      "expected": { "response": "some" }
+    },
+    {
+      "id": "css-smoke-completion-stylus",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "not for stylus [completion]",
+      "method": "textDocument/completion",
+      "source": "<style lang=\"stylus\">¦</style>",
+      "params": { "adapter": "completion" },
+      "expected": { "response": "none" },
+      "native_expected": { "response": "some" },
+      "difference_reason": "the direct native CSS provider does not gate completions by style language."
+    },
+    {
+      "id": "css-smoke-completion-attribute",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "for style attribute [completion]",
+      "method": "textDocument/completion",
+      "source": "<div style=\"display: n¦\"></div>",
+      "params": { "adapter": "completion" },
+      "expected": { "response": "some" }
+    },
+    {
+      "id": "css-smoke-completion-interpolation",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "not for style attribute with interpolation [completion]",
+      "method": "textDocument/completion",
+      "source": "<div style=\"height: {¦}\"></div>",
+      "params": { "adapter": "completion" },
+      "expected": { "response": "none" },
+      "native_expected": { "response": "some" },
+      "difference_reason": "the native CSS prefix scanner does not suppress interpolated style values."
+    },
+    {
+      "id": "css-smoke-completion-path",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "for path completion",
+      "method": "textDocument/completion",
+      "source": "<style>@import \"./¦\"</style>",
+      "params": { "adapter": "completion" },
+      "expected": { "response": "some" }
+    },
+    {
+      "id": "css-smoke-completion-nested",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "provides completions inside nested style tag",
+      "method": "textDocument/completion",
+      "source": "<svelte:head><style>¦</style></svelte:head>",
+      "params": { "adapter": "completion" },
+      "expected": { "response": "some" }
+    },
+    {
+      "id": "css-smoke-diagnostics-ok",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "- everything ok",
+      "method": "textDocument/diagnostic",
+      "source": "<style>h1 {color:blue;}</style>",
+      "params": { "adapter": "diagnostics" },
+      "expected": { "count": 0 }
+    },
+    {
+      "id": "css-smoke-diagnostics-sass",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "- no diagnostics for sass",
+      "method": "textDocument/diagnostic",
+      "source": "<style lang=\"sass\">h1\n  color: blue</style>",
+      "params": { "adapter": "diagnostics" },
+      "expected": { "count": 0 }
+    },
+    {
+      "id": "css-smoke-diagnostics-stylus",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "- no diagnostics for stylus",
+      "method": "textDocument/diagnostic",
+      "source": "<style lang=\"stylus\">h1\n  color blue</style>",
+      "params": { "adapter": "diagnostics" },
+      "expected": { "count": 0 }
+    },
+    {
+      "id": "css-smoke-colors-normal",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "for normal css [document colors]",
+      "method": "textDocument/colorPresentation",
+      "source": "<style>h1 {color:blue;}</style>",
+      "params": { "adapter": "color-services" },
+      "expected": {
+        "presentation_labels": [
+          "rgb(0, 0, 65025)",
+          "#00000fe01",
+          "hsl(240, -101%, 12750%)",
+          "hwb(240 0% -25400%)",
+          "lab(3880.51% 6388.69 -8701.22)",
+          "lch(3880.51% 10794.75 306.29)"
+        ]
+      },
+      "native_expected": { "presentation_labels": ["#0000ff"] },
+      "difference_reason": "rsvelte emits one clamped hexadecimal presentation instead of the six VS Code CSS presentations."
+    },
+    {
+      "id": "css-smoke-colors-sass",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "not for SASS [document colors]",
+      "method": "textDocument/colorPresentation",
+      "source": "<style lang=\"sass\">h1 {color:blue;}</style>",
+      "params": { "adapter": "color-services" },
+      "expected": { "presentation_labels": [], "document_color_count": 0 },
+      "native_expected": {
+        "presentation_labels": ["#0000ff"],
+        "document_color_count": 0
+      },
+      "difference_reason": "the native color-presentation helper has no document-language context."
+    },
+    {
+      "id": "css-smoke-colors-stylus",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "not for stylus [document colors]",
+      "method": "textDocument/colorPresentation",
+      "source": "<style lang=\"stylus\">h1 {color:blue;}</style>",
+      "params": { "adapter": "color-services" },
+      "expected": { "presentation_labels": [], "document_color_count": 0 },
+      "native_expected": {
+        "presentation_labels": ["#0000ff"],
+        "document_color_count": 0
+      },
+      "difference_reason": "the native color-presentation helper has no document-language context."
+    },
+    {
+      "id": "css-smoke-presentations-normal",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "for normal css [document symbols]",
+      "method": "textDocument/documentSymbol",
+      "source": "<style>h1 {color:blue;}</style>",
+      "params": { "adapter": "symbols" },
+      "expected": { "names": ["h1"] },
+      "native_expected": { "names": ["style"] },
+      "difference_reason": "rsvelte outlines the style block rather than CSS selector symbols."
+    },
+    {
+      "id": "css-smoke-presentations-sass",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "not for SASS [document symbols]",
+      "method": "textDocument/documentSymbol",
+      "source": "<style lang=\"sass\">h1 {color:blue;}</style>",
+      "params": { "adapter": "symbols" },
+      "expected": { "names": [] },
+      "native_expected": { "names": ["style"] },
+      "difference_reason": "rsvelte outlines the style block even when the embedded language is Sass."
+    },
+    {
+      "id": "css-smoke-presentations-stylus",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "not for stylus [document symbols]",
+      "method": "textDocument/documentSymbol",
+      "source": "<style lang=\"stylus\">h1 {color:blue;}</style>",
+      "params": { "adapter": "symbols" },
+      "expected": { "names": [] },
+      "native_expected": { "names": ["style"] },
+      "difference_reason": "rsvelte outlines the style block even when the embedded language is Stylus."
+    },
+    {
+      "id": "css-smoke-selection",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "provides selection range",
+      "method": "textDocument/selectionRange",
+      "source": "<style>h1 {¦}</style>",
+      "params": { "adapter": "selection" },
+      "expected": {
+        "spans": [
+          [11, 11],
+          [10, 12],
+          [7, 12]
+        ]
+      },
+      "native_expected": {
+        "spans": [
+          [11, 11],
+          [7, 12]
+        ]
+      },
+      "difference_reason": "rsvelte omits the intermediate CSS block selection span."
+    },
+    {
+      "id": "css-smoke-selection-outside",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "return null for selection range when not in style",
+      "method": "textDocument/selectionRange",
+      "source": "<script>co¦nst</script>",
+      "params": { "adapter": "selection" },
+      "expected": { "count": 0 }
+    },
+    {
+      "id": "css-smoke-fold",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "provides folding ranges",
+      "method": "textDocument/foldingRange",
+      "source": "<style>\n.hi {\ndisplay:none;\n}\n</style>",
+      "params": { "adapter": "fold" },
+      "expected": { "ranges": [[1, 2, null]] },
+      "native_expected": { "ranges": [[0, 3, null]] },
+      "difference_reason": "rsvelte folds the complete style element while the upstream CSS service folds the rule body."
+    },
+    {
+      "id": "css-smoke-fold-indent",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "provides folding ranges for known indent style",
+      "method": "textDocument/foldingRange",
+      "source": "<style lang=\"sass\">\n/*#region*/\n.hi\n  display:none\n.hi2\n  display: none\n/*#endregion*/\n</style>",
+      "params": { "adapter": "fold" },
+      "expected": {
+        "ranges": [
+          [1, 6, "region"],
+          [2, 3, null],
+          [4, 5, null]
+        ]
+      },
+      "native_expected": {
+        "ranges": [
+          [2, 3, null],
+          [4, 5, null],
+          [0, 6, null]
+        ]
+      },
+      "difference_reason": "rsvelte keeps the style-element fold instead of treating CSS region comments as a region fold."
+    },
+    {
+      "id": "css-smoke-highlight",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "provide document highlight",
+      "method": "textDocument/documentHighlight",
+      "source": "<style>.h¦i {} button.hi {}</style>",
+      "params": { "adapter": "highlight" },
+      "expected": { "count": 2 },
+      "native_expected": { "count": 0 },
+      "difference_reason": "rsvelte's document-highlight provider matches HTML tag names, not CSS identifiers."
+    },
+    {
+      "id": "css-smoke-highlight-attribute",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "provide document highlight for style attribute",
+      "method": "textDocument/documentHighlight",
+      "source": "<div style=\"p¦osition: relative\"></div>",
+      "params": { "adapter": "highlight" },
+      "expected": { "count": 1 },
+      "native_expected": { "count": 0 },
+      "difference_reason": "rsvelte's document-highlight provider matches HTML tag names, not CSS properties."
+    },
+    {
+      "id": "css-smoke-highlight-unsupported",
+      "upstream_suite": "css/CSSPlugin.test.ts",
+      "upstream_test": "provide word highlight for unsupported languages",
+      "method": "textDocument/documentHighlight",
+      "source": "<style lang=\"postcss\">.h¦i {}</style>",
+      "params": { "adapter": "highlight" },
+      "expected": { "count": 1 },
+      "native_expected": { "count": 0 },
+      "difference_reason": "rsvelte's document-highlight provider does not add CSS text highlights for unsupported style languages."
+    },
+    {
+      "id": "css-id-collect-class",
+      "upstream_suite": "css/features/getIdClassCompletion.test.ts",
+      "upstream_test": "collect css classes",
+      "method": "textDocument/completion",
+      "source": "<style>.a¦bc {}</style>",
+      "params": { "adapter": "completion-labels" },
+      "expected": { "labels": ["abc"] },
+      "native_expected": { "labels": [] },
+      "difference_reason": "rsvelte implements the inverse selector completion direction and does not expose selector collection."
+    },
+    {
+      "id": "css-id-collect-id",
+      "upstream_suite": "css/features/getIdClassCompletion.test.ts",
+      "upstream_test": "collect css ids",
+      "method": "textDocument/completion",
+      "source": "<style>#a¦bc {}</style>",
+      "params": { "adapter": "completion-labels" },
+      "expected": { "labels": ["abc"] },
+      "native_expected": { "labels": [] },
+      "difference_reason": "rsvelte implements the inverse selector completion direction and does not expose selector collection."
+    },
+    {
+      "id": "css-id-class-directive",
+      "upstream_suite": "css/features/getIdClassCompletion.test.ts",
+      "upstream_test": "provides css classes completion for class directive",
+      "method": "textDocument/completion",
+      "source": "<div class:¦></div><style>.abc{}</style>",
+      "params": { "adapter": "completion-labels" },
+      "expected": { "labels": ["abc"] },
+      "native_expected": { "labels": null },
+      "difference_reason": "rsvelte does not yet complete class directives from style selectors."
+    },
+    {
+      "id": "css-id-id-attribute",
+      "upstream_suite": "css/features/getIdClassCompletion.test.ts",
+      "upstream_test": "provides css id completion for id attribute",
+      "method": "textDocument/completion",
+      "source": "<div id=¦></div><style>#abc{}</style>",
+      "params": { "adapter": "completion-labels" },
+      "expected": { "labels": ["abc"] },
+      "native_expected": { "labels": null },
+      "difference_reason": "rsvelte does not yet complete id attributes from style selectors."
+    }
+  ],
+  "exclusions": [
+    {
+      "suite": "typescript-diagnostics",
+      "fixture": "project-reference/nested",
+      "reason": "The pinned upstream TypeScript-Go runner skips this project-assignment case; it is not a Svelte diagnostic comparison.",
+      "upstream_evidence": "typescript-go/features/diagnostics/index.test.ts:skips"
+    },
+    {
+      "suite": "typescript-diagnostics",
+      "fixture": "project-reference/paths",
+      "reason": "The pinned upstream TypeScript-Go runner skips this project-assignment case; it is not a Svelte diagnostic comparison.",
+      "upstream_evidence": "typescript-go/features/diagnostics/index.test.ts:skips"
+    }
+  ]
+}

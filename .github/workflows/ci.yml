@@ -716,15 +716,16 @@ jobs:
   language-server:
     name: Language server
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: false
 
-      # rsvelte_core's build.rs reads the Svelte version string from the submodule.
-      - name: Checkout svelte submodule (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte
+      # The native server reads Svelte's version at build time; language-tools
+      # supplies the pinned differential oracle and its upstream fixtures.
+      - name: Checkout language-server submodules (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte submodules/language-tools
 
       - uses: ./.github/actions/setup-rust
         with:
@@ -744,6 +745,12 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build official svelte-language-server oracle
+        run: |
+          cd submodules/language-tools
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm --filter svelte-language-server... build
 
       - name: Build lint wasm (nodejs target)
         run: pnpm run build:wasm:lint-node
@@ -790,6 +797,15 @@ jobs:
       - name: Run language-server tests (headless LSP smoke + unit)
         run: pnpm --filter @rsvelte/language-server run test
 
+      - name: Run LSP differential fixture and upstream gates
+        run: |
+          pnpm run test:lsp-ratchet
+          cargo build -p rsvelte_language_server --bin rsvelte-language-server
+          cargo test -p rsvelte_language_server --test robustness --test upstream_fixture_manifest
+          node --test scripts/bench-lsp/smoke.test.mjs
+          node --test scripts/bench-lsp/real-smoke.test.mjs
+          pnpm run lsp:verify:fixtures
+
       - name: Check Zed extension
         run: cargo check --manifest-path apps/zed/Cargo.toml --target wasm32-wasip2
 
@@ -809,7 +825,7 @@ jobs:
   # needs a protection-rule change. Fails if any of them failed or was cancelled.
   tests:
     name: Tests
-    needs: [test, test-unit, test-runtime, test-thread-safety, test-fmt-corpus, oxc-formatter-probe]
+    needs: [test, test-unit, test-runtime, test-thread-safety, test-fmt-corpus, oxc-formatter-probe, language-server]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 1
@@ -823,6 +839,7 @@ jobs:
           THREAD_SAFETY: ${{ needs.test-thread-safety.result }}
           FMT_CORPUS: ${{ needs.test-fmt-corpus.result }}
           OXC_FORMATTER_PROBE: ${{ needs.oxc-formatter-probe.result }}
+          LANGUAGE_SERVER: ${{ needs.language-server.result }}
         run: |
           echo "test (shards): $BULK"
           echo "test-unit: $UNIT"
@@ -830,7 +847,8 @@ jobs:
           echo "test-thread-safety: $THREAD_SAFETY"
           echo "test-fmt-corpus: $FMT_CORPUS"
           echo "oxc-formatter-probe: $OXC_FORMATTER_PROBE"
-          if [[ "$BULK" != "success" || "$UNIT" != "success" || "$RUNTIME" != "success" || "$THREAD_SAFETY" != "success" || "$FMT_CORPUS" != "success" || "$OXC_FORMATTER_PROBE" != "success" ]]; then
+          echo "language-server: $LANGUAGE_SERVER"
+          if [[ "$BULK" != "success" || "$UNIT" != "success" || "$RUNTIME" != "success" || "$THREAD_SAFETY" != "success" || "$FMT_CORPUS" != "success" || "$OXC_FORMATTER_PROBE" != "success" || "$LANGUAGE_SERVER" != "success" ]]; then
             echo "::error::One or more test jobs did not succeed."
             exit 1
           fi

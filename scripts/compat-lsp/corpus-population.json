@@ -1,0 +1,10 @@
+{
+  "bits-ui": { "files": 617, "identifiers": 135915, "requests": 407745 },
+  "flowbite-svelte": {
+    "files": 1296,
+    "identifiers": 211845,
+    "requests": 635535
+  },
+  "melt-ui": { "files": 43, "identifiers": 12043, "requests": 36129 },
+  "shadcn-svelte": { "files": 1681, "identifiers": 278269, "requests": 834807 }
+}

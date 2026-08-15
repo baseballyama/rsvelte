@@ -161,6 +161,7 @@ const RATCHETS = [
 	{ doc: 'scss-known-failures.md', key: 'scss-known-failures.json', jsons: ['scss-known-failures.json'] },
 	{ doc: 'check-known-failures.md', key: 'check-known-failures.json', jsons: ['check-known-failures.json'] },
 	{ doc: 'check-e2e-known-failures.md', key: 'check-e2e-known-failures.json', jsons: ['check-e2e-known-failures.json'] },
+	{ doc: 'lsp-known-failures.md', key: 'lsp-known-failures.json', jsons: ['lsp-known-failures.json'] },
 	{ doc: 'svelte2tsx-known-failures.md', key: 'svelte2tsx-known-failures.json', jsons: ['svelte2tsx-known-failures.json'] },
 	{ doc: 'svelte2tsx-map-known-failures.md', key: 'svelte2tsx-map-known-failures.json', jsons: ['svelte2tsx-map-known-failures.json'] },
 	{
