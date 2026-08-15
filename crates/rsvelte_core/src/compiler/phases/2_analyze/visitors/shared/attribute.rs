@@ -51,7 +51,7 @@ pub fn validate_attribute(attribute: &AttributeNode) -> Result<(), AnalysisError
         });
         // If the last part's end equals the attribute's end, the value is unquoted
         if last_end == Some(attribute.end) {
-            return Err(errors::attribute_unquoted_sequence());
+            return Err(errors::attribute_unquoted_sequence().at(attribute.start, attribute.end));
         }
     }
 

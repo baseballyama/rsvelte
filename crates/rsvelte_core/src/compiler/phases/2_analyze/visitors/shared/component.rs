@@ -136,7 +136,8 @@ pub fn visit_component<'a, 'b: 'a>(
                             &context.analysis.source,
                         )
                     {
-                        return Err(errors::attribute_invalid_sequence_expression());
+                        return Err(errors::attribute_invalid_sequence_expression()
+                            .at(expression_tag.start, expression_tag.end));
                     }
                 }
                 super::attribute::warn_attribute_quoted(context, attr);
