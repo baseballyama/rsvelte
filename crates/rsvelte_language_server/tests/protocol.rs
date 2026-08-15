@@ -23,6 +23,7 @@ struct Server {
     next_id: i64,
     /// What `workspace/configuration` is answered with.
     settings: Value,
+    official_settings: Value,
 }
 
 impl Server {
@@ -65,6 +66,7 @@ impl Server {
                 "completion": { "enable": true },
                 "hover": { "enable": true },
             }),
+            official_settings: Value::Null,
         }
     }
 
@@ -250,8 +252,17 @@ impl Server {
             return;
         };
         let result = if method == "workspace/configuration" {
-            let items = message["params"]["items"].as_array().map_or(0, Vec::len);
-            Value::Array(vec![self.settings.clone(); items])
+            let values = message["params"]["items"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|item| match item["section"].as_str() {
+                    Some("rsvelte") => self.settings.clone(),
+                    Some("svelte") => self.official_settings.clone(),
+                    _ => Value::Null,
+                })
+                .collect();
+            Value::Array(values)
         } else {
             Value::Null
         };
@@ -509,7 +520,6 @@ fn serves_diagnostics_and_formatting() {
         result["capabilities"]["codeActionProvider"]["codeActionKinds"],
         json!([
             "quickfix",
-            "refactor.rewrite",
             "source.organizeImports",
             "source.sortImports",
             "source.removeUnusedImports",
@@ -685,6 +695,11 @@ fn preprocessing_runs_only_in_trusted_workspaces_and_maps_diagnostics() {
         json!({ "line": 0, "character": 0 })
     );
     assert!(marker.is_file());
+    let id = server.request("$/getCompiledCode", json!(uri));
+    let compiled = server.response(id);
+    assert!(compiled["js"]["code"].as_str().unwrap().contains("<img"));
+    assert_eq!(compiled["js"]["map"]["version"], json!(3));
+    assert!(compiled["css"].is_null());
     assert_eq!(server.shutdown(), Some(0));
 
     let root = temp_dir("preprocess-untrusted");
@@ -696,6 +711,239 @@ fn preprocessing_runs_only_in_trusted_workspaces_and_maps_diagnostics() {
     did_open(&mut server, &uri, raw);
     let _ = server.diagnostics(&uri);
     assert!(!marker.exists(), "untrusted config was executed");
+    assert_eq!(server.shutdown(), Some(0));
+}
+
+#[test]
+fn compiled_code_matches_the_upstream_wire_shape() {
+    let dir = temp_dir("compiled-code");
+    let uri = file_uri(&dir.join("App.svelte"));
+    let mut server = initialized_server();
+    did_open(
+        &mut server,
+        &uri,
+        "<style>p { color: red; }</style><p>compiled</p>",
+    );
+    let id = server.request("$/getCompiledCode", json!(uri));
+    let result = server.response(id);
+    assert!(result["js"]["code"].as_str().unwrap().contains("compiled"));
+    assert_eq!(result["js"]["map"]["version"], json!(3));
+    let css = result["css"]["code"].as_str().unwrap();
+    assert!(css.contains("color") && css.contains("red"));
+    assert_eq!(result["css"]["map"]["version"], json!(3));
+    assert_eq!(result["css"]["hasGlobal"], json!(false));
+
+    let missing = file_uri(&dir.join("Missing.svelte"));
+    let id = server.request("$/getCompiledCode", json!(missing));
+    assert!(server.response(id).is_null());
+    assert_eq!(server.shutdown(), Some(0));
+}
+
+#[test]
+fn extract_component_is_applied_through_workspace_apply_edit() {
+    let dir = temp_dir("extract-component");
+    let uri = file_uri(&dir.join("App.svelte"));
+    let mut server = Server::start();
+    let initialize = server.request(
+        "initialize",
+        json!({
+            "processId": Value::Null,
+            "rootUri": Value::Null,
+            "capabilities": {
+                "workspace": { "configuration": true, "applyEdit": true }
+            }
+        }),
+    );
+    let capabilities = server.response(initialize)["capabilities"].clone();
+    assert!(
+        capabilities["executeCommandProvider"]["commands"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|command| command == "extract_to_svelte_component")
+    );
+    assert!(
+        capabilities["codeActionProvider"]["codeActionKinds"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|kind| kind == "refactor")
+    );
+    server.notify("initialized", json!({}));
+    server.settle_configuration();
+    did_open(&mut server, &uri, "<section>move me</section>");
+    let command = server.request(
+        "workspace/executeCommand",
+        json!({
+            "command": "extract_to_svelte_component",
+            "arguments": [uri, {
+                "uri": uri,
+                "range": {
+                    "start": { "line": 0, "character": 0 },
+                    "end": { "line": 0, "character": 26 }
+                },
+                "filePath": "parts/Moved"
+            }]
+        }),
+    );
+    let edit = loop {
+        let message = server.read();
+        if message["method"] == "workspace/applyEdit" {
+            let edit = message["params"]["edit"].clone();
+            server.write(&json!({
+                "jsonrpc": "2.0",
+                "id": message["id"],
+                "result": { "applied": true }
+            }));
+            break edit;
+        }
+        server.answer_server_request(&message);
+    };
+    assert_eq!(
+        edit["documentChanges"][0]["edits"][0]["newText"],
+        "<Moved></Moved>"
+    );
+    assert!(
+        edit["documentChanges"][1]["uri"]
+            .as_str()
+            .unwrap()
+            .ends_with("/parts/Moved.svelte")
+    );
+    assert!(server.response(command).is_null());
+    assert_eq!(server.shutdown(), Some(0));
+}
+
+#[test]
+fn official_settings_drive_tag_close_and_strict_attribute_completions() {
+    let dir = temp_dir("official-settings");
+    let uri = file_uri(&dir.join("App.svelte"));
+    let mut server = Server::start();
+    server.official_settings = json!({ "plugin": {
+        "html": { "tagComplete": { "enable": false } },
+        "svelte": { "format": { "config": { "svelteStrictMode": true } } }
+    }});
+    let initialize = server.request(
+        "initialize",
+        json!({
+            "processId": Value::Null,
+            "rootUri": Value::Null,
+            "capabilities": { "workspace": { "configuration": true } }
+        }),
+    );
+    server.response(initialize);
+    server.notify("initialized", json!({}));
+    server.settle_configuration();
+    did_open(&mut server, &uri, "<button on:");
+    let close = server.request(
+        "html/tag",
+        json!({
+            "textDocument": { "uri": uri },
+            "position": { "line": 0, "character": 12 }
+        }),
+    );
+    assert!(server.response(close).is_null());
+    let click = server
+        .completion(&uri, 0, 11)
+        .into_iter()
+        .find(|item| item["label"] == "on:click")
+        .unwrap();
+    assert_eq!(click["insertText"], json!("on:click$2=\"{$1}\""));
+    assert_eq!(server.shutdown(), Some(0));
+}
+
+#[test]
+fn official_diagnostic_switches_gate_svelte_and_css_independently() {
+    let dir = temp_dir("official-diagnostic-settings");
+    let uri = file_uri(&dir.join("App.svelte"));
+    let mut server = Server::start();
+    server.official_settings = json!({ "plugin": {
+        "svelte": { "diagnostics": { "enable": false } },
+        "css": { "diagnostics": { "enable": true } }
+    }});
+    let initialize = server.request(
+        "initialize",
+        json!({
+            "processId": Value::Null,
+            "rootUri": Value::Null,
+            "capabilities": { "workspace": { "configuration": true } }
+        }),
+    );
+    server.response(initialize);
+    server.notify("initialized", json!({}));
+    server.settle_configuration();
+    did_open(&mut server, &uri, "<style>p { colr: red; }</style><img>");
+    let css_only = server.diagnostics_matching(&uri, |diagnostics| {
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic["code"] == "css_unknown_property")
+    });
+    assert!(
+        !css_only
+            .iter()
+            .any(|diagnostic| diagnostic["code"] == "a11y_missing_attribute")
+    );
+
+    server.official_settings = json!({ "plugin": {
+        "svelte": { "diagnostics": { "enable": true } },
+        "css": { "diagnostics": { "enable": false } }
+    }});
+    server.notify(
+        "workspace/didChangeConfiguration",
+        json!({ "settings": Value::Null }),
+    );
+    server.settle_configuration();
+    let svelte_only = server.diagnostics_matching(&uri, |diagnostics| {
+        diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic["code"] == "a11y_missing_attribute")
+    });
+    assert!(
+        !svelte_only
+            .iter()
+            .any(|diagnostic| diagnostic["code"] == "css_unknown_property")
+    );
+    assert_eq!(server.shutdown(), Some(0));
+}
+
+#[test]
+fn inline_initialization_and_configuration_settings_are_merged() {
+    let dir = temp_dir("inline-settings");
+    let uri = file_uri(&dir.join("App.svelte"));
+    let mut server = Server::start();
+    let initialize = server.request(
+        "initialize",
+        json!({
+            "processId": Value::Null,
+            "rootUri": Value::Null,
+            "initializationOptions": { "configuration": { "svelte": { "plugin": {
+                "html": { "tagComplete": { "enable": false } },
+                "svelte": { "documentHighlight": { "enable": false } }
+            }}}},
+            "capabilities": {}
+        }),
+    );
+    let capabilities = server.response(initialize)["capabilities"].clone();
+    assert_eq!(capabilities["documentHighlightProvider"], json!(false));
+    server.notify("initialized", json!({}));
+    did_open(&mut server, &uri, "<main>");
+    let request_close = |server: &mut Server| {
+        let id = server.request(
+            "html/tag",
+            json!({
+                "textDocument": { "uri": uri },
+                "position": { "line": 0, "character": 6 }
+            }),
+        );
+        server.response(id)
+    };
+    assert!(request_close(&mut server).is_null());
+    server.notify(
+        "workspace/didChangeConfiguration",
+        json!({ "settings": { "svelte": { "plugin": {
+            "html": { "tagComplete": { "enable": true } }
+        }}}}),
+    );
+    assert_eq!(request_close(&mut server), json!("</main>"));
     assert_eq!(server.shutdown(), Some(0));
 }
 

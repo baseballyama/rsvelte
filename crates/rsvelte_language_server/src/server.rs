@@ -78,6 +78,7 @@ const LINT_DEBOUNCE: Duration = Duration::from_millis(300);
 
 /// The `rsvelte` configuration section this server pulls from the client.
 const CONFIG_SECTION: &str = "rsvelte";
+const SVELTE_CONFIG_SECTION: &str = "svelte";
 const JS_TS_CONFIG_SECTION: &str = "js/ts";
 const TYPESCRIPT_CONFIG_SECTION: &str = "typescript";
 const JAVASCRIPT_CONFIG_SECTION: &str = "javascript";
@@ -166,6 +167,17 @@ pub fn run_stdio() -> Result<ExitCode> {
 }
 
 fn capabilities(client: &ClientState) -> ServerCapabilities {
+    let mut code_action_kinds = vec![
+        CodeActionKind::QUICKFIX,
+        CodeActionKind::SOURCE_ORGANIZE_IMPORTS,
+        CodeActionKind::from("source.sortImports"),
+        CodeActionKind::from("source.removeUnusedImports"),
+        CodeActionKind::SOURCE_FIX_ALL,
+        CodeActionKind::from(crate::code_actions::FIX_ALL_KIND),
+    ];
+    if client.apply_edit {
+        code_action_kinds.insert(1, CodeActionKind::REFACTOR);
+    }
     ServerCapabilities {
         // The editor-facing protocol stays on the LSP default. The tsgo child
         // is negotiated separately to UTF-8 so all internal mapping is byte-based.
@@ -195,21 +207,13 @@ fn capabilities(client: &ClientState) -> ServerCapabilities {
         implementation_provider: Some(ImplementationProviderCapability::Simple(true)),
         references_provider: Some(OneOf::Left(true)),
         code_action_provider: Some(CodeActionProviderCapability::Options(CodeActionOptions {
-            code_action_kinds: Some(vec![
-                CodeActionKind::QUICKFIX,
-                CodeActionKind::REFACTOR_REWRITE,
-                CodeActionKind::SOURCE_ORGANIZE_IMPORTS,
-                CodeActionKind::from("source.sortImports"),
-                CodeActionKind::from("source.removeUnusedImports"),
-                CodeActionKind::SOURCE_FIX_ALL,
-                CodeActionKind::from(crate::code_actions::FIX_ALL_KIND),
-            ]),
+            code_action_kinds: Some(code_action_kinds),
             ..CodeActionOptions::default()
         })),
         code_lens_provider: Some(CodeLensOptions {
             resolve_provider: Some(true),
         }),
-        execute_command_provider: Some(ExecuteCommandOptions {
+        execute_command_provider: client.apply_edit.then(|| ExecuteCommandOptions {
             commands: vec![crate::extract::COMMAND.to_string()],
             ..ExecuteCommandOptions::default()
         }),
@@ -217,7 +221,7 @@ fn capabilities(client: &ClientState) -> ServerCapabilities {
         selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
         document_symbol_provider: Some(OneOf::Left(true)),
         linked_editing_range_provider: Some(LinkedEditingRangeServerCapabilities::Simple(true)),
-        document_highlight_provider: Some(OneOf::Left(true)),
+        document_highlight_provider: Some(OneOf::Left(client.document_highlight)),
         workspace_symbol_provider: Some(OneOf::Left(true)),
         rename_provider: Some(OneOf::Right(RenameOptions {
             prepare_provider: Some(true),
@@ -289,6 +293,7 @@ enum Pending {
     CodeAction { tsgo_fallback: Request },
     CodeLens { tsgo_fallback: Request },
     ExtractComponent,
+    CompiledCode,
     FoldingRange { tsgo_fallback: Request },
     SelectionRange,
     DocumentSymbol { tsgo_fallback: Request },
@@ -353,6 +358,7 @@ enum Outgoing {
     Configuration,
     WatchedFilesRegistration,
     DiagnosticRefresh,
+    ApplyEdit { command_id: RequestId },
     Tsgo { child_id: RequestId },
 }
 
@@ -538,10 +544,22 @@ impl Server {
         initialize_params: serde_json::Value,
     ) -> Self {
         let (preprocess_event_sender, preprocess_events) = unbounded();
+        let settings = if client.pull_configuration {
+            Settings::default()
+        } else {
+            Settings::from_sections(
+                initialize_params
+                    .pointer("/initializationOptions/configuration/rsvelte")
+                    .unwrap_or(&serde_json::Value::Null),
+                initialize_params
+                    .pointer("/initializationOptions/configuration/svelte")
+                    .unwrap_or(&serde_json::Value::Null),
+            )
+        };
         Self {
             sender,
             client,
-            settings: Settings::default(),
+            settings,
             js_ts_settings: serde_json::Value::Null,
             typescript_settings: serde_json::Value::Null,
             javascript_settings: serde_json::Value::Null,
@@ -677,6 +695,7 @@ impl Server {
             "$/getFileReferences" => self.on_get_file_references(request),
             "$/getComponentReferences" => self.on_get_component_references(request),
             "$/getEditsForFileRename" => self.on_get_edits_for_file_rename(request),
+            "$/getCompiledCode" => self.on_get_compiled_code(request),
             "codeLens/resolve" => self.on_resolve_code_lens(request),
             _ => self.respond(Response::new_err(
                 request.id,
@@ -710,9 +729,44 @@ impl Server {
             path: uri_to_path(uri.as_str()),
             text: document.shared_text(),
             range: document.full_range(),
+            config: self.settings.format_config.clone(),
         };
         self.pending.insert(id, Pending::Formatting);
         self.worker.submit(job);
+    }
+
+    fn on_get_compiled_code(&mut self, request: Request) {
+        let id = request.id;
+        let Some(uri) = custom_request_uri(&request.params) else {
+            self.respond_nothing(id);
+            return;
+        };
+        let Some(document) = self.component_document(&uri) else {
+            self.respond_nothing(id);
+            return;
+        };
+        let path = uri_to_path(uri.as_str());
+        let canonical = fs::canonicalize(&path).unwrap_or_else(|_| path.clone());
+        let processed = self
+            .preprocess_documents
+            .get(&canonical)
+            .filter(|processed| processed.version == document.version);
+        let (text, sourcemap) = processed.map_or_else(
+            || (document.shared_text(), None),
+            |processed| {
+                (
+                    Arc::clone(&processed.text),
+                    processed.map.as_ref().map(Arc::clone),
+                )
+            },
+        );
+        self.pending.insert(id.clone(), Pending::CompiledCode);
+        self.worker.submit(Job::Compile {
+            id,
+            path,
+            text,
+            sourcemap,
+        });
     }
 
     fn on_document_diagnostic(&mut self, request: Request) {
@@ -743,6 +797,8 @@ impl Server {
             text: document.shared_text(),
             preprocessed: self.preprocessed_analysis(&uri_to_path(uri.as_str()), document.version),
             warnings: self.settings.compiler_warnings.clone(),
+            svelte_diagnostics: self.settings.svelte.enable && self.settings.svelte.diagnostics,
+            css_diagnostics: self.settings.css.enable && self.settings.css.diagnostics,
         });
     }
 
@@ -761,6 +817,10 @@ impl Server {
             self.respond_nothing(id);
             return;
         }
+        if !self.settings.native_completion_enabled() {
+            self.forward_tsgo_request(tsgo_fallback);
+            return;
+        }
         match self.locate(&params) {
             Some((path, text, offset)) => {
                 self.pending
@@ -770,6 +830,7 @@ impl Server {
                     path,
                     text,
                     offset,
+                    strict_mode: self.settings.format_config.strict_mode.unwrap_or(false),
                 });
             }
             None => self.forward_tsgo_request(tsgo_fallback),
@@ -789,6 +850,10 @@ impl Server {
         };
         if !self.settings.hover_enable {
             self.respond_nothing(id);
+            return;
+        }
+        if !self.settings.native_hover_enabled() {
+            self.forward_tsgo_request(tsgo_fallback);
             return;
         }
         match self.locate(&params) {
@@ -1033,6 +1098,10 @@ impl Server {
     }
 
     fn on_get_edits_for_file_rename(&mut self, request: Request) {
+        if !self.settings.svelte.enable || !self.settings.svelte.rename {
+            self.respond_nothing(request.id);
+            return;
+        }
         let Some(old_uri) = request
             .params
             .get("oldUri")
@@ -1117,6 +1186,10 @@ impl Server {
 
     fn on_linked_editing_range(&mut self, request: Request) {
         let id = request.id;
+        if !self.settings.html.enable || !self.settings.html.linked_editing {
+            self.respond_nothing(id);
+            return;
+        }
         let params = match serde_json::from_value::<LinkedEditingRangeParams>(request.params) {
             Ok(params) => params.text_document_position_params,
             Err(err) => {
@@ -1138,6 +1211,13 @@ impl Server {
     fn on_document_highlight(&mut self, request: Request) {
         let tsgo_fallback = request.clone();
         let id = request.id;
+        if !self.settings.svelte.enable || !self.settings.svelte.document_highlight {
+            self.respond(Response::new_ok(
+                id,
+                Vec::<lsp_types::DocumentHighlight>::new(),
+            ));
+            return;
+        }
         let params = match serde_json::from_value::<DocumentHighlightParams>(request.params) {
             Ok(params) => params.text_document_position_params,
             Err(err) => {
@@ -1163,6 +1243,10 @@ impl Server {
 
     fn on_tag_close(&mut self, request: Request) {
         let id = request.id;
+        if !self.settings.html.enable || !self.settings.html.tag_complete {
+            self.respond_nothing(id);
+            return;
+        }
         let Ok(params) = serde_json::from_value::<TextDocumentPositionParams>(request.params)
         else {
             self.respond_nothing(id);
@@ -1176,6 +1260,13 @@ impl Server {
 
     fn on_document_color(&mut self, request: Request) {
         let id = request.id;
+        if !self.settings.css.enable || !self.settings.css.document_colors {
+            self.respond(Response::new_ok(
+                id,
+                Vec::<lsp_types::ColorInformation>::new(),
+            ));
+            return;
+        }
         let Ok(params) = serde_json::from_value::<DocumentColorParams>(request.params) else {
             self.respond(Response::new_ok(
                 id,
@@ -1192,6 +1283,13 @@ impl Server {
 
     fn on_color_presentation(&mut self, request: Request) {
         let id = request.id;
+        if !self.settings.css.enable || !self.settings.css.color_presentations {
+            self.respond(Response::new_ok(
+                id,
+                Vec::<lsp_types::ColorPresentation>::new(),
+            ));
+            return;
+        }
         let Ok(params) = serde_json::from_value::<ColorPresentationParams>(request.params) else {
             self.respond(Response::new_ok(
                 id,
@@ -1238,6 +1336,10 @@ impl Server {
             self.forward_tsgo_request(tsgo_fallback);
             return;
         };
+        if !self.settings.svelte.enable || !self.settings.svelte.code_actions {
+            self.forward_tsgo_request(tsgo_fallback);
+            return;
+        }
         let only = params.context.only.as_ref();
         let job = Job::CodeAction {
             id: id.clone(),
@@ -1385,6 +1487,9 @@ impl Server {
         if params.command != crate::extract::COMMAND {
             return self.respond_nothing(id);
         }
+        if !self.settings.svelte.enable || !self.settings.svelte.code_actions {
+            return self.respond_nothing(id);
+        }
         let Some(args) = params.arguments.into_iter().nth(1) else {
             return self.respond_nothing(id);
         };
@@ -1452,6 +1557,7 @@ impl Server {
     }
 
     fn on_selection_range(&mut self, request: Request) {
+        let tsgo_fallback = request.clone();
         let id = request.id;
         let params = match serde_json::from_value::<SelectionRangeParams>(request.params) {
             Ok(params) => params,
@@ -1463,6 +1569,12 @@ impl Server {
         };
         if !self.settings.selection_range_enable {
             self.respond_nothing(id);
+            return;
+        }
+        if !(self.settings.svelte.enable && self.settings.svelte.selection_range
+            || self.settings.css.enable && self.settings.css.selection_range)
+        {
+            self.forward_tsgo_request(tsgo_fallback);
             return;
         }
         let Some(document) = self.component_document(&params.text_document.uri) else {
@@ -1497,6 +1609,12 @@ impl Server {
         };
         if !self.settings.document_symbol_enable {
             self.respond_no_symbols(id);
+            return;
+        }
+        if !(self.settings.html.enable && self.settings.html.document_symbols
+            || self.settings.css.enable && self.settings.css.document_symbols)
+        {
+            self.forward_tsgo_request(tsgo_fallback);
             return;
         }
         let uri = params.text_document.uri;
@@ -1678,7 +1796,28 @@ impl Server {
                 if self.client.pull_configuration {
                     self.request_configuration();
                 } else {
-                    self.settings = Settings::default();
+                    let preprocessing_was_enabled = self.settings.preprocess_enable;
+                    let settings = notification.params.get("settings");
+                    self.settings = Settings::from_sections(
+                        settings
+                            .and_then(|settings| settings.get("rsvelte"))
+                            .unwrap_or(&serde_json::Value::Null),
+                        settings
+                            .and_then(|settings| settings.get("svelte"))
+                            .unwrap_or(&serde_json::Value::Null),
+                    );
+                    if preprocessing_was_enabled && !self.settings.preprocess_enable {
+                        self.preprocess = None;
+                        self.preprocess_failures.clear();
+                        self.preprocess_documents.clear();
+                        self.preprocess_dependencies.clear();
+                        self.rebuild_tsgo_overlays();
+                    } else {
+                        self.ensure_preprocess_runtime();
+                    }
+                    if !self.client.pull_diagnostics {
+                        self.relint_open_documents();
+                    }
                 }
             }
             "exit" => self.exiting = true,
@@ -1769,6 +1908,13 @@ impl Server {
         mut request: Request,
         fallback_result: Option<serde_json::Value>,
     ) {
+        if !self.settings.tsgo_method_enabled(&request.method) {
+            self.respond(Response::new_ok(
+                request.id,
+                fallback_result.unwrap_or(serde_json::Value::Null),
+            ));
+            return;
+        }
         let completion_site = self.completion_site(&request);
         let component_site = self.component_completion_site(&request);
         let code_action_diagnostic_codes = code_action_diagnostic_codes(&request);
@@ -1826,6 +1972,10 @@ impl Server {
         version: i32,
         native: Vec<lsp_types::Diagnostic>,
     ) {
+        if !self.settings.tsgo_method_enabled("textDocument/diagnostic") {
+            self.publish(uri, version, native);
+            return;
+        }
         let native_fallback = native.clone();
         let fallback = serde_json::to_value(diagnostic_report(native)).ok();
         let Some(runtime) = &self.tsgo else {
@@ -2662,25 +2812,29 @@ impl Server {
                     Ok(value) => {
                         let items = value.as_array();
                         self.js_ts_settings = items
-                            .and_then(|items| items.get(1))
-                            .cloned()
-                            .unwrap_or(serde_json::Value::Null);
-                        self.typescript_settings = items
                             .and_then(|items| items.get(2))
                             .cloned()
                             .unwrap_or(serde_json::Value::Null);
-                        self.javascript_settings = items
+                        self.typescript_settings = items
                             .and_then(|items| items.get(3))
                             .cloned()
                             .unwrap_or(serde_json::Value::Null);
-                        self.editor_settings = items
+                        self.javascript_settings = items
                             .and_then(|items| items.get(4))
                             .cloned()
                             .unwrap_or(serde_json::Value::Null);
-                        items
-                            .and_then(|items| items.first())
-                            .map(Settings::from_json)
-                            .unwrap_or_default()
+                        self.editor_settings = items
+                            .and_then(|items| items.get(5))
+                            .cloned()
+                            .unwrap_or(serde_json::Value::Null);
+                        Settings::from_sections(
+                            items
+                                .and_then(|items| items.first())
+                                .unwrap_or(&serde_json::Value::Null),
+                            items
+                                .and_then(|items| items.get(1))
+                                .unwrap_or(&serde_json::Value::Null),
+                        )
                     }
                     Err(err) => {
                         log::warn(format_args!(
@@ -2715,6 +2869,9 @@ impl Server {
             }
             Outgoing::WatchedFilesRegistration => {}
             Outgoing::DiagnosticRefresh => {}
+            Outgoing::ApplyEdit { command_id } => {
+                self.respond(Response::new_ok(command_id, serde_json::Value::Null));
+            }
             Outgoing::Tsgo { child_id } => {
                 response.id = child_id;
                 if let Some(runtime) = &self.tsgo {
@@ -2902,6 +3059,15 @@ impl Server {
                                 let parser_error = document_has_parser_error(source.text());
                                 let context = TsgoCodeActionContext::new(uri, source.text())
                                     .with_parser_error(parser_error)
+                                    .with_default_script_language(
+                                        (self.settings.svelte.default_script_language != "none")
+                                            .then_some(
+                                                self.settings
+                                                    .svelte
+                                                    .default_script_language
+                                                    .as_str(),
+                                            ),
+                                    )
                                     .with_diagnostic_codes(&code_action_diagnostic_codes);
                                 rewrite_code_action_response(result, &context);
                             }
@@ -3370,6 +3536,11 @@ impl Server {
                     self.respond(Response::new_ok(id, edits));
                 }
             }
+            Outcome::Compiled { id, result } => {
+                if matches!(self.pending.remove(&id), Some(Pending::CompiledCode)) {
+                    self.respond(Response::new_ok(id, result));
+                }
+            }
             Outcome::Completed { id, list } => {
                 if let Some(Pending::Completion { tsgo_fallback }) = self.pending.remove(&id) {
                     let fallback = list.and_then(|list| serde_json::to_value(list).ok());
@@ -3402,8 +3573,28 @@ impl Server {
                 }
             }
             Outcome::ExtractedComponent { id, result } => {
-                if self.pending.remove(&id).is_some() {
-                    self.respond(Response::new_ok(id, result));
+                if !matches!(self.pending.remove(&id), Some(Pending::ExtractComponent)) {
+                    return;
+                }
+                if let Some(message) = result.as_str() {
+                    self.send(Notification::new(
+                        "window/showMessage".to_string(),
+                        serde_json::json!({ "type": 1, "message": message }),
+                    ));
+                    self.respond(Response::new_ok(id, serde_json::Value::Null));
+                } else if self.client.apply_edit {
+                    self.next_request_id += 1;
+                    let apply_id =
+                        RequestId::from(format!("rsvelte-apply-edit-{}", self.next_request_id));
+                    self.outgoing
+                        .insert(apply_id.clone(), Outgoing::ApplyEdit { command_id: id });
+                    self.send(Request::new(
+                        apply_id,
+                        "workspace/applyEdit".to_string(),
+                        serde_json::json!({ "edit": result }),
+                    ));
+                } else {
+                    self.respond(Response::new_ok(id, serde_json::Value::Null));
                 }
             }
             Outcome::FoldingRanges { id, ranges } => {
@@ -3485,6 +3676,7 @@ impl Server {
             ConfigurationParams {
                 items: [
                     CONFIG_SECTION,
+                    SVELTE_CONFIG_SECTION,
                     JS_TS_CONFIG_SECTION,
                     TYPESCRIPT_CONFIG_SECTION,
                     JAVASCRIPT_CONFIG_SECTION,
@@ -3616,6 +3808,8 @@ impl Server {
             text: document.shared_text(),
             preprocessed: self.preprocessed_analysis(&uri_to_path(key), version),
             warnings: self.settings.compiler_warnings.clone(),
+            svelte_diagnostics: self.settings.svelte.enable && self.settings.svelte.diagnostics,
+            css_diagnostics: self.settings.css.enable && self.settings.css.diagnostics,
         });
     }
 

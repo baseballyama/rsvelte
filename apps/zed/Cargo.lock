@@ -762,7 +762,7 @@ dependencies = [
 
 [[package]]
 name = "zed_rsvelte"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "zed_extension_api",
 ]

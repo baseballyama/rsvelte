@@ -24,6 +24,15 @@ const WINDOW: usize = 10;
 
 #[must_use]
 pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
+    completions_with_strict_mode(text, offset, false)
+}
+
+#[must_use]
+pub fn completions_with_strict_mode(
+    text: &str,
+    offset: usize,
+    strict_mode: bool,
+) -> Option<CompletionList> {
     if EmbeddedRegions::new(text).contains(offset) {
         return crate::css::completions(text, offset);
     }
@@ -37,6 +46,7 @@ pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
         return Some(html_attribute_completions(
             context.element_tag,
             context.prefix,
+            strict_mode,
         ));
     }
 
@@ -97,16 +107,28 @@ fn language_completions(element: &str) -> CompletionList {
     }
 }
 
-fn html_attribute_completions(element: &str, prefix: &str) -> CompletionList {
+fn html_attribute_completions(element: &str, prefix: &str, strict_mode: bool) -> CompletionList {
     CompletionList {
         is_incomplete: false,
         items: attributes(element)
             .filter(|attribute| attribute.name.starts_with(prefix))
-            .map(|attribute| CompletionItem {
-                label: attribute.name.to_string(),
-                kind: Some(CompletionItemKind::PROPERTY),
-                documentation: Some(markdown(attribute.description.to_string())),
-                ..CompletionItem::default()
+            .map(|attribute| {
+                let braces = if strict_mode { "\"{$1}\"" } else { "{$1}" };
+                let insert_text = if attribute.name.starts_with("on:") {
+                    Some(format!("{}$2={braces}", attribute.name))
+                } else if attribute.name.starts_with("bind:") {
+                    Some(format!("{}={braces}", attribute.name))
+                } else {
+                    None
+                };
+                CompletionItem {
+                    label: attribute.name.to_string(),
+                    kind: Some(CompletionItemKind::PROPERTY),
+                    documentation: Some(markdown(attribute.description.to_string())),
+                    insert_text_format: insert_text.as_ref().map(|_| InsertTextFormat::SNIPPET),
+                    insert_text,
+                    ..CompletionItem::default()
+                }
             })
             .collect(),
     }

@@ -47,6 +47,8 @@
 		"stage-fmt": "node scripts/release/stage-fmt-binaries.mjs",
 		"stage-lint": "node scripts/release/stage-lint-binaries.mjs",
 		"stage-language-server": "node scripts/release/stage-language-server-binaries.mjs",
+		"stage-vscode-language-server": "node scripts/release/stage-vscode-language-server-binaries.mjs",
+		"test:language-server-archives": "node scripts/release/test-language-server-archives.mjs",
 		"stage-vps-native": "node scripts/release/stage-vps-binaries.mjs",
 		"publish-platform-binaries": "node scripts/release/publish-platform-binaries.mjs",
 		"bootstrap-platform-packages": "node scripts/release/bootstrap-platform-packages.mjs",

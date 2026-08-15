@@ -6,7 +6,7 @@ use zed_extension_api::{self as zed, LanguageServerId, Result, serde_json, setti
 
 const SERVER_NAME: &str = "rsvelte-language-server";
 const PACKAGE_NAME: &str = "@rsvelte/language-server";
-const SERVER_ENTRY: &str = "dist/server.mjs";
+const SERVER_ENTRY: &str = "bin/rsvelte-language-server.mjs";
 
 struct RsvelteExtension {
     /// Packages already resolved in this extension process, so a worktree with
@@ -89,6 +89,14 @@ impl zed::Extension for RsvelteExtension {
             });
         }
 
+        if let Some(path) = worktree.which(SERVER_NAME) {
+            return Ok(zed::Command {
+                command: path,
+                args: vec!["--stdio".into()],
+                env: worktree.shell_env().into_iter().collect(),
+            });
+        }
+
         self.install_package_if_needed(id, PACKAGE_NAME)?;
 
         Ok(zed::Command {
@@ -110,7 +118,8 @@ impl zed::Extension for RsvelteExtension {
             .unwrap_or_else(|| {
                 serde_json::json!({
                     "format": { "enable": true },
-                    "lint": { "enable": true }
+                    "lint": { "enable": true },
+                    "preprocess": { "enable": true }
                 })
             });
 

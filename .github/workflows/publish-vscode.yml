@@ -4,16 +4,19 @@ name: Publish VS Code Extension
 # extension version follows `@rsvelte/language-server` (kept in lockstep by the
 # changesets `fixed` group), so a normal release — merging the "Version
 # Packages" PR — bumps both and pushes to main, which triggers this workflow.
-# A cheap `check` job queries the Marketplace and only fans out to the heavy
-# build+publish `publish` job when the target version isn't published yet.
+# A cheap `check` job queries the Marketplace and only fans out to the native
+# build matrix and publish job when the target version isn't published yet.
 on:
   push:
     branches: [main]
     paths:
       - 'apps/npm/vscode/**'
       - 'apps/npm/language-server/**'
-      - 'crates/rsvelte_lint/**'
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
       - 'scripts/release/publish-vscode.mjs'
+      - 'scripts/release/stage-vscode-language-server-binaries.mjs'
       - '.github/workflows/publish-vscode.yml'
   workflow_dispatch:
     inputs:
@@ -56,7 +59,7 @@ jobs:
 
   publish:
     name: Publish extension
-    needs: check
+    needs: [check, build-native]
     if: needs.check.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -87,6 +90,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Download native language servers
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: 'rsvelte-language-server-*'
+          path: artifacts
+
+      - name: Stage native language servers for VSIX
+        run: pnpm run stage-vscode-language-server
+
       # Build the lint wasm (nodejs target) + the language-server bundle the
       # extension embeds; vsce's prepublish (build.mjs) copies it next to the
       # extension bundle.
@@ -99,3 +111,65 @@ jobs:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
           VSCODE_PUBLISH_FORCE: ${{ github.event.inputs.force }}
         run: node scripts/release/publish-vscode.mjs
+
+  build-native:
+    name: Build native server (${{ matrix.triple }})
+    needs: check
+    if: needs.check.outputs.should_publish == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-latest, target: aarch64-apple-darwin, triple: darwin-arm64, ext: '' }
+          - { os: macos-latest, target: x86_64-apple-darwin, triple: darwin-x64, ext: '' }
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, triple: linux-x64-gnu, ext: '' }
+          - { os: ubuntu-22.04, target: aarch64-unknown-linux-gnu, triple: linux-arm64-gnu, ext: '', apt: gcc-aarch64-linux-gnu, linker: aarch64-linux-gnu-gcc }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, triple: win32-x64-msvc, ext: '.exe' }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Checkout svelte submodule (shallow)
+        run: git submodule update --init --depth 1 submodules/svelte
+
+      - name: Install cross-compile linker
+        if: matrix.apt
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.apt }}
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: vscode-${{ matrix.target }}
+
+      - name: Build native language server
+        shell: bash
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.linker }}
+        run: cargo build --profile dist-lsp --bin rsvelte-language-server --target ${{ matrix.target }}
+
+      - name: Stage binary
+        shell: bash
+        run: |
+          mkdir -p stage
+          cp "target/${{ matrix.target }}/dist-lsp/rsvelte-language-server${{ matrix.ext }}" \
+             "stage/rsvelte-language-server${{ matrix.ext }}"
+
+      - name: Check glibc floor
+        if: startsWith(matrix.triple, 'linux-')
+        shell: bash
+        run: scripts/release/check-glibc-floor.sh stage/*
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rsvelte-language-server-${{ matrix.triple }}
+          path: stage/rsvelte-language-server${{ matrix.ext }}
+          if-no-files-found: error
+          retention-days: 7

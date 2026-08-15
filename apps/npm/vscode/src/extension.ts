@@ -4,6 +4,7 @@
  * JS/TS/CSS/JSON families rsvelte-fmt can format).
  */
 
+import { chmodSync, constants, existsSync, statSync } from "node:fs";
 import * as path from "node:path";
 import {
   IndentAction,
@@ -29,6 +30,10 @@ import {
   type LanguageClientOptions,
   type ServerOptions,
 } from "vscode-languageclient/node";
+import { registerCompiledCode } from "./compiledCode";
+import { configurationMiddleware, initialConfiguration } from "./configuration";
+import { registerSvelteKit } from "./svelteKit";
+import { activateTagClosing } from "./tagClosing";
 
 let client: LanguageClient | undefined;
 let outputChannel: LogOutputChannel | undefined;
@@ -76,10 +81,9 @@ const VOID_ELEMENTS = [
 const OFFICIAL_EXTENSION_ID = "svelte.svelte-vscode";
 const CONFLICT_DISMISSED_KEY = "rsvelte.officialExtensionConflictDismissed";
 const RESTART_COMMAND_ID = "rsvelte.restartLanguageServer";
-const FIND_FILE_REFERENCES_COMMAND_ID =
-  "rsvelte.typescript.findAllFileReferences";
-const FIND_COMPONENT_REFERENCES_COMMAND_ID =
-  "rsvelte.typescript.findComponentReferences";
+const FIND_FILE_REFERENCES_COMMAND_ID = "rsvelte.typescript.findAllFileReferences";
+const FIND_COMPONENT_REFERENCES_COMMAND_ID = "rsvelte.typescript.findComponentReferences";
+const EXTRACT_COMPONENT_COMMAND_ID = "rsvelte.extractComponent";
 
 interface ProtocolLocation {
   uri: string;
@@ -98,6 +102,8 @@ interface ProtocolLocation {
 const RESTART_ON_SAVE_PATTERNS: readonly RegExp[] = [
   /^svelte\.config\.(js|mjs|cjs|ts|mts)$/,
   /^vite\.config\.(js|mjs|cjs|ts|mts|cts)$/,
+  /^\.prettierrc(?:\..+)?$/,
+  /^prettier\.config\.(?:js|cjs|mjs|ts)$/,
   /^rsvelte-lint\.json$/,
   /^\.rsvelte-lintrc\.json$/,
   /^\.oxfmtrc\.(json|jsonc)$/,
@@ -118,8 +124,7 @@ function registerSvelteLanguageConfiguration(context: ExtensionContext): void {
       },
       // A number with an optional sign/fraction, or a run of characters
       // excluding whitespace and punctuation that cannot appear in an identifier.
-      wordPattern:
-        /(-?\d*\.\d\w*)|([^\`\~\!\@\#\^\&\*\(\)\=\+\[\{\]\}\\\|\;\:\'\"\,\.\<\>\/\s]+)/g,
+      wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\@\#\^\&\*\(\)\=\+\[\{\]\}\\\|\;\:\'\"\,\.\<\>\/\s]+)/g,
       onEnterRules: [
         {
           beforeText: new RegExp(
@@ -130,10 +135,7 @@ function registerSvelteLanguageConfiguration(context: ExtensionContext): void {
           action: { indentAction: IndentAction.IndentOutdent },
         },
         {
-          beforeText: new RegExp(
-            `<(?!(?:${voidElements}))(\\w[\\w\\d]*)([^/>]*(?!/)>)[^<]*$`,
-            "i",
-          ),
+          beforeText: new RegExp(`<(?!(?:${voidElements}))(\\w[\\w\\d]*)([^/>]*(?!/)>)[^<]*$`, "i"),
           action: { indentAction: IndentAction.Indent },
         },
       ],
@@ -146,9 +148,7 @@ function registerSvelteLanguageConfiguration(context: ExtensionContext): void {
  * providers for the `svelte` language, so running them together duplicates
  * every feature and makes which grammar wins depend on activation order.
  */
-async function warnAboutOfficialExtension(
-  context: ExtensionContext,
-): Promise<void> {
+async function warnAboutOfficialExtension(context: ExtensionContext): Promise<void> {
   if (context.globalState.get<boolean>(CONFLICT_DISMISSED_KEY)) return;
   if (!extensions.getExtension(OFFICIAL_EXTENSION_ID)) return;
 
@@ -173,10 +173,7 @@ async function warnAboutOfficialExtension(
  * in `Starting` forever and this would never resolve. The boolean tells the
  * caller which happened.
  */
-function waitWhileStarting(
-  c: LanguageClient,
-  timeoutMs: number,
-): Promise<{ timedOut: boolean }> {
+function waitWhileStarting(c: LanguageClient, timeoutMs: number): Promise<{ timedOut: boolean }> {
   if (c.state !== State.Starting) return Promise.resolve({ timedOut: false });
   return new Promise((resolve) => {
     let settled = false;
@@ -196,32 +193,118 @@ function waitWhileStarting(
   });
 }
 
-function buildServerOptions(context: ExtensionContext): ServerOptions {
-  const serverModule = resolveServerModule(context);
+function serverEnvironment(): NodeJS.ProcessEnv {
   return {
-    run: { module: serverModule, transport: TransportKind.stdio },
+    ...process.env,
+    RSVELTE_PREPROCESS_NODE: process.env.RSVELTE_PREPROCESS_NODE ?? process.execPath,
+    ELECTRON_RUN_AS_NODE: process.env.ELECTRON_RUN_AS_NODE ?? "1",
+  };
+}
+
+function platformTriple(): string | undefined {
+  if (process.platform === "darwin" && process.arch === "arm64") return "darwin-arm64";
+  if (process.platform === "darwin" && process.arch === "x64") return "darwin-x64";
+  if (process.platform === "win32" && process.arch === "x64") return "win32-x64-msvc";
+  if (process.platform === "linux") {
+    const report = process.report?.getReport();
+    const glibc =
+      report && typeof report !== "string"
+        ? (report as { header?: { glibcVersionRuntime?: string } }).header?.glibcVersionRuntime
+        : undefined;
+    if (!glibc) return undefined;
+    if (process.arch === "arm64") return "linux-arm64-gnu";
+    if (process.arch === "x64") return "linux-x64-gnu";
+  }
+  return undefined;
+}
+
+function resolveNativeServer(context: ExtensionContext): string | undefined {
+  const triple = platformTriple();
+  if (!triple) return undefined;
+  const binary =
+    process.platform === "win32" ? "rsvelte-language-server.exe" : "rsvelte-language-server";
+  const bundled = context.asAbsolutePath(path.join("dist", "bin", triple, binary));
+  if (existsSync(bundled)) return ensureExecutable(bundled);
+
+  const packageName = `@rsvelte/language-server-${triple}`;
+  try {
+    return ensureExecutable(
+      require.resolve(`${packageName}/${binary}`, {
+        paths: [
+          context.extensionPath,
+          ...(workspace.workspaceFolders ?? []).map(({ uri }) => uri.fsPath),
+        ],
+      }),
+    );
+  } catch {
+    return undefined;
+  }
+}
+
+function ensureExecutable(binary: string): string {
+  if (process.platform !== "win32") {
+    try {
+      const mode = statSync(binary).mode;
+      if (!(mode & constants.S_IXUSR)) chmodSync(binary, (mode & 0o777) | 0o111);
+    } catch {
+      // Spawn reports the actionable error if a read-only package is not executable.
+    }
+  }
+  return binary;
+}
+
+function buildServerOptions(context: ExtensionContext): ServerOptions {
+  const configured = workspace
+    .getConfiguration("rsvelte")
+    .get<string>("languageServer.path")
+    ?.trim();
+  const resolved = configured
+    ? resolveWorkspaceRelative(configured)
+    : process.env.RSVELTE_LANGUAGE_SERVER_BIN ||
+      (process.env.RSVELTE_LANGUAGE_SERVER_JS === "1" ? undefined : resolveNativeServer(context));
+  const environment = serverEnvironment();
+  if (resolved && !/\.(?:[cm]?js)$/i.test(resolved)) {
+    return {
+      run: { command: resolved, args: ["--stdio"], options: { env: environment } },
+      debug: {
+        command: resolved,
+        args: ["--stdio"],
+        options: { env: { ...environment, RUST_LOG: environment.RUST_LOG ?? "debug" } },
+      },
+    };
+  }
+  const serverModule = resolved || context.asAbsolutePath(path.join("dist", "server.mjs"));
+  return {
+    run: {
+      module: serverModule,
+      transport: TransportKind.stdio,
+      options: { env: environment },
+    },
     debug: {
       module: serverModule,
       transport: TransportKind.stdio,
-      options: { execArgv: ["--nolazy", "--inspect=6009"] },
+      options: {
+        execArgv: ["--nolazy", "--inspect=6009"],
+        env: environment,
+      },
     },
   };
 }
 
 /** Builds a fresh, unstarted client. Called on every (re)start so a changed `rsvelte.languageServer.path` takes effect. */
-function createClient(
-  context: ExtensionContext,
-  channel: LogOutputChannel,
-): LanguageClient {
+function createClient(context: ExtensionContext, channel: LogOutputChannel): LanguageClient {
   const clientOptions: LanguageClientOptions = {
     documentSelector: DOCUMENT_SELECTOR,
     outputChannel: channel,
-    initializationOptions: { isTrusted: workspace.isTrusted },
+    initializationOptions: {
+      isTrusted: workspace.isTrusted,
+      configuration: initialConfiguration(),
+    },
     synchronize: {
-      // Forward `rsvelte.*` configuration changes to the server.
-      configurationSection: "rsvelte",
+      configurationSection: ["rsvelte", "svelte"],
     },
     middleware: {
+      workspace: { configuration: configurationMiddleware },
       resolveCodeLens: async (lens, token, next) => {
         const resolved = await next(lens, token);
         const command = resolved?.command;
@@ -236,45 +319,43 @@ function createClient(
         }
         const position = args[1] as { line?: unknown; character?: unknown };
         const locations = Array.isArray(args[2]) ? args[2] : [];
-        if (
-          typeof position?.line !== "number" ||
-          typeof position.character !== "number"
-        ) {
+        if (typeof position?.line !== "number" || typeof position.character !== "number") {
           return resolved;
         }
-        command.command = "editor.action.showReferences";
+        const mapped = locations.flatMap((location) => {
+          const value = location as {
+            uri?: unknown;
+            range?: {
+              start?: { line?: unknown; character?: unknown };
+              end?: { line?: unknown; character?: unknown };
+            };
+          };
+          const start = value.range?.start;
+          const end = value.range?.end;
+          if (
+            typeof value.uri !== "string" ||
+            typeof start?.line !== "number" ||
+            typeof start.character !== "number" ||
+            typeof end?.line !== "number" ||
+            typeof end.character !== "number"
+          ) {
+            return [];
+          }
+          return [
+            new Location(
+              Uri.parse(value.uri),
+              new Range(
+                new Position(start.line, start.character),
+                new Position(end.line, end.character),
+              ),
+            ),
+          ];
+        });
+        command.command = mapped.length ? "editor.action.showReferences" : "";
         command.arguments = [
           Uri.parse(args[0]),
           new Position(position.line, position.character),
-          locations.flatMap((location) => {
-            const value = location as {
-              uri?: unknown;
-              range?: {
-                start?: { line?: unknown; character?: unknown };
-                end?: { line?: unknown; character?: unknown };
-              };
-            };
-            const start = value.range?.start;
-            const end = value.range?.end;
-            if (
-              typeof value.uri !== "string" ||
-              typeof start?.line !== "number" ||
-              typeof start.character !== "number" ||
-              typeof end?.line !== "number" ||
-              typeof end.character !== "number"
-            ) {
-              return [];
-            }
-            return [
-              new Location(
-                Uri.parse(value.uri),
-                new Range(
-                  new Position(start.line, start.character),
-                  new Position(end.line, end.character),
-                ),
-              ),
-            ];
-          }),
+          mapped,
         ];
         return resolved;
       },
@@ -293,10 +374,7 @@ function createClient(
  * Used both for the initial activation and after `restartLanguageServer`
  * discards the previous instance.
  */
-async function startClient(
-  context: ExtensionContext,
-  channel: LogOutputChannel,
-): Promise<void> {
+async function startClient(context: ExtensionContext, channel: LogOutputChannel): Promise<void> {
   const next = createClient(context, channel);
   client = next;
   try {
@@ -343,10 +421,7 @@ async function restartLanguageServer(): Promise<void> {
 
   restarting = true;
   try {
-    const { timedOut } = await waitWhileStarting(
-      previous,
-      RESTART_WAIT_TIMEOUT_MS,
-    );
+    const { timedOut } = await waitWhileStarting(previous, RESTART_WAIT_TIMEOUT_MS);
     if (timedOut) {
       void window.showWarningMessage(
         "rsvelte: the language server did not respond to initialize within " +
@@ -374,9 +449,16 @@ async function restartLanguageServer(): Promise<void> {
 }
 
 function traceFromConfig(): Trace {
-  const value = workspace
-    .getConfiguration("rsvelte")
-    .get<string>("trace.server", "off");
+  const rsvelte = workspace.getConfiguration("rsvelte");
+  const inspected = rsvelte.inspect<string>("trace.server");
+  const explicitlySet = [
+    inspected?.globalValue,
+    inspected?.workspaceValue,
+    inspected?.workspaceFolderValue,
+  ].some((entry) => entry !== undefined);
+  const value = explicitlySet
+    ? rsvelte.get<string>("trace.server", "off")
+    : workspace.getConfiguration("svelte").get<string>("trace.server", "off");
   return Trace.fromString(value ?? "off");
 }
 
@@ -387,50 +469,29 @@ function resolveWorkspaceRelative(configured: string): string {
   return root ? path.join(root, configured) : configured;
 }
 
-function resolveServerModule(context: ExtensionContext): string {
-  const configured = workspace
-    .getConfiguration("rsvelte")
-    .get<string>("languageServer.path");
-  if (configured && configured.trim() !== "") {
-    return resolveWorkspaceRelative(configured);
-  }
-  // The bundled server lives at dist/server.mjs, copied next to the
-  // extension bundle by the build (see build.mjs).
-  return context.asAbsolutePath(path.join("dist", "server.mjs"));
-}
-
 /** Files outside any open workspace folder, or inside `node_modules`, never trigger a restart. */
 function isRestartTrigger(document: TextDocument): boolean {
   if (document.uri.scheme !== "file") return false;
   if (!workspace.getWorkspaceFolder(document.uri)) return false;
 
-  const relativeParts = workspace
-    .asRelativePath(document.uri, false)
-    .split(/[\\/]/);
+  const relativeParts = workspace.asRelativePath(document.uri, false).split(/[\\/]/);
   if (relativeParts.includes("node_modules")) return false;
 
   const base = path.basename(document.uri.fsPath);
   return RESTART_ON_SAVE_PATTERNS.some((pattern) => pattern.test(base));
 }
 
-async function applyFileRenameEdits(
-  files: readonly { oldUri: Uri; newUri: Uri }[],
-): Promise<void> {
+async function applyFileRenameEdits(files: readonly { oldUri: Uri; newUri: Uri }[]): Promise<void> {
   const running = client;
   if (!running || running.state !== State.Running) return;
   for (const file of files) {
-    const result = await running.sendRequest<unknown>(
-      "$/getEditsForFileRename",
-      {
-        oldUri: file.oldUri.toString(),
-        newUri: file.newUri.toString(),
-      },
-    );
+    const result = await running.sendRequest<unknown>("$/getEditsForFileRename", {
+      oldUri: file.oldUri.toString(),
+      newUri: file.newUri.toString(),
+    });
     if (!result) continue;
     const edit = await running.protocol2CodeConverter.asWorkspaceEdit(
-      result as Parameters<
-        typeof running.protocol2CodeConverter.asWorkspaceEdit
-      >[0],
+      result as Parameters<typeof running.protocol2CodeConverter.asWorkspaceEdit>[0],
     );
     if (edit) await workspace.applyEdit(edit);
   }
@@ -460,12 +521,7 @@ async function showCustomReferences(
         ({ uri, range }) =>
           new Location(
             Uri.parse(uri),
-            new Range(
-              range.start.line,
-              range.start.character,
-              range.end.line,
-              range.end.character,
-            ),
+            new Range(range.start.line, range.start.character, range.end.line, range.end.character),
           ),
       );
       const showReferences = () =>
@@ -488,8 +544,7 @@ async function showCustomReferences(
       } finally {
         await references.update(
           "preferredLocation",
-          preferredLocation?.workspaceFolderValue ??
-            preferredLocation?.workspaceValue,
+          preferredLocation?.workspaceFolderValue ?? preferredLocation?.workspaceValue,
         );
       }
     },
@@ -510,28 +565,43 @@ export function activate(context: ExtensionContext): void {
   context.subscriptions.push(channel);
 
   void startClient(context, channel);
+  registerCompiledCode(context, () => client);
+  registerSvelteKit(context);
+  context.subscriptions.push(
+    activateTagClosing(async (document, position) => {
+      const running = client;
+      if (!running || running.state !== State.Running) return "";
+      return running.sendRequest<string>(
+        "html/tag",
+        running.code2ProtocolConverter.asTextDocumentPositionParams(document, position),
+      );
+    }),
+  );
 
   context.subscriptions.push(
-    commands.registerCommand(RESTART_COMMAND_ID, () =>
-      restartLanguageServer(),
+    commands.registerCommand(RESTART_COMMAND_ID, async () => {
+      await restartLanguageServer();
+      await window.showInformationMessage("rsvelte language server restarted.");
+    }),
+    commands.registerCommand("rsvelte.showOutputChannel", () => channel.show(true)),
+    commands.registerTextEditorCommand(EXTRACT_COMPONENT_COMMAND_ID, async (editor) => {
+      if (editor.document.languageId !== "svelte") return;
+      const filePath = await window.showInputBox({
+        prompt: "Component name",
+        placeHolder: "NewComponent",
+      });
+      if (!filePath) return;
+      const uri = editor.document.uri.toString();
+      await client?.sendRequest("workspace/executeCommand", {
+        command: "extract_to_svelte_component",
+        arguments: [uri, { uri, range: editor.selection, filePath }],
+      });
+    }),
+    commands.registerCommand(FIND_FILE_REFERENCES_COMMAND_ID, (resource?: Uri) =>
+      showCustomReferences("$/getFileReferences", "Finding file references", resource),
     ),
-    commands.registerCommand(
-      FIND_FILE_REFERENCES_COMMAND_ID,
-      (resource?: Uri) =>
-        showCustomReferences(
-          "$/getFileReferences",
-          "Finding file references",
-          resource,
-        ),
-    ),
-    commands.registerCommand(
-      FIND_COMPONENT_REFERENCES_COMMAND_ID,
-      (resource?: Uri) =>
-        showCustomReferences(
-          "$/getComponentReferences",
-          "Finding component references",
-          resource,
-        ),
+    commands.registerCommand(FIND_COMPONENT_REFERENCES_COMMAND_ID, (resource?: Uri) =>
+      showCustomReferences("$/getComponentReferences", "Finding component references", resource),
     ),
     workspace.onDidSaveTextDocument((document) => {
       if (isRestartTrigger(document)) {
@@ -542,7 +612,11 @@ export function activate(context: ExtensionContext): void {
       void applyFileRenameEdits(event.files);
     }),
     workspace.onDidChangeConfiguration((event) => {
-      if (event.affectsConfiguration("rsvelte.trace.server") && client) {
+      if (
+        (event.affectsConfiguration("rsvelte.trace.server") ||
+          event.affectsConfiguration("svelte.trace.server")) &&
+        client
+      ) {
         void client.setTrace(traceFromConfig());
       }
     }),

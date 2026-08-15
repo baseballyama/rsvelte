@@ -7,13 +7,10 @@ so editors get the complete Svelte and TypeScript language surface.
 
 ## Features (v1)
 
-- **Formatting** — `textDocument/formatting` shells out to the native
-  `rsvelte-fmt` CLI (`--stdin --stdin-filepath <path>`) and returns a
-  whole-document edit. `rsvelte-fmt` formats `.svelte` in-process and delegates
-  embedded JS/TS/CSS to oxfmt, so the result is a complete format. The binary is
-  resolved from `node_modules/.bin/rsvelte-fmt` (install
-  [`@rsvelte/fmt`](https://www.npmjs.com/package/@rsvelte/fmt)); if it can't be
-  found, formatting is silently disabled.
+- **Formatting** — `textDocument/formatting` uses `rsvelte_fmt::FormatSession`
+  in the native server process and returns a whole-document edit. It resolves
+  the project's oxfmt configuration without spawning `rsvelte-fmt` or requiring
+  a separate formatter installation.
 - **Diagnostics** — push diagnostics from the bundled
   [`rsvelte_lint`](https://github.com/baseballyama/rsvelte/tree/main/crates/rsvelte_lint)
   engine (compiled to wasm, vendored in the package — no extra install). Runs on
@@ -51,10 +48,17 @@ The server reads these from the client's `rsvelte.*` configuration:
 
 | Key | Default | Description |
 | --- | --- | --- |
-| `rsvelte.format.enable` | `true` | Enable formatting via `rsvelte-fmt`. |
+| `rsvelte.format.enable` | `true` | Enable in-process document formatting. |
 | `rsvelte.lint.enable` | `true` | Enable linting via the bundled engine. |
 | `rsvelte.preprocess.enable` | `true` | Apply preprocessors from `svelte.config.*` in trusted workspaces. |
-| `rsvelte.rsvelteFmtPath` | `""` | Explicit path to a `rsvelte-fmt` binary (overrides resolution). |
+| `rsvelte.rsvelteFmtPath` | `""` | JavaScript fallback only: explicit path to a `rsvelte-fmt` binary. |
+
+The native server also accepts the official extension's complete
+`svelte.plugin.{typescript,css,html,svelte}.*` configuration tree, including
+its feature switches, compiler-warning levels, formatter options, and default
+script language. The legacy `rsvelte.*` master switches remain available as
+additional gates, so an existing Svelte workspace can change extensions
+without rewriting its settings.
 
 ## Lint configuration
 
@@ -94,10 +98,10 @@ config file is saved through the client, and on `workspace/didChangeConfiguratio
 rsvelte-language-server --stdio
 ```
 
-Most users won't run this directly — the
-[rsvelte VS Code extension](https://github.com/baseballyama/rsvelte/tree/main/apps/npm/vscode)
-bundles and launches it. For other editors, point your LSP client at the
-`rsvelte-language-server` binary with the `--stdio` transport.
+The [rsvelte VS Code extension](../vscode/README.md) bundles and launches the
+native binary for supported platforms, with the JavaScript server as a
+fallback. Neovim, Zed, Sublime Text, Helix, and Emacs setup is documented in
+the [editor guide](../../../editors/README.md).
 
 ## Native server
 

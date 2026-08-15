@@ -63,6 +63,8 @@ limitations.
 | Svelte diagnostics in oxlint                       | [`@rsvelte/oxlint-plugin`](apps/npm/oxlint-plugin/README.md)                         |
 | Language server                                    | [`@rsvelte/language-server`](apps/npm/language-server/README.md)                     |
 | VS Code                                            | [`rsvelte-vscode`](apps/npm/vscode/README.md)                                        |
+| Neovim, Sublime Text, Helix, and Emacs             | [Editor setup](editors/README.md)                                                    |
+| Zed                                                | [`rsvelte` Zed extension](apps/zed/README.md)                                        |
 | Rust API                                           | [`rsvelte`](crates/rsvelte/README.md)                                                |
 | C API and other languages                          | [`rsvelte_capi`](crates/rsvelte_capi/README.md)                                      |
 

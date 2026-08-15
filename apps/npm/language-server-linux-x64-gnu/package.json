@@ -1,7 +1,7 @@
 {
   "name": "@rsvelte/language-server-linux-x64-gnu",
   "version": "0.4.1",
-  "description": "Prebuilt rsvelte-language-server binary for linux-x64-gnu",
+  "description": "Prebuilt rsvelte-language-server binary for linux-x64 (glibc)",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -13,6 +13,9 @@
   ],
   "cpu": [
     "x64"
+  ],
+  "libc": [
+    "glibc"
   ],
   "files": [
     "rsvelte-language-server"

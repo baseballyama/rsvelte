@@ -1,8 +1,9 @@
 //! The Svelte component extraction refactoring.
 
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 
 use lsp_types::Range;
+use regex::{Captures, Regex};
 use serde_json::{Value, json};
 
 use crate::text::LineIndex;
@@ -83,7 +84,15 @@ pub fn component(
     .collect();
     tags.sort_unstable();
     for (tag_start, tag_end) in tags {
-        new_source.push_str(&source[tag_start..tag_end]);
+        let tag = &source[tag_start..tag_end];
+        new_source.push_str(&update_relative_imports(
+            tag,
+            old_path.parent().unwrap_or(Path::new(".")),
+            &file_path,
+            root.css
+                .as_ref()
+                .is_some_and(|style| style.start as usize == tag_start),
+        ));
         new_source.push_str("\n\n");
     }
 
@@ -108,6 +117,82 @@ pub fn component(
             ] }
         ]
     }))
+}
+
+fn update_relative_imports(
+    tag: &str,
+    old_directory: &Path,
+    new_component_path: &str,
+    style: bool,
+) -> String {
+    let pattern = if style {
+        r#"@import\s+['"`](((\./)|(\.\./)).*?)['"`]"#
+    } else {
+        r#"import\s+\{[^}]*\}.*['"`](((\./)|(\.\./)).*?)['"`]|import\s+\w+\s+from\s+['"`](((\./)|(\.\./)).*?)['"`]"#
+    };
+    let regex = Regex::new(pattern).expect("static import pattern");
+    let new_directory = old_directory
+        .join(new_component_path)
+        .parent()
+        .unwrap_or(old_directory)
+        .to_path_buf();
+    regex
+        .replace_all(tag, |captures: &Captures<'_>| {
+            let original = captures.get(1).or_else(|| captures.get(5));
+            let Some(original) = original else {
+                return captures[0].to_string();
+            };
+            let replacement =
+                update_relative_import(old_directory, &new_directory, original.as_str());
+            captures[0].replacen(original.as_str(), &replacement, 1)
+        })
+        .into_owned()
+}
+
+fn update_relative_import(old_directory: &Path, new_directory: &Path, import: &str) -> String {
+    let relative = relative_path(new_directory, old_directory);
+    let path = normalize(relative.join(import));
+    let mut value = path.to_string_lossy().replace('\\', "/");
+    if !value.starts_with('.') {
+        value.insert_str(0, "./");
+    }
+    value
+}
+
+fn relative_path(from: &Path, to: &Path) -> PathBuf {
+    let from = normalize(from.to_path_buf());
+    let to = normalize(to.to_path_buf());
+    let from = from.components().collect::<Vec<_>>();
+    let to = to.components().collect::<Vec<_>>();
+    let common = from
+        .iter()
+        .zip(&to)
+        .take_while(|(left, right)| left == right)
+        .count();
+    let mut result = PathBuf::new();
+    for _ in common..from.len() {
+        result.push("..");
+    }
+    for component in &to[common..] {
+        result.push(component.as_os_str());
+    }
+    result
+}
+
+fn normalize(path: PathBuf) -> PathBuf {
+    let mut result = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir
+                if matches!(result.components().next_back(), Some(Component::Normal(_))) =>
+            {
+                result.pop();
+            }
+            _ => result.push(component.as_os_str()),
+        }
+    }
+    result
 }
 
 fn boundary(source: &str, offset: usize, start: bool) -> bool {
@@ -159,5 +244,23 @@ mod tests {
             edit["documentChanges"][2]["edits"][0]["newText"],
             "<p>extract me</p>\n\n<script>\nlet x = 1;\n</script>\n\n<style>p { color: blue; }</style>\n\n"
         );
+    }
+
+    #[test]
+    fn nested_components_rebase_script_and_style_imports() {
+        let source = "<script>import x from './lib/x'; import { y } from '../shared/y';</script>\n<p>x</p>\n<style>@import './theme.css';</style>";
+        let edit = component(
+            source,
+            "file:///tmp/src/App.svelte",
+            Range::new(Position::new(1, 0), Position::new(1, 8)),
+            "parts/NewComp",
+        )
+        .unwrap();
+        let created = edit["documentChanges"][2]["edits"][0]["newText"]
+            .as_str()
+            .unwrap();
+        assert!(created.contains("from '../lib/x'"));
+        assert!(created.contains("from '../../shared/y'"));
+        assert!(created.contains("@import '../theme.css'"));
     }
 }

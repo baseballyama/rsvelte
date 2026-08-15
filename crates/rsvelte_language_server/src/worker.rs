@@ -29,6 +29,7 @@ use crate::format::FormatSessions;
 use crate::lint::LintConfigCache;
 use crate::log;
 use crate::settings::CompilerWarnings;
+use crate::settings::FormatConfig;
 use crate::tsgo_custom::{WorkspaceSource, find_file_references};
 use crate::uri::path_to_uri;
 
@@ -46,18 +47,28 @@ pub enum Job {
         text: Arc<String>,
         preprocessed: Option<PreprocessedAnalysis>,
         warnings: CompilerWarnings,
+        svelte_diagnostics: bool,
+        css_diagnostics: bool,
     },
     Format {
         id: RequestId,
         path: PathBuf,
         text: Arc<String>,
         range: Range,
+        config: FormatConfig,
+    },
+    Compile {
+        id: RequestId,
+        path: PathBuf,
+        text: Arc<String>,
+        sourcemap: Option<Arc<String>>,
     },
     Complete {
         id: RequestId,
         path: PathBuf,
         text: Arc<String>,
         offset: usize,
+        strict_mode: bool,
     },
     Hover {
         id: RequestId,
@@ -112,6 +123,8 @@ pub enum Job {
         text: Arc<String>,
         preprocessed: Option<PreprocessedAnalysis>,
         warnings: CompilerWarnings,
+        svelte_diagnostics: bool,
+        css_diagnostics: bool,
     },
     FileReferences {
         id: RequestId,
@@ -141,6 +154,10 @@ pub enum Outcome {
     Formatted {
         id: RequestId,
         edits: Vec<TextEdit>,
+    },
+    Compiled {
+        id: RequestId,
+        result: Option<Value>,
     },
     Completed {
         id: RequestId,
@@ -250,17 +267,25 @@ fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>) {
                 text,
                 preprocessed,
                 warnings,
+                svelte_diagnostics,
+                css_diagnostics,
             } => {
                 let config = lint_configs.get(path.parent().unwrap_or(Path::new(".")));
                 let diagnostics = guard("lint", &path, || {
-                    let mut diagnostics = lint_with_preprocessor(
-                        &path,
-                        &text,
-                        preprocessed.as_ref(),
-                        &config,
-                        &warnings,
-                    );
-                    diagnostics.extend(crate::css::diagnostics(&text));
+                    let mut diagnostics = if svelte_diagnostics {
+                        lint_with_preprocessor(
+                            &path,
+                            &text,
+                            preprocessed.as_ref(),
+                            &config,
+                            &warnings,
+                        )
+                    } else {
+                        Vec::new()
+                    };
+                    if css_diagnostics {
+                        diagnostics.extend(crate::css::diagnostics(&text));
+                    }
                     diagnostics
                 })
                 .unwrap_or_default();
@@ -276,19 +301,54 @@ fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>) {
                 path,
                 text,
                 range,
+                config,
             } => {
-                let edits = format(&mut format_sessions, &path, &text, range);
+                let edits = format(&mut format_sessions, &path, &text, range, &config);
                 Outcome::Formatted { id, edits }
             }
+            Job::Compile {
+                id,
+                path,
+                text,
+                sourcemap,
+            } => Outcome::Compiled {
+                id,
+                result: guard("compiled code", &path, || {
+                    let options = rsvelte_core::CompileOptions {
+                        filename: Some(path.display().to_string()),
+                        sourcemap: sourcemap.as_deref().cloned(),
+                        ..rsvelte_core::CompileOptions::default()
+                    };
+                    rsvelte_core::compile(&text, options).ok().map(|compiled| {
+                        let map = |map: Option<String>| {
+                            map.and_then(|map| serde_json::from_str(&map).ok())
+                                .unwrap_or(Value::Null)
+                        };
+                        let css = compiled.css.map(|css| {
+                            serde_json::json!({
+                                "code": css.code,
+                                "map": map(css.map),
+                                "hasGlobal": css.has_global,
+                            })
+                        });
+                        serde_json::json!({
+                            "js": { "code": compiled.js.code, "map": map(compiled.js.map) },
+                            "css": css,
+                        })
+                    })
+                })
+                .flatten(),
+            },
             Job::Complete {
                 id,
                 path,
                 text,
                 offset,
+                strict_mode,
             } => Outcome::Completed {
                 id,
                 list: guard("completion", &path, || {
-                    crate::completions::completions(&text, offset)
+                    crate::completions::completions_with_strict_mode(&text, offset, strict_mode)
                 })
                 .flatten(),
             },
@@ -397,17 +457,25 @@ fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>) {
                 text,
                 preprocessed,
                 warnings,
+                svelte_diagnostics,
+                css_diagnostics,
             } => {
                 let config = lint_configs.get(path.parent().unwrap_or(Path::new(".")));
                 let diagnostics = guard("pull diagnostics", &path, || {
-                    let mut diagnostics = lint_with_preprocessor(
-                        &path,
-                        &text,
-                        preprocessed.as_ref(),
-                        &config,
-                        &warnings,
-                    );
-                    diagnostics.extend(crate::css::diagnostics(&text));
+                    let mut diagnostics = if svelte_diagnostics {
+                        lint_with_preprocessor(
+                            &path,
+                            &text,
+                            preprocessed.as_ref(),
+                            &config,
+                            &warnings,
+                        )
+                    } else {
+                        Vec::new()
+                    };
+                    if css_diagnostics {
+                        diagnostics.extend(crate::css::diagnostics(&text));
+                    }
                     diagnostics
                 })
                 .unwrap_or_default();
@@ -552,7 +620,13 @@ fn collect_source_directory(directory: &Path, sources: &mut HashMap<PathBuf, Fil
     }
 }
 
-fn format(sessions: &mut FormatSessions, path: &Path, text: &str, range: Range) -> Vec<TextEdit> {
+fn format(
+    sessions: &mut FormatSessions,
+    path: &Path,
+    text: &str,
+    range: Range,
+    config: &FormatConfig,
+) -> Vec<TextEdit> {
     let session = match sessions.get(path) {
         Ok(session) => session,
         Err(err) => {
@@ -567,6 +641,8 @@ fn format(sessions: &mut FormatSessions, path: &Path, text: &str, range: Range) 
     let Some(formatted) = guard("format", path, || session.format(text, path)) else {
         return Vec::new();
     };
+    let formatted = formatted
+        .and_then(|formatted| crate::format::apply_editor_config(&formatted, path, config));
     match formatted {
         Ok(formatted) if formatted != text => vec![TextEdit {
             range,

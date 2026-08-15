@@ -16,6 +16,7 @@ rsvelte_core = { path = "../rsvelte_core", default-features = false }
 rsvelte_check = { path = "../rsvelte_check" }
 rsvelte_diagnostics = { path = "../rsvelte_diagnostics" }
 rsvelte_fmt = { path = "../rsvelte_fmt" }
+rsvelte_formatter = { path = "../rsvelte_formatter" }
 rsvelte_lint = { path = "../rsvelte_lint", default-features = false, features = ["native"] }
 rsvelte_projection = { path = "../rsvelte_projection" }
 anyhow = "1.0"
@@ -25,6 +26,8 @@ lsp-types = "0.97"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sourcemap = "9.0"
+regex = "1.11"
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "b6f1458dece6bbd7f934d1d26c049d0d0c2bd68c" }
 
 [lints]
 workspace = true

@@ -28,6 +28,12 @@ and launches it over stdio.
 - **Project preprocessors** — trusted workspaces apply the nearest
   `svelte.config.*` before type projection, with source-mapped diagnostics and
   TypeScript locations. Workspace config is never executed in restricted mode.
+- **Svelte workflow commands** — inspect compiled JS or CSS beside the source,
+  extract a selection into a component, find file/component references, and
+  update imports when files move.
+- **SvelteKit route generation** — create `+page`, `+layout`, `+server`, and
+  `+error` files from a folder context menu, matching the project's JS/TS and
+  legacy/runes conventions.
 
 TypeScript features require TypeScript 7 in the workspace (or `TSGO_BIN`);
 native formatting, linting and template/CSS providers remain available without
@@ -40,17 +46,16 @@ Svelte with:
 
 ```jsonc
 {
-  "emmet.includeLanguages": { "svelte": "html" }
+  "emmet.includeLanguages": { "svelte": "html" },
 }
 ```
 
 ## Requirements
 
-Formatting requires the native `rsvelte-fmt` binary. Install it in your project:
-
-```sh
-npm install -D @rsvelte/fmt
-```
+The bundled native language server formats in process and needs no separate
+formatter installation. The JavaScript fallback used on unsupported platforms
+can use a workspace `@rsvelte/fmt` installation or
+`rsvelte.rsvelteFmtPath`.
 
 Install the TypeScript 7 native backend for type-aware features:
 
@@ -58,9 +63,10 @@ Install the TypeScript 7 native backend for type-aware features:
 npm install -D typescript@~6 @typescript/native@npm:typescript@7
 ```
 
-The extension resolves `node_modules/.bin/rsvelte-fmt` from the workspace. If
-it isn't found, formatting is disabled (linting still works). You can point at a
-specific binary with `rsvelte.rsvelteFmtPath`.
+The Marketplace package includes the native language-server binary for each
+supported platform. On an unsupported platform it falls back to the bundled
+JavaScript server; `RSVELTE_LANGUAGE_SERVER_BIN` can select a custom native
+binary.
 
 ## Using it alongside the official Svelte extension
 
@@ -80,19 +86,32 @@ doesn't conflict with the official Svelte extension):
 // .vscode/settings.json
 {
   "[svelte]": {
-    "editor.defaultFormatter": "rsvelte.rsvelte-vscode"
-  }
+    "editor.defaultFormatter": "rsvelte.rsvelte-vscode",
+  },
 }
 ```
 
 ## Settings
 
-| Key | Default | Description |
-| --- | --- | --- |
-| `rsvelte.format.enable` | `true` | Enable formatting via `rsvelte-fmt`. |
-| `rsvelte.lint.enable` | `true` | Enable linting via the bundled engine. |
-| `rsvelte.preprocess.enable` | `true` | Apply preprocessors from `svelte.config.*` in trusted workspaces. |
-| `rsvelte.rsvelteFmtPath` | `""` | Explicit path to a `rsvelte-fmt` binary. |
+| Key                         | Default | Description                                                       |
+| --------------------------- | ------- | ----------------------------------------------------------------- |
+| `rsvelte.format.enable`     | `true`  | Enable document formatting.                                       |
+| `rsvelte.lint.enable`       | `true`  | Enable linting via the bundled engine.                            |
+| `rsvelte.preprocess.enable` | `true`  | Apply preprocessors from `svelte.config.*` in trusted workspaces. |
+| `rsvelte.rsvelteFmtPath`    | `""`    | JavaScript fallback path to a `rsvelte-fmt` binary.               |
+
+The official extension's `svelte.plugin.{typescript,css,html,svelte}.*`,
+`svelte.trace.server`, and SvelteKit context-menu settings are also contributed
+and forwarded. The legacy `rsvelte.*` master switches remain additional gates,
+so switching from `svelte.svelte-vscode` does not require rewriting workspace
+settings.
+
+## Commands
+
+- `rsvelte: Restart Language Server` and `rsvelte: Show Language Server Output`
+- `rsvelte: Show Compiled Code` / `rsvelte: Show Compiled CSS`
+- `rsvelte: Extract Component`
+- `rsvelte: Find File References` / `rsvelte: Find Component References`
 
 ## Lint configuration
 

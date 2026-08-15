@@ -159,16 +159,12 @@ if (needOvsx) {
   } catch {
     /* namespace already exists, or not permitted — publish will report fatal errors */
   }
-  try {
-    execFileSync(
-      'npx',
-      ['--yes', 'ovsx@^0', 'publish', vsix, '-p', process.env.OVSX_PAT],
-      { cwd: extDir, stdio: 'inherit' },
-    );
-    console.log('✓ published to Open VSX');
-  } catch (e) {
-    console.warn(`Open VSX publish failed (continuing): ${e?.message ?? e}`);
-  }
+  execFileSync(
+    'npx',
+    ['--yes', 'ovsx@^0', 'publish', vsix, '-p', process.env.OVSX_PAT],
+    { cwd: extDir, stdio: 'inherit' },
+  );
+  console.log('✓ published to Open VSX');
 } else if (!hasOvsx) {
   console.log('OVSX_PAT not set — skipping Open VSX.');
 } else {

@@ -1,0 +1,33 @@
+[
+	{
+		"caption": "Preferences",
+		"mnemonic": "n",
+		"id": "preferences",
+		"children": [
+			{
+				"caption": "Package Settings",
+				"id": "package-settings",
+				"children": [
+					{
+						"caption": "LSP",
+						"children": [
+							{
+								"caption": "Servers",
+								"children": [
+									{
+										"caption": "rsvelte",
+										"command": "edit_settings",
+										"args": {
+											"base_file": "${packages}/LSP-rsvelte/LSP-rsvelte.sublime-settings",
+											"default": "// Settings in here override those in LSP-rsvelte/LSP-rsvelte.sublime-settings"
+										}
+									}
+								]
+							}
+						]
+					}
+				]
+			}
+		]
+	}
+]

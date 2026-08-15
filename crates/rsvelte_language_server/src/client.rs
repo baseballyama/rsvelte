@@ -22,6 +22,10 @@ pub struct ClientState {
     pub position_encodings: Vec<PositionEncodingKind>,
     /// Whether the client answers `workspace/configuration`.
     pub pull_configuration: bool,
+    /// Whether the client accepts `workspace/applyEdit` requests.
+    pub apply_edit: bool,
+    /// The one plugin setting upstream fixes into capabilities at initialize.
+    pub document_highlight: bool,
     /// Whether the client folds whole lines only, and so cannot use the
     /// characters a folding range carries.
     pub line_folding_only: bool,
@@ -52,6 +56,13 @@ impl ClientState {
             position_encodings: field(params.pointer("/capabilities/general/positionEncodings"))
                 .unwrap_or_default(),
             pull_configuration: flag(params, "/capabilities/workspace/configuration"),
+            apply_edit: flag(params, "/capabilities/workspace/applyEdit"),
+            document_highlight: params
+                .pointer(
+                    "/initializationOptions/configuration/svelte/plugin/svelte/documentHighlight/enable",
+                )
+                .and_then(Value::as_bool)
+                .unwrap_or(true),
             line_folding_only: flag(
                 params,
                 "/capabilities/textDocument/foldingRange/lineFoldingOnly",
@@ -126,7 +137,12 @@ mod tests {
             "rootUri": "file:///home/u/app",
             "workspaceFolders": [{ "uri": "file:///home/u/app", "name": "app" }],
             "clientInfo": { "name": "Visual Studio Code", "version": "1.99.0" },
-            "initializationOptions": { "isTrusted": false },
+            "initializationOptions": {
+                "isTrusted": false,
+                "configuration": { "svelte": { "plugin": { "svelte": {
+                    "documentHighlight": { "enable": false }
+                }}}}
+            },
             "capabilities": {
                 "workspace": {
                     "configuration": true,
@@ -155,6 +171,8 @@ mod tests {
         );
         assert_eq!(state.position_encodings.len(), 1);
         assert!(state.pull_configuration);
+        assert!(!state.apply_edit);
+        assert!(!state.document_highlight);
         assert!(state.line_folding_only);
         assert!(state.hierarchical_document_symbols);
         assert!(!state.pull_diagnostics);
@@ -171,6 +189,8 @@ mod tests {
             "capabilities": { "textDocument": { "foldingRange": {} } },
         }));
         assert!(!state.line_folding_only);
+        assert!(!state.apply_edit);
+        assert!(state.document_highlight);
         assert!(!state.hierarchical_document_symbols);
         assert!(!state.pull_diagnostics);
         assert!(!state.diagnostic_refresh);

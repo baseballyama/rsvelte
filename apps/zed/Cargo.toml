@@ -4,7 +4,7 @@
 
 [package]
 name = "zed_rsvelte"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2024"
 publish = false
 license = "MIT"

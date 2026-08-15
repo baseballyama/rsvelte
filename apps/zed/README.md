@@ -1,7 +1,8 @@
 # rsvelte for Zed
 
 A [Zed](https://zed.dev) extension that adds the `Svelte` language and starts
-[`@rsvelte/language-server`](../npm/language-server) for `.svelte` files.
+the native [`rsvelte-language-server`](../npm/language-server) for `.svelte`
+files.
 
 ## Install
 
@@ -13,32 +14,22 @@ Not yet in Zed's extension registry. To try it now:
 Zed compiles the extension to `wasm32-wasip2` itself; you only need a Rust
 toolchain with that target installed.
 
-## What works today
+## Server installation
 
-The extension is a launcher — everything below is whatever the language server
-already implements, nothing more.
+The extension resolves the server in this order:
 
-| Feature | Status |
-| --- | --- |
-| Syntax highlighting, brackets, indents, outline, injections | ✅ (tree-sitter grammar + queries shipped here) |
-| Diagnostics (compiler errors/warnings + `rsvelte_lint`) | ✅ pushed on open/change, bundled as wasm — no extra install |
-| Format document / format on save | ✅ **only when a `rsvelte-fmt` binary is resolvable** — see below |
-| Completions, hover, code actions, folding, selection ranges, document symbols | ⛔ not exposed by the published server yet |
-| TypeScript features (go to definition, rename, type errors) | ⛔ pending later Wave 4 milestones |
+1. `lsp.rsvelte-language-server.binary.path` from Zed settings.
+2. A standalone `rsvelte-language-server` on the worktree's `PATH` (no Node.js
+   required).
+3. The native optional dependency installed by
+   `@rsvelte/language-server`; the package's JavaScript server remains the
+   fallback on unsupported platforms.
 
-Formatting shells out to the native `rsvelte-fmt` CLI. The server looks for
-`node_modules/.bin/rsvelte-fmt` walking up from the file, so install
-[`@rsvelte/fmt`](https://www.npmjs.com/package/@rsvelte/fmt) in your project, or
-point at a binary explicitly (below). Without it, formatting is a no-op.
+Standalone archives are documented in the repository's
+[editor setup guide](../../editors/README.md#standalone-binaries).
 
-The language config here deliberately omits `prettier_parser_name`, so Zed
-routes formatting to the language server instead of Prettier.
-
-The richer Rust server (`crates/rsvelte_language_server`, which additionally
-implements completions, hover, code actions, folding, selection ranges and
-document symbols) is not published as a binary yet. Once it is, this extension
-switches to it and the table above grows; until then you can already point at a
-locally built one with `binary.path`.
+The language config deliberately omits `prettier_parser_name`, so Zed routes
+formatting to the language server instead of Prettier.
 
 ## Settings
 
@@ -53,6 +44,7 @@ locally built one with `binary.path`.
       "settings": {
         "format": { "enable": true },
         "lint": { "enable": true },
+        "preprocess": { "enable": true },
         "rsvelteFmtPath": "/absolute/path/to/rsvelte-fmt"
       }
     }
@@ -60,8 +52,7 @@ locally built one with `binary.path`.
 }
 ```
 
-- `binary.path` — skip the npm install and run this executable instead.
-  Defaults to `node <npm package>/dist/server.mjs --stdio`.
+- `binary.path` — run this executable instead of PATH/npm discovery.
 - `settings` — forwarded verbatim as the server's `rsvelte` configuration
   section.
 

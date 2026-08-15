@@ -25,6 +25,7 @@ target
 # VS Code extension bundle + packaged vsix
 /apps/npm/vscode/dist
 /apps/npm/vscode/*.vsix
+/apps/npm/vscode/native
 
 # svelte-check platform binaries (staged into per-platform npm packages by the
 # release workflow; never committed)
@@ -128,6 +129,7 @@ pbcopy
 # entry, `changesets/action` includes them in the "Version Packages" PR
 # (~70 MB per run, baked into git history forever).
 artifacts/
+release-artifacts/
 
 # Claude scheduled task lock (runtime artifact)
 .claude/scheduled_tasks.lock

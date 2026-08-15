@@ -1,5 +1,7 @@
 # Source & config — only the bundled output ships in the vsix.
 src/**
+test/**
+native/**
 build.mjs
 tsconfig.json
 .gitignore

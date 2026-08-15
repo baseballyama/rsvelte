@@ -1,0 +1,12 @@
+{
+	"enabled": true,
+	"command": ["rsvelte-language-server", "--stdio"],
+	"selector": "text.html.svelte",
+	"settings": {
+		"rsvelte": {
+			"format": { "enable": true },
+			"lint": { "enable": true },
+			"preprocess": { "enable": true }
+		}
+	}
+}

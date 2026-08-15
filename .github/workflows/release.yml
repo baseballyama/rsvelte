@@ -567,6 +567,46 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  release-language-server-archives:
+    name: Release language-server archives
+    if: "${{ startsWith(github.event.head_commit.message, 'chore(release): version packages') }}"
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+
+      - name: Download language-server artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: 'rsvelte-language-server-*'
+          path: artifacts
+
+      - name: Package standalone archives
+        run: node scripts/release/package-language-server-archives.mjs
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="$(node -p "require('./apps/npm/language-server/package.json').version")"
+          tag="@rsvelte/language-server@${version}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" release-artifacts/* --clobber
+          else
+            gh release create "$tag" release-artifacts/* \
+              --verify-tag \
+              --latest=false \
+              --title "rsvelte language server ${version}" \
+              --notes "Standalone rsvelte-language-server binaries. Verify the selected archive with SHA256SUMS before installing."
+          fi
+
   # Tell every pull request that shipped in this release — and the issues it
   # closed — which `package@version` carries it. Runs after `publish` so a
   # comment is never posted for a release that did not reach the registry.

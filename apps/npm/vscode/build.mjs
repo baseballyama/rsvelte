@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 const root = dirname(fileURLToPath(import.meta.url));
 const distDir = join(root, "dist");
 const serverDist = join(root, "..", "language-server", "dist");
+const nativeDir = join(root, "native");
 
 rmSync(distDir, { recursive: true, force: true });
 mkdirSync(distDir, { recursive: true });
@@ -41,4 +42,8 @@ cpSync(join(serverDist, "vendor"), join(distDir, "vendor"), {
   recursive: true,
 });
 
-console.log("[build] extension bundled to dist/extension.js (+ server.mjs)");
+if (existsSync(nativeDir)) {
+  cpSync(nativeDir, join(distDir, "bin"), { recursive: true });
+}
+
+console.log("[build] extension bundled to dist/extension.js (+ native/JS servers)");

@@ -728,7 +728,7 @@ jobs:
 
       - uses: ./.github/actions/setup-rust
         with:
-          targets: wasm32-unknown-unknown
+          targets: wasm32-unknown-unknown,wasm32-wasip2
           mold: 'true'
           wasm-pack: 'true'
 
@@ -790,8 +790,15 @@ jobs:
       - name: Run language-server tests (headless LSP smoke + unit)
         run: pnpm --filter @rsvelte/language-server run test
 
+      - name: Check Zed extension
+        run: cargo check --manifest-path apps/zed/Cargo.toml --target wasm32-wasip2
+
+      - name: Test standalone archive packaging
+        run: pnpm run test:language-server-archives
+
       - name: Typecheck + bundle VS Code extension
         run: |
+          pnpm --filter rsvelte-vscode run test
           pnpm --filter rsvelte-vscode run typecheck
           pnpm --filter rsvelte-vscode run build
 
