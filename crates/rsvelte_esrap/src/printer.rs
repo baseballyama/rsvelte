@@ -3133,8 +3133,20 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     #[allow(clippy::too_many_lines)]
     fn print_expression(&mut self, expr: &Expression, ctx: &mut Context<DIRECT>) {
         // esrap's `_` wildcard: emit comments positioned before this node first.
-        let start = expr.span().start;
+        let span = expr.span();
+        let start = span.start;
         self.flush_leading(ctx, start);
+        if HAS_COMMENTS
+            && DIRECT
+            && self.has_loc(start)
+            && self.has_loc(span.end)
+            && self
+                .comment_at(self.comment_index)
+                .is_none_or(|comment| comment.start >= span.end)
+        {
+            self.comment_free().print_expression(expr, ctx);
+            return;
+        }
         match expr {
             Expression::ParenthesizedExpression(p) => {
                 // esrap parses with acorn, which ELIDES parentheses — there is
