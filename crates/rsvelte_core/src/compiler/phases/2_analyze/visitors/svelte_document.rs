@@ -29,10 +29,9 @@ pub fn visit(
 
     // svelte:document cannot have children
     if !document.fragment.nodes.is_empty() {
-        return Err(AnalysisError::validation(
-            "svelte_meta_invalid_content",
-            "<svelte:document> cannot have children",
-        ));
+        let (start, _) = document.fragment.nodes.first().unwrap().span();
+        let (_, end) = document.fragment.nodes.last().unwrap().span();
+        return Err(errors::svelte_meta_invalid_content("svelte:document").at(start, end));
     }
 
     // Validate attributes - check for invalid ones

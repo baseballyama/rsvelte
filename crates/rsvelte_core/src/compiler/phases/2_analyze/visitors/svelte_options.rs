@@ -24,10 +24,9 @@ pub fn visit(options: &SvelteElement, context: &mut VisitorContext) -> Result<()
 
     // svelte:options cannot have children
     if !options.fragment.nodes.is_empty() {
-        return Err(AnalysisError::validation(
-            "svelte_meta_invalid_content",
-            "<svelte:options> cannot have children",
-        ));
+        let (start, _) = options.fragment.nodes.first().unwrap().span();
+        let (_, end) = options.fragment.nodes.last().unwrap().span();
+        return Err(errors::svelte_meta_invalid_content("svelte:options").at(start, end));
     }
 
     Ok(())

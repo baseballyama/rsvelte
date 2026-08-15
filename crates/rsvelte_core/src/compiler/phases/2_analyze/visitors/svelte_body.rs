@@ -26,10 +26,9 @@ pub fn visit(body: &mut SvelteElement, context: &mut VisitorContext) -> Result<(
 
     // svelte:body cannot have children
     if !body.fragment.nodes.is_empty() {
-        return Err(AnalysisError::validation(
-            "svelte_meta_invalid_content",
-            "<svelte:body> cannot have children",
-        ));
+        let (start, _) = body.fragment.nodes.first().unwrap().span();
+        let (_, end) = body.fragment.nodes.last().unwrap().span();
+        return Err(errors::svelte_meta_invalid_content("svelte:body").at(start, end));
     }
 
     // Event expressions on special elements participate in normal reference analysis.
