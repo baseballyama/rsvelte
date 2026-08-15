@@ -55,7 +55,7 @@ diagnostics! {
     props_invalid_identifier() => "`$props()` can only be used with an object destructuring pattern or an identifier";
 
     /// `%rune%` has already been declared
-    props_duplicate(rune: &str) => "`{}` has already been declared", rune;
+    props_duplicate(rune: &str) => "Cannot use `{}()` more than once", rune;
 
     /// Declaring or accessing a prop starting with `$$` is illegal (they are reserved for Svelte internals)
     props_illegal_name() => "Declaring or accessing a prop starting with `$$` is illegal (they are reserved for Svelte internals)";
@@ -167,7 +167,7 @@ diagnostics! {
     // Assignment-related errors
 
     /// Cannot reassign or bind to each block item
-    each_item_invalid_assignment() => "Cannot reassign or bind to each block item";
+    each_item_invalid_assignment() => "Cannot reassign or bind to each block argument in runes mode. Use the array and index variables instead (e.g. `array[i] = value` instead of `entry = value`, or `bind:value={array[i]}` instead of `bind:value={entry}`)";
 
     /// Cannot reassign or bind to snippet parameter
     snippet_parameter_assignment() => "Cannot reassign or bind to snippet parameter";
@@ -176,7 +176,7 @@ diagnostics! {
     dollar_binding_invalid() => "The $ name is reserved, and cannot be used for variables and imports";
 
     /// Variable name cannot start with `$`
-    dollar_prefix_invalid() => "Variable name cannot start with `$` except for special Svelte stores";
+    dollar_prefix_invalid() => "The $ prefix is reserved, and cannot be used for variables and imports";
 
     /// Cannot export state from a module if it is reassigned
     state_invalid_export() => "Cannot export state from a module if it is reassigned. Either export a function returning the state value or only mutate the state value's properties\nhttps://svelte.dev/e/state_invalid_export";
@@ -210,7 +210,7 @@ diagnostics! {
     illegal_await_expression() => "`use:`, `transition:` and `animate:` directives, attachments and bindings do not support await expressions";
 
     /// `arguments` cannot be used outside of functions
-    invalid_arguments_usage() => "`arguments` cannot be used outside of functions";
+    invalid_arguments_usage() => "The arguments keyword cannot be used within the template or at the top level of a component";
 
     /// Runes cannot use computed properties
     rune_invalid_computed_property() => "Runes cannot use computed member expressions";
@@ -225,7 +225,7 @@ diagnostics! {
     rune_invalid_name(name: &str) => "`{}` is not a valid rune", name;
 
     /// Runes must be called
-    rune_missing_parentheses() => "Runes must be called as functions";
+    rune_missing_parentheses() => "Cannot use rune without parentheses";
 
     /// {@const} tag cannot reference %name% in this context
     const_tag_invalid_reference(name: &str) => "{{@const}} tag cannot reference `{}` in this context - it can only be used with declarations from an implicit children snippet", name;
@@ -414,7 +414,7 @@ diagnostics! {
     directive_missing_name(directive_type: &str) => "`{}` name cannot be empty\nhttps://svelte.dev/e/directive_missing_name", directive_type;
 
     /// Sequence expressions are not allowed as attribute/directive values in runes mode, unless wrapped in parentheses
-    attribute_invalid_sequence_expression() => "Sequence expressions are not allowed as attribute/directive values in runes mode, unless wrapped in parentheses\nhttps://svelte.dev/e/attribute_invalid_sequence_expression";
+    attribute_invalid_sequence_expression() => "Comma-separated expressions are not allowed as attribute/directive values in runes mode, unless wrapped in parentheses\nhttps://svelte.dev/e/attribute_invalid_sequence_expression";
 
     /// `%name%` is an illegal variable name. To reference a global variable called `%name%`, use `globalThis.%name%`
     global_reference_invalid(name: &str) => "`{}` is an illegal variable name. To reference a global variable called `{}`, use `globalThis.{}`\nhttps://svelte.dev/e/global_reference_invalid", name, name, name;
