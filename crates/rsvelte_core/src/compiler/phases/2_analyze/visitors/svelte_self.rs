@@ -19,7 +19,7 @@ pub fn visit<'a, 'b: 'a>(
     context: &mut VisitorContext<'a>,
 ) -> Result<(), AnalysisError> {
     // Validate placement
-    validate_special_element_placement("svelte:self", context)?;
+    validate_special_element_placement("svelte:self", (self_.start, self_.end), context)?;
 
     // `<svelte:self>` is the supported spelling in legacy mode; only runes
     // components have self-imports to be deprecated in favour of.

@@ -153,6 +153,9 @@ diagnostics! {
     /// `<%name%>` tags cannot be inside elements or blocks
     svelte_meta_invalid_placement(name: &str) => "`<{}>` tags cannot be inside elements or blocks", name;
 
+    /// `<svelte:self>` components can only appear in supported nested contexts
+    svelte_self_invalid_placement() => "`<svelte:self>` components can only exist inside `{#if}` blocks, `{#each}` blocks, `{#snippet}` blocks or slots passed to components\nhttps://svelte.dev/e/svelte_self_invalid_placement";
+
     // Render tag errors
 
     /// `{@render ...}` tags can only contain call expressions

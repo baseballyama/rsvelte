@@ -10,6 +10,7 @@ use super::super::VisitorContext;
 /// Validate special element placement.
 pub fn validate_special_element_placement(
     name: &str,
+    span: (u32, u32),
     context: &VisitorContext,
 ) -> Result<(), AnalysisError> {
     match name {
@@ -34,10 +35,8 @@ pub fn validate_special_element_placement(
             // The official Svelte checks context.path for IfBlock, EachBlock, Component, or SnippetBlock.
             // We check block_depth (IfBlock, EachBlock, AwaitBlock, SnippetBlock) and component_depth (Component).
             if context.block_depth == 0 && context.component_depth == 0 => {
-                return Err(AnalysisError::validation(
-                    "svelte_self_invalid_placement",
-                    "`<svelte:self>` components can only exist inside `{#if}` blocks, `{#each}` blocks, `{#snippet}` blocks or slots passed to components\nhttps://svelte.dev/e/svelte_self_invalid_placement",
-                ));
+                return Err(super::super::super::errors::svelte_self_invalid_placement()
+                    .at(span.0, span.1));
             }
         _ => {}
     }

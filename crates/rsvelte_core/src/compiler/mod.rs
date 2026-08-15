@@ -1723,6 +1723,18 @@ mod tests {
     }
 
     #[test]
+    fn diagnostic_locates_invalid_svelte_self() {
+        let source = "<svelte:self />";
+        let err = compile(source, CompileOptions::default()).unwrap_err();
+        let diagnostic = err.diagnostic();
+        assert_eq!(
+            diagnostic.code.as_deref(),
+            Some("svelte_self_invalid_placement")
+        );
+        assert_eq!(diagnostic.span, Some((0, source.len() as u32)));
+    }
+
+    #[test]
     fn diagnostic_omits_documentation_url_from_the_message() {
         let diagnostic = compile(
             "<script>function a(x) {} a($state(1));</script>",
