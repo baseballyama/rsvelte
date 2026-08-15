@@ -4101,16 +4101,17 @@ fn ast_matches_oracle_destructure_state_and_store_init() {
 fn array_counter_is_shared_across_declarations() {
     let src = "<script>\n\tlet [a, b] = $state([1, 2]);\n\tlet [c, d] = $state([3, 4]);\n</script>\n\n{a}{b}{c}{d}";
     let out = run(src);
+    let compact: String = out.chars().filter(|ch| !ch.is_ascii_whitespace()).collect();
     assert!(
-        out.contains("$$array = $.to_array(tmp, 2)"),
+        compact.contains("$$array=$.to_array(tmp,2)"),
         "first array declarator should be the bare `$$array` temp:\n{out}"
     );
     assert!(
-        out.contains("$$array_1 = $.to_array(tmp_1, 2)"),
+        compact.contains("$$array_1=$.to_array(tmp_1,2)"),
         "second array declarator should deconflict to `$$array_1`:\n{out}"
     );
     assert!(
-        !out.contains("$$array_2"),
+        !compact.contains("$$array_2"),
         "only two array patterns were declared, so no `$$array_2` should appear:\n{out}"
     );
 }
