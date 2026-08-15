@@ -33,7 +33,7 @@ const ELSE: &str = ":else";
 #[must_use]
 pub fn hover(text: &str, offset: usize) -> Option<Hover> {
     if EmbeddedRegions::new(text).contains(offset) {
-        return None;
+        return crate::css::hover(text, offset).map(markdown);
     }
     let (window_start, window) = around(text, offset);
 
@@ -43,6 +43,9 @@ pub fn hover(text: &str, offset: usize) -> Option<Hover> {
     }
 
     let attribute = attribute_context(text, offset)?;
+    if attribute.in_value && attribute.name == "style" {
+        return crate::css::hover(text, offset).map(markdown);
+    }
     if !attribute.in_value {
         if let Some(data) = html_attribute(attribute.element_tag, attribute.name) {
             return Some(markdown(data.description.to_string()));
@@ -153,7 +156,10 @@ mod tests {
 
     #[test]
     fn nothing_inside_style_or_script() {
-        expect_none("<style>h1{color:blue;}</style><p>test</p>", 10);
+        assert_eq!(
+            hovered_tag("<style>h1{color:blue;}</style><p>test</p>", 10).as_deref(),
+            Some("`color` CSS property")
+        );
         expect_none("<script>const a = true</script><p>test</p>", 10);
     }
 

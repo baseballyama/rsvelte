@@ -25,7 +25,7 @@ const WINDOW: usize = 10;
 #[must_use]
 pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
     if EmbeddedRegions::new(text).contains(offset) {
-        return None;
+        return crate::css::completions(text, offset);
     }
     let before = preceding(text, offset);
 
@@ -63,6 +63,9 @@ pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
     }
 
     if let Some(attribute) = attribute_context(text, offset) {
+        if attribute.in_value && attribute.name == "style" {
+            return crate::css::completions(text, offset);
+        }
         if !attribute.can_have_event_modifier() {
             return None;
         }
@@ -413,9 +416,10 @@ mod tests {
 
     #[test]
     fn nothing_inside_style_or_script() {
-        assert_eq!(
-            labels_at("<style>h1{color:blue;}</style><p>test</p>", 10),
-            None
+        assert!(
+            labels_at("<style>h1{color:blue;}</style><p>test</p>", 10)
+                .unwrap()
+                .contains(&"color".to_string())
         );
         assert_eq!(
             labels_at("<script>const a = true</script><p>test</p>", 10),

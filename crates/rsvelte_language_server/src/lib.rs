@@ -15,6 +15,7 @@ pub mod code_actions;
 pub mod code_lens;
 pub mod completions;
 pub mod context;
+pub mod css;
 pub mod diagnostics;
 pub mod document;
 pub mod extract;

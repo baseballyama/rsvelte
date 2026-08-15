@@ -9,11 +9,12 @@ use crossbeam_channel::{Receiver, Sender, after, never, select, unbounded};
 use lsp_server::{Connection, ErrorCode, Message, Notification, Request, RequestId, Response};
 use lsp_types::{
     CancelParams, CodeActionKind, CodeActionOptions, CodeActionOrCommand, CodeActionParams,
-    CodeActionProviderCapability, CodeLens, CodeLensOptions, CodeLensParams, CompletionOptions,
-    CompletionParams, ConfigurationItem, ConfigurationParams, DiagnosticOptions,
-    DiagnosticServerCapabilities, DidChangeTextDocumentParams, DidChangeWatchedFilesParams,
-    DidChangeWorkspaceFoldersParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    DidSaveTextDocumentParams, DocumentDiagnosticParams, DocumentDiagnosticReport,
+    CodeActionProviderCapability, CodeLens, CodeLensOptions, CodeLensParams,
+    ColorPresentationParams, ColorProviderCapability, CompletionOptions, CompletionParams,
+    ConfigurationItem, ConfigurationParams, DiagnosticOptions, DiagnosticServerCapabilities,
+    DidChangeTextDocumentParams, DidChangeWatchedFilesParams, DidChangeWorkspaceFoldersParams,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
+    DocumentColorParams, DocumentDiagnosticParams, DocumentDiagnosticReport,
     DocumentFormattingParams, DocumentHighlightParams, DocumentSymbolParams,
     DocumentSymbolResponse, ExecuteCommandOptions, ExecuteCommandParams, FoldingRange,
     FoldingRangeParams, FoldingRangeProviderCapability, FullDocumentDiagnosticReport, HoverParams,
@@ -118,6 +119,7 @@ fn capabilities(client: &ClientState) -> ServerCapabilities {
         document_symbol_provider: Some(OneOf::Left(true)),
         linked_editing_range_provider: Some(LinkedEditingRangeServerCapabilities::Simple(true)),
         document_highlight_provider: Some(OneOf::Left(true)),
+        color_provider: Some(ColorProviderCapability::Simple(true)),
         diagnostic_provider: client.pull_diagnostics.then(|| {
             DiagnosticServerCapabilities::Options(DiagnosticOptions {
                 identifier: Some(SERVER_NAME.to_string()),
@@ -268,6 +270,8 @@ impl Server {
             "textDocument/documentSymbol" => self.on_document_symbol(request),
             "textDocument/linkedEditingRange" => self.on_linked_editing_range(request),
             "textDocument/documentHighlight" => self.on_document_highlight(request),
+            "textDocument/documentColor" => self.on_document_color(request),
+            "textDocument/colorPresentation" => self.on_color_presentation(request),
             "textDocument/diagnostic" => self.on_document_diagnostic(request),
             _ => self.respond(Response::new_err(
                 request.id,
@@ -429,6 +433,37 @@ impl Server {
                 crate::html_tags::highlights(text.as_str(), offset)
             });
         self.respond(Response::new_ok(id, highlights));
+    }
+
+    fn on_document_color(&mut self, request: Request) {
+        let id = request.id;
+        let Ok(params) = serde_json::from_value::<DocumentColorParams>(request.params) else {
+            self.respond(Response::new_ok(
+                id,
+                Vec::<lsp_types::ColorInformation>::new(),
+            ));
+            return;
+        };
+        let colors = self
+            .documents
+            .get(&params.text_document.uri)
+            .map_or_else(Vec::new, |document| crate::css::colors(document.text()));
+        self.respond(Response::new_ok(id, colors));
+    }
+
+    fn on_color_presentation(&mut self, request: Request) {
+        let id = request.id;
+        let Ok(params) = serde_json::from_value::<ColorPresentationParams>(request.params) else {
+            self.respond(Response::new_ok(
+                id,
+                Vec::<lsp_types::ColorPresentation>::new(),
+            ));
+            return;
+        };
+        self.respond(Response::new_ok(
+            id,
+            crate::css::color_presentations(params.color),
+        ));
     }
 
     /// Resolve a position in an open component to what the worker needs. Only
