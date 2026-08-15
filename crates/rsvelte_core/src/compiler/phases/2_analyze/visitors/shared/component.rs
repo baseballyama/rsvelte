@@ -317,15 +317,15 @@ fn validate_slot_attributes(component: &Component) -> Result<(), AnalysisError> 
     for node in &component.fragment.nodes {
         let slot_name = get_slot_name(node);
 
-        if let Some(ref name) = slot_name {
+        if let Some((name, start, end)) = slot_name {
             if name == "default" {
                 has_explicit_default = true;
             }
 
-            if seen_slots.contains(name) {
-                return Err(errors::slot_attribute_duplicate(name, &component.name));
+            if seen_slots.contains(&name) {
+                return Err(errors::slot_attribute_duplicate(&name, &component.name).at(start, end));
             }
-            seen_slots.insert(name.clone());
+            seen_slots.insert(name);
         } else {
             // Check if this is a {#snippet children()} block
             if let TemplateNode::SnippetBlock(snippet) = node
@@ -372,7 +372,7 @@ fn validate_slot_attributes(component: &Component) -> Result<(), AnalysisError> 
 }
 
 /// Get the slot name from a node's slot attribute.
-fn get_slot_name(node: &crate::ast::template::TemplateNode) -> Option<String> {
+fn get_slot_name(node: &crate::ast::template::TemplateNode) -> Option<(String, u32, u32)> {
     use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, TemplateNode};
 
     let attrs = match node {
@@ -393,7 +393,7 @@ fn get_slot_name(node: &crate::ast::template::TemplateNode) -> Option<String> {
                 match &a.value {
                     AttributeValue::Sequence(parts) if parts.len() == 1 => {
                         if let AttributeValuePart::Text(text) = &parts[0] {
-                            return Some(text.data.to_string());
+                            return Some((text.data.to_string(), a.start, a.end));
                         }
                     }
                     _ => {}

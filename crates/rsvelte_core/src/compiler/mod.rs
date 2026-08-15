@@ -1749,6 +1749,19 @@ mod tests {
     }
 
     #[test]
+    fn diagnostic_locates_duplicate_component_slot_attributes() {
+        let source = "<Component><div slot=\"content\" /><span slot=\"content\" /></Component>";
+        let diagnostic = compile(source, CompileOptions::default())
+            .unwrap_err()
+            .diagnostic();
+        assert_eq!(diagnostic.code.as_deref(), Some("slot_attribute_duplicate"));
+        let (start, end) = diagnostic
+            .span
+            .expect("duplicate slot has an attribute span");
+        assert_eq!(&source[start as usize..end as usize], "slot=\"content\"");
+    }
+
+    #[test]
     fn diagnostic_locates_invalid_svelte_self() {
         let source = "<svelte:self />";
         let err = compile(source, CompileOptions::default()).unwrap_err();
