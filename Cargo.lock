@@ -2567,6 +2567,7 @@ dependencies = [
  "similar 3.1.2",
  "smallvec",
  "sourcemap",
+ "static_assertions",
  "string_wizard",
  "test-generator",
  "thiserror",

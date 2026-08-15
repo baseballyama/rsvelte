@@ -10,6 +10,7 @@ use std::borrow::Cow;
 use std::fmt::Write as _;
 
 use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
+use crate::compiler::phases::phase3_transform::shared::offsets::{ByteOffset, CharOffset};
 use crate::compiler::utils::{is_escaped, is_escaped_char};
 
 use super::scan_index::ScanIndex;
@@ -759,16 +760,17 @@ pub(super) fn wrap_state_vars_in_expr<'a>(
 /// indicate this scope is a for-loop body with the variable declared in the init.
 /// Convert a byte position in a string to a character index.
 /// Returns the character index for the given byte offset.
-pub(super) fn byte_pos_to_char_index(s: &str, byte_pos: usize) -> usize {
-    s[..byte_pos].chars().count()
+pub(super) fn byte_pos_to_char_index(s: &str, byte_pos: ByteOffset) -> CharOffset {
+    CharOffset::new(byte_pos.before(s).chars().count())
 }
 
 /// Also check if we're directly inside the for-loop header (between the `for (` and `)`).
 pub(super) fn is_shadowed_by_for_loop_var(
     chars: &[char],
-    var_start: usize,
+    var_start: CharOffset,
     var_name: &str,
 ) -> bool {
+    let var_start = var_start.get();
     // First, check if we're inside a for-loop HEADER (init, test, or update section)
     // where the variable is declared as `let`/`const` in the init.
     // Scan backwards to find an unmatched `(` that might be a for-loop's opening paren.

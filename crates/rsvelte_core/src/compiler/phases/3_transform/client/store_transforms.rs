@@ -5,6 +5,7 @@ use rustc_hash::FxHashSet;
 
 use super::scan_index::ScanIndex;
 use super::{find_matching_paren, is_shorthand_object_property};
+use crate::compiler::phases::phase3_transform::shared::offsets::{CharLen, CharOffset, CharToByte};
 
 /// Transform store assignments in client-side code.
 ///
@@ -370,29 +371,31 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
         // But avoid replacing function calls that already have ()
         let mut new_result = String::with_capacity(result.len() * 2);
         // `i` walks `chars`, so the name's length has to be counted in the same unit.
-        let sub_chars = store_sub.chars().count();
+        let sub_chars = CharLen::of(store_sub);
         let chars: Vec<char> = result.chars().collect();
         let index = ScanIndex::new(&chars);
-        let mut char_byte_offsets: Vec<usize> = result.char_indices().map(|(i, _)| i).collect();
-        char_byte_offsets.push(result.len());
-        let mut i = 0;
+        let char_to_byte = CharToByte::new(&result);
+        let mut i = CharOffset::ZERO;
 
-        while i < chars.len() {
+        while i.get() < chars.len() {
             // Check if we're at the start of the identifier
-            let byte_i = char_byte_offsets[i];
-            let remaining = &result[byte_i..];
+            let byte_i = char_to_byte.byte(i);
+            let remaining = byte_i.after(&result);
             if remaining.starts_with(store_sub) {
                 // Check character before (must be non-identifier char or start of string)
                 // Also exclude `.` - a dot before means this is a property access like `obj.$value`.
                 // EXCEPTION: a `...` spread (`[...$store]`, `f(...$store)`) ends in a `.`
                 // but is NOT a property access — the spread argument IS a read and must be
                 // wrapped. Detect the spread by the three preceding dots.
-                let is_spread_prefix =
-                    i >= 3 && chars[i - 1] == '.' && chars[i - 2] == '.' && chars[i - 3] == '.';
-                let before_ok = if i == 0 || is_spread_prefix {
+                let char_i = i.get();
+                let is_spread_prefix = char_i >= 3
+                    && chars[char_i - 1] == '.'
+                    && chars[char_i - 2] == '.'
+                    && chars[char_i - 3] == '.';
+                let before_ok = if i == CharOffset::ZERO || is_spread_prefix {
                     true
                 } else {
-                    let prev_char = chars[i - 1];
+                    let prev_char = chars[char_i - 1];
                     !prev_char.is_alphanumeric()
                         && prev_char != '_'
                         && prev_char != '$'
@@ -401,16 +404,17 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
 
                 // Check character after (must be non-identifier char)
                 let after_idx = i + sub_chars;
-                let after_ok = if after_idx >= chars.len() {
+                let after_ok = if after_idx.get() >= chars.len() {
                     true
                 } else {
-                    let next_char = chars[after_idx];
+                    let next_char = chars[after_idx.get()];
                     !next_char.is_alphanumeric() && next_char != '_' && next_char != '$'
                 };
 
                 // Check if this reference is already followed by `()` (getter call)
                 // If so, skip adding () to avoid double-calling: $x() is already correct
-                let is_already_call = after_idx < chars.len() && chars[after_idx] == '(';
+                let is_already_call =
+                    after_idx.get() < chars.len() && chars[after_idx.get()] == '(';
 
                 // Check if this is inside $.untrack() or $.derived() - don't transform there
                 // $.untrack expects a getter function, so $store should remain $store
@@ -430,12 +434,12 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
                     let after_idx2 = i + sub_chars;
                     let mut k = after_idx2;
                     // Skip whitespace
-                    while k < chars.len() && chars[k].is_whitespace() {
-                        k += 1;
+                    while k.get() < chars.len() && chars[k.get()].is_whitespace() {
+                        k = k.next();
                     }
-                    let has_colon = k < chars.len()
-                        && chars[k] == ':'
-                        && (k + 1 >= chars.len() || chars[k + 1] != ':');
+                    let has_colon = k.get() < chars.len()
+                        && chars[k.get()] == ':'
+                        && (k.next().get() >= chars.len() || chars[k.next().get()] != ':');
 
                     // A real property key is ALWAYS immediately preceded (skipping
                     // whitespace/newlines) by `{` (first entry) or `,` (later entry).
@@ -444,7 +448,7 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
                     // whose block `{` would otherwise make the brace-depth check below
                     // a false positive for any ternary `$store :` in the body.
                     let prev_is_obj_sep = {
-                        let mut j = i;
+                        let mut j = i.get();
                         while j > 0 && chars[j - 1].is_whitespace() {
                             j -= 1;
                         }
@@ -473,32 +477,33 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
                 // state rather than only inspecting the preceding char. A `$x`
                 // inside a `${ }` interpolation is code and is still transformed.
                 let is_inside_string =
-                    super::state_transforms::is_inside_string_literal(&result, byte_i);
+                    super::state_transforms::is_inside_string_literal(&result, byte_i.get());
 
                 if before_ok && after_ok {
                     if is_inside_string {
                         // Inside a string literal - don't transform
                         new_result.push_str(store_sub);
-                        i += sub_chars;
+                        i = i + sub_chars;
                         continue;
                     } else if is_property_key {
                         // Don't transform property keys like `{ $userName4: value }`
                         new_result.push_str(store_sub);
-                        i += sub_chars;
+                        i = i + sub_chars;
                         continue;
                     } else if is_inside_getter_context {
                         // Inside $.untrack() or $.derived(), keep as $store (don't add parentheses)
                         new_result.push_str(store_sub);
-                        i += sub_chars;
+                        i = i + sub_chars;
                         continue;
                     } else if is_already_call {
                         // Already followed by `(` - don't add another `()`
                         // This handles cases like `$x()` or `$.update_store(x, $x())`
                         // where the `()` was already generated by store assignment transforms
                         new_result.push_str(store_sub);
-                        i += sub_chars;
+                        i = i + sub_chars;
                         continue;
-                    } else if is_shorthand_object_property(&index, &chars, i, sub_chars) {
+                    } else if is_shorthand_object_property(&index, &chars, i.get(), sub_chars.get())
+                    {
                         // Shorthand object property: `{ $width }` -> `{ $width: $width() }`.
                         // Emitting `{ $width() }` is invalid (method shorthand), so expand
                         // like the prop-read path, keeping the leading `$` in the key.
@@ -506,21 +511,21 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
                         new_result.push_str(": ");
                         new_result.push_str(store_sub);
                         new_result.push_str("()");
-                        i += sub_chars;
+                        i = i + sub_chars;
                         continue;
                     } else {
                         // Bare store reference - add () to call the getter
                         new_result.push_str(store_sub);
                         new_result.push_str("()");
-                        i += sub_chars;
+                        i = i + sub_chars;
                         continue;
                     }
                 }
             }
 
             // No match, just copy the character
-            new_result.push(chars[i]);
-            i += 1;
+            new_result.push(chars[i.get()]);
+            i = i.next();
         }
 
         result = new_result;

@@ -17,6 +17,7 @@ use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
 #[cfg(test)]
 use crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes_from;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{code_bytes, skip_opaque};
+use crate::compiler::phases::phase3_transform::shared::offsets::{ByteLen, ByteOffset};
 
 // ---------------------------------------------------------------------------
 // Identifier reference detection (lines 7653-8602 of mod.rs)
@@ -1660,7 +1661,8 @@ pub(super) fn transform_legacy_state_declarations<'a>(
                     // Check if this declaration is inside a for-loop header.
                     // Scan backwards from `pos` to see if we find `for (` with unmatched parens.
                     let chars: Vec<char> = result.chars().collect();
-                    let char_pos = byte_pos_to_char_index(&result, pos + keyword.len() + 1);
+                    let byte_pos = ByteOffset::new(pos) + ByteLen::of(keyword) + ByteLen::ONE;
+                    let char_pos = byte_pos_to_char_index(&result, byte_pos);
                     if is_shadowed_by_for_loop_var(&chars, char_pos, var) {
                         // This `let x = ...` is inside a for-loop header, skip it
                         search_offset = pos + pattern_with_init.len();
@@ -1793,7 +1795,8 @@ pub(super) fn transform_legacy_state_declarations<'a>(
 
                     // Check if this declaration is inside a for-loop header
                     let chars: Vec<char> = result.chars().collect();
-                    let char_pos = byte_pos_to_char_index(&result, pos + keyword.len() + 1);
+                    let byte_pos = ByteOffset::new(pos) + ByteLen::of(keyword) + ByteLen::ONE;
+                    let char_pos = byte_pos_to_char_index(&result, byte_pos);
                     if is_shadowed_by_for_loop_var(&chars, char_pos, var) {
                         search_offset = pos + pattern_no_init.len();
                         continue;
@@ -1845,7 +1848,8 @@ pub(super) fn transform_legacy_state_declarations<'a>(
 
                     // Check if this declaration is inside a for-loop header
                     let chars: Vec<char> = result.chars().collect();
-                    let char_pos = byte_pos_to_char_index(&result, pos + keyword.len() + 1);
+                    let byte_pos = ByteOffset::new(pos) + ByteLen::of(keyword) + ByteLen::ONE;
+                    let char_pos = byte_pos_to_char_index(&result, byte_pos);
                     if is_shadowed_by_for_loop_var(&chars, char_pos, var) {
                         search_offset = pos + pattern_no_semi.len();
                         continue;
@@ -2020,8 +2024,11 @@ mod scan_lexing_tests {
 
 #[cfg(test)]
 mod non_ascii_tests {
-    use super::{body_references_identifier, transform_legacy_state_declarations};
+    use super::{
+        body_references_identifier, byte_pos_to_char_index, transform_legacy_state_declarations,
+    };
     use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
+    use crate::compiler::phases::phase3_transform::shared::offsets::{ByteOffset, CharOffset};
 
     #[test]
     fn body_references_identifier_handles_non_ascii_statement() {
@@ -2032,12 +2039,27 @@ mod non_ascii_tests {
     }
 
     #[test]
+    fn byte_position_conversion_is_typed_after_non_ascii() {
+        assert_eq!(
+            byte_pos_to_char_index("名let", ByteOffset::new("名".len())),
+            CharOffset::new(1),
+        );
+    }
+
+    #[test]
     fn transform_legacy_state_declarations_handles_non_ascii_type() {
         // `let x: Café = 0` — the `=` sits past a multi-byte char in the type
         // annotation; slicing must use byte offsets (no panic).
         let vars = vec![("x".to_string(), None, DeclarationKind::Let)];
         let out = transform_legacy_state_declarations("let x: Café = 0", &vars, false, false);
         assert!(out.contains("$.mutable_source(0)"), "got: {out}");
+    }
+
+    #[test]
+    fn for_loop_shadow_scan_converts_a_byte_position_after_non_ascii() {
+        let vars = vec![("x".to_string(), None, DeclarationKind::Let)];
+        let out = transform_legacy_state_declarations("名(); let x = 0;", &vars, false, false);
+        assert_eq!(out, "名(); let x = $.mutable_source(0);");
     }
 }
 

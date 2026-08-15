@@ -171,7 +171,7 @@ pub(super) fn find_and_transform_one_destructure(
 
     // Build char-index → byte-index mapping for safe string slicing with multi-byte chars
     let table = CharToByte::new(statement);
-    let b = |char_idx: usize| -> usize { table.byte(CharOffset::new(char_idx)).get() };
+    let b = |char_idx: CharOffset| -> ByteOffset { table.byte(char_idx) };
 
     // Scan for `] =` or `} =` patterns that indicate destructure assignments.
     // We need to be careful to avoid:
@@ -244,7 +244,8 @@ pub(super) fn find_and_transform_one_destructure(
                         .char_of(byte)
                         .unwrap_or_else(|| bracket_offset_miss(byte.get(), statement.len()))
                 }) {
-                    let pattern_str = &statement[b(pattern_start.get())..b(i + 1)];
+                    let pattern_end = CharOffset::new(i).next();
+                    let pattern_str = b(pattern_start).to(b(pattern_end), statement);
                     let rhs_start = j + 1;
 
                     // For array patterns, check if `[` is actually member access
@@ -262,7 +263,7 @@ pub(super) fn find_and_transform_one_destructure(
                     }
 
                     // Skip declaration destructures (let/const/var)
-                    let before_pattern = statement[..b(pattern_start.get())].trim_end();
+                    let before_pattern = b(pattern_start).before(statement).trim_end();
                     if before_pattern.ends_with("let")
                         || before_pattern.ends_with("const")
                         || before_pattern.ends_with("var")
@@ -290,7 +291,7 @@ pub(super) fn find_and_transform_one_destructure(
                     // brace/bracket depth. If we encounter an unmatched
                     // opening `{` or `[` before hitting a statement boundary,
                     // we're nested inside another pattern and should skip.
-                    if is_inside_enclosing_pattern(statement, b(pattern_start.get())) {
+                    if is_inside_enclosing_pattern(statement, b(pattern_start).get()) {
                         i = j + 1;
                         continue;
                     }
@@ -314,8 +315,9 @@ pub(super) fn find_and_transform_one_destructure(
                     }
 
                     // Find the end of the RHS expression
-                    let rhs_end = find_destructure_rhs_end(statement, CharOffset::new(rhs_start));
-                    let rhs_str = statement[b(rhs_start)..b(rhs_end.get())].trim();
+                    let rhs_start = CharOffset::new(rhs_start);
+                    let rhs_end = find_destructure_rhs_end(statement, rhs_start);
+                    let rhs_str = b(rhs_start).to(b(rhs_end), statement).trim();
 
                     if rhs_str.is_empty() {
                         i = j + 1;
@@ -372,14 +374,14 @@ pub(super) fn find_and_transform_one_destructure(
     // the other and should be deferred.
     let candidate_idx = {
         // Compute rhs_end for each candidate to determine containment
-        let rhs_ends: Vec<usize> = candidates
+        let rhs_ends: Vec<CharOffset> = candidates
             .iter()
-            .map(|c| find_destructure_rhs_end(statement, c.eq_pos.next()).get())
+            .map(|c| find_destructure_rhs_end(statement, c.eq_pos.next()))
             .collect();
 
         let mut selected = 0; // default to first
         'outer: for (ci, c) in candidates.iter().enumerate() {
-            let rhs_start = c.eq_pos.next().get();
+            let rhs_start = c.eq_pos.next();
             let rhs_end = rhs_ends[ci];
             // Check if any other candidate's close_pos is inside this candidate's RHS range
             let mut contains_other = false;
@@ -388,7 +390,7 @@ pub(super) fn find_and_transform_one_destructure(
                     continue;
                 }
                 // Check if other's close bracket is within this candidate's RHS
-                if other.close_pos.get() > rhs_start && other.close_pos.get() < rhs_end {
+                if other.close_pos > rhs_start && other.close_pos < rhs_end {
                     contains_other = true;
                     break;
                 }
@@ -401,26 +403,25 @@ pub(super) fn find_and_transform_one_destructure(
         selected
     };
     let candidate = &candidates[candidate_idx];
-    let i = candidate.close_pos.get();
-    let pattern_start = candidate.pattern_start.get();
-    let j = candidate.eq_pos.get();
-    let rhs_start = j + 1;
+    let pattern_end = candidate.close_pos.next();
+    let pattern_start = candidate.pattern_start;
+    let rhs_start = candidate.eq_pos.next();
 
-    let pattern_str = &statement[b(pattern_start)..b(i + 1)];
-    let rhs_end = find_destructure_rhs_end(statement, CharOffset::new(rhs_start)).get();
-    let rhs_str = statement[b(rhs_start)..b(rhs_end)].trim();
+    let pattern_str = b(pattern_start).to(b(pattern_end), statement);
+    let rhs_end = find_destructure_rhs_end(statement, rhs_start);
+    let rhs_str = b(rhs_start).to(b(rhs_end), statement).trim();
 
     // Check for surrounding parentheses
     let mut actual_start = b(pattern_start);
     let mut actual_end = b(rhs_end);
 
-    let before = statement[..b(pattern_start)].trim_end();
+    let before = b(pattern_start).before(statement).trim_end();
     if before.ends_with('(') {
-        let paren_pos = statement[..b(pattern_start)].rfind('(').unwrap();
-        let after_rhs = &statement[b(rhs_end)..];
+        let paren_pos = b(pattern_start).before(statement).rfind('(').unwrap();
+        let after_rhs = b(rhs_end).after(statement);
         if let Some(close_paren_offset) = after_rhs.find(')') {
-            actual_start = paren_pos;
-            actual_end = b(rhs_end) + close_paren_offset + 1;
+            actual_start = ByteOffset::new(paren_pos);
+            actual_end = ByteOffset::new(b(rhs_end).get() + close_paren_offset + 1);
         }
     }
 
@@ -429,8 +430,8 @@ pub(super) fn find_and_transform_one_destructure(
     // the `\n` tests below unreachable — so an assignment whose neighbour was
     // separated by nothing but a newline was read as a sub-expression and got a
     // `return` the official compiler does not emit.
-    let before_text = statement[..actual_start].trim_end_matches([' ', '\t']);
-    let after_text = statement[actual_end..].trim_start_matches([' ', '\t']);
+    let before_text = actual_start.before(statement).trim_end_matches([' ', '\t']);
+    let after_text = actual_end.after(statement).trim_start_matches([' ', '\t']);
     let is_standalone = (before_text.is_empty()
         || before_text.ends_with(';')
         || before_text.ends_with('{')
@@ -455,9 +456,9 @@ pub(super) fn find_and_transform_one_destructure(
 
     // Replace the destructure expression with the IIFE
     let mut new_statement = String::new();
-    new_statement.push_str(&statement[..actual_start]);
+    new_statement.push_str(actual_start.before(statement));
     new_statement.push_str(&iife);
-    new_statement.push_str(&statement[actual_end..]);
+    new_statement.push_str(actual_end.after(statement));
 
     Some(new_statement)
 }
@@ -1737,6 +1738,19 @@ mod non_ascii_tests {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn destructure_rewrite_keeps_char_and_byte_offsets_separate() {
+        let props = vec!["a".to_string()];
+        let out = transform_destructure_assignments_with_props(
+            "({ café: a } = value);",
+            &[],
+            &[],
+            &[],
+            &props,
+        );
+        assert!(out.contains("a = value.café"), "{out}");
+    }
 
     #[cfg(feature = "measure-destructure-scanner")]
     #[test]

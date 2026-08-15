@@ -135,6 +135,7 @@ oxc_ast_visit = "0.144"
 rsvelte_ast_equiv = { path = "../rsvelte_ast_equiv" }
 insta = { version = "1.42", features = ["json", "glob"] }
 pretty_assertions = "1.4"
+static_assertions = "1.1"
 chrono = "0.4"
 test-generator = "0.3"
 glob = "0.3"

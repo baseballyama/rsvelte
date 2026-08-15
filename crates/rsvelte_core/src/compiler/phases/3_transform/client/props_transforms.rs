@@ -780,20 +780,10 @@ pub(super) fn apply_prop_reads_in_prop_default_values(line: &str, prop_vars: &[S
         let mut i = 0;
         let mut depth = 1i32;
         let mut arg_count = 0;
-        let mut fourth_arg_start: Option<usize> = None;
-        let mut fourth_arg_end: Option<usize> = None;
+        let mut fourth_arg_start: Option<CharOffset> = None;
+        let mut fourth_arg_end: Option<CharOffset> = None;
         let mut in_string: Option<char> = None;
-        let mut char_byte_positions: Vec<usize> = Vec::new();
-
-        // Build char->byte mapping
-        {
-            let mut byte_pos = 0;
-            for ch in after_prop.chars() {
-                char_byte_positions.push(byte_pos);
-                byte_pos += ch.len_utf8();
-            }
-            char_byte_positions.push(byte_pos);
-        }
+        let char_to_byte = CharToByte::new(after_prop);
 
         while i < chars.len() {
             let c = chars[i];
@@ -821,7 +811,7 @@ pub(super) fn apply_prop_reads_in_prop_default_values(line: &str, prop_vars: &[S
                     if depth == 0 {
                         // End of $.prop() call
                         if fourth_arg_start.is_some() {
-                            fourth_arg_end = Some(i);
+                            fourth_arg_end = Some(CharOffset::new(i));
                         }
                         break;
                     }
@@ -835,7 +825,7 @@ pub(super) fn apply_prop_reads_in_prop_default_values(line: &str, prop_vars: &[S
                         while j < chars.len() && chars[j].is_whitespace() {
                             j += 1;
                         }
-                        fourth_arg_start = Some(j);
+                        fourth_arg_start = Some(CharOffset::new(j));
                     }
                 }
                 _ => {}
@@ -845,11 +835,10 @@ pub(super) fn apply_prop_reads_in_prop_default_values(line: &str, prop_vars: &[S
 
         // Now reconstruct the $.prop() call with transformed 4th arg
         if let (Some(start_char), Some(end_char)) = (fourth_arg_start, fourth_arg_end) {
-            let start_byte = char_byte_positions[start_char];
-            let end_byte = char_byte_positions[end_char];
-            let before_default = &after_prop[..start_byte];
-            let default_val = &after_prop[start_byte..end_byte];
-            let _after_default = &after_prop[end_byte..];
+            let start_byte = char_to_byte.byte(start_char);
+            let end_byte = char_to_byte.byte(end_char);
+            let before_default = start_byte.before(after_prop);
+            let default_val = start_byte.to(end_byte, after_prop);
 
             // A default value that is EXACTLY a bare prop identifier is the lazy
             // getter reference upstream passes directly (`get_prop_source`
@@ -873,9 +862,9 @@ pub(super) fn apply_prop_reads_in_prop_default_values(line: &str, prop_vars: &[S
             result.push_str(before_default);
             result.push_str(&transformed_default);
             // Continue parsing from after the closing paren
-            let close_byte = char_byte_positions[end_char + 1];
-            result.push_str(&after_prop[end_byte..close_byte]);
-            search_from = abs_pos + 7 + close_byte;
+            let close_byte = char_to_byte.byte(end_char.next());
+            result.push_str(end_byte.to(close_byte, after_prop));
+            search_from = abs_pos + 7 + close_byte.get();
         } else {
             // No 4th arg found, copy $.prop(...) as-is
             result.push_str("$.prop(");
@@ -897,7 +886,7 @@ pub(super) fn apply_prop_reads_in_prop_default_values(line: &str, prop_vars: &[S
                         ')' | ']' | '}' => {
                             d -= 1;
                             if d == 0 {
-                                ec = Some(ci);
+                                ec = Some(CharOffset::new(ci));
                                 break;
                             }
                         }
@@ -906,9 +895,9 @@ pub(super) fn apply_prop_reads_in_prop_default_values(line: &str, prop_vars: &[S
                 }
                 ec
             } {
-                let end_byte = char_byte_positions[end_char + 1];
-                result.push_str(&after_prop[..end_byte]);
-                search_from = abs_pos + 7 + end_byte;
+                let end_byte = char_to_byte.byte(end_char.next());
+                result.push_str(end_byte.before(after_prop));
+                search_from = abs_pos + 7 + end_byte.get();
             } else {
                 result.push_str(after_prop);
                 search_from = line.len();
@@ -943,19 +932,10 @@ pub(super) fn apply_store_reads_in_prop_default_values(
         let mut i = 0usize;
         let mut depth: i32 = 1;
         let mut arg_count = 0usize;
-        let mut fourth_arg_start: Option<usize> = None;
-        let mut fourth_arg_end: Option<usize> = None;
+        let mut fourth_arg_start: Option<CharOffset> = None;
+        let mut fourth_arg_end: Option<CharOffset> = None;
         let mut in_string: Option<char> = None;
-
-        let mut char_byte_positions: Vec<usize> = Vec::new();
-        {
-            let mut byte_pos = 0;
-            for ch in after_prop.chars() {
-                char_byte_positions.push(byte_pos);
-                byte_pos += ch.len_utf8();
-            }
-            char_byte_positions.push(byte_pos);
-        }
+        let char_to_byte = CharToByte::new(after_prop);
 
         while i < chars.len() {
             let c = chars[i];
@@ -977,7 +957,7 @@ pub(super) fn apply_store_reads_in_prop_default_values(
                     depth -= 1;
                     if depth == 0 {
                         if fourth_arg_start.is_some() {
-                            fourth_arg_end = Some(i);
+                            fourth_arg_end = Some(CharOffset::new(i));
                         }
                         break;
                     }
@@ -989,7 +969,7 @@ pub(super) fn apply_store_reads_in_prop_default_values(
                         while j < chars.len() && chars[j].is_whitespace() {
                             j += 1;
                         }
-                        fourth_arg_start = Some(j);
+                        fourth_arg_start = Some(CharOffset::new(j));
                     }
                 }
                 _ => {}
@@ -998,10 +978,10 @@ pub(super) fn apply_store_reads_in_prop_default_values(
         }
 
         if let (Some(start_char), Some(end_char)) = (fourth_arg_start, fourth_arg_end) {
-            let start_byte = char_byte_positions[start_char];
-            let end_byte = char_byte_positions[end_char];
-            let before_default = &after_prop[..start_byte];
-            let default_val = &after_prop[start_byte..end_byte];
+            let start_byte = char_to_byte.byte(start_char);
+            let end_byte = char_to_byte.byte(end_char);
+            let before_default = start_byte.before(after_prop);
+            let default_val = start_byte.to(end_byte, after_prop);
 
             // Only transform if default is wrapped in an arrow function.
             let trimmed_default = default_val.trim_start();
@@ -1018,9 +998,9 @@ pub(super) fn apply_store_reads_in_prop_default_values(
             result.push_str("$.prop(");
             result.push_str(before_default);
             result.push_str(&transformed_default);
-            let close_byte = char_byte_positions[end_char + 1];
-            result.push_str(&after_prop[end_byte..close_byte]);
-            search_from = abs_pos + 7 + close_byte;
+            let close_byte = char_to_byte.byte(end_char.next());
+            result.push_str(end_byte.to(close_byte, after_prop));
+            search_from = abs_pos + 7 + close_byte.get();
         } else {
             result.push_str("$.prop(");
             let mut d: i32 = 1;
@@ -1039,7 +1019,7 @@ pub(super) fn apply_store_reads_in_prop_default_values(
                     ')' | ']' | '}' => {
                         d -= 1;
                         if d == 0 {
-                            ec = Some(ci);
+                            ec = Some(CharOffset::new(ci));
                             break;
                         }
                     }
@@ -1047,9 +1027,9 @@ pub(super) fn apply_store_reads_in_prop_default_values(
                 }
             }
             if let Some(end_char) = ec {
-                let end_byte = char_byte_positions[end_char + 1];
-                result.push_str(&after_prop[..end_byte]);
-                search_from = abs_pos + 7 + end_byte;
+                let end_byte = char_to_byte.byte(end_char.next());
+                result.push_str(end_byte.before(after_prop));
+                search_from = abs_pos + 7 + end_byte.get();
             } else {
                 result.push_str(after_prop);
                 search_from = line.len();
@@ -3357,9 +3337,9 @@ pub(super) fn wrap_prop_mutation_validation(
             let mut depth = 1i32; // we're inside prop(
             let mut close_pos = None;
             let rest_chars: Vec<char> = rest.chars().collect();
+            let char_to_byte = CharToByte::new(rest);
             let mut in_str: Option<char> = None;
             let mut ci = 0;
-            let mut byte_i = 0;
             while ci < rest_chars.len() {
                 let c = rest_chars[ci];
                 if let Some(quote) = in_str {
@@ -3380,24 +3360,24 @@ pub(super) fn wrap_prop_mutation_validation(
                         ')' | ']' | '}' => {
                             depth -= 1;
                             if depth == 0 {
-                                close_pos = Some(byte_i);
+                                close_pos = Some(CharOffset::new(ci));
                                 break;
                             }
                         }
                         _ => {}
                     }
                 }
-                byte_i += c.len_utf8();
                 ci += 1;
             }
 
-            let Some(close_byte_pos) = close_pos else {
+            let Some(close_char_pos) = close_pos else {
                 search_from = abs_start + wrapper_start_len;
                 continue;
             };
 
-            // The content inside prop(...) is rest[..close_byte_pos]
-            let inner_content = &rest[..close_byte_pos];
+            // The content inside prop(...).
+            let close_byte_pos = char_to_byte.byte(close_char_pos);
+            let inner_content = close_byte_pos.before(rest);
 
             // Check if it ends with `, true` — the comma and the flag may be on
             // separate lines when the printer broke the call up.
@@ -3518,7 +3498,7 @@ pub(super) fn wrap_prop_mutation_validation(
             }
 
             // The full original expression is the entire prop(prop().member = value, true) call
-            let end_pos = inner_start + close_byte_pos + 1; // +1 for closing paren
+            let end_pos = inner_start + close_byte_pos.next().get();
             // Upstream builds the `$.invalidate_inner_signals` sequence first and
             // passes the whole thing to `validate_mutation`, so the sequence has to
             // go inside the wrap rather than around it.
@@ -4605,6 +4585,24 @@ mod split_declarators_tests {
     }
 
     #[test]
+    fn legacy_default_scanners_keep_offset_units_separate() {
+        assert_eq!(
+            apply_prop_reads_in_prop_default_values(
+                "☃ $.prop($$props, '名', 24, () => logs.push(1));",
+                &["logs".to_string()],
+            ),
+            "☃ $.prop($$props, '名', 24, () => logs().push(1));",
+        );
+        assert_eq!(
+            super::apply_store_reads_in_prop_default_values(
+                "$.prop($$props, '名', 24, () => $items);",
+                &["$items".to_string()],
+            ),
+            "$.prop($$props, '名', 24, () => $items());",
+        );
+    }
+
+    #[test]
     fn splits_top_level_commas() {
         assert_eq!(split_declarators("a, b, c"), vec!["a", " b", " c"]);
     }
@@ -4835,6 +4833,9 @@ mod non_ascii_boundary_tests {
             "\u{540D}count(count().a = 1, true);"
         );
         assert!(wrap("count(count().a = 1, true);").starts_with("$$ownership_validator.mutation("));
+        assert!(
+            wrap("count(count().名 = 1, true);").starts_with("$$ownership_validator.mutation(")
+        );
     }
 
     /// `PropMutationSites::collect` carries the same boundary; a site collected

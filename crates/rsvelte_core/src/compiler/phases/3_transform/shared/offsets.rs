@@ -177,6 +177,16 @@ impl CharToByte {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use static_assertions::{assert_impl_all, assert_not_impl_any};
+
+    assert_impl_all!(ByteOffset: Add<ByteLen, Output = ByteOffset>, Sub<ByteLen, Output = ByteOffset>);
+    assert_impl_all!(CharOffset: Add<CharLen, Output = CharOffset>, Sub<CharLen, Output = CharOffset>);
+    assert_not_impl_any!(
+        ByteOffset: Add<usize>, Sub<usize>, Add<CharLen>, Sub<CharLen>, Into<CharOffset>
+    );
+    assert_not_impl_any!(
+        CharOffset: Add<usize>, Sub<usize>, Add<ByteLen>, Sub<ByteLen>, Into<ByteOffset>
+    );
 
     #[test]
     fn conversion_lands_on_char_boundaries() {
