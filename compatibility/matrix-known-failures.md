@@ -28,9 +28,19 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-## Matrix known failures (`matrix-known-failures.json`, 388 entries)
+The **verdict is part of the key**, and three of them can appear: `js-mismatch` (the
+difference survives comment + whitespace normalization), `comment-mismatch` (it does not),
+and `output-unparseable` (acorn rejects what rsvelte emitted, whatever the bytes say).
+None of the three is more tolerated than another — every one is ratcheted two-sided. The
+split exists because a listed entry suppresses everything its key cannot tell apart: under
+one flat `js-mismatch`, an id whose comments already diverge absorbs a later code
+regression on that id for free. That is not hypothetical — every comment carrier in
+`opaque-keyword` diverges on comment placement, so re-breaking #2986 would have reproduced
+an already-listed key on the very cases written to catch it.
 
-Partition of `matrix-known-failures.json` by family: `4 + 172 + 8 + 24 + 180`
+## Matrix known failures (`matrix-known-failures.json`, 524 entries)
+
+Partition of `matrix-known-failures.json` by family: `4 + 172 + 8 + 24 + 180 + 136`
 
 ### `binding-position` — 4 entries
 
@@ -179,6 +189,44 @@ They clear when `render_tag_has_call` is given the purity rule `has_call_json`
 (`client/visitors/shared/utils.rs`) already implements — which is a change to the
 memoisation path, deliberately left out of the folding fix so that a regression in one
 cannot be read as the other.
+
+### `opaque-keyword` — 136 entries
+
+The family generalizes #2986: a token the transforms scan for **raw**, carried inside a
+region where it is text rather than code, crossed with the construct whose boundary a scan
+has to find and with both compiler entry points. Its own motivating defect passes — the
+class-header scan is lexical now — and what is listed is what it found on the way.
+
+Partition of `matrix-known-failures.json` entries under `opaque-keyword/` by cause: `48 + 48 + 40`
+
+Every listed entry is a `module` (`compileModule`) case except the 20 `instance` ones in
+the third cluster. The `class`, `constructor` and `arrow` keyword rows are clean on every
+carrier and host, which is what says the class-header fix is complete rather than merely
+present.
+
+**48 — `derived` × {`line-comment`, `block-comment`, `string`, `template`} × the three
+non-class hosts, all four targets (#2987).** The text `$derived(` occurring anywhere it is
+not code stops the *real* `$derived(…)` later in the module from being lowered at all: the
+rune call survives verbatim, so the emitted module references a global `$derived` and
+throws at import. The output **parses**, which is why the parse oracle is green on all 48 —
+only output equality reports it. `$state(` in the same carriers does not reproduce, so this
+is the `$derived` path specifically.
+
+**48 — `derived` / `state` × `regex` × all six hosts, all four targets (#2988).** The
+opposite direction: a regex literal whose body contains rune-call text is itself rewritten,
+`/$derived(x)/` → `/$.derived(() => x)/` and `/$state(x)/` → `/$.state($.proxy(x))/` on the
+client, `/x/` on the server. Three different regular expressions, none of them the one that
+was written. `/$derived(x)/` is an ordinary regex (`$` anchors, `(x)` captures), not a
+contrived spelling. `skip_opaque` already tells a regex from a division; the rewriters that
+decide *where a rune call starts* do not consume it.
+
+**40 — any keyword × {`line-comment`, `block-comment`} × `between-classes` × both entry
+points × `client` and `client-dev` (#2990).** A comment between two classes that both carry
+rune fields: official drops it, rsvelte keeps it. The keyword content is irrelevant — all
+five keyword rows reproduce identically — so it is a property of the slot. The direction is
+the unusual one (rsvelte's output is the more faithful), and it needs the second class's
+body to be *rebuilt*: with no rune fields in it, the same input matches. `server` and
+`server-dev` match throughout.
 
 ## Burn-down
 
