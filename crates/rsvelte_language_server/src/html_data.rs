@@ -512,7 +512,6 @@ pub const ATTRIBUTES: &[AttributeData] = &[
     },
 ];
 
-#[must_use]
 pub fn attributes(element: &str) -> impl Iterator<Item = &'static AttributeData> {
     ATTRIBUTES.iter().filter(move |attribute| {
         attribute.elements.is_empty() || attribute.elements.contains(&element)

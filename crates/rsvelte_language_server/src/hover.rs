@@ -46,10 +46,10 @@ pub fn hover(text: &str, offset: usize) -> Option<Hover> {
     if attribute.in_value && attribute.name == "style" {
         return crate::css::hover(text, offset).map(markdown);
     }
-    if !attribute.in_value {
-        if let Some(data) = html_attribute(attribute.element_tag, attribute.name) {
-            return Some(markdown(data.description.to_string()));
-        }
+    if !attribute.in_value
+        && let Some(data) = html_attribute(attribute.element_tag, attribute.name)
+    {
+        return Some(markdown(data.description.to_string()));
     }
     if !attribute.can_have_event_modifier() {
         return None;
