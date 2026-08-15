@@ -14,6 +14,59 @@ use crate::command::{Buffer, EventKind, LayoutSpan};
 const PENDING_NEWLINE: u8 = 1 << 0;
 const PENDING_MARGIN: u8 = 1 << 1;
 const PENDING_SPACE: u8 = 1 << 2;
+const PENDING_OPTIMISTIC_SPACE: u8 = 1 << 3;
+
+#[inline(always)]
+fn push_str_small(text: &mut String, value: &str) {
+    let len = value.len();
+    if len == 0 {
+        return;
+    }
+    if text.capacity() - text.len() < len {
+        reserve_str_slow(text, len);
+    }
+
+    let old_len = text.len();
+    // SAFETY: capacity was ensured above, the ranges do not overlap, and value is valid UTF-8.
+    unsafe {
+        let bytes = text.as_mut_vec();
+        let dst = bytes.as_mut_ptr().add(old_len);
+        let src = value.as_ptr();
+        if len <= 4 {
+            match len {
+                1 => dst.write(src.read()),
+                2 => (dst.cast::<u16>()).write_unaligned((src.cast::<u16>()).read_unaligned()),
+                3 => {
+                    (dst.cast::<u16>()).write_unaligned((src.cast::<u16>()).read_unaligned());
+                    dst.add(2).write(src.add(2).read());
+                }
+                4 => (dst.cast::<u32>()).write_unaligned((src.cast::<u32>()).read_unaligned()),
+                _ => unreachable!(),
+            }
+        } else if len < 8 {
+            (dst.cast::<u32>()).write_unaligned((src.cast::<u32>()).read_unaligned());
+            (dst.add(len - 4).cast::<u32>())
+                .write_unaligned((src.add(len - 4).cast::<u32>()).read_unaligned());
+        } else if len == 8 {
+            (dst.cast::<u64>()).write_unaligned((src.cast::<u64>()).read_unaligned());
+        } else if len < 16 {
+            (dst.cast::<u64>()).write_unaligned((src.cast::<u64>()).read_unaligned());
+            (dst.add(len - 8).cast::<u64>())
+                .write_unaligned((src.add(len - 8).cast::<u64>()).read_unaligned());
+        } else if len == 16 {
+            (dst.cast::<u128>()).write_unaligned((src.cast::<u128>()).read_unaligned());
+        } else {
+            std::ptr::copy_nonoverlapping(src, dst, len);
+        }
+        bytes.set_len(old_len + len);
+    }
+}
+
+#[cold]
+#[inline(never)]
+fn reserve_str_slow(text: &mut String, additional: usize) {
+    text.reserve(additional);
+}
 
 /// Accumulates output for one syntactic unit. Build a child with
 /// [`Context::child`], fill it, then [`Context::append`] it into the parent.
@@ -23,7 +76,7 @@ pub struct Context<const DIRECT: bool = false> {
     returned: Rc<RefCell<Vec<Buffer>>>,
     indent: String,
     indent_depth: u32,
-    literal_len: usize,
+    layout_bytes: usize,
     measure_base: usize,
     has_newline: bool,
     pending: u8,
@@ -38,7 +91,7 @@ pub(crate) struct Scope {
     event_len: usize,
     text_len: usize,
     layout_len: usize,
-    literal_len: usize,
+    layout_bytes: usize,
     indent_depth: u32,
     pending: u8,
     direct_dirty: bool,
@@ -62,7 +115,7 @@ impl Context<false> {
             returned,
             indent: String::new(),
             indent_depth: 0,
-            literal_len: 0,
+            layout_bytes: 0,
             measure_base: 0,
             has_newline: false,
             pending: 0,
@@ -84,7 +137,7 @@ impl Context<true> {
             returned,
             indent: indent.to_owned(),
             indent_depth: 0,
-            literal_len: 0,
+            layout_bytes: 0,
             measure_base: 0,
             has_newline: false,
             pending: 0,
@@ -104,7 +157,7 @@ impl<const DIRECT: bool> Context<DIRECT> {
             returned: Rc::clone(&self.returned),
             indent: String::new(),
             indent_depth: 0,
-            literal_len: 0,
+            layout_bytes: 0,
             measure_base: 0,
             has_newline: false,
             pending: 0,
@@ -160,15 +213,28 @@ impl<const DIRECT: bool> Context<DIRECT> {
         }
     }
 
+    pub(crate) fn optimistic_space(&mut self) {
+        debug_assert!(DIRECT);
+        self.pending |= PENDING_OPTIMISTIC_SPACE;
+    }
+
+    pub(crate) fn cancel_optimistic_space(&mut self) {
+        debug_assert!(DIRECT);
+        self.pending &= !PENDING_OPTIMISTIC_SPACE;
+    }
+
     /// Append literal `content`. If a newline is already pending in this
     /// context, writing after it makes the context multiline (mirrors esrap).
     pub fn write(&mut self, content: impl AsRef<str>) {
         let content = content.as_ref();
         if DIRECT {
-            self.flush_direct();
+            if content.is_empty() {
+                self.flush_non_optimistic();
+            } else {
+                self.flush_direct();
+            }
             if !content.is_empty() {
-                self.buffer.text.push_str(content);
-                self.literal_len += content.len();
+                push_str_small(&mut self.buffer.text, content);
             }
         } else if content.is_empty() {
             self.buffer.event(EventKind::Flush);
@@ -180,10 +246,38 @@ impl<const DIRECT: bool> Context<DIRECT> {
         }
     }
 
+    #[inline(always)]
+    pub(crate) fn write_ascii(&mut self, byte: u8) {
+        assert!(byte.is_ascii());
+        if DIRECT {
+            self.flush_direct();
+        }
+        // SAFETY: the byte is ASCII, so appending it preserves UTF-8 validity.
+        unsafe { self.buffer.text.as_mut_vec().push(byte) };
+        if self.has_newline {
+            self.multiline = true;
+        }
+    }
+
+    #[inline(always)]
+    pub(crate) fn write_ascii_bytes<const N: usize>(&mut self, bytes: &[u8; N]) {
+        assert!(bytes.is_ascii());
+        if DIRECT {
+            self.flush_direct();
+        }
+        // SAFETY: the bytes are ASCII, so they are valid UTF-8.
+        self.buffer
+            .text
+            .push_str(unsafe { std::str::from_utf8_unchecked(bytes) });
+        if self.has_newline {
+            self.multiline = true;
+        }
+    }
+
     /// Record a source-map anchor (1-based line, 0-based column).
     pub fn location(&mut self, line: u32, column: u32) {
         if DIRECT {
-            self.flush_direct();
+            self.flush_non_optimistic();
         } else {
             self.buffer.event(EventKind::Location { line, column });
         }
@@ -212,7 +306,7 @@ impl<const DIRECT: bool> Context<DIRECT> {
             event_len: self.buffer.events.len(),
             text_len: self.buffer.text.len(),
             layout_len: self.buffer.layouts.len(),
-            literal_len: self.literal_len,
+            layout_bytes: self.layout_bytes,
             indent_depth: self.indent_depth,
             pending: self.pending,
             direct_dirty: self.direct_dirty,
@@ -220,7 +314,7 @@ impl<const DIRECT: bool> Context<DIRECT> {
             multiline: self.multiline,
         };
         self.measure_base = if DIRECT {
-            self.literal_len
+            self.buffer.text.len() - self.layout_bytes
         } else {
             self.buffer.text.len()
         };
@@ -245,7 +339,7 @@ impl<const DIRECT: bool> Context<DIRECT> {
         });
         self.buffer.events.truncate(scope.event_len);
         self.buffer.layouts.truncate(scope.layout_len);
-        self.literal_len = scope.literal_len;
+        self.layout_bytes = scope.layout_bytes;
         self.indent_depth = scope.indent_depth;
         self.pending = scope.pending;
         self.direct_dirty = scope.direct_dirty;
@@ -259,6 +353,26 @@ impl<const DIRECT: bool> Context<DIRECT> {
             index: self.buffer.events.len(),
             offset: u32::try_from(self.buffer.text.len()).expect("esrap output exceeds u32"),
         }
+    }
+
+    pub(crate) fn retro_space_mark(&mut self) -> EventMark {
+        let mark = self.event_mark();
+        if DIRECT && self.pending == 0 {
+            let start = mark.offset;
+            self.buffer.text.push(' ');
+            self.layout_bytes += 1;
+            self.buffer.layouts.push(LayoutSpan {
+                start,
+                raw_len: 1,
+                depth: 0,
+                newline: false,
+                margin: false,
+                dirty: false,
+            });
+        } else {
+            self.space();
+        }
+        mark
     }
 
     pub(crate) fn insert_event(&mut self, mark: EventMark, kind: EventKind) {
@@ -278,7 +392,7 @@ impl<const DIRECT: bool> Context<DIRECT> {
     /// `true` when nothing with visible content has been written.
     pub const fn empty(&self) -> bool {
         if DIRECT {
-            self.literal_len == self.measure_base
+            self.buffer.text.len() - self.layout_bytes == self.measure_base
         } else {
             self.buffer.text.len() == self.measure_base
         }
@@ -288,7 +402,7 @@ impl<const DIRECT: bool> Context<DIRECT> {
     /// sentinels — esrap's `measure`, used to decide if a layout fits on a line.
     pub const fn measure(&self) -> usize {
         if DIRECT {
-            self.literal_len - self.measure_base
+            self.buffer.text.len() - self.layout_bytes - self.measure_base
         } else {
             self.buffer.text.len() - self.measure_base
         }
@@ -316,7 +430,6 @@ impl<const DIRECT: bool> Context<DIRECT> {
     }
 
     fn append_deferred(&mut self, child: &Buffer) {
-        let child_literal_len = child.text.len();
         let mut cursor = 0;
         for event in &child.events {
             let offset = event.offset as usize;
@@ -329,7 +442,6 @@ impl<const DIRECT: bool> Context<DIRECT> {
         if cursor < child.text.len() {
             self.write_direct_text(&child.text[cursor..]);
         }
-        self.literal_len += child_literal_len;
     }
 
     fn direct_event(&mut self, kind: EventKind) {
@@ -339,18 +451,26 @@ impl<const DIRECT: bool> Context<DIRECT> {
             EventKind::Indent => self.indent_depth += 1,
             EventKind::Dedent => self.indent_depth = self.indent_depth.saturating_sub(1),
             EventKind::Space => self.pending |= PENDING_SPACE,
-            EventKind::Flush | EventKind::Location { .. } => self.flush_direct(),
+            EventKind::Flush | EventKind::Location { .. } => self.flush_non_optimistic(),
         }
     }
 
     fn write_direct_text(&mut self, text: &str) {
         self.flush_direct();
-        self.buffer.text.push_str(text);
+        push_str_small(&mut self.buffer.text, text);
     }
 
     #[inline(always)]
     fn flush_direct(&mut self) {
         if self.pending == 0 {
+            return;
+        }
+        self.flush_direct_slow();
+    }
+
+    #[inline(always)]
+    fn flush_non_optimistic(&mut self) {
+        if self.pending & !PENDING_OPTIMISTIC_SPACE == 0 {
             return;
         }
         self.flush_direct_slow();
@@ -370,6 +490,7 @@ impl<const DIRECT: bool> Context<DIRECT> {
             }
             let raw_len = u32::try_from(self.buffer.text.len() - start as usize)
                 .expect("esrap output exceeds u32");
+            self.layout_bytes += raw_len as usize;
             self.buffer.layouts.push(LayoutSpan {
                 start,
                 raw_len,
@@ -378,8 +499,9 @@ impl<const DIRECT: bool> Context<DIRECT> {
                 margin: self.pending & PENDING_MARGIN != 0,
                 dirty: false,
             });
-        } else if self.pending & PENDING_SPACE != 0 {
+        } else if self.pending & (PENDING_SPACE | PENDING_OPTIMISTIC_SPACE) != 0 {
             self.buffer.text.push(' ');
+            self.layout_bytes += 1;
             self.buffer.layouts.push(LayoutSpan {
                 start,
                 raw_len: 1,
@@ -483,10 +605,10 @@ mod tests {
     #[test]
     fn measure_counts_only_strings() {
         let mut ctx = Context::new();
-        ctx.write("abc");
+        ctx.write_ascii_bytes(b"abc");
         ctx.space();
         ctx.newline();
-        ctx.write("de");
+        ctx.write_ascii_bytes(b"de");
         assert_eq!(ctx.measure(), 5);
     }
 
@@ -497,7 +619,7 @@ mod tests {
         ctx.newline();
         ctx.indent();
         assert!(ctx.empty());
-        ctx.write("x");
+        ctx.write_ascii(b'x');
         assert!(!ctx.empty());
     }
 
@@ -506,9 +628,9 @@ mod tests {
         let mut parent = Context::new();
         let mut child = parent.child();
         child.newline();
-        child.write("x");
+        child.write_ascii(b'x');
         assert!(child.multiline);
-        parent.write("a");
+        parent.write_ascii(b'a');
         parent.append(child);
         assert!(parent.multiline);
     }
@@ -516,13 +638,13 @@ mod tests {
     #[test]
     fn append_splices_child_output() {
         let mut parent = Context::new();
-        parent.write("(");
+        parent.write_ascii(b'(');
         let mut child = parent.child();
-        child.write("x");
+        child.write_ascii(b'x');
         child.space();
-        child.write("y");
+        child.write_ascii(b'y');
         parent.append(child);
-        parent.write(")");
+        parent.write_ascii(b')');
         assert_eq!(print(&parent.into_buffer(), "\t", 0), "(x y)");
     }
 
@@ -530,8 +652,8 @@ mod tests {
     fn adjacent_writes_share_the_text_buffer() {
         let mut ctx = Context::new();
         ctx.write("const");
-        ctx.write(" ");
-        ctx.write("x");
+        ctx.write_ascii(b' ');
+        ctx.write_ascii(b'x');
         assert_eq!(ctx.buffer.text, "const x");
         assert_eq!(print(&ctx.into_buffer(), "\t", 0), "const x");
     }
@@ -545,16 +667,40 @@ mod tests {
     }
 
     #[test]
+    fn optimistic_space_waits_for_visible_text() {
+        let mut ctx = Context::new_direct("\t", 0);
+        ctx.optimistic_space();
+        ctx.write("");
+        ctx.cancel_optimistic_space();
+        assert_eq!(direct_output(ctx), "");
+
+        let mut ctx = Context::new_direct("\t", 0);
+        ctx.optimistic_space();
+        ctx.write_ascii(b'x');
+        assert_eq!(direct_output(ctx), " x");
+    }
+
+    #[test]
+    fn real_layout_supersedes_optimistic_space() {
+        let mut ctx = Context::new_direct("\t", 0);
+        ctx.optimistic_space();
+        ctx.newline();
+        ctx.write("");
+        ctx.cancel_optimistic_space();
+        assert_eq!(direct_output(ctx), "\n");
+    }
+
+    #[test]
     fn scope_tracks_local_layout_without_a_child_buffer() {
         let mut ctx = Context::new();
-        ctx.write("a");
+        ctx.write_ascii(b'a');
         let mark = ctx.event_mark();
         ctx.newline();
         let scope = ctx.begin_scope();
-        ctx.write("bc");
+        ctx.write_ascii_bytes(b"bc");
         assert_eq!(ctx.measure(), 2);
         ctx.newline();
-        ctx.write("d");
+        ctx.write_ascii(b'd');
         assert!(ctx.end_scope(scope));
         ctx.insert_event(mark, EventKind::Margin);
         assert_eq!(print(&ctx.into_buffer(), "\t", 0), "a\n\nbc\nd");
@@ -563,12 +709,12 @@ mod tests {
     #[test]
     fn discarded_scope_removes_text_and_layout_events() {
         let mut ctx = Context::new();
-        ctx.write("a");
+        ctx.write_ascii(b'a');
         let scope = ctx.begin_scope();
         ctx.newline();
-        ctx.write("bc");
+        ctx.write_ascii_bytes(b"bc");
         ctx.discard_scope(scope);
-        ctx.write("d");
+        ctx.write_ascii(b'd');
         assert_eq!(print(&ctx.into_buffer(), "\t", 0), "ad");
     }
 
@@ -578,7 +724,7 @@ mod tests {
         parent.space();
         let mut child = parent.child();
         child.newline();
-        child.write("x");
+        child.write_ascii(b'x');
         parent.append(child);
         assert_eq!(direct_output(parent), "\nx");
     }
@@ -589,7 +735,7 @@ mod tests {
         parent.margin();
         let mut child = parent.child();
         child.newline();
-        child.write("x");
+        child.write_ascii(b'x');
         parent.append(child);
         assert_eq!(direct_output(parent), "\n\nx");
     }

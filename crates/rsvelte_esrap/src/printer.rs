@@ -124,7 +124,7 @@ fn write_comment<const DIRECT: bool>(cmt: &Cmt, ctx: &mut Context<DIRECT>) {
         ctx.write(format_compact!("//{value}"));
         return;
     }
-    ctx.write("/*");
+    ctx.write_ascii_bytes(b"/*");
     let mut multiline = false;
     for (i, line) in value.split('\n').enumerate() {
         if i > 0 {
@@ -133,7 +133,7 @@ fn write_comment<const DIRECT: bool>(cmt: &Cmt, ctx: &mut Context<DIRECT>) {
         }
         ctx.write(line);
     }
-    ctx.write("*/");
+    ctx.write_ascii_bytes(b"*/");
     if multiline {
         ctx.newline();
     }
@@ -657,7 +657,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             if cmt.end_line < to_line {
                 ctx.newline();
             } else if pad {
-                ctx.write(" ");
+                ctx.write_ascii(b' ');
             }
             self.comment_index += 1;
         }
@@ -689,7 +689,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             if !fits {
                 break;
             }
-            ctx.write(" ");
+            ctx.write_ascii(b' ');
             write_comment(cmt, ctx);
             let is_block = cmt.block;
             self.comment_index += 1;
@@ -813,7 +813,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             parent.indent();
             parent.newline();
         } else if pad && length > 0 {
-            parent.write(" ");
+            parent.write_ascii(b' ');
         }
 
         let mut prev: Option<(bool, bool)> = None;
@@ -826,7 +826,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                     if multiline {
                         parent.newline();
                     } else {
-                        parent.write(" ");
+                        parent.write_ascii(b' ');
                     }
                 }
             }
@@ -850,7 +850,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 parent.newline();
             }
         } else if pad && length > 0 {
-            parent.write(" ");
+            parent.write_ascii(b' ');
         }
     }
 
@@ -875,6 +875,12 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if n == 1 {
             let node_meta = meta(0);
             let mark = parent.event_mark();
+            if DIRECT {
+                if pad {
+                    parent.optimistic_space();
+                }
+                parent.indent();
+            }
             let scope = parent.begin_scope();
             render(self, 0, parent);
             if node_meta.is_elision {
@@ -886,11 +892,17 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             let length = parent.measure();
             let multiline = parent.end_scope(scope);
 
+            if DIRECT && pad && length == 0 {
+                parent.cancel_optimistic_space();
+            }
+
             if multiline {
                 parent.insert_event(mark, EventKind::Newline);
-                parent.insert_event(mark, EventKind::Indent);
+                if !DIRECT {
+                    parent.insert_event(mark, EventKind::Indent);
+                }
                 parent.multiline = true;
-            } else if pad && length > 0 {
+            } else if !DIRECT && pad && length > 0 {
                 parent.insert_event(mark, EventKind::Space);
             }
 
@@ -907,8 +919,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 if trailing_newline {
                     parent.newline();
                 }
-            } else if pad && length > 0 {
-                parent.write(" ");
+            } else {
+                if DIRECT {
+                    parent.dedent();
+                }
+                if pad && length > 0 {
+                    parent.write_ascii(b' ');
+                }
             }
             return;
         }
@@ -918,12 +935,17 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             let mut length: i64 = -1;
             let mut items = [None; 3];
 
+            if DIRECT {
+                parent.indent();
+            }
+
             for (i, item) in items.iter_mut().enumerate().take(n) {
                 let node_meta = meta(i);
-                let mark = parent.event_mark();
-                if DIRECT && (pad || i > 0) && !node_meta.is_elision {
-                    parent.space();
-                }
+                let mark = if DIRECT && (pad || i > 0) && !node_meta.is_elision {
+                    parent.retro_space_mark()
+                } else {
+                    parent.event_mark()
+                };
                 let scope = parent.begin_scope();
                 render(self, i, parent);
 
@@ -975,7 +997,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             let first = items[0].unwrap();
             if multiline {
                 parent.insert_event(first.mark, EventKind::Newline);
-                parent.insert_event(first.mark, EventKind::Indent);
+                if !DIRECT {
+                    parent.insert_event(first.mark, EventKind::Indent);
+                }
                 parent.multiline = true;
             } else if !DIRECT && pad && length > 0 {
                 parent.insert_event(first.mark, EventKind::Space);
@@ -994,8 +1018,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 if trailing_newline {
                     parent.newline();
                 }
-            } else if pad && length > 0 {
-                parent.write(" ");
+            } else {
+                if DIRECT {
+                    parent.dedent();
+                }
+                if pad && length > 0 {
+                    parent.write_ascii(b' ');
+                }
             }
             return;
         }
@@ -1004,12 +1033,17 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         let mut length: i64 = -1;
         let mut items: Vec<SeqLayout> = Vec::with_capacity(n);
 
+        if DIRECT {
+            parent.indent();
+        }
+
         for i in 0..n {
             let node_meta = meta(i);
-            let mark = parent.event_mark();
-            if DIRECT && (pad || i > 0) && !node_meta.is_elision {
-                parent.space();
-            }
+            let mark = if DIRECT && (pad || i > 0) && !node_meta.is_elision {
+                parent.retro_space_mark()
+            } else {
+                parent.event_mark()
+            };
             let scope = parent.begin_scope();
             render(self, i, parent);
 
@@ -1060,7 +1094,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if let Some(first) = items.first() {
             if multiline {
                 parent.insert_event(first.mark, EventKind::Newline);
-                parent.insert_event(first.mark, EventKind::Indent);
+                if !DIRECT {
+                    parent.insert_event(first.mark, EventKind::Indent);
+                }
                 parent.multiline = true;
             } else if !DIRECT && pad && length > 0 {
                 parent.insert_event(first.mark, EventKind::Space);
@@ -1081,8 +1117,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             if trailing_newline {
                 parent.newline();
             }
-        } else if pad && length > 0 {
-            parent.write(" ");
+        } else {
+            if DIRECT {
+                parent.dedent();
+            }
+            if pad && length > 0 {
+                parent.write_ascii(b' ');
+            }
         }
     }
 
@@ -1237,7 +1278,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         let start = d.span.start;
         self.flush_leading(ctx, start);
         ctx.write(Self::string_literal(&d.expression));
-        ctx.write(";");
+        ctx.write_ascii(b';');
     }
 
     #[allow(clippy::too_many_lines)]
@@ -1258,17 +1299,17 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 ) || matches!(inner, Expression::AssignmentExpression(a)
                     if matches!(a.left, AssignmentTarget::ObjectAssignmentTarget(_)));
                 if needs_parens {
-                    ctx.write("(");
+                    ctx.write_ascii(b'(');
                     self.print_expression(inner, ctx);
-                    ctx.write(");");
+                    ctx.write_ascii_bytes(b");");
                 } else {
                     self.print_expression(inner, ctx);
-                    ctx.write(";");
+                    ctx.write_ascii(b';');
                 }
             }
             Statement::VariableDeclaration(d) => {
                 self.variable_declaration(d, ctx);
-                ctx.write(";");
+                ctx.write_ascii(b';');
             }
             Statement::ReturnStatement(s) => {
                 if let Some(arg) = &s.argument {
@@ -1288,11 +1329,11 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                     if contains_comment {
                         self.write_keyword(ctx, start, "return", " (");
                         self.print_expression(arg, ctx);
-                        ctx.write(");");
+                        ctx.write_ascii_bytes(b");");
                     } else {
                         self.write_keyword(ctx, start, "return", " ");
                         self.print_expression(arg, ctx);
-                        ctx.write(";");
+                        ctx.write_ascii(b';');
                     }
                 } else {
                     self.write_keyword(ctx, s.span().start, "return", ";");
@@ -1309,13 +1350,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             Statement::WhileStatement(s) => {
                 ctx.write("while (");
                 self.print_expression(&s.test, ctx);
-                ctx.write(") ");
+                ctx.write_ascii_bytes(b") ");
                 self.print_statement(&s.body, ctx);
             }
             Statement::ThrowStatement(s) => {
                 self.write_keyword(ctx, s.span().start, "throw", " ");
                 self.print_expression(&s.argument, ctx);
-                ctx.write(";");
+                ctx.write_ascii(b';');
             }
             Statement::DoWhileStatement(s) => self.do_while_statement(s, ctx),
             Statement::ExportAllDeclaration(s) => {
@@ -1325,12 +1366,12 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                     ctx.write("export *");
                 }
                 if let Some(exported) = &s.exported {
-                    ctx.write(" as ");
+                    ctx.write_ascii_bytes(b" as ");
                     ctx.write(module_export_name_str(exported));
                 }
                 ctx.write(" from ");
                 ctx.write(Self::string_literal(&s.source));
-                ctx.write(";");
+                ctx.write_ascii(b';');
             }
             Statement::ImportDeclaration(d) => self.import_declaration(d, ctx),
             Statement::ExportDeclaration(d) => self.export_declaration(d, ctx),
@@ -1339,27 +1380,27 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             Statement::ExportDefaultDeclaration(d) => self.export_default_declaration(d, ctx),
             Statement::LabeledStatement(s) => {
                 ctx.write(s.label.name.as_str());
-                ctx.write(": ");
+                ctx.write_ascii_bytes(b": ");
                 self.print_statement(&s.body, ctx);
             }
             Statement::ForInStatement(s) => {
                 ctx.write("for (");
                 self.for_statement_left(&s.left, ctx);
-                ctx.write(" in ");
+                ctx.write_ascii_bytes(b" in ");
                 self.print_expression(&s.right, ctx);
-                ctx.write(") ");
+                ctx.write_ascii_bytes(b") ");
                 self.print_statement(&s.body, ctx);
             }
             Statement::ForOfStatement(s) => {
-                ctx.write("for ");
+                ctx.write_ascii_bytes(b"for ");
                 if s.r#await {
                     ctx.write("await ");
                 }
-                ctx.write("(");
+                ctx.write_ascii(b'(');
                 self.for_statement_left(&s.left, ctx);
-                ctx.write(" of ");
+                ctx.write_ascii_bytes(b" of ");
                 self.print_expression(&s.right, ctx);
-                ctx.write(") ");
+                ctx.write_ascii_bytes(b") ");
                 self.print_statement(&s.body, ctx);
             }
             Statement::TryStatement(s) => self.try_statement(s, ctx),
@@ -1368,25 +1409,25 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             Statement::WithStatement(s) => {
                 ctx.write("with (");
                 self.print_expression(&s.object, ctx);
-                ctx.write(") ");
+                ctx.write_ascii_bytes(b") ");
                 self.print_statement(&s.body, ctx);
             }
-            Statement::EmptyStatement(_) => ctx.write(";"),
+            Statement::EmptyStatement(_) => ctx.write_ascii(b';'),
             Statement::BreakStatement(s) => {
                 ctx.write("break");
                 if let Some(label) = &s.label {
-                    ctx.write(" ");
+                    ctx.write_ascii(b' ');
                     ctx.write(label.name.as_str());
                 }
-                ctx.write(";");
+                ctx.write_ascii(b';');
             }
             Statement::ContinueStatement(s) => {
                 ctx.write("continue");
                 if let Some(label) = &s.label {
-                    ctx.write(" ");
+                    ctx.write_ascii(b' ');
                     ctx.write(label.name.as_str());
                 }
-                ctx.write(";");
+                ctx.write_ascii(b';');
             }
             Statement::TSTypeAliasDeclaration(d) => self.type_alias_declaration(d, ctx),
             Statement::TSInterfaceDeclaration(d) => self.interface_declaration(d, ctx),
@@ -1398,12 +1439,12 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             Statement::TSExportAssignment(d) => {
                 ctx.write("export = ");
                 self.print_expression(&d.expression, ctx);
-                ctx.write(";");
+                ctx.write_ascii(b';');
             }
             Statement::TSNamespaceExportDeclaration(d) => {
                 ctx.write("export as namespace ");
                 ctx.write(d.id.name.as_str());
-                ctx.write(";");
+                ctx.write_ascii(b';');
             }
         }
     }
@@ -1412,7 +1453,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if node.specifiers.as_ref().is_none_or(|v| v.is_empty()) {
             ctx.write("import ");
             ctx.write(Self::string_literal(&node.source));
-            ctx.write(";");
+            ctx.write_ascii(b';');
             return;
         }
 
@@ -1436,7 +1477,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if let Some(d) = default_spec {
             ctx.write(d.local.name.as_str());
             if namespace_spec.is_some() || !named.is_empty() {
-                ctx.write(", ");
+                ctx.write_ascii_bytes(b", ");
             }
         }
         if let Some(ns) = namespace_spec {
@@ -1444,7 +1485,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             ctx.write(ns.local.name.as_str());
         }
         if !named.is_empty() {
-            ctx.write("{");
+            ctx.write_ascii(b'{');
             self.sequence_slice(
                 &named,
                 |s| {
@@ -1465,12 +1506,12 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 true,
                 ctx,
             );
-            ctx.write("}");
+            ctx.write_ascii(b'}');
         }
         ctx.write(" from ");
         ctx.write(Self::string_literal(&node.source));
         Self::import_attributes(node.with_clause.as_deref(), ctx);
-        ctx.write(";");
+        ctx.write_ascii(b';');
     }
 
     /// esrap's import-attributes tail: ` with { key: value, … }`.
@@ -1485,13 +1526,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 ImportAttributeKey::Identifier(id) => ctx.write(id.name.as_str()),
                 ImportAttributeKey::StringLiteral(s) => ctx.write(Self::string_literal(s)),
             }
-            ctx.write(": ");
+            ctx.write_ascii_bytes(b": ");
             ctx.write(Self::string_literal(&attr.value));
             if i + 1 != clause.with_entries.len() {
-                ctx.write(", ");
+                ctx.write_ascii_bytes(b", ");
             }
         }
-        ctx.write(" }");
+        ctx.write_ascii_bytes(b" }");
     }
 
     fn import_specifier(node: &ImportSpecifier, ctx: &mut Context<DIRECT>) {
@@ -1509,7 +1550,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             && name != node.local.name.as_str()
         {
             ctx.write(name);
-            ctx.write(" as ");
+            ctx.write_ascii_bytes(b" as ");
         }
         ctx.write(node.local.name.as_str());
     }
@@ -1542,7 +1583,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if matches!(export_kind, ImportOrExportKind::Type) {
             kw.write(ctx, "type ");
         }
-        ctx.write("{");
+        ctx.write_ascii(b'{');
         self.sequence_slice(
             specifiers,
             |s| {
@@ -1563,7 +1604,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             true,
             ctx,
         );
-        ctx.write("}");
+        ctx.write_ascii(b'}');
     }
 
     fn export_named_declaration(
@@ -1572,14 +1613,14 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         ctx: &mut Context<DIRECT>,
     ) {
         self.export_specifier_list(node.span().start, &node.specifiers, node.export_kind, ctx);
-        ctx.write(";");
+        ctx.write_ascii(b';');
     }
 
     fn export_from_declaration(&mut self, node: &ExportFromDeclaration, ctx: &mut Context<DIRECT>) {
         self.export_specifier_list(node.span().start, &node.specifiers, node.export_kind, ctx);
         ctx.write(" from ");
         ctx.write(Self::string_literal(&node.source));
-        ctx.write(";");
+        ctx.write_ascii(b';');
     }
 
     fn export_default_declaration(
@@ -1611,19 +1652,19 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 } else {
                     self.unsupported("ExportDefault", ctx);
                 }
-                ctx.write(";");
+                ctx.write_ascii(b';');
             }
         }
     }
 
     fn template_literal(&mut self, node: &TemplateLiteral, ctx: &mut Context<DIRECT>) {
-        ctx.write("`");
+        ctx.write_ascii(b'`');
         for (i, expr) in node.expressions.iter().enumerate() {
             let raw = node.quasis.get(i).map_or("", |q| q.value.raw.as_str());
             ctx.write(raw);
-            ctx.write("${");
+            ctx.write_ascii_bytes(b"${");
             self.print_expression(expr, ctx);
-            ctx.write("}");
+            ctx.write_ascii(b'}');
             // A newline *inside* the literal makes the enclosing context
             // multiline (esrap), which drives statement-margin decisions.
             if raw.contains('\n') {
@@ -1633,7 +1674,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if let Some(last) = node.quasis.last() {
             let raw = last.value.raw.as_str();
             ctx.write(raw);
-            ctx.write("`");
+            ctx.write_ascii(b'`');
             if raw.contains('\n') {
                 ctx.multiline = true;
             }
@@ -1648,7 +1689,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         let exported = module_export_name_str(&node.exported);
         ctx.write(local);
         if local != exported {
-            ctx.write(" as ");
+            ctx.write_ascii_bytes(b" as ");
             ctx.write(exported);
         }
     }
@@ -1659,7 +1700,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         match decl {
             Declaration::VariableDeclaration(d) => {
                 self.variable_declaration(d, ctx);
-                ctx.write(";");
+                ctx.write_ascii(b';');
             }
             Declaration::FunctionDeclaration(f) => self.function(f, ctx),
             Declaration::ClassDeclaration(c) => self.class_node(c, ctx),
@@ -1716,25 +1757,25 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if let Some(tp) = &node.type_parameters {
             self.type_parameter_declaration(tp, ctx);
         }
-        ctx.write("(");
+        ctx.write_ascii(b'(');
         self.formal_parameters_with_this(
             &node.params,
             node.this_param.as_deref(),
             Some(node.params.span().end),
             ctx,
         );
-        ctx.write(")");
+        ctx.write_ascii(b')');
         if let Some(rt) = &node.return_type {
             self.type_annotation(rt, ctx);
         }
         // A `declare function`/overload has no body — esrap emits `;`.
         match &node.body {
             Some(body) => {
-                ctx.write(" ");
+                ctx.write_ascii(b' ');
                 let span = body.span();
                 self.block(&body.statements, span.start, span.end, ctx);
             }
-            None => ctx.write(";"),
+            None => ctx.write_ascii(b';'),
         }
     }
 
@@ -1766,10 +1807,10 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             if let Some(tp) = &node.type_parameters {
                 self.type_parameter_declaration(tp, ctx);
             }
-            ctx.write(" ");
+            ctx.write_ascii(b' ');
         } else if let Some(tp) = &node.type_parameters {
             self.type_parameter_declaration(tp, ctx);
-            ctx.write(" ");
+            ctx.write_ascii(b' ');
         }
         if let Some(heritage) = &node.heritage {
             ctx.write("extends ");
@@ -1777,7 +1818,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             if let Some(ta) = &heritage.type_arguments {
                 self.type_parameter_instantiation(ta, ctx);
             }
-            ctx.write(" ");
+            ctx.write_ascii(b' ');
         }
         if !node.implements.is_empty() {
             ctx.write("implements");
@@ -1809,7 +1850,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     }
 
     fn decorator(&mut self, node: &Decorator, ctx: &mut Context<DIRECT>) {
-        ctx.write("@");
+        ctx.write_ascii(b'@');
         self.print_expression(&node.expression, ctx);
         ctx.newline();
     }
@@ -1820,7 +1861,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     /// are interleaved identically to a statement block.
     fn class_body(&mut self, body: &ClassBody, ctx: &mut Context<DIRECT>) {
         let span = body.span();
-        ctx.write("{");
+        ctx.write_ascii(b'{');
         let mark = ctx.event_mark();
         let scope = ctx.begin_scope();
         let elems = body
@@ -1840,7 +1881,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             ctx.dedent();
             ctx.newline();
         }
-        ctx.write("}");
+        ctx.write_ascii(b'}');
     }
 
     fn class_element(&mut self, element: &ClassElement, ctx: &mut Context<DIRECT>) {
@@ -1901,28 +1942,28 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             kw.write(ctx, "async ");
         }
         if node.value.generator {
-            ctx.write("*");
+            ctx.write_ascii(b'*');
         }
         if node.computed {
-            ctx.write("[");
+            ctx.write_ascii(b'[');
             self.property_key(&node.key, ctx);
-            ctx.write("]");
+            ctx.write_ascii(b']');
         } else {
             self.property_key(&node.key, ctx);
         }
         if node.optional {
-            ctx.write("?");
+            ctx.write_ascii(b'?');
         }
         if let Some(tp) = &node.value.type_parameters {
             self.type_parameter_declaration(tp, ctx);
         }
-        ctx.write("(");
+        ctx.write_ascii(b'(');
         self.formal_parameters(&node.value.params, ctx);
-        ctx.write(")");
+        ctx.write_ascii(b')');
         if let Some(rt) = &node.value.return_type {
             self.type_annotation(rt, ctx);
         }
-        ctx.write(" ");
+        ctx.write_ascii(b' ');
         // esrap: an abstract method has no body — it emits only the trailing
         // space from `context.write(' ')`, leaving `abstract get a() `.
         if let Some(body) = &node.value.body {
@@ -1937,7 +1978,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         }
         if let Some(acc) = &node.accessibility {
             ctx.write(accessibility_str(*acc));
-            ctx.write(" ");
+            ctx.write_ascii(b' ');
         }
         if matches!(
             node.r#type,
@@ -1958,26 +1999,26 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             ctx.write("readonly ");
         }
         if node.computed {
-            ctx.write("[");
+            ctx.write_ascii(b'[');
             self.property_key(&node.key, ctx);
-            ctx.write("]");
+            ctx.write_ascii(b']');
         } else {
             self.property_key(&node.key, ctx);
         }
         if node.optional {
-            ctx.write("?");
+            ctx.write_ascii(b'?');
         }
         if node.definite {
-            ctx.write("!");
+            ctx.write_ascii(b'!');
         }
         if let Some(ann) = &node.type_annotation {
             self.type_annotation(ann, ctx);
         }
         if let Some(value) = &node.value {
-            ctx.write(" = ");
+            ctx.write_ascii_bytes(b" = ");
             self.print_expression(value, ctx);
         }
-        ctx.write(";");
+        ctx.write_ascii(b';');
     }
 
     fn accessor_property(&mut self, node: &AccessorProperty, ctx: &mut Context<DIRECT>) {
@@ -1986,7 +2027,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         }
         if let Some(acc) = &node.accessibility {
             ctx.write(accessibility_str(*acc));
-            ctx.write(" ");
+            ctx.write_ascii(b' ');
         }
         if matches!(
             node.r#type,
@@ -1999,29 +2040,29 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         }
         ctx.write("accessor ");
         if node.computed {
-            ctx.write("[");
+            ctx.write_ascii(b'[');
             self.property_key(&node.key, ctx);
-            ctx.write("]");
+            ctx.write_ascii(b']');
         } else {
             self.property_key(&node.key, ctx);
         }
         if node.definite {
-            ctx.write("!");
+            ctx.write_ascii(b'!');
         }
         if let Some(ann) = &node.type_annotation {
             self.type_annotation(ann, ctx);
         }
         if let Some(value) = &node.value {
-            ctx.write(" = ");
+            ctx.write_ascii_bytes(b" = ");
             self.print_expression(value, ctx);
         }
-        ctx.write(";");
+        ctx.write_ascii(b';');
     }
 
     fn if_statement(&mut self, node: &IfStatement, ctx: &mut Context<DIRECT>) {
         self.write_keyword(ctx, node.span().start, "if", " (");
         self.print_expression(&node.test, ctx);
-        ctx.write(") ");
+        ctx.write_ascii_bytes(b") ");
         self.print_statement(&node.consequent, ctx);
         if let Some(alternate) = &node.alternate {
             ctx.space();
@@ -2036,7 +2077,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                     if ce_line == al_line && al_col >= 4 =>
                 {
                     Self::write_source_keyword(ctx, ce_line, ce_col + 1, "else");
-                    ctx.write(" ");
+                    ctx.write_ascii(b' ');
                 }
                 _ => ctx.write("else "),
             }
@@ -2053,14 +2094,14 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         let test_start = self.offset_to_line_col(node.test.span().start);
         match (body_end, test_start) {
             (Some((be_line, be_col)), Some((t_line, t_col))) if be_line == t_line && t_col >= 6 => {
-                ctx.write(" ");
+                ctx.write_ascii(b' ');
                 Self::write_source_keyword(ctx, be_line, be_col + 1, "while");
-                ctx.write(" (");
+                ctx.write_ascii_bytes(b" (");
             }
             _ => ctx.write(" while ("),
         }
         self.print_expression(&node.test, ctx);
-        ctx.write(");");
+        ctx.write_ascii_bytes(b");");
     }
 
     fn for_statement(&mut self, node: &ForStatement, ctx: &mut Context<DIRECT>) {
@@ -2075,15 +2116,15 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 }
             }
         }
-        ctx.write("; ");
+        ctx.write_ascii_bytes(b"; ");
         if let Some(test) = &node.test {
             self.print_expression(test, ctx);
         }
-        ctx.write("; ");
+        ctx.write_ascii_bytes(b"; ");
         if let Some(update) = &node.update {
             self.print_expression(update, ctx);
         }
-        ctx.write(") ");
+        ctx.write_ascii_bytes(b") ");
         self.print_statement(&node.body, ctx);
     }
 
@@ -2104,12 +2145,12 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         let span = node.block.span();
         self.block(&node.block.body, span.start, span.end, ctx);
         if let Some(handler) = &node.handler {
-            ctx.write(" ");
+            ctx.write_ascii(b' ');
             if let Some(param) = &handler.param {
                 // esrap emits `catch(e)` with no space after the keyword.
                 self.write_keyword(ctx, handler.span().start, "catch", "(");
                 self.binding_pattern(&param.pattern, ctx);
-                ctx.write(") ");
+                ctx.write_ascii_bytes(b") ");
             } else {
                 self.write_keyword(ctx, handler.span().start, "catch", " ");
             }
@@ -2130,9 +2171,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 (Some((p_line, p_col)), Some((f_line, f_col)))
                     if p_line == f_line && f_col >= 7 =>
                 {
-                    ctx.write(" ");
+                    ctx.write_ascii(b' ');
                     Self::write_source_keyword(ctx, p_line, p_col + 1, "finally");
-                    ctx.write(" ");
+                    ctx.write_ascii(b' ');
                 }
                 _ => ctx.write(" finally "),
             }
@@ -2146,7 +2187,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     fn switch_statement(&mut self, node: &SwitchStatement, ctx: &mut Context<DIRECT>) {
         self.write_keyword(ctx, node.span().start, "switch", " (");
         self.print_expression(&node.discriminant, ctx);
-        ctx.write(") {");
+        ctx.write_ascii_bytes(b") {");
         ctx.indent();
 
         for (i, case) in node.cases.iter().enumerate() {
@@ -2158,7 +2199,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 Some(test) => {
                     self.write_keyword(ctx, case.span().start, "case", " ");
                     self.print_expression(test, ctx);
-                    ctx.write(":");
+                    ctx.write_ascii(b':');
                 }
                 None => self.write_keyword(ctx, case.span().start, "default", ":"),
             }
@@ -2172,11 +2213,11 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
 
         ctx.dedent();
         ctx.newline();
-        ctx.write("}");
+        ctx.write_ascii(b'}');
     }
 
     fn object_pattern(&mut self, node: &ObjectPattern, ctx: &mut Context<DIRECT>) {
-        ctx.write("{");
+        ctx.write_ascii(b'{');
         let property_len = node.properties.len();
         let n = property_len + usize::from(node.rest.is_some());
         self.sequence_indexed(
@@ -2204,7 +2245,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                     let rest = node.rest.as_ref().unwrap();
                     let span = rest.span();
                     p.flush_leading(child, span.start);
-                    child.write("...");
+                    child.write_ascii_bytes(b"...");
                     p.binding_pattern(&rest.argument, child);
                 }
             },
@@ -2214,7 +2255,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             true,
             ctx,
         );
-        ctx.write("}");
+        ctx.write_ascii(b'}');
     }
 
     fn binding_property(&mut self, node: &BindingProperty, ctx: &mut Context<DIRECT>) {
@@ -2223,18 +2264,18 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             return;
         }
         if node.computed {
-            ctx.write("[");
+            ctx.write_ascii(b'[');
             self.property_key(&node.key, ctx);
-            ctx.write("]: ");
+            ctx.write_ascii_bytes(b"]: ");
         } else {
             self.property_key(&node.key, ctx);
-            ctx.write(": ");
+            ctx.write_ascii_bytes(b": ");
         }
         self.binding_pattern(&node.value, ctx);
     }
 
     fn array_pattern(&mut self, node: &ArrayPattern, ctx: &mut Context<DIRECT>) {
-        ctx.write("[");
+        ctx.write_ascii(b'[');
         let element_len = node.elements.len();
         let n = element_len + usize::from(node.rest.is_some());
         self.sequence_indexed(
@@ -2265,7 +2306,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                     }
                 } else {
                     let rest = node.rest.as_ref().unwrap();
-                    child.write("...");
+                    child.write_ascii_bytes(b"...");
                     p.binding_pattern(&rest.argument, child);
                 }
             },
@@ -2275,7 +2316,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             true,
             ctx,
         );
-        ctx.write("]");
+        ctx.write_ascii(b']');
     }
 
     /// Parameter list via esrap's `sequence` (no padding): `a, b, ...rest`.
@@ -2315,7 +2356,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             |p, i, child| {
                 if i < this_len {
                     let tp = this_param.unwrap();
-                    child.write("this");
+                    child.write_ascii_bytes(b"this");
                     if let Some(ann) = &tp.type_annotation {
                         p.type_annotation(ann, child);
                     }
@@ -2323,7 +2364,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                     let param = &params.items[i - this_len];
                     if let Some(acc) = &param.accessibility {
                         child.write(accessibility_str(*acc));
-                        child.write(" ");
+                        child.write_ascii(b' ');
                     }
                     if param.readonly {
                         child.write("readonly ");
@@ -2333,18 +2374,18 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                     }
                     p.binding_pattern(&param.pattern, child);
                     if param.optional {
-                        child.write("?");
+                        child.write_ascii(b'?');
                     }
                     if let Some(ann) = &param.type_annotation {
                         p.type_annotation(ann, child);
                     }
                     if let Some(init) = &param.initializer {
-                        child.write(" = ");
+                        child.write_ascii_bytes(b" = ");
                         p.print_expression(init, child);
                     }
                 } else {
                     let rest = params.rest.as_ref().unwrap();
-                    child.write("...");
+                    child.write_ascii_bytes(b"...");
                     p.binding_pattern(&rest.rest.argument, child);
                     if let Some(ann) = &rest.type_annotation {
                         p.type_annotation(ann, child);
@@ -2368,13 +2409,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if let Some(tp) = &node.type_parameters {
             self.type_parameter_declaration(tp, ctx);
         }
-        ctx.write("(");
+        ctx.write_ascii(b'(');
         self.formal_parameters(&node.params, ctx);
-        ctx.write(")");
+        ctx.write_ascii(b')');
         if let Some(rt) = &node.return_type {
             self.type_annotation(rt, ctx);
         }
-        ctx.write(" => ");
+        ctx.write_ascii_bytes(b" => ");
         if let ArrowFunctionBody::FunctionBody(body) = &node.body {
             let span = body.span();
             self.block(&body.statements, span.start, span.end, ctx);
@@ -2383,9 +2424,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 return;
             };
             if arrow_concise_body_needs_wrap(body) {
-                ctx.write("(");
+                ctx.write_ascii(b'(');
                 self.print_expression(body, ctx);
-                ctx.write(")");
+                ctx.write_ascii(b')');
             } else {
                 self.print_expression(body, ctx);
             }
@@ -2408,21 +2449,21 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                     || !matches!(statement, Statement::EmptyStatement(empty) if empty.span.end != u32::MAX)
             });
             if !has_content {
-                ctx.write("{}");
+                ctx.write_ascii_bytes(b"{}");
                 return;
             }
 
-            ctx.write("{");
+            ctx.write_ascii(b'{');
             ctx.indent();
             ctx.newline();
             self.body(body, body_start, body_end, ctx);
             ctx.dedent();
             ctx.newline();
-            ctx.write("}");
+            ctx.write_ascii(b'}');
             return;
         }
 
-        ctx.write("{");
+        ctx.write_ascii(b'{');
         let mark = ctx.event_mark();
         let scope = ctx.begin_scope();
         self.body(body, body_start, body_end, ctx);
@@ -2435,7 +2476,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             ctx.dedent();
             ctx.newline();
         }
-        ctx.write("}");
+        ctx.write_ascii(b'}');
     }
 
     /// esrap's `handle_var_declaration` (not the generic `sequence`): break the
@@ -2463,13 +2504,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             self.flush_leading(ctx, declarator.span().start);
             self.binding_pattern(&declarator.id, ctx);
             if declarator.definite {
-                ctx.write("!");
+                ctx.write_ascii(b'!');
             }
             if let Some(ann) = &declarator.type_annotation {
                 self.type_annotation(ann, ctx);
             }
             if let Some(init) = &declarator.init {
-                ctx.write(" = ");
+                ctx.write_ascii_bytes(b" = ");
                 self.print_expression(init, ctx);
             }
             return;
@@ -2482,9 +2523,12 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         let mut any_multiline = false;
         let first = ctx.event_mark();
         let mut separators = Vec::with_capacity(n.saturating_sub(1));
+        if DIRECT && n > 1 {
+            ctx.indent();
+        }
         for (index, declarator) in decl.declarations.iter().enumerate() {
             if index > 0 {
-                ctx.write(",");
+                ctx.write_ascii(b',');
                 separators.push(ctx.event_mark());
             }
             let scope = ctx.begin_scope();
@@ -2492,13 +2536,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             self.flush_leading(ctx, start);
             self.binding_pattern(&declarator.id, ctx);
             if declarator.definite {
-                ctx.write("!");
+                ctx.write_ascii(b'!');
             }
             if let Some(ann) = &declarator.type_annotation {
                 self.type_annotation(ann, ctx);
             }
             if let Some(init) = &declarator.init {
-                ctx.write(" = ");
+                ctx.write_ascii_bytes(b" = ");
                 self.print_expression(init, ctx);
             }
             total_measure += ctx.measure();
@@ -2512,7 +2556,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             for separator in separators.into_iter().rev() {
                 ctx.insert_event(separator, EventKind::Newline);
             }
-            if n > 1 {
+            if n > 1 && !DIRECT {
                 ctx.insert_event(first, EventKind::Indent);
             }
             if n > 1 {
@@ -2520,6 +2564,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             }
             ctx.multiline = true;
         } else {
+            if DIRECT && n > 1 {
+                ctx.dedent();
+            }
             for separator in separators.into_iter().rev() {
                 ctx.insert_event(separator, EventKind::Space);
             }
@@ -2531,7 +2578,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             BindingPattern::BindingIdentifier(id) => ctx.write(id.name.as_str()),
             BindingPattern::AssignmentPattern(a) => {
                 self.binding_pattern(&a.left, ctx);
-                ctx.write(" = ");
+                ctx.write_ascii_bytes(b" = ");
                 self.print_expression(&a.right, ctx);
             }
             BindingPattern::ObjectPattern(o) => self.object_pattern(o, ctx),
@@ -2575,9 +2622,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 ChainElement::TSNonNullExpression(_) => self.unsupported("ChainElement", ctx),
             },
             Expression::Identifier(id) => ctx.write(id.name.as_str()),
-            Expression::ThisExpression(_) => ctx.write("this"),
+            Expression::ThisExpression(_) => ctx.write_ascii_bytes(b"this"),
             Expression::BooleanLiteral(b) => ctx.write(if b.value { "true" } else { "false" }),
-            Expression::NullLiteral(_) => ctx.write("null"),
+            Expression::NullLiteral(_) => ctx.write_ascii_bytes(b"null"),
             Expression::NumericLiteral(n) => ctx.write(literal_raw(
                 n.raw.as_ref().map(oxc_ast::ast::Str::as_str),
                 || format_compact!("{}", n.value),
@@ -2604,17 +2651,17 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             Expression::PrivateFieldExpression(m) => {
                 self.child_with_parens(&m.object, 19, ctx);
                 ctx.write(if m.optional { "?." } else { "." });
-                ctx.write("#");
+                ctx.write_ascii(b'#');
                 ctx.write(m.field.name.as_str());
             }
             Expression::ImportMeta(_) => {
                 ctx.write("import");
-                ctx.write(".");
-                ctx.write("meta");
+                ctx.write_ascii(b'.');
+                ctx.write_ascii_bytes(b"meta");
             }
             Expression::NewTarget(_) => {
-                ctx.write("new");
-                ctx.write(".");
+                ctx.write_ascii_bytes(b"new");
+                ctx.write_ascii(b'.');
                 ctx.write("target");
             }
             Expression::AwaitExpression(a) => {
@@ -2625,7 +2672,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 if expr_precedence(&a.argument) < 17 {
                     self.write_keyword(ctx, start, "await", " (");
                     self.print_expression(&a.argument, ctx);
-                    ctx.write(")");
+                    ctx.write_ascii(b')');
                 } else {
                     self.write_keyword(ctx, start, "await", " ");
                     self.print_expression(&a.argument, ctx);
@@ -2635,7 +2682,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             Expression::YieldExpression(y) => {
                 ctx.write(if y.delegate { "yield*" } else { "yield" });
                 if let Some(arg) = &y.argument {
-                    ctx.write(" ");
+                    ctx.write_ascii(b' ');
                     self.print_expression(arg, ctx);
                 }
             }
@@ -2652,7 +2699,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 self.template_literal(&t.quasi, ctx);
             }
             Expression::NewExpression(n) => {
-                ctx.write("new ");
+                ctx.write_ascii_bytes(b"new ");
                 // `new` binds tighter than a call, so a callee whose member-spine
                 // contains a CallExpression (`$.get(x).Member`) — or a
                 // ChainExpression — must be parenthesized, else `new a().b(c)`
@@ -2662,9 +2709,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 if matches!(callee, Expression::ChainExpression(_))
                     || callee_has_call_expression(callee)
                 {
-                    ctx.write("(");
+                    ctx.write_ascii(b'(');
                     self.print_expression(&n.callee, ctx);
-                    ctx.write(")");
+                    ctx.write_ascii(b')');
                 } else {
                     self.child_with_parens(&n.callee, 19, ctx);
                 }
@@ -2686,14 +2733,14 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 ctx.write("import(");
                 self.print_expression(&n.source, ctx);
                 if let Some(options) = &n.options {
-                    ctx.write(", ");
+                    ctx.write_ascii_bytes(b", ");
                     self.print_expression(options, ctx);
                 }
-                ctx.write(")");
+                ctx.write_ascii(b')');
             }
             Expression::TSAsExpression(e) => {
                 self.child_with_parens(&e.expression, 13, ctx);
-                ctx.write(" as ");
+                ctx.write_ascii_bytes(b" as ");
                 self.print_type(&e.type_annotation, ctx);
             }
             Expression::TSSatisfiesExpression(e) => {
@@ -2703,12 +2750,12 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             }
             Expression::TSNonNullExpression(e) => {
                 self.child_with_parens(&e.expression, 18, ctx);
-                ctx.write("!");
+                ctx.write_ascii(b'!');
             }
             Expression::TSTypeAssertion(e) => {
-                ctx.write("<");
+                ctx.write_ascii(b'<');
                 self.print_type(&e.type_annotation, ctx);
-                ctx.write(">");
+                ctx.write_ascii(b'>');
                 self.child_with_parens(&e.expression, 18, ctx);
             }
             Expression::TSInstantiationExpression(e) => {
@@ -2736,14 +2783,14 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             ctx.dedent();
         }
         if let Some(closing) = &node.closing_element {
-            ctx.write("</");
+            ctx.write_ascii_bytes(b"</");
             Self::jsx_element_name(&closing.name, ctx);
-            ctx.write(">");
+            ctx.write_ascii(b'>');
         }
     }
 
     fn jsx_fragment(&mut self, node: &JSXFragment, ctx: &mut Context<DIRECT>) {
-        ctx.write("<>");
+        ctx.write_ascii_bytes(b"<>");
         if !node.children.is_empty() {
             ctx.indent();
         }
@@ -2753,7 +2800,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if !node.children.is_empty() {
             ctx.dedent();
         }
-        ctx.write("</>");
+        ctx.write_ascii_bytes(b"</>");
     }
 
     fn jsx_opening_element(
@@ -2762,32 +2809,32 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         self_closing: bool,
         ctx: &mut Context<DIRECT>,
     ) {
-        ctx.write("<");
+        ctx.write_ascii(b'<');
         Self::jsx_element_name(&node.name, ctx);
         if let Some(type_args) = &node.type_arguments {
             self.type_parameter_instantiation(type_args, ctx);
         }
         for attr in &node.attributes {
-            ctx.write(" ");
+            ctx.write_ascii(b' ');
             match attr {
                 JSXAttributeItem::Attribute(a) => {
                     Self::jsx_attribute_name(&a.name, ctx);
                     if let Some(value) = &a.value {
-                        ctx.write("=");
+                        ctx.write_ascii(b'=');
                         self.jsx_attribute_value(value, ctx);
                     }
                 }
                 JSXAttributeItem::SpreadAttribute(s) => {
-                    ctx.write("{...");
+                    ctx.write_ascii_bytes(b"{...");
                     self.print_expression(&s.argument, ctx);
-                    ctx.write("}");
+                    ctx.write_ascii(b'}');
                 }
             }
         }
         if self_closing {
-            ctx.write(" /");
+            ctx.write_ascii_bytes(b" /");
         }
-        ctx.write(">");
+        ctx.write_ascii(b'>');
     }
 
     fn jsx_child(&mut self, child: &JSXChild, ctx: &mut Context<DIRECT>) {
@@ -2797,9 +2844,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             JSXChild::Fragment(f) => self.jsx_fragment(f, ctx),
             JSXChild::ExpressionContainer(c) => self.jsx_expression_container(c, ctx),
             JSXChild::Spread(s) => {
-                ctx.write("{...");
+                ctx.write_ascii_bytes(b"{...");
                 self.print_expression(&s.expression, ctx);
-                ctx.write("}");
+                ctx.write_ascii(b'}');
             }
         }
     }
@@ -2809,12 +2856,12 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         node: &JSXExpressionContainer,
         ctx: &mut Context<DIRECT>,
     ) {
-        ctx.write("{");
+        ctx.write_ascii(b'{');
         // A `JSXEmptyExpression` (e.g. `{}` or `{/* comment */}`) prints nothing.
         if let Some(expr) = node.expression.as_expression() {
             self.print_expression(expr, ctx);
         }
-        ctx.write("}");
+        ctx.write_ascii(b'}');
     }
 
     fn jsx_attribute_value(&mut self, value: &JSXAttributeValue, ctx: &mut Context<DIRECT>) {
@@ -2831,7 +2878,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             JSXAttributeName::Identifier(id) => ctx.write(id.name.as_str()),
             JSXAttributeName::NamespacedName(n) => {
                 ctx.write(n.namespace.name.as_str());
-                ctx.write(":");
+                ctx.write_ascii(b':');
                 ctx.write(n.name.name.as_str());
             }
         }
@@ -2843,11 +2890,11 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             JSXElementName::IdentifierReference(id) => ctx.write(id.name.as_str()),
             JSXElementName::NamespacedName(n) => {
                 ctx.write(n.namespace.name.as_str());
-                ctx.write(":");
+                ctx.write_ascii(b':');
                 ctx.write(n.name.name.as_str());
             }
             JSXElementName::MemberExpression(m) => Self::jsx_member_expression(m, ctx),
-            JSXElementName::ThisExpression(_) => ctx.write("this"),
+            JSXElementName::ThisExpression(_) => ctx.write_ascii_bytes(b"this"),
         }
     }
 
@@ -2855,9 +2902,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         match &node.object {
             JSXMemberExpressionObject::IdentifierReference(id) => ctx.write(id.name.as_str()),
             JSXMemberExpressionObject::MemberExpression(m) => Self::jsx_member_expression(m, ctx),
-            JSXMemberExpressionObject::ThisExpression(_) => ctx.write("this"),
+            JSXMemberExpressionObject::ThisExpression(_) => ctx.write_ascii_bytes(b"this"),
         }
-        ctx.write(".");
+        ctx.write_ascii(b'.');
         ctx.write(node.property.name.as_str());
     }
 
@@ -2874,9 +2921,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         // `print_expression` would then drop — look through it as the callee
         // rule does, so the required parens are not lost.
         if matches!(unparen(object), Expression::ChainExpression(_)) {
-            ctx.write("(");
+            ctx.write_ascii(b'(');
             self.print_expression(unparen(object), ctx);
-            ctx.write(")");
+            ctx.write_ascii(b')');
         } else {
             self.child_with_parens(object, 19, ctx);
         }
@@ -2885,9 +2932,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     /// Print `child` parenthesised iff its precedence is below `min`.
     fn child_with_parens(&mut self, child: &Expression, min: u8, ctx: &mut Context<DIRECT>) {
         if expr_precedence(child) < min {
-            ctx.write("(");
+            ctx.write_ascii(b'(');
             self.print_expression(child, ctx);
-            ctx.write(")");
+            ctx.write_ascii(b')');
         } else {
             self.print_expression(child, ctx);
         }
@@ -2896,18 +2943,18 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     fn binary_expression(&mut self, node: &BinaryExpression, ctx: &mut Context<DIRECT>) {
         let op = node.operator.as_str();
         self.binary_child(&node.left, false, op, false, ctx);
-        ctx.write(" ");
+        ctx.write_ascii(b' ');
         ctx.write(op);
-        ctx.write(" ");
+        ctx.write_ascii(b' ');
         self.binary_child(&node.right, false, op, true, ctx);
     }
 
     fn logical_expression(&mut self, node: &LogicalExpression, ctx: &mut Context<DIRECT>) {
         let op = node.operator.as_str();
         self.binary_child(&node.left, true, op, false, ctx);
-        ctx.write(" ");
+        ctx.write_ascii(b' ');
         ctx.write(op);
-        ctx.write(" ");
+        ctx.write_ascii(b' ');
         self.binary_child(&node.right, true, op, true, ctx);
     }
 
@@ -2923,9 +2970,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         ctx: &mut Context<DIRECT>,
     ) {
         if binary_needs_parens(child, parent_is_logical, parent_op, is_right) {
-            ctx.write("(");
+            ctx.write_ascii(b'(');
             self.print_expression(child, ctx);
-            ctx.write(")");
+            ctx.write_ascii(b')');
         } else {
             self.print_expression(child, ctx);
         }
@@ -2939,7 +2986,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             UnaryOperator::Typeof | UnaryOperator::Void | UnaryOperator::Delete
         ) {
             ctx.write(op);
-            ctx.write(" ");
+            ctx.write_ascii(b' ');
         } else {
             ctx.write(op);
         }
@@ -2954,14 +3001,14 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         // precedence path (`< 19`) does not catch this because a ChainExpression
         // has the same precedence (19) as a call.
         if matches!(unparen(&node.callee), Expression::ChainExpression(_)) {
-            ctx.write("(");
+            ctx.write_ascii(b'(');
             self.print_expression(unparen(&node.callee), ctx);
-            ctx.write(")");
+            ctx.write_ascii(b')');
         } else {
             self.child_with_parens(&node.callee, 19, ctx);
         }
         if node.optional {
-            ctx.write("?.");
+            ctx.write_ascii_bytes(b"?.");
         }
         self.call_arguments(&node.arguments, node.span().end, ctx);
     }
@@ -2975,19 +3022,19 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     fn computed_member(&mut self, node: &ComputedMemberExpression, ctx: &mut Context<DIRECT>) {
         self.member_object_with_parens(&node.object, ctx);
         if node.optional {
-            ctx.write("?.");
+            ctx.write_ascii_bytes(b"?.");
         }
-        ctx.write("[");
+        ctx.write_ascii(b'[');
         self.print_expression(&node.expression, ctx);
-        ctx.write("]");
+        ctx.write_ascii(b']');
     }
 
     fn assignment_expression(&mut self, node: &AssignmentExpression, ctx: &mut Context<DIRECT>) {
         // esrap visits both sides without adding parens.
         self.assignment_target(&node.left, ctx);
-        ctx.write(" ");
+        ctx.write_ascii(b' ');
         ctx.write(node.operator.as_str());
-        ctx.write(" ");
+        ctx.write_ascii(b' ');
         self.print_expression(&node.right, ctx);
     }
 
@@ -3005,7 +3052,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             SimpleAssignmentTarget::PrivateFieldExpression(m) => {
                 self.child_with_parens(&m.object, 19, ctx);
                 ctx.write(if m.optional { "?." } else { "." });
-                ctx.write("#");
+                ctx.write_ascii(b'#');
                 ctx.write(m.field.name.as_str());
             }
             _ => self.unsupported("SimpleAssignmentTarget", ctx),
@@ -3020,11 +3067,11 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             AssignmentTarget::PrivateFieldExpression(m) => {
                 self.child_with_parens(&m.object, 19, ctx);
                 ctx.write(if m.optional { "?." } else { "." });
-                ctx.write("#");
+                ctx.write_ascii(b'#');
                 ctx.write(m.field.name.as_str());
             }
             AssignmentTarget::ArrayAssignmentTarget(a) => {
-                ctx.write("[");
+                ctx.write_ascii(b'[');
                 let element_len = a.elements.len();
                 let n = element_len + usize::from(a.rest.is_some());
                 self.sequence_indexed(
@@ -3055,7 +3102,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                             }
                         } else {
                             let rest = a.rest.as_ref().unwrap();
-                            child.write("...");
+                            child.write_ascii_bytes(b"...");
                             p.assignment_target(&rest.target, child);
                         }
                     },
@@ -3065,10 +3112,10 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                     true,
                     ctx,
                 );
-                ctx.write("]");
+                ctx.write_ascii(b']');
             }
             AssignmentTarget::ObjectAssignmentTarget(o) => {
-                ctx.write("{");
+                ctx.write_ascii(b'{');
                 let property_len = o.properties.len();
                 let n = property_len + usize::from(o.rest.is_some());
                 self.sequence_indexed(
@@ -3091,7 +3138,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                             p.assignment_target_property(&o.properties[i], child);
                         } else {
                             let rest = o.rest.as_ref().unwrap();
-                            child.write("...");
+                            child.write_ascii_bytes(b"...");
                             p.assignment_target(&rest.target, child);
                         }
                     },
@@ -3101,7 +3148,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                     true,
                     ctx,
                 );
-                ctx.write("}");
+                ctx.write_ascii(b'}');
             }
             _ => self.unsupported("AssignmentTarget", ctx),
         }
@@ -3115,7 +3162,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         match target {
             AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(d) => {
                 self.assignment_target(&d.binding, ctx);
-                ctx.write(" = ");
+                ctx.write_ascii_bytes(b" = ");
                 self.print_expression(&d.init, ctx);
             }
             _ => match target.as_assignment_target() {
@@ -3134,18 +3181,18 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(p) => {
                 ctx.write(p.binding.name.as_str());
                 if let Some(init) = &p.init {
-                    ctx.write(" = ");
+                    ctx.write_ascii_bytes(b" = ");
                     self.print_expression(init, ctx);
                 }
             }
             AssignmentTargetProperty::AssignmentTargetPropertyProperty(p) => {
                 if p.computed {
-                    ctx.write("[");
+                    ctx.write_ascii(b'[');
                     self.property_key(&p.name, ctx);
-                    ctx.write("]: ");
+                    ctx.write_ascii_bytes(b"]: ");
                 } else {
                     self.property_key(&p.name, ctx);
-                    ctx.write(": ");
+                    ctx.write_ascii_bytes(b": ");
                 }
                 self.assignment_target_maybe_default(&p.binding, ctx);
             }
@@ -3173,22 +3220,22 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if multiline {
             ctx.indent();
             ctx.newline();
-            ctx.write("? ");
+            ctx.write_ascii_bytes(b"? ");
             ctx.append(consequent);
             ctx.newline();
-            ctx.write(": ");
+            ctx.write_ascii_bytes(b": ");
             ctx.append(alternate);
             ctx.dedent();
         } else {
-            ctx.write(" ? ");
+            ctx.write_ascii_bytes(b" ? ");
             ctx.append(consequent);
-            ctx.write(" : ");
+            ctx.write_ascii_bytes(b" : ");
             ctx.append(alternate);
         }
     }
 
     fn array_expression(&mut self, node: &ArrayExpression, ctx: &mut Context<DIRECT>) {
-        ctx.write("[");
+        ctx.write_ascii(b'[');
         self.sequence_slice(
             &node.elements,
             |el| {
@@ -3202,7 +3249,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             },
             |p, el, child| match el {
                 ArrayExpressionElement::SpreadElement(s) => {
-                    child.write("...");
+                    child.write_ascii_bytes(b"...");
                     p.print_expression(&s.argument, child);
                 }
                 ArrayExpressionElement::Elision(_) => {}
@@ -3218,13 +3265,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             true,
             ctx,
         );
-        ctx.write("]");
+        ctx.write_ascii(b']');
     }
 
     /// esrap always parenthesizes a sequence expression (`(a, b)`), laying the
     /// comma list out with the shared `sequence` machinery.
     fn sequence_expression(&mut self, node: &SequenceExpression, ctx: &mut Context<DIRECT>) {
-        ctx.write("(");
+        ctx.write_ascii(b'(');
         self.sequence_slice(
             &node.expressions,
             |e| {
@@ -3243,11 +3290,11 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             true,
             ctx,
         );
-        ctx.write(")");
+        ctx.write_ascii(b')');
     }
 
     fn object_expression(&mut self, node: &ObjectExpression, ctx: &mut Context<DIRECT>) {
-        ctx.write("{");
+        ctx.write_ascii(b'{');
         self.sequence_slice(
             &node.properties,
             |prop| {
@@ -3270,7 +3317,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 match prop {
                     ObjectPropertyKind::ObjectProperty(prop) => p.object_property(prop, child),
                     ObjectPropertyKind::SpreadProperty(s) => {
-                        child.write("...");
+                        child.write_ascii_bytes(b"...");
                         p.print_expression(&s.argument, child);
                     }
                 }
@@ -3281,7 +3328,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             true,
             ctx,
         );
-        ctx.write("}");
+        ctx.write_ascii(b'}');
     }
 
     fn object_property(&mut self, prop: &ObjectProperty, ctx: &mut Context<DIRECT>) {
@@ -3301,43 +3348,43 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         // string-keyed function property prints as `"k"() {}`, not `"k": function`.
         if let Expression::FunctionExpression(f) = &prop.value {
             match prop.kind {
-                PropertyKind::Get => ctx.write("get "),
-                PropertyKind::Set => ctx.write("set "),
+                PropertyKind::Get => ctx.write_ascii_bytes(b"get "),
+                PropertyKind::Set => ctx.write_ascii_bytes(b"set "),
                 PropertyKind::Init => {}
             }
             if f.r#async {
                 ctx.write("async ");
             }
             if f.generator {
-                ctx.write("*");
+                ctx.write_ascii(b'*');
             }
             if prop.computed {
-                ctx.write("[");
+                ctx.write_ascii(b'[');
                 self.property_key(&prop.key, ctx);
-                ctx.write("]");
+                ctx.write_ascii(b']');
             } else {
                 self.property_key(&prop.key, ctx);
             }
-            ctx.write("(");
+            ctx.write_ascii(b'(');
             self.formal_parameters(&f.params, ctx);
-            ctx.write(")");
-            ctx.write(" ");
+            ctx.write_ascii(b')');
+            ctx.write_ascii(b' ');
             match &f.body {
                 Some(body) => {
                     let span = body.span();
                     self.block(&body.statements, span.start, span.end, ctx);
                 }
-                None => ctx.write("{}"),
+                None => ctx.write_ascii_bytes(b"{}"),
             }
             return;
         }
         if prop.computed {
-            ctx.write("[");
+            ctx.write_ascii(b'[');
             self.property_key(&prop.key, ctx);
-            ctx.write("]: ");
+            ctx.write_ascii_bytes(b"]: ");
         } else {
             self.property_key(&prop.key, ctx);
-            ctx.write(": ");
+            ctx.write_ascii_bytes(b": ");
         }
         self.print_expression(&prop.value, ctx);
     }
@@ -3346,7 +3393,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         match key {
             PropertyKey::StaticIdentifier(id) => ctx.write(id.name.as_str()),
             PropertyKey::PrivateIdentifier(id) => {
-                ctx.write("#");
+                ctx.write_ascii(b'#');
                 ctx.write(id.name.as_str());
             }
             PropertyKey::StringLiteral(s) => ctx.write(Self::string_literal(s)),
@@ -3373,7 +3420,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     fn print_argument(&mut self, arg: &Argument, ctx: &mut Context<DIRECT>) {
         match arg {
             Argument::SpreadElement(spread) => {
-                ctx.write("...");
+                ctx.write_ascii_bytes(b"...");
                 self.print_expression(&spread.argument, ctx);
             }
             _ => match arg.as_expression() {
@@ -3394,7 +3441,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         let scope = ctx.begin_scope();
         self.print_argument(arg, ctx);
         if comma {
-            ctx.write(",");
+            ctx.write_ascii(b',');
         }
         let emitted_line = self.flush_trailing_comments(ctx, arg.span().end, next);
         ctx.end_scope(scope) || (comma && emitted_line)
@@ -3410,70 +3457,103 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         let scope = ctx.begin_scope();
         self.print_argument(arg, ctx);
         if comma {
-            ctx.write(",");
+            ctx.write_ascii(b',');
         }
         ctx.end_scope(scope)
     }
 
     fn call_arguments_plain(&mut self, args: &[Argument], ctx: &mut Context<DIRECT>) {
         match args {
-            [] => ctx.write("()"),
+            [] => ctx.write_ascii_bytes(b"()"),
             [arg] => {
-                ctx.write("(");
+                ctx.write_ascii(b'(');
                 self.print_argument(arg, ctx);
-                ctx.write(")");
+                ctx.write_ascii(b')');
             }
             [first, last] => {
-                ctx.write("(");
+                ctx.write_ascii(b'(');
                 let start = ctx.event_mark();
+                if DIRECT {
+                    ctx.indent();
+                }
                 let multiline = self.call_argument_plain(first, true, ctx);
-                let separator = ctx.event_mark();
-                ctx.space();
+                if DIRECT && !multiline {
+                    ctx.dedent();
+                }
+                let separator = ctx.retro_space_mark();
                 self.print_argument(last, ctx);
                 if multiline {
                     ctx.insert_event(separator, EventKind::Newline);
                     ctx.insert_event(start, EventKind::Newline);
-                    ctx.insert_event(start, EventKind::Indent);
+                    if !DIRECT {
+                        ctx.insert_event(start, EventKind::Indent);
+                    }
                     ctx.dedent();
                     ctx.newline();
                 }
-                ctx.write(")");
+                ctx.write_ascii(b')');
             }
             [first, second, last] => {
-                ctx.write("(");
+                ctx.write_ascii(b'(');
                 let start = ctx.event_mark();
+                if DIRECT {
+                    ctx.indent();
+                }
                 let first_multiline = self.call_argument_plain(first, true, ctx);
-                let first_separator = ctx.event_mark();
-                ctx.space();
+                if DIRECT && !first_multiline {
+                    ctx.dedent();
+                }
+                let first_separator = ctx.retro_space_mark();
+                if DIRECT && !first_multiline {
+                    ctx.indent();
+                }
                 let second_multiline = self.call_argument_plain(second, true, ctx);
-                let second_separator = ctx.event_mark();
-                ctx.space();
+                let multiline = first_multiline || second_multiline;
+                if DIRECT && !multiline {
+                    ctx.dedent();
+                }
+                let second_separator = ctx.retro_space_mark();
                 self.print_argument(last, ctx);
-                if first_multiline || second_multiline {
+                if multiline {
                     ctx.insert_event(second_separator, EventKind::Newline);
                     ctx.insert_event(first_separator, EventKind::Newline);
                     ctx.insert_event(start, EventKind::Newline);
-                    ctx.insert_event(start, EventKind::Indent);
+                    if !DIRECT {
+                        ctx.insert_event(start, EventKind::Indent);
+                    }
                     ctx.dedent();
                     ctx.newline();
                 }
-                ctx.write(")");
+                ctx.write_ascii(b')');
             }
             _ => {
-                ctx.write("(");
+                ctx.write_ascii(b'(');
                 let start = ctx.event_mark();
                 let mut separators = Vec::with_capacity(args.len() - 1);
                 let mut multiline = false;
+                let mut direct_indent = false;
                 for (i, arg) in args.iter().enumerate() {
                     let is_last = i == args.len() - 1;
                     if i > 0 {
-                        separators.push(ctx.event_mark());
-                        ctx.space();
+                        separators.push(ctx.retro_space_mark());
                     }
                     if is_last {
+                        if DIRECT && direct_indent && !multiline {
+                            ctx.dedent();
+                            direct_indent = false;
+                        }
                         self.print_argument(arg, ctx);
                     } else {
-                        multiline |= self.call_argument_plain(arg, true, ctx);
+                        if DIRECT && !direct_indent {
+                            ctx.indent();
+                            direct_indent = true;
+                        }
+                        let item_multiline = self.call_argument_plain(arg, true, ctx);
+                        multiline |= item_multiline;
+                        if DIRECT && !multiline {
+                            ctx.dedent();
+                            direct_indent = false;
+                        }
                     }
                 }
                 if multiline {
@@ -3481,11 +3561,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                         ctx.insert_event(separator, EventKind::Newline);
                     }
                     ctx.insert_event(start, EventKind::Newline);
-                    ctx.insert_event(start, EventKind::Indent);
+                    if !DIRECT {
+                        ctx.insert_event(start, EventKind::Indent);
+                    }
                     ctx.dedent();
                     ctx.newline();
                 }
-                ctx.write(")");
+                ctx.write_ascii(b')');
             }
         }
     }
@@ -3507,7 +3589,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 .get(self.comment_index)
                 .is_some_and(|c| c.start < arg_start && c.start_line < self.line_of(arg_start));
 
-            ctx.write("(");
+            ctx.write_ascii(b'(');
             if wrap {
                 ctx.indent();
                 ctx.newline();
@@ -3518,7 +3600,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 ctx.dedent();
                 ctx.newline();
             }
-            ctx.write(")");
+            ctx.write_ascii(b')');
             return;
         }
 
@@ -3530,7 +3612,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 c.start < second_start && c.start_line < self.line_of(second_start)
             });
 
-            ctx.write("(");
+            ctx.write_ascii(b'(');
             let start = ctx.event_mark();
             let first_multiline =
                 self.call_argument_direct(first, Some(second.span().start), true, ctx);
@@ -3545,7 +3627,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 ctx.dedent();
                 ctx.newline();
             }
-            ctx.write(")");
+            ctx.write_ascii(b')');
             return;
         }
 
@@ -3557,7 +3639,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 .comments
                 .get(self.comment_index)
                 .is_some_and(|c| c.start < last_start && c.start_line < self.line_of(last_start));
-            ctx.write("(");
+            ctx.write_ascii(b'(');
             let start = ctx.event_mark();
             let first_multiline =
                 self.call_argument_direct(first, Some(second.span().start), true, ctx);
@@ -3577,16 +3659,16 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 ctx.dedent();
                 ctx.newline();
             }
-            ctx.write(")");
+            ctx.write_ascii(b')');
             return;
         }
 
         if args.is_empty() {
-            ctx.write("()");
+            ctx.write_ascii_bytes(b"()");
             return;
         }
 
-        ctx.write("(");
+        ctx.write_ascii(b'(');
         let start = ctx.event_mark();
         let mut separators = Vec::with_capacity(n - 1);
         let mut force_multiline = false;
@@ -3627,14 +3709,14 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             ctx.dedent();
             ctx.newline();
         }
-        ctx.write(")");
+        ctx.write_ascii(b')');
     }
 
     // ----- TypeScript types -------------------------------------------------
 
     /// esrap's `TSTypeAnnotation`: `: ` + the type.
     fn type_annotation(&mut self, node: &TSTypeAnnotation, ctx: &mut Context<DIRECT>) {
-        ctx.write(": ");
+        ctx.write_ascii_bytes(b": ");
         self.print_type(&node.type_annotation, ctx);
     }
 
@@ -3644,14 +3726,14 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         node: &TSTypeParameterInstantiation,
         ctx: &mut Context<DIRECT>,
     ) {
-        ctx.write("<");
+        ctx.write_ascii(b'<');
         for (i, p) in node.params.iter().enumerate() {
             if i > 0 {
-                ctx.write(", ");
+                ctx.write_ascii_bytes(b", ");
             }
             self.print_type(p, ctx);
         }
-        ctx.write(">");
+        ctx.write_ascii(b'>');
     }
 
     /// esrap's `TSTypeParameterDeclaration`: `<T, U extends V = W>`.
@@ -3660,14 +3742,14 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         node: &TSTypeParameterDeclaration,
         ctx: &mut Context<DIRECT>,
     ) {
-        ctx.write("<");
+        ctx.write_ascii(b'<');
         for (i, p) in node.params.iter().enumerate() {
             if i > 0 {
-                ctx.write(", ");
+                ctx.write_ascii_bytes(b", ");
             }
             self.type_parameter(p, ctx);
         }
-        ctx.write(">");
+        ctx.write_ascii(b'>');
     }
 
     fn type_parameter(&mut self, node: &TSTypeParameter, ctx: &mut Context<DIRECT>) {
@@ -3677,7 +3759,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             self.print_type(constraint, ctx);
         }
         if let Some(default) = &node.default {
-            ctx.write(" = ");
+            ctx.write_ascii_bytes(b" = ");
             self.print_type(default, ctx);
         }
     }
@@ -3688,10 +3770,10 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             TSTypeName::IdentifierReference(id) => ctx.write(id.name.as_str()),
             TSTypeName::QualifiedName(q) => {
                 Self::print_type_name(&q.left, ctx);
-                ctx.write(".");
+                ctx.write_ascii(b'.');
                 ctx.write(q.right.name.as_str());
             }
-            TSTypeName::ThisExpression(_) => ctx.write("this"),
+            TSTypeName::ThisExpression(_) => ctx.write_ascii_bytes(b"this"),
         }
     }
 
@@ -3699,28 +3781,28 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     #[allow(clippy::too_many_lines)]
     fn print_type(&mut self, ty: &TSType, ctx: &mut Context<DIRECT>) {
         match ty {
-            TSType::TSAnyKeyword(_) => ctx.write("any"),
+            TSType::TSAnyKeyword(_) => ctx.write_ascii_bytes(b"any"),
             TSType::TSBigIntKeyword(_) => ctx.write("bigint"),
             TSType::TSBooleanKeyword(_) => ctx.write("boolean"),
             TSType::TSIntrinsicKeyword(_) => ctx.write("intrinsic"),
             TSType::TSNeverKeyword(_) => ctx.write("never"),
-            TSType::TSNullKeyword(_) => ctx.write("null"),
+            TSType::TSNullKeyword(_) => ctx.write_ascii_bytes(b"null"),
             TSType::TSNumberKeyword(_) => ctx.write("number"),
             TSType::TSObjectKeyword(_) => ctx.write("object"),
             TSType::TSStringKeyword(_) => ctx.write("string"),
             TSType::TSSymbolKeyword(_) => ctx.write("symbol"),
             TSType::TSUndefinedKeyword(_) => ctx.write("undefined"),
             TSType::TSUnknownKeyword(_) => ctx.write("unknown"),
-            TSType::TSVoidKeyword(_) => ctx.write("void"),
-            TSType::TSThisType(_) => ctx.write("this"),
+            TSType::TSVoidKeyword(_) => ctx.write_ascii_bytes(b"void"),
+            TSType::TSThisType(_) => ctx.write_ascii_bytes(b"this"),
             TSType::TSArrayType(t) => {
                 self.print_type(&t.element_type, ctx);
-                ctx.write("[]");
+                ctx.write_ascii_bytes(b"[]");
             }
             TSType::TSParenthesizedType(t) => {
-                ctx.write("(");
+                ctx.write_ascii(b'(');
                 self.print_type(&t.type_annotation, ctx);
-                ctx.write(")");
+                ctx.write_ascii(b')');
             }
             TSType::TSTypeReference(t) => {
                 Self::print_type_name(&t.type_name, ctx);
@@ -3742,16 +3824,16 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 self.print_type(&t.check_type, ctx);
                 ctx.write(" extends ");
                 self.print_type(&t.extends_type, ctx);
-                ctx.write(" ? ");
+                ctx.write_ascii_bytes(b" ? ");
                 self.print_type(&t.true_type, ctx);
-                ctx.write(" : ");
+                ctx.write_ascii_bytes(b" : ");
                 self.print_type(&t.false_type, ctx);
             }
             TSType::TSIndexedAccessType(t) => {
                 self.print_type(&t.object_type, ctx);
-                ctx.write("[");
+                ctx.write_ascii(b'[');
                 self.print_type(&t.index_type, ctx);
-                ctx.write("]");
+                ctx.write_ascii(b']');
             }
             TSType::TSInferType(t) => {
                 ctx.write("infer ");
@@ -3760,7 +3842,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             TSType::TSLiteralType(t) => self.ts_literal(&t.literal, ctx),
             TSType::TSTypeOperatorType(t) => {
                 ctx.write(ts_type_operator_str(t.operator));
-                ctx.write(" ");
+                ctx.write_ascii(b' ');
                 self.print_type(&t.type_annotation, ctx);
             }
             TSType::TSTypeQuery(t) => {
@@ -3770,10 +3852,10 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                     TSTypeQueryExprName::IdentifierReference(id) => ctx.write(id.name.as_str()),
                     TSTypeQueryExprName::QualifiedName(q) => {
                         Self::print_type_name(&q.left, ctx);
-                        ctx.write(".");
+                        ctx.write_ascii(b'.');
                         ctx.write(q.right.name.as_str());
                     }
-                    TSTypeQueryExprName::ThisExpression(_) => ctx.write("this"),
+                    TSTypeQueryExprName::ThisExpression(_) => ctx.write_ascii_bytes(b"this"),
                 }
                 if let Some(ta) = &t.type_arguments {
                     self.type_parameter_instantiation(ta, ctx);
@@ -3785,25 +3867,25 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 }
                 match &t.parameter_name {
                     TSTypePredicateName::Identifier(id) => ctx.write(id.name.as_str()),
-                    TSTypePredicateName::This(_) => ctx.write("this"),
+                    TSTypePredicateName::This(_) => ctx.write_ascii_bytes(b"this"),
                 }
                 if let Some(ann) = &t.type_annotation {
-                    ctx.write(" is ");
+                    ctx.write_ascii_bytes(b" is ");
                     self.print_type(&ann.type_annotation, ctx);
                 }
             }
             TSType::TSTupleType(t) => {
-                ctx.write("[");
+                ctx.write_ascii(b'[');
                 let nodes = Self::tuple_element_seq_nodes(&t.element_types);
                 self.sequence(nodes, Some(t.span.end), false, ",", true, ctx);
-                ctx.write("]");
+                ctx.write_ascii(b']');
             }
             TSType::TSNamedTupleMember(t) => self.named_tuple_member(t, ctx),
             TSType::TSFunctionType(t) => {
                 if let Some(tp) = &t.type_parameters {
                     self.type_parameter_declaration(tp, ctx);
                 }
-                ctx.write("(");
+                ctx.write_ascii(b'(');
                 self.formal_parameters(&t.params, ctx);
                 ctx.write(") => ");
                 self.print_type(&t.return_type.type_annotation, ctx);
@@ -3812,11 +3894,11 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 if t.r#abstract {
                     ctx.write("abstract ");
                 }
-                ctx.write("new ");
+                ctx.write_ascii_bytes(b"new ");
                 if let Some(tp) = &t.type_parameters {
                     self.type_parameter_declaration(tp, ctx);
                 }
-                ctx.write("(");
+                ctx.write_ascii(b'(');
                 self.formal_parameters(&t.params, ctx);
                 ctx.write(") => ");
                 self.print_type(&t.return_type.type_annotation, ctx);
@@ -3824,20 +3906,20 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             TSType::TSImportType(t) => Self::import_type(t, ctx),
             TSType::TSMappedType(t) => self.mapped_type(t, ctx),
             TSType::TSTemplateLiteralType(t) => {
-                ctx.write("`");
+                ctx.write_ascii(b'`');
                 for (i, inner) in t.types.iter().enumerate() {
                     let raw = t.quasis.get(i).map_or("", |q| q.value.raw.as_str());
                     ctx.write(raw);
-                    ctx.write("${");
+                    ctx.write_ascii_bytes(b"${");
                     self.print_type(inner, ctx);
-                    ctx.write("}");
+                    ctx.write_ascii(b'}');
                     if raw.contains('\n') {
                         ctx.multiline = true;
                     }
                 }
                 if let Some(last) = t.quasis.last() {
                     ctx.write(last.value.raw.as_str());
-                    ctx.write("`");
+                    ctx.write_ascii(b'`');
                 }
             }
             other => self.unsupported(ts_type_kind(other), ctx),
@@ -3849,9 +3931,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     fn import_type(node: &TSImportType, ctx: &mut Context<DIRECT>) {
         ctx.write("import(");
         ctx.write(Self::string_literal(&node.source));
-        ctx.write(")");
+        ctx.write_ascii(b')');
         if let Some(qualifier) = &node.qualifier {
-            ctx.write(".");
+            ctx.write_ascii(b'.');
             Self::import_type_qualifier(qualifier, ctx);
         }
     }
@@ -3861,7 +3943,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             TSImportTypeQualifier::Identifier(id) => ctx.write(id.name.as_str()),
             TSImportTypeQualifier::QualifiedName(qn) => {
                 Self::import_type_qualifier(&qn.left, ctx);
-                ctx.write(".");
+                ctx.write_ascii(b'.');
                 ctx.write(qn.right.name.as_str());
             }
         }
@@ -3871,9 +3953,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     fn named_tuple_member(&mut self, node: &TSNamedTupleMember, ctx: &mut Context<DIRECT>) {
         ctx.write(node.label.name.as_str());
         if node.optional {
-            ctx.write("?");
+            ctx.write_ascii(b'?');
         }
-        ctx.write(": ");
+        ctx.write_ascii_bytes(b": ");
         self.tuple_element(&node.element_type, ctx);
     }
 
@@ -3881,10 +3963,10 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         match el {
             TSTupleElement::TSOptionalType(t) => {
                 self.print_type(&t.type_annotation, ctx);
-                ctx.write("?");
+                ctx.write_ascii(b'?');
             }
             TSTupleElement::TSRestType(t) => {
-                ctx.write("...");
+                ctx.write_ascii_bytes(b"...");
                 self.print_type(&t.type_annotation, ctx);
             }
             _ => {
@@ -3897,35 +3979,35 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
 
     /// esrap's `TSMappedType`: `{[K in C]: T}` (no inner spaces).
     fn mapped_type(&mut self, node: &TSMappedType, ctx: &mut Context<DIRECT>) {
-        ctx.write("{");
+        ctx.write_ascii(b'{');
         if let Some(readonly) = node.readonly {
             ctx.write(mapped_modifier_prefix(readonly, "readonly"));
         }
-        ctx.write("[");
+        ctx.write_ascii(b'[');
         ctx.write(node.key.name.as_str());
-        ctx.write(" in ");
+        ctx.write_ascii_bytes(b" in ");
         self.print_type(&node.constraint, ctx);
         if let Some(name_type) = &node.name_type {
-            ctx.write(" as ");
+            ctx.write_ascii_bytes(b" as ");
             self.print_type(name_type, ctx);
         }
-        ctx.write("]");
+        ctx.write_ascii(b']');
         if let Some(optional) = node.optional {
             ctx.write(mapped_modifier_prefix(optional, "?"));
         }
         if let Some(ann) = &node.type_annotation {
-            ctx.write(": ");
+            ctx.write_ascii_bytes(b": ");
             self.print_type(ann, ctx);
         }
-        ctx.write("}");
+        ctx.write_ascii(b'}');
     }
 
     /// esrap's `TSTypeLiteral`: `{ ` + `;`-separated members + ` }`.
     fn type_literal(&mut self, node: &TSTypeLiteral, ctx: &mut Context<DIRECT>) {
-        ctx.write("{ ");
+        ctx.write_ascii_bytes(b"{ ");
         let nodes = Self::signature_seq_nodes(&node.members);
         self.sequence(nodes, Some(node.span.end), false, ";", true, ctx);
-        ctx.write(" }");
+        ctx.write_ascii_bytes(b" }");
     }
 
     fn ts_literal(&mut self, lit: &TSLiteral, ctx: &mut Context<DIRECT>) {
@@ -4018,14 +4100,14 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                     ctx.write("readonly ");
                 }
                 if s.computed {
-                    ctx.write("[");
+                    ctx.write_ascii(b'[');
                     self.property_key(&s.key, ctx);
-                    ctx.write("]");
+                    ctx.write_ascii(b']');
                 } else {
                     self.property_key(&s.key, ctx);
                 }
                 if s.optional {
-                    ctx.write("?");
+                    ctx.write_ascii(b'?');
                 }
                 if let Some(ann) = &s.type_annotation {
                     self.type_annotation(ann, ctx);
@@ -4035,29 +4117,29 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 if s.readonly {
                     ctx.write("readonly ");
                 }
-                ctx.write("[");
+                ctx.write_ascii(b'[');
                 ctx.write(s.parameter.name.as_str());
                 self.type_annotation(&s.parameter.type_annotation, ctx);
-                ctx.write("]");
+                ctx.write_ascii(b']');
                 self.type_annotation(&s.type_annotation, ctx);
             }
             TSSignature::TSMethodSignature(s) => {
                 if s.computed {
-                    ctx.write("[");
+                    ctx.write_ascii(b'[');
                     self.property_key(&s.key, ctx);
-                    ctx.write("]");
+                    ctx.write_ascii(b']');
                 } else {
                     self.property_key(&s.key, ctx);
                 }
                 if s.optional {
-                    ctx.write("?");
+                    ctx.write_ascii(b'?');
                 }
                 if let Some(tp) = &s.type_parameters {
                     self.type_parameter_declaration(tp, ctx);
                 }
-                ctx.write("(");
+                ctx.write_ascii(b'(');
                 self.formal_parameters(&s.params, ctx);
-                ctx.write(")");
+                ctx.write_ascii(b')');
                 if let Some(rt) = &s.return_type {
                     self.type_annotation(rt, ctx);
                 }
@@ -4066,21 +4148,21 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 if let Some(tp) = &s.type_parameters {
                     self.type_parameter_declaration(tp, ctx);
                 }
-                ctx.write("(");
+                ctx.write_ascii(b'(');
                 self.formal_parameters(&s.params, ctx);
-                ctx.write(")");
+                ctx.write_ascii(b')');
                 if let Some(rt) = &s.return_type {
                     self.type_annotation(rt, ctx);
                 }
             }
             TSSignature::TSConstructSignatureDeclaration(s) => {
-                ctx.write("new");
+                ctx.write_ascii_bytes(b"new");
                 if let Some(tp) = &s.type_parameters {
                     self.type_parameter_declaration(tp, ctx);
                 }
-                ctx.write("(");
+                ctx.write_ascii(b'(');
                 self.formal_parameters(&s.params, ctx);
-                ctx.write(")");
+                ctx.write_ascii(b')');
                 if let Some(rt) = &s.return_type {
                     self.type_annotation(rt, ctx);
                 }
@@ -4099,9 +4181,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if let Some(tp) = &node.type_parameters {
             self.type_parameter_declaration(tp, ctx);
         }
-        ctx.write(" = ");
+        ctx.write_ascii_bytes(b" = ");
         self.print_type(&node.type_annotation, ctx);
-        ctx.write(";");
+        ctx.write_ascii(b';');
     }
 
     fn interface_declaration(&mut self, node: &TSInterfaceDeclaration, ctx: &mut Context<DIRECT>) {
@@ -4142,11 +4224,11 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 .collect();
             self.sequence(nodes, Some(node.body.span().start), false, ",", true, ctx);
         }
-        ctx.write(" {");
+        ctx.write_ascii_bytes(b" {");
         // esrap's `TSInterfaceBody`: `;`-separated members with padding.
         let nodes = Self::signature_seq_nodes(&node.body.body);
         self.sequence(nodes, Some(node.body.span().end), true, ";", true, ctx);
-        ctx.write("}");
+        ctx.write_ascii(b'}');
     }
 
     fn enum_declaration(&mut self, node: &TSEnumDeclaration, ctx: &mut Context<DIRECT>) {
@@ -4158,7 +4240,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         }
         ctx.write("enum ");
         ctx.write(node.id.name.as_str());
-        ctx.write(" {");
+        ctx.write_ascii_bytes(b" {");
         ctx.indent();
         ctx.newline();
         let nodes: Vec<SeqNode<HAS_COMMENTS>> = node
@@ -4184,7 +4266,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         self.sequence(nodes, Some(node.span.end), false, ",", true, ctx);
         ctx.dedent();
         ctx.newline();
-        ctx.write("}");
+        ctx.write_ascii(b'}');
     }
 
     fn enum_member(&mut self, node: &TSEnumMember, ctx: &mut Context<DIRECT>) {
@@ -4192,18 +4274,18 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             TSEnumMemberName::Identifier(id) => ctx.write(id.name.as_str()),
             TSEnumMemberName::String(s) => ctx.write(Self::string_literal(s)),
             TSEnumMemberName::ComputedString(s) => {
-                ctx.write("[");
+                ctx.write_ascii(b'[');
                 ctx.write(Self::string_literal(s));
-                ctx.write("]");
+                ctx.write_ascii(b']');
             }
             TSEnumMemberName::ComputedTemplateString(t) => {
-                ctx.write("[");
+                ctx.write_ascii(b'[');
                 self.template_literal(t, ctx);
-                ctx.write("]");
+                ctx.write_ascii(b']');
             }
         }
         if let Some(init) = &node.initializer {
-            ctx.write(" = ");
+            ctx.write_ascii_bytes(b" = ");
             self.print_expression(init, ctx);
         }
     }
@@ -4242,7 +4324,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         match &node.body {
             TSNamespaceDeclarationBody::TSModuleBlock(block) => self.module_block(block, ctx),
             TSNamespaceDeclarationBody::TSNamespaceDeclaration(inner) => {
-                ctx.write(".");
+                ctx.write_ascii(b'.');
                 self.namespace_declaration(inner, false, ctx);
             }
         }
@@ -4258,7 +4340,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
 
     /// esrap's `TSModuleBlock`: ` {` + indented body + `}`.
     fn module_block(&mut self, node: &TSModuleBlock, ctx: &mut Context<DIRECT>) {
-        ctx.write(" {");
+        ctx.write_ascii_bytes(b" {");
         ctx.indent();
         ctx.newline();
         let elems = node
@@ -4269,25 +4351,25 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         self.body_elems(elems, Some(node.span.start), node.span.end, ctx);
         ctx.dedent();
         ctx.newline();
-        ctx.write("}");
+        ctx.write_ascii(b'}');
     }
 
     fn import_equals_declaration(node: &TSImportEqualsDeclaration, ctx: &mut Context<DIRECT>) {
         ctx.write("import ");
         ctx.write(node.id.name.as_str());
-        ctx.write(" = ");
+        ctx.write_ascii_bytes(b" = ");
         match &node.module_reference {
             TSModuleReference::ExternalModuleReference(r) => {
                 ctx.write("require(");
                 ctx.write(Self::string_literal(&r.expression));
-                ctx.write(");");
+                ctx.write_ascii_bytes(b");");
             }
             TSModuleReference::IdentifierReference(id) => {
                 ctx.write(id.name.as_str());
             }
             TSModuleReference::QualifiedName(q) => {
                 Self::print_type_name(&q.left, ctx);
-                ctx.write(".");
+                ctx.write_ascii(b'.');
                 ctx.write(q.right.name.as_str());
             }
         }
@@ -4550,7 +4632,7 @@ mod tests {
         let opts = PrintOptions::default();
         let mut printer = Printer::<false>::new(&opts);
         let mut ctx = Context::new();
-        ctx.write("[");
+        ctx.write_ascii(b'[');
         printer.sequence_indexed(
             n,
             |_| SeqMeta {
@@ -4570,7 +4652,7 @@ mod tests {
             true,
             &mut ctx,
         );
-        ctx.write("]");
+        ctx.write_ascii(b']');
         let capacity = ctx.measure();
         crate::command::print(&ctx.into_buffer(), &opts.indent, capacity)
     }
@@ -4579,7 +4661,7 @@ mod tests {
         let opts = PrintOptions::default();
         let mut printer = Printer::<false, true>::new(&opts);
         let mut ctx = Context::new_direct(&opts.indent, 32);
-        ctx.write("[");
+        ctx.write_ascii(b'[');
         printer.sequence_indexed(
             n,
             |_| SeqMeta {
@@ -4599,7 +4681,7 @@ mod tests {
             true,
             &mut ctx,
         );
-        ctx.write("]");
+        ctx.write_ascii(b']');
         let (buffer, _, indent, dirty) = ctx.into_direct_parts();
         crate::command::finish_direct(buffer, &indent, dirty).0
     }

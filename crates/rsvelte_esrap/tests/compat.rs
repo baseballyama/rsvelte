@@ -35,6 +35,11 @@ fn comment_free_direct_matches_deferred_sequences() {
         "const { a, b, c, d } = value;",
         "const x = (a, b, c, d);",
         "const x = [{ alpha: very_long_identifier_name, beta: another_long_identifier_name }, { gamma: third_long_identifier_name }];",
+        "call({ alpha: very_long_identifier_name, beta: another_long_identifier_name }, tail);",
+        "call(head, { alpha: very_long_identifier_name, beta: another_long_identifier_name });",
+        "call(head, { alpha: very_long_identifier_name, beta: another_long_identifier_name }, tail);",
+        "let first = very_long_identifier_name, second = another_long_identifier_name, third = final_long_identifier_name;",
+        "const x = { only: { alpha: very_long_identifier_name, beta: another_long_identifier_name } };",
     ];
 
     for source in cases {
