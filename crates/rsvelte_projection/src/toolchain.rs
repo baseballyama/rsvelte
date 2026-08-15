@@ -103,6 +103,40 @@ impl ProjectionMap {
         &self.segments
     }
 
+    /// Adjust generated offsets after inserting an unmapped byte range.
+    pub fn insert_generated(&mut self, offset: u32, length: u32) {
+        if length == 0 {
+            return;
+        }
+        let mut adjusted = Vec::with_capacity(self.segments.len() + 1);
+        for segment in &self.segments {
+            let start = segment.generated.start();
+            let end = segment.generated.end();
+            if offset <= start {
+                adjusted.push(ExactMapping {
+                    source: segment.source,
+                    generated: ByteRange::trusted(start + length, end + length),
+                });
+            } else if offset >= end {
+                adjusted.push(*segment);
+            } else {
+                let left = offset - start;
+                adjusted.push(ExactMapping {
+                    source: ByteRange::trusted(
+                        segment.source.start(),
+                        segment.source.start() + left,
+                    ),
+                    generated: ByteRange::trusted(start, offset),
+                });
+                adjusted.push(ExactMapping {
+                    source: ByteRange::trusted(segment.source.start() + left, segment.source.end()),
+                    generated: ByteRange::trusted(offset + length, end + length),
+                });
+            }
+        }
+        self.segments = adjusted;
+    }
+
     /// Return every generated offset exactly corresponding to `offset`.
     #[must_use]
     pub fn source_to_generated(&self, offset: u32) -> Vec<u32> {
@@ -285,5 +319,24 @@ impl ProjectionEngine {
             exact_mappings,
             facts,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn generated_insertions_shift_and_split_exact_segments() {
+        let mut map = ProjectionMap::from_segments(vec![ExactMapping {
+            source: ByteRange::trusted(10, 20),
+            generated: ByteRange::trusted(30, 40),
+        }]);
+        map.insert_generated(35, 4);
+
+        assert_eq!(map.source_to_generated(12), vec![32]);
+        assert_eq!(map.source_to_generated(17), vec![41]);
+        assert_eq!(map.generated_to_source(36), None);
+        assert_eq!(map.generated_to_source(41), Some(17));
     }
 }

@@ -1,6 +1,9 @@
 //! The LSP message loop.
 
 use std::collections::HashMap;
+use std::ffi::OsString;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
@@ -8,22 +11,26 @@ use anyhow::Result;
 use crossbeam_channel::{Receiver, Sender, after, never, select, unbounded};
 use lsp_server::{Connection, ErrorCode, Message, Notification, Request, RequestId, Response};
 use lsp_types::{
-    CancelParams, CodeActionKind, CodeActionOptions, CodeActionOrCommand, CodeActionParams,
-    CodeActionProviderCapability, CodeLens, CodeLensOptions, CodeLensParams,
-    ColorPresentationParams, ColorProviderCapability, CompletionOptions, CompletionParams,
-    ConfigurationItem, ConfigurationParams, DiagnosticOptions, DiagnosticServerCapabilities,
-    DidChangeTextDocumentParams, DidChangeWatchedFilesParams, DidChangeWorkspaceFoldersParams,
-    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
-    DocumentColorParams, DocumentDiagnosticParams, DocumentDiagnosticReport,
-    DocumentFormattingParams, DocumentHighlightParams, DocumentSymbolParams,
-    DocumentSymbolResponse, ExecuteCommandOptions, ExecuteCommandParams, FoldingRange,
-    FoldingRangeParams, FoldingRangeProviderCapability, FullDocumentDiagnosticReport, HoverParams,
-    HoverProviderCapability, LinkedEditingRangeParams, LinkedEditingRangeServerCapabilities,
-    NumberOrString, OneOf, PublishDiagnosticsParams, RelatedFullDocumentDiagnosticReport,
-    SelectionRangeParams, SelectionRangeProviderCapability, ServerCapabilities,
+    CallHierarchyServerCapability, CancelParams, CodeActionKind, CodeActionOptions,
+    CodeActionOrCommand, CodeActionParams, CodeActionProviderCapability, CodeLens, CodeLensOptions,
+    CodeLensParams, ColorPresentationParams, ColorProviderCapability, CompletionOptions,
+    CompletionParams, ConfigurationItem, ConfigurationParams, DiagnosticOptions,
+    DiagnosticServerCapabilities, DidChangeTextDocumentParams, DidChangeWatchedFilesParams,
+    DidChangeWorkspaceFoldersParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
+    DidSaveTextDocumentParams, DocumentColorParams, DocumentDiagnosticParams,
+    DocumentDiagnosticReport, DocumentFormattingParams, DocumentHighlightParams,
+    DocumentSymbolParams, DocumentSymbolResponse, ExecuteCommandOptions, ExecuteCommandParams,
+    FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability, FullDocumentDiagnosticReport,
+    HoverParams, HoverProviderCapability, ImplementationProviderCapability, InlayHintOptions,
+    InlayHintServerCapabilities, LinkedEditingRangeParams, LinkedEditingRangeServerCapabilities,
+    NumberOrString, OneOf, PositionEncodingKind, PublishDiagnosticsParams,
+    RelatedFullDocumentDiagnosticReport, RenameOptions, RenameParams, SelectionRangeParams,
+    SelectionRangeProviderCapability, SemanticTokenModifier, SemanticTokenType,
+    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
+    SemanticTokensServerCapabilities, ServerCapabilities, SignatureHelpOptions,
     TextDocumentPositionParams, TextDocumentSyncCapability, TextDocumentSyncKind,
-    TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit, Uri,
-    WorkspaceFoldersServerCapabilities,
+    TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit,
+    TypeDefinitionProviderCapability, Uri, WorkspaceFoldersServerCapabilities,
 };
 
 use crate::client::ClientState;
@@ -31,8 +38,32 @@ use crate::completions::TRIGGER_CHARACTERS;
 use crate::document::{Document, DocumentStore};
 use crate::log;
 use crate::settings::Settings;
+use crate::tsgo_client::{OpenBuffer, TsgoClient, TsgoConfig, TsgoEvent};
+use crate::tsgo_code_actions::{
+    TsgoCodeActionContext, document_has_parser_error, rewrite_code_action_response,
+};
+use crate::tsgo_completion::{
+    CompletionAction, CompletionRewriteContext, CompletionSite, completion_action,
+    rewrite_completion_item_for_context, rewrite_completion_response_for_context,
+    rewrite_visible_tsgo_response,
+};
+use crate::tsgo_component_info::{
+    ComponentCompletionSite, ComponentInfoAction, ComponentInfoQuery, ComponentInfoRequestId,
+    component_completion_site, generated_component_ranges,
+};
+use crate::tsgo_custom::{
+    CodeLensKind, ComponentReference, ShadowUriPair, WillRenameMapping, code_lens_kind,
+    component_probe_position, component_reference_code_lens, filter_component_references,
+    prepare_code_lenses, resolve_code_lens, rewrite_will_rename_params, rewrite_will_rename_result,
+};
+use crate::tsgo_overlay::TsgoOverlay;
+use crate::tsgo_rename::{
+    PrepareRenamePlan, RenameDocument, merge_workspace_edits, prepare_rename_plan,
+    rewrite_prepare_response, rewrite_workspace_edit,
+};
+use crate::tsgo_response::{RequestDocumentContext, TsgoResponseMapper};
 use crate::uri::uri_to_path;
-use crate::worker::{Job, Outcome, Worker};
+use crate::worker::{FileReferenceSource, Job, Outcome, Worker};
 
 pub const SERVER_NAME: &str = "rsvelte-language-server";
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -42,6 +73,49 @@ const LINT_DEBOUNCE: Duration = Duration::from_millis(300);
 
 /// The `rsvelte` configuration section this server pulls from the client.
 const CONFIG_SECTION: &str = "rsvelte";
+const JS_TS_CONFIG_SECTION: &str = "js/ts";
+const TYPESCRIPT_CONFIG_SECTION: &str = "typescript";
+const JAVASCRIPT_CONFIG_SECTION: &str = "javascript";
+const EDITOR_CONFIG_SECTION: &str = "editor";
+
+const TSGO_SEMANTIC_TOKEN_TYPES: &[&str] = &[
+    "namespace",
+    "class",
+    "enum",
+    "interface",
+    "struct",
+    "typeParameter",
+    "type",
+    "parameter",
+    "variable",
+    "property",
+    "enumMember",
+    "decorator",
+    "event",
+    "function",
+    "method",
+    "macro",
+    "label",
+    "comment",
+    "string",
+    "keyword",
+    "number",
+    "regexp",
+    "operator",
+];
+const TSGO_SEMANTIC_TOKEN_MODIFIERS: &[&str] = &[
+    "declaration",
+    "definition",
+    "readonly",
+    "static",
+    "deprecated",
+    "abstract",
+    "async",
+    "modification",
+    "documentation",
+    "defaultLibrary",
+    "local",
+];
 
 /// Serve the LSP over stdio until the client shuts the connection down.
 ///
@@ -58,6 +132,7 @@ pub fn run_stdio() -> Result<ExitCode> {
     let (connection, io_threads) = Connection::stdio();
     let (id, params) = connection.initialize_start()?;
     let client = ClientState::from_initialize(&params);
+    let tsgo = TsgoRuntime::start(&client, &params);
 
     connection.initialize_finish(
         id,
@@ -73,6 +148,8 @@ pub fn run_stdio() -> Result<ExitCode> {
         client,
         Worker::spawn(results),
         outcomes,
+        tsgo,
+        params,
     )
     .run(&connection)?;
 
@@ -85,6 +162,9 @@ pub fn run_stdio() -> Result<ExitCode> {
 
 fn capabilities(client: &ClientState) -> ServerCapabilities {
     ServerCapabilities {
+        // The editor-facing protocol stays on the LSP default. The tsgo child
+        // is negotiated separately to UTF-8 so all internal mapping is byte-based.
+        position_encoding: Some(PositionEncodingKind::UTF16),
         text_document_sync: Some(TextDocumentSyncCapability::Options(
             TextDocumentSyncOptions {
                 open_close: Some(true),
@@ -96,19 +176,33 @@ fn capabilities(client: &ClientState) -> ServerCapabilities {
         document_formatting_provider: Some(OneOf::Left(true)),
         completion_provider: Some(CompletionOptions {
             trigger_characters: Some(TRIGGER_CHARACTERS.map(str::to_string).to_vec()),
+            resolve_provider: Some(true),
             ..CompletionOptions::default()
         }),
         hover_provider: Some(HoverProviderCapability::Simple(true)),
+        signature_help_provider: Some(SignatureHelpOptions {
+            trigger_characters: Some(vec!["(".to_string(), ",".to_string(), "<".to_string()]),
+            retrigger_characters: Some(vec![")".to_string()]),
+            ..SignatureHelpOptions::default()
+        }),
+        definition_provider: Some(OneOf::Left(true)),
+        type_definition_provider: Some(TypeDefinitionProviderCapability::Simple(true)),
+        implementation_provider: Some(ImplementationProviderCapability::Simple(true)),
+        references_provider: Some(OneOf::Left(true)),
         code_action_provider: Some(CodeActionProviderCapability::Options(CodeActionOptions {
             code_action_kinds: Some(vec![
                 CodeActionKind::QUICKFIX,
                 CodeActionKind::REFACTOR_REWRITE,
+                CodeActionKind::SOURCE_ORGANIZE_IMPORTS,
+                CodeActionKind::from("source.sortImports"),
+                CodeActionKind::from("source.removeUnusedImports"),
+                CodeActionKind::SOURCE_FIX_ALL,
                 CodeActionKind::from(crate::code_actions::FIX_ALL_KIND),
             ]),
             ..CodeActionOptions::default()
         })),
         code_lens_provider: Some(CodeLensOptions {
-            resolve_provider: Some(false),
+            resolve_provider: Some(true),
         }),
         execute_command_provider: Some(ExecuteCommandOptions {
             commands: vec![crate::extract::COMMAND.to_string()],
@@ -119,6 +213,47 @@ fn capabilities(client: &ClientState) -> ServerCapabilities {
         document_symbol_provider: Some(OneOf::Left(true)),
         linked_editing_range_provider: Some(LinkedEditingRangeServerCapabilities::Simple(true)),
         document_highlight_provider: Some(OneOf::Left(true)),
+        workspace_symbol_provider: Some(OneOf::Left(true)),
+        rename_provider: Some(OneOf::Right(RenameOptions {
+            prepare_provider: Some(true),
+            work_done_progress_options: Default::default(),
+        })),
+        inlay_hint_provider: Some(OneOf::Right(InlayHintServerCapabilities::Options(
+            InlayHintOptions {
+                resolve_provider: Some(false),
+                ..InlayHintOptions::default()
+            },
+        ))),
+        semantic_tokens_provider: Some(SemanticTokensServerCapabilities::SemanticTokensOptions(
+            SemanticTokensOptions {
+                legend: SemanticTokensLegend {
+                    token_types: TSGO_SEMANTIC_TOKEN_TYPES
+                        .iter()
+                        .filter(|token| {
+                            client
+                                .semantic_token_types
+                                .iter()
+                                .any(|supported| supported == **token)
+                        })
+                        .map(|token| SemanticTokenType::new(token))
+                        .collect(),
+                    token_modifiers: TSGO_SEMANTIC_TOKEN_MODIFIERS
+                        .iter()
+                        .filter(|modifier| {
+                            client
+                                .semantic_token_modifiers
+                                .iter()
+                                .any(|supported| supported == **modifier)
+                        })
+                        .map(|modifier| SemanticTokenModifier::new(modifier))
+                        .collect(),
+                },
+                range: Some(true),
+                full: Some(SemanticTokensFullOptions::Bool(true)),
+                ..SemanticTokensOptions::default()
+            },
+        )),
+        call_hierarchy_provider: Some(CallHierarchyServerCapability::Simple(true)),
         color_provider: Some(ColorProviderCapability::Simple(true)),
         diagnostic_provider: client.pull_diagnostics.then(|| {
             DiagnosticServerCapabilities::Options(DiagnosticOptions {
@@ -144,15 +279,67 @@ fn capabilities(client: &ClientState) -> ServerCapabilities {
 /// produce one.
 enum Pending {
     Formatting,
-    Completion,
-    Hover,
-    CodeAction,
-    CodeLens,
+    Completion { tsgo_fallback: Request },
+    Hover { tsgo_fallback: Request },
+    CodeAction { tsgo_fallback: Request },
+    CodeLens { tsgo_fallback: Request },
     ExtractComponent,
-    FoldingRange,
+    FoldingRange { tsgo_fallback: Request },
     SelectionRange,
-    DocumentSymbol,
-    DocumentDiagnostic,
+    DocumentSymbol { tsgo_fallback: Request },
+    DocumentDiagnostic { tsgo_fallback: Request },
+    FileReferences,
+}
+
+struct PendingTsgoRequest {
+    method: String,
+    document: Option<RequestDocumentContext>,
+    fallback_result: Option<serde_json::Value>,
+    completion_site: Option<CompletionSite>,
+    rename: Option<PendingRename>,
+    code_action_diagnostic_codes: Vec<u32>,
+    push_diagnostics: Option<(Uri, i32)>,
+    component_site: Option<ComponentCompletionSite>,
+    component_references: Option<Uri>,
+    file_rename: Option<PendingFileRename>,
+    code_lens_resolve: Option<PendingCodeLensResolve>,
+}
+
+struct PendingComponentQuery {
+    query: ComponentInfoQuery,
+    site: ComponentCompletionSite,
+    result: serde_json::Value,
+}
+
+enum PendingRename {
+    Prepare(PrepareRenamePlan),
+    Primary {
+        plan: PrepareRenamePlan,
+        new_name: String,
+    },
+    Followup {
+        editor_id: RequestId,
+    },
+}
+
+struct RenameAggregate {
+    plan: PrepareRenamePlan,
+    new_name: String,
+    edits: Vec<serde_json::Value>,
+    remaining: usize,
+}
+
+struct PendingFileRename {
+    old_source: Uri,
+    old_shadow: Uri,
+    new_source: Uri,
+    new_shadow: Uri,
+}
+
+struct PendingCodeLensResolve {
+    lens: serde_json::Value,
+    kind: CodeLensKind,
+    source_uri: Uri,
 }
 
 /// A request this server sent to the client, keyed by the id the client will
@@ -160,12 +347,134 @@ enum Pending {
 enum Outgoing {
     Configuration,
     WatchedFilesRegistration,
+    Tsgo { child_id: RequestId },
+}
+
+struct TsgoRuntime {
+    client: TsgoClient,
+    overlays: Vec<TsgoOverlay>,
+    generation: Option<u64>,
+}
+
+impl TsgoRuntime {
+    fn start(editor: &ClientState, initialize_params: &serde_json::Value) -> Option<Self> {
+        let mut roots = editor
+            .workspace_folders
+            .iter()
+            .map(|folder| uri_to_path(folder.uri.as_str()))
+            .collect::<Vec<_>>();
+        if roots.is_empty()
+            && let Some(root) = &editor.root_uri
+        {
+            roots.push(uri_to_path(root.as_str()));
+        }
+        roots.retain(|root| root.is_dir());
+        roots.sort();
+        roots.dedup();
+        let primary = roots.first()?.clone();
+
+        let mut overlays = Vec::new();
+        for root in &roots {
+            match TsgoOverlay::build(root, None) {
+                Ok(overlay) => {
+                    for route in overlay.unresolved_shadow_routes() {
+                        log::warn(format_args!(
+                            "tsgo shadow is not resolvable: {} -> {}",
+                            route.source_path.display(),
+                            route.shadow_path.display()
+                        ));
+                    }
+                    overlays.push(overlay);
+                }
+                Err(error) => log::warn(format_args!(
+                    "could not prepare tsgo overlay for {}: {error}",
+                    root.display()
+                )),
+            }
+        }
+        if overlays.is_empty() {
+            return None;
+        }
+
+        let binary = match rsvelte_check::tsgo::find_compiler(&primary, true) {
+            Ok(binary) => binary,
+            Err(error) => {
+                log::warn(format_args!(
+                    "TypeScript language features unavailable: {error}"
+                ));
+                return None;
+            }
+        };
+        let mut config = TsgoConfig::new(PathBuf::from(binary.program));
+        config.args_prefix = binary.args_prefix.into_iter().map(OsString::from).collect();
+        config.current_dir = Some(primary);
+        config.root_uri = editor.root_uri.clone();
+        config.workspace_folders = editor.workspace_folders.clone();
+        config.editor_initialize_params = initialize_params.clone();
+        let client = match TsgoClient::spawn(config) {
+            Ok(client) => client,
+            Err(error) => {
+                log::warn(format_args!("could not start tsgo supervisor: {error}"));
+                return None;
+            }
+        };
+        for shadow in overlays.iter().flat_map(TsgoOverlay::eager_shadows) {
+            let _ = client.open_buffer(OpenBuffer::new(
+                shadow.shadow_uri.clone(),
+                shadow.language_id.clone(),
+                shadow.version,
+                shadow.text.clone(),
+            ));
+        }
+        Some(Self {
+            client,
+            overlays,
+            generation: None,
+        })
+    }
+
+    fn overlay_for_source_mut(&mut self, source: &Path) -> Option<&mut TsgoOverlay> {
+        let source = fs::canonicalize(source).unwrap_or_else(|_| source.to_path_buf());
+        self.overlays
+            .iter_mut()
+            .filter(|overlay| source.starts_with(overlay.workspace()))
+            .max_by_key(|overlay| overlay.workspace().components().count())
+    }
+
+    fn completion_document_context(
+        &self,
+        params: &serde_json::Value,
+    ) -> Option<RequestDocumentContext> {
+        let file_name = params
+            .get("data")?
+            .get("fileName")?
+            .as_str()
+            .map(Path::new)?;
+        let mapper = TsgoResponseMapper::for_overlays(&self.overlays);
+        for overlay in &self.overlays {
+            let Some(source) = overlay.source_for_shadow(file_name) else {
+                continue;
+            };
+            let Some(shadow) = overlay.shadow_for_source(source) else {
+                continue;
+            };
+            let uri = &shadow.source_uri;
+            if let Some(context) = mapper.document_context(uri) {
+                return Some(context);
+            }
+        }
+        None
+    }
 }
 
 struct Server {
     sender: Sender<Message>,
     client: ClientState,
     settings: Settings,
+    js_ts_settings: serde_json::Value,
+    typescript_settings: serde_json::Value,
+    javascript_settings: serde_json::Value,
+    editor_settings: serde_json::Value,
     documents: DocumentStore,
     worker: Worker,
     outcomes: Receiver<Outcome>,
@@ -174,8 +483,14 @@ struct Server {
     /// The content hash each document was last linted at.
     linted: HashMap<String, u64>,
     pending: HashMap<RequestId, Pending>,
+    pending_tsgo: HashMap<RequestId, PendingTsgoRequest>,
+    rename_aggregates: HashMap<RequestId, RenameAggregate>,
+    component_queries: HashMap<RequestId, PendingComponentQuery>,
+    component_query_requests: HashMap<RequestId, (RequestId, ComponentInfoRequestId)>,
     outgoing: HashMap<RequestId, Outgoing>,
     next_request_id: u32,
+    tsgo: Option<TsgoRuntime>,
+    initialize_params: serde_json::Value,
     shutdown_requested: bool,
     exiting: bool,
 }
@@ -186,19 +501,31 @@ impl Server {
         client: ClientState,
         worker: Worker,
         outcomes: Receiver<Outcome>,
+        tsgo: Option<TsgoRuntime>,
+        initialize_params: serde_json::Value,
     ) -> Self {
         Self {
             sender,
             client,
             settings: Settings::default(),
+            js_ts_settings: serde_json::Value::Null,
+            typescript_settings: serde_json::Value::Null,
+            javascript_settings: serde_json::Value::Null,
+            editor_settings: serde_json::Value::Null,
             documents: DocumentStore::default(),
             worker,
             outcomes,
             scheduled: HashMap::new(),
             linted: HashMap::new(),
             pending: HashMap::new(),
+            pending_tsgo: HashMap::new(),
+            rename_aggregates: HashMap::new(),
+            component_queries: HashMap::new(),
+            component_query_requests: HashMap::new(),
             outgoing: HashMap::new(),
             next_request_id: 0,
+            tsgo,
+            initialize_params,
             shutdown_requested: false,
             exiting: false,
         }
@@ -213,6 +540,11 @@ impl Server {
         }
         // Cloned out of `self` so the handlers below can still borrow it.
         let outcomes = self.outcomes.clone();
+        let tsgo_events = self
+            .tsgo
+            .as_ref()
+            .map(|runtime| runtime.client.events().clone())
+            .unwrap_or_else(never);
 
         while !self.exiting {
             // Rearmed each turn: the debounce deadline moves with every edit.
@@ -230,6 +562,10 @@ impl Server {
                 recv(outcomes) -> outcome => match outcome {
                     Ok(outcome) => self.on_outcome(outcome),
                     Err(_) => break,
+                },
+                recv(tsgo_events) -> event => match event {
+                    Ok(event) => self.on_tsgo_event(event),
+                    Err(_) => self.tsgo = None,
                 },
                 recv(timer) -> _ => self.run_scheduled_lints(),
             }
@@ -274,6 +610,26 @@ impl Server {
             "textDocument/documentColor" => self.on_document_color(request),
             "textDocument/colorPresentation" => self.on_color_presentation(request),
             "textDocument/diagnostic" => self.on_document_diagnostic(request),
+            "completionItem/resolve"
+            | "textDocument/definition"
+            | "textDocument/typeDefinition"
+            | "textDocument/implementation"
+            | "textDocument/references"
+            | "textDocument/signatureHelp"
+            | "textDocument/inlayHint"
+            | "textDocument/semanticTokens/full"
+            | "textDocument/semanticTokens/range"
+            | "textDocument/prepareCallHierarchy"
+            | "callHierarchy/incomingCalls"
+            | "callHierarchy/outgoingCalls"
+            | "workspace/symbol"
+            | "workspaceSymbol/resolve" => self.forward_tsgo_request(request),
+            "textDocument/prepareRename" => self.on_prepare_rename(request),
+            "textDocument/rename" => self.on_rename(request),
+            "$/getFileReferences" => self.on_get_file_references(request),
+            "$/getComponentReferences" => self.on_get_component_references(request),
+            "$/getEditsForFileRename" => self.on_get_edits_for_file_rename(request),
+            "codeLens/resolve" => self.on_resolve_code_lens(request),
             _ => self.respond(Response::new_err(
                 request.id,
                 ErrorCode::MethodNotFound as i32,
@@ -312,6 +668,7 @@ impl Server {
     }
 
     fn on_document_diagnostic(&mut self, request: Request) {
+        let tsgo_fallback = request.clone();
         let id = request.id;
         let params = match serde_json::from_value::<DocumentDiagnosticParams>(request.params) {
             Ok(params) => params,
@@ -323,14 +680,15 @@ impl Server {
         };
         let uri = params.text_document.uri;
         let Some(document) = self.documents.get(&uri) else {
-            self.respond_diagnostic_report(id, Vec::new());
+            self.forward_tsgo_request(tsgo_fallback);
             return;
         };
         if !self.settings.lint_enable || !is_lint_target(document) {
-            self.respond_diagnostic_report(id, Vec::new());
+            self.forward_tsgo_request(tsgo_fallback);
             return;
         }
-        self.pending.insert(id.clone(), Pending::DocumentDiagnostic);
+        self.pending
+            .insert(id.clone(), Pending::DocumentDiagnostic { tsgo_fallback });
         self.worker.submit(Job::PullDiagnostics {
             id,
             path: uri_to_path(uri.as_str()),
@@ -340,6 +698,7 @@ impl Server {
     }
 
     fn on_completion(&mut self, request: Request) {
+        let tsgo_fallback = request.clone();
         let id = request.id;
         let params = match serde_json::from_value::<CompletionParams>(request.params) {
             Ok(params) => params.text_document_position,
@@ -355,7 +714,8 @@ impl Server {
         }
         match self.locate(&params) {
             Some((path, text, offset)) => {
-                self.pending.insert(id.clone(), Pending::Completion);
+                self.pending
+                    .insert(id.clone(), Pending::Completion { tsgo_fallback });
                 self.worker.submit(Job::Complete {
                     id,
                     path,
@@ -363,11 +723,12 @@ impl Server {
                     offset,
                 });
             }
-            None => self.respond_nothing(id),
+            None => self.forward_tsgo_request(tsgo_fallback),
         }
     }
 
     fn on_hover(&mut self, request: Request) {
+        let tsgo_fallback = request.clone();
         let id = request.id;
         let params = match serde_json::from_value::<HoverParams>(request.params) {
             Ok(params) => params.text_document_position_params,
@@ -383,7 +744,8 @@ impl Server {
         }
         match self.locate(&params) {
             Some((path, text, offset)) => {
-                self.pending.insert(id.clone(), Pending::Hover);
+                self.pending
+                    .insert(id.clone(), Pending::Hover { tsgo_fallback });
                 self.worker.submit(Job::Hover {
                     id,
                     path,
@@ -391,7 +753,316 @@ impl Server {
                     offset,
                 });
             }
-            None => self.respond_nothing(id),
+            None => self.forward_tsgo_request(tsgo_fallback),
+        }
+    }
+
+    fn on_prepare_rename(&mut self, request: Request) {
+        let Ok(params) =
+            serde_json::from_value::<TextDocumentPositionParams>(request.params.clone())
+        else {
+            self.respond_nothing(request.id);
+            return;
+        };
+        let path = uri_to_path(params.text_document.uri.as_str());
+        if !is_svelte_document("", &path) {
+            self.forward_tsgo_request(request);
+            return;
+        }
+        let Some(plan) = self.svelte_rename_plan(&params) else {
+            self.respond_nothing(request.id);
+            return;
+        };
+        self.forward_rename_request(request.id, "textDocument/prepareRename", &plan, None);
+    }
+
+    fn on_rename(&mut self, request: Request) {
+        let Ok(params) = serde_json::from_value::<RenameParams>(request.params.clone()) else {
+            self.respond_nothing(request.id);
+            return;
+        };
+        let position = params.text_document_position.clone();
+        let path = uri_to_path(position.text_document.uri.as_str());
+        if !is_svelte_document("", &path) {
+            self.forward_tsgo_request(request);
+            return;
+        }
+        let Some(plan) = self.svelte_rename_plan(&position) else {
+            self.respond_nothing(request.id);
+            return;
+        };
+        self.forward_rename_request(
+            request.id,
+            "textDocument/rename",
+            &plan,
+            Some(params.new_name),
+        );
+    }
+
+    fn svelte_rename_plan(&self, params: &TextDocumentPositionParams) -> Option<PrepareRenamePlan> {
+        let runtime = self.tsgo.as_ref()?;
+        let source_path = uri_to_path(params.text_document.uri.as_str());
+        let canonical_source =
+            fs::canonicalize(&source_path).unwrap_or_else(|_| source_path.clone());
+        let source = self.documents.get(&params.text_document.uri)?.text();
+        let overlay = runtime
+            .overlays
+            .iter()
+            .filter(|overlay| canonical_source.starts_with(overlay.workspace()))
+            .max_by_key(|overlay| overlay.workspace().components().count())?;
+        let shadow = overlay.shadow_for_source(&source_path)?;
+        let document = RenameDocument {
+            source_uri: &shadow.source_uri,
+            shadow_uri: &shadow.shadow_uri,
+            source_text: source,
+            generated_text: &shadow.text,
+            projection_map: overlay.projection_map(&source_path)?,
+            source_map: overlay.source_map(&source_path),
+            parser_error: document_has_parser_error(source),
+        };
+        Some(prepare_rename_plan(document, params.position))
+    }
+
+    fn forward_rename_request(
+        &mut self,
+        id: RequestId,
+        method: &str,
+        plan: &PrepareRenamePlan,
+        new_name: Option<String>,
+    ) {
+        let Some((uri, position, _)) = plan.request() else {
+            self.respond_nothing(id);
+            return;
+        };
+        let Some(runtime) = &self.tsgo else {
+            self.respond_nothing(id);
+            return;
+        };
+        let mut params = serde_json::json!({
+            "textDocument": { "uri": uri },
+            "position": position,
+        });
+        if let Some(name) = &new_name {
+            params["newName"] = serde_json::Value::String(name.clone());
+        }
+        let rename = match new_name {
+            Some(new_name) => PendingRename::Primary {
+                plan: plan.clone(),
+                new_name,
+            },
+            None => PendingRename::Prepare(plan.clone()),
+        };
+        let pending = PendingTsgoRequest {
+            method: method.to_string(),
+            document: None,
+            fallback_result: None,
+            completion_site: None,
+            rename: Some(rename),
+            code_action_diagnostic_codes: Vec::new(),
+            push_diagnostics: None,
+            component_site: None,
+            component_references: None,
+            file_rename: None,
+            code_lens_resolve: None,
+        };
+        let child = Request::new(id.clone(), method.to_string(), params);
+        if let Err(error) = runtime.client.forward(child.into()) {
+            log::warn(format_args!("could not forward rename to tsgo: {error}"));
+            self.respond_nothing(id);
+            return;
+        }
+        self.pending_tsgo.insert(id, pending);
+    }
+
+    fn on_get_file_references(&mut self, request: Request) {
+        let Some(uri) = custom_request_uri(&request.params) else {
+            self.respond(Response::new_ok(
+                request.id,
+                Vec::<lsp_types::Location>::new(),
+            ));
+            return;
+        };
+        let roots = self
+            .tsgo
+            .as_ref()
+            .map(|runtime| {
+                runtime
+                    .overlays
+                    .iter()
+                    .map(|overlay| overlay.workspace().to_path_buf())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let open_documents = self
+            .documents
+            .iter()
+            .map(|document| {
+                let path = uri_to_path(document.uri.as_str());
+                FileReferenceSource {
+                    path: fs::canonicalize(&path).unwrap_or(path),
+                    uri: document.uri.clone(),
+                    text: document.text().to_string(),
+                }
+            })
+            .collect();
+        let id = request.id;
+        self.pending.insert(id.clone(), Pending::FileReferences);
+        self.worker.submit(Job::FileReferences {
+            id,
+            target: uri_to_path(uri.as_str()),
+            roots,
+            open_documents,
+        });
+    }
+
+    fn on_get_component_references(&mut self, request: Request) {
+        let Some(source_uri) = custom_request_uri(&request.params) else {
+            self.respond(Response::new_ok(
+                request.id,
+                Vec::<lsp_types::Location>::new(),
+            ));
+            return;
+        };
+        let source_path = uri_to_path(source_uri.as_str());
+        let Some(runtime) = &self.tsgo else {
+            self.respond(Response::new_ok(
+                request.id,
+                Vec::<lsp_types::Location>::new(),
+            ));
+            return;
+        };
+        let Some(shadow) = runtime
+            .overlays
+            .iter()
+            .find_map(|overlay| overlay.shadow_for_source(&source_path))
+        else {
+            self.respond(Response::new_ok(
+                request.id,
+                Vec::<lsp_types::Location>::new(),
+            ));
+            return;
+        };
+        let Some(position) = component_probe_position(&shadow.text) else {
+            self.respond(Response::new_ok(
+                request.id,
+                Vec::<lsp_types::Location>::new(),
+            ));
+            return;
+        };
+        let mapper = TsgoResponseMapper::for_overlays(&runtime.overlays);
+        let document = mapper.document_context(&source_uri);
+        let child = Request::new(
+            request.id.clone(),
+            "textDocument/references".to_string(),
+            serde_json::json!({
+                "textDocument": { "uri": shadow.shadow_uri },
+                "position": position,
+                "context": { "includeDeclaration": false },
+            }),
+        );
+        let pending = PendingTsgoRequest {
+            method: "textDocument/references".to_string(),
+            document,
+            fallback_result: None,
+            completion_site: None,
+            rename: None,
+            code_action_diagnostic_codes: Vec::new(),
+            push_diagnostics: None,
+            component_site: None,
+            component_references: Some(source_uri),
+            file_rename: None,
+            code_lens_resolve: None,
+        };
+        if runtime.client.forward(child.into()).is_ok() {
+            self.pending_tsgo.insert(request.id, pending);
+        } else {
+            self.respond(Response::new_ok(
+                request.id,
+                Vec::<lsp_types::Location>::new(),
+            ));
+        }
+    }
+
+    fn on_get_edits_for_file_rename(&mut self, request: Request) {
+        let Some(old_uri) = request
+            .params
+            .get("oldUri")
+            .and_then(serde_json::Value::as_str)
+            .and_then(|uri| uri.parse::<Uri>().ok())
+        else {
+            self.respond_nothing(request.id);
+            return;
+        };
+        let Some(new_uri) = request
+            .params
+            .get("newUri")
+            .and_then(serde_json::Value::as_str)
+            .and_then(|uri| uri.parse::<Uri>().ok())
+        else {
+            self.respond_nothing(request.id);
+            return;
+        };
+        let Some(runtime) = &self.tsgo else {
+            self.respond_nothing(request.id);
+            return;
+        };
+        let old_path = uri_to_path(old_uri.as_str());
+        let new_path = uri_to_path(new_uri.as_str());
+        let Some((old_shadow, new_shadow)) = runtime.overlays.iter().find_map(|overlay| {
+            let old_shadow = overlay.shadow_for_source(&old_path)?.shadow_uri.clone();
+            let new_shadow = overlay.prospective_shadow_uri(&new_path).ok()?;
+            Some((old_shadow, new_shadow))
+        }) else {
+            self.forward_tsgo_request(Request::new(
+                request.id,
+                "workspace/willRenameFiles".to_string(),
+                serde_json::json!({
+                    "files": [{ "oldUri": old_uri, "newUri": new_uri }]
+                }),
+            ));
+            return;
+        };
+        let mapping = WillRenameMapping {
+            old: ShadowUriPair {
+                source_uri: &old_uri,
+                shadow_uri: &old_shadow,
+            },
+            new: ShadowUriPair {
+                source_uri: &new_uri,
+                shadow_uri: &new_shadow,
+            },
+        };
+        let mut params = serde_json::json!({
+            "files": [{ "oldUri": old_uri, "newUri": new_uri }]
+        });
+        rewrite_will_rename_params(&mut params, &[mapping]);
+        let child = Request::new(
+            request.id.clone(),
+            "workspace/willRenameFiles".to_string(),
+            params,
+        );
+        let pending = PendingTsgoRequest {
+            method: "workspace/willRenameFiles".to_string(),
+            document: None,
+            fallback_result: None,
+            completion_site: None,
+            rename: None,
+            code_action_diagnostic_codes: Vec::new(),
+            push_diagnostics: None,
+            component_site: None,
+            component_references: None,
+            file_rename: Some(PendingFileRename {
+                old_source: old_uri,
+                old_shadow,
+                new_source: new_uri,
+                new_shadow,
+            }),
+            code_lens_resolve: None,
+        };
+        if runtime.client.forward(child.into()).is_ok() {
+            self.pending_tsgo.insert(request.id, pending);
+        } else {
+            self.respond_nothing(request.id);
         }
     }
 
@@ -416,6 +1087,7 @@ impl Server {
     }
 
     fn on_document_highlight(&mut self, request: Request) {
+        let tsgo_fallback = request.clone();
         let id = request.id;
         let params = match serde_json::from_value::<DocumentHighlightParams>(request.params) {
             Ok(params) => params.text_document_position_params,
@@ -433,7 +1105,11 @@ impl Server {
             .map_or_else(Vec::new, |(_, text, offset)| {
                 crate::html_tags::highlights(text.as_str(), offset)
             });
-        self.respond(Response::new_ok(id, highlights));
+        if highlights.is_empty() {
+            self.forward_tsgo_request(tsgo_fallback);
+        } else {
+            self.respond(Response::new_ok(id, highlights));
+        }
     }
 
     fn on_tag_close(&mut self, request: Request) {
@@ -498,6 +1174,7 @@ impl Server {
     }
 
     fn on_code_action(&mut self, request: Request) {
+        let tsgo_fallback = request.clone();
         let id = request.id;
         let params = match serde_json::from_value::<CodeActionParams>(request.params) {
             Ok(params) => params,
@@ -508,18 +1185,10 @@ impl Server {
             }
         };
         let uri = params.text_document.uri;
-        let Some(document) = self.documents.get(&uri) else {
-            self.respond_no_actions(id);
+        let Some(document) = self.component_document(&uri) else {
+            self.forward_tsgo_request(tsgo_fallback);
             return;
         };
-        if params.context.diagnostics.is_empty()
-            && params.context.only.as_ref().is_none_or(|kinds| {
-                !kinds.contains(&CodeActionKind::from(crate::code_actions::FIX_ALL_KIND))
-            })
-        {
-            self.respond_no_actions(id);
-            return;
-        }
         let only = params.context.only.as_ref();
         let job = Job::CodeAction {
             id: id.clone(),
@@ -533,23 +1202,130 @@ impl Server {
                 kinds.contains(&CodeActionKind::from(crate::code_actions::FIX_ALL_KIND))
             }),
         };
-        self.pending.insert(id, Pending::CodeAction);
+        self.pending
+            .insert(id, Pending::CodeAction { tsgo_fallback });
         self.worker.submit(job);
     }
 
     fn on_code_lens(&mut self, request: Request) {
+        let tsgo_fallback = request.clone();
         let id = request.id;
         let Ok(params) = serde_json::from_value::<CodeLensParams>(request.params) else {
             return self.respond_no_lenses(id);
         };
         if !self.settings.runes_legacy_mode_code_lens_enable {
-            return self.respond_no_lenses(id);
+            return self.forward_tsgo_request(tsgo_fallback);
         }
         let Some((path, text)) = self.component(&params.text_document.uri) else {
-            return self.respond_no_lenses(id);
+            return self.forward_tsgo_request(tsgo_fallback);
         };
-        self.pending.insert(id.clone(), Pending::CodeLens);
+        self.pending
+            .insert(id.clone(), Pending::CodeLens { tsgo_fallback });
         self.worker.submit(Job::CodeLens { id, path, text });
+    }
+
+    fn on_resolve_code_lens(&mut self, request: Request) {
+        let id = request.id;
+        let lens = request.params;
+        let Some(kind) = code_lens_kind(&lens) else {
+            self.respond(Response::new_ok(id, lens));
+            return;
+        };
+        let Some(source_uri) = lens
+            .pointer("/data/uri")
+            .and_then(serde_json::Value::as_str)
+            .and_then(|uri| uri.parse::<Uri>().ok())
+        else {
+            self.respond(Response::new_ok(id, lens));
+            return;
+        };
+        let Some(runtime) = &self.tsgo else {
+            self.respond(Response::new_ok(id, lens));
+            return;
+        };
+        let source_path = uri_to_path(source_uri.as_str());
+        let component_lens = kind == CodeLensKind::Reference
+            && source_path
+                .extension()
+                .is_some_and(|extension| extension == "svelte")
+            && lens
+                .pointer("/range/start/line")
+                .and_then(serde_json::Value::as_u64)
+                == Some(0)
+            && lens
+                .pointer("/range/start/character")
+                .and_then(serde_json::Value::as_u64)
+                == Some(0)
+            && lens
+                .pointer("/range/end/line")
+                .and_then(serde_json::Value::as_u64)
+                == Some(0)
+            && lens
+                .pointer("/range/end/character")
+                .and_then(serde_json::Value::as_u64)
+                == Some(1);
+        let method = match kind {
+            CodeLensKind::Reference => "textDocument/references",
+            CodeLensKind::Implementation => "textDocument/implementation",
+        };
+        let mapper = TsgoResponseMapper::for_overlays(&runtime.overlays);
+        let document = mapper.document_context(&source_uri);
+        let mut params = serde_json::json!({
+            "textDocument": { "uri": source_uri },
+            "position": lens.pointer("/range/start").cloned().unwrap_or_default(),
+        });
+        if kind == CodeLensKind::Reference {
+            params["context"] = serde_json::json!({ "includeDeclaration": false });
+        }
+        if component_lens {
+            let Some(shadow) = runtime
+                .overlays
+                .iter()
+                .find_map(|overlay| overlay.shadow_for_source(&source_path))
+            else {
+                self.respond(Response::new_ok(id, lens));
+                return;
+            };
+            let Some(position) = component_probe_position(&shadow.text) else {
+                self.respond(Response::new_ok(id, lens));
+                return;
+            };
+            params["textDocument"]["uri"] =
+                serde_json::Value::String(shadow.shadow_uri.as_str().to_string());
+            params["position"] = serde_json::to_value(position).unwrap_or_default();
+        } else {
+            let mapper = TsgoResponseMapper::for_overlays_with_default_document(
+                &runtime.overlays,
+                document.clone(),
+            );
+            if !mapper.map_request(method, &mut params) {
+                self.respond(Response::new_ok(id, lens));
+                return;
+            }
+        }
+        let child = Request::new(id.clone(), method.to_string(), params);
+        let pending = PendingTsgoRequest {
+            method: method.to_string(),
+            document,
+            fallback_result: None,
+            completion_site: None,
+            rename: None,
+            code_action_diagnostic_codes: Vec::new(),
+            push_diagnostics: None,
+            component_site: None,
+            component_references: component_lens.then(|| source_uri.clone()),
+            file_rename: None,
+            code_lens_resolve: Some(PendingCodeLensResolve {
+                lens,
+                kind,
+                source_uri,
+            }),
+        };
+        if runtime.client.forward(child.into()).is_ok() {
+            self.pending_tsgo.insert(id, pending);
+        } else if let Some(resolve) = pending.code_lens_resolve {
+            self.respond(Response::new_ok(id, resolve.lens));
+        }
     }
 
     fn on_execute_command(&mut self, request: Request) {
@@ -597,6 +1373,7 @@ impl Server {
     }
 
     fn on_folding_range(&mut self, request: Request) {
+        let tsgo_fallback = request.clone();
         let id = request.id;
         let params = match serde_json::from_value::<FoldingRangeParams>(request.params) {
             Ok(params) => params,
@@ -612,7 +1389,8 @@ impl Server {
         }
         match self.component(&params.text_document.uri) {
             Some((path, text)) => {
-                self.pending.insert(id.clone(), Pending::FoldingRange);
+                self.pending
+                    .insert(id.clone(), Pending::FoldingRange { tsgo_fallback });
                 self.worker.submit(Job::FoldingRange {
                     id,
                     path,
@@ -620,7 +1398,7 @@ impl Server {
                     line_folding_only: self.client.line_folding_only,
                 });
             }
-            None => self.respond_no_ranges(id),
+            None => self.forward_tsgo_request(tsgo_fallback),
         }
     }
 
@@ -658,6 +1436,7 @@ impl Server {
     }
 
     fn on_document_symbol(&mut self, request: Request) {
+        let tsgo_fallback = request.clone();
         let id = request.id;
         let params = match serde_json::from_value::<DocumentSymbolParams>(request.params) {
             Ok(params) => params,
@@ -674,7 +1453,8 @@ impl Server {
         let uri = params.text_document.uri;
         match self.component(&uri) {
             Some((path, text)) => {
-                self.pending.insert(id.clone(), Pending::DocumentSymbol);
+                self.pending
+                    .insert(id.clone(), Pending::DocumentSymbol { tsgo_fallback });
                 self.worker.submit(Job::DocumentSymbol {
                     id,
                     uri,
@@ -683,7 +1463,7 @@ impl Server {
                     hierarchical: self.client.hierarchical_document_symbols,
                 });
             }
-            None => self.respond_no_symbols(id),
+            None => self.forward_tsgo_request(tsgo_fallback),
         }
     }
 
@@ -709,25 +1489,64 @@ impl Server {
                 }
             }
             "workspace/didChangeWorkspaceFolders" => {
+                let child_notification = notification.clone();
                 match serde_json::from_value::<DidChangeWorkspaceFoldersParams>(notification.params)
                 {
-                    Ok(params) => self
-                        .client
-                        .update_workspace_folders(params.event.added, &params.event.removed),
+                    Ok(params) => {
+                        self.update_tsgo_workspace_folders(
+                            &params.event.added,
+                            &params.event.removed,
+                        );
+                        self.client
+                            .update_workspace_folders(params.event.added, &params.event.removed);
+                        self.ensure_tsgo_runtime();
+                        if let Some(runtime) = &self.tsgo {
+                            let workspace_folders = self.client.workspace_folders.clone();
+                            let root_uri = workspace_folders
+                                .is_empty()
+                                .then(|| self.client.root_uri.clone())
+                                .flatten();
+                            let current_dir = self
+                                .client
+                                .workspace_folders
+                                .first()
+                                .map(|folder| uri_to_path(folder.uri.as_str()))
+                                .or_else(|| {
+                                    self.client
+                                        .root_uri
+                                        .as_ref()
+                                        .map(|root| uri_to_path(root.as_str()))
+                                })
+                                .filter(|path| path.is_dir());
+                            let _ = runtime.client.update_workspace(
+                                root_uri,
+                                workspace_folders,
+                                current_dir,
+                            );
+                            let _ = runtime.client.forward(child_notification.into());
+                        }
+                    }
                     Err(err) => log::warn(format_args!("{method}: {err}")),
                 }
             }
             "workspace/didChangeWatchedFiles" => {
+                let child_notification = notification.clone();
                 match serde_json::from_value::<DidChangeWatchedFilesParams>(notification.params) {
-                    Ok(params)
-                        if params
+                    Ok(params) => {
+                        let project_changed = params
                             .changes
                             .iter()
-                            .any(|change| is_project_config(&change.uri)) =>
-                    {
-                        self.invalidate_project_config();
+                            .any(|change| is_project_config(&change.uri));
+                        if project_changed {
+                            self.invalidate_project_config();
+                            self.rebuild_tsgo_overlays();
+                        } else {
+                            self.refresh_tsgo_overlays();
+                        }
+                        if let Some(runtime) = &self.tsgo {
+                            let _ = runtime.client.forward(child_notification.into());
+                        }
                     }
-                    Ok(_) => {}
                     Err(err) => log::warn(format_args!("{method}: {err}")),
                 }
             }
@@ -738,6 +1557,7 @@ impl Server {
                         let key = doc.uri.as_str().to_string();
                         self.documents
                             .open(doc.uri, doc.language_id, doc.version, doc.text);
+                        self.sync_tsgo_document(&key);
                         if !self.client.pull_diagnostics {
                             self.schedule_lint(key, Duration::ZERO);
                         }
@@ -752,9 +1572,10 @@ impl Server {
                         if let Some(document) = self.documents.get_mut(&params.text_document.uri) {
                             document.apply(params.text_document.version, &params.content_changes);
                             if !self.client.pull_diagnostics {
-                                self.schedule_lint(key, LINT_DEBOUNCE);
+                                self.schedule_lint(key.clone(), LINT_DEBOUNCE);
                             }
                         }
+                        self.sync_tsgo_document(&key);
                     }
                     Err(err) => log::warn(format_args!("{method}: {err}")),
                 }
@@ -776,6 +1597,7 @@ impl Server {
                 match serde_json::from_value::<DidCloseTextDocumentParams>(notification.params) {
                     Ok(params) => {
                         let uri = params.text_document.uri;
+                        self.close_tsgo_document(&uri);
                         self.scheduled.remove(uri.as_str());
                         self.linted.remove(uri.as_str());
                         let version = self.documents.close(&uri).map_or(0, |d| d.version);
@@ -807,13 +1629,248 @@ impl Server {
             NumberOrString::Number(id) => RequestId::from(id),
             NumberOrString::String(id) => RequestId::from(id),
         };
-        if self.pending.remove(&id).is_some() {
+        let native = self.pending.remove(&id).is_some();
+        let tsgo = self.pending_tsgo.remove(&id).is_some();
+        let rename = self.rename_aggregates.remove(&id).is_some();
+        let component = self.component_queries.remove(&id);
+        let child_component_ids = self
+            .component_query_requests
+            .iter()
+            .filter(|(_, (editor_id, _))| editor_id == &id)
+            .map(|(child_id, _)| child_id.clone())
+            .collect::<Vec<_>>();
+        for child_id in child_component_ids {
+            self.component_query_requests.remove(&child_id);
+            if let Some(runtime) = &self.tsgo {
+                let _ = runtime.client.forward(
+                    Notification::new(
+                        "$/cancelRequest".to_string(),
+                        serde_json::json!({ "id": child_id }),
+                    )
+                    .into(),
+                );
+            }
+        }
+        if let Some(component) = &component
+            && let Some(runtime) = &self.tsgo
+        {
+            let _ = runtime
+                .client
+                .close_buffer(component.query.query_uri().clone());
+        }
+        let child_rename_ids = self
+            .pending_tsgo
+            .iter()
+            .filter_map(|(child_id, pending)| match &pending.rename {
+                Some(PendingRename::Followup { editor_id }) if editor_id == &id => {
+                    Some(child_id.clone())
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        for child_id in child_rename_ids {
+            self.pending_tsgo.remove(&child_id);
+            if let Some(runtime) = &self.tsgo {
+                let _ = runtime.client.forward(
+                    Notification::new(
+                        "$/cancelRequest".to_string(),
+                        serde_json::json!({ "id": child_id }),
+                    )
+                    .into(),
+                );
+            }
+        }
+        if tsgo && let Some(runtime) = &self.tsgo {
+            let _ = runtime.client.forward(
+                Notification::new(
+                    "$/cancelRequest".to_string(),
+                    serde_json::json!({ "id": id }),
+                )
+                .into(),
+            );
+        }
+        if native || tsgo || rename || component.is_some() {
             self.respond(Response::new_err(
                 id,
                 ErrorCode::RequestCanceled as i32,
                 "request cancelled by client".to_string(),
             ));
         }
+    }
+
+    fn forward_tsgo_request(&mut self, request: Request) {
+        self.forward_tsgo_request_with_fallback(request, None);
+    }
+
+    fn forward_tsgo_request_with_fallback(
+        &mut self,
+        mut request: Request,
+        fallback_result: Option<serde_json::Value>,
+    ) {
+        let completion_site = self.completion_site(&request);
+        let component_site = self.component_completion_site(&request);
+        let code_action_diagnostic_codes = code_action_diagnostic_codes(&request);
+        let Some(runtime) = &self.tsgo else {
+            self.respond(Response::new_ok(
+                request.id,
+                fallback_result.unwrap_or(serde_json::Value::Null),
+            ));
+            return;
+        };
+        let initial = TsgoResponseMapper::for_overlays_request(&runtime.overlays, &request.params);
+        let document = initial
+            .default_document()
+            .cloned()
+            .or_else(|| runtime.completion_document_context(&request.params));
+        let mapper = TsgoResponseMapper::for_overlays_with_default_document(
+            &runtime.overlays,
+            document.clone(),
+        );
+        if !mapper.map_request(&request.method, &mut request.params) {
+            self.respond(Response::new_ok(
+                request.id,
+                fallback_result.unwrap_or(serde_json::Value::Null),
+            ));
+            return;
+        }
+        let pending = PendingTsgoRequest {
+            method: request.method.clone(),
+            document,
+            fallback_result,
+            completion_site,
+            rename: None,
+            code_action_diagnostic_codes,
+            push_diagnostics: None,
+            component_site,
+            component_references: None,
+            file_rename: None,
+            code_lens_resolve: None,
+        };
+        let id = request.id.clone();
+        if let Err(error) = runtime.client.forward(request.into()) {
+            log::warn(format_args!("could not forward request to tsgo: {error}"));
+            self.respond(Response::new_ok(
+                id,
+                pending.fallback_result.unwrap_or(serde_json::Value::Null),
+            ));
+            return;
+        }
+        self.pending_tsgo.insert(id, pending);
+    }
+
+    fn pull_and_publish_tsgo_diagnostics(
+        &mut self,
+        uri: Uri,
+        version: i32,
+        native: Vec<lsp_types::Diagnostic>,
+    ) {
+        let native_fallback = native.clone();
+        let fallback = serde_json::to_value(diagnostic_report(native)).ok();
+        let Some(runtime) = &self.tsgo else {
+            self.publish(uri, version, native_fallback);
+            return;
+        };
+        let mut params = serde_json::json!({ "textDocument": { "uri": uri } });
+        let mapper = TsgoResponseMapper::for_overlays_request(&runtime.overlays, &params);
+        let document = mapper.default_document().cloned();
+        if !mapper.map_request("textDocument/diagnostic", &mut params) {
+            self.publish(uri, version, native_fallback);
+            return;
+        }
+        self.next_request_id += 1;
+        let id = RequestId::from(format!(
+            "rsvelte-tsgo-push-diagnostics-{}",
+            self.next_request_id
+        ));
+        let request = Request::new(id.clone(), "textDocument/diagnostic".to_string(), params);
+        let pending = PendingTsgoRequest {
+            method: "textDocument/diagnostic".to_string(),
+            document,
+            fallback_result: fallback,
+            completion_site: None,
+            rename: None,
+            code_action_diagnostic_codes: Vec::new(),
+            push_diagnostics: Some((uri.clone(), version)),
+            component_site: None,
+            component_references: None,
+            file_rename: None,
+            code_lens_resolve: None,
+        };
+        if runtime.client.forward(request.into()).is_ok() {
+            self.pending_tsgo.insert(id, pending);
+        } else {
+            self.publish(uri, version, native_fallback);
+        }
+    }
+
+    fn completion_site(&self, request: &Request) -> Option<CompletionSite> {
+        if request.method != "textDocument/completion" {
+            return None;
+        }
+        let uri = request
+            .params
+            .pointer("/textDocument/uri")?
+            .as_str()?
+            .parse::<Uri>()
+            .ok()?;
+        let position = serde_json::from_value(request.params.get("position")?.clone()).ok()?;
+        let document = self.documents.get(&uri)?;
+        if document.language_id != "svelte" {
+            return Some(CompletionSite::Script);
+        }
+        let text = document.text();
+        let offset = document.offset_at(position);
+        if crate::context::EmbeddedRegions::new(text).contains(offset) {
+            return Some(if inside_element_body(text, offset, "style") {
+                CompletionSite::Style
+            } else {
+                CompletionSite::Script
+            });
+        }
+        if let Some(prefix) = crate::context::attribute_prefix_context(text, offset) {
+            let component = prefix
+                .element_tag
+                .starts_with(|character: char| character.is_ascii_uppercase());
+            return Some(if component {
+                CompletionSite::ComponentStartTag {
+                    at_whitespace: prefix.prefix.is_empty(),
+                }
+            } else {
+                CompletionSite::ElementStartTag
+            });
+        }
+        let before = text.get(..offset)?;
+        let brace = before.rfind('{');
+        let close = before.rfind('}');
+        if brace > close {
+            let marker = before.get(brace? + 1..)?.trim_start();
+            return Some(if marker.starts_with(['#', ':', '/']) {
+                CompletionSite::BlockMarker
+            } else {
+                CompletionSite::TemplateExpression
+            });
+        }
+        Some(CompletionSite::RawTemplateText)
+    }
+
+    fn component_completion_site(&self, request: &Request) -> Option<ComponentCompletionSite> {
+        if request.method != "textDocument/completion" {
+            return None;
+        }
+        let params = serde_json::from_value::<CompletionParams>(request.params.clone()).ok()?;
+        let document = self
+            .documents
+            .get(&params.text_document_position.text_document.uri)?;
+        if document.language_id != "svelte" {
+            return None;
+        }
+        component_completion_site(
+            document.text(),
+            params.text_document_position.position,
+            params.context.as_ref(),
+            document_has_parser_error(document.text()),
+        )
+        .ok()
     }
 
     fn invalidate_project_config(&mut self) {
@@ -823,7 +1880,262 @@ impl Server {
         }
     }
 
-    fn on_response(&mut self, response: Response) {
+    fn sync_tsgo_document(&mut self, key: &str) {
+        let Some(document) = self.documents.get_by_key(key) else {
+            return;
+        };
+        let uri = document.uri.clone();
+        let language_id = document.language_id.clone();
+        let version = document.version;
+        let text = document.text().to_string();
+        let path = uri_to_path(uri.as_str());
+        let Some(runtime) = &mut self.tsgo else {
+            return;
+        };
+        if is_svelte_document(&language_id, &path) {
+            let Some(overlay) = runtime.overlay_for_source_mut(&path) else {
+                return;
+            };
+            match overlay.open_or_update(&path, &text, version) {
+                Ok(shadow) => {
+                    let _ = runtime.client.change_buffer(OpenBuffer::new(
+                        shadow.shadow_uri,
+                        shadow.language_id,
+                        shadow.version,
+                        shadow.text,
+                    ));
+                }
+                Err(error) => log::warn(format_args!(
+                    "could not update tsgo shadow for {}: {error}",
+                    path.display()
+                )),
+            }
+        } else if is_typescript_or_javascript(&language_id, &path) {
+            let Some(overlay) = runtime.overlay_for_source_mut(&path) else {
+                return;
+            };
+            match overlay.open_plain(&path, &text, version, &language_id) {
+                Ok(shadow) => {
+                    let _ = runtime.client.change_buffer(OpenBuffer::new(
+                        shadow.shadow_uri,
+                        shadow.language_id,
+                        shadow.version,
+                        shadow.text,
+                    ));
+                }
+                Err(error) => log::warn(format_args!(
+                    "could not route TypeScript buffer {}: {error}",
+                    path.display()
+                )),
+            }
+        }
+    }
+
+    fn close_tsgo_document(&mut self, uri: &Uri) {
+        let Some(document) = self.documents.get(uri) else {
+            return;
+        };
+        let language_id = document.language_id.clone();
+        let path = uri_to_path(uri.as_str());
+        let Some(runtime) = &mut self.tsgo else {
+            return;
+        };
+        if is_svelte_document(&language_id, &path) {
+            let Some(overlay) = runtime.overlay_for_source_mut(&path) else {
+                return;
+            };
+            let shadow_uri = overlay
+                .shadow_for_source(&path)
+                .map(|shadow| shadow.shadow_uri.clone());
+            match overlay.close(&path) {
+                Ok(Some(shadow)) => {
+                    let _ = runtime.client.change_buffer(OpenBuffer::new(
+                        shadow.shadow_uri,
+                        shadow.language_id,
+                        shadow.version,
+                        shadow.text,
+                    ));
+                }
+                Ok(None) => {
+                    if let Some(shadow_uri) = shadow_uri {
+                        let _ = runtime.client.close_buffer(shadow_uri);
+                    }
+                }
+                Err(error) => log::warn(format_args!(
+                    "could not close tsgo shadow for {}: {error}",
+                    path.display()
+                )),
+            }
+        } else if is_typescript_or_javascript(&language_id, &path) {
+            let Some(overlay) = runtime.overlay_for_source_mut(&path) else {
+                return;
+            };
+            match overlay.close_plain(&path) {
+                Ok(Some(shadow_uri)) => {
+                    let _ = runtime.client.close_buffer(shadow_uri);
+                }
+                Ok(None) => {}
+                Err(error) => log::warn(format_args!(
+                    "could not close TypeScript route {}: {error}",
+                    path.display()
+                )),
+            }
+        }
+    }
+
+    fn refresh_tsgo_overlays(&mut self) {
+        let Some(runtime) = &mut self.tsgo else {
+            return;
+        };
+        for overlay in &mut runtime.overlays {
+            match overlay.refresh() {
+                Ok(update) => {
+                    for shadow in update.opened_or_changed {
+                        let _ = runtime.client.change_buffer(OpenBuffer::new(
+                            shadow.shadow_uri,
+                            shadow.language_id,
+                            shadow.version,
+                            shadow.text,
+                        ));
+                    }
+                    for uri in update.closed {
+                        let _ = runtime.client.close_buffer(uri);
+                    }
+                }
+                Err(error) => log::warn(format_args!(
+                    "could not refresh tsgo overlay for {}: {error}",
+                    overlay.workspace().display()
+                )),
+            }
+        }
+    }
+
+    fn rebuild_tsgo_overlays(&mut self) {
+        let Some(runtime) = &mut self.tsgo else {
+            return;
+        };
+        let roots = runtime
+            .overlays
+            .iter()
+            .map(|overlay| overlay.workspace().to_path_buf())
+            .collect::<Vec<_>>();
+        let mut rebuilt = Vec::with_capacity(roots.len());
+        for root in roots {
+            match TsgoOverlay::build(&root, None) {
+                Ok(overlay) => rebuilt.push(overlay),
+                Err(error) => log::warn(format_args!(
+                    "could not rebuild tsgo overlay for {}: {error}",
+                    root.display()
+                )),
+            }
+        }
+        if rebuilt.is_empty() {
+            return;
+        }
+        for shadow in runtime.overlays.iter().flat_map(TsgoOverlay::open_shadows) {
+            let _ = runtime.client.close_buffer(shadow.shadow_uri.clone());
+        }
+        runtime.overlays = rebuilt;
+        for shadow in runtime.overlays.iter().flat_map(TsgoOverlay::eager_shadows) {
+            let _ = runtime.client.open_buffer(OpenBuffer::new(
+                shadow.shadow_uri.clone(),
+                shadow.language_id.clone(),
+                shadow.version,
+                shadow.text.clone(),
+            ));
+        }
+        let open = self
+            .documents
+            .iter()
+            .map(|document| document.uri.as_str().to_string())
+            .collect::<Vec<_>>();
+        for key in open {
+            self.sync_tsgo_document(&key);
+        }
+        self.abort_tsgo_requests("TypeScript project configuration changed");
+        if let Some(runtime) = &mut self.tsgo {
+            runtime.generation = None;
+            let _ = runtime.client.restart();
+        }
+    }
+
+    fn update_tsgo_workspace_folders(
+        &mut self,
+        added: &[lsp_types::WorkspaceFolder],
+        removed: &[lsp_types::WorkspaceFolder],
+    ) {
+        let Some(runtime) = &mut self.tsgo else {
+            return;
+        };
+        for folder in removed {
+            let path = uri_to_path(folder.uri.as_str());
+            let path = fs::canonicalize(&path).unwrap_or(path);
+            if let Some(index) = runtime
+                .overlays
+                .iter()
+                .position(|overlay| overlay.workspace() == path)
+            {
+                let overlay = runtime.overlays.remove(index);
+                for shadow in overlay.open_shadows() {
+                    let _ = runtime.client.close_buffer(shadow.shadow_uri.clone());
+                }
+            }
+        }
+        for folder in added {
+            let path = uri_to_path(folder.uri.as_str());
+            let path = fs::canonicalize(&path).unwrap_or(path);
+            if runtime
+                .overlays
+                .iter()
+                .any(|overlay| overlay.workspace() == path)
+            {
+                continue;
+            }
+            match TsgoOverlay::build(&path, None) {
+                Ok(overlay) => {
+                    for shadow in overlay.eager_shadows() {
+                        let _ = runtime.client.open_buffer(OpenBuffer::new(
+                            shadow.shadow_uri.clone(),
+                            shadow.language_id.clone(),
+                            shadow.version,
+                            shadow.text.clone(),
+                        ));
+                    }
+                    runtime.overlays.push(overlay);
+                }
+                Err(error) => log::warn(format_args!(
+                    "could not prepare tsgo overlay for {}: {error}",
+                    path.display()
+                )),
+            }
+        }
+    }
+
+    fn ensure_tsgo_runtime(&mut self) {
+        if self.tsgo.is_some() {
+            return;
+        }
+        let Some(runtime) = TsgoRuntime::start(&self.client, &self.initialize_params) else {
+            return;
+        };
+        let _ = runtime.client.update_configuration(
+            self.js_ts_settings.clone(),
+            self.editor_settings.clone(),
+            self.typescript_settings.clone(),
+            self.javascript_settings.clone(),
+        );
+        self.tsgo = Some(runtime);
+        let open = self
+            .documents
+            .iter()
+            .map(|document| document.uri.as_str().to_string())
+            .collect::<Vec<_>>();
+        for key in open {
+            self.sync_tsgo_document(&key);
+        }
+    }
+
+    fn on_response(&mut self, mut response: Response) {
         let Some(outgoing) = self.outgoing.remove(&response.id) else {
             log::warn(format_args!("response to unknown request {}", response.id));
             return;
@@ -831,11 +2143,29 @@ impl Server {
         match outgoing {
             Outgoing::Configuration => {
                 self.settings = match response.response_result {
-                    Ok(value) => value
-                        .as_array()
-                        .and_then(|items| items.first())
-                        .map(Settings::from_json)
-                        .unwrap_or_default(),
+                    Ok(value) => {
+                        let items = value.as_array();
+                        self.js_ts_settings = items
+                            .and_then(|items| items.get(1))
+                            .cloned()
+                            .unwrap_or(serde_json::Value::Null);
+                        self.typescript_settings = items
+                            .and_then(|items| items.get(2))
+                            .cloned()
+                            .unwrap_or(serde_json::Value::Null);
+                        self.javascript_settings = items
+                            .and_then(|items| items.get(3))
+                            .cloned()
+                            .unwrap_or(serde_json::Value::Null);
+                        self.editor_settings = items
+                            .and_then(|items| items.get(4))
+                            .cloned()
+                            .unwrap_or(serde_json::Value::Null);
+                        items
+                            .and_then(|items| items.first())
+                            .map(Settings::from_json)
+                            .unwrap_or_default()
+                    }
                     Err(err) => {
                         log::warn(format_args!(
                             "workspace/configuration failed: {}",
@@ -844,12 +2174,665 @@ impl Server {
                         Settings::default()
                     }
                 };
+                if let Some(runtime) = &self.tsgo
+                    && let Err(error) = runtime.client.update_configuration(
+                        self.js_ts_settings.clone(),
+                        self.editor_settings.clone(),
+                        self.typescript_settings.clone(),
+                        self.javascript_settings.clone(),
+                    )
+                {
+                    log::warn(format_args!("could not update tsgo settings: {error}"));
+                }
                 if !self.client.pull_diagnostics {
                     self.relint_open_documents();
                 }
             }
             Outgoing::WatchedFilesRegistration => {}
+            Outgoing::Tsgo { child_id } => {
+                response.id = child_id;
+                if let Some(runtime) = &self.tsgo {
+                    let _ = runtime.client.forward(response.into());
+                }
+            }
         }
+    }
+
+    fn on_tsgo_event(&mut self, event: TsgoEvent) {
+        match event {
+            TsgoEvent::Ready {
+                generation,
+                capabilities: _,
+            } => {
+                if let Some(runtime) = &mut self.tsgo {
+                    runtime.generation = Some(generation);
+                }
+            }
+            TsgoEvent::Message {
+                generation,
+                message,
+            } => {
+                if self
+                    .tsgo
+                    .as_ref()
+                    .is_some_and(|runtime| runtime.generation == Some(generation))
+                {
+                    self.on_tsgo_message(message);
+                }
+            }
+            TsgoEvent::Crashed {
+                generation,
+                status,
+                error,
+            } => {
+                if let Some(runtime) = &mut self.tsgo {
+                    runtime.generation = None;
+                }
+                log::warn(format_args!(
+                    "tsgo generation {generation} crashed ({status:?}): {error}"
+                ));
+                self.abort_tsgo_requests("TypeScript service restarted before answering");
+            }
+        }
+    }
+
+    fn abort_tsgo_requests(&mut self, message: &str) {
+        let stale_child_requests = self
+            .outgoing
+            .iter()
+            .filter_map(|(id, outgoing)| {
+                matches!(outgoing, Outgoing::Tsgo { .. }).then_some(id.clone())
+            })
+            .collect::<Vec<_>>();
+        for id in stale_child_requests {
+            self.outgoing.remove(&id);
+            self.send(Notification::new(
+                "$/cancelRequest".to_string(),
+                serde_json::json!({ "id": id }),
+            ));
+        }
+        for (id, pending) in std::mem::take(&mut self.pending_tsgo) {
+            if let Some((uri, version)) = pending.push_diagnostics {
+                let diagnostics = pending
+                    .fallback_result
+                    .and_then(|report| report.get("items").cloned())
+                    .and_then(|items| serde_json::from_value(items).ok())
+                    .unwrap_or_default();
+                self.publish(uri, version, diagnostics);
+                continue;
+            }
+            if matches!(pending.rename, Some(PendingRename::Followup { .. })) {
+                continue;
+            }
+            if let Some(fallback) = pending.fallback_result {
+                self.respond(Response::new_ok(id, fallback));
+            } else {
+                self.respond(Response::new_err(
+                    id,
+                    ErrorCode::InternalError as i32,
+                    message.to_string(),
+                ));
+            }
+        }
+        for (id, _) in std::mem::take(&mut self.rename_aggregates) {
+            self.respond(Response::new_err(
+                id,
+                ErrorCode::InternalError as i32,
+                message.to_string(),
+            ));
+        }
+        self.component_query_requests.clear();
+        for (id, pending) in std::mem::take(&mut self.component_queries) {
+            if let Some(runtime) = &self.tsgo {
+                let _ = runtime
+                    .client
+                    .close_buffer(pending.query.query_uri().clone());
+            }
+            self.respond(Response::new_err(
+                id,
+                ErrorCode::InternalError as i32,
+                message.to_string(),
+            ));
+        }
+    }
+
+    fn on_tsgo_message(&mut self, message: Message) {
+        match message {
+            Message::Response(mut response) => {
+                if self.on_component_query_response(response.clone()) {
+                    return;
+                }
+                let Some(pending) = self.pending_tsgo.remove(&response.id) else {
+                    log::warn(format_args!(
+                        "response to unknown tsgo request {}",
+                        response.id
+                    ));
+                    return;
+                };
+                if let Some(rename) = pending.rename {
+                    self.on_tsgo_rename_response(response, rename);
+                    return;
+                }
+                let PendingTsgoRequest {
+                    method,
+                    document,
+                    fallback_result,
+                    completion_site,
+                    rename: _,
+                    code_action_diagnostic_codes,
+                    push_diagnostics,
+                    component_site,
+                    component_references,
+                    file_rename,
+                    code_lens_resolve,
+                } = pending;
+                let source_path = document
+                    .as_ref()
+                    .map(|document| uri_to_path(document.source_uri().as_str()));
+                let source_uri = document
+                    .as_ref()
+                    .map(|document| document.source_uri().clone());
+                let completion_context =
+                    CompletionRewriteContext::new(source_path.as_deref(), true);
+                if let Ok(result) = &mut response.response_result {
+                    if let Some(runtime) = &self.tsgo {
+                        let mut mapper = TsgoResponseMapper::for_overlays_with_default_document(
+                            &runtime.overlays,
+                            document,
+                        );
+                        if let Some(rename) = &file_rename {
+                            let _ = mapper.add_uri_alias(
+                                rename.new_source.clone(),
+                                rename.new_shadow.clone(),
+                                &rename.old_source,
+                            );
+                        }
+                        mapper.map_response(&method, result);
+                    }
+                    match method.as_str() {
+                        "textDocument/completion" => {
+                            rewrite_completion_response_for_context(result, completion_context);
+                            if let Some(site) = completion_site {
+                                let (count, first_is_member) = completion_result_shape(result);
+                                if !matches!(
+                                    completion_action(site, count, first_is_member),
+                                    CompletionAction::Forward
+                                ) {
+                                    *result = serde_json::Value::Null;
+                                }
+                            }
+                        }
+                        "completionItem/resolve" => {
+                            rewrite_completion_item_for_context(result, completion_context);
+                        }
+                        "textDocument/codeAction" => {
+                            if let Some(uri) = source_uri.as_ref()
+                                && let Some(source) = self.documents.get(uri)
+                                && is_svelte_document(
+                                    &source.language_id,
+                                    &uri_to_path(uri.as_str()),
+                                )
+                            {
+                                let parser_error = document_has_parser_error(source.text());
+                                let context = TsgoCodeActionContext::new(uri, source.text())
+                                    .with_parser_error(parser_error)
+                                    .with_diagnostic_codes(&code_action_diagnostic_codes);
+                                rewrite_code_action_response(result, &context);
+                            }
+                        }
+                        "textDocument/codeLens" => {
+                            if let Some(uri) = source_uri.as_ref() {
+                                prepare_code_lenses(result, uri);
+                                if self.component_reference_code_lens_enabled(uri)
+                                    && let Some(lenses) = result.as_array_mut()
+                                {
+                                    lenses.push(component_reference_code_lens(uri));
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                    rewrite_visible_tsgo_response(result);
+                    if component_references.is_some() {
+                        let locations =
+                            serde_json::from_value::<Vec<lsp_types::Location>>(result.clone())
+                                .unwrap_or_default();
+                        let texts = locations
+                            .iter()
+                            .map(|location| {
+                                self.documents
+                                    .get(&location.uri)
+                                    .map(|document| document.text().to_string())
+                                    .or_else(|| {
+                                        fs::read_to_string(uri_to_path(location.uri.as_str())).ok()
+                                    })
+                            })
+                            .collect::<Vec<_>>();
+                        let references =
+                            locations.into_iter().zip(&texts).map(|(location, text)| {
+                                ComponentReference {
+                                    location,
+                                    source_text: text.as_deref(),
+                                    is_definition: false,
+                                    is_generated: false,
+                                }
+                            });
+                        *result = serde_json::to_value(filter_component_references(references))
+                            .unwrap_or_else(|_| serde_json::Value::Array(Vec::new()));
+                    }
+                    if let Some(file_rename) = &file_rename {
+                        let mapping = WillRenameMapping {
+                            old: ShadowUriPair {
+                                source_uri: &file_rename.old_source,
+                                shadow_uri: &file_rename.old_shadow,
+                            },
+                            new: ShadowUriPair {
+                                source_uri: &file_rename.new_source,
+                                shadow_uri: &file_rename.new_shadow,
+                            },
+                        };
+                        let owned_pairs = self
+                            .tsgo
+                            .as_ref()
+                            .map(|runtime| {
+                                runtime
+                                    .overlays
+                                    .iter()
+                                    .flat_map(TsgoOverlay::eager_shadows)
+                                    .map(|shadow| {
+                                        (shadow.source_uri.clone(), shadow.shadow_uri.clone())
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
+                            .unwrap_or_default();
+                        let pairs = owned_pairs
+                            .iter()
+                            .map(|(source, shadow)| ShadowUriPair {
+                                source_uri: source,
+                                shadow_uri: shadow,
+                            })
+                            .collect::<Vec<_>>();
+                        rewrite_will_rename_result(result, &[mapping], &pairs);
+                    }
+                    if let Some(mut resolve) = code_lens_resolve {
+                        let locations = locations_from_tsgo_result(result);
+                        resolve_code_lens(
+                            &mut resolve.lens,
+                            resolve.kind,
+                            &resolve.source_uri,
+                            locations,
+                        );
+                        *result = resolve.lens;
+                    }
+                    if let Some(fallback) = fallback_result {
+                        merge_tsgo_result(&method, result, fallback);
+                    }
+                } else if let Some(fallback) = fallback_result {
+                    response.response_result = Ok(fallback);
+                }
+                if let Some((uri, version)) = push_diagnostics {
+                    let diagnostics = response
+                        .response_result
+                        .as_ref()
+                        .ok()
+                        .and_then(|result| result.get("items"))
+                        .cloned()
+                        .and_then(|items| serde_json::from_value(items).ok())
+                        .unwrap_or_default();
+                    self.publish(uri, version, diagnostics);
+                    return;
+                }
+                if method == "textDocument/completion"
+                    && let (Some(site), Some(uri), Ok(result)) = (
+                        component_site,
+                        source_uri.as_ref(),
+                        response.response_result.as_ref(),
+                    )
+                    && self.start_component_query(response.id.clone(), uri, site, result.clone())
+                {
+                    return;
+                }
+                self.respond(response);
+            }
+            Message::Notification(mut notification) => {
+                if let Some(runtime) = &self.tsgo {
+                    let mapper = TsgoResponseMapper::for_overlays(&runtime.overlays);
+                    if !mapper.map_child_params(&notification.method, &mut notification.params) {
+                        return;
+                    }
+                }
+                self.send(notification);
+            }
+            Message::Request(mut request) => {
+                if let Some(runtime) = &self.tsgo {
+                    let mapper = TsgoResponseMapper::for_overlays_request(
+                        &runtime.overlays,
+                        &request.params,
+                    );
+                    if !mapper.map_child_params(&request.method, &mut request.params) {
+                        let _ = runtime.client.forward(
+                            Response::new_err(
+                                request.id,
+                                ErrorCode::InvalidParams as i32,
+                                "could not map generated request coordinates".to_string(),
+                            )
+                            .into(),
+                        );
+                        return;
+                    }
+                }
+                let child_id = request.id.clone();
+                self.next_request_id += 1;
+                let editor_id =
+                    RequestId::from(format!("rsvelte-tsgo-child-{}", self.next_request_id));
+                request.id = editor_id.clone();
+                self.outgoing.insert(editor_id, Outgoing::Tsgo { child_id });
+                self.send(request);
+            }
+        }
+    }
+
+    fn start_component_query(
+        &mut self,
+        editor_id: RequestId,
+        source_uri: &Uri,
+        site: ComponentCompletionSite,
+        result: serde_json::Value,
+    ) -> bool {
+        let Some(runtime) = self.tsgo.as_ref() else {
+            return false;
+        };
+        let source_path = uri_to_path(source_uri.as_str());
+        let Some((shadow_uri, generated_text, generated_range, version)) = runtime
+            .overlays
+            .iter()
+            .filter_map(|overlay| {
+                let shadow = overlay.shadow_for_source(&source_path)?;
+                let ranges = generated_component_ranges(
+                    overlay.projection_map(&source_path)?,
+                    &site,
+                    &shadow.text,
+                );
+                Some((
+                    shadow.shadow_uri.clone(),
+                    shadow.text.clone(),
+                    ranges.into_iter().next_back()?,
+                    shadow.version.saturating_add(10_000),
+                ))
+            })
+            .next()
+        else {
+            return false;
+        };
+        let Ok(query) = ComponentInfoQuery::new(
+            &shadow_uri,
+            generated_text,
+            generated_range,
+            site.component_expression(),
+            version,
+        ) else {
+            return false;
+        };
+        self.component_queries.insert(
+            editor_id.clone(),
+            PendingComponentQuery {
+                query,
+                site,
+                result,
+            },
+        );
+        self.drive_component_query(&editor_id);
+        true
+    }
+
+    fn component_reference_code_lens_enabled(&self, uri: &Uri) -> bool {
+        let Some(document) = self.documents.get(uri) else {
+            return false;
+        };
+        if !is_svelte_document(&document.language_id, &uri_to_path(uri.as_str()))
+            || document_has_parser_error(document.text())
+        {
+            return false;
+        }
+        let lower = document.text().to_ascii_lowercase();
+        let language = if lower.contains("lang=\"ts\"")
+            || lower.contains("lang='ts'")
+            || lower.contains("lang=ts")
+        {
+            &self.typescript_settings
+        } else {
+            &self.javascript_settings
+        };
+        let mut enabled = true;
+        for layer in [&self.editor_settings, language, &self.js_ts_settings] {
+            if let Some(value) = layer
+                .pointer("/referencesCodeLens/enabled")
+                .and_then(serde_json::Value::as_bool)
+            {
+                enabled = value;
+            }
+        }
+        enabled
+    }
+
+    fn on_component_query_response(&mut self, response: Response) -> bool {
+        let Some((editor_id, query_id)) = self.component_query_requests.remove(&response.id) else {
+            return false;
+        };
+        let Some(mut pending) = self.component_queries.remove(&editor_id) else {
+            return true;
+        };
+        match response.response_result {
+            Ok(result) => {
+                let _ = pending.query.accept_response(query_id, result);
+            }
+            Err(_) => {
+                let _ = pending.query.accept_error(query_id);
+            }
+        }
+        self.component_queries.insert(editor_id.clone(), pending);
+        self.drive_component_query(&editor_id);
+        true
+    }
+
+    fn drive_component_query(&mut self, editor_id: &RequestId) {
+        let Some(mut pending) = self.component_queries.remove(editor_id) else {
+            return;
+        };
+        loop {
+            let Some(action) = pending.query.next_action() else {
+                self.component_queries.insert(editor_id.clone(), pending);
+                return;
+            };
+            match action {
+                ComponentInfoAction::Open {
+                    uri,
+                    language_id,
+                    version,
+                    text,
+                } => {
+                    if let Some(runtime) = &self.tsgo {
+                        let _ = runtime.client.open_buffer(OpenBuffer::new(
+                            uri,
+                            language_id,
+                            version,
+                            text,
+                        ));
+                    }
+                }
+                ComponentInfoAction::Change { uri, version, text } => {
+                    if let Some(runtime) = &self.tsgo {
+                        let _ = runtime.client.change_buffer(OpenBuffer::new(
+                            uri,
+                            "typescriptreact",
+                            version,
+                            text,
+                        ));
+                    }
+                }
+                ComponentInfoAction::Request { id, method, params } => {
+                    self.next_request_id += 1;
+                    let child_id = RequestId::from(format!(
+                        "rsvelte-tsgo-component-info-{}",
+                        self.next_request_id
+                    ));
+                    let request = Request::new(child_id.clone(), method.to_string(), params);
+                    let sent = self
+                        .tsgo
+                        .as_ref()
+                        .is_some_and(|runtime| runtime.client.forward(request.into()).is_ok());
+                    if sent {
+                        self.component_query_requests
+                            .insert(child_id, (editor_id.clone(), id));
+                        self.component_queries.insert(editor_id.clone(), pending);
+                        return;
+                    }
+                    let _ = pending.query.accept_error(id);
+                }
+                ComponentInfoAction::Close { uri } => {
+                    if let Some(runtime) = &self.tsgo {
+                        let _ = runtime.client.close_buffer(uri);
+                    }
+                }
+                ComponentInfoAction::Complete(info) => {
+                    let manual = info.completion_items(&pending.site);
+                    append_component_completions(
+                        &mut pending.result,
+                        manual,
+                        pending.site.was_colon_triggered(),
+                    );
+                    self.respond(Response::new_ok(editor_id.clone(), pending.result));
+                    return;
+                }
+            }
+        }
+    }
+
+    fn on_tsgo_rename_response(&mut self, mut response: Response, pending: PendingRename) {
+        match pending {
+            PendingRename::Prepare(plan) => {
+                if let Ok(result) = response.response_result {
+                    let rewritten = self
+                        .tsgo
+                        .as_ref()
+                        .and_then(|runtime| {
+                            let documents = rename_documents(&runtime.overlays);
+                            rewrite_prepare_response(&plan, result, &documents)
+                        })
+                        .unwrap_or(serde_json::Value::Null);
+                    response.response_result = Ok(rewritten);
+                }
+                self.respond(response);
+            }
+            PendingRename::Primary { plan, new_name } => {
+                let Ok(result) = response.response_result else {
+                    self.respond(response);
+                    return;
+                };
+                let Some(runtime) = self.tsgo.as_ref() else {
+                    self.respond_nothing(response.id);
+                    return;
+                };
+                let documents = rename_documents(&runtime.overlays);
+                let rewritten = rewrite_workspace_edit(&plan, &result, &documents, &new_name, true);
+                if rewritten.followups.is_empty() {
+                    self.respond(Response::new_ok(response.id, rewritten.edit));
+                    return;
+                }
+                let editor_id = response.id;
+                let remaining = rewritten.followups.len();
+                let mut requests = Vec::with_capacity(remaining);
+                for followup in rewritten.followups {
+                    self.next_request_id += 1;
+                    let child_id = RequestId::from(format!(
+                        "rsvelte-tsgo-rename-followup-{}",
+                        self.next_request_id
+                    ));
+                    let request = Request::new(
+                        child_id.clone(),
+                        "textDocument/rename".to_string(),
+                        serde_json::json!({
+                            "textDocument": { "uri": followup.uri },
+                            "position": followup.position,
+                            "newName": followup.new_name,
+                        }),
+                    );
+                    let child_pending = PendingTsgoRequest {
+                        method: "textDocument/rename".to_string(),
+                        document: None,
+                        fallback_result: None,
+                        completion_site: None,
+                        rename: Some(PendingRename::Followup {
+                            editor_id: editor_id.clone(),
+                        }),
+                        code_action_diagnostic_codes: Vec::new(),
+                        push_diagnostics: None,
+                        component_site: None,
+                        component_references: None,
+                        file_rename: None,
+                        code_lens_resolve: None,
+                    };
+                    requests.push((child_id, request, child_pending));
+                }
+                self.rename_aggregates.insert(
+                    editor_id.clone(),
+                    RenameAggregate {
+                        plan,
+                        new_name,
+                        edits: vec![rewritten.edit],
+                        remaining,
+                    },
+                );
+                for (child_id, request, child_pending) in requests {
+                    if let Some(runtime) = &self.tsgo
+                        && runtime.client.forward(request.into()).is_ok()
+                    {
+                        self.pending_tsgo.insert(child_id, child_pending);
+                    } else {
+                        self.finish_rename_followup(&editor_id, None);
+                    }
+                }
+            }
+            PendingRename::Followup { editor_id } => {
+                let edit = response.response_result.ok().and_then(|result| {
+                    let aggregate = self.rename_aggregates.get(&editor_id)?;
+                    let runtime = self.tsgo.as_ref()?;
+                    let documents = rename_documents(&runtime.overlays);
+                    Some(
+                        rewrite_workspace_edit(
+                            &aggregate.plan,
+                            &result,
+                            &documents,
+                            &aggregate.new_name,
+                            false,
+                        )
+                        .edit,
+                    )
+                });
+                self.finish_rename_followup(&editor_id, edit);
+            }
+        }
+    }
+
+    fn finish_rename_followup(&mut self, editor_id: &RequestId, edit: Option<serde_json::Value>) {
+        let Some(aggregate) = self.rename_aggregates.get_mut(editor_id) else {
+            return;
+        };
+        if let Some(edit) = edit {
+            aggregate.edits.push(edit);
+        }
+        aggregate.remaining = aggregate.remaining.saturating_sub(1);
+        if aggregate.remaining != 0 {
+            return;
+        }
+        let aggregate = self
+            .rename_aggregates
+            .remove(editor_id)
+            .expect("aggregate existed above");
+        self.respond(Response::new_ok(
+            editor_id.clone(),
+            merge_workspace_edits(aggregate.edits),
+        ));
     }
 
     fn on_outcome(&mut self, outcome: Outcome) {
@@ -862,23 +2845,34 @@ impl Server {
                 }
             }
             Outcome::Completed { id, list } => {
-                if self.pending.remove(&id).is_some() {
-                    self.respond(Response::new_ok(id, list));
+                if let Some(Pending::Completion { tsgo_fallback }) = self.pending.remove(&id) {
+                    let fallback = list.and_then(|list| serde_json::to_value(list).ok());
+                    self.forward_tsgo_request_with_fallback(tsgo_fallback, fallback);
                 }
             }
             Outcome::Hovered { id, hover } => {
-                if self.pending.remove(&id).is_some() {
-                    self.respond(Response::new_ok(id, hover));
+                if let Some(Pending::Hover { tsgo_fallback }) = self.pending.remove(&id) {
+                    if hover.is_some() {
+                        self.respond(Response::new_ok(id, hover));
+                    } else {
+                        self.forward_tsgo_request(tsgo_fallback);
+                    }
                 }
             }
             Outcome::CodeActions { id, actions } => {
-                if self.pending.remove(&id).is_some() {
-                    self.respond(Response::new_ok(id, actions));
+                if let Some(Pending::CodeAction { tsgo_fallback }) = self.pending.remove(&id) {
+                    self.forward_tsgo_request_with_fallback(
+                        tsgo_fallback,
+                        serde_json::to_value(actions).ok(),
+                    );
                 }
             }
             Outcome::CodeLenses { id, lenses } => {
-                if self.pending.remove(&id).is_some() {
-                    self.respond(Response::new_ok(id, lenses));
+                if let Some(Pending::CodeLens { tsgo_fallback }) = self.pending.remove(&id) {
+                    self.forward_tsgo_request_with_fallback(
+                        tsgo_fallback,
+                        serde_json::to_value(lenses).ok(),
+                    );
                 }
             }
             Outcome::ExtractedComponent { id, result } => {
@@ -887,8 +2881,11 @@ impl Server {
                 }
             }
             Outcome::FoldingRanges { id, ranges } => {
-                if self.pending.remove(&id).is_some() {
-                    self.respond(Response::new_ok(id, ranges));
+                if let Some(Pending::FoldingRange { tsgo_fallback }) = self.pending.remove(&id) {
+                    self.forward_tsgo_request_with_fallback(
+                        tsgo_fallback,
+                        serde_json::to_value(ranges).ok(),
+                    );
                 }
             }
             Outcome::SelectionRanges { id, ranges } => {
@@ -897,13 +2894,26 @@ impl Server {
                 }
             }
             Outcome::DocumentSymbols { id, symbols } => {
-                if self.pending.remove(&id).is_some() {
-                    self.respond(Response::new_ok(id, symbols));
+                if let Some(Pending::DocumentSymbol { tsgo_fallback }) = self.pending.remove(&id) {
+                    self.forward_tsgo_request_with_fallback(
+                        tsgo_fallback,
+                        serde_json::to_value(symbols).ok(),
+                    );
                 }
             }
             Outcome::PulledDiagnostics { id, diagnostics } => {
-                if self.pending.remove(&id).is_some() {
-                    self.respond_diagnostic_report(id, diagnostics);
+                if let Some(Pending::DocumentDiagnostic { tsgo_fallback }) =
+                    self.pending.remove(&id)
+                {
+                    self.forward_tsgo_request_with_fallback(
+                        tsgo_fallback,
+                        serde_json::to_value(diagnostic_report(diagnostics)).ok(),
+                    );
+                }
+            }
+            Outcome::FileReferences { id, locations } => {
+                if matches!(self.pending.remove(&id), Some(Pending::FileReferences)) {
+                    self.respond(Response::new_ok(id, locations));
                 }
             }
             Outcome::Diagnostics {
@@ -913,7 +2923,7 @@ impl Server {
                 diagnostics,
             } => {
                 if self.documents.get_by_key(&key).is_some() {
-                    self.publish(uri, version, diagnostics);
+                    self.pull_and_publish_tsgo_diagnostics(uri, version, diagnostics);
                 }
             }
         }
@@ -927,10 +2937,19 @@ impl Server {
             id,
             "workspace/configuration".to_string(),
             ConfigurationParams {
-                items: vec![ConfigurationItem {
+                items: [
+                    CONFIG_SECTION,
+                    JS_TS_CONFIG_SECTION,
+                    TYPESCRIPT_CONFIG_SECTION,
+                    JAVASCRIPT_CONFIG_SECTION,
+                    EDITOR_CONFIG_SECTION,
+                ]
+                .into_iter()
+                .map(|section| ConfigurationItem {
                     scope_uri: None,
-                    section: Some(CONFIG_SECTION.to_string()),
-                }],
+                    section: Some(section.to_string()),
+                })
+                .collect(),
             },
         ));
     }
@@ -994,6 +3013,7 @@ impl Server {
             return;
         };
         let uri = document.uri.clone();
+        let language_id = document.language_id.clone();
         let version = document.version;
         let hash = document.content_hash();
         // A burst of edits that cancel out leaves the text — and therefore the
@@ -1004,7 +3024,14 @@ impl Server {
         self.linted.insert(key.to_string(), hash);
 
         if !self.settings.lint_enable || !is_lint_target(document) {
-            self.publish(uri, version, Vec::new());
+            let path = uri_to_path(key);
+            if is_svelte_document(&language_id, &path)
+                || is_typescript_or_javascript(&language_id, &path)
+            {
+                self.pull_and_publish_tsgo_diagnostics(uri, version, Vec::new());
+            } else {
+                self.publish(uri, version, Vec::new());
+            }
             return;
         }
         self.worker.submit(Job::Lint {
@@ -1029,14 +3056,7 @@ impl Server {
     }
 
     fn respond_diagnostic_report(&self, id: RequestId, diagnostics: Vec<lsp_types::Diagnostic>) {
-        let report = DocumentDiagnosticReport::Full(RelatedFullDocumentDiagnosticReport {
-            related_documents: None,
-            full_document_diagnostic_report: FullDocumentDiagnosticReport {
-                result_id: None,
-                items: diagnostics,
-            },
-        });
-        self.respond(Response::new_ok(id, report));
+        self.respond(Response::new_ok(id, diagnostic_report(diagnostics)));
     }
 
     fn respond_no_edits(&self, id: RequestId) {
@@ -1076,6 +3096,56 @@ impl Server {
     }
 }
 
+fn diagnostic_report(diagnostics: Vec<lsp_types::Diagnostic>) -> DocumentDiagnosticReport {
+    DocumentDiagnosticReport::Full(RelatedFullDocumentDiagnosticReport {
+        related_documents: None,
+        full_document_diagnostic_report: FullDocumentDiagnosticReport {
+            result_id: None,
+            items: diagnostics,
+        },
+    })
+}
+
+fn inside_element_body(text: &str, offset: usize, tag: &str) -> bool {
+    let before = text.get(..offset).unwrap_or(text);
+    let open = before.rfind(&format!("<{tag}"));
+    let close = before.rfind(&format!("</{tag}"));
+    open > close && open.is_some_and(|start| before[start..].contains('>'))
+}
+
+fn rename_documents(overlays: &[TsgoOverlay]) -> Vec<RenameDocument<'_>> {
+    let mut documents = Vec::new();
+    for overlay in overlays {
+        for shadow in overlay.eager_shadows() {
+            let source_path = uri_to_path(shadow.source_uri.as_str());
+            let Some(source_text) = overlay.source_text(&source_path) else {
+                continue;
+            };
+            let Some(projection_map) = overlay.projection_map(&source_path) else {
+                continue;
+            };
+            documents.push(RenameDocument {
+                source_uri: &shadow.source_uri,
+                shadow_uri: &shadow.shadow_uri,
+                source_text,
+                generated_text: &shadow.text,
+                projection_map,
+                source_map: overlay.source_map(&source_path),
+                parser_error: false,
+            });
+        }
+    }
+    documents
+}
+
+fn custom_request_uri(params: &serde_json::Value) -> Option<Uri> {
+    params
+        .as_str()
+        .or_else(|| params.get("uri").and_then(serde_json::Value::as_str))?
+        .parse()
+        .ok()
+}
+
 /// Svelte components plus the `.svelte.js` / `.svelte.ts` module dialect.
 fn is_lint_target(document: &Document) -> bool {
     if document.language_id == "svelte" {
@@ -1085,10 +3155,165 @@ fn is_lint_target(document: &Document) -> bool {
     uri.ends_with(".svelte.js") || uri.ends_with(".svelte.ts")
 }
 
+fn is_svelte_document(language_id: &str, path: &Path) -> bool {
+    language_id == "svelte"
+        || path
+            .extension()
+            .is_some_and(|extension| extension == "svelte")
+}
+
+fn is_typescript_or_javascript(language_id: &str, path: &Path) -> bool {
+    if matches!(
+        language_id,
+        "typescript" | "typescriptreact" | "javascript" | "javascriptreact"
+    ) {
+        return true;
+    }
+    path.extension().is_some_and(|extension| {
+        matches!(
+            extension.to_str(),
+            Some("ts" | "tsx" | "mts" | "cts" | "js" | "jsx" | "mjs" | "cjs")
+        )
+    })
+}
+
 fn is_project_config(uri: &Uri) -> bool {
     project_config_names()
         .iter()
         .any(|name| uri.as_str().rsplit('/').next() == Some(name))
+}
+
+fn merge_tsgo_result(method: &str, result: &mut serde_json::Value, fallback: serde_json::Value) {
+    if result.is_null() {
+        *result = fallback;
+        return;
+    }
+    match method {
+        "textDocument/completion" => {
+            let mut fallback = fallback;
+            let fallback_items = fallback
+                .get_mut("items")
+                .and_then(serde_json::Value::as_array_mut);
+            let result_items = result
+                .get_mut("items")
+                .and_then(serde_json::Value::as_array_mut);
+            if let (Some(fallback_items), Some(result_items)) = (fallback_items, result_items) {
+                fallback_items.append(result_items);
+                if let Some(object) = fallback.as_object_mut() {
+                    object.insert("isIncomplete".to_string(), serde_json::Value::Bool(false));
+                }
+                *result = fallback;
+            }
+        }
+        "textDocument/codeAction"
+        | "textDocument/codeLens"
+        | "textDocument/foldingRange"
+        | "textDocument/documentSymbol" => {
+            if let (Some(result_items), Some(mut fallback_items)) =
+                (result.as_array_mut(), fallback.as_array().cloned())
+            {
+                fallback_items.append(result_items);
+                *result = serde_json::Value::Array(fallback_items);
+            }
+        }
+        "textDocument/diagnostic" => {
+            let mut fallback = fallback;
+            let fallback_items = fallback
+                .get_mut("items")
+                .and_then(serde_json::Value::as_array_mut);
+            let result_items = result
+                .get_mut("items")
+                .and_then(serde_json::Value::as_array_mut);
+            if let (Some(fallback_items), Some(result_items)) = (fallback_items, result_items) {
+                fallback_items.append(result_items);
+                *result = fallback;
+            }
+        }
+        _ => {}
+    }
+}
+
+fn completion_result_shape(result: &serde_json::Value) -> (usize, bool) {
+    let items = result
+        .get("items")
+        .and_then(serde_json::Value::as_array)
+        .or_else(|| result.as_array());
+    let count = items.map_or(0, Vec::len);
+    let first_is_member = items
+        .and_then(|items| items.first())
+        .and_then(|item| item.get("kind"))
+        .and_then(serde_json::Value::as_u64)
+        .is_some_and(|kind| matches!(kind, 5 | 10));
+    (count, first_is_member)
+}
+
+fn locations_from_tsgo_result(result: &serde_json::Value) -> Vec<lsp_types::Location> {
+    let Some(items) = result.as_array() else {
+        return Vec::new();
+    };
+    items
+        .iter()
+        .filter_map(|item| {
+            serde_json::from_value::<lsp_types::Location>(item.clone())
+                .ok()
+                .or_else(|| {
+                    let uri = item
+                        .get("targetUri")
+                        .cloned()
+                        .and_then(|uri| serde_json::from_value(uri).ok())?;
+                    let range = item
+                        .get("targetSelectionRange")
+                        .or_else(|| item.get("targetRange"))
+                        .cloned()
+                        .and_then(|range| serde_json::from_value(range).ok())?;
+                    Some(lsp_types::Location { uri, range })
+                })
+        })
+        .collect()
+}
+
+fn append_component_completions(
+    result: &mut serde_json::Value,
+    manual: Vec<lsp_types::CompletionItem>,
+    replace: bool,
+) {
+    let manual = manual
+        .into_iter()
+        .filter_map(|item| serde_json::to_value(item).ok())
+        .collect::<Vec<_>>();
+    if replace {
+        *result = serde_json::json!({ "isIncomplete": false, "items": manual });
+        return;
+    }
+    if let Some(items) = result
+        .get_mut("items")
+        .and_then(serde_json::Value::as_array_mut)
+    {
+        items.splice(0..0, manual);
+    } else if let Some(items) = result.as_array_mut() {
+        items.splice(0..0, manual);
+    } else {
+        *result = serde_json::json!({ "isIncomplete": false, "items": manual });
+    }
+}
+
+fn code_action_diagnostic_codes(request: &Request) -> Vec<u32> {
+    if request.method != "textDocument/codeAction" {
+        return Vec::new();
+    }
+    request
+        .params
+        .pointer("/context/diagnostics")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|diagnostic| {
+            let code = diagnostic.get("code")?;
+            code.as_u64()
+                .and_then(|code| u32::try_from(code).ok())
+                .or_else(|| code.as_str()?.trim_start_matches("TS").parse::<u32>().ok())
+        })
+        .collect()
 }
 
 const fn project_config_names() -> &'static [&'static str] {
@@ -1099,5 +3324,17 @@ const fn project_config_names() -> &'static [&'static str] {
         ".oxfmtrc.jsonc",
         "oxfmt.config.ts",
         "oxfmt.config.mts",
+        "tsconfig.json",
+        "jsconfig.json",
+        "svelte.config.js",
+        "svelte.config.mjs",
+        "svelte.config.cjs",
+        "svelte.config.ts",
+        "svelte.config.mts",
+        "vite.config.js",
+        "vite.config.mjs",
+        "vite.config.cjs",
+        "vite.config.ts",
+        "vite.config.mts",
     ]
 }

@@ -2682,8 +2682,10 @@ dependencies = [
  "rsvelte_diagnostics",
  "rsvelte_fmt",
  "rsvelte_lint",
+ "rsvelte_projection",
  "serde",
  "serde_json",
+ "sourcemap",
 ]
 
 [[package]]

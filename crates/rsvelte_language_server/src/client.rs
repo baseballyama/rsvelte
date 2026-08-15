@@ -32,6 +32,10 @@ pub struct ClientState {
     pub pull_diagnostics: bool,
     /// Whether the client accepts dynamic watched-file registrations.
     pub dynamic_watched_files: bool,
+    /// Semantic token types the client advertised, in client order.
+    pub semantic_token_types: Vec<String>,
+    /// Semantic token modifiers the client advertised, in client order.
+    pub semantic_token_modifiers: Vec<String>,
 }
 
 impl ClientState {
@@ -59,6 +63,14 @@ impl ClientState {
                 params,
                 "/capabilities/workspace/didChangeWatchedFiles/dynamicRegistration",
             ),
+            semantic_token_types: field(
+                params.pointer("/capabilities/textDocument/semanticTokens/tokenTypes"),
+            )
+            .unwrap_or_default(),
+            semantic_token_modifiers: field(
+                params.pointer("/capabilities/textDocument/semanticTokens/tokenModifiers"),
+            )
+            .unwrap_or_default(),
         }
     }
 
@@ -114,6 +126,10 @@ mod tests {
                 "textDocument": {
                     "foldingRange": { "lineFoldingOnly": true },
                     "documentSymbol": { "hierarchicalDocumentSymbolSupport": true },
+                    "semanticTokens": {
+                        "tokenTypes": ["namespace", "class"],
+                        "tokenModifiers": ["declaration", "readonly"]
+                    },
                 },
             },
         }));
@@ -132,6 +148,8 @@ mod tests {
         assert!(state.hierarchical_document_symbols);
         assert!(!state.pull_diagnostics);
         assert!(state.dynamic_watched_files);
+        assert_eq!(state.semantic_token_types, ["namespace", "class"]);
+        assert_eq!(state.semantic_token_modifiers, ["declaration", "readonly"]);
     }
 
     #[test]

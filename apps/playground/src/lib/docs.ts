@@ -390,7 +390,7 @@ const languageServer: Guide = {
 	pkg: '@rsvelte/language-server',
 	dropInFor: 'svelte-language-server',
 	tagline:
-		'An LSP server that answers everything the Svelte AST alone can answer — diagnostics, formatting, completions, hover, quick fixes, folding and symbols — from the Rust core, in process.',
+		'A native LSP server for Svelte, HTML and CSS with the full TypeScript surface proxied through a supervised tsgo child.',
 	useFor: 'Power editor diagnostics, formatting and completions over LSP.',
 	install: 'pnpm add -D @rsvelte/language-server',
 	runnable: false,
@@ -400,9 +400,10 @@ const languageServer: Guide = {
 			list: [
 				'`textDocument/publishDiagnostics` — the `rsvelte_lint` engine, on open, on change (debounced) and on save.',
 				'`textDocument/formatting` — the `rsvelte-fmt` pipeline in process, no subprocess.',
-				'`textDocument/completion` and `hover` — template tags and event modifiers.',
-				'`textDocument/codeAction` — quick fixes for the diagnostics it reports.',
-				'`foldingRange`, `selectionRange` and `documentSymbol` — the structure the Svelte AST describes.'
+				'`completion`, `hover`, definitions, references, rename and signature help — mapped between `.svelte` and diskless `.svelte.tsx` shadows.',
+				'Pull diagnostics, semantic tokens, inlay hints, call hierarchy, workspace symbols and TypeScript code actions.',
+				'Component props, events and slot-let completions, SvelteKit `$types` imports, source actions and reference code lenses.',
+				'Plain `.ts` and `.js` proxying replaces the upstream TypeScript plugin.'
 			]
 		},
 		{
@@ -428,9 +429,9 @@ rsvelte-language-server`
 			}
 		},
 		{
-			title: 'What it does not answer yet',
+			title: 'TypeScript backend',
 			body: [
-				'TypeScript-backed features — go-to-definition, rename, find-references and type errors — are not served yet. The design is to proxy a child tsgo LSP over the same `.svelte` → virtual `.tsx` overlay `svelte-check` uses; until that lands, run `@rsvelte/svelte-check` as a batch type-checker.'
+				'TypeScript features require TypeScript 7 (`@typescript/native` or `@typescript/native-preview`) in the workspace, or an explicit `TSGO_BIN`. The native providers remain available when tsgo is absent.'
 			]
 		}
 	]

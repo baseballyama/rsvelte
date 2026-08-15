@@ -22,14 +22,13 @@ and launches it over stdio.
 - **Native template and CSS assistance** — HTML/Svelte tag and attribute
   completions, directive and binding documentation, tag-linked editing, CSS
   property/value and selector completions, CSS hovers, selections, and colours.
+- **TypeScript language features** — hover, component-aware completion,
+  definitions, references, rename, diagnostics, semantic tokens, code actions
+  and reference/implementation code lenses through the native tsgo proxy.
 
-That's the full feature set — hover, completion, go-to-definition, rename,
-find-references, and TypeScript diagnostics are **not** provided (this is a
-formatter + linter, not a full language server). Those wait on
-[tsgo](https://github.com/microsoft/typescript-go)'s `tsserver` mode landing
-upstream; until then, use
-[`@rsvelte/svelte-check`](https://www.npmjs.com/package/@rsvelte/svelte-check)
-for batch type-checking.
+TypeScript features require TypeScript 7 in the workspace (or `TSGO_BIN`);
+native formatting, linting and template/CSS providers remain available without
+it.
 
 ## Emmet
 
@@ -48,6 +47,12 @@ Formatting requires the native `rsvelte-fmt` binary. Install it in your project:
 
 ```sh
 npm install -D @rsvelte/fmt
+```
+
+Install the TypeScript 7 native backend for type-aware features:
+
+```sh
+npm install -D typescript@~6 @typescript/native@npm:typescript@7
 ```
 
 The extension resolves `node_modules/.bin/rsvelte-fmt` from the workspace. If

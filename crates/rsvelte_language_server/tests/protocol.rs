@@ -416,7 +416,15 @@ fn serves_diagnostics_and_formatting() {
         json!({
             "processId": Value::Null,
             "rootUri": Value::Null,
-            "capabilities": { "workspace": { "configuration": true } },
+            "capabilities": {
+                "workspace": { "configuration": true },
+                "textDocument": {
+                    "semanticTokens": {
+                        "tokenTypes": ["class", "namespace", "operator", "event"],
+                        "tokenModifiers": ["local", "declaration", "readonly"]
+                    }
+                }
+            },
         }),
     );
     let result = server.response(id);
@@ -434,7 +442,38 @@ fn serves_diagnostics_and_formatting() {
     );
     assert_eq!(
         result["capabilities"]["codeActionProvider"]["codeActionKinds"],
-        json!(["quickfix", "refactor.rewrite", "source.fixAll.rsvelte"])
+        json!([
+            "quickfix",
+            "refactor.rewrite",
+            "source.organizeImports",
+            "source.sortImports",
+            "source.removeUnusedImports",
+            "source.fixAll",
+            "source.fixAll.rsvelte"
+        ])
+    );
+    assert_eq!(result["capabilities"]["positionEncoding"], json!("utf-16"));
+    assert_eq!(result["capabilities"]["definitionProvider"], json!(true));
+    assert_eq!(
+        result["capabilities"]["typeDefinitionProvider"],
+        json!(true)
+    );
+    assert_eq!(
+        result["capabilities"]["implementationProvider"],
+        json!(true)
+    );
+    assert_eq!(result["capabilities"]["referencesProvider"], json!(true));
+    assert_eq!(
+        result["capabilities"]["renameProvider"]["prepareProvider"],
+        json!(true)
+    );
+    assert_eq!(
+        result["capabilities"]["semanticTokensProvider"]["legend"]["tokenTypes"],
+        json!(["namespace", "class", "event", "operator"])
+    );
+    assert_eq!(
+        result["capabilities"]["semanticTokensProvider"]["legend"]["tokenModifiers"],
+        json!(["declaration", "readonly", "local"])
     );
     assert_eq!(
         result["capabilities"]["workspace"]["workspaceFolders"],
@@ -1229,6 +1268,34 @@ fn the_structure_providers_survive_documents_that_do_not_parse() {
         server.selection_ranges(&missing, json!([{ "line": 0, "character": 0 }])),
         Value::Null
     );
+
+    assert_eq!(server.shutdown(), Some(0));
+}
+
+#[test]
+fn file_references_run_on_the_worker_and_are_sorted() {
+    let dir = temp_dir("file-references");
+    let target = file_uri(&dir.join("Target.svelte"));
+    let first = file_uri(&dir.join("A.svelte"));
+    let second = file_uri(&dir.join("B.svelte"));
+    let mut server = initialized_server();
+    did_open(&mut server, &target, "<p>target</p>");
+    did_open(
+        &mut server,
+        &second,
+        "<script>import Target from './Target.svelte';</script>",
+    );
+    did_open(
+        &mut server,
+        &first,
+        "<script>import './Target.svelte';</script>",
+    );
+
+    let id = server.request("$/getFileReferences", json!(target));
+    let locations = server.response(id);
+    assert_eq!(locations.as_array().map(Vec::len), Some(2));
+    assert_eq!(locations[0]["uri"], json!(first));
+    assert_eq!(locations[1]["uri"], json!(second));
 
     assert_eq!(server.shutdown(), Some(0));
 }

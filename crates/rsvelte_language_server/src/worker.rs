@@ -10,6 +10,8 @@
 //! The resolved-config caches live here too, so the loop never touches the
 //! filesystem.
 
+use std::collections::HashMap;
+use std::fs;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -19,7 +21,7 @@ use crossbeam_channel::{Receiver, Sender, unbounded};
 use lsp_server::RequestId;
 use lsp_types::{
     CodeActionOrCommand, CodeLens, CompletionList, Diagnostic, DocumentSymbolResponse,
-    FoldingRange, Hover, Range, SelectionRange, TextEdit, Uri,
+    FoldingRange, Hover, Location, Range, SelectionRange, TextEdit, Uri,
 };
 use serde_json::Value;
 
@@ -27,6 +29,8 @@ use crate::format::FormatSessions;
 use crate::lint::LintConfigCache;
 use crate::log;
 use crate::settings::CompilerWarnings;
+use crate::tsgo_custom::{WorkspaceSource, find_file_references};
+use crate::uri::path_to_uri;
 
 /// `rsvelte_core`'s own deeply-nested-AST tests reserve the same 256 MiB. It is
 /// address space, not resident memory — pages are committed only as the
@@ -107,6 +111,12 @@ pub enum Job {
         text: Arc<String>,
         warnings: CompilerWarnings,
     },
+    FileReferences {
+        id: RequestId,
+        target: PathBuf,
+        roots: Vec<PathBuf>,
+        open_documents: Vec<FileReferenceSource>,
+    },
     /// Drop the resolved `rsvelte-lint.json` / `.oxfmtrc` caches so the next
     /// job re-reads them from disk.
     ClearCaches,
@@ -159,6 +169,16 @@ pub enum Outcome {
         id: RequestId,
         diagnostics: Vec<Diagnostic>,
     },
+    FileReferences {
+        id: RequestId,
+        locations: Vec<Location>,
+    },
+}
+
+pub struct FileReferenceSource {
+    pub path: PathBuf,
+    pub uri: Uri,
+    pub text: String,
 }
 
 pub struct Worker {
@@ -376,10 +396,93 @@ fn run(jobs: &Receiver<Job>, outcomes: &Sender<Outcome>) {
                 .unwrap_or_default();
                 Outcome::PulledDiagnostics { id, diagnostics }
             }
+            Job::FileReferences {
+                id,
+                target,
+                roots,
+                open_documents,
+            } => Outcome::FileReferences {
+                id,
+                locations: file_references(&target, &roots, open_documents),
+            },
         };
         if outcomes.send(outcome).is_err() {
             break;
         }
+    }
+}
+
+fn file_references(
+    target: &Path,
+    roots: &[PathBuf],
+    open_documents: Vec<FileReferenceSource>,
+) -> Vec<Location> {
+    let mut sources = HashMap::<PathBuf, FileReferenceSource>::new();
+    for root in roots {
+        collect_source_directory(root, &mut sources);
+    }
+    for source in open_documents {
+        sources.insert(source.path.clone(), source);
+    }
+    let sources = sources.into_values().collect::<Vec<_>>();
+    let views = sources
+        .iter()
+        .map(|source| WorkspaceSource {
+            path: &source.path,
+            uri: &source.uri,
+            text: &source.text,
+        })
+        .collect::<Vec<_>>();
+    find_file_references(target, &views)
+}
+
+fn collect_source_directory(directory: &Path, sources: &mut HashMap<PathBuf, FileReferenceSource>) {
+    let Ok(entries) = fs::read_dir(directory) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        if file_type.is_dir() {
+            if matches!(
+                entry.file_name().to_str(),
+                Some("node_modules" | ".git" | ".rsvelte-language-server" | "target")
+            ) {
+                continue;
+            }
+            collect_source_directory(&path, sources);
+            continue;
+        }
+        if !file_type.is_file()
+            || !path
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(|extension| {
+                    matches!(
+                        extension,
+                        "ts" | "tsx" | "mts" | "cts" | "js" | "jsx" | "mjs" | "cjs" | "svelte"
+                    )
+                })
+        {
+            continue;
+        }
+        let Ok(text) = fs::read_to_string(&path) else {
+            continue;
+        };
+        let canonical = fs::canonicalize(&path).unwrap_or(path);
+        let Some(uri) = path_to_uri(&canonical) else {
+            continue;
+        };
+        sources.insert(
+            canonical.clone(),
+            FileReferenceSource {
+                path: canonical,
+                uri,
+                text,
+            },
+        );
     }
 }
 

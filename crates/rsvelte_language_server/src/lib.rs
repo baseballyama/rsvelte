@@ -1,10 +1,9 @@
 //! `rsvelte-language-server` — an LSP server exposing rsvelte's formatter and
 //! linter to any LSP client (VS Code, Neovim, …).
 //!
-//! It also ports the TypeScript-free half of the official language server's
-//! `SveltePlugin`: template tag and event modifier [`completions`] and
-//! [`hover`], and the structure the Svelte AST alone can answer for —
-//! [`folding`] ranges, [`selection_ranges`] and document [`symbols`].
+//! Native Svelte, HTML and CSS providers run alongside a supervised TypeScript
+//! 7 LSP child. A diskless `.svelte` to `.tsx` overlay maps TypeScript
+//! navigation, completion, rename, diagnostics and edits back to source files.
 //!
 //! The message loop owns only protocol state; every analysis runs on the
 //! [`worker`] thread, which is where the stack depth and panic isolation the
@@ -35,6 +34,14 @@ pub mod settings;
 pub mod symbols;
 pub mod tags;
 pub mod text;
+pub mod tsgo_client;
+pub mod tsgo_code_actions;
+pub mod tsgo_completion;
+pub mod tsgo_component_info;
+pub mod tsgo_custom;
+pub mod tsgo_overlay;
+pub mod tsgo_rename;
+pub mod tsgo_response;
 pub mod uri;
 pub mod worker;
 

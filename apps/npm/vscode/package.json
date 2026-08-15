@@ -3,7 +3,7 @@
   "version": "0.4.1",
   "private": true,
   "displayName": "rsvelte",
-  "description": "Rust-powered Svelte formatting and linting for VS Code (rsvelte-fmt + rsvelte_lint)",
+  "description": "Rust-powered Svelte language support with formatting, linting and TypeScript 7 features",
   "license": "MIT",
   "publisher": "baseballyama",
   "icon": "icon.png",
@@ -58,8 +58,52 @@
       {
         "command": "rsvelte.restartLanguageServer",
         "title": "rsvelte: Restart Language Server"
+      },
+      {
+        "command": "rsvelte.typescript.findAllFileReferences",
+        "title": "rsvelte: Find File References"
+      },
+      {
+        "command": "rsvelte.typescript.findComponentReferences",
+        "title": "rsvelte: Find Component References"
       }
     ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "rsvelte.typescript.findAllFileReferences",
+          "when": "editorLangId == svelte && resourceScheme == file"
+        },
+        {
+          "command": "rsvelte.typescript.findComponentReferences",
+          "when": "editorLangId == svelte && resourceScheme == file"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "rsvelte.typescript.findAllFileReferences",
+          "when": "editorLangId == svelte && resourceScheme == file",
+          "group": "4_search"
+        },
+        {
+          "command": "rsvelte.typescript.findComponentReferences",
+          "when": "editorLangId == svelte && resourceScheme == file",
+          "group": "4_search"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "rsvelte.typescript.findAllFileReferences",
+          "when": "resourceLangId == svelte && resourceScheme == file",
+          "group": "4_search"
+        },
+        {
+          "command": "rsvelte.typescript.findComponentReferences",
+          "when": "resourceLangId == svelte && resourceScheme == file",
+          "group": "4_search"
+        }
+      ]
+    },
     "languages": [
       {
         "id": "svelte",

@@ -1,6 +1,9 @@
 //! Document URI → filesystem path.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
+
+use lsp_types::Uri;
 
 /// Return the filesystem path denoted by a document URI.
 ///
@@ -24,6 +27,27 @@ pub fn uri_to_path(uri: &str) -> PathBuf {
         return PathBuf::from(&decoded[1..]);
     }
     PathBuf::from(decoded)
+}
+
+/// Return a percent-encoded file URI for a filesystem path.
+#[must_use]
+pub fn path_to_uri(path: &Path) -> Option<Uri> {
+    let path = path.to_string_lossy().replace('\\', "/");
+    let mut encoded = String::with_capacity(path.len() + 8);
+    for byte in path.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'/' | b':' | b'-' | b'_' | b'.' | b'~') {
+            encoded.push(char::from(byte));
+        } else {
+            use std::fmt::Write as _;
+            write!(&mut encoded, "%{byte:02X}").ok()?;
+        }
+    }
+    let prefix = if encoded.starts_with('/') {
+        "file://"
+    } else {
+        "file:///"
+    };
+    Uri::from_str(&format!("{prefix}{encoded}")).ok()
 }
 
 fn has_drive_letter(path: &str) -> bool {

@@ -1,10 +1,9 @@
 # @rsvelte/language-server
 
 A Language Server for [rsvelte](https://github.com/baseballyama/rsvelte) — the
-Rust port of the Svelte compiler. It exposes rsvelte's **formatter** and
-**linter** over the Language Server Protocol, so any LSP client (VS Code,
-Neovim, …) can format and lint Svelte (and JS/TS/CSS/JSON) without a separate
-toolchain.
+Rust port of the Svelte compiler. The native server combines rsvelte's
+formatter, linter and Svelte/HTML/CSS providers with a TypeScript 7 LSP child,
+so editors get the complete Svelte and TypeScript language surface.
 
 ## Features (v1)
 
@@ -21,12 +20,20 @@ toolchain.
   open, on change (300 ms debounced), and on save. The rule set comes from the
   project's own [`rsvelte-lint.json`](#lint-configuration).
 
-Template and CSS completion/hover and structure features are supplied by the
-native server. Go-to-definition, rename, find-references, and TypeScript
-diagnostics wait on [tsgo](https://github.com/microsoft/typescript-go)'s
-`tsserver` mode landing upstream; until then, use
-[`@rsvelte/svelte-check`](https://www.npmjs.com/package/@rsvelte/svelte-check)
-as a batch type-checker.
+The native server proxies hover, definitions, references, completion and
+resolve, rename, signature help, inlay hints, semantic tokens, hierarchy,
+symbols, code actions, code lenses and pull diagnostics through tsgo. Svelte
+components use eagerly opened, diskless `.svelte.tsx` shadows; plain `.ts` and
+`.js` documents share the same project.
+
+Install TypeScript 7 in the workspace, or set `TSGO_BIN` to its executable:
+
+```sh
+npm install -D typescript@~6 @typescript/native@npm:typescript@7
+```
+
+If tsgo is unavailable, native formatting, linting and Svelte/HTML/CSS features
+continue to work.
 
 For VS Code, Emmet remains the built-in extension's responsibility. Enable its
 HTML abbreviations in Svelte documents with

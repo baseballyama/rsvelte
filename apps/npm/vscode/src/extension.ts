@@ -7,6 +7,11 @@
 import * as path from "node:path";
 import {
   IndentAction,
+  Location,
+  Position,
+  ProgressLocation,
+  Range,
+  Uri,
   commands,
   extensions,
   languages,
@@ -71,6 +76,18 @@ const VOID_ELEMENTS = [
 const OFFICIAL_EXTENSION_ID = "svelte.svelte-vscode";
 const CONFLICT_DISMISSED_KEY = "rsvelte.officialExtensionConflictDismissed";
 const RESTART_COMMAND_ID = "rsvelte.restartLanguageServer";
+const FIND_FILE_REFERENCES_COMMAND_ID =
+  "rsvelte.typescript.findAllFileReferences";
+const FIND_COMPONENT_REFERENCES_COMMAND_ID =
+  "rsvelte.typescript.findComponentReferences";
+
+interface ProtocolLocation {
+  uri: string;
+  range: {
+    start: { line: number; character: number };
+    end: { line: number; character: number };
+  };
+}
 
 /**
  * Basenames of files whose content changes the server's effective
@@ -202,6 +219,64 @@ function createClient(
     synchronize: {
       // Forward `rsvelte.*` configuration changes to the server.
       configurationSection: "rsvelte",
+    },
+    middleware: {
+      resolveCodeLens: async (lens, token, next) => {
+        const resolved = await next(lens, token);
+        const command = resolved?.command;
+        const args = command?.arguments;
+        if (
+          !command ||
+          command.command !== "" ||
+          !Array.isArray(args) ||
+          typeof args[0] !== "string"
+        ) {
+          return resolved;
+        }
+        const position = args[1] as { line?: unknown; character?: unknown };
+        const locations = Array.isArray(args[2]) ? args[2] : [];
+        if (
+          typeof position?.line !== "number" ||
+          typeof position.character !== "number"
+        ) {
+          return resolved;
+        }
+        command.command = "editor.action.showReferences";
+        command.arguments = [
+          Uri.parse(args[0]),
+          new Position(position.line, position.character),
+          locations.flatMap((location) => {
+            const value = location as {
+              uri?: unknown;
+              range?: {
+                start?: { line?: unknown; character?: unknown };
+                end?: { line?: unknown; character?: unknown };
+              };
+            };
+            const start = value.range?.start;
+            const end = value.range?.end;
+            if (
+              typeof value.uri !== "string" ||
+              typeof start?.line !== "number" ||
+              typeof start.character !== "number" ||
+              typeof end?.line !== "number" ||
+              typeof end.character !== "number"
+            ) {
+              return [];
+            }
+            return [
+              new Location(
+                Uri.parse(value.uri),
+                new Range(
+                  new Position(start.line, start.character),
+                  new Position(end.line, end.character),
+                ),
+              ),
+            ];
+          }),
+        ];
+        return resolved;
+      },
     },
   };
   return new LanguageClient(
@@ -337,6 +412,89 @@ function isRestartTrigger(document: TextDocument): boolean {
   return RESTART_ON_SAVE_PATTERNS.some((pattern) => pattern.test(base));
 }
 
+async function applyFileRenameEdits(
+  files: readonly { oldUri: Uri; newUri: Uri }[],
+): Promise<void> {
+  const running = client;
+  if (!running || running.state !== State.Running) return;
+  for (const file of files) {
+    const result = await running.sendRequest<unknown>(
+      "$/getEditsForFileRename",
+      {
+        oldUri: file.oldUri.toString(),
+        newUri: file.newUri.toString(),
+      },
+    );
+    if (!result) continue;
+    const edit = await running.protocol2CodeConverter.asWorkspaceEdit(
+      result as Parameters<
+        typeof running.protocol2CodeConverter.asWorkspaceEdit
+      >[0],
+    );
+    if (edit) await workspace.applyEdit(edit);
+  }
+}
+
+async function showCustomReferences(
+  method: "$/getFileReferences" | "$/getComponentReferences",
+  title: string,
+  resource?: Uri,
+): Promise<void> {
+  const running = client;
+  if (!running || running.state !== State.Running) return;
+  const target = resource ?? window.activeTextEditor?.document.uri;
+  if (!target || target.scheme !== "file") return;
+
+  const document = await workspace.openTextDocument(target);
+  await window.withProgress(
+    { location: ProgressLocation.Window, title },
+    async (_progress, token) => {
+      const result = await running.sendRequest<ProtocolLocation[] | null>(
+        method,
+        document.uri.toString(),
+        token,
+      );
+      if (!result) return;
+      const locations = result.map(
+        ({ uri, range }) =>
+          new Location(
+            Uri.parse(uri),
+            new Range(
+              range.start.line,
+              range.start.character,
+              range.end.line,
+              range.end.character,
+            ),
+          ),
+      );
+      const showReferences = () =>
+        commands.executeCommand(
+          "editor.action.showReferences",
+          target,
+          new Position(0, 0),
+          locations,
+        );
+      if (method === "$/getComponentReferences") {
+        await showReferences();
+        return;
+      }
+
+      const references = workspace.getConfiguration("references");
+      const preferredLocation = references.inspect<string>("preferredLocation");
+      await references.update("preferredLocation", "view");
+      try {
+        await showReferences();
+      } finally {
+        await references.update(
+          "preferredLocation",
+          preferredLocation?.workspaceFolderValue ??
+            preferredLocation?.workspaceValue,
+        );
+      }
+    },
+  );
+}
+
 export function activate(context: ExtensionContext): void {
   registerSvelteLanguageConfiguration(context);
   void warnAboutOfficialExtension(context);
@@ -356,10 +514,31 @@ export function activate(context: ExtensionContext): void {
     commands.registerCommand(RESTART_COMMAND_ID, () =>
       restartLanguageServer(),
     ),
+    commands.registerCommand(
+      FIND_FILE_REFERENCES_COMMAND_ID,
+      (resource?: Uri) =>
+        showCustomReferences(
+          "$/getFileReferences",
+          "Finding file references",
+          resource,
+        ),
+    ),
+    commands.registerCommand(
+      FIND_COMPONENT_REFERENCES_COMMAND_ID,
+      (resource?: Uri) =>
+        showCustomReferences(
+          "$/getComponentReferences",
+          "Finding component references",
+          resource,
+        ),
+    ),
     workspace.onDidSaveTextDocument((document) => {
       if (isRestartTrigger(document)) {
         void restartLanguageServer();
       }
+    }),
+    workspace.onDidRenameFiles((event) => {
+      void applyFileRenameEdits(event.files);
     }),
     workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("rsvelte.trace.server") && client) {

@@ -17,12 +17,14 @@ rsvelte_check = { path = "../rsvelte_check" }
 rsvelte_diagnostics = { path = "../rsvelte_diagnostics" }
 rsvelte_fmt = { path = "../rsvelte_fmt" }
 rsvelte_lint = { path = "../rsvelte_lint", default-features = false, features = ["native"] }
+rsvelte_projection = { path = "../rsvelte_projection" }
 anyhow = "1.0"
 crossbeam-channel = "0.5"
 lsp-server = "0.10"
 lsp-types = "0.97"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+sourcemap = "9.0"
 
 [lints]
 workspace = true
