@@ -757,15 +757,15 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                 .at(*start, *end));
             }
             if !is_bindable_valid_placement(context) {
-                return Err(errors::bindable_invalid_location());
+                return Err(errors::bindable_invalid_location().at(*start, *end));
             }
             context.analysis.needs_context = true;
         }
         Some("$host") => {
             if arg_count > 0 {
-                return Err(errors::rune_invalid_arguments("$host"));
+                return Err(errors::rune_invalid_arguments("$host").at(*start, *end));
             } else if context.analysis.custom_element.is_none() {
-                return Err(errors::host_invalid_placement());
+                return Err(errors::host_invalid_placement().at(*start, *end));
             }
         }
         Some("$props") => {
@@ -777,7 +777,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                 return Err(errors::props_invalid_placement().at(*start, *end));
             }
             if arg_count > 0 {
-                return Err(errors::rune_invalid_arguments("$props"));
+                return Err(errors::rune_invalid_arguments("$props").at(*start, *end));
             }
         }
         Some("$props.id") => {
@@ -785,10 +785,10 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                 return Err(errors::props_duplicate("$props.id").at(*start, *end));
             }
             if !is_props_id_valid_placement(context) {
-                return Err(errors::props_id_invalid_placement());
+                return Err(errors::props_id_invalid_placement().at(*start, *end));
             }
             if arg_count > 0 {
-                return Err(errors::rune_invalid_arguments("$props.id"));
+                return Err(errors::rune_invalid_arguments("$props.id").at(*start, *end));
             }
             // Get parent VariableDeclarator to extract id name
             if let Some(parent) = get_parent(context, 1)
@@ -826,7 +826,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
         }
         Some("$effect") | Some("$effect.pre") => {
             if !is_effect_valid_placement(context) {
-                return Err(errors::effect_invalid_placement());
+                return Err(errors::effect_invalid_placement().at(*start, *end));
             }
             if arg_count != 1 {
                 return Err(errors::rune_invalid_arguments_length(
@@ -838,7 +838,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             context.analysis.needs_context = true;
         }
         Some("$effect.tracking") if arg_count != 0 => {
-            return Err(errors::rune_invalid_arguments("$effect.tracking"));
+            return Err(errors::rune_invalid_arguments("$effect.tracking").at(*start, *end));
         }
         Some("$effect.root") if arg_count != 1 => {
             return Err(errors::rune_invalid_arguments_length(
@@ -870,10 +870,10 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                 .at(*start, *end));
             }
             if !is_inspect_trace_valid_placement(context) {
-                return Err(errors::inspect_trace_invalid_placement());
+                return Err(errors::inspect_trace_invalid_placement().at(*start, *end));
             }
             if is_inside_generator_function(context) {
-                return Err(errors::inspect_trace_generator());
+                return Err(errors::inspect_trace_generator().at(*start, *end));
             }
             if context.analysis.dev {
                 context.analysis.tracing = true;
