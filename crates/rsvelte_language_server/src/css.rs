@@ -81,6 +81,14 @@ pub fn selection_spans(text: &str, offset: usize) -> Vec<(u32, u32)> {
 pub fn completions(text: &str, offset: usize) -> Option<CompletionList> {
     let prefix = css_prefix(text, offset)?;
     let before = text.get(..offset)?;
+    let prefix_start = prefix.as_ptr() as usize - before.as_ptr() as usize;
+    if let Some(marker) = prefix_start
+        .checked_sub(1)
+        .and_then(|index| before.as_bytes().get(index))
+        && matches!(marker, b'.' | b'#')
+    {
+        return Some(selector_completions(text, *marker as char, prefix));
+    }
     let value = before
         .rfind(':')
         .is_some_and(|colon| before[colon + 1..].find([';', '{', '}']).is_none());
@@ -138,12 +146,42 @@ fn style_body_range(text: &str, offset: usize) -> Option<std::ops::Range<usize>>
 }
 
 fn static_style_value(text: &str, offset: usize) -> bool {
-    let before = &text[..offset.min(text.len())];
+    let Some(before) = text.get(..offset.min(text.len())) else {
+        return false;
+    };
     let quote = before
         .rfind("style=\"")
         .map(|i| (i + 7, '"'))
         .or_else(|| before.rfind("style='").map(|i| (i + 7, '\'')));
     quote.is_some_and(|(start, quote)| !before[start..].contains(quote))
+}
+
+fn selector_completions(text: &str, marker: char, prefix: &str) -> CompletionList {
+    let attribute = if marker == '.' { "class" } else { "id" };
+    let mut names = std::collections::BTreeSet::new();
+    for quote in ['\'', '"'] {
+        let needle = format!("{attribute}={quote}");
+        for (start, _) in text.match_indices(&needle) {
+            if let Some(value) = text[start + needle.len()..].split(quote).next() {
+                for name in value.split_ascii_whitespace() {
+                    if name.starts_with(prefix) {
+                        names.insert(name);
+                    }
+                }
+            }
+        }
+    }
+    CompletionList {
+        is_incomplete: false,
+        items: names
+            .into_iter()
+            .map(|name| CompletionItem {
+                label: format!("{marker}{name}"),
+                kind: Some(CompletionItemKind::REFERENCE),
+                ..CompletionItem::default()
+            })
+            .collect(),
+    }
 }
 
 fn word_at(text: &str, offset: usize) -> Option<&str> {
@@ -228,5 +266,17 @@ mod tests {
             colors("<script>const x = '#ffffff'</script><style>a { color: #123456 }</style>");
         assert_eq!(colors.len(), 1);
         assert_eq!(color_presentations(colors[0].color)[0].label, "#123456");
+    }
+
+    #[test]
+    fn completes_template_classes_and_ids_in_selectors() {
+        assert!(
+            labels("<div class=\"button primary\" id=\"main\"></div><style>.but")
+                .contains(&".button".to_string())
+        );
+        assert!(
+            labels("<div class=\"button\" id=\"main\"></div><style>#ma")
+                .contains(&"#main".to_string())
+        );
     }
 }
