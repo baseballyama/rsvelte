@@ -10,6 +10,12 @@ publish = false
 [lib]
 crate-type = ["rlib"]
 
+# The grass side of the dart-sass parity gate (scripts/compat-corpus/scss-verify.mjs).
+[[bin]]
+name = "scss_parity"
+path = "src/bin/scss_parity.rs"
+required-features = ["sass", "bridge"]
+
 [features]
 default = [
     "sass",

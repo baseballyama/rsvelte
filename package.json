@@ -129,7 +129,8 @@
 		"test:svelte-check-e2e": "pnpm run check-e2e-corpus:sync && cargo build --release -p rsvelte_check && pnpm run check-corpus:oracle-install && pnpm run check-e2e-corpus:verify",
 		"changeset": "changeset",
 		"version-packages": "changeset version && pnpm run sync-version && node scripts/ci/check-lint-types-lock.mjs --allow-unresolved",
-		"release": "pnpm run sync-version && pnpm run build:wasm && pnpm run finalize-pkg && pnpm run publish-platform-binaries && pnpm run build:language-server && changeset publish"
+		"release": "pnpm run sync-version && pnpm run build:wasm && pnpm run finalize-pkg && pnpm run publish-platform-binaries && pnpm run build:language-server && changeset publish",
+		"corpus:scss": "node scripts/compat-corpus/scss-verify.mjs"
 	},
 	"devDependencies": {
 		"@changesets/cli": "^3.0.0",
@@ -140,6 +141,7 @@
 		"oxfmt": "^0.63.0",
 		"prettier": "^3.9.4",
 		"prettier-plugin-svelte": "^4.1.0",
+		"sass": "1.102.0",
 		"svelte": "^5.56.9",
 		"svelte-preprocess-markdown": "^2.7.3"
 	},

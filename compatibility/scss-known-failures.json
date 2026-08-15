@@ -1,0 +1,122 @@
+[
+	{
+		"id": "submodules/attractions/attractions/autocomplete/autocomplete-field.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/attractions/attractions/autocomplete/autocomplete.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/attractions/attractions/button/button.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/attractions/attractions/checkbox/checkbox.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/attractions/attractions/chip/checkbox-chip.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/attractions/attractions/chip/radio-chip.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/attractions/attractions/date-picker/calendar.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/attractions/attractions/date-picker/date-picker.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/attractions/attractions/file-input/file-input.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/attractions/attractions/pagination/pagination.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/attractions/attractions/popover/popover-button.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/attractions/attractions/radio-button/radio-button.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/attractions/attractions/slider/slider.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/attractions/attractions/snackbar/snackbar.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/attractions/attractions/star-rating/star-rating.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/attractions/attractions/tab/tab.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/attractions/attractions/text-field/text-field.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/attractions/attractions/time-picker/time-picker.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/date-picker-svelte/src/lib/DateInput.svelte#style0",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/date-picker-svelte/src/lib/DatePicker.svelte#style0",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/date-picker-svelte/src/lib/TimePicker.svelte#style0",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/date-picker-svelte/src/routes/+layout.svelte#style0",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/date-picker-svelte/src/routes/prop.svelte#style0",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/date-picker-svelte/src/routes/split.svelte#style0",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/powertable/app/src/lib/styles/power-table.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/svelte-formly/src/lib/components/fields/AutoComplete.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/svelte-formly/src/routes/__layout.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/svelte-splitpanes/src/lib/Splitpanes.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/svelte-splitpanes/src/routes/examples/styling/app-layout/code.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/svelte-splitpanes/src/routes/examples/styling/splitters/code.svelte#style0",
+		"verdict": "css-mismatch"
+	}
+]

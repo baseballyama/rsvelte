@@ -158,6 +158,7 @@ const RATCHETS = [
 	{ doc: 'fmt-known-failures.md', key: 'fmt-known-failures.json', jsons: ['fmt-known-failures.json'] },
 	{ doc: 'fmt-oracle-excluded.md', key: 'fmt-oracle-excluded.json', jsons: ['fmt-oracle-excluded.json'] },
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', jsons: ['lint-known-failures.json'] },
+	{ doc: 'scss-known-failures.md', key: 'scss-known-failures.json', jsons: ['scss-known-failures.json'] },
 	{ doc: 'check-known-failures.md', key: 'check-known-failures.json', jsons: ['check-known-failures.json'] },
 	{ doc: 'check-e2e-known-failures.md', key: 'check-e2e-known-failures.json', jsons: ['check-e2e-known-failures.json'] },
 	{ doc: 'svelte2tsx-known-failures.md', key: 'svelte2tsx-known-failures.json', jsons: ['svelte2tsx-known-failures.json'] },
@@ -186,6 +187,7 @@ const PARTITIONS = [
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'rule' },
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'direction' },
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'repo' },
+	{ doc: 'scss-known-failures.md', key: 'scss-known-failures.json', label: 'cluster' },
 	{ doc: 'matrix-known-failures.md', key: 'matrix-known-failures.json', label: 'family' },
 	{
 		doc: 'matrix-known-failures.md',

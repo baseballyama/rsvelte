@@ -930,3 +930,25 @@ manifest is shared — they also flow through the fmt and svelte2tsx gates.
 
 No submodule, `.gitmodules`, CI path-filter or auto-update entry is involved —
 `compatibility/**` is already a trigger path for `corpus-compat.yml`.
+
+## SCSS backend parity (`scss-verify.mjs`)
+
+`rsvelte_preprocess` compiles Sass/SCSS with `grass`, standing in for dart-sass.
+This gate is what makes that substitution a measured quantity: every
+`<style lang="scss"|"sass">` block and every standalone `.scss` / `.sass` file in
+the corpus sources is compiled with both backends and the CSS compared
+byte-for-byte, ratcheted shrink-only through
+`compatibility/scss-known-failures.json` (justified per cluster in the paired
+`.md`).
+
+```bash
+cargo build --release -p rsvelte_preprocess --bin scss_parity
+pnpm run corpus:scss                                  # gate
+node scripts/compat-corpus/scss-verify.mjs --list     # every divergence
+node scripts/compat-corpus/scss-verify.mjs --update-baseline
+```
+
+Read the `.md` before trusting the headline: of 118 units, 24 are compared only
+as "both backends reject", so the population that actually reaches a CSS
+comparison is 94. Both backends are version-pinned (`sass` 1.102.0, `grass`
+0.13.4) so the ratchet is reproducible; bumping either is expected to move it.

@@ -166,10 +166,12 @@ plus a line to `corpus-sources.json`. CI ratchet: `compatibility/known-failures.
 may only shrink, and each remaining failure is justified in `compatibility/known-failures.md`. Every
 ratchet is two-sided: a new failure **and** a listed entry that already passes both fail CI, so the PR
 that fixes entries must re-baseline in the same PR instead of leaving a backlog for a later one. The
-same directory holds three sibling shrink-only ratchets, each with per-entry justification in a paired
+same directory holds four sibling shrink-only ratchets, each with per-entry justification in a paired
 `.md`: the formatter-parity gate (`fmt-known-failures.json` / `fmt-oracle-excluded.json`), the
-svelte2tsx output-parity gate (`svelte2tsx-known-failures.json`), and the lint output-parity gate
-(`lint-known-failures.json`). svelte2tsx additionally gates its **source map** (ratchet
+svelte2tsx output-parity gate (`svelte2tsx-known-failures.json`), the lint output-parity gate
+(`lint-known-failures.json`), and the SCSS-backend gate (`scss-known-failures.json`), which compares
+`rsvelte_preprocess`'s `grass` against dart-sass on every SCSS block and `.scss` file in the corpus —
+30 divergences on a 94-unit compared population, so treat `grass` as a near-substitute, not a drop-in. svelte2tsx additionally gates its **source map** (ratchet
 `svelte2tsx-map-known-failures.json`), because the TSX-text gate cannot see the map at all. The two
 maps are segmented too differently to diff (byte, decoded-set and lookup-equality parity all hold for
 ~0% of the corpus), so the gate asserts that rsvelte's map is **structurally well-formed** rather

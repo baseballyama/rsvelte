@@ -175,3 +175,7 @@ compatibility/check-e2e-report.json
 /target-ast/
 /target-rt/
 /target-verify/
+
+# Built by scripts/compat-corpus/scss-verify.mjs so both SCSS backends can resolve
+# a corpus package that imports itself by its published specifier.
+compatibility/scss-node-modules-shim/
