@@ -631,7 +631,10 @@ fn process_props_declaration_typed(
     let id_type = id_node.type_str();
 
     if !matches!(id_type, "ObjectPattern" | "Identifier") {
-        return Err(errors::props_invalid_identifier());
+        return Err(errors::props_invalid_identifier().at(
+            id_node.start().expect("parsed patterns have a start"),
+            id_node.end().expect("parsed patterns have an end"),
+        ));
     }
 
     // Warn about custom element configuration
@@ -713,6 +716,8 @@ fn process_props_object_pattern_typed(
         }
 
         let JsNode::Property {
+            start,
+            end,
             computed,
             key,
             value,
@@ -723,14 +728,14 @@ fn process_props_object_pattern_typed(
         };
 
         if *computed {
-            return Err(errors::props_invalid_pattern());
+            return Err(errors::props_invalid_pattern().at(*start, *end));
         }
 
         let key_node = arena.get_js_node(*key);
         if let JsNode::Identifier { name, .. } = key_node
             && name.starts_with("$$")
         {
-            return Err(errors::props_illegal_name());
+            return Err(errors::props_illegal_name().at(*start, *end));
         }
 
         let value_node = arena.get_js_node(*value);
@@ -745,7 +750,7 @@ fn process_props_object_pattern_typed(
             name: value_name, ..
         } = binding_name_node
         else {
-            return Err(errors::props_invalid_pattern());
+            return Err(errors::props_invalid_pattern().at(*start, *end));
         };
 
         let alias = match key_node {
@@ -757,7 +762,7 @@ fn process_props_object_pattern_typed(
             },
             _ => None,
         }
-        .ok_or_else(errors::props_invalid_pattern)?;
+        .ok_or_else(|| errors::props_invalid_pattern().at(*start, *end))?;
 
         // Resolve the binding declared by this `$props()` destructure. The
         // destructure lives in the instance script, so look the local name up in
