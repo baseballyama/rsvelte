@@ -2478,11 +2478,11 @@ impl<'opt, const HAS_COMMENTS: bool> Printer<'opt, HAS_COMMENTS> {
         let multiline = any_multiline || (n > 1 && length > 50);
 
         if multiline {
-            if n > 1 {
-                ctx.insert_event(first, EventKind::Indent);
-            }
             for separator in separators.into_iter().rev() {
                 ctx.insert_event(separator, EventKind::Newline);
+            }
+            if n > 1 {
+                ctx.insert_event(first, EventKind::Indent);
             }
             if n > 1 {
                 ctx.dedent();
