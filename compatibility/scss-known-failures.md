@@ -81,10 +81,11 @@ file-input/file-input,text-field/text-field}.scss`,
 Every `lang="sass"` block in `date-picker-svelte` aborts `grass` with an assertion failure in
 `grass_compiler-0.13.4/src/parse/sass.rs:200`. dart-sass compiles all six.
 
-**A panic, not an error.** The gate's helper isolates each unit with `catch_unwind`; the shipped
-`preprocess_sass` does not, so an indented-syntax block of this shape takes the whole compiler
-process down. Fixing this belongs upstream in `grass` or in a guard on our side; either way it is
-the entry to burn down first.
+**A panic, not an error, and `catch_unwind` cannot contain it** — the release profile aborts
+rather than unwinds, so the helper announces each unit's index on stderr and the gate resumes past
+whichever one it died on. The shipped `preprocess_sass` has no such recovery, so an indented-syntax
+block of this shape takes the whole compiler process down. Fixing this belongs upstream in `grass`
+or in a guard on our side; either way it is the entry to burn down first.
 
 `date-picker-svelte/src/lib/{DateInput,DatePicker,TimePicker}.svelte#style0`,
 `date-picker-svelte/src/routes/{+layout,prop,split}.svelte#style0`

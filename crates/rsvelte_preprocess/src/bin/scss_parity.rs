@@ -1,13 +1,18 @@
 //! Compiles a batch of SCSS/Sass units with the `grass` backend, for the
 //! dart-sass parity gate (`scripts/compat-corpus/scss-verify.mjs`).
 //!
-//! Reads one JSON array of `{ id, source, indented, filename, loadPaths }` on stdin and
-//! writes one JSON array of `{ id, ok, css }` / `{ id, ok: false, error }` on
-//! stdout. Batched in one process because the gate's whole point is to compare
-//! the same backend the preprocessor ships, and a per-unit process would pay
-//! startup 100+ times for a run that is otherwise sub-second.
+//! Reads one JSON array of `{ id, source, indented, filename, loadPaths }` on
+//! stdin and writes one JSON object per line — `{ id, ok, css }` /
+//! `{ id, ok: false, error }` — on stdout. Batched in one process because the
+//! gate's whole point is to compare the same backend the preprocessor ships,
+//! and a per-unit process would pay startup 100+ times for a run that is
+//! otherwise sub-second.
+//!
+//! `grass` panics on some real corpus input, and the release profile aborts
+//! rather than unwinds, so `catch_unwind` cannot be the isolation: the index is
+//! announced on stderr before each unit and `--from <i>` resumes after a crash.
 
-use std::io::Read;
+use std::io::{Read, Write};
 
 use rsvelte_core::compiler::preprocess::types::{AttributeValue, PreprocessAttributeMap};
 use rsvelte_preprocess::filter::FilterOptions;
@@ -28,8 +33,20 @@ fn main() {
         }
     };
 
-    let results: Vec<Value> = units.iter().map(compile).collect();
-    println!("{}", Value::Array(results));
+    let from = std::env::args()
+        .position(|a| a == "--from")
+        .and_then(|i| std::env::args().nth(i + 1))
+        .and_then(|v| v.parse::<usize>().ok())
+        .unwrap_or(0);
+
+    let mut stdout = std::io::stdout().lock();
+    let mut stderr = std::io::stderr().lock();
+    for (index, unit) in units.iter().enumerate().skip(from) {
+        let _ = writeln!(stderr, "IDX {index}");
+        let _ = stderr.flush();
+        let _ = writeln!(stdout, "{}", compile(unit));
+        let _ = stdout.flush();
+    }
 }
 
 fn compile(unit: &Value) -> Value {
@@ -61,25 +78,20 @@ fn compile(unit: &Value) -> Value {
         AttributeValue::String(if indented { "sass" } else { "scss" }.to_string()),
     );
 
-    // A panic in `grass` would abort the batch and lose every later unit, so
-    // each one is isolated and reported as its own failure.
-    let compiled = std::panic::catch_unwind(|| {
-        preprocess_sass(
-            &SassOptions {
-                load_paths: load_paths.clone(),
-                ..SassOptions::default()
-            },
-            &FilterOptions::default(),
-            filename,
-            source,
-            &attributes,
-        )
-    });
+    let compiled = preprocess_sass(
+        &SassOptions {
+            load_paths,
+            ..SassOptions::default()
+        },
+        &FilterOptions::default(),
+        filename,
+        source,
+        &attributes,
+    );
 
     match compiled {
-        Ok(Ok(Some(processed))) => json!({ "id": id, "ok": true, "css": processed.code }),
-        Ok(Ok(None)) => json!({ "id": id, "ok": false, "error": "not selected as sass/scss" }),
-        Ok(Err(error)) => json!({ "id": id, "ok": false, "error": error }),
-        Err(_) => json!({ "id": id, "ok": false, "error": "panic" }),
+        Ok(Some(processed)) => json!({ "id": id, "ok": true, "css": processed.code }),
+        Ok(None) => json!({ "id": id, "ok": false, "error": "not selected as sass/scss" }),
+        Err(error) => json!({ "id": id, "ok": false, "error": error }),
     }
 }

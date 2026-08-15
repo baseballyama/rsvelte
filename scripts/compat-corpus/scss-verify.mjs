@@ -33,7 +33,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -170,7 +170,7 @@ function collect() {
 async function compileWithDartSass(units) {
 	let sass;
 	try {
-		sass = (await import('sass')).default;
+		sass = await import('sass');
 	} catch {
 		fail('the `sass` package (dart-sass) is not installed — run `pnpm install`');
 	}
@@ -196,23 +196,54 @@ function compileWithGrass(units) {
 	if (!fs.existsSync(exe)) {
 		fail('scss_parity binary missing — run `cargo build --release -p rsvelte_preprocess --bin scss_parity`');
 	}
-	const payload = units.map(({ id, source, indented, filename }) => ({
-		id,
-		source,
-		indented,
-		filename,
-		loadPaths: [SHIM_ROOT],
-	}));
-	const stdout = execFileSync(exe, {
-		input: JSON.stringify(payload),
-		maxBuffer: 512 * 1024 * 1024,
-		encoding: 'utf8',
-	});
-	const parsed = JSON.parse(stdout);
-	if (parsed.length !== units.length) {
-		fail(`grass returned ${parsed.length} results for ${units.length} units`);
+	const payload = JSON.stringify(
+		units.map(({ id, source, indented, filename }) => ({
+			id,
+			source,
+			indented,
+			filename,
+			loadPaths: [SHIM_ROOT],
+		})),
+	);
+
+	// `grass` panics on real corpus input and the release profile aborts rather
+	// than unwinds, so isolation cannot live inside the process: the helper
+	// announces each index on stderr, and a crash is attributed to the index it
+	// last announced before resuming after it.
+	const results = [];
+	let panics = 0;
+	while (results.length < units.length) {
+		const run = spawnSync(exe, ['--from', String(results.length)], {
+			input: payload,
+			maxBuffer: 512 * 1024 * 1024,
+			encoding: 'utf8',
+		});
+		for (const line of run.stdout.split('\n')) {
+			if (line.trim()) results.push(JSON.parse(line));
+		}
+		if (results.length >= units.length) break;
+		if (run.status === 0) {
+			fail(`grass exited cleanly after ${results.length} of ${units.length} units`);
+		}
+		// The crash belongs to the unit whose index was announced but produced no
+		// result line; anything else means the helper died before starting one.
+		const announced = [...run.stderr.matchAll(/^IDX (\d+)$/gm)].map((m) => Number(m[1]));
+		const crashed = announced.at(-1);
+		if (crashed !== results.length) {
+			fail(
+				`grass died at unit ${crashed ?? '<none announced>'} but ${results.length} results were collected:\n` +
+					run.stderr.split('\n').filter(Boolean).slice(-5).join('\n'),
+			);
+		}
+		results.push({ ok: false, error: `panic: ${firstPanicLine(run.stderr)}` });
+		panics++;
 	}
-	return parsed;
+	if (panics) console.log(`[scss-verify] grass aborted on ${panics} unit(s); resumed past each`);
+	return results;
+}
+
+function firstPanicLine(stderr) {
+	return stderr.split('\n').find((line) => line.includes('panicked at')) ?? 'aborted';
 }
 
 /** Trailing whitespace only — anything more would hide a real divergence. */
