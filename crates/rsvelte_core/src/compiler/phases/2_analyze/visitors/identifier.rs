@@ -535,11 +535,13 @@ fn validate_rune_usage(
             if !is_rune(&full_name) {
                 // Check for renamed runes
                 if full_name == "$effect.active" {
-                    return Err(errors::rune_renamed("$effect.active", "$effect.tracking"));
+                    return Err(errors::rune_renamed("$effect.active", "$effect.tracking")
+                        .at(current_span.0, current_span.1));
                 }
 
                 if full_name == "$state.frozen" {
-                    return Err(errors::rune_renamed("$state.frozen", "$state.raw"));
+                    return Err(errors::rune_renamed("$state.frozen", "$state.raw")
+                        .at(current_span.0, current_span.1));
                 }
 
                 if full_name == "$state.is" {

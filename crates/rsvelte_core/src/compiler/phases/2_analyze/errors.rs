@@ -224,7 +224,7 @@ diagnostics! {
     rune_invalid_computed_property() => "Runes cannot use computed member expressions";
 
     /// Rune %old_name% has been renamed to %new_name%
-    rune_renamed(old_name: &str, new_name: &str) => "`{}` has been renamed to `{}`", old_name, new_name;
+    rune_renamed(old_name: &str, new_name: &str) => "`{}` is now `{}`", old_name, new_name;
 
     /// Rune %name% has been removed
     rune_removed(name: &str) => "`{}` has been removed", name;

@@ -1773,6 +1773,21 @@ mod tests {
     }
 
     #[test]
+    fn diagnostic_locates_renamed_runes() {
+        let source = "<script>$effect.active</script>";
+        let diagnostic = compile(source, CompileOptions::default())
+            .unwrap_err()
+            .diagnostic();
+        assert_eq!(diagnostic.code.as_deref(), Some("rune_renamed"));
+        assert_eq!(
+            diagnostic.message,
+            "`$effect.active` is now `$effect.tracking`"
+        );
+        let (start, end) = diagnostic.span.expect("renamed rune has a span");
+        assert_eq!(&source[start as usize..end as usize], "$effect.active");
+    }
+
+    #[test]
     fn diagnostics_locate_global_css_validation_nodes() {
         for (fixture, code, span) in [
             (
