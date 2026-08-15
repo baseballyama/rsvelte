@@ -1,6 +1,6 @@
 [package]
 name = "rsvelte_esrap"
-version = "0.10.20"
+version = "0.10.21"
 edition = "2024"
 rust-version = "1.95"
 description = "A Rust port of esrap — prints an oxc AST to JavaScript with esrap's exact layout"
