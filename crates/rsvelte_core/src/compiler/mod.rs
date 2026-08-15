@@ -1762,6 +1762,48 @@ mod tests {
     }
 
     #[test]
+    fn diagnostics_locate_global_css_validation_nodes() {
+        for (fixture, code, span) in [
+            (
+                "css-global-block-declaration",
+                "css_global_block_invalid_declaration",
+                (109, 119),
+            ),
+            (
+                "css-global-block-combinator",
+                "css_global_block_invalid_combinator",
+                (54, 63),
+            ),
+            (
+                "css-global-block-in-pseudoclass",
+                "css_global_block_invalid_placement",
+                (28, 35),
+            ),
+            (
+                "css-global-modifier",
+                "css_global_block_invalid_modifier",
+                (70, 77),
+            ),
+            (
+                "css-global-modifier-start-1",
+                "css_global_block_invalid_modifier_start",
+                (75, 77),
+            ),
+        ] {
+            let source = std::fs::read_to_string(format!(
+                "{}/../../submodules/svelte/packages/svelte/tests/compiler-errors/samples/{fixture}/main.svelte",
+                env!("CARGO_MANIFEST_DIR")
+            ))
+            .unwrap();
+            let diagnostic = compile(&source, CompileOptions::default())
+                .unwrap_err()
+                .diagnostic();
+            assert_eq!(diagnostic.code.as_deref(), Some(code), "{fixture}");
+            assert_eq!(diagnostic.span, Some(span), "{fixture}");
+        }
+    }
+
+    #[test]
     fn diagnostic_locates_invalid_svelte_self() {
         let source = "<svelte:self />";
         let err = compile(source, CompileOptions::default()).unwrap_err();

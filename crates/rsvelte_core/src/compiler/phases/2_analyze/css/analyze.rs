@@ -235,7 +235,10 @@ fn analyze_rule(
                                 && state.parent_rule.is_none()
                             {
                                 // e.g. `:global.x { ... }` at root level
-                                return Err(errors::css_global_block_invalid_modifier_start());
+                                return Err(at_node(
+                                    errors::css_global_block_invalid_modifier_start(),
+                                    &selectors[1],
+                                ));
                             } else {
                                 // Mark as global block
                                 is_global_block = true;
@@ -248,8 +251,9 @@ fn analyze_rule(
                                         .and_then(|n| n.as_str())
                                         .unwrap_or(" ");
                                     if comb_name != " " {
-                                        return Err(errors::css_global_block_invalid_combinator(
-                                            comb_name,
+                                        return Err(at_node(
+                                            errors::css_global_block_invalid_combinator(comb_name),
+                                            child,
                                         ));
                                     }
                                 }
@@ -259,7 +263,10 @@ fn analyze_rule(
 
                                 if is_lone_global && complex_selectors.len() > 1 {
                                     // `:global, :global x { ... }` is invalid
-                                    return Err(errors::css_global_block_invalid_list());
+                                    return Err(at_node(
+                                        errors::css_global_block_invalid_list(),
+                                        prelude,
+                                    ));
                                 }
 
                                 if is_lone_global {
@@ -268,24 +275,30 @@ fn analyze_rule(
                                         && let Some(block_children) =
                                             block.get("children").and_then(|c| c.as_array())
                                     {
-                                        let has_declaration = block_children.iter().any(|c| {
-                                            c.get("type").and_then(|t| t.as_str())
+                                        let declaration = block_children.iter().find(|child| {
+                                            child.get("type").and_then(|kind| kind.as_str())
                                                 == Some("Declaration")
                                         });
 
                                         // :global { color: red; } is invalid but
                                         // foo :global { color: red; } is valid
-                                        if has_declaration && complex_selectors.len() == 1 {
-                                            return Err(
+                                        if let Some(declaration) = declaration
+                                            && complex_selectors.len() == 1
+                                        {
+                                            return Err(at_node(
                                                 errors::css_global_block_invalid_declaration(),
-                                            );
+                                                declaration,
+                                            ));
                                         }
                                     }
                                 }
                             }
                         } else {
                             // :global at non-zero position -> modifier
-                            return Err(errors::css_global_block_invalid_modifier());
+                            return Err(at_node(
+                                errors::css_global_block_invalid_modifier(),
+                                &selectors[idx],
+                            ));
                         }
                     }
                 }
@@ -293,7 +306,7 @@ fn analyze_rule(
                 // If this rule was marked as global block from a previous ComplexSelector
                 // but this ComplexSelector doesn't have :global, that's invalid
                 if is_global_block && !local_is_global_block {
-                    return Err(errors::css_global_block_invalid_list());
+                    return Err(at_node(errors::css_global_block_invalid_list(), prelude));
                 }
             }
         }
@@ -661,7 +674,10 @@ fn validate_complex_selector(
                         .as_object()
                         .is_some_and(|obj| obj.contains_key("args"))
                 {
-                    return Err(errors::css_global_block_invalid_placement());
+                    return Err(at_node(
+                        errors::css_global_block_invalid_placement(),
+                        first_sel,
+                    ));
                 }
             }
         }
@@ -812,7 +828,10 @@ fn validate_global_block_in_pseudo_args(args: &serde_json::Value) -> Result<(), 
                     if let Some(selectors) = relative.get("selectors").and_then(|s| s.as_array()) {
                         for sel in selectors {
                             if is_global_block_selector(sel) {
-                                return Err(errors::css_global_block_invalid_placement());
+                                return Err(at_node(
+                                    errors::css_global_block_invalid_placement(),
+                                    sel,
+                                ));
                             }
                         }
                     }
