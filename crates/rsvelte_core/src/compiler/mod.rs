@@ -1638,12 +1638,13 @@ impl CompileError {
             },
         };
 
+        // Official appends the help URL to every coded message, and a consumer
+        // reads that message verbatim -- upstream's own fixtures strip it for
+        // comparison rather than the compiler omitting it.
         if let Some(code) = diagnostic.code.as_deref() {
             let docs_url = format!("\nhttps://svelte.dev/e/{code}");
-            if diagnostic.message.ends_with(&docs_url) {
-                diagnostic
-                    .message
-                    .truncate(diagnostic.message.len() - docs_url.len());
+            if !diagnostic.message.ends_with(&docs_url) {
+                diagnostic.message.push_str(&docs_url);
             }
         }
 
@@ -1693,6 +1694,15 @@ impl std::error::Error for CompileError {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Upstream's `compiler-errors/test.ts` compares messages with the help URL
+    /// removed, because the compiler itself always emits it.
+    fn strip_link(message: &str) -> &str {
+        match message.rfind('\n') {
+            Some(at) if message[at + 1..].starts_with("https://svelte.dev/e/") => &message[..at],
+            _ => message,
+        }
+    }
 
     #[test]
     fn test_warning_position_clamps_to_char_boundary() {
@@ -1780,7 +1790,7 @@ mod tests {
             .diagnostic();
         assert_eq!(diagnostic.code.as_deref(), Some("rune_renamed"));
         assert_eq!(
-            diagnostic.message,
+            strip_link(&diagnostic.message),
             "`$effect.active` is now `$effect.tracking`"
         );
         let (start, end) = diagnostic.span.expect("renamed rune has a span");
@@ -1842,7 +1852,7 @@ mod tests {
     }
 
     #[test]
-    fn diagnostic_omits_documentation_url_from_the_message() {
+    fn diagnostic_message_carries_the_documentation_url_like_official() {
         let diagnostic = compile(
             "<script>function a(x) {} a($state(1));</script>",
             CompileOptions::default(),
@@ -1852,7 +1862,7 @@ mod tests {
         assert_eq!(diagnostic.code.as_deref(), Some("state_invalid_placement"));
         assert_eq!(
             diagnostic.message,
-            "`$state(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor."
+            "`$state(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement"
         );
     }
 
@@ -1867,7 +1877,7 @@ mod tests {
             Some("rune_invalid_arguments_length")
         );
         assert_eq!(
-            diagnostic.message,
+            strip_link(&diagnostic.message),
             "`$derived` must be called with exactly one argument"
         );
         let (start, end) = diagnostic.span.expect("rune call has a span");
@@ -1882,7 +1892,7 @@ mod tests {
             .diagnostic();
         assert_eq!(diagnostic.code.as_deref(), Some("props_invalid_placement"));
         assert_eq!(
-            diagnostic.message,
+            strip_link(&diagnostic.message),
             "`$props()` can only be used at the top level of components as a variable declaration initializer"
         );
         let (start, end) = diagnostic.span.expect("$props call has a span");
@@ -1897,7 +1907,7 @@ mod tests {
             .diagnostic();
         assert_eq!(diagnostic.code.as_deref(), Some("dollar_binding_invalid"));
         assert_eq!(
-            diagnostic.message,
+            strip_link(&diagnostic.message),
             "The $ name is reserved, and cannot be used for variables and imports"
         );
         let (start, end) = diagnostic.span.expect("import binding has a span");
