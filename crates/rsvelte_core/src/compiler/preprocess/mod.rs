@@ -577,7 +577,8 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(combined.file, None);
+        // remapping keeps the root map's `file`; upstream only drops it when falsy.
+        assert_eq!(combined.file.as_deref(), Some("intermediate.js"));
         assert_eq!(combined.sources, vec!["input.svelte"]);
         assert_eq!(combined.mappings, vec![vec![vec![5, 0, 4, 7]]]);
     }
