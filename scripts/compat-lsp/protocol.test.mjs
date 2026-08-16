@@ -66,6 +66,21 @@ test("shutdown kills an unresponsive child process tree", async () => {
     server.child.exitCode !== null || server.child.signalCode !== null,
     true,
   );
-  assert.throws(() => process.kill(pid, 0), /ESRCH/);
-  assert.throws(() => process.kill(grandchildPid, 0), /ESRCH/);
+  await assertReaped(pid);
+  await assertReaped(grandchildPid);
 });
+
+// A killed process stays visible to kill(pid, 0) until its parent reaps it, and a
+// re-parented grandchild waits on init — so poll instead of sampling once.
+async function assertReaped(pid, timeoutMs = 5_000) {
+  for (let waited = 0; waited < timeoutMs; waited += 10) {
+    try {
+      process.kill(pid, 0);
+    } catch (error) {
+      assert.equal(error.code, "ESRCH");
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.throws(() => process.kill(pid, 0), /ESRCH/);
+}
