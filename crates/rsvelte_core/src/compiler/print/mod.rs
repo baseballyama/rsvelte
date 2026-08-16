@@ -212,6 +212,8 @@ mod tests {
             "<script>\n\tlet b;\n\tfunction f() { b ?? (b = 1); }\n</script>",
             "<script>\n\tconst o = { get a() { return 1; }, set a(v) {}, m() {} };\n</script>",
             "<script>\n\tlet a, b;\n\tfunction f() { ({ a, b } = { a: 1, b: 2 }); }\n</script>",
+            // An arrow's expression body opening with `{` reads as a block body.
+            "<button onclick={() => ({ a } = { a: 1 })}>x</button>",
             "<script>\n\tconst x = (1 + 2) * 3;\n\tconst y = 2 ** 3 ** 4;\n\tconst z = (a, b);\n</script>",
             // `??` may not sit next to `||` unparenthesized, whatever the
             // precedence comparison says.

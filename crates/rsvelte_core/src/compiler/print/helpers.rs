@@ -746,14 +746,14 @@ impl EstreeGenerator {
             if body_type == Some("BlockStatement") {
                 self.generate_block_statement(body);
             } else {
-                // Expression body - wrap objects in parens
-                if body_type == Some("ObjectExpression") {
-                    self.output.push('(');
-                    self.generate_node(body);
-                    self.output.push(')');
-                } else {
-                    self.generate_expression(body, precedence::ASSIGNMENT);
-                }
+                // An expression body opening with `{` would read as a block
+                // body — `({ x } = o)` and `({ x })` alike.
+                self.wrap_if_it_opens_with(
+                    |generator| {
+                        generator.generate_expression(body, precedence::ASSIGNMENT);
+                    },
+                    &["{"],
+                );
             }
         }
     }
@@ -802,12 +802,21 @@ impl EstreeGenerator {
     /// A statement may not start with `{`, `function` or `class`; the same
     /// expression written there needs parentheses that the tree does not carry.
     fn generate_expression_statement(&mut self, expr: &serde_json::Value) {
+        self.wrap_if_it_opens_with(
+            |generator| generator.generate_node(expr),
+            &["{", "function", "class"],
+        );
+    }
+
+    /// Parenthesize what `emit` wrote if it opens with a token the surrounding
+    /// position reads as something else. Which token that is depends on the
+    /// position, so the caller names them.
+    fn wrap_if_it_opens_with(&mut self, emit: impl FnOnce(&mut Self), openers: &[&str]) {
         let start = self.output.len();
-        self.generate_node(expr);
-        let printed = &self.output[start..];
-        if printed.starts_with('{')
-            || printed.starts_with("function")
-            || printed.starts_with("class")
+        emit(self);
+        if openers
+            .iter()
+            .any(|opener| self.output[start..].starts_with(opener))
         {
             self.output.insert(start, '(');
             self.output.push(')');
