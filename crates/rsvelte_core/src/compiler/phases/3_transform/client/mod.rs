@@ -12,6 +12,7 @@ mod assign_dev_ast;
 mod ast_state_transform;
 mod async_derived_dev;
 mod await_reactivity_loss_ast;
+mod class_accessor_comments;
 mod class_transforms;
 mod console_dev_ast;
 mod console_wrap;
@@ -263,6 +264,12 @@ pub fn transform_client_module(
             },
         ));
     }
+
+    // Drop the comments upstream's synthesized accessors swallow before any
+    // rewrite, so the scan still sees the source's own class bodies.
+    let dead_comments_stripped =
+        class_accessor_comments::strip_class_accessor_dead_comments(source);
+    let source = dead_comments_stripped.as_deref().unwrap_or(source);
 
     // Transform the module source (rune replacements, class fields, etc.)
     let class_transformed = transform_module_class_fields_client(source);
@@ -529,27 +536,57 @@ pub(crate) fn transform_client(
     let mut pre_transformed_script = if let Some(instance_script) =
         &analysis.instance_script_content
     {
-        let retained_instance = retained_scripts.and_then(|scripts| scripts.instance.as_ref());
+        // Drop the comments upstream's synthesized rune accessors swallow. The
+        // splice moves every later offset, so the retained parse and the
+        // TypeScript projection built against the untouched text are dropped
+        // with it.
+        let dead_comments_stripped = analysis
+            .runes
+            .then(|| {
+                match retained_scripts
+                    .and_then(|scripts| scripts.instance.as_ref())
+                    .filter(|retained| {
+                        !retained.panicked()
+                            && retained.diagnostics().is_empty()
+                            && retained.program().source_text == instance_script.raw
+                    }) {
+                    Some(retained) => {
+                        class_accessor_comments::strip_class_accessor_dead_comments_from_program(
+                            &instance_script.raw,
+                            retained.program(),
+                        )
+                    }
+                    None => class_accessor_comments::strip_class_accessor_dead_comments(
+                        &instance_script.raw,
+                    ),
+                }
+            })
+            .flatten();
+        let instance_raw = dead_comments_stripped
+            .as_deref()
+            .unwrap_or(&instance_script.raw);
+        let retained_instance = retained_scripts
+            .and_then(|scripts| scripts.instance.as_ref())
+            .filter(|_| dead_comments_stripped.is_none());
         let needs_projection = analysis.runes
             && retained_instance.is_some()
             && instance_script.source_projection.is_some();
         let can_borrow_projection = needs_projection
-            && memmem::find(instance_script.raw.as_bytes(), b"import").is_none()
-            && !instance_script.raw.as_bytes().contains(&b'\r');
+            && memmem::find(instance_raw.as_bytes(), b"import").is_none()
+            && !instance_raw.as_bytes().contains(&b'\r');
         let (imports, script_body, body_chunks) = if can_borrow_projection {
             (
                 Vec::new(),
-                instance_script
-                    .raw
+                instance_raw
                     .strip_suffix('\n')
-                    .unwrap_or(&instance_script.raw)
+                    .unwrap_or(instance_raw)
                     .to_string(),
                 Vec::new(),
             )
         } else if needs_projection {
-            extract_imports_with_projection(&instance_script.raw)
+            extract_imports_with_projection(instance_raw)
         } else {
-            let (imports, script_body) = extract_imports(&instance_script.raw);
+            let (imports, script_body) = extract_imports(instance_raw);
             (imports, script_body, Vec::new())
         };
         let composed_body_projection = (needs_projection && !can_borrow_projection).then(|| {
@@ -566,7 +603,7 @@ pub(crate) fn transform_client(
         };
         instance_script_imports = imports;
         let split_top_level_declarations =
-            instance_has_top_level_multi_declarator(ast, &instance_script.raw);
+            instance_has_top_level_multi_declarator(ast, instance_raw);
         let _script_start = super::profile::timer_start();
         let _parent_scope = super::profile::ParentScope::new();
         let mut transformed = transform_instance_script_for_visitors(
@@ -1946,6 +1983,14 @@ pub(crate) fn transform_client(
             let raw = crate::compiler::phases::phase2_analyze::types::strip_typescript(
                 &module_content.raw,
             );
+            // Then the comments upstream's synthesized rune accessors swallow,
+            // which `strip_module_toplevel_comments` below cannot see: they sit
+            // inside a body span, so its own rule keeps them.
+            let raw = analysis
+                .runes
+                .then(|| class_accessor_comments::strip_class_accessor_dead_comments(&raw))
+                .flatten()
+                .unwrap_or(raw);
             let (module_imports, rest) = extract_imports(&raw);
             let retained_comment_stripped = if !analysis.is_typescript {
                 retained_scripts

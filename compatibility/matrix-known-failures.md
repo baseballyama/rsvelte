@@ -34,13 +34,15 @@ and `output-unparseable` (acorn rejects what rsvelte emitted, whatever the bytes
 None of the three is more tolerated than another — every one is ratcheted two-sided. The
 split exists because a listed entry suppresses everything its key cannot tell apart: under
 one flat `js-mismatch`, an id whose comments already diverge absorbs a later code
-regression on that id for free. That is not hypothetical — every comment carrier in
-`opaque-keyword` diverges on comment placement, so re-breaking #2986 would have reproduced
-an already-listed key on the very cases written to catch it.
+regression on that id for free. That is not hypothetical — when the split was added, every
+comment carrier in `opaque-keyword` diverged on comment placement (#2990), so re-breaking
+#2986 would have reproduced an already-listed key on the very cases written to catch it.
+Those entries are gone now, which is what the split was for: the family clears rather than
+carrying a key that would absorb the next regression.
 
-## Matrix known failures (`matrix-known-failures.json`, 428 entries)
+## Matrix known failures (`matrix-known-failures.json`, 388 entries)
 
-Partition of `matrix-known-failures.json` by family: `4 + 172 + 8 + 24 + 180 + 40`
+Partition of `matrix-known-failures.json` by family: `4 + 172 + 8 + 24 + 180 + 0`
 
 ### `binding-position` — 4 entries
 
@@ -190,7 +192,7 @@ They clear when `render_tag_has_call` is given the purity rule `has_call_json`
 memoisation path, deliberately left out of the folding fix so that a regression in one
 cannot be read as the other.
 
-### `opaque-keyword` — 40 entries
+### `opaque-keyword` — 0 entries
 
 The family generalizes #2986: a token the transforms scan for **raw**, carried inside a
 region where it is text rather than code, crossed with the construct whose boundary a scan
@@ -199,25 +201,22 @@ class-header scan is lexical now — and so do the two it found on the way (#298
 the module rune loops locate `$state(` / `$derived(` through `js_scan::find_code`, which
 yields only occurrences outside every string, template, regex literal and comment.
 
-What is left is one cluster, and it is not an rsvelte defect.
+Partition of `matrix-known-failures.json` entries under `opaque-keyword/` by cause: `0`
 
-Partition of `matrix-known-failures.json` entries under `opaque-keyword/` by cause: `40`
-
-**40 — any keyword × {`line-comment`, `block-comment`} × `between-classes` × both entry
-points × `client` and `client-dev` (#2990).** A comment between two classes that both carry
-rune fields: official drops it, rsvelte keeps it. The keyword content is irrelevant — all
-five keyword rows reproduce identically — so it is a property of the slot, and `server` /
-`server-dev` match throughout.
-
-The cause is upstream and measured: `client/visitors/ClassBody.js` lowers a **public** rune
+The last cluster it carried is worth recording, because it is the only one so far whose
+cause was upstream and whose resolution was still ours (#2990). A comment between two
+classes that both carry rune fields was dropped by official and kept by rsvelte — the
+keyword content was irrelevant, all five keyword rows reproduced identically, and `server` /
+`server-dev` matched throughout. `client/visitors/ClassBody.js` lowers a **public** rune
 field into `b.method('get'…)` / `b.method('set'…)`, whose `BlockStatement` has no `loc`, and
-esrap's `body()` answers an unlocated node by setting `comment_index = comments.length` —
-a cursor nothing moves back. So every comment after the first generated accessor is dropped
-for the rest of the program, not just the one in this slot. The discriminating row is a
-**private** rune field (`#x = $state(0)`): it rebuilds the class body just the same and
-emits no accessor, and the later comment survives. Written up in
-[`upstream_issues/2990-svelte-class-accessor-drops-later-comments.md`](../upstream_issues/2990-svelte-class-accessor-drops-later-comments.md);
-these entries clear when the fix lands in `submodules/svelte`.
+esrap's `body()` answers an unlocated node by setting `comment_index = comments.length`, a
+cursor only a *located* body moves back. The discriminating row was a **private** rune field
+(`#x = $state(0)`): it rebuilds the class body just the same, emits no accessor, and the
+later comment survives. rsvelte builds its accessors as source text, so its cursor never
+died; `client/class_accessor_comments.rs` now deletes what upstream loses. The upstream
+report stays in
+[`upstream_issues/2990-svelte-class-accessor-drops-later-comments.md`](../upstream_issues/2990-svelte-class-accessor-drops-later-comments.md),
+and these rows are what will report the day it lands in `submodules/svelte`.
 
 ## Burn-down
 

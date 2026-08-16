@@ -258,10 +258,13 @@ keyword axis is *derived* — the source-level tokens `memmem::find` is called w
 records. It paid for itself on the first run: #2987 (a `'$derived('` in a string, template or
 comment stops the real `$derived` in that module from being lowered at all, so the module throws
 at import) and #2988 (a `/$derived(x)/` regex literal is itself rewritten). Both outputs parse,
-so the parse oracle is blind to both — only output equality reports them. Both are fixed; the
-40 entries it still carries are an **upstream** defect, written up in `upstream_issues/`, where
-a synthesized accessor body parks esrap's comment cursor and every later comment in the file is
-dropped. A family whose remaining rows all point outside the repo is the state to aim for.
+so the parse oracle is blind to both — only output equality reports them. Both are fixed, and so
+is the third the family found (#2990), the one row where **rsvelte's output was the more faithful
+of the two**: a synthesized accessor body has no `loc`, which parks esrap's comment cursor for the
+rest of the file, so official drops comments rsvelte kept. Byte equality is the goal, so
+`client/class_accessor_comments.rs` reproduces the loss and `upstream_issues/` carries the report
+— a divergence whose cause is upstream still needs a decision here, and "leave it listed" is only
+one of the two.
 
 The `bind:` and `param-default` families are the odd ones out and the reason is worth stating:
 their inputs are programs the official compiler **rejects**, which is a population no collected corpus can hold, because

@@ -63,6 +63,9 @@ Either give the generated accessor bodies the `loc` of the field they replace, o
 the remaining comments. The second is the more general repair: any builder-made block
 anywhere in a transform has the same effect today.
 
-Tracked in rsvelte issue #2990. rsvelte keeps the comment, so its output is the faithful
-one; the 40 `opaque-keyword/**__between-classes__**` entries in
-`compatibility/matrix-known-failures.json` clear when this is fixed upstream.
+Tracked in rsvelte issue #2990. rsvelte's own output was the faithful one, but byte
+equality is the goal, so it now reproduces the loss deliberately:
+`3_transform/client/class_accessor_comments.rs` deletes the comments between a synthesized
+accessor and the next located body. When this is fixed upstream, that pass is what has to
+go — the `opaque-keyword/**__between-classes__**` rows of the generated shape matrix are
+what will report it.

@@ -720,10 +720,11 @@ the fix is to change the case), and an rsvelte output it rejects is its own
 The second half of the same fix is the **code / comment split**. A divergence that survives
 `codeIdentity` normalization stays `js-mismatch`; one that does not is `comment-mismatch`. Both
 are ratcheted two-sided, so nothing is tolerated that was not before — the split is about the
-KEY, and it is the #2521 lesson applied to this gate. **[D]**: every comment carrier in the
-`opaque-keyword` family diverges on comment placement, so under one flat verdict re-breaking
-#2986 would have reproduced an already-listed key on the very cases written to catch it. The
-`comment-slot` family carries the same hazard on all of its entries.
+KEY, and it is the #2521 lesson applied to this gate. **[D]**: when the split was added every
+comment carrier in the `opaque-keyword` family diverged on comment placement (#2990), so under
+one flat verdict re-breaking #2986 would have reproduced an already-listed key on the very cases
+written to catch it. Those entries have since cleared, which is the outcome the split was for;
+the `comment-slot` family carries the same hazard on all of its entries.
 
 Two limits remain. The oracle only runs where **both** compilers accepted, so a both-reject cell
 is still compared on the error code alone (blind spot 5d), and a case that opts out of a target
@@ -739,11 +740,16 @@ under `phases/3_transform/{server,client,shared}` — but it is a *sample* of th
 the grep behind it returns ~30 distinct literals and the family carries 5. A token that only some
 other pass scans for raw is unreached here. **[S]**
 
-Two defects the family found on its first run are its calibration, not a claim of coverage: a
+Three defects the family found on its first run are its calibration, not a claim of coverage: a
 `'$derived('` inside a string, template or comment stops the real `$derived` in the same module
 from being lowered at all — the module then throws at import (#2987) — and a `/$derived(x)/`
 **regex literal** is itself rewritten to `/$.derived(() => x)/` (#2988). Both outputs parse, so
-the parse oracle above is blind to both; only output equality reports them.
+the parse oracle above is blind to both; only output equality reports them. The third (#2990) is
+the axis' one **non**-keyword finding: its `between-classes` host reproduced identically on all
+five keyword rows, which is what identified the cause as the slot rather than the token — a
+synthesized rune accessor parking esrap's comment cursor. A row that does not vary with the axis
+it was generated along is evidence about the host, and reading it that way is what a per-cell
+verdict makes possible.
 
 ### Blind spot 5m — a case may opt out of a target
 
