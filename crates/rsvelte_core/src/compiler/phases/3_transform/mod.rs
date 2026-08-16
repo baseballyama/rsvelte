@@ -25,6 +25,7 @@ pub use js_ast::{JsExpr, JsProgram, JsStatement};
 use super::phase2_analyze::ComponentAnalysis;
 use crate::ast::template::Root;
 use crate::compiler::{CompileOptions, GenerateMode};
+use memchr::memmem;
 
 fn template_source_lines(source: &str) -> Vec<bool> {
     let mut in_script = false;
@@ -64,6 +65,25 @@ fn is_template_append_mapping(
             .get(mapping.gen_line as usize)
             .copied()
             .unwrap_or(false)
+}
+
+/// Flag every generated line carrying an `$.append(` or `$.bind_` call. One
+/// SIMD scan of the whole output; a per-line `contains` rebuilds the searcher
+/// for every line.
+fn mark_lines_containing(code: &str, line_starts: &[usize]) -> Vec<bool> {
+    static APPEND: std::sync::LazyLock<memmem::Finder<'static>> =
+        std::sync::LazyLock::new(|| memmem::Finder::new("$.append("));
+    static BIND: std::sync::LazyLock<memmem::Finder<'static>> =
+        std::sync::LazyLock::new(|| memmem::Finder::new("$.bind_"));
+    let mut flags = vec![false; line_starts.len()];
+    let bytes = code.as_bytes();
+    for finder in [&*APPEND, &*BIND] {
+        for hit in finder.find_iter(bytes) {
+            let line = line_starts.partition_point(|&start| start <= hit) - 1;
+            flags[line] = true;
+        }
+    }
+    flags
 }
 
 /// Result of the transform phase.
@@ -176,11 +196,8 @@ pub(crate) fn transform_component_with_scripts<'source>(
             if options.enable_sourcemap {
                 let mapping_starts = MappingLineStarts::new(&result.code, source);
                 let template_source_lines = template_source_lines(source);
-                let append_generated_lines = result
-                    .code
-                    .lines()
-                    .map(|line| line.contains("$.append(") || line.contains("$.bind_"))
-                    .collect::<Vec<_>>();
+                let append_generated_lines =
+                    mark_lines_containing(&result.code, &mapping_starts.generated);
                 let source_line_starts = &mapping_starts.source;
                 // Lowering inserts framework calls between copied source tokens;
                 // token mappings fill those holes before the coarser
@@ -1822,45 +1839,22 @@ fn generate_rune_mappings_with_starts(
 
     for &(src_pattern, gen_pattern) in rune_transforms {
         // Find all occurrences of the generated pattern
-        let mut gen_positions = Vec::new();
-        let mut gen_search = 0;
-        while let Some(pos) = generated[gen_search..].find(gen_pattern) {
-            let abs = gen_search + pos;
-            gen_positions.push(abs);
-            gen_search = abs + gen_pattern.len();
-        }
+        let gen_positions: Vec<usize> =
+            memmem::find_iter(generated.as_bytes(), gen_pattern).collect();
 
         // Find all occurrences of the source pattern
-        let mut src_positions = Vec::new();
-        let mut src_search = 0;
-        while let Some(pos) = source[src_search..].find(src_pattern) {
-            let abs = src_search + pos;
+        let mut src_positions: Vec<usize> = Vec::new();
+        for abs in memmem::find_iter(source.as_bytes(), src_pattern) {
             // For patterns like "$effect" that are substrings of "$effect.pre",
             // ensure we don't match the longer version
-            if src_pattern == "$effect" && abs + src_pattern.len() < source.len() {
-                let next_char = source.as_bytes()[abs + src_pattern.len()];
-                if next_char == b'.' {
-                    // This is "$effect.pre" or "$effect.root" etc., skip
-                    src_search = abs + src_pattern.len();
-                    continue;
-                }
-            }
-            if src_pattern == "$state" && abs + src_pattern.len() < source.len() {
-                let next_char = source.as_bytes()[abs + src_pattern.len()];
-                if next_char == b'.' {
-                    src_search = abs + src_pattern.len();
-                    continue;
-                }
-            }
-            if src_pattern == "$derived" && abs + src_pattern.len() < source.len() {
-                let next_char = source.as_bytes()[abs + src_pattern.len()];
-                if next_char == b'.' {
-                    src_search = abs + src_pattern.len();
-                    continue;
-                }
+            if matches!(src_pattern, "$effect" | "$state" | "$derived")
+                && abs + src_pattern.len() < source.len()
+                && source.as_bytes()[abs + src_pattern.len()] == b'.'
+            {
+                // "$effect.pre" / "$state.raw" / "$derived.by" own this position.
+                continue;
             }
             src_positions.push(abs);
-            src_search = abs + src_pattern.len();
         }
 
         // Match 1:1 in order
@@ -2276,19 +2270,13 @@ fn generate_template_element_runtime_mappings_with_starts(
         cursor = variable_offset + variable.len();
     }
 
+    let hits = collect_runtime_use_sites(generated, &known);
     for (variable, &(element_offset, len)) in &known {
-        for pattern in [
-            format!("$.reset({variable})"),
-            format!("$.remove_input_defaults({variable})"),
-            format!("$.bind_value({variable}"),
-            format!("{variable}.textContent"),
-            format!("$.child({variable}"),
-            format!("$.sibling({variable}"),
-            format!("$.append($$anchor, {variable})"),
-        ] {
-            let mut offset = 0;
-            while let Some(relative) = generated[offset..].find(&pattern) {
-                let start = offset + relative + pattern.find(variable).unwrap();
+        let Some(sites) = hits.get(variable) else {
+            continue;
+        };
+        for offsets in sites {
+            for &start in offsets {
                 push_pair(
                     &mut mappings,
                     generated,
@@ -2299,11 +2287,97 @@ fn generate_template_element_runtime_mappings_with_starts(
                     element_offset,
                     len,
                 );
-                offset = start + variable.len();
             }
         }
     }
     mappings
+}
+
+/// The seven runtime call shapes that name an element handle, in the order the
+/// mapping list expects them.
+const RUNTIME_USE_PATTERNS: [(&str, bool); 7] = [
+    ("$.reset(", true),
+    ("$.remove_input_defaults(", true),
+    ("$.bind_value(", false),
+    (".textContent", false),
+    ("$.child(", false),
+    ("$.sibling(", false),
+    ("$.append($$anchor, ", true),
+];
+
+/// Locate every runtime use of a known element handle in one scan per call
+/// shape. Scanning per `(variable, shape)` instead re-walks the whole output
+/// 7×K times.
+fn collect_runtime_use_sites<'code>(
+    generated: &'code str,
+    known: &rustc_hash::FxHashMap<&'code str, (usize, usize)>,
+) -> rustc_hash::FxHashMap<&'code str, [Vec<usize>; 7]> {
+    fn identifier_run(code: &str, start: usize) -> &str {
+        let bytes = code.as_bytes();
+        let mut end = start;
+        while bytes
+            .get(end)
+            .is_some_and(|byte| byte.is_ascii_alphanumeric() || *byte == b'_' || *byte == b'$')
+        {
+            end += 1;
+        }
+        &code[start..end]
+    }
+
+    let mut sites: rustc_hash::FxHashMap<&str, [Vec<usize>; 7]> = rustc_hash::FxHashMap::default();
+    let mut record = |name: &'code str, kind: usize, offset: usize| {
+        sites
+            .entry(name)
+            .or_default()
+            .get_mut(kind)
+            .expect("kind is within the pattern table")
+            .push(offset);
+    };
+    for (kind, (needle, closed)) in RUNTIME_USE_PATTERNS.iter().enumerate() {
+        for hit in memmem::find_iter(generated.as_bytes(), needle) {
+            if kind == 3 {
+                // `{variable}.textContent`: the name ends where the needle starts,
+                // and the source pattern was unanchored on its left.
+                let bytes = generated.as_bytes();
+                let mut start = hit;
+                while start > 0
+                    && bytes[start - 1].is_ascii_alphanumeric()
+                        | (bytes[start - 1] == b'_')
+                        | (bytes[start - 1] == b'$')
+                {
+                    start -= 1;
+                }
+                for offset in start..hit {
+                    if known.contains_key(&generated[offset..hit]) {
+                        record(&generated[offset..hit], kind, offset);
+                    }
+                }
+                continue;
+            }
+            let start = hit + needle.len();
+            let run = identifier_run(generated, start);
+            if *closed {
+                if generated.as_bytes().get(start + run.len()) == Some(&b')')
+                    && known.contains_key(&run)
+                {
+                    record(&generated[start..start + run.len()], kind, start);
+                }
+                continue;
+            }
+            // An unterminated pattern matched any prefix of the identifier.
+            for end in 1..=run.len() {
+                if known.contains_key(&&run[..end]) {
+                    record(&generated[start..start + end], kind, start);
+                }
+            }
+        }
+    }
+    for offsets in sites.values_mut() {
+        for kind in offsets.iter_mut() {
+            kind.sort_unstable();
+        }
+    }
+    sites
 }
 
 /// Inline instance declarations survive lowering verbatim after `export` is removed.
