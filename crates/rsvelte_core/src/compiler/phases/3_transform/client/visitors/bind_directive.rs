@@ -2100,7 +2100,7 @@ fn build_each_block_accessor_parts(
     // `get_body` is the expression the getter returns; dev needs it unthunked so the
     // accessors can be emitted as named functions (useful `$inspect` stack traces).
     let (get, get_body, setter_body) = match expr_info {
-        EachBindingExprInfo::DirectItem { item_name: _ } => {
+        EachBindingExprInfo::DirectItem => {
             // Direct item reference: bind:value={item}
             // Official Svelte uses collection[$$index] for both getter and setter
             // (not $.get(item)) because the item is considered "reassigned" via the bind.
@@ -2245,10 +2245,9 @@ fn build_each_block_accessor_parts(
 
 /// Information about how a binding expression references an each block item.
 #[derive(Debug)]
-#[allow(dead_code)]
 enum EachBindingExprInfo {
     /// Direct reference to the each item (bind:value={item})
-    DirectItem { item_name: String },
+    DirectItem,
     /// Property access on the each item (bind:value={item.prop})
     ItemProperty {
         item_name: String,
@@ -2287,12 +2286,7 @@ fn analyze_each_binding_expression(
             for (idx, each_ctx) in context.state.each_binding_context.iter().enumerate().rev() {
                 if name == each_ctx.item_name {
                     // Direct reference to this each block's item
-                    return Some((
-                        EachBindingExprInfo::DirectItem {
-                            item_name: name.to_string(),
-                        },
-                        idx,
-                    ));
+                    return Some((EachBindingExprInfo::DirectItem, idx));
                 }
 
                 // Check if this is a destructured variable from the each block

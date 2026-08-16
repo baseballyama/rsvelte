@@ -51,10 +51,9 @@
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::{BindingKind, DeclarationKind};
 use crate::compiler::phases::phase3_transform::builders::B;
-use oxc_allocator::CloneIn;
 use oxc_ast::ast::{
     AssignmentExpression, AssignmentOperator, AssignmentTarget, BinaryOperator, Expression,
-    LogicalOperator, Statement, UpdateExpression,
+    LogicalOperator, Statement,
 };
 use oxc_ast_visit::VisitMut;
 use rustc_hash::FxHashSet;
@@ -1072,11 +1071,6 @@ impl<'a> IntoAssignment<'a> for Expression<'a> {
         }
     }
 }
-
-// Keep `CloneIn`, `UpdateExpression`, `Statement` referenced so unused-import
-// lints stay quiet across feature shapes.
-#[allow(unused_imports)]
-use {AssignmentExpression as _AE, CloneIn as _CI, Statement as _St, UpdateExpression as _UE};
 
 /// Apply the read-wrapping pass to `expr` in place. `scope_idx` is the scope to
 /// resolve names against (component/instance scope for the first cut).

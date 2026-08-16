@@ -2025,65 +2025,6 @@ pub(super) fn rfind_matching_paren(s: &str, close_pos: usize) -> Option<usize> {
     None
 }
 
-/// Find the position of the matching closing brace `}` for a string that starts
-/// right after the opening `{`. Returns the index of the `}` within the string.
-/// Handles nested braces, strings, and comments.
-///
-/// No longer called by any client transform — `$inspect.trace`, which was
-/// its last user, now does the same scope-finding through the OXC AST in
-/// `ast_state_transform::try_rewrite_inspect_trace_function_body`. The
-/// function is left here `#[allow(dead_code)]` because `svelte2tsx` and
-/// other modules still keep their own brace-matching helpers and we may
-/// want to point them at a single shared implementation in a follow-up.
-#[allow(dead_code)]
-pub(super) fn find_matching_brace(s: &str) -> Option<usize> {
-    let mut depth = 1i32;
-    let bytes = s.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() {
-        match bytes[i] {
-            b'{' => depth += 1,
-            b'}' => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(i);
-                }
-            }
-            // Skip string literals
-            b'\'' | b'"' | b'`' => {
-                let quote = bytes[i];
-                i += 1;
-                while i < bytes.len() {
-                    if bytes[i] == b'\\' {
-                        i += 1; // skip escaped char
-                    } else if bytes[i] == quote {
-                        break;
-                    }
-                    i += 1;
-                }
-            }
-            // Skip single-line comments
-            b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'/' => {
-                i += 2;
-                while i < bytes.len() && bytes[i] != b'\n' {
-                    i += 1;
-                }
-            }
-            // Skip multi-line comments
-            b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'*' => {
-                i += 2;
-                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
-                    i += 1;
-                }
-                i += 1; // skip past */
-            }
-            _ => {}
-        }
-        i += 1;
-    }
-    None
-}
-
 /// Strip leading block comments and line comments (and the whitespace between
 /// them) from the start of an expression string. Returns the remainder starting
 /// at the first non-comment, non-whitespace character.

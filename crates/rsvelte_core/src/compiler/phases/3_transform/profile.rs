@@ -1107,7 +1107,7 @@ pub fn take_breakdown() -> Phase3Breakdown {
 /// The scope-tree / symbol-table build is a fixed cost per call, so the useful
 /// unit is builds-per-file, not bytes walked: knowing the total is hot does not
 /// say which pass to fix.
-pub const SEMANTIC_SITES: [&str; 14] = [
+pub const SEMANTIC_SITES: [&str; 13] = [
     "server/rune_call",
     "server/derived_reads",
     "client/state_pipeline",
@@ -1119,7 +1119,6 @@ pub const SEMANTIC_SITES: [&str; 14] = [
     "client/state_assigns.in_place",
     "client/prop_assign",
     "client/prop_assign.in_place",
-    "client/scope_analysis",
     "client/ast_state_transform",
     "client/prop_source_reads",
 ];
@@ -1135,9 +1134,8 @@ pub const SEM_STATE_ASSIGNS: usize = 7;
 pub const SEM_STATE_ASSIGNS_IN_PLACE: usize = 8;
 pub const SEM_PROP_ASSIGN: usize = 9;
 pub const SEM_PROP_ASSIGN_IN_PLACE: usize = 10;
-pub const SEM_SCOPE_ANALYSIS: usize = 11;
-pub const SEM_AST_STATE_TRANSFORM: usize = 12;
-pub const SEM_PROP_SOURCE_READS: usize = 13;
+pub const SEM_AST_STATE_TRANSFORM: usize = 11;
+pub const SEM_PROP_SOURCE_READS: usize = 12;
 
 thread_local! {
     static SEMANTIC_BUILDS: Cell<[(u64, u64); SEMANTIC_SITES.len()]> =

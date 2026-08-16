@@ -61,6 +61,5 @@ The former aggregate #033 has been split along independently removable productio
 
 ### P3
 
-- [030 — dormant helpers and future migration scaffolding remain in production modules](030-dormant-dead-code-and-future-scaffolding.md)
 - [041 — large production modules also contain thousands of lines of inline tests](041-production-modules-contain-thousands-of-test-lines.md)
 - [054 — client class-field prenormalization rewrites the whole script before statement visitors](054-client-class-field-prenormalization-rewrites-the-whole-script.md)

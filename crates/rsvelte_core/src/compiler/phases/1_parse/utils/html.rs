@@ -6,9 +6,7 @@
 //! - `svelte/packages/svelte/src/compiler/phases/1-parse/utils/html.js`
 //!
 //! It provides HTML-related utility functions such as checking for void elements
-//! and decoding HTML character references.
-
-use super::entities::decode_html_entities;
+//! and validating character reference code points.
 
 /// Windows-1252 character mapping for code points 128-159.
 /// These are invalid in Unicode but browsers map them to specific characters.
@@ -80,24 +78,6 @@ pub fn validate_code(code: u32) -> u32 {
     NUL
 }
 
-/// Decode HTML character references in a string.
-///
-/// This function corresponds to `decode_character_references` in Svelte's html.js.
-/// It handles named entities (`&amp;`, `&lt;`, etc.), numeric entities (`&#123;`, `&#x7B;`),
-/// and legacy entities without semicolons.
-///
-/// # Arguments
-/// * `html` - The HTML string containing character references
-/// * `is_attribute_value` - If true, applies attribute value decoding rules per HTML spec.
-///   For entities without semicolons, doesn't decode if followed by `=` or alphanumeric.
-///
-/// # Returns
-/// The decoded string with all character references replaced
-#[allow(dead_code)]
-pub fn decode_character_references(html: &str, is_attribute_value: bool) -> String {
-    decode_html_entities(html, is_attribute_value)
-}
-
 /// Check if an element is a void element.
 /// Uses first-byte dispatch for fast rejection.
 #[inline]
@@ -125,6 +105,7 @@ pub fn is_void_element(name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::compiler::phases::phase1_parse::utils::entities::decode_html_entities;
 
     #[test]
     fn test_validate_code_line_feed() {
@@ -173,17 +154,17 @@ mod tests {
     }
 
     #[test]
-    fn test_decode_character_references() {
-        assert_eq!(decode_character_references("&amp;", false), "&");
-        assert_eq!(decode_character_references("&lt;div&gt;", false), "<div>");
-        assert_eq!(decode_character_references("&#65;&#x42;", false), "AB");
+    fn test_decode_html_entities() {
+        assert_eq!(decode_html_entities("&amp;", false), "&");
+        assert_eq!(decode_html_entities("&lt;div&gt;", false), "<div>");
+        assert_eq!(decode_html_entities("&#65;&#x42;", false), "AB");
     }
 
     #[test]
-    fn test_decode_character_references_attribute() {
+    fn test_decode_html_entities_attribute() {
         // In attribute values, entities without semicolon followed by '=' should not be decoded
-        assert_eq!(decode_character_references("&amp=", true), "&amp=");
+        assert_eq!(decode_html_entities("&amp=", true), "&amp=");
         // But should decode if followed by semicolon
-        assert_eq!(decode_character_references("&amp;", true), "&");
+        assert_eq!(decode_html_entities("&amp;", true), "&");
     }
 }

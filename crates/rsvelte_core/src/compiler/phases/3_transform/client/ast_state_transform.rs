@@ -758,7 +758,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     /// match the text-path behaviour exactly.
     ///
     /// Folding the tag wrap into the declarator handlers means the post-AST
-    /// `wrap_state_derived_with_tag` re-scan in `transform_client_with_visitors`
+    /// `wrap_state_derived_with_tag` re-scan in `transform_client`
     /// no longer has to walk the script in dev mode, eliminating one
     /// O(text_len) buffer pass per component.
     fn maybe_tag_declarator(&self, var_name: &str, replacement: String) -> String {

@@ -68,7 +68,7 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
         // `$state.snapshot(x)` -> `$.snapshot(x)` is now done by the AST pass
         // in `ast_state_transform::visit_call_expression`. The dev-mode
         // `svelte-ignore state_snapshot_uncloneable` handler in
-        // `mod.rs::transform_client_with_visitors`'s `process_accumulated`
+        // `mod.rs::transform_client`'s `process_accumulated`
         // closure still runs *before* that AST rewrite; it now matches the
         // un-renamed `$state.snapshot(` shape and emits
         // `$state.snapshot(x, true)`, which the AST then renames to

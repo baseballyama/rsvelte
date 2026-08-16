@@ -9,11 +9,9 @@ pub(crate) use super::shared::ast_rewrite;
 use std::borrow::Cow;
 use std::fmt::Write as _;
 mod assign_dev_ast;
-mod ast;
 mod ast_state_transform;
 mod async_derived_dev;
 mod await_reactivity_loss_ast;
-mod class_body_ast;
 mod class_transforms;
 mod console_dev_ast;
 mod console_wrap;
@@ -219,54 +217,6 @@ pub(super) fn get_or_compile_regex(pattern: &str) -> Option<std::sync::Arc<Regex
     })
 }
 
-/// Transform a component analysis into client-side JavaScript.
-///
-/// # Arguments
-///
-/// * `analysis` - The component analysis from Phase 2 (includes pre-extracted script content)
-/// * `ast` - The parsed AST from Phase 1 (to avoid re-parsing)
-/// * `_source` - The original source code (for backward compatibility)
-/// * `options` - Compile options
-pub(crate) fn transform_client(
-    analysis: &ComponentAnalysis,
-    ast: &Root,
-    source: &str,
-    options: &CompileOptions,
-    retained_scripts: Option<&crate::ast::oxc_program::RetainedScripts<'_>>,
-    program_sink: Option<&mut dyn FnMut(&super::js_ast::JsProgram, &super::js_ast::arena::JsArena)>,
-) -> Result<CodegenResult, TransformError> {
-    if ast::oracle::enabled() {
-        // Run both pipelines and score the AST one against the text one, which
-        // is the specification here (it passes every fixture). The text result
-        // is what we return, so turning the oracle on cannot change output.
-        let oracle =
-            transform_client_with_visitors(analysis, ast, source, options, retained_scripts, None)?;
-        ast::oracle::record(
-            match ast::transform_client_ast(analysis, ast, source, options) {
-                None => ast::oracle::Verdict::FellBack,
-                Some(candidate) if candidate.code == oracle.code => ast::oracle::Verdict::Matched,
-                Some(_) => ast::oracle::Verdict::Mismatched,
-            },
-        );
-        return Ok(oracle);
-    }
-
-    if *ast::CLIENT_AST
-        && let Some(result) = ast::transform_client_ast(analysis, ast, source, options)
-    {
-        return Ok(result);
-    }
-
-    transform_client_with_visitors(
-        analysis,
-        ast,
-        source,
-        options,
-        retained_scripts,
-        program_sink,
-    )
-}
-
 /// Transform a module (.svelte.js/.svelte.ts) into client-side JavaScript.
 ///
 /// Unlike `transform_client`, this does NOT generate a component function wrapper.
@@ -456,7 +406,7 @@ pub(crate) fn extract_imports_str(script: &str) -> (Vec<String>, Option<String>)
     }
 }
 
-/// Transform using the visitor-based system.
+/// Transform a component analysis into client-side JavaScript.
 ///
 /// This function implements the visitor pattern that mirrors the official Svelte compiler.
 /// It uses `ComponentContext`, `ComponentClientTransformState`, and the fragment visitor.
@@ -475,12 +425,11 @@ pub(crate) fn extract_imports_str(script: &str) -> (Vec<String>, Option<String>)
 /// Corresponds to `client_component()` in
 /// `svelte/packages/svelte/src/compiler/phases/3-transform/client/transform-client.js`
 ///
-/// `#[inline(never)]` keeps this large function out of `transform_client`'s
-/// inlined frame: the function is called once per component (not in a hot
-/// loop) and inlining it bloats binary size without any per-component
-/// throughput gain.
+/// `#[inline(never)]` keeps this large function out of its caller's inlined
+/// frame: it runs once per component (not in a hot loop) and inlining it
+/// bloats binary size without any per-component throughput gain.
 #[inline(never)]
-fn transform_client_with_visitors(
+pub(crate) fn transform_client(
     analysis: &ComponentAnalysis,
     ast: &Root,
     source: &str,
@@ -2638,7 +2587,7 @@ fn is_ascii_ident_byte(b: u8) -> bool {
 /// The `transform_props_destructuring` text helper emits the `$.rest_props(...)`
 /// call inline, so the exclude array is lifted here — before codegen — and the
 /// module-scope `var <id> = new Set([...])` declaration is inserted as a real
-/// statement (see the insertion in `transform_client_with_visitors`) rather than
+/// statement (see the insertion in `transform_client`) rather than
 /// spliced into the final printed output. Mirrors Svelte 5.56.0 #18252. Legacy
 /// `$.legacy_rest_props($$sanitized_props, [...])` calls are intentionally left
 /// untouched — that runtime mutates the exclude list in its `deleteProperty` trap
@@ -5389,7 +5338,7 @@ fn transform_instance_script_for_visitors(
     // transform this is actually OK - the inner function's $state variable references DO
     // need $.get()/$.set() wrapping, and outer-scope declaration LHS references are
     // automatically skipped by transform_state_in_expr. The AST-based template transform
-    // is corrected separately (see transform_client_with_visitors where shadowed names
+    // is corrected separately (see transform_client where shadowed names
     // are removed from context.state.transform).
     // Use the root scope's declarations map to determine which names are reactive.
     // The declarations map uses or_insert during scope merging, so outer-scope bindings

@@ -744,7 +744,7 @@ impl<'a> ComponentContext<'a> {
         // `context.visit(attribute)` without providing `let_directives` in state, so the
         // LetDirective.js visitor returns undefined and the raw AST node flows into esrap).
         // We match this behaviour by recording a pending error on the state; the root transform
-        // (transform_client_with_visitors) checks it after the fragment visit and returns
+        // (transform_client) checks it after the fragment visit and returns
         // Err(TransformError::CodeGen("Not implemented: LetDirective")).
         let mut statements = Vec::new();
         if !let_directives.is_empty() {
@@ -2117,7 +2117,7 @@ pub struct ComponentClientTransformState<'a> {
     pub const_blocker_map: Rc<std::cell::RefCell<rustc_hash::FxHashMap<String, JsExpr>>>,
 
     /// Pending transform error set during template traversal (e.g. "Not implemented: LetDirective").
-    /// Checked after the root fragment visit; if Some, `transform_client_with_visitors` returns
+    /// Checked after the root fragment visit; if Some, `transform_client` returns
     /// `Err(TransformError::CodeGen(...))` so the corpus sees an error entry for the client target.
     pub pending_error: Option<String>,
 

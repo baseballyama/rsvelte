@@ -7,9 +7,6 @@
 //! It provides fuzzy matching capabilities for suggesting "did you mean X?" in error messages.
 //! The algorithm uses n-gram based similarity combined with Levenshtein distance.
 
-// Allow dead code for library functions that will be used by the validator
-#![allow(dead_code)]
-
 use rustc_hash::FxHashMap;
 
 /// Threshold score for considering a match valid (0.0 - 1.0)

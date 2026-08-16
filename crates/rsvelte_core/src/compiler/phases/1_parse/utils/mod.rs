@@ -23,7 +23,7 @@ pub use fuzzymatch::fuzzymatch;
     unused_imports,
     reason = "re-exported for structural parity with the upstream Svelte parser-utils module; not every helper is wired into the port yet"
 )]
-pub use html::{decode_character_references, is_void_element, validate_code};
+pub use html::{is_void_element, validate_code};
 
 /// Upstream's `String.prototype.trim` without the UTF-8 decode, so the trimmed
 /// set is JS whitespace rather than Unicode `White_Space` — the two differ on
