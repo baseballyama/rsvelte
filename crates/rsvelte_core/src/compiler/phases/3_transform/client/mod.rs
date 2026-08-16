@@ -15,6 +15,7 @@ mod await_reactivity_loss_ast;
 mod class_transforms;
 mod console_dev_ast;
 mod console_wrap;
+mod declaration_split;
 mod derived_by_ast;
 mod destructure_transforms;
 mod effect_rune_ast;
@@ -5233,9 +5234,8 @@ fn transform_instance_script_for_visitors(
         })
     {
         return if has_comma_decl {
-            crate::compiler::phases::phase3_transform::server::transform_script::split_comma_separated_declarations(
-                script,
-            )
+            declaration_split::split_top_level_multi_declarators(script, analysis.is_typescript)
+                .unwrap_or_else(|| script.to_string())
         } else {
             script.to_string()
         };
@@ -5305,19 +5305,22 @@ fn transform_instance_script_for_visitors(
     let class_transform_can_add_declarations = memmem::find(script.as_bytes(), b"class ").is_some()
         && (memmem::find(script.as_bytes(), b"$state").is_some()
             || memmem::find(script.as_bytes(), b"$derived").is_some());
-    let script: std::borrow::Cow<str> = if split_top_level_declarations
+    let split = if split_top_level_declarations
         || (class_transform_can_add_declarations && might_have_comma_separated_declaration(&script))
     {
-        super::profile::record_pn(super::profile::PN_INV_SPLIT);
-        let out = crate::compiler::phases::phase3_transform::server::transform_script::split_comma_separated_declarations(&script);
-        #[cfg(feature = "measure-pa-split")]
-        if out != *script {
-            super::profile::record_pn(super::profile::PN_CHG_SPLIT);
-            PN_FILE_TOUCHED.with(|c| c.set(true));
-        }
-        std::borrow::Cow::Owned(out)
+        super::profile::record_pn(super::profile::PN_INV_DECL_SPLIT);
+        declaration_split::split_top_level_multi_declarators(&script, analysis.is_typescript)
     } else {
-        script
+        None
+    };
+    let script: std::borrow::Cow<str> = match split {
+        Some(out) => {
+            super::profile::record_pn(super::profile::PN_CHG_DECL_SPLIT);
+            #[cfg(feature = "measure-pa-split")]
+            PN_FILE_TOUCHED.with(|c| c.set(true));
+            std::borrow::Cow::Owned(out)
+        }
+        None => script,
     };
 
     let script_rest = script.into_owned();

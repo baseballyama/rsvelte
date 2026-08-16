@@ -496,8 +496,11 @@ pub struct PrenormalizeCounters {
     pub chg_comments: u64,
     pub inv_class_fields: u64,
     pub chg_class_fields: u64,
-    pub inv_split_decls: u64,
-    pub chg_split_decls: u64,
+    /// The typed declaration split: `inv` counts the scripts it was asked
+    /// about, `chg` the ones that actually carried a multi-declarator top-level
+    /// declaration and were rewritten.
+    pub inv_decl_split: u64,
+    pub chg_decl_split: u64,
     /// Files where at least one transform changed the text. Distinct from the
     /// sum of the per-transform counts, which double-counts a file that two
     /// transforms both touched -- that difference is why the naive identity
@@ -530,8 +533,8 @@ pub const PN_INV_COMMENTS: usize = 2;
 pub const PN_CHG_COMMENTS: usize = 3;
 pub const PN_INV_CLASS: usize = 4;
 pub const PN_CHG_CLASS: usize = 5;
-pub const PN_INV_SPLIT: usize = 6;
-pub const PN_CHG_SPLIT: usize = 7;
+pub const PN_INV_DECL_SPLIT: usize = 6;
+pub const PN_CHG_DECL_SPLIT: usize = 7;
 pub const PN_ANY_CHANGED: usize = 8;
 
 #[cfg(feature = "measure-pa-split")]
@@ -544,8 +547,8 @@ pub fn take_prenormalize_counters() -> PrenormalizeCounters {
         chg_comments: a[3],
         inv_class_fields: a[4],
         chg_class_fields: a[5],
-        inv_split_decls: a[6],
-        chg_split_decls: a[7],
+        inv_decl_split: a[6],
+        chg_decl_split: a[7],
         any_changed_files: a[8],
     }
 }

@@ -1895,8 +1895,8 @@ fn declarator_rune(
 }
 
 /// Lower a single `VariableDeclaration` (runes branch). Returns the rebuilt
-/// statements (ONE per top-level declarator, mirroring the server text-oracle's
-/// `split_comma_separated_declarations`), or an empty vec if every declarator
+/// statements (ONE per top-level declarator, mirroring upstream's
+/// `VariableDeclaration` visitor), or an empty vec if every declarator
 /// was dropped. `verbatim` is set to the source range when the declaration was
 /// re-parsed WHOLE, which is what lets its interior comments be replayed.
 fn lower_variable_declaration<'a>(
@@ -1923,8 +1923,8 @@ fn lower_variable_declaration<'a>(
         _ => VariableDeclarationKind::Let,
     };
 
-    // ONE output statement per SOURCE declarator (写经 the server text-oracle's
-    // `split_comma_separated_declarations`, which splits a USER-written
+    // ONE output statement per SOURCE declarator (写经 upstream's
+    // `VariableDeclaration` visitor, which splits a USER-written
     // multi-declarator `let a = …, b = …` into separate statements). A single
     // source declarator that expands into multiple synthetic declarators (a
     // destructured `$state` → `tmp, $$array, x, y`) stays COMBINED in one
@@ -3264,9 +3264,9 @@ fn transform_script_legacy<'a>(
     if !reactive_decl_names.is_empty() {
         let b = state.b;
         // The legacy-reactive hoist is emitted as ONE combined `let a, b, c;`
-        // declaration (matching the server oracle): unlike the comma-split that
-        // `split_comma_separated_declarations` applies to USER declarations, the
-        // synthetic reactive-vars hoist stays combined.
+        // declaration (matching the server oracle): unlike the comma-split
+        // upstream applies to USER declarations, the synthetic reactive-vars
+        // hoist stays combined.
         let pairs: Vec<_> = reactive_decl_names
             .iter()
             .map(|n| (b.id_pat(n), None))
@@ -3482,9 +3482,9 @@ fn lower_legacy_var_decl<'a>(
     };
 
     let _ = is_export;
-    // Each source declarator contributes ONE output statement (写経 the server
-    // text-oracle's `split_comma_separated_declarations`, which splits TOP-LEVEL
-    // declarators apart). A destructure that expands via `create_state_declarators`
+    // Each source declarator contributes ONE output statement (写経 upstream's
+    // `VariableDeclaration` visitor, which splits TOP-LEVEL declarators apart).
+    // A destructure that expands via `create_state_declarators`
     // / `create_props_destructure_declarators` into a `tmp = …, leaf = …` group
     // stays COMBINED inside that one statement.
     let mut out: Vec<Statement<'a>> = Vec::new();

@@ -480,8 +480,8 @@ fn main() {
     );
     let pn = profile::take_prenormalize_counters();
     if pn.files > 0 {
-        let any_changed = pn.chg_comments + pn.chg_class_fields + pn.chg_split_decls;
-        let any_invoked = pn.inv_comments + pn.inv_class_fields + pn.inv_split_decls;
+        let any_changed = pn.chg_comments + pn.chg_class_fields + pn.chg_decl_split;
+        let any_invoked = pn.inv_comments + pn.inv_class_fields + pn.inv_decl_split;
         println!(
             "    SPAN-VALIDITY files {} | text changed {} ({:.2}%) => spans valid {:.2}%",
             pn.files,
@@ -490,15 +490,15 @@ fn main() {
             (pn.files - pn.text_changed) as f64 / pn.files as f64 * 100.0
         );
         println!(
-            "      PN invoked {} vs changed {} | comments {}/{} class {}/{} split {}/{}  (invoked/changed)",
+            "      PN invoked {} vs changed {} | comments {}/{} class {}/{} decl-split {}/{}  (invoked/changed)",
             any_invoked,
             any_changed,
             pn.inv_comments,
             pn.chg_comments,
             pn.inv_class_fields,
             pn.chg_class_fields,
-            pn.inv_split_decls,
-            pn.chg_split_decls,
+            pn.inv_decl_split,
+            pn.chg_decl_split,
         );
         println!(
             "      IDENTITY text_changed {} vs files-with-any-change {} -> {} | sum(changed) {} exceeds by {} (files two transforms both touched)",

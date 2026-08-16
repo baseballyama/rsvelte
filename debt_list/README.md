@@ -15,7 +15,7 @@ Each finding contains evidence, impact, remediation, and an acceptance test so i
 
 The audit is intentionally hostile to flattering aggregates. Performance findings separate single-component latency from outer batch parallelism, use real-world size distributions instead of only tiny fixtures, and treat allocation density, scaling exponent, repeated parsing/scanning and fallback frequency as first-class budgets. Architecture findings preserve the useful upstream phase mirror while rejecting migration-history folders, ambient state, catch-all modules and text-based shadow compilers inside those phases.
 
-The former aggregate #033 has been split along independently removable production paths. #033 owns legacy reactive statements; #046–#051 own one semantic statement-transform family each; #052 owns Phase-3 metadata rescans; #053 owns unconditional statement assembly; #054–#055 own the two remaining source-mutating prenormalizers; and #031 owns statement-boundary scanning. This deliberately excludes two attractive but falsified performance theories: the dev prop-mutation `Vec<char>` rescans measured only 0.0–1.8x source bytes, and skipping the dev assignment-tail parse produced no reliable win (`docs/phase3-ast-refactor-plan.md:377-455`).
+The former aggregate #033 has been split along independently removable production paths. #033 owns legacy reactive statements; #046–#051 own one semantic statement-transform family each; #052 owns Phase-3 metadata rescans; #053 owns unconditional statement assembly; #054 owns the remaining source-mutating prenormalizer; and #031 owns statement-boundary scanning. This deliberately excludes two attractive but falsified performance theories: the dev prop-mutation `Vec<char>` rescans measured only 0.0–1.8x source bytes, and skipping the dev assignment-tail parse produced no reliable win (`docs/phase3-ast-refactor-plan.md:377-455`).
 
 ## Findings
 
@@ -56,7 +56,6 @@ The former aggregate #033 has been split along independently removable productio
 - [051 — `export let` lowering is a nested string pipeline](051-export-let-lowering-is-a-nested-string-pipeline.md)
 - [052 — client script metadata is recomputed by six whole-script scans](052-client-script-metadata-is-recomputed-by-six-text-scans.md)
 - [053 — statement assembly allocates before transform eligibility is known](053-statement-assembly-allocates-before-transform-eligibility-is-known.md)
-- [055 — comma-declaration prenormalization rewrites the whole client script](055-comma-declaration-prenormalization-rewrites-the-whole-script.md)
 
 ### P3
 
