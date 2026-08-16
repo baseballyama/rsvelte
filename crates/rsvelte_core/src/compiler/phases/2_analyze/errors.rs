@@ -69,7 +69,7 @@ diagnostics! {
     props_id_invalid_placement() => "`$props.id()` can only be used as a variable declaration initializer at the top level of the `<script>` tag";
 
     /// `%rune%` cannot be used with arguments
-    rune_invalid_arguments(rune: &str) => "`{}` cannot be used with arguments", rune;
+    rune_invalid_arguments(rune: &str) => "`{}` cannot be called with arguments", rune;
 
     /// `%rune%` cannot be called with a spread argument
     rune_invalid_spread(rune: &str) => "`{}` cannot be called with a spread argument", rune;
@@ -212,7 +212,7 @@ diagnostics! {
     state_field_invalid_assignment() => "Cannot assign to a state field before its declaration";
 
     /// %name% cannot have children
-    svelte_meta_invalid_content(name: &str) => "`<{}>` cannot have children", name;
+    svelte_meta_invalid_content(name: &str) => "<{}> cannot have children", name;
 
     /// `use:`, `transition:` and `animate:` directives, attachments and bindings do not support await expressions
     illegal_await_expression() => "`use:`, `transition:` and `animate:` directives, attachments and bindings do not support await expressions";
@@ -365,7 +365,7 @@ diagnostics! {
     mixed_event_handler_syntaxes(name: &str) => "Mixing old (on:{}) and new syntaxes for event handling is not allowed. Use only the on{} syntax\nhttps://svelte.dev/e/mixed_event_handler_syntaxes", name, name;
 
     /// Imports of `svelte/internal/*` are forbidden
-    import_svelte_internal_forbidden() => "Imports of `svelte/internal/*` are forbidden. It contains private runtime code which is subject to change without notice.\nhttps://svelte.dev/e/import_svelte_internal_forbidden";
+    import_svelte_internal_forbidden() => "Imports of `svelte/internal/*` are forbidden. It contains private runtime code which is subject to change without notice. If you're importing from `svelte/internal/*` to work around a limitation of Svelte, please open an issue at https://github.com/sveltejs/svelte and explain your use case\nhttps://svelte.dev/e/import_svelte_internal_forbidden";
 
     /// %name% cannot be used in runes mode
     runes_mode_invalid_import(name: &str) => "{} cannot be used in runes mode\nhttps://svelte.dev/e/runes_mode_invalid_import", name;

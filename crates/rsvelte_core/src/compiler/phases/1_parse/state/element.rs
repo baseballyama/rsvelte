@@ -390,7 +390,7 @@ impl<'a> Parser<'a> {
                             return Err(crate::error::ParseError::svelte(
                                 "element_invalid_closing_tag_autoclosed",
                                 format!(
-                                    "`</{}>` attempted to close element that was already automatically closed by `<{}>` (cannot nest `<{}>` inside `</{}>`)",
+                                    "`</{}>` attempted to close element that was already automatically closed by `<{}>` (cannot nest `<{}>` inside `<{}>`)",
                                     closing_name, reason, reason, closing_name
                                 ),
                                 (close_start, close_start),

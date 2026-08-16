@@ -25,7 +25,7 @@
 //!   children with the same `context.state`, so they flow into `state.template`
 //!   exactly like a `RegularElement`'s children would (sans open/close literals).
 //!   In practice the analyzer FORBIDS children on `<svelte:body>`
-//!   (`svelte_meta_invalid_content`: "`<svelte:body>` cannot have children"), so
+//!   (`svelte_meta_invalid_content`: "<svelte:body> cannot have children"), so
 //!   the inline walk is almost always over an empty fragment and emits nothing;
 //!   we still port the inline-render semantics faithfully.
 //!
