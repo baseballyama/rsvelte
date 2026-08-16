@@ -633,17 +633,24 @@ pub fn materialize_overlay_with(
                 _ => false,
             };
 
-            // `.tsx.map` is only persisted when svelte2tsx returned a non-empty
-            // source map; we don't gate cache validity on it, so a workspace
-            // that gained / lost source maps still hits the cache. On hit we
-            // simply best-effort-read whatever sits at `map_path`.
+            // The map is part of the cached entry, not a best-effort sidecar:
+            // reusing a shadow whose map has gone missing (or lingers from an
+            // older emit) maps every later diagnostic to the wrong Svelte
+            // position, silently.
+            let cached_has_map = cached_entry.is_some_and(|entry| entry.has_map);
             let can_skip = incremental
                 && stats_match
                 && tsx_path.exists()
-                && (!emit_dts_twin || dts_path.exists());
+                && (!emit_dts_twin || dts_path.exists())
+                && cached_has_map == map_path.exists();
 
             let (source_map, manifest_entry) = if can_skip {
-                (fs::read_to_string(&map_path).ok(), None)
+                let cached_map = if cached_has_map {
+                    Some(fs::read_to_string(&map_path)?)
+                } else {
+                    None
+                };
+                (cached_map, None)
             } else {
                 let source = fs::read_to_string(abs_source)?;
                 let is_ts_file = looks_like_ts_svelte(&source);
@@ -694,19 +701,34 @@ pub fn materialize_overlay_with(
                         None,
                     );
                 }
-                fs::write(&tsx_path, &tsx_code)?;
-
-                // `<name>.svelte.d.ts` re-exports default + named so module
-                // resolution by `import Foo from './Foo.svelte'` still works.
-                if emit_dts_twin {
-                    fs::write(&dts_path, shadow_reexport(&tsx_path))?;
-                }
-                // Persist the source map so the next incremental run can
-                // recover it without re-running svelte2tsx.
-                if let Some(map) = &result.map {
-                    fs::write(&map_path, map)?;
-                } else if map_path.exists() {
-                    fs::remove_file(&map_path)?;
+                // Shadow, map and declaration twin are one cache entry: a
+                // survivor of a half-finished emit would be paired with a
+                // sibling from a different compile, so any failure unlinks all
+                // three and the next run recompiles from scratch.
+                let write_entry = || -> io::Result<()> {
+                    write_atomic(&tsx_path, tsx_code.as_bytes())?;
+                    // `<name>.svelte.d.ts` re-exports default + named so module
+                    // resolution by `import Foo from './Foo.svelte'` still works.
+                    if emit_dts_twin {
+                        write_atomic(&dts_path, shadow_reexport(&tsx_path).as_bytes())?;
+                    }
+                    // Persist the source map so the next incremental run can
+                    // recover it without re-running svelte2tsx.
+                    if let Some(map) = &result.map {
+                        write_atomic(&map_path, map.as_bytes())?;
+                    } else {
+                        remove_if_exists(&map_path)?;
+                    }
+                    Ok(())
+                };
+                if let Err(error) = write_entry() {
+                    let _ = fs::remove_file(&tsx_path);
+                    let _ = fs::remove_file(&dts_path);
+                    let _ = fs::remove_file(&map_path);
+                    if let Some(bridge) = esm_bridge_path(&tsx_path) {
+                        let _ = fs::remove_file(bridge);
+                    }
+                    return Err(error.into());
                 }
 
                 let manifest_entry = stats.map(|(mtime, size)| ManifestEntry {
@@ -717,6 +739,7 @@ pub fn materialize_overlay_with(
                     size,
                     content_digest: content_digest(&source),
                     is_ts_file,
+                    has_map: result.map.is_some(),
                 });
 
                 (result.map, manifest_entry)
@@ -1449,6 +1472,30 @@ fn rewrite_kit_types_route_imports(text: &str, mirror_dir: &Path) -> String {
         }
     })
     .into_owned()
+}
+
+/// Replace `path` in one step: a reader (tsgo, or our own next run) never sees
+/// a truncated or half-written overlay artifact, and a failure leaves the
+/// previous contents untouched. The temp name carries the pid so two
+/// concurrent svelte-check processes on one cache cannot collide; within a run
+/// each path is written by exactly one worker.
+fn write_atomic(path: &Path, contents: &[u8]) -> io::Result<()> {
+    let temp = append_extension(path, &format!(".{}.tmp", std::process::id()));
+    fs::write(&temp, contents)?;
+    match fs::rename(&temp, path) {
+        Ok(()) => Ok(()),
+        Err(error) => {
+            let _ = fs::remove_file(&temp);
+            Err(error)
+        }
+    }
+}
+
+fn remove_if_exists(path: &Path) -> io::Result<()> {
+    match fs::remove_file(path) {
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+        other => other,
+    }
 }
 
 /// Append a literal extension (`".tsx"`, `".d.ts"`) to a relative path
@@ -4159,6 +4206,101 @@ mod tests {
             "// stale same-stat cache entry",
             "same-size content change with restored mtime must re-emit"
         );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn map_write_failure_invalidates_the_entry_and_is_reported() {
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_mapfail_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        let svelte_path = tmp.join("src/App.svelte");
+        // `lang="ts"` so the entry also carries a `.d.ts` twin — the third
+        // artifact the transaction has to roll back.
+        fs::write(
+            &svelte_path,
+            "<script lang=\"ts\">let x: number = 0;</script>{x}",
+        )
+        .unwrap();
+        let files = vec![svelte_path.clone()];
+
+        let layout = materialize_overlay_with(&tmp, &files, None, true, &[]).unwrap();
+        let tsx_path = layout.entries[0].tsx_path.clone();
+        let dts_path = layout.entries[0].dts_path.clone();
+        assert!(
+            dts_path.exists(),
+            "cold run should emit the declaration twin"
+        );
+        let map_path = append_extension(&tsx_path, ".map");
+        assert!(map_path.exists(), "cold run should persist the source map");
+
+        // Force the map write to fail: a rename onto a directory cannot
+        // succeed, on any platform and without depending on permissions.
+        fs::remove_file(&map_path).unwrap();
+        fs::create_dir(&map_path).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        fs::write(
+            &svelte_path,
+            "<script lang=\"ts\">let y: number = 1;</script>{y}",
+        )
+        .unwrap();
+
+        let failed = materialize_overlay_with(&tmp, &files, None, true, &[]);
+        assert!(
+            matches!(failed, Err(OverlayError::Io(_))),
+            "a failed map write must be reported, got {failed:?}"
+        );
+        assert!(
+            !tsx_path.exists(),
+            "the shadow of a half-written entry must not survive as a cache hit"
+        );
+        assert!(!dts_path.exists(), "the declaration twin must not survive");
+
+        fs::remove_dir(&map_path).unwrap();
+        let recovered = materialize_overlay_with(&tmp, &files, None, true, &[]).unwrap();
+        let entry = &recovered.entries[0];
+        assert!(
+            entry.source_map.is_some(),
+            "the next run must recompile and produce a map"
+        );
+        assert!(map_path.exists(), "the map must be persisted again");
+        assert!(
+            fs::read_to_string(&entry.tsx_path).unwrap().contains('y'),
+            "the recovered shadow must reflect the current source"
+        );
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn cache_hit_requires_the_persisted_map() {
+        let tmp = std::env::temp_dir().join(format!("svc_overlay_mapgate_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        fs::create_dir_all(tmp.join("src")).unwrap();
+        let svelte_path = tmp.join("src/App.svelte");
+        fs::write(&svelte_path, "<script>let x = 0;</script>{x}").unwrap();
+        let files = vec![svelte_path.clone()];
+
+        let layout = materialize_overlay_with(&tmp, &files, None, true, &[]).unwrap();
+        let tsx_path = layout.entries[0].tsx_path.clone();
+        let map_path = append_extension(&tsx_path, ".map");
+        assert!(map_path.exists());
+
+        // A shadow whose map went missing must not be reused: the cached
+        // diagnostics would map to the wrong Svelte positions.
+        fs::remove_file(&map_path).unwrap();
+        fs::write(&tsx_path, "// stale shadow").unwrap();
+
+        let layout2 = materialize_overlay_with(&tmp, &files, None, true, &[]).unwrap();
+        let entry = &layout2.entries[0];
+        assert_ne!(
+            fs::read_to_string(&entry.tsx_path).unwrap(),
+            "// stale shadow",
+            "a missing map must invalidate the cache entry"
+        );
+        assert!(entry.source_map.is_some());
+        assert!(map_path.exists());
 
         let _ = fs::remove_dir_all(&tmp);
     }

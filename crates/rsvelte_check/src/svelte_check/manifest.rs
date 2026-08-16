@@ -30,7 +30,7 @@ use super::diagnostic::{Diagnostic, DiagnosticSeverity, Range};
 /// *content* an entry stands for, which `(mtime, size)` cannot detect: a cache
 /// written before v3 holds shadows that still carry svelte's ambient `*.svelte`
 /// wildcard into the program through their type reference (#2061).
-pub const MANIFEST_VERSION: u32 = 3;
+pub const MANIFEST_VERSION: u32 = 4;
 
 /// Sidecar cache of per-file `Diagnostic`s.
 ///
@@ -65,6 +65,11 @@ pub struct ManifestEntry {
     /// last emit? Cached so we don't have to re-read the source file
     /// just to decide whether to pass `isTsFile=true` to svelte2tsx.
     pub is_ts_file: bool,
+    /// Did the emit persist a `<out_path>.map` sidecar? A cache hit is only
+    /// valid while the map on disk still agrees with this flag — otherwise a
+    /// stale (or missing) map would be paired with the cached shadow and
+    /// diagnostics would map to the wrong Svelte positions.
+    pub has_map: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -128,6 +133,8 @@ pub fn load(manifest_path: &Path, workspace: &Path) -> Manifest {
         content_digest: u64,
         #[serde(default)]
         is_ts_file: bool,
+        #[serde(default)]
+        has_map: bool,
     }
     let parsed: OnDiskManifest = match serde_json::from_str(&text) {
         Ok(v) => v,
@@ -149,6 +156,7 @@ pub fn load(manifest_path: &Path, workspace: &Path) -> Manifest {
                 size: raw.size,
                 content_digest: raw.content_digest,
                 is_ts_file: raw.is_ts_file,
+                has_map: raw.has_map,
             },
         );
     }
@@ -187,6 +195,7 @@ pub fn save(manifest_path: &Path, manifest: &Manifest, workspace: &Path) -> std:
         size: u64,
         content_digest: u64,
         is_ts_file: bool,
+        has_map: bool,
     }
     let mut out_entries: HashMap<String, OnDiskEntry> =
         HashMap::with_capacity(manifest.entries.len());
@@ -201,6 +210,7 @@ pub fn save(manifest_path: &Path, manifest: &Manifest, workspace: &Path) -> std:
                 size: entry.size,
                 content_digest: entry.content_digest,
                 is_ts_file: entry.is_ts_file,
+                has_map: entry.has_map,
             },
         );
     }
@@ -231,6 +241,9 @@ pub fn prune_deleted(manifest: &mut Manifest, current_sources: &[PathBuf]) {
         if let Some(entry) = manifest.entries.remove(&key) {
             let _ = fs::remove_file(&entry.out_path);
             let _ = fs::remove_file(&entry.dts_path);
+            let mut map_path = entry.out_path.clone().into_os_string();
+            map_path.push(".map");
+            let _ = fs::remove_file(PathBuf::from(map_path));
             if let Some(bridge) = super::overlay::esm_bridge_path(&entry.out_path) {
                 let _ = fs::remove_file(bridge);
             }
@@ -544,6 +557,7 @@ mod tests {
             size,
             content_digest: 0,
             is_ts_file: false,
+            has_map: false,
         }
     }
 
@@ -565,6 +579,7 @@ mod tests {
                 size: 67,
                 content_digest: 42,
                 is_ts_file: true,
+                has_map: true,
             },
         );
 
