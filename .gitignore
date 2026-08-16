@@ -172,6 +172,8 @@ compatibility/check-report.tsgo.json
 compatibility/check-e2e-report.json
 compatibility/lsp-report.json
 compatibility/lsp-current-*.json
+# Where `pnpm run lsp:update` expects the nine downloaded CI artifacts.
+.lsp-current/
 
 # Dedicated CARGO_TARGET_DIRs used during Phase-3 corpus burndown (never commit)
 /target-ast/

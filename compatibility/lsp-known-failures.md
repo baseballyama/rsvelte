@@ -1,10 +1,23 @@
 # LSP differential known failures
 
-`lsp-known-failures.json` contains 0 entries. Fixture and upstream entries identify one normalized
+`lsp-known-failures.json` contains 16348 entries. Fixture and upstream entries identify one normalized
 structural field for which `rsvelte-language-server` differs from the pinned official
 `svelte-language-server`, or from an upstream expected snapshot. A mismatched scalar key includes
 both value digests; a missing/extra field includes the present-side digest. Unmatched semantic
 array items are represented by their count and multiset digest.
+
+Partition of `lsp-known-failures.json` by key kind: `10896 + 5248 + 204` — real-world corpus
+aggregates, per-field divergences against the pinned official server, and per-field divergences
+against an upstream expected snapshot. The three prefixes (`aggregate:corpus/`, `differential:`,
+`expected:`) are disjoint by construction in `merge-current.mjs`, which rejects an artifact
+carrying a key outside its suite's prefix.
+
+Partition of `lsp-known-failures.json` entries under `aggregate:corpus/` by repository: `1848 + 3879 + 129 + 5040`
+
+bits-ui, flowbite-svelte, melt-ui, shadcn-svelte, in that order. This is the count
+that moves when a corpus submodule is bumped, and it is the reason the population floor is
+committed separately: a repository dropping out shrinks its cluster to zero and would otherwise
+read as a clean burndown.
 
 The real-world corpus uses one compact entry per `(file, method)`. Its key records the divergent
 request count, raw divergent-field count, and a digest over every sorted
