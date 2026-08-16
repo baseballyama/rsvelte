@@ -3,7 +3,8 @@
 //! This module provides utility functions used during the printing process,
 //! such as formatting blocks and handling attributes.
 
-use super::Context;
+use super::{Context, PrintError};
+use std::cell::RefCell;
 use std::fmt::Write as _;
 
 /// Threshold for when content should be formatted on separate lines.
@@ -83,10 +84,89 @@ pub fn is_void_element(name: &str) -> bool {
     )
 }
 
+/// Every ESTree `type` string [`EstreeGenerator::generate_node`] can print.
+///
+/// Kept next to the `match` it mirrors so that dropping an arm makes
+/// `estree_supported_node_types_all_print` fail instead of silently widening
+/// the unsupported set.
+pub const SUPPORTED_ESTREE_NODE_TYPES: &[&str] = &[
+    "Identifier",
+    "Literal",
+    "MemberExpression",
+    "BinaryExpression",
+    "LogicalExpression",
+    "CallExpression",
+    "ArrayExpression",
+    "ObjectExpression",
+    "ArrowFunctionExpression",
+    "FunctionExpression",
+    "UnaryExpression",
+    "UpdateExpression",
+    "ConditionalExpression",
+    "TemplateLiteral",
+    "ArrayPattern",
+    "ObjectPattern",
+    "RestElement",
+    "SpreadElement",
+    "AssignmentPattern",
+    "AssignmentExpression",
+    "SequenceExpression",
+    "ThisExpression",
+    "NewExpression",
+    "ChainExpression",
+    "AwaitExpression",
+    "YieldExpression",
+    "ParenthesizedExpression",
+    "Property",
+];
+
+thread_local! {
+    /// Node descriptions this thread's in-flight print has failed to represent.
+    static UNSUPPORTED_NODES: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Run `f` with a fresh unsupported-node sink, returning what it recorded.
+///
+/// The generator is reached through ~40 infallible `Context`-writing visitors,
+/// so the failure travels out of band and is turned into a hard error at the
+/// `print` boundary rather than being threaded through every visitor.
+pub fn with_unsupported_sink<R>(f: impl FnOnce() -> R) -> (R, Vec<String>) {
+    let saved = UNSUPPORTED_NODES.with(|sink| std::mem::take(&mut *sink.borrow_mut()));
+    let result = f();
+    let recorded = UNSUPPORTED_NODES.with(|sink| std::mem::replace(&mut *sink.borrow_mut(), saved));
+    (result, recorded)
+}
+
+/// Build the `PrintError` for a non-empty batch of recorded nodes.
+pub fn unsupported_nodes_error(recorded: &[String]) -> PrintError {
+    PrintError::UnsupportedNode(format!(
+        "{} node(s) the ESTree printer cannot represent: {}",
+        recorded.len(),
+        recorded.join(", ")
+    ))
+}
+
+fn record_unsupported_node(node: &serde_json::Value, node_type: Option<&str>) {
+    let start = node.get("start").and_then(serde_json::Value::as_u64);
+    let end = node.get("end").and_then(serde_json::Value::as_u64);
+    let location = match (start, end) {
+        (Some(start), Some(end)) => format!(" at {start}..{end}"),
+        (Some(start), None) => format!(" at {start}"),
+        _ => String::new(),
+    };
+    let description = format!("{}{}", node_type.unwrap_or("<missing type>"), location);
+    UNSUPPORTED_NODES.with(|sink| sink.borrow_mut().push(description));
+}
+
 /// Convert ESTree JSON to JavaScript source code string.
 ///
 /// This function converts an ESTree-formatted JSON value (serde_json::Value)
 /// into its JavaScript source code representation.
+///
+/// Node types outside [`SUPPORTED_ESTREE_NODE_TYPES`] are recorded in the
+/// ambient sink installed by [`with_unsupported_sink`], which the `print` entry
+/// point turns into an error; the placeholder text this returns for them must
+/// never reach a caller as a success.
 ///
 /// # Arguments
 ///
@@ -99,6 +179,16 @@ pub fn estree_to_string(node: &serde_json::Value) -> String {
     let mut generator = EstreeGenerator::new();
     generator.generate_node(node);
     generator.output
+}
+
+/// Fallible wrapper around [`estree_to_string`] for standalone callers.
+pub fn try_estree_to_string(node: &serde_json::Value) -> Result<String, PrintError> {
+    let (output, recorded) = with_unsupported_sink(|| estree_to_string(node));
+    if recorded.is_empty() {
+        Ok(output)
+    } else {
+        Err(unsupported_nodes_error(&recorded))
+    }
 }
 
 /// ESTree to JavaScript code generator.
@@ -174,7 +264,7 @@ impl EstreeGenerator {
             }
             Some("Property") => self.generate_property(node),
             _ => {
-                // Fallback for unknown node types
+                record_unsupported_node(node, node_type);
                 self.output.push_str("/* unknown */");
             }
         }
@@ -1299,6 +1389,176 @@ mod tests {
         assert_eq!(estree_to_string(&member(false, true)), "obj[key]");
         assert_eq!(estree_to_string(&member(true, false)), "obj?.key");
         assert_eq!(estree_to_string(&member(false, false)), "obj.key");
+    }
+
+    /// A minimal node plus its expected printing, for every entry of
+    /// `SUPPORTED_ESTREE_NODE_TYPES`.
+    fn sample_node(node_type: &str) -> Option<(serde_json::Value, &'static str)> {
+        use serde_json::json;
+        let ident = |name: &str| json!({ "type": "Identifier", "name": name });
+        let one = json!({ "type": "Literal", "raw": "1", "value": 1 });
+
+        let pair = match node_type {
+            "Identifier" => (ident("a"), "a"),
+            "Literal" => (json!({ "type": "Literal", "value": "s" }), "\"s\""),
+            "MemberExpression" => (
+                json!({ "type": "MemberExpression", "object": ident("obj"), "property": ident("key"), "computed": false, "optional": false }),
+                "obj.key",
+            ),
+            "BinaryExpression" => (
+                json!({ "type": "BinaryExpression", "operator": "+", "left": ident("a"), "right": ident("b") }),
+                "a + b",
+            ),
+            "LogicalExpression" => (
+                json!({ "type": "LogicalExpression", "operator": "&&", "left": ident("a"), "right": ident("b") }),
+                "a && b",
+            ),
+            "CallExpression" => (
+                json!({ "type": "CallExpression", "callee": ident("f"), "arguments": [ident("a")], "optional": false }),
+                "f(a)",
+            ),
+            "ArrayExpression" => (
+                json!({ "type": "ArrayExpression", "elements": [ident("a"), ident("b")] }),
+                "[a, b]",
+            ),
+            "ObjectExpression" => (
+                json!({ "type": "ObjectExpression", "properties": [{ "type": "Property", "kind": "init", "key": ident("a"), "value": ident("b"), "computed": false, "shorthand": false }] }),
+                "{ a: b }",
+            ),
+            "ArrowFunctionExpression" => (
+                json!({ "type": "ArrowFunctionExpression", "async": false, "params": [ident("x")], "body": ident("x") }),
+                "x => x",
+            ),
+            "FunctionExpression" => (
+                json!({ "type": "FunctionExpression", "async": false, "generator": false, "id": null, "params": [], "body": { "type": "BlockStatement", "body": [] } }),
+                "function() { /* block */ }",
+            ),
+            "UnaryExpression" => (
+                json!({ "type": "UnaryExpression", "operator": "!", "prefix": true, "argument": ident("a") }),
+                "!a",
+            ),
+            "UpdateExpression" => (
+                json!({ "type": "UpdateExpression", "operator": "++", "prefix": false, "argument": ident("a") }),
+                "a++",
+            ),
+            "ConditionalExpression" => (
+                json!({ "type": "ConditionalExpression", "test": ident("a"), "consequent": ident("b"), "alternate": ident("c") }),
+                "a ? b : c",
+            ),
+            "TemplateLiteral" => (
+                json!({ "type": "TemplateLiteral", "quasis": [{ "type": "TemplateElement", "value": { "raw": "x" } }], "expressions": [] }),
+                "`x`",
+            ),
+            "ArrayPattern" => (
+                json!({ "type": "ArrayPattern", "elements": [ident("a"), ident("b")] }),
+                "[a, b]",
+            ),
+            "ObjectPattern" => (
+                json!({ "type": "ObjectPattern", "properties": [{ "type": "Property", "key": ident("a"), "value": ident("b"), "computed": false, "shorthand": false }] }),
+                "{ a: b }",
+            ),
+            "RestElement" => (
+                json!({ "type": "RestElement", "argument": ident("rest") }),
+                "...rest",
+            ),
+            "SpreadElement" => (
+                json!({ "type": "SpreadElement", "argument": ident("items") }),
+                "...items",
+            ),
+            "AssignmentPattern" => (
+                json!({ "type": "AssignmentPattern", "left": ident("a"), "right": one }),
+                "a = 1",
+            ),
+            "AssignmentExpression" => (
+                json!({ "type": "AssignmentExpression", "operator": "=", "left": ident("a"), "right": ident("b") }),
+                "a = b",
+            ),
+            "SequenceExpression" => (
+                json!({ "type": "SequenceExpression", "expressions": [ident("a"), ident("b")] }),
+                "a, b",
+            ),
+            "ThisExpression" => (json!({ "type": "ThisExpression" }), "this"),
+            "NewExpression" => (
+                json!({ "type": "NewExpression", "callee": ident("A"), "arguments": [] }),
+                "new A()",
+            ),
+            "ChainExpression" => (
+                json!({ "type": "ChainExpression", "expression": { "type": "MemberExpression", "object": ident("obj"), "property": ident("key"), "computed": false, "optional": true } }),
+                "obj?.key",
+            ),
+            "AwaitExpression" => (
+                json!({ "type": "AwaitExpression", "argument": ident("a") }),
+                "await a",
+            ),
+            "YieldExpression" => (
+                json!({ "type": "YieldExpression", "delegate": false, "argument": ident("a") }),
+                "yield a",
+            ),
+            "ParenthesizedExpression" => (
+                json!({ "type": "ParenthesizedExpression", "expression": ident("a") }),
+                "(a)",
+            ),
+            "Property" => (
+                json!({ "type": "Property", "kind": "init", "key": ident("a"), "value": ident("b"), "computed": false, "shorthand": false }),
+                "a: b",
+            ),
+            _ => return None,
+        };
+        Some(pair)
+    }
+
+    #[test]
+    fn estree_supported_node_types_all_print() {
+        for node_type in SUPPORTED_ESTREE_NODE_TYPES {
+            let (node, expected) = sample_node(node_type)
+                .unwrap_or_else(|| panic!("no sample node for supported type `{node_type}`"));
+            let printed = try_estree_to_string(&node)
+                .unwrap_or_else(|e| panic!("supported type `{node_type}` errored: {e}"));
+            assert_eq!(printed, expected, "printing `{node_type}`");
+            assert!(
+                !printed.contains("/* unknown */"),
+                "`{node_type}` fell through to the unknown branch"
+            );
+        }
+    }
+
+    #[test]
+    fn injected_unknown_node_type_is_an_error() {
+        // Negative control for the test above: the same harness must reject a
+        // type the generator does not handle.
+        let node = serde_json::json!({
+            "type": "TSNonNullExpression",
+            "start": 12,
+            "end": 20,
+            "expression": { "type": "Identifier", "name": "a" },
+        });
+        let err = try_estree_to_string(&node).expect_err("unknown node type must not succeed");
+        let message = err.to_string();
+        assert!(message.contains("TSNonNullExpression"), "{message}");
+        assert!(message.contains("12..20"), "{message}");
+    }
+
+    #[test]
+    fn unknown_node_nested_in_a_supported_one_is_an_error() {
+        let node = serde_json::json!({
+            "type": "CallExpression",
+            "callee": { "type": "Identifier", "name": "f" },
+            "arguments": [{ "type": "TSSatisfiesExpression", "start": 3 }],
+            "optional": false,
+        });
+        let err = try_estree_to_string(&node).expect_err("nested unknown node must not succeed");
+        assert!(err.to_string().contains("TSSatisfiesExpression"));
+    }
+
+    #[test]
+    fn unsupported_sink_does_not_leak_between_scopes() {
+        let bogus = serde_json::json!({ "type": "NotARealNodeType" });
+        assert!(try_estree_to_string(&bogus).is_err());
+        // A later call in the same thread must not inherit the recorded node.
+        assert_eq!(
+            try_estree_to_string(&serde_json::json!({ "type": "ThisExpression" })).unwrap(),
+            "this"
+        );
     }
 
     #[test]

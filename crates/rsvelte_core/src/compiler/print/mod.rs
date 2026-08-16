@@ -23,7 +23,10 @@ mod helpers;
 mod visitors;
 
 pub use context::Context;
-pub use helpers::{LINE_BREAK_THRESHOLD, block};
+pub use helpers::{
+    LINE_BREAK_THRESHOLD, SUPPORTED_ESTREE_NODE_TYPES, block, try_estree_to_string,
+    with_unsupported_sink,
+};
 
 use crate::ast::Root;
 use oxc_allocator::Allocator;
@@ -75,14 +78,24 @@ pub fn print_with_source(
 ) -> Result<PrintResult, PrintError> {
     // Set the serialize arena so that as_json() calls can resolve JsNodeIds
     crate::ast::arena::with_serialize_arena(&ast.arena, || {
-        let allocator = Allocator::default();
-        let mut context = Context::new_with_source(&allocator, source);
+        let (code, unsupported) = helpers::with_unsupported_sink(|| {
+            let allocator = Allocator::default();
+            let mut context = Context::new_with_source(&allocator, source);
 
-        // Visit the root node to generate the code
-        visitors::visit_root(&mut context, ast);
+            // Visit the root node to generate the code
+            visitors::visit_root(&mut context, ast);
+
+            context.to_string()
+        });
+
+        // The ESTree fallback printer substitutes a comment for anything it
+        // cannot represent, so a success here would ship silently erased code.
+        if !unsupported.is_empty() {
+            return Err(helpers::unsupported_nodes_error(&unsupported));
+        }
 
         Ok(PrintResult {
-            code: context.to_string(),
+            code,
             // Source map generation for this API isn't implemented yet.
             map: None,
         })
@@ -152,6 +165,31 @@ mod tests {
         assert!(result.code.contains("<input"));
         assert!(result.code.contains("type"));
         assert!(result.code.contains("/>"));
+    }
+
+    #[test]
+    fn print_without_source_rejects_unrepresentable_statements() {
+        // Measured on the pinned Svelte submodule: 167 of 4,369 `.svelte` files
+        // reached the ESTree fallback's unknown branch when printed without
+        // source, `LabeledStatement` (legacy `$:`) 228 times. Every one of them
+        // used to come back as a successful print with the statement replaced
+        // by `/* unknown */`.
+        let source = "<script>\n\tlet count = 0;\n\t$: doubled = count * 2;\n</script>";
+        let parse_options = ParseOptions {
+            modern: true,
+            ..Default::default()
+        };
+        let ast =
+            crate::parse(source, &oxc_allocator::Allocator::default(), parse_options).unwrap();
+
+        let err = print(&ast, None).expect_err("silently erased statement must not print");
+        let message = err.to_string();
+        assert!(message.contains("LabeledStatement"), "{message}");
+
+        // Positive control: the path production uses keeps the statement.
+        let ok = print_with_source(&ast, None, Some(source)).expect("source path is unaffected");
+        assert!(ok.code.contains("$: doubled = count * 2;"), "{}", ok.code);
+        assert!(!ok.code.contains("/* unknown */"), "{}", ok.code);
     }
 
     #[test]
