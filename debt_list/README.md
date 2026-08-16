@@ -22,7 +22,6 @@ The former aggregate #033 has been split along independently removable productio
 ### P1
 
 - [011 — client source maps cannot identify token-level origins](011-client-source-maps-are-chunk-granular.md)
-- [012 — Vite plugin mutates compiled JavaScript without updating its map](012-vite-postprocessing-invalidates-source-maps.md)
 - [013 — compile-error messages and spans remain substantially incompatible](013-error-diagnostics-do-not-match-official.md)
 - [031 — client instance-script lowering falls back to a hand-written JavaScript scanner](031-client-instance-script-uses-a-fallible-text-scanner.md)
 

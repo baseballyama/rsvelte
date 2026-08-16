@@ -26,10 +26,10 @@ describe('generated JavaScript map edits', () => {
 		].join('\n');
 		const compiled = { js: { code, map: generatedMap(code) } };
 
-		applyMapEdits(compiled, filename, (editor, generated) => {
+		applyMapEdits(compiled, (editor, generated) => {
 			addPartialAcceptExports(editor, generated);
 		});
-		applyMapEdits(compiled, filename, (editor) => {
+		applyMapEdits(compiled, (editor) => {
 			editor.append('\nimport "Component.svelte?style";\n');
 		});
 
@@ -45,7 +45,7 @@ describe('generated JavaScript map edits', () => {
 	it('only rewrites import.meta.hot.accept calls', () => {
 		const code = 'const text = "import.meta.hot.accept(";\nimport.meta.hot.accept(() => {});';
 		const compiled = { js: { code, map: generatedMap(code) } };
-		applyMapEdits(compiled, filename, (editor, generated) => {
+		applyMapEdits(compiled, (editor, generated) => {
 			addPartialAcceptExports(editor, generated);
 		});
 		expect(compiled.js.code).toBe(

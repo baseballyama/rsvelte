@@ -1,9 +1,7 @@
 import * as svelte from '@rsvelte/vite-plugin-svelte-native';
 import { safeBase64Hash } from './hash.js';
 import { log } from './log.js';
-import { addPartialAcceptExports, applyMapEdits } from './map-edits.js';
-
-import { mapToRelative } from './sourcemaps.js';
+import { postprocessCompiled } from './map-edits.js';
 import { enhanceCompileError } from './error.js';
 
 // TODO this is a patched version of https://github.com/sveltejs/vite-plugin-svelte/pull/796/files#diff-3bce0b33034aad4b35ca094893671f7e7ddf4d27254ae7b9b0f912027a001b15R10
@@ -105,17 +103,6 @@ export function createCompileSvelte() {
 				typeof finalCompileOptions.cssHash === 'function'
 					? await svelte.compileAsync(finalCode, { ...finalCompileOptions, filename })
 					: svelte.compile(finalCode, { ...finalCompileOptions, filename });
-
-			// patch output with partial accept until svelte does it
-			// TODO remove later
-			if (
-				options.server?.config.experimental.hmrPartialAccept &&
-				compiled.js.code.includes('import.meta.hot')
-			) {
-				applyMapEdits(compiled, filename, (editor, generated) => {
-					addPartialAcceptExports(editor, generated);
-				});
-			}
 		} catch (e) {
 			enhanceCompileError(e, code, options.preprocess);
 			throw e;
@@ -124,24 +111,21 @@ export function createCompileSvelte() {
 		if (endStat) {
 			endStat();
 		}
-		mapToRelative(compiled.js?.map, filename);
-		mapToRelative(compiled.css?.map, filename);
 		if (warnings.length) {
 			if (!compiled.warnings) {
 				compiled.warnings = [];
 			}
 			compiled.warnings.push(...warnings);
 		}
-		if (!raw) {
-			// wire css import and code for hmr
-			const hasCss = compiled.css?.code?.trim()?.length ?? 0 > 0;
-			// compiler might not emit css with mode none or it may be empty
-			if (emitCss && hasCss) {
-				applyMapEdits(compiled, filename, (editor) => {
-					editor.append(`\nimport ${JSON.stringify(cssId)};\n`);
-				});
-			}
-		}
+		// compiler might not emit css with mode none or it may be empty
+		const hasCss = compiled.css?.code?.trim()?.length ?? 0 > 0;
+		postprocessCompiled(compiled, {
+			filename,
+			cssId,
+			// patch output with partial accept until svelte does it
+			partialAccept: !!options.server?.config.experimental.hmrPartialAccept,
+			emitCssImport: !raw && emitCss && hasCss
+		});
 
 		let lang = 'js';
 		for (const match of code.matchAll(scriptLangRE)) {

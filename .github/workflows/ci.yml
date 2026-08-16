@@ -1068,6 +1068,27 @@ jobs:
       - name: Run NAPI option-boundary gate
         run: pnpm run test:napi-options
 
+  vps-sourcemaps:
+    name: VPS postprocessing source-map parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      - uses: ./.github/actions/setup-node-pnpm
+        with:
+          cache: 'true'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The dev-server postprocessing is a pure module fed by the official
+      # compiler, so this needs neither the NAPI binding nor a Rust build.
+      - name: Check maps survive HMR partial accept and the CSS import
+        run: pnpm run test:vps-sourcemaps
+
   corpus-verify-flags:
     name: Corpus verify baseline-flag contract
     runs-on: ubuntu-latest
