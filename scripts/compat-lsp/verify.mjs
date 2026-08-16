@@ -48,6 +48,14 @@ const CONCURRENCY = Number(
 if (!Number.isInteger(CONCURRENCY) || CONCURRENCY < 1 || CONCURRENCY > 256) {
   throw new Error("--concurrency must be an integer from 1 through 256");
 }
+// A request that trips this deadline is compared as a transport error, so the
+// deadline decides the key: at 2s the same shard measured 2304 and then 1645
+// timeouts and 201 of 1380 entries moved. Keep it far above the response
+// distribution and treat any timeout as a failed run, not as an observation.
+const REQUEST_TIMEOUT_MS = Number(argValue("--request-timeout-ms") ?? 60_000);
+if (!Number.isInteger(REQUEST_TIMEOUT_MS) || REQUEST_TIMEOUT_MS < 1) {
+  throw new Error("--request-timeout-ms must be a positive integer");
+}
 const shardValue = argValue("--shard");
 let SHARD = null;
 if (shardValue) {
@@ -389,7 +397,7 @@ async function compareRequest(entry, request, corpusObservations) {
     request.method,
     request.params,
     entry.root,
-    entry.suite === "corpus" ? { timeoutMs: 2_000 } : undefined,
+    entry.suite === "corpus" ? { timeoutMs: REQUEST_TIMEOUT_MS } : undefined,
   );
   if (
     entry.suite === "upstream-features" &&
@@ -667,6 +675,14 @@ async function main() {
     fs.writeFileSync(
       path.resolve(WRITE_CURRENT),
       JSON.stringify(artifact, null, "\t") + "\n",
+    );
+  }
+
+  // Written above on purpose: the artifact is the only record of how far off the
+  // deadline was, and it is what says whether raising it again would help.
+  if (counts.transportTimeouts) {
+    throw new Error(
+      `${counts.transportTimeouts} request(s) exceeded the ${REQUEST_TIMEOUT_MS}ms deadline. A timeout is compared as a transport error, so it changes this run's keys and the next run would disagree; raise --request-timeout-ms rather than baselining the result`,
     );
   }
 

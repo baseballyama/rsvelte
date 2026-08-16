@@ -204,12 +204,18 @@ projects' preprocessors, aliases or default-language settings is outside that po
 configuration and preprocess behavior is exercised by committed fixtures instead of the collected
 repositories.
 
-### Blind spot 27e — two slow responses compare equal without comparing their bodies [S]
+### Blind spot 27e — the per-request deadline decided the key, and had to stop [D]
 
-After a required project-ready TypeScript hover succeeds, each corpus request has a two-second
-deadline. `requestBoth` converts a timeout into the same stable transport-error object on the side
-that timed out and cancels that request. If both servers exceed the deadline at the same position,
-the two timeout objects compare equal and the eventual response bodies are never observed.
+`requestBoth` converts a request that outlives its deadline into a stable transport-error object
+and cancels it. That object is then compared like a response, so **the deadline is part of the
+measurement**: at the original two seconds, one shard measured 2,304 timeouts in one run and 1,645
+in the next, and 201 of its 1,380 entries moved — 201 digests, 145 field counts and **53 divergent
+request counts**, with no entry appearing or disappearing. A wall-clock race against a loaded
+runner was being written into a shrink-only ratchet, so every later PR would have had to
+re-baseline. The deadline is now `--request-timeout-ms` (60 s), far above the response
+distribution, and **any** timeout fails the run after the artifact is written rather than being
+recorded as an observation. What remains outside the gate is a request that genuinely never
+answers: it now stops the sweep instead of scoring, which is louder but still not a comparison.
 
 ### Blind spot 27f — the comparison is a property of the installed tree, not only of the sources [D]
 
