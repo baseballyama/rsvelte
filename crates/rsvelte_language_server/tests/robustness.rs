@@ -107,9 +107,16 @@ impl Server {
 
     fn write(&mut self, message: &Value) {
         let body = serde_json::to_vec(message).expect("serialize LSP message");
+        self.write_frame(&body);
+    }
+
+    /// The framing stays correct whatever the body is, so a caller can send a
+    /// payload the *decoder* rejects without leaving the reader unable to find
+    /// where the next frame starts.
+    fn write_frame(&mut self, body: &[u8]) {
         let stdin = self.stdin.as_mut().expect("language server stdin is open");
         write!(stdin, "Content-Length: {}\r\n\r\n", body.len()).expect("write LSP header");
-        stdin.write_all(&body).expect("write LSP body");
+        stdin.write_all(body).expect("write LSP body");
         stdin.flush().expect("flush LSP body");
     }
 
@@ -287,6 +294,39 @@ fn file_uris_encode_spaces_and_non_ascii_paths() {
     let uri = file_uri(&dir.0.join("Component name.svelte"));
     assert!(uri.contains("uri%20space-%E9%9B%AA"), "{uri}");
     assert!(uri.ends_with("Component%20name.svelte"), "{uri}");
+}
+
+/// Malformed at the *protocol* layer rather than the document layer: a frame
+/// whose body will not deserialize into a JSON-RPC message. `lsp_server`'s own
+/// stdio transport ends its reader thread on the first one, which closes the
+/// connection and takes every open document's language features with it — so
+/// this is the one robustness case the sibling test above cannot reach, because
+/// its inputs are all valid messages carrying invalid Svelte.
+#[test]
+fn undecodable_protocol_messages_do_not_end_the_session() {
+    let dir = TestDir::new("undecodable");
+    let uri = file_uri(&dir.0.join("App.svelte"));
+    let mut server = Server::start(None, &[]);
+    server.open(&uri, "<script>let value = 1;</script>\n<p>{value}</p>\n");
+
+    for body in [
+        "{ this is not json",
+        "[]",
+        "null",
+        "42",
+        r#"{"jsonrpc":"2.0"}"#,
+        r#"{"jsonrpc":"2.0","method":42}"#,
+    ] {
+        server.write_frame(body.as_bytes());
+        server.probe();
+    }
+
+    let response = document_request(&mut server, "textDocument/foldingRange", &uri);
+    assert!(
+        response.get("result").is_some(),
+        "no response after undecodable protocol messages: {response}"
+    );
+    server.shutdown();
 }
 
 #[test]
