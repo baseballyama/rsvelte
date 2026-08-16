@@ -1063,6 +1063,11 @@ jobs:
       - name: Run vite-plugin-svelte native shim smoke test
         run: pnpm run test:vps-shim
 
+      # The package's own unit specs. They live here rather than in a node-only
+      # job because compile.spec.js imports the NAPI addon this job just built.
+      - name: Run vite-plugin-svelte unit specs
+        run: pnpm run test:vps-unit
+
       # Separate process: two rsvelte addons required into one process SIGSEGVs,
       # and this one loads the raw addon rather than the shim.
       - name: Run NAPI option-boundary gate
