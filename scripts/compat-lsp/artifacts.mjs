@@ -12,7 +12,7 @@ export const FIXTURE_SUITES = [
   "upstream-features",
   "upstream-testfiles",
 ];
-export const CONFIGURATION_ID = "lsp-diff-v10";
+export const CONFIGURATION_ID = "lsp-diff-v11";
 
 export const recordsFixtureControls = (suites) => suites.includes("fixtures");
 

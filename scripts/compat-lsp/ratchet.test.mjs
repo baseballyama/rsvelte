@@ -55,17 +55,17 @@ test("corpus file shards are disjoint and cover the full population", () => {
   assert.equal(shards.flat().length, cases.length);
 });
 
-test("corpus aggregation detects a same-count position swap", () => {
+test("corpus aggregation is blind to which position diverged", () => {
   const first = aggregateCorpusDifferences("corpus/repo/a.svelte", [
     { method: "textDocument/hover", position: "1:1", differences: ["/a"] },
   ]);
   const second = aggregateCorpusDifferences("corpus/repo/a.svelte", [
     { method: "textDocument/hover", position: "1:2", differences: ["/a"] },
   ]);
-  assert.notDeepEqual(second, first);
+  assert.deepEqual(second, first);
 });
 
-test("corpus aggregation detects a second field in a known response", () => {
+test("corpus aggregation is blind to a second field in a known response", () => {
   const first = aggregateCorpusDifferences("corpus/repo/a.svelte", [
     { method: "textDocument/hover", position: "1:1", differences: ["/a"] },
   ]);
@@ -76,7 +76,7 @@ test("corpus aggregation detects a second field in a known response", () => {
       differences: ["/a", "/b"],
     },
   ]);
-  assert.notDeepEqual(second, first);
+  assert.deepEqual(second, first);
 });
 
 test("corpus aggregation detects divergent-request count shrink and growth", () => {
@@ -122,7 +122,7 @@ test("stale checks select only the measured suite and corpus repo", () => {
 
 test("a baseline-only deleted corpus file is stale in exactly one stable shard", () => {
   const deleted =
-    "aggregate:corpus/bits-ui/deleted.svelte|textDocument/hover|divergentRequestCount=1|fieldCount=1|digest=deadbeef";
+    "aggregate:corpus/bits-ui/deleted.svelte|textDocument/hover|divergentRequestCount=1";
   const selections = Array.from({ length: 8 }, (_, index) =>
     selectKnownForScope([deleted], ["corpus"], ["bits-ui"], {
       index,

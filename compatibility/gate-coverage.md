@@ -110,7 +110,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 24 | `await_waterfall` runtime parity | the `await_waterfall` warnings a **mounted** rsvelte-compiled component logs vs. official's, 3 cases | one warning code, one component shape; nothing else about the running component is observed | [D] |
 | 25 | Differential output-preservation corpus hash | per `.svelte` source × client/server/client-dev/server-dev hash from base-core vs merge-ref-core | changes outside `crates/rsvelte_core`; every PR without the maintainer-applied `output-preserving` label | [S] |
 | 26 | esrap generated-output corpus | parsed JS output × official/rsvelte tree × 4 targets; AST equivalence, comment kind/body sequence, code/map equality, map bounds/order | production synthetic AST spans and whether a mapping points at the corresponding source token | [S] |
-| 27 | LSP differential parity | normalized JSON response field per request against the pinned official server and selected upstream snapshots | **every server notification**; incremental edit and resolve sequences | [S] |
+| 27 | LSP differential parity | normalized JSON response field per request against the pinned official server and selected upstream snapshots | **every server notification**; incremental edit and resolve sequences; **inside a corpus `(file, method)`, everything but the divergent-request count** | [S] [D] |
 
 Cross-cutting blind spots (**ratchet keys losing in both directions**, path filters, ratchet-doc
 drift, vacuity floors, the **performance**
@@ -230,6 +230,29 @@ differently-provisioned checkouts — so only one of them could ever have satisf
 other wrote. Both jobs now install and `verify.mjs` refuses to run without it, which makes the
 dependence declared rather than latent; the gate still compares one provisioning of the tree, and a
 divergence that needs a different dependency graph is outside it.
+
+### Blind spot 27g — inside a corpus `(file, method)`, only the request count is observed [D]
+
+The corpus aggregate key was `divergentRequestCount` + raw field count + a digest over every sorted
+`(position, diff pointers)` observation, which reads as full sensitivity. It is not reproducible.
+Two complete nine-artifact sweeps of one revision, one language-tools revision and one corpus
+revision — measured after 27e removed the deadline race — disagree on **664 of 16,348 keys**: 661
+differ in the digest alone and 3 in the field count, while `divergentRequestCount` agrees on all
+664. The churn is not spread across methods: `textDocument/completion` owns 661 of the 664 (18.2%
+of its 3,632 keys) against **0 of 3,632** for `textDocument/definition` and 3 for
+`textDocument/hover`, so what varies is which completion items the two live servers return for the
+same position, not the harness. A shrink-only ratchet cannot hold a key that a re-run rewrites, so
+the field count and the digest are gone and the key is the request count alone; both sweeps then
+reproduce the committed baseline with 0 new and 0 stale.
+
+What that removes is real and is not recoverable from any other row: for a `(file, method)` already
+listed, a newly wrong field in an already-divergent response, a divergence moving to a different
+position, and a simultaneous fix-plus-regression are now all invisible. Only a change in **how many
+requests** diverge in that file is observed. The fixture and upstream suites are unaffected — they
+still key one normalized field each — so this is a corpus-population blind spot, not a gate-wide
+one. The unmeasured question is whether a stable projection of a completion response exists that
+would restore per-field sensitivity; nobody has looked, and n=2 sweeps bound the churn only from
+below.
 
 ---
 

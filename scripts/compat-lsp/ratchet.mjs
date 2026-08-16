@@ -39,12 +39,11 @@ export function aggregateCorpusDifferences(fileId, observations) {
             ),
       )
       .sort((left, right) => left.position.localeCompare(right.position));
-    const fieldCount = normalized.reduce(
-      (total, value) => total + value.fieldCount,
-      0,
-    );
+    // Neither the field count nor a digest of the per-request diffs reproduces:
+    // two full sweeps of one revision moved 664 of 16,348 keys on those two
+    // components alone, and none on the request count.
     entries.push(
-      `aggregate:${fileId}|${method}|divergentRequestCount=${normalized.length}|fieldCount=${fieldCount}|digest=${digest(normalized)}`,
+      `aggregate:${fileId}|${method}|divergentRequestCount=${normalized.length}`,
     );
   }
   return entries;

@@ -19,12 +19,19 @@ that moves when a corpus submodule is bumped, and it is the reason the populatio
 committed separately: a repository dropping out shrinks its cluster to zero and would otherwise
 read as a clean burndown.
 
-The real-world corpus uses one compact entry per `(file, method)`. Its key records the divergent
-request count, raw divergent-field count, and a digest over every sorted
-`(position, value-aware diff pointers)` observation. This retains exact regression sensitivity
-without committing one repeated path prefix per identifier: another wrong field in a known
-response, a different position with the same count, and a fix/regression swap all change the
-digest; count growth and shrinkage change the key directly.
+The real-world corpus uses one compact entry per `(file, method)`, and its key records the divergent
+request count and nothing else. It carried a raw divergent-field count and a digest over every
+sorted `(position, value-aware diff pointers)` observation until two full sweeps of one revision
+were compared: **664 of 16,348 keys moved between them** — 661 on the digest alone, 3 on the field
+count — while the request count agreed on every one, and `textDocument/completion` owned 661 of the
+664 against zero for `textDocument/definition`. A key that does not reproduce cannot ratchet, so
+the two irreproducible components are out. Both sweeps reproduce the committed baseline exactly.
+
+What that costs is stated rather than implied: within a `(file, method)` whose divergent-request
+count does not move, another wrong field in a known response, a different diverging position, and a
+fix/regression swap are all invisible here. Count growth and shrinkage still change the key
+directly, and the fixture and upstream suites keep per-field keys, so the loss is confined to the
+corpus aggregate.
 
 The ratchet is shrink-only and two-sided: a new entry and an entry that no longer reproduces both
 fail verification. Baseline updates require one fixture/upstream artifact and eight
