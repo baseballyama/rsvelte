@@ -1734,10 +1734,9 @@ mod tests {
 
     #[test]
     fn diagnostic_locates_dollar_binding_declarations() {
-        let source = include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../submodules/svelte/packages/svelte/tests/compiler-errors/samples/dollar-binding-declaration-legacy/main.svelte"
-        ));
+        // Byte-for-byte upstream `compiler-errors/samples/dollar-binding-declaration-legacy`;
+        // inlined because this crate is also built without the submodule.
+        let source = "<svelte:options runes={false} />\n\n<script>\n\tfunction ok($) {}\n\tfunction ok2() {\n\t\tlet $;\n\t}\n\n\t// error\n\tlet $;\n</script>\n";
         let diagnostic = compile(source, CompileOptions::default())
             .unwrap_err()
             .diagnostic();
@@ -1747,10 +1746,8 @@ mod tests {
 
     #[test]
     fn diagnostic_locates_dollar_binding_imports() {
-        let source = include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../submodules/svelte/packages/svelte/tests/compiler-errors/samples/dollar-binding-import/main.svelte"
-        ));
+        // Byte-for-byte upstream `compiler-errors/samples/dollar-binding-import`.
+        let source = "<script>\n\timport { $ } from './somewhere';\n</script>\n";
         let diagnostic = compile(source, CompileOptions::default())
             .unwrap_err()
             .diagnostic();
@@ -1799,39 +1796,41 @@ mod tests {
 
     #[test]
     fn diagnostics_locate_global_css_validation_nodes() {
-        for (fixture, code, span) in [
+        // Each source is byte-for-byte the upstream `compiler-errors/samples/<fixture>`,
+        // inlined because this crate is also built without the submodule.
+        for (fixture, source, code, span) in [
             (
                 "css-global-block-declaration",
+                "<style>\n\t/* ok */\n\t.x :global {\n\t\tcolor: red;\n\t}\n\n\t:global .y {\n\t\tcolor: red;\n\t}\n\n\t/* not ok */\n\t:global {\n\t\tcolor: red;\n\t}\n</style>\n",
                 "css_global_block_invalid_declaration",
                 (109, 119),
             ),
             (
                 "css-global-block-combinator",
+                "<style>\n\t/* ok */\n\t.x :global {\n\t}\n\n\t/* not ok */\n\t.x > :global {\n\t}\n</style>\n",
                 "css_global_block_invalid_combinator",
                 (54, 63),
             ),
             (
                 "css-global-block-in-pseudoclass",
+                "<style>\n\t/* invalid */\n\t:is(:global) { color: red }\n</style>\n",
                 "css_global_block_invalid_placement",
                 (28, 35),
             ),
             (
                 "css-global-modifier",
+                "<style>\n\t/* ok */\n\tdiv :global.x {\n\t\tcolor: red;\n\t}\n\n\t/* not ok */\n\t.x:global {\n\t\tcolor: red;\n\t}\n</style>\n",
                 "css_global_block_invalid_modifier",
                 (70, 77),
             ),
             (
                 "css-global-modifier-start-1",
+                "<style>\n\t/* ok */\n\tdiv :global.x {\n\t\tcolor: red;\n\t}\n\n\t/* not ok */\n\t:global.x {\n\t\tcolor: red;\n\t}\n</style>\n",
                 "css_global_block_invalid_modifier_start",
                 (75, 77),
             ),
         ] {
-            let source = std::fs::read_to_string(format!(
-                "{}/../../submodules/svelte/packages/svelte/tests/compiler-errors/samples/{fixture}/main.svelte",
-                env!("CARGO_MANIFEST_DIR")
-            ))
-            .unwrap();
-            let diagnostic = compile(&source, CompileOptions::default())
+            let diagnostic = compile(source, CompileOptions::default())
                 .unwrap_err()
                 .diagnostic();
             assert_eq!(diagnostic.code.as_deref(), Some(code), "{fixture}");
