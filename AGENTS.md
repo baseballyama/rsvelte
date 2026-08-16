@@ -386,6 +386,25 @@ committed mini-projects under `compatibility/check-fixtures/`; Layer 2 (`check-e
 ratchet `check-e2e-known-failures.json`) runs real repositories — `submodules/cmsaasstarter` and the
 `submodules/skeleton` pnpm monorepo — installed from their own lockfiles.
 
+### LSP differential gate (`scripts/compat-lsp/`)
+
+The newest gate, and its unit is a **JSON-RPC response field**: the same `initialize` + request
+stream is driven over stdio against the pinned official `svelte-language-server` and
+`rsvelte-language-server`, and every differing normalized field becomes one shrink-only key in
+`compatibility/lsp-known-failures.json` (justified in the paired `.md`). Committed fixtures and the
+pinned upstream `language-tools` suites compare per field; the four real-world corpus repositories
+compare per `(file, method)` aggregate, because one key per identifier would be a six-figure file.
+Upstream ships **no** end-to-end protocol test, so the harness is built from scratch, and a baseline
+update needs the complete nine-artifact union at one project/language-tools/corpus revision — a
+partial run cannot shrink it.
+
+**The measurement is a property of the installed tree, not only of the sources.** The `.svelte.tsx`
+shadow's TypeScript program reaches the repository root for ambient `@types`, so the same commit
+yields 4380 fixture keys in an uninstalled checkout and 4397 in an installed one. Both CI jobs that
+run the comparison therefore install first, and `verify.mjs` refuses to run without it. Ask this of
+any gate whose oracle is a type checker: **what did the checkout provide that the sources did not?**
+What it cannot see is gate-coverage 27.
+
 ## Implementation Principles
 
 **CRITICAL**: All implementations must follow the official Svelte compiler implementation.

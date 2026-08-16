@@ -689,6 +689,13 @@ jobs:
 
       - uses: ./.github/actions/setup-node-pnpm
 
+      # The overlay's TypeScript program reaches the repository root for ambient
+      # `@types`, so an uninstalled workspace measures a smaller global scope and
+      # writes ratchet keys the `Language server` job in ci.yml — which installs
+      # — can never reproduce. Keep these flags identical to that job's.
+      - name: Install root dependencies (ratchet-key environment)
+        run: pnpm install --frozen-lockfile
+
       - name: Install and build official svelte-language-server oracle
         run: |
           cd submodules/language-tools
@@ -742,6 +749,12 @@ jobs:
       - uses: ./.github/actions/setup-rust
 
       - uses: ./.github/actions/setup-node-pnpm
+
+      # Same reason as `lsp-fixtures-current`: the ratchet key depends on which
+      # ambient `@types` the workspace makes reachable, so every artifact in the
+      # merged union must be measured with the workspace installed.
+      - name: Install root dependencies (ratchet-key environment)
+        run: pnpm install --frozen-lockfile
 
       - name: Install and build official svelte-language-server oracle
         run: |

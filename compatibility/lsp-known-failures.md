@@ -34,6 +34,14 @@ the rest of the population.
 contract. Any change to request construction, normalization, semantic array identity, or diff-key
 encoding must bump it so artifacts produced by different contracts cannot be merged.
 
+Every run must happen in an **installed** workspace. The shadow's TypeScript program reaches the
+repository root for ambient `@types`, so an uninstalled tree measures a smaller global scope: the
+fixture suite yields 4380 keys without root `node_modules` and 4397 with it, and the completion-item
+counts embedded in those keys move with it. This is not a preference — the two jobs that run this
+comparison (`Language server` in `ci.yml` and `LSP fixture parity current` in `corpus-compat.yml`)
+provisioned the tree differently at first, and only one of them could ever have satisfied the
+resulting baseline. `verify.mjs` now refuses to run without it.
+
 The population floor is `scripts/compat-lsp/corpus-population.json`. An intentional corpus
 submodule bump must use an unsharded, all-suite, all-repository `--update-population` run; ordinary
 population loss is an error. Shard-local reports retain their exact measured population and the

@@ -211,6 +211,19 @@ deadline. `requestBoth` converts a timeout into the same stable transport-error 
 that timed out and cancels that request. If both servers exceed the deadline at the same position,
 the two timeout objects compare equal and the eventual response bodies are never observed.
 
+### Blind spot 27f — the comparison is a property of the installed tree, not only of the sources [D]
+
+The `.svelte.tsx` shadow's TypeScript program reaches the repository root for ambient `@types`, so
+which symbols a template-position completion returns — and therefore the counts and digests this
+gate writes into its keys — depends on whether the workspace has been installed. Measured on one
+commit: the fixture suite yields **4380** ratchet keys with no root `node_modules` and **4397** with
+it (`fixtures/completion-at` alone moves from `count=1088` to `count=1095`), a +17-field /
+−2-request delta that reproduced exactly between the two CI jobs which ran this comparison in
+differently-provisioned checkouts — so only one of them could ever have satisfied the baseline the
+other wrote. Both jobs now install and `verify.mjs` refuses to run without it, which makes the
+dependence declared rather than latent; the gate still compares one provisioning of the tree, and a
+divergence that needs a different dependency graph is outside it.
+
 ---
 
 ## 1. Compiler output parity — `scripts/compat-corpus/verify.mjs`

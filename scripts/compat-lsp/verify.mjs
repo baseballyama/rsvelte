@@ -173,6 +173,14 @@ if (!process.env.OFFICIAL_LSP_COMMAND) {
     );
   }
 }
+// The shadow's TypeScript program reaches this directory for ambient `@types`, so
+// an uninstalled workspace silently measures a smaller global scope: the same
+// fixtures yield 4380 ratchet keys uninstalled and 4397 installed.
+if (!fs.existsSync(path.join(ROOT, "node_modules"))) {
+  throw new Error(
+    "root workspace is not installed; run `pnpm install` first — the TypeScript global scope, and therefore the ratchet keys, depend on it",
+  );
+}
 
 const population = loadCases(ROOT, selectedSuites, selectedRepos);
 const cases = shardCorpusCases(population.cases, SHARD);
