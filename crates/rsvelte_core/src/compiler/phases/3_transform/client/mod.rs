@@ -89,7 +89,7 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::LazyLock;
 
-use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
+use crate::compiler::phases::phase3_transform::shared::js_scan::{find_code, skip_opaque};
 use memchr::memmem;
 // rustc_hash is used by submodules via their own imports
 
@@ -4267,7 +4267,10 @@ fn transform_module_script_runes_with_target(
             result = rewritten;
         }
     }
-    while let Some(pos) = memmem::find(result.as_bytes(), b"$state(") {
+    // `find_code`, not `memmem::find`: the AST batch above leaves a `$state(`
+    // that sits in a string / template / regex / comment untouched, and this
+    // fallback would otherwise rewrite that text as if it were a call (#2988).
+    while let Some(pos) = find_code(result.as_bytes(), b"$state(") {
         // Make sure this is not $state.something
         if pos + 7 < result.len() && result.as_bytes()[pos + 6] != b'(' {
             break;
@@ -4392,7 +4395,11 @@ fn transform_module_script_runes_with_target(
     ) {
         result = rewritten;
     }
-    while let Some(pos) = memmem::find(result.as_bytes(), b"$derived(") {
+    // `find_code`, not `memmem::find`: a `$derived(` inside a string / template
+    // / regex / comment is text. Matching it either rewrote the literal (#2988)
+    // or aborted the loop on its unbalanced parens, leaving the real rune call
+    // unlowered and the module referencing a global `$derived` (#2987).
+    while let Some(pos) = find_code(result.as_bytes(), b"$derived(") {
         if result[..pos].ends_with('$') {
             // Already transformed to $.derived() - skip
             break;

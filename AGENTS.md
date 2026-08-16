@@ -50,7 +50,10 @@ position — invalid JS from a call that returned successfully. The generalizati
 `/$derived(x)/` regex literal is rewritten as code. **Two properties separate this from the
 client instance-script row below**: it is `compileModule`-only (the same shapes are correct in a
 component's instance script), and two of the three outputs *parse*, so the parse gate cannot see
-them — only output equality can.
+them — only output equality can. All three are fixed: the class header comes from
+`class_body::find_class_header` and the module rune loops from `js_scan::find_code`, both of
+which read code bytes only. Treat the *rest* of that pipeline as unaudited rather than clean —
+the keyword axis that found these samples 5 of the ~30 tokens it is drawn from.
 
 **The client instance-script pipeline is the exception, and it is a correctness hazard, not a
 cleanup.** That pipeline still decides where a statement or an expression ends by scanning
@@ -255,7 +258,10 @@ keyword axis is *derived* — the source-level tokens `memmem::find` is called w
 records. It paid for itself on the first run: #2987 (a `'$derived('` in a string, template or
 comment stops the real `$derived` in that module from being lowered at all, so the module throws
 at import) and #2988 (a `/$derived(x)/` regex literal is itself rewritten). Both outputs parse,
-so the parse oracle is blind to both — only output equality reports them.
+so the parse oracle is blind to both — only output equality reports them. Both are fixed; the
+40 entries it still carries are an **upstream** defect, written up in `upstream_issues/`, where
+a synthesized accessor body parks esrap's comment cursor and every later comment in the file is
+dropped. A family whose remaining rows all point outside the repo is the state to aim for.
 
 The `bind:` and `param-default` families are the odd ones out and the reason is worth stating:
 their inputs are programs the official compiler **rejects**, which is a population no collected corpus can hold, because

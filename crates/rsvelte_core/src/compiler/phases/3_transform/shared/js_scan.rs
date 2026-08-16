@@ -266,9 +266,49 @@ fn is_ident_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_' || c == '$'
 }
 
+/// The first occurrence of `needle` in `bytes` that is code — outside every
+/// string, template literal, regex literal and comment.
+///
+/// `needle` must contain no byte that can open an opaque run (`'`, `"`,
+/// `` ` ``, `/`), so testing its first byte settles the whole match.
+pub(crate) fn find_code(bytes: &[u8], needle: &[u8]) -> Option<usize> {
+    debug_assert!(
+        !needle
+            .iter()
+            .any(|b| matches!(b, b'\'' | b'"' | b'`' | b'/')),
+        "find_code needs a needle that cannot open an opaque run"
+    );
+    let mut candidates = memchr::memmem::find_iter(bytes, needle);
+    let mut candidate = candidates.next()?;
+    let mut i = 0usize;
+    let mut prev: Option<u8> = None;
+    while i < bytes.len() {
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            while candidate < next {
+                candidate = candidates.next()?;
+            }
+            if !is_comment {
+                prev = Some(b'x');
+            }
+            i = next;
+            continue;
+        }
+        if i == candidate {
+            return Some(candidate);
+        }
+        if !bytes[i].is_ascii_whitespace() {
+            prev = Some(bytes[i]);
+        }
+        i += 1;
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{KEYWORDS_BEFORE_REGEX, contains_identifier, skip_opaque, slash_starts_regex_at};
+    use super::{
+        KEYWORDS_BEFORE_REGEX, contains_identifier, find_code, skip_opaque, slash_starts_regex_at,
+    };
 
     /// Decide the LAST `/` in `src`, with `prev` tracked exactly as `code_bytes`
     /// tracks it — a comment leaves it alone, a literal collapses to a sentinel.
@@ -398,5 +438,37 @@ mod tests {
     #[test]
     fn later_occurrence_still_matches() {
         assert!(contains_identifier("counter; count;", "count"));
+    }
+
+    #[test]
+    fn find_code_skips_every_opaque_carrier() {
+        for carrier in [
+            "// $derived(",
+            "/* $derived( */",
+            "const c = '$derived(';",
+            "const c = `$derived(`;",
+            "const c = /$derived(x)/;",
+        ] {
+            let src = format!("{carrier}\nlet x = $derived(1);\n");
+            let at = find_code(src.as_bytes(), b"$derived(").expect("the real call");
+            assert_eq!(
+                &src[at..at + 9],
+                "$derived(",
+                "{carrier}: matched the wrong offset"
+            );
+            assert!(at > carrier.len(), "{carrier}: matched inside the carrier");
+        }
+    }
+
+    #[test]
+    fn find_code_reports_none_when_every_occurrence_is_text() {
+        assert!(find_code(b"const c = '$state(';\n", b"$state(").is_none());
+    }
+
+    #[test]
+    fn find_code_is_not_fooled_by_a_division_before_the_call() {
+        let src = "const r = a / b;\nlet x = $state(r);\n";
+        let at = find_code(src.as_bytes(), b"$state(").expect("the real call");
+        assert_eq!(&src[at..at + 7], "$state(");
     }
 }
