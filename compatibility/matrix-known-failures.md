@@ -201,6 +201,8 @@ yields only occurrences outside every string, template, regex literal and commen
 
 What is left is one cluster, and it is not an rsvelte defect.
 
+Partition of `matrix-known-failures.json` entries under `opaque-keyword/` by cause: `40`
+
 **40 — any keyword × {`line-comment`, `block-comment`} × `between-classes` × both entry
 points × `client` and `client-dev` (#2990).** A comment between two classes that both carry
 rune fields: official drops it, rsvelte keeps it. The keyword content is irrelevant — all
