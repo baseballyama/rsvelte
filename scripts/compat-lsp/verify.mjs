@@ -50,9 +50,10 @@ if (!Number.isInteger(CONCURRENCY) || CONCURRENCY < 1 || CONCURRENCY > 256) {
 }
 // A request that trips this deadline is compared as a transport error, so the
 // deadline decides the key: at 2s the same shard measured 2304 and then 1645
-// timeouts and 201 of 1380 entries moved. Keep it far above the response
-// distribution and treat any timeout as a failed run, not as an observation.
-const REQUEST_TIMEOUT_MS = Number(argValue("--request-timeout-ms") ?? 60_000);
+// timeouts and 201 of 1380 entries moved; at 60s the whole 1.9M-request sweep
+// had 12. Keep it far above the response distribution and treat any timeout as
+// a failed run, not as an observation.
+const REQUEST_TIMEOUT_MS = Number(argValue("--request-timeout-ms") ?? 180_000);
 if (!Number.isInteger(REQUEST_TIMEOUT_MS) || REQUEST_TIMEOUT_MS < 1) {
   throw new Error("--request-timeout-ms must be a positive integer");
 }

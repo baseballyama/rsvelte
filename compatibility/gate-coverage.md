@@ -212,9 +212,10 @@ measurement**: at the original two seconds, one shard measured 2,304 timeouts in
 in the next, and 201 of its 1,380 entries moved — 201 digests, 145 field counts and **53 divergent
 request counts**, with no entry appearing or disappearing. A wall-clock race against a loaded
 runner was being written into a shrink-only ratchet, so every later PR would have had to
-re-baseline. The deadline is now `--request-timeout-ms` (60 s), far above the response
-distribution, and **any** timeout fails the run after the artifact is written rather than being
-recorded as an observation. What remains outside the gate is a request that genuinely never
+re-baseline. The deadline is now `--request-timeout-ms` (180 s), far above the response
+distribution — at 60 s the whole 1.9-million-request sweep produced 12 timeouts, against ~2,000
+per shard at 2 s — and **any** timeout fails the run after the artifact is written rather than
+being recorded as an observation. What remains outside the gate is a request that genuinely never
 answers: it now stops the sweep instead of scoring, which is louder but still not a comparison.
 
 ### Blind spot 27f — the comparison is a property of the installed tree, not only of the sources [D]

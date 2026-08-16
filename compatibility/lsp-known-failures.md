@@ -40,11 +40,12 @@ Real-world corpus runs are deliberately untrusted: the gate must not execute arb
 from collected repositories, and its result must not depend on installing four applications' package
 graphs. Both servers receive the same trust bit; preprocess/config execution has dedicated fixtures.
 After the project-ready positive control, corpus requests have a `--request-timeout-ms` deadline
-(60 s). A timeout is cancelled and compared as a stable transport-error response, which means the
+(180 s). A timeout is cancelled and compared as a stable transport-error response, which means the
 deadline is part of the measurement rather than a safety net around it: at the original two seconds
 one shard measured 2,304 timeouts and then 1,645, moving 201 of its 1,380 entries — including 53
-divergent-request counts. Any timeout therefore fails the run after the artifact is written, so a
-load-dependent key cannot be baselined; raise the deadline instead.
+divergent-request counts. At 60 s the whole 1.9-million-request sweep had 12. Any timeout therefore
+fails the run after the artifact is written, so a load-dependent key cannot be baselined; raise the
+deadline instead.
 
 `configurationId` in `scripts/compat-lsp/artifacts.mjs` is the artifact schema for the comparison
 contract. Any change to request construction, normalization, semantic array identity, or diff-key
