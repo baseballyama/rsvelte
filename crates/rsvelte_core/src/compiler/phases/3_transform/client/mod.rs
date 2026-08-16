@@ -91,6 +91,7 @@ use std::rc::Rc;
 use std::sync::LazyLock;
 
 use crate::compiler::phases::phase3_transform::shared::js_scan::{find_code, skip_opaque};
+use compact_str::CompactString;
 use memchr::memmem;
 // rustc_hash is used by submodules via their own imports
 
@@ -103,7 +104,7 @@ use super::js_ast::{
     nodes::{
         JsBlockStatement, JsExportDefault, JsExportDefaultDeclaration, JsExpr,
         JsFunctionDeclaration, JsImportDeclaration, JsImportSpecifier, JsObjectMember, JsPattern,
-        JsProgram, JsPropertyKey, JsStatement, JsVariableKind,
+        JsProgram, JsPropertyKey, JsStatement, JsVariableKind, RawMappedSpan,
     },
 };
 use crate::ast::template::Root;
@@ -472,6 +473,7 @@ pub(crate) fn transform_client(
     // The actual visiting is done via ComponentContext::visit_node which dispatches
     // based on node type - the visit function pointer is not actually used
     let mut context = ComponentContext::new(state, |_, _, _| TransformResult::None);
+    context.enable_sourcemap = options.enable_sourcemap;
 
     // Visit the program to set up transforms for props, store subscriptions, etc.
     // This handles state, legacy props, and store subscriptions.
@@ -1172,6 +1174,10 @@ pub(crate) fn transform_client(
     if let Some(ref content) = analysis.instance_script_content {
         let mut transformed_script = pre_transformed_script.take().unwrap_or_default();
         let has_effect_rune = content.raw.contains("$effect") || content.raw.contains("$inspect");
+        let props_comments = props_declaration_comments(&content.raw);
+        let props_comment_anchor = props_comments
+            .last()
+            .map(|(offset, comment)| content.start + *offset + comment.len() as u32);
 
         // Post-process reactive imports: replace $.get(X)/$.mutate(X,...) with $$_import_X()
         for name in &reactive_import_names {
@@ -1232,6 +1238,16 @@ pub(crate) fn transform_client(
                 content.start + (text.len() - text.trim_start().len()) as u32
             });
         if !trimmed.is_empty() {
+            for (offset, comment) in &props_comments {
+                if !transformed_script.contains(comment.as_str()) {
+                    component_body.push(JsStatement::RawMapped {
+                        code: comment.clone(),
+                        source_offset: content.start + *offset,
+                        comment_anchor: None,
+                        copied_spans: Vec::new(),
+                    });
+                }
+            }
             // Apply async body transformation if experimental.async is enabled
             // This splits the instance script at the first top-level `await`
             if options.experimental.r#async {
@@ -1246,6 +1262,10 @@ pub(crate) fn transform_client(
                         normalized,
                         script_source_offset,
                         has_effect_rune,
+                        &content.raw,
+                        content.start,
+                        content.source_projection.as_ref(),
+                        props_comment_anchor,
                     ));
                     // Store the blocker_map for use during template generation
                     if !async_result.blocker_map.is_empty() {
@@ -1260,6 +1280,10 @@ pub(crate) fn transform_client(
                             normalized,
                             script_source_offset,
                             has_effect_rune,
+                            &content.raw,
+                            content.start,
+                            content.source_projection.as_ref(),
+                            props_comment_anchor,
                         ));
                     }
                 }
@@ -1277,15 +1301,20 @@ pub(crate) fn transform_client(
                         .and_then(|scripts| scripts.instance.as_ref())
                         .filter(|retained| {
                             !analysis.is_typescript
+                                && content.source_projection.is_none()
                                 && retained.source() == content.raw
                                 && retained.program().comments.is_empty()
-                                && transformed_script.trim() == content.raw.trim()
+                        })
+                        .and_then(|retained| {
+                            retained_instance_statement_indices(retained, &content.raw, &normalized)
+                                .map(|statement_indices| (retained, statement_indices))
                         });
-                    if let Some(retained) = retained {
+                    if let Some((retained, statement_indices)) = retained {
                         let index = ast_islands.len();
                         ast_islands.push(super::js_ast::to_oxc::AstIsland {
                             program: retained,
                             source_offset: content.start,
+                            statement_indices,
                         });
                         component_body.push(JsStatement::RetainedAst {
                             index,
@@ -1298,6 +1327,10 @@ pub(crate) fn transform_client(
                             normalized,
                             script_source_offset,
                             has_effect_rune,
+                            &content.raw,
+                            content.start,
+                            content.source_projection.as_ref(),
+                            props_comment_anchor,
                         ));
                     }
                 }
@@ -2045,11 +2078,48 @@ pub(crate) fn transform_client(
         } else {
             strip_module_toplevel_comments(&transformed)
         };
-        body.push(if has_effect_rune {
-            JsStatement::RawEffect(transformed.into())
-        } else {
-            JsStatement::Raw(transformed.into())
-        });
+        let retained = retained_scripts
+            .and_then(|scripts| scripts.module.as_ref())
+            .filter(|retained| {
+                !analysis.is_typescript
+                    && analysis
+                        .module_script_content
+                        .as_ref()
+                        .is_some_and(|content| {
+                            content.source_projection.is_none() && retained.source() == content.raw
+                        })
+                    && retained.program().comments.is_empty()
+            })
+            .and_then(|retained| {
+                analysis.module_script_content.as_ref().and_then(|content| {
+                    retained_instance_statement_indices(
+                        retained,
+                        &content.raw,
+                        &normalize_js_with_oxc(&transformed, 1),
+                    )
+                    .map(|statement_indices| (retained, content.start, statement_indices))
+                })
+            });
+        body.push(
+            if let Some((retained, source_offset, statement_indices)) = retained {
+                let index = ast_islands.len();
+                ast_islands.push(super::js_ast::to_oxc::AstIsland {
+                    program: retained,
+                    source_offset,
+                    statement_indices,
+                });
+                JsStatement::RetainedAst {
+                    index,
+                    fallback: transformed.into(),
+                    source_offset,
+                    has_effect_rune,
+                }
+            } else if has_effect_rune {
+                JsStatement::RawEffect(transformed.into())
+            } else {
+                JsStatement::Raw(transformed.into())
+            },
+        );
     }
 
     // Add hoisted statements (template declarations, etc.)
@@ -2751,18 +2821,196 @@ fn is_export_default_stmt(stmt: &JsStatement) -> bool {
     }
 }
 
-fn script_raw_statement(code: String, source_offset: u32, has_effect_rune: bool) -> JsStatement {
+fn script_raw_statement(
+    code: String,
+    source_offset: u32,
+    has_effect_rune: bool,
+    original: &str,
+    original_offset: u32,
+    projection: Option<&ScriptProjection>,
+    comment_anchor: Option<u32>,
+) -> JsStatement {
+    let copied_spans = projection
+        .map(|projection| {
+            copied_spans_for_normalized_code(&code, original, original_offset, projection)
+        })
+        .unwrap_or_default();
     if has_effect_rune {
         JsStatement::RawMappedEffect {
             code: code.into(),
             source_offset,
+            comment_anchor,
+            effect_spans: original
+                .match_indices("$effect")
+                .map(|(start, _)| {
+                    let tail = &original[start..];
+                    let pre = tail.starts_with("$effect.pre");
+                    let len = if pre { 11 } else { 7 };
+                    (
+                        pre,
+                        original_offset + start as u32,
+                        original_offset + start as u32 + len,
+                    )
+                })
+                .collect(),
+            copied_spans,
         }
     } else {
         JsStatement::RawMapped {
+            copied_spans,
             code: code.into(),
             source_offset,
+            comment_anchor,
         }
     }
+}
+
+/// Comments inside the `$props()` declaration survive upstream's lowering even
+/// though the declaration itself is removed from the component body.
+fn props_declaration_comments(raw: &str) -> Vec<(u32, CompactString)> {
+    let Some(props) = raw.find("$props()") else {
+        return Vec::new();
+    };
+    let Some(start) = raw[..props].rfind("let") else {
+        return Vec::new();
+    };
+    let end = raw[props..]
+        .find(';')
+        .map_or(raw.len(), |end| props + end + 1);
+    crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet_with_pos(&raw[start..end])
+        .into_iter()
+        .map(|(offset, comment)| ((start + offset) as u32, comment.into()))
+        .collect()
+}
+
+/// Align normalized raw output with the stripped script, then project every
+/// unchanged byte back through TypeScript erasure to its component offset.
+/// Formatting may add whitespace or a semicolon, so unmatched bytes are left
+/// unmapped instead of guessing through a compiler-generated rewrite.
+fn copied_spans_for_normalized_code(
+    code: &str,
+    stripped: &str,
+    original_offset: u32,
+    projection: &ScriptProjection,
+) -> Vec<RawMappedSpan> {
+    let mut source_at_output = vec![None; stripped.len() + 1];
+    for chunk in &projection.copied_chunks {
+        let len =
+            (chunk.output.end - chunk.output.start).min(chunk.source.end - chunk.source.start);
+        for offset in 0..=len {
+            let output = (chunk.output.start + offset) as usize;
+            if output < source_at_output.len() {
+                source_at_output[output] = Some(original_offset + chunk.source.start + offset);
+            }
+        }
+    }
+
+    let mut spans = Vec::new();
+    let mut output = 0usize;
+    let mut input = 0usize;
+    while output < code.len() && input < stripped.len() {
+        let output_byte = code.as_bytes()[output];
+        let input_byte = stripped.as_bytes()[input];
+        if output_byte == input_byte {
+            let start_output = output;
+            let start_input = input;
+            while output < code.len()
+                && input < stripped.len()
+                && code.as_bytes()[output] == stripped.as_bytes()[input]
+            {
+                output += 1;
+                input += 1;
+            }
+            let mut run_start = start_output;
+            for code_offset in start_output..=output {
+                let raw_offset = start_input + code_offset - start_output;
+                let mapped = source_at_output.get(raw_offset).copied().flatten();
+                let previous = if code_offset > run_start {
+                    source_at_output
+                        .get(raw_offset.saturating_sub(1))
+                        .copied()
+                        .flatten()
+                } else {
+                    mapped
+                };
+                if code_offset == output
+                    || mapped.is_none()
+                    || previous.is_none_or(|p| mapped != Some(p + 1))
+                {
+                    if code_offset > run_start
+                        && let (Some(source_start), Some(source_end)) = (
+                            source_at_output[start_input + run_start - start_output],
+                            source_at_output[start_input + code_offset - 1 - start_output]
+                                .map(|value| value + 1),
+                        )
+                    {
+                        spans.push(RawMappedSpan {
+                            code: run_start as u32..code_offset as u32,
+                            source: source_start..source_end,
+                        });
+                    }
+                    run_start = code_offset;
+                }
+            }
+            continue;
+        }
+        if output_byte.is_ascii_whitespace() {
+            output += 1;
+            continue;
+        }
+        if input_byte.is_ascii_whitespace() {
+            input += 1;
+            continue;
+        }
+        // A generated change (for example `count++` -> `$.update(count)`) must
+        // not desynchronise the rest of the script. Resume at the nearest exact
+        // byte within a small window; otherwise leave one generated byte bare.
+        let next_input = stripped.as_bytes()[input..]
+            .iter()
+            .take(256)
+            .position(|&byte| byte == output_byte);
+        let next_output = code.as_bytes()[output..]
+            .iter()
+            .take(256)
+            .position(|&byte| byte == input_byte);
+        match (next_input, next_output) {
+            (Some(left), Some(right)) if left <= right => input += left,
+            (Some(left), None) => input += left,
+            (_, Some(right)) => output += right,
+            (None, None) => output += 1,
+        }
+    }
+    spans
+}
+
+/// Select the source statements that survive instance-import hoisting.
+///
+/// `extract_imports` owns the legacy-compatible line handling, so the AST path
+/// proves equivalence by normalizing the exact non-import statement slices to
+/// the already-settled script text. Any disagreement keeps `RawMapped`.
+fn retained_instance_statement_indices(
+    retained: &crate::ast::oxc_program::RetainedProgram<'_>,
+    source: &str,
+    normalized_script: &str,
+) -> Option<Vec<usize>> {
+    use oxc_span::GetSpan;
+
+    let mut indices = Vec::new();
+    let mut body = String::new();
+    for (index, statement) in retained.program().body.iter().enumerate() {
+        if matches!(statement, oxc_ast::ast::Statement::ImportDeclaration(_)) {
+            continue;
+        }
+        let span = statement.span();
+        let slice = source.get(span.start as usize..span.end as usize)?;
+        if !body.is_empty() {
+            body.push('\n');
+        }
+        body.push_str(slice);
+        indices.push(index);
+    }
+
+    (!indices.is_empty() && normalize_js_with_oxc(&body, 1) == normalized_script).then_some(indices)
 }
 
 // ============================================================================

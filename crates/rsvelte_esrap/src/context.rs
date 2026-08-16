@@ -284,6 +284,10 @@ impl<const DIRECT: bool> Context<DIRECT> {
         }
     }
 
+    pub(crate) fn location_offset(&mut self, offset: u32) {
+        self.buffer.event(EventKind::LocationOffset { offset });
+    }
+
     /// Splice `child`'s output in place, propagating its multiline state.
     pub fn append(&mut self, child: Context<false>) {
         let child_multiline = child.multiline;
@@ -452,7 +456,9 @@ impl<const DIRECT: bool> Context<DIRECT> {
             EventKind::Indent => self.indent_depth += 1,
             EventKind::Dedent => self.indent_depth = self.indent_depth.saturating_sub(1),
             EventKind::Space => self.pending |= PENDING_SPACE,
-            EventKind::Flush | EventKind::Location { .. } => self.flush_non_optimistic(),
+            EventKind::Flush | EventKind::Location { .. } | EventKind::LocationOffset { .. } => {
+                self.flush_non_optimistic()
+            }
         }
     }
 

@@ -13,9 +13,9 @@ each sample's recorded `metadata.json` still says exactly that).
 |---|---|---|
 | `anchor` | `anchor\t<sample>\t<target>\t<index>\t<str>` | an official `_config.js` `client:` / `server:` / `css:` expectation that rsvelte's map does not satisfy |
 | `map-parity` | `map-parity\t<sample>\t<target>\t<count>` | budget: official map segments that rsvelte does not reproduce, where the generated code is byte-identical (missing + wrong) |
-| `out-of-range` | `out-of-range\t<sample>\t<target>\t<count>` | budget: segments whose original position lies past the end of that source line, or past the last line |
+| `out-of-range` | `out-of-range\t<sample>\t<target>\t<count>` | budget: out-of-range segments not also emitted by the official map at the same generated and original position |
 
-**Current baseline: `sourcemap-known-failures.json`, 73 entries.** The
+**Current baseline: `sourcemap-known-failures.json`, 3 entries.** The
 before/after tables further down record what one specific change did at the time
 it landed; they are history, not the current size. Reading the newest number in
 those tables as today's count is the mistake this line exists to prevent — the
@@ -178,56 +178,50 @@ Generated output and the sample's `map-parity` budget are unchanged.
 
 ## Root cause
 
-The client entries all share one cause, tracked in issue #1781: the client AST
-output path maps an entire emitted *chunk* to the one source offset the chunk
+The client entries all shared one cause, tracked in issue #1781: the client AST
+output path mapped an entire emitted *chunk* to the one source offset the chunk
 started at (`js_ast/to_oxc.rs::take_chunk_region`), and the printer's column
-arithmetic then accumulates on top of that single anchor. Individual nodes inside
-a chunk lose their own provenance, which produces both symptoms at once —
-segments that no longer exist (`missing`, the resolution loss) and segments that
-address a column past the end of the anchor's line (`out-of-range`).
+arithmetic then accumulated on top of that single anchor. Individual nodes inside
+a chunk lost their own provenance, which produced both symptoms at once —
+segments that no longer existed (`missing`, the resolution loss) and segments
+that addressed a column past the end of the anchor's line (`out-of-range`).
 
-Two findings from the #1781 burndown sharpen this. First, the official map's
+Two findings from the #1781 burndown sharpened this. First, the official map's
 segments are overwhelmingly *identifier and literal* start/end pairs, emitted by
-esrap's `Context.write(content, node)`; `rsvelte_esrap` only emits anchors from
-`Printer::write_source_keyword`, so it has none of them and reproduces 0 / 488
-client segments. Second, adding those anchors does not help yet: a comment-free
-chunk is parsed in place (`to_oxc.rs::parse_chunk`), so its node spans are
-*chunk-local* byte offsets that the printer then reads as offsets into the
-original `.svelte` file. Chunk-local offsets and real source offsets share one
-number space with nothing to tell them apart, so per-node anchors resolve to
-unrelated positions. Per-node client resolution needs the spans to become real
-first — the Wave-4 migration below — not a printer change.
+esrap's `Context.write(content, node)`; `rsvelte_esrap` only emitted anchors from
+`Printer::write_source_keyword`, so it had none of them and reproduced 0 / 488
+client segments. Second, adding those anchors did not help on its own: a
+comment-free chunk is parsed in place (`to_oxc.rs::parse_chunk`), so its node
+spans are *chunk-local* byte offsets that the printer then read as offsets into
+the original `.svelte` file. Chunk-local offsets and real source offsets share
+one number space with nothing to tell them apart, so per-node anchors resolved to
+unrelated positions.
 
-Resolution is expected to fall out of the Wave-4 script AST-visitor migration:
-once `Raw` / `RawMapped` chunks are gone and every oxc node carries a real span,
-the client path gets per-node provenance. The server residue (the 113 missing
-segments, the 7 wrong ones, and the `sourcemap-empty-source` anchor) is a
-separate, smaller gap in the server printer's segment emission, not explained by
-`take_chunk_region`.
-
-`RSVELTE_CLIENT_NO_OXC=1` still routes client output through the legacy text
-generator, whose maps are per-fragment and land inside the source. It is a
-reference point for how much resolution the text path had, not a target: this
-gate never asserts against it, because that path is being deleted and the
-official compiler is the real oracle.
+Both halves are now fixed. `Printer::write_node` ports esrap's
+`Context.write(content, node)` — every source-backed identifier, literal, member
+property and block brace is bracketed by anchors for its own span — and the
+spans reaching it are real source offsets, carried through client and SSR
+lowering rather than reconstructed from a chunk. That took the gate from 73
+entries to 3, with the `anchor` and `out-of-range` classes eliminated entirely.
 
 ## Entries
 
 No entry is accepted as correct behaviour; all are burndown targets.
 
-- **`anchor` (13)** — `basic`, `binding`, `each-block` (×3), `effects` (×2),
-  `script`, `script-after-comment`, `two-scripts` (×2) and
-  `sourcemap-empty-source` on `client`; `sourcemap-empty-source` on `server`.
-  Eleven report "no segment at `<line>:<col>`": the chunk-level anchor means no
-  segment starts where the identifier starts. Two report a *wrong* origin —
-  `two-scripts`/`first` maps to `0:11` instead of `1:12` (the module script's
-  chunk is anchored at the file start, so the whole block is off by the
-  `<script module>` line) and `sourcemap-empty-source`/client maps to `0:8`
-  instead of `2:1`.
-- **`map-parity` (47)** — one per byte-identical pair that loses official
-  segments. Client counts (4–52) are dominated by `missing`; server counts (4–13)
-  are mostly `missing`-only, except `preprocessed-styles` and
-  `source-map-generator`, which contribute the 7 server `wrong` segments.
-- **`out-of-range` (13)** — 1–3 segments per client map. These are the segments
-  that break downstream consumers outright (a devtools frame resolving past the
-  end of a line), so this is the budget to burn down first.
+- **`map-parity` (3)** — `attached-sourcemap` on `client` and `server`, and
+  `effects` on `server`; one segment each. All three are the same shape: rsvelte
+  emits *two* segments at one generated column, and the one the official map
+  agrees with is the second. The gate compares the first segment at a generated
+  column (upstream's own resolution rule), so the extra leading segment scores as
+  `wrong`. The surplus segment comes from the merge in
+  `3_transform/mod.rs::merge_preferred_mappings`, which interleaves two
+  independently produced mapping lists and can leave both at one position.
+
+  Collapsing duplicates at the encoder was tried and rejected: keeping the *last*
+  segment fixes these three and breaks eight server entries that need the first,
+  and keeping the first does the reverse. Neither order is correct, because the
+  merged list combines producers whose emission order does not encode precedence
+  — the fix is to stop emitting the surplus segment at its source, not to pick a
+  winner afterwards. Deliberately *not* worked around by relaxing the comparison
+  to "any segment at this column matches": that would also stop the gate seeing a
+  genuinely mis-anchored token.

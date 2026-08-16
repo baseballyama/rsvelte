@@ -249,6 +249,8 @@ pub fn fragment(
             // Generate a unique identifier for the element
             let id_name = context.state.memoizer.generate_id(&element.name);
             let id = b::id(&id_name);
+            let name_start = element.start.saturating_add(1);
+            let name_end = name_start.saturating_add(element.name.len() as u32);
 
             // Visit the element with the id as the node
             let saved_node = std::mem::replace(&mut context.state.node, id.clone());
@@ -282,18 +284,22 @@ pub fn fragment(
                     &context.arena,
                     &id_name,
                     Some(b::call(&context.arena, template_id_expr, vec![])),
-                    Some(element.start),
+                    Some(name_start),
                 ),
             );
 
             // Append to anchor
+            let append = b::call(
+                &context.arena,
+                b::member_path(&context.arena, "$.append"),
+                vec![
+                    b::id("$$anchor"),
+                    JsExpr::Spanned(context.arena.alloc_expr(id), name_start, name_end),
+                ],
+            );
             close = Some(b::stmt(
                 &context.arena,
-                b::call(
-                    &context.arena,
-                    b::member_path(&context.arena, "$.append"),
-                    vec![b::id("$$anchor"), id],
-                ),
+                JsExpr::Spanned(context.arena.alloc_expr(append), element.start, element.end),
             ));
         }
     } else if is_single_child_not_needing_template {
@@ -844,6 +850,9 @@ pub(crate) fn collect_ids_from_expr(
     names: &mut Vec<compact_str::CompactString>,
 ) {
     match expr {
+        JsExpr::Spanned(inner, _, _) => {
+            collect_ids_from_expr(arena.get_expr(*inner), arena, names);
+        }
         JsExpr::Identifier(name) if !names.contains(name) => {
             names.push(name.clone());
         }
@@ -861,7 +870,8 @@ pub(crate) fn collect_ids_from_expr(
                         collect_ids_from_expr(arena.get_expr(*prop), arena, names);
                     }
                 }
-                JsMemberProperty::Identifier(id) => {
+                JsMemberProperty::Identifier(id)
+                | JsMemberProperty::SpannedIdentifier { name: id, .. } => {
                     // Only collect non-computed property names for $$props access
                     // (e.g., $$props.name -> "name") since those are actual variable references.
                     // Don't collect general property accesses like `obj.length` as they
@@ -1007,6 +1017,9 @@ pub(crate) fn collect_ids_from_expr_props(
     names: &mut Vec<compact_str::CompactString>,
 ) {
     match expr {
+        JsExpr::Spanned(inner, _, _) => {
+            collect_ids_from_expr_props(arena.get_expr(*inner), arena, names);
+        }
         JsExpr::Identifier(name) if !names.contains(name) => {
             names.push(name.clone());
         }
@@ -1024,7 +1037,8 @@ pub(crate) fn collect_ids_from_expr_props(
                         collect_ids_from_expr_props(arena.get_expr(*prop), arena, names);
                     }
                 }
-                JsMemberProperty::Identifier(id) => {
+                JsMemberProperty::Identifier(id)
+                | JsMemberProperty::SpannedIdentifier { name: id, .. } => {
                     if !names.contains(id) {
                         names.push(id.clone());
                     }
@@ -1194,6 +1208,9 @@ fn collect_ids_from_expr_deep(
     names: &mut Vec<compact_str::CompactString>,
 ) {
     match expr {
+        JsExpr::Spanned(inner, _, _) => {
+            collect_ids_from_expr_deep(arena.get_expr(*inner), arena, names);
+        }
         JsExpr::Identifier(name) if !names.contains(name) => {
             names.push(name.clone());
         }
@@ -1211,7 +1228,8 @@ fn collect_ids_from_expr_deep(
                         collect_ids_from_expr_deep(arena.get_expr(*prop), arena, names);
                     }
                 }
-                JsMemberProperty::Identifier(id) => {
+                JsMemberProperty::Identifier(id)
+                | JsMemberProperty::SpannedIdentifier { name: id, .. } => {
                     if !names.contains(id) {
                         names.push(id.clone());
                     }

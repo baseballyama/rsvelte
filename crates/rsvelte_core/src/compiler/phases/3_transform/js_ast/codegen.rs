@@ -398,6 +398,7 @@ impl<'a> JsCodegen<'a> {
             JsStatement::RawMapped {
                 code,
                 source_offset,
+                ..
             } => {
                 // Output raw JavaScript code with per-line source mappings.
                 // Each line of the raw code maps to the corresponding position
@@ -408,6 +409,7 @@ impl<'a> JsCodegen<'a> {
             JsStatement::RawMappedEffect {
                 code,
                 source_offset,
+                ..
             } => {
                 self.emit_raw_mapped(code, *source_offset);
                 self.needs_semicolon = false;
@@ -959,6 +961,7 @@ impl<'a> JsCodegen<'a> {
             JsExpr::Spanned(inner_id, start, end) => {
                 self.record_span_start(*start, *end);
                 self.emit_expression(self.arena.get_expr(*inner_id));
+                self.record_span_start(*end, *end);
             }
         }
     }
@@ -1468,7 +1471,8 @@ impl<'a> JsCodegen<'a> {
                 JsMemberProperty::Expression(expr_id) => {
                     self.emit_expression(self.arena.get_expr(*expr_id))
                 }
-                JsMemberProperty::Identifier(name) => {
+                JsMemberProperty::Identifier(name)
+                | JsMemberProperty::SpannedIdentifier { name, .. } => {
                     self.output.push('\'');
                     self.output.push_str(name);
                     self.output.push('\'');
@@ -1484,7 +1488,8 @@ impl<'a> JsCodegen<'a> {
                 self.output.push('.');
             }
             match &member.property {
-                JsMemberProperty::Identifier(name) => self.output.push_str(name),
+                JsMemberProperty::Identifier(name)
+                | JsMemberProperty::SpannedIdentifier { name, .. } => self.output.push_str(name),
                 JsMemberProperty::PrivateIdentifier(name) => {
                     self.output.push('#');
                     self.output.push_str(name);
@@ -1826,6 +1831,11 @@ impl<'a> JsCodegen<'a> {
     fn emit_pattern(&mut self, pattern: &JsPattern) {
         match pattern {
             JsPattern::Identifier(name) => self.output.push_str(name),
+            JsPattern::SpannedIdentifier { name, start, end } => {
+                self.record_span_start(*start, *end);
+                self.output.push_str(name);
+                self.record_span_start(*end, *end);
+            }
             JsPattern::Array(arr) => {
                 self.output.push('[');
                 for (i, elem) in arr.elements.iter().enumerate() {
@@ -2658,7 +2668,13 @@ pub fn offset_to_line_col_utf16(
 ) -> (usize, usize) {
     let (line, _) = offset_to_line_col(line_starts, offset);
     let line_start = line_starts[line];
-    (line, source[line_start..offset].encode_utf16().count())
+    let column = &source[line_start..offset];
+    let column = if column.is_ascii() {
+        column.len()
+    } else {
+        column.encode_utf16().count()
+    };
+    (line, column)
 }
 
 /// Encode a list of source mappings into a VLQ-encoded mappings string.
@@ -3425,6 +3441,7 @@ mod tests {
                                 number(2.0),
                             )),
                         })),
+                        comment_anchor: None,
                     },
                 )]),
                 is_async: false,

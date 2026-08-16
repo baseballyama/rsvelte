@@ -247,7 +247,12 @@ fn print_split_impl<const HAS_COMMENTS: bool>(
     let capacity = ctx.measure();
     let (buffer, returned) = ctx.into_parts();
     let output = if map_source.is_some() {
-        let (code, mappings) = command::flatten_with_map(&buffer, &options.indent, capacity);
+        let (code, mappings) = command::flatten_with_map(
+            &buffer,
+            &options.indent,
+            capacity,
+            printer.source_map_line_starts(),
+        );
         PrintWithMap { code, mappings }
     } else {
         PrintWithMap {
@@ -298,7 +303,12 @@ fn print_with_map_impl<const HAS_COMMENTS: bool>(
     printer.print_program(program, &mut ctx);
     let capacity = ctx.measure();
     let (buffer, returned) = ctx.into_parts();
-    let (code, mappings) = command::flatten_with_map(&buffer, &options.indent, capacity);
+    let (code, mappings) = command::flatten_with_map(
+        &buffer,
+        &options.indent,
+        capacity,
+        printer.source_map_line_starts(),
+    );
     pool::give(buffer, returned);
     PrintWithMap { code, mappings }
 }

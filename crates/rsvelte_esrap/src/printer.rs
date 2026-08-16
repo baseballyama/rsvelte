@@ -39,7 +39,7 @@ use oxc_ast::ast::{
     TSTypeQueryExprName, TemplateLiteral, TryStatement, UnaryExpression, VariableDeclaration,
     VariableDeclarationKind, WithClause,
 };
-use oxc_span::GetSpan;
+use oxc_span::{GetSpan, Span};
 use oxc_syntax::operator::UnaryOperator;
 
 use compact_str::{CompactString, format_compact};
@@ -67,6 +67,7 @@ pub struct Unsupported(pub &'static str);
 /// written unmapped.
 struct KeywordCursor {
     cursor: Option<(u32, u32)>,
+    line_end: Option<u32>,
 }
 
 impl KeywordCursor {
@@ -76,9 +77,11 @@ impl KeywordCursor {
         if let Some((line, col)) = self.cursor {
             ctx.location(line, col);
             ctx.write(fragment);
-            let next_col = col + usize_to_u32(fragment.len());
-            ctx.location(line, next_col);
-            self.cursor = Some((line, next_col));
+            let end = col.saturating_add(usize_to_u32(fragment.len()));
+            if end <= self.line_end.unwrap_or(u32::MAX) {
+                ctx.location(line, end);
+            }
+            self.cursor = Some((line, col + usize_to_u32(fragment.len())));
         } else {
             ctx.write(fragment);
         }
@@ -114,6 +117,9 @@ pub struct Printer<'opt, const HAS_COMMENTS: bool = true, const DIRECT: bool = f
     /// Sorted, disjoint `(start, end, mapped)` ranges translating a comment-space
     /// offset back to a source-map-space offset. `None` mapped = unmapped.
     loc_map: Vec<(u32, u32, Option<u32>)>,
+    /// Decorator expressions have no esrap mapping visitor, so their nested
+    /// tokens must stay unmapped too.
+    map_nodes: bool,
 }
 
 /// esrap's `write_comment`: re-emit a comment, splitting a multi-line block
@@ -642,6 +648,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             map_line_starts: None,
             loc_base: None,
             loc_map: Vec::new(),
+            map_nodes: true,
         }
     }
 
@@ -664,6 +671,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             comment_source: None,
             loc_base: None,
             loc_map: Vec::new(),
+            map_nodes: true,
         }
     }
 
@@ -701,6 +709,10 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         self
     }
 
+    pub(crate) fn source_map_line_starts(&self) -> &[u32] {
+        self.map_line_starts.as_deref().unwrap_or(&self.line_starts)
+    }
+
     /// 1-based line of a byte offset (number of line starts at/before it).
     fn line_of(&self, offset: u32) -> u32 {
         usize_to_u32(self.line_starts.partition_point(|&s| s <= offset))
@@ -730,7 +742,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     /// esrap's `if (node.loc)`: whether a span offset is a real source position
     /// (and so may carry comments) rather than a synthesized node's placeholder.
     fn has_loc(&self, offset: u32) -> bool {
-        offset != crate::UNLOCATED_SPAN.start && self.loc_base.is_none_or(|base| offset >= base)
+        offset != u32::MAX && self.loc_base.is_none_or(|base| offset >= base)
     }
 
     /// Convert a byte offset to `(line_1based, column_0based)` using
@@ -793,13 +805,72 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             return;
         }
         if let Some((line, column)) = self.offset_to_line_col(start) {
-            Self::write_source_keyword(ctx, line, column, keyword);
+            ctx.location(line, column);
+            ctx.write(keyword);
+            let line_starts = self.map_line_starts.as_deref().unwrap_or(&self.line_starts);
+            let line_end = line_starts
+                .get(line as usize)
+                .copied()
+                .unwrap_or(u32::MAX)
+                .saturating_sub(1);
+            let line_start = line_starts[(line - 1) as usize];
+            let end = column.saturating_add(usize_to_u32(keyword.len()));
+            if end <= line_end.saturating_sub(line_start) {
+                ctx.location(line, end);
+            }
             if !suffix.is_empty() {
                 ctx.write(suffix);
             }
         } else {
             ctx.write(format_compact!("{keyword}{suffix}"));
         }
+    }
+
+    /// Write one source-backed token bracketed by anchors for its AST span.
+    /// Synthesized nodes deliberately stay unmapped, matching esrap's `node.loc`
+    /// guard.
+    fn write_node(&self, ctx: &mut Context<DIRECT>, span: Span, content: impl AsRef<str>) {
+        let content = content.as_ref();
+        if !self.emit_locations || !self.map_nodes || span.is_empty() || !self.has_loc(span.start) {
+            ctx.write(content);
+            return;
+        }
+
+        if self.loc_map.is_empty() && !self.line_starts.is_empty() {
+            ctx.location_offset(span.start);
+            ctx.write(content);
+            ctx.location_offset(span.end);
+            return;
+        }
+
+        if let Some((line, column)) = self.offset_to_line_col(span.start) {
+            ctx.location(line, column);
+        }
+        ctx.write(content);
+        if let Some((line, column)) = self.offset_to_line_col(span.end) {
+            ctx.location(line, column);
+        }
+    }
+
+    /// A block brace maps to its own source offset; a synthesized block carries
+    /// no braces in the source, so `body_start == body_end` stays unmapped.
+    fn write_block_brace(
+        &self,
+        ctx: &mut Context<DIRECT>,
+        body_start: u32,
+        body_end: u32,
+        open: bool,
+    ) {
+        if body_start >= body_end {
+            ctx.write_ascii(if open { b'{' } else { b'}' });
+            return;
+        }
+        let span = if open {
+            Span::new(body_start, body_start + 1)
+        } else {
+            Span::new(body_end - 1, body_end)
+        };
+        self.write_node(ctx, span, if open { "{" } else { "}" });
     }
 
     /// esrap's `create_keyword_write`: returns a closure-like cursor for writing
@@ -814,7 +885,16 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         } else {
             None
         };
-        KeywordCursor { cursor }
+        let line_end = cursor.map(|(line, _)| {
+            let line_starts = self.map_line_starts.as_deref().unwrap_or(&self.line_starts);
+            line_starts
+                .get(line as usize)
+                .copied()
+                .unwrap_or(u32::MAX)
+                .saturating_sub(1)
+                .saturating_sub(line_starts[(line - 1) as usize])
+        });
+        KeywordCursor { cursor, line_end }
     }
 
     /// esrap's `function_async_function_offset_ok`: the `async function` source
@@ -2181,7 +2261,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             }
         }
         if let Some(id) = &node.id {
-            ctx.write(id.name.as_str());
+            self.write_node(ctx, id.span, id.name.as_str());
         }
         if let Some(tp) = &node.type_parameters {
             self.type_parameter_declaration(tp, ctx);
@@ -2280,7 +2360,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
 
     fn decorator(&mut self, node: &Decorator, ctx: &mut Context<DIRECT>) {
         ctx.write_ascii(b'@');
+        let map_nodes = std::mem::replace(&mut self.map_nodes, false);
         self.print_expression(&node.expression, ctx);
+        self.map_nodes = map_nodes;
         ctx.newline();
     }
 
@@ -2969,17 +3051,18 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                     || !matches!(statement, Statement::EmptyStatement(empty) if empty.span.end != u32::MAX)
             });
             if !has_content {
-                ctx.write_ascii_bytes(b"{}");
+                self.write_block_brace(ctx, body_start, body_end, true);
+                self.write_block_brace(ctx, body_start, body_end, false);
                 return;
             }
 
-            ctx.write_ascii(b'{');
+            self.write_block_brace(ctx, body_start, body_end, true);
             ctx.indent();
             ctx.newline();
             self.body(body, body_start, body_end, ctx);
             ctx.dedent();
             ctx.newline();
-            ctx.write_ascii(b'}');
+            self.write_block_brace(ctx, body_start, body_end, false);
             return;
         }
 
@@ -2994,18 +3077,18 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 .comment_at(first_comment)
                 .is_some_and(|comment| comment.start < body_end);
             if has_statement || has_comment {
-                ctx.write_ascii(b'{');
+                self.write_block_brace(ctx, body_start, body_end, true);
                 ctx.indent();
                 ctx.newline();
                 self.block_comment_island(body, body_start, body_end, ctx);
                 ctx.dedent();
                 ctx.newline();
-                ctx.write_ascii(b'}');
+                self.write_block_brace(ctx, body_start, body_end, false);
                 return;
             }
         }
 
-        ctx.write_ascii(b'{');
+        self.write_block_brace(ctx, body_start, body_end, true);
         let mark = ctx.event_mark();
         let scope = ctx.begin_scope();
         self.body(body, body_start, body_end, ctx);
@@ -3018,7 +3101,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             ctx.dedent();
             ctx.newline();
         }
-        ctx.write_ascii(b'}');
+        self.write_block_brace(ctx, body_start, body_end, false);
     }
 
     /// esrap's `handle_var_declaration` (not the generic `sequence`): break the
@@ -3117,7 +3200,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
 
     fn binding_pattern(&mut self, pattern: &BindingPattern, ctx: &mut Context<DIRECT>) {
         match pattern {
-            BindingPattern::BindingIdentifier(id) => ctx.write(id.name.as_str()),
+            BindingPattern::BindingIdentifier(id) => {
+                self.write_node(ctx, id.span, id.name.as_str());
+            }
             BindingPattern::AssignmentPattern(a) => {
                 self.binding_pattern(&a.left, ctx);
                 ctx.write_ascii_bytes(b" = ");
@@ -3175,19 +3260,27 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 }
                 ChainElement::TSNonNullExpression(_) => self.unsupported("ChainElement", ctx),
             },
-            Expression::Identifier(id) => ctx.write(id.name.as_str()),
+            Expression::Identifier(id) => self.write_node(ctx, id.span, id.name.as_str()),
             Expression::ThisExpression(_) => ctx.write_ascii_bytes(b"this"),
-            Expression::BooleanLiteral(b) => ctx.write(if b.value { "true" } else { "false" }),
-            Expression::NullLiteral(_) => ctx.write_ascii_bytes(b"null"),
-            Expression::NumericLiteral(n) => ctx.write(literal_raw(
-                n.raw.as_ref().map(oxc_ast::ast::Str::as_str),
-                || format_compact!("{}", n.value),
-            )),
-            Expression::BigIntLiteral(n) => ctx.write(literal_raw(
-                n.raw.as_ref().map(oxc_ast::ast::Str::as_str),
-                || format_compact!("{}n", n.value),
-            )),
-            Expression::StringLiteral(s) => ctx.write(Self::string_literal(s)),
+            Expression::BooleanLiteral(b) => {
+                self.write_node(ctx, b.span, if b.value { "true" } else { "false" });
+            }
+            Expression::NullLiteral(n) => self.write_node(ctx, n.span, "null"),
+            Expression::NumericLiteral(n) => self.write_node(
+                ctx,
+                n.span,
+                literal_raw(n.raw.as_ref().map(oxc_ast::ast::Str::as_str), || {
+                    format_compact!("{}", n.value)
+                }),
+            ),
+            Expression::BigIntLiteral(n) => self.write_node(
+                ctx,
+                n.span,
+                literal_raw(n.raw.as_ref().map(oxc_ast::ast::Str::as_str), || {
+                    format_compact!("{}n", n.value)
+                }),
+            ),
+            Expression::StringLiteral(s) => self.write_node(ctx, s.span, Self::string_literal(s)),
             Expression::TemplateLiteral(t) => self.template_literal(t, ctx),
             Expression::BinaryExpression(b) => self.binary_expression(b, ctx),
             Expression::LogicalExpression(l) => self.logical_expression(l, ctx),
@@ -3548,6 +3641,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     }
 
     fn call_expression(&mut self, node: &CallExpression, ctx: &mut Context<DIRECT>) {
+        // Builder-created calls carry `SPAN` (zero); a nonzero span is an
+        // explicit source-backed call such as a lowered directive runtime call.
+        if node.span.start != 0
+            && let Some((line, column)) = self.offset_to_line_col(node.span.start)
+        {
+            ctx.location(line, column);
+        }
         // esrap's `CallExpression|NewExpression` wrap rule: parenthesize the
         // callee when it is a ChainExpression — otherwise a NON-optional call on
         // an optional-chain callee (`(a?.b)(c)`) would be mis-printed as the
@@ -3565,12 +3665,17 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             ctx.write_ascii_bytes(b"?.");
         }
         self.call_arguments(&node.arguments, node.span().end, ctx);
+        if node.span.start != 0
+            && let Some((line, column)) = self.offset_to_line_col(node.span.end)
+        {
+            ctx.location(line, column);
+        }
     }
 
     fn static_member(&mut self, node: &StaticMemberExpression, ctx: &mut Context<DIRECT>) {
         self.member_object_with_parens(&node.object, ctx);
         ctx.write(if node.optional { "?." } else { "." });
-        ctx.write(node.property.name.as_str());
+        self.write_node(ctx, node.property.span, node.property.name.as_str());
     }
 
     fn computed_member(&mut self, node: &ComputedMemberExpression, ctx: &mut Context<DIRECT>) {

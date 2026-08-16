@@ -104,7 +104,7 @@ fn classify_expr(expr: &JsExpr) -> JsExprKind {
 /// outer variable transforms.
 fn extract_pattern_names(pattern: &JsPattern, names: &mut FxHashSet<String>) {
     match pattern {
-        JsPattern::Identifier(name) => {
+        JsPattern::Identifier(name) | JsPattern::SpannedIdentifier { name, .. } => {
             names.insert(name.to_string());
         }
         JsPattern::Array(array) => {
@@ -175,7 +175,7 @@ fn collect_pattern_evaluations(
                 }
             }
         }
-        JsPattern::Identifier(_) => {}
+        JsPattern::Identifier(_) | JsPattern::SpannedIdentifier { .. } => {}
     }
 }
 
@@ -757,7 +757,11 @@ pub fn apply_transforms_to_expression_with_shadowed(
         JsExpr::Assignment(assign) => {
             // For assignments, check if the left side is a state variable that needs transform
             // Skip if the identifier is in local scope (function parameter or local declaration)
-            if let JsExpr::Identifier(name) = context.arena.get_expr(assign.left)
+            let mut assignment_target = context.arena.get_expr(assign.left);
+            while let JsExpr::Spanned(inner, _, _) = assignment_target {
+                assignment_target = context.arena.get_expr(*inner);
+            }
+            if let JsExpr::Identifier(name) = assignment_target
                 && !local_scope.contains(name)
                 && let Some(transform) = context.state.transform.get(name.as_str())
                 && let Some(assign_fn) = transform.assign
@@ -931,7 +935,8 @@ pub fn apply_transforms_to_expression_with_shadowed(
             //     const left = b.member(collection, index, true);
             //     return b.sequence([b.assignment('=', left, value), ...sequence]);
             //   }
-            if let JsExpr::Identifier(name) = context.arena.get_expr(assign.left)
+            if let JsExpr::Identifier(name) =
+                unspanned_expr(context.arena.get_expr(assign.left), &context.arena)
                 && !local_scope.contains(name)
                 && context.state.each_item_names.contains(name)
             {
@@ -1018,7 +1023,9 @@ pub fn apply_transforms_to_expression_with_shadowed(
             // Check for mutation case: when assigning to a member expression where
             // the base object has a mutate transform (e.g., $store.prop = value)
             // This corresponds to the mutation case in AssignmentExpression.js
-            if let JsExpr::Member(_) = context.arena.get_expr(assign.left) {
+            if let JsExpr::Member(_) =
+                unspanned_expr(context.arena.get_expr(assign.left), &context.arena)
+            {
                 // Find the base object of the member expression
                 let base_object =
                     get_base_object(context.arena.get_expr(assign.left), &context.arena);
@@ -1281,7 +1288,8 @@ pub fn apply_transforms_to_expression_with_shadowed(
         JsExpr::Update(update) => {
             // For update expressions, check if the argument has an update transform
             // Skip if the identifier is in local scope
-            if let JsExpr::Identifier(name) = context.arena.get_expr(update.argument)
+            if let JsExpr::Identifier(name) =
+                unspanned_expr(context.arena.get_expr(update.argument), &context.arena)
                 && !local_scope.contains(name)
                 && let Some(transform) = context.state.transform.get(name.as_str())
                 && let Some(update_fn) = transform.update
@@ -1302,7 +1310,8 @@ pub fn apply_transforms_to_expression_with_shadowed(
             //     uses_index = true;
             //     return b.sequence([mutation, ...sequence]);
             //   }
-            if let JsExpr::Identifier(name) = context.arena.get_expr(update.argument)
+            if let JsExpr::Identifier(name) =
+                unspanned_expr(context.arena.get_expr(update.argument), &context.arena)
                 && !local_scope.contains(name)
                 && context.state.each_item_names.contains(name)
             {
@@ -1342,7 +1351,9 @@ pub fn apply_transforms_to_expression_with_shadowed(
             // - Store subscriptions: $store[0].value++ -> $.store_mutate(...)
             // - Legacy state: name.value++ -> $.mutate(name, $.get(name).value++)
             // - Runes state: name.value++ -> $.get(name).value++
-            if let JsExpr::Member(_) = context.arena.get_expr(update.argument) {
+            if let JsExpr::Member(_) =
+                unspanned_expr(context.arena.get_expr(update.argument), &context.arena)
+            {
                 let base_object =
                     get_base_object(context.arena.get_expr(update.argument), &context.arena);
 
@@ -1540,7 +1551,10 @@ fn classify_svelte_runtime_callee(
     if let JsExpr::Member(member) = callee
         && let JsExpr::Identifier(obj_name) = arena.get_expr(member.object)
         && obj_name == "$"
-        && let JsMemberProperty::Identifier(prop_name) = &member.property
+        && let JsMemberProperty::Identifier(prop_name)
+        | JsMemberProperty::SpannedIdentifier {
+            name: prop_name, ..
+        } = &member.property
     {
         return match prop_name.as_str() {
             "set" | "update" | "update_pre" | "get" | "safe_get" | "mutate" | "update_prop"
@@ -1619,10 +1633,21 @@ fn get_base_object(
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
 ) -> JsExpr {
     match expr {
+        JsExpr::Spanned(inner, _, _) => get_base_object(arena.get_expr(*inner), arena),
         JsExpr::Member(member) => get_base_object(arena.get_expr(member.object), arena),
         JsExpr::Call(call) => get_base_object(arena.get_expr(call.callee), arena),
         _ => expr.clone(),
     }
+}
+
+fn unspanned_expr<'a>(
+    mut expr: &'a JsExpr,
+    arena: &'a crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> &'a JsExpr {
+    while let JsExpr::Spanned(inner, _, _) = expr {
+        expr = arena.get_expr(*inner);
+    }
+    expr
 }
 
 /// Check if the chain from the expression to its base Identifier goes through
@@ -1796,6 +1821,7 @@ fn apply_transforms_to_statement_with_shadowed(
             expression: context
                 .arena
                 .alloc_expr(transform_expr(context.arena.get_expr(expr_stmt.expression))),
+            comment_anchor: expr_stmt.comment_anchor,
         }),
 
         JsStatement::Return(ret_stmt) => JsStatement::Return(JsReturnStatement {
@@ -2362,6 +2388,22 @@ fn collect_reactive_references_from_metadata(
                 || binding.declaration_kind == DeclarationKind::Import
         };
 
+        let declaration_start = binding.declaration_start.or_else(|| {
+            binding
+                .references
+                .iter()
+                .find(|reference| reference.is_self_declaration)
+                .map(|reference| reference.start)
+        });
+        let getter = match declaration_start {
+            Some(start) => JsExpr::Spanned(
+                context.arena.alloc_expr(getter),
+                start,
+                start.saturating_add(name.len() as u32),
+            ),
+            None => getter,
+        };
+
         let final_getter = if needs_deep_read {
             b::svelte_call(&context.arena, "deep_read_state", vec![getter])
         } else {
@@ -2595,6 +2637,24 @@ fn collect_reactive_references_inner(
                         && !has_read_transform)
             } else {
                 false
+            };
+
+            let declaration_start = binding_info.and_then(|binding| {
+                binding.declaration_start.or_else(|| {
+                    binding
+                        .references
+                        .iter()
+                        .find(|reference| reference.is_self_declaration)
+                        .map(|reference| reference.start)
+                })
+            });
+            let getter = match declaration_start {
+                Some(start) => JsExpr::Spanned(
+                    context.arena.alloc_expr(getter),
+                    start,
+                    start.saturating_add(name.len() as u32),
+                ),
+                None => getter,
             };
 
             let final_getter = if needs_deep_read {
@@ -3329,6 +3389,20 @@ pub fn build_template_chunk(
                         expr_has_state,
                     );
 
+                    {
+                        let map = context.state.blocker_map.borrow();
+                        for name in
+                            collect_expression_identifiers_for_blockers(&expr_tag.expression)
+                        {
+                            if let Some(&idx) = map.get(&name) {
+                                if !blocker_indices.contains(&idx) {
+                                    blocker_indices.push(idx);
+                                }
+                                has_state = true;
+                            }
+                        }
+                    }
+
                     // Track if any expression has state, call, or await (need reactive update).
                     // In the official Svelte compiler, has_call is only set for non-pure calls
                     // (calls to local functions, not globals like console.log), and when set,
@@ -3365,7 +3439,11 @@ pub fn build_template_chunk(
                     // index `i`), we check the original expression which has binding context
                     // (knows EachIndex is always a number). For everything else, we check
                     // the built JsExpr.
-                    let is_defined = if let JsExpr::Identifier(name) = &value {
+                    let mut value_for_definedness = &value;
+                    while let JsExpr::Spanned(inner, _, _) = value_for_definedness {
+                        value_for_definedness = context.arena.get_expr(*inner);
+                    }
+                    let is_defined = if let JsExpr::Identifier(name) = value_for_definedness {
                         // Check if this is a memoized parameter ($0, $1, etc.)
                         // Memoized parameters are unknown identifiers, so they're not defined.
                         // The official compiler evaluates the memoized expression through
@@ -3379,7 +3457,7 @@ pub fn build_template_chunk(
                         }
                     } else {
                         // Value was transformed. Check the built expression.
-                        is_js_expr_defined(&value, &context.arena, context)
+                        is_js_expr_defined(value_for_definedness, &context.arena, context)
                     };
 
                     // Add ?? '' where necessary (only if not guaranteed to be defined)
@@ -4319,18 +4397,25 @@ fn get_literal_value_complex(
 /// Build the dotted keypath of a static `JsExpr` callee (`Math.round` →
 /// `"Math.round"`). Returns `None` for computed members, calls, or anything
 /// that isn't a plain identifier / identifier-member chain.
-fn js_expr_keypath(
+pub(crate) fn js_expr_keypath(
     expr: &JsExpr,
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
 ) -> Option<String> {
     match expr {
+        JsExpr::Spanned(inner, _, _) => js_expr_keypath(arena.get_expr(*inner), arena),
         JsExpr::Identifier(name) => Some(name.to_string()),
         JsExpr::Member(m) if !m.computed => {
-            if let crate::compiler::phases::phase3_transform::js_ast::nodes::JsMemberProperty::Identifier(prop) = &m.property {
+            let prop = match &m.property {
+                crate::compiler::phases::phase3_transform::js_ast::nodes::JsMemberProperty::Identifier(prop)
+                | crate::compiler::phases::phase3_transform::js_ast::nodes::JsMemberProperty::SpannedIdentifier {
+                    name: prop,
+                    ..
+                } => prop,
+                _ => return None,
+            };
+            {
                 let base = js_expr_keypath(arena.get_expr(m.object), arena)?;
                 Some(format!("{base}.{prop}"))
-            } else {
-                None
             }
         }
         _ => None,
@@ -4341,7 +4426,7 @@ fn js_expr_keypath(
 /// types as NUMBER or STRING (always defined): every `Math.*`, `Number` /
 /// `Number.*`, `String` / `String.from*`, and `BigInt`. Mirrors the `globals`
 /// table in `2-analyze/scope.js`.
-fn is_known_defined_global_call(keypath: &str) -> bool {
+pub(crate) fn is_known_defined_global_call(keypath: &str) -> bool {
     keypath.starts_with("Math.")
         || keypath == "Number"
         || keypath.starts_with("Number.")
@@ -4357,6 +4442,7 @@ pub(crate) fn is_js_expr_defined(
     context: &ComponentContext,
 ) -> bool {
     match expr {
+        JsExpr::Spanned(inner, _, _) => is_js_expr_defined(arena.get_expr(*inner), arena, context),
         JsExpr::Literal(lit) => match lit {
             JsLiteral::Null | JsLiteral::Undefined => false,
             _ => true, // String, Number, Boolean are always defined
@@ -6923,7 +7009,7 @@ mod tests {
         // Should generate $.template_effect(() => { ... })
         match effect {
             JsStatement::Expression(expr) => {
-                let JsExpressionStatement { expression } = expr;
+                let JsExpressionStatement { expression, .. } = expr;
                 match arena.get_expr(expression) {
                     JsExpr::Call(_) => {
                         // Success - generated a call expression
@@ -6950,7 +7036,7 @@ mod tests {
         // Should generate $.template_effect_with_values(() => { ... }, [count])
         match effect {
             JsStatement::Expression(expr) => {
-                let JsExpressionStatement { expression } = expr;
+                let JsExpressionStatement { expression, .. } = expr;
                 match arena.get_expr(expression) {
                     JsExpr::Call(_) => {
                         // Success - generated a call expression

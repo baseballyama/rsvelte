@@ -1,6 +1,151 @@
 use super::*;
 
 #[test]
+fn retained_instance_statements_match_a_normalized_script_after_import_hoisting() {
+    let source =
+        "\n\timport { onMount } from 'svelte';\n\n\tonMount(() => {\n\t\tconsole.log(42);\n\t});\n";
+    let retained = crate::ast::oxc_program::RetainedProgram::parse(source, false);
+    let normalized = normalize_js_with_oxc("onMount(() => {\n\t\tconsole.log(42);\n\t});", 1);
+
+    assert_eq!(
+        retained_instance_statement_indices(&retained, source, &normalized),
+        Some(vec![1])
+    );
+}
+
+#[test]
+fn retained_instance_script_preserves_identifier_and_literal_source_map_spans() {
+    let source =
+        "<script>\nimport dependency from 'dependency';\nconst answer = 42;\n</script>\n<p>ok</p>";
+    let result = crate::compiler::compile(
+        source,
+        crate::compiler::CompileOptions {
+            filename: Some("retained-source-map.svelte".to_string()),
+            enable_sourcemap: true,
+            ..Default::default()
+        },
+    )
+    .expect("compiles");
+    let map: serde_json::Value =
+        serde_json::from_str(result.js.map.as_deref().expect("map")).expect("valid source map");
+    let mappings = crate::compiler::phases::phase3_transform::js_ast::codegen::decode_vlq_mappings(
+        map["mappings"].as_str().expect("VLQ mappings"),
+    );
+
+    assert!(
+        result
+            .js
+            .code
+            .contains("import dependency from 'dependency';"),
+        "hoisted import must retain its normal output: {}",
+        result.js.code
+    );
+    let generated_line = result
+        .js
+        .code
+        .lines()
+        .position(|line| line.contains("const answer = 42;"))
+        .expect("retained script is printed") as i64;
+    let generated = result.js.code.lines().nth(generated_line as usize).unwrap();
+    let answer_column = generated.find("answer").unwrap() as i64;
+    let literal_column = generated.find("42").unwrap() as i64;
+
+    let line = &mappings[generated_line as usize];
+    assert!(
+        line.iter()
+            .any(|segment| segment.as_slice() == [answer_column, 0, 2, 6]),
+        "answer must retain its original token span; generated={generated:?}, segments={line:?}"
+    );
+    assert!(
+        line.iter()
+            .any(|segment| segment.as_slice() == [literal_column, 0, 2, 15]),
+        "literal must retain its original token span; generated={generated:?}, segments={line:?}"
+    );
+}
+
+#[test]
+fn own_line_comments_in_template_arrow_bodies_stay_with_the_following_statement() {
+    let source = r#"<Story play={async () => {
+	// first
+	await first();
+
+	// second
+	await second();
+}} />"#;
+    let result = crate::compiler::compile(source, Default::default()).expect("compiles");
+
+    assert!(
+        result.js.code.contains("// first\n\t\t\tawait first();"),
+        "{}",
+        result.js.code
+    );
+    assert!(
+        result.js.code.contains("// second\n\t\t\tawait second();"),
+        "{}",
+        result.js.code
+    );
+
+    let allocator = oxc_allocator::Allocator::default();
+    let parsed =
+        oxc_parser::Parser::new(&allocator, &result.js.code, oxc_span::SourceType::mjs()).parse();
+    assert!(parsed.diagnostics.is_empty(), "{}", result.js.code);
+}
+
+#[test]
+fn story_play_comments_do_not_make_client_output_unparseable() {
+    let source = r#"<script module>
+	const { Story } = defineMeta({});
+</script>
+
+<Story play={async ({ args, canvas, userEvent }) => {
+	// Simulate a user filling out the form
+	await userEvent.type(canvas.getByTestId('email'), 'email@provider.com');
+	await userEvent.type(canvas.getByTestId('password'), 'a-random-password');
+	await userEvent.click(canvas.getByRole('button'));
+
+	// Run assertions
+	await expect(args.onSubmit).toHaveBeenCalledTimes(1);
+	await expect(canvas.getByText('You’re in!')).toBeInTheDocument();
+}} />"#;
+    let result = crate::compiler::compile(source, Default::default()).expect("compiles");
+
+    assert!(
+        result
+            .js
+            .code
+            .contains("// Run assertions\n\t\t\tawait expect(args.onSubmit)"),
+        "{}",
+        result.js.code
+    );
+
+    let allocator = oxc_allocator::Allocator::default();
+    let parsed =
+        oxc_parser::Parser::new(&allocator, &result.js.code, oxc_span::SourceType::mjs()).parse();
+    assert!(parsed.diagnostics.is_empty(), "{}", result.js.code);
+}
+
+#[test]
+fn comments_in_removed_props_declarations_are_retained() {
+    let source = r#"<script lang="ts">
+	let {
+		children,
+		handle, // query
+		close,
+	} = $props();
+
+	let left = $state(0);
+	$effect(() => {});
+</script>
+<section>{@render children()}</section>"#;
+    let result = crate::compiler::compile(source, Default::default()).expect("compiles");
+    assert!(
+        result.js.code.contains("// query\n\tlet left ="),
+        "{}",
+        result.js.code
+    );
+}
+
+#[test]
 fn snapshot_ignore_survives_an_intervening_comment() {
     assert!(has_snapshot_ignore_before(
         "// svelte-ignore state_snapshot_uncloneable\n/* inserted } comment */"
@@ -183,6 +328,27 @@ fn reactive_each_collection_still_invalidates_inner_signals() {
     .unwrap();
 
     assert!(result.js.code.contains("$.invalidate_inner_signals"));
+}
+
+#[test]
+fn event_handler_identifier_stays_unwrapped_with_source_span() {
+    let result = crate::compiler::compile(
+        "<script>function run() {} let value = 0; switch (value) { case 1: break; }</script><button onclick={run}>run</button>",
+        crate::compiler::CompileOptions {
+            filename: Some("event-handler-identifier.svelte".to_string()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert!(
+        result
+            .js
+            .code
+            .contains("$.delegated('click', button, run);"),
+        "{}",
+        result.js.code
+    );
 }
 
 #[test]
@@ -2388,4 +2554,28 @@ fn reactive_statement_order_ignores_whitespace_around_the_assignment() {
         "spaced ran out of order: {spaced:?}"
     );
     assert_eq!(unspaced, spaced);
+}
+
+#[test]
+fn scoped_static_class_keeps_its_hash_when_the_expression_is_spanned() {
+    let result = crate::compiler::compile(
+        "<section class={\"draggable\"}></section><style>.draggable { color: red; }</style>",
+        crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            filename: Some("spanned-static-class.svelte".to_string()),
+            ..Default::default()
+        },
+    )
+    .expect("compiles");
+
+    assert!(
+        result.js.code.contains("draggable svelte-"),
+        "the scoped class must be folded into the static value: {}",
+        result.js.code
+    );
+    assert!(
+        !result.js.code.contains("'draggable', 'svelte-"),
+        "the CSS hash must not become a separate dynamic argument: {}",
+        result.js.code
+    );
 }

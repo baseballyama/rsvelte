@@ -140,7 +140,15 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
 
     // Generate unique identifiers for index and item
     let index = generate_index_identifier(node, each_node_meta);
-    let item = generate_item_identifier(node);
+    let item = if let Some(context_expr) = &node.context
+        && let Some(name) = context_expr.identifier_name()
+        && let (Some(start), Some(end)) = (context_expr.start(), context_expr.end())
+        && start < end
+    {
+        JsExpr::Spanned(context.arena.alloc_expr(b::id(name)), start, end)
+    } else {
+        generate_item_identifier(node)
+    };
 
     // Track usage
     // In the JS implementation, uses_index is set to true dynamically when:
@@ -261,6 +269,10 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // Compute the item name
     let item_name = match &item {
         JsExpr::Identifier(name) => name.clone(),
+        JsExpr::Spanned(inner, _, _) => match context.arena.get_expr(*inner) {
+            JsExpr::Identifier(name) => name.clone(),
+            _ => "$$item".into(),
+        },
         _ => "$$item".into(),
     };
 
@@ -487,7 +499,10 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
 
     // Build the render function
     let render_fn = b::arrow_block(
-        render_args.iter().map(convert_expr_to_pattern).collect(),
+        render_args
+            .iter()
+            .map(|expr| convert_expr_to_pattern(expr, &context.arena))
+            .collect(),
         render_body,
     );
 
@@ -1914,7 +1929,7 @@ fn build_key_function(
             let pattern = convert_context_pattern(context, context_expr, &local_scope);
 
             let params = if key_uses_index {
-                vec![pattern, convert_expr_to_pattern(index)]
+                vec![pattern, convert_expr_to_pattern(index, &context.arena)]
             } else {
                 vec![pattern]
             };
@@ -2183,9 +2198,20 @@ fn convert_context_pattern(
 }
 
 /// Convert a JsExpr reference to a pattern.
-fn convert_expr_to_pattern(expr: &JsExpr) -> JsPattern {
+fn convert_expr_to_pattern(
+    expr: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::JsArena,
+) -> JsPattern {
     match expr {
         JsExpr::Identifier(name) => JsPattern::Identifier(name.clone()),
+        JsExpr::Spanned(inner, start, end) => match arena.get_expr(*inner) {
+            JsExpr::Identifier(name) => JsPattern::SpannedIdentifier {
+                name: name.clone(),
+                start: *start,
+                end: *end,
+            },
+            _ => JsPattern::Identifier("$$param".into()),
+        },
         _ => JsPattern::Identifier("$$param".into()),
     }
 }

@@ -2168,6 +2168,33 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         parts.join(", ")
     }
 
+    fn inspect_args_with_trailing_comment(&self, end: u32, args: String) -> (u32, String) {
+        let tail = &self.source[end as usize..];
+        let spaces = tail.len() - tail.trim_start_matches([' ', '\t']).len();
+        let tail = &tail[spaces..];
+        let Some(after_semicolon) = tail.strip_prefix(';') else {
+            return (end, args);
+        };
+        let spaces_after_semicolon =
+            after_semicolon.len() - after_semicolon.trim_start_matches([' ', '\t']).len();
+        let comment = &after_semicolon[spaces_after_semicolon..];
+        if let Some(line) = comment.strip_prefix("//") {
+            let len = line.find('\n').unwrap_or(line.len());
+            let comment_end = end as usize + spaces + 1 + spaces_after_semicolon + 2 + len;
+            return (comment_end as u32, format!("{args}, //{}\n", &line[..len]));
+        }
+        if let Some(block) = comment.strip_prefix("/*")
+            && let Some(close) = block.find("*/")
+        {
+            let comment_end = end as usize + spaces + 1 + spaces_after_semicolon + 2 + close + 2;
+            return (
+                comment_end as u32,
+                format!("{args} /*{}*/", &block[..close]),
+            );
+        }
+        (end, args)
+    }
+
     /// Apply any pending replacements that fall within [range_start, range_end)
     /// to the given source text, remove them from the replacements list, and
     /// return the transformed substring.
@@ -2756,11 +2783,18 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
                 } else {
                     cb_text
                 };
+                let (replacement_end, args_text) =
+                    self.inspect_args_with_trailing_comment(expr.span.end, args_text);
+                let suffix = if replacement_end == expr.span.end {
+                    ""
+                } else {
+                    ";"
+                };
                 self.add_replacement(
                     expr.span.start,
-                    expr.span.end,
+                    replacement_end,
                     format!(
-                        "$.inspect(() => [{args_text}], (...$$args) => {inspector}(...$$args))"
+                        "$.inspect(() => [{args_text}], (...$$args) => {inspector}(...$$args)){suffix}"
                     ),
                 );
                 return;
@@ -2772,11 +2806,18 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
                 && callee_ident.name == "$inspect"
             {
                 let args_text = self.walk_and_drain_args_as_text(expr);
+                let (replacement_end, args_text) =
+                    self.inspect_args_with_trailing_comment(expr.span.end, args_text);
+                let suffix = if replacement_end == expr.span.end {
+                    ""
+                } else {
+                    ";"
+                };
                 self.add_replacement(
                     expr.span.start,
-                    expr.span.end,
+                    replacement_end,
                     format!(
-                        "$.inspect(() => [{}], (...$$args) => console.log(...$$args), true)",
+                        "$.inspect(() => [{}], (...$$args) => console.log(...$$args), true){suffix}",
                         args_text
                     ),
                 );
@@ -5256,6 +5297,18 @@ mod tests {
         let config = empty_config();
         let result = transform_state_vars_ast("count + 1", &config);
         assert_eq!(result, None);
+    }
+
+    #[test]
+    fn inspect_moves_a_trailing_comment_into_its_observed_array() {
+        let mut config = empty_config();
+        config.dev = true;
+        let result =
+            transform_state_vars_ast("$inspect(a); // c\nconsole.log(2);", &config).unwrap();
+        assert_eq!(
+            result,
+            "$.inspect(() => [a, // c\n], (...$$args) => console.log(...$$args), true);\nconsole.log(2);"
+        );
     }
 
     #[test]
