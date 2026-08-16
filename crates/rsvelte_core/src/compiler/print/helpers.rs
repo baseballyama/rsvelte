@@ -84,7 +84,7 @@ pub fn is_void_element(name: &str) -> bool {
     )
 }
 
-/// Every ESTree `type` string [`EstreeGenerator::generate_node`] can print.
+/// Every ESTree `type` string the fallback JSON printer can represent.
 ///
 /// Kept next to the `match` it mirrors so that dropping an arm makes
 /// `estree_supported_node_types_all_print` fail instead of silently widening
@@ -181,7 +181,8 @@ pub fn estree_to_string(node: &serde_json::Value) -> String {
     generator.output
 }
 
-/// Fallible wrapper around [`estree_to_string`] for standalone callers.
+/// Print an ESTree JSON node, failing on any type outside
+/// [`SUPPORTED_ESTREE_NODE_TYPES`] instead of substituting a comment for it.
 pub fn try_estree_to_string(node: &serde_json::Value) -> Result<String, PrintError> {
     let (output, recorded) = with_unsupported_sink(|| estree_to_string(node));
     if recorded.is_empty() {
