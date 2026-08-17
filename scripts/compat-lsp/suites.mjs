@@ -259,7 +259,7 @@ function upstreamFeatureCases(root) {
             }
             return [request(spec.request, { textDocument: { uri } })];
           },
-          { method: spec.request, value: expected },
+          { method: spec.request, suite: spec.id, value: expected },
         ),
       );
     }
