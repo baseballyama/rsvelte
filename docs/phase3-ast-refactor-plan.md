@@ -599,7 +599,7 @@ cache/direct, object and map-entry counts, reader sets) lives behind the existin
 `measure-json` feature on branch `tools/measure-json-instrumentation`
 (`e4f47227`), deliberately unmerged.
 
-## Findings (2026-08-18 — the client map is 90% span-carried, and two of the eleven passes delete)
+## Findings (2026-08-18 — the client map is 86% span-carried, and two of the eleven passes delete)
 
 #2954 rebuilt the client source map by matching generated text back against the
 source, in eleven passes over `transform_component_with_scripts`. #3015 asks for the
@@ -614,9 +614,9 @@ understates it by a factor of ~1.7 — the issue's "239/818" is really 239/**488
 | configuration | `main` | with this change |
 | --- | ---: | ---: |
 | all enrichment passes | 815/818 | 815/818 |
-| every client pass disabled | 567/818 (**client 239/488**, 49.0%) | 767/818 (**client 439/488**, 90.0%) |
+| every client pass disabled | 567/818 (**client 239/488**, 49.0%) | 749/818 (**client 421/488**, 86.3%) |
 
-### Where the 200 recovered segments came from
+### Where the 182 recovered segments came from
 
 | change | client segments |
 | --- | ---: |
@@ -625,8 +625,22 @@ understates it by a factor of ~1.7 — the issue's "239/818" is really 239/**488
 | `Synth::reserve_anchor` — those braces under split coordinates | +8 |
 | esrap `map_position` — real source spans map under split coordinates | +10 |
 | the identifier's span travels *into* the read transform | +6 |
-| a member expression's object keeps its span | +18 |
 | longest-run resync in the chunk projection | +25 |
+
+**A span wrapper is not free where the consumer matches by variant, and the eighteenth
+segment cost 49 runtime fixtures.** Keeping `JsExpr::Spanned` on a member expression's
+*object* measured +18 and passed the whole source-map gate — and broke `component-binding-*`,
+`binding-input-group-each-*` and 45 more, because the client lowering walks a member chain
+with `while let JsExpr::Member(m) = root` and then asks `if let JsExpr::Identifier(name) =
+root`. A `Spanned` in object position answers neither, so `shared/component.rs`'s
+`member_root_info` came back `None` and a `bind:` setter silently fell through to a plain
+`bar.baz = $$value` instead of `bar(bar().baz = $$value, true)` — output that parses,
+computes a value, and loses the parent notification. The source-map gate cannot see this:
+its unit is a segment, not the generated statement. So `without_outer_source_span` stays on
+the member object, and the general rule is that **a new in-band wrapper variant is safe only
+where every downstream matcher on that position has been enumerated** — the wrapper on the
+identifier itself (`+6` above) is safe precisely because it is unwrapped at the single entry
+point that consumes it.
 
 **`has_loc` answers a comment question, and the printer was using it as a mapping
 question.** Under split coordinates `loc_base` is set *above* every real source offset, so
@@ -650,13 +664,13 @@ Segments lost when exactly one client pass is disabled, everything else on:
 
 | pass | `main` | this change |
 | --- | ---: | ---: |
-| `default_function_wrapper` | 84 | **0** |
-| `effect_callback` | 8 | **0** |
-| `token` | 80 | 17 |
+| `default_function_wrapper` | 84 | **0 — deleted** |
+| `effect_callback` | 8 | **0 — deleted** |
+| `token` | 80 | 23 |
 | `template_element_runtime` | 25 | 21 |
-| `legacy_prop_read` | 16 | 8 |
+| `legacy_prop_read` | 16 | 16 |
 | `inline_script` | 7 | 4 |
-| `bind_value` | 5 | 3 |
+| `bind_value` | 5 | 5 |
 | `component_bind` | 5 | 4 |
 | `verbatim_import` | 4 | 4 |
 | `collapsed_declaration` | 0 | 0 |

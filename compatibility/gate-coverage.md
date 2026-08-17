@@ -1762,6 +1762,21 @@ carry a *movement*, which is the reading a 0 cannot give.
  There is no corpus-wide source-map gate to fall back on: `verify.mjs` compares generated
  code, and the svelte2tsx map gate (§ 12) covers a different artifact.
 
+### Blind spot 14h — the unit is a segment, so a change that improves the map and breaks the *code* scores green
+
+Every comparison here reads `map.mappings`; nothing in the file looks at the generated JS the
+map describes. **[D]** #3015 kept `JsExpr::Spanned` on a member expression's *object*, which
+measured **+18 client segments and passed all four tests** — while making the client lowering's
+`while let JsExpr::Member` / `if let JsExpr::Identifier` chain walk in
+`client/visitors/shared/component.rs` miss the root binding, so a `bind:` setter emitted
+`bar.baz = $$value` instead of `bar(bar().baz = $$value, true)`. 49 runtime fixtures caught it;
+this gate could not, because a correct segment pointing at wrong code is indistinguishable here
+from a correct segment pointing at right code. Any IR change that both moves positions and
+changes lowering must be run against `tests/runtime.rs`, not this gate alone.
+
+There is no corpus-wide source-map gate to fall back on: `verify.mjs` compares generated
+ code, and the svelte2tsx map gate (§ 12) covers a different artifact.
+
 Related open work: #1781 (client maps are chunk-granular; 16% point outside the source range).
 
 ---

@@ -724,7 +724,12 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
             let conv_object = {
                 {
-                    let __tmp = convert_js_node(pa.get_js_node(*object), context);
+                    // Downstream matchers walk a member chain by variant, so a span
+                    // wrapper in object position hides the root identifier from them.
+                    let __tmp = without_outer_source_span(
+                        convert_js_node(pa.get_js_node(*object), context),
+                        context,
+                    );
                     context.arena.alloc_expr(__tmp)
                 }
             };
@@ -3987,7 +3992,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                 .get("block")
                 .and_then(|b| b.as_object())
                 .map(|b| convert_block_statement(b, context))
-                .unwrap_or_else(|| JsBlockStatement::new());
+                .unwrap_or_else(JsBlockStatement::new);
             let handler = obj.get("handler").and_then(|h| {
                 let h_obj = h.as_object()?;
                 // Route the catch parameter through the full pattern converter so
@@ -4001,7 +4006,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                     .get("body")
                     .and_then(|b| b.as_object())
                     .map(|b| convert_block_statement(b, context))
-                    .unwrap_or_else(|| JsBlockStatement::new());
+                    .unwrap_or_else(JsBlockStatement::new);
                 Some(JsCatchClause { param, body })
             });
             let finalizer = obj

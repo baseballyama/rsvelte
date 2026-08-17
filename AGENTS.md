@@ -43,7 +43,7 @@ construction with unchanged output — a maintainability cleanup only.
 **The client source map is the one output where that string processing is not free**, because
 a text fragment has no node to stamp a position on: #2954 rebuilt the map by matching generated
 text back against the source in eleven passes, and #3015 replaced the ones a span can carry.
-Two lessons outlive that work. **`has_loc` answers "may this node carry comments", and the
+Three lessons outlive that work. **`has_loc` answers "may this node carry comments", and the
 printer was reading it as "is this a mappable source position"** — under split coordinates
 `loc_base` sits *above* every real source offset, so every `JsExpr::Spanned` in a component
 whose script has a comment was silently dropped from the map; `Printer::map_position` is the
@@ -51,11 +51,18 @@ mapping-only lookup, and formatting decisions must keep `offset_to_line_col` bec
 comment-space line and a source-space line are not comparable. And **a span belongs on the
 identifier, not on the wrapper the lowering builds around it** (upstream's
 `b.call(b.id(name, loc))`): spanning the call makes the segment cover `foo()` where official
-covers `foo`. What still needs a pass — the `$.prop` declaration, hoisted `import` lines,
+covers `foo`. And **an in-band wrapper variant is only safe where every downstream matcher on
+that position has been enumerated** — leaving `JsExpr::Spanned` on a member expression's
+*object* bought 18 segments and broke 49 runtime fixtures, because the client lowering walks a
+member chain by variant (`while let JsExpr::Member` then `if let JsExpr::Identifier`) and a
+wrapper answers neither, so a `bind:` setter fell through to `bar.baz = $$value` instead of
+`bar(bar().baz = $$value, true)`. **The source-map gate cannot see that class at all**: its
+unit is a segment, not the generated statement, so it scored the change green.
+What still needs a pass — the `$.prop` declaration, hoisted `import` lines,
 element identifier *uses*, component `bind:` accessors — is a `Raw` fragment or a builder call
 that had the span and dropped it, which is why #3015 step 1 (`Raw` eradication) really is the
 prerequisite it claims to be. Per-pass numbers are in
-[docs/phase3-ast-refactor-plan.md](docs/phase3-ast-refactor-plan.md#findings-2026-08-18--the-client-map-is-90-span-carried-and-two-of-the-eleven-passes-delete);
+[docs/phase3-ast-refactor-plan.md](docs/phase3-ast-refactor-plan.md#findings-2026-08-18--the-client-map-is-86-span-carried-and-two-of-the-eleven-passes-delete);
 **a pass measuring 0 there is not evidence it is redundant** (gate-coverage 14f).
 
 **The `.svelte.(js|ts)` module path is not in that "cleanup only" set, and calling it one was
