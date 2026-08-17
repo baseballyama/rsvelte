@@ -1329,6 +1329,7 @@ pub(crate) fn transform_client(
                         content.start,
                         content.source_projection.as_ref(),
                         props_comment_anchor,
+                        options.enable_sourcemap,
                     ));
                     // Store the blocker_map for use during template generation
                     if !async_result.blocker_map.is_empty() {
@@ -1347,6 +1348,7 @@ pub(crate) fn transform_client(
                             content.start,
                             content.source_projection.as_ref(),
                             props_comment_anchor,
+                            options.enable_sourcemap,
                         ));
                     }
                 }
@@ -1394,6 +1396,7 @@ pub(crate) fn transform_client(
                             content.start,
                             content.source_projection.as_ref(),
                             props_comment_anchor,
+                            options.enable_sourcemap,
                         ));
                     }
                 }
@@ -1969,8 +1972,9 @@ pub(crate) fn transform_client(
     let component_fn = JsFunctionDeclaration {
         id: Some(analysis.name.clone().into()),
         params: params.into(),
-        body: JsBlockStatement {
-            body: component_body,
+        body: match ast.instance.as_deref() {
+            Some(script) => JsBlockStatement::spanned(component_body, script.start, script.end),
+            None => JsBlockStatement::with_body(component_body),
         },
         is_async: false,
         is_generator: false,
@@ -2953,12 +2957,13 @@ fn script_raw_statement(
     original_offset: u32,
     projection: Option<&ScriptProjection>,
     comment_anchor: Option<u32>,
+    enable_sourcemap: bool,
 ) -> JsStatement {
-    let copied_spans = projection
-        .map(|projection| {
-            copied_spans_for_normalized_code(&code, original, original_offset, projection)
-        })
-        .unwrap_or_default();
+    let copied_spans = if enable_sourcemap {
+        copied_spans_for_normalized_code(&code, original, original_offset, projection)
+    } else {
+        Vec::new()
+    };
     if has_effect_rune {
         JsStatement::RawMappedEffect {
             code: code.into(),
@@ -3007,6 +3012,20 @@ fn props_declaration_comments(raw: &str) -> Vec<(u32, CompactString)> {
         .collect()
 }
 
+/// Shortest run a resync candidate must start to beat the nearest-byte rule.
+const MIN_RESYNC_RUN: usize = 4;
+/// Longest run compared when scoring a resync candidate — a cap, so scoring the
+/// window stays linear in the window rather than in the rest of the script.
+const MAX_RESYNC_RUN: usize = 64;
+
+fn common_run(left: &[u8], right: &[u8]) -> usize {
+    left.iter()
+        .zip(right)
+        .take(MAX_RESYNC_RUN)
+        .take_while(|(a, b)| a == b)
+        .count()
+}
+
 /// Align normalized raw output with the stripped script, then project every
 /// unchanged byte back through TypeScript erasure to its component offset.
 /// Formatting may add whitespace or a semicolon, so unmatched bytes are left
@@ -3015,16 +3034,25 @@ fn copied_spans_for_normalized_code(
     code: &str,
     stripped: &str,
     original_offset: u32,
-    projection: &ScriptProjection,
+    projection: Option<&ScriptProjection>,
 ) -> Vec<RawMappedSpan> {
-    let mut source_at_output = vec![None; stripped.len() + 1];
-    for chunk in &projection.copied_chunks {
-        let len =
-            (chunk.output.end - chunk.output.start).min(chunk.source.end - chunk.source.start);
-        for offset in 0..=len {
-            let output = (chunk.output.start + offset) as usize;
-            if output < source_at_output.len() {
-                source_at_output[output] = Some(original_offset + chunk.source.start + offset);
+    // Without TypeScript erasure the stripped script *is* the source slice, so
+    // every byte projects back at its own offset.
+    let mut source_at_output = match projection {
+        Some(_) => vec![None; stripped.len() + 1],
+        None => (0..=stripped.len())
+            .map(|offset| Some(original_offset + offset as u32))
+            .collect(),
+    };
+    if let Some(projection) = projection {
+        for chunk in &projection.copied_chunks {
+            let len =
+                (chunk.output.end - chunk.output.start).min(chunk.source.end - chunk.source.start);
+            for offset in 0..=len {
+                let output = (chunk.output.start + offset) as usize;
+                if output < source_at_output.len() {
+                    source_at_output[output] = Some(original_offset + chunk.source.start + offset);
+                }
             }
         }
     }
@@ -3089,20 +3117,58 @@ fn copied_spans_for_normalized_code(
         // A generated change (for example `count++` -> `$.update(count)`) must
         // not desynchronise the rest of the script. Resume at the nearest exact
         // byte within a small window; otherwise leave one generated byte bare.
-        let next_input = stripped.as_bytes()[input..]
+        const RESYNC_WINDOW: usize = 256;
+        const NEAR_RESYNC_WINDOW: usize = 32;
+        let code_tail = &code.as_bytes()[output..];
+        let input_tail = &stripped.as_bytes()[input..];
+        let next_input = input_tail
             .iter()
-            .take(256)
+            .take(RESYNC_WINDOW)
             .position(|&byte| byte == output_byte);
-        let next_output = code.as_bytes()[output..]
+        let next_output = code_tail
             .iter()
-            .take(256)
+            .take(RESYNC_WINDOW)
             .position(|&byte| byte == input_byte);
-        match (next_input, next_output) {
-            (Some(left), Some(right)) if left <= right => input += left,
-            (Some(left), None) => input += left,
-            (_, Some(right)) => output += right,
-            (None, None) => output += 1,
+        let (skip_input, skip_output) = match (next_input, next_output) {
+            (Some(left), Some(right)) if left <= right => (left, 0),
+            (Some(left), None) => (left, 0),
+            (_, Some(right)) => (0, right),
+            (None, None) => (0, 1),
+        };
+        // A single equal byte is a weak anchor: `export let x = …` →
+        // `let x = $.prop(…)` re-anchors on the `e` of `let` and misattributes
+        // every token after it. When it buys less than a token's worth of
+        // agreement, take the nearest candidate that does.
+        if common_run(&code_tail[skip_output..], &input_tail[skip_input..]) < MIN_RESYNC_RUN {
+            let mut best: Option<(usize, usize, usize)> = None;
+            let mut consider = |run: usize, skip_input: usize, skip_output: usize| {
+                if run >= MIN_RESYNC_RUN
+                    && best.is_none_or(|(best_run, input, output)| {
+                        let skipped = skip_input + skip_output;
+                        skipped < input + output || (skipped == input + output && run > best_run)
+                    })
+                {
+                    best = Some((run, skip_input, skip_output));
+                }
+            };
+            for (skip, &byte) in input_tail.iter().take(NEAR_RESYNC_WINDOW).enumerate() {
+                if byte == output_byte {
+                    consider(common_run(code_tail, &input_tail[skip..]), skip, 0);
+                }
+            }
+            for (skip, &byte) in code_tail.iter().take(NEAR_RESYNC_WINDOW).enumerate() {
+                if byte == input_byte {
+                    consider(common_run(&code_tail[skip..], input_tail), 0, skip);
+                }
+            }
+            if let Some((_, skip_input, skip_output)) = best {
+                input += skip_input;
+                output += skip_output;
+                continue;
+            }
         }
+        input += skip_input;
+        output += skip_output;
     }
     spans
 }

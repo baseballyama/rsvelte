@@ -298,15 +298,31 @@ pub struct JsDoWhileStatement {
 #[derive(Debug, Clone)]
 pub struct JsBlockStatement {
     pub body: Vec<JsStatement>,
+    /// Source range whose first and last byte are the braces this block stands
+    /// for. `None` for a block that has no counterpart in the source.
+    pub brace_span: Option<(u32, u32)>,
 }
 
 impl JsBlockStatement {
     pub fn new() -> Self {
-        Self { body: Vec::new() }
+        Self {
+            body: Vec::new(),
+            brace_span: None,
+        }
     }
 
     pub fn with_body(body: Vec<JsStatement>) -> Self {
-        Self { body }
+        Self {
+            body,
+            brace_span: None,
+        }
+    }
+
+    pub fn spanned(body: Vec<JsStatement>, start: u32, end: u32) -> Self {
+        Self {
+            body,
+            brace_span: (start < end).then_some((start, end)),
+        }
     }
 }
 

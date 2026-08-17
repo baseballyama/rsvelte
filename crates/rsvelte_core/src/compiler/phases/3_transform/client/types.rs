@@ -725,7 +725,7 @@ impl<'a> ComponentContext<'a> {
             // context.state.init.push(statements.length === 1 ? statements[0] : b.block(statements))
             self.state
                 .init
-                .push(JsStatement::Block(JsBlockStatement { body: statements }));
+                .push(JsStatement::Block(JsBlockStatement::with_body(statements)));
         }
 
         TransformResult::None

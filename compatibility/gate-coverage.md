@@ -1708,7 +1708,7 @@ MEASURED" branch (`:959-967`) fires only for pairs that have a budget entry. **[
 that breaks byte-identity for one unratcheted pair while fixing another keeps the count at 57
 and reports nothing; the dropped pair silently stops being measured.
 
-### Blind spot 14f — a uniform shift of every original line passes every check
+ ### Blind spot 14f — a uniform shift of every original line passes every check
 
 The 29 samples all use `\n` line endings, and no check compares rsvelte's original line
 *numbering rule* to official's. **[D]** #3412 proposed widening
@@ -1744,8 +1744,23 @@ sampling: `parity()` compares rsvelte's segment to official's at the same **gene
 sample containing no exotic terminator leaves every anchor, budget and parity check satisfied —
 while `map-parity` itself never runs on a sample that *does* contain one, because none exists.
 
-Recorded because the next person to touch a coordinate table will read this gate as the negative
-control for that change. It is not.
+ Recorded because the next person to touch a coordinate table will read this gate as the negative
+ control for that change. It is not.
+ 
+ ### Blind spot 14g — a pass that never fires reads exactly like a pass that became redundant
+
+The gate is 29 samples, and it is the only evidence available when deciding whether a
+source-map enrichment pass can be deleted (#3015 step 3). Measured by disabling one client
+pass at a time: `collapsed_declaration` and `rune` cost **0 segments on `main` and 0 after
+#3015's span work**. **[D]** That is a discriminating case in the negative direction — the
+same reading is produced by "these samples contain no `$state`/`$derived`/`$props` lowering
+whose position the pass would have supplied" and by "a span now supplies it", and nothing in
+the gate separates them. Deleting a pass on a 0 therefore needs a population that fires it;
+the passes deleted in #3015 (`default_function_wrapper` 84 → 0, `effect_callback` 8 → 0)
+carry a *movement*, which is the reading a 0 cannot give.
+
+ There is no corpus-wide source-map gate to fall back on: `verify.mjs` compares generated
+ code, and the svelte2tsx map gate (§ 12) covers a different artifact.
 
 Related open work: #1781 (client maps are chunk-granular; 16% point outside the source range).
 

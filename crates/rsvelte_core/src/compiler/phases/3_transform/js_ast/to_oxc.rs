@@ -66,6 +66,7 @@ use oxc_syntax::number::{BigintBase, NumberBase};
 use oxc_syntax::operator::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
 };
+use rsvelte_esrap::LocRange;
 use std::cell::RefCell;
 
 /// A converted program plus the comment coordinate space it needs to be printed
@@ -75,7 +76,7 @@ pub struct Converted<'a> {
     pub program: oxc_ast::ast::Program<'a>,
     pub comment_source: Option<String>,
     pub loc_base: u32,
-    pub loc_map: Vec<(u32, u32, Option<u32>)>,
+    pub loc_map: Vec<LocRange>,
 }
 
 impl<'a> Converted<'a> {
@@ -243,10 +244,21 @@ struct RestoreRawMappedSpans<'s> {
 
 impl RestoreRawMappedSpans<'_> {
     fn source_offset(&self, offset: u32) -> Option<u32> {
-        self.spans.iter().find_map(|span| {
-            (span.code.start <= offset && offset <= span.code.end)
-                .then(|| span.source.start + offset.saturating_sub(span.code.start))
-        })
+        // `spans` is emitted in increasing `code` order and is one entry per
+        // copied run of a whole script, so this has to be a search, not a scan.
+        let index = self
+            .spans
+            .partition_point(|span| span.code.start <= offset)
+            .checked_sub(1)?;
+        // Two runs may touch at an endpoint, and a scan would have stopped at
+        // the earlier one — its `end` is where the copied text really is.
+        let index = if index > 0 && self.spans[index - 1].code.end >= offset {
+            index - 1
+        } else {
+            index
+        };
+        let span = &self.spans[index];
+        (offset <= span.code.end).then(|| span.source.start + offset - span.code.start)
     }
 }
 
@@ -401,8 +413,9 @@ struct Synth {
     source: String,
     loc_base: u32,
     comments: Vec<Comment>,
-    /// Per-chunk `(start, end, original-source offset)`, for source maps.
-    loc_map: Vec<(u32, u32, Option<u32>)>,
+    /// Comment-space ranges resolving back to original-source offsets, for
+    /// source maps: one per chunk region, plus one per reserved anchor.
+    loc_map: Vec<LocRange>,
     /// Region the chunk just parsed occupies, consumed by the caller that knows
     /// the chunk's original-source offset.
     pending_region: Option<(u32, u32)>,
@@ -447,6 +460,26 @@ impl Synth {
 
     fn note_span(&mut self, end: u32) {
         self.max_span = self.max_span.max(end);
+    }
+
+    /// Reserve buffer bytes as an anchor for the single source byte at
+    /// `source_offset`. A node whose span would otherwise fall inside a chunk
+    /// region — and so resolve to that chunk's offset — gets a position of its
+    /// own to map through. Two bytes, because the printer brackets a mapped
+    /// node with an anchor at each end of its span.
+    fn reserve_anchor(&mut self, source_offset: u32) -> Option<u32> {
+        if !self.enabled {
+            return None;
+        }
+        let at = self.cursor();
+        self.source.push_str("\n\n");
+        self.loc_map.push(LocRange {
+            start: at,
+            end: at + 2,
+            source: Some(source_offset),
+            linear: true,
+        });
+        Some(at)
     }
 }
 
@@ -525,49 +558,49 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         let mut synth = self.synth.borrow_mut();
         let region = synth.pending_region.take()?;
         if copied_spans.is_empty() {
-            synth.loc_map.push((region.0, region.1, source_offset));
+            synth.loc_map.push(LocRange {
+                start: region.0,
+                end: region.1,
+                source: source_offset,
+                linear: false,
+            });
         } else {
-            // The parser's chunk coordinates are retained in comment space. Map
-            // each copied byte separately: TypeScript removal makes the two
-            // coordinate systems discontinuous, so one chunk-wide anchor loses
-            // every token after the first erased annotation.
-            let mut offset = 0;
-            while offset < region.1 - region.0 {
-                let mapped = copied_spans.iter().find_map(|span| {
-                    (span.code.start <= offset && offset < span.code.end)
-                        .then(|| span.source.start + offset.saturating_sub(span.code.start))
-                });
-                let start = offset;
-                offset += 1;
-                while offset < region.1 - region.0 {
-                    let next = copied_spans.iter().find_map(|span| {
-                        (span.code.start <= offset && offset < span.code.end)
-                            .then(|| span.source.start + offset.saturating_sub(span.code.start))
+            // The parser's chunk coordinates are retained in comment space, and
+            // one chunk-wide anchor loses every token after the first rewritten
+            // byte, so each copied run carries its own linear range. Anything
+            // between two runs is generated, and is deliberately unmapped rather
+            // than guessed at.
+            let len = region.1 - region.0;
+            let mut cursor = 0;
+            for span in copied_spans {
+                let start = span.code.start.max(cursor).min(len);
+                let end = span.code.end.min(len);
+                if end <= start {
+                    continue;
+                }
+                if start > cursor {
+                    synth.loc_map.push(LocRange {
+                        start: region.0 + cursor,
+                        end: region.0 + start,
+                        source: None,
+                        linear: false,
                     });
-                    if mapped.is_some_and(|source| next == Some(source + offset - start))
-                        || (mapped.is_none() && next.is_none())
-                    {
-                        offset += 1;
-                    } else {
-                        break;
-                    }
                 }
-                // Keep mapped bytes individually anchored. The printer's map
-                // table deliberately stores an absolute source offset, not a
-                // delta, while an unmapped run can be coalesced safely.
-                if let Some(source) = mapped {
-                    for index in start..offset {
-                        synth.loc_map.push((
-                            region.0 + index,
-                            region.0 + index + 1,
-                            Some(source + index - start),
-                        ));
-                    }
-                } else {
-                    synth
-                        .loc_map
-                        .push((region.0 + start, region.0 + offset, None));
-                }
+                synth.loc_map.push(LocRange {
+                    start: region.0 + start,
+                    end: region.0 + end,
+                    source: Some(span.source.start + (start - span.code.start)),
+                    linear: true,
+                });
+                cursor = end;
+            }
+            if cursor < len {
+                synth.loc_map.push(LocRange {
+                    start: region.0 + cursor,
+                    end: region.1,
+                    source: None,
+                    linear: false,
+                });
             }
         }
         synth.last_region_source = source_offset;
@@ -1051,7 +1084,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             .as_ref()
             .map(|name| BindingIdentifier::new(SPAN, self.str(name), &self.ab));
         let params = self.formal_params(&func.params)?;
-        let (stmts, span) = self.statements(&func.body.body)?;
+        let (stmts, span) = self.block_body(&func.body)?;
         let body = FunctionBody::new(span, ArenaVec::new_in(&self.ab), stmts, &self.ab);
         Some(Function::boxed(
             SPAN,
@@ -1067,6 +1100,32 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             Some(ArenaBox::new_in(body, &self.ab)),
             &self.ab,
         ))
+    }
+
+    /// [`Cx::statements`] for a block that knows where its braces came from.
+    /// The printer maps a brace to the first and last byte of the body span, so
+    /// in comment space the region has to be widened by one reserved byte at
+    /// each end — the chunk regions themselves resolve to their own offsets.
+    fn block_body(
+        &self,
+        block: &super::nodes::JsBlockStatement,
+    ) -> Option<(ArenaVec<'a, Statement<'a>>, Span)> {
+        let Some((start, end)) = block.brace_span else {
+            return self.statements(&block.body);
+        };
+        let open = self.synth.borrow_mut().reserve_anchor(start);
+        let (stmts, span) = self.statements(&block.body)?;
+        let Some(open) = open else {
+            self.note_span(end);
+            let span = if span.is_empty() {
+                Span::new(start, end)
+            } else {
+                span
+            };
+            return Some((stmts, span));
+        };
+        let close = self.synth.borrow_mut().reserve_anchor(end - 1)?;
+        Some((stmts, Span::new(open, close + 1)))
     }
 
     /// Convert a slice of IR statements into an arena `Vec`, bailing on any
@@ -1881,7 +1940,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             .as_ref()
             .map(|name| BindingIdentifier::new(SPAN, self.str(name), &self.ab));
         let params = self.formal_params(&func.params)?;
-        let (stmts, span) = self.statements(&func.body.body)?;
+        let (stmts, span) = self.block_body(&func.body)?;
         let body = FunctionBody::new(span, ArenaVec::new_in(&self.ab), stmts, &self.ab);
         Some(Function::boxed(
             SPAN,
@@ -2370,7 +2429,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             .as_ref()
             .map(|name| BindingIdentifier::new(SPAN, self.str(name), &self.ab));
         let params = self.formal_params(&func.params)?;
-        let (stmts, span) = self.statements(&func.body.body)?;
+        let (stmts, span) = self.block_body(&func.body)?;
         let body = FunctionBody::new(span, ArenaVec::new_in(&self.ab), stmts, &self.ab);
         Some(Expression::FunctionExpression(Function::boxed(
             SPAN,

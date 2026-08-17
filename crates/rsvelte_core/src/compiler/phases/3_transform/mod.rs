@@ -202,15 +202,6 @@ pub(crate) fn transform_component_with_scripts<'source>(
                 // Lowering inserts framework calls between copied source tokens;
                 // token mappings fill those holes before the coarser
                 // emitter anchors are considered.
-                let wrapper_mappings = ast.instance.as_deref().map_or_else(Vec::new, |script| {
-                    generate_default_function_wrapper_mappings_with_starts(
-                        &result.code,
-                        source,
-                        script.start as usize,
-                        script.end as usize,
-                        &mapping_starts,
-                    )
-                });
                 let mut runtime_mappings = Vec::new();
                 let mut template_name_mappings = Vec::new();
                 let mut remaining_result_mappings = Vec::new();
@@ -228,15 +219,6 @@ pub(crate) fn transform_component_with_scripts<'source>(
                         remaining_result_mappings.push(mapping);
                     }
                 }
-                let effect_mappings = if source.contains("$effect") {
-                    generate_effect_callback_mappings_with_starts(
-                        &result.code,
-                        source,
-                        &mapping_starts,
-                    )
-                } else {
-                    Vec::new()
-                };
                 let legacy_prop_read_mappings = if source.contains("export let ") {
                     generate_legacy_prop_read_mappings_with_starts(
                         &result.code,
@@ -311,11 +293,9 @@ pub(crate) fn transform_component_with_scripts<'source>(
                 } else {
                     Vec::new()
                 };
-                let mapping_capacity = wrapper_mappings.len()
-                    + bind_value_mappings.len()
+                let mapping_capacity = bind_value_mappings.len()
                     + component_bind_mappings.len()
                     + runtime_mappings.len()
-                    + effect_mappings.len()
                     + legacy_prop_read_mappings.len()
                     + template_element_mappings.len()
                     + inline_script_mappings.len()
@@ -325,11 +305,9 @@ pub(crate) fn transform_component_with_scripts<'source>(
                     + rune_mappings.len()
                     + remaining_result_mappings.len();
                 let mut mappings = Vec::with_capacity(mapping_capacity);
-                mappings.extend(wrapper_mappings);
                 mappings.extend(bind_value_mappings);
                 mappings.extend(component_bind_mappings);
                 mappings.extend(runtime_mappings);
-                mappings.extend(effect_mappings);
                 mappings.extend(legacy_prop_read_mappings);
                 mappings.extend(template_element_mappings);
                 mappings.extend(inline_script_mappings);
@@ -1882,103 +1860,6 @@ fn generate_rune_mappings_with_starts(
     mappings
 }
 
-/// Map the source-backed tail of user effect calls before generic token matching
-/// claims the same generated coordinates for framework scaffolding.
-#[cfg(test)]
-fn generate_effect_callback_mappings(
-    generated: &str,
-    source: &str,
-) -> Vec<js_ast::codegen::SourceMapping> {
-    generate_effect_callback_mappings_with_starts(
-        generated,
-        source,
-        &MappingLineStarts::new(generated, source),
-    )
-}
-
-fn generate_effect_callback_mappings_with_starts(
-    generated: &str,
-    source: &str,
-    starts: &MappingLineStarts,
-) -> Vec<js_ast::codegen::SourceMapping> {
-    use js_ast::codegen::offset_to_line_col_utf16;
-
-    fn occurrences(code: &str, patterns: &[&str]) -> Vec<(usize, usize)> {
-        let mut found = Vec::new();
-        for pattern in patterns {
-            let mut cursor = 0;
-            while let Some(offset) = code[cursor..].find(pattern) {
-                let start = cursor + offset;
-                let end = start + pattern.len();
-                if code.as_bytes().get(end) == Some(&b'(') {
-                    found.push((start, end));
-                }
-                cursor = end;
-            }
-        }
-        found.sort_unstable();
-        found
-    }
-
-    let generated_effects = occurrences(generated, &["$.user_pre_effect", "$.user_effect"]);
-    let source_effects = occurrences(source, &["$effect.pre", "$effect"]);
-    let gen_line_starts = &starts.generated;
-    let src_line_starts = &starts.source;
-    let mut mappings = Vec::new();
-
-    let mut push = |gen_offset: usize, source_offset: usize| {
-        let (gen_line, gen_col) = offset_to_line_col_utf16(generated, gen_line_starts, gen_offset);
-        let (orig_line, orig_col) =
-            offset_to_line_col_utf16(source, src_line_starts, source_offset);
-        mappings.push(js_ast::codegen::SourceMapping {
-            gen_line: gen_line as u32,
-            gen_col: gen_col as u32,
-            source: 0,
-            orig_line: orig_line as u32,
-            orig_col: orig_col as u32,
-            name: None,
-        });
-    };
-
-    for (index, ((generated_start, generated_end), (source_start, source_end))) in generated_effects
-        .iter()
-        .zip(source_effects.iter())
-        .enumerate()
-    {
-        push(*generated_start, *source_start);
-        push(*generated_end, *source_end);
-
-        let generated_limit = generated_effects
-            .get(index + 1)
-            .map_or(generated.len(), |(start, _)| *start);
-        let source_limit = source_effects
-            .get(index + 1)
-            .map_or(source.len(), |(start, _)| *start);
-        let mut generated_offset = *generated_end;
-        let mut source_offset = *source_end;
-        while generated_offset < generated_limit && source_offset < source_limit {
-            let generated_byte = generated.as_bytes()[generated_offset];
-            let source_byte = source.as_bytes()[source_offset];
-            if generated_byte.is_ascii_whitespace() {
-                generated_offset += 1;
-                continue;
-            }
-            if source_byte.is_ascii_whitespace() {
-                source_offset += 1;
-                continue;
-            }
-            if generated_byte != source_byte {
-                break;
-            }
-            push(generated_offset, source_offset);
-            generated_offset += 1;
-            source_offset += 1;
-            push(generated_offset, source_offset);
-        }
-    }
-    mappings
-}
-
 /// The legacy prop read inserted ahead of a template expression has two distinct
 /// source carriers: the exported binding and the expression itself.
 #[cfg(test)]
@@ -2869,11 +2750,11 @@ mod tests {
 
     use super::{
         generate_bind_value_mappings, generate_default_function_wrapper_mappings,
-        generate_effect_callback_mappings, generate_inline_script_mappings,
-        generate_legacy_prop_read_mappings, generate_server_declaration_mappings,
-        generate_server_token_mappings, generate_server_wrapper_mappings,
-        generate_template_element_runtime_mappings, generate_token_mappings,
-        generate_verbatim_import_mappings, typescript_declaration_annotation_end,
+        generate_inline_script_mappings, generate_legacy_prop_read_mappings,
+        generate_server_declaration_mappings, generate_server_token_mappings,
+        generate_server_wrapper_mappings, generate_template_element_runtime_mappings,
+        generate_token_mappings, generate_verbatim_import_mappings,
+        typescript_declaration_annotation_end,
     };
 
     #[test]
@@ -2903,26 +2784,6 @@ mod tests {
                 mapping.orig_line,
                 mapping.orig_col,
             ) == (1, 7, 1, 8)
-        }));
-    }
-
-    #[test]
-    fn maps_user_effect_callback_after_runtime_lowering() {
-        let source = "<script>\n\t$effect(() => {\n\t\tfoo;\n\t});\n</script>";
-        let generated = "\t$.user_effect(() => {\n\t\tfoo;\n\t});";
-        let mappings = generate_effect_callback_mappings(generated, source);
-
-        assert!(mappings.iter().any(|mapping| {
-            mapping.gen_line == 1
-                && mapping.gen_col == 2
-                && mapping.orig_line == 2
-                && mapping.orig_col == 2
-        }));
-        assert!(mappings.iter().any(|mapping| {
-            mapping.gen_line == 0
-                && mapping.gen_col == 22
-                && mapping.orig_line == 1
-                && mapping.orig_col == 16
         }));
     }
 
