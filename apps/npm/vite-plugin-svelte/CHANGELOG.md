@@ -1,5 +1,11 @@
 # @sveltejs/vite-plugin-svelte
 
+## 0.5.2
+
+### Patch Changes
+
+- 9074d4d: Keep the returned source map valid across dev-server postprocessing: composing the HMR partial-accept and emitted-CSS-import edits no longer rewrites the map's `sources` into absolute paths or drops its `file`.
+
 ## 0.5.1
 
 ### Patch Changes

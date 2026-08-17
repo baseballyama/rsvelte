@@ -1,5 +1,0 @@
----
-"@rsvelte/compiler": patch
----
-
-Align compile-error diagnostics with official Svelte. Error messages now use the official wording (`$props()` placement, duplicate runes, rune argument counts, `$`-prefixed bindings, `arguments` usage, renamed runes, missing rune parentheses, comma-separated attribute expressions, each-block argument assignment) and carry the same trailing `https://svelte.dev/e/<code>` help URL that official appends to every coded message. Spans are attributed to the node official blames rather than to the enclosing statement — reserved `$` bindings and imports, rune calls and their arguments, `$props()` placement and patterns, computed rune properties, invalid exports and `$props` members, keyed `{#each}` and import errors, `{@render}` and slot attributes, special elements and their children, `<svelte:self>` placement, duplicate and default component slots, invalid attribute expressions, directive `await` errors, global CSS validation, and renamed runes. `<svelte:self>` in an unsupported position now reports `svelte_self_invalid_placement`.
