@@ -169,8 +169,9 @@ Completion items, diagnostics, locations, folding ranges and inlay hints are pai
 method-specific semantic identity before their fields are diffed (`diff.mjs`). The committed
 fixture population additionally compares rsvelte with the selected upstream expected snapshot.
 The real-project population requests hover, definition and completion at every lexically matched
-identifier position in the four pinned repositories. The live official server is additionally
-held to those same upstream snapshots as a run-level precondition (27h).
+identifier position in the four pinned repositories. Every unit runs its request set twice — once
+on the opened document and once after a deterministic round-trip edit (27b) — and the live official
+server is additionally held to those same upstream snapshots as a run-level precondition (27h).
 
 ### Blind spot 27a — server notifications are discarded [S]
 
@@ -180,14 +181,51 @@ message with an `id`, but stores neither branch when the message has no `id`. Co
 the comparison even though both servers emit them during the measured session. Pull diagnostics
 are compared separately, so this is specifically the push/notification surface.
 
-### Blind spot 27b — each document has one immutable request phase [S]
+### Blind spot 27b — closed for `didChange`; the other notification classes remain [D]
 
-The case loop in `verify.mjs` sends `didOpen`, executes the case's requests, then sends `didClose`.
-It never sends `didChange`, configuration changes, watched-file notifications or workspace-folder
-changes, and it does not feed a completion/code-action/code-lens result into its corresponding
-resolve request. The robustness suite exercises malformed mid-edits and cancellation for rsvelte,
-but it is not differential and cannot reveal a state-transition difference from the official
-server.
+The case loop used to send `didOpen`, execute the case's requests, then send `didClose`, so **every
+unit in the population — committed fixtures, the upstream suites, the 174 testfiles and the four
+repositories — was opened once and never edited.** Both servers declare incremental sync and both
+carry per-document state across edits, so a parity defect that only exists after the first edit was
+unreachable by construction, at any corpus size, for the same reason warning parity was invisible
+until `result.warnings` was captured (#2281). It is also the phase an editor spends almost no time
+in: a user opens a file once and edits it for an hour.
+
+Each unit now runs its request set twice. Between the two phases the harness applies a deterministic
+edit script derived from the source (`edits.mjs`): an `import` inserted at the end of the first
+`<script>` (which moves the TypeScript program, not just the text), a rule inserted at the end of
+the first `<style>`, and an **unclosed** `{#if}` appended at EOF, then each of the three removed
+again in reverse. Every change is an incremental range on both legs — a full-document replacement
+for the undo would restore a server whose incremental apply is broken and hide exactly what the
+phase exists to reach — and the final text is asserted byte-identical to the opened text, so the
+re-run request set keeps its phase-1 positions and a phase-2 divergence is a state-transition
+difference alone.
+
+The phase is in the ratchet key: `|phase=edit`, absent for the opened phase, in both the per-field
+fixture key and the corpus `(file, method)` aggregate. Without it an opened-phase entry would
+suppress a post-edit divergence in the same `(unit, method)` — the #2521 failure mode this gate
+records again at 27g.
+
+What this does **not** reach, and stays here rather than being dropped from the sentence:
+
+- **The other notification classes.** Configuration changes, watched-file notifications and
+  workspace-folder changes are still never sent, and a completion / code-action / code-lens result
+  is still never fed into its `*/resolve` round trip.
+- **Full-document sync.** Both servers declare `TextDocumentSyncKind.Incremental` and only the
+  incremental path is driven. The two may disagree only under full-document changes; that is a
+  second phase, not a variant of this one.
+- **Steady state only.** The edit script round-trips, so what is compared is whether each server
+  returns to the answer it gave from scratch. Two servers that diverge *while* holding a
+  genuinely different document — an edit that is not undone — are outside it.
+- **One edit script for every unit.** It is uniform rather than per-unit, so a defect needing a
+  shape none of the three probes produces is not reached.
+- **The population floor still counts the input universe.** `corpus-population.json` records
+  identifiers × 3 methods; the compared request count is now twice that, and only
+  `report.json`'s `compared` carries it.
+
+The robustness suite (`crates/rsvelte_language_server/tests/robustness.rs`) drives malformed
+mid-edits and cancellation, but it is rsvelte-only — it asserts the server survives and cannot see
+a state-transition difference from official — so it does not substitute for any of the above.
 
 ### Blind spot 27c — two response fields and machine paths are normalized away [S]
 

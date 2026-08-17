@@ -397,6 +397,11 @@ stream is driven over stdio against the pinned official `svelte-language-server`
 `compatibility/lsp-known-failures.json` (justified in the paired `.md`). Committed fixtures and the
 pinned upstream `language-tools` suites compare per field; the four real-world corpus repositories
 compare per `(file, method)` aggregate, because one key per identifier would be a six-figure file.
+Every unit runs its request set **twice**: once on the opened document, then again after a
+deterministic round-trip `didChange` script that restores the source byte for byte, so a phase-2
+key is comparable to its phase-1 twin and a divergence is a state-transition difference alone. The
+phase is in the ratchet key, because an opened-phase entry would otherwise suppress the post-edit
+divergence in the same `(unit, method)`.
 Upstream ships **no** end-to-end protocol test, so the harness is built from scratch, and a baseline
 update needs the complete nine-artifact union at one project/language-tools/corpus revision — a
 partial run cannot shrink it.

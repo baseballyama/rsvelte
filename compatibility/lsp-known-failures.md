@@ -33,8 +33,21 @@ fix/regression swap are all invisible here. Count growth and shrinkage still cha
 directly, and the fixture and upstream suites keep per-field keys, so the loss is confined to the
 corpus aggregate.
 
+Every unit is compared twice. The harness sends `didOpen`, runs the request set, then applies a
+deterministic `didChange` script derived from the source and runs the **same** request set again.
+The script inserts an `import` at the end of the first `<script>`, a rule at the end of the first
+`<style>`, and an unclosed `{#if}` at EOF, then removes all three in reverse — every change an
+incremental range on both legs, because a full-document undo would restore a server whose
+incremental apply is broken. The final text is asserted byte-identical to the opened text, so the
+second phase asks each server whether it returns to the answer it gave from scratch, at the same
+positions, and a divergence there is a state-transition difference alone. Keys from the second phase
+carry `|phase=edit`; the opened phase carries no segment, so its keys are the ones this ratchet has
+always held and a baseline diff shows the edit phase as pure addition. The phase has to be in the
+key: without it an opened-phase entry would suppress a post-edit divergence in the same
+`(unit, method)`, which is the #2521 failure mode.
+
 The ratchet is shrink-only and two-sided: a new entry and an entry that no longer reproduces both
-fail verification. Baseline updates require one fixture/upstream artifact and eight
+fail verification. Baseline updates require one fixture/upstream artifact and sixteen
 stable-hash corpus artifacts with `--write-current`; `merge-current.mjs` accepts only the complete,
 disjoint union at one project, language-tools, corpus-source, and comparison-configuration revision.
 It checks the union's file-universe hash and the committed per-repository file/identifier/request
@@ -69,7 +82,10 @@ resulting baseline. `verify.mjs` now refuses to run without it.
 The population floor is `scripts/compat-lsp/corpus-population.json`. An intentional corpus
 submodule bump must use an unsharded, all-suite, all-repository `--update-population` run; ordinary
 population loss is an error. Shard-local reports retain their exact measured population and the
-merge requires their sums to equal that manifest.
+merge requires their sums to equal that manifest. It counts the **input** universe — files,
+identifiers, and identifiers × 3 methods — not the compared request count, which is twice that
+because every unit is requested in both phases; `report.json`'s `compared` is what carries the
+latter.
 
 Normalization removes only these non-parity fields and path-specific values:
 

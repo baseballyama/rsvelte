@@ -6,13 +6,13 @@ import { corpusShardIndex } from "./ratchet.mjs";
 import { CORPUS_REPOS } from "./suites.mjs";
 
 export const ARTIFACT_SCHEMA = 1;
-export const CORPUS_SHARDS = 8;
+export const CORPUS_SHARDS = 16;
 export const FIXTURE_SUITES = [
   "fixtures",
   "upstream-features",
   "upstream-testfiles",
 ];
-export const CONFIGURATION_ID = "lsp-diff-v11";
+export const CONFIGURATION_ID = "lsp-diff-v12";
 
 export const recordsFixtureControls = (suites) => suites.includes("fixtures");
 
