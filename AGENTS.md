@@ -262,9 +262,20 @@ so the parse oracle is blind to both — only output equality reports them. Both
 is the third the family found (#2990), the one row where **rsvelte's output was the more faithful
 of the two**: a synthesized accessor body has no `loc`, which parks esrap's comment cursor for the
 rest of the file, so official drops comments rsvelte kept. Byte equality is the goal, so
-`client/class_accessor_comments.rs` reproduces the loss and `upstream_issues/` carries the report
-— a divergence whose cause is upstream still needs a decision here, and "leave it listed" is only
+`client/dead_comments.rs` reproduces the loss and `upstream_issues/` carries the report — a
+divergence whose cause is upstream still needs a decision here, and "leave it listed" is only
 one of the two.
+
+**That cursor has two kills, and modelling one of them with an approximation of the other is
+what #3005 was.** A `<script module>`'s `Program` is builder-made too, so its cursor starts
+dead — which rsvelte modelled as "keep a comment iff it sits inside a function/class body
+span". That rule is neither necessary nor sufficient: a comment *after* a body has ended is
+still reachable, because the body revived the cursor and the next located statement flushes it.
+`dead_comments.rs` now walks the revive/kill events once for both, seeded by which program it
+is printing. The gate row is its own lesson (gate-coverage 5p): `comment-slot` had injected
+into `<script module>` since it shipped and measured nothing about this, because every slot in
+its seed was one where the two rules **agree** — reaching an entry point is not being able to
+tell two rules for it apart.
 
 The `bind:` and `param-default` families are the odd ones out and the reason is worth stating:
 their inputs are programs the official compiler **rejects**, which is a population no collected corpus can hold, because

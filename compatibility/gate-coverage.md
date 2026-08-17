@@ -885,6 +885,29 @@ two and stops at three is **unmeasured**; the depth guards in the folder
 (`MAX_INITIAL_EVAL_DEPTH = 8`, `REACTIVE_INIT_DEPTH >= 8`) are above it and nothing here
 reaches them. **[S]**
 
+### Blind spot 5p — CLOSED: a `<script module>` seed with no body to revive the cursor
+
+Originally: `comment-slot` did inject into `<script module>` (`mutate.mjs` matches every
+`<script` open tag), so the entry point was *generated* — and still measured nothing about the
+rule that decides which of its comments survive. The seed's whole body was `export const`,
+`let`, and one function, and upstream's builder-made module `Program` starts with its comment
+cursor dead, so **every** slot in it is dropped by both compilers. A rule that keeps a comment
+iff it sits inside a function/class body span agrees on all of them: 6 line slots × 8 comment
+kinds × 4 targets = 192 comparisons, of which the 168 outside the trailing `</script>` slot
+scored green while the real rule — the last cursor event at or before the comment is a revive —
+disagrees the moment a located body ends and a comment follows it.
+
+**[D]** #3005: the seed now carries a rune class (whose synthesized accessors kill the cursor
+again), a static block and a bare block, each with a slot **outside** the body it revived from.
+Those three slots are the discriminating ones — the span rule drops all three, official keeps
+all three — and the pre-fix binary reproduces them.
+
+The lesson generalizes past this seed: "the family reaches entry point X" is not "the family can
+tell two rules for X apart". Every row of the old seed was a case where the two rules **agree**,
+so no input the generator could produce from it would have failed for this reason — a
+non-discriminating population rather than a non-discriminating comparison, which is the axis
+`--update-baseline` and corpus growth both leave untouched.
+
 **Closing 5b/5c:** the matrix costs ~25 s of CPU on ~10,200 comparisons (wall clock on a box
 running other agents' builds is unusable — a paired A/B inverted once). `constant-fold` is the
 first instalment of 5c's "second expression axis against `EXPRESSION_SLOTS`"; the directive
