@@ -415,8 +415,8 @@ to the same 125 upstream snapshots the gate already loads: a run reproducing und
 aborts *before* the current artifact is written, so nothing a merge could accept survives. It is one
 verdict per run, deliberately not a second ratchet — "is the oracle sane" has one answer, not one
 per fixture. The floor is loose because a live server over stdio is not upstream's provider-level
-harness; the four causes that hold the measured 75% below 100% are enumerated in gate-coverage 27h,
-and the floor cannot see a degradation smaller than that margin.
+harness; the causes that hold the measured 79% below 100% are enumerated in gate-coverage 27h, and
+the floor cannot see a degradation smaller than that margin.
 
 ## Implementation Principles
 

@@ -268,34 +268,36 @@ site.
 
 The live official server is now compared to the same snapshot, counted per snapshot suite, and a
 run below **70%** aborts before the current artifact is written — one verdict per run, deliberately
-not a second ratchet. Measured on the pinned revision: **94/125 (75.2%)**, as
-`typescript-diagnostics` 71/92, `typescript-folding-range` 13/15, `typescript-inlay-hints` 10/18.
+not a second ratchet. Measured in CI on the pinned revision: **99/125 (79.2%)**, as
+`typescript-diagnostics` 72/92, `typescript-folding-range` 13/15, `typescript-inlay-hints` 14/18.
 
 What the floor's looseness buys, and what it costs, is the whole of this row. A live server over
 stdio is not upstream's provider-level harness, so the shortfall is structural rather than a
 defect, and it is not one cause:
 
-- **`typescript-diagnostics` (71/92).** The pull-diagnostic response aggregates every plugin the
+- **`typescript-diagnostics` (72/92).** The pull-diagnostic response aggregates every plugin the
   server hosts, while the snapshot is the TypeScript provider's return value alone — on
   `$$props-valid` the live server adds three `source: "svelte"` `unused-export-let` warnings the
   snapshot cannot contain. The calibration therefore reads the `ts`/`js`-sourced items only, which
-  moves this suite from 51/92 to 71/92 and is what makes the floor worth having: it is the subset a
-  misconfigured TypeScript backend would crater. The residual 21 are message text and
-  item-membership differences that come from running every fixture in one server session, where
-  upstream constructs one resolver per fixture directory.
+  moves this suite from 51/92 to 71/92 on the same tree and is what makes the floor worth having:
+  it is the subset a misconfigured TypeScript backend would crater. The residual 20 are message
+  text and item-membership differences that come from running every fixture in one server session,
+  where upstream constructs one resolver per fixture directory.
 - **`typescript-folding-range` (13/15).** Both misses are one extra whole-`<script>` fold
   contributed by the HTML folding provider, which upstream's provider-level test does not run —
   the same two misses, and the same explanation, that a from-scratch harness measured during
   #1767.
-- **`typescript-inlay-hints` (10/18).** Four are the live server returning `null` where the
-  provider returns hints, on `action`, `animation`, `reactive-block` and `snippet.v5`; the
-  remaining four are a **measurement artifact of the developer's checkout**, not of the oracle —
-  `pathToFileURL` leaves `+` unencoded where the server's `vscode-uri` writes `%2B`, so a worktree
-  path containing `+` defeats `replaceUris` and the fixture's own URI stops normalizing. CI paths
-  carry no `+`, and the differential comparison is immune because both servers encode alike; only
-  snapshot-vs-live sees it.
+- **`typescript-inlay-hints` (14/18).** All four misses are the live server returning `null` where
+  the provider returns hints, on `action`, `animation`, `reactive-block` and `snippet.v5`.
 
-So the floor is set 5 points under a number that four distinct causes already hold well below 100%,
+**This number is a property of the checkout as much as of the oracle, in a second way 27f does not
+cover.** The same commit measures 94/125 in a worktree whose path contains a `+` and 99/125 in CI:
+`pathToFileURL` leaves `+` unencoded where the server's `vscode-uri` writes `%2B`, so `replaceUris`
+stops matching and four `typescript-inlay-hints` fixtures fail on their own URI alone. The
+differential comparison is immune because both servers encode alike; only snapshot-vs-live sees it.
+Read a local shortfall against that before reading it as the oracle.
+
+So the floor is set 9 points under a number that three distinct causes already hold well below 100%,
 and it cannot see a degradation that costs the oracle less than that margin. It is a precondition
 on the run, not a measure of the oracle's quality. Two things it does not cover: the fixture and
 corpus populations have no upstream snapshot at all, so **the oracle is calibrated on 125 of the
