@@ -1,23 +1,27 @@
 # LSP differential known failures
 
-`lsp-known-failures.json` contains 16348 entries. Fixture and upstream entries identify one normalized
+`lsp-known-failures.json` contains 32679 entries. Fixture and upstream entries identify one normalized
 structural field for which `rsvelte-language-server` differs from the pinned official
 `svelte-language-server`, or from an upstream expected snapshot. A mismatched scalar key includes
 both value digests; a missing/extra field includes the present-side digest. Unmatched semantic
 array items are represented by their count and multiset digest.
 
-Partition of `lsp-known-failures.json` by key kind: `10896 + 5248 + 204` — real-world corpus
+Partition of `lsp-known-failures.json` by key kind: `21792 + 10479 + 408` — real-world corpus
 aggregates, per-field divergences against the pinned official server, and per-field divergences
 against an upstream expected snapshot. The three prefixes (`aggregate:corpus/`, `differential:`,
 `expected:`) are disjoint by construction in `merge-current.mjs`, which rejects an artifact
 carrying a key outside its suite's prefix.
 
-Partition of `lsp-known-failures.json` by request phase: `16348`
+Partition of `lsp-known-failures.json` by request phase: `16348 + 16331`
 
-Opened-document keys and post-`didChange` keys. The opened phase carries no phase segment, so a
-single addend here means the baseline predates the edit phase; once measured it is two.
+Opened-document keys and post-`didChange` keys. The edit phase re-runs the same request set, so the
+two addends differ by exactly the 17 session-level positive controls, which run once per session
+rather than once per unit; all 17 are `differential:` keys, and the corpus and upstream halves
+double exactly. The opened addend is unchanged from the pre-edit-phase baseline: the merge that
+introduced the second phase reported 16331 new entries and **0 stale**, so not one opened-phase key
+moved.
 
-Partition of `lsp-known-failures.json` entries under `aggregate:corpus/` by repository: `1848 + 3879 + 129 + 5040`
+Partition of `lsp-known-failures.json` entries under `aggregate:corpus/` by repository: `3696 + 7758 + 258 + 10080`
 
 bits-ui, flowbite-svelte, melt-ui, shadcn-svelte, in that order. This is the count
 that moves when a corpus submodule is bumped, and it is the reason the population floor is
@@ -27,7 +31,7 @@ read as a clean burndown.
 The real-world corpus uses one compact entry per `(file, method)`, and its key records the divergent
 request count and nothing else. It carried a raw divergent-field count and a digest over every
 sorted `(position, value-aware diff pointers)` observation until two full sweeps of one revision
-were compared: **664 of 16,348 keys moved between them** — 661 on the digest alone, 3 on the field
+were compared: **664 of that revision's 16,348 keys moved between them** — 661 on the digest alone, 3 on the field
 count — while the request count agreed on every one, and `textDocument/completion` owned 661 of the
 664 against zero for `textDocument/definition`. A key that does not reproduce cannot ratchet, so
 the two irreproducible components are out. Both sweeps reproduce the committed baseline exactly.
