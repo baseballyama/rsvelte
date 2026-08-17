@@ -7,6 +7,7 @@ use super::arena::{ExprId, StmtId};
 use compact_str::CompactString;
 use smallvec::SmallVec;
 use std::fmt;
+use std::ops::Range;
 
 /// A complete JavaScript program.
 #[derive(Debug, Clone)]
@@ -85,11 +86,22 @@ pub enum JsStatement {
     RawMapped {
         code: CompactString,
         source_offset: u32,
+        /// Explicit source position for comments emitted as a preceding chunk.
+        comment_anchor: Option<u32>,
+        /// Unchanged slices of `code` and their original source ranges.
+        ///
+        /// Unlike `source_offset`, this preserves token-level locations after
+        /// TypeScript erasure has made the script's coordinate spaces diverge.
+        copied_spans: Vec<RawMappedSpan>,
     },
     /// Mapped raw JavaScript containing client effect calls rebuilt from source nodes.
     RawMappedEffect {
         code: CompactString,
         source_offset: u32,
+        /// Explicit source position for comments emitted as a preceding chunk.
+        comment_anchor: Option<u32>,
+        effect_spans: Vec<(bool, u32, u32)>,
+        copied_spans: Vec<RawMappedSpan>,
     },
     /// A retained source AST inserted directly into the final OXC program.
     RetainedAst {
@@ -98,6 +110,13 @@ pub enum JsStatement {
         source_offset: u32,
         has_effect_rune: bool,
     },
+}
+
+/// One unchanged raw-code slice and its original source location.
+#[derive(Debug, Clone)]
+pub struct RawMappedSpan {
+    pub code: Range<u32>,
+    pub source: Range<u32>,
 }
 
 /// Import declaration.
@@ -208,6 +227,8 @@ pub struct JsFunctionDeclaration {
 #[derive(Debug, Clone)]
 pub struct JsExpressionStatement {
     pub expression: ExprId,
+    /// Source position of a statement following a separately parsed comment.
+    pub comment_anchor: Option<u32>,
 }
 
 /// Return statement.
@@ -567,6 +588,12 @@ pub struct JsMemberExpression {
 #[derive(Debug, Clone)]
 pub enum JsMemberProperty {
     Identifier(CompactString),
+    /// A source identifier property whose token span survives client lowering.
+    SpannedIdentifier {
+        name: CompactString,
+        start: u32,
+        end: u32,
+    },
     Expression(ExprId),
     PrivateIdentifier(CompactString),
 }
@@ -892,6 +919,12 @@ pub struct JsChainExpression {
 pub enum JsPattern {
     /// Simple identifier
     Identifier(CompactString),
+    /// A source-backed identifier pattern.
+    SpannedIdentifier {
+        name: CompactString,
+        start: u32,
+        end: u32,
+    },
     /// Array destructuring
     Array(JsArrayPattern),
     /// Object destructuring

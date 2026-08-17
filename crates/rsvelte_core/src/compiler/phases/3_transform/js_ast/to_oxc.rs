@@ -61,7 +61,7 @@ use oxc_allocator::{ArenaBox, ArenaVec, GetAllocator, ReplaceWith};
 use oxc_ast::ast::*;
 use oxc_ast::builder::AstBuilder;
 use oxc_ast_visit::{VisitMut, walk_mut};
-use oxc_span::{GetSpanMut, SPAN, Span};
+use oxc_span::{GetSpan, GetSpanMut, SPAN, Span};
 use oxc_syntax::number::{BigintBase, NumberBase};
 use oxc_syntax::operator::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
@@ -112,7 +112,12 @@ impl<'a> VisitMut<'a> for SpanEraser {
 pub struct AstIsland<'source> {
     pub program: &'source RetainedProgram<'source>,
     pub source_offset: u32,
+    /// The top-level statements to retain, in their original program order.
+    /// Instance imports are hoisted separately by the client transform.
+    pub statement_indices: Vec<usize>,
 }
+
+const UNMAPPED_SPAN: Span = Span::new(u32::MAX, u32::MAX);
 
 thread_local! {
     static FALLBACK_REASON: std::cell::Cell<&'static str> =
@@ -230,10 +235,50 @@ impl<'a> VisitMut<'a> for ShiftSpans {
     }
 }
 
+/// Restore the original locations of parser nodes that came from an unchanged
+/// slice of a TypeScript-stripped script.
+struct RestoreRawMappedSpans<'s> {
+    spans: &'s [RawMappedSpan],
+}
+
+impl RestoreRawMappedSpans<'_> {
+    fn source_offset(&self, offset: u32) -> Option<u32> {
+        self.spans.iter().find_map(|span| {
+            (span.code.start <= offset && offset <= span.code.end)
+                .then(|| span.source.start + offset.saturating_sub(span.code.start))
+        })
+    }
+}
+
+impl<'a> VisitMut<'a> for RestoreRawMappedSpans<'_> {
+    fn visit_span(&mut self, span: &mut Span) {
+        let Some(start) = self.source_offset(span.start) else {
+            return;
+        };
+        let Some(end) = self.source_offset(span.end) else {
+            return;
+        };
+        *span = Span::new(start, end);
+    }
+}
+
+fn restore_raw_mapped_spans(stmts: &mut [Statement<'_>], spans: &[RawMappedSpan]) {
+    if spans.is_empty() {
+        return;
+    }
+    let mut restorer = RestoreRawMappedSpans { spans };
+    for statement in stmts {
+        restorer.visit_statement(statement);
+    }
+}
+
 /// The client transform rebuilds effect calls but retains their callback from
 /// the source AST. Keep that split when a raw chunk is reparsed: the callback
 /// remains located for comment placement while the generated call does not.
-struct GeneratedEffectCallUnlocator;
+struct GeneratedEffectCallUnlocator<'a> {
+    effect_spans: &'a [(bool, u32, u32)],
+    effect_index: usize,
+}
 
 struct SpanUnlocator;
 
@@ -243,7 +288,7 @@ impl<'a> VisitMut<'a> for SpanUnlocator {
     }
 }
 
-impl<'a> VisitMut<'a> for GeneratedEffectCallUnlocator {
+impl<'a> VisitMut<'a> for GeneratedEffectCallUnlocator<'_> {
     fn visit_expression(&mut self, expr: &mut Expression<'a>) {
         walk_mut::walk_expression(self, expr);
         let Expression::CallExpression(call) = expr else {
@@ -263,15 +308,41 @@ impl<'a> VisitMut<'a> for GeneratedEffectCallUnlocator {
             }
         } else if is_dollar_call(&call.callee, "user_effect")
             || is_dollar_call(&call.callee, "user_pre_effect")
-            || is_dollar_call(&call.callee, "effect_root")
         {
+            let pre = is_dollar_call(&call.callee, "user_pre_effect");
+            let mut span = None;
+            if let Some((_, start, end)) = self
+                .effect_spans
+                .get(self.effect_index)
+                .filter(|span| span.0 == pre)
+                .or_else(|| self.effect_spans.iter().find(|span| span.0 == pre))
+            {
+                let mapped = Span::new(*start, *end);
+                span = Some(mapped);
+                *call.callee.span_mut() = mapped;
+                if let Expression::StaticMemberExpression(member) = &mut call.callee {
+                    member.property.span = mapped;
+                    if let Expression::Identifier(object) = &mut member.object {
+                        object.span = mapped;
+                    }
+                }
+            }
+            self.effect_index += 1;
+            call.span = span.unwrap_or(SPAN);
+        } else if is_dollar_call(&call.callee, "effect_root") {
             call.span = SPAN;
         }
     }
 }
 
-fn erase_generated_effect_call_locs(stmts: &mut [Statement<'_>]) {
-    let mut unlocator = GeneratedEffectCallUnlocator;
+fn erase_generated_effect_call_locs(
+    stmts: &mut [Statement<'_>],
+    effect_spans: &[(bool, u32, u32)],
+) {
+    let mut unlocator = GeneratedEffectCallUnlocator {
+        effect_spans,
+        effect_index: 0,
+    };
     for stmt in stmts {
         unlocator.visit_statement(stmt);
     }
@@ -446,10 +517,59 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
 
     /// Attach the region the chunk just parsed occupies to its original-source
     /// offset (for source maps). Returns the region, if any.
-    fn take_chunk_region(&self, source_offset: Option<u32>) -> Option<(u32, u32)> {
+    fn take_chunk_region(
+        &self,
+        source_offset: Option<u32>,
+        copied_spans: &[RawMappedSpan],
+    ) -> Option<(u32, u32)> {
         let mut synth = self.synth.borrow_mut();
         let region = synth.pending_region.take()?;
-        synth.loc_map.push((region.0, region.1, source_offset));
+        if copied_spans.is_empty() {
+            synth.loc_map.push((region.0, region.1, source_offset));
+        } else {
+            // The parser's chunk coordinates are retained in comment space. Map
+            // each copied byte separately: TypeScript removal makes the two
+            // coordinate systems discontinuous, so one chunk-wide anchor loses
+            // every token after the first erased annotation.
+            let mut offset = 0;
+            while offset < region.1 - region.0 {
+                let mapped = copied_spans.iter().find_map(|span| {
+                    (span.code.start <= offset && offset < span.code.end)
+                        .then(|| span.source.start + offset.saturating_sub(span.code.start))
+                });
+                let start = offset;
+                offset += 1;
+                while offset < region.1 - region.0 {
+                    let next = copied_spans.iter().find_map(|span| {
+                        (span.code.start <= offset && offset < span.code.end)
+                            .then(|| span.source.start + offset.saturating_sub(span.code.start))
+                    });
+                    if mapped.is_some_and(|source| next == Some(source + offset - start))
+                        || (mapped.is_none() && next.is_none())
+                    {
+                        offset += 1;
+                    } else {
+                        break;
+                    }
+                }
+                // Keep mapped bytes individually anchored. The printer's map
+                // table deliberately stores an absolute source offset, not a
+                // delta, while an unmapped run can be coalesced safely.
+                if let Some(source) = mapped {
+                    for index in start..offset {
+                        synth.loc_map.push((
+                            region.0 + index,
+                            region.0 + index + 1,
+                            Some(source + index - start),
+                        ));
+                    }
+                } else {
+                    synth
+                        .loc_map
+                        .push((region.0 + start, region.0 + offset, None));
+                }
+            }
+        }
         synth.last_region_source = source_offset;
         Some(region)
     }
@@ -465,11 +585,18 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         let Some(anchor) = source_offset else {
             return SPAN;
         };
-        let synth = self.synth.borrow();
+        let mut synth = self.synth.borrow_mut();
         if !synth.enabled || synth.last_region_source.is_none_or(|chunk| anchor <= chunk) {
             return SPAN;
         }
         let at = synth.cursor();
+        // The cursor anchors the first generated node following this chunk.
+        // Reusing it would make later statements claim the same trailing comment.
+        synth.last_region_source = None;
+        // Keep a later independently parsed comment on a distinct line. Otherwise
+        // it starts at this anchor and is emitted as the preceding statement's
+        // trailing comment.
+        synth.source.push('\n');
         Span::new(at, at)
     }
 
@@ -495,7 +622,9 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             JsStatement::Expression(e) => {
                 let expr = self.expr_id(e.expression)?;
                 Some(Statement::ExpressionStatement(ExpressionStatement::boxed(
-                    SPAN, expr, &self.ab,
+                    self.comment_anchor(e.comment_anchor),
+                    expr,
+                    &self.ab,
                 )))
             }
             JsStatement::Return(r) => {
@@ -586,16 +715,27 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             // body): parse the text; a lone statement is returned directly, a
             // multi-statement blob is wrapped in a block. (Statement-LIST sites
             // use `expand_stmt` instead, which flattens inline.)
-            JsStatement::Raw(code) => self.raw_single_statement(code, None, false),
-            JsStatement::RawEffect(code) => self.raw_single_statement(code, None, true),
+            JsStatement::Raw(code) => self.raw_single_statement(code, None, &[], false, &[]),
+            JsStatement::RawEffect(code) => self.raw_single_statement(code, None, &[], true, &[]),
             JsStatement::RawMapped {
                 code,
                 source_offset,
-            } => self.raw_single_statement(code, Some(*source_offset), false),
+                comment_anchor: _,
+                copied_spans,
+            } => self.raw_single_statement(code, Some(*source_offset), copied_spans, false, &[]),
             JsStatement::RawMappedEffect {
                 code,
                 source_offset,
-            } => self.raw_single_statement(code, Some(*source_offset), true),
+                comment_anchor: _,
+                effect_spans,
+                copied_spans,
+            } => self.raw_single_statement(
+                code,
+                Some(*source_offset),
+                copied_spans,
+                true,
+                effect_spans,
+            ),
             JsStatement::RetainedAst { .. } => None,
         }
     }
@@ -606,10 +746,12 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         &self,
         code: &str,
         source_offset: Option<u32>,
+        copied_spans: &[RawMappedSpan],
         unlocate_effect_calls: bool,
+        effect_spans: &[(bool, u32, u32)],
     ) -> Option<Statement<'a>> {
-        let stmts = self.parse_raw_statements(code, unlocate_effect_calls)?;
-        let region = self.take_chunk_region(source_offset);
+        let stmts = self.parse_raw_statements(code, unlocate_effect_calls, effect_spans)?;
+        let region = self.take_chunk_region(source_offset, copied_spans);
         if stmts.len() == 1 {
             stmts.into_iter().next()
         } else {
@@ -879,7 +1021,11 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
     fn export_default(&self, export: &JsExportDefault) -> Option<Statement<'a>> {
         let kind = match &export.declaration {
             JsExportDefaultDeclaration::Function(func) => {
-                let func = self.build_function(func, FunctionType::FunctionDeclaration)?;
+                let mut func = self.build_function(func, FunctionType::FunctionDeclaration)?;
+                func.span = UNMAPPED_SPAN;
+                if let Some(id) = &mut func.id {
+                    id.span = UNMAPPED_SPAN;
+                }
                 oxc_ast::ast::ExportDefaultDeclarationKind::FunctionDeclaration(func)
             }
             JsExportDefaultDeclaration::Expression(id) => {
@@ -887,7 +1033,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                 oxc_ast::ast::ExportDefaultDeclarationKind::from(expr)
             }
         };
-        let decl = ModuleDeclaration::new_export_default_declaration(SPAN, kind, &self.ab);
+        let decl = ModuleDeclaration::new_export_default_declaration(UNMAPPED_SPAN, kind, &self.ab);
         Some(Statement::from(decl))
     }
 
@@ -1009,6 +1155,13 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                 self.str(name),
                 &self.ab,
             )),
+            JsPattern::SpannedIdentifier { name, start, end } => {
+                Some(BindingPattern::new_binding_identifier(
+                    Span::new(*start, *end),
+                    self.str(name),
+                    &self.ab,
+                ))
+            }
             JsPattern::Object(obj) => {
                 let mut props = ArenaVec::with_capacity_in(obj.properties.len(), &self.ab);
                 let mut rest: Option<oxc_allocator::Box<'a, oxc_ast::ast::BindingRestElement<'a>>> =
@@ -1306,7 +1459,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         self.restore_single_target_destructure_sequences(&mut stmts);
         // The synthetic parens are part of the chunk text, so the region already
         // covers them; no caller needs it for an expression.
-        self.take_chunk_region(None);
+        self.take_chunk_region(None, &[]);
         for stmt in stmts {
             if let Statement::ExpressionStatement(es) = stmt {
                 let e = es.unbox().expression;
@@ -1327,12 +1480,13 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         &self,
         code: &str,
         unlocate_effect_calls: bool,
+        effect_spans: &[(bool, u32, u32)],
     ) -> Option<Vec<Statement<'a>>> {
         let mut stmts = self.parse_chunk(code.trim())?;
         self.restore_legacy_pre_effect_deps(&mut stmts);
         self.restore_single_target_destructure_sequences(&mut stmts);
         if unlocate_effect_calls {
-            erase_generated_effect_call_locs(&mut stmts);
+            erase_generated_effect_call_locs(&mut stmts, effect_spans);
         }
         Some(stmts)
     }
@@ -1481,38 +1635,77 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                 if !island.program.program().comments.is_empty() {
                     return None;
                 }
+                if island.statement_indices.is_empty()
+                    || island
+                        .statement_indices
+                        .windows(2)
+                        .any(|indices| indices[0] >= indices[1])
+                    || island
+                        .statement_indices
+                        .iter()
+                        .any(|&index| index >= island.program.program().body.len())
+                {
+                    return None;
+                }
                 let program = island
                     .program
                     .clone_program_into_at(self.ab.allocator(), island.source_offset);
-                Some(program.body.into_iter().collect())
+                Some(
+                    program
+                        .body
+                        .into_iter()
+                        .enumerate()
+                        .filter_map(|(index, statement)| {
+                            island
+                                .statement_indices
+                                .binary_search(&index)
+                                .ok()
+                                .map(|_| statement)
+                        })
+                        .collect(),
+                )
             }
             JsStatement::Raw(code) => {
-                let stmts = self.parse_raw_statements(code, false)?;
-                self.take_chunk_region(None);
+                let stmts = self.parse_raw_statements(code, false, &[])?;
+                self.take_chunk_region(None, &[]);
                 Some(stmts)
             }
             JsStatement::RawEffect(code) => {
-                let stmts = self.parse_raw_statements(code, true)?;
-                self.take_chunk_region(None);
+                let stmts = self.parse_raw_statements(code, true, &[])?;
+                self.take_chunk_region(None, &[]);
                 Some(stmts)
             }
             JsStatement::RawMapped {
                 code,
                 source_offset,
+                comment_anchor,
+                copied_spans,
             } => {
-                let mut stmts = self.parse_raw_statements(code, false)?;
-                if self.take_chunk_region(Some(*source_offset)).is_some() {
+                let mut stmts = self.parse_raw_statements(code, false, &[])?;
+                if self
+                    .take_chunk_region(Some(*source_offset), copied_spans)
+                    .is_some()
+                {
                     // The chunk's own spans are its comment anchors; the source
                     // offset is carried by the region's `loc_map` entry instead.
                     return Some(stmts);
                 }
+                let comment_anchor = self.comment_anchor(comment_anchor.or(Some(*source_offset)));
                 // Stamp each statement with the original-source offset so esrap's
                 // `print_with_map` maps the (transformed) instance-script lines
                 // back to the user source — mirroring the text codegen's
                 // per-block `source_offset` line mapping.
+                restore_raw_mapped_spans(&mut stmts, copied_spans);
                 let sp = Span::new(*source_offset, *source_offset);
                 for s in &mut stmts {
-                    *s.span_mut() = sp;
+                    if s.span().is_empty() {
+                        *s.span_mut() = sp;
+                    }
+                }
+                if comment_anchor != SPAN
+                    && let Some(statement) = stmts.first_mut()
+                {
+                    *statement.span_mut() = comment_anchor;
                 }
                 self.note_span(*source_offset);
                 Some(stmts)
@@ -1520,14 +1713,31 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             JsStatement::RawMappedEffect {
                 code,
                 source_offset,
+                comment_anchor,
+                effect_spans,
+                copied_spans,
             } => {
-                let mut stmts = self.parse_raw_statements(code, true)?;
-                if self.take_chunk_region(Some(*source_offset)).is_some() {
+                let mut stmts = self.parse_raw_statements(code, false, &[])?;
+                if effect_spans.is_empty()
+                    && self
+                        .take_chunk_region(Some(*source_offset), copied_spans)
+                        .is_some()
+                {
                     return Some(stmts);
                 }
+                restore_raw_mapped_spans(&mut stmts, copied_spans);
+                erase_generated_effect_call_locs(&mut stmts, effect_spans);
                 let sp = Span::new(*source_offset, *source_offset);
                 for s in &mut stmts {
-                    *s.span_mut() = sp;
+                    if s.span().is_empty() {
+                        *s.span_mut() = sp;
+                    }
+                }
+                let comment_anchor = self.comment_anchor(comment_anchor.or(Some(*source_offset)));
+                if comment_anchor != SPAN
+                    && let Some(statement) = stmts.first_mut()
+                {
+                    *statement.span_mut() = comment_anchor;
                 }
                 self.note_span(*source_offset);
                 Some(stmts)
@@ -1774,6 +1984,13 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                 let property = IdentifierName::new(SPAN, self.str(name), &self.ab);
                 MemberExpression::StaticMemberExpression(StaticMemberExpression::boxed(
                     SPAN, object, property, m.optional, &self.ab,
+                ))
+            }
+            JsMemberProperty::SpannedIdentifier { name, start, end } => {
+                let span = Span::new(*start, *end);
+                let property = IdentifierName::new(span, self.str(name), &self.ab);
+                MemberExpression::StaticMemberExpression(StaticMemberExpression::boxed(
+                    span, object, property, m.optional, &self.ab,
                 ))
             }
             JsMemberProperty::Expression(id) => {
@@ -2325,15 +2542,17 @@ fn unary_op(op: JsUnaryOp) -> UnaryOperator {
 
 #[cfg(test)]
 mod tests {
-    use super::{AstIsland, program_to_oxc_with_islands};
+    use super::{AstIsland, program_to_oxc, program_to_oxc_with_islands};
     use crate::ast::oxc_program::RetainedProgram;
-    use crate::compiler::phases::phase3_transform::js_ast::{JsArena, JsProgram, JsStatement};
+    use crate::compiler::phases::phase3_transform::js_ast::{
+        JsArena, JsProgram, JsStatement, builders as b,
+    };
     use oxc_allocator::Allocator;
     use oxc_span::GetSpan;
 
     #[test]
     fn retained_island_keeps_absolute_source_spans() {
-        let retained = RetainedProgram::parse("let value = 1;", false);
+        let retained = RetainedProgram::parse("import dep from 'dep'; let value = 1;", false);
         let program = JsProgram::with_body(vec![JsStatement::RetainedAst {
             index: 0,
             fallback: "let value = 1;".into(),
@@ -2349,11 +2568,46 @@ mod tests {
             &[AstIsland {
                 program: &retained,
                 source_offset: 12,
+                statement_indices: vec![1],
             }],
         )
         .expect("retained AST is supported");
 
-        assert_eq!(converted.program.body[0].span().start, 12);
-        assert_eq!(converted.program.body[0].span().end, 26);
+        assert_eq!(
+            converted.program.body.len(),
+            1,
+            "instance import is hoisted"
+        );
+        assert_eq!(converted.program.body[0].span().start, 35);
+        assert_eq!(converted.program.body[0].span().end, 49);
+    }
+
+    #[test]
+    fn generated_component_wrapper_is_unmapped() {
+        let arena = JsArena::new();
+        let program = JsProgram::with_body(vec![b::export_default_function(
+            "Input",
+            vec![],
+            vec![JsStatement::RawMapped {
+                code: "let value = 1;".into(),
+                source_offset: 0,
+                comment_anchor: None,
+                copied_spans: Vec::new(),
+            }],
+        )]);
+        let allocator = Allocator::default();
+        let converted =
+            program_to_oxc(&program, &arena, &allocator).expect("mapped raw chunk is supported");
+        let printed = rsvelte_esrap::print_with_map(
+            &converted.program,
+            "let value = 1;",
+            &rsvelte_esrap::PrintOptions::default(),
+        );
+        assert!(
+            printed
+                .code
+                .starts_with("export default function Input() {")
+        );
+        assert!(printed.mappings.iter().all(|mapping| mapping.gen_line != 0));
     }
 }

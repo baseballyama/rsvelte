@@ -188,6 +188,9 @@ fn collect_expr_identifiers_recursive(
 ) {
     use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
     match expr {
+        JsExpr::Spanned(inner, _, _) => {
+            collect_expr_identifiers_recursive(arena.get_expr(*inner), arena, names);
+        }
         JsExpr::Identifier(name) if !names.contains(name) => {
             names.push(name.clone());
         }

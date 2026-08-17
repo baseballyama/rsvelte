@@ -21,8 +21,9 @@
 //!    position. Counts both *missing* segments (rsvelte's map is coarser — the
 //!    resolution loss measured in #1781) and *wrong* ones.
 //! 3. `out-of-range` — segments whose original position lies past the end of the
-//!    source line (or past the last line). The official compiler emits zero;
-//!    the recorded counts are a shrink-only budget.
+//!    source line (or past the last line). Segments already emitted by the
+//!    official compiler are not rsvelte regressions; every additional position
+//!    is tracked by a shrink-only budget.
 //!
 //! Ground truth is the official compiler: the `client.js` / `client.js.map`
 //! fixtures under `fixtures/<sha>/sourcemaps/` are produced by
@@ -466,7 +467,10 @@ fn check_anchor(source: &str, output: &str, map: &DecodedMap, entry: &Anchor) ->
 /// total segment count. A position is out of range when its line is past the
 /// last line of the source, or its column is past the end of that line (column
 /// == line length is legal: it addresses the line terminator).
-fn out_of_range(map: &DecodedMap, fallback_source: &str) -> (usize, usize) {
+fn out_of_range_positions(
+    map: &DecodedMap,
+    fallback_source: &str,
+) -> (BTreeSet<(usize, i64, i64, i64, i64)>, usize) {
     let contents: Vec<Vec<usize>> = map
         .sources
         .iter()
@@ -483,27 +487,46 @@ fn out_of_range(map: &DecodedMap, fallback_source: &str) -> (usize, usize) {
         })
         .collect();
 
-    let mut bad = 0;
+    let mut bad = BTreeSet::new();
     let mut total = 0;
-    for line in &map.lines {
+    for (generated_line, line) in map.lines.iter().enumerate() {
         for segment in line {
             if segment.len() < 4 {
                 continue;
             }
             total += 1;
             let Some(lines) = contents.get(segment[1].max(0) as usize) else {
-                bad += 1;
+                bad.insert((
+                    generated_line,
+                    segment[0],
+                    segment[1],
+                    segment[2],
+                    segment[3],
+                ));
                 continue;
             };
             let sl = segment[2].max(0) as usize;
             let sc = segment[3].max(0) as usize;
             match lines.get(sl) {
                 Some(len) if sc <= *len => {}
-                _ => bad += 1,
+                _ => {
+                    bad.insert((
+                        generated_line,
+                        segment[0],
+                        segment[1],
+                        segment[2],
+                        segment[3],
+                    ));
+                }
             }
         }
     }
     (bad, total)
+}
+
+fn out_of_range(map: &DecodedMap, fallback_source: &str) -> (usize, usize) {
+    let (bad, total) = out_of_range_positions(map, fallback_source);
+    (bad.len(), total)
 }
 
 /// Any negative field is invalid and breaks downstream consumers. Upstream
@@ -751,8 +774,15 @@ fn measure() -> Report {
                     .push(format!("negative\t{sample}\t{}", target.as_str()));
             }
 
-            let (bad, total) = out_of_range(&map, &input);
-            report.out_of_range.insert(key.clone(), bad);
+            let (ours_out_of_range, total) = out_of_range_positions(&map, &input);
+            let oracle_out_of_range = official(&sample, target)
+                .and_then(|fixture| fixture.map.as_deref().and_then(decode_map))
+                .map(|fixture| out_of_range_positions(&fixture, &input).0)
+                .unwrap_or_default();
+            report.out_of_range.insert(
+                key.clone(),
+                ours_out_of_range.difference(&oracle_out_of_range).count(),
+            );
             report.totals.insert(key.clone(), total);
 
             // Identical generated code ⇒ the official map's segments must all

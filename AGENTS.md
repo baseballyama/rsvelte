@@ -419,6 +419,16 @@ run the comparison therefore install first, and `verify.mjs` refuses to run with
 any gate whose oracle is a type checker: **what did the checkout provide that the sources did not?**
 What it cannot see is gate-coverage 27.
 
+**Every positive control here used to be satisfied by an oracle that answers *something*, and a
+degraded official server does not error — it answers differently, and those answers enrol into a
+shrink-only ratchet that then defends the degradation.** The live official server is therefore held
+to the same 125 upstream snapshots the gate already loads: a run reproducing under **70%** of them
+aborts *before* the current artifact is written, so nothing a merge could accept survives. It is one
+verdict per run, deliberately not a second ratchet — "is the oracle sane" has one answer, not one
+per fixture. The floor is loose because a live server over stdio is not upstream's provider-level
+harness; the causes that hold the measured 79% below 100% are enumerated in gate-coverage 27h, and
+the floor cannot see a degradation smaller than that margin.
+
 ## Implementation Principles
 
 **CRITICAL**: All implementations must follow the official Svelte compiler implementation.

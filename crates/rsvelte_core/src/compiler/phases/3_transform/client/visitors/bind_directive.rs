@@ -105,7 +105,7 @@ pub fn unified_build_bind_this(
     // prevents the proxy flag from being added.
     // For bind:this on components, the value may need proxy (e.g., bind-this-proxy test).
     let binding_name_for_skip = if is_element_binding {
-        if let JsExpr::Identifier(name) = &raw_expr {
+        if let JsExpr::Identifier(name) = unspanned_expr(&raw_expr, &context.arena) {
             Some(name.clone())
         } else {
             None
@@ -387,7 +387,10 @@ fn bind_directive_inner(
 
     // Visit the expression to transform it using the full expression converter
     // (supports ArrowFunctionExpression, MemberExpression, etc.)
-    let expression = convert_expression(&node.expression, context);
+    let expression = match convert_expression(&node.expression, context) {
+        JsExpr::Spanned(inner, _, _) => context.arena.get_expr(inner).clone(),
+        expression => expression,
+    };
 
     // In dev mode with runes, validate binding to non-reactive properties.
     // Reference: BindDirective.js lines 26-41
@@ -532,6 +535,38 @@ fn bind_directive_inner(
             Some(&node.expression),
         )
     };
+
+    let call = if let Some(element) = parent.as_regular_element() {
+        let mut call = call;
+        let element_end = element
+            .start
+            .saturating_add(1)
+            .saturating_add(element.name.len() as u32);
+        if let (JsExpr::Call(binding), JsExpr::Identifier(node_id)) =
+            (&mut call, &context.state.node)
+        {
+            for argument in &mut binding.arguments {
+                if matches!(argument, JsExpr::Identifier(name) if name == node_id) {
+                    *argument = JsExpr::Spanned(
+                        context.arena.alloc_expr(argument.clone()),
+                        element.start,
+                        element_end,
+                    );
+                }
+            }
+        }
+        call
+    } else {
+        call
+    };
+
+    let call = JsExpr::Spanned(
+        context.arena.alloc_expr(call),
+        parent
+            .as_regular_element()
+            .map_or(node.start, |element| element.start),
+        node.end,
+    );
 
     // Check if we need to defer the binding (when element has use: directive)
     let defer = binding_name != "this" && is_regular_element(&parent) && has_use_directive(&parent);
@@ -1221,6 +1256,9 @@ fn collect_each_block_ids(
     seen: &mut FxHashSet<String>,
 ) {
     match expr {
+        JsExpr::Spanned(inner, _, _) => {
+            collect_each_block_ids(arena, arena.get_expr(*inner), context, result, seen);
+        }
         JsExpr::Identifier(name) => {
             if seen.contains(name.as_str()) {
                 return;
@@ -2600,12 +2638,22 @@ fn get_store_to_invalidate_from_context(context: &ComponentContext) -> Option<St
 /// Corresponds to the `object()` function call in the official compiler.
 pub fn get_expression_root_identifier(expr: &JsExpr, arena: &JsArena) -> Option<String> {
     match expr {
+        JsExpr::Spanned(inner, _, _) => {
+            get_expression_root_identifier(arena.get_expr(*inner), arena)
+        }
         JsExpr::Identifier(name) => Some(name.to_string()),
         JsExpr::Member(member) => {
             get_expression_root_identifier(arena.get_expr(member.object), arena)
         }
         _ => None,
     }
+}
+
+fn unspanned_expr<'a>(mut expr: &'a JsExpr, arena: &'a JsArena) -> &'a JsExpr {
+    while let JsExpr::Spanned(inner, _, _) = expr {
+        expr = arena.get_expr(*inner);
+    }
+    expr
 }
 
 /// Collect all identifier names from a raw AST Expression (JSON-based).
@@ -2697,13 +2745,15 @@ pub fn emit_validate_binding(
             let prop = if m.computed {
                 match &m.property {
                     JsMemberProperty::Expression(expr) => context.arena.get_expr(*expr).clone(),
-                    JsMemberProperty::Identifier(name) => b::id(name.as_str()),
+                    JsMemberProperty::Identifier(name)
+                    | JsMemberProperty::SpannedIdentifier { name, .. } => b::id(name.as_str()),
                     JsMemberProperty::PrivateIdentifier(name) => b::string(name.clone()),
                 }
             } else {
                 // Non-computed: property is an identifier, use it as a string literal
                 match &m.property {
-                    JsMemberProperty::Identifier(name) => b::string(name.clone()),
+                    JsMemberProperty::Identifier(name)
+                    | JsMemberProperty::SpannedIdentifier { name, .. } => b::string(name.clone()),
                     JsMemberProperty::Expression(expr) => context.arena.get_expr(*expr).clone(),
                     JsMemberProperty::PrivateIdentifier(name) => b::string(name.clone()),
                 }

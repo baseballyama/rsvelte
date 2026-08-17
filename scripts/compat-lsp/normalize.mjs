@@ -63,6 +63,25 @@ export function normalizeExpected(method, expected, workspace) {
   return sortKeys(replaceUris(result, path.resolve(workspace)));
 }
 
+// Upstream's snapshot is one provider's return value; the live pull-diagnostic
+// response aggregates every plugin the server hosts, and the wire spells "no
+// result" as `null` where a provider returns an empty list. Both are
+// representation, not behaviour, so the oracle calibration reads through them —
+// the ratchet comparison deliberately does not.
+export function calibrationView(expected, result) {
+  let value = result;
+  if (value && Array.isArray(value.items)) {
+    value = {
+      ...value,
+      items: value.items.filter(
+        (item) => item.source === "ts" || item.source === "js",
+      ),
+    };
+  }
+  if (value === null && Array.isArray(expected)) value = [];
+  return value;
+}
+
 export function equalJson(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
 }

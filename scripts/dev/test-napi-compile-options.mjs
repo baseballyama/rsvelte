@@ -343,9 +343,9 @@ const COMPILE_CASES = [
 		src: CSS_SRC,
 		base: { filename: 'A.svelte' },
 		variant: { filename: 'A.svelte', sourcemap: INPUT_MAP },
-		// The preprocessor map is chained into the output map's segments.
+		// The preprocessor map is chained into the output map's source origin.
 		marker: (r) => typeof r.js.map.mappings === 'string' && r.js.map.mappings.length > 0,
-		differsIn: (r) => r.js.map.mappings,
+		differsIn: (r) => r.js.map.sources.join(','),
 	},
 	{
 		key: 'outputFilename',

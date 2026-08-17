@@ -9,6 +9,7 @@ pub(crate) enum EventKind {
     Space,
     Flush,
     Location { line: u32, column: u32 },
+    LocationOffset { offset: u32 },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -196,7 +197,9 @@ pub(crate) fn print(buffer: &Buffer, indent: &str, capacity: usize) -> String {
                 let len = current_newline.len().saturating_sub(indent.len());
                 current_newline.truncate(len);
             }
-            EventKind::Flush | EventKind::Location { .. } => flush_pending!(),
+            EventKind::Flush | EventKind::Location { .. } | EventKind::LocationOffset { .. } => {
+                flush_pending!()
+            }
         }
     }
     if cursor < buffer.text.len() {
@@ -217,6 +220,7 @@ pub(crate) fn flatten_with_map(
     buffer: &Buffer,
     indent: &str,
     capacity: usize,
+    source_line_starts: &[u32],
 ) -> (String, Vec<Mapping>) {
     let mut driver = Driver {
         code: String::with_capacity(
@@ -234,7 +238,11 @@ pub(crate) fn flatten_with_map(
         needs_space: false,
         current_line: 0,
         current_column: 0,
-        mappings: Vec::new(),
+        source_line_starts,
+        last_source_line: 0,
+        // Only Location events emit a mapping, so every event is a safe upper
+        // bound that avoids repeatedly growing this hot output vector.
+        mappings: Vec::with_capacity(buffer.events.len()),
     };
     drive(buffer, |text, event| {
         if !text.is_empty() {
@@ -272,6 +280,10 @@ struct Driver<'a> {
     needs_space: bool,
     current_line: u32,
     current_column: u32,
+    source_line_starts: &'a [u32],
+    /// 1-based line most recently resolved from a source offset. A token's two
+    /// anchors, and consecutive tokens, almost always share it.
+    last_source_line: u32,
     mappings: Vec<Mapping>,
 }
 
@@ -289,13 +301,56 @@ impl Driver<'_> {
             EventKind::Flush => self.flush_pending(),
             EventKind::Location { line, column } => {
                 self.flush_pending();
-                self.mappings.push(Mapping {
-                    gen_line: self.current_line,
-                    gen_column: self.current_column,
-                    source_line: line - 1,
-                    source_column: column,
-                });
+                self.push_mapping(line - 1, column);
             }
+            EventKind::LocationOffset { offset } => {
+                self.flush_pending();
+                let line = self.source_line_of(offset);
+                if line == 0 {
+                    return;
+                }
+                self.push_mapping(
+                    (line - 1) as u32,
+                    offset - self.source_line_starts[line - 1],
+                );
+            }
+        }
+    }
+
+    /// 1-based source line containing `offset`, or 0 if it precedes the first
+    /// line start.
+    fn source_line_of(&mut self, offset: u32) -> usize {
+        let starts = self.source_line_starts;
+        let cached = self.last_source_line as usize;
+        if cached > 0
+            && cached <= starts.len()
+            && starts[cached - 1] <= offset
+            && starts.get(cached).is_none_or(|&next| offset < next)
+        {
+            return cached;
+        }
+        let line = starts.partition_point(|&start| start <= offset);
+        self.last_source_line = line as u32;
+        line
+    }
+
+    /// An anchor describes the text that follows it, so when two land on the
+    /// same generated position with nothing written between them, the later one
+    /// is the only meaningful origin.
+    fn push_mapping(&mut self, source_line: u32, source_column: u32) {
+        let mapping = Mapping {
+            gen_line: self.current_line,
+            gen_column: self.current_column,
+            source_line,
+            source_column,
+        };
+        match self.mappings.last_mut() {
+            Some(last)
+                if last.gen_line == mapping.gen_line && last.gen_column == mapping.gen_column =>
+            {
+                *last = mapping;
+            }
+            _ => self.mappings.push(mapping),
         }
     }
 
@@ -306,6 +361,17 @@ impl Driver<'_> {
 
     fn append(&mut self, text: &str) {
         self.code.push_str(text);
+        if text.is_ascii() {
+            let bytes = text.as_bytes();
+            let newline_count = bytes.iter().filter(|&&byte| byte == b'\n').count() as u32;
+            if let Some(last_newline) = bytes.iter().rposition(|&byte| byte == b'\n') {
+                self.current_line += newline_count;
+                self.current_column = (bytes.len() - last_newline - 1) as u32;
+            } else {
+                self.current_column += bytes.len() as u32;
+            }
+            return;
+        }
         for ch in text.chars() {
             if ch == '\n' {
                 self.current_line += 1;
@@ -491,7 +557,25 @@ mod tests {
         ]);
         assert_eq!(
             print(&buffer, "  ", 0),
-            flatten_with_map(&buffer, "  ", 0).0
+            flatten_with_map(&buffer, "  ", 0, &[]).0
+        );
+    }
+
+    #[test]
+    fn ascii_mapping_tracks_the_last_line_column() {
+        let buffer = buffer(vec![
+            TestCommand::Text("ab\ncd"),
+            TestCommand::Event(EventKind::Location { line: 3, column: 4 }),
+        ]);
+        let (_, mappings) = flatten_with_map(&buffer, "\t", 0, &[]);
+        assert_eq!(
+            mappings,
+            vec![Mapping {
+                gen_line: 1,
+                gen_column: 2,
+                source_line: 2,
+                source_column: 4,
+            }]
         );
     }
 }

@@ -209,16 +209,19 @@ pub fn build_event_handler(
     metadata.set_has_state(true); // Conservative: assume handlers may reference state
     let handler = build_expression(context, &handler, &metadata);
 
+    // Source-map spans wrap source expressions without changing their handler kind.
+    let mut unspanned = &handler;
+    while let JsExpr::Spanned(inner, _, _) = unspanned {
+        unspanned = context.arena.get_expr(*inner);
+    }
+
     // For inline handlers (arrow or function expression), return directly after transforms
-    if matches!(handler, JsExpr::Arrow(_) | JsExpr::Function(_)) {
+    if matches!(unspanned, JsExpr::Arrow(_) | JsExpr::Function(_)) {
         return handler;
     }
 
-    // For other handlers, continue processing
-    let mut handler = handler;
-
     // Function declared in the script
-    if let JsExpr::Identifier(name) = &handler {
+    if let JsExpr::Identifier(name) = unspanned {
         // Mirrors the official compiler in `events.js`:
         //
         //   if (binding?.is_function()) return handler;
@@ -246,6 +249,9 @@ pub fn build_event_handler(
             return handler;
         }
     }
+
+    // For other handlers, continue processing.
+    let mut handler = handler;
 
     // If the handler contains a call expression, we need to memoize it with $.derived
     // This is important for cases like: on:click={saySomething('Tama').handler}

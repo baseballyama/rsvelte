@@ -424,7 +424,7 @@ pub fn unthunk(arena: &JsArena, expr: JsExpr) -> JsExpr {
     }
 
     // Body must be a call expression
-    let JsExpr::Call(call) = arena.get_expr(*body_expr_id) else {
+    let JsExpr::Call(call) = unspanned(arena, arena.get_expr(*body_expr_id)) else {
         return expr;
     };
 
@@ -435,10 +435,10 @@ pub fn unthunk(arena: &JsArena, expr: JsExpr) -> JsExpr {
     }
 
     // Callee must be an identifier, or a member expression on the `$` namespace.
-    let callee_is_static = match arena.get_expr(call.callee) {
+    let callee_is_static = match unspanned(arena, arena.get_expr(call.callee)) {
         JsExpr::Identifier(_) => true,
         JsExpr::Member(m) => {
-            matches!(arena.get_expr(m.object), JsExpr::Identifier(name) if name == "$")
+            matches!(unspanned(arena, arena.get_expr(m.object)), JsExpr::Identifier(name) if name == "$")
         }
         _ => false,
     };
@@ -457,7 +457,7 @@ pub fn unthunk(arena: &JsArena, expr: JsExpr) -> JsExpr {
             return expr;
         };
 
-        let JsExpr::Identifier(arg_name) = &call.arguments[i] else {
+        let JsExpr::Identifier(arg_name) = unspanned(arena, &call.arguments[i]) else {
             return expr;
         };
 
@@ -468,6 +468,13 @@ pub fn unthunk(arena: &JsArena, expr: JsExpr) -> JsExpr {
 
     // Optimization applies: return just the callee
     arena.get_expr(call.callee).clone()
+}
+
+fn unspanned<'a>(arena: &'a JsArena, mut expr: &'a JsExpr) -> &'a JsExpr {
+    while let JsExpr::Spanned(inner, _, _) = expr {
+        expr = arena.get_expr(*inner);
+    }
+    expr
 }
 
 /// Check if a JsExpr contains any AwaitExpression (not crossing function boundaries).
@@ -1285,6 +1292,7 @@ pub fn await_expr(arena: &JsArena, argument: JsExpr) -> JsExpr {
 pub fn stmt(arena: &JsArena, expression: JsExpr) -> JsStatement {
     JsStatement::Expression(JsExpressionStatement {
         expression: arena.alloc_expr(expression),
+        comment_anchor: None,
     })
 }
 
@@ -1382,10 +1390,18 @@ pub fn var_decl_anchored(
     init: Option<JsExpr>,
     comment_anchor: Option<u32>,
 ) -> JsStatement {
+    let name = name.into();
     JsStatement::VariableDeclaration(JsVariableDeclaration {
         kind: JsVariableKind::Var,
         declarations: vec![JsVariableDeclarator {
-            id: id_pattern(name),
+            id: match comment_anchor {
+                Some(start) => JsPattern::SpannedIdentifier {
+                    end: start.saturating_add(name.len() as u32),
+                    name,
+                    start,
+                },
+                None => id_pattern(name),
+            },
             init: init.map(|e| arena.alloc_expr(e)),
             comment_anchor,
         }],
@@ -1536,6 +1552,16 @@ mod await_walker_tests {
         let arena = JsArena::new();
         let spanned = JsExpr::Spanned(arena.alloc_expr(awaited(&arena, "x")), 0, 7);
         assert!(js_expr_has_await(&arena, &spanned));
+    }
+
+    #[test]
+    fn unthunks_a_spanned_call() {
+        let arena = JsArena::new();
+        let callee = JsExpr::Spanned(arena.alloc_expr(id("get_list")), 0, 8);
+        let call_expr = call(&arena, callee, vec![]);
+        let spanned_call = JsExpr::Spanned(arena.alloc_expr(call_expr), 0, 10);
+
+        assert!(matches!(thunk(&arena, spanned_call), JsExpr::Spanned(..)));
     }
 
     #[test]

@@ -555,6 +555,55 @@ mod tests {
     }
 
     #[test]
+    fn test_combine_sourcemaps_traces_preprocessor_chain() {
+        let map = |mappings| SimpleDecodedMap {
+            version: Some(3),
+            file: Some("intermediate.js".to_string()),
+            sources: vec!["input.svelte".to_string()],
+            sources_content: None,
+            names: vec![],
+            mappings,
+            source_root: None,
+        };
+
+        // The last transform maps generated 0:5 to its input 1:5; the
+        // preceding transform maps that input position to original 4:7.
+        let combined = combine_sourcemaps(
+            "input.svelte",
+            &[
+                map(vec![vec![vec![5, 0, 1, 5]]]),
+                map(vec![vec![], vec![vec![3, 0, 4, 7]]]),
+            ],
+        )
+        .unwrap();
+
+        // remapping keeps the root map's `file`; upstream only drops it when falsy.
+        assert_eq!(combined.file.as_deref(), Some("intermediate.js"));
+        assert_eq!(combined.sources, vec!["input.svelte"]);
+        assert_eq!(combined.mappings, vec![vec![vec![5, 0, 4, 7]]]);
+    }
+
+    #[test]
+    fn test_combine_sourcemaps_keeps_foreign_sources_as_leaves() {
+        let combined = combine_sourcemaps(
+            "input.svelte",
+            &[SimpleDecodedMap {
+                version: Some(3),
+                file: None,
+                sources: vec!["other.ts".to_string()],
+                sources_content: None,
+                names: vec![],
+                mappings: vec![vec![vec![0, 0, 2, 4]]],
+                source_root: None,
+            }],
+        )
+        .unwrap();
+
+        assert_eq!(combined.sources, vec!["other.ts"]);
+        assert_eq!(combined.mappings, vec![vec![vec![0, 0, 2, 4]]]);
+    }
+
+    #[test]
     fn test_process_markup_decodes_vlq_string_map() {
         // A markup preprocessor returning a standard Source Map v3 document
         // (VLQ-encoded `mappings` string) must have its map decoded, not

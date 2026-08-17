@@ -169,7 +169,8 @@ Completion items, diagnostics, locations, folding ranges and inlay hints are pai
 method-specific semantic identity before their fields are diffed (`diff.mjs`). The committed
 fixture population additionally compares rsvelte with the selected upstream expected snapshot.
 The real-project population requests hover, definition and completion at every lexically matched
-identifier position in the four pinned repositories.
+identifier position in the four pinned repositories. The live official server is additionally
+held to those same upstream snapshots as a run-level precondition (27h).
 
 ### Blind spot 27a — server notifications are discarded [S]
 
@@ -253,6 +254,55 @@ still key one normalized field each — so this is a corpus-population blind spo
 one. The unmeasured question is whether a stable projection of a completion response exists that
 would restore per-field sensitivity; nobody has looked, and n=2 sweeps bound the churn only from
 below.
+
+### Blind spot 27h — the oracle is calibrated against upstream's snapshots, and the floor is loose [D]
+
+Every positive control this gate had was satisfied by an official server that answers *something*:
+a non-error TS hover from each side, one `ts`-sourced rsvelte diagnostic, the declared rsvelte
+capabilities. None of them separates a correctly configured official server from one started
+against the wrong workspace root, an unresolved `node_modules` or a missing `tsconfig` — a degraded
+oracle does not error, it answers differently, and those answers enrol into a shrink-only ratchet
+as legitimate entries that then defend the degradation. The 125 upstream snapshots the gate already
+loads were compared against rsvelte only, with `officialResult` in scope and unused at the call
+site.
+
+The live official server is now compared to the same snapshot, counted per snapshot suite, and a
+run below **70%** aborts before the current artifact is written — one verdict per run, deliberately
+not a second ratchet. Measured in CI on the pinned revision: **99/125 (79.2%)**, as
+`typescript-diagnostics` 72/92, `typescript-folding-range` 13/15, `typescript-inlay-hints` 14/18.
+
+What the floor's looseness buys, and what it costs, is the whole of this row. A live server over
+stdio is not upstream's provider-level harness, so the shortfall is structural rather than a
+defect, and it is not one cause:
+
+- **`typescript-diagnostics` (72/92).** The pull-diagnostic response aggregates every plugin the
+  server hosts, while the snapshot is the TypeScript provider's return value alone — on
+  `$$props-valid` the live server adds three `source: "svelte"` `unused-export-let` warnings the
+  snapshot cannot contain. The calibration therefore reads the `ts`/`js`-sourced items only, which
+  moves this suite from 51/92 to 71/92 on the same tree and is what makes the floor worth having:
+  it is the subset a misconfigured TypeScript backend would crater. The residual 20 are message
+  text and item-membership differences that come from running every fixture in one server session,
+  where upstream constructs one resolver per fixture directory.
+- **`typescript-folding-range` (13/15).** Both misses are one extra whole-`<script>` fold
+  contributed by the HTML folding provider, which upstream's provider-level test does not run —
+  the same two misses, and the same explanation, that a from-scratch harness measured during
+  #1767.
+- **`typescript-inlay-hints` (14/18).** All four misses are the live server returning `null` where
+  the provider returns hints, on `action`, `animation`, `reactive-block` and `snippet.v5`.
+
+**This number is a property of the checkout as much as of the oracle, in a second way 27f does not
+cover.** The same commit measures 94/125 in a worktree whose path contains a `+` and 99/125 in CI:
+`pathToFileURL` leaves `+` unencoded where the server's `vscode-uri` writes `%2B`, so `replaceUris`
+stops matching and four `typescript-inlay-hints` fixtures fail on their own URI alone. The
+differential comparison is immune because both servers encode alike; only snapshot-vs-live sees it.
+Read a local shortfall against that before reading it as the oracle.
+
+So the floor is set 9 points under a number that three distinct causes already hold well below 100%,
+and it cannot see a degradation that costs the oracle less than that margin. It is a precondition
+on the run, not a measure of the oracle's quality. Two things it does not cover: the fixture and
+corpus populations have no upstream snapshot at all, so **the oracle is calibrated on 125 of the
+gate's units and on none of the other ~14,000**; and the calibration reads the pristine document
+only — a post-edit phase (27b) is not calibrated, because upstream has no snapshot for one.
 
 ---
 
