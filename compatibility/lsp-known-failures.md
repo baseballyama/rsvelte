@@ -12,6 +12,11 @@ against an upstream expected snapshot. The three prefixes (`aggregate:corpus/`, 
 `expected:`) are disjoint by construction in `merge-current.mjs`, which rejects an artifact
 carrying a key outside its suite's prefix.
 
+Partition of `lsp-known-failures.json` by request phase: `16348`
+
+Opened-document keys and post-`didChange` keys. The opened phase carries no phase segment, so a
+single addend here means the baseline predates the edit phase; once measured it is two.
+
 Partition of `lsp-known-failures.json` entries under `aggregate:corpus/` by repository: `1848 + 3879 + 129 + 5040`
 
 bits-ui, flowbite-svelte, melt-ui, shadcn-svelte, in that order. This is the count
