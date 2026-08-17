@@ -169,7 +169,9 @@ Completion items, diagnostics, locations, folding ranges and inlay hints are pai
 method-specific semantic identity before their fields are diffed (`diff.mjs`). The committed
 fixture population additionally compares rsvelte with the selected upstream expected snapshot.
 The real-project population requests hover, definition and completion at every lexically matched
-identifier position in the four pinned repositories.
+identifier position in the four pinned repositories. Every unit runs its request set twice — once
+on the opened document and once after a deterministic round-trip edit (27b) — and the live official
+server is additionally held to those same upstream snapshots as a run-level precondition (27h).
 
 ### Blind spot 27a — server notifications are discarded [S]
 
@@ -179,14 +181,61 @@ message with an `id`, but stores neither branch when the message has no `id`. Co
 the comparison even though both servers emit them during the measured session. Pull diagnostics
 are compared separately, so this is specifically the push/notification surface.
 
-### Blind spot 27b — each document has one immutable request phase [S]
+### Blind spot 27b — closed for `didChange`; the other notification classes remain [D]
 
-The case loop in `verify.mjs` sends `didOpen`, executes the case's requests, then sends `didClose`.
-It never sends `didChange`, configuration changes, watched-file notifications or workspace-folder
-changes, and it does not feed a completion/code-action/code-lens result into its corresponding
-resolve request. The robustness suite exercises malformed mid-edits and cancellation for rsvelte,
-but it is not differential and cannot reveal a state-transition difference from the official
-server.
+The case loop used to send `didOpen`, execute the case's requests, then send `didClose`, so **every
+unit in the population — committed fixtures, the upstream suites, the 174 testfiles and the four
+repositories — was opened once and never edited.** Both servers declare incremental sync and both
+carry per-document state across edits, so a parity defect that only exists after the first edit was
+unreachable by construction, at any corpus size, for the same reason warning parity was invisible
+until `result.warnings` was captured (#2281). It is also the phase an editor spends almost no time
+in: a user opens a file once and edits it for an hour.
+
+Each unit now runs its request set twice. Between the two phases the harness applies a deterministic
+edit script derived from the source (`edits.mjs`): an `import` inserted at the end of the first
+`<script>` (which moves the TypeScript program, not just the text), a rule inserted at the end of
+the first `<style>`, and an **unclosed** `{#if}` appended at EOF, then each of the three removed
+again in reverse. Every change is an incremental range on both legs — a full-document replacement
+for the undo would restore a server whose incremental apply is broken and hide exactly what the
+phase exists to reach — and the final text is asserted byte-identical to the opened text, so the
+re-run request set keeps its phase-1 positions and a phase-2 divergence is a state-transition
+difference alone.
+
+The phase is in the ratchet key: `|phase=edit`, absent for the opened phase, in both the per-field
+fixture key and the corpus `(file, method)` aggregate. Without it an opened-phase entry would
+suppress a post-edit divergence in the same `(unit, method)` — the #2521 failure mode, where a
+ratchet entry suppressed everything its key could not tell apart.
+
+**What it found is nothing, and the nothing is measured.** The first full sweep merged as 16331 new
+and **0 stale** against a baseline written before the phase existed, and matching each edit key to
+its opened twin by stripping the phase segment gives **0 edit keys with no opened twin** against 17
+opened keys with no edit twin — the 17 being the session-level positive controls, which run once per
+session rather than once per unit. So on this population no parity defect exists only after an edit,
+and the 0 stale separately confirms no opened-phase key was rewritten by the new encoding. Read the
+corpus half of that `0` against 27g: its key records a divergent request **count**, so an edit-phase
+divergence at a different position inside an unchanged count is not distinguishable there. The
+fixture and upstream halves keep per-field keys and carry the claim without that caveat.
+
+What this does **not** reach, and stays here rather than being dropped from the sentence:
+
+- **The other notification classes.** Configuration changes, watched-file notifications and
+  workspace-folder changes are still never sent, and a completion / code-action / code-lens result
+  is still never fed into its `*/resolve` round trip.
+- **Full-document sync.** Both servers declare `TextDocumentSyncKind.Incremental` and only the
+  incremental path is driven. The two may disagree only under full-document changes; that is a
+  second phase, not a variant of this one.
+- **Steady state only.** The edit script round-trips, so what is compared is whether each server
+  returns to the answer it gave from scratch. Two servers that diverge *while* holding a
+  genuinely different document — an edit that is not undone — are outside it.
+- **One edit script for every unit.** It is uniform rather than per-unit, so a defect needing a
+  shape none of the three probes produces is not reached.
+- **The population floor still counts the input universe.** `corpus-population.json` records
+  identifiers × 3 methods; the compared request count is now twice that, and only
+  `report.json`'s `compared` carries it.
+
+The robustness suite (`crates/rsvelte_language_server/tests/robustness.rs`) drives malformed
+mid-edits and cancellation, but it is rsvelte-only — it asserts the server survives and cannot see
+a state-transition difference from official — so it does not substitute for any of the above.
 
 ### Blind spot 27c — two response fields and machine paths are normalized away [S]
 
@@ -253,6 +302,55 @@ still key one normalized field each — so this is a corpus-population blind spo
 one. The unmeasured question is whether a stable projection of a completion response exists that
 would restore per-field sensitivity; nobody has looked, and n=2 sweeps bound the churn only from
 below.
+
+### Blind spot 27h — the oracle is calibrated against upstream's snapshots, and the floor is loose [D]
+
+Every positive control this gate had was satisfied by an official server that answers *something*:
+a non-error TS hover from each side, one `ts`-sourced rsvelte diagnostic, the declared rsvelte
+capabilities. None of them separates a correctly configured official server from one started
+against the wrong workspace root, an unresolved `node_modules` or a missing `tsconfig` — a degraded
+oracle does not error, it answers differently, and those answers enrol into a shrink-only ratchet
+as legitimate entries that then defend the degradation. The 125 upstream snapshots the gate already
+loads were compared against rsvelte only, with `officialResult` in scope and unused at the call
+site.
+
+The live official server is now compared to the same snapshot, counted per snapshot suite, and a
+run below **70%** aborts before the current artifact is written — one verdict per run, deliberately
+not a second ratchet. Measured in CI on the pinned revision: **99/125 (79.2%)**, as
+`typescript-diagnostics` 72/92, `typescript-folding-range` 13/15, `typescript-inlay-hints` 14/18.
+
+What the floor's looseness buys, and what it costs, is the whole of this row. A live server over
+stdio is not upstream's provider-level harness, so the shortfall is structural rather than a
+defect, and it is not one cause:
+
+- **`typescript-diagnostics` (72/92).** The pull-diagnostic response aggregates every plugin the
+  server hosts, while the snapshot is the TypeScript provider's return value alone — on
+  `$$props-valid` the live server adds three `source: "svelte"` `unused-export-let` warnings the
+  snapshot cannot contain. The calibration therefore reads the `ts`/`js`-sourced items only, which
+  moves this suite from 51/92 to 71/92 on the same tree and is what makes the floor worth having:
+  it is the subset a misconfigured TypeScript backend would crater. The residual 20 are message
+  text and item-membership differences that come from running every fixture in one server session,
+  where upstream constructs one resolver per fixture directory.
+- **`typescript-folding-range` (13/15).** Both misses are one extra whole-`<script>` fold
+  contributed by the HTML folding provider, which upstream's provider-level test does not run —
+  the same two misses, and the same explanation, that a from-scratch harness measured during
+  #1767.
+- **`typescript-inlay-hints` (14/18).** All four misses are the live server returning `null` where
+  the provider returns hints, on `action`, `animation`, `reactive-block` and `snippet.v5`.
+
+**This number is a property of the checkout as much as of the oracle, in a second way 27f does not
+cover.** The same commit measures 94/125 in a worktree whose path contains a `+` and 99/125 in CI:
+`pathToFileURL` leaves `+` unencoded where the server's `vscode-uri` writes `%2B`, so `replaceUris`
+stops matching and four `typescript-inlay-hints` fixtures fail on their own URI alone. The
+differential comparison is immune because both servers encode alike; only snapshot-vs-live sees it.
+Read a local shortfall against that before reading it as the oracle.
+
+So the floor is set 9 points under a number that three distinct causes already hold well below 100%,
+and it cannot see a degradation that costs the oracle less than that margin. It is a precondition
+on the run, not a measure of the oracle's quality. Two things it does not cover: the fixture and
+corpus populations have no upstream snapshot at all, so **the oracle is calibrated on 125 of the
+gate's units and on none of the other ~14,000**; and the calibration reads the pristine document
+only — a post-edit phase (27b) is not calibrated, because upstream has no snapshot for one.
 
 ---
 
@@ -884,6 +982,29 @@ Third, the indirection axis stops at two levels (`const` → `const`). A fold th
 two and stops at three is **unmeasured**; the depth guards in the folder
 (`MAX_INITIAL_EVAL_DEPTH = 8`, `REACTIVE_INIT_DEPTH >= 8`) are above it and nothing here
 reaches them. **[S]**
+
+### Blind spot 5p — CLOSED: a `<script module>` seed with no body to revive the cursor
+
+Originally: `comment-slot` did inject into `<script module>` (`mutate.mjs` matches every
+`<script` open tag), so the entry point was *generated* — and still measured nothing about the
+rule that decides which of its comments survive. The seed's whole body was `export const`,
+`let`, and one function, and upstream's builder-made module `Program` starts with its comment
+cursor dead, so **every** slot in it is dropped by both compilers. A rule that keeps a comment
+iff it sits inside a function/class body span agrees on all of them: 6 line slots × 8 comment
+kinds × 4 targets = 192 comparisons, of which the 168 outside the trailing `</script>` slot
+scored green while the real rule — the last cursor event at or before the comment is a revive —
+disagrees the moment a located body ends and a comment follows it.
+
+**[D]** #3005: the seed now carries a rune class (whose synthesized accessors kill the cursor
+again), a static block and a bare block, each with a slot **outside** the body it revived from.
+Those three slots are the discriminating ones — the span rule drops all three, official keeps
+all three — and the pre-fix binary reproduces them.
+
+The lesson generalizes past this seed: "the family reaches entry point X" is not "the family can
+tell two rules for X apart". Every row of the old seed was a case where the two rules **agree**,
+so no input the generator could produce from it would have failed for this reason — a
+non-discriminating population rather than a non-discriminating comparison, which is the axis
+`--update-baseline` and corpus growth both leave untouched.
 
 **Closing 5b/5c:** the matrix costs ~25 s of CPU on ~10,200 comparisons (wall clock on a box
 running other agents' builds is unusable — a paired A/B inverted once). `constant-fold` is the

@@ -4,7 +4,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { refuseUnrepresentativeBaseline } from "../compat-corpus/baseline-guard.mjs";
-import { normalizeExpected, normalizeResponse } from "./normalize.mjs";
+import {
+  calibrationView,
+  normalizeExpected,
+  normalizeResponse,
+} from "./normalize.mjs";
 import { LspProcess, parseCommand } from "./protocol.mjs";
 import {
   CORPUS_REPOS,
@@ -15,6 +19,7 @@ import {
   removeNewServerCaches,
 } from "./suites.mjs";
 import { createCurrentArtifact, recordsFixtureControls } from "./artifacts.mjs";
+import { EDIT_PHASES, OPEN_PHASE, editChanges } from "./edits.mjs";
 import { diffJson } from "./diff.mjs";
 import {
   aggregateCorpusDifferences,
@@ -284,10 +289,22 @@ function clientRequest(message) {
   }
 }
 
-function keyFor(kind, entry, request) {
+// The opened phase leaves no phase segment, so its keys are the ones this gate
+// has always written and a baseline diff shows the edit phase as pure addition.
+function keyFor(kind, entry, request, phase) {
   const position = request.suffix ? `|${request.suffix}` : "";
-  return `${kind}:${entry.id}|${request.method}${position}`;
+  const stage = phase === OPEN_PHASE ? "" : `|phase=${phase}`;
+  return `${kind}:${entry.id}|${request.method}${position}${stage}`;
 }
+
+// Every other positive control here is satisfied by an official server that
+// answers *something*; a server started against the wrong workspace root or an
+// unresolved `node_modules` answers differently instead of failing, and those
+// answers would then be enrolled as legitimate ratchet entries defending the
+// degradation. Upstream's own snapshots are the only oracle-side assertion the
+// harness has, so the live official server is held to them.
+const ORACLE_REPRODUCTION_FLOOR = 0.7;
+const oracleCalibration = new Map();
 
 const current = [];
 const counts = {
@@ -301,6 +318,7 @@ const counts = {
   expected: 0,
 };
 const methodCounts = new Map();
+const phaseRequests = new Map();
 let nextId = 0;
 let official;
 let rsvelte;
@@ -310,7 +328,15 @@ let completedRequests = 0;
 let progressStarted = 0;
 let lastProgressAt = 0;
 
-function record(kind, entry, request, left, right, corpusObservations) {
+function record(
+  kind,
+  entry,
+  request,
+  left,
+  right,
+  corpusObservations,
+  phase = OPEN_PHASE,
+) {
   counts.total++;
   counts[kind]++;
   counts.compared++;
@@ -325,8 +351,71 @@ function record(kind, entry, request, left, right, corpusObservations) {
       );
     } else {
       for (const difference of differences)
-        current.push(`${keyFor(kind, entry, request)}|${difference}`);
+        current.push(`${keyFor(kind, entry, request, phase)}|${difference}`);
     }
+  }
+}
+
+function calibrateOracle(entry, method, expected, officialResult) {
+  const suite = entry.expected.suite;
+  const bucket = oracleCalibration.get(suite) ?? {
+    total: 0,
+    reproduced: 0,
+    misses: [],
+  };
+  bucket.total++;
+  const differences = diffJson(
+    method,
+    expected,
+    calibrationView(expected, officialResult),
+  );
+  if (differences.length) {
+    // The diff labels a side "rsvelte"; neither side is rsvelte here, so only
+    // the pointers are kept.
+    bucket.misses.push({
+      id: entry.id,
+      pointers: differences.map((value) => value.slice(0, value.indexOf(":"))),
+    });
+  } else {
+    bucket.reproduced++;
+  }
+  oracleCalibration.set(suite, bucket);
+}
+
+function oracleCalibrationReport() {
+  const suites = [...oracleCalibration].sort(([left], [right]) =>
+    left.localeCompare(right),
+  );
+  const total = suites.reduce((sum, [, bucket]) => sum + bucket.total, 0);
+  const reproduced = suites.reduce(
+    (sum, [, bucket]) => sum + bucket.reproduced,
+    0,
+  );
+  return {
+    floor: ORACLE_REPRODUCTION_FLOOR,
+    total,
+    reproduced,
+    suites: Object.fromEntries(suites),
+  };
+}
+
+function assertOracleCalibration(calibration) {
+  if (!selectedSuites.includes("upstream-features")) return;
+  if (!calibration.total) {
+    throw new Error(
+      "upstream-features was selected but no expected snapshot was compared against the official server",
+    );
+  }
+  for (const [suite, bucket] of Object.entries(calibration.suites)) {
+    console.log(
+      `[lsp-verify] oracle calibration ${suite}: ${bucket.reproduced}/${bucket.total} upstream snapshots reproduced`,
+    );
+  }
+  const rate = calibration.reproduced / calibration.total;
+  if (rate < ORACLE_REPRODUCTION_FLOOR) {
+    throw new Error(
+      `the official server reproduced ${calibration.reproduced}/${calibration.total} (${(rate * 100).toFixed(1)}%) of upstream's own expected snapshots, below the ${(ORACLE_REPRODUCTION_FLOOR * 100).toFixed(0)}% floor; the oracle is not behaving as its own test suite says, so every divergence this run measured is against an unknown reference`,
+    );
   }
 }
 
@@ -393,7 +482,8 @@ function progress() {
   );
 }
 
-async function compareRequest(entry, request, corpusObservations) {
+async function compareRequest(entry, request, corpusObservations, phase) {
+  phaseRequests.set(phase, (phaseRequests.get(phase) ?? 0) + 1);
   const [officialResult, rsvelteResult] = await requestBoth(
     request.method,
     request.params,
@@ -417,6 +507,7 @@ async function compareRequest(entry, request, corpusObservations) {
     officialResult,
     rsvelteResult,
     corpusObservations,
+    phase,
   );
   if (entry.expected?.method === request.method) {
     const expected = normalizeExpected(
@@ -431,17 +522,27 @@ async function compareRequest(entry, request, corpusObservations) {
       expected,
       rsvelteResult,
       corpusObservations,
+      phase,
     );
+    // Upstream has no snapshot for an edited document, so only the pristine
+    // phase can be calibrated against one.
+    if (phase === OPEN_PHASE)
+      calibrateOracle(entry, request.method, expected, officialResult);
   }
   progress();
 }
 
-async function compareRequestsBounded(entry, requests, corpusObservations) {
+async function compareRequestsBounded(
+  entry,
+  requests,
+  corpusObservations,
+  phase,
+) {
   const active = new Set();
   for (const request of requests) {
     let task;
-    task = compareRequest(entry, request, corpusObservations).finally(() =>
-      active.delete(task),
+    task = compareRequest(entry, request, corpusObservations, phase).finally(
+      () => active.delete(task),
     );
     active.add(task);
     if (active.size >= CONCURRENCY) await Promise.race(active);
@@ -610,14 +711,40 @@ async function main() {
     };
     official.send(open);
     rsvelte.send(open);
-    const requests =
+    // Re-derived per phase: the corpus request set is a generator, and iterating
+    // one twice compares an empty second phase without failing.
+    const requestsFor = () =>
       typeof entry.requests === "function"
         ? entry.requests(entry.uri, text)
         : entry.requests;
-    const corpusObservations = [];
-    await compareRequestsBounded(entry, requests, corpusObservations);
-    if (entry.suite === "corpus")
-      current.push(...aggregateCorpusDifferences(entry.id, corpusObservations));
+    let version = 1;
+    for (const phase of [OPEN_PHASE, ...EDIT_PHASES]) {
+      if (phase !== OPEN_PHASE) {
+        for (const change of editChanges(text)) {
+          const notification = {
+            jsonrpc: "2.0",
+            method: "textDocument/didChange",
+            params: {
+              textDocument: { uri: entry.uri, version: ++version },
+              contentChanges: [change],
+            },
+          };
+          official.send(notification);
+          rsvelte.send(notification);
+        }
+      }
+      const corpusObservations = [];
+      await compareRequestsBounded(
+        entry,
+        requestsFor(),
+        corpusObservations,
+        phase,
+      );
+      if (entry.suite === "corpus")
+        current.push(
+          ...aggregateCorpusDifferences(entry.id, corpusObservations, phase),
+        );
+    }
     const close = {
       jsonrpc: "2.0",
       method: "textDocument/didClose",
@@ -629,22 +756,38 @@ async function main() {
 
   current.sort();
   if (counts.compared === 0) throw new Error("zero LSP comparisons completed");
+  // Each phase re-runs the *same* request set, so an unequal count means one
+  // phase silently measured a different population and its keys are not
+  // comparable to the other's.
+  const phaseSizes = new Set(phaseRequests.values());
+  if (phaseRequests.size !== 1 + EDIT_PHASES.length || phaseSizes.size !== 1) {
+    throw new Error(
+      `each phase must compare the same request set, measured ${[
+        ...phaseRequests,
+      ]
+        .map(([phase, count]) => `${phase}=${count}`)
+        .join(", ")}`,
+    );
+  }
   for (const method of population.metadata.expectedMethods) {
     if ((methodCounts.get(method) ?? 0) === 0)
       throw new Error(`zero comparisons completed for ${method}`);
   }
 
+  const calibration = oracleCalibrationReport();
   fs.writeFileSync(
     REPORT,
     JSON.stringify(
       {
         generatedAt: new Date().toISOString(),
         suites: selectedSuites,
+        oracleCalibration: calibration,
         corpusRepos: selectedSuites.includes("corpus") ? selectedRepos : [],
         shard: SHARD,
         cases: cases.length,
         concurrency: CONCURRENCY,
         transportRequests: completedRequests,
+        phaseRequests: Object.fromEntries([...phaseRequests].sort()),
         ...counts,
         methods: Object.fromEntries([...methodCounts].sort()),
         skips: population.skipped,
@@ -657,6 +800,10 @@ async function main() {
   console.log(
     `[lsp-verify] ${cases.length} cases; ${counts.compared}/${counts.total} compared, ${counts.divergent} divergent requests / ${counts.divergentFields} divergent fields, ${counts.skipped} skipped`,
   );
+
+  // Before the artifact, not after: a run measured against a degraded oracle
+  // must leave nothing that `merge-current.mjs` could accept.
+  assertOracleCalibration(calibration);
 
   if (WRITE_CURRENT) {
     const artifact = createCurrentArtifact({

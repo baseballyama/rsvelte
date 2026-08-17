@@ -135,7 +135,7 @@ const TSGO_SEMANTIC_TOKEN_MODIFIERS: &[&str] = &[
 ///
 /// Returns an error when initializing or serving the JSON-RPC connection fails.
 pub fn run_stdio() -> Result<ExitCode> {
-    let (connection, io_threads) = Connection::stdio();
+    let (connection, io_threads) = crate::transport::stdio();
     let (id, params) = connection.initialize_start()?;
     let client = ClientState::from_initialize(&params);
     let tsgo = TsgoRuntime::start(&client, &params);

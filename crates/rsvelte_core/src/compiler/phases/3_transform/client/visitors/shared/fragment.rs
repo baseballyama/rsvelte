@@ -538,7 +538,7 @@ pub fn process_children<F>(
                 } else {
                     // Get node name for identifier
                     let (name, name_loc) = if let TemplateNode::RegularElement(elem) = node {
-                        (elem.name.as_str(), Some(elem.start))
+                        (elem.name.as_str(), Some(elem.start.saturating_add(1)))
                     } else {
                         ("node", None)
                     };

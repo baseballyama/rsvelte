@@ -35,6 +35,7 @@ pub mod settings;
 pub mod symbols;
 pub mod tags;
 pub mod text;
+pub mod transport;
 pub mod tsgo_client;
 pub mod tsgo_code_actions;
 pub mod tsgo_completion;

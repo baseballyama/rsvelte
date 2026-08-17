@@ -2,7 +2,7 @@
 
 use super::scope::{Scope, ScopeRoot};
 use crate::ast::arena::JsNodeId;
-use crate::ast::template::{Root, Script, ScriptContext};
+use crate::ast::template::{Root, Script};
 use crate::compiler::CompileOptions;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::ops::Range;
@@ -169,10 +169,6 @@ impl ScriptContent {
                 }
                 false
             });
-        let needs_state_projection = is_typescript
-            && script.context == ScriptContext::Default
-            && raw_source.as_bytes().contains(&b'$');
-
         // Strip TypeScript from the raw content if this is a TypeScript script
         let (raw, source_projection) = if is_typescript && !raw_source.is_empty() {
             retained_program
@@ -184,17 +180,7 @@ impl ScriptContent {
                 .map_or_else(
                     || (strip_typescript(raw_source), None),
                     |program| {
-                        if needs_state_projection {
-                            strip_typescript_from_program_with_projection(
-                                raw_source,
-                                program.program(),
-                            )
-                        } else {
-                            (
-                                strip_typescript_from_program(raw_source, program.program()),
-                                None,
-                            )
-                        }
+                        strip_typescript_from_program_with_projection(raw_source, program.program())
                     },
                 )
         } else {

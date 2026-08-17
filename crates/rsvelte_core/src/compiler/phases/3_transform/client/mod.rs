@@ -12,10 +12,10 @@ mod assign_dev_ast;
 mod ast_state_transform;
 mod async_derived_dev;
 mod await_reactivity_loss_ast;
-mod class_accessor_comments;
 mod class_transforms;
 mod console_dev_ast;
 mod console_wrap;
+mod dead_comments;
 mod declaration_split;
 mod derived_by_ast;
 mod destructure_transforms;
@@ -92,6 +92,7 @@ use std::rc::Rc;
 use std::sync::LazyLock;
 
 use crate::compiler::phases::phase3_transform::shared::js_scan::{find_code, skip_opaque};
+use compact_str::CompactString;
 use memchr::memmem;
 // rustc_hash is used by submodules via their own imports
 
@@ -104,7 +105,7 @@ use super::js_ast::{
     nodes::{
         JsBlockStatement, JsExportDefault, JsExportDefaultDeclaration, JsExpr,
         JsFunctionDeclaration, JsImportDeclaration, JsImportSpecifier, JsObjectMember, JsPattern,
-        JsProgram, JsPropertyKey, JsStatement, JsVariableKind,
+        JsProgram, JsPropertyKey, JsStatement, JsVariableKind, RawMappedSpan,
     },
 };
 use crate::ast::template::Root;
@@ -268,7 +269,7 @@ pub fn transform_client_module(
     // Drop the comments upstream's synthesized accessors swallow before any
     // rewrite, so the scan still sees the source's own class bodies.
     let dead_comments_stripped =
-        class_accessor_comments::strip_class_accessor_dead_comments(source);
+        dead_comments::strip_dead_comments(source, dead_comments::Rules::ACCESSORS);
     let source = dead_comments_stripped.as_deref().unwrap_or(source);
 
     // Transform the module source (rune replacements, class fields, etc.)
@@ -479,6 +480,7 @@ pub(crate) fn transform_client(
     // The actual visiting is done via ComponentContext::visit_node which dispatches
     // based on node type - the visit function pointer is not actually used
     let mut context = ComponentContext::new(state, |_, _, _| TransformResult::None);
+    context.enable_sourcemap = options.enable_sourcemap;
 
     // Visit the program to set up transforms for props, store subscriptions, etc.
     // This handles state, legacy props, and store subscriptions.
@@ -550,14 +552,14 @@ pub(crate) fn transform_client(
                             && retained.diagnostics().is_empty()
                             && retained.program().source_text == instance_script.raw
                     }) {
-                    Some(retained) => {
-                        class_accessor_comments::strip_class_accessor_dead_comments_from_program(
-                            &instance_script.raw,
-                            retained.program(),
-                        )
-                    }
-                    None => class_accessor_comments::strip_class_accessor_dead_comments(
+                    Some(retained) => dead_comments::strip_dead_comments_from_program(
                         &instance_script.raw,
+                        retained.program(),
+                        dead_comments::Rules::ACCESSORS,
+                    ),
+                    None => dead_comments::strip_dead_comments(
+                        &instance_script.raw,
+                        dead_comments::Rules::ACCESSORS,
                     ),
                 }
             })
@@ -1209,6 +1211,10 @@ pub(crate) fn transform_client(
     if let Some(ref content) = analysis.instance_script_content {
         let mut transformed_script = pre_transformed_script.take().unwrap_or_default();
         let has_effect_rune = content.raw.contains("$effect") || content.raw.contains("$inspect");
+        let props_comments = props_declaration_comments(&content.raw);
+        let props_comment_anchor = props_comments
+            .last()
+            .map(|(offset, comment)| content.start + *offset + comment.len() as u32);
 
         // Post-process reactive imports: replace $.get(X)/$.mutate(X,...) with $$_import_X()
         for name in &reactive_import_names {
@@ -1269,6 +1275,16 @@ pub(crate) fn transform_client(
                 content.start + (text.len() - text.trim_start().len()) as u32
             });
         if !trimmed.is_empty() {
+            for (offset, comment) in &props_comments {
+                if !transformed_script.contains(comment.as_str()) {
+                    component_body.push(JsStatement::RawMapped {
+                        code: comment.clone(),
+                        source_offset: content.start + *offset,
+                        comment_anchor: None,
+                        copied_spans: Vec::new(),
+                    });
+                }
+            }
             // Apply async body transformation if experimental.async is enabled
             // This splits the instance script at the first top-level `await`
             if options.experimental.r#async {
@@ -1283,6 +1299,10 @@ pub(crate) fn transform_client(
                         normalized,
                         script_source_offset,
                         has_effect_rune,
+                        &content.raw,
+                        content.start,
+                        content.source_projection.as_ref(),
+                        props_comment_anchor,
                     ));
                     // Store the blocker_map for use during template generation
                     if !async_result.blocker_map.is_empty() {
@@ -1297,6 +1317,10 @@ pub(crate) fn transform_client(
                             normalized,
                             script_source_offset,
                             has_effect_rune,
+                            &content.raw,
+                            content.start,
+                            content.source_projection.as_ref(),
+                            props_comment_anchor,
                         ));
                     }
                 }
@@ -1314,15 +1338,20 @@ pub(crate) fn transform_client(
                         .and_then(|scripts| scripts.instance.as_ref())
                         .filter(|retained| {
                             !analysis.is_typescript
+                                && content.source_projection.is_none()
                                 && retained.source() == content.raw
                                 && retained.program().comments.is_empty()
-                                && transformed_script.trim() == content.raw.trim()
+                        })
+                        .and_then(|retained| {
+                            retained_instance_statement_indices(retained, &content.raw, &normalized)
+                                .map(|statement_indices| (retained, statement_indices))
                         });
-                    if let Some(retained) = retained {
+                    if let Some((retained, statement_indices)) = retained {
                         let index = ast_islands.len();
                         ast_islands.push(super::js_ast::to_oxc::AstIsland {
                             program: retained,
                             source_offset: content.start,
+                            statement_indices,
                         });
                         component_body.push(JsStatement::RetainedAst {
                             index,
@@ -1335,6 +1364,10 @@ pub(crate) fn transform_client(
                             normalized,
                             script_source_offset,
                             has_effect_rune,
+                            &content.raw,
+                            content.start,
+                            content.source_projection.as_ref(),
+                            props_comment_anchor,
                         ));
                     }
                 }
@@ -1983,12 +2016,12 @@ pub(crate) fn transform_client(
             let raw = crate::compiler::phases::phase2_analyze::types::strip_typescript(
                 &module_content.raw,
             );
-            // Then the comments upstream's synthesized rune accessors swallow,
-            // which `strip_module_toplevel_comments` below cannot see: they sit
-            // inside a body span, so its own rule keeps them.
+            // Then the comments the accessors swallow, while the class the scan
+            // keys on is still in its source shape — the rune transforms below
+            // rewrite it before `strip_module_toplevel_comments` runs.
             let raw = analysis
                 .runes
-                .then(|| class_accessor_comments::strip_class_accessor_dead_comments(&raw))
+                .then(|| dead_comments::strip_dead_comments(&raw, dead_comments::Rules::ACCESSORS))
                 .flatten()
                 .unwrap_or(raw);
             let (module_imports, rest) = extract_imports(&raw);
@@ -1997,8 +2030,11 @@ pub(crate) fn transform_client(
                     .and_then(|scripts| scripts.module.as_ref())
                     .filter(|retained| retained.program().source_text == raw)
                     .map(|retained| {
-                        let stripped =
-                            strip_module_toplevel_comments_from_program(&raw, retained.program());
+                        let stripped = strip_module_toplevel_comments_from_program(
+                            &raw,
+                            retained.program(),
+                            analysis.runes,
+                        );
                         extract_imports(&stripped).1.trim().to_string()
                     })
             } else {
@@ -2086,15 +2122,52 @@ pub(crate) fn transform_client(
         // `strip_typescript` re-emits from a removed `export type`/`interface`).
         let transformed = if transformed == non_imports {
             retained_comment_stripped
-                .unwrap_or_else(|| strip_module_toplevel_comments(&transformed))
+                .unwrap_or_else(|| strip_module_toplevel_comments(&transformed, analysis.runes))
         } else {
-            strip_module_toplevel_comments(&transformed)
+            strip_module_toplevel_comments(&transformed, analysis.runes)
         };
-        body.push(if has_effect_rune {
-            JsStatement::RawEffect(transformed.into())
-        } else {
-            JsStatement::Raw(transformed.into())
-        });
+        let retained = retained_scripts
+            .and_then(|scripts| scripts.module.as_ref())
+            .filter(|retained| {
+                !analysis.is_typescript
+                    && analysis
+                        .module_script_content
+                        .as_ref()
+                        .is_some_and(|content| {
+                            content.source_projection.is_none() && retained.source() == content.raw
+                        })
+                    && retained.program().comments.is_empty()
+            })
+            .and_then(|retained| {
+                analysis.module_script_content.as_ref().and_then(|content| {
+                    retained_instance_statement_indices(
+                        retained,
+                        &content.raw,
+                        &normalize_js_with_oxc(&transformed, 1),
+                    )
+                    .map(|statement_indices| (retained, content.start, statement_indices))
+                })
+            });
+        body.push(
+            if let Some((retained, source_offset, statement_indices)) = retained {
+                let index = ast_islands.len();
+                ast_islands.push(super::js_ast::to_oxc::AstIsland {
+                    program: retained,
+                    source_offset,
+                    statement_indices,
+                });
+                JsStatement::RetainedAst {
+                    index,
+                    fallback: transformed.into(),
+                    source_offset,
+                    has_effect_rune,
+                }
+            } else if has_effect_rune {
+                JsStatement::RawEffect(transformed.into())
+            } else {
+                JsStatement::Raw(transformed.into())
+            },
+        );
     }
 
     // Add hoisted statements (template declarations, etc.)
@@ -2796,18 +2869,196 @@ fn is_export_default_stmt(stmt: &JsStatement) -> bool {
     }
 }
 
-fn script_raw_statement(code: String, source_offset: u32, has_effect_rune: bool) -> JsStatement {
+fn script_raw_statement(
+    code: String,
+    source_offset: u32,
+    has_effect_rune: bool,
+    original: &str,
+    original_offset: u32,
+    projection: Option<&ScriptProjection>,
+    comment_anchor: Option<u32>,
+) -> JsStatement {
+    let copied_spans = projection
+        .map(|projection| {
+            copied_spans_for_normalized_code(&code, original, original_offset, projection)
+        })
+        .unwrap_or_default();
     if has_effect_rune {
         JsStatement::RawMappedEffect {
             code: code.into(),
             source_offset,
+            comment_anchor,
+            effect_spans: original
+                .match_indices("$effect")
+                .map(|(start, _)| {
+                    let tail = &original[start..];
+                    let pre = tail.starts_with("$effect.pre");
+                    let len = if pre { 11 } else { 7 };
+                    (
+                        pre,
+                        original_offset + start as u32,
+                        original_offset + start as u32 + len,
+                    )
+                })
+                .collect(),
+            copied_spans,
         }
     } else {
         JsStatement::RawMapped {
+            copied_spans,
             code: code.into(),
             source_offset,
+            comment_anchor,
         }
     }
+}
+
+/// Comments inside the `$props()` declaration survive upstream's lowering even
+/// though the declaration itself is removed from the component body.
+fn props_declaration_comments(raw: &str) -> Vec<(u32, CompactString)> {
+    let Some(props) = raw.find("$props()") else {
+        return Vec::new();
+    };
+    let Some(start) = raw[..props].rfind("let") else {
+        return Vec::new();
+    };
+    let end = raw[props..]
+        .find(';')
+        .map_or(raw.len(), |end| props + end + 1);
+    crate::compiler::phases::phase3_transform::server::transform_script::extract_comments_from_snippet_with_pos(&raw[start..end])
+        .into_iter()
+        .map(|(offset, comment)| ((start + offset) as u32, comment.into()))
+        .collect()
+}
+
+/// Align normalized raw output with the stripped script, then project every
+/// unchanged byte back through TypeScript erasure to its component offset.
+/// Formatting may add whitespace or a semicolon, so unmatched bytes are left
+/// unmapped instead of guessing through a compiler-generated rewrite.
+fn copied_spans_for_normalized_code(
+    code: &str,
+    stripped: &str,
+    original_offset: u32,
+    projection: &ScriptProjection,
+) -> Vec<RawMappedSpan> {
+    let mut source_at_output = vec![None; stripped.len() + 1];
+    for chunk in &projection.copied_chunks {
+        let len =
+            (chunk.output.end - chunk.output.start).min(chunk.source.end - chunk.source.start);
+        for offset in 0..=len {
+            let output = (chunk.output.start + offset) as usize;
+            if output < source_at_output.len() {
+                source_at_output[output] = Some(original_offset + chunk.source.start + offset);
+            }
+        }
+    }
+
+    let mut spans = Vec::new();
+    let mut output = 0usize;
+    let mut input = 0usize;
+    while output < code.len() && input < stripped.len() {
+        let output_byte = code.as_bytes()[output];
+        let input_byte = stripped.as_bytes()[input];
+        if output_byte == input_byte {
+            let start_output = output;
+            let start_input = input;
+            while output < code.len()
+                && input < stripped.len()
+                && code.as_bytes()[output] == stripped.as_bytes()[input]
+            {
+                output += 1;
+                input += 1;
+            }
+            let mut run_start = start_output;
+            for code_offset in start_output..=output {
+                let raw_offset = start_input + code_offset - start_output;
+                let mapped = source_at_output.get(raw_offset).copied().flatten();
+                let previous = if code_offset > run_start {
+                    source_at_output
+                        .get(raw_offset.saturating_sub(1))
+                        .copied()
+                        .flatten()
+                } else {
+                    mapped
+                };
+                if code_offset == output
+                    || mapped.is_none()
+                    || previous.is_none_or(|p| mapped != Some(p + 1))
+                {
+                    if code_offset > run_start
+                        && let (Some(source_start), Some(source_end)) = (
+                            source_at_output[start_input + run_start - start_output],
+                            source_at_output[start_input + code_offset - 1 - start_output]
+                                .map(|value| value + 1),
+                        )
+                    {
+                        spans.push(RawMappedSpan {
+                            code: run_start as u32..code_offset as u32,
+                            source: source_start..source_end,
+                        });
+                    }
+                    run_start = code_offset;
+                }
+            }
+            continue;
+        }
+        if output_byte.is_ascii_whitespace() {
+            output += 1;
+            continue;
+        }
+        if input_byte.is_ascii_whitespace() {
+            input += 1;
+            continue;
+        }
+        // A generated change (for example `count++` -> `$.update(count)`) must
+        // not desynchronise the rest of the script. Resume at the nearest exact
+        // byte within a small window; otherwise leave one generated byte bare.
+        let next_input = stripped.as_bytes()[input..]
+            .iter()
+            .take(256)
+            .position(|&byte| byte == output_byte);
+        let next_output = code.as_bytes()[output..]
+            .iter()
+            .take(256)
+            .position(|&byte| byte == input_byte);
+        match (next_input, next_output) {
+            (Some(left), Some(right)) if left <= right => input += left,
+            (Some(left), None) => input += left,
+            (_, Some(right)) => output += right,
+            (None, None) => output += 1,
+        }
+    }
+    spans
+}
+
+/// Select the source statements that survive instance-import hoisting.
+///
+/// `extract_imports` owns the legacy-compatible line handling, so the AST path
+/// proves equivalence by normalizing the exact non-import statement slices to
+/// the already-settled script text. Any disagreement keeps `RawMapped`.
+fn retained_instance_statement_indices(
+    retained: &crate::ast::oxc_program::RetainedProgram<'_>,
+    source: &str,
+    normalized_script: &str,
+) -> Option<Vec<usize>> {
+    use oxc_span::GetSpan;
+
+    let mut indices = Vec::new();
+    let mut body = String::new();
+    for (index, statement) in retained.program().body.iter().enumerate() {
+        if matches!(statement, oxc_ast::ast::Statement::ImportDeclaration(_)) {
+            continue;
+        }
+        let span = statement.span();
+        let slice = source.get(span.start as usize..span.end as usize)?;
+        if !body.is_empty() {
+            body.push('\n');
+        }
+        body.push_str(slice);
+        indices.push(index);
+    }
+
+    (!indices.is_empty() && normalize_js_with_oxc(&body, 1) == normalized_script).then_some(indices)
 }
 
 // ============================================================================
@@ -2828,35 +3079,20 @@ fn script_raw_statement(code: String, source_offset: u32, has_effect_rune: bool)
 /// output omits.
 ///
 /// The client program's top-level `Program` node is synthetic (no `loc`), so
-/// esrap's `reset_comment_index` fast-forwards the comment cursor past every
-/// comment before the module body is printed. A module comment is therefore
-/// only re-emitted if it is nested inside a `loc`-bearing block that esrap
-/// re-enters via `body()` — i.e. a function or class body. Every other module
-/// comment is dropped: a leading JSDoc before a surviving `export const`, and
-/// the per-field JSDoc that `strip_typescript` re-emits when it removes an
-/// `export type` / `interface` body (that re-emission is correct for the
-/// instance script, whose statements keep their `loc` inside the component
-/// block, but wrong for the module).
-///
-/// Mirror that here for the module non-import content: keep only comments that
-/// fall inside a function/class body span; splice the rest out. Leftover blank
-/// lines are absorbed by downstream normalization. Returns the input unchanged
-/// on a parse failure or when there is nothing to drop.
-pub(crate) fn strip_module_toplevel_comments(src: &str) -> String {
-    use oxc_allocator::Allocator;
-    use oxc_parser::Parser;
-    use oxc_span::SourceType;
-
+/// esrap's comment cursor is already parked past the end when the module body is
+/// printed — a leading JSDoc before a surviving `export const`, and the per-field
+/// JSDoc that `strip_typescript` re-emits when it removes an `export type` /
+/// `interface` body, are both dropped. (That re-emission is correct for the
+/// instance script, whose statements keep their `loc` inside the component block,
+/// but wrong for the module.) A later `body()` over a located block revives the
+/// cursor, so `dead_comments` walks the same events with the kill seeded at the
+/// program. Leftover blank lines are absorbed by downstream normalization. Returns
+/// the input unchanged on a parse failure or when there is nothing to drop.
+pub(crate) fn strip_module_toplevel_comments(src: &str, runes: bool) -> String {
     #[cfg(test)]
     MODULE_COMMENT_REPARSES.with(|count| count.set(count.get() + 1));
-    let allocator = Allocator::default();
-    let _pt = super::profile::timer_start();
-    let ret = Parser::new(&allocator, src, SourceType::mjs()).parse();
-    super::profile::record_direct_parse(super::profile::timer_elapsed(_pt), src.len());
-    if !ret.diagnostics.is_empty() {
-        return src.to_string();
-    }
-    strip_module_toplevel_comments_from_program(src, &ret.program)
+    dead_comments::strip_dead_comments(src, dead_comments::Rules::module_script(runes))
+        .unwrap_or_else(|| src.to_string())
 }
 
 #[cfg(test)]
@@ -2869,60 +3105,14 @@ thread_local! {
 fn strip_module_toplevel_comments_from_program(
     src: &str,
     program: &oxc_ast::ast::Program<'_>,
+    runes: bool,
 ) -> String {
-    use oxc_ast::ast::{ClassBody, FunctionBody};
-    use oxc_ast_visit::{Visit, walk};
-
-    struct BodyCollector {
-        spans: Vec<(u32, u32)>,
-    }
-    impl<'a> Visit<'a> for BodyCollector {
-        fn visit_function_body(&mut self, it: &FunctionBody<'a>) {
-            self.spans.push((it.span.start, it.span.end));
-            walk::walk_function_body(self, it);
-        }
-        fn visit_class_body(&mut self, it: &ClassBody<'a>) {
-            self.spans.push((it.span.start, it.span.end));
-            walk::walk_class_body(self, it);
-        }
-    }
-
-    debug_assert_eq!(program.source_text, src);
-    if program.comments.is_empty() {
-        return src.to_string();
-    }
-
-    let mut collector = BodyCollector { spans: Vec::new() };
-    collector.visit_program(program);
-
-    let mut removals: Vec<(usize, usize)> = Vec::new();
-    for c in &program.comments {
-        let (cs, ce) = (c.span.start, c.span.end);
-        let inside = collector
-            .spans
-            .iter()
-            .any(|(bs, be)| cs >= *bs && ce <= *be);
-        if !inside {
-            removals.push((cs as usize, ce as usize));
-        }
-    }
-    if removals.is_empty() {
-        return src.to_string();
-    }
-    removals.sort_by_key(|r| r.0);
-
-    let mut out = String::with_capacity(src.len());
-    let mut pos = 0usize;
-    for (s, e) in removals {
-        if s > pos {
-            out.push_str(&src[pos..s]);
-        }
-        pos = pos.max(e);
-    }
-    if pos < src.len() {
-        out.push_str(&src[pos..]);
-    }
-    out
+    dead_comments::strip_dead_comments_from_program(
+        src,
+        program,
+        dead_comments::Rules::module_script(runes),
+    )
+    .unwrap_or_else(|| src.to_string())
 }
 
 /// True when `src` contains only line/block comments and whitespace — i.e. no

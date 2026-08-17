@@ -1,5 +1,16 @@
 # @rsvelte/compiler
 
+## 0.10.16
+
+### Patch Changes
+
+- ebe5b77: Drop the comments upstream loses when it lowers a public rune class field: the generated `get`/`set` bodies carry no `loc`, which parks esrap's comment cursor past the end of the file until a located body re-syncs it, so every comment in between is missing from official's client output. rsvelte built those accessors as source text and kept the comments.
+- 2032958: Print statement bodies in `print`'s ESTree fallback instead of replacing them with a placeholder: a `BlockStatement` came back as the literal `{ /* block */ }`, and `if`/loop/`try`/function/class bodies as `{ /* ... */ }`, all returned as a successful print. The placeholder reached 528 of the 4,468 `.svelte` files in the Svelte test suite. The fallback now also reconstructs the parentheses the tree does not carry, so its output parses.
+- 2e9b45c: Locate `.svelte.(js|ts)` module rune calls lexically: a `$derived(` inside a string, template or comment aborted the lowering loop and left the real rune call in the output (the module then threw `$derived is not defined` at import), and a regex literal carrying the same text was rewritten into a different regular expression.
+- ce13b44: Fail `print` instead of erasing what its ESTree fallback cannot represent: an unsupported node type was substituted with a `/* unknown */` comment and returned as a successful print, which dropped 255 nodes across 167 of the 4,369 printable `.svelte` files in the Svelte test suite (228 of them legacy `$:` labelled statements).
+- 6eb364e: Align compile-error diagnostics with official Svelte. Error messages now use the official wording (`$props()` placement, duplicate runes, rune argument counts, `$`-prefixed bindings, `arguments` usage, renamed runes, missing rune parentheses, comma-separated attribute expressions, each-block argument assignment) and carry the same trailing `https://svelte.dev/e/<code>` help URL that official appends to every coded message. Spans are attributed to the node official blames rather than to the enclosing statement — reserved `$` bindings and imports, rune calls and their arguments, `$props()` placement and patterns, computed rune properties, invalid exports and `$props` members, keyed `{#each}` and import errors, `{@render}` and slot attributes, special elements and their children, `<svelte:self>` placement, duplicate and default component slots, invalid attribute expressions, directive `await` errors, global CSS validation, and renamed runes. `<svelte:self>` in an unsupported position now reports `svelte_self_invalid_placement`.
+- d6d3388: Split the instance script's multi-declarator `let` / `const` / `var` declarations from the OXC declarators instead of rebuilding the whole script line by line. Only the declarations that carry more than one declarator are rewritten, so a single `let a = 1, b = 2;` no longer reflows every other statement — and the line-scanning text pass it used (bracket balancing, comma splitting, per-line brace depth) is deleted, having had no other caller left.
+
 ## 0.10.15
 
 ### Patch Changes

@@ -14,7 +14,13 @@ use crate::{
     ast::{AttributeValue, AttributeValuePart, Root, ScriptContext, oxc_program::RetainedScripts},
     compiler::{
         ComponentAnalysis,
-        phases::{phase2_analyze::BindingKind, phase3_transform::transform_component_with_scripts},
+        phases::{
+            phase2_analyze::BindingKind,
+            phase3_transform::{
+                SourceTokenPositions, collect_source_token_positions,
+                transform_component_with_scripts,
+            },
+        },
     },
 };
 
@@ -396,6 +402,7 @@ impl<'source> PreparedComponent<'source> {
             options.sourcemap.is_some(),
             Some(&self.retained_scripts),
             Some(sink),
+            None,
         )
         .map_err(CompileError::from)?;
         Ok(crate::compiler::finalize_compile_result(
@@ -413,8 +420,20 @@ impl<'source> PreparedComponent<'source> {
     ///
     /// Returns an error if either target transformation or code generation fails.
     pub fn compile_both(&mut self) -> Result<(CompileResult, CompileResult), CompileError> {
-        let client = self.compile(RuntimeTarget::Client)?;
-        let server = self.compile(RuntimeTarget::Server)?;
+        let mut source_token_positions = self
+            .options
+            .enable_sourcemap
+            .then(|| collect_source_token_positions(self.source));
+        let client = self.compile_mode_with_source_token_positions(
+            GenerateMode::Client,
+            true,
+            source_token_positions.as_mut(),
+        )?;
+        let server = self.compile_mode_with_source_token_positions(
+            GenerateMode::Server,
+            true,
+            source_token_positions.as_mut(),
+        )?;
         Ok((client, server))
     }
 
@@ -429,6 +448,15 @@ impl<'source> PreparedComponent<'source> {
         &mut self,
         generate: GenerateMode,
         include_sourcemap_content: bool,
+    ) -> Result<CompileResult, CompileError> {
+        self.compile_mode_with_source_token_positions(generate, include_sourcemap_content, None)
+    }
+
+    fn compile_mode_with_source_token_positions(
+        &mut self,
+        generate: GenerateMode,
+        include_sourcemap_content: bool,
+        source_token_positions: Option<&mut SourceTokenPositions<'source>>,
     ) -> Result<CompileResult, CompileError> {
         // SAFETY: `self.ast` cannot move for the duration of this mutable borrow.
         let _arena_guard =
@@ -448,6 +476,7 @@ impl<'source> PreparedComponent<'source> {
             include_sourcemap_content,
             Some(&self.retained_scripts),
             None,
+            source_token_positions,
         )
         .map_err(CompileError::from)?;
         let mut result = crate::compiler::finalize_compile_result(

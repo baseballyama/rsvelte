@@ -900,8 +900,12 @@ pub fn build_set_class(
     let mut css_hash_expr: Option<JsExpr> = None;
 
     if is_scoped && !css_hash.is_empty() {
-        // Check if class_value is a literal string
-        match &class_value {
+        let mut static_class_value = &class_value;
+        while let JsExpr::Spanned(inner, _, _) = static_class_value {
+            static_class_value = context.arena.get_expr(*inner);
+        }
+        // Check if class_value is a literal string.
+        match static_class_value {
             JsExpr::Literal(
                 crate::compiler::phases::phase3_transform::js_ast::nodes::JsLiteral::String(s),
             ) => {

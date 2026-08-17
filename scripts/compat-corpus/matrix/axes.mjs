@@ -261,19 +261,38 @@ export const COMMENT_SEEDS = {
 	<span>{e}</span>
 {/await}
 `,
+	// `<script module>` is the one entry point whose `Program` upstream builds
+	// itself, so its comment cursor starts dead and only a located body revives
+	// it. Every slot in this seed's first three lines is therefore dropped by
+	// both compilers — which is why the seed also carries a rune class (whose
+	// accessors kill the cursor again), a static block and a bare block, each
+	// followed by a slot OUTSIDE the body it revived from. Those slots are what
+	// separate the real cursor from "keep a comment iff it is inside a body
+	// span", which scores green on the three leading ones.
 	'module-script': `<script module>
 	export const shared = 1;
 	let hidden = 0;
+	export class Counter {
+		n = $state(0);
+		static registry = [];
+		static {
+			Counter.registry.push(1);
+		}
+	}
+	{
+		Counter.registry.push(2);
+	}
 	export function bump() {
 		hidden += 1;
 	}
+	export const counted = Counter.registry.length;
 </script>
 
 <script>
 	let local = $state(shared);
 </script>
 
-<button onclick={() => (local += 1)}>{local}</button>
+<button onclick={() => (local += counted)}>{local}</button>
 `,
 	// The SSR constant fold rebuilds logical lines by scanning bytes, so the
 	// slot BETWEEN `=` and its value is a distinct hazard from the slot above

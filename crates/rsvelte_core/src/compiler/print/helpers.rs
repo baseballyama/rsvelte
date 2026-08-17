@@ -118,6 +118,43 @@ pub const SUPPORTED_ESTREE_NODE_TYPES: &[&str] = &[
     "YieldExpression",
     "ParenthesizedExpression",
     "Property",
+    "Super",
+    "MetaProperty",
+    "ImportExpression",
+    "TaggedTemplateExpression",
+    "PrivateIdentifier",
+    "ClassExpression",
+    "ClassDeclaration",
+    "ClassBody",
+    "MethodDefinition",
+    "PropertyDefinition",
+    "StaticBlock",
+    "BlockStatement",
+    "ExpressionStatement",
+    "EmptyStatement",
+    "DebuggerStatement",
+    "ReturnStatement",
+    "ThrowStatement",
+    "BreakStatement",
+    "ContinueStatement",
+    "LabeledStatement",
+    "VariableDeclaration",
+    "VariableDeclarator",
+    "FunctionDeclaration",
+    "IfStatement",
+    "ForStatement",
+    "ForInStatement",
+    "ForOfStatement",
+    "WhileStatement",
+    "DoWhileStatement",
+    "SwitchStatement",
+    "SwitchCase",
+    "TryStatement",
+    "CatchClause",
+    "ImportDeclaration",
+    "ExportNamedDeclaration",
+    "ExportDefaultDeclaration",
+    "ExportAllDeclaration",
 ];
 
 thread_local! {
@@ -192,6 +229,96 @@ pub fn try_estree_to_string(node: &serde_json::Value) -> Result<String, PrintErr
     }
 }
 
+/// ECMAScript expression precedence; a higher value binds tighter.
+///
+/// The fallback printer has no source text to copy parentheses from, so it has
+/// to reconstruct them from the tree.
+mod precedence {
+    pub const SEQUENCE: u8 = 1;
+    pub const ASSIGNMENT: u8 = 2;
+    pub const CONDITIONAL: u8 = 3;
+    pub const COALESCE: u8 = 4;
+    pub const LOGICAL_OR: u8 = 4;
+    pub const LOGICAL_AND: u8 = 5;
+    pub const BITWISE_OR: u8 = 6;
+    pub const BITWISE_XOR: u8 = 7;
+    pub const BITWISE_AND: u8 = 8;
+    pub const EQUALITY: u8 = 9;
+    pub const RELATIONAL: u8 = 10;
+    pub const SHIFT: u8 = 11;
+    pub const ADDITIVE: u8 = 12;
+    pub const MULTIPLICATIVE: u8 = 13;
+    pub const EXPONENTIAL: u8 = 14;
+    pub const UNARY: u8 = 15;
+    pub const POSTFIX: u8 = 16;
+    pub const CALL: u8 = 17;
+    pub const PRIMARY: u8 = 18;
+}
+
+/// The precedence of a binary operator, or `None` if it is not one.
+fn binary_operator_precedence(operator: &str) -> Option<u8> {
+    Some(match operator {
+        "??" => precedence::COALESCE,
+        "||" => precedence::LOGICAL_OR,
+        "&&" => precedence::LOGICAL_AND,
+        "|" => precedence::BITWISE_OR,
+        "^" => precedence::BITWISE_XOR,
+        "&" => precedence::BITWISE_AND,
+        "==" | "!=" | "===" | "!==" => precedence::EQUALITY,
+        "<" | ">" | "<=" | ">=" | "in" | "instanceof" => precedence::RELATIONAL,
+        "<<" | ">>" | ">>>" => precedence::SHIFT,
+        "+" | "-" => precedence::ADDITIVE,
+        "*" | "/" | "%" => precedence::MULTIPLICATIVE,
+        "**" => precedence::EXPONENTIAL,
+        _ => return None,
+    })
+}
+
+/// `??` may not sit next to `&&` or `||` unparenthesized, however the two
+/// precedences compare.
+fn mixed_logical_min(parent_operator: &str, child: &serde_json::Value, min_precedence: u8) -> u8 {
+    let child_operator = (child.get("type").and_then(|t| t.as_str()) == Some("LogicalExpression"))
+        .then(|| child.get("operator").and_then(|o| o.as_str()).unwrap_or(""));
+    match (parent_operator, child_operator) {
+        ("??", Some("&&" | "||")) | ("&&" | "||", Some("??")) => precedence::PRIMARY,
+        _ => min_precedence,
+    }
+}
+
+/// The precedence of an expression node as printed by [`EstreeGenerator`].
+fn node_precedence(node: &serde_json::Value) -> u8 {
+    match node.get("type").and_then(|t| t.as_str()) {
+        Some("SequenceExpression") => precedence::SEQUENCE,
+        Some("AssignmentExpression")
+        | Some("ArrowFunctionExpression")
+        | Some("YieldExpression") => precedence::ASSIGNMENT,
+        Some("ConditionalExpression") => precedence::CONDITIONAL,
+        Some("BinaryExpression") | Some("LogicalExpression") => node
+            .get("operator")
+            .and_then(|o| o.as_str())
+            .and_then(binary_operator_precedence)
+            .unwrap_or(precedence::PRIMARY),
+        Some("UnaryExpression") | Some("AwaitExpression") => precedence::UNARY,
+        Some("UpdateExpression") => {
+            if node.get("prefix").and_then(|p| p.as_bool()).unwrap_or(true) {
+                precedence::UNARY
+            } else {
+                precedence::POSTFIX
+            }
+        }
+        Some("CallExpression")
+        | Some("MemberExpression")
+        | Some("NewExpression")
+        | Some("TaggedTemplateExpression")
+        | Some("ImportExpression") => precedence::CALL,
+        Some("ChainExpression") => node
+            .get("expression")
+            .map(node_precedence)
+            .unwrap_or(precedence::CALL),
+        _ => precedence::PRIMARY,
+    }
+}
+
 /// ESTree to JavaScript code generator.
 struct EstreeGenerator {
     output: String,
@@ -212,7 +339,7 @@ impl EstreeGenerator {
             Some("Literal") => self.generate_literal(node),
             Some("MemberExpression") => self.generate_member_expression(node),
             Some("BinaryExpression") => self.generate_binary_expression(node),
-            Some("LogicalExpression") => self.generate_logical_expression(node),
+            Some("LogicalExpression") => self.generate_binary_expression(node),
             Some("CallExpression") => self.generate_call_expression(node),
             Some("ArrayExpression") => self.generate_array_expression(node),
             Some("ObjectExpression") => self.generate_object_expression(node),
@@ -239,7 +366,7 @@ impl EstreeGenerator {
             Some("AwaitExpression") => {
                 self.output.push_str("await ");
                 if let Some(arg) = node.get("argument") {
-                    self.generate_node(arg);
+                    self.generate_expression(arg, precedence::UNARY);
                 }
             }
             Some("YieldExpression") => {
@@ -253,7 +380,7 @@ impl EstreeGenerator {
                 }
                 if let Some(arg) = node.get("argument") {
                     self.output.push(' ');
-                    self.generate_node(arg);
+                    self.generate_expression(arg, precedence::ASSIGNMENT);
                 }
             }
             Some("ParenthesizedExpression") => {
@@ -264,6 +391,93 @@ impl EstreeGenerator {
                 self.output.push(')');
             }
             Some("Property") => self.generate_property(node),
+            Some("Super") => self.output.push_str("super"),
+            Some("MetaProperty") => {
+                if let Some(meta) = node.get("meta") {
+                    self.generate_node(meta);
+                }
+                self.output.push('.');
+                if let Some(property) = node.get("property") {
+                    self.generate_node(property);
+                }
+            }
+            Some("ImportExpression") => self.generate_import_expression(node),
+            Some("TaggedTemplateExpression") => {
+                if let Some(tag) = node.get("tag") {
+                    self.generate_node(tag);
+                }
+                if let Some(quasi) = node.get("quasi") {
+                    self.generate_node(quasi);
+                }
+            }
+            Some("PrivateIdentifier") => {
+                self.output.push('#');
+                if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
+                    self.output.push_str(name);
+                }
+            }
+            Some("ClassExpression") | Some("ClassDeclaration") => self.generate_class(node),
+            Some("ClassBody") => self.generate_class_body(node),
+            Some("MethodDefinition") => self.generate_method_definition(node),
+            Some("PropertyDefinition") => self.generate_property_definition(node),
+            Some("StaticBlock") => {
+                self.output.push_str("static ");
+                self.generate_block_statement(node);
+            }
+            Some("BlockStatement") => self.generate_block_statement(node),
+            Some("ExpressionStatement") => {
+                if let Some(expr) = node.get("expression") {
+                    self.generate_expression_statement(expr);
+                }
+                self.output.push(';');
+            }
+            Some("EmptyStatement") => self.output.push(';'),
+            Some("DebuggerStatement") => self.output.push_str("debugger;"),
+            Some("ReturnStatement") => self.generate_return_or_throw(node, "return"),
+            Some("ThrowStatement") => self.generate_return_or_throw(node, "throw"),
+            Some("BreakStatement") => self.generate_break_or_continue(node, "break"),
+            Some("ContinueStatement") => self.generate_break_or_continue(node, "continue"),
+            Some("LabeledStatement") => {
+                if let Some(label) = node.get("label") {
+                    self.generate_node(label);
+                }
+                self.output.push_str(": ");
+                if let Some(body) = node.get("body") {
+                    self.generate_node(body);
+                }
+            }
+            Some("VariableDeclaration") => self.generate_variable_declaration(node, true),
+            Some("VariableDeclarator") => self.generate_variable_declarator(node),
+            Some("FunctionDeclaration") => self.generate_function_expression(node),
+            Some("IfStatement") => self.generate_if_statement(node),
+            Some("ForStatement") => self.generate_for_statement(node),
+            Some("ForInStatement") => self.generate_for_in_of_statement(node, "in"),
+            Some("ForOfStatement") => self.generate_for_in_of_statement(node, "of"),
+            Some("WhileStatement") => {
+                self.output.push_str("while (");
+                if let Some(test) = node.get("test") {
+                    self.generate_node(test);
+                }
+                self.output.push_str(") ");
+                self.generate_body_statement(node.get("body"));
+            }
+            Some("DoWhileStatement") => {
+                self.output.push_str("do ");
+                self.generate_body_statement(node.get("body"));
+                self.output.push_str(" while (");
+                if let Some(test) = node.get("test") {
+                    self.generate_node(test);
+                }
+                self.output.push_str(");");
+            }
+            Some("SwitchStatement") => self.generate_switch_statement(node),
+            Some("SwitchCase") => self.generate_switch_case(node),
+            Some("TryStatement") => self.generate_try_statement(node),
+            Some("CatchClause") => self.generate_catch_clause(node),
+            Some("ImportDeclaration") => self.generate_import_declaration(node),
+            Some("ExportNamedDeclaration")
+            | Some("ExportDefaultDeclaration")
+            | Some("ExportAllDeclaration") => self.generate_export_declaration(node),
             _ => {
                 record_unsupported_node(node, node_type);
                 self.output.push_str("/* unknown */");
@@ -312,8 +526,10 @@ impl EstreeGenerator {
 
     fn generate_member_expression(&mut self, node: &serde_json::Value) {
         if let Some(object) = node.get("object") {
-            let needs_parens = object.get("type").and_then(|t| t.as_str()) == Some("Literal")
-                && object.get("value").and_then(|v| v.as_f64()).is_some();
+            // A numeric literal receiver needs parens even though it is primary.
+            let needs_parens = (object.get("type").and_then(|t| t.as_str()) == Some("Literal")
+                && object.get("value").and_then(|v| v.as_f64()).is_some())
+                || node_precedence(object) < precedence::CALL;
 
             if needs_parens {
                 self.output.push('(');
@@ -357,52 +573,35 @@ impl EstreeGenerator {
     }
 
     fn generate_binary_expression(&mut self, node: &serde_json::Value) {
+        let operator = node.get("operator").and_then(|o| o.as_str()).unwrap_or("");
+        let own = binary_operator_precedence(operator).unwrap_or(precedence::PRIMARY);
+        // `**` is the one right-associative binary operator.
+        let (left_min, right_min) = if operator == "**" {
+            (own + 1, own)
+        } else {
+            (own, own + 1)
+        };
+
         if let Some(left) = node.get("left") {
-            self.generate_node_with_parens(left);
+            self.generate_expression(left, mixed_logical_min(operator, left, left_min));
         }
-
-        if let Some(op) = node.get("operator").and_then(|o| o.as_str()) {
-            self.output.push(' ');
-            self.output.push_str(op);
-            self.output.push(' ');
+        if !operator.is_empty() {
+            let _ = write!(self.output, " {operator} ");
         }
-
         if let Some(right) = node.get("right") {
-            self.generate_node_with_parens(right);
-        }
-    }
-
-    fn generate_logical_expression(&mut self, node: &serde_json::Value) {
-        if let Some(left) = node.get("left") {
-            self.generate_node(left);
-        }
-
-        if let Some(op) = node.get("operator").and_then(|o| o.as_str()) {
-            self.output.push(' ');
-            self.output.push_str(op);
-            self.output.push(' ');
-        }
-
-        if let Some(right) = node.get("right") {
-            self.generate_node(right);
+            self.generate_expression(right, mixed_logical_min(operator, right, right_min));
         }
     }
 
     fn generate_call_expression(&mut self, node: &serde_json::Value) {
         if let Some(callee) = node.get("callee") {
-            let callee_type = callee.get("type").and_then(|t| t.as_str());
-            let needs_parens = matches!(
-                callee_type,
-                Some("ArrowFunctionExpression") | Some("FunctionExpression")
-            );
-
-            if needs_parens {
-                self.output.push('(');
-            }
-            self.generate_node(callee);
-            if needs_parens {
-                self.output.push(')');
-            }
+            // A `function`/`class` callee also has to be parenthesized so the
+            // call does not read as a declaration.
+            let min = match callee.get("type").and_then(|t| t.as_str()) {
+                Some("FunctionExpression") | Some("ClassExpression") => precedence::PRIMARY + 1,
+                _ => precedence::CALL,
+            };
+            self.generate_expression(callee, min);
         }
 
         let optional = node
@@ -419,7 +618,7 @@ impl EstreeGenerator {
                 if i > 0 {
                     self.output.push_str(", ");
                 }
-                self.generate_node(arg);
+                self.generate_expression(arg, precedence::ASSIGNMENT);
             }
         }
         self.output.push(')');
@@ -435,7 +634,7 @@ impl EstreeGenerator {
                 if elem.is_null() {
                     // Hole in array
                 } else {
-                    self.generate_node(elem);
+                    self.generate_expression(elem, precedence::ASSIGNMENT);
                 }
             }
         }
@@ -483,10 +682,19 @@ impl EstreeGenerator {
             return;
         }
 
-        if kind == "get" {
-            self.output.push_str("get ");
-        } else if kind == "set" {
-            self.output.push_str("set ");
+        // `get`/`set`/method properties carry their function inline: writing
+        // `get a: function () {}` instead is a syntax error, not a formatting
+        // difference.
+        let is_method = kind == "get"
+            || kind == "set"
+            || node
+                .get("method")
+                .and_then(|m| m.as_bool())
+                .unwrap_or(false);
+
+        if is_method {
+            self.generate_method_definition(node);
+            return;
         }
 
         if computed {
@@ -504,7 +712,7 @@ impl EstreeGenerator {
         self.output.push_str(": ");
 
         if let Some(value) = node.get("value") {
-            self.generate_node(value);
+            self.generate_expression(value, precedence::ASSIGNMENT);
         }
     }
 
@@ -538,14 +746,14 @@ impl EstreeGenerator {
             if body_type == Some("BlockStatement") {
                 self.generate_block_statement(body);
             } else {
-                // Expression body - wrap objects in parens
-                if body_type == Some("ObjectExpression") {
-                    self.output.push('(');
-                    self.generate_node(body);
-                    self.output.push(')');
-                } else {
-                    self.generate_node(body);
-                }
+                // An expression body opening with `{` would read as a block
+                // body — `({ x } = o)` and `({ x })` alike.
+                self.wrap_if_it_opens_with(
+                    |generator| {
+                        generator.generate_expression(body, precedence::ASSIGNMENT);
+                    },
+                    &["{"],
+                );
             }
         }
     }
@@ -591,8 +799,523 @@ impl EstreeGenerator {
         }
     }
 
-    fn generate_block_statement(&mut self, _node: &serde_json::Value) {
-        self.output.push_str("{ /* block */ }");
+    /// A statement may not start with `{`, `function` or `class`; the same
+    /// expression written there needs parentheses that the tree does not carry.
+    fn generate_expression_statement(&mut self, expr: &serde_json::Value) {
+        self.wrap_if_it_opens_with(
+            |generator| generator.generate_node(expr),
+            &["{", "function", "class"],
+        );
+    }
+
+    /// Parenthesize what `emit` wrote if it opens with a token the surrounding
+    /// position reads as something else. Which token that is depends on the
+    /// position, so the caller names them.
+    fn wrap_if_it_opens_with(&mut self, emit: impl FnOnce(&mut Self), openers: &[&str]) {
+        let start = self.output.len();
+        emit(self);
+        if openers
+            .iter()
+            .any(|opener| self.output[start..].starts_with(opener))
+        {
+            self.output.insert(start, '(');
+            self.output.push(')');
+        }
+    }
+
+    fn generate_import_expression(&mut self, node: &serde_json::Value) {
+        self.output.push_str("import(");
+        if let Some(source) = node.get("source") {
+            self.generate_node(source);
+        }
+        // ESTree moved the second argument from `arguments` to `options`;
+        // whichever spelling carries it must not be dropped.
+        if let Some(options) = node.get("options").filter(|o| !o.is_null()) {
+            self.output.push_str(", ");
+            self.generate_node(options);
+        } else if let Some(arguments) = node.get("arguments").and_then(|a| a.as_array()) {
+            for argument in arguments {
+                self.output.push_str(", ");
+                self.generate_node(argument);
+            }
+        }
+        self.output.push(')');
+    }
+
+    fn generate_block_statement(&mut self, node: &serde_json::Value) {
+        let body = node.get("body").and_then(|b| b.as_array());
+        match body {
+            Some(statements) if !statements.is_empty() => {
+                self.output.push_str("{ ");
+                self.generate_statement_list(statements);
+                self.output.push_str(" }");
+            }
+            _ => self.output.push_str("{}"),
+        }
+    }
+
+    /// Print statements onto one line, which is the only shape this generator
+    /// has — it carries no indentation state.
+    fn generate_statement_list(&mut self, statements: &[serde_json::Value]) {
+        for (i, statement) in statements.iter().enumerate() {
+            if i > 0 {
+                self.output.push(' ');
+            }
+            self.generate_node(statement);
+        }
+    }
+
+    /// Print a nested statement, bracing a non-block so that the enclosing
+    /// construct still reads as one statement.
+    fn generate_body_statement(&mut self, body: Option<&serde_json::Value>) {
+        let Some(body) = body else {
+            self.output.push_str("{}");
+            return;
+        };
+        if body.get("type").and_then(|t| t.as_str()) == Some("BlockStatement") {
+            self.generate_block_statement(body);
+        } else {
+            self.output.push_str("{ ");
+            self.generate_node(body);
+            self.output.push_str(" }");
+        }
+    }
+
+    fn generate_return_or_throw(&mut self, node: &serde_json::Value, keyword: &str) {
+        self.output.push_str(keyword);
+        if let Some(argument) = node.get("argument")
+            && !argument.is_null()
+        {
+            self.output.push(' ');
+            self.generate_node(argument);
+        }
+        self.output.push(';');
+    }
+
+    fn generate_break_or_continue(&mut self, node: &serde_json::Value, keyword: &str) {
+        self.output.push_str(keyword);
+        if let Some(label) = node.get("label")
+            && !label.is_null()
+        {
+            self.output.push(' ');
+            self.generate_node(label);
+        }
+        self.output.push(';');
+    }
+
+    fn generate_variable_declaration(&mut self, node: &serde_json::Value, terminate: bool) {
+        let kind = node.get("kind").and_then(|k| k.as_str()).unwrap_or("const");
+        self.output.push_str(kind);
+        self.output.push(' ');
+        if let Some(declarations) = node.get("declarations").and_then(|d| d.as_array()) {
+            for (i, declaration) in declarations.iter().enumerate() {
+                if i > 0 {
+                    self.output.push_str(", ");
+                }
+                self.generate_node(declaration);
+            }
+        }
+        if terminate {
+            self.output.push(';');
+        }
+    }
+
+    fn generate_variable_declarator(&mut self, node: &serde_json::Value) {
+        if let Some(id) = node.get("id") {
+            self.generate_node(id);
+        }
+        if let Some(init) = node.get("init")
+            && !init.is_null()
+        {
+            self.output.push_str(" = ");
+            self.generate_expression(init, precedence::ASSIGNMENT);
+        }
+    }
+
+    fn generate_if_statement(&mut self, node: &serde_json::Value) {
+        self.output.push_str("if (");
+        if let Some(test) = node.get("test") {
+            self.generate_node(test);
+        }
+        self.output.push_str(") ");
+
+        let alternate = node.get("alternate").filter(|a| !a.is_null());
+        if alternate.is_some() {
+            // Braced unconditionally: a bare `if (a) if (b) c();` consequent
+            // would otherwise capture this statement's `else`.
+            self.generate_body_statement(node.get("consequent"));
+        } else if let Some(consequent) = node.get("consequent") {
+            self.generate_node(consequent);
+        }
+
+        if let Some(alternate) = alternate {
+            self.output.push_str(" else ");
+            self.generate_node(alternate);
+        }
+    }
+
+    fn generate_for_statement(&mut self, node: &serde_json::Value) {
+        self.output.push_str("for (");
+        if let Some(init) = node.get("init").filter(|i| !i.is_null()) {
+            self.generate_for_head(init);
+        }
+        self.output.push_str("; ");
+        if let Some(test) = node.get("test").filter(|t| !t.is_null()) {
+            self.generate_node(test);
+        }
+        self.output.push_str("; ");
+        if let Some(update) = node.get("update").filter(|u| !u.is_null()) {
+            self.generate_node(update);
+        }
+        self.output.push_str(") ");
+        self.generate_body_statement(node.get("body"));
+    }
+
+    fn generate_for_in_of_statement(&mut self, node: &serde_json::Value, operator: &str) {
+        self.output.push_str("for ");
+        if node.get("await").and_then(|a| a.as_bool()).unwrap_or(false) {
+            self.output.push_str("await ");
+        }
+        self.output.push('(');
+        if let Some(left) = node.get("left") {
+            self.generate_for_head(left);
+        }
+        let _ = write!(self.output, " {operator} ");
+        if let Some(right) = node.get("right") {
+            self.generate_node(right);
+        }
+        self.output.push_str(") ");
+        self.generate_body_statement(node.get("body"));
+    }
+
+    /// A declaration in a `for` head carries no terminator of its own.
+    fn generate_for_head(&mut self, node: &serde_json::Value) {
+        if node.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration") {
+            self.generate_variable_declaration(node, false);
+        } else {
+            self.generate_node(node);
+        }
+    }
+
+    fn generate_switch_statement(&mut self, node: &serde_json::Value) {
+        self.output.push_str("switch (");
+        if let Some(discriminant) = node.get("discriminant") {
+            self.generate_node(discriminant);
+        }
+        self.output.push_str(") ");
+        match node.get("cases").and_then(|c| c.as_array()) {
+            Some(cases) if !cases.is_empty() => {
+                self.output.push_str("{ ");
+                self.generate_statement_list(cases);
+                self.output.push_str(" }");
+            }
+            _ => self.output.push_str("{}"),
+        }
+    }
+
+    fn generate_switch_case(&mut self, node: &serde_json::Value) {
+        match node.get("test").filter(|t| !t.is_null()) {
+            Some(test) => {
+                self.output.push_str("case ");
+                self.generate_node(test);
+                self.output.push(':');
+            }
+            None => self.output.push_str("default:"),
+        }
+        if let Some(consequent) = node.get("consequent").and_then(|c| c.as_array())
+            && !consequent.is_empty()
+        {
+            self.output.push(' ');
+            self.generate_statement_list(consequent);
+        }
+    }
+
+    fn generate_try_statement(&mut self, node: &serde_json::Value) {
+        self.output.push_str("try ");
+        if let Some(block) = node.get("block") {
+            self.generate_block_statement(block);
+        }
+        if let Some(handler) = node.get("handler")
+            && !handler.is_null()
+        {
+            self.output.push(' ');
+            self.generate_node(handler);
+        }
+        if let Some(finalizer) = node.get("finalizer")
+            && !finalizer.is_null()
+        {
+            self.output.push_str(" finally ");
+            self.generate_block_statement(finalizer);
+        }
+    }
+
+    fn generate_catch_clause(&mut self, node: &serde_json::Value) {
+        self.output.push_str("catch ");
+        if let Some(param) = node.get("param")
+            && !param.is_null()
+        {
+            self.output.push('(');
+            self.generate_node(param);
+            self.output.push_str(") ");
+        }
+        if let Some(body) = node.get("body") {
+            self.generate_block_statement(body);
+        }
+    }
+
+    fn generate_class(&mut self, node: &serde_json::Value) {
+        self.output.push_str("class");
+        if let Some(id) = node.get("id")
+            && !id.is_null()
+        {
+            self.output.push(' ');
+            self.generate_node(id);
+        }
+        if let Some(super_class) = node.get("superClass")
+            && !super_class.is_null()
+        {
+            self.output.push_str(" extends ");
+            self.generate_node(super_class);
+        }
+        self.output.push(' ');
+        match node.get("body") {
+            Some(body) => self.generate_class_body(body),
+            None => self.output.push_str("{}"),
+        }
+    }
+
+    fn generate_class_body(&mut self, node: &serde_json::Value) {
+        match node.get("body").and_then(|b| b.as_array()) {
+            Some(members) if !members.is_empty() => {
+                self.output.push_str("{ ");
+                self.generate_statement_list(members);
+                self.output.push_str(" }");
+            }
+            _ => self.output.push_str("{}"),
+        }
+    }
+
+    fn generate_method_definition(&mut self, node: &serde_json::Value) {
+        if node
+            .get("static")
+            .and_then(|s| s.as_bool())
+            .unwrap_or(false)
+        {
+            self.output.push_str("static ");
+        }
+        let value = node.get("value");
+        if let Some(value) = value {
+            if value
+                .get("async")
+                .and_then(|a| a.as_bool())
+                .unwrap_or(false)
+            {
+                self.output.push_str("async ");
+            }
+            match node.get("kind").and_then(|k| k.as_str()) {
+                Some("get") => self.output.push_str("get "),
+                Some("set") => self.output.push_str("set "),
+                _ => {}
+            }
+            if value
+                .get("generator")
+                .and_then(|g| g.as_bool())
+                .unwrap_or(false)
+            {
+                self.output.push('*');
+            }
+        }
+        self.generate_member_key(node);
+        self.output.push('(');
+        if let Some(params) = value
+            .and_then(|v| v.get("params"))
+            .and_then(|p| p.as_array())
+        {
+            for (i, param) in params.iter().enumerate() {
+                if i > 0 {
+                    self.output.push_str(", ");
+                }
+                self.generate_node(param);
+            }
+        }
+        self.output.push_str(") ");
+        match value.and_then(|v| v.get("body")) {
+            Some(body) => self.generate_block_statement(body),
+            None => self.output.push_str("{}"),
+        }
+    }
+
+    fn generate_property_definition(&mut self, node: &serde_json::Value) {
+        if node
+            .get("static")
+            .and_then(|s| s.as_bool())
+            .unwrap_or(false)
+        {
+            self.output.push_str("static ");
+        }
+        self.generate_member_key(node);
+        if let Some(value) = node.get("value")
+            && !value.is_null()
+        {
+            self.output.push_str(" = ");
+            self.generate_node(value);
+        }
+        self.output.push(';');
+    }
+
+    fn generate_member_key(&mut self, node: &serde_json::Value) {
+        let computed = node
+            .get("computed")
+            .and_then(|c| c.as_bool())
+            .unwrap_or(false);
+        if computed {
+            self.output.push('[');
+        }
+        if let Some(key) = node.get("key") {
+            self.generate_node(key);
+        }
+        if computed {
+            self.output.push(']');
+        }
+    }
+
+    fn generate_import_declaration(&mut self, node: &serde_json::Value) {
+        self.output.push_str("import ");
+
+        let mut default_import = None;
+        let mut namespace_import = None;
+        let mut named_imports = Vec::new();
+
+        if let Some(specifiers) = node.get("specifiers").and_then(|s| s.as_array()) {
+            for specifier in specifiers {
+                match specifier.get("type").and_then(|t| t.as_str()) {
+                    Some("ImportDefaultSpecifier") => {
+                        default_import = specifier.get("local").map(estree_to_string);
+                    }
+                    Some("ImportNamespaceSpecifier") => {
+                        namespace_import = specifier
+                            .get("local")
+                            .map(|local| format!("* as {}", estree_to_string(local)));
+                    }
+                    Some("ImportSpecifier") => {
+                        let imported = specifier
+                            .get("imported")
+                            .map(estree_to_string)
+                            .unwrap_or_default();
+                        let local = specifier
+                            .get("local")
+                            .map(estree_to_string)
+                            .unwrap_or_default();
+                        if imported == local {
+                            named_imports.push(imported);
+                        } else {
+                            named_imports.push(format!("{imported} as {local}"));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        let mut clauses = Vec::new();
+        if let Some(default_import) = default_import {
+            clauses.push(default_import);
+        }
+        if let Some(namespace_import) = namespace_import {
+            clauses.push(namespace_import);
+        } else if !named_imports.is_empty() {
+            clauses.push(format!("{{ {} }}", named_imports.join(", ")));
+        }
+
+        // A side-effect import has no clause and therefore no `from`.
+        if !clauses.is_empty() {
+            self.output.push_str(&clauses.join(", "));
+            self.output.push_str(" from ");
+        }
+
+        if let Some(source) = node.get("source") {
+            self.generate_node(source);
+        }
+        self.output.push(';');
+    }
+
+    fn generate_export_declaration(&mut self, node: &serde_json::Value) {
+        let node_type = node.get("type").and_then(|t| t.as_str());
+
+        if node_type == Some("ExportDefaultDeclaration") {
+            self.output.push_str("export default ");
+            if let Some(declaration) = node.get("declaration") {
+                self.generate_node(declaration);
+                // A declaration terminates itself; an expression does not.
+                let declares = matches!(
+                    declaration.get("type").and_then(|t| t.as_str()),
+                    Some("FunctionDeclaration") | Some("ClassDeclaration")
+                );
+                if !declares {
+                    self.output.push(';');
+                }
+            }
+            return;
+        }
+
+        self.output.push_str("export ");
+
+        if node_type == Some("ExportAllDeclaration") {
+            self.output.push('*');
+            if let Some(exported) = node.get("exported")
+                && !exported.is_null()
+            {
+                self.output.push_str(" as ");
+                self.generate_node(exported);
+            }
+            self.output.push_str(" from ");
+            if let Some(source) = node.get("source") {
+                self.generate_node(source);
+            }
+            self.output.push(';');
+            return;
+        }
+
+        if let Some(declaration) = node.get("declaration")
+            && !declaration.is_null()
+        {
+            self.generate_node(declaration);
+            return;
+        }
+
+        if let Some(specifiers) = node.get("specifiers").and_then(|s| s.as_array())
+            && !specifiers.is_empty()
+        {
+            self.output.push_str("{ ");
+            for (i, specifier) in specifiers.iter().enumerate() {
+                if i > 0 {
+                    self.output.push_str(", ");
+                }
+                let exported = specifier
+                    .get("exported")
+                    .map(estree_to_string)
+                    .unwrap_or_default();
+                let local = specifier
+                    .get("local")
+                    .map(estree_to_string)
+                    .unwrap_or_default();
+                if exported == local {
+                    self.output.push_str(&exported);
+                } else {
+                    let _ = write!(self.output, "{local} as {exported}");
+                }
+            }
+            self.output.push_str(" }");
+        }
+
+        if let Some(source) = node.get("source")
+            && !source.is_null()
+        {
+            self.output.push_str(" from ");
+            self.generate_node(source);
+        }
+
+        self.output.push(';');
     }
 
     fn generate_unary_expression(&mut self, node: &serde_json::Value) {
@@ -605,11 +1328,11 @@ impl EstreeGenerator {
                 self.output.push(' ');
             }
             if let Some(arg) = node.get("argument") {
-                self.generate_node(arg);
+                self.generate_expression(arg, precedence::UNARY);
             }
         } else {
             if let Some(arg) = node.get("argument") {
-                self.generate_node(arg);
+                self.generate_expression(arg, precedence::UNARY);
             }
             self.output.push_str(op);
         }
@@ -622,11 +1345,11 @@ impl EstreeGenerator {
         if prefix {
             self.output.push_str(op);
             if let Some(arg) = node.get("argument") {
-                self.generate_node(arg);
+                self.generate_expression(arg, precedence::POSTFIX);
             }
         } else {
             if let Some(arg) = node.get("argument") {
-                self.generate_node(arg);
+                self.generate_expression(arg, precedence::POSTFIX);
             }
             self.output.push_str(op);
         }
@@ -634,15 +1357,15 @@ impl EstreeGenerator {
 
     fn generate_conditional_expression(&mut self, node: &serde_json::Value) {
         if let Some(test) = node.get("test") {
-            self.generate_node(test);
+            self.generate_expression(test, precedence::CONDITIONAL + 1);
         }
         self.output.push_str(" ? ");
         if let Some(consequent) = node.get("consequent") {
-            self.generate_node(consequent);
+            self.generate_expression(consequent, precedence::ASSIGNMENT);
         }
         self.output.push_str(" : ");
         if let Some(alternate) = node.get("alternate") {
-            self.generate_node(alternate);
+            self.generate_expression(alternate, precedence::ASSIGNMENT);
         }
     }
 
@@ -717,7 +1440,7 @@ impl EstreeGenerator {
 
                     if shorthand {
                         if let Some(value) = prop.get("value") {
-                            self.generate_node(value);
+                            self.generate_expression(value, precedence::ASSIGNMENT);
                         }
                     } else {
                         if computed {
@@ -743,14 +1466,14 @@ impl EstreeGenerator {
     fn generate_rest_element(&mut self, node: &serde_json::Value) {
         self.output.push_str("...");
         if let Some(arg) = node.get("argument") {
-            self.generate_node(arg);
+            self.generate_expression(arg, precedence::ASSIGNMENT);
         }
     }
 
     fn generate_spread_element(&mut self, node: &serde_json::Value) {
         self.output.push_str("...");
         if let Some(arg) = node.get("argument") {
-            self.generate_node(arg);
+            self.generate_expression(arg, precedence::ASSIGNMENT);
         }
     }
 
@@ -774,7 +1497,7 @@ impl EstreeGenerator {
             self.output.push(' ');
         }
         if let Some(right) = node.get("right") {
-            self.generate_node(right);
+            self.generate_expression(right, precedence::ASSIGNMENT);
         }
     }
 
@@ -784,7 +1507,7 @@ impl EstreeGenerator {
                 if i > 0 {
                     self.output.push_str(", ");
                 }
-                self.generate_node(expr);
+                self.generate_expression(expr, precedence::ASSIGNMENT);
             }
         }
     }
@@ -792,7 +1515,12 @@ impl EstreeGenerator {
     fn generate_new_expression(&mut self, node: &serde_json::Value) {
         self.output.push_str("new ");
         if let Some(callee) = node.get("callee") {
-            self.generate_node(callee);
+            // `new f()()` must not re-read as `new (f()())`.
+            let min = match callee.get("type").and_then(|t| t.as_str()) {
+                Some("CallExpression") => precedence::PRIMARY + 1,
+                _ => precedence::CALL,
+            };
+            self.generate_expression(callee, min);
         }
         self.output.push('(');
         if let Some(args) = node.get("arguments").and_then(|a| a.as_array()) {
@@ -800,25 +1528,21 @@ impl EstreeGenerator {
                 if i > 0 {
                     self.output.push_str(", ");
                 }
-                self.generate_node(arg);
+                self.generate_expression(arg, precedence::ASSIGNMENT);
             }
         }
         self.output.push(')');
     }
 
-    fn generate_node_with_parens(&mut self, node: &serde_json::Value) {
-        let node_type = node.get("type").and_then(|t| t.as_str());
-        let needs_parens = matches!(
-            node_type,
-            Some("BinaryExpression") | Some("ConditionalExpression") | Some("AssignmentExpression")
-        );
-
-        if needs_parens {
+    /// Print `node` as an operand, parenthesizing it when its own precedence
+    /// is looser than the position it lands in.
+    fn generate_expression(&mut self, node: &serde_json::Value, min_precedence: u8) {
+        if node_precedence(node) < min_precedence {
             self.output.push('(');
-        }
-        self.generate_node(node);
-        if needs_parens {
+            self.generate_node(node);
             self.output.push(')');
+        } else {
+            self.generate_node(node);
         }
     }
 }
@@ -1081,281 +1805,13 @@ pub fn format_program(program: &serde_json::Value) -> String {
             if i > 0 {
                 result.push('\n');
             }
-            result.push_str(&format_statement_from_json(stmt));
+            result.push_str(&estree_to_string(stmt));
         }
         result
     } else {
         // Fallback: treat as expression
         estree_to_string(program)
     }
-}
-
-/// Format a statement to JavaScript source code.
-///
-/// # Arguments
-///
-/// * `stmt` - The ESTree statement node
-///
-/// # Returns
-///
-/// Returns the formatted JavaScript code as a string.
-fn format_statement_from_json(stmt: &serde_json::Value) -> String {
-    let stmt_type = stmt.get("type").and_then(|t| t.as_str());
-
-    match stmt_type {
-        Some("VariableDeclaration") => format_variable_declaration(stmt),
-        Some("ExpressionStatement") => {
-            if let Some(expr) = stmt.get("expression") {
-                format!("{};", estree_to_string(expr))
-            } else {
-                ";".to_string()
-            }
-        }
-        Some("FunctionDeclaration") => format_function_declaration(stmt),
-        Some("ClassDeclaration") => format_class_declaration(stmt),
-        Some("ImportDeclaration") => format_import_declaration(stmt),
-        Some("ExportNamedDeclaration") | Some("ExportDefaultDeclaration") => {
-            format_export_declaration(stmt)
-        }
-        Some("ReturnStatement") => {
-            if let Some(arg) = stmt.get("argument") {
-                if arg.is_null() {
-                    "return;".to_string()
-                } else {
-                    format!("return {};", estree_to_string(arg))
-                }
-            } else {
-                "return;".to_string()
-            }
-        }
-        Some("IfStatement") => {
-            let mut result = String::from("if (");
-            if let Some(test) = stmt.get("test") {
-                result.push_str(&estree_to_string(test));
-            }
-            result.push_str(") { /* ... */ }");
-            result
-        }
-        Some("ForStatement")
-        | Some("WhileStatement")
-        | Some("DoWhileStatement")
-        | Some("ForInStatement")
-        | Some("ForOfStatement") => "/* loop */".to_string(),
-        Some("BlockStatement") => "{ /* block */ }".to_string(),
-        Some("ThrowStatement") => {
-            if let Some(arg) = stmt.get("argument") {
-                format!("throw {};", estree_to_string(arg))
-            } else {
-                "throw;".to_string()
-            }
-        }
-        Some("TryStatement") => "try { /* ... */ } catch { /* ... */ }".to_string(),
-        Some("EmptyStatement") => ";".to_string(),
-        _ => {
-            // For unknown statement types, try to generate as expression
-            estree_to_string(stmt)
-        }
-    }
-}
-
-fn format_variable_declaration(stmt: &serde_json::Value) -> String {
-    let kind = stmt.get("kind").and_then(|k| k.as_str()).unwrap_or("const");
-    let mut result = format!("{kind} ");
-
-    if let Some(declarations) = stmt.get("declarations").and_then(|d| d.as_array()) {
-        for (i, decl) in declarations.iter().enumerate() {
-            if i > 0 {
-                result.push_str(", ");
-            }
-            if let Some(id) = decl.get("id") {
-                result.push_str(&estree_to_string(id));
-            }
-            if let Some(init) = decl.get("init")
-                && !init.is_null()
-            {
-                result.push_str(" = ");
-                result.push_str(&estree_to_string(init));
-            }
-        }
-    }
-
-    result.push(';');
-    result
-}
-
-fn format_function_declaration(stmt: &serde_json::Value) -> String {
-    let is_async = stmt.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
-    let is_generator = stmt
-        .get("generator")
-        .and_then(|g| g.as_bool())
-        .unwrap_or(false);
-
-    let mut result = String::new();
-    if is_async {
-        result.push_str("async ");
-    }
-    result.push_str("function");
-    if is_generator {
-        result.push('*');
-    }
-
-    if let Some(id) = stmt.get("id")
-        && !id.is_null()
-    {
-        result.push(' ');
-        result.push_str(&estree_to_string(id));
-    }
-
-    result.push('(');
-    if let Some(params) = stmt.get("params").and_then(|p| p.as_array()) {
-        for (i, param) in params.iter().enumerate() {
-            if i > 0 {
-                result.push_str(", ");
-            }
-            result.push_str(&estree_to_string(param));
-        }
-    }
-    result.push_str(") { /* ... */ }");
-
-    result
-}
-
-fn format_class_declaration(stmt: &serde_json::Value) -> String {
-    let mut result = String::from("class ");
-
-    if let Some(id) = stmt.get("id")
-        && !id.is_null()
-    {
-        result.push_str(&estree_to_string(id));
-    }
-
-    if let Some(superclass) = stmt.get("superClass")
-        && !superclass.is_null()
-    {
-        result.push_str(" extends ");
-        result.push_str(&estree_to_string(superclass));
-    }
-
-    result.push_str(" { /* ... */ }");
-    result
-}
-
-fn format_import_declaration(stmt: &serde_json::Value) -> String {
-    let mut result = String::from("import ");
-
-    if let Some(specifiers) = stmt.get("specifiers").and_then(|s| s.as_array()) {
-        let mut has_default = false;
-        let mut named_imports = Vec::new();
-        let mut namespace_import = None;
-
-        for spec in specifiers {
-            let spec_type = spec.get("type").and_then(|t| t.as_str());
-            match spec_type {
-                Some("ImportDefaultSpecifier") => {
-                    if let Some(local) = spec.get("local") {
-                        result.push_str(&estree_to_string(local));
-                        has_default = true;
-                    }
-                }
-                Some("ImportNamespaceSpecifier") => {
-                    if let Some(local) = spec.get("local") {
-                        namespace_import = Some(format!("* as {}", estree_to_string(local)));
-                    }
-                }
-                Some("ImportSpecifier") => {
-                    let imported = spec
-                        .get("imported")
-                        .map(estree_to_string)
-                        .unwrap_or_default();
-                    let local = spec.get("local").map(estree_to_string).unwrap_or_default();
-                    if imported == local {
-                        named_imports.push(imported);
-                    } else {
-                        named_imports.push(format!("{imported} as {local}"));
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        if has_default && namespace_import.is_some() {
-            result.push_str(", ");
-        }
-
-        if let Some(ns) = namespace_import {
-            result.push_str(&ns);
-        } else if !named_imports.is_empty() {
-            if has_default {
-                result.push_str(", ");
-            }
-            result.push_str("{ ");
-            result.push_str(&named_imports.join(", "));
-            result.push_str(" }");
-        }
-
-        result.push_str(" from ");
-    }
-
-    if let Some(source) = stmt.get("source") {
-        result.push_str(&estree_to_string(source));
-    }
-
-    result.push(';');
-    result
-}
-
-fn format_export_declaration(stmt: &serde_json::Value) -> String {
-    let stmt_type = stmt.get("type").and_then(|t| t.as_str());
-
-    if stmt_type == Some("ExportDefaultDeclaration") {
-        let mut result = String::from("export default ");
-        if let Some(declaration) = stmt.get("declaration") {
-            result.push_str(&estree_to_string(declaration));
-        }
-        result.push(';');
-        return result;
-    }
-
-    let mut result = String::from("export ");
-
-    if let Some(declaration) = stmt.get("declaration")
-        && !declaration.is_null()
-    {
-        result.push_str(&format_statement_from_json(declaration));
-        return result;
-    }
-
-    if let Some(specifiers) = stmt.get("specifiers").and_then(|s| s.as_array()) {
-        if !specifiers.is_empty() {
-            result.push_str("{ ");
-            for (i, spec) in specifiers.iter().enumerate() {
-                if i > 0 {
-                    result.push_str(", ");
-                }
-                let exported = spec
-                    .get("exported")
-                    .map(estree_to_string)
-                    .unwrap_or_default();
-                let local = spec.get("local").map(estree_to_string).unwrap_or_default();
-                if exported == local {
-                    result.push_str(&exported);
-                } else {
-                    let _ = write!(result, "{local} as {exported}");
-                }
-            }
-            result.push_str(" }");
-        }
-
-        if let Some(source) = stmt.get("source")
-            && !source.is_null()
-        {
-            result.push_str(" from ");
-            result.push_str(&estree_to_string(source));
-        }
-    }
-
-    result.push(';');
-    result
 }
 
 #[cfg(test)]
@@ -1398,6 +1854,14 @@ mod tests {
         use serde_json::json;
         let ident = |name: &str| json!({ "type": "Identifier", "name": name });
         let one = json!({ "type": "Literal", "raw": "1", "value": 1 });
+        let expr_stmt = || json!({ "type": "ExpressionStatement", "expression": { "type": "CallExpression", "callee": ident("f"), "arguments": [], "optional": false } });
+        let return_one = || json!({ "type": "ReturnStatement", "argument": one });
+        let block_of = |body: serde_json::Value| json!({ "type": "BlockStatement", "body": body });
+        let empty_class_body = || json!({ "type": "ClassBody", "body": [] });
+        let declaration = |kind: &str| json!({ "type": "VariableDeclaration", "kind": kind, "declarations": [{ "type": "VariableDeclarator", "id": ident("i"), "init": one }] });
+        let switch_case =
+            || json!({ "type": "SwitchCase", "test": one, "consequent": [expr_stmt()] });
+        let catch_clause = || json!({ "type": "CatchClause", "param": ident("e"), "body": { "type": "BlockStatement", "body": [] } });
 
         let pair = match node_type {
             "Identifier" => (ident("a"), "a"),
@@ -1432,7 +1896,7 @@ mod tests {
             ),
             "FunctionExpression" => (
                 json!({ "type": "FunctionExpression", "async": false, "generator": false, "id": null, "params": [], "body": { "type": "BlockStatement", "body": [] } }),
-                "function() { /* block */ }",
+                "function() {}",
             ),
             "UnaryExpression" => (
                 json!({ "type": "UnaryExpression", "operator": "!", "prefix": true, "argument": ident("a") }),
@@ -1503,6 +1967,129 @@ mod tests {
                 json!({ "type": "Property", "kind": "init", "key": ident("a"), "value": ident("b"), "computed": false, "shorthand": false }),
                 "a: b",
             ),
+            "Super" => (json!({ "type": "Super" }), "super"),
+            "MetaProperty" => (
+                json!({ "type": "MetaProperty", "meta": ident("import"), "property": ident("meta") }),
+                "import.meta",
+            ),
+            "ImportExpression" => (
+                json!({ "type": "ImportExpression", "source": { "type": "Literal", "raw": "'x'", "value": "x" }, "options": ident("o") }),
+                "import('x', o)",
+            ),
+            "TaggedTemplateExpression" => (
+                json!({ "type": "TaggedTemplateExpression", "tag": ident("tag"), "quasi": { "type": "TemplateLiteral", "quasis": [{ "type": "TemplateElement", "value": { "raw": "x" } }], "expressions": [] } }),
+                "tag`x`",
+            ),
+            "PrivateIdentifier" => (json!({ "type": "PrivateIdentifier", "name": "x" }), "#x"),
+            "ClassExpression" => (
+                json!({ "type": "ClassExpression", "id": null, "superClass": null, "body": empty_class_body() }),
+                "class {}",
+            ),
+            "ClassDeclaration" => (
+                json!({ "type": "ClassDeclaration", "id": ident("A"), "superClass": ident("B"), "body": empty_class_body() }),
+                "class A extends B {}",
+            ),
+            "ClassBody" => (
+                json!({ "type": "ClassBody", "body": [{ "type": "PropertyDefinition", "static": false, "computed": false, "key": ident("a"), "value": one }] }),
+                "{ a = 1; }",
+            ),
+            "MethodDefinition" => (
+                json!({ "type": "MethodDefinition", "static": true, "kind": "get", "computed": false, "key": ident("a"), "value": { "type": "FunctionExpression", "async": false, "generator": false, "id": null, "params": [], "body": block_of(json!([return_one()])) } }),
+                "static get a() { return 1; }",
+            ),
+            "PropertyDefinition" => (
+                json!({ "type": "PropertyDefinition", "static": false, "computed": false, "key": { "type": "PrivateIdentifier", "name": "x" }, "value": one }),
+                "#x = 1;",
+            ),
+            "StaticBlock" => (
+                json!({ "type": "StaticBlock", "body": [expr_stmt()] }),
+                "static { f(); }",
+            ),
+            "BlockStatement" => (
+                block_of(json!([expr_stmt(), return_one()])),
+                "{ f(); return 1; }",
+            ),
+            "ExpressionStatement" => (expr_stmt(), "f();"),
+            "EmptyStatement" => (json!({ "type": "EmptyStatement" }), ";"),
+            "DebuggerStatement" => (json!({ "type": "DebuggerStatement" }), "debugger;"),
+            "ReturnStatement" => (return_one(), "return 1;"),
+            "ThrowStatement" => (
+                json!({ "type": "ThrowStatement", "argument": ident("e") }),
+                "throw e;",
+            ),
+            "BreakStatement" => (
+                json!({ "type": "BreakStatement", "label": ident("outer") }),
+                "break outer;",
+            ),
+            "ContinueStatement" => (
+                json!({ "type": "ContinueStatement", "label": null }),
+                "continue;",
+            ),
+            "LabeledStatement" => (
+                json!({ "type": "LabeledStatement", "label": ident("$"), "body": expr_stmt() }),
+                "$: f();",
+            ),
+            "VariableDeclaration" => (declaration("let"), "let i = 1;"),
+            "VariableDeclarator" => (
+                json!({ "type": "VariableDeclarator", "id": ident("i"), "init": one }),
+                "i = 1",
+            ),
+            "FunctionDeclaration" => (
+                json!({ "type": "FunctionDeclaration", "async": false, "generator": false, "id": ident("f"), "params": [ident("a")], "body": block_of(json!([return_one()])) }),
+                "function f(a) { return 1; }",
+            ),
+            "IfStatement" => (
+                // A bare `if` consequent must be braced once an `else` follows,
+                // or the inner `if` would capture it.
+                json!({ "type": "IfStatement", "test": ident("a"), "consequent": json!({ "type": "IfStatement", "test": ident("b"), "consequent": expr_stmt(), "alternate": null }), "alternate": expr_stmt() }),
+                "if (a) { if (b) f(); } else f();",
+            ),
+            "ForStatement" => (
+                json!({ "type": "ForStatement", "init": declaration("let"), "test": ident("a"), "update": ident("b"), "body": block_of(json!([expr_stmt()])) }),
+                "for (let i = 1; a; b) { f(); }",
+            ),
+            "ForInStatement" => (
+                json!({ "type": "ForInStatement", "left": json!({ "type": "VariableDeclaration", "kind": "const", "declarations": [{ "type": "VariableDeclarator", "id": ident("k"), "init": null }] }), "right": ident("o"), "body": block_of(json!([])) }),
+                "for (const k in o) {}",
+            ),
+            "ForOfStatement" => (
+                json!({ "type": "ForOfStatement", "await": true, "left": ident("x"), "right": ident("o"), "body": block_of(json!([])) }),
+                "for await (x of o) {}",
+            ),
+            "WhileStatement" => (
+                json!({ "type": "WhileStatement", "test": ident("a"), "body": expr_stmt() }),
+                "while (a) { f(); }",
+            ),
+            "DoWhileStatement" => (
+                json!({ "type": "DoWhileStatement", "test": ident("a"), "body": block_of(json!([expr_stmt()])) }),
+                "do { f(); } while (a);",
+            ),
+            "SwitchStatement" => (
+                json!({ "type": "SwitchStatement", "discriminant": ident("a"), "cases": [switch_case()] }),
+                "switch (a) { case 1: f(); }",
+            ),
+            "SwitchCase" => (switch_case(), "case 1: f();"),
+            "TryStatement" => (
+                json!({ "type": "TryStatement", "block": block_of(json!([expr_stmt()])), "handler": catch_clause(), "finalizer": block_of(json!([expr_stmt()])) }),
+                "try { f(); } catch (e) {} finally { f(); }",
+            ),
+            "CatchClause" => (catch_clause(), "catch (e) {}"),
+            "ImportDeclaration" => (
+                json!({ "type": "ImportDeclaration", "specifiers": [], "source": { "type": "Literal", "raw": "'x'", "value": "x" } }),
+                "import 'x';",
+            ),
+            "ExportNamedDeclaration" => (
+                json!({ "type": "ExportNamedDeclaration", "declaration": null, "specifiers": [{ "type": "ExportSpecifier", "local": ident("a"), "exported": ident("b") }], "source": null }),
+                "export { a as b };",
+            ),
+            "ExportDefaultDeclaration" => (
+                json!({ "type": "ExportDefaultDeclaration", "declaration": ident("a") }),
+                "export default a;",
+            ),
+            "ExportAllDeclaration" => (
+                json!({ "type": "ExportAllDeclaration", "exported": ident("ns"), "source": { "type": "Literal", "raw": "'x'", "value": "x" } }),
+                "export * as ns from 'x';",
+            ),
             _ => return None,
         };
         Some(pair)
@@ -1516,9 +2103,13 @@ mod tests {
             let printed = try_estree_to_string(&node)
                 .unwrap_or_else(|e| panic!("supported type `{node_type}` errored: {e}"));
             assert_eq!(printed, expected, "printing `{node_type}`");
+            // A supported type that prints a comment is printing a placeholder:
+            // `BlockStatement` used to be on this list while emitting
+            // `{ /* block */ }`, which the exact-text comparison above cannot
+            // tell apart from a real printing on its own.
             assert!(
-                !printed.contains("/* unknown */"),
-                "`{node_type}` fell through to the unknown branch"
+                !printed.contains("/*"),
+                "`{node_type}` printed the placeholder comment `{printed}`"
             );
         }
     }

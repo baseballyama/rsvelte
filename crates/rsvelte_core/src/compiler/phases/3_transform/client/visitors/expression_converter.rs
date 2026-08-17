@@ -151,6 +151,26 @@ pub fn convert_expression(expr: &Expression, context: &mut ComponentContext) -> 
     convert_js_node(&node, context)
 }
 
+#[inline]
+fn source_spanned(node: &JsNode, expr: JsExpr, context: &ComponentContext) -> JsExpr {
+    if context.enable_sourcemap
+        && let (Some(start), Some(end)) = (node.start(), node.end())
+        && start < end
+    {
+        JsExpr::Spanned(context.arena.alloc_expr(expr), start, end)
+    } else {
+        expr
+    }
+}
+
+#[inline]
+fn without_outer_source_span(expr: JsExpr, context: &ComponentContext) -> JsExpr {
+    match expr {
+        JsExpr::Spanned(inner, _, _) => context.arena.get_expr(inner).clone(),
+        other => other,
+    }
+}
+
 /// Convert a JsNode directly to JsExpr via pattern matching, bypassing serde_json::Value
 /// for simple expression types. Complex types fall back to convert_json_value.
 fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
@@ -190,85 +210,91 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 if !is_source && !is_exported {
                     let prop_name = binding.prop_alias.as_deref().unwrap_or(name.as_str());
                     let needs_bracket = !is_valid_js_identifier(prop_name);
-                    return JsExpr::Member(JsMemberExpression {
-                        object: context
-                            .arena
-                            .alloc_expr(JsExpr::Identifier("$$props".into())),
-                        property: if needs_bracket {
-                            JsMemberProperty::Expression(
-                                context.arena.alloc_expr(JsExpr::Literal(JsLiteral::String(
-                                    prop_name.into(),
-                                ))),
-                            )
-                        } else {
-                            JsMemberProperty::Identifier(prop_name.into())
-                        },
-                        computed: needs_bracket,
-                        optional: false,
-                    });
+                    return source_spanned(
+                        node,
+                        JsExpr::Member(JsMemberExpression {
+                            object: context
+                                .arena
+                                .alloc_expr(JsExpr::Identifier("$$props".into())),
+                            property: if needs_bracket {
+                                JsMemberProperty::Expression(context.arena.alloc_expr(
+                                    JsExpr::Literal(JsLiteral::String(prop_name.into())),
+                                ))
+                            } else {
+                                JsMemberProperty::Identifier(prop_name.into())
+                            },
+                            computed: needs_bracket,
+                            optional: false,
+                        }),
+                        context,
+                    );
                 }
             }
 
-            JsExpr::Identifier(name.clone())
+            source_spanned(node, JsExpr::Identifier(name.clone()), context)
         }
 
         JsNode::Literal {
             value, raw, regex, ..
-        } => match value {
-            LiteralValue::String(s) => {
-                // esrap writes `node.raw` whenever it is set, so quote style AND
-                // escape spelling come from the source; the printer's escape set
-                // is not esrap's, and cooking here loses `\t`, `\x41`, …
-                if raw.is_empty() {
-                    JsExpr::Literal(JsLiteral::String(s.to_string().into()))
-                } else {
-                    JsExpr::Literal(JsLiteral::RawString {
-                        value: s.to_string().into(),
-                        raw: raw.to_string().into(),
-                    })
+        } => source_spanned(
+            node,
+            match value {
+                LiteralValue::String(s) => {
+                    // esrap writes `node.raw` whenever it is set, so quote style AND
+                    // escape spelling come from the source; the printer's escape set
+                    // is not esrap's, and cooking here loses `\t`, `\x41`, …
+                    if raw.is_empty() {
+                        JsExpr::Literal(JsLiteral::String(s.to_string().into()))
+                    } else {
+                        JsExpr::Literal(JsLiteral::RawString {
+                            value: s.to_string().into(),
+                            raw: raw.to_string().into(),
+                        })
+                    }
                 }
-            }
-            LiteralValue::Number(n) => {
-                // Preserve the original raw representation for numeric literals
-                // from user source code. This keeps formats like 1_000_000, 0.5, etc.
-                // intact instead of normalizing them (e.g. to 1e6 or .5).
-                let raw_str = raw.as_str();
-                let i = *n as i64;
-                let is_simple_int = i >= 0 && *n == i as f64 && n.is_finite();
-                let codegen_str = if is_simple_int {
-                    itoa::Buffer::new().format(i).to_string()
-                } else {
-                    format!("{}", n)
-                };
-                if raw_str == codegen_str {
-                    JsExpr::Literal(JsLiteral::Number(*n))
-                } else {
-                    JsExpr::Literal(JsLiteral::RawNumber {
-                        value: *n,
-                        raw: raw.to_string().into(),
-                    })
+                LiteralValue::Number(n) => {
+                    // Preserve the original raw representation for numeric literals
+                    // from user source code. This keeps formats like 1_000_000, 0.5, etc.
+                    // intact instead of normalizing them (e.g. to 1e6 or .5).
+                    let raw_str = raw.as_str();
+                    let i = *n as i64;
+                    let is_simple_int = i >= 0 && *n == i as f64 && n.is_finite();
+                    let codegen_str = if is_simple_int {
+                        itoa::Buffer::new().format(i).to_string()
+                    } else {
+                        format!("{}", n)
+                    };
+                    if raw_str == codegen_str {
+                        JsExpr::Literal(JsLiteral::Number(*n))
+                    } else {
+                        JsExpr::Literal(JsLiteral::RawNumber {
+                            value: *n,
+                            raw: raw.to_string().into(),
+                        })
+                    }
                 }
-            }
-            LiteralValue::Bool(b) => JsExpr::Literal(JsLiteral::Boolean(*b)),
-            LiteralValue::Null => {
-                // Check for regex
-                if let Some(r) = regex {
-                    return JsExpr::Literal(JsLiteral::Regex {
-                        pattern: r.pattern.clone(),
-                        flags: r.flags.clone(),
-                    });
+                LiteralValue::Bool(b) => JsExpr::Literal(JsLiteral::Boolean(*b)),
+                LiteralValue::Null => {
+                    // Check for regex
+                    if let Some(r) = regex {
+                        JsExpr::Literal(JsLiteral::Regex {
+                            pattern: r.pattern.clone(),
+                            flags: r.flags.clone(),
+                        })
+                    } else if raw.ends_with('n') {
+                        // Check for BigInt (raw ends with 'n')
+                        JsExpr::Literal(JsLiteral::BigInt(raw.to_string().into()))
+                    } else {
+                        JsExpr::Literal(JsLiteral::Null)
+                    }
                 }
-                // Check for BigInt (raw ends with 'n')
-                if raw.ends_with('n') {
-                    return JsExpr::Literal(JsLiteral::BigInt(raw.to_string().into()));
-                }
-                JsExpr::Literal(JsLiteral::Null)
-            }
-            LiteralValue::Regex(r) => JsExpr::Literal(JsLiteral::Regex {
-                pattern: r.pattern.clone(),
-                flags: r.flags.clone(),
-            }),
-        },
+                LiteralValue::Regex(r) => JsExpr::Literal(JsLiteral::Regex {
+                    pattern: r.pattern.clone(),
+                    flags: r.flags.clone(),
+                }),
+            },
+            context,
+        ),
 
         JsNode::BinaryExpression {
             left,
@@ -621,11 +647,16 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
                 && let Some(prop_name) = get_jsnode_identifier_name(pa.get_js_node(*property))
                 && !binding.exclude_props.iter().any(|ep| ep == &prop_name)
             {
+                let prop_node = pa.get_js_node(*property);
                 return JsExpr::Member(JsMemberExpression {
                     object: context
                         .arena
                         .alloc_expr(JsExpr::Identifier("$$props".into())),
-                    property: JsMemberProperty::Identifier(prop_name.into()),
+                    property: JsMemberProperty::SpannedIdentifier {
+                        name: prop_name.into(),
+                        start: prop_node.start().unwrap_or_default(),
+                        end: prop_node.end().unwrap_or_default(),
+                    },
                     computed: false,
                     optional,
                 });
@@ -647,7 +678,10 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
                 if let Some((field_type, in_constructor)) = field_info {
                     let base_object = {
-                        let __tmp = convert_js_node(pa.get_js_node(*object), context);
+                        let __tmp = without_outer_source_span(
+                            convert_js_node(pa.get_js_node(*object), context),
+                            context,
+                        );
                         context.arena.alloc_expr(__tmp)
                     };
                     let base_member = JsExpr::Member(JsMemberExpression {
@@ -685,7 +719,10 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
             let conv_object = {
                 {
-                    let __tmp = convert_js_node(pa.get_js_node(*object), context);
+                    let __tmp = without_outer_source_span(
+                        convert_js_node(pa.get_js_node(*object), context),
+                        context,
+                    );
                     context.arena.alloc_expr(__tmp)
                 }
             };
@@ -699,7 +736,11 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             } else if let Some(prop_name) = get_jsnode_private_identifier_name(prop_node) {
                 JsMemberProperty::PrivateIdentifier(prop_name.into())
             } else if let Some(prop_name) = get_jsnode_identifier_name(prop_node) {
-                JsMemberProperty::Identifier(prop_name.into())
+                JsMemberProperty::SpannedIdentifier {
+                    name: prop_name.into(),
+                    start: prop_node.start().unwrap_or_default(),
+                    end: prop_node.end().unwrap_or_default(),
+                }
             } else {
                 // All typed JsNode variants with a `name` field (Identifier, PrivateIdentifier)
                 // are handled above. Convert as expression for any remaining node types.
@@ -1055,9 +1096,10 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
             // Pre-compute proxy decision from the JsNode directly (no JSON serialization)
             let should_proxy = Some(should_proxy_jsnode(right_node, pa, context));
 
+            let assignment_left = without_outer_source_span(conv_left.clone(), context);
             let result = if let Some(transformed) = try_transform_assignment(
                 operator_str,
-                &conv_left,
+                &assignment_left,
                 &conv_right,
                 should_proxy,
                 original_root_name.as_deref(),
@@ -3507,7 +3549,7 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
 /// Used when a destructuring pattern needs to be embedded as a `JsExpr::Raw`.
 pub fn pattern_to_string(pattern: &JsPattern) -> String {
     match pattern {
-        JsPattern::Identifier(name) => name.to_string(),
+        JsPattern::Identifier(name) | JsPattern::SpannedIdentifier { name, .. } => name.to_string(),
         JsPattern::Array(arr) => {
             let mut s = String::from("[");
             for (i, elem) in arr.elements.iter().enumerate() {
@@ -3695,7 +3737,7 @@ fn own_line_comment_scan_start(source: &str, stmt_start: usize) -> usize {
 }
 
 /// Scan `source[gap_start..stmt_start]` (the trivia gap before a statement)
-/// for comments that sit on their own line and push them as `JsStatement::Raw`
+/// for comments that sit on their own line and push them as `JsStatement::RawMapped`
 /// entries — esrap prints a statement's leading comments as separate lines
 /// above it. Trailing comments on the previous statement's line are skipped
 /// (they are not own-line leading trivia).
@@ -3730,7 +3772,12 @@ fn push_own_line_comment_raws(
                     i += 1;
                 }
                 if clean {
-                    body.push(JsStatement::Raw(gap[s..i].trim_end().into()));
+                    body.push(JsStatement::RawMapped {
+                        code: gap[s..i].trim_end().into(),
+                        source_offset: (gap_start + s) as u32,
+                        comment_anchor: None,
+                        copied_spans: Vec::new(),
+                    });
                 }
             }
             b'/' if i + 1 < bytes.len() && bytes[i + 1] == b'*' => {
@@ -3746,7 +3793,12 @@ fn push_own_line_comment_raws(
                     i += 1;
                 }
                 if clean && closed {
-                    body.push(JsStatement::Raw(gap[s..i].into()));
+                    body.push(JsStatement::RawMapped {
+                        code: gap[s..i].into(),
+                        source_offset: (gap_start + s) as u32,
+                        comment_anchor: None,
+                        copied_spans: Vec::new(),
+                    });
                 }
                 clean = false;
             }
@@ -3810,6 +3862,10 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                 .map(|e| convert_expression_statement_child(e, context))?;
             Some(JsStatement::Expression(JsExpressionStatement {
                 expression: context.arena.alloc_expr(expr),
+                comment_anchor: obj
+                    .get("start")
+                    .and_then(|start| start.as_u64())
+                    .map(|start| start as u32),
             }))
         }
         "VariableDeclaration" => {
@@ -5165,8 +5221,14 @@ fn try_dev_assign_wrap_typed(
             let obj = context.arena.get_expr(m.object).clone();
             let prop = match &m.property {
                 JsMemberProperty::Expression(expr) => context.arena.get_expr(*expr).clone(),
-                JsMemberProperty::Identifier(name) if computed => b::id(name.as_str()),
-                JsMemberProperty::Identifier(name) => b::string(name.clone()),
+                JsMemberProperty::Identifier(name)
+                | JsMemberProperty::SpannedIdentifier { name, .. }
+                    if computed =>
+                {
+                    b::id(name.as_str())
+                }
+                JsMemberProperty::Identifier(name)
+                | JsMemberProperty::SpannedIdentifier { name, .. } => b::string(name.clone()),
                 JsMemberProperty::PrivateIdentifier(name) => b::string(name.clone()),
             };
             (obj, prop)
@@ -5314,7 +5376,8 @@ fn try_coercive_assignment_transform(
         match left {
             JsExpr::Member(m) => match &m.property {
                 JsMemberProperty::Expression(expr) => context.arena.get_expr(*expr).clone(),
-                JsMemberProperty::Identifier(name) => b::id(name.as_str()),
+                JsMemberProperty::Identifier(name)
+                | JsMemberProperty::SpannedIdentifier { name, .. } => b::id(name.as_str()),
                 JsMemberProperty::PrivateIdentifier(name) => b::string(name.clone()),
             },
             _ => return None,
@@ -5476,6 +5539,7 @@ fn try_destructure_assignment(
         for assignment in &assignments {
             statements.push(JsStatement::Expression(JsExpressionStatement {
                 expression: context.arena.alloc_expr(assignment.clone()),
+                comment_anchor: None,
             }));
         }
 
@@ -6256,6 +6320,7 @@ fn convert_statement_from_jsnode(
                 convert_expression_statement_child_typed(pa.get_js_node(*expression), context);
             Some(JsStatement::Expression(JsExpressionStatement {
                 expression: context.arena.alloc_expr(expr),
+                comment_anchor: node.start(),
             }))
         }
         JsNode::ReturnStatement { argument, .. } => {

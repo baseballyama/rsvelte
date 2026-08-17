@@ -167,29 +167,80 @@ mod tests {
         assert!(result.code.contains("/>"));
     }
 
-    #[test]
-    fn print_without_source_rejects_unrepresentable_statements() {
-        // Measured on the pinned Svelte submodule: 167 of 4,369 `.svelte` files
-        // reached the ESTree fallback's unknown branch when printed without
-        // source, `LabeledStatement` (legacy `$:`) 228 times. Every one of them
-        // used to come back as a successful print with the statement replaced
-        // by `/* unknown */`.
-        let source = "<script>\n\tlet count = 0;\n\t$: doubled = count * 2;\n</script>";
+    fn parse_for_print(source: &str) -> crate::ast::Root<'_> {
         let parse_options = ParseOptions {
             modern: true,
             ..Default::default()
         };
-        let ast =
-            crate::parse(source, &oxc_allocator::Allocator::default(), parse_options).unwrap();
+        crate::parse(source, &oxc_allocator::Allocator::default(), parse_options).unwrap()
+    }
 
-        let err = print(&ast, None).expect_err("silently erased statement must not print");
-        let message = err.to_string();
-        assert!(message.contains("LabeledStatement"), "{message}");
+    #[test]
+    fn print_without_source_keeps_statement_bodies() {
+        // A function body used to print as the literal `{ /* block */ }`, and a
+        // `$:` statement as `/* unknown */`. Both came back as a successful
+        // print. Measured over the pinned Svelte submodule's 4,468 `.svelte`
+        // files, the placeholder reached 528 of them.
+        let source = "<script>\n\tlet count = 0;\n\t$: doubled = count * 2;\n\tconst f = () => {\n\t\tcount += 1;\n\t\treturn count;\n\t};\n</script>";
+        let ast = parse_for_print(source);
 
-        // Positive control: the path production uses keeps the statement.
+        let printed = print(&ast, None).expect("representable statements must print");
+        assert!(
+            printed.code.contains("$: doubled = count * 2;"),
+            "{}",
+            printed.code
+        );
+        assert!(
+            printed.code.contains("count += 1; return count;"),
+            "{}",
+            printed.code
+        );
+        assert!(!printed.code.contains("/* block */"), "{}", printed.code);
+        assert!(!printed.code.contains("/* unknown */"), "{}", printed.code);
+
+        // The path production uses is unaffected: it prints from the source.
         let ok = print_with_source(&ast, None, Some(source)).expect("source path is unaffected");
         assert!(ok.code.contains("$: doubled = count * 2;"), "{}", ok.code);
-        assert!(!ok.code.contains("/* unknown */"), "{}", ok.code);
+    }
+
+    #[test]
+    fn print_without_source_reparses() {
+        // The exact-text tests cannot see whether the fallback's output is
+        // JavaScript at all. Re-parsing is what caught the missing parentheses:
+        // with the bodies printed, `b ?? (b = 1)` came out as `b ?? b = 1`.
+        for source in [
+            "<script>\n\tlet b;\n\tfunction f() { b ?? (b = 1); }\n</script>",
+            "<script>\n\tconst o = { get a() { return 1; }, set a(v) {}, m() {} };\n</script>",
+            "<script>\n\tlet a, b;\n\tfunction f() { ({ a, b } = { a: 1, b: 2 }); }\n</script>",
+            // An arrow's expression body opening with `{` reads as a block body.
+            "<button onclick={() => ({ a } = { a: 1 })}>x</button>",
+            "<script>\n\tconst x = (1 + 2) * 3;\n\tconst y = 2 ** 3 ** 4;\n\tconst z = (a, b);\n</script>",
+            // `??` may not sit next to `||` unparenthesized, whatever the
+            // precedence comparison says.
+            "<script>\n\tconst x = (a || b) ?? c;\n\tconst y = a ?? (b && c);\n</script>",
+            "<script>\n\tfunction f() { for (const k in o) { try { g(); } catch (e) {} } }\n</script>",
+        ] {
+            let ast = parse_for_print(source);
+            let printed = print(&ast, None).expect("must print").code;
+            let allocator = oxc_allocator::Allocator::default();
+            let options = ParseOptions {
+                modern: true,
+                ..Default::default()
+            };
+            crate::parse(&printed, &allocator, options)
+                .unwrap_or_else(|e| panic!("printed output does not parse: {printed}\n{e:?}"));
+        }
+    }
+
+    #[test]
+    fn print_without_source_rejects_unrepresentable_nodes() {
+        // Negative control for the test above. The fallback prints JavaScript,
+        // so a TypeScript-only node is still an error rather than a placeholder.
+        let source = "<script lang=\"ts\">\n\tconst x = y satisfies Z;\n</script>";
+        let ast = parse_for_print(source);
+
+        let err = print(&ast, None).expect_err("an unrepresentable node must not print");
+        assert!(err.to_string().contains("TSSatisfiesExpression"), "{err}");
     }
 
     #[test]

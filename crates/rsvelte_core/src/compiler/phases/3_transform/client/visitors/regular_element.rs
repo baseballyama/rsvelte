@@ -25,6 +25,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::fragmen
 };
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
     build_render_statement_with_memoizer, build_template_chunk, expression_has_reactive_state,
+    is_known_defined_global_call, js_expr_keypath,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
 use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
@@ -411,7 +412,13 @@ pub fn visit_regular_element(
                 b::call(
                     &context.arena,
                     b::member_path(&context.arena, "$.remove_input_defaults"),
-                    vec![context.state.node.clone()],
+                    vec![JsExpr::Spanned(
+                        context.arena.alloc_expr(context.state.node.clone()),
+                        node.start.saturating_add(1),
+                        node.start
+                            .saturating_add(1)
+                            .saturating_add(node.name.len() as u32),
+                    )],
                 ),
             ));
         }
@@ -1258,7 +1265,17 @@ pub fn visit_regular_element(
     } else {
         // Process trimmed child nodes
         // These statements go directly into context.state (child_state in JS)
-        let mut current_node = context.state.node.clone();
+        let element_name_start = node.start.saturating_add(1);
+        let element_name_end = element_name_start.saturating_add(node.name.len() as u32);
+        let element_node = match &context.state.node {
+            JsExpr::Spanned(inner, _, _) => context.arena.get_expr(*inner).clone(),
+            node => node.clone(),
+        };
+        let mut current_node = JsExpr::Spanned(
+            context.arena.alloc_expr(element_node.clone()),
+            element_name_start,
+            element_name_end,
+        );
 
         // For <template> elements, needs_reset is always true and we need to call
         // $.hydrate_template() and use element.content as the child arg.
@@ -1311,7 +1328,11 @@ pub fn visit_regular_element(
                 b::call(
                     &context.arena,
                     b::member_path(&context.arena, "$.reset"),
-                    vec![context.state.node.clone()],
+                    vec![JsExpr::Spanned(
+                        context.arena.alloc_expr(element_node),
+                        element_name_start,
+                        element_name_end,
+                    )],
                 ),
             ));
         }
@@ -2087,10 +2108,14 @@ fn find_descendants_recursive<'a>(nodes: &[TemplateNode<'a>], result: &mut Vec<T
 /// `scope.evaluate()` behavior which recurses into binding initial values.
 fn is_value_known_defined(
     value: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     scope_root: Option<&crate::compiler::phases::phase2_analyze::scope::ScopeRoot>,
     scope: Option<&crate::compiler::phases::phase2_analyze::scope::Scope>,
 ) -> bool {
     match value {
+        JsExpr::Spanned(inner, _, _) => {
+            is_value_known_defined(arena.get_expr(*inner), arena, scope_root, scope)
+        }
         // null and undefined literals are explicitly not defined
         JsExpr::Literal(JsLiteral::Null) => false,
         JsExpr::Literal(JsLiteral::Undefined) => false,
@@ -2106,6 +2131,9 @@ fn is_value_known_defined(
         JsExpr::Object(_) => true,
         // Template literals are always strings (defined)
         JsExpr::TemplateLiteral(_) => true,
+        JsExpr::Call(call) => js_expr_keypath(arena.get_expr(call.callee), arena)
+            .as_deref()
+            .is_some_and(is_known_defined_global_call),
         // For identifiers: look up the binding to check if the initial value is defined.
         // This mirrors the official compiler's scope.evaluate() which, for identifiers,
         // checks if the binding is not updated, has an initial value, and is not a prop,
@@ -2194,8 +2222,12 @@ fn build_element_special_value_attribute(
     // template scope tracking is imprecise, so a name shadowed by an outer
     // binding (`<select bind:value={i}>` + `{#each … as person, i}`) would
     // otherwise resolve to the wrong binding via `find_binding_any_scope`.
+    let mut value_for_definedness = &transformed_value;
+    while let JsExpr::Spanned(inner, _, _) = value_for_definedness {
+        value_for_definedness = context.arena.get_expr(*inner);
+    }
     let is_in_scope_each_index = matches!(
-        &transformed_value,
+        value_for_definedness,
         JsExpr::Identifier(name)
             if context.state.each_index_name.as_deref() == Some(name.as_str())
                 || context
@@ -2206,7 +2238,8 @@ fn build_element_special_value_attribute(
     );
     let value_is_defined = is_in_scope_each_index
         || is_value_known_defined(
-            &transformed_value,
+            value_for_definedness,
+            &context.arena,
             Some(context.state.scope_root),
             Some(context.state.scope),
         );

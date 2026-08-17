@@ -33,6 +33,9 @@ pub struct ComponentContext<'a> {
     /// Uses interior mutability (UnsafeCell) so allocation only needs `&self`.
     pub arena: JsArena,
 
+    /// Preserve source spans only when the caller will emit a source map.
+    pub enable_sourcemap: bool,
+
     /// The path of nodes being visited (for parent access)
     pub path: Vec<&'a TemplateNode<'a>>,
 
@@ -57,6 +60,7 @@ impl<'a> ComponentContext<'a> {
         Self {
             state,
             arena: JsArena::new(),
+            enable_sourcemap: false,
             path: Vec::new(),
             visit,
         }
@@ -2465,6 +2469,9 @@ fn collect_identifiers_recursive(
 ) {
     use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
     match expr {
+        JsExpr::Spanned(inner, _, _) => {
+            collect_identifiers_recursive(arena.get_expr(*inner), arena, names);
+        }
         JsExpr::Identifier(name) if !names.contains(name) => {
             names.push(name.clone());
         }
@@ -2485,7 +2492,11 @@ fn collect_identifiers_recursive(
                 // This is needed for blocker detection of props destructured after await
                 if let JsExpr::Identifier(obj) = arena.get_expr(member.object) {
                     if obj == "$$props" {
-                        if let JsMemberProperty::Identifier(prop_name) = &member.property {
+                        if let JsMemberProperty::Identifier(prop_name)
+                        | JsMemberProperty::SpannedIdentifier {
+                            name: prop_name, ..
+                        } = &member.property
+                        {
                             if !names.contains(prop_name) {
                                 names.push(prop_name.clone());
                             }

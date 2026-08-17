@@ -267,12 +267,17 @@ pub fn build_event_handler(
     let js_expr = apply_transforms_to_expression(&js_expr, context);
 
     // Check if it's already a function
-    if matches!(js_expr, JsExpr::Arrow(_) | JsExpr::Function(_)) {
+    let mut unspanned = &js_expr;
+    while let JsExpr::Spanned(inner, _, _) = unspanned {
+        unspanned = context.arena.get_expr(*inner);
+    }
+
+    if matches!(unspanned, JsExpr::Arrow(_) | JsExpr::Function(_)) {
         return js_expr;
     }
 
     // Check if it's an identifier
-    if let JsExpr::Identifier(name) = &js_expr {
+    if let JsExpr::Identifier(name) = unspanned {
         // Check if this identifier refers to a function in the scope.
         // `resolve_shadowing_snippet_binding` (not a plain `get_binding`) so a
         // block-local `{#snippet}` that shadows a same-named outer function

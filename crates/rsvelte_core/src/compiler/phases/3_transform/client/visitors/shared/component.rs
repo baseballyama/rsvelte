@@ -663,6 +663,7 @@ pub fn build_component(
                                 super::super::fragment::collect_identifiers_from_statement_deep(
                                     &JsStatement::Expression(JsExpressionStatement {
                                         expression: init_expr,
+                                        comment_anchor: None,
                                     }),
                                     arena,
                                     &mut component_names,
@@ -1366,7 +1367,9 @@ fn synthesized_self_member_assign(
     let JsExpr::Member(member) = raw else {
         return None;
     };
-    let JsMemberProperty::Identifier(property) = &member.property else {
+    let (JsMemberProperty::Identifier(property)
+    | JsMemberProperty::SpannedIdentifier { name: property, .. }) = &member.property
+    else {
         return None;
     };
     let start = bind.expression.start()? as usize;
@@ -1412,7 +1415,10 @@ fn process_bind_directive<'a>(
         crate::compiler::phases::phase3_transform::profile::TF_BC_BIND,
     );
     // Convert the expression without transforms first
-    let raw_expression = convert_expression(&bind.expression, context);
+    let raw_expression = match convert_expression(&bind.expression, context) {
+        JsExpr::Spanned(inner, _, _) => context.arena.get_expr(inner).clone(),
+        expression => expression,
+    };
 
     // Apply transforms to get the proper getter expression (e.g., $store.value -> $store().value)
     let transformed_expression =
