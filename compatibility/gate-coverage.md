@@ -203,8 +203,18 @@ difference alone.
 
 The phase is in the ratchet key: `|phase=edit`, absent for the opened phase, in both the per-field
 fixture key and the corpus `(file, method)` aggregate. Without it an opened-phase entry would
-suppress a post-edit divergence in the same `(unit, method)` — the #2521 failure mode this gate
-records again at 27g.
+suppress a post-edit divergence in the same `(unit, method)` — the #2521 failure mode, where a
+ratchet entry suppressed everything its key could not tell apart.
+
+**What it found is nothing, and the nothing is measured.** The first full sweep merged as 16331 new
+and **0 stale** against a baseline written before the phase existed, and matching each edit key to
+its opened twin by stripping the phase segment gives **0 edit keys with no opened twin** against 17
+opened keys with no edit twin — the 17 being the session-level positive controls, which run once per
+session rather than once per unit. So on this population no parity defect exists only after an edit,
+and the 0 stale separately confirms no opened-phase key was rewritten by the new encoding. Read the
+corpus half of that `0` against 27g: its key records a divergent request **count**, so an edit-phase
+divergence at a different position inside an unchanged count is not distinguishable there. The
+fixture and upstream halves keep per-field keys and carry the claim without that caveat.
 
 What this does **not** reach, and stays here rather than being dropped from the sentence:
 
