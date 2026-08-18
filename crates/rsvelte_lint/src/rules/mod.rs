@@ -89,6 +89,7 @@ pub mod prefer_destructured_store_props;
 pub mod prefer_style_directive;
 pub mod prefer_svelte_reactivity;
 pub mod prefer_writable_derived;
+pub mod reactive_stmt;
 pub mod require_each_key;
 #[cfg(feature = "native")] // native-only source-scan meta rule (see above)
 pub mod require_event_dispatcher_types;
