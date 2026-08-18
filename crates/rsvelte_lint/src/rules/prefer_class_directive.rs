@@ -23,6 +23,8 @@ use rsvelte_core::ast::template::{
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::js_static::get_string_if_constant;
+use crate::rules::js_whitespace::{is_js_whitespace, js_trim};
 use crate::script::{node_end, node_start, node_type};
 
 static META: RuleMeta = RuleMeta {
@@ -105,37 +107,6 @@ fn process_branch(
         });
     }
     Some(())
-}
-
-/// Mirror of `getStringIfConstant`: get the constant string value of a Literal
-/// or `TemplateLiteral` (simple no-expression case).
-fn get_string_if_constant(node: &Value) -> Option<String> {
-    match node_type(node)? {
-        "Literal" => {
-            // String literal.
-            node.get("value")
-                .and_then(Value::as_str)
-                .map(str::to_string)
-        }
-        "TemplateLiteral" => {
-            // Only handle the no-interpolation case.
-            let exprs = node.get("expressions").and_then(Value::as_array)?;
-            if !exprs.is_empty() {
-                return None;
-            }
-            let quasis = node.get("quasis").and_then(Value::as_array)?;
-            let cooked: String = quasis
-                .iter()
-                .filter_map(|q| {
-                    q.get("value")
-                        .and_then(|v| v.get("cooked"))
-                        .and_then(Value::as_str)
-                })
-                .collect();
-            Some(cooked)
-        }
-        _ => None,
-    }
 }
 
 /// Mirror of `needParentheses(node, 'not')`. Determines if an expression needs
@@ -247,10 +218,7 @@ fn ends_with_non_word(parts: &[AttributeValuePart], check_index: usize) -> bool 
         for s in &strings {
             if !s.is_empty() {
                 // First non-empty string: check its last char.
-                return s
-                    .chars()
-                    .next_back()
-                    .is_none_or(|c| c.is_ascii_whitespace());
+                return s.chars().next_back().is_none_or(is_js_whitespace);
             }
         }
         // All strings empty → keep looking at previous part.
@@ -271,7 +239,7 @@ fn starts_with_non_word(parts: &[AttributeValuePart], check_index: usize) -> boo
         };
         for s in &strings {
             if !s.is_empty() {
-                return s.chars().next().is_none_or(|c| c.is_ascii_whitespace());
+                return s.chars().next().is_none_or(is_js_whitespace);
             }
         }
         i += 1;
@@ -309,12 +277,12 @@ fn verify_expression_attr(
         return;
     }
     // In empty mode, skip when all class names are non-empty.
-    if prefer_empty && entries.iter().all(|e| !e.class_name.trim().is_empty()) {
+    if prefer_empty && entries.iter().all(|e| !js_trim(&e.class_name).is_empty()) {
         return;
     }
     // Validate class names.
     for entry in &entries {
-        let trimmed = entry.class_name.trim();
+        let trimmed = js_trim(&entry.class_name);
         if !trimmed.is_empty() && !is_valid_class_name(trimmed) {
             return;
         }
@@ -360,7 +328,7 @@ fn verify_sequence_attr(
         if entries.len() > 2 {
             continue;
         }
-        if prefer_empty && entries.iter().all(|e| !e.class_name.trim().is_empty()) {
+        if prefer_empty && entries.iter().all(|e| !js_trim(&e.class_name).is_empty()) {
             continue;
         }
         // Validate class names and check word boundaries.
@@ -374,7 +342,7 @@ fn verify_sequence_attr(
         // Collect the "space" string (from the empty-string entry, if any).
         let mut space: Option<String> = None;
         for entry in &entries {
-            let trimmed = entry.class_name.trim();
+            let trimmed = js_trim(&entry.class_name);
             if entry.class_name.is_empty() {
                 // Truly empty class_name ("").
                 if prev_is_word && next_is_word {
@@ -396,12 +364,12 @@ fn verify_sequence_attr(
                     .class_name
                     .chars()
                     .next()
-                    .is_some_and(|c| !c.is_ascii_whitespace());
+                    .is_some_and(|c| !is_js_whitespace(c));
                 let ends_word = entry
                     .class_name
                     .chars()
                     .next_back()
-                    .is_some_and(|c| !c.is_ascii_whitespace());
+                    .is_some_and(|c| !is_js_whitespace(c));
                 if (starts_word && prev_is_word) || (ends_word && next_is_word) {
                     can_transform = false;
                     break;
@@ -592,7 +560,7 @@ fn trim_after_expression(parts: &[AttributeValuePart], index: usize, edits: &mut
 fn build_class_directives(ctx: &LintContext, entries: &[MapEntry]) -> Vec<String> {
     let mut directives: Vec<String> = Vec::new();
     for entry in entries {
-        let trimmed = entry.class_name.trim();
+        let trimmed = js_trim(&entry.class_name);
         if !trimmed.is_empty() {
             let condition = expr_to_string(ctx, entry);
             directives.push(format!("class:{trimmed}={{{condition}}}"));

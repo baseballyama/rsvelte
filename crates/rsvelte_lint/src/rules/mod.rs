@@ -26,6 +26,7 @@ pub mod html_quotes;
 pub mod html_self_closing;
 pub mod indent;
 pub mod infinite_reactive_loop;
+pub mod js_static;
 pub mod js_whitespace;
 pub mod max_attributes_per_line;
 pub mod max_lines_per_block;

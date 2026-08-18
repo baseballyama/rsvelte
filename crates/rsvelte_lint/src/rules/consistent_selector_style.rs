@@ -24,6 +24,7 @@ use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::js_static::ScriptVars;
 use crate::rules::scss_selector::{
     ScssSelector, SelectorKind, extract_selectors, is_plain_css_lang, scss_lang,
 };
@@ -166,9 +167,9 @@ impl TemplateSelections {
 // ---------------------------------------------------------------------------
 
 /// Collect all element / class / id usages from the template.
-fn collect_selections(root: &Root) -> TemplateSelections {
+fn collect_selections(root: &Root, vars: &ScriptVars) -> TemplateSelections {
     let mut sel = TemplateSelections::default();
-    walk_fragment(&root.fragment, OccCount::Finite, false, &mut sel);
+    walk_fragment(&root.fragment, OccCount::Finite, false, &mut sel, vars);
     sel
 }
 
@@ -177,9 +178,10 @@ fn walk_fragment(
     parent_occ: OccCount,
     in_component: bool,
     sel: &mut TemplateSelections,
+    vars: &ScriptVars,
 ) {
     for node in &fragment.nodes {
-        walk_node(node, parent_occ, in_component, sel);
+        walk_node(node, parent_occ, in_component, sel, vars);
     }
 }
 
@@ -188,6 +190,7 @@ fn walk_node(
     parent_occ: OccCount,
     in_component: bool,
     sel: &mut TemplateSelections,
+    vars: &ScriptVars,
 ) {
     match node {
         TemplateNode::RegularElement(el) => {
@@ -203,49 +206,51 @@ fn walk_node(
             sel.add_element_type(&el.name, el.start, elem_occ);
 
             // Process its attributes.
-            process_attrs(&el.attributes, el.start, elem_occ, sel);
+            process_attrs(&el.attributes, el.start, elem_occ, sel, vars);
 
             // Recurse into the element's fragment.
-            walk_fragment(&el.fragment, elem_occ, false, sel);
+            walk_fragment(&el.fragment, elem_occ, false, sel, vars);
         }
         TemplateNode::Component(c) => {
             // Components are NOT added to the type / class / id maps
             // (upstream skips elements with kind !== 'html').
             // But we still need to walk their slot fragment as "in_component=true"
             // to record any HTML elements within them as ZeroToInf.
-            walk_fragment(&c.fragment, OccCount::ZeroToInf, true, sel);
+            walk_fragment(&c.fragment, OccCount::ZeroToInf, true, sel, vars);
         }
         TemplateNode::IfBlock(b) => {
             // `{#if}` blocks make children ZeroOrOne, which is still Finite for our purposes.
-            walk_fragment(&b.consequent, parent_occ, in_component, sel);
+            walk_fragment(&b.consequent, parent_occ, in_component, sel, vars);
             if let Some(alt) = &b.alternate {
-                walk_fragment(alt, parent_occ, in_component, sel);
+                walk_fragment(alt, parent_occ, in_component, sel, vars);
             }
         }
         TemplateNode::EachBlock(b) => {
             // `{#each}` makes children ZeroToInf.
-            walk_fragment(&b.body, OccCount::ZeroToInf, in_component, sel);
+            walk_fragment(&b.body, OccCount::ZeroToInf, in_component, sel, vars);
             if let Some(fb) = &b.fallback {
-                walk_fragment(fb, parent_occ, in_component, sel);
+                // The `{:else}` fragment's parent chain still runs through the
+                // each block, so its elements are `ZeroToInf` too.
+                walk_fragment(fb, OccCount::ZeroToInf, in_component, sel, vars);
             }
         }
         TemplateNode::AwaitBlock(b) => {
             if let Some(f) = &b.pending {
-                walk_fragment(f, parent_occ, in_component, sel);
+                walk_fragment(f, parent_occ, in_component, sel, vars);
             }
             if let Some(f) = &b.then {
-                walk_fragment(f, parent_occ, in_component, sel);
+                walk_fragment(f, parent_occ, in_component, sel, vars);
             }
             if let Some(f) = &b.catch {
-                walk_fragment(f, parent_occ, in_component, sel);
+                walk_fragment(f, parent_occ, in_component, sel, vars);
             }
         }
         TemplateNode::KeyBlock(b) => {
-            walk_fragment(&b.fragment, parent_occ, in_component, sel);
+            walk_fragment(&b.fragment, parent_occ, in_component, sel, vars);
         }
         TemplateNode::SnippetBlock(b) => {
             // Snippets can be called multiple times → ZeroToInf.
-            walk_fragment(&b.body, OccCount::ZeroToInf, in_component, sel);
+            walk_fragment(&b.body, OccCount::ZeroToInf, in_component, sel, vars);
         }
         TemplateNode::SvelteHead(el)
         | TemplateNode::SvelteBody(el)
@@ -255,16 +260,16 @@ fn walk_node(
         | TemplateNode::SvelteOptions(el)
         | TemplateNode::SvelteSelf(el)
         | TemplateNode::SvelteWindow(el) => {
-            walk_fragment(&el.fragment, parent_occ, in_component, sel);
+            walk_fragment(&el.fragment, parent_occ, in_component, sel, vars);
         }
         TemplateNode::SvelteComponent(c) => {
-            walk_fragment(&c.fragment, OccCount::ZeroToInf, true, sel);
+            walk_fragment(&c.fragment, OccCount::ZeroToInf, true, sel, vars);
         }
         TemplateNode::SvelteElement(e) => {
-            walk_fragment(&e.fragment, parent_occ, in_component, sel);
+            walk_fragment(&e.fragment, parent_occ, in_component, sel, vars);
         }
         TemplateNode::TitleElement(t) => {
-            walk_fragment(&t.fragment, parent_occ, in_component, sel);
+            walk_fragment(&t.fragment, parent_occ, in_component, sel, vars);
         }
         _ => {}
     }
@@ -276,6 +281,7 @@ fn process_attrs(
     elem: ElemId,
     elem_occ: OccCount,
     sel: &mut TemplateSelections,
+    vars: &ScriptVars,
 ) {
     for attr in attrs {
         match attr {
@@ -284,10 +290,10 @@ fn process_attrs(
                 sel.whitelisted_classes.push(d.name.to_string());
             }
             Attribute::Attribute(node) if node.name == "class" => {
-                process_class_value(&node.value, elem, sel);
+                process_class_value(&node.value, elem, sel, vars);
             }
             Attribute::Attribute(node) if node.name == "id" => {
-                process_id_value(&node.value, elem, elem_occ, sel);
+                process_id_value(&node.value, elem, elem_occ, sel, vars);
             }
             _ => {}
         }
@@ -304,7 +310,12 @@ fn process_attrs(
 ///    surrounding static text; an expression with no literal prefix *and* no
 ///    literal suffix (e.g. a bare `{level}`) marks the whole class selection
 ///    universal, which suppresses every class-selector report.
-fn process_class_value(value: &AttributeValue, elem: ElemId, sel: &mut TemplateSelections) {
+fn process_class_value(
+    value: &AttributeValue,
+    elem: ElemId,
+    sel: &mut TemplateSelections,
+    vars: &ScriptVars,
+) {
     match value {
         AttributeValue::Sequence(parts) => {
             for part in parts {
@@ -317,7 +328,7 @@ fn process_class_value(value: &AttributeValue, elem: ElemId, sel: &mut TemplateS
                         }
                     }
                     AttributeValuePart::ExpressionTag(et) => {
-                        match extract_affix(et.expression.as_json()) {
+                        match extract_affix(et.expression.as_json(), vars) {
                             Affix::Universal => sel.class.universal_selector = true,
                             Affix::Known { prefix, suffix } => {
                                 sel.class.add_affix(prefix, suffix, elem);
@@ -329,7 +340,7 @@ fn process_class_value(value: &AttributeValue, elem: ElemId, sel: &mut TemplateS
         }
         AttributeValue::Expression(et) => {
             // `class={expr}` — analyse the expression.
-            let affix = extract_affix(et.expression.as_json());
+            let affix = extract_affix(et.expression.as_json(), vars);
             match affix {
                 Affix::Universal => sel.class.universal_selector = true,
                 Affix::Known { prefix, suffix } => sel.class.add_affix(prefix, suffix, elem),
@@ -345,6 +356,7 @@ fn process_id_value(
     elem: ElemId,
     elem_occ: OccCount,
     sel: &mut TemplateSelections,
+    vars: &ScriptVars,
 ) {
     match value {
         AttributeValue::Sequence(parts) => {
@@ -361,7 +373,7 @@ fn process_id_value(
                         }
                     }
                     AttributeValuePart::ExpressionTag(et) => {
-                        match extract_affix(et.expression.as_json()) {
+                        match extract_affix(et.expression.as_json(), vars) {
                             Affix::Universal => sel.id.universal_selector = true,
                             Affix::Known { prefix, suffix } => {
                                 sel.id.add_affix(prefix, suffix, elem);
@@ -373,7 +385,7 @@ fn process_id_value(
             }
         }
         AttributeValue::Expression(et) => {
-            let affix = extract_affix(et.expression.as_json());
+            let affix = extract_affix(et.expression.as_json(), vars);
             match affix {
                 Affix::Universal => sel.id.universal_selector = true,
                 Affix::Known { prefix, suffix } => {
@@ -392,9 +404,9 @@ fn process_id_value(
 
 /// Extract prefix/suffix literals from a JS expression JSON node.
 /// Returns `Affix::Universal` when both are unknown (null).
-fn extract_affix(expr: &Value) -> Affix {
-    let prefix = extract_prefix_literal(expr);
-    let suffix = extract_suffix_literal(expr);
+fn extract_affix(expr: &Value, vars: &ScriptVars) -> Affix {
+    let prefix = extract_prefix_literal(expr, vars, &mut Vec::new());
+    let suffix = extract_suffix_literal(expr, vars, &mut Vec::new());
     match (prefix, suffix) {
         (None, None) => Affix::Universal,
         (p, s) => Affix::Known {
@@ -404,127 +416,117 @@ fn extract_affix(expr: &Value) -> Affix {
     }
 }
 
-/// Extract the leading string literal from an expression (recursive).
-/// - `BinaryExpression`: recurse into left.
-/// - `TemplateLiteral`: first non-empty quasi is prefix.
+/// Port of `extractExpressionPrefixLiteral`: the leading literal text an
+/// expression is known to produce.
+/// - `BinaryExpression`: recurse into `left`.
+/// - `TemplateLiteral`: the first non-empty part, quasi raw or nested expression.
 /// - `Literal(string)`: the literal itself.
-/// - `Identifier`: unknown → None.
-fn extract_prefix_literal(expr: &Value) -> Option<String> {
-    let ty = expr.get("type").and_then(Value::as_str)?;
-    match ty {
-        "BinaryExpression" => {
-            let left = expr.get("left")?;
-            extract_prefix_literal(left)
-        }
+/// - `Identifier`: the initializer of the declarator that binds it, if unique.
+fn extract_prefix_literal(
+    expr: &Value,
+    vars: &ScriptVars,
+    seen: &mut Vec<String>,
+) -> Option<String> {
+    match expr.get("type").and_then(Value::as_str)? {
+        "BinaryExpression" => extract_prefix_literal(expr.get("left")?, vars, seen),
         "TemplateLiteral" => {
-            // Quasis and expressions interleaved by index.
-            let quasis = expr
-                .get("quasis")
-                .and_then(Value::as_array)
-                .cloned()
-                .unwrap_or_default();
-            let exprs = expr
-                .get("expressions")
-                .and_then(Value::as_array)
-                .cloned()
-                .unwrap_or_default();
-
-            // Build sorted list of all parts by their start position.
-            let quasis_refs: Vec<_> = quasis.iter().collect();
-            let exprs_refs: Vec<_> = exprs.iter().collect();
-            let mut all: Vec<(u32, &Value)> = Vec::new();
-            for q in &quasis_refs {
-                let start = json_offset(q, "start");
-                all.push((start, q));
-            }
-            for e in &exprs_refs {
-                let start = json_offset(e, "start");
-                all.push((start, e));
-            }
-            all.sort_by_key(|(s, _)| *s);
-            for (_, part) in &all {
-                let part_ty = part.get("type").and_then(Value::as_str).unwrap_or("");
-                if part_ty == "TemplateElement" {
-                    let raw = part
-                        .get("value")
-                        .and_then(|v| v.get("raw"))
-                        .and_then(Value::as_str)
-                        .unwrap_or("");
+            for part in template_parts_in_source_order(expr) {
+                if let Some(raw) = template_element_raw(part) {
                     if raw.is_empty() {
-                        continue; // skip leading empty quasi
+                        continue; // skip an empty leading quasi
                     }
                     return Some(raw.to_string());
                 }
-                // Expression part: recurse.
-                return extract_prefix_literal(part);
+                return extract_prefix_literal(part, vars, seen);
             }
             None
         }
-        "Literal" => {
-            let v = expr.get("value")?;
-            v.as_str().map(std::string::ToString::to_string)
+        "Literal" => expr.get("value")?.as_str().map(ToString::to_string),
+        "Identifier" => {
+            let init = resolve_identifier_init(expr, vars, seen)?.clone();
+            let out = extract_prefix_literal(&init, vars, seen);
+            seen.pop();
+            out
         }
         _ => None,
     }
 }
 
-/// Extract the trailing string literal from an expression (recursive).
-fn extract_suffix_literal(expr: &Value) -> Option<String> {
-    let ty = expr.get("type").and_then(Value::as_str)?;
-    match ty {
-        "BinaryExpression" => {
-            let right = expr.get("right")?;
-            extract_suffix_literal(right)
-        }
+/// Port of `extractExpressionSuffixLiteral` — the mirror of the above, taking
+/// `right` and the last template part.
+fn extract_suffix_literal(
+    expr: &Value,
+    vars: &ScriptVars,
+    seen: &mut Vec<String>,
+) -> Option<String> {
+    match expr.get("type").and_then(Value::as_str)? {
+        "BinaryExpression" => extract_suffix_literal(expr.get("right")?, vars, seen),
         "TemplateLiteral" => {
-            let quasis = expr
-                .get("quasis")
-                .and_then(Value::as_array)
-                .cloned()
-                .unwrap_or_default();
-            let exprs = expr
-                .get("expressions")
-                .and_then(Value::as_array)
-                .cloned()
-                .unwrap_or_default();
-
-            let quasis_refs: Vec<_> = quasis.iter().collect();
-            let exprs_refs: Vec<_> = exprs.iter().collect();
-            let mut all: Vec<(u32, &Value)> = Vec::new();
-            for q in &quasis_refs {
-                let start = json_offset(q, "start");
-                all.push((start, q));
-            }
-            for e in &exprs_refs {
-                let start = json_offset(e, "start");
-                all.push((start, e));
-            }
-            all.sort_by_key(|(s, _)| *s);
-
-            // Reverse to find trailing.
-            for (_, part) in all.iter().rev() {
-                let part_ty = part.get("type").and_then(Value::as_str).unwrap_or("");
-                if part_ty == "TemplateElement" {
-                    let raw = part
-                        .get("value")
-                        .and_then(|v| v.get("raw"))
-                        .and_then(Value::as_str)
-                        .unwrap_or("");
+            for part in template_parts_in_source_order(expr).into_iter().rev() {
+                if let Some(raw) = template_element_raw(part) {
                     if raw.is_empty() {
                         continue;
                     }
                     return Some(raw.to_string());
                 }
-                return extract_suffix_literal(part);
+                return extract_suffix_literal(part, vars, seen);
             }
             None
         }
-        "Literal" => {
-            let v = expr.get("value")?;
-            v.as_str().map(std::string::ToString::to_string)
+        "Literal" => expr.get("value")?.as_str().map(ToString::to_string),
+        "Identifier" => {
+            let init = resolve_identifier_init(expr, vars, seen)?.clone();
+            let out = extract_suffix_literal(&init, vars, seen);
+            seen.pop();
+            out
         }
         _ => None,
     }
+}
+
+/// The initializer an identifier resolves to, pushing the name onto `seen` so a
+/// cyclic initializer terminates the way upstream's visited-node set does. The
+/// caller pops once it is done with the returned node.
+fn resolve_identifier_init<'a>(
+    expr: &Value,
+    vars: &'a ScriptVars,
+    seen: &mut Vec<String>,
+) -> Option<&'a Value> {
+    let name = expr.get("name").and_then(Value::as_str)?;
+    if seen.iter().any(|s| s == name) {
+        return None;
+    }
+    let init = vars.declarator_init(name)?;
+    seen.push(name.to_string());
+    Some(init)
+}
+
+/// A template literal's quasis and expressions, interleaved by source position.
+fn template_parts_in_source_order(expr: &Value) -> Vec<&Value> {
+    let quasis = expr
+        .get("quasis")
+        .and_then(Value::as_array)
+        .map_or(&[][..], Vec::as_slice);
+    let exprs = expr
+        .get("expressions")
+        .and_then(Value::as_array)
+        .map_or(&[][..], Vec::as_slice);
+    let mut all: Vec<&Value> = quasis.iter().chain(exprs.iter()).collect();
+    all.sort_by_key(|part| json_offset(part, "start"));
+    all
+}
+
+/// The raw text of a `TemplateElement`, or `None` for an expression part.
+fn template_element_raw(part: &Value) -> Option<&str> {
+    if part.get("type").and_then(Value::as_str) != Some("TemplateElement") {
+        return None;
+    }
+    Some(
+        part.get("value")
+            .and_then(|v| v.get("raw"))
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -1036,7 +1038,8 @@ impl Rule for ConsistentSelectorStyle {
         };
 
         // Collect template selections.
-        let sel = collect_selections(root);
+        let vars = ScriptVars::from_root_json(&ctx.root_json(root));
+        let sel = collect_selections(root, &vars);
 
         if let Some(_lang) = scss_lang(&css.attributes) {
             // Best-effort SCSS/PostCSS: extract selectors from raw text.
