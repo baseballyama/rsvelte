@@ -40,6 +40,9 @@ pub(crate) enum EvalValue {
     Bool(bool),
     Null,
     Undefined,
+    /// A regex literal's source text. It is an object, so two of them are never
+    /// the same value even when the source matches.
+    Regex(String),
     StringMarker,
     NumberMarker,
     FunctionMarker,
@@ -47,7 +50,7 @@ pub(crate) enum EvalValue {
 }
 
 impl EvalValue {
-    fn is_marker(&self) -> bool {
+    pub(crate) fn is_marker(&self) -> bool {
         matches!(
             self,
             EvalValue::StringMarker
@@ -59,7 +62,7 @@ impl EvalValue {
 
     /// Value identity for the `values` set (NaN is identical to NaN here,
     /// mirroring JS `Set` semantics where `NaN` is `SameValueZero`-equal).
-    fn same(&self, other: &EvalValue) -> bool {
+    pub(crate) fn same(&self, other: &EvalValue) -> bool {
         match (self, other) {
             (EvalValue::Str(a), EvalValue::Str(b)) => a == b,
             (EvalValue::Num(a), EvalValue::Num(b)) => {
@@ -76,20 +79,23 @@ impl EvalValue {
         }
     }
 
-    fn truthy(&self) -> Option<bool> {
+    pub(crate) fn truthy(&self) -> Option<bool> {
         match self {
             EvalValue::Str(s) => Some(!s.is_empty()),
             EvalValue::Num(n) => Some(!(*n == 0.0 || n.is_nan())),
             EvalValue::Bool(b) => Some(*b),
             EvalValue::Null | EvalValue::Undefined => Some(false),
+            EvalValue::Regex(_) => Some(true),
             _ => None,
         }
     }
 
-    fn is_nullish(&self) -> Option<bool> {
+    pub(crate) fn is_nullish(&self) -> Option<bool> {
         match self {
             EvalValue::Null | EvalValue::Undefined => Some(true),
-            EvalValue::Str(_) | EvalValue::Num(_) | EvalValue::Bool(_) => Some(false),
+            EvalValue::Str(_) | EvalValue::Num(_) | EvalValue::Bool(_) | EvalValue::Regex(_) => {
+                Some(false)
+            }
             _ => None,
         }
     }
@@ -202,13 +208,13 @@ fn js_str_to_number(s: &str) -> f64 {
     t.parse::<f64>().unwrap_or(f64::NAN)
 }
 
-fn to_number(v: &EvalValue) -> Option<f64> {
+pub(crate) fn to_number(v: &EvalValue) -> Option<f64> {
     match v {
         EvalValue::Num(n) => Some(*n),
         EvalValue::Str(s) => Some(js_str_to_number(s)),
         EvalValue::Bool(b) => Some(if *b { 1.0 } else { 0.0 }),
         EvalValue::Null => Some(0.0),
-        EvalValue::Undefined => Some(f64::NAN),
+        EvalValue::Undefined | EvalValue::Regex(_) => Some(f64::NAN),
         _ => None,
     }
 }
@@ -246,9 +252,9 @@ pub(crate) fn js_number_to_string(n: f64) -> String {
     format!("{}", n)
 }
 
-fn to_js_string(v: &EvalValue) -> Option<String> {
+pub(crate) fn to_js_string(v: &EvalValue) -> Option<String> {
     match v {
-        EvalValue::Str(s) => Some(s.clone()),
+        EvalValue::Str(s) | EvalValue::Regex(s) => Some(s.clone()),
         EvalValue::Num(n) => Some(js_number_to_string(*n)),
         EvalValue::Bool(b) => Some(b.to_string()),
         EvalValue::Null => Some("null".to_string()),
@@ -328,7 +334,30 @@ fn to_uint32(n: f64) -> u32 {
     m as u32
 }
 
-fn eval_binary(op: &str, a: &EvalValue, b: &EvalValue) -> EvalValue {
+/// Mirrors the `unary` table in scope.js, applied to a known argument.
+pub(crate) fn eval_unary(op: &str, a: &EvalValue) -> EvalValue {
+    let r = match op {
+        "!" => a.truthy().map(|t| EvalValue::Bool(!t)),
+        "-" => to_number(a).map(|n| EvalValue::Num(-n)),
+        "+" => to_number(a).map(EvalValue::Num),
+        "~" => to_number(a).map(|n| EvalValue::Num(!to_int32(n) as f64)),
+        "typeof" => match a {
+            EvalValue::Str(_) => Some("string"),
+            EvalValue::Num(_) => Some("number"),
+            EvalValue::Bool(_) => Some("boolean"),
+            EvalValue::Null | EvalValue::Regex(_) => Some("object"),
+            EvalValue::Undefined => Some("undefined"),
+            _ => None,
+        }
+        .map(|t| EvalValue::Str(t.to_string())),
+        "void" => Some(EvalValue::Undefined),
+        "delete" => Some(EvalValue::Bool(true)),
+        _ => None,
+    };
+    r.unwrap_or(EvalValue::Unknown)
+}
+
+pub(crate) fn eval_binary(op: &str, a: &EvalValue, b: &EvalValue) -> EvalValue {
     match op {
         "===" => strict_eq(a, b)
             .map(EvalValue::Bool)
@@ -1268,30 +1297,10 @@ impl<'a> EvalCtx<'a> {
                 };
                 let a = self.evaluate_estree(arg, depth + 1);
                 if let Some(av) = a.known_value() {
-                    let r = match op {
-                        "!" => av.truthy().map(|t| EvalValue::Bool(!t)),
-                        "-" => to_number(av).map(|n| EvalValue::Num(-n)),
-                        "+" => to_number(av).map(EvalValue::Num),
-                        "~" => to_number(av).map(|n| EvalValue::Num(!to_int32(n) as f64)),
-                        "typeof" => Some(EvalValue::Str(
-                            match av {
-                                EvalValue::Str(_) => "string",
-                                EvalValue::Num(_) => "number",
-                                EvalValue::Bool(_) => "boolean",
-                                EvalValue::Null => "object",
-                                EvalValue::Undefined => "undefined",
-                                _ => return Evaluation::unknown(),
-                            }
-                            .to_string(),
-                        )),
-                        "void" => Some(EvalValue::Undefined),
-                        "delete" => Some(EvalValue::Bool(true)),
-                        _ => None,
+                    return match eval_unary(op, av) {
+                        EvalValue::Unknown => Evaluation::unknown(),
+                        v => Evaluation::single(v),
                     };
-                    if let Some(v) = r {
-                        return Evaluation::single(v);
-                    }
-                    return Evaluation::unknown();
                 }
                 let mut ev = Evaluation::new();
                 match op {

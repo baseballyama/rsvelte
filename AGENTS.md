@@ -86,6 +86,35 @@ these defects — huly, open-webui, carbon-components-svelte, SMUI — are **not
 so the gate baselines at 0 while the instances live outside the population it inspects; that is
 why each fix lands a `compatibility/pattern-corpus` repro.
 
+**A folded constant is a JS value, and a rendered string is not one.** `scope.evaluate` is
+ported twice: the server has a typed `EvalValue` (`3_transform/server/evaluate.rs`), and the
+client fold carried the same thing as `Option<Option<String>>` — `Some(None)` for nullish,
+`Some(text)` otherwise. **No gate compares the two ports to each other**; each is compared to
+upstream on whatever inputs a real file happens to supply, so a shape that separates them has to
+be published before anyone sees it. #3027 is what that cost. In that representation `null` and
+`undefined` are one value and `0` and `'0'` are one value, so
+`$derived(cond ? undefined : null)` was judged constant and hoisted out of `$.template_effect` —
+the attribute freezes at its first-render value — while **eleven sibling folds printed the wrong
+text with no reactivity symptom at all**: `typeof '0'` → `number`, `typeof null` → `undefined`,
+`'1' + 1` → `2`, `'1' === 1` → `true`, `'10' < '9'` → `false`, `true + 1` → `'true1'`. The same
+inputs were correct on the server, which is the positive control that named the representation
+rather than any one arm. The client now folds through the server's `EvalValue`, so there is one
+model of a folded value and one set of JS coercion rules.
+
+Two things generalize past the fix. The `constant-fold` matrix family had been green on every
+run **and reached the fold every time**: its 17 rows pick expression *kinds* — the `case` arms of
+upstream's switch — and every one of them is single-typed (`'a' + 'b'`, `Math.max(1, 2)`,
+`true ? 'a' : 'b'` with a *known* test). Enumerating a dispatch is not enumerating a value
+domain, and reaching a decision is not being able to tell two rules for it apart (the #3005
+lesson, one axis over). `fold-value-type` is the discriminating axis — operand values chosen to
+collide under stringification while differing as JS values — and gate-coverage 5q records it.
+And **"is this value known" still has three more implementations in the client**:
+`is_expression_known_json`, `identifier_has_reactive_state`, and
+`is_initial_value_literal_or_known`, which answers by `memmem::find(json, b"Literal")` over a
+JSON dump. A `const c = 1 || 2` or `const c = /ab/g` read from the template still diverges
+through that trio even though the fold now gets the value right. Treat it as the next
+instalment, not as covered.
+
 **The `JsNode` → `serde_json::Value` cost is one site, and it is not the lazy cache.**
 `to_value` has 54 call sites; every materialization figure this project has quoted (27,488 →
 12,089 → 3,649) counts only the cached one. Of the bypassing population, 98% is
@@ -327,6 +356,16 @@ three real `svelte.dev` components reproduce, because the shape needs a two-comp
 collected corpus caught what the generated one could not. Treat the two as complements — when a
 generated family comes back clean, ask which axis value you did not think to write, not only
 which input the corpus lacks.
+
+**`fold-value-type` is that question answered against a family that was already there.**
+`constant-fold` reached the constant folder on every run and was green through all of #3027,
+because its rows enumerate the `case` arms of upstream's `scope.evaluate` switch and every one
+is single-typed. The new family fixes the expression shape and varies the **operand's type**
+instead — 8 values picked so that each pair collides under stringification while differing as JS
+values (`undefined`/`null`, `0`/`'0'`, `true`/`'true'`, `''`/`0`) × 11 binary operators × 5 unary
+× 3 ternary hosts whose test is *unknown*, which `conditional-constant` never is. A family can
+sit on the defect's own decision point for a year and measure nothing about it; what
+discriminates is the axis, not the entry point.
 
 The `directive-element` family is the first whose motivating defect the gate's **comparison**
 could not express. Which parents a per-directive rule applies to is one `parent_type` test
