@@ -112,8 +112,9 @@ struct Checker<'a, 't> {
 }
 
 impl Checker<'_, '_> {
-    /// `true` if `node` is a store identifier usable in this position.
-    fn is_store(&self, node: &Value, consistent: bool) -> bool {
+    /// `true` if `node` is a store identifier usable in this position, resolved
+    /// as a reference starting at `start`.
+    fn is_store_at(&self, node: &Value, consistent: bool, start: u32) -> bool {
         if !is_ident(node) {
             return false;
         }
@@ -123,7 +124,7 @@ impl Checker<'_, '_> {
         if name.starts_with('$') {
             return false;
         }
-        let Some(var) = self.tracker.find_variable(node) else {
+        let Some(var) = self.tracker.find_variable_at(node, start) else {
             return false;
         };
         match self.stores.get(&var) {
@@ -136,9 +137,10 @@ impl Checker<'_, '_> {
         self.verify_offset(node, consistent, fixable, 0);
     }
 
-    /// Like `verify` but adds `start_offset` to the reported start (and fix)
-    /// position.  Used for computed property keys where the AST stores the
-    /// identifier start at the `[` bracket rather than at the identifier text.
+    /// Like `verify` but for a node whose serialized start may sit before the
+    /// identifier text. A computed property key starts at its `[`, which is
+    /// neither the position upstream reports nor one the scope tables can
+    /// resolve, so the identifier's own start is recovered first.
     fn verify_offset(
         &mut self,
         node: Option<&Value>,
@@ -149,17 +151,32 @@ impl Checker<'_, '_> {
         let Some(node) = node.filter(|n| !n.is_null()) else {
             return;
         };
-        if !self.is_store(node, consistent) {
+        let Some(raw_start) = nstart(node) else {
+            return;
+        };
+        let s = self.identifier_start(raw_start + start_offset);
+        if !self.is_store_at(node, consistent, s) {
             return;
         }
-        if let (Some(s), Some(e)) = (nstart(node), nend(node)) {
-            let s = s + start_offset;
+        if let Some(e) = nend(node) {
             self.reports.push(Report {
                 start: s,
                 end: e,
                 fix_at: if fixable { Some(s) } else { None },
             });
         }
+    }
+
+    /// Skip a leading `[` and any whitespace after it.
+    fn identifier_start(&self, start: u32) -> u32 {
+        if self.byte_at(start) != Some(b'[') {
+            return start;
+        }
+        let mut at = start + 1;
+        while matches!(self.byte_at(at), Some(b) if b.is_ascii_whitespace()) {
+            at += 1;
+        }
+        at
     }
 
     /// Source byte at `offset`, if any.

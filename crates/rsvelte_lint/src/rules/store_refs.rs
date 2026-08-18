@@ -425,7 +425,14 @@ impl<'a> RefTracker<'a> {
     /// scope shadows the name.
     #[must_use]
     pub fn find_variable(&self, ident: &Value) -> Option<Var> {
-        let start = node_start(ident)?;
+        self.find_variable_at(ident, node_start(ident)?)
+    }
+
+    /// `find_variable` with an explicit reference offset, for nodes whose
+    /// serialized `start` is not the identifier's own start — a computed
+    /// property key carries the `[` position, which matches no oxc reference.
+    #[must_use]
+    pub fn find_variable_at(&self, ident: &Value, start: u32) -> Option<Var> {
         for (i, table) in self.tables.iter().enumerate() {
             if start < table.start || start >= table.end {
                 continue;
