@@ -532,10 +532,30 @@ mod tests {
     }
 
     #[test]
-    fn prefer_const_plain_separate_assignment_not_reported() {
+    fn prefer_const_plain_separate_assignment_reported_at_the_write() {
         let cfg = LintConfig::recommended().with_override("svelte/prefer-const", Severity::Error);
-        // A plain (non-destructuring) `let a; a = 1;` is never reported by ESLint.
+        // ESLint's `canBecomeVariableDeclaration` accepts a plain `let a; a = 1;`
+        // whose sole write is a whole statement in the declaration's own scope,
+        // and reports at the write, not at the declaration. `Diagnostic` columns
+        // are 0-based (SARIF's 2:23 is 2:22 here).
         let src = "<script>\nfunction h() { let a; a = 1; use(a); }\n</script>";
+        let diagnostics = lint(src, &cfg);
+        assert_eq!(prefer_const_hits(&diagnostics, "a"), 1);
+        let range = diagnostics
+            .iter()
+            .find(|d| d.code.as_deref() == Some("svelte/prefer-const"))
+            .and_then(|d| d.range.as_ref())
+            .expect("the report carries a range");
+        assert_eq!((range.start.line, range.start.column), (2, 22));
+    }
+
+    #[test]
+    fn prefer_const_plain_separate_assignment_at_script_top_level_not_reported() {
+        let cfg = LintConfig::recommended().with_override("svelte/prefer-const", Severity::Error);
+        // The instance script's top level is a `SvelteScriptElement` body
+        // upstream, not a `Program` body, so the same shape fails
+        // `canBecomeVariableDeclaration` there.
+        let src = "<script>\nlet a;\na = 1;\nuse(a);\n</script>";
         assert_eq!(prefer_const_hits(&lint(src, &cfg), "a"), 0);
     }
 

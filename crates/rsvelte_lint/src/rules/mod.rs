@@ -29,6 +29,8 @@ pub mod infinite_reactive_loop;
 pub mod js_static;
 pub mod js_tokens;
 pub mod js_whitespace;
+pub mod kit_nav;
+pub mod kit_routes;
 pub mod max_attributes_per_line;
 pub mod max_lines_per_block;
 pub mod mustache_spacing;

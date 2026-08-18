@@ -15,9 +15,10 @@
 use std::collections::{HashMap, HashSet};
 
 use oxc_allocator::Allocator;
+use oxc_ast::AstKind;
 use oxc_parser::{ParseOptions as OxcParseOptions, Parser};
 use oxc_semantic::SemanticBuilder;
-use oxc_span::SourceType;
+use oxc_span::{GetSpan, SourceType};
 use serde_json::Value;
 
 use rsvelte_core::ast::arena::with_serialize_arena;
@@ -608,9 +609,20 @@ fn collect_no_init_let_idents<'a>(
 #[derive(Default)]
 struct BindingWrites {
     map: HashMap<(u32, u32), (bool, bool)>,
+    /// Declaration-identifier span → where upstream reports a no-init `let`
+    /// whose single write can become the declaration itself.
+    sole_write: HashMap<(u32, u32), (u32, u32)>,
+    /// Names this script also binds in a NON-root scope. For such a name the
+    /// compiler analysis's root-binding `reassigned` flag is not usable: the
+    /// inner binding's write is what could have set it.
+    shadowed: HashSet<String>,
 }
 
-fn collect_binding_writes(source: &str, program: &ProgramView<'_>) -> BindingWrites {
+fn collect_binding_writes(
+    source: &str,
+    program: &ProgramView<'_>,
+    component: bool,
+) -> BindingWrites {
     let mut out = BindingWrites::default();
     let (Some(base), Some(end)) = (node_start(program.value()), node_end(program.value())) else {
         return out;
@@ -628,7 +640,11 @@ fn collect_binding_writes(source: &str, program: &ProgramView<'_>) -> BindingWri
             ..OxcParseOptions::default()
         })
         .parse();
-    let semantic = SemanticBuilder::new().build(&parsed.program).semantic;
+    let program_ref = allocator.alloc(parsed.program);
+    let semantic = SemanticBuilder::new()
+        .with_build_nodes(true)
+        .build(program_ref)
+        .semantic;
     let scoping = semantic.scoping();
     let root_scope = scoping.root_scope_id();
     for id in scoping.symbol_ids() {
@@ -637,19 +653,120 @@ fn collect_binding_writes(source: &str, program: &ProgramView<'_>) -> BindingWri
             .get_resolved_references(id)
             .any(oxc_semantic::Reference::is_write);
         let is_root = scoping.symbol_scope_id(id) == root_scope;
-        out.map
-            .insert((base + span.start, base + span.end), (has_write, is_root));
+        if !is_root {
+            out.shadowed.insert(scoping.symbol_name(id).to_string());
+        }
+        let declaration = (base + span.start, base + span.end);
+        if let Some(report) = sole_write_report(&semantic, id, component) {
+            out.sole_write
+                .insert(declaration, (base + report.0, base + report.1));
+        }
+        out.map.insert(declaration, (has_write, is_root));
     }
     out
+}
+
+/// Where ESLint core's `getIdentifierIfShouldBeConst` would report a binding
+/// with no initializer: at its single write when that write can become the
+/// declaration, or at the declaration itself when a read precedes the write.
+/// `None` when the binding is reassigned, unwritten, or written from another
+/// scope.
+fn sole_write_report(
+    semantic: &oxc_semantic::Semantic<'_>,
+    symbol: oxc_semantic::SymbolId,
+    component: bool,
+) -> Option<(u32, u32)> {
+    let scoping = semantic.scoping();
+    let nodes = semantic.nodes();
+    let mut references: Vec<_> = scoping.get_resolved_reference_ids(symbol).iter().collect();
+    references.sort_by_key(|&&id| {
+        nodes
+            .get_node(scoping.get_reference(id).node_id())
+            .span()
+            .start
+    });
+    let mut writer = None;
+    let mut read_before_write = false;
+    for &reference_id in references {
+        let reference = scoping.get_reference(reference_id);
+        if reference.is_write() {
+            if writer.is_some() {
+                return None;
+            }
+            writer = Some(reference);
+        } else if reference.is_read() && writer.is_none() {
+            read_before_write = true;
+        }
+    }
+    let writer = writer?;
+    let write_node = nodes.get_node(writer.node_id());
+    if write_node.scope_id() != scoping.symbol_scope_id(symbol) {
+        return None;
+    }
+    if !can_become_declaration(nodes, write_node, component) {
+        return None;
+    }
+    let span = if read_before_write {
+        scoping.symbol_span(symbol)
+    } else {
+        write_node.span()
+    };
+    Some((span.start, span.end))
+}
+
+/// `canBecomeVariableDeclaration` — the write is a whole `x = …` statement
+/// sitting directly in a statement list. In a component, the instance script's
+/// top level is a `SvelteScriptElement` body upstream, not a `Program` body, so
+/// a top-level assignment fails this test there.
+fn can_become_declaration(
+    nodes: &oxc_semantic::AstNodes<'_>,
+    write_node: &oxc_semantic::AstNode<'_>,
+    component: bool,
+) -> bool {
+    let mut node = nodes.parent_node(write_node.id());
+    while matches!(
+        node.kind(),
+        AstKind::ArrayAssignmentTarget(_)
+            | AstKind::ObjectAssignmentTarget(_)
+            | AstKind::AssignmentTargetWithDefault(_)
+            | AstKind::AssignmentTargetRest(_)
+            | AstKind::AssignmentTargetPropertyIdentifier(_)
+            | AstKind::AssignmentTargetPropertyProperty(_)
+    ) {
+        node = nodes.parent_node(node.id());
+    }
+    match node.kind() {
+        AstKind::VariableDeclarator(_) => true,
+        AstKind::AssignmentExpression(_) => {
+            let statement = nodes.parent_node(node.id());
+            if !matches!(statement.kind(), AstKind::ExpressionStatement(_)) {
+                return false;
+            }
+            match nodes.parent_kind(statement.id()) {
+                AstKind::Program(_) => !component,
+                AstKind::BlockStatement(_)
+                | AstKind::FunctionBody(_)
+                | AstKind::StaticBlock(_)
+                | AstKind::SwitchCase(_) => true,
+                _ => false,
+            }
+        }
+        _ => false,
+    }
 }
 
 /// Scope-aware reassignment oracle for script `let` declarators.
 struct ScopedReassigned {
     writes: BindingWrites,
-    /// Names of ROOT-scope bindings reassigned outside this script's own text
-    /// (template writes, the other script) — from the compiler analysis when
-    /// available, plus the template scan.
+    /// Names the compiler analysis reports as reassigned root bindings. Its
+    /// scope model is the whole component, so it covers the writes this
+    /// script's own symbol table cannot see (the template, the other script) —
+    /// but it is name-keyed, so it is only consulted for names this script does
+    /// not also bind in an inner scope.
     external_root: HashSet<String>,
+    /// Names written from the template. Always honoured: a template write can
+    /// only reach a root binding.
+    template_external: HashSet<String>,
     /// The old name-keyed set, used when a declarator's symbol is unresolved.
     fallback: HashSet<String>,
 }
@@ -660,14 +777,18 @@ impl ScopedReassigned {
         if let (Some(s), Some(e)) = (node_start(id), node_end(id))
             && let Some(&(has_write, is_root)) = self.writes.map.get(&(s, e))
         {
-            return has_write || (is_root && self.external_root.contains(name));
+            if has_write || !is_root {
+                return has_write;
+            }
+            return self.template_external.contains(name)
+                || (self.external_root.contains(name) && !self.writes.shadowed.contains(name));
         }
         self.fallback.contains(name)
     }
 }
 
 fn collect_external_root(ctx: &LintContext, program: &ProgramView<'_>) -> HashSet<String> {
-    let mut external: HashSet<String> = ctx.scope_analysis().map_or_else(
+    let external: HashSet<String> = ctx.scope_analysis().map_or_else(
         || {
             // No analysis (component has an analysis error): redeclared names
             // keep multiple write references upstream, so never const-ify them.
@@ -685,7 +806,6 @@ fn collect_external_root(ctx: &LintContext, program: &ProgramView<'_>) -> HashSe
                 .collect()
         },
     );
-    collect_template_reassignments(ctx, &mut external);
     external
 }
 
@@ -698,10 +818,19 @@ impl ScriptRule for PreferConst {
     }
 
     fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, kind: ScriptKind) {
+        let component = !matches!(
+            crate::engine::classify_source(ctx.filename()),
+            crate::engine::SourceKind::Module { .. }
+        );
         let reassigned = collect_reassigned_names(ctx, program);
         let scoped = ScopedReassigned {
-            writes: collect_binding_writes(ctx.source(), program),
+            writes: collect_binding_writes(ctx.source(), program, component),
             external_root: collect_external_root(ctx, program),
+            template_external: {
+                let mut t = HashSet::new();
+                collect_template_reassignments(ctx, &mut t);
+                t
+            },
             fallback: reassigned.clone(),
         };
         let (excluded, destructuring_all) = prefer_const_options(ctx.option0());
@@ -719,7 +848,7 @@ impl ScriptRule for PreferConst {
             reports.extend(tag_reports);
         }
 
-        report_no_init_destructuring(ctx, program, kind, &excluded, &mut reports);
+        report_no_init_destructuring(ctx, program, kind, &excluded, &scoped, &mut reports);
         reports.sort_by_key(|report| report.0);
         for (start, end, message, fix_start) in reports {
             emit_prefer_const_report(ctx, start, end, message, fix_start);
@@ -910,6 +1039,7 @@ fn report_no_init_destructuring(
     program: &ProgramView<'_>,
     kind: ScriptKind,
     excluded: &[String],
+    scoped: &ScopedReassigned,
     reports: &mut Vec<(u32, u32, String, Option<u32>)>,
 ) {
     let assignment_info = collect_assignment_info(program);
@@ -923,8 +1053,22 @@ fn report_no_init_destructuring(
         excluded,
         &mut declarations,
     );
-    for (name, _, declaration_scope) in declarations {
+    for (name, id, declaration_scope) in declarations {
         if template_and_forin.contains(&name) {
+            continue;
+        }
+        // A plain `let x; x = 1;` converts to `const` when the single write can
+        // become the declaration — resolved per binding, so a same-named write
+        // in another scope neither suppresses nor triggers it.
+        if let (Some(s), Some(e)) = (node_start(id), node_end(id))
+            && let Some(&(report_start, report_end)) = scoped.writes.sole_write.get(&(s, e))
+        {
+            reports.push((
+                report_start,
+                report_end,
+                format!("'{name}' is never reassigned. Use 'const' instead."),
+                None,
+            ));
             continue;
         }
         let Some(info) = assignment_info.get(&name) else {

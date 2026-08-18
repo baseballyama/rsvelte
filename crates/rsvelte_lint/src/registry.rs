@@ -139,6 +139,16 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(crate::rules::require_store_reactive_access::RequireStoreReactiveAccess),
         Box::new(crate::rules::max_lines_per_block::MaxLinesPerBlock),
         Box::new(crate::rules::no_navigation_without_base::NoNavigationWithoutBase),
+        // `NoGotoWithoutBase` also lives in `all_script_rules()`, but only for
+        // standalone modules: upstream's single `Program` handler shares one
+        // scope tree across both `<script>` blocks and the template, which only
+        // `check_root` can see.
+        Box::new(crate::rules::no_goto_without_base::NoGotoWithoutBase),
+        // Upstream keys this rule off the `<script>` element's attributes, which
+        // only the root pass can see.
+        Box::new(
+            crate::rules::no_export_load_in_svelte_module_in_kit_pages::NoExportLoadInSvelteModuleInKitPages,
+        ),
         Box::new(crate::rules::no_navigation_without_resolve::NoNavigationWithoutResolve),
         Box::new(
             crate::rules::no_spaces_around_equal_signs_in_attribute::NoSpacesAroundEqualSignsInAttribute,
@@ -240,12 +250,7 @@ pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
         Box::new(NoDomManipulating),
         Box::new(NoReactiveReassign),
         Box::new(crate::rules::derived_has_same_inputs_outputs::DerivedHasSameInputsOutputs),
-        Box::new(
-            crate::rules::valid_prop_names_in_kit_pages::ValidPropNamesInKitPages,
-        ),
-        Box::new(
-            crate::rules::no_export_load_in_svelte_module_in_kit_pages::NoExportLoadInSvelteModuleInKitPages,
-        ),
+        Box::new(crate::rules::valid_prop_names_in_kit_pages::ValidPropNamesInKitPages),
         Box::new(crate::rules::infinite_reactive_loop::InfiniteReactiveLoop),
         Box::new(crate::rules::no_unused_vars::NoUnusedVars),
         Box::new(NoUndef),

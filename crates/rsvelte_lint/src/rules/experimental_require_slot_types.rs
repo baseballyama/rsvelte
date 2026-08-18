@@ -99,7 +99,13 @@ fn should_report(source: &str, root: &Root) -> bool {
         .flatten()
         .collect();
     scripts.sort_by_key(|s| s.start);
-    let is_ts = scripts.last().is_some_and(|s| s.is_typescript);
+    // `Script::is_typescript` is component-wide — a `lang="ts"` module script
+    // marks the plain instance script too — so ask the element's own attribute,
+    // which is what upstream's `getLangValue` reads.
+    let is_ts = scripts
+        .last()
+        .and_then(|s| script_lang(source, s))
+        .is_some_and(|lang| lang == "ts" || lang == "typescript");
     if !is_ts {
         return false;
     }
@@ -144,6 +150,14 @@ fn should_report(source: &str, root: &Root) -> bool {
     }
 
     !declares_slots
+}
+
+/// The `lang` attribute of a `<script>` element's own start tag, lowercased.
+fn script_lang(source: &str, script: &Script) -> Option<String> {
+    let rest = source.get(script.start as usize..)?;
+    let tag_end = rest.find('>')?;
+    crate::svelte_scan::attr_value(&rest[..tag_end], "lang")
+        .map(|lang| lang.trim().to_ascii_lowercase())
 }
 
 /// One oxc semantic pass over a script body: records whether it declares an
