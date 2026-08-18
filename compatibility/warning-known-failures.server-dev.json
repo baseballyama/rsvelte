@@ -16,13 +16,9 @@
 	"svelte/packages/svelte/tests/migrate/samples/effects-with-alias-run/input.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/effects/input.svelte",
 	"svelte/packages/svelte/tests/runtime-browser/custom-elements-samples/$$slot-dynamic-content/main.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/component-binding-reactive-property-no-extra-call/main.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-component-evals-props-once/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/dynamic-element-action-update/main.svelte",
-	"svelte/packages/svelte/tests/runtime-legacy/samples/event-handler-dynamic-multiple/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/reactive-assignment-in-complex-declaration-with-store-2/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/store-assignment-updates-reactive/main.svelte",
 	"svelte/packages/svelte/tests/runtime-legacy/samples/store-reschedule/Child.svelte",
-	"svelte/packages/svelte/tests/runtime-runes/samples/derived-unowned-12/main.svelte",
 	"svelthree/src/lib/components/Canvas.svelte"
 ]

@@ -50,6 +50,14 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                 reactive_stmt.assignments.insert(binding_idx);
             }
         }
+
+        // Mark expression as having assignment
+        if let Some(expression) = context.current_expression() {
+            expression.set_has_assignment(true);
+        }
+
+        // Visit children
+        super::script::walk_js_node_typed(arg_node, context)?;
     }
 
     Ok(())
