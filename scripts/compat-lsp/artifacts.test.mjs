@@ -83,7 +83,7 @@ test("missing, duplicate, and partial corpus shard sets are rejected", () => {
   const values = artifacts();
   assert.throws(
     () => mergeCurrentArtifacts(values.slice(0, -1), floor),
-    /exactly 9/,
+    new RegExp(`exactly ${CORPUS_SHARDS + 1}`),
   );
   const duplicate = structuredClone(values);
   duplicate.at(-1).shard.index = 0;
@@ -104,7 +104,10 @@ test("unknown artifacts and control keys in corpus artifacts are rejected", () =
   assert.equal(recordsFixtureControls(FIXTURE_SUITES), true);
   const unknown = artifacts();
   unknown.push({ ...structuredClone(unknown[0]), suites: ["unknown"] });
-  assert.throws(() => mergeCurrentArtifacts(unknown, floor), /exactly 9/);
+  assert.throws(
+    () => mergeCurrentArtifacts(unknown, floor),
+    new RegExp(`exactly ${CORPUS_SHARDS + 1}`),
+  );
   const contaminated = artifacts();
   contaminated[1].current.push(
     "differential:fixtures/ts-backend-positive|textDocument/hover|/contents:value",

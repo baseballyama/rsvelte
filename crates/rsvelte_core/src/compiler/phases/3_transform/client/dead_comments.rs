@@ -1,19 +1,20 @@
-//! Delete the comments upstream loses when it lowers a public rune class field.
+//! Delete the comments upstream's esrap comment cursor never reaches.
 //!
-//! `3-transform/client/visitors/ClassBody.js` replaces such a field with
-//! builder-made `get` / `set` methods, and a builder-made `BlockStatement` has no
-//! `loc`. esrap keeps one cursor over the whole comment list and `reset_comment_index`
-//! parks it past the end whenever it prints an unlocated body, so every later
-//! comment is skipped until a *located* body (`BlockStatement`, `ClassBody`,
-//! `StaticBlock`, `Program`) re-syncs the cursor to the first comment at or after
-//! that body's start. rsvelte builds the accessors as source text, so they carry
-//! real positions and the cursor never dies — this pass removes what upstream drops.
+//! esrap keeps one cursor over the whole comment list, and only `body()` moves it:
+//! for a located body (`BlockStatement`, `ClassBody`, `StaticBlock`, `Program`)
+//! `reset_comment_index` re-syncs it to the first comment at or after that body's
+//! start — *including* when it is parked past the end — and for an unlocated one it
+//! parks it past the end. So a comment survives iff the last cursor event at or
+//! before it is a **revive** rather than a **kill**, which is what this pass walks.
+//! rsvelte carries the same code as source text, where every body is located and the
+//! cursor never dies, so the pass has to remove what upstream drops.
 //!
-//! Only the accessor's kill is modelled here. Whether the *enclosing* program is
-//! located is the caller's question: `print_module_program` answers it for a
-//! `.svelte.(js|ts)` module and `strip_module_toplevel_comments` for a
-//! `<script module>`, while a component's instance script is located by upstream
-//! assigning `component_block.loc = instance.loc`.
+//! Two kills exist. `3-transform/client/visitors/ClassBody.js` lowers a public rune
+//! field into builder-made `get` / `set` methods whose `BlockStatement` has no `loc`.
+//! And the enclosing `Program` is itself builder-made for a `<script module>`, so its
+//! cursor starts dead — unlike a `.svelte.(js|ts)` module (`print_module_program`
+//! simulates the real cursor) or a component's instance script (upstream assigns
+//! `component_block.loc = instance.loc`). `Rules` selects which apply.
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
@@ -24,19 +25,45 @@ use oxc_ast_visit::{Visit, walk};
 use oxc_parser::Parser;
 use oxc_span::{GetSpan, SourceType};
 
-/// Where the comment cursor dies (a synthesized accessor body) and where it comes
-/// back (a located body's `{`).
+/// Where the comment cursor dies (an unlocated body) and where it comes back (a
+/// located body's `{`).
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Event {
     Revive,
     Kill,
 }
 
-/// Parse `src` and drop the comments an upstream accessor would swallow. Returns
+/// Which of the two kills the printed program is subject to.
+#[derive(Clone, Copy)]
+pub(crate) struct Rules {
+    /// The `Program` upstream prints is builder-made, so the cursor is already
+    /// dead when the first statement is flushed.
+    pub program_unlocated: bool,
+    /// Runes mode, where a public rune field becomes an unlocated accessor pair.
+    pub rune_accessors: bool,
+}
+
+impl Rules {
+    /// A program upstream prints with its own `loc` — only its accessors kill.
+    pub(crate) const ACCESSORS: Self = Self {
+        program_unlocated: false,
+        rune_accessors: true,
+    };
+
+    /// A `<script module>`, whose `Program` is builder-made.
+    pub(crate) const fn module_script(runes: bool) -> Self {
+        Self {
+            program_unlocated: true,
+            rune_accessors: runes,
+        }
+    }
+}
+
+/// Parse `src` and drop the comments upstream's cursor never reaches. Returns
 /// `None` when nothing is removed (parse failure included), so callers keep the
 /// input untouched.
-pub(crate) fn strip_class_accessor_dead_comments(src: &str) -> Option<String> {
-    if !may_have_dead_comments(src) {
+pub(crate) fn strip_dead_comments(src: &str, rules: Rules) -> Option<String> {
+    if !may_have_dead_comments(src, rules) {
         return None;
     }
     let allocator = Allocator::default();
@@ -49,27 +76,33 @@ pub(crate) fn strip_class_accessor_dead_comments(src: &str) -> Option<String> {
     if !ret.diagnostics.is_empty() {
         return None;
     }
-    strip_from_program(src, &ret.program)
+    strip_from_program(src, &ret.program, rules)
 }
 
 /// The same pass over a parse the caller already holds. `program` must be the
 /// parse of `src`; a mismatch would silently report "nothing to strip", so the
 /// caller checks `source_text` before choosing this over the parsing entry point.
-pub(crate) fn strip_class_accessor_dead_comments_from_program(
+pub(crate) fn strip_dead_comments_from_program(
     src: &str,
     program: &Program<'_>,
+    rules: Rules,
 ) -> Option<String> {
     debug_assert_eq!(program.source_text, src);
-    if !may_have_dead_comments(src) {
+    if !may_have_dead_comments(src, rules) {
         return None;
     }
-    strip_from_program(src, program)
+    strip_from_program(src, program, rules)
 }
 
-/// Nothing is removed without a class, a rune field and a comment, so a script
-/// missing any of the three skips the parse. Over-matching (a `class` inside a
-/// comment) only costs that parse; the pass itself reads the AST.
-fn may_have_dead_comments(src: &str) -> bool {
+/// With only the accessor kill in play, nothing is removed without a class, a rune
+/// field and a comment, so a script missing any of the three skips the parse.
+/// Over-matching (a `class` inside a comment) only costs that parse; the pass itself
+/// reads the AST. An unlocated program kills before the first body, so no such
+/// shortcut exists for it.
+fn may_have_dead_comments(src: &str, rules: Rules) -> bool {
+    if rules.program_unlocated {
+        return true;
+    }
     let bytes = src.as_bytes();
     memchr::memmem::find(bytes, b"class").is_some()
         && (memchr::memmem::find(bytes, b"$state").is_some()
@@ -78,20 +111,29 @@ fn may_have_dead_comments(src: &str) -> bool {
             || memchr::memmem::find(bytes, b"/*").is_some())
 }
 
-fn strip_from_program(src: &str, program: &Program<'_>) -> Option<String> {
+fn strip_from_program(src: &str, program: &Program<'_>, rules: Rules) -> Option<String> {
     if program.comments.is_empty() || program.source_text != src {
         return None;
     }
 
     let mut collector = EventCollector {
         events: Vec::new(),
+        rune_accessors: rules.rune_accessors,
         src,
     };
     collector.visit_program(program);
-    if !collector
-        .events
-        .iter()
-        .any(|(_, kind)| *kind == Event::Kill)
+    // Held out of the event list rather than pushed at offset 0: a `Revive` there
+    // would sort ahead of it under the kill-wins tie-break below.
+    let seeded = if rules.program_unlocated {
+        Event::Kill
+    } else {
+        Event::Revive
+    };
+    if seeded == Event::Revive
+        && !collector
+            .events
+            .iter()
+            .any(|(_, kind)| *kind == Event::Kill)
     {
         return None;
     }
@@ -105,7 +147,12 @@ fn strip_from_program(src: &str, program: &Program<'_>) -> Option<String> {
     for comment in &program.comments {
         let start = comment.span.start;
         let idx = collector.events.partition_point(|&(pos, _)| pos <= start);
-        if idx > 0 && collector.events[idx - 1].1 == Event::Kill {
+        let last = if idx > 0 {
+            collector.events[idx - 1].1
+        } else {
+            seeded
+        };
+        if last == Event::Kill {
             removals.push((start as usize, comment.span.end as usize));
         }
     }
@@ -127,6 +174,7 @@ fn strip_from_program(src: &str, program: &Program<'_>) -> Option<String> {
 
 struct EventCollector<'s> {
     events: Vec<(u32, Event)>,
+    rune_accessors: bool,
     src: &'s str,
 }
 
@@ -145,7 +193,9 @@ impl<'s> EventCollector<'s> {
 impl<'a> Visit<'a> for EventCollector<'_> {
     fn visit_class_body(&mut self, it: &ClassBody<'a>) {
         self.events.push((it.span.start, Event::Revive));
-        if let Some(offset) = accessor_kill_offset(it) {
+        if self.rune_accessors
+            && let Some(offset) = accessor_kill_offset(it)
+        {
             self.kill_at(offset);
         }
         walk::walk_class_body(self, it);
@@ -175,12 +225,13 @@ fn accessor_kill_offset(class_body: &ClassBody<'_>) -> Option<u32> {
     for element in &class_body.body {
         match element {
             ClassElement::PropertyDefinition(prop)
-                if !prop.computed && !prop.r#static && field_kill.is_none() =>
+                if !prop.computed
+                    && !prop.r#static
+                    && field_kill.is_none()
+                    && is_public_key(&prop.key) =>
             {
-                if is_public_key(&prop.key)
-                    && prop.value.as_ref().is_some_and(is_state_creation_rune)
-                {
-                    field_kill = Some(prop.value.as_ref().unwrap().span().end);
+                if let Some(value) = prop.value.as_ref().filter(|v| is_state_creation_rune(v)) {
+                    field_kill = Some(value.span().end);
                 }
             }
             ClassElement::MethodDefinition(method)
@@ -239,7 +290,15 @@ fn is_state_creation_rune(value: &Expression<'_>) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::strip_class_accessor_dead_comments as strip;
+    use super::{Rules, strip_dead_comments};
+
+    fn strip(src: &str) -> Option<String> {
+        strip_dead_comments(src, Rules::ACCESSORS)
+    }
+
+    fn strip_module(src: &str) -> Option<String> {
+        strip_dead_comments(src, Rules::module_script(true))
+    }
 
     #[test]
     fn drops_the_comment_between_two_rune_classes() {
@@ -295,5 +354,44 @@ mod tests {
     #[test]
     fn unparseable_input_is_left_untouched() {
         assert!(strip("class First { value = $state(0); // oops\n").is_none());
+    }
+
+    #[test]
+    fn a_module_script_kills_before_its_first_body() {
+        let out = strip_module("// gone\nexport const x = 1;\n").unwrap();
+        assert!(!out.contains("// gone"));
+    }
+
+    #[test]
+    fn a_module_class_body_revives_the_cursor_for_what_follows() {
+        let src = "// gone\nclass A {\n\tvalue = 0;\n}\n// kept\nexport const x = 1;\n";
+        let out = strip_module(src).unwrap();
+        assert!(!out.contains("// gone"));
+        assert!(out.contains("// kept"));
+    }
+
+    #[test]
+    fn a_module_block_statement_revives_the_cursor() {
+        let src = "class A {\n\tvalue = $state(0);\n}\n// gone\n{\n\t// kept\n}\n// kept too\nexport const x = 1;\n";
+        let out = strip_module(src).unwrap();
+        assert!(!out.contains("// gone"));
+        assert!(out.contains("// kept\n"));
+        assert!(out.contains("// kept too"));
+    }
+
+    #[test]
+    fn a_module_accessor_kill_outlives_the_class_it_is_in() {
+        let src = "class A {\n\tvalue = $state(0);\n}\n// gone\nexport const x = 1;\n";
+        assert!(!strip_module(src).unwrap().contains("// gone"));
+    }
+
+    #[test]
+    fn a_legacy_module_grows_no_accessor_kill() {
+        let src = "// gone\nclass A {\n\tvalue = $state(0);\n}\n// kept\nexport const x = 1;\n";
+        let legacy = strip_dead_comments(src, Rules::module_script(false)).unwrap();
+        assert!(!legacy.contains("// gone"));
+        assert!(legacy.contains("// kept"));
+        // The same input under runes, where the field does grow an accessor.
+        assert!(!strip_module(src).unwrap().contains("// kept"));
     }
 }

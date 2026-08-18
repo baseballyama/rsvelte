@@ -407,6 +407,44 @@ export function nested() {
 }
 
 #[test]
+fn module_comments_after_a_located_body_survive() {
+    let source = r#"<script module>
+class Counter {
+    n = $state(0);
+    static {
+        // kept-static
+    }
+}
+// kept-after-class
+{
+    // kept-in-block
+}
+// kept-after-block
+export const answer = 42;
+</script>
+
+<p>{answer}</p>
+"#;
+    let result = crate::compiler::compile(
+        source,
+        crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    for kept in [
+        "// kept-static",
+        "// kept-after-class",
+        "// kept-in-block",
+        "// kept-after-block",
+    ] {
+        assert!(result.js.code.contains(kept), "{kept}\n{}", result.js.code);
+    }
+}
+
+#[test]
 fn retained_instance_program_avoids_state_transform_reparse() {
     AST_STATE_REPARSES.with(|count| count.set(0));
     AST_STATE_RETAINED_USES.with(|count| count.set(0));

@@ -1,28 +1,52 @@
 # LSP differential known failures
 
-`lsp-known-failures.json` contains 16348 entries. Fixture and upstream entries identify one normalized
+`lsp-known-failures.json` contains 32673 entries. Fixture and upstream entries identify one normalized
 structural field for which `rsvelte-language-server` differs from the pinned official
 `svelte-language-server`, or from an upstream expected snapshot. A mismatched scalar key includes
 both value digests; a missing/extra field includes the present-side digest. Unmatched semantic
 array items are represented by their count and multiset digest.
 
-Partition of `lsp-known-failures.json` by key kind: `10896 + 5248 + 204` — real-world corpus
+Partition of `lsp-known-failures.json` by key kind: `21792 + 10473 + 408` — real-world corpus
 aggregates, per-field divergences against the pinned official server, and per-field divergences
 against an upstream expected snapshot. The three prefixes (`aggregate:corpus/`, `differential:`,
 `expected:`) are disjoint by construction in `merge-current.mjs`, which rejects an artifact
 carrying a key outside its suite's prefix.
 
-Partition of `lsp-known-failures.json` entries under `aggregate:corpus/` by repository: `1848 + 3879 + 129 + 5040`
+Partition of `lsp-known-failures.json` by request phase: `16342 + 16331`
+
+Opened-document keys and post-`didChange` keys. The edit phase re-runs the same request set, so the
+two addends differ by exactly the session-level keys, which run once per session rather than once per
+unit; they are all `differential:` keys, and the corpus and upstream halves double exactly. There
+were 17 when the phase landed and there are 11 now, because six of them were `initialize` fields
+#3016 closed. The opened addend moved for the first time in that same PR: the merge that introduced
+the second phase reported 16331 new entries and **0 stale**, so until then not one opened-phase key
+had moved.
+
+Partition of `lsp-known-failures.json` entries under `aggregate:corpus/` by repository: `3696 + 7758 + 258 + 10080`
 
 bits-ui, flowbite-svelte, melt-ui, shadcn-svelte, in that order. This is the count
 that moves when a corpus submodule is bumped, and it is the reason the population floor is
 committed separately: a repository dropping out shrinks its cluster to zero and would otherwise
 read as a clean burndown.
 
+Ten entries sit under `differential:fixtures/capabilities|initialize|`, and they are the one cluster
+whose justification is per key rather than per class, because a declared capability is a promise a
+client acts on. Six of them are things this server does not do — no `codeAction/resolve` handler
+exists, and ten of upstream's eleven `executeCommandProvider` commands are tsgo refactors it does not
+offer plus the Svelte-4 migrator, which is out of scope — or additive declarations upstream simply
+omits: `positionEncoding`, `workspace.workspaceFolders`, `diagnosticProvider.identifier`, and the two
+`source.fixAll` code-action kinds. Two are the semantic-token legend, which stays narrowed to the
+token names the editor advertised because tsgo narrows its own legend the same way and its token data
+indexes the narrowed one; declaring upstream's legend here would misname every index past a dropped
+entry. The last two are `completionProvider.triggerCharacters`: rsvelte declares `" "` (upstream
+deliberately does not, and this server answers attribute completions there), and upstream's array
+lists `"@"` twice, which is a multiset a deduplicated list cannot match. The rest of that cluster
+was closed by #3016 rather than justified.
+
 The real-world corpus uses one compact entry per `(file, method)`, and its key records the divergent
 request count and nothing else. It carried a raw divergent-field count and a digest over every
 sorted `(position, value-aware diff pointers)` observation until two full sweeps of one revision
-were compared: **664 of 16,348 keys moved between them** — 661 on the digest alone, 3 on the field
+were compared: **664 of that revision's 16,348 keys moved between them** — 661 on the digest alone, 3 on the field
 count — while the request count agreed on every one, and `textDocument/completion` owned 661 of the
 664 against zero for `textDocument/definition`. A key that does not reproduce cannot ratchet, so
 the two irreproducible components are out. Both sweeps reproduce the committed baseline exactly.
@@ -33,8 +57,21 @@ fix/regression swap are all invisible here. Count growth and shrinkage still cha
 directly, and the fixture and upstream suites keep per-field keys, so the loss is confined to the
 corpus aggregate.
 
+Every unit is compared twice. The harness sends `didOpen`, runs the request set, then applies a
+deterministic `didChange` script derived from the source and runs the **same** request set again.
+The script inserts an `import` at the end of the first `<script>`, a rule at the end of the first
+`<style>`, and an unclosed `{#if}` at EOF, then removes all three in reverse — every change an
+incremental range on both legs, because a full-document undo would restore a server whose
+incremental apply is broken. The final text is asserted byte-identical to the opened text, so the
+second phase asks each server whether it returns to the answer it gave from scratch, at the same
+positions, and a divergence there is a state-transition difference alone. Keys from the second phase
+carry `|phase=edit`; the opened phase carries no segment, so its keys are the ones this ratchet has
+always held and a baseline diff shows the edit phase as pure addition. The phase has to be in the
+key: without it an opened-phase entry would suppress a post-edit divergence in the same
+`(unit, method)`, which is the #2521 failure mode.
+
 The ratchet is shrink-only and two-sided: a new entry and an entry that no longer reproduces both
-fail verification. Baseline updates require one fixture/upstream artifact and eight
+fail verification. Baseline updates require one fixture/upstream artifact and sixteen
 stable-hash corpus artifacts with `--write-current`; `merge-current.mjs` accepts only the complete,
 disjoint union at one project, language-tools, corpus-source, and comparison-configuration revision.
 It checks the union's file-universe hash and the committed per-repository file/identifier/request
@@ -69,7 +106,10 @@ resulting baseline. `verify.mjs` now refuses to run without it.
 The population floor is `scripts/compat-lsp/corpus-population.json`. An intentional corpus
 submodule bump must use an unsharded, all-suite, all-repository `--update-population` run; ordinary
 population loss is an error. Shard-local reports retain their exact measured population and the
-merge requires their sums to equal that manifest.
+merge requires their sums to equal that manifest. It counts the **input** universe — files,
+identifiers, and identifiers × 3 methods — not the compared request count, which is twice that
+because every unit is requested in both phases; `report.json`'s `compared` is what carries the
+latter.
 
 Normalization removes only these non-parity fields and path-specific values:
 

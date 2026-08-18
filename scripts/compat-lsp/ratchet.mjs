@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { OPEN_PHASE } from "./edits.mjs";
 
 const digest = (value) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex").slice(0, 16);
@@ -12,7 +13,11 @@ export function compactCorpusObservation(method, position, differences) {
   };
 }
 
-export function aggregateCorpusDifferences(fileId, observations) {
+export function aggregateCorpusDifferences(
+  fileId,
+  observations,
+  phase = OPEN_PHASE,
+) {
   const byMethod = new Map();
   for (const observation of observations) {
     byMethod.set(observation.method, [
@@ -42,8 +47,9 @@ export function aggregateCorpusDifferences(fileId, observations) {
     // Neither the field count nor a digest of the per-request diffs reproduces:
     // two full sweeps of one revision moved 664 of 16,348 keys on those two
     // components alone, and none on the request count.
+    const stage = phase === OPEN_PHASE ? "" : `|phase=${phase}`;
     entries.push(
-      `aggregate:${fileId}|${method}|divergentRequestCount=${normalized.length}`,
+      `aggregate:${fileId}|${method}${stage}|divergentRequestCount=${normalized.length}`,
     );
   }
   return entries;

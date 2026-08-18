@@ -190,6 +190,7 @@ const PARTITIONS = [
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'repo' },
 	{ doc: 'scss-known-failures.md', key: 'scss-known-failures.json', label: 'cluster' },
 	{ doc: 'lsp-known-failures.md', key: 'lsp-known-failures.json', label: 'key kind' },
+	{ doc: 'lsp-known-failures.md', key: 'lsp-known-failures.json', label: 'request phase' },
 	{
 		doc: 'lsp-known-failures.md',
 		key: 'lsp-known-failures.json',

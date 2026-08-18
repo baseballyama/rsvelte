@@ -32,6 +32,8 @@ pub struct ClientState {
     /// Whether the client understands a tree of document symbols rather than a
     /// flat list.
     pub hierarchical_document_symbols: bool,
+    /// Whether the client issues `textDocument/prepareRename`.
+    pub rename_prepare: bool,
     /// Whether the client supports LSP 3.17 pull diagnostics.
     pub pull_diagnostics: bool,
     /// Whether the client accepts `workspace/diagnostic/refresh` requests.
@@ -71,6 +73,7 @@ impl ClientState {
                 params,
                 "/capabilities/textDocument/documentSymbol/hierarchicalDocumentSymbolSupport",
             ),
+            rename_prepare: flag(params, "/capabilities/textDocument/rename/prepareSupport"),
             pull_diagnostics: params
                 .pointer("/capabilities/textDocument/diagnostic")
                 .is_some(),

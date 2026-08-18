@@ -96,6 +96,14 @@ module-path rows (`module-class-state`, `module-rune-exports`, and
 rows on `server` and `server-dev`. The latter needed the generated component body to inherit
 the instance-script region while the outer Program remained location-less.
 
+`module-script`'s 40 are unchanged in count and in cause by #3005, and their slots moved
+(`L07`/`L11` → `L18`/`L22`) because the seed grew the bodies that make the cursor observable:
+a rune class, a static block and a bare block, each followed by a slot outside the body it
+revived from. Those new slots all pass; what still diverges is only the two `</script>` slots,
+where upstream attaches a comment sitting at the very end of a script region to the generated
+component function's parameter list. The seed before it could not have failed for the #3005
+reason — every slot in it was one where the real cursor rule and the body-span rule agree.
+
 ### `each-collection` — 0 entries
 
 Every collection shape now matches across all targets.
@@ -213,8 +221,7 @@ esrap's `body()` answers an unlocated node by setting `comment_index = comments.
 cursor only a *located* body moves back. The discriminating row was a **private** rune field
 (`#x = $state(0)`): it rebuilds the class body just the same, emits no accessor, and the
 later comment survives. rsvelte builds its accessors as source text, so its cursor never
-died; `client/class_accessor_comments.rs` now deletes what upstream loses. The upstream
-report stays in
+died; `client/dead_comments.rs` now deletes what upstream loses. The upstream report stays in
 [`upstream_issues/2990-svelte-class-accessor-drops-later-comments.md`](../upstream_issues/2990-svelte-class-accessor-drops-later-comments.md),
 and these rows are what will report the day it lands in `submodules/svelte`.
 
