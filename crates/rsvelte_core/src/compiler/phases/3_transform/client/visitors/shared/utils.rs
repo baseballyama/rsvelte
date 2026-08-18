@@ -397,7 +397,70 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
     {
         return expr.clone();
     }
-    apply_transforms_to_expression_with_shadowed(expr, context, &LocalScope::new())
+    let transformed =
+        apply_transforms_to_expression_with_shadowed(expr, context, &LocalScope::new());
+    if idempotency_check_enabled() {
+        assert_transform_is_idempotent(&transformed, context);
+    }
+    transformed
+}
+
+/// Is `RSVELTE_ASSERT_TRANSFORM_IDEMPOTENT` set?
+fn idempotency_check_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("RSVELTE_ASSERT_TRANSFORM_IDEMPOTENT").is_some())
+}
+
+thread_local! {
+    static IN_IDEMPOTENCY_CHECK: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Does every bracket in `s` close?
+fn is_balanced(s: &str) -> bool {
+    let mut depth = 0i32;
+    for b in s.bytes() {
+        match b {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            _ => {}
+        }
+        if depth < 0 {
+            return false;
+        }
+    }
+    depth == 0
+}
+
+/// Report when transforming an already-transformed expression changes it.
+///
+/// A transform whose output the next pass can transform again is #3026's defect class:
+/// `try_transform_assignment` hands a converted subtree back to the outer walk, so any
+/// read whose output is re-readable is applied twice. Shape cannot carry provenance, so
+/// the property has to be asserted rather than inspected. Off unless the env var is set —
+/// it doubles the walk and prints through the fallback text printer, which renders
+/// `Raw` nodes opaquely and so can only miss a divergence, never invent one.
+fn assert_transform_is_idempotent(transformed: &JsExpr, context: &ComponentContext) {
+    if IN_IDEMPOTENCY_CHECK.with(|c| c.get()) {
+        return;
+    }
+    IN_IDEMPOTENCY_CHECK.with(|c| c.set(true));
+    let again =
+        apply_transforms_to_expression_with_shadowed(transformed, context, &LocalScope::new());
+    IN_IDEMPOTENCY_CHECK.with(|c| c.set(false));
+
+    use crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr;
+    let once = generate_expr(transformed, &context.arena);
+    let twice = generate_expr(&again, &context.arena);
+    // The fallback text printer truncates the nodes it cannot render, and a truncated
+    // print differs from its twin for a reason that is not the transform.
+    if !is_balanced(&once) || !is_balanced(&twice) {
+        return;
+    }
+    if once != twice {
+        // A panic would abort the process (`panic = "abort"` in release), which turns a
+        // sweep into a bisect; the harness greps for this marker instead.
+        eprintln!("RSVELTE_NON_IDEMPOTENT_TRANSFORM\t{once}\t{twice}");
+    }
 }
 
 /// Apply transforms while treating specified variables as shadowed (preventing transformation).

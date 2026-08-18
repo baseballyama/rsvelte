@@ -95,6 +95,7 @@
 		"corpus:verify": "node scripts/compat-corpus/verify.mjs",
 		"corpus:matrix": "node scripts/compat-corpus/matrix/run.mjs",
 		"corpus:matrix:update": "node scripts/compat-corpus/matrix/run.mjs --update-baseline",
+		"corpus:idempotency": "RSVELTE_ASSERT_TRANSFORM_IDEMPOTENT=1 node scripts/compat-corpus/idempotency-verify.mjs",
 		"corpus:mutate": "node scripts/compat-corpus/mutate-corpus.mjs",
 		"corpus:mutate:full": "node scripts/compat-corpus/mutate-corpus.mjs --full",
 		"corpus:mutate:update": "node scripts/compat-corpus/mutate-corpus.mjs --full --update-baseline",

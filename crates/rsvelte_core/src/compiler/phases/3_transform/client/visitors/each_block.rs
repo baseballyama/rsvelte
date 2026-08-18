@@ -1218,7 +1218,7 @@ fn build_declarations(
                             path.name.clone(),
                             IdentifierTransform {
                                 read_source: None,
-                                read: Some(|arena, node| b::call(arena, node, vec![])),
+                                read: Some(b::getter_call),
                                 assign: None,
                                 mutate: None,
                                 update: None,
