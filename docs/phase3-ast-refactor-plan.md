@@ -715,3 +715,46 @@ right one next door. The rule that holds is *nearest candidate that starts at le
 token's worth of agreement, within 32 bytes, and only when the nearest single byte buys
 less than that* — 815/818 with the passes (no regression) and 767/818 without them, better
 than the wide window's 756.
+
+### A third hazard, and it is in the representation, not in a pass
+
+The span-carrying architecture is cheap only if the span rides on something rare. Measured
+with `alloc_count` on flowbite-svelte (1296 files) — a deterministic allocator counter,
+because wall clock on the dev box moved **31% from run order alone** at load average 160,
+which is why the three arms below are byte counts and not milliseconds:
+
+| tree | allocations | requested bytes |
+| --- | ---: | ---: |
+| `main` | 2,120,446 | 578,635,400 |
+| this branch, as first pushed | 2,124,328 | 592,917,695 (**+2.47%**) |
+| after the three changes below | 2,125,314 | 581,451,429 (**+0.49%**) |
+
+Generated JS **and** source maps stay byte-identical across 9,916 components (the four
+real-world corpora, every `.svelte` in `submodules/svelte` + `submodules/svelte.dev`, and the
+1,251 ` ```svelte ` snippets in their docs), so this is a pure representation question.
+
+**`brace_span` on `JsBlockStatement` cost 11.0 MB of the 14.3 — 77% — for a range exactly one
+block per program carries.** That struct sits inside every statement and expression, so the
+field grew `JsStatement` 192 → 208 bytes and `JsExpr` 184 → 200: an 8.3% / 8.7% tax on the
+whole IR. There is no cheaper field, either — `JsBlockStatement` is a bare `Vec` at 24 bytes
+with 8-byte alignment, so *any* added field rounds it to 32. It belongs on `JsProgram`, keyed
+by the component function's name, where there is one of it. **When a new field is only ever
+set on one node, measure what it costs on the type, not on that node.**
+
+The other two are smaller and are the same shape — work whose cost is paid per byte of every
+script now that the projection is no longer TypeScript-only. `copied_spans_for_normalized_code`
+built a `Vec<Option<u32>>` the length of the script and walked it byte by byte; without an
+erasure to project through, that table holds `Some(original_offset + i)` at every `i`, so the
+split loop can never break a run and the whole per-byte pass reduces to one span per matched
+run. And `apply_transforms_to_expression_with_shadowed` rebuilt an identifier no transform had
+rewritten as a *second* `Spanned` arena node holding the same span over a clone of the same
+identifier; it now keeps the wrapper it arrived in.
+
+What is left (+2.82 MB, +0.49%) is the `Spanned` node for identifiers a transform *does*
+rewrite — the feature itself, not overhead around it.
+
+**The benchmark suite cannot see any of this**: `benchmark_runner` hard-codes
+`enable_sourcemap: false` (two sites), while `CompileOptions::default()` sets it **true**, so
+CodSpeed measured a configuration in which the projection does not run and reported
+"will not alter performance" for all 11 benchmarks. That is gate-coverage's population axis,
+not its comparison axis: the numbers it printed were correct about the workload it ran.

@@ -61,7 +61,20 @@ unit is a segment, not the generated statement, so it scored the change green.
 What still needs a pass — the `$.prop` declaration, hoisted `import` lines,
 element identifier *uses*, component `bind:` accessors — is a `Raw` fragment or a builder call
 that had the span and dropped it, which is why #3015 step 1 (`Raw` eradication) really is the
-prerequisite it claims to be. Per-pass numbers are in
+prerequisite it claims to be.
+
+**Two further lessons came out of making that branch green.** `loc_base` is the *boundary*
+between the comment buffer and source coordinates, so a source offset must never raise it: a
+`note_span` on the instance script's **end** put the boundary in the middle of the source range,
+every template offset after the script then read as a comment-space position, and the printer
+flushed a script comment inline mid-argument-list where `//` swallowed the rest of the line —
+output no parser accepts, from one file in 13,284. And **a field is priced on the type, not on
+the node that sets it**: the block's brace range was one `Option<(u32,u32)>` on
+`JsBlockStatement`, a struct inside every statement and expression, which grew `JsStatement`
+192 → 208 bytes and `JsExpr` 184 → 200 and cost 77% of a 2.47% allocation-byte regression for a
+range exactly one block per program carries. Neither was visible to CodSpeed, which compiles
+with `enable_sourcemap: false` while the shipping default is `true` (gate-coverage, *the perf
+gates also compile with a different option set*). Per-pass numbers are in
 [docs/phase3-ast-refactor-plan.md](docs/phase3-ast-refactor-plan.md#findings-2026-08-18--the-client-map-is-86-span-carried-and-two-of-the-eleven-passes-delete);
 **a pass measuring 0 there is not evidence it is redundant** (gate-coverage 14f).
 

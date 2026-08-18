@@ -3718,6 +3718,26 @@ selection this document cannot justify. Aggregating them gives **22.8%**, but hu
 assembled. (Excluding huly moves it only to 23.3%, so the aggregate is at least not fragile to
 that one repo — but four repos is four repos.)
 
+### The perf gates also compile with a different **option set** than shipping code
+
+The population axis above is *which files*; this is *which `CompileOptions`*. Measured
+2026-08-18: `benchmark_runner` sets `enable_sourcemap: false` (`crates/rsvelte_devtools/src/bin/benchmark_runner.rs:152,162`)
+while `CompileOptions::default()` sets it **true** (`crates/rsvelte_core/src/compiler/mod.rs:322`),
+which is what the NAPI/vite path gets. Everything gated on that flag is therefore compiled by
+shipping users and by no benchmark we run.
+
+**Discriminating case:** #3028 moved the client source map onto spans, which made
+`copied_spans_for_normalized_code` run for every script instead of only a TypeScript one, and
+put a 16-byte field on `JsBlockStatement` — a struct inside every statement and expression, so
+`JsStatement` grew 192 → 208 bytes and `JsExpr` 184 → 200. Requested allocation bytes over
+flowbite-svelte rose **2.47%** against `main`. CodSpeed's report on that same commit: *"Merging
+this PR will not alter performance"*, 11 untouched benchmarks. Not a wrong measurement — a
+measurement of a configuration in which the changed code does not execute.
+
+**What is still unmeasured `[U]`:** the rest of the flag surface. `dev` is covered
+(`--dev` exists), but `hmr`, `css`, `discloseVersion` and the `runes` override are set by
+callers and pinned by the runner, and no one has enumerated which of them gate work.
+
 ## Adding a gate, or a row here
 
 When you add a gate, add its row **before** the ratchet is first baselined, and answer the
