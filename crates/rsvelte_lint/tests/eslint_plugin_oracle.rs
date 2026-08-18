@@ -108,12 +108,6 @@ const SKIP: &[&str] = &[
     // offset for `{ [store]: … }` don't match. A core serialization quirk, not a
     // rule gap; every other store-access position is covered.
     "require-store-reactive-access/invalid/properties01",
-    // Compound `&&` condition: the plugin reports at the precise covered
-    // sub-expression node (paren-stripped), e.g. column 17 for
-    // `d && ((c && e && b) || a)`. The text-based operand split reports at the
-    // whole condition (column 11). Logic/count are correct; only the column of
-    // that one compound branch differs.
-    "no-dupe-else-if-blocks/invalid/test02",
     // ESLint ≤8 `no-inner-declarations` fixtures (older option/strict-mode
     // semantics). rsvelte mirrors the ESLint ≥9 rule, exercised by the
     // sibling non-`v8` fixtures.

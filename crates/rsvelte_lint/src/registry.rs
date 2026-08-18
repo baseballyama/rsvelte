@@ -118,7 +118,7 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(NoRawSpecialElements),
         Box::new(NoUselessChildrenSnippet),
         Box::new(ValidEachKey),
-        Box::new(NoNotFunctionHandler),
+        Box::new(NoNotFunctionHandler::default()),
         Box::new(NoInspect),
         Box::new(NoUselessMustaches),
         Box::new(NoBindValueOnCheckableInputs),
@@ -184,6 +184,10 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(crate::rules::no_ignored_unsubscribe::NoIgnoredUnsubscribe),
         Box::new(crate::rules::no_add_event_listener::NoAddEventListener),
         Box::new(crate::rules::no_dom_manipulating::NoDomManipulating),
+        // `NoInnerDeclarations` also lives in `all_script_rules()`; the `Rule`
+        // half only covers a component with no instance script, whose template
+        // expressions nothing else would reach.
+        Box::new(crate::rules::no_inner_declarations::NoInnerDeclarations),
     ]
 }
 

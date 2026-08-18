@@ -66,15 +66,13 @@ fn full_line_comment_lines(
     } else {
         (start_line + 1, end_line.saturating_sub(1))
     };
-    let mut in_block = false; // /* */ or <!-- -->
-    let mut in_template = false; // JS `...`
+    let mut state = ScanState::default();
     // State must carry across the *whole* document for block/template/html so
     // multi-line comments are tracked; scan every line but only record in range.
     for (idx, raw) in lines.iter().enumerate() {
         let line_no = idx + 1;
         let chars: Vec<char> = raw.chars().collect();
-        let (has_comment, has_code) =
-            scan_comment_line(&chars, mode, &mut in_block, &mut in_template);
+        let (has_comment, has_code) = scan_comment_line(&chars, mode, &mut state);
         if line_no >= lo && line_no <= hi && has_comment && !has_code {
             out.insert(line_no);
         }
@@ -82,19 +80,104 @@ fn full_line_comment_lines(
     out
 }
 
-fn scan_comment_line(
-    chars: &[char],
-    mode: Mode,
-    in_block: &mut bool,
-    in_template: &mut bool,
-) -> (bool, bool) {
+/// Scanner state carried across lines: whether we are inside a `/* */` /
+/// `<!-- -->` block, inside a JS template literal, and the last significant
+/// character seen — which is what decides whether a `/` opens a regex literal
+/// or is a division operator.
+#[derive(Default)]
+struct ScanState {
+    in_block: bool,
+    in_template: bool,
+    prev: Option<char>,
+    prev_word: String,
+    in_word: bool,
+}
+
+fn is_word_char(c: char) -> bool {
+    c.is_alphanumeric() || c == '_' || c == '$'
+}
+
+impl ScanState {
+    /// Record one significant character of code.
+    fn push_char(&mut self, c: char) {
+        if is_word_char(c) {
+            if !self.in_word {
+                self.prev_word.clear();
+            }
+            self.prev_word.push(c);
+            self.in_word = true;
+        } else {
+            self.prev_word.clear();
+            self.in_word = false;
+        }
+        self.prev = Some(c);
+    }
+
+    /// Record that a whole token (string / template / regex literal) ended with
+    /// `c`, which is never part of a word.
+    fn end_token(&mut self, c: char) {
+        self.prev = Some(c);
+        self.prev_word.clear();
+        self.in_word = false;
+    }
+}
+
+/// Keywords after which a `/` starts a regular expression rather than dividing.
+const REGEX_PRECEDING_KEYWORDS: &[&str] = &[
+    "return",
+    "typeof",
+    "instanceof",
+    "in",
+    "of",
+    "new",
+    "delete",
+    "void",
+    "throw",
+    "case",
+    "do",
+    "else",
+    "yield",
+    "await",
+];
+
+/// Whether a `/` at this point opens a regex literal. A regex cannot follow a
+/// value, so an identifier / number / closing bracket / string end means
+/// division — unless the identifier is a keyword that must be followed by an
+/// expression.
+fn regex_can_start(state: &ScanState) -> bool {
+    match state.prev {
+        None => true,
+        Some(c) if is_word_char(c) => REGEX_PRECEDING_KEYWORDS.contains(&state.prev_word.as_str()),
+        Some(c) => !matches!(c, ')' | ']' | '}' | '\'' | '"' | '`' | '/'),
+    }
+}
+
+/// Consume a regex literal starting at the opening `/`, returning the index
+/// just past the closing `/` (flags are left to the identifier scan).
+fn skip_regex(chars: &[char], mut index: usize) -> usize {
+    index += 1;
+    let mut in_class = false;
+    while index < chars.len() {
+        match chars[index] {
+            '\\' => index += 1,
+            '[' => in_class = true,
+            ']' => in_class = false,
+            '/' if !in_class => return index + 1,
+            _ => {}
+        }
+        index += 1;
+    }
+    index
+}
+
+fn scan_comment_line(chars: &[char], mode: Mode, state: &mut ScanState) -> (bool, bool) {
     let mut index = 0;
     let mut has_comment = false;
     let mut has_code = false;
     while index < chars.len() {
         let c = chars[index];
         let next = chars.get(index + 1).copied();
-        if *in_block {
+        if state.in_block {
             has_comment = true;
             let close = if mode == Mode::Html {
                 c == '-' && next == Some('-') && chars.get(index + 2) == Some(&'>')
@@ -103,20 +186,21 @@ fn scan_comment_line(
             };
             if close {
                 index += if mode == Mode::Html { 3 } else { 2 };
-                *in_block = false;
+                state.in_block = false;
             } else {
                 index += 1;
             }
             continue;
         }
-        if *in_template {
+        if state.in_template {
             if c == '\\' {
                 has_code = true;
                 index += 2;
                 continue;
             }
             if c == '`' {
-                *in_template = false;
+                state.in_template = false;
+                state.end_token('`');
             }
             if !c.is_whitespace() {
                 has_code = true;
@@ -127,7 +211,7 @@ fn scan_comment_line(
         match mode {
             Mode::Js => {
                 if c == '`' {
-                    *in_template = true;
+                    state.in_template = true;
                     has_code = true;
                     index += 1;
                     continue;
@@ -139,17 +223,28 @@ fn scan_comment_line(
                         index += if chars[index] == '\\' { 2 } else { 1 };
                     }
                     index += 1;
+                    state.end_token(c);
                     continue;
                 }
-                if c == '/' && next == Some('/') {
-                    has_comment = true;
-                    break;
-                }
-                if c == '/' && next == Some('*') {
-                    *in_block = true;
-                    has_comment = true;
-                    index += 2;
-                    continue;
+                if c == '/' {
+                    if next == Some('/') {
+                        has_comment = true;
+                        break;
+                    }
+                    if next == Some('*') {
+                        state.in_block = true;
+                        has_comment = true;
+                        index += 2;
+                        continue;
+                    }
+                    // A `/` that opens a regex swallows any `/*` inside it, so
+                    // this test has to come before the comment scan sees one.
+                    if regex_can_start(state) {
+                        has_code = true;
+                        index = skip_regex(chars, index);
+                        state.end_token('/');
+                        continue;
+                    }
                 }
             }
             Mode::Css => {
@@ -163,7 +258,7 @@ fn scan_comment_line(
                     continue;
                 }
                 if c == '/' && next == Some('*') {
-                    *in_block = true;
+                    state.in_block = true;
                     has_comment = true;
                     index += 2;
                     continue;
@@ -175,18 +270,22 @@ fn scan_comment_line(
                     && chars.get(index + 2) == Some(&'-')
                     && chars.get(index + 3) == Some(&'-') =>
             {
-                *in_block = true;
+                state.in_block = true;
                 has_comment = true;
                 index += 4;
                 continue;
             }
             Mode::Html => {}
         }
-        if !c.is_whitespace() {
+        if c.is_whitespace() {
+            state.in_word = false;
+        } else {
             has_code = true;
+            state.push_char(c);
         }
         index += 1;
     }
+    state.in_word = false;
     (has_comment, has_code)
 }
 
@@ -341,7 +440,16 @@ impl Rule for MaxLinesPerBlock {
         }
 
         if let Some(max) = template_max {
-            let count = template_line_count(&lines, &line_of, skip_blank, skip_comments, &span);
+            let count = template_line_count(
+                &lines,
+                &line_of,
+                skip_blank,
+                skip_comments,
+                &span,
+                // `<svelte:options>` is lifted out of the fragment into
+                // `Root.options`, so it has no node in the template tree.
+                root.options.as_ref().map(|o| (o.start, o.end)).as_slice(),
+            );
             if count > max
                 && let Some((s, e)) = first_template_node(&json)
             {
@@ -363,12 +471,18 @@ fn template_line_count(
     skip_blank: bool,
     skip_comments: bool,
     span: &dyn Fn(&str) -> Option<(u32, u32)>,
+    options_spans: &[(u32, u32)],
 ) -> usize {
     let mut excluded = HashSet::new();
     for key in ["instance", "module", "css"] {
         if let Some((start, end)) = span(key) {
             excluded.extend(line_of(start)..=line_of(end));
         }
+    }
+    // Upstream excludes `<svelte:options>` from the template alongside the
+    // script and style blocks.
+    for &(start, end) in options_spans {
+        excluded.extend(line_of(start)..=line_of(end));
     }
     let comment_lines = if skip_comments {
         full_line_comment_lines(lines, 0, 0, Mode::Html)
