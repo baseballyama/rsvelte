@@ -9,6 +9,7 @@ use rsvelte_core::ast::template::{Attribute, AttributeValue, AttributeValuePart,
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::js_tokens;
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/prefer-attribute-interpolation",
@@ -55,78 +56,6 @@ fn has_disallowed_quasi(quasi: &Value) -> bool {
     raw.contains(['\n', '\r', '{']) || has_useful_string_escape(raw, cooked)
 }
 
-/// Detect comments in `${...}` expressions without treating comment-looking
-/// template text as a comment token.
-fn template_has_comment(source: &str) -> bool {
-    let bytes = source.as_bytes();
-    let mut i = 0;
-    while i + 1 < bytes.len() {
-        if bytes[i] == b'\\' {
-            i += 2;
-        } else if bytes[i] == b'$' && bytes[i + 1] == b'{' {
-            if expression_has_comment(bytes, i + 2) {
-                return true;
-            }
-            i += 2;
-        } else {
-            i += 1;
-        }
-    }
-    false
-}
-
-fn expression_has_comment(bytes: &[u8], mut i: usize) -> bool {
-    let mut depth = 1usize;
-    while i < bytes.len() && depth > 0 {
-        match bytes[i] {
-            b'\'' | b'"' => i = skip_quoted(bytes, i),
-            b'`' => i = skip_template(bytes, i),
-            b'/' if bytes.get(i + 1) == Some(&b'/') || bytes.get(i + 1) == Some(&b'*') => {
-                return true;
-            }
-            b'{' => {
-                depth += 1;
-                i += 1;
-            }
-            b'}' => {
-                depth -= 1;
-                i += 1;
-            }
-            _ => i += 1,
-        }
-    }
-    false
-}
-
-fn skip_quoted(bytes: &[u8], mut i: usize) -> usize {
-    let quote = bytes[i];
-    i += 1;
-    while i < bytes.len() {
-        if bytes[i] == b'\\' {
-            i += 2;
-        } else if bytes[i] == quote {
-            return i + 1;
-        } else {
-            i += 1;
-        }
-    }
-    i
-}
-
-fn skip_template(bytes: &[u8], mut i: usize) -> usize {
-    i += 1;
-    while i < bytes.len() {
-        if bytes[i] == b'\\' {
-            i += 2;
-        } else if bytes[i] == b'`' {
-            return i + 1;
-        } else {
-            i += 1;
-        }
-    }
-    i
-}
-
 fn should_report(ctx: &LintContext, tag: &ExpressionTag) -> bool {
     let expression = tag.expression.as_json();
     if expression.get("type").and_then(Value::as_str) != Some("TemplateLiteral") {
@@ -146,7 +75,9 @@ fn should_report(ctx: &LintContext, tag: &ExpressionTag) -> bool {
     {
         return false;
     }
-    !template_has_comment(ctx.slice(tag.start, tag.end))
+    // Upstream tokenizes the whole mustache, so a comment anywhere between the
+    // braces — not only inside a `${…}` — exempts it.
+    !js_tokens::has_comment(ctx.slice(tag.start, tag.end))
 }
 
 #[derive(Default)]
@@ -201,9 +132,13 @@ mod tests {
     }
 
     #[test]
-    fn comments_in_interpolations_are_distinguished_from_template_text() {
-        assert!(template_has_comment("{`prefix${/* comment */ foo}`}"));
-        assert!(!template_has_comment("{`prefix /* text */ ${foo}`}"));
+    fn comments_in_the_mustache_are_distinguished_from_template_text() {
+        assert!(js_tokens::has_comment("{`prefix${/* comment */ foo}`}"));
+        assert!(js_tokens::has_comment("{/* comment */ `prefix${foo}`}"));
+        assert!(js_tokens::has_comment("{`prefix${foo}` /* comment */}"));
+        assert!(!js_tokens::has_comment("{`prefix /* text */ ${foo}`}"));
+        // A `//` inside a regex literal is not a comment.
+        assert!(!js_tokens::has_comment("{`v${s.split(/\\/\\//)[0]}`}"));
     }
 
     #[test]
@@ -213,6 +148,7 @@ mod tests {
 <div data-text={`prefix${foo}${bar}`} />
 <div data-text="prefix {`foo${foo}`} suffix" />
 <div data-text={`prefix${/* comment */ foo}`} />
+<div data-text={/* comment */ `prefix${foo}`} />
 <div data-text={`line\n${foo}`} />
 <div data-text={`prefix{${foo}`} />
 <div style:color={`rgb(${foo})`} />

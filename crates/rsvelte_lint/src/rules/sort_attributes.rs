@@ -200,6 +200,13 @@ fn patterns_match(patterns: &[Pattern], key: &str) -> bool {
     result
 }
 
+/// Upstream compares keys with JS `<`, which orders by UTF-16 code unit — so a
+/// non-BMP name (a surrogate pair, 0xD800–0xDBFF) sorts *before* U+E000–U+FFFF,
+/// the opposite of Rust's code-point order.
+fn js_string_cmp(a: &str, b: &str) -> std::cmp::Ordering {
+    a.encode_utf16().cmp(b.encode_utf16())
+}
+
 /// The compiled option: a list of groups (in order).
 #[derive(Clone)]
 struct CompiledOption {
@@ -226,7 +233,7 @@ impl CompiledOption {
             let mb = patterns_match(&g.patterns, b);
             if ma && mb {
                 if g.sort == Sort::Alphabetical {
-                    return match a.cmp(b) {
+                    return match js_string_cmp(a, b) {
                         std::cmp::Ordering::Equal => 0,
                         std::cmp::Ordering::Less => -1,
                         std::cmp::Ordering::Greater => 1,
@@ -289,6 +296,19 @@ fn load_compiled_option(ctx: &LintContext) -> Cow<'static, CompiledOption> {
 
 // ─── Key text extraction ──────────────────────────────────────────────────────
 
+/// `|`-joined directive modifiers, as `getAttributeKeyText` appends them.
+fn with_modifiers(base: String, modifiers: &[compact_str::CompactString]) -> String {
+    if modifiers.is_empty() {
+        return base;
+    }
+    let mut out = base;
+    for m in modifiers {
+        out.push('|');
+        out.push_str(m.as_str());
+    }
+    out
+}
+
 /// Get the attribute key text for an attribute, mirroring upstream's
 /// `getAttributeKeyText`. Returns `None` for spread attributes (ignored).
 fn attr_key_text(_src: &str, a: &Attribute) -> Option<String> {
@@ -300,12 +320,19 @@ fn attr_key_text(_src: &str, a: &Attribute) -> Option<String> {
         // Regular attribute: key is the name.
         Attribute::Attribute(n) => Some(n.name.as_str().to_string()),
         // Bind directive: `bind:name`.
-        Attribute::BindDirective(n) => Some(format!("bind:{}", n.name.as_str())),
-        // On directive: `on:name`.
-        Attribute::OnDirective(n) => Some(format!("on:{}", n.name.as_str())),
+        Attribute::BindDirective(n) => Some(with_modifiers(
+            format!("bind:{}", n.name.as_str()),
+            &n.modifiers,
+        )),
+        // On directive: `on:name|modifier…`.
+        Attribute::OnDirective(n) => Some(with_modifiers(
+            format!("on:{}", n.name.as_str()),
+            &n.modifiers,
+        )),
         // Class directive: `class:name`.
         Attribute::ClassDirective(n) => Some(format!("class:{}", n.name.as_str())),
-        // Style directive: `style:name`.
+        // Style directive: `style:name`. Upstream's `SvelteStyleDirective` arm
+        // does not append modifiers, unlike the `SvelteDirective` one.
         Attribute::StyleDirective(n) => Some(format!("style:{}", n.name.as_str())),
         // Transition directive: intro+outro → `transition:`, intro only → `in:`,
         // outro only → `out:`.
@@ -317,7 +344,10 @@ fn attr_key_text(_src: &str, a: &Attribute) -> Option<String> {
             } else {
                 "out"
             };
-            Some(format!("{}:{}", prefix, n.name.as_str()))
+            Some(with_modifiers(
+                format!("{}:{}", prefix, n.name.as_str()),
+                &n.modifiers,
+            ))
         }
         // Animate directive: `animate:name`.
         Attribute::AnimateDirective(n) => Some(format!("animate:{}", n.name.as_str())),

@@ -43,7 +43,8 @@ impl Rule for NoDynamicSlotName {
             let Attribute::Attribute(node) = attr else {
                 continue;
             };
-            if !node.name.eq_ignore_ascii_case("name") {
+            // Upstream selects on `key.name='name'`, which is case-sensitive.
+            if node.name.as_str() != "name" {
                 continue;
             }
             match &node.value {
@@ -62,7 +63,13 @@ impl Rule for NoDynamicSlotName {
                     ctx.report(tag.start, tag.end, DYNAMIC);
                 }
                 AttributeValue::Sequence(parts) => {
-                    if parts.is_empty() {
+                    // `name=""` is an empty `value` array upstream; rsvelte keeps
+                    // a zero-length text part for it.
+                    let empty = parts.iter().all(|part| match part {
+                        AttributeValuePart::Text(text) => text.raw.is_empty(),
+                        AttributeValuePart::ExpressionTag(_) => false,
+                    });
+                    if empty {
                         ctx.report(
                             node.start,
                             node.start

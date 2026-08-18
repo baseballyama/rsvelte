@@ -54,6 +54,14 @@ impl NoObjectInTextMustaches {
             );
         }
     }
+
+    fn check_parts(ctx: &mut LintContext, parts: &[AttributeValuePart]) {
+        for part in parts {
+            if let AttributeValuePart::ExpressionTag(tag) = part {
+                Self::check_tag(ctx, tag);
+            }
+        }
+    }
 }
 
 impl Rule for NoObjectInTextMustaches {
@@ -66,18 +74,27 @@ impl Rule for NoObjectInTextMustaches {
     }
 
     fn check_attribute(&self, ctx: &mut LintContext, attr: &Attribute) {
-        // Only normal attributes with a *multi-segment* value (text + mustache,
-        // or several mustaches) are in "text context". A lone `attr={expr}` or a
-        // single-mustache sequence is a prop binding and is exempt.
-        if let Attribute::Attribute(node) = attr
-            && let AttributeValue::Sequence(parts) = &node.value
-            && parts.len() > 1
-        {
-            for part in parts {
-                if let AttributeValuePart::ExpressionTag(tag) = part {
-                    Self::check_tag(ctx, tag);
+        match attr {
+            // Only normal attributes with a *multi-segment* value (text +
+            // mustache, or several mustaches) are in "text context". A lone
+            // `attr={expr}` or a single-mustache sequence is a prop binding and
+            // is exempt.
+            Attribute::Attribute(node) => {
+                if let AttributeValue::Sequence(parts) = &node.value
+                    && parts.len() > 1
+                {
+                    Self::check_parts(ctx, parts);
                 }
             }
+            // A `style:` directive is a `SvelteStyleDirective` upstream, not a
+            // `SvelteAttribute`, so the single-value prop exemption never
+            // applies to it.
+            Attribute::StyleDirective(node) => match &node.value {
+                AttributeValue::Sequence(parts) => Self::check_parts(ctx, parts),
+                AttributeValue::Expression(tag) => Self::check_tag(ctx, tag),
+                AttributeValue::True(_) => {}
+            },
+            _ => {}
         }
     }
 }
