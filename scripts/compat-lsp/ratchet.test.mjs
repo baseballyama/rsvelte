@@ -134,3 +134,27 @@ test("a baseline-only deleted corpus file is stale in exactly one stable shard",
     1,
   );
 });
+
+test("a post-edit corpus divergence cannot be suppressed by its opened-phase twin", () => {
+  const observations = [
+    { method: "textDocument/hover", position: "1:1", differences: ["/a"] },
+  ];
+  const opened = aggregateCorpusDifferences(
+    "corpus/repo/a.svelte",
+    observations,
+  );
+  const edited = aggregateCorpusDifferences(
+    "corpus/repo/a.svelte",
+    observations,
+    "edit",
+  );
+  assert.notDeepEqual(edited, opened);
+  assert.ok(edited[0].includes("|phase=edit|"));
+  assert.deepEqual(
+    selectKnownForScope([...opened, ...edited], ["corpus"], ["repo"], {
+      index: corpusShardIndex("corpus/repo/a.svelte", 4),
+      count: 4,
+    }).length,
+    2,
+  );
+});

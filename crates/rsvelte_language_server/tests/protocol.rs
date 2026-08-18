@@ -511,7 +511,8 @@ fn serves_diagnostics_and_formatting() {
     assert_eq!(sync["openClose"], json!(true));
     // 2 == TextDocumentSyncKind.Incremental
     assert_eq!(sync["change"], json!(2));
-    assert_eq!(sync["save"], json!(true));
+    assert_eq!(sync["save"], json!({ "includeText": false }));
+    assert_eq!(result["capabilities"]["inlayHintProvider"], json!(true));
     assert_eq!(
         result["capabilities"]["documentFormattingProvider"],
         json!(true)
@@ -522,6 +523,7 @@ fn serves_diagnostics_and_formatting() {
             "quickfix",
             "source.organizeImports",
             "source.sortImports",
+            "source.addMissingImports",
             "source.removeUnusedImports",
             "source.fixAll",
             "source.fixAll.rsvelte"
@@ -538,10 +540,7 @@ fn serves_diagnostics_and_formatting() {
         json!(true)
     );
     assert_eq!(result["capabilities"]["referencesProvider"], json!(true));
-    assert_eq!(
-        result["capabilities"]["renameProvider"]["prepareProvider"],
-        json!(true)
-    );
+    assert_eq!(result["capabilities"]["renameProvider"], json!(true));
     assert_eq!(
         result["capabilities"]["semanticTokensProvider"]["legend"]["tokenTypes"],
         json!(["namespace", "class", "event", "operator"])
@@ -644,7 +643,7 @@ fn serves_pull_diagnostics_without_push_notifications() {
     let capabilities = server.response(id)["capabilities"].clone();
     assert_eq!(
         capabilities["diagnosticProvider"]["interFileDependencies"],
-        json!(false)
+        json!(true)
     );
     assert_eq!(
         capabilities["diagnosticProvider"]["workspaceDiagnostics"],
@@ -1012,7 +1011,14 @@ fn serves_completions_and_hover() {
     let capabilities = server.response(id)["capabilities"].clone();
     assert_eq!(
         capabilities["completionProvider"]["triggerCharacters"],
-        json!(["<", " ", "#", "@", ":", "/", "|"])
+        json!([
+            "<", " ", "#", "@", ":", "|", "/", ".", "\"", "'", "`", ">", "*", "$", "+", "^", "(",
+            "[", "-"
+        ])
+    );
+    assert_eq!(
+        capabilities["completionProvider"]["completionItem"]["labelDetailsSupport"],
+        json!(true)
     );
     assert_eq!(capabilities["hoverProvider"], json!(true));
     server.notify("initialized", json!({}));
@@ -1404,6 +1410,22 @@ fn a_watched_config_change_invalidates_the_resolved_lint_config() {
     );
     server.diagnostics_matching(&uri, |diagnostics| !reports_at_html(diagnostics));
     assert_eq!(server.shutdown(), Some(0));
+}
+
+/// `prepareProvider` is only offered to a client that asked for it, so a client
+/// without prepare support is never told to send a request it cannot make.
+#[test]
+fn prepare_rename_is_offered_only_to_a_client_that_supports_it() {
+    let (_server, capabilities) = server_with(json!({
+        "rename": { "prepareSupport": true },
+    }));
+    assert_eq!(
+        capabilities["renameProvider"],
+        json!({ "prepareProvider": true })
+    );
+
+    let (_server, capabilities) = server_with(json!({ "rename": {} }));
+    assert_eq!(capabilities["renameProvider"], json!(true));
 }
 
 /// What a VS Code-like client — folding whole lines, reading a symbol tree —

@@ -1,5 +1,11 @@
 # @rsvelte/svelte-check
 
+## 0.5.19
+
+### Patch Changes
+
+- ab8c80a: Write the overlay shadow, its source map and its declaration twin as one atomic cache transaction, and require the persisted map for an incremental cache hit.
+
 ## 0.5.18
 
 ### Patch Changes

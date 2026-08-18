@@ -12,10 +12,10 @@ mod assign_dev_ast;
 mod ast_state_transform;
 mod async_derived_dev;
 mod await_reactivity_loss_ast;
-mod class_accessor_comments;
 mod class_transforms;
 mod console_dev_ast;
 mod console_wrap;
+mod dead_comments;
 mod declaration_split;
 mod derived_by_ast;
 mod destructure_transforms;
@@ -269,7 +269,7 @@ pub fn transform_client_module(
     // Drop the comments upstream's synthesized accessors swallow before any
     // rewrite, so the scan still sees the source's own class bodies.
     let dead_comments_stripped =
-        class_accessor_comments::strip_class_accessor_dead_comments(source);
+        dead_comments::strip_dead_comments(source, dead_comments::Rules::ACCESSORS);
     let source = dead_comments_stripped.as_deref().unwrap_or(source);
 
     // Transform the module source (rune replacements, class fields, etc.)
@@ -552,14 +552,14 @@ pub(crate) fn transform_client(
                             && retained.diagnostics().is_empty()
                             && retained.program().source_text == instance_script.raw
                     }) {
-                    Some(retained) => {
-                        class_accessor_comments::strip_class_accessor_dead_comments_from_program(
-                            &instance_script.raw,
-                            retained.program(),
-                        )
-                    }
-                    None => class_accessor_comments::strip_class_accessor_dead_comments(
+                    Some(retained) => dead_comments::strip_dead_comments_from_program(
                         &instance_script.raw,
+                        retained.program(),
+                        dead_comments::Rules::ACCESSORS,
+                    ),
+                    None => dead_comments::strip_dead_comments(
+                        &instance_script.raw,
+                        dead_comments::Rules::ACCESSORS,
                     ),
                 }
             })
@@ -2016,12 +2016,12 @@ pub(crate) fn transform_client(
             let raw = crate::compiler::phases::phase2_analyze::types::strip_typescript(
                 &module_content.raw,
             );
-            // Then the comments upstream's synthesized rune accessors swallow,
-            // which `strip_module_toplevel_comments` below cannot see: they sit
-            // inside a body span, so its own rule keeps them.
+            // Then the comments the accessors swallow, while the class the scan
+            // keys on is still in its source shape — the rune transforms below
+            // rewrite it before `strip_module_toplevel_comments` runs.
             let raw = analysis
                 .runes
-                .then(|| class_accessor_comments::strip_class_accessor_dead_comments(&raw))
+                .then(|| dead_comments::strip_dead_comments(&raw, dead_comments::Rules::ACCESSORS))
                 .flatten()
                 .unwrap_or(raw);
             let (module_imports, rest) = extract_imports(&raw);
@@ -2030,8 +2030,11 @@ pub(crate) fn transform_client(
                     .and_then(|scripts| scripts.module.as_ref())
                     .filter(|retained| retained.program().source_text == raw)
                     .map(|retained| {
-                        let stripped =
-                            strip_module_toplevel_comments_from_program(&raw, retained.program());
+                        let stripped = strip_module_toplevel_comments_from_program(
+                            &raw,
+                            retained.program(),
+                            analysis.runes,
+                        );
                         extract_imports(&stripped).1.trim().to_string()
                     })
             } else {
@@ -2119,9 +2122,9 @@ pub(crate) fn transform_client(
         // `strip_typescript` re-emits from a removed `export type`/`interface`).
         let transformed = if transformed == non_imports {
             retained_comment_stripped
-                .unwrap_or_else(|| strip_module_toplevel_comments(&transformed))
+                .unwrap_or_else(|| strip_module_toplevel_comments(&transformed, analysis.runes))
         } else {
-            strip_module_toplevel_comments(&transformed)
+            strip_module_toplevel_comments(&transformed, analysis.runes)
         };
         let retained = retained_scripts
             .and_then(|scripts| scripts.module.as_ref())
@@ -3076,35 +3079,20 @@ fn retained_instance_statement_indices(
 /// output omits.
 ///
 /// The client program's top-level `Program` node is synthetic (no `loc`), so
-/// esrap's `reset_comment_index` fast-forwards the comment cursor past every
-/// comment before the module body is printed. A module comment is therefore
-/// only re-emitted if it is nested inside a `loc`-bearing block that esrap
-/// re-enters via `body()` — i.e. a function or class body. Every other module
-/// comment is dropped: a leading JSDoc before a surviving `export const`, and
-/// the per-field JSDoc that `strip_typescript` re-emits when it removes an
-/// `export type` / `interface` body (that re-emission is correct for the
-/// instance script, whose statements keep their `loc` inside the component
-/// block, but wrong for the module).
-///
-/// Mirror that here for the module non-import content: keep only comments that
-/// fall inside a function/class body span; splice the rest out. Leftover blank
-/// lines are absorbed by downstream normalization. Returns the input unchanged
-/// on a parse failure or when there is nothing to drop.
-pub(crate) fn strip_module_toplevel_comments(src: &str) -> String {
-    use oxc_allocator::Allocator;
-    use oxc_parser::Parser;
-    use oxc_span::SourceType;
-
+/// esrap's comment cursor is already parked past the end when the module body is
+/// printed — a leading JSDoc before a surviving `export const`, and the per-field
+/// JSDoc that `strip_typescript` re-emits when it removes an `export type` /
+/// `interface` body, are both dropped. (That re-emission is correct for the
+/// instance script, whose statements keep their `loc` inside the component block,
+/// but wrong for the module.) A later `body()` over a located block revives the
+/// cursor, so `dead_comments` walks the same events with the kill seeded at the
+/// program. Leftover blank lines are absorbed by downstream normalization. Returns
+/// the input unchanged on a parse failure or when there is nothing to drop.
+pub(crate) fn strip_module_toplevel_comments(src: &str, runes: bool) -> String {
     #[cfg(test)]
     MODULE_COMMENT_REPARSES.with(|count| count.set(count.get() + 1));
-    let allocator = Allocator::default();
-    let _pt = super::profile::timer_start();
-    let ret = Parser::new(&allocator, src, SourceType::mjs()).parse();
-    super::profile::record_direct_parse(super::profile::timer_elapsed(_pt), src.len());
-    if !ret.diagnostics.is_empty() {
-        return src.to_string();
-    }
-    strip_module_toplevel_comments_from_program(src, &ret.program)
+    dead_comments::strip_dead_comments(src, dead_comments::Rules::module_script(runes))
+        .unwrap_or_else(|| src.to_string())
 }
 
 #[cfg(test)]
@@ -3117,60 +3105,14 @@ thread_local! {
 fn strip_module_toplevel_comments_from_program(
     src: &str,
     program: &oxc_ast::ast::Program<'_>,
+    runes: bool,
 ) -> String {
-    use oxc_ast::ast::{ClassBody, FunctionBody};
-    use oxc_ast_visit::{Visit, walk};
-
-    struct BodyCollector {
-        spans: Vec<(u32, u32)>,
-    }
-    impl<'a> Visit<'a> for BodyCollector {
-        fn visit_function_body(&mut self, it: &FunctionBody<'a>) {
-            self.spans.push((it.span.start, it.span.end));
-            walk::walk_function_body(self, it);
-        }
-        fn visit_class_body(&mut self, it: &ClassBody<'a>) {
-            self.spans.push((it.span.start, it.span.end));
-            walk::walk_class_body(self, it);
-        }
-    }
-
-    debug_assert_eq!(program.source_text, src);
-    if program.comments.is_empty() {
-        return src.to_string();
-    }
-
-    let mut collector = BodyCollector { spans: Vec::new() };
-    collector.visit_program(program);
-
-    let mut removals: Vec<(usize, usize)> = Vec::new();
-    for c in &program.comments {
-        let (cs, ce) = (c.span.start, c.span.end);
-        let inside = collector
-            .spans
-            .iter()
-            .any(|(bs, be)| cs >= *bs && ce <= *be);
-        if !inside {
-            removals.push((cs as usize, ce as usize));
-        }
-    }
-    if removals.is_empty() {
-        return src.to_string();
-    }
-    removals.sort_by_key(|r| r.0);
-
-    let mut out = String::with_capacity(src.len());
-    let mut pos = 0usize;
-    for (s, e) in removals {
-        if s > pos {
-            out.push_str(&src[pos..s]);
-        }
-        pos = pos.max(e);
-    }
-    if pos < src.len() {
-        out.push_str(&src[pos..]);
-    }
-    out
+    dead_comments::strip_dead_comments_from_program(
+        src,
+        program,
+        dead_comments::Rules::module_script(runes),
+    )
+    .unwrap_or_else(|| src.to_string())
 }
 
 /// True when `src` contains only line/block comments and whitespace — i.e. no

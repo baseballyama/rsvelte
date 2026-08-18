@@ -1,6 +1,6 @@
 [package]
 name = "rsvelte_language_server"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2024"
 rust-version = "1.95"
 description = "Language server exposing rsvelte's formatter and linter over LSP"

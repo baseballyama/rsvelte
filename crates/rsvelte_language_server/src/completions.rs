@@ -13,8 +13,14 @@ use crate::html_data::{STANDARD_TAGS, TAGS, attributes};
 use crate::modifiers::MODIFIERS;
 use crate::tags::{SvelteTag, latest_opening_tag};
 
-/// The characters that put the client in a position to want these items.
-pub const TRIGGER_CHARACTERS: [&str; 7] = ["<", " ", "#", "@", ":", "/", "|"];
+/// The characters that put the client in a position to want completions.
+///
+/// A character absent here never reaches the server at all, so the TypeScript
+/// and Emmet triggers upstream declares belong in the list even though this
+/// module answers none of them — `.` alone is every member completion.
+pub const TRIGGER_CHARACTERS: [&str; 19] = [
+    "<", " ", "#", "@", ":", "|", "/", ".", "\"", "'", "`", ">", "*", "$", "+", "^", "(", "[", "-",
+];
 
 const HTML_COMMENT_START: &str = "<!--";
 

@@ -19,6 +19,7 @@ import {
   removeNewServerCaches,
 } from "./suites.mjs";
 import { createCurrentArtifact, recordsFixtureControls } from "./artifacts.mjs";
+import { EDIT_PHASES, OPEN_PHASE, editChanges } from "./edits.mjs";
 import { diffJson } from "./diff.mjs";
 import {
   aggregateCorpusDifferences,
@@ -288,9 +289,12 @@ function clientRequest(message) {
   }
 }
 
-function keyFor(kind, entry, request) {
+// The opened phase leaves no phase segment, so its keys are the ones this gate
+// has always written and a baseline diff shows the edit phase as pure addition.
+function keyFor(kind, entry, request, phase) {
   const position = request.suffix ? `|${request.suffix}` : "";
-  return `${kind}:${entry.id}|${request.method}${position}`;
+  const stage = phase === OPEN_PHASE ? "" : `|phase=${phase}`;
+  return `${kind}:${entry.id}|${request.method}${position}${stage}`;
 }
 
 // Every other positive control here is satisfied by an official server that
@@ -314,6 +318,7 @@ const counts = {
   expected: 0,
 };
 const methodCounts = new Map();
+const phaseRequests = new Map();
 let nextId = 0;
 let official;
 let rsvelte;
@@ -323,7 +328,15 @@ let completedRequests = 0;
 let progressStarted = 0;
 let lastProgressAt = 0;
 
-function record(kind, entry, request, left, right, corpusObservations) {
+function record(
+  kind,
+  entry,
+  request,
+  left,
+  right,
+  corpusObservations,
+  phase = OPEN_PHASE,
+) {
   counts.total++;
   counts[kind]++;
   counts.compared++;
@@ -338,7 +351,7 @@ function record(kind, entry, request, left, right, corpusObservations) {
       );
     } else {
       for (const difference of differences)
-        current.push(`${keyFor(kind, entry, request)}|${difference}`);
+        current.push(`${keyFor(kind, entry, request, phase)}|${difference}`);
     }
   }
 }
@@ -469,7 +482,8 @@ function progress() {
   );
 }
 
-async function compareRequest(entry, request, corpusObservations) {
+async function compareRequest(entry, request, corpusObservations, phase) {
+  phaseRequests.set(phase, (phaseRequests.get(phase) ?? 0) + 1);
   const [officialResult, rsvelteResult] = await requestBoth(
     request.method,
     request.params,
@@ -493,6 +507,7 @@ async function compareRequest(entry, request, corpusObservations) {
     officialResult,
     rsvelteResult,
     corpusObservations,
+    phase,
   );
   if (entry.expected?.method === request.method) {
     const expected = normalizeExpected(
@@ -507,18 +522,27 @@ async function compareRequest(entry, request, corpusObservations) {
       expected,
       rsvelteResult,
       corpusObservations,
+      phase,
     );
-    calibrateOracle(entry, request.method, expected, officialResult);
+    // Upstream has no snapshot for an edited document, so only the pristine
+    // phase can be calibrated against one.
+    if (phase === OPEN_PHASE)
+      calibrateOracle(entry, request.method, expected, officialResult);
   }
   progress();
 }
 
-async function compareRequestsBounded(entry, requests, corpusObservations) {
+async function compareRequestsBounded(
+  entry,
+  requests,
+  corpusObservations,
+  phase,
+) {
   const active = new Set();
   for (const request of requests) {
     let task;
-    task = compareRequest(entry, request, corpusObservations).finally(() =>
-      active.delete(task),
+    task = compareRequest(entry, request, corpusObservations, phase).finally(
+      () => active.delete(task),
     );
     active.add(task);
     if (active.size >= CONCURRENCY) await Promise.race(active);
@@ -687,14 +711,40 @@ async function main() {
     };
     official.send(open);
     rsvelte.send(open);
-    const requests =
+    // Re-derived per phase: the corpus request set is a generator, and iterating
+    // one twice compares an empty second phase without failing.
+    const requestsFor = () =>
       typeof entry.requests === "function"
         ? entry.requests(entry.uri, text)
         : entry.requests;
-    const corpusObservations = [];
-    await compareRequestsBounded(entry, requests, corpusObservations);
-    if (entry.suite === "corpus")
-      current.push(...aggregateCorpusDifferences(entry.id, corpusObservations));
+    let version = 1;
+    for (const phase of [OPEN_PHASE, ...EDIT_PHASES]) {
+      if (phase !== OPEN_PHASE) {
+        for (const change of editChanges(text)) {
+          const notification = {
+            jsonrpc: "2.0",
+            method: "textDocument/didChange",
+            params: {
+              textDocument: { uri: entry.uri, version: ++version },
+              contentChanges: [change],
+            },
+          };
+          official.send(notification);
+          rsvelte.send(notification);
+        }
+      }
+      const corpusObservations = [];
+      await compareRequestsBounded(
+        entry,
+        requestsFor(),
+        corpusObservations,
+        phase,
+      );
+      if (entry.suite === "corpus")
+        current.push(
+          ...aggregateCorpusDifferences(entry.id, corpusObservations, phase),
+        );
+    }
     const close = {
       jsonrpc: "2.0",
       method: "textDocument/didClose",
@@ -706,6 +756,19 @@ async function main() {
 
   current.sort();
   if (counts.compared === 0) throw new Error("zero LSP comparisons completed");
+  // Each phase re-runs the *same* request set, so an unequal count means one
+  // phase silently measured a different population and its keys are not
+  // comparable to the other's.
+  const phaseSizes = new Set(phaseRequests.values());
+  if (phaseRequests.size !== 1 + EDIT_PHASES.length || phaseSizes.size !== 1) {
+    throw new Error(
+      `each phase must compare the same request set, measured ${[
+        ...phaseRequests,
+      ]
+        .map(([phase, count]) => `${phase}=${count}`)
+        .join(", ")}`,
+    );
+  }
   for (const method of population.metadata.expectedMethods) {
     if ((methodCounts.get(method) ?? 0) === 0)
       throw new Error(`zero comparisons completed for ${method}`);
@@ -724,6 +787,7 @@ async function main() {
         cases: cases.length,
         concurrency: CONCURRENCY,
         transportRequests: completedRequests,
+        phaseRequests: Object.fromEntries([...phaseRequests].sort()),
         ...counts,
         methods: Object.fromEntries([...methodCounts].sort()),
         skips: population.skipped,

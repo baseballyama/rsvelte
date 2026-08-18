@@ -15,19 +15,19 @@ use lsp_types::{
     CallHierarchyServerCapability, CancelParams, CodeActionKind, CodeActionOptions,
     CodeActionOrCommand, CodeActionParams, CodeActionProviderCapability, CodeLens, CodeLensOptions,
     CodeLensParams, ColorPresentationParams, ColorProviderCapability, CompletionOptions,
-    CompletionParams, ConfigurationItem, ConfigurationParams, DiagnosticOptions,
-    DiagnosticServerCapabilities, DidChangeTextDocumentParams, DidChangeWatchedFilesParams,
-    DidChangeWorkspaceFoldersParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    DidSaveTextDocumentParams, DocumentColorParams, DocumentDiagnosticParams,
-    DocumentDiagnosticReport, DocumentFormattingParams, DocumentHighlightParams,
-    DocumentSymbolParams, DocumentSymbolResponse, ExecuteCommandOptions, ExecuteCommandParams,
-    FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability, FullDocumentDiagnosticReport,
-    HoverParams, HoverProviderCapability, ImplementationProviderCapability, InlayHintOptions,
-    InlayHintServerCapabilities, LinkedEditingRangeParams, LinkedEditingRangeServerCapabilities,
-    NumberOrString, OneOf, PositionEncodingKind, PublishDiagnosticsParams,
-    RelatedFullDocumentDiagnosticReport, RenameOptions, RenameParams, SelectionRangeParams,
-    SelectionRangeProviderCapability, SemanticTokenModifier, SemanticTokenType,
-    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
+    CompletionOptionsCompletionItem, CompletionParams, ConfigurationItem, ConfigurationParams,
+    DiagnosticOptions, DiagnosticServerCapabilities, DidChangeTextDocumentParams,
+    DidChangeWatchedFilesParams, DidChangeWorkspaceFoldersParams, DidCloseTextDocumentParams,
+    DidOpenTextDocumentParams, DidSaveTextDocumentParams, DocumentColorParams,
+    DocumentDiagnosticParams, DocumentDiagnosticReport, DocumentFormattingParams,
+    DocumentHighlightParams, DocumentSymbolParams, DocumentSymbolResponse, ExecuteCommandOptions,
+    ExecuteCommandParams, FoldingRange, FoldingRangeParams, FoldingRangeProviderCapability,
+    FullDocumentDiagnosticReport, HoverParams, HoverProviderCapability,
+    ImplementationProviderCapability, LinkedEditingRangeParams,
+    LinkedEditingRangeServerCapabilities, NumberOrString, OneOf, PositionEncodingKind,
+    PublishDiagnosticsParams, RelatedFullDocumentDiagnosticReport, RenameOptions, RenameParams,
+    SaveOptions, SelectionRangeParams, SelectionRangeProviderCapability, SemanticTokenModifier,
+    SemanticTokenType, SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
     SemanticTokensServerCapabilities, ServerCapabilities, SignatureHelpOptions,
     TextDocumentPositionParams, TextDocumentSyncCapability, TextDocumentSyncKind,
     TextDocumentSyncOptions, TextDocumentSyncSaveOptions, TextEdit,
@@ -170,8 +170,9 @@ fn capabilities(client: &ClientState) -> ServerCapabilities {
     let mut code_action_kinds = vec![
         CodeActionKind::QUICKFIX,
         CodeActionKind::SOURCE_ORGANIZE_IMPORTS,
-        CodeActionKind::from("source.sortImports"),
-        CodeActionKind::from("source.removeUnusedImports"),
+        CodeActionKind::from(crate::tsgo_code_actions::SORT_IMPORTS_KIND),
+        CodeActionKind::from(crate::tsgo_code_actions::ADD_MISSING_IMPORTS_KIND),
+        CodeActionKind::from(crate::tsgo_code_actions::REMOVE_UNUSED_IMPORTS_KIND),
         CodeActionKind::SOURCE_FIX_ALL,
         CodeActionKind::from(crate::code_actions::FIX_ALL_KIND),
     ];
@@ -186,7 +187,9 @@ fn capabilities(client: &ClientState) -> ServerCapabilities {
             TextDocumentSyncOptions {
                 open_close: Some(true),
                 change: Some(TextDocumentSyncKind::INCREMENTAL),
-                save: Some(TextDocumentSyncSaveOptions::Supported(true)),
+                save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
+                    include_text: Some(false),
+                })),
                 ..TextDocumentSyncOptions::default()
             },
         )),
@@ -194,6 +197,9 @@ fn capabilities(client: &ClientState) -> ServerCapabilities {
         completion_provider: Some(CompletionOptions {
             trigger_characters: Some(TRIGGER_CHARACTERS.map(str::to_string).to_vec()),
             resolve_provider: Some(true),
+            completion_item: Some(CompletionOptionsCompletionItem {
+                label_details_support: Some(true),
+            }),
             ..CompletionOptions::default()
         }),
         hover_provider: Some(HoverProviderCapability::Simple(true)),
@@ -223,16 +229,18 @@ fn capabilities(client: &ClientState) -> ServerCapabilities {
         linked_editing_range_provider: Some(LinkedEditingRangeServerCapabilities::Simple(true)),
         document_highlight_provider: Some(OneOf::Left(client.document_highlight)),
         workspace_symbol_provider: Some(OneOf::Left(true)),
-        rename_provider: Some(OneOf::Right(RenameOptions {
-            prepare_provider: Some(true),
-            work_done_progress_options: Default::default(),
-        })),
-        inlay_hint_provider: Some(OneOf::Right(InlayHintServerCapabilities::Options(
-            InlayHintOptions {
-                resolve_provider: Some(false),
-                ..InlayHintOptions::default()
-            },
-        ))),
+        rename_provider: Some(if client.rename_prepare {
+            OneOf::Right(RenameOptions {
+                prepare_provider: Some(true),
+                work_done_progress_options: Default::default(),
+            })
+        } else {
+            OneOf::Left(true)
+        }),
+        inlay_hint_provider: Some(OneOf::Left(true)),
+        // tsgo narrows its own legend to the token names the editor advertised,
+        // and its token data indexes that narrowed legend. The same filter has
+        // to run here or every index past a dropped entry names the wrong type.
         semantic_tokens_provider: Some(SemanticTokensServerCapabilities::SemanticTokensOptions(
             SemanticTokensOptions {
                 legend: SemanticTokensLegend {
@@ -267,7 +275,9 @@ fn capabilities(client: &ClientState) -> ServerCapabilities {
         diagnostic_provider: client.pull_diagnostics.then(|| {
             DiagnosticServerCapabilities::Options(DiagnosticOptions {
                 identifier: Some(SERVER_NAME.to_string()),
-                inter_file_dependencies: false,
+                // A component's diagnostics come from a TypeScript program, so
+                // editing one file can change another file's report.
+                inter_file_dependencies: true,
                 workspace_diagnostics: false,
                 ..DiagnosticOptions::default()
             })
