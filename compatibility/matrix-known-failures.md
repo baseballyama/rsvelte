@@ -200,6 +200,20 @@ They clear when `render_tag_has_call` is given the purity rule `has_call_json`
 memoisation path, deliberately left out of the folding fix so that a regression in one
 cannot be read as the other.
 
+### `fold-value-type` — 0 entries
+
+All 936 generated comparisons match on `client`, `client-dev` and `server`. The family exists
+because `constant-fold` above **reached the folder on every run and measured nothing about
+it**: its rows enumerate the `case` arms of upstream's `scope.evaluate` switch and every one is
+single-typed, so #3027 — a folded value carried as `Option<Option<String>>`, in which `null` and
+`undefined` are one value and `0` and `'0'` are one value — was invisible to it. Here the
+expression shape is fixed and the operand's **type** varies: 8 values chosen to collide under
+stringification while differing as JS values, × 11 binary operators, 5 unary operators, and 3
+ternary hosts whose test is *unknown* (`constant-fold`'s `conditional-constant` has a known
+test, so only branch selection runs there).
+
+Partition of `matrix-known-failures.json` entries under `fold-value-type/` by operator class: `0`
+
 ### `opaque-keyword` — 0 entries
 
 The family generalizes #2986: a token the transforms scan for **raw**, carried inside a

@@ -983,6 +983,39 @@ two and stops at three is **unmeasured**; the depth guards in the folder
 (`MAX_INITIAL_EVAL_DEPTH = 8`, `REACTIVE_INIT_DEPTH >= 8`) are above it and nothing here
 reaches them. **[S]**
 
+Fourth — closed by 5q below — every row of `FOLDABLE_EXPRESSIONS` is single-typed, so the
+family could not tell two rules for the fold apart.
+
+### Blind spot 5q — CLOSED: `constant-fold` picked expression KINDS, and every one was single-typed
+
+Originally: `FOLDABLE_EXPRESSIONS` chose 17 rows to straddle the boundaries of upstream's
+`scope.evaluate` switch, and reached the fold on every run of the gate. What it never varied is
+the **type** of the folded operands: `'a' + 'b'` is two strings, `Math.max(1, 2)` two numbers,
+`` `p${null}q` `` one interpolation, and `true ? 'a' : 'b'` a test that is itself known, so only
+the branch-selection path runs and the branch-identity comparison never does. The family was
+therefore green while the client fold carried a folded value as `Option<Option<String>>` — a
+representation in which `null` and `undefined` are one value and `0` and `'0'` are one value —
+and 12 folds printed the wrong text or the wrong reactivity (#3027).
+
+**[D]** #3027: family `fold-value-type` crosses 8 operand values chosen so that each pair
+**collides under stringification while differing as JS values** (`undefined`/`null`,
+`0`/`'0'`, `true`/`'true'`, `''`/`0`) against 9 binary operators, 5 unary operators, and — with
+an **unknown** test, which `conditional-constant` does not have — 3 ternary hosts. The pre-fix
+binary reproduces `typeof '0'` → `number`, `typeof null` → `undefined`, `'0' + 0` → `2`,
+`'0' === 0` → `true`, `'10' < '9'` → `false`, `null + ''` unfolded, and `n > 3 ? undefined :
+null` judged constant.
+
+The generalization is 5p's, one axis over: **reaching the decision is not being able to tell two
+rules for it apart.** 5p's population agreed on every slot; this one agreed on every type,
+because the author picked rows by which `case` of the upstream switch they land in — which is
+how you enumerate a *dispatch*, not how you enumerate a *value domain*. When a fold family comes
+back clean, ask which pair of inputs the fold's internal representation cannot distinguish.
+
+What 5q still does **not** see: the binary/unary product runs in one slot (`interpolation`),
+so a fold correct there and wrong in another slot is **unmeasured** — 5n's slot axis carries the
+other half, and the two families cross only through the shared normalization, not by
+construction. **[S]**
+
 ### Blind spot 5p — CLOSED: a `<script module>` seed with no body to revive the cursor
 
 Originally: `comment-slot` did inject into `<script module>` (`mutate.mjs` matches every

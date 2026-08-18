@@ -637,6 +637,104 @@ export const FOLD_INDIRECTION_SLOTS = [
 ];
 
 /**
+ * Axis F3 — the JS TYPE of a folded operand, crossed with F4 (the operator) and
+ * F5 (the ternary host).
+ *
+ * The rows of `FOLDABLE_EXPRESSIONS` above pick expression KINDS, and every one
+ * of them is single-typed: `'a' + 'b'` is two strings, `Math.max(1, 2)` two
+ * numbers, `true ? 'a' : 'b'` a test that is itself known. So the family reached
+ * the fold on every run and could not tell two rules for it apart — the client
+ * fold carried a folded value as `Option<Option<String>>`, in which `null` and
+ * `undefined` are one value and `0` and `'0'` are one value, and the family was
+ * green while `typeof '0'` printed `number`, `'1' + 1` printed `2` and
+ * `$derived(n ? undefined : null)` was judged constant and emitted
+ * non-reactively (#3027). The discriminating axis is not which expression, it is
+ * which TYPE — so these values are chosen so that each pair collides under
+ * stringification while differing as JS values.
+ *
+ * `''` and `0` also separate a falsy value from a nullish one, which is the
+ * other half of the same representation: `truthy()` and `is_nullish()` are two
+ * questions a single `Option<String>` answers with one bit.
+ */
+export const FOLD_OPERAND_VALUES = {
+	undefined: 'undefined',
+	null: 'null',
+	true: 'true',
+	'number-zero': '0',
+	'number-one': '1',
+	'string-zero': "'0'",
+	'string-true': "'true'",
+	'string-empty': "''",
+};
+
+/**
+ * Axis F4 — the operator applied to the operand pair. `+` is the one that
+ * branches on "is either side a string"; `-` stands for the pure ToNumber
+ * operators; the four equalities separate strict from loose; `<` / `>=` are the
+ * relational pair, where two strings compare lexicographically and anything else
+ * numerically (`'10' < '9'`); `??` reads nullish rather than falsy, which `||`
+ * and `&&` next to it read as truthy — `'' || 'x'` and `null ?? 2` are the pair
+ * that separates the two questions.
+ */
+export const FOLD_BINARY_OPERATORS = [
+	'+',
+	'-',
+	'===',
+	'!==',
+	'==',
+	'!=',
+	'<',
+	'>=',
+	'??',
+	'||',
+	'&&',
+];
+
+/** Axis F4' — the unary operators whose result depends on the argument's type. */
+export const FOLD_UNARY_OPERATORS = {
+	typeof: 'typeof %s',
+	not: '!%s',
+	negate: '-%s',
+	plus: '+%s',
+	void: 'void %s',
+};
+
+/**
+ * Axis F5 — where a ternary whose test is NOT known is read from.
+ *
+ * `FOLDABLE_EXPRESSIONS`'s `conditional-constant` row has a known test, so it
+ * only exercises the branch-selection path. With an unknown test the fold has to
+ * decide whether both branches carry the SAME value — upstream's
+ * `values.size === 1` — and that comparison is what #3027 got wrong. The two
+ * hosts are the two shapes the report names: an element attribute (hoisted out
+ * of `$.template_effect`) and a component prop (emitted as a plain value instead
+ * of a getter).
+ */
+export const FOLD_TERNARY_HOSTS = {
+	'derived-attribute': (expression) => `<script>
+	const { n } = $props();
+	const c = $derived(${expression});
+</script>
+
+<div title={c}></div>
+`,
+	'derived-component-prop': (expression) => `<script>
+	import Child from './Child.svelte';
+	const { n } = $props();
+	const c = $derived(${expression});
+</script>
+
+<Child to={c} />
+`,
+	'inline-attribute': (expression) => `<script>
+	const { n } = $props();
+</script>
+
+<div title={${expression}}></div>
+`,
+};
+
+/**
  * Axis D — expressions that are not a legal `bind:` target, crossed with axis E,
  * the directive slot they sit in.
  *
