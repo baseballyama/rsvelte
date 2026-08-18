@@ -461,7 +461,6 @@ impl Synth {
     fn note_span(&mut self, end: u32) {
         self.max_span = self.max_span.max(end);
     }
-
 }
 
 /// Marker callee wrapping a single-target destructuring-assignment collapse
@@ -1088,6 +1087,12 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
     /// where the comment cursor resyncs — so the source span is only usable
     /// when the body consumed no comment region: reviving the cursor at a
     /// builder-made body is what upstream does not do.
+    ///
+    /// The brace end is deliberately *not* [`Cx::note_span`]d. `loc_base` is the
+    /// boundary between the two coordinate spaces, so a source offset raising it
+    /// puts that boundary in the middle of the source range: every offset after
+    /// the script (a template expression's, say) then reads as a comment-space
+    /// position, and the printer flushes a comment at it.
     fn block_body(
         &self,
         block: &super::nodes::JsBlockStatement,
@@ -1095,7 +1100,6 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         let Some((start, end)) = block.brace_span else {
             return self.statements(&block.body);
         };
-        self.note_span(end);
         let (stmts, span) = self.statements(&block.body)?;
         let span = if span.is_empty() {
             Span::new(start, end)

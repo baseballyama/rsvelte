@@ -445,6 +445,32 @@ export const answer = 42;
 }
 
 #[test]
+fn a_script_comment_maps_before_the_template_expression_it_precedes() {
+    let source = r#"<script>
+  // "data" prop contains property "result"
+  let { data } = $props();
+</script>
+{data.result}
+"#;
+    let result = crate::compiler::compile(
+        source,
+        crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert!(
+        result.js.code.contains(
+            "$.set_text(\n\t\ttext,\n\t\t// \"data\" prop contains property \"result\"\n\t\t$$props.data.result\n\t)"
+        ),
+        "{}",
+        result.js.code
+    );
+}
+
+#[test]
 fn retained_instance_program_avoids_state_transform_reparse() {
     AST_STATE_REPARSES.with(|count| count.set(0));
     AST_STATE_RETAINED_USES.with(|count| count.set(0));
