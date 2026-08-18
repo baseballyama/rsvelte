@@ -758,3 +758,13 @@ rewrite — the feature itself, not overhead around it.
 CodSpeed measured a configuration in which the projection does not run and reported
 "will not alter performance" for all 11 benchmarks. That is gate-coverage's population axis,
 not its comparison axis: the numbers it printed were correct about the workload it ran.
+
+**And the byte regression never converted into measurable time, which is the part worth
+remembering.** Re-measured once the box was quiet (load ~10 on 10 cores): three release binaries
+rotated through all 6 orders, 18 samples each, 3,637 real-world components as CSR with
+`enable_sourcemap: true` — `main` 947.6 ms min / 957.7 ms mean, the branch before the fix
+928.2 / 941.9, after it 925.9 / 938.3. The branch is ~2% *faster* than `main`, which is under the
+~5% code-layout floor for separate-binary A/B, so the reading is parity in all three arms. The
+0.4% the fix itself moved is not a claim. **An allocation-byte share is not a CPU share**: the
+reason to fix it is that `JsStatement` and `JsExpr` are the types everything downstream is built
+out of, not that a timer moved.
