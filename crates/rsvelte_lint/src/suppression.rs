@@ -47,9 +47,11 @@ impl Suppressions {
     #[must_use]
     pub fn collect(source: &str) -> Self {
         let mut s = Self::default();
-        // Open block-disables: id (`*` for all) → line it was opened on.
-        let mut open: HashMap<String, u32> = HashMap::new();
+        // Open block-disables: id (`*` for all) → (line it was opened on,
+        // whether the directive is an HTML `<!-- … -->` comment).
+        let mut open: HashMap<String, (u32, bool)> = HashMap::new();
         let mut last_line = 0u32;
+        let boundaries = script_start_tag_lines(source);
 
         for (i, line) in source.lines().enumerate() {
             let lineno = u32::try_from(i).expect("line counts are represented as u32") + 1;
@@ -62,8 +64,11 @@ impl Suppressions {
             } else if let Some(rest) = find_after(line, "eslint-enable") {
                 close_ranges(&mut s, &mut open, parse_ids(rest), lineno);
             } else if let Some(rest) = find_after(line, "eslint-disable") {
+                let is_html = line
+                    .find("eslint-disable")
+                    .is_some_and(|at| line[..at].contains("<!--"));
                 for id in parse_ids(rest) {
-                    open.entry(id).or_insert(lineno);
+                    open.entry(id).or_insert((lineno, is_html));
                 }
             }
             if let Some(rest) = find_after(line, "svelte-ignore") {
@@ -73,10 +78,31 @@ impl Suppressions {
                 // `svelte/*` rules. Only add codes when the list is non-empty.
                 s.add_line_no_wildcard(lineno + 1, rest);
             }
+            // Upstream re-enables ALL (plugin) suppressions at every `<script>`
+            // start tag (`SvelteScriptElement` pushes an enable-all block at the
+            // tag's end). Close the open HTML-comment block-disables here; JS
+            // `/* eslint-disable */` comments are ESLint-core directives, which
+            // that boundary does not touch.
+            if boundaries.binary_search(&lineno).is_ok() {
+                let to_close: Vec<String> = open
+                    .iter()
+                    .filter(|(_, (_, is_html))| *is_html)
+                    .map(|(id, _)| id.clone())
+                    .collect();
+                for id in to_close {
+                    if let Some((from, _)) = open.remove(&id) {
+                        s.ranges.push(DisableRange {
+                            from,
+                            to: lineno,
+                            ids: HashSet::from([id]),
+                        });
+                    }
+                }
+            }
         }
 
         // Anything still open runs to EOF.
-        for (id, from) in open {
+        for (id, (from, _)) in open {
             s.ranges.push(DisableRange {
                 from,
                 to: last_line.max(from),
@@ -124,7 +150,7 @@ impl Suppressions {
 /// Close open block-disables that `enable_ids` re-enables, emitting ranges.
 fn close_ranges(
     s: &mut Suppressions,
-    open: &mut HashMap<String, u32>,
+    open: &mut HashMap<String, (u32, bool)>,
     enable_ids: Vec<String>,
     lineno: u32,
 ) {
@@ -135,7 +161,7 @@ fn close_ranges(
         enable_ids
     };
     for id in to_close {
-        if let Some(from) = open.remove(&id) {
+        if let Some((from, _)) = open.remove(&id) {
             s.ranges.push(DisableRange {
                 from,
                 to: lineno,
@@ -143,6 +169,62 @@ fn close_ranges(
             });
         }
     }
+}
+
+/// 1-indexed lines on which a `<script …>` start tag ENDS (its closing `>`),
+/// sorted ascending. Mirrors `comment_directive::add_script_enable_boundaries`.
+fn script_start_tag_lines(source: &str) -> Vec<u32> {
+    let bytes = source.as_bytes();
+    let mut lines = Vec::new();
+    let mut line = 1u32;
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'\n' {
+            line += 1;
+            index += 1;
+            continue;
+        }
+        if index + 7 <= bytes.len()
+            && &bytes[index..index + 7] == b"<script"
+            && matches!(bytes.get(index + 7).copied(), Some(c) if c.is_ascii_whitespace() || c == b'>' || c == b'/')
+        {
+            // Find the `>` ending the start tag, skipping quoted attribute
+            // values, counting newlines as we go.
+            let mut tag_index = index + 7;
+            let mut quote: Option<u8> = None;
+            let mut found = false;
+            while tag_index < bytes.len() {
+                let c = bytes[tag_index];
+                if c == b'\n' {
+                    line += 1;
+                }
+                match quote {
+                    Some(q) => {
+                        if c == q {
+                            quote = None;
+                        }
+                    }
+                    None => {
+                        if c == b'"' || c == b'\'' {
+                            quote = Some(c);
+                        } else if c == b'>' {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                tag_index += 1;
+            }
+            if found {
+                lines.push(line);
+                index = tag_index + 1;
+                continue;
+            }
+            return lines;
+        }
+        index += 1;
+    }
+    lines
 }
 
 /// Return the text after `needle` in `line`, if present.
@@ -235,6 +317,27 @@ mod tests {
         assert!(!s.is_suppressed("svelte/no-at-html-tags", 5));
         // A different rule is unaffected inside the block.
         assert!(!s.is_suppressed("svelte/require-each-key", 3));
+    }
+
+    #[test]
+    fn script_start_tag_closes_open_html_block_disables() {
+        // Upstream re-enables all plugin suppressions at every `<script>` start
+        // tag; a top-of-file `<!-- eslint-disable -->` must not reach past it.
+        let src =
+            "<!-- eslint-disable -->\n{@html x}\n\n<script>\nlet a = 1;\n</script>\n{@html y}";
+        let s = Suppressions::collect(src);
+        assert!(s.is_suppressed("svelte/no-at-html-tags", 2));
+        assert!(!s.is_suppressed("svelte/prefer-const", 5));
+        assert!(!s.is_suppressed("svelte/no-at-html-tags", 7));
+    }
+
+    #[test]
+    fn script_start_tag_leaves_js_block_disables_open() {
+        // A `/* eslint-disable */` is an ESLint-core directive; the plugin's
+        // script-boundary enable does not touch it.
+        let src = "<script>\n/* eslint-disable */\nlet a = 1;\n</script>\n<script module>\nlet b = 2;\n</script>";
+        let s = Suppressions::collect(src);
+        assert!(s.is_suppressed("svelte/prefer-const", 6));
     }
 
     #[test]

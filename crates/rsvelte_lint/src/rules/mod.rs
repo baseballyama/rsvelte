@@ -26,6 +26,7 @@ pub mod html_quotes;
 pub mod html_self_closing;
 pub mod indent;
 pub mod infinite_reactive_loop;
+pub mod js_whitespace;
 pub mod max_attributes_per_line;
 pub mod max_lines_per_block;
 pub mod mustache_spacing;
@@ -100,6 +101,7 @@ pub mod shorthand_directive;
 pub mod sort_attributes;
 pub mod spaced_html_comment;
 pub mod store_refs;
+pub mod this_attr;
 #[cfg(feature = "native")] // native-only source-scan meta rule (see above)
 pub mod valid_compile;
 pub mod valid_each_key;

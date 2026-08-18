@@ -246,10 +246,20 @@ impl MaxAttributesPerLine {
         let src_bytes = src.as_bytes();
 
         // Determine singleline vs multiline: is the start-tag on one line?
-        // Upstream uses `node.loc.start.line === node.loc.end.line` (the
-        // SvelteStartTag); we approximate via the first item's start line vs the
-        // last item's end line.
-        let is_single = li.line(items.first().unwrap().start) == li.line(items.last().unwrap().end);
+        // Upstream uses `node.loc.start.line === node.loc.end.line` on the
+        // SvelteStartTag — `<` through `>` — so a bracket on its own line makes
+        // the tag multiline even when all attributes share a line. Scanning for
+        // the `>` from past the last attribute (which includes the spliced
+        // `this`) never hits a `>` inside an attribute value.
+        let scan_from = items.iter().map(|it| it.end).max().unwrap();
+        let start_tag_gt = src_bytes[scan_from as usize..]
+            .iter()
+            .position(|&b| b == b'>')
+            .map(|off| scan_from + source_offset(off));
+        let is_single = start_tag_gt.map_or_else(
+            || li.line(items.first().unwrap().start) == li.line(items.last().unwrap().end),
+            |gt| li.line(el_start) == li.line(gt),
+        );
 
         if is_single {
             // Single-line: more than singleline_max attributes ⇒ report the

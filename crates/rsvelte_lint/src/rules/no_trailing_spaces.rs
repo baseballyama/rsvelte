@@ -32,6 +32,7 @@ use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
 use crate::line_index::LineIndex;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::js_whitespace::{js_trim, js_trim_end};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-trailing-spaces",
@@ -181,6 +182,10 @@ impl Rule for NoTrailingSpaces {
         for program in programs {
             collect_template_elements(program, &li, &mut ignore_lines);
         }
+        // Template literals inside markup mustaches are TemplateElements to the
+        // oracle as well — walk the serialized template fragment for them.
+        let fragment_json = ctx.template_fragment_json();
+        collect_template_elements(&fragment_json, &li, &mut ignore_lines);
 
         if ignore_comments {
             // JS comments captured during parsing (script blocks + `{...}`).
@@ -199,23 +204,18 @@ impl Rule for NoTrailingSpaces {
             collect_html_comments(&root.fragment.nodes, &li, &mut ignore_lines);
         }
 
-        // Scan every physical line. We split on `\n` and treat a trailing `\r`
-        // as part of the line terminator (so CRLF files behave like ESLint's
-        // `sourceCode.lines`).
-        let mut line_start_byte: usize = 0;
+        // Scan every physical line. ESLint's `sourceCode.lines` splits on
+        // `\r\n`, lone `\r`, and `\n` (a lone `\r` terminates a line, matching
+        // `LineIndex`).
         let bytes = source.as_bytes();
+        let mut line_start_byte: usize = 0;
         let mut line_number: u32 = 1;
-        let mut i = 0usize;
-        // Iterate line by line including a final line with no trailing newline.
         loop {
-            // Find the end of this line (exclusive of the `\n`).
-            let nl = source[i..].find('\n').map(|off| i + off);
-            let raw_end = nl.unwrap_or(source.len());
-            // Strip a trailing `\r` from the logical line content.
-            let mut content_end = raw_end;
-            if content_end > line_start_byte && bytes[content_end - 1] == b'\r' {
-                content_end -= 1;
-            }
+            let terminator = bytes[line_start_byte..]
+                .iter()
+                .position(|&b| b == b'\n' || b == b'\r')
+                .map(|off| line_start_byte + off);
+            let content_end = terminator.unwrap_or(source.len());
             let line = &source[line_start_byte..content_end];
 
             Self::check_line(
@@ -227,14 +227,15 @@ impl Rule for NoTrailingSpaces {
                 &ignore_lines,
             );
 
-            match nl {
+            match terminator {
                 Some(pos) => {
-                    line_start_byte = pos + 1;
-                    i = pos + 1;
+                    let width = if bytes[pos] == b'\r' && bytes.get(pos + 1) == Some(&b'\n') {
+                        2
+                    } else {
+                        1
+                    };
+                    line_start_byte = pos + width;
                     line_number += 1;
-                    if i > source.len() {
-                        break;
-                    }
                 }
                 None => break,
             }
@@ -251,13 +252,13 @@ impl NoTrailingSpaces {
         skip_blank_lines: bool,
         ignore_lines: &HashSet<u32>,
     ) {
-        if skip_blank_lines && line.trim().is_empty() {
+        if skip_blank_lines && js_trim(line).is_empty() {
             return;
         }
         if ignore_lines.contains(&line_number) {
             return;
         }
-        let trimmed = line.trim_end();
+        let trimmed = js_trim_end(line);
         if trimmed.len() == line.len() {
             return;
         }

@@ -158,15 +158,6 @@ pub(crate) fn script_is_ts(source: &str) -> bool {
         .any(|b| open_tag_is_ts(&b.open_tag_attrs))
 }
 
-/// Whether the **last** `<script>` block (in source order) is TS. Mirrors the
-/// upstream rules whose `SvelteScriptElement` handler *overwrites* `isTs` on
-/// every visit, so the last-visited script wins.
-pub(crate) fn last_script_is_ts(source: &str) -> bool {
-    script_blocks(source)
-        .last()
-        .is_some_and(|b| open_tag_is_ts(&b.open_tag_attrs))
-}
-
 /// Whether any `<script>` block declares a TS `interface <name>` or
 /// `type <name>` at a keyword boundary within its content.
 pub(crate) fn script_declares_type(source: &str, name: &str) -> bool {
@@ -309,17 +300,6 @@ mod tests {
         ));
         // Declaration in the template (outside <script>) doesn't count.
         assert!(!script_declares_type("interface $$Slots {}", "$$Slots"));
-    }
-
-    #[test]
-    fn last_script_wins_for_ts() {
-        // Module script TS, instance script plain JS → last (instance) is not TS.
-        let src = "<script context=\"module\" lang=\"ts\">\n</script>\n<script>\n</script>";
-        assert!(
-            script_is_ts(src),
-            "ANY-block check sees the TS module script"
-        );
-        assert!(!last_script_is_ts(src), "last block (instance) is plain JS");
     }
 
     #[test]

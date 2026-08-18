@@ -12,8 +12,12 @@
 //! identifier positions; reassignment comes from the analyzed scope
 //! ([`analyze_scope`](crate::scope::analyze_scope)).
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
+use oxc_allocator::Allocator;
+use oxc_parser::{ParseOptions as OxcParseOptions, Parser};
+use oxc_semantic::SemanticBuilder;
+use oxc_span::SourceType;
 use serde_json::Value;
 
 use rsvelte_core::ast::arena::with_serialize_arena;
@@ -22,7 +26,9 @@ use rsvelte_core::ast::template::{DeclarationTag, Fragment, Root, TemplateNode};
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ProgramView, ScriptKind, ScriptRule, node_start, node_type, walk_js};
+use crate::script::{
+    ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js,
+};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/prefer-const",
@@ -594,6 +600,95 @@ fn collect_no_init_let_idents<'a>(
     });
 }
 
+/// Per-binding reassignment facts from one oxc semantic pass over the script:
+/// declaration-identifier absolute span → (has a write reference, is declared
+/// in the root scope). Name-keyed sets cannot tell two same-named bindings in
+/// different scopes apart (an inner `let outer` reassignment must not mark the
+/// outer `outer`); the symbol table can.
+#[derive(Default)]
+struct BindingWrites {
+    map: HashMap<(u32, u32), (bool, bool)>,
+}
+
+fn collect_binding_writes(source: &str, program: &ProgramView<'_>) -> BindingWrites {
+    let mut out = BindingWrites::default();
+    let (Some(base), Some(end)) = (node_start(program.value()), node_end(program.value())) else {
+        return out;
+    };
+    if base > end || end as usize > source.len() {
+        return out;
+    }
+    let body = &source[base as usize..end as usize];
+    let allocator = Allocator::default();
+    // TS grammar is a superset of what a lint-accepted script body contains, so
+    // one TS parse covers both script languages.
+    let parsed = Parser::new(&allocator, body, SourceType::ts().with_module(true))
+        .with_options(OxcParseOptions {
+            allow_return_outside_function: true,
+            ..OxcParseOptions::default()
+        })
+        .parse();
+    let semantic = SemanticBuilder::new().build(&parsed.program).semantic;
+    let scoping = semantic.scoping();
+    let root_scope = scoping.root_scope_id();
+    for id in scoping.symbol_ids() {
+        let span = scoping.symbol_span(id);
+        let has_write = scoping
+            .get_resolved_references(id)
+            .any(oxc_semantic::Reference::is_write);
+        let is_root = scoping.symbol_scope_id(id) == root_scope;
+        out.map
+            .insert((base + span.start, base + span.end), (has_write, is_root));
+    }
+    out
+}
+
+/// Scope-aware reassignment oracle for script `let` declarators.
+struct ScopedReassigned {
+    writes: BindingWrites,
+    /// Names of ROOT-scope bindings reassigned outside this script's own text
+    /// (template writes, the other script) — from the compiler analysis when
+    /// available, plus the template scan.
+    external_root: HashSet<String>,
+    /// The old name-keyed set, used when a declarator's symbol is unresolved.
+    fallback: HashSet<String>,
+}
+
+impl ScopedReassigned {
+    fn is_reassigned(&self, id: &Value) -> bool {
+        let name = ident_name(id).unwrap_or("");
+        if let (Some(s), Some(e)) = (node_start(id), node_end(id))
+            && let Some(&(has_write, is_root)) = self.writes.map.get(&(s, e))
+        {
+            return has_write || (is_root && self.external_root.contains(name));
+        }
+        self.fallback.contains(name)
+    }
+}
+
+fn collect_external_root(ctx: &LintContext, program: &ProgramView<'_>) -> HashSet<String> {
+    let mut external: HashSet<String> = ctx.scope_analysis().map_or_else(
+        || {
+            // No analysis (component has an analysis error): redeclared names
+            // keep multiple write references upstream, so never const-ify them.
+            let mut s = HashSet::new();
+            add_redeclared_names(program, &mut s);
+            s
+        },
+        |analysis| {
+            analysis
+                .root
+                .bindings
+                .iter()
+                .filter(|b| b.reassigned)
+                .map(|b| b.name.clone())
+                .collect()
+        },
+    );
+    collect_template_reassignments(ctx, &mut external);
+    external
+}
+
 #[derive(Default)]
 pub struct PreferConst;
 
@@ -604,9 +699,14 @@ impl ScriptRule for PreferConst {
 
     fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, kind: ScriptKind) {
         let reassigned = collect_reassigned_names(ctx, program);
+        let scoped = ScopedReassigned {
+            writes: collect_binding_writes(ctx.source(), program),
+            external_root: collect_external_root(ctx, program),
+            fallback: reassigned.clone(),
+        };
         let (excluded, destructuring_all) = prefer_const_options(ctx.option0());
         let mut reports =
-            collect_script_reports(program, kind, &reassigned, &excluded, destructuring_all);
+            collect_script_reports(program, kind, &scoped, &excluded, destructuring_all);
 
         // Also check template `{let x = …}` declaration tags. The oracle's
         // ESLint core `prefer-const` treats them as ordinary `let` declarations
@@ -711,7 +811,7 @@ fn prefer_const_options(opts: Option<&Value>) -> (Vec<String>, bool) {
 fn collect_script_reports(
     program: &ProgramView<'_>,
     kind: ScriptKind,
-    reassigned: &HashSet<String>,
+    scoped: &ScopedReassigned,
     excluded: &[String],
     destructuring_all: bool,
 ) -> Vec<(u32, u32, String, Option<u32>)> {
@@ -767,8 +867,7 @@ fn collect_script_reports(
                 collect_pattern_idents(id, &mut ids);
             }
             for id in ids {
-                let name = ident_name(id).unwrap_or("");
-                let is_reassigned = reassigned.contains(name);
+                let is_reassigned = scoped.is_reassigned(id);
                 if has_init && !is_reassigned {
                     decl_idents.push(id);
                 } else {

@@ -221,17 +221,37 @@ fn compute_var_name(prop_name: &str, top_level: &HashSet<String>) -> String {
     }
 }
 
-/// Identifier names bound by an enclosing template block (`{#each}` context /
-/// index, `{#await}` value / error, `{#snippet}` params) — block-scoped, so a
-/// member access using one is left alone.
-fn collect_block_names(ancestors: &[&Value]) -> HashSet<String> {
+/// Names bound by the scopes enclosing a node — function scopes (params, local
+/// declarations, the function's own name) and template-block scopes
+/// (`{#each}` context/index, `{#await}` value/error, snippet parameters,
+/// `{@const}`). Upstream resolves member-expression identifiers with
+/// `findVariable`; anything whose scope is not module/global suppresses the
+/// report, and svelte-eslint-parser does build scopes for template blocks.
+fn enclosing_scope_names(ancestors: &[&Value]) -> HashSet<String> {
     let mut out = HashSet::new();
     for a in ancestors {
         match node_type(a) {
+            Some("FunctionExpression" | "ArrowFunctionExpression" | "FunctionDeclaration") => {
+                if let Some(params) = a.get("params").and_then(Value::as_array) {
+                    for p in params {
+                        collect_pattern_idents(Some(p), &mut out);
+                    }
+                }
+                collect_pattern_idents(a.get("id"), &mut out);
+                if let Some(body) = a.get("body") {
+                    walk_js(body, |n, _| match node_type(n) {
+                        Some("VariableDeclarator") => collect_pattern_idents(n.get("id"), &mut out),
+                        Some("FunctionDeclaration" | "ClassDeclaration") => {
+                            collect_pattern_idents(n.get("id"), &mut out);
+                        }
+                        _ => {}
+                    });
+                }
+            }
             Some("EachBlock") => {
                 collect_pattern_idents(a.get("context"), &mut out);
-                if let Some(idx) = a.get("index").and_then(Value::as_str) {
-                    out.insert(idx.to_string());
+                if let Some(index) = a.get("index").and_then(Value::as_str) {
+                    out.insert(index.to_string());
                 }
             }
             Some("AwaitBlock") => {
@@ -245,10 +265,91 @@ fn collect_block_names(ancestors: &[&Value]) -> HashSet<String> {
                     }
                 }
             }
+            Some("Fragment") => {
+                // `{@const}` binds for the rest of its fragment.
+                if let Some(nodes) = a.get("nodes").and_then(Value::as_array) {
+                    for n in nodes {
+                        if node_type(n) == Some("ConstTag") {
+                            collect_pattern_idents(
+                                n.get("declaration")
+                                    .and_then(|d| d.get("declarations"))
+                                    .and_then(Value::as_array)
+                                    .and_then(|d| d.first())
+                                    .and_then(|d| d.get("id")),
+                                &mut out,
+                            );
+                        }
+                    }
+                }
+            }
             _ => {}
         }
     }
     out
+}
+
+/// Whether any expression identifier inside the member expression resolves to
+/// an enclosing non-top-level scope (upstream: `findVariable` resolves it and
+/// its scope is not module/global). A `$name` identifier falls back to `name`,
+/// mirroring upstream's store-access `findVariable`.
+fn member_uses_fn_scoped(member: &Value, shadowed: &HashSet<String>) -> bool {
+    if shadowed.is_empty() {
+        return false;
+    }
+    let mut found = false;
+    walk_member_expr_idents(member, None, &mut |name| {
+        if shadowed.contains(name)
+            || name
+                .strip_prefix('$')
+                .is_some_and(|stripped| shadowed.contains(stripped))
+        {
+            found = true;
+        }
+    });
+    found
+}
+
+fn walk_member_expr_idents<'v>(
+    node: &'v Value,
+    parent_field: Option<(&str, &'v Value)>,
+    f: &mut impl FnMut(&str),
+) {
+    match node {
+        Value::Array(arr) => {
+            for v in arr {
+                walk_member_expr_idents(v, parent_field, f);
+            }
+        }
+        Value::Object(map) => {
+            let ty = map.get("type").and_then(Value::as_str);
+            if ty == Some("Identifier") {
+                // `isExpressionIdentifier`: a COMPUTED member property / object
+                // key is not one (upstream ast-utils.ts:640-649), so `$foo[x]`
+                // never consults `x`'s scope while `$foo[`p${x}`]` does.
+                let is_expression_ident = parent_field.is_none_or(|(field, parent)| {
+                    let computed = parent.get("computed").and_then(Value::as_bool) == Some(true);
+                    match (node_type(parent), field) {
+                        (Some("MemberExpression"), "property")
+                        | (Some("Property" | "MethodDefinition" | "PropertyDefinition"), "key") => {
+                            !computed
+                        }
+                        _ => true,
+                    }
+                });
+                if is_expression_ident && let Some(name) = map.get("name").and_then(Value::as_str) {
+                    f(name);
+                }
+                return;
+            }
+            for (k, v) in map {
+                if k == "loc" {
+                    continue;
+                }
+                walk_member_expr_idents(v, Some((k, node)), f);
+            }
+        }
+        _ => {}
+    }
 }
 
 fn collect_pattern_idents(id: Option<&Value>, out: &mut HashSet<String>) {
@@ -485,37 +586,6 @@ fn get_property_name(prop: &Value) -> Option<String> {
     }
 }
 
-/// Whether any expression identifier in the member (its object, plus identifiers
-/// in a computed key) is block-scoped.
-fn member_uses_block_scoped(member: &Value, computed: bool, block: &HashSet<String>) -> bool {
-    if let Some(obj_name) = member
-        .get("object")
-        .and_then(|o| o.get("name"))
-        .and_then(Value::as_str)
-        && block.contains(obj_name)
-    {
-        return true;
-    }
-    if computed {
-        let mut found = false;
-        if let Some(prop) = member.get("property") {
-            walk_js(prop, |n, _| {
-                if !found
-                    && node_type(n) == Some("Identifier")
-                    && let Some(name) = n.get("name").and_then(Value::as_str)
-                    && block.contains(name)
-                {
-                    found = true;
-                }
-            });
-        }
-        if found {
-            return true;
-        }
-    }
-    false
-}
-
 /// Find the byte offset of the `<` in `</script>` by scanning backward from
 /// `script_end` (the exclusive end of the whole `<script>…</script>` span).
 ///
@@ -601,8 +671,8 @@ impl Rule for PreferDestructuredStoreProps {
                 return;
             }
             let computed = node.get("computed").and_then(Value::as_bool) == Some(true);
-            let block = collect_block_names(ancestors);
-            if member_uses_block_scoped(node, computed, &block) {
+            let shadowed = enclosing_scope_names(ancestors);
+            if member_uses_fn_scoped(node, &shadowed) {
                 return;
             }
             // Property name: identifier name (non-computed) or collapsed source.

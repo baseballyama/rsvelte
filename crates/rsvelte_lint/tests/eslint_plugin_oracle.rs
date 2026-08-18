@@ -108,9 +108,6 @@ const SKIP: &[&str] = &[
     // offset for `{ [store]: … }` don't match. A core serialization quirk, not a
     // rule gap; every other store-access position is covered.
     "require-store-reactive-access/invalid/properties01",
-    // Duplicate-property detection inside a ternary *interpolation* (the plugin
-    // collapses both branches); the port treats interpolations as opaque.
-    "no-dupe-style-properties/invalid/ternary01",
     // Compound `&&` condition: the plugin reports at the precise covered
     // sub-expression node (paren-stripped), e.g. column 17 for
     // `d && ((c && e && b) || a)`. The text-based operand split reports at the
@@ -130,11 +127,6 @@ const SKIP: &[&str] = &[
     // a script-AST rule, so template usage is out of scope (would need a separate
     // template-AST pass). All `<script>`-based fixtures are covered.
     "no-top-level-browser-globals/invalid/in-template01",
-    // `no-shorthand-style-property-overrides` ternary fixture: CSS declarations
-    // written INSIDE a mustache interpolation (`{cond ? `background: x` : …}`).
-    // Parsing CSS inside template interpolations is out of scope; the static
-    // `style=""` and `style:` directive cases are covered.
-    "no-shorthand-style-property-overrides/invalid/ternary01",
     // `no-add-event-listener` TS-cast case: `(window.addEventListener as any)(…)`.
     // rsvelte's ESTree strips the TS `as` cast, so the call's callee looks like a
     // plain `window.addEventListener` member (upstream keeps it a TSAsExpression

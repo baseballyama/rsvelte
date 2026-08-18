@@ -119,7 +119,6 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(NoUselessChildrenSnippet),
         Box::new(ValidEachKey),
         Box::new(NoNotFunctionHandler),
-        Box::new(NoSvelteInternal),
         Box::new(NoInspect),
         Box::new(NoUselessMustaches),
         Box::new(NoBindValueOnCheckableInputs),
@@ -176,6 +175,15 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         // `check_root` to detect cross-script cases (declared in module script,
         // mutated in instance script, or vice versa).
         Box::new(crate::rules::prefer_svelte_reactivity::PreferSvelteReactivity),
+        // Store/DOM rules whose upstream runs once per file over the joint
+        // scope tree (both scripts + template expressions): `check_root` owns
+        // components, their `ScriptRule` half covers standalone modules.
+        Box::new(crate::rules::no_store_async::NoStoreAsync),
+        Box::new(crate::rules::require_stores_init::RequireStoresInit),
+        Box::new(crate::rules::require_store_callbacks_use_set_param::RequireStoreCallbacksUseSetParam),
+        Box::new(crate::rules::no_ignored_unsubscribe::NoIgnoredUnsubscribe),
+        Box::new(crate::rules::no_add_event_listener::NoAddEventListener),
+        Box::new(crate::rules::no_dom_manipulating::NoDomManipulating),
     ]
 }
 
@@ -204,6 +212,10 @@ pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
     use crate::rules::require_store_callbacks_use_set_param::RequireStoreCallbacksUseSetParam;
     use crate::rules::require_stores_init::RequireStoresInit;
     vec![
+        Box::new(NoSvelteInternal),
+        // `NoInspect` is dual-registered: this pass covers script programs and
+        // standalone modules, the `Rule` pass covers template expressions.
+        Box::new(NoInspect),
         Box::new(NoInnerDeclarations),
         Box::new(PreferSvelteReactivity),
         Box::new(NoStoreAsync),

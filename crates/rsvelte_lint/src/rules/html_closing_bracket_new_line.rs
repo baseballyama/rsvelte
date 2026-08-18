@@ -23,7 +23,7 @@
 
 use rsvelte_core::ast::template::{
     Attribute, Component, RegularElement, SlotElement, SvelteComponentElement,
-    SvelteDynamicElement, SvelteElement,
+    SvelteDynamicElement, SvelteElement, TitleElement,
 };
 
 use crate::context::LintContext;
@@ -32,6 +32,7 @@ use crate::line_index::LineIndex;
 use crate::rule::{
     Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity, SpecialElement,
 };
+use crate::rules::this_attr::oracle_this_attr_span;
 
 fn source_offset(value: usize) -> u32 {
     u32::try_from(value).expect("source offsets are represented as u32")
@@ -164,9 +165,13 @@ impl HtmlClosingBracketNewLine {
         el_end: u32,
         el_name_end: u32,
         attributes: &[Attribute],
+        this_end: Option<u32>,
     ) {
         let src = ctx.source().as_bytes();
-        let scan_from = attributes.last().map_or(el_name_end, attr_end);
+        let scan_from = attributes
+            .last()
+            .map_or(el_name_end, attr_end)
+            .max(this_end.unwrap_or(0));
         let Some((bracket_end, is_self_closing)) = find_start_bracket(src, scan_from, el_end)
         else {
             return;
@@ -341,20 +346,27 @@ impl HtmlClosingBracketNewLine {
         );
     }
 
-    /// Shared logic for any element-like node.
+    /// Shared logic for any element-like node. `this_end` is the end of the
+    /// reconstructed `this={…}` attribute on `<svelte:component>` /
+    /// `<svelte:element>` — the bracket scan must start past it so a `>` inside
+    /// the `this` expression is never taken as the tag bracket.
     fn check_element_like(
         ctx: &mut LintContext,
         el_start: u32,
         el_end: u32,
         el_name: &str,
         attributes: &[Attribute],
+        this_end: Option<u32>,
     ) {
         let el_name_end = el_start + 1 + source_offset(el_name.len());
-        Self::check_start_tag(ctx, el_start, el_end, el_name_end, attributes);
+        Self::check_start_tag(ctx, el_start, el_end, el_name_end, attributes, this_end);
 
         // Check end tag only when one exists (start tag does not span whole element).
         let src = ctx.source().as_bytes();
-        let scan_from = attributes.last().map_or(el_name_end, attr_end);
+        let scan_from = attributes
+            .last()
+            .map_or(el_name_end, attr_end)
+            .max(this_end.unwrap_or(0));
         if let Some((start_tag_end, _)) = find_start_bracket(src, scan_from, el_end)
             && start_tag_end < el_end
         {
@@ -369,30 +381,74 @@ impl Rule for HtmlClosingBracketNewLine {
     }
 
     fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
-        Self::check_element_like(ctx, el.start, el.end, el.name.as_str(), &el.attributes);
+        Self::check_element_like(
+            ctx,
+            el.start,
+            el.end,
+            el.name.as_str(),
+            &el.attributes,
+            None,
+        );
     }
 
     fn check_component(&self, ctx: &mut LintContext, c: &Component) {
-        Self::check_element_like(ctx, c.start, c.end, c.name.as_str(), &c.attributes);
+        Self::check_element_like(ctx, c.start, c.end, c.name.as_str(), &c.attributes, None);
     }
 
     fn check_svelte_element(&self, ctx: &mut LintContext, el: &SvelteElement) {
-        Self::check_element_like(ctx, el.start, el.end, el.name.as_str(), &el.attributes);
+        Self::check_element_like(
+            ctx,
+            el.start,
+            el.end,
+            el.name.as_str(),
+            &el.attributes,
+            None,
+        );
     }
 
     fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
-        Self::check_element_like(ctx, el.start, el.end, "svelte:component", &el.attributes);
+        let this_end = el
+            .expression
+            .start()
+            .zip(el.expression.end())
+            .and_then(|(s, e)| oracle_this_attr_span(ctx.source(), s, e))
+            .map(|(_, end)| end);
+        Self::check_element_like(
+            ctx,
+            el.start,
+            el.end,
+            "svelte:component",
+            &el.attributes,
+            this_end,
+        );
     }
 
     fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
-        Self::check_element_like(ctx, el.start, el.end, "svelte:element", &el.attributes);
+        let this_end = el
+            .tag
+            .start()
+            .zip(el.tag.end())
+            .and_then(|(s, e)| oracle_this_attr_span(ctx.source(), s, e))
+            .map(|(_, end)| end);
+        Self::check_element_like(
+            ctx,
+            el.start,
+            el.end,
+            "svelte:element",
+            &el.attributes,
+            this_end,
+        );
     }
 
     fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
-        Self::check_element_like(ctx, el.start, el.end, "slot", &el.attributes);
+        Self::check_element_like(ctx, el.start, el.end, "slot", &el.attributes, None);
+    }
+
+    fn check_title(&self, ctx: &mut LintContext, el: &TitleElement) {
+        Self::check_element_like(ctx, el.start, el.end, "title", &el.attributes, None);
     }
 
     fn check_special_element(&self, ctx: &mut LintContext, el: &SpecialElement<'_>) {
-        Self::check_element_like(ctx, el.start, el.end, el.name, &el.attributes);
+        Self::check_element_like(ctx, el.start, el.end, el.name, &el.attributes, None);
     }
 }
