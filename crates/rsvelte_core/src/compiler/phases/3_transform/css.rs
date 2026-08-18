@@ -5988,11 +5988,23 @@ fn transform_global_block(
                     }
                 }
 
-                // Copy the child from source (don't scope - it's inside :global)
+                // Copy the child from source (don't scope - it's inside :global).
+                // A `-global-` keyframes name is still stripped: upstream's
+                // Atrule visitor runs at every depth, so nesting inside
+                // `:global {}` does not exempt it.
                 let child_start_idx = child_start.saturating_sub(css_start);
                 let child_end_idx = child_end.saturating_sub(css_start);
                 if child_end_idx <= css_source.len() && child_start_idx < child_end_idx {
-                    output.push_str(&css_source[child_start_idx..child_end_idx]);
+                    let mut cuts = Vec::new();
+                    collect_global_keyframe_prefixes(child, css_source, css_start, &mut cuts);
+                    cuts.retain(|&c| c >= child_start_idx && c + 8 <= child_end_idx);
+                    cuts.sort_unstable();
+                    let mut from = child_start_idx;
+                    for cut in cuts {
+                        output.push_str(&css_source[from..cut]);
+                        from = cut + 8;
+                    }
+                    output.push_str(&css_source[from..child_end_idx]);
                 }
 
                 last_end = child_end;
@@ -6013,6 +6025,46 @@ fn transform_global_block(
             output.push_str("/*}*/");
         }
         // In minify mode, skip the closing } wrapper
+    }
+}
+
+/// Offsets (relative to `css_source`) of every `-global-` prefix on a keyframes
+/// name in `node`'s subtree, so a verbatim copy can still drop them.
+fn collect_global_keyframe_prefixes(
+    node: &Value,
+    css_source: &str,
+    css_start: usize,
+    out: &mut Vec<usize>,
+) {
+    if node.get("type").and_then(|t| t.as_str()) == Some("Atrule") {
+        let name = node.get("name").and_then(|n| n.as_str()).unwrap_or("");
+        let prelude = node.get("prelude").and_then(|p| p.as_str()).unwrap_or("");
+        if matches!(
+            name,
+            "keyframes" | "-webkit-keyframes" | "-moz-keyframes" | "-o-keyframes"
+        ) && prelude.starts_with("-global-")
+        {
+            let start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+            let bytes = css_source.as_bytes();
+            let mut p_start = start + name.len() + 1;
+            while p_start.saturating_sub(css_start) < css_source.len()
+                && bytes.get(p_start - css_start) == Some(&b' ')
+            {
+                p_start += 1;
+            }
+            out.push(p_start.saturating_sub(css_start));
+            return;
+        }
+    }
+    for key in ["block", "prelude"] {
+        if let Some(child) = node.get(key).filter(|c| !c.is_null()) {
+            collect_global_keyframe_prefixes(child, css_source, css_start, out);
+        }
+    }
+    if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
+        for child in children {
+            collect_global_keyframe_prefixes(child, css_source, css_start, out);
+        }
     }
 }
 
