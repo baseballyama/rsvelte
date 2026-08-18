@@ -494,12 +494,24 @@ fn non_source_prop_read(
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     node: JsExpr,
 ) -> JsExpr {
+    // The read transform now receives the identifier inside its span wrapper,
+    // and a member property is chosen by variant: an unrecognised wrapper makes
+    // the property an expression, which prints as the computed `$$props[name]`.
+    let property = match &node {
+        JsExpr::Identifier(name) => Some(JsMemberProperty::Identifier(name.clone())),
+        JsExpr::Spanned(inner, start, end) => match arena.get_expr(*inner) {
+            JsExpr::Identifier(name) => Some(JsMemberProperty::SpannedIdentifier {
+                name: name.clone(),
+                start: *start,
+                end: *end,
+            }),
+            _ => None,
+        },
+        _ => None,
+    };
     JsExpr::Member(JsMemberExpression {
         object: arena.alloc_expr(b::id("$$props")),
-        property: match &node {
-            JsExpr::Identifier(name) => JsMemberProperty::Identifier(name.clone()),
-            _ => JsMemberProperty::Expression(arena.alloc_expr(node)),
-        },
+        property: property.unwrap_or_else(|| JsMemberProperty::Expression(arena.alloc_expr(node))),
         computed: false,
         optional: false,
     })
