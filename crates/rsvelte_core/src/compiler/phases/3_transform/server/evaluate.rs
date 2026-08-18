@@ -283,9 +283,26 @@ fn strict_eq(a: &EvalValue, b: &EvalValue) -> Option<bool> {
     })
 }
 
+/// A regex is an object, and every coercion below reaches it through
+/// `ToPrimitive`, which for a regex is its source text.
+fn to_primitive(v: &EvalValue) -> EvalValue {
+    match v {
+        EvalValue::Regex(s) => EvalValue::Str(s.clone()),
+        other => other.clone(),
+    }
+}
+
 fn loose_eq(a: &EvalValue, b: &EvalValue) -> Option<bool> {
     if a.is_marker() || b.is_marker() {
         return None;
+    }
+    if matches!(a, EvalValue::Regex(_)) || matches!(b, EvalValue::Regex(_)) {
+        // `/a/ == /a/` is object identity (false); against anything else the
+        // regex coerces to its source text.
+        if matches!(a, EvalValue::Regex(_)) && matches!(b, EvalValue::Regex(_)) {
+            return Some(false);
+        }
+        return loose_eq(&to_primitive(a), &to_primitive(b));
     }
     Some(match (a, b) {
         (EvalValue::Str(x), EvalValue::Str(y)) => x == y,
@@ -303,6 +320,9 @@ fn loose_eq(a: &EvalValue, b: &EvalValue) -> Option<bool> {
 
 /// Relational comparison (`<`); other operators are derived from it.
 fn js_less_than(a: &EvalValue, b: &EvalValue) -> Option<Option<bool>> {
+    if matches!(a, EvalValue::Regex(_)) || matches!(b, EvalValue::Regex(_)) {
+        return js_less_than(&to_primitive(a), &to_primitive(b));
+    }
     // Outer None: cannot evaluate; inner None: NaN involved (result false for all).
     if let (EvalValue::Str(x), EvalValue::Str(y)) = (a, b) {
         return Some(Some(x < y));
@@ -384,8 +404,8 @@ pub(crate) fn eval_binary(op: &str, a: &EvalValue, b: &EvalValue) -> EvalValue {
         },
         ">=" => eval_binary("<=", b, a),
         "+" => {
-            let a_str = matches!(a, EvalValue::Str(_));
-            let b_str = matches!(b, EvalValue::Str(_));
+            let a_str = matches!(a, EvalValue::Str(_) | EvalValue::Regex(_));
+            let b_str = matches!(b, EvalValue::Str(_) | EvalValue::Regex(_));
             if a_str || b_str {
                 match (to_js_string(a), to_js_string(b)) {
                     (Some(x), Some(y)) => EvalValue::Str(format!("{}{}", x, y)),

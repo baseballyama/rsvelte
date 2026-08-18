@@ -108,12 +108,13 @@ upstream's switch — and every one of them is single-typed (`'a' + 'b'`, `Math.
 domain, and reaching a decision is not being able to tell two rules for it apart (the #3005
 lesson, one axis over). `fold-value-type` is the discriminating axis — operand values chosen to
 collide under stringification while differing as JS values — and gate-coverage 5q records it.
-And **"is this value known" still has three more implementations in the client**:
+And **"is this value known" still has three more implementations in the client** —
 `is_expression_known_json`, `identifier_has_reactive_state`, and
-`is_initial_value_literal_or_known`, which answers by `memmem::find(json, b"Literal")` over a
-JSON dump. A `const c = 1 || 2` or `const c = /ab/g` read from the template still diverges
-through that trio even though the fold now gets the value right. Treat it as the next
-instalment, not as covered.
+`is_initial_value_literal_or_known`, the last of which answers by
+`memmem::find(json, b"Literal")` over a JSON dump — while `binding.initial` keeps a
+non-literal initializer as **source text** that only the JSON branch re-parses. So
+`{1 || 2}` folds and `const c = 1 || 2; {c}` does not, and the same for `const c = /ab/g` and
+for a `1n` bigint anywhere. Treat that as the next instalment, not as covered.
 
 **The `JsNode` → `serde_json::Value` cost is one site, and it is not the lazy cache.**
 `to_value` has 54 call sites; every materialization figure this project has quoted (27,488 →
