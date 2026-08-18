@@ -148,6 +148,16 @@ pub fn transform_component(
     transform_component_with_sourcemap_content(analysis, ast, source, options, true)
 }
 
+fn map_pass_disabled(name: &str) -> bool {
+    static DISABLED: std::sync::LazyLock<Option<String>> =
+        std::sync::LazyLock::new(|| std::env::var("RSVELTE_NO_MAP_PASSES").ok());
+    match DISABLED.as_deref() {
+        None => false,
+        Some("all") => true,
+        Some(list) => list.split(',').any(|n| n.trim() == name),
+    }
+}
+
 pub(crate) fn transform_component_with_sourcemap_content(
     analysis: &ComponentAnalysis,
     ast: &Root,
@@ -219,7 +229,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
                         remaining_result_mappings.push(mapping);
                     }
                 }
-                let legacy_prop_read_mappings = if source.contains("export let ") {
+                let legacy_prop_read_mappings = if !map_pass_disabled("legacy_prop") && source.contains("export let ") {
                     generate_legacy_prop_read_mappings_with_starts(
                         &result.code,
                         source,
@@ -228,14 +238,14 @@ pub(crate) fn transform_component_with_scripts<'source>(
                 } else {
                     Vec::new()
                 };
-                let template_element_mappings =
+                let template_element_mappings = if map_pass_disabled("template_element") { Vec::new() } else {
                     generate_template_element_runtime_mappings_with_starts(
                         &result.code,
                         source,
                         &mapping_starts,
-                    );
+                    ) };
                 let inline_script_mappings =
-                    if source.contains("<script>") && source.contains("export ") {
+                    if !map_pass_disabled("inline_script") && source.contains("<script>") && source.contains("export ") {
                         generate_inline_script_mappings_with_starts(
                             &result.code,
                             source,
@@ -244,12 +254,12 @@ pub(crate) fn transform_component_with_scripts<'source>(
                     } else {
                         Vec::new()
                     };
-                let bind_value_mappings = if source.contains("bind:value={") {
+                let bind_value_mappings = if !map_pass_disabled("bind_value") && source.contains("bind:value={") {
                     generate_bind_value_mappings_with_starts(&result.code, source, &mapping_starts)
                 } else {
                     Vec::new()
                 };
-                let component_bind_mappings = if source.contains("bind:")
+                let component_bind_mappings = if !map_pass_disabled("component_bind") && source.contains("bind:")
                     && (result.code.contains("get ")
                         || result.code.contains("set ")
                         || result.code.contains("${"))
@@ -262,13 +272,13 @@ pub(crate) fn transform_component_with_scripts<'source>(
                 } else {
                     Vec::new()
                 };
-                let collapsed_declaration_mappings =
+                let collapsed_declaration_mappings = if map_pass_disabled("collapsed") { Vec::new() } else {
                     generate_collapsed_declaration_mappings_with_starts(
                         &result.code,
                         source,
                         &mapping_starts,
-                    );
-                let import_mappings = if source.contains("import ") {
+                    ) };
+                let import_mappings = if !map_pass_disabled("import") && source.contains("import ") {
                     generate_verbatim_import_mappings_with_starts(
                         &result.code,
                         source,
@@ -277,13 +287,14 @@ pub(crate) fn transform_component_with_scripts<'source>(
                 } else {
                     Vec::new()
                 };
-                let token_mappings = generate_token_mappings_with_starts(
-                    &result.code,
-                    source,
-                    &mapping_starts,
-                    source_token_positions,
-                );
-                let rune_mappings = if source.contains("$effect")
+                let token_mappings = if map_pass_disabled("token") { Vec::new() } else {
+                    generate_token_mappings_with_starts(
+                        &result.code,
+                        source,
+                        &mapping_starts,
+                        source_token_positions,
+                    ) };
+                let rune_mappings = if !map_pass_disabled("rune") && source.contains("$effect")
                     || source.contains("$state")
                     || source.contains("$derived")
                     || source.contains("$props")
@@ -293,7 +304,20 @@ pub(crate) fn transform_component_with_scripts<'source>(
                 } else {
                     Vec::new()
                 };
-                let mapping_capacity = bind_value_mappings.len()
+                // The printer reads one span for both brace mapping and comment
+                // resync, so a comment-bearing component cannot carry its own
+                // function braces yet.
+                let wrapper_mappings = if map_pass_disabled("wrapper") { Vec::new() } else { ast.instance.as_deref().map_or_else(Vec::new, |script| {
+                    generate_default_function_wrapper_mappings_with_starts(
+                        &result.code,
+                        source,
+                        script.start as usize,
+                        script.end as usize,
+                        &mapping_starts,
+                    )
+                }) };
+                let mapping_capacity = wrapper_mappings.len()
+                    + bind_value_mappings.len()
                     + component_bind_mappings.len()
                     + runtime_mappings.len()
                     + legacy_prop_read_mappings.len()
@@ -305,6 +329,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
                     + rune_mappings.len()
                     + remaining_result_mappings.len();
                 let mut mappings = Vec::with_capacity(mapping_capacity);
+                mappings.extend(wrapper_mappings);
                 mappings.extend(bind_value_mappings);
                 mappings.extend(component_bind_mappings);
                 mappings.extend(runtime_mappings);

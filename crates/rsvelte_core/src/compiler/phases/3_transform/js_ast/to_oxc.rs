@@ -462,25 +462,6 @@ impl Synth {
         self.max_span = self.max_span.max(end);
     }
 
-    /// Reserve buffer bytes as an anchor for the single source byte at
-    /// `source_offset`. A node whose span would otherwise fall inside a chunk
-    /// region — and so resolve to that chunk's offset — gets a position of its
-    /// own to map through. Two bytes, because the printer brackets a mapped
-    /// node with an anchor at each end of its span.
-    fn reserve_anchor(&mut self, source_offset: u32) -> Option<u32> {
-        if !self.enabled {
-            return None;
-        }
-        let at = self.cursor();
-        self.source.push_str("\n\n");
-        self.loc_map.push(LocRange {
-            start: at,
-            end: at + 2,
-            source: Some(source_offset),
-            linear: true,
-        });
-        Some(at)
-    }
 }
 
 /// Marker callee wrapping a single-target destructuring-assignment collapse
@@ -1103,9 +1084,10 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
     }
 
     /// [`Cx::statements`] for a block that knows where its braces came from.
-    /// The printer maps a brace to the first and last byte of the body span, so
-    /// in comment space the region has to be widened by one reserved byte at
-    /// each end — the chunk regions themselves resolve to their own offsets.
+    /// The printer reads one span for two questions — where the braces map and
+    /// where the comment cursor resyncs — so the source span is only usable
+    /// when the body consumed no comment region: reviving the cursor at a
+    /// builder-made body is what upstream does not do.
     fn block_body(
         &self,
         block: &super::nodes::JsBlockStatement,
@@ -1113,19 +1095,14 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         let Some((start, end)) = block.brace_span else {
             return self.statements(&block.body);
         };
-        let open = self.synth.borrow_mut().reserve_anchor(start);
+        self.note_span(end);
         let (stmts, span) = self.statements(&block.body)?;
-        let Some(open) = open else {
-            self.note_span(end);
-            let span = if span.is_empty() {
-                Span::new(start, end)
-            } else {
-                span
-            };
-            return Some((stmts, span));
+        let span = if span.is_empty() {
+            Span::new(start, end)
+        } else {
+            span
         };
-        let close = self.synth.borrow_mut().reserve_anchor(end - 1)?;
-        Some((stmts, Span::new(open, close + 1)))
+        Some((stmts, span))
     }
 
     /// Convert a slice of IR statements into an arena `Vec`, bailing on any
