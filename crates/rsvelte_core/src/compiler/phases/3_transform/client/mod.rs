@@ -363,7 +363,10 @@ pub(crate) fn print_module_program(
 ) -> Result<String, TransformError> {
     use super::js_ast::codegen::generate;
 
-    let program = super::js_ast::nodes::JsProgram { body };
+    let program = super::js_ast::nodes::JsProgram {
+        body,
+        component_brace_span: None,
+    };
     let arena = super::js_ast::arena::JsArena::new();
     let alloc = oxc_allocator::Allocator::default();
     if let Some(code) =
@@ -1972,10 +1975,7 @@ pub(crate) fn transform_client(
     let component_fn = JsFunctionDeclaration {
         id: Some(analysis.name.clone().into()),
         params: params.into(),
-        body: match ast.instance.as_deref() {
-            Some(script) => JsBlockStatement::spanned(component_body, script.start, script.end),
-            None => JsBlockStatement::with_body(component_body),
-        },
+        body: JsBlockStatement::with_body(component_body),
         is_async: false,
         is_generator: false,
     };
@@ -2550,7 +2550,13 @@ pub(crate) fn transform_client(
     }
 
     // Create the program
-    let program = JsProgram { body };
+    let program = JsProgram {
+        body,
+        component_brace_span: ast.instance.as_deref().and_then(|script| {
+            (script.start < script.end)
+                .then(|| (analysis.name.clone().into(), script.start, script.end))
+        }),
+    };
     if let Some(sink) = &mut program_sink {
         sink(&program, &context.arena);
     }
@@ -3037,25 +3043,24 @@ fn copied_spans_for_normalized_code(
     projection: Option<&ScriptProjection>,
 ) -> Vec<RawMappedSpan> {
     // Without TypeScript erasure the stripped script *is* the source slice, so
-    // every byte projects back at its own offset.
-    let mut source_at_output = match projection {
-        Some(_) => vec![None; stripped.len() + 1],
-        None => (0..=stripped.len())
-            .map(|offset| Some(original_offset + offset as u32))
-            .collect(),
-    };
-    if let Some(projection) = projection {
+    // every byte projects back at its own offset: the per-byte table would hold
+    // `Some(original_offset + i)` at every `i` and the split loop below could
+    // never break a run, which is the whole cost of the general path — and this
+    // path now runs for every script, not only a TypeScript one.
+    let source_at_output = projection.map(|projection| {
+        let mut table: Vec<Option<u32>> = vec![None; stripped.len() + 1];
         for chunk in &projection.copied_chunks {
             let len =
                 (chunk.output.end - chunk.output.start).min(chunk.source.end - chunk.source.start);
             for offset in 0..=len {
                 let output = (chunk.output.start + offset) as usize;
-                if output < source_at_output.len() {
-                    source_at_output[output] = Some(original_offset + chunk.source.start + offset);
+                if output < table.len() {
+                    table[output] = Some(original_offset + chunk.source.start + offset);
                 }
             }
         }
-    }
+        table
+    });
 
     let mut spans = Vec::new();
     let mut output = 0usize;
@@ -3073,6 +3078,14 @@ fn copied_spans_for_normalized_code(
                 output += 1;
                 input += 1;
             }
+            let Some(source_at_output) = source_at_output.as_deref() else {
+                spans.push(RawMappedSpan {
+                    code: start_output as u32..output as u32,
+                    source: (original_offset + start_input as u32)
+                        ..(original_offset + input as u32),
+                });
+                continue;
+            };
             let mut run_start = start_output;
             for code_offset in start_output..=output {
                 let raw_offset = start_input + code_offset - start_output;

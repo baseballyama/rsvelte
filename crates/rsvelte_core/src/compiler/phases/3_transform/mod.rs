@@ -310,11 +310,12 @@ pub(crate) fn transform_component_with_scripts<'source>(
                         source_token_positions,
                     )
                 };
-                let rune_mappings = if !map_pass_disabled("rune") && source.contains("$effect")
-                    || source.contains("$state")
-                    || source.contains("$derived")
-                    || source.contains("$props")
-                    || source.contains("$bindable")
+                let rune_mappings = if !map_pass_disabled("rune")
+                    && (source.contains("$effect")
+                        || source.contains("$state")
+                        || source.contains("$derived")
+                        || source.contains("$props")
+                        || source.contains("$bindable"))
                 {
                     generate_rune_mappings_with_starts(&result.code, source, &mapping_starts)
                 } else {

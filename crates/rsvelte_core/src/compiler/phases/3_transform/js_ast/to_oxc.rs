@@ -189,6 +189,10 @@ fn convert_once<'a, 'source>(
         arena,
         islands,
         synth: RefCell::new(Synth::new(loc_base)),
+        component_brace_span: program
+            .component_brace_span
+            .as_ref()
+            .map(|(name, start, end)| (name.as_str(), *start, *end)),
     };
 
     // Collect, flattening multi-statement `Raw` blobs inline. A single None
@@ -489,6 +493,8 @@ struct Cx<'a, 'arena, 'source> {
     arena: &'arena JsArena,
     islands: &'arena [AstIsland<'source>],
     synth: RefCell<Synth>,
+    /// [`JsProgram::component_brace_span`], matched by function name.
+    component_brace_span: Option<(&'arena str, u32, u32)>,
 }
 
 impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
@@ -1064,7 +1070,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             .as_ref()
             .map(|name| BindingIdentifier::new(SPAN, self.str(name), &self.ab));
         let params = self.formal_params(&func.params)?;
-        let (stmts, span) = self.block_body(&func.body)?;
+        let (stmts, span) = self.block_body(&func.body, func.id.as_deref())?;
         let body = FunctionBody::new(span, ArenaVec::new_in(&self.ab), stmts, &self.ab);
         Some(Function::boxed(
             SPAN,
@@ -1096,8 +1102,13 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
     fn block_body(
         &self,
         block: &super::nodes::JsBlockStatement,
+        name: Option<&str>,
     ) -> Option<(ArenaVec<'a, Statement<'a>>, Span)> {
-        let Some((start, end)) = block.brace_span else {
+        let Some((start, end)) = self
+            .component_brace_span
+            .filter(|(component, _, _)| name == Some(*component))
+            .map(|(_, start, end)| (start, end))
+        else {
             return self.statements(&block.body);
         };
         let (stmts, span) = self.statements(&block.body)?;
@@ -1921,7 +1932,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             .as_ref()
             .map(|name| BindingIdentifier::new(SPAN, self.str(name), &self.ab));
         let params = self.formal_params(&func.params)?;
-        let (stmts, span) = self.block_body(&func.body)?;
+        let (stmts, span) = self.block_body(&func.body, func.id.as_deref())?;
         let body = FunctionBody::new(span, ArenaVec::new_in(&self.ab), stmts, &self.ab);
         Some(Function::boxed(
             SPAN,
@@ -2410,7 +2421,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             .as_ref()
             .map(|name| BindingIdentifier::new(SPAN, self.str(name), &self.ab));
         let params = self.formal_params(&func.params)?;
-        let (stmts, span) = self.block_body(&func.body)?;
+        let (stmts, span) = self.block_body(&func.body, func.id.as_deref())?;
         let body = FunctionBody::new(span, ArenaVec::new_in(&self.ab), stmts, &self.ab);
         Some(Expression::FunctionExpression(Function::boxed(
             SPAN,

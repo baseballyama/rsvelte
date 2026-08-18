@@ -518,6 +518,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
     // transform, because upstream stamps the location on the identifier node and
     // builds the read wrapper (`foo()`, `$.get(foo)`) around it unlocated — so a
     // map segment covers the name, not the whole generated call.
+    let spanned_identifier = expr;
     let (expr, identifier_span) = match expr {
         JsExpr::Spanned(inner, start, end)
             if matches!(context.arena.get_expr(*inner), JsExpr::Identifier(_)) =>
@@ -530,12 +531,16 @@ pub fn apply_transforms_to_expression_with_shadowed(
         Some((start, end)) => JsExpr::Spanned(context.arena.alloc_expr(e), start, end),
         None => e,
     };
+    // An identifier no transform rewrote keeps the wrapper it arrived in, which
+    // costs no arena node: `respan` would allocate a second one holding the same
+    // span over a clone of the same identifier.
+    let unchanged = || spanned_identifier.clone();
 
     match expr {
         JsExpr::Identifier(name) => {
             // Skip transforms for shadowed variables (function parameters, local vars)
             if local_scope.contains(name) {
-                return respan(expr.clone());
+                return unchanged();
             }
             // Track each block index usage for proper callback parameter generation.
             // When the index variable is referenced during body traversal, we need
@@ -616,7 +621,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     return read_fn(&context.arena, respan(input_id));
                 }
             }
-            respan(expr.clone())
+            unchanged()
         }
 
         JsExpr::Member(member) => {
