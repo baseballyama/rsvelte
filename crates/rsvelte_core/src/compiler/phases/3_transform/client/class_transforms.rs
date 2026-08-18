@@ -730,6 +730,21 @@ pub(super) fn transform_constructor_private_reads(
             any_changed = true;
         }
 
+        // A member-chain read (`this.#props.x`) is wrapped by its own pass; the
+        // standalone-read pass below deliberately skips a chain root, so without
+        // this the constructor left `this.#props.x` unwrapped where the method
+        // body did not.
+        if !derived_qualified.is_empty()
+            && let Some(out) =
+                super::private_member_read_wrap_ast::transform_private_member_read_wrap_ast(
+                    &current,
+                    &derived_qualified,
+                )
+        {
+            current = out;
+            any_changed = true;
+        }
+
         for qualified in &derived_qualified {
             if let Some(out) =
                 super::private_read_wrap_ast::transform_private_read_wrap_ast(&current, qualified)
@@ -2525,6 +2540,16 @@ pub(super) fn transform_constructor_assignment(
 #[cfg(test)]
 mod tests {
     use super::transform_class_fields_client;
+
+    #[test]
+    fn constructor_wraps_a_member_chain_read_of_a_derived_field() {
+        let src = "class A {\n\t#getProps = () => ({});\n\t#props = $derived(this.#getProps());\n\tconstructor() {\n\t\tconst b = this.#props.motion;\n\t}\n}";
+        let out = transform_class_fields_client(src);
+        assert!(
+            out.contains("$.get(this.#props).motion"),
+            "member-chain read left unwrapped:\n{out}"
+        );
+    }
 
     #[test]
     fn is_multiline_assignment_start_classifies_constructor_lines() {
