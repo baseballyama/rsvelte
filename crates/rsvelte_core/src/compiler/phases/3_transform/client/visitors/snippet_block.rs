@@ -858,7 +858,7 @@ fn is_simple_expression_json(value: &serde_json::Value) -> bool {
 fn create_call_transform()
 -> crate::compiler::phases::phase3_transform::client::types::IdentifierTransform {
     crate::compiler::phases::phase3_transform::client::types::IdentifierTransform {
-        read: Some(|arena, expr| b::call(arena, expr, vec![])),
+        read: Some(b::getter_call),
         read_source: None,
         assign: None,
         mutate: None,

@@ -412,6 +412,31 @@ Normalization is deliberately identical to `verify.mjs`, so a divergence this ga
 the corpus gate would also report. `--update-baseline` refuses to run under `--no-fmt` or a
 `--families` subset (both would FALSE-SHRINK the ratchet).
 
+### Transform idempotency (`scripts/compat-corpus/idempotency-verify.mjs`)
+
+**The one gate here that compares rsvelte to nothing.** With
+`RSVELTE_ASSERT_TRANSFORM_IDEMPOTENT` set, every top-level
+`apply_transforms_to_expression` re-applies itself to its own output and reports when the two
+differ; any report fails the run. It exists because #3026 is a *property* violation that output
+equality cannot sample: `try_transform_assignment` hands a converted subtree back to the outer
+walk, so a read whose output is itself re-readable is applied twice — and the input shape that
+exposes it occurred **0 times in the 12,523 components the corpus held when it was reported**,
+with the bad output parsing cleanly. Remove the one line that seals `b::getter_call` and the
+same corpus reports **37,352** violations in **7,888** of 27,566 units (28.6%) — while still
+compiling to 0 output divergences. Sealing all seven read builders takes it to 0 with every one
+of the 37,596 output hashes byte-identical; #3026's own two accounted for three quarters of the
+total, and the five it never reached for the remaining 9,274.
+
+The generalisable part is not the invariant, it is what kind of gate it is. Every other gate
+here samples inputs and compares outputs, so its reach is the product of the population someone
+collected and the axes someone wrote — and #2535 already showed that a generated family is blind
+to the axis value its author did not think of. A gate that asserts a property of the *compiler*
+is bounded by neither. When a defect class is "the second application of a correct step",
+"a value read twice", "a cache that disagrees with a recompute", ask what invariant states it
+directly before adding another family: the corpus you already have becomes the detector, at
+whatever size it happens to be. What it costs you is that idempotent is not correct — read it as
+a necessary condition, never as parity.
+
 ### Corpus-seeded mutation fuzz (`scripts/compat-corpus/mutate-corpus.mjs`)
 
 The generalization of the matrix (`pnpm run corpus:mutate`, #2281 Gate 3): the 14,138 corpus

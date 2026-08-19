@@ -2882,6 +2882,98 @@ CLI flag surface is compared by any gate in this document.
 
 ---
 
+## 37. Transform idempotency — `scripts/compat-corpus/idempotency-verify.mjs`
+
+**Unit.** One `(corpus component, client mode)` compile, 13,783 x 2 = 27,566 of them. Nothing is
+compared against official. The gate asserts a **property of rsvelte's own transform**: with
+`RSVELTE_ASSERT_TRANSFORM_IDEMPOTENT` set, every top-level `apply_transforms_to_expression`
+re-applies itself to its own output and prints a marker when the two prints differ. Any marker
+fails the run. Hard gate, no ratchet.
+
+**Why it exists.** `try_transform_assignment` converts both sides of a member mutation and hands
+the result back to the outer walk, so a read transform whose output the walk can transform again
+is applied twice — #3026, where `state.a = state.b` in an inline template arrow emitted
+`state().a = state()().b`. Output equality could not find it: the shape occurs **0 times in the
+12,523 corpus components measured when #3026 was reported**, and the bad output parses, so the
+corpus gate and the parse oracle were both green. The generated `write-host` family (§5q) does find it, but a generated family is
+bounded by the axis values its author wrote; this gate is bounded by nothing the author chose,
+because it asks the corpus a question about the compiler rather than about the input.
+
+**[D] and positive control, one measurement.** This tree, and the same tree with the one line in
+`b::getter_call` that marks the produced callee opaque removed — which un-seals all seven read
+builders and is the state every one of them was in before #3026:
+
+| tree | non-idempotent transforms | units carrying one |
+|---|---|---|
+| this tree, `b::getter_call` un-sealed | 37,352 | 7,888 of 27,566 (28.6%) |
+| this tree | 0 | 0 |
+
+Both compile the corpus to **0 output divergences**, and sealing the five builders #3026 did not
+reach left all 37,596 `(file, target)` output hashes byte-identical — so this is a property
+change, not an output change. The corpus carried the ingredients of #3026 in more than a quarter
+of its units the whole time; only the re-walk path made one of them observable.
+
+Two earlier measurements, on the pre-#3053 tree and its 27,548-unit corpus, split that total by
+builder: the merge base scored 37,346, and the tree with #3026's own two builders sealed still
+scored **9,274 across 2,530 units** — the five the report never reached. Built against that
+merge base, the check also fires on #3026's own repro (`state().b` -> `state()().b`).
+
+**[D] The gate's own vacuous green, found by running it against a binding that lacks it.**
+Pointed at a `main` binding — a tree with five of the seven read builders still unsealed — the
+first version reported `0 violations`, because a compiler with no check compiled in prints
+nothing and silence was read as success. The compiler now announces
+`RSVELTE_IDEMPOTENCY_ARMED` from **inside** the comparison and the script exits 2 without it,
+so "the binding predates the check", "the variable was never read" and "the entry point was
+never reached" all fail instead of passing. What remains is 28f.
+
+### 37a — the server transform is not in the population [S]
+
+`generate: 'server'` registers no identifier transforms, so the entry point never runs there. A
+server-side double-application would be invisible to this gate. Both client modes are swept
+because dev reaches codegen paths prod does not.
+
+### 37b — only the top-level entry is checked, not `…_with_shadowed` [S]
+
+The check sits in `apply_transforms_to_expression`. `apply_transforms_to_expression_with_shadowed`
+is public and called directly (`each_block.rs`, `types.rs`), and those calls are unchecked — a
+non-idempotent transform reachable only through a shadowed-scope walk would not be seen. Nesting
+is suppressed by a thread-local so the check does not go quadratic, which means the outermost
+call is the only one that reports.
+
+### 37c — the comparison is a print from the fallback text printer [S]
+
+`generate_expr` renders `Raw` and the nodes it does not support opaquely or truncated, so a
+divergence inside one of those is erased before the comparison. Truncated prints are *skipped*
+rather than reported (an unbalanced bracket count is the tell): measured on the first sweep, 12
+of 1,153 unique divergent pairs were printer truncations and the other 1,141 were the real
+class. The direction of this limit is one-sided — the printer can hide a divergence, never
+invent one.
+
+### 37d — idempotent is not correct [S]
+
+A transform that produces the wrong expression *consistently* satisfies this gate. It answers
+"can a second pass change this", nothing else; what the first pass should have produced is the
+output gates' question. Read it as a necessary condition that no amount of corpus growth would
+otherwise supply, not as a correctness proof.
+
+### 37e — it runs in one job, on a corpus that must already be collected [S]
+
+Wired into `corpus-compat.yml`'s `Compiler parity` job, after `collect.mjs` and before
+`compile.mjs`. It refuses below 1,000 manifest components and refuses if the worker reports
+fewer units than that, so a wiped `sources/` tree fails instead of passing vacuously — the
+`vacuous green` class at the top of this file.
+
+### 37f — the armed marker proves the check ran, not that it still compares [S]
+
+A comparison that regressed to always-equal would emit the armed line and no violations, and
+this script cannot tell that from a clean tree. The reporting rule — including the
+truncated-print skip — is therefore factored into `idempotency_report` and pinned by a unit
+test (`idempotency_report_tests`), which is where that failure mode is caught. The remaining
+uncovered case is a break in the *re-application* itself (a second pass that silently becomes a
+no-op for the wrong reason); nothing here would see it.
+
+---
+
 ## Cross-cutting
 
 ### C0. A ratchet key is a lossy encoding, and it loses in two directions

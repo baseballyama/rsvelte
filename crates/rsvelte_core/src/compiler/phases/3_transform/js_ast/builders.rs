@@ -997,6 +997,20 @@ pub fn call(arena: &JsArena, callee: JsExpr, arguments: Vec<JsExpr>) -> JsExpr {
     })
 }
 
+/// Create the getter call a read transform produces (`x` -> `x()`).
+///
+/// A source-level `x()` and a transform-produced `x()` are the same shape, so the
+/// callee is marked opaque: without it a second `apply_transforms_to_expression`
+/// pass over an already-transformed subtree reads the binding twice (`x()()`).
+#[inline]
+pub fn getter_call(arena: &JsArena, node: JsExpr) -> JsExpr {
+    let callee = match node {
+        JsExpr::Identifier(ref name) => JsExpr::OpaqueIdentifier(name.clone()),
+        _ => node,
+    };
+    call(arena, callee, vec![])
+}
+
 /// Create a call expression with trailing undefined/false arguments stripped.
 ///
 /// This matches the behavior of the official Svelte compiler's `b.call()` function

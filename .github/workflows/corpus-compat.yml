@@ -258,6 +258,15 @@ jobs:
       - name: Collect corpus
         run: node scripts/compat-corpus/collect.mjs
 
+      # Asserts a PROPERTY of the transform rather than comparing its output, so
+      # it sees the #3026 class on inputs whose output is byte-perfect: un-seal
+      # `b::getter_call` and 7,888 of 27,566 corpus units violate it while the
+      # output gate still scores 0 divergences. Hard gate, no ratchet.
+      - name: Transform idempotency (client identifier transforms)
+        env:
+          RSVELTE_ASSERT_TRANSFORM_IDEMPOTENT: '1'
+        run: node scripts/compat-corpus/idempotency-verify.mjs
+
       - name: Compile corpus (official svelte + rsvelte, CSR + SSR + CSR dev)
         run: node scripts/compat-corpus/compile.mjs
 
