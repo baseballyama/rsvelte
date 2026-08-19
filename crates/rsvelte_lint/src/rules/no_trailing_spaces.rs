@@ -204,17 +204,22 @@ impl Rule for NoTrailingSpaces {
             collect_html_comments(&root.fragment.nodes, &li, &mut ignore_lines);
         }
 
-        // Scan every physical line. ESLint's `sourceCode.lines` splits on
-        // `\r\n`, lone `\r`, and `\n` (a lone `\r` terminates a line, matching
-        // `LineIndex`).
+        // Scan every physical line. This rule reads `sourceCode.lines`, so it
+        // uses ESLint's terminator set — `\r\n`, lone `\r`, `\n`, and also
+        // U+2028 / U+2029, which are line terminators to JavaScript. (Rules that
+        // report an AST node's `loc` instead get the parser's CR/LF-only lines;
+        // see `uses_eslint_line_table`.)
         let bytes = source.as_bytes();
         let mut line_start_byte: usize = 0;
         let mut line_number: u32 = 1;
         loop {
-            let terminator = bytes[line_start_byte..]
-                .iter()
-                .position(|&b| b == b'\n' || b == b'\r')
-                .map(|off| line_start_byte + off);
+            let terminator = (line_start_byte..bytes.len()).find(|&i| {
+                bytes[i] == b'\n'
+                    || bytes[i] == b'\r'
+                    || (bytes[i] == 0xE2
+                        && bytes.get(i + 1) == Some(&0x80)
+                        && matches!(bytes.get(i + 2), Some(0xA8 | 0xA9)))
+            });
             let content_end = terminator.unwrap_or(source.len());
             let line = &source[line_start_byte..content_end];
 
@@ -231,6 +236,8 @@ impl Rule for NoTrailingSpaces {
                 Some(pos) => {
                     let width = if bytes[pos] == b'\r' && bytes.get(pos + 1) == Some(&b'\n') {
                         2
+                    } else if bytes[pos] == 0xE2 {
+                        3
                     } else {
                         1
                     };

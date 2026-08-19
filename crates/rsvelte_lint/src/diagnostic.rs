@@ -146,6 +146,9 @@ fn uses_eslint_line_table(rule: &str) -> bool {
             | "svelte/html-quotes"
             | "svelte/html-self-closing"
             | "svelte/no-spaces-around-equal-signs-in-attribute"
+            // Reads `sourceCode.lines` rather than calling `getLocFromIndex`,
+            // which is the same line table.
+            | "svelte/no-trailing-spaces"
             | "svelte/no-unused-svelte-ignore"
     )
 }
