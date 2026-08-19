@@ -117,6 +117,8 @@
 		"lint-corpus:oracle-install": "npm --prefix scripts/compat-corpus/lint-oracle install --no-package-lock",
 		"lint-corpus:collect": "node scripts/compat-corpus/lint-collect.mjs --ci",
 		"lint-corpus:verify": "node scripts/compat-corpus/lint-verify.mjs",
+		"lint-adversarial": "node scripts/compat-corpus/lint-adversarial.mjs",
+		"lint-adversarial:update": "node scripts/compat-corpus/lint-adversarial.mjs --update",
 		"lint-corpus:update": "node scripts/compat-corpus/lint-verify.mjs --update",
 		"lint-corpus": "pnpm run lint-corpus:sync && pnpm run lint-corpus:oracle-install && pnpm run lint-corpus:collect && pnpm run lint-corpus:verify",
 		"check-corpus:oracle-install": "npm --prefix scripts/compat-corpus/check-oracle install --no-package-lock",

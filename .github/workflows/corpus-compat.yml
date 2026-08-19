@@ -456,6 +456,12 @@ jobs:
       - name: Install lint oracle (real eslint-plugin-svelte)
         run: npm --prefix scripts/compat-corpus/lint-oracle install --no-package-lock
 
+      # Before the collected corpus: these patterns are committed, so the step
+      # needs no submodule sources and fails fast on a rule regression that
+      # published code does not happen to contain.
+      - name: Verify adversarial lint parity (ratchet against lint-adversarial-known-failures.json)
+        run: node scripts/compat-corpus/lint-adversarial.mjs
+
       - name: Collect lint corpus
         run: node scripts/compat-corpus/lint-collect.mjs --ci
 

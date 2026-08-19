@@ -2255,6 +2255,75 @@ else in the repo runs it.
 
 ---
 
+## 28. Adversarial lint patterns — `scripts/compat-corpus/lint-adversarial.mjs`
+
+**Unit.** Per pattern file, a **Set** of `` `${ruleId}\t${line}:${col}\t${message}` `` — the same
+key as gate 11, over a **constructed** population (`compatibility/lint-adversarial/`, 808 patterns
+across 74 rules) instead of a collected one. Ratchet
+`compatibility/lint-adversarial-known-failures.json`, justified per entry in the paired `.md`,
+expected to stay at its four entries rather than to burn down.
+
+**Why it exists.** Gate 11 samples the *marginal* distribution of published Svelte: it graded
+73k findings and sat at 104 divergences, saturated enough to read as "the port is close". The
+first run of this gate reported **330** on inputs written to separate two implementations of one
+rule — the same lesson as the shape matrix one layer up (§ *Generated shape matrix*): corpus size
+is not the axis, input construction is. The classes it found are not exotic; they are the ones a
+port acquires by approximating an AST question with a text scan, and each was invisible to gate 11
+only because published code does not contain the discriminating shape.
+
+### Blind spot 28a — the author's axis is the coverage bound — **[S]**
+
+Every pattern was written by reading one upstream rule and asking what a plausible port would get
+wrong. That makes the generator's blind spot the author's blind spot, by construction — the same
+hazard § *Generated shape matrix* records for the compiler families, where #2535's over-prune
+shipped past 1,955 green rows because no row carried a two-compound parent. Concretely: rules
+whose divergence needs *two* interacting features (an option **and** an exotic host, say) are
+sampled only where an author happened to cross them. The complement remains gate 11's job.
+
+### Blind spot 28b — no autofix, no suggestion, no severity — **[S]**
+
+Inherited from gate 11's key (11d): `--format sarif` carries `fixes` and `level`, and
+`lint-adversarial.mjs` reads neither (`:118-127`). A rule that reports at the right position with
+the right text and then rewrites the source differently is invisible here. The compensating
+control is `crates/rsvelte_lint/tests/eslint_plugin_oracle.rs`, which compares suggestion
+`{desc, output}` pairs and byte-compares `*-output.svelte` for every fixable rule — but only over
+upstream's fixtures, and **only over the fixtures it does not skip** (~80 SKIP fragments).
+
+### Blind spot 28c — the intersection of both skip lists is graded by nothing but the collected corpus — **[D]**
+
+A fixture on `eslint_plugin_oracle.rs`'s SKIP list is not compared there; if no adversarial
+pattern covers its shape either, the only gate left is gate 11 — and only when the corpus happens
+to contain the file. This is not hypothetical: the store rewrite in this campaign silently lost
+**six findings** on `require-store-reactive-access/invalid/properties01-input.svelte` (a computed
+property key resolves through no oxc reference because its serialized start is the `[`), the
+fixture gate stayed green because that path is skipped, and the adversarial corpus stayed green
+because no pattern used that shape. Gate 11 caught it, as a *new* divergence on an upstream
+fixture file that the corpus happens to collect. **Whenever a SKIP entry is added, ask which gate
+now holds that shape.**
+
+### Blind spot 28d — the oracle is an npm install, and it moved under the ratchet — **[D]**
+
+`lint-oracle/package.json` declared floating ranges installed with `--no-package-lock`, so the
+oracle's own behaviour drifted with whatever npm resolved that day. A
+`no-unused-svelte-ignore` divergence appeared on three upstream fixtures with **no rsvelte
+change** — proven by building the pre-campaign binary and observing byte-identical output from
+both binaries on those files, which leaves the oracle as the only thing that moved. Every version
+is now exact (eslint 9.39.5, eslint-plugin-svelte 3.23.0, svelte 5.56.9, svelte-eslint-parser
+1.8.1, typescript 6.0.3, @typescript-eslint/parser 8.67.0). The eslint major is pinned for a
+second reason: under ESLint 10, eslint-plugin-svelte 3.23.0's `no-reactive-functions` suggestion
+calls `sourceCode.isSpaceBetweenTokens`, removed in that major, so **every positive report for
+that rule throws and the file is scored unparseable instead of compared** — a whole rule's
+positive population silently outside both lint gates. An oracle that is *installed* rather than
+*pinned* is a measuring instrument with no calibration date.
+
+### What it does see that gate 11 cannot — **[D]**
+
+An oracle parse failure is a **hard error** here (`:170-176`), not a skipped file. Gate 11 counts
+23 oracle-unparseable entries per run and moves on, which is correct for collected sources but
+would let a constructed pattern silently measure nothing.
+
+---
+
 ## Cross-cutting
 
 ### C0. A ratchet key is a lossy encoding, and it loses in two directions
