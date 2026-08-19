@@ -9,6 +9,10 @@
 //! which neither the per-node template [`Rule`](crate::rule::Rule) nor the
 //! [`ScriptRule`](crate::script::ScriptRule) trait can see together. A focused
 //! source scan over the `<script>` region keeps them simple and dependency-free.
+//!
+//! Only `script_is_ts` is reachable without the `native` feature, because the
+//! meta rules the rest serves are native-only.
+#![cfg_attr(not(feature = "native"), allow(dead_code))]
 
 use rsvelte_core::compiler::utils::{char_at, char_before, is_js_ident_continue};
 

@@ -36,8 +36,8 @@ mod runes_mode;
 pub mod scope;
 pub mod script;
 pub mod suppression;
-pub mod sveltekit;
 pub mod svelte_scan;
+pub mod sveltekit;
 pub mod type_backend;
 pub mod visitor;
 
