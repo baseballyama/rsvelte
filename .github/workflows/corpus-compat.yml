@@ -462,6 +462,27 @@ jobs:
       - name: Verify adversarial lint parity (ratchet against lint-adversarial-known-failures.json)
         run: node scripts/compat-corpus/lint-adversarial.mjs
 
+      # The report gate above compares diagnostics; a rule's autofix is a
+      # separate output that no other gate reads.
+      - name: Verify adversarial lint autofix parity (ratchet against lint-adversarial-fix-known-failures.json)
+        run: node scripts/compat-corpus/lint-adversarial-fix.mjs
+
+      # And a suggestion is neither a report nor a fix, so it is outside both
+      # of the steps above.
+      - name: Verify adversarial lint suggestion parity (ratchet against lint-adversarial-suggest-known-failures.json)
+        run: node scripts/compat-corpus/lint-adversarial-suggest.mjs
+
+      # The start position is compared by the report gate; the END is not, and a
+      # rule can underline the wrong region while agreeing about everything else.
+      - name: Verify adversarial lint end-position parity (ratchet against lint-adversarial-end-known-failures.json)
+        run: node scripts/compat-corpus/lint-adversarial-end.mjs
+
+      # Same sources, different project manifests: the adversarial corpus
+      # declares @sveltejs/kit for its whole tree, so it cannot vary the one
+      # input that decides whether five SvelteKit-gated rules run at all.
+      - name: Verify lint environment parity (ratchet against lint-env-known-failures.json)
+        run: node scripts/compat-corpus/lint-env.mjs
+
       - name: Collect lint corpus
         run: node scripts/compat-corpus/lint-collect.mjs --ci
 

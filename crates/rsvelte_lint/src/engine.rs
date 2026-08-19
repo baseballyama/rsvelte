@@ -87,12 +87,16 @@ pub(crate) fn run_native_rules_on_root(
     scope_resolver: Option<&ScopeResolver>,
 ) -> Vec<LintDiagnostic> {
     let rules = all_rules();
+    let sveltekit = crate::sveltekit::available(path);
     let enabled: Vec<EnabledRule> = rules
         .iter()
         .filter_map(|r| {
             let meta = r.meta();
             let severity = config.severity_for(meta);
             if severity == Severity::Off {
+                return None;
+            }
+            if !sveltekit && crate::sveltekit::is_sveltekit_only(meta.name) {
                 return None;
             }
             Some(EnabledRule {
@@ -168,13 +172,20 @@ type EnabledScriptRule<'a> = (&'a dyn ScriptRule, &'static RuleMeta, Severity);
 fn enabled_script_rules<'a>(
     rules: &'a [Box<dyn ScriptRule>],
     config: &LintConfig,
+    path: Option<&Path>,
 ) -> Vec<EnabledScriptRule<'a>> {
+    let sveltekit = crate::sveltekit::available(path);
     rules
         .iter()
         .filter_map(|r| {
             let meta = r.meta();
             let severity = config.severity_for(meta);
-            (severity != Severity::Off).then_some((r.as_ref(), meta, severity))
+            if severity == Severity::Off
+                || (!sveltekit && crate::sveltekit::is_sveltekit_only(meta.name))
+            {
+                return None;
+            }
+            Some((r.as_ref(), meta, severity))
         })
         .collect()
 }
@@ -289,7 +300,7 @@ pub fn run_script_rules_with_path(
     path: Option<&Path>,
 ) -> Vec<LintDiagnostic> {
     let rules = all_script_rules();
-    let enabled = enabled_script_rules(&rules, config);
+    let enabled = enabled_script_rules(&rules, config, path);
     if enabled.is_empty() {
         return Vec::new();
     }
@@ -317,7 +328,7 @@ pub(crate) fn run_script_rules_on_root(
     scope_resolver: Option<&ScopeResolver>,
 ) -> Vec<LintDiagnostic> {
     let rules = all_script_rules();
-    let enabled = enabled_script_rules(&rules, config);
+    let enabled = enabled_script_rules(&rules, config, path);
     if enabled.is_empty() {
         return Vec::new();
     }
@@ -365,7 +376,10 @@ pub fn run_script_rules_module(
     config: &LintConfig,
 ) -> Vec<LintDiagnostic> {
     let rules = all_script_rules();
-    let enabled = enabled_script_rules(&rules, config);
+    // Only an absolute filename names a location a dependency walk can start
+    // from; anything else is treated as "no path" and stays permissive.
+    let as_path = Path::new(filename);
+    let enabled = enabled_script_rules(&rules, config, as_path.is_absolute().then_some(as_path));
     if enabled.is_empty() {
         return Vec::new();
     }

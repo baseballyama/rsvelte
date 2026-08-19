@@ -215,7 +215,7 @@ pub fn lint_source_messages(
     };
 
     // 4. Suppression directives (eslint-disable* + svelte-ignore).
-    let suppressions = Suppressions::collect(source);
+    let suppressions = Suppressions::collect_for(source, &file.to_string_lossy());
     diagnostics.retain(|m| match (&m.diagnostic.code, &m.diagnostic.range) {
         (Some(code), Some(range)) => !suppressions.is_suppressed(code, range.start.line),
         _ => true,
@@ -291,7 +291,7 @@ pub fn lint_source_raw(source: &str, file: &Path, config: &LintConfig) -> Vec<Li
         }
     };
 
-    let suppressions = Suppressions::collect(source);
+    let suppressions = Suppressions::collect_for(source, &file.to_string_lossy());
     diags.retain(|d| !suppressions.is_suppressed(&d.rule, line_index.line(d.start)));
     diags.sort_by_key(|d| (line_index.line(d.start), d.start));
     diags
@@ -324,7 +324,7 @@ pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
 #[must_use]
 pub fn fix_source_at(source: &str, config: &LintConfig, filename: &str) -> FixResult {
     let line_index = LineIndex::new(source);
-    let suppressions = Suppressions::collect(source);
+    let suppressions = Suppressions::collect_for(source, filename);
     let effective = crate::inline_config::apply(source, config);
     let config = &effective;
 
@@ -462,6 +462,24 @@ pub fn lint_file(path: &Path, config: &LintConfig) -> std::io::Result<Vec<Diagno
         ..Default::default()
     };
     Ok(lint_source(&source, path, &options, config))
+}
+
+/// Lint a file on disk, keeping each finding's `fix` / `suggestions` payload.
+///
+/// # Errors
+///
+/// Returns an error when the file cannot be read.
+#[cfg(feature = "native")]
+pub fn lint_file_messages(
+    path: &Path,
+    config: &LintConfig,
+) -> std::io::Result<Vec<crate::diagnostic::LintMessage>> {
+    let source = std::fs::read_to_string(path)?;
+    let options = CompileOptions {
+        filename: Some(path.display().to_string()),
+        ..Default::default()
+    };
+    Ok(lint_source_messages(&source, path, &options, config))
 }
 
 #[cfg(test)]

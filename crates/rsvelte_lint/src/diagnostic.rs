@@ -106,6 +106,13 @@ pub struct LintMessage {
 }
 
 #[cfg(feature = "native")]
+impl From<Diagnostic> for LintMessage {
+    fn from(diagnostic: Diagnostic) -> Self {
+        Self::from_diagnostic(diagnostic)
+    }
+}
+
+#[cfg(feature = "native")]
 impl LintMessage {
     /// Wrap a rule finding, keeping its fix payload alongside the converted
     /// line/column diagnostic.
@@ -121,7 +128,8 @@ impl LintMessage {
 
     /// Wrap a diagnostic that has no fix payload (validator wrap, source-scan
     /// meta rules).
-    pub(crate) const fn from_diagnostic(diagnostic: Diagnostic) -> Self {
+    #[must_use]
+    pub const fn from_diagnostic(diagnostic: Diagnostic) -> Self {
         Self {
             diagnostic,
             span: None,

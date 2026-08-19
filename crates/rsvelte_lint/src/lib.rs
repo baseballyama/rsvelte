@@ -21,6 +21,7 @@ pub mod compiler_scope;
 pub mod config;
 pub mod context;
 pub mod diagnostic;
+pub mod directive_regions;
 pub mod engine;
 pub mod inline_config;
 pub mod line_index;
@@ -34,6 +35,7 @@ pub mod rules;
 pub mod scope;
 pub mod script;
 pub mod suppression;
+pub mod sveltekit;
 // Source-scan helpers used only by the native-only meta rules above.
 #[cfg(feature = "native")]
 pub mod svelte_scan;
@@ -68,7 +70,11 @@ pub use diagnostic::{Fix, LintDiagnostic, Suggestion, TextEdit};
 pub use rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
 
 #[cfg(feature = "native")]
+pub use output::render_messages;
+#[cfg(feature = "native")]
 pub use output::{LintFormat, render};
+#[cfg(feature = "native")]
+pub use runner::lint_file_messages;
 #[cfg(feature = "native")]
 pub use runner::{
     FixResult, fix_all, fix_source, fix_source_at, lint_file, lint_source, lint_source_messages,

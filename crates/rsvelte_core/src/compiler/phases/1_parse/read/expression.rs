@@ -3524,6 +3524,29 @@ fn convert_ts_type_parameter(
 /// svelte/compiler's flat `parameters` array. acorn-typescript parses `this: T`
 /// as an ordinary parameter pattern (not a distinct node), so a `this` param is
 /// prepended as a plain `Identifier` named `"this"`.
+/// TSESTree models a TypeScript `this` parameter as an ordinary leading
+/// parameter named `this`, which is what rules indexing `params[0]` see.
+fn convert_this_param(
+    arena: &ParseArena,
+    this_param: &oxc_ast::ast::TSThisParameter,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    let start = offset + this_param.span.start as usize;
+    let end = offset + this_param.span.end as usize;
+    let mut obj = Map::new();
+    obj.set_field("type", Value::String("Identifier".to_string()));
+    push_span_fields(&mut obj, start, end, line_offsets);
+    obj.set_field("name", Value::String("this".to_string()));
+    if let Some(type_ann) = &this_param.type_annotation {
+        obj.set_field(
+            "typeAnnotation",
+            convert_type_annotation_adjusted(arena, type_ann, offset, line_offsets),
+        );
+    }
+    Value::Object(obj)
+}
+
 fn convert_ts_function_like_params(
     arena: &ParseArena,
     this_param: Option<&oxc_ast::ast::TSThisParameter>,
@@ -3536,19 +3559,7 @@ fn convert_ts_function_like_params(
     );
 
     if let Some(this_param) = this_param {
-        let start = offset + this_param.span.start as usize;
-        let end = offset + this_param.span.end as usize;
-        let mut obj = Map::new();
-        obj.set_field("type", Value::String("Identifier".to_string()));
-        push_span_fields(&mut obj, start, end, line_offsets);
-        obj.set_field("name", Value::String("this".to_string()));
-        if let Some(type_ann) = &this_param.type_annotation {
-            obj.set_field(
-                "typeAnnotation",
-                convert_type_annotation_adjusted(arena, type_ann, offset, line_offsets),
-            );
-        }
-        out.push(Value::Object(obj));
+        out.push(convert_this_param(arena, this_param, offset, line_offsets));
     }
 
     for param in &params.items {
@@ -8477,6 +8488,12 @@ fn convert_declaration_for_program(
 
             // Convert params
             let mut params: Vec<Value> = func_decl
+                .this_param
+                .as_deref()
+                .map(|p| convert_this_param(arena, p, offset, line_offsets))
+                .into_iter()
+                .collect();
+            params.extend(func_decl
                 .params
                 .items
                 .iter()
@@ -8484,8 +8501,7 @@ fn convert_declaration_for_program(
                     convert_formal_parameter(arena, param, offset, line_offsets)
                         .as_json()
                         .clone()
-                })
-                .collect();
+                }));
             if let Some(rest) = &func_decl.params.rest {
                 let rest_start = offset + rest.span.start as usize;
                 let rest_end = offset + rest.span.end as usize;
@@ -10030,7 +10046,9 @@ fn convert_class_element_for_program_as_node(
         // AccessorProperty: the Value path emits a `PropertyDefinition` with an
         // `accessor: true` field that the typed variant can't carry.
         oxc_ast::ast::ClassElement::AccessorProperty(_) => TypedClassElem::Bail,
-        // StaticBlock and TS-only members are dropped by the Value path (`_ => None`).
+        // No typed variant carries a static block; the Value blob emits it.
+        oxc_ast::ast::ClassElement::StaticBlock(_) => TypedClassElem::Bail,
+        // TS-only members are dropped by the Value path (`_ => None`).
         _ => TypedClassElem::Skip,
     }
 }
@@ -10132,6 +10150,23 @@ fn convert_class_element_for_program(
 
             Some(Value::Object(obj))
         }
+        oxc_ast::ast::ClassElement::StaticBlock(static_block) => {
+            let start = offset + static_block.span.start as usize;
+            let end = offset + static_block.span.end as usize;
+            let mut obj = Map::new();
+            obj.set_field("type", Value::String("StaticBlock".to_string()));
+            push_span_fields(&mut obj, start, end, line_offsets);
+
+            let body_statements: Vec<Value> = static_block
+                .body
+                .iter()
+                .filter_map(|stmt| convert_statement_for_program(arena, stmt, offset, line_offsets))
+                .map(|node| node.to_value())
+                .collect();
+            obj.set_field("body", Value::Array(body_statements));
+
+            Some(Value::Object(obj))
+        }
         _ => None,
     }
 }
@@ -10154,15 +10189,16 @@ fn convert_function_expression_for_program(
 
     // params
     let mut params: Vec<Value> = func
-        .params
-        .items
-        .iter()
-        .map(|param| {
-            convert_formal_parameter(arena, param, offset, line_offsets)
-                .as_json()
-                .clone()
-        })
+        .this_param
+        .as_deref()
+        .map(|p| convert_this_param(arena, p, offset, line_offsets))
+        .into_iter()
         .collect();
+    params.extend(func.params.items.iter().map(|param| {
+        convert_formal_parameter(arena, param, offset, line_offsets)
+            .as_json()
+            .clone()
+    }));
     if let Some(rest) = &func.params.rest {
         let rest_start = offset + rest.span.start as usize;
         let rest_end = offset + rest.span.end as usize;
@@ -10215,11 +10251,17 @@ fn convert_function_expression_for_program_as_node(
 
     // params
     let mut params: Vec<JsNode> = func
-        .params
-        .items
-        .iter()
-        .map(|param| expr_to_node(convert_formal_parameter(arena, param, offset, line_offsets)))
+        .this_param
+        .as_deref()
+        .map(|p| expr_to_node(Expression::from_json(convert_this_param(arena, p, offset, line_offsets))))
+        .into_iter()
         .collect();
+    params.extend(
+        func.params
+            .items
+            .iter()
+            .map(|param| expr_to_node(convert_formal_parameter(arena, param, offset, line_offsets))),
+    );
     if let Some(rest) = &func.params.rest {
         let rest_start = offset + rest.span.start as usize;
         let rest_end = offset + rest.span.end as usize;
