@@ -497,7 +497,8 @@ key is comparable to its phase-1 twin and a divergence is a state-transition dif
 phase is in the ratchet key, because an opened-phase entry would otherwise suppress the post-edit
 divergence in the same `(unit, method)`.
 Upstream ships **no** end-to-end protocol test, so the harness is built from scratch, and a baseline
-update needs the complete nine-artifact union at one project/language-tools/corpus revision — a
+update needs the complete 17-artifact union (`CORPUS_SHARDS` + the fixture unit) at one
+project/language-tools/corpus revision — a
 partial run cannot shrink it.
 
 **The measurement is a property of the installed tree, not only of the sources.** The `.svelte.tsx`
@@ -885,6 +886,21 @@ column in the default CLI output and every CI annotation was one short**, `4:0` 
 `4:1`, while `machine` and `sarif` were right. The `github-actions` unit test asserted the wrong
 value, encoding the behaviour instead of the convention. Ask of an output gate not only "what does
 the key drop" but "**which serializer does the oracle exercise**".
+
+**The next question after that is which ENTRY POINT it exercises, and it found a fourth copy of one
+decision.** All ~8 lint gates drive the CLI, so every one of them goes through `runner.rs`; the wasm
+playground and the NAPI addon instead wrap `json_api.rs`, which **no gate drives**. Both must decide
+the same thing — the seven rules in `uses_eslint_line_table` report on ESLint's table, where U+2028 /
+U+2029 end a line, and every other rule reports on the parser's — and `json_api` answered it with a
+blanket `line_index.position()`, so the bindings put those seven rules on a different line and column
+than the CLI does for one source. It could not have shared the CLI's answer even in principle:
+`report_line` and `uses_eslint_line_table` were `#[cfg(feature = "native")]` while `json_api` is not,
+which is the mechanism that let a fourth copy exist. The decision is now one un-gated
+`LintDiagnostic::report_span`, with the four upstream-measured verdicts pinned as a test — a directive
+is located on the parser table and filtered against the reporting rule's table, so **a U+2028 before
+the directive shields the parser-table rule and not the ESLint-table one, and one after it shields the
+reverse**. When a shared crate has a native and a non-native surface, `#[cfg]` is where the ports
+diverge silently.
 
 **A probe that uses a configuration no user writes measures a different product.** `extends:
 ["none"]` — which only the gates use, to isolate one rule — also disables the parse-error

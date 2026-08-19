@@ -284,7 +284,8 @@ divergence that needs a different dependency graph is outside it.
 
 The corpus aggregate key was `divergentRequestCount` + raw field count + a digest over every sorted
 `(position, diff pointers)` observation, which reads as full sensitivity. It is not reproducible.
-Two complete nine-artifact sweeps of one revision, one language-tools revision and one corpus
+Two complete sweeps of one revision, one language-tools revision and one corpus
+(nine artifacts each — taken before `CORPUS_SHARDS` doubled to 16)
 revision — measured after 27e removed the deadline race — disagree on **664 of 16,348 keys**: 661
 differ in the digest alone and 3 in the field count, while `divergentRequestCount` agrees on all
 664. The churn is not spread across methods: `textDocument/completion` owns 661 of the 664 (18.2%
@@ -351,6 +352,29 @@ on the run, not a measure of the oracle's quality. Two things it does not cover:
 corpus populations have no upstream snapshot at all, so **the oracle is calibrated on 125 of the
 gate's units and on none of the other ~14,000**; and the calibration reads the pristine document
 only — a post-edit phase (27b) is not calibrated, because upstream has no snapshot for one.
+
+### Blind spot 27i — a diagnostic's severity is unobservable, and lint findings are never paired at all [D]
+
+`diff.mjs:19` keys a diagnostic on `digest([value.code, value.source, value.range?.start])`. The
+string `severity` does not occur anywhere in `diff.mjs`, and no `/severity` key exists in the
+baseline's 32,673 entries: **a rule that changes severity on both sides, or on one, moves nothing
+here.** This is worth stating because severity is not cosmetic — it decides `rsvelte-lint`'s exit
+code (gate 33), so the one field that makes a lint finding fail a build is invisible to the gate
+that compares the servers emitting it.
+
+`source` being *in* the key removes the lint population a second way. rsvelte tags its lint
+diagnostics `source: "rsvelte"` (`code_actions.rs:476`), a string official never emits, so every
+such finding hashes to an identity with no counterpart and is reported as
+added/removed rather than compared field by field. Nothing about a paired lint finding — severity,
+message, end position — is ever observed by this gate.
+
+This row exists because a re-baseline was justified by the opposite claim. The 64-for-64 swap in
+`54109fd99` attributes 48 entries to "the severity itself"; it cannot be, by the key above. The
+entries are correct and the reasoning was not: **60 come from the parse-error span/message change
+in `crates/rsvelte_lint/src/validator.rs`** — the identity moved off `{parse-error, svelte, 0:0}`
+onto real positions — and **4 from the `no-dupe-on-directives` start-tag fix**. An unchanged entry
+count with changed hashes says the identity moved, and says nothing about which field did it;
+inverting the hashes is what answers that.
 
 ---
 
