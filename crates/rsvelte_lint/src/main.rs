@@ -14,7 +14,7 @@ use rayon::prelude::*;
 use rsvelte_diagnostics::{Diagnostic, DiagnosticSeverity};
 
 use rsvelte_lint::rule::Severity;
-use rsvelte_lint::{LintConfig, LintFormat, fix_source, lint_file, presets, render};
+use rsvelte_lint::{LintConfig, LintFormat, fix_all, lint_file, presets, render};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -242,7 +242,7 @@ fn fix_one(file: &Path, config: &LintConfig) -> usize {
     let Ok(source) = std::fs::read_to_string(file) else {
         return 0;
     };
-    let Ok(res) = catch_unwind(AssertUnwindSafe(|| fix_source(&source, config))) else {
+    let Ok(res) = catch_unwind(AssertUnwindSafe(|| fix_all(&source, config))) else {
         return 0;
     };
     if res.applied > 0 && res.output != source {

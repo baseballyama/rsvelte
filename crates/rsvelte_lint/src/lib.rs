@@ -71,5 +71,5 @@ pub use rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
 pub use output::{LintFormat, render};
 #[cfg(feature = "native")]
 pub use runner::{
-    FixResult, fix_source, lint_file, lint_source, lint_source_messages, lint_source_raw,
+    FixResult, fix_all, fix_source, lint_file, lint_source, lint_source_messages, lint_source_raw,
 };

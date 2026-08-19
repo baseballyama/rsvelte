@@ -382,6 +382,33 @@ pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
     FixResult { output, applied }
 }
 
+/// How many times [`fix_all`] re-lints its own output. ESLint's
+/// `Linter.verifyAndFix` uses the same bound.
+const MAX_AUTOFIX_PASSES: usize = 10;
+
+/// Apply autofixes until the source stops changing (at most
+/// [`MAX_AUTOFIX_PASSES`] passes), the way `eslint --fix` does.
+///
+/// [`fix_source`] is deliberately one pass, because that is what upstream's
+/// `RuleTester` records in its `*-output.svelte` fixtures. A single pass is not
+/// what a user gets from `eslint --fix`, though: two fixes whose ranges conflict
+/// leave the second unapplied, and a fix can expose a shape that is itself
+/// fixable — so one pass under-fixes exactly where a file needs fixing most.
+#[must_use]
+pub fn fix_all(source: &str, config: &LintConfig) -> FixResult {
+    let mut output = source.to_string();
+    let mut applied = 0;
+    for _ in 0..MAX_AUTOFIX_PASSES {
+        let pass = fix_source(&output, config);
+        if pass.applied == 0 || pass.output == output {
+            break;
+        }
+        output = pass.output;
+        applied += pass.applied;
+    }
+    FixResult { output, applied }
+}
+
 /// Whether `rule_id` names a rule rsvelte actually implements. Used by
 /// comment-directive's unused-report to avoid flagging a directive that targets
 /// a rule we cannot evaluate (e.g. core `ESLint` `no-undef`) as unused. In
