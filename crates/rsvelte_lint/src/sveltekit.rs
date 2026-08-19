@@ -41,7 +41,10 @@ pub fn available(path: Option<&Path>) -> bool {
     let Some(path) = path else {
         return true;
     };
-    let Some(dir) = path.parent() else {
+    // A bare filename names no location: `parent()` is `Some("")`, which would
+    // silently resolve the dependency walk against the process's cwd and answer
+    // for a project the file is not in. Treat it as "no path".
+    let Some(dir) = path.parent().filter(|p| !p.as_os_str().is_empty()) else {
         return true;
     };
     let dir = match std::fs::canonicalize(dir) {
@@ -63,29 +66,39 @@ pub fn available(path: Option<&Path>) -> bool {
 }
 
 fn search_upward(start: &Path) -> bool {
+    // Upstream probes every ancestor's `node_modules` first, then reads the
+    // manifests — the order matters only for its own caching, but keeping it
+    // keeps the two readable side by side.
     let mut dir = Some(start);
     while let Some(d) = dir {
         if d.join("node_modules/@sveltejs/kit").is_dir() {
             return true;
         }
-        if package_json_declares_kit(&d.join("package.json")) {
-            return true;
-        }
         dir = d.parent();
     }
-    false
-}
 
-fn package_json_declares_kit(manifest: &Path) -> bool {
-    let Ok(text) = std::fs::read_to_string(manifest) else {
-        return false;
-    };
-    let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) else {
-        return false;
-    };
-    ["dependencies", "devDependencies"].iter().any(|field| {
-        json.get(field)
-            .is_some_and(|d| d.get("@sveltejs/kit").is_some())
+    let manifests: Vec<serde_json::Value> = std::iter::successors(Some(start), |d| d.parent())
+        .filter_map(|d| std::fs::read_to_string(d.join("package.json")).ok())
+        .filter_map(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+        .collect();
+
+    // Upstream's own hack: its CI removes `@sveltejs/kit`, so a file whose
+    // nearest manifest is the plugin package is treated as SvelteKit 2. That is
+    // what makes its RuleTester fixtures exercise the kit-gated rules at all.
+    if manifests
+        .first()
+        .and_then(|m| m.get("name"))
+        .and_then(serde_json::Value::as_str)
+        == Some("eslint-plugin-svelte")
+    {
+        return true;
+    }
+
+    manifests.iter().any(|m| {
+        ["dependencies", "devDependencies"].iter().any(|field| {
+            m.get(field)
+                .is_some_and(|d| d.get("@sveltejs/kit").is_some())
+        })
     })
 }
 

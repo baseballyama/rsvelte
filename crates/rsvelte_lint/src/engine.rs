@@ -169,10 +169,15 @@ fn has_extension(filename: &str, extensions: &[&str]) -> bool {
 type EnabledScriptRule<'a> = (&'a dyn ScriptRule, &'static RuleMeta, Severity);
 
 /// The enabled (non-`Off`) script rules for `config`.
+///
+/// `runes` mirrors upstream's tri-state `svelteParseContext.runes`: `None` is
+/// its `'undetermined'`, which satisfies both a `runes: [false, …]` and a
+/// `runes: [true, …]` condition, so neither side is filtered.
 fn enabled_script_rules<'a>(
     rules: &'a [Box<dyn ScriptRule>],
     config: &LintConfig,
     path: Option<&Path>,
+    runes: Option<bool>,
 ) -> Vec<EnabledScriptRule<'a>> {
     let sveltekit = crate::sveltekit::available(path);
     rules
@@ -182,6 +187,8 @@ fn enabled_script_rules<'a>(
             let severity = config.severity_for(meta);
             if severity == Severity::Off
                 || (!sveltekit && crate::sveltekit::is_sveltekit_only(meta.name))
+                || runes.is_some_and(|r| r && meta.conditions.legacy_only)
+                || runes.is_some_and(|r| !r && meta.conditions.runes_only)
             {
                 return None;
             }
@@ -300,7 +307,7 @@ pub fn run_script_rules_with_path(
     path: Option<&Path>,
 ) -> Vec<LintDiagnostic> {
     let rules = all_script_rules();
-    let enabled = enabled_script_rules(&rules, config, path);
+    let enabled = enabled_script_rules(&rules, config, path, None);
     if enabled.is_empty() {
         return Vec::new();
     }
@@ -328,7 +335,7 @@ pub(crate) fn run_script_rules_on_root(
     scope_resolver: Option<&ScopeResolver>,
 ) -> Vec<LintDiagnostic> {
     let rules = all_script_rules();
-    let enabled = enabled_script_rules(&rules, config, path);
+    let enabled = enabled_script_rules(&rules, config, path, None);
     if enabled.is_empty() {
         return Vec::new();
     }
@@ -374,12 +381,12 @@ pub fn run_script_rules_module(
     filename: &str,
     is_ts: bool,
     config: &LintConfig,
+    path: Option<&Path>,
 ) -> Vec<LintDiagnostic> {
     let rules = all_script_rules();
-    // Only an absolute filename names a location a dependency walk can start
-    // from; anything else is treated as "no path" and stays permissive.
-    let as_path = Path::new(filename);
-    let enabled = enabled_script_rules(&rules, config, as_path.is_absolute().then_some(as_path));
+    // A `.svelte.(js|ts)` module is runes mode by definition, which is what
+    // disables upstream's legacy-only rules there.
+    let enabled = enabled_script_rules(&rules, config, path, Some(true));
     if enabled.is_empty() {
         return Vec::new();
     }
@@ -398,7 +405,7 @@ pub fn run_script_rules_module(
         filename,
         config,
         &enabled,
-        None,
+        path,
         resolver.as_ref(),
     )
 }

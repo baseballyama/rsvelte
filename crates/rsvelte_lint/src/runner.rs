@@ -244,7 +244,7 @@ fn module_lint_messages(
     file: &Path,
     line_index: &LineIndex,
 ) -> Vec<LintMessage> {
-    crate::engine::run_script_rules_module(source, filename, ts, config)
+    crate::engine::run_script_rules_module(source, filename, ts, config, Some(file))
         .into_iter()
         .map(|diagnostic| LintMessage::from_lint(diagnostic, file, line_index))
         .collect()
@@ -284,7 +284,7 @@ pub fn lint_source_raw(source: &str, file: &Path, config: &LintConfig) -> Vec<Li
 
     let mut diags = match crate::engine::classify_source(&file.to_string_lossy()) {
         crate::engine::SourceKind::Module { ts } => {
-            crate::engine::run_script_rules_module(source, &filename, ts, config)
+            crate::engine::run_script_rules_module(source, &filename, ts, config, Some(file))
         }
         crate::engine::SourceKind::Svelte => {
             svelte_rule_findings(source, file, &filename, config).0
@@ -334,11 +334,16 @@ pub fn fix_source_at(source: &str, config: &LintConfig, filename: &str) -> FixRe
     // Each fix is kept as a unit (Vec<TextEdit>) to mirror ESLint's per-diagnostic
     // atomic conflict resolution: if the merged range of a fix conflicts with the
     // already-consumed range, the ENTIRE fix is dropped.
-    // Fixes never come from filesystem-aware rules, so no path is threaded here.
+    // A filesystem-aware rule can still be *disabled* by the environment, so the
+    // path is threaded even though no fix depends on it.
     let raw: Vec<LintDiagnostic> = match crate::engine::classify_source(filename) {
-        crate::engine::SourceKind::Module { ts } => {
-            crate::engine::run_script_rules_module(source, filename, ts, config)
-        }
+        crate::engine::SourceKind::Module { ts } => crate::engine::run_script_rules_module(
+            source,
+            filename,
+            ts,
+            config,
+            Some(Path::new(filename)),
+        ),
         crate::engine::SourceKind::Svelte => run_native_rules(source, "", config, None)
             .into_iter()
             .chain(run_script_rules(source, "", config))
