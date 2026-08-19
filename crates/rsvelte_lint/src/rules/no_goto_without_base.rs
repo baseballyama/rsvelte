@@ -10,7 +10,7 @@
 //! this runs as a `check_root` rule over the serialized component and falls back
 //! to `check_program` only for standalone JS/TS modules, which have no root.
 //! `goto` and `base` are matched by resolving each occurrence against that scope
-//! tree (see [`kit_nav`]), not by name, so a parameter named `goto` is not a
+//! tree (see the `kit_nav` module), not by name, so a parameter named `goto` is not a
 //! navigation call and a parameter named `base` is not the base path.
 
 use rsvelte_core::ast::template::Root;

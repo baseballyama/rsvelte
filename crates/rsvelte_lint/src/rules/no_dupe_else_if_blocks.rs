@@ -43,8 +43,8 @@ by previous conditions in the `{#if}` / `{:else if}` chain.";
 /// token stream.
 type OrAnd = Vec<Vec<String>>;
 
-const OR: [u8; 2] = [b'|', b'|'];
-const AND: [u8; 2] = [b'&', b'&'];
+const OR: [u8; 2] = *b"||";
+const AND: [u8; 2] = *b"&&";
 
 /// Mask byte standing for one byte of an opaque literal (string / template /
 /// regex). The mask is built byte-for-byte, so every offset into it is the same

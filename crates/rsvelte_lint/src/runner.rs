@@ -411,7 +411,7 @@ pub fn fix_source_at(source: &str, config: &LintConfig, filename: &str) -> FixRe
 const MAX_AUTOFIX_PASSES: usize = 10;
 
 /// Apply autofixes until the source stops changing (at most
-/// [`MAX_AUTOFIX_PASSES`] passes), the way `eslint --fix` does.
+/// `MAX_AUTOFIX_PASSES` passes), the way `eslint --fix` does.
 ///
 /// [`fix_source`] is deliberately one pass, because that is what upstream's
 /// `RuleTester` records in its `*-output.svelte` fixtures. A single pass is not

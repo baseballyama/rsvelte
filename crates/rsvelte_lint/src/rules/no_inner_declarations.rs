@@ -13,7 +13,7 @@
 //! `"functions"` checks only function declarations; `"both"` also checks `var`
 //! declarations. Under the default `blockScopedFunctions: "allow"` a function
 //! declaration is skipped when the scope enclosing it is strict — see
-//! [`upper_scope_is_strict`], which is why a *block*-scoped one is reported only
+//! `upper_scope_is_strict`, which is why a *block*-scoped one is reported only
 //! with `"disallow"` while `$: function f() {}` is reported either way.
 
 use oxc_allocator::Allocator;

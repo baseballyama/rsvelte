@@ -12,7 +12,7 @@
 //! `$inspect` in template expressions (event handlers, mustache tags).
 //!
 //! "Every `Identifier`" reaches further than the serialized program does, so the
-//! script pass tops it up from a direct parse — see [`recovered_spans`].
+//! script pass tops it up from a direct parse — see `recovered_spans`.
 
 use std::collections::HashSet;
 
