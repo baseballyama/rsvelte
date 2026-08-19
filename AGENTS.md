@@ -214,7 +214,9 @@ that fixes entries must re-baseline in the same PR instead of leaving a backlog 
 same directory holds four sibling shrink-only ratchets, each with per-entry justification in a paired
 `.md`: the formatter-parity gate (`fmt-known-failures.json` / `fmt-oracle-excluded.json`), the
 svelte2tsx output-parity gate (`svelte2tsx-known-failures.json`), the lint output-parity gate
-(`lint-known-failures.json`), and the SCSS-backend gate (`scss-known-failures.json`), which compares
+(`lint-known-failures.json`, whose *constructed* companion
+`lint-adversarial-known-failures.json` is described under `rsvelte_lint` below), and the
+SCSS-backend gate (`scss-known-failures.json`), which compares
 `rsvelte_preprocess`'s `grass` against dart-sass on every SCSS block and `.scss` file in the corpus —
 30 divergences on a 94-unit compared population, so treat `grass` as a near-substitute, not a drop-in. svelte2tsx additionally gates its **source map** (ratchet
 `svelte2tsx-map-known-failures.json`), because the TSX-text gate cannot see the map at all. The two
@@ -684,6 +686,39 @@ Wave 4 architecture (decided; tsgo ships an LSP server as of TypeScript 7, so th
 `eslint-plugin-svelte`'s rules, `crates/rsvelte_lint`) ships as its own npm package,
 [`@rsvelte/lint`](apps/npm/lint), fixed-versioned with `@rsvelte/compiler` via Changesets.
 Its real-world parity corpus ratchet lives at `compatibility/lint-known-failures.json`.
+
+**A lint rule ported as a text scan is a defect waiting for the right input, and the collected
+corpus is the wrong instrument to find it.** That corpus graded 73k findings across 6.7k
+published files and sat at 104 divergences — saturated enough to read as "close". A
+*constructed* corpus (`compatibility/lint-adversarial/`, 808 patterns written by reading each
+upstream rule and asking what a plausible port gets wrong) reported **330 on its first run**,
+against the same comparison key. The recurring causes were not exotic: a `;`-split style-attribute
+scanner blind to CSS comments and quoted strings; `this={…}` on `<svelte:element>` missing from
+the attribute list, so five rules never saw it; ASCII whitespace where upstream uses JS `\s`
+(NBSP, FEFF, `\v`, `\f`); binding resolution by NAME rather than by scope, which is both a false
+positive on a shadow and a false negative past one; element hooks implemented for
+`RegularElement`/`Component` only, while upstream visits every start tag; and script-only rules
+that never look at a template event handler. Fixing them took the adversarial corpus to 4
+accepted entries and the collected one from 104 to 45 — **the collected corpus had been
+suppressing 62 of its own entries' worth of defects it could not phrase**.
+
+Three method notes, each of which cost real time here:
+- **Two of the four remaining entries are not rsvelte being wrong**, and neither is discoverable
+  from the divergence alone: `svelte-eslint-parser` builds no `SvelteStyleElement` for
+  `</style⏎⏎>` (so upstream's rule never runs), and upstream's browser-global set is
+  `globals.browser ∖ globals.node`, which modern Node empties of `navigator`. Probe the oracle on
+  a minimal input before porting a behaviour; the divergence names a symptom, not a cause.
+- **The oracle was an npm install, not a pin.** Floating ranges under `--no-package-lock` moved
+  three ratchet entries with no rsvelte change — proven by building the pre-campaign binary and
+  finding its output byte-identical on those files. Versions are now exact, and `eslint` is held
+  at 9 because eslint-plugin-svelte 3.23.0's `no-reactive-functions` calls an API ESLint 10
+  removed: under 10 every positive report for that rule throws and the file is scored
+  *unparseable* rather than compared, hiding a whole rule's positive population from both gates.
+- **A fixture on `eslint_plugin_oracle.rs`'s SKIP list is graded by nothing else** unless some
+  corpus happens to contain its shape. The store rewrite here silently lost six findings on such
+  a fixture (a computed property key serializes with its start at the `[`, which matches no oxc
+  reference); the fixture gate was green, the adversarial corpus was green, and only the
+  collected corpus caught it. When adding a SKIP entry, name the gate that now holds that shape.
 
 ### Type-aware lint suite (out-of-workspace)
 
