@@ -9,14 +9,15 @@ to separate two plausible implementations of one rule, so a divergence is a
 deliberate probe coming back positive rather than an accident of what published
 code happens to contain.
 
-**The expectation is that this file stays at four entries.** It is not a burndown
-backlog: a new entry needs a reason that is *not* "rsvelte is wrong here", and
-the four below are the only such reasons found across 808 patterns and 74 rules.
-Everything else the corpus surfaced (330 divergences on the first run) was fixed.
+**The expectation is that `lint-adversarial-known-failures.json` stays at 5 entries.**
+It is not a burndown backlog: a new entry needs a reason that is *not*
+"rsvelte is wrong here", and the five below are the only such reasons found
+across 1365 patterns and 74 rules. Everything else the corpus surfaced (330
+divergences on the first run, 35 more when it grew past 1000 patterns) was fixed.
 
 `+` = rsvelte reports, oracle silent. `-` = oracle reports, rsvelte silent.
 
-## The four accepted entries
+## The five accepted entries
 
 ### 1. `html-closing-bracket-new-line/05-script-style-tags.svelte` `+svelte/block-lang 7:1`
 
@@ -66,6 +67,42 @@ performance-critical, for a JS-only construct in one rule's option. Plain and
 `(?i)`-style patterns in `order` are handled and covered by sibling patterns.
 Note the failure is silent today: if this is ever revisited, the first move is to
 make an uncompilable `order` pattern observable rather than to widen the engine.
+
+### 5. `no-nested-style-tag/14-component-lookalike.svelte` `-svelte/html-self-closing 5:8`
+
+`<Style />` — a component whose name differs from `style` only in case. Upstream
+reports `html-self-closing` on it; rsvelte does not, and **rsvelte is right**.
+
+`svelte-eslint-parser` blanks script/style/template blocks out of the template
+before handing it to the Svelte compiler, using
+`/<!--[\s\S]*?-->|<(script|style|template)([\s>])/giu`
+(`lib/context/index.js:236-238`). That regex is **case-insensitive**, so `<Style `
+matches, and the self-closing form is rewritten to `<S---- />`
+(`lib/context/index.js:115-120`), which fails Svelte's component-name test. The
+compiler therefore returns a `RegularElement`, `extractElementTags` restores the
+name, and the rule sees an "HTML element" literally named `Style` →
+`getElementType` `normal` → the default `"never"` → reported.
+
+Verified against the compiler itself rather than inferred:
+`svelte/compiler`'s `parse("<Style />", { modern: true })` yields
+`Component Style`. rsvelte classifies from the compiler AST and agrees with it.
+
+Measured boundary (direct `parseForESLint` probe): `<Style />` and `<Script />`
+land on `html`; `<Style/>` with no space, `<Style></Style>`, `<Styled />`,
+`x<Style />` and `<Template />` (explicitly guarded upstream) all land on
+`component`.
+
+Not reproduced, and that decision is not close. Element kind is shared by every
+template rule, so deliberately misclassifying `<Style />` would have to be
+threaded through all of them to buy this one row — and it would make rsvelte
+disagree with the Svelte compiler about what a component is. Reported at
+[`upstream_issues/svelte-eslint-parser-self-closing-style-lookalike-component.md`](../upstream_issues/svelte-eslint-parser-self-closing-style-lookalike-component.md).
+
+The pattern is kept rather than renamed to a non-colliding component: its subject
+is `no-nested-style-tag`, where both sides agree, and the case-lookalike name is
+the whole point of the input. Expect this entry to disappear if upstream anchors
+that regex case-sensitively; the ratchet is two-sided, so it will fail rather
+than rot.
 
 ## Adding a pattern
 

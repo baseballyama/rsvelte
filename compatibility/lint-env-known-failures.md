@@ -8,7 +8,8 @@ the sources are byte-identical across projects and only the `package.json`
 differs, so a divergence is attributable to the environment and to nothing else.
 The gate asserts that identical-sources invariant rather than trusting it.
 
-**The file is expected to stay empty.** It is not a burndown backlog. An entry
+**`lint-env-known-failures.json` is expected to stay empty, and holds 0 entries
+today.** It is not a burndown backlog. An entry
 here means rsvelte behaves differently from ESLint *because of what the project
 declares*, which is a class of bug users hit on their own machines and no other
 gate can reach.

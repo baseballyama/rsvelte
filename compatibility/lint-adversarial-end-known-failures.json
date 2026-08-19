@@ -1,0 +1,14 @@
+[
+	"block-lang/08-enforce-style-present.svelte|svelte/block-lang 1:2\tnull\t1:3",
+	"block-lang/opt-key-enforce-style-present-only.svelte|svelte/block-lang 1:2\tnull\t1:3",
+	"experimental-require-slot-types/01-basic-report.svelte|svelte/experimental-require-slot-types 1:2\tnull\t1:2",
+	"experimental-require-slot-types/07-module-js-instance-ts.svelte|svelte/experimental-require-slot-types 1:2\tnull\t1:2",
+	"experimental-require-slot-types/08-comment-decoy.svelte|svelte/experimental-require-slot-types 1:2\tnull\t1:2",
+	"experimental-require-slot-types/09-class-decoy.svelte|svelte/experimental-require-slot-types 1:2\tnull\t1:2",
+	"experimental-require-slot-types/11-lang-typescript.svelte|svelte/experimental-require-slot-types 1:2\tnull\t1:2",
+	"experimental-require-slot-types/13-options-runes-false.svelte|svelte/experimental-require-slot-types 1:2\tnull\t1:2",
+	"experimental-require-slot-types/17-slot-inside-blocks.svelte|svelte/experimental-require-slot-types 1:2\tnull\t1:2",
+	"experimental-require-slot-types/19-lang-case-variants.svelte|svelte/experimental-require-slot-types 1:2\tnull\t1:2",
+	"experimental-require-slot-types/21-generics-attribute.svelte|svelte/experimental-require-slot-types 1:2\tnull\t1:2",
+	"experimental-require-slot-types/22-similar-names.svelte|svelte/experimental-require-slot-types 1:2\tnull\t1:2"
+]
