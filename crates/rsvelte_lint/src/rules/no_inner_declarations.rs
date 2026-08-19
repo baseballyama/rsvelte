@@ -15,12 +15,17 @@
 //! block-scoped function declaration is only reported when
 //! `blockScopedFunctions` is `"disallow"` (the default `"allow"` permits it).
 
+use oxc_allocator::Allocator;
+use oxc_ast::AstKind;
+use oxc_parser::{ParseOptions as OxcParseOptions, Parser};
+use oxc_semantic::SemanticBuilder;
+use oxc_span::{GetSpan, SourceType};
 use rsvelte_core::ast::template::Root;
 use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ProgramView, ScriptKind, ScriptRule, node_start, node_type};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-inner-declarations",
@@ -50,6 +55,7 @@ impl ScriptRule for NoInnerDeclarations {
         };
         let mut reports: Vec<(u32, &'static str, &'static str)> = Vec::new();
         program.walk(|node, ancestors| collect(node, ancestors, opts, &mut reports));
+        collect_static_blocks(ctx.source(), program, opts, &mut reports);
         // Upstream sees one `Program` spanning the whole component, so a handler
         // in the template is checked too. Attach that pass to the instance
         // script; `check_root` covers components that have none.
@@ -131,6 +137,102 @@ fn collect<'a>(
         return;
     };
     reports.push((start, kind, body_root(ancestors)));
+}
+
+/// Report declarations nested inside a class `static { … }` block.
+///
+/// The serialized `ESTree` program carries a class body with no members at all
+/// (rsvelte's parse drops `StaticBlock` on the way to JSON), so [`collect`]
+/// cannot reach them — this recovers exactly that population from an oxc parse
+/// of the same script text, and reports nothing a static block does not enclose.
+fn collect_static_blocks(
+    source: &str,
+    program: &ProgramView<'_>,
+    opts: Options,
+    reports: &mut Vec<(u32, &'static str, &'static str)>,
+) {
+    let (Some(base), Some(end)) = (node_start(program.value()), node_end(program.value())) else {
+        return;
+    };
+    if base > end || end as usize > source.len() {
+        return;
+    }
+    let body = &source[base as usize..end as usize];
+    let allocator = Allocator::default();
+    // TS grammar is a superset of what a lint-accepted script body contains, so
+    // one TS parse covers both script languages.
+    let parsed = Parser::new(&allocator, body, SourceType::ts().with_module(true))
+        .with_options(OxcParseOptions {
+            allow_return_outside_function: true,
+            ..OxcParseOptions::default()
+        })
+        .parse();
+    let parsed_program = allocator.alloc(parsed.program);
+    let semantic = SemanticBuilder::new()
+        .with_build_nodes(true)
+        .build(parsed_program)
+        .semantic;
+    let nodes = semantic.nodes();
+    for node in nodes.iter() {
+        let kind = match node.kind() {
+            AstKind::Function(function) if opts.functions && function.is_function_declaration() => {
+                "function"
+            }
+            AstKind::VariableDeclaration(declaration) if opts.vars && declaration.kind.is_var() => {
+                "variable"
+            }
+            _ => continue,
+        };
+        let ancestors = nodes.ancestor_kinds(node.id());
+        // `oxc_is_inner` consumes up to two links, one of which can be the very
+        // static block the body-root walk needs to see.
+        if !oxc_is_inner(&mut ancestors.clone()) {
+            continue;
+        }
+        if let Some(place) = static_block_body_root(ancestors) {
+            reports.push((base + node.span().start, kind, place));
+        }
+    }
+}
+
+/// [`is_inner`] over an oxc ancestor chain (parent first). A function body is
+/// its own `FunctionBody` node in oxc, standing in for `ESTree`'s
+/// `BlockStatement` whose parent is a function.
+fn oxc_is_inner<'a>(ancestors: &mut impl Iterator<Item = AstKind<'a>>) -> bool {
+    match ancestors.next() {
+        None => false,
+        Some(
+            AstKind::Program(_)
+            | AstKind::StaticBlock(_)
+            | AstKind::FunctionBody(_)
+            | AstKind::ExportNamedDeclaration(_)
+            | AstKind::ExportDefaultDeclaration(_),
+        ) => false,
+        Some(AstKind::BlockStatement(_)) => !matches!(
+            ancestors.next(),
+            Some(AstKind::Function(_) | AstKind::ArrowFunctionExpression(_))
+        ),
+        Some(_) => true,
+    }
+}
+
+/// [`body_root`] over an oxc ancestor chain, restricted to declarations a class
+/// static block encloses: `None` means no static block is in the chain, which
+/// is the case [`collect`] already covers from the JSON program.
+fn static_block_body_root<'a>(
+    ancestors: impl Iterator<Item = AstKind<'a>>,
+) -> Option<&'static str> {
+    let mut nearest = None;
+    for kind in ancestors {
+        match kind {
+            AstKind::StaticBlock(_) => return Some(nearest.unwrap_or("class static block body")),
+            AstKind::Function(_) | AstKind::ArrowFunctionExpression(_) if nearest.is_none() => {
+                nearest = Some("function body");
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 fn emit(ctx: &mut LintContext, mut reports: Vec<(u32, &'static str, &'static str)>) {
@@ -246,6 +348,58 @@ mod tests {
         let refs: Vec<&Value> = a.iter().collect();
         assert!(is_inner(&refs));
         assert_eq!(body_root(&refs), "class static block body");
+    }
+
+    fn static_block_reports(src: &str) -> Vec<(u32, &'static str, &'static str)> {
+        let value = json!({ "type": "Program", "start": 0, "end": src.len() });
+        let program = ProgramView::new(&value);
+        let mut reports = Vec::new();
+        collect_static_blocks(
+            src,
+            &program,
+            Options {
+                functions: true,
+                vars: true,
+            },
+            &mut reports,
+        );
+        reports
+    }
+
+    #[test]
+    fn only_a_nested_declaration_in_a_static_block_is_reported() {
+        let src = "class C {\n\tstatic {\n\t\tvar direct = 1;\n\t\tif (direct) {\n\t\t\tvar nested = 2;\n\t\t}\n\t}\n}\n";
+        let start = u32::try_from(src.find("var nested").unwrap()).unwrap();
+        assert_eq!(
+            static_block_reports(src),
+            vec![(start, "variable", "class static block body")]
+        );
+    }
+
+    #[test]
+    fn a_bare_block_inside_a_static_block_still_names_the_static_block() {
+        let src = "class C { static { { var x = 1; } } }";
+        let start = u32::try_from(src.find("var x").unwrap()).unwrap();
+        assert_eq!(
+            static_block_reports(src),
+            vec![(start, "variable", "class static block body")]
+        );
+    }
+
+    #[test]
+    fn a_function_inside_a_static_block_wins_over_it() {
+        let src = "class C { static { function f() { if (1) { var x = 1; } } } }";
+        let start = u32::try_from(src.find("var x").unwrap()).unwrap();
+        assert_eq!(
+            static_block_reports(src),
+            vec![(start, "variable", "function body")]
+        );
+    }
+
+    #[test]
+    fn declarations_outside_a_static_block_are_left_to_the_json_walk() {
+        let src = "if (1) { var x = 1; }\nfunction f() { if (1) { var y = 2; } }\n";
+        assert!(static_block_reports(src).is_empty());
     }
 
     #[test]
