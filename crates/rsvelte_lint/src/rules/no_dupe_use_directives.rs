@@ -157,10 +157,11 @@ impl Handler<'_> {
     }
 }
 
-/// 1-based line number of the byte `offset` within `source`.
+/// 1-based line number of the byte `offset` within `source`, under the line
+/// convention the reported `loc` uses — a lone `\r` terminates a line, which
+/// counting `\n` alone misses.
 fn line_of(source: &str, offset: u32) -> usize {
-    let end = (offset as usize).min(source.len());
-    bytecount::count(&source.as_bytes()[..end], b'\n') + 1
+    crate::line_index::LineIndex::new(source).line(offset) as usize
 }
 
 #[cfg(test)]
@@ -172,5 +173,11 @@ mod tests {
         assert_eq!(line_of("a\nb\nc", 0), 1);
         assert_eq!(line_of("a\nb\nc", 2), 2);
         assert_eq!(line_of("a\nb\nc", 4), 3);
+    }
+
+    #[test]
+    fn line_of_counts_a_lone_cr() {
+        assert_eq!(line_of("a\rb\rc", 2), 2);
+        assert_eq!(line_of("a\rb\rc", 4), 3);
     }
 }

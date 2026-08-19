@@ -174,12 +174,44 @@ fn scan_number(src: &str, start: usize) -> usize {
 }
 
 /// Whether a `/` seen after `prev` opens a regex literal.
-fn regex_allowed(prev: Option<&Token<'_>>) -> bool {
+/// Whether a `/` here starts a regex literal rather than a division.
+///
+/// `)` and `}` are the two closers whose answer depends on what they close: a
+/// `/` after the `)` of an `if (…)` head or after the `}` of a block starts a
+/// regex, while after a parenthesised expression or an object literal it
+/// divides. `last_close_opens_regex` carries that decision, made when the
+/// matching opener was seen.
+fn regex_allowed(prev: Option<&Token<'_>>, last_close_opens_regex: bool) -> bool {
     match prev {
         None => true,
         Some(t) => match t.kind {
-            TokenKind::Punctuator => !matches!(t.text, ")" | "]" | "}" | "++" | "--"),
+            TokenKind::Punctuator => match t.text {
+                ")" | "}" => last_close_opens_regex,
+                "]" | "++" | "--" => false,
+                _ => true,
+            },
             TokenKind::Word => REGEX_PRECEDING_KEYWORDS.contains(&t.text),
+            _ => false,
+        },
+    }
+}
+
+/// Keywords whose parenthesised head is a statement head, so the `)` that closes
+/// it is followed by a statement — where a `/` starts a regex.
+const CONTROL_HEAD_KEYWORDS: &[&str] = &["if", "while", "for", "with"];
+
+/// Whether a `{` seen after `prev` opens a block (statement position) rather
+/// than an object literal.
+fn brace_opens_block(prev: Option<&Token<'_>>, last_close_opens_regex: bool) -> bool {
+    match prev {
+        None => true,
+        Some(t) => match t.kind {
+            TokenKind::Punctuator => match t.text {
+                ")" => last_close_opens_regex,
+                "{" | "}" | ";" | "=>" => true,
+                _ => false,
+            },
+            TokenKind::Word => !matches!(t.text, "return" | "typeof" | "case" | "in" | "of"),
             _ => false,
         },
     }
@@ -199,6 +231,12 @@ pub fn tokenize(src: &str) -> Vec<Token<'_>> {
     // the `}` that resumes template text can be told from a plain `}`.
     let mut brace_depth = 0usize;
     let mut template_stack: Vec<usize> = Vec::new();
+    // For each open `(` / `{`, whether the closer is followed by a position
+    // where a `/` starts a regex; `last_close_opens_regex` holds the value the
+    // most recent closer popped.
+    let mut paren_stack: Vec<bool> = Vec::new();
+    let mut brace_stack: Vec<bool> = Vec::new();
+    let mut last_close_opens_regex = false;
 
     while i < n {
         let ch = match src[i..].chars().next() {
@@ -214,7 +252,16 @@ pub fn tokenize(src: &str) -> Vec<Token<'_>> {
         // Comments.
         if ch == '/' && bytes.get(i + 1) == Some(&b'/') {
             let mut j = i + 2;
-            while j < n && bytes[j] != b'\n' && bytes[j] != b'\r' {
+            // A `//` comment ends at any JavaScript line terminator, which
+            // includes U+2028 and U+2029 — code after one on the same physical
+            // line is code, not comment text.
+            while j < n
+                && bytes[j] != b'\n'
+                && bytes[j] != b'\r'
+                && !(bytes[j] == 0xE2
+                    && bytes.get(j + 1) == Some(&0x80)
+                    && matches!(bytes.get(j + 2), Some(0xA8 | 0xA9)))
+            {
                 j = skip_char(src, j);
             }
             tokens.push(Token {
@@ -270,7 +317,10 @@ pub fn tokenize(src: &str) -> Vec<Token<'_>> {
 
         // Regex literal.
         if ch == '/'
-            && regex_allowed(tokens.iter().rev().find(|t| !t.is_comment()))
+            && regex_allowed(
+                tokens.iter().rev().find(|t| !t.is_comment()),
+                last_close_opens_regex,
+            )
             && let Some(end) = scan_regex(src, i)
         {
             tokens.push(Token {
@@ -320,11 +370,27 @@ pub fn tokenize(src: &str) -> Vec<Token<'_>> {
             continue;
         }
 
-        // Punctuator, longest match first.
-        if let Some(p) = PUNCTUATORS.iter().find(|p| src[i..].starts_with(**p)) {
+        // Punctuator, longest match first — except `?.` immediately before a
+        // digit, which is a conditional with a leading-dot number (`p?.5:q` is
+        // `p ? .5 : q`), not optional chaining.
+        if let Some(p) = PUNCTUATORS.iter().find(|p| {
+            src[i..].starts_with(**p)
+                && !(**p == "?." && bytes.get(i + 2).is_some_and(u8::is_ascii_digit))
+        }) {
+            let prev = tokens.iter().rev().find(|t| !t.is_comment());
             match *p {
-                "{" => brace_depth += 1,
-                "}" => brace_depth = brace_depth.saturating_sub(1),
+                "(" => paren_stack.push(prev.is_some_and(|t| {
+                    t.kind == TokenKind::Word && CONTROL_HEAD_KEYWORDS.contains(&t.text)
+                })),
+                ")" => last_close_opens_regex = paren_stack.pop().unwrap_or(false),
+                "{" => {
+                    brace_depth += 1;
+                    brace_stack.push(brace_opens_block(prev, last_close_opens_regex));
+                }
+                "}" => {
+                    brace_depth = brace_depth.saturating_sub(1);
+                    last_close_opens_regex = brace_stack.pop().unwrap_or(true);
+                }
                 _ => {}
             }
             tokens.push(Token {

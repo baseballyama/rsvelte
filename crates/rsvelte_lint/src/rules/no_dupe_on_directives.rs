@@ -58,10 +58,11 @@ impl Handler<'_> {
     }
 }
 
-/// The 1-based source line of `offset` (count newlines before it, + 1).
+/// 1-based line number of the byte `offset` within `source`, under the line
+/// convention the reported `loc` uses — a lone `\r` terminates a line, which
+/// counting `\n` alone misses.
 fn line_of(source: &str, offset: u32) -> usize {
-    let end = (offset as usize).min(source.len());
-    source[..end].bytes().filter(|&b| b == b'\n').count() + 1
+    crate::line_index::LineIndex::new(source).line(offset) as usize
 }
 
 #[derive(Default)]
@@ -177,6 +178,15 @@ mod tests {
     fn line_of_counts_newlines() {
         let src = "a\nb\nc";
         assert_eq!(line_of(src, 0), 1);
+        assert_eq!(line_of(src, 2), 2);
+        assert_eq!(line_of(src, 4), 3);
+    }
+
+    #[test]
+    fn line_of_counts_a_lone_cr() {
+        // The message embeds the other directive's line, and a CR-only file
+        // still has lines.
+        let src = "a\rb\rc";
         assert_eq!(line_of(src, 2), 2);
         assert_eq!(line_of(src, 4), 3);
     }
