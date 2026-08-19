@@ -2258,10 +2258,10 @@ else in the repo runs it.
 ## 28. Adversarial lint patterns — `scripts/compat-corpus/lint-adversarial.mjs`
 
 **Unit.** Per pattern file, a **Set** of `` `${ruleId}\t${line}:${col}\t${message}` `` — the same
-key as gate 11, over a **constructed** population (`compatibility/lint-adversarial/`, 1068 patterns
+key as gate 11, over a **constructed** population (`compatibility/lint-adversarial/`, 1365 patterns
 across 74 rules — every rule in the universe has a directory) instead of a collected one. Ratchet
 `compatibility/lint-adversarial-known-failures.json`, justified per entry in the paired `.md`,
-expected to stay at its four entries rather than to burn down.
+expected to stay at its five entries rather than to burn down.
 
 **Why it exists.** Gate 11 samples the *marginal* distribution of published Svelte: it graded
 73k findings and sat at 104 divergences, saturated enough to read as "the port is close". The
@@ -2279,6 +2279,19 @@ hazard § *Generated shape matrix* records for the compiler families, where #253
 shipped past 1,955 green rows because no row carried a two-compound parent. Concretely: rules
 whose divergence needs *two* interacting features (an option **and** an exotic host, say) are
 sampled only where an author happened to cross them. The complement remains gate 11's job.
+
+One sub-axis of this *is* measured to saturation, and the measurement shows why the obvious form
+of it does not discriminate — **[D]**. 29 of the 76 rules declare an options schema and 28 are
+exercised with a non-default option, which counts reaching the option rather than covering its
+values. Enumerating every enum and boolean value in those schemas leaves 43 unexercised; 40 are the
+rule's own code default (no schema declares `default`, so it has to be read from the `??` / `||` at
+the consumption site — reading it off the schema reports every default as a gap), covered by every
+option-less pattern in the directory. `sort-attributes.alphabetical` is declared upstream and read
+at zero sites, and rsvelte ignores it identically. That leaves exactly one:
+`block-lang.enforceScriptPresent: true`, which inline configuration structurally cannot reach (the
+arm needs no `<script>`, and ESLint reads inline config only from a JS comment) and which was
+checked by hand instead — the same unreachability the gate-31 doc records for its `block-lang`
+entry, seen from the other side.
 
 ### Blind spot 28b — no severity, and the fix/suggestion halves moved to gates 29 and 30 — **[S]**
 
@@ -2373,6 +2386,19 @@ applying the fix incrementally and to anything that renders a diff.
 prints — read those, not `compared`, when sizing what this gate covers.
 
 ### What it does see that nothing else does — **[D]**
+
+It is the only gate that compares a rule's **fix path against its own report path**. Both are
+ports of the same upstream rule, and no other comparison puts them side by side:
+`prefer-class-directive` reported through `js_whitespace` (JS semantics, U+FEFF is whitespace) and
+trimmed through Rust's `str::trim*` (Unicode `White_Space`, U+FEFF is not), so a `class` value
+padded with U+FEFF was reported at the identical position on both sides and rewritten
+differently — invisible to every `(ruleId, line, column, message)` key by construction.
+
+It is also the only gate that can observe **which compiler phase raises an error**, because the
+autofix loop's continuation depends on whether a pass's output parses. `svelte_meta_invalid_placement`
+is a parse error upstream and an analyze error in rsvelte, so ESLint's `verifyAndFix` halts after
+pass 1 while rsvelte relints cleanly and fixes one level deeper. No finding-level comparison can
+reach that: both sides report the same findings on the original source.
 
 An oracle fix whose own output no longer parses is counted (`unparseableFix`) and still compared
 byte-for-byte, so upstream's own broken fixes are reproduced deliberately rather than silently
@@ -2517,6 +2543,139 @@ population that varies the sources measures the sources.
 
 ---
 
+## 33. Lint default preset — `scripts/compat-corpus/lint-preset.mjs`
+
+Ratchet: `compatibility/lint-preset-known-failures.json`, justified per key in the paired `.md`.
+
+**Unit compared:** the default severity (`off` / `warn` / `error`) with no user configuration, per
+rule id, over the 84 ids `rsvelte-lint --list-rules` and `eslint-plugin-svelte`'s rule map share.
+Upstream's default is `flat/recommended`; rsvelte's is each rule's declared `default_severity`.
+Key is `<upstream sev>-><rsvelte sev>|<id>`, plus `not-ported|<id>` and `rsvelte-only|<id>`.
+
+It exists for C8: every other lint gate writes an explicit all-rules-`"warn"` config on both sides,
+which is correct for comparing rules and makes the default configuration a constant they cannot
+vary. It does **not** assert equality — see C8 for why. It asserts the recorded curation is
+unchanged.
+
+### Severity in the key was worth 21 rules the membership key called equal — **[D]**
+
+The first version keyed on membership alone (`default-on-here` / `default-off-here`) and reported
+29 differences; keying on severity took it to **50**. The 21 additions were rules both sides run
+by default, upstream at `error` and rsvelte at `warn` — and `crates/rsvelte_lint/src/main.rs` exits
+non-zero on `DiagnosticSeverity::Error` exactly as ESLint does, so `rsvelte-lint` exited 0 where
+`eslint` exits 1 on the same source. All 21 were fixed rather than listed: rsvelte agreed with
+upstream on all 13 rules whose severity was not the blanket `warn` (11 `error`, 2 `warn`), and every
+divergence ran the same direction, which is the shape of an incomplete transcription rather than a
+policy. Same lesson as `warning-missing:<code>` in C0 — put the class in the key.
+
+Note what this does *not* say about the other gates: they still compare no severity at all
+(`lint-verify.mjs` and `lint-adversarial.mjs` force `"warn"` on both sides and key on
+`(ruleId, line, column, message)`). What gate 33 pins is the **declared default**. A rule whose
+severity is wrong only when the user writes an explicit config is still unobserved everywhere.
+
+### Blind spot 33b — the preset is read through `--list-rules`, not through a lint run — **[S]**
+
+The gate parses the CLI's own table rather than linting a file with no config and observing which
+rules fired. Those are different claims: the table is what `RuleMeta::default_severity` says, and
+what actually runs is that *filtered by* `enabled_script_rules` — which additionally drops
+SvelteKit-only rules (`crates/rsvelte_lint/src/sveltekit.rs`) and rules whose `RuleConditions`
+exclude the file's mode. Two of the 22 `default-on-here` entries are exactly such rules
+(`no-goto-without-base`, `no-navigation-without-base`), so for a non-SvelteKit user the true
+default-on set is smaller than 56 and this gate reports the larger number. Reading the table is
+still the right unit for "did the curation change"; it is the wrong unit for "what does a user
+see", and nothing measures the latter.
+
+### Blind spot 33c — no config *file* is exercised — **[S]**
+
+`extends`, `files`/`ignores` globs, per-rule options and severity overrides are all resolved by
+`LintConfig::from_json_str`, and none of that is on this path — the gate never writes a
+`rsvelte-lint.json`. Config **resolution** parity (which file is found from which directory, how
+`extends` layers, what an unknown preset name does) is compared by no gate in this document.
+ESLint's own flat-config resolution has no rsvelte counterpart to compare against, which is a
+reason it is hard, not a reason it is covered.
+
+### What it does see that nothing else does — **[D]**
+
+`not-ported` and `rsvelte-only` keys are structurally invisible to every other lint gate:
+`scripts/compat-corpus/lint-universe.mjs` intersects the two rule lists before configuring
+anything, so a rule only one side ships is never enabled during any comparison. Porting a new rule,
+or upstream adding one, moves a key here and nowhere else.
+
+Two guards against being green for the wrong reason: the run fails if the shared population is
+empty, and it fails if **either** side's preset enables every shared rule — which would make
+membership a constant and the comparison vacuous. A third guards the parse: a `--list-rules` line
+whose bracket field does not contain exactly one of `off`/`warn`/`error` aborts the run, because a
+silently unparsed line would drop that rule from the comparison and read as agreement.
+
+---
+
+## 34. Lint rule conditions — `scripts/compat-corpus/lint-conditions.mjs`
+
+Ratchet: `compatibility/lint-conditions-known-failures.json`, justified per key in the paired `.md`.
+
+**Unit compared:** whether a rule runs at all, per rule id, on two axes — the runes mode pair
+(`runs-in-runes`, `runs-in-legacy`) reduced from upstream's `meta.conditions` against rsvelte's
+`RuleMeta::conditions`, and separately the SvelteKit-gated *set* against the hard-coded
+`SVELTEKIT_ONLY` list in `crates/rsvelte_lint/src/sveltekit.rs`. Key classes: `gate|<id>`,
+`svelte-3-4-only|<id>`, `kit-gate-missing|<id>`, `kit-gate-extra|<id>`.
+
+Current: 84 shared rules, 14 runes-gated upstream, 5 SvelteKit-gated (agreeing 5 for 5), 3
+recorded divergences.
+
+It exists because **a wrong condition flag is unobservable to every finding-level gate unless the
+corpus contains a file in the mode the flag wrongly excludes** — and for a rule whose patterns are
+all one mode, that never happens. `RuleConditions` was declared on all 74 rules and consumed by
+nothing until this branch; once consumed, three flags turned out to disagree with upstream
+(`no-inspect`, `prefer-derived-over-derived-by`, `experimental-require-slot-types`), each making
+rsvelte run a rule ESLint skips. All three were found by hand, one at a time, which is what this
+gate replaces.
+
+### The reduction is the load-bearing part, and its first draft was non-discriminating — **[D]**
+
+`shouldRun` ORs over condition objects, and an object with no `runes` key constrains nothing on
+that axis. Unioning across **all** objects reports six correctly-gated rules as wrong, because
+rules like `no-extra-reactive-curlies` carry
+`[{svelteVersions:['3/4']}, {runes:[false,'undetermined'], svelteVersions:['5']}]` and the first —
+unreachable at Svelte 5 — contributes "runs in runes mode". Measured: the naive reduction produced
+10 rows, of which 6 were artefacts of the arithmetic and 4 were real. `upstreamGate` filters to
+objects whose `svelteVersions` admits `'5'` first. A comparison that cannot separate a real
+mismatch from its own reduction is worse than none, because its rows read as surveyed.
+
+### Blind spot 34a — the gate reads `meta.conditions`, and upstream does not always put it there — **[D]**
+
+`no-at-const-tags` declares no `runes` condition and enforces `if (runes !== true) return {}` in the
+rule **body** instead, so the comparison reports a mismatch against rsvelte's (behaviourally
+correct) `runes_only: true`. Any rule that moves its gate into `create()` is invisible to this gate
+in the same way, and nothing enumerates which rules do that — the one instance was found by reading
+the source after the gate flagged it.
+
+The related worry that rsvelte's boolean pair cannot express upstream's tri-state was **checked and
+retracted**: `'undetermined'` is unreachable for any file either linter parses, because
+`svelte-eslint-parser` resolves an unspecified mode through `hasRunesSymbol`, which returns a
+boolean (`parser/index.js:116`, `svelte-parse-context.js:65`), and the plugin's `?? 'undetermined'`
+fires only when `svelteParseContext` is absent entirely. `runes !== true` and
+`runes: [true,'undetermined']` therefore agree on every real input, and a third state would be
+representation without a referent. Recorded because the argument is contingent on upstream's parser,
+not on anything in this repository.
+
+### Blind spot 34b — rsvelte's side is a regex over Rust source — **[S]**
+
+`rsvelteConditions` parses `name:` and `runes_only:`/`legacy_only:` out of each
+`crates/rsvelte_lint/src/rules/*.rs`, so a rule that builds its `RuleMeta` any other way — a macro,
+a shared constant, a computed value — is read wrong or missed. Two guards, neither complete: a
+module declaring a rule name without a readable flag pair aborts the run, and a rule the binary's
+`--list-rules` reports but the parse missed aborts it too. Neither catches a flag pair the regex
+reads from the *wrong* `RuleMeta` in a file declaring two rules.
+
+### Blind spot 34c — two of the five condition axes are not compared — **[S]**
+
+`svelteFileTypes` is uncompared outright. `svelteVersions` is used only as the reachability
+filter, so a rule that became Svelte-5-only would move a `svelte-3-4-only` key, but a narrowing
+*within* 5 would not. Neither axis currently carries a value that separates rsvelte from upstream,
+which is a statement about this plugin version and not a guarantee.
+
+---
+
 ## Cross-cutting
 
 ### C0. A ratchet key is a lossy encoding, and it loses in two directions
@@ -2544,6 +2703,107 @@ there is no key to refine. Adding a third state only helps entries that vanish; 
 about two failures sharing a symbol while both are present. When adding a ratchet, ask both:
 *can two different failures land on one key?* and *what happens to an entry that stops being
 measured?*
+
+### C8. Every lint gate configures all 74 rules explicitly, so none compares the DEFAULT rule set
+
+`lint-verify.mjs`, `lint-adversarial.mjs` and every gate derived from them write a config that
+enables the whole parity universe at `"warn"`, and the oracle is driven the same way. That is the
+right choice for comparing *rules*, and it means **no gate observes which rules a user gets when
+they write no config at all** — the single largest behavioural difference between the two products
+for someone switching.
+
+Measured, not assumed. Over the 84 rule ids the two share, rsvelte's default preset
+(`LintConfig::recommended()`, "every rule at its declared default severity") runs **56** and
+eslint-plugin-svelte's `flat/recommended` runs **36**. The sets differ in both directions: 22 rules
+run by default in rsvelte that upstream's recommended leaves off (`no-inline-styles`,
+`no-unused-class-name`, `prefer-const`, `no-target-blank`, `block-lang`, `consistent-selector-style`,
+`require-stores-init`, …), and **2 that upstream's recommended enables at `error` and rsvelte leaves
+off** — `svelte/no-unused-props` and `svelte/require-event-dispatcher-types`, i.e. a user on defaults
+gets *fewer* checks than eslint-plugin-svelte would give them.
+
+Membership was not the whole of it, and that is the part worth carrying forward. Twenty-one further
+rules ran by default on **both** sides at different severities — upstream `error`, rsvelte `warn` —
+which decides the CLI's exit code in both tools. Those were fixed, not recorded; see gate 33.
+
+This is not filed as a divergence because rsvelte's `recommended` is a documented preset of its own
+(`apps/npm/lint/README.md`: "runs every rule at its declared default severity"), not a claimed port
+of upstream's. The hazard was that the *name* is the same and nothing measured the gap, so a drift
+in either direction was invisible.
+
+**Gate 33 now measures it, and the way it does so is the point.** The obvious gate — assert the two
+enabled sets are equal — would encode a product decision (which preset rsvelte's default should be)
+as a correctness claim, and that decision belongs to a person. `lint-preset.mjs` instead ratchets
+the *difference*, two-sided, one key per rule: the curation is whatever it is, but it cannot change,
+and a rule cannot be ported or added, without the decision surfacing as a failing entry that needs a
+written reason. C8 is therefore closed as an unmeasured blind spot and open as a recorded one — read
+gate 33 for what that recording still cannot see.
+
+### C9. Every lint gate reads SARIF, so the output a human reads was never compared — **[D]**
+
+`lint-verify.mjs`, `lint-adversarial.mjs`, `lint-env.mjs` and the fix/suggest/end gates all drive
+`rsvelte-lint --format sarif` and parse `region.startLine` / `startColumn`. The default output — the
+text a person sees in a terminal, and the `github-actions` annotations CI renders — is read by
+nothing.
+
+Measured consequence: `Position::column` is stored **zero-based** (the SARIF writer's own comment
+says so and adds 1; the LSP conversion passes it through while subtracting 1 from the line). The
+`machine` writer adds 1 on both axes, deliberately matched to upstream svelte-check's
+`${start.line + 1}:${start.character + 1}`. `write_human` and `write_github_actions` printed
+`r.start.column` raw, so **every column in the default CLI output and every CI annotation was one
+short**: `{@html x}` at the first column of line 4 printed `4:0` where ESLint prints `4:1`. The
+`github-actions` unit test asserted the wrong value, which is how it survived — the test encoded
+the behaviour rather than the convention.
+
+The general shape is worth more than the fix. **A gate that reads a machine format cannot see a bug
+in the format a human reads**, and the two are different code paths in every tool that offers both.
+The question to ask of any output-comparing gate is not only "what field does the key drop" but
+"which *serializer* does the oracle exercise". Here four writers shared one `Range` and only the two
+the gates consume were right.
+
+`writers.rs`'s `user_facing_writers_agree_on_one_based_columns` now pins `human`,
+`github-actions` and `machine` to one convention in a single assertion, so the three cannot drift
+apart again. It is a unit test rather than a ratchet because there is no oracle to ratchet
+against — ESLint has no `github-actions` formatter to compare byte-for-byte, and the claim being
+defended ("all user-facing writers agree") is internal.
+
+### C10. Finding ORDER is dropped by every lint gate — measured, and clean — **[D]**
+
+Every lint gate builds a `Set` of finding keys per file, so the sequence a tool actually emits is
+not compared anywhere. That is a real hole in principle: the order is what a person reads in the
+terminal, and ESLint's `SourceCodeFixer` resolves overlapping fixes first-wins in emission order.
+
+Measured rather than left open. Over the 978 adversarial patterns with two or more findings,
+comparing the full ordered sequence: **both sides emit findings in non-decreasing position order on
+every file (0 violations each), and 0 files differ in the order of their POSITIONS.** 73 files
+differ only in which rule comes first among findings sharing one `line:column`.
+
+That residue is benign and deliberately not gated. ESLint sorts messages by line then column with a
+stable sort, so a tie preserves rule-execution order — a property of rule registration that upstream
+neither documents nor holds stable across versions. Its one behavioural consequence, fix precedence
+among overlapping fixes from *different* rules, is already excluded by design: `lint-adversarial-fix.mjs`
+enables one rule at a time, because cross-rule fix scheduling is a property of ESLint's driver rather
+than of any rule's port (gate 29).
+
+Recorded here so the axis is not re-opened as an unknown. What would change the answer: a rule that
+reports out of position order (would show as a non-zero violation count on the rsvelte side), or a
+future fix gate that enables rules together.
+
+### C11. Cross-file state in a batch lint — measured, and clean — **[D]**
+
+`rsvelte-lint` lints many files in one process, and several rules memoise per-directory or
+per-source state (`sveltekit::available`'s cache, the scope/JSON caches). No gate isolates a file:
+every lint gate passes the whole population in one invocation, so a rule leaking state from one
+file into the next would be baked into both the baseline and the comparison.
+
+Measured over the 1,355 adversarial patterns, two ways: the same batch with the file list
+**reversed** (0 files differ), and 80 sampled files linted **alone** versus their batch result
+(0 differ).
+
+Both controls are order- or context-sensitive by construction, which bounds what they can see:
+leakage that is deterministic and identical regardless of position — a counter that always lands
+on the same value, a cache that is always warm by the time it matters — produces no difference in
+either. What they do exclude is the realistic shape, where the leak depends on which file ran
+first. Recorded so the axis is not re-opened as an unknown.
 
 ### C1. Path filters — gates that do not run on some PRs
 
