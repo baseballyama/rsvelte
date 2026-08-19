@@ -12,21 +12,25 @@
 //! it off the AST is what keeps a rune name inside a comment, a string, or as
 //! the prefix of a longer name (`$stateStore`) from deciding the gate.
 //!
-//! Detection-parity port: the finding (message + position) matches upstream; the
-//! autofix (`{@const x = e}` → `{const x = $derived(e)}`) is not yet ported, so
-//! the rule advertises `Fixable::No`.
+//! The autofix drops the `@` and wraps the initializer in `$derived(...)` to
+//! preserve the reactivity legacy `{@const}` had — skipping the wrap when the
+//! initializer is already a `$derived(…)` call. Upstream tests `callee.name ===
+//! '$derived'` on an `Identifier` only, so `$derived.by(…)` is wrapped again;
+//! that is reproduced rather than corrected.
 
 use rsvelte_core::ast::template::Root;
 use serde_json::Value;
 
 use crate::context::LintContext;
+use crate::diagnostic::{Fix, TextEdit};
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::js_whitespace::is_js_whitespace;
 use crate::script::{node_start, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-at-const-tags",
     category: RuleCategory::Style,
-    fixable: Fixable::No,
+    fixable: Fixable::Code,
     default_severity: Severity::Warn,
     conditions: RuleConditions {
         runes_only: true,
@@ -81,15 +85,15 @@ impl Rule for NoAtConstTags {
             return;
         }
         // `tag.start` points at the `{` of `{@const …}`.
-        let mut starts: Vec<u32> = Vec::new();
+        let mut tags: Vec<(u32, Option<(u32, u32)>, bool)> = Vec::new();
         walk_js(&json, |node, _| {
             if node_type(node) == Some("ConstTag")
                 && let Some(start) = node_start(node)
             {
-                starts.push(start);
+                tags.push((start, init_span(node), init_is_derived_call(node)));
             }
         });
-        if starts.is_empty() {
+        if tags.is_empty() {
             return;
         }
         let runes = root
@@ -100,11 +104,83 @@ impl Rule for NoAtConstTags {
         if !runes {
             return;
         }
-        starts.sort_unstable();
-        for start in starts {
-            ctx.report(start, start, MESSAGE);
+        tags.sort_unstable();
+        for (start, init, already_derived) in tags {
+            match build_fix(ctx.source(), start, init, already_derived) {
+                Some(fix) => ctx.report_with_fix(start, start, MESSAGE, fix),
+                None => ctx.report(start, start, MESSAGE),
+            }
         }
     }
+}
+
+fn declarator(tag: &Value) -> Option<&Value> {
+    tag.get("declaration")?
+        .get("declarations")?
+        .as_array()?
+        .first()
+}
+
+fn init_span(tag: &Value) -> Option<(u32, u32)> {
+    let init = declarator(tag)?.get("init")?;
+    Some((node_start(init)?, init.get("end")?.as_u64()? as u32))
+}
+
+/// Upstream skips the `$derived(...)` wrap only for a call whose callee is the
+/// *identifier* `$derived` — `$derived.by(…)` is a `MemberExpression` callee and
+/// gets wrapped.
+fn init_is_derived_call(tag: &Value) -> bool {
+    let Some(init) = declarator(tag).and_then(|d| d.get("init")) else {
+        return false;
+    };
+    node_type(init) == Some("CallExpression")
+        && init.get("callee").is_some_and(|c| {
+            node_type(c) == Some("Identifier")
+                && c.get("name").and_then(Value::as_str) == Some("$derived")
+        })
+}
+
+fn build_fix(
+    source: &str,
+    start: u32,
+    init: Option<(u32, u32)>,
+    already_derived: bool,
+) -> Option<Fix> {
+    // `{` then optional whitespace then `@`; anything else is not the shape the
+    // fixer knows how to rewrite.
+    let rest = source.get(start as usize + 1..)?;
+    let ws: u32 = rest
+        .chars()
+        .take_while(|c| is_js_whitespace(*c))
+        .map(|c| c.len_utf8() as u32)
+        .sum();
+    let at = start + 1 + ws;
+    if source.as_bytes().get(at as usize) != Some(&b'@') {
+        return None;
+    }
+    let mut edits = vec![TextEdit {
+        start: at,
+        end: at + 1,
+        new_text: String::new(),
+    }];
+    if let Some((init_start, init_end)) = init
+        && !already_derived
+    {
+        edits.push(TextEdit {
+            start: init_start,
+            end: init_start,
+            new_text: "$derived(".into(),
+        });
+        edits.push(TextEdit {
+            start: init_end,
+            end: init_end,
+            new_text: ")".into(),
+        });
+    }
+    Some(Fix {
+        message: MESSAGE.into(),
+        edits,
+    })
 }
 
 #[cfg(test)]
