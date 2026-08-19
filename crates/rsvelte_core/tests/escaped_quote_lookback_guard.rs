@@ -17,10 +17,19 @@ use std::path::{Path, PathBuf};
 
 /// Lines that spell one of the needles without being an escape lookback.
 /// Keyed by repo-relative path plus the exact trimmed line.
-const ALLOWED: &[(&str, &str)] = &[(
-    "crates/rsvelte_core/src/compiler/phases/3_transform/js_ast/codegen.rs",
-    r#"if b >= 0x20 && b != b'"' && b != b'\\' {"#,
-)];
+const ALLOWED: &[(&str, &str)] = &[
+    (
+        "crates/rsvelte_core/src/compiler/phases/3_transform/js_ast/codegen.rs",
+        r#"if b >= 0x20 && b != b'"' && b != b'\\' {"#,
+    ),
+    // A forward scan over the CURRENT character, not a lookback: the loop it
+    // guards consumes `\\` as one two-character escape before the next
+    // iteration, so the shape this test exists to remove cannot occur there.
+    (
+        "crates/rsvelte_lint/src/rules/consistent_selector_style.rs",
+        r"if chars[i] != '\\' {",
+    ),
+];
 
 /// A minimum file count, so a walk that silently reaches nothing fails instead
 /// of reporting a clean tree.
