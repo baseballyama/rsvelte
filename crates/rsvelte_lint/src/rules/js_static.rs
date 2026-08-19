@@ -221,6 +221,17 @@ impl ScriptVars {
         self.decls.get(name)?.1.as_ref()
     }
 
+    /// The initializer of a name bound by a literal `const` declarator —
+    /// upstream's `findRootExpression`, which tests `def.parent.kind === 'const'`
+    /// rather than whether the binding is only *effectively* constant.
+    #[must_use]
+    pub fn const_decl_init(&self, name: &str) -> Option<&Value> {
+        if self.decls.get(name)?.0 != "const" {
+            return None;
+        }
+        self.declarator_init(name)
+    }
+
     /// The initializer of a name `canBeConsideredConst` accepts: bound once by
     /// a `const` declarator, or by a declarator that is never written to again.
     #[must_use]
