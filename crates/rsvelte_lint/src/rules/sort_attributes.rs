@@ -372,8 +372,10 @@ struct SortEntry {
     end: u32,
     /// Whether this is a spread attribute.
     spread: bool,
-    /// Whether this is a plain `Attribute::Attribute` node (governs the
-    /// spread-between escape hatch, mirroring upstream's `isSvelteAttribute`).
+    /// Whether upstream would see this node as a `SvelteAttribute` — the only
+    /// node type the spread-between escape hatch applies to. Shorthand `{name}`
+    /// is a distinct `SvelteShorthandAttribute` upstream and so reports
+    /// directly, as does the `this=` special directive.
     is_plain_attr: bool,
 }
 
@@ -382,7 +384,8 @@ impl SortEntry {
         let key = attr_key_text(src, a);
         let (start, end) = attr_range(a);
         let spread = matches!(a, Attribute::SpreadAttribute(_));
-        let is_plain_attr = matches!(a, Attribute::Attribute(_));
+        let is_plain_attr = matches!(a, Attribute::Attribute(_))
+            && src.as_bytes().get(start as usize) != Some(&b'{');
         Self {
             key,
             start,
@@ -651,7 +654,7 @@ impl SortAttributes {
                 start: this_start,
                 end: this_end,
                 spread: false,
-                is_plain_attr: true,
+                is_plain_attr: false,
             };
             // Insert at the correct source-order position.
             let pos = entries
@@ -682,7 +685,7 @@ impl SortAttributes {
                 start: this_start,
                 end: this_end,
                 spread: false,
-                is_plain_attr: true,
+                is_plain_attr: false,
             };
             let pos = entries
                 .iter()
