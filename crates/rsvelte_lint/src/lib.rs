@@ -37,8 +37,6 @@ pub mod scope;
 pub mod script;
 pub mod suppression;
 pub mod sveltekit;
-// Source-scan helpers used only by the native-only meta rules above.
-#[cfg(feature = "native")]
 pub mod svelte_scan;
 pub mod type_backend;
 pub mod visitor;

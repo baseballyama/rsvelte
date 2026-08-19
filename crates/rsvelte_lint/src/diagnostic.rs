@@ -161,6 +161,7 @@ fn uses_eslint_line_table(rule: &str) -> bool {
     )
 }
 
+#[cfg(feature = "native")]
 impl LintDiagnostic {
     /// The line this finding is *reported* on, under its own rule's line table.
     ///
