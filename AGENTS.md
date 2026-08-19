@@ -264,8 +264,9 @@ position, comment kind × insertion slot, invalid `bind:` target × directive sl
 string-literal escape × template expression slot, `await`/`yield` in a formal parameter list
 × function form × entry point, `{#each}` collection expression × item use, the token a `/`
 follows × host, a name's slot in a binding pattern × statement context, directive kind ×
-element kind × mode, `bind:` setter shape × element kind, and a raw-scanned keyword × the opaque
-region carrying it × host × entry point — expanded into ~20,000 comparisons
+element kind × mode, `bind:` setter shape × element kind, a raw-scanned keyword × the opaque
+region carrying it × host × entry point, and a reactive binding × the host the write to it sits
+in × the shape of that write — expanded into ~20,000 comparisons
 in well under a minute of CPU, needing
 only `submodules/svelte` plus the NAPI binding, so it gates every PR.
 
@@ -391,6 +392,21 @@ matched) and the live sites are `<svelte:body>` and `<svelte:self>`.
 Neither family has a skip list. A cell official rejects is compared as an error **code**, so an
 illegal combination is a comparison rather than a hole; declining to generate it would report
 coverage the family does not have.
+
+**The `write-host` family exists because an axis can be present and still be unenumerable.**
+`binding-position` has varied the binding kind since the matrix shipped, but each binding's
+`wrap` bakes in ONE host: five of its seven put the body in a named `<script>` function and only
+the two each-block rows use an inline template arrow. Binding kind and host are *confounded*, so
+the product has no cell — and #3026 lived in the missing one, a destructured prop written from an
+inline template arrow. It is not a coverage gap corpus growth could close: the shape that
+reproduces it occurs **0 times in the 12,523 collected `.svelte` files**, and the 72 files whose
+client output does contain `x()()` all mean it (a prop that is a function, called). Declaring
+binding, host and write shape as three independent axes is the whole family; it found two more
+divergences on its first run — an `UpdateExpression` whose argument was never walked in phase 2,
+so `p.a++` set neither `needs_context` (no `$.push`/`$.pop`) nor a reference to `p` (a spurious
+`export_let_unused`), and a `$bindable()` prop member update rsvelte never wraps (#3048). Ask of
+any family whose rows share a wrapper: **is the thing I varied crossed with the thing I held
+fixed, or merely adjacent to it?**
 
 Normalization is deliberately identical to `verify.mjs`, so a divergence this gate reports is one
 the corpus gate would also report. `--update-baseline` refuses to run under `--no-fmt` or a

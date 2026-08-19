@@ -40,9 +40,9 @@ comment carrier in `opaque-keyword` diverged on comment placement (#2990), so re
 Those entries are gone now, which is what the split was for: the family clears rather than
 carrying a key that would absorb the next regression.
 
-## Matrix known failures (`matrix-known-failures.json`, 388 entries)
+## Matrix known failures (`matrix-known-failures.json`, 396 entries)
 
-Partition of `matrix-known-failures.json` by family: `4 + 172 + 8 + 24 + 180 + 0`
+Partition of `matrix-known-failures.json` by family: `4 + 172 + 8 + 24 + 180 + 8 + 0`
 
 ### `binding-position` — 4 entries
 
@@ -238,6 +238,27 @@ later comment survives. rsvelte builds its accessors as source text, so its curs
 died; `client/dead_comments.rs` now deletes what upstream loses. The upstream report stays in
 [`upstream_issues/2990-svelte-class-accessor-drops-later-comments.md`](../upstream_issues/2990-svelte-class-accessor-drops-later-comments.md),
 and these rows are what will report the day it lands in `submodules/svelte`.
+
+### `write-host` — 8 entries
+
+One shape, four cases, two targets: `member-update-self` (`p.a++`) on a **bindable** prop —
+`prop-bindable` in runes mode, `legacy-let-prop` in legacy — written in a `script-fn` or
+`script-arrow` host, on `client` and `client-dev`. Upstream wraps the update in the prop
+setter so the parent is notified (`p(p().a++, true)`); rsvelte emits a bare `p().a++`, so a
+`bind:`-ing parent never sees the mutation.
+
+`prop_member_mutate_ast` handles `AssignmentExpression` only — its own unit test asserts that
+`prop.x++` produces nothing — and the runes instance path in `ast_state_transform.rs` has a
+prop-member branch in `visit_assignment_expression` with no counterpart in
+`visit_update_expression`. Adding both branches makes these four rows pass on `client` and
+then mis-splices `client-dev`, because the dev ownership-validator wrap rewrites the same
+statement by scanning text and the two passes' spans no longer agree; the fix is the ordering
+between them, not the wrap. Tracked as
+[#3048](https://github.com/baseballyama/rsvelte/issues/3048).
+
+The rest of the family (5 bindings × 6 hosts × 11 write shapes × 4 targets, minus these)
+passes. It is the axis that would have caught #3026: `binding-position` varies binding kind
+but bakes one host into each binding's `wrap`, so binding × host has no cell there.
 
 ## Burn-down
 

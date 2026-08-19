@@ -436,7 +436,9 @@ pub fn unthunk(arena: &JsArena, expr: JsExpr) -> JsExpr {
 
     // Callee must be an identifier, or a member expression on the `$` namespace.
     let callee_is_static = match unspanned(arena, arena.get_expr(call.callee)) {
-        JsExpr::Identifier(_) => true,
+        // A read transform's getter callee is opaque so it is not re-read; it is
+        // still a plain identifier for the purpose of dropping the arrow.
+        JsExpr::Identifier(_) | JsExpr::OpaqueIdentifier(_) => true,
         JsExpr::Member(m) => {
             matches!(unspanned(arena, arena.get_expr(m.object)), JsExpr::Identifier(name) if name == "$")
         }

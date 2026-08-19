@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/lint-win32-x64-msvc",
-  "version": "0.10.16",
+  "version": "0.10.17",
   "description": "Prebuilt rsvelte-lint binary for win32-x64 (msvc)",
   "license": "MIT",
   "repository": {

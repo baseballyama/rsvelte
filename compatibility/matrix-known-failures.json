@@ -386,5 +386,13 @@
 	"removed-statement-comment/inspect__trailing-svelte-ignore__instance-top__succ-none.svelte [comment-mismatch] (server-dev)",
 	"removed-statement-comment/inspect__trailing-svelte-ignore__instance-top__succ-stmt.svelte [comment-mismatch] (server-dev)",
 	"removed-statement-comment/inspect__trailing-svelte-ignore__module__succ-none.svelte.js [js-mismatch] (server-dev)",
-	"removed-statement-comment/inspect__trailing-svelte-ignore__module__succ-stmt.svelte.js [js-mismatch] (server-dev)"
+	"removed-statement-comment/inspect__trailing-svelte-ignore__module__succ-stmt.svelte.js [js-mismatch] (server-dev)",
+	"write-host/legacy-let-prop__script-arrow__member-update-self.svelte [js-mismatch] (client)",
+	"write-host/legacy-let-prop__script-arrow__member-update-self.svelte [js-mismatch] (client-dev)",
+	"write-host/legacy-let-prop__script-fn__member-update-self.svelte [js-mismatch] (client)",
+	"write-host/legacy-let-prop__script-fn__member-update-self.svelte [js-mismatch] (client-dev)",
+	"write-host/prop-bindable__script-arrow__member-update-self.svelte [js-mismatch] (client)",
+	"write-host/prop-bindable__script-arrow__member-update-self.svelte [js-mismatch] (client-dev)",
+	"write-host/prop-bindable__script-fn__member-update-self.svelte [js-mismatch] (client)",
+	"write-host/prop-bindable__script-fn__member-update-self.svelte [js-mismatch] (client-dev)"
 ]

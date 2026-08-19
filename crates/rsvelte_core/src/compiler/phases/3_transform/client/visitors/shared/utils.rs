@@ -2672,13 +2672,27 @@ fn collect_reactive_references_inner(
         }
 
         JsExpr::Call(call) => {
-            // Recurse into callee and arguments
-            collect_reactive_references_inner(
-                context.arena.get_expr(call.callee),
-                context,
-                getters,
-                seen,
-            );
+            // A read transform's getter call carries an opaque callee so a second
+            // transform pass cannot read it again; the dependency it stands for is
+            // still that identifier.
+            let callee = unspanned_expr(context.arena.get_expr(call.callee), &context.arena);
+            if call.arguments.is_empty()
+                && let JsExpr::OpaqueIdentifier(name) = callee
+            {
+                collect_reactive_references_inner(
+                    &JsExpr::Identifier(name.clone()),
+                    context,
+                    getters,
+                    seen,
+                );
+            } else {
+                collect_reactive_references_inner(
+                    context.arena.get_expr(call.callee),
+                    context,
+                    getters,
+                    seen,
+                );
+            }
             for arg in &call.arguments {
                 collect_reactive_references_inner(arg, context, getters, seen);
             }

@@ -1039,6 +1039,41 @@ so no input the generator could produce from it would have failed for this reaso
 non-discriminating population rather than a non-discriminating comparison, which is the axis
 `--update-baseline` and corpus growth both leave untouched.
 
+### Blind spot 5q — CLOSED: binding kind and its host were confounded, so "the same write, moved" was unenumerable
+
+Originally: `binding-position` is `BINDINGS` × `POSITIONS`, and the host is baked into each
+binding's `wrap` (`axes.mjs:25-105`) rather than being an axis. Five of its seven bindings —
+`state-local`, `derived-local`, `prop-destructured`, `store-auto-sub`, `legacy-let-prop` — put
+the body in a named function inside `<script>` and reach the template only through
+`onclick={run}`; only the two each-block rows use an inline template arrow. The product
+*binding × host* therefore has no cell in the family, and it is not a product the family can be
+extended to cover: changing one binding's `wrap` moves that binding, it does not cross the axis.
+
+The second half is `POSITIONS`. Its `assignment.right` row is `let z; z = %s; sink(z);` — the
+left-hand side is a fresh local, so no row anywhere in the family puts a reactive read on the
+right of an assignment whose **left** is a member expression on a reactive binding. That is the
+only shape in which rsvelte pre-transforms a subtree and then walks it again.
+
+**[D]** #3026: `const { state } = $props()` and `state.a = state.b` inside
+`onclick={() => { … }}` emitted `state().a = state()().b` — output that parses, that no
+existing corpus entry contains, and that throws `state(...) is not a function` on the first
+click. Moved verbatim into a `<script>` function it is correct, so `binding-position`'s
+`prop-destructured__assignment.right` cell — the nearest cell that exists — is green on both the
+binding and the position while the defect ships. The `write-host` family (`generate.mjs`,
+`WRITE_BINDINGS` × `WRITE_HOSTS` × `WRITE_SHAPES`, 330 cases / 1,320 comparisons) declares the
+three independently: the tree before the fix diverges on **198** of the 1,320 comparisons, the
+tree after on **8**. 176 of the 198 are this defect. The family's first run also found two
+unrelated ones — a phase-2 `UpdateExpression` that never walked its argument (fixed in the same
+PR; it cost the component its `$.push`/`$.pop` and produced a spurious `export_let_unused`), and
+a `$bindable()` prop member update that upstream wraps as `p(p().a++, true)` and rsvelte leaves
+bare, which is the remaining 8 and is listed in `matrix-known-failures.json`.
+
+What `write-host` still does not vary, so it is not read as more than it is: one element
+(`<button>`) and one event (`onclick`) carry every template host, the component host passes the
+arrow through one prop name, and the write is always a member expression — a bare
+`p = p + 1` reassignment is `binding-position`'s `assignment.right` row and is not repeated
+here. **[S]**
+
 **Closing 5b/5c:** the matrix costs ~25 s of CPU on ~10,200 comparisons (wall clock on a box
 running other agents' builds is unusable — a paired A/B inverted once). `constant-fold` is the
 first instalment of 5c's "second expression axis against `EXPRESSION_SLOTS`"; the directive
