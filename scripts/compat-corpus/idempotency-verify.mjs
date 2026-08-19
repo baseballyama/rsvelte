@@ -11,6 +11,10 @@
  * the shape occurs 0 times in 12,523 corpus components, and the bad output
  * parses — so the property is asserted directly instead of being sampled.
  *
+ * The compiler announces `RSVELTE_IDEMPOTENCY_ARMED` from inside the comparison and this
+ * script refuses a verdict without it — a binding that predates the check prints nothing,
+ * which would otherwise read as a clean sweep.
+ *
  * The check lives in the compiler behind `RSVELTE_ASSERT_TRANSFORM_IDEMPOTENT`:
  * every top-level transform re-applies itself to its own output and prints a
  * `RSVELTE_NON_IDEMPOTENT_TRANSFORM` line when the two differ. This script runs
@@ -116,9 +120,12 @@ if (child.status !== 0) {
 
 const violations = [];
 let units = 0;
+let armed = false;
 let current = null;
 for (const line of (child.stderr || '').split('\n')) {
-	if (line.startsWith('UNIT\t')) {
+	if (line === 'RSVELTE_IDEMPOTENCY_ARMED') {
+		armed = true;
+	} else if (line.startsWith('UNIT\t')) {
 		const [, id, target] = line.split('\t');
 		current = { id, target };
 		units += 1;
@@ -130,6 +137,17 @@ for (const line of (child.stderr || '').split('\n')) {
 
 if (units < MIN_ENTRIES) {
 	console.error(`[idempotency] the worker reported ${units} units — it did not run the corpus.`);
+	process.exit(2);
+}
+
+// A binding with no check compiled in prints nothing at all, which is indistinguishable
+// from a clean tree: a `main` binding measured 0 violations for exactly that reason
+// before this guard existed. The compiler announces itself from inside the comparison,
+// so an absent marker means the check never ran — not that it found nothing.
+if (!armed) {
+	console.error('[idempotency] the compiler never announced the check (no RSVELTE_IDEMPOTENCY_ARMED line).');
+	console.error('  The binding predates the check, or the transform entry point was never reached.');
+	console.error(`  binding: ${path.relative(ROOT, BINDING)} — rebuild it from this tree.`);
 	process.exit(2);
 }
 

@@ -418,11 +418,12 @@ the corpus gate would also report. `--update-baseline` refuses to run under `--n
 differ; any report fails the run. It exists because #3026 is a *property* violation that output
 equality cannot sample: `try_transform_assignment` hands a converted subtree back to the outer
 walk, so a read whose output is itself re-readable is applied twice — and the input shape that
-exposes it occurs **0 times in 12,523 collected components**, with the bad output parsing
-cleanly. Measured over the same 27,548 units, the merge base carried **37,346** violations in
-**7,888** of them (28.6%) while scoring 0 output divergences; #3026's fix removed 9,274 of the
-builders' worth, and routing the remaining five read builders through `b::getter_call` took it
-to 0 with all 37,569 output hashes byte-identical.
+exposes it occurred **0 times in the 12,523 components the corpus held when it was reported**,
+with the bad output parsing cleanly. Remove the one line that seals `b::getter_call` and the
+same corpus reports **37,352** violations in **7,888** of 27,566 units (28.6%) — while still
+compiling to 0 output divergences. Sealing all seven read builders takes it to 0 with every one
+of the 37,596 output hashes byte-identical; #3026's own two accounted for three quarters of the
+total, and the five it never reached for the remaining 9,274.
 
 The generalisable part is not the invariant, it is what kind of gate it is. Every other gate
 here samples inputs and compares outputs, so its reach is the product of the population someone
