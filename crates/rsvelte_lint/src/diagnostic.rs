@@ -133,6 +133,23 @@ impl LintMessage {
 }
 
 #[cfg(feature = "native")]
+/// Rules whose upstream positions come from `sourceCode.getLocFromIndex`, i.e.
+/// ESLint's own line table rather than the AST node's `loc`. Only these count
+/// U+2028 / U+2029 as line terminators; every other rule reports the parser's
+/// lines. Derived from the `getLocFromIndex` call sites in
+/// `eslint-plugin-svelte/src/rules`.
+fn uses_eslint_line_table(rule: &str) -> bool {
+    matches!(
+        rule,
+        "svelte/comment-directive"
+            | "svelte/html-closing-bracket-spacing"
+            | "svelte/html-quotes"
+            | "svelte/html-self-closing"
+            | "svelte/no-spaces-around-equal-signs-in-attribute"
+            | "svelte/no-unused-svelte-ignore"
+    )
+}
+
 impl LintDiagnostic {
     /// Convert to the shared output diagnostic. `Off`-severity findings should
     /// already have been filtered out; they map to `Warning` defensively.
@@ -142,8 +159,17 @@ impl LintDiagnostic {
             Severity::Error => DiagnosticSeverity::Error,
             Severity::Warn | Severity::Off => DiagnosticSeverity::Warning,
         };
-        let start = line_index.position(self.start);
-        let end = line_index.position(self.end);
+        let (start, end) = if uses_eslint_line_table(&self.rule) {
+            (
+                line_index.position_js(self.start),
+                line_index.position_js(self.end),
+            )
+        } else {
+            (
+                line_index.position(self.start),
+                line_index.position(self.end),
+            )
+        };
         Diagnostic {
             file: file.to_path_buf(),
             severity,

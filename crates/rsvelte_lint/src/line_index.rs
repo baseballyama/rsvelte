@@ -11,6 +11,30 @@ pub struct LineIndex<'a> {
     source: &'a str,
     /// Byte offset of the first character of each line. `line_starts[0] == 0`.
     line_starts: Vec<u32>,
+    /// The same table under JavaScript's line-terminator set, which adds U+2028
+    /// and U+2029. `None` when the source contains neither, where the two tables
+    /// are equal. See [`LineIndex::position_js`].
+    js_line_starts: Option<Vec<u32>>,
+}
+
+/// The line table under JavaScript's terminator set, or `None` when the source
+/// has no U+2028/U+2029 and the two tables would be identical.
+fn js_line_starts(source: &str, line_starts: &[u32]) -> Option<Vec<u32>> {
+    let bytes = source.as_bytes();
+    if !bytes
+        .windows(3)
+        .any(|w| w[0] == 0xE2 && w[1] == 0x80 && matches!(w[2], 0xA8 | 0xA9))
+    {
+        return None;
+    }
+    let mut out: Vec<u32> = line_starts.to_vec();
+    for (i, w) in bytes.windows(3).enumerate() {
+        if w[0] == 0xE2 && w[1] == 0x80 && matches!(w[2], 0xA8 | 0xA9) {
+            out.push(source_offset(i + 3));
+        }
+    }
+    out.sort_unstable();
+    Some(out)
 }
 
 fn source_offset(value: usize) -> u32 {
@@ -38,9 +62,11 @@ impl<'a> LineIndex<'a> {
             }
             i += 1;
         }
+        let js_line_starts = js_line_starts(source, &line_starts);
         Self {
             source,
             line_starts,
+            js_line_starts,
         }
     }
 
@@ -64,6 +90,33 @@ impl<'a> LineIndex<'a> {
         (source_offset(line_idx) + 1, source_offset(column))
     }
 
+    /// `position` under JavaScript's line-terminator set, which counts U+2028
+    /// and U+2029 as well.
+    ///
+    /// eslint-plugin-svelte does not use one convention: a rule that reports an
+    /// AST node's `loc` gets svelte-eslint-parser's lines (CR/LF only), while a
+    /// rule that builds its `loc` from `sourceCode.getLocFromIndex` gets
+    /// ESLint's, whose line pattern is `/\r\n|[\r\n\u2028\u2029]/u`. Both
+    /// appear in the same file, so matching upstream means picking per rule.
+    #[must_use]
+    pub fn position_js(&self, offset: u32) -> (u32, u32) {
+        let Some(starts) = self.js_line_starts.as_deref() else {
+            return self.position(offset);
+        };
+        let offset = (offset as usize).min(self.source.len());
+        let offset_u32 = source_offset(offset);
+        let line_idx = match starts.binary_search(&offset_u32) {
+            Ok(i) => i,
+            Err(i) => i - 1,
+        };
+        let line_start = starts[line_idx] as usize;
+        let column: usize = self.source[line_start..offset]
+            .chars()
+            .map(char::len_utf16)
+            .sum();
+        (source_offset(line_idx) + 1, source_offset(column))
+    }
+
     /// The 1-indexed line number containing `offset`. Cheap helper used by the
     /// suppression scanner.
     #[must_use]
@@ -74,6 +127,27 @@ impl<'a> LineIndex<'a> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn js_line_separators_split_only_the_js_table() {
+        // U+2028 / U+2029 terminate a line for ESLint's `SourceCode` and not
+        // for svelte-eslint-parser, and both conventions are reachable in one
+        // file — so the two tables must disagree here.
+        let li = super::LineIndex::new("a\u{2028}b\u{2029}c\nd");
+        assert_eq!(li.position(4).0, 1);
+        assert_eq!(li.position_js(4).0, 2);
+        assert_eq!(li.position(8).0, 1);
+        assert_eq!(li.position_js(8).0, 3);
+        // The last line is after a plain LF: both tables agree.
+        assert_eq!(li.position(10).0, 2);
+        assert_eq!(li.position_js(10).0, 4);
+    }
+
+    #[test]
+    fn js_table_is_absent_without_separators() {
+        let li = super::LineIndex::new("a\nb");
+        assert_eq!(li.position(2), li.position_js(2));
+    }
+
     use super::*;
 
     #[test]
