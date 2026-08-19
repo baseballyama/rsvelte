@@ -1,0 +1,21 @@
+[
+	"no-nested-style-tag/14-component-lookalike.svelte",
+	"no-raw-special-elements/14-nested-inside-each.svelte",
+	"no-target-blank/01-basic.svelte",
+	"no-target-blank/02-rel-dynamic.svelte",
+	"no-target-blank/03-spread-and-shorthand.svelte",
+	"no-target-blank/04-dynamic-href.svelte",
+	"no-target-blank/05-component.svelte",
+	"no-target-blank/06-svelte-element.svelte",
+	"no-target-blank/07-bind-href.svelte",
+	"no-target-blank/08-external-variants.svelte",
+	"no-target-blank/09-options.svelte",
+	"no-target-blank/10-case-and-decoys.svelte",
+	"no-target-blank/11-svelte-self.svelte",
+	"no-target-blank/12-multibyte-crlf.svelte",
+	"no-target-blank/opt-key-allow-referrer.svelte",
+	"no-target-blank/opt-key-dynamic-never.svelte",
+	"oracle-crash:no-navigation-without-base/06-template-literals.svelte",
+	"shorthand-directive/16-never-mode-modifiers.svelte",
+	"sort-attributes/07-lookahead-order.svelte"
+]

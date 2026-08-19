@@ -162,10 +162,12 @@ const RATCHETS = [
 		'lint-adversarial',
 		'lint-adversarial-end',
 		'lint-adversarial-fix',
+		'lint-adversarial-fix-all',
 		'lint-adversarial-suggest',
 		'lint-conditions',
 		'lint-env',
 		'lint-preset',
+		'lint-severity',
 	].map((stem) => ({
 		doc: `${stem}-known-failures.md`,
 		key: `${stem}-known-failures.json`,
@@ -204,6 +206,16 @@ const PARTITIONS = [
 	{
 		doc: 'lint-adversarial-fix-known-failures.md',
 		key: 'lint-adversarial-fix-known-failures.json',
+		label: 'cause',
+	},
+	{
+		doc: 'lint-adversarial-fix-all-known-failures.md',
+		key: 'lint-adversarial-fix-all-known-failures.json',
+		label: 'cause',
+	},
+	{
+		doc: 'lint-severity-known-failures.md',
+		key: 'lint-severity-known-failures.json',
 		label: 'cause',
 	},
 	{ doc: 'scss-known-failures.md', key: 'scss-known-failures.json', label: 'cluster' },

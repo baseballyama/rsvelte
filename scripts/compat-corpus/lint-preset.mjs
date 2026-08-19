@@ -42,7 +42,7 @@ const ORACLE_DIR = path.join(__dirname, "lint-oracle");
 
 const UPDATE = process.argv.includes("--update");
 
-function findBinary() {
+export function findBinary() {
   for (const profile of ["dist-lint", "release", "debug"]) {
     const p = path.join(ROOT, "target", profile, "rsvelte-lint");
     if (fs.existsSync(p)) return p;
@@ -54,7 +54,7 @@ function findBinary() {
 const SEVERITIES = ["off", "warn", "error"];
 
 /** Upstream's rule universe and the severity its `flat/recommended` gives each. */
-function upstream() {
+export function upstream() {
   const script = `
     import('eslint-plugin-svelte').then((m) => {
       const p = m.default;
@@ -75,7 +75,7 @@ function upstream() {
 }
 
 /** rsvelte's rule list and the severity its `recommended` preset gives each. */
-function rsvelte(bin) {
+export function rsvelte(bin) {
   const out = execFileSync(bin, ["--list-rules"], { encoding: "utf8" });
   const all = [];
   const sev = {};
@@ -172,4 +172,6 @@ function main() {
   console.log("[lint-preset] ✅ default preset matches the recorded curation");
 }
 
-main();
+// `lint-severity.mjs` imports the two preset readers above; importing must not
+// run the gate, or that gate's `process.exit(1)` would fire during the import.
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) main();

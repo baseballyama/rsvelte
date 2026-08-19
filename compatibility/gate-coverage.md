@@ -2354,13 +2354,18 @@ the source differently, or write correct replacement text over the wrong range. 
 RuleTester fixtures do compare `*-output.svelte`, but only for the shapes upstream ships and only
 for the fixtures `eslint_plugin_oracle.rs` does not skip — the same intersection gate 28c names.
 
-### Blind spot 29a — one rule at a time, so cross-rule fix scheduling is never compared — **[S]**
+### Blind spot 29a — one rule at a time, so the whole-config `--fix` is out of scope — **[D]**, now covered by gate 35
 
 Fixes are computed per rule (`:137-140`) because ESLint resolves overlapping fixes across rules by
 a driver policy — multi-pass, first-wins on overlap — that belongs to ESLint rather than to any
-rule's port. That is the right scope for a *rule* comparison and it means the gate says nothing
-about what `rsvelte-lint --fix` does on a real config with 74 rules enabled at once, which is what
-users actually run. Nothing else compares that either.
+rule's port. That is the right scope for a *rule* comparison, and it left what users actually run —
+74 rules editing one file at once — uncompared until **gate 35**
+(`lint-adversarial-fix-all.mjs`) was built. Two populations, not one, turned out to sit in the gap:
+the second pass (a rule handed text another rule's fix produced), and, more simply, **any rule
+whose fixer touches a pattern filed under a different rule's directory** — this gate derives the
+rule from the directory name, so it never runs `svelte/html-quotes` on a `comment-directive/`
+pattern. That second population is where the defect was: rsvelte's `--fix` resolved disable
+directives against a different line table than its own report path. See gate 35.
 
 ### Blind spot 29b — the two sides run different drivers, and the gate cannot separate a pass-count difference from a fix difference — **[S]**
 
@@ -2573,7 +2578,7 @@ Note what this does *not* say about the other gates: they still compare no sever
 `(ruleId, line, column, message)`). What gate 33 pins is the **declared default**. A rule whose
 severity is wrong only when the user writes an explicit config is still unobserved everywhere.
 
-### Blind spot 33b — the preset is read through `--list-rules`, not through a lint run — **[S]**
+### Blind spot 33b — the preset is read through `--list-rules`, not through a lint run — **[D]**, now covered by gate 36
 
 The gate parses the CLI's own table rather than linting a file with no config and observing which
 rules fired. Those are different claims: the table is what `RuleMeta::default_severity` says, and
@@ -2582,8 +2587,14 @@ SvelteKit-only rules (`crates/rsvelte_lint/src/sveltekit.rs`) and rules whose `R
 exclude the file's mode. Two of the 22 `default-on-here` entries are exactly such rules
 (`no-goto-without-base`, `no-navigation-without-base`), so for a non-SvelteKit user the true
 default-on set is smaller than 56 and this gate reports the larger number. Reading the table is
-still the right unit for "did the curation change"; it is the wrong unit for "what does a user
-see", and nothing measures the latter.
+still the right unit for "did the curation change"; it is the wrong unit for "what does a user see".
+
+**Gate 36 is the run.** `lint-severity.mjs` drives both tools with no rule configuration over all
+1,365 adversarial patterns and compares the findings *with severity in the key*, plus the process
+exit code. What it measured: **0 severity divergences over 1,179 / 1,178 compared findings**, so
+the 21 alignments recorded above hold through an actual run and not only in the table — and **64
+patterns whose exit codes differ**, which is a class this gate structurally could not have. Read
+gate 36 for what the run still cannot see; the limit that remains here is 33c.
 
 ### Blind spot 33c — no config *file* is exercised — **[S]**
 
@@ -2676,6 +2687,166 @@ which is a statement about this plugin version and not a guarantee.
 
 ---
 
+## 35. Whole-config lint autofix — `scripts/compat-corpus/lint-adversarial-fix-all.mjs`
+
+**Unit.** Per pattern under `compatibility/lint-adversarial/`, the **text** `--fix` produces with
+all 74 universe rules forced to `warn` on both sides, compared byte-for-byte. Ratchet
+`compatibility/lint-adversarial-fix-all-known-failures.json`, justified per cluster in the paired
+`.md`. Two verdicts share the key space: a bare `<id>` is a text divergence, `oracle-crash:<id>` is
+a pattern ESLint threw on while fixing. First run: **1364 compared, 793 rewritten by the oracle,
+792 by rsvelte, 20 divergences + 1 oracle crash**; 19 entries after the defect below was fixed.
+
+**Why it exists.** It closes blind spot 29a, and the measurement is the argument: of the 21
+non-parity units, **zero** were unattributable driver-policy noise. 16 reproduce gate 29's own
+per-rule entries, 1 is the same deliberate cause reached through another rule's fix, 1 is the
+fix-side face of a listed gate-28 report entry, 1 is an upstream crash, and 2 were a real rsvelte
+defect no other gate could see. A gate whose ratchet is a sea of unattributable entries would have
+been worse than a documented negative result; this population is not that.
+
+**What it found — [D].** rsvelte's `--fix` and its report path filtered disable directives against
+different line tables. `lint_source_messages` uses the line the finding is *reported* on, which for
+the seven rules in `diagnostic.rs::uses_eslint_line_table` counts U+2028/U+2029; `fix_source_at`
+and `lint_source_raw` used `LineIndex::line`, which never does. Both directions reproduced:
+`comment-directive/22-u2028-next-line.svelte` was suppressed in the report and rewritten by
+`--fix`, and `comment-directive/23-u2029-disable-line.svelte` was reported at 2:9 and not fixed.
+Both reproduce with a **single** rule enabled (`svelte/html-quotes`) — they are not interactions,
+they are a rule gate 29 never runs on those patterns. Fixed via `LintDiagnostic::report_line`.
+
+It also found an upstream crash reachable only across rules: `svelte/no-useless-mustaches` rewrites
+`href={``}` to `href=""`, and `svelte/no-navigation-without-base` then reads `node.value[0].type`
+on an attribute whose `value` array is empty.
+
+### Blind spot 35a — one configuration, and it is not a user's — **[S]**
+
+Every rule is forced to `"warn"`, which is what makes rsvelte and ESLint comparable, but no user
+runs all 74 at once: real configs are a preset plus overrides, and which rules are *absent* decides
+which fix pairs can interact at all. The gate therefore samples one point in a 2^74 space — the
+maximal one, chosen because it is the only point that needs no product decision to justify. A
+divergence that appears only when a specific rule is *off* is invisible here.
+
+### Blind spot 35b — it cannot tell a driver-policy difference from a rule defect on its own — **[D]**
+
+The verdict is one bit per pattern. Attributing the 21 units above took a second instrument:
+per-rule fix runs over the divergent files plus leave-one-out over the universe on both sides
+(which is how `no-nested-style-tag/14` was pinned to the `html-self-closing` /
+`html-closing-bracket-spacing` oscillation, and the oracle crash to `no-useless-mustaches`).
+Neither instrument is in the gate. A future entry needs that work redone by hand, and an entry
+filed without it is a guess.
+
+### Blind spot 35c — a crash is a ratchet entry, so the pattern behind it is uncompared — **[S]**
+
+`oracle-crash:<id>` suppresses everything about that pattern, exactly as an ordinary entry does for
+its file: while ESLint throws, rsvelte's whole-config output on that pattern is graded by nothing.
+The class is in the key so a crash cannot silently become a text divergence, but the file is out of
+the comparison until upstream fixes the crash.
+
+### Blind spot 35d — same population as gates 28-31, so it inherits 28a — **[S]**
+
+Every pattern was written to attack one rule's *report*. None was written by asking "which two
+rules' fixes would collide here", which is the question this gate exists to ask. Its two real finds
+came from inputs aimed at something else — evidence the axis is productive and equally evidence the
+population is not designed for it. Real-world sources are not in this gate at all: `lint-verify.mjs`
+grades 6,788 of them for reports and never runs `--fix`.
+
+### Blind spot 35e — text equality, so the edit SET and the pass COUNT are invisible — **[S]**
+
+Inherited from 29b and 29c and for the same reasons: two different edit lists converging on the
+same bytes are equal here, and a difference in how many passes each driver took is only visible
+when it changes the final text. rsvelte's `fix_all` and ESLint's `verifyAndFix` both bound at 10
+passes, and ESLint additionally reports a circular fix (`ESLintCircularFixesWarning`) — which is
+what `no-nested-style-tag/14` triggers. Where the two sides' loops end on different phases of an
+oscillation the gate sees a text divergence and says nothing about why.
+
+---
+
+## 36. Lint default configuration — `scripts/compat-corpus/lint-severity.mjs`
+
+Ratchet: `compatibility/lint-severity-known-failures.json`, justified per cluster in the paired
+`.md`.
+
+**Unit compared.** Per pattern under `compatibility/lint-adversarial/`, with **no rule
+configuration on either side** — `eslint-plugin-svelte`'s `flat/recommended` verbatim
+(`lint-oracle/preset-run.mjs`) against `rsvelte-lint` with no `--config`:
+
+1. `severity|<id>|<rule> <line>:<col>|<oracle>-><rsvelte>` — a finding both sides report at the
+   same position and message, at different levels;
+2. `missing|` / `extra|` — findings on the 33 rules **both** presets enable by default, minus
+   `lint-universe.mjs`'s `EXCLUDE`;
+3. `exit|<id>|<o>-><r>|<causes>` — the process exit code, with the error-severity rule ids /
+   diagnostic codes of the exiting side in the key;
+4. `oracle-crash|<id>|<rule>` — an upstream rule that threw.
+
+The subject is run **one process per pattern**: an exit code is a property of a run, so a batched
+run has no per-pattern answer to compare.
+
+**Why it exists.** Gate 33 pins the two presets, but through `--list-rules` and upstream's exported
+config object — the declared tables, never a run (33b, now closed). Gates 28–32 and 35 write an
+all-rules-`"warn"` config on both sides, which is right for comparing rules and makes three things
+constants none of them can vary: a finding's **severity**, the **exit code**, and whether an inline
+`/* eslint … */` comment can still enable a preset-`off` rule.
+
+**What it found — [D].** The severity axis is **0 over 1,179 / 1,178 compared findings**, which
+confirms gate 33's 21 severity fixes end to end. The exit code is not: **64 patterns** disagree.
+Fifty-nine are rsvelte exiting 1 on a Svelte **compiler** diagnostic that `svelte-eslint-parser` is
+too permissive to see; compiling all 59 with `submodules/svelte` shows **55 the official compiler
+also rejects** and **4 rsvelte over-rejects** — a `$`-prefixed class member name read as a store
+reference (`class P { $abc() {} }`), and legacy mode failing to turn a rune-named `$` reference into
+a store subscription (upstream's `runes_option === false ||` short-circuit at
+`2-analyze/index.js:366`), both in
+`crates/rsvelte_core/src/compiler/phases/2_analyze/store_subscriptions.rs`. Four more are upstream's
+`no-navigation-without-resolve` reporting at `error` while rsvelte excludes the rule as type-aware —
+**an `EXCLUDE` entry removes a rule from a finding comparison and cannot remove it from the exit
+status**. And running upstream's default preset reached a rule no other gate enables, which
+**throws** on `<a href="…" rel>`; ESLint's fatal message destroys the file's whole report
+(`upstream_issues/eslint-plugin-svelte-no-navigation-without-resolve-empty-rel-crash.md`).
+
+**Guards, each against a way of being green for nothing.** The run fails if no rule is default-on on
+both sides, or if *every* shared rule is (the presets would no longer differ); if a
+`rsvelte-lint.json` is discoverable from the repository root upward, since `rsvelte-lint` with no
+`--config` would resolve it and the gate would measure a *configured* run; if either side's findings
+are all one severity, because a constant measurand cannot distinguish divergence from agreement
+(currently 402/1,035 oracle, 2,504/1,034 rsvelte, and forcing `--error svelte/no-at-debug-tags`
+moves 76 keys); and if no pattern reports a rule both presets leave `off`, which is the only
+evidence the inline-configuration axis is exercised at all.
+
+### Blind spot 36a — the finding comparison excludes exactly the rules the presets disagree about — **[S]**
+
+`missing`/`extra` are scoped to the shared default-on set precisely so gate 33's 29-entry curation
+does not reappear here as ~2,100 finding-level entries. The cost is that the **findings** of a rule
+one side runs by default and the other does not are compared by no gate under default
+configuration: gate 28 compares them with both sides forced to `"warn"`, and gate 33 compares only
+that the membership difference is unchanged. A rule that behaves differently *because* of its
+default severity or options would fall between the two. Unmeasured how large that class is.
+
+### Blind spot 36b — inline configuration is asserted to exist, not compared — **[D]**
+
+The gate fails if no pattern reports a rule both presets leave `off`, which proves the axis is
+live; it does not put those findings in the key. Measured by hand at the time of writing:
+`button-has-type` 13/13, `prefer-class-directive` 6/6, `no-trailing-spaces` 9/9, `sort-attributes`
+7 upstream / 6 here — and that one difference is the `order`-option entry already in
+`lint-adversarial-known-failures.json`, not a failure to enable. So inline enable behaves
+identically today, and a future regression in it would surface here only as the guard tripping to
+zero, not as a divergence.
+
+### Blind spot 36c — one population, one project manifest, one preset version — **[S]**
+
+Same corpus as gates 28–31, so it inherits 28a: every pattern was written to attack one rule's
+report, none to attack a default. `compatibility/lint-adversarial/package.json` declares
+`@sveltejs/kit` for the whole tree, so the five SvelteKit-gated rules are default-on throughout and
+their absence is never exercised (gate 32 varies that axis, but under an explicit rule config). And
+upstream's `flat/recommended` is a hand-maintained list that moves on a plugin bump: a rule added to
+or removed from it changes this gate's population without any rsvelte change.
+
+### Blind spot 36d — exit codes are compared per file, and nobody lints one file — **[S]**
+
+A real run lints a directory and gets one exit code for the whole tree, which is the OR of the
+per-file answers. Both tools compute it that way, so the per-file comparison is strictly stronger —
+but it also means the gate says nothing about `--max-warnings`, ESLint's `--max-warnings`
+equivalent, or any other whole-run policy that can turn a warning-only run non-zero. Neither side's
+CLI flag surface is compared by any gate in this document.
+
+---
+
 ## Cross-cutting
 
 ### C0. A ratchet key is a lossy encoding, and it loses in two directions
@@ -2708,9 +2879,10 @@ measured?*
 
 `lint-verify.mjs`, `lint-adversarial.mjs` and every gate derived from them write a config that
 enables the whole parity universe at `"warn"`, and the oracle is driven the same way. That is the
-right choice for comparing *rules*, and it means **no gate observes which rules a user gets when
+right choice for comparing *rules*, and it meant **no gate observed which rules a user gets when
 they write no config at all** — the single largest behavioural difference between the two products
-for someone switching.
+for someone switching. Gates 33 and 36 are the two halves of the answer; the rest of this entry is
+what they found.
 
 Measured, not assumed. Over the 84 rule ids the two share, rsvelte's default preset
 (`LintConfig::recommended()`, "every rule at its declared default severity") runs **56** and
@@ -2735,8 +2907,24 @@ enabled sets are equal — would encode a product decision (which preset rsvelte
 as a correctness claim, and that decision belongs to a person. `lint-preset.mjs` instead ratchets
 the *difference*, two-sided, one key per rule: the curation is whatever it is, but it cannot change,
 and a rule cannot be ported or added, without the decision surfacing as a failing entry that needs a
-written reason. C8 is therefore closed as an unmeasured blind spot and open as a recorded one — read
-gate 33 for what that recording still cannot see.
+written reason.
+
+**Gate 36 closes the other half, and the half it closed was not the rule set.** Gate 33 compares two
+declared tables; `lint-severity.mjs` runs both tools under those tables and compares what they
+**emit** — findings with severity in the key, and the process **exit code**. The rule-set half came
+back confirmed: 0 severity divergences over 1,179 / 1,178 compared findings, so nothing about the
+declared alignment was wrong. The exit code was a different answer: **64 of 1,365 patterns disagree**
+— 59 where rsvelte's default preset surfaces a Svelte **compiler** diagnostic ESLint's permissive
+parser cannot see (4 of which are rsvelte over-rejections, now tracked as compiler defects), 4 where
+a rule `lint-universe.mjs` excludes as type-aware still reports at `error` upstream, and 1 from a
+listed report divergence. The generalizable part: **an `EXCLUDE` entry removes a rule from a finding
+comparison and cannot remove it from the process's exit status**, so a gate that only compares
+findings has no view of what a switching user's CI actually does. Running upstream's *default*
+preset also reached a rule no other gate enables, which throws on `<a href="…" rel>` and destroys
+the file's whole report — a configuration nobody had ever driven was holding a live crash.
+
+C8 is therefore closed as an unmeasured blind spot and open as a recorded one — read gates 33 and 36
+for what those recordings still cannot see.
 
 ### C9. Every lint gate reads SARIF, so the output a human reads was never compared — **[D]**
 

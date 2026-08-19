@@ -292,8 +292,8 @@ pub fn lint_source_raw(source: &str, file: &Path, config: &LintConfig) -> Vec<Li
     };
 
     let suppressions = Suppressions::collect_for(source, &file.to_string_lossy());
-    diags.retain(|d| !suppressions.is_suppressed(&d.rule, line_index.line(d.start)));
-    diags.sort_by_key(|d| (line_index.line(d.start), d.start));
+    diags.retain(|d| !suppressions.is_suppressed(&d.rule, d.report_line(&line_index)));
+    diags.sort_by_key(|d| (d.report_line(&line_index), d.start));
     diags
 }
 
@@ -351,7 +351,7 @@ pub fn fix_source_at(source: &str, config: &LintConfig, filename: &str) -> FixRe
     };
     let mut fixes: Vec<Vec<TextEdit>> = raw
         .into_iter()
-        .filter(|d| !suppressions.is_suppressed(&d.rule, line_index.line(d.start)))
+        .filter(|d| !suppressions.is_suppressed(&d.rule, d.report_line(&line_index)))
         .filter_map(|d| d.fix)
         .map(|f| f.edits)
         .collect();
@@ -505,6 +505,28 @@ mod tests {
 
     fn codes(diags: &[Diagnostic]) -> Vec<String> {
         diags.iter().filter_map(|d| d.code.clone()).collect()
+    }
+
+    #[test]
+    fn fix_honours_a_directive_across_a_js_line_separator() {
+        // `html-quotes` reports on ESLint's line table, where U+2028 ends a line.
+        // The fix path must resolve the directive against that same table, or it
+        // rewrites what the report suppressed (and vice versa for U+2029).
+        let cfg = LintConfig::from_json_str(
+            r#"{ "extends": ["none"], "rules": { "svelte/html-quotes": "warn" } }"#,
+        )
+        .unwrap();
+        let next_line =
+            "<!-- eslint-disable-next-line svelte/html-quotes -->\u{2028}<div id=a>t</div>\n";
+        assert_eq!(
+            fix_source_at(next_line, &cfg, "Test.svelte").output,
+            next_line
+        );
+        let disable_line = "<!-- eslint-disable-line svelte/html-quotes --><div id=a>t</div>\u{2029}<div id=b>t</div>\n";
+        assert_eq!(
+            fix_source_at(disable_line, &cfg, "Test.svelte").output,
+            "<!-- eslint-disable-line svelte/html-quotes --><div id=a>t</div>\u{2029}<div id=\"b\">t</div>\n"
+        );
     }
 
     #[test]

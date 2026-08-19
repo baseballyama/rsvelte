@@ -731,6 +731,20 @@ positions where the report key *already agreed*; **670 end-position divergences 
 compared findings across 20 rules**, four of which were reporting a zero-width range; and a class
 nothing could see at all.
 
+**The autofix gate enables ONE rule per pattern, and the rule it picks is the pattern's directory
+name — so a rule is never run on a pattern filed under a different rule.** That is not the same
+scope limit as "cross-rule fix scheduling is ESLint's driver policy", which is why the per-rule
+scope was chosen; it is a whole population of single-rule behaviour the gate cannot reach.
+`lint-adversarial-fix-all.mjs` enables all 74 at once and found it immediately: rsvelte's `--fix`
+filtered `eslint-disable*` directives on `LineIndex::line` while the report path filtered on the
+line the finding is *reported* on — ESLint's table, which counts U+2028/U+2029, for the seven rules
+in `uses_eslint_line_table`. So `--fix` rewrote a source whose report was suppressed, and skipped a
+finding it had just reported, both with `svelte/html-quotes` alone. Of the 21 non-parity units on
+that gate's first run over 1364 patterns, **zero** were unattributable driver-policy noise — 16
+reproduce the per-rule gate's own entries, and the rest each have a named cause (including an
+upstream crash: `no-useless-mustaches` rewrites `href={``}` to `href=""`, then
+`no-navigation-without-base` indexes an empty `value` array).
+
 Three lessons generalize past the lint gates.
 
 **A rule's suggestion did not exist in the machine-readable output.** `render` dropped the
@@ -799,6 +813,21 @@ and severity decides the exit code in both tools, so `rsvelte-lint` exited 0 whe
 upstream on every rule whose severity was not the blanket `warn` (11 `error`, 2 `warn`, 13 for 13)
 and every divergence ran one direction — the shape of an incomplete transcription, not a policy.
 Three `RuleConditions` flags likewise disagreed, each making rsvelte run a rule ESLint skips.
+
+**Both of those read a declared table, and running the tables is a third gate.** `lint-severity.mjs`
+(gate 36) drives upstream's `flat/recommended` verbatim against `rsvelte-lint` with no `--config`
+and compares the findings *with severity in the key*, plus the process **exit code**. The rule-set
+half came back confirmed — **0 severity divergences over 1,179 / 1,178 findings** — while the exit
+code diverged on **64 of 1,365 patterns**, and that half is what generalizes. Fifty-nine are
+rsvelte exiting 1 on a Svelte **compiler** diagnostic `svelte-eslint-parser` is too permissive to
+see (55 the official compiler also rejects; **4 are rsvelte over-rejections** — a `$`-prefixed class
+member name read as a store reference, and legacy mode not turning a rune-named `$` reference into a
+store subscription, both in `2_analyze/store_subscriptions.rs`). Four more are a rule
+`lint-universe.mjs` excludes as type-aware, still reporting at `error` upstream: **an `EXCLUDE` entry
+removes a rule from a finding comparison and cannot remove it from the exit status**, so a
+findings-only gate has no view of what a switching user's CI does. And driving the *default* preset
+reached a rule no other gate enables, which throws on `<a href="…" rel>` and takes the file's whole
+report with it — a configuration nobody had ever run was holding a live upstream crash.
 
 **Two reductions in those gates were non-discriminating on the first attempt, and both were caught
 by their own arithmetic rather than by review.** Keying the preset gate on membership alone
