@@ -203,17 +203,12 @@ impl Rule for FirstAttributeLinebreak {
     }
 
     fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
-        let entries = entries_with_this(
-            ctx.source(),
-            &el.attributes,
-            el.expression.start(),
-            el.expression.end(),
-        );
+        let entries = entries_with_this(ctx.source(), &el.attributes, el.start);
         Self::check_tag_entries(ctx, el.start, "svelte:component", &entries);
     }
 
     fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
-        let entries = entries_with_this(ctx.source(), &el.attributes, el.tag.start(), el.tag.end());
+        let entries = entries_with_this(ctx.source(), &el.attributes, el.start);
         Self::check_tag_entries(ctx, el.start, "svelte:element", &entries);
     }
 
@@ -233,19 +228,12 @@ impl Rule for FirstAttributeLinebreak {
 
 /// Build `(start, end)` attribute entries with the reconstructed `this={…}`
 /// attribute spliced in at its source position.
-fn entries_with_this(
-    src: &str,
-    attributes: &[Attribute],
-    expr_start: Option<u32>,
-    expr_end: Option<u32>,
-) -> Vec<(u32, u32)> {
+fn entries_with_this(src: &str, attributes: &[Attribute], el_start: u32) -> Vec<(u32, u32)> {
     let mut entries: Vec<(u32, u32)> = attributes
         .iter()
         .map(|a| (attr_start(a), attr_end(a)))
         .collect();
-    if let (Some(s), Some(e)) = (expr_start, expr_end)
-        && let Some(span) = crate::rules::this_attr::oracle_this_attr_span(src, s, e)
-    {
+    if let Some(span) = crate::rules::this_attr::oracle_this_attr_span(src, el_start) {
         let pos = entries
             .iter()
             .position(|&(start, _)| start > span.0)

@@ -21,7 +21,8 @@
 
 use rsvelte_core::ast::template::{
     Attribute, AttributeValue, AttributeValuePart, AwaitBlock, DebugTag, DeclarationTag, EachBlock,
-    ExpressionTag, HtmlTag, IfBlock, KeyBlock, RenderTag, SnippetBlock, TemplateNode,
+    ExpressionTag, HtmlTag, IfBlock, KeyBlock, RenderTag, SnippetBlock, SvelteComponentElement,
+    SvelteDynamicElement, TemplateNode,
 };
 
 use crate::context::LintContext;
@@ -296,6 +297,14 @@ impl Rule for MustacheSpacing {
 
     fn check_render_tag(&self, ctx: &mut LintContext, tag: &RenderTag) {
         Self::verify_tag_node(ctx, tag.start, tag.end);
+    }
+
+    fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
+        Self::verify_this(ctx, el.start, el.expression.start(), el.expression.end());
+    }
+
+    fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
+        Self::verify_this(ctx, el.start, el.tag.start(), el.tag.end());
     }
 
     fn check_attribute(&self, ctx: &mut LintContext, attr: &Attribute) {
@@ -715,6 +724,33 @@ fn verify_attribute_value(
 impl MustacheSpacing {
     /// Verify a directive value (`name={expr}`): find the `{` before the
     /// expression and the `}` after it; skip shorthands / value-less directives.
+    /// The implicit `this=` of `<svelte:component>` / `<svelte:element>` is a
+    /// `SvelteSpecialDirective` upstream, so its braces are governed by
+    /// `directiveExpressions` like any other directive's.
+    fn verify_this(
+        ctx: &mut LintContext,
+        el_start: u32,
+        expr_start: Option<u32>,
+        expr_end: Option<u32>,
+    ) {
+        let opts = Options::resolve(ctx);
+        let Some((this_start, this_end)) =
+            crate::rules::this_attr::oracle_this_attr_span(ctx.source(), el_start)
+        else {
+            return;
+        };
+        let src = ctx.source().as_bytes();
+        Self::verify_directive(
+            ctx,
+            src,
+            this_start,
+            this_end,
+            expr_start,
+            expr_end,
+            opts.directive_expressions,
+        );
+    }
+
     fn verify_directive(
         ctx: &mut LintContext,
         src: &[u8],

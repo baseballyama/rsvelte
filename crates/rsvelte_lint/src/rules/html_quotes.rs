@@ -425,11 +425,17 @@ impl HtmlQuotes {
     /// Upstream splices it in as a `SvelteSpecialDirective` (dynamic value) —
     /// or, for a static string `this="div"` written without braces, as a
     /// `SvelteAttribute` (static value).
-    fn check_this(ctx: &mut LintContext, expr_start: Option<u32>, expr_end: Option<u32>) {
+    fn check_this(
+        ctx: &mut LintContext,
+        el_start: u32,
+        expr_start: Option<u32>,
+        expr_end: Option<u32>,
+        expr_is_string_literal: bool,
+    ) {
         let (Some(es), Some(ee)) = (expr_start, expr_end) else {
             return;
         };
-        let Some((this_start, this_end)) = oracle_this_attr_span(ctx.source(), es, ee) else {
+        let Some((this_start, this_end)) = oracle_this_attr_span(ctx.source(), el_start) else {
             return;
         };
         let src = ctx.source().as_bytes();
@@ -441,6 +447,14 @@ impl HtmlQuotes {
         let is_dynamic = opener == Some(&b'{')
             || (matches!(opener, Some(&b'"' | &b'\'')) && after == Some(&b'{'));
         if is_dynamic {
+            // A `this` mustache holding a plain string literal is not checked
+            // at all — svelte-eslint-parser resolves that tag name statically.
+            // Measured over {quoted, unquoted} x {string literal, template
+            // literal, concatenation, identifier} on both element kinds: the
+            // string-literal column is the only one upstream leaves alone.
+            if expr_is_string_literal {
+                return;
+            }
             Self::verify_directive(ctx, this_start, this_end, es, ee);
         } else {
             // Static literal: the expression span is the inner string; report
@@ -453,17 +467,31 @@ impl HtmlQuotes {
     }
 }
 
+/// Whether the expression is a plain string literal.
+fn is_string_literal(json: &serde_json::Value) -> bool {
+    json.get("type").and_then(serde_json::Value::as_str) == Some("Literal")
+        && json.get("value").is_some_and(serde_json::Value::is_string)
+}
+
 impl Rule for HtmlQuotes {
     fn meta(&self) -> &'static RuleMeta {
         &META
     }
 
     fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
-        Self::check_this(ctx, el.expression.start(), el.expression.end());
+        let literal = is_string_literal(el.expression.as_json());
+        Self::check_this(
+            ctx,
+            el.start,
+            el.expression.start(),
+            el.expression.end(),
+            literal,
+        );
     }
 
     fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
-        Self::check_this(ctx, el.tag.start(), el.tag.end());
+        let literal = is_string_literal(el.tag.as_json());
+        Self::check_this(ctx, el.start, el.tag.start(), el.tag.end(), literal);
     }
 
     fn check_special_element(&self, ctx: &mut LintContext, el: &SpecialElement<'_>) {

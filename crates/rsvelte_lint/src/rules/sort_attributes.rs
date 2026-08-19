@@ -42,7 +42,7 @@ use crate::diagnostic::{Fix, TextEdit};
 use crate::rule::{
     Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity, SpecialElement,
 };
-use crate::rules::find_this_attr_span;
+use crate::rules::this_attr::oracle_this_attr_span;
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/sort-attributes",
@@ -637,18 +637,13 @@ impl SortAttributes {
     /// at the position it appears in the source (before its raw `this={...}` attribute
     /// was stripped out by the parser into `el.expression`).
     fn entries_for_svelte_component(src: &str, el: &SvelteComponentElement) -> Vec<SortEntry> {
-        let src_bytes = src.as_bytes();
         let mut entries: Vec<SortEntry> = el
             .attributes
             .iter()
             .map(|a| SortEntry::from_attr(src, a))
             .collect();
 
-        // Reconstruct the `this=` attribute span from `el.expression`.
-        if let (Some(expr_start), Some(expr_end)) = (el.expression.start(), el.expression.end())
-            && let Some((this_start, this_end)) =
-                find_this_attr_span(src_bytes, expr_start, expr_end)
-        {
+        if let Some((this_start, this_end)) = oracle_this_attr_span(src, el.start) {
             let this_entry = SortEntry {
                 key: Some("this".to_string()),
                 start: this_start,
@@ -669,17 +664,13 @@ impl SortAttributes {
     /// Build entries for `<svelte:element>`, injecting a virtual `this` entry
     /// at the position it appears in the source.
     fn entries_for_svelte_dynamic_element(src: &str, el: &SvelteDynamicElement) -> Vec<SortEntry> {
-        let src_bytes = src.as_bytes();
         let mut entries: Vec<SortEntry> = el
             .attributes
             .iter()
             .map(|a| SortEntry::from_attr(src, a))
             .collect();
 
-        if let (Some(expr_start), Some(expr_end)) = (el.tag.start(), el.tag.end())
-            && let Some((this_start, this_end)) =
-                find_this_attr_span(src_bytes, expr_start, expr_end)
-        {
+        if let Some((this_start, this_end)) = oracle_this_attr_span(src, el.start) {
             let this_entry = SortEntry {
                 key: Some("this".to_string()),
                 start: this_start,

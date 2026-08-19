@@ -561,12 +561,7 @@ impl Rule for HtmlSelfClosing {
 
     fn check_svelte_component(&self, ctx: &mut LintContext, c: &SvelteComponentElement) {
         let opts = Options::resolve(ctx);
-        let this_end = c
-            .expression
-            .start()
-            .zip(c.expression.end())
-            .and_then(|(s, e)| oracle_this_attr_span(ctx.source(), s, e))
-            .map(|(_, end)| end);
+        let this_end = oracle_this_attr_span(ctx.source(), c.start).map(|(_, end)| end);
         Self::check(
             ctx,
             c.start,
@@ -582,12 +577,7 @@ impl Rule for HtmlSelfClosing {
 
     fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, e: &SvelteDynamicElement) {
         let opts = Options::resolve(ctx);
-        let this_end = e
-            .tag
-            .start()
-            .zip(e.tag.end())
-            .and_then(|(s, x)| oracle_this_attr_span(ctx.source(), s, x))
-            .map(|(_, end)| end);
+        let this_end = oracle_this_attr_span(ctx.source(), e.start).map(|(_, end)| end);
         Self::check(
             ctx,
             e.start,

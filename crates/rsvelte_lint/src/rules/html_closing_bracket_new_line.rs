@@ -392,12 +392,7 @@ impl Rule for HtmlClosingBracketNewLine {
     }
 
     fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
-        let this_end = el
-            .expression
-            .start()
-            .zip(el.expression.end())
-            .and_then(|(s, e)| oracle_this_attr_span(ctx.source(), s, e))
-            .map(|(_, end)| end);
+        let this_end = oracle_this_attr_span(ctx.source(), el.start).map(|(_, end)| end);
         Self::check_element_like(
             ctx,
             el.start,
@@ -409,12 +404,7 @@ impl Rule for HtmlClosingBracketNewLine {
     }
 
     fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
-        let this_end = el
-            .tag
-            .start()
-            .zip(el.tag.end())
-            .and_then(|(s, e)| oracle_this_attr_span(ctx.source(), s, e))
-            .map(|(_, end)| end);
+        let this_end = oracle_this_attr_span(ctx.source(), el.start).map(|(_, end)| end);
         Self::check_element_like(
             ctx,
             el.start,

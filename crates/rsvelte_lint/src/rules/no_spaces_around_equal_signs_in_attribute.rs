@@ -102,12 +102,9 @@ impl NoSpacesAroundEqualSignsInAttribute {
     /// `SvelteSpecialDirective` upstream, whose KEY range runs from `this` up to
     /// the `=` itself — so whitespace before the `=` is inside the key and only
     /// whitespace after the `=` is ever reported.
-    fn check_this(ctx: &mut LintContext, expr_start: Option<u32>, expr_end: Option<u32>) {
-        let (Some(es), Some(ee)) = (expr_start, expr_end) else {
-            return;
-        };
+    fn check_this(ctx: &mut LintContext, el_start: u32) {
         let Some((this_start, this_end)) =
-            crate::rules::this_attr::oracle_this_attr_span(ctx.source(), es, ee)
+            crate::rules::this_attr::oracle_this_attr_span(ctx.source(), el_start)
         else {
             return;
         };
@@ -129,11 +126,11 @@ impl Rule for NoSpacesAroundEqualSignsInAttribute {
     }
 
     fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
-        Self::check_this(ctx, el.expression.start(), el.expression.end());
+        Self::check_this(ctx, el.start);
     }
 
     fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
-        Self::check_this(ctx, el.tag.start(), el.tag.end());
+        Self::check_this(ctx, el.start);
     }
 
     fn check_attribute(&self, ctx: &mut LintContext, attr: &Attribute) {
