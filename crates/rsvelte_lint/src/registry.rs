@@ -246,6 +246,7 @@ pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
         Box::new(NoReactiveFunctions),
         Box::new(NoExtraReactiveCurlies),
         Box::new(NoGotoWithoutBase),
+        Box::new(crate::rules::no_navigation_without_base::NoNavigationWithoutBase),
         Box::new(NoImmutableReactiveStatements),
         Box::new(NoDomManipulating),
         Box::new(NoReactiveReassign),

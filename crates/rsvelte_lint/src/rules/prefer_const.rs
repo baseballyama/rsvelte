@@ -204,6 +204,86 @@ fn walk_assignments(value: &Value, out: &mut HashSet<String>) {
     }
 }
 
+/// Names svelte-eslint-parser's `analyzePropsScope` gives a virtual *write*
+/// reference to, because a component prop can be set by the parent: every
+/// top-level `export { … }` specifier local, and every binding of a top-level
+/// `export let/var/const`. The extra writer means core `prefer-const` never
+/// reports the binding.
+fn collect_prop_export_names(program: &ProgramView<'_>, out: &mut HashSet<String>) {
+    let Some(body) = program.value().get("body").and_then(Value::as_array) else {
+        return;
+    };
+    let push = |id: &Value, out: &mut HashSet<String>| {
+        let mut ids = Vec::new();
+        collect_pattern_idents(id, &mut ids);
+        for id in ids {
+            if let Some(name) = ident_name(id) {
+                out.insert(name.to_string());
+            }
+        }
+    };
+    for node in body {
+        if node_type(node) != Some("ExportNamedDeclaration") {
+            continue;
+        }
+        match node.get("declaration").filter(|d| !d.is_null()) {
+            Some(decl) => {
+                if node_type(decl) == Some("VariableDeclaration")
+                    && let Some(decls) = decl.get("declarations").and_then(Value::as_array)
+                {
+                    for d in decls {
+                        if let Some(id) = d.get("id") {
+                            push(id, out);
+                        }
+                    }
+                }
+            }
+            None => {
+                if let Some(specs) = node.get("specifiers").and_then(Value::as_array) {
+                    for spec in specs {
+                        if let Some(local) = spec.get("local") {
+                            push(local, out);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Whether svelte-eslint-parser runs `analyzePropsScope` over this script. It
+/// skips only the legacy `context="module"` spelling, so a Svelte 5
+/// `<script module>` still gets prop references — while a standalone
+/// `.svelte.js` / `.svelte.ts` module, having no component, never does.
+fn props_scope_analyzed(ctx: &LintContext, kind: ScriptKind) -> bool {
+    if kind == ScriptKind::Instance {
+        return true;
+    }
+    if matches!(
+        crate::engine::classify_source(ctx.filename()),
+        crate::engine::SourceKind::Module { .. }
+    ) {
+        return false;
+    }
+    // The attribute lives on the `<script>` tag, which the script program does
+    // not carry; the caller only asks once the module script exports something.
+    let allocator = rsvelte_core::Allocator::default();
+    let Ok(root) = rsvelte_core::parse(
+        ctx.source(),
+        &allocator,
+        rsvelte_core::ParseOptions {
+            lenient_script: true,
+            ..Default::default()
+        },
+    ) else {
+        return true;
+    };
+    !root
+        .module
+        .as_ref()
+        .is_some_and(|s| s.attributes.iter().any(|a| a.name.as_str() == "context"))
+}
+
 /// Collect the bound Identifier leaves of a declarator `id` pattern.
 fn collect_pattern_idents<'a>(id: &'a Value, out: &mut Vec<&'a Value>) {
     match node_type(id) {
@@ -543,23 +623,16 @@ fn collect_assignment_info(
 }
 
 /// Collect `(name, id_node)` for every `let` declarator with NO initializer
-/// in `program`.  `export let` in an instance script is excluded (handled by
-/// `kind` at the call site; pass `is_instance` accordingly).
+/// in `program`. Prop exports are filtered out by the caller, which knows
+/// whether this script gets prop references at all.
 fn collect_no_init_let_idents<'a>(
     program: &'a Value,
-    is_instance: bool,
     excluded_runes: &[String],
     out: &mut Vec<(String, &'a Value, FnScope)>,
 ) {
     walk_js(program, |node, ancestors| {
         if node_type(node) != Some("VariableDeclaration")
             || node.get("kind").and_then(Value::as_str) != Some("let")
-        {
-            return;
-        }
-        // Skip `export let` in instance scripts.
-        if is_instance
-            && ancestors.last().and_then(|p| node_type(p)) == Some("ExportNamedDeclaration")
         {
             return;
         }
@@ -769,6 +842,10 @@ struct ScopedReassigned {
     template_external: HashSet<String>,
     /// The old name-keyed set, used when a declarator's symbol is unresolved.
     fallback: HashSet<String>,
+    /// Names carrying a virtual prop write (see [`collect_prop_export_names`]).
+    /// Upstream attaches it to a module-scope variable, so it only applies to a
+    /// binding declared at the script's root.
+    prop_names: HashSet<String>,
 }
 
 impl ScopedReassigned {
@@ -777,13 +854,16 @@ impl ScopedReassigned {
         if let (Some(s), Some(e)) = (node_start(id), node_end(id))
             && let Some(&(has_write, is_root)) = self.writes.map.get(&(s, e))
         {
+            if is_root && self.prop_names.contains(name) {
+                return true;
+            }
             if has_write || !is_root {
                 return has_write;
             }
             return self.template_external.contains(name)
                 || (self.external_root.contains(name) && !self.writes.shadowed.contains(name));
         }
-        self.fallback.contains(name)
+        self.prop_names.contains(name) || self.fallback.contains(name)
     }
 }
 
@@ -823,6 +903,11 @@ impl ScriptRule for PreferConst {
             crate::engine::SourceKind::Module { .. }
         );
         let reassigned = collect_reassigned_names(ctx, program);
+        let mut prop_names = HashSet::new();
+        collect_prop_export_names(program, &mut prop_names);
+        if !prop_names.is_empty() && !props_scope_analyzed(ctx, kind) {
+            prop_names.clear();
+        }
         let scoped = ScopedReassigned {
             writes: collect_binding_writes(ctx.source(), program, component),
             external_root: collect_external_root(ctx, program),
@@ -832,10 +917,10 @@ impl ScriptRule for PreferConst {
                 t
             },
             fallback: reassigned.clone(),
+            prop_names,
         };
         let (excluded, destructuring_all) = prefer_const_options(ctx.option0());
-        let mut reports =
-            collect_script_reports(program, kind, &scoped, &excluded, destructuring_all);
+        let mut reports = collect_script_reports(program, &scoped, &excluded, destructuring_all);
 
         // Also check template `{let x = …}` declaration tags. The oracle's
         // ESLint core `prefer-const` treats them as ordinary `let` declarations
@@ -848,7 +933,7 @@ impl ScriptRule for PreferConst {
             reports.extend(tag_reports);
         }
 
-        report_no_init_destructuring(ctx, program, kind, &excluded, &scoped, &mut reports);
+        report_no_init_destructuring(ctx, program, &excluded, &scoped, &mut reports);
         reports.sort_by_key(|report| report.0);
         for (start, end, message, fix_start) in reports {
             emit_prefer_const_report(ctx, start, end, message, fix_start);
@@ -939,7 +1024,6 @@ fn prefer_const_options(opts: Option<&Value>) -> (Vec<String>, bool) {
 
 fn collect_script_reports(
     program: &ProgramView<'_>,
-    kind: ScriptKind,
     scoped: &ScopedReassigned,
     excluded: &[String],
     destructuring_all: bool,
@@ -952,22 +1036,17 @@ fn collect_script_reports(
             return;
         }
 
-        // Legacy component props (`export let x`) are never converted to
-        // `const`: svelte-eslint-parser records a synthetic write reference
-        // for the parent-set value, so the core `prefer-const` rule skips
-        // them. Mirror that by skipping a `let` declaration whose immediate
-        // parent is an `ExportNamedDeclaration` in the **instance** script
-        // (in a `<script module>` block, or runes `$props()` destructuring,
-        // the same shape isn't a prop — those stay subject to the rule via
-        // `excludedRunes`).
-        if kind == ScriptKind::Instance
-            && ancestors.last().and_then(|p| node_type(p)) == Some("ExportNamedDeclaration")
-        {
-            return;
-        }
         let Some(declarators) = node.get("declarations").and_then(Value::as_array) else {
             return;
         };
+
+        // `for (let x of …)` / `for (let x in …)`: the loop supplies the value,
+        // so the declarator needs no initializer to be const-able, and the
+        // declaration is fixable even though nothing is initialized.
+        let in_for_head = matches!(
+            ancestors.last().and_then(|p| node_type(p)),
+            Some("ForOfStatement" | "ForInStatement")
+        );
 
         // `excludedRunes`: skip the whole declaration if any declarator's
         // init is a call to an excluded rune.
@@ -997,7 +1076,7 @@ fn collect_script_reports(
             }
             for id in ids {
                 let is_reassigned = scoped.is_reassigned(id);
-                if has_init && !is_reassigned {
+                if (has_init || in_for_head) && !is_reassigned {
                     decl_idents.push(id);
                 } else {
                     all_const_able = false;
@@ -1010,7 +1089,7 @@ fn collect_script_reports(
 
         // The whole declaration can be auto-fixed to `const` only when every
         // declarator has an init and every bound id is const-able.
-        let fixable = every_declarator_has_init && all_const_able;
+        let fixable = (every_declarator_has_init || in_for_head) && all_const_able;
         // `destructuring: "all"` only reports when the whole declaration is
         // const-able (default "any" reports each const-able id).
         if destructuring_all && !all_const_able {
@@ -1037,7 +1116,6 @@ fn collect_script_reports(
 fn report_no_init_destructuring(
     ctx: &LintContext,
     program: &ProgramView<'_>,
-    kind: ScriptKind,
     excluded: &[String],
     scoped: &ScopedReassigned,
     reports: &mut Vec<(u32, u32, String, Option<u32>)>,
@@ -1047,14 +1125,9 @@ fn report_no_init_destructuring(
     collect_template_reassignments(ctx, &mut template_and_forin);
     collect_forin_forof_reassignments(program, &mut template_and_forin);
     let mut declarations = Vec::new();
-    collect_no_init_let_idents(
-        program,
-        kind == ScriptKind::Instance,
-        excluded,
-        &mut declarations,
-    );
+    collect_no_init_let_idents(program, excluded, &mut declarations);
     for (name, id, declaration_scope) in declarations {
-        if template_and_forin.contains(&name) {
+        if template_and_forin.contains(&name) || scoped.prop_names.contains(&name) {
             continue;
         }
         // A plain `let x; x = 1;` converts to `const` when the single write can

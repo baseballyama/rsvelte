@@ -5,7 +5,9 @@
 //! configured `base` path. Port of the eslint-plugin-svelte rule (deprecated
 //! upstream in favour of `no-navigation-without-resolve`).
 //!
-//! A template rule (`check_root`): the whole component is serialized once.
+//! A template rule (`check_root`): the whole component is serialized once, so
+//! one scope index covers both scripts and the template. `check_program` adds
+//! standalone `.svelte.js` / `.svelte.ts` modules, which have no root.
 //! `goto` / `pushState` / `replaceState` are matched through their
 //! `$app/navigation` import (named alias or `* as ns`), `base` through
 //! `$app/paths`. A URL "starts with base" when its prefix variable — resolved
@@ -17,9 +19,10 @@ use rsvelte_core::ast::template::Root;
 use serde_json::Value;
 
 use crate::context::LintContext;
+use crate::engine::{SourceKind, classify_source};
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
 use crate::rules::kit_nav::{NavKind, ScopeIndex, nav_call_kind, starts_with_base};
-use crate::script::{node_type, walk_js};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-navigation-without-base",
@@ -191,7 +194,28 @@ impl Rule for NoNavigationWithoutBase {
         if json.is_null() {
             return;
         }
-        let idx = ScopeIndex::build(&json);
+        Self::run(ctx, &json);
+    }
+}
+
+impl ScriptRule for NoNavigationWithoutBase {
+    fn meta(&self) -> &'static RuleMeta {
+        &META
+    }
+
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
+        // A component is covered by `check_root`, which sees both scripts and
+        // the template at once; only a standalone module needs this pass.
+        if !matches!(classify_source(ctx.filename()), SourceKind::Module { .. }) {
+            return;
+        }
+        Self::run(ctx, program.value());
+    }
+}
+
+impl NoNavigationWithoutBase {
+    fn run(ctx: &mut LintContext, json: &Value) {
+        let idx = ScopeIndex::build(json);
 
         let opts = ctx.option0();
         let ignore = |key: &str| -> bool {
@@ -204,7 +228,7 @@ impl Rule for NoNavigationWithoutBase {
 
         let mut reports: Vec<(u32, u32, &'static str)> = Vec::new();
 
-        walk_js(&json, |node, _| match node_type(node) {
+        walk_js(json, |node, _| match node_type(node) {
             Some("CallExpression") => {
                 let Some(kind) = nav_call_kind(&idx, node) else {
                     return;
@@ -252,9 +276,7 @@ impl Rule for NoNavigationWithoutBase {
             ctx.report(s, e, msg);
         }
     }
-}
 
-impl NoNavigationWithoutBase {
     fn check_href(idx: &ScopeIndex<'_>, attr: &Value) -> Option<(u32, u32)> {
         let value = attr.get("value")?;
         // Static string value: `href="..."` → value is `[Text]`.
