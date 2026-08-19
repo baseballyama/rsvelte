@@ -256,7 +256,9 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
                 } else {
                     let trailing_comment = after.strip_prefix(';').unwrap_or(after).trim_start();
                     let marker = if before.is_empty() && trailing_comment.starts_with("/*") {
-                        "/* $$inspect_removed$$ */"
+                        // The trailing `;` of the removed call is one of the
+                        // `;;` upstream prints for the empty-as-expression.
+                        "/* $$inspect_removed$$ */;"
                     } else {
                         ""
                     };

@@ -197,8 +197,8 @@ fn block_comment_after_final_inspect_precedes_generated_element_variable() {
     .unwrap();
 
     assert!(
-        result.js.code.contains("/* c */\n\tvar p = root();"),
-        "the orphaned comment must flush before the generated declaration:\n{}",
+        result.js.code.contains(";; /* c */\n\n\tvar p = root();"),
+        "the comment must trail the `;;` hole, ahead of the generated declaration:\n{}",
         result.js.code
     );
     assert!(

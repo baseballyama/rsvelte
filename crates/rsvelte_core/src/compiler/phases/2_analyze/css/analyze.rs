@@ -19,6 +19,10 @@ struct CssAnalysisState<'a> {
     in_pseudoclass: bool,
     /// The original component source (for position-based lookups).
     source: Option<&'a str>,
+    /// Whether we're inside a `:global { … }` block. Upstream's prune walker
+    /// visits only such a rule's prelude, so nothing in its body can mark an
+    /// element scoped.
+    in_global_block: bool,
 }
 
 /// Analyze a CSS stylesheet.
@@ -40,6 +44,7 @@ pub fn analyze_css_with_source<'a>(
         parent_rule_has_parent: false,
         in_pseudoclass: false,
         source,
+        in_global_block: false,
     };
     for child in &stylesheet.children {
         analyze_css_node(child, analysis, &state)?;
@@ -104,7 +109,8 @@ fn analyze_atrule(
                     // The rsvelte CSS parser does not emit a `Percentage` node for
                     // keyframe steps (it produces an empty RelativeSelector), so we
                     // detect percentage steps via the source substring using start/end.
-                    if !analysis.css.has_percentage_keyframe_step
+                    if !state.in_global_block
+                        && !analysis.css.has_percentage_keyframe_step
                         && let Some(prelude) = child.get("prelude")
                         && let (Some(start), Some(end)) = (
                             prelude.get("start").and_then(|v| v.as_u64()),
@@ -328,6 +334,7 @@ fn analyze_rule(
         parent_rule_has_parent: state.parent_rule.is_some(),
         in_pseudoclass: false,
         source: state.source,
+        in_global_block: state.in_global_block || is_global_block,
     };
     if let Some(block) = node.get("block")
         && let Some(children) = block.get("children").and_then(|c| c.as_array())
@@ -786,6 +793,7 @@ fn validate_complex_selector(
                             parent_rule_has_parent: state.parent_rule_has_parent,
                             in_pseudoclass: true,
                             source: state.source,
+                            in_global_block: state.in_global_block,
                         };
                         validate_selectors(args, &pseudo_state)?;
                     }
