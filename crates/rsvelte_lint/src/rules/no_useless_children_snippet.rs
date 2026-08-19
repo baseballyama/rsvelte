@@ -27,7 +27,7 @@ static META: RuleMeta = RuleMeta {
     name: "svelte/no-useless-children-snippet",
     category: RuleCategory::Style,
     fixable: Fixable::No,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: false,
@@ -52,13 +52,11 @@ impl NoUselessChildrenSnippet {
             if let TemplateNode::SnippetBlock(block) = node
                 && is_useless_children_snippet(block)
             {
-                // Report at the `{` of `{#snippet}` (`block.start`); span to the
-                // end of the snippet id so the diagnostic column lands on the
-                // opening brace, matching upstream.
-                let end = block.expression.end().unwrap_or(block.start);
+                // Upstream reports the whole `SvelteSnippetBlock`, `{/snippet}`
+                // included.
                 ctx.report(
                     block.start,
-                    end.max(block.start),
+                    block.end.max(block.start),
                     "Found an unnecessary children snippet.",
                 );
             }

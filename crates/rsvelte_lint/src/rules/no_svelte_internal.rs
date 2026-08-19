@@ -7,9 +7,11 @@
 //! source), and `ExportAllDeclaration`. The deep-import path
 //! (`svelte/internal/client`, …) is caught by the `startsWith` check.
 //!
-//! A [`ScriptRule`]: the check is a plain `ESTree` visitor upstream, so it runs
-//! over each script program (and standalone `.svelte.(js|ts)` modules, which
-//! reach `check_program` via `run_script_rules_module`).
+//! Dual-registered: the [`ScriptRule`] pass covers `<script>` programs and
+//! standalone `.svelte.(js|ts)` modules, the template [`Rule`] pass covers a
+//! dynamic `import()` inside a template expression (`{#await import('…')}`, an
+//! event handler), which upstream's plain `ImportExpression` visitor sees
+//! because the whole component is one ESTree walk for it.
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::Statement;
@@ -18,8 +20,8 @@ use oxc_span::SourceType;
 use serde_json::Value;
 
 use crate::context::LintContext;
-use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ProgramView, ScriptKind, ScriptRule, node_type};
+use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_type, walk_js};
 use crate::script::{node_end, node_start};
 
 static META: RuleMeta = RuleMeta {
@@ -51,8 +53,66 @@ fn source_string(node: &Value) -> Option<&str> {
         .and_then(Value::as_str)
 }
 
+/// A dynamic `import('…')` written as a plain call. The template expression
+/// path serializes `import()` as a `CallExpression` with a callee named
+/// `import` instead of as an `ImportExpression`; `import` is a reserved word, so
+/// nothing else can produce that callee.
+fn dynamic_import_source(node: &Value) -> Option<&str> {
+    let callee = node.get("callee")?;
+    if node_type(callee) != Some("Identifier")
+        || callee.get("name").and_then(Value::as_str) != Some("import")
+    {
+        return None;
+    }
+    node.get("arguments")
+        .and_then(Value::as_array)
+        .and_then(|args| args.first())
+        .filter(|a| node_type(a) == Some("Literal"))
+        .and_then(|a| a.get("value"))
+        .and_then(Value::as_str)
+}
+
+/// Whether a node is one of upstream's four visited kinds with a prohibited
+/// module source.
+fn is_prohibited(node: &Value) -> bool {
+    match node_type(node) {
+        Some(
+            "ImportDeclaration"
+            | "ImportExpression"
+            | "ExportNamedDeclaration"
+            | "ExportAllDeclaration",
+        ) => source_string(node).is_some_and(is_svelte_internal),
+        Some("CallExpression") => dynamic_import_source(node).is_some_and(is_svelte_internal),
+        _ => false,
+    }
+}
+
 #[derive(Default)]
 pub struct NoSvelteInternal;
+
+/// Template pass: a dynamic `import()` inside a template expression. Script
+/// programs are covered by `check_program`, so this walks only the fragment.
+impl Rule for NoSvelteInternal {
+    fn meta(&self) -> &'static RuleMeta {
+        &META
+    }
+
+    fn check_root(&self, ctx: &mut LintContext, _root: &rsvelte_core::ast::template::Root) {
+        let fragment = ctx.template_fragment_json();
+        let mut reports: Vec<(u32, u32)> = Vec::new();
+        walk_js(&fragment, |node, _| {
+            if is_prohibited(node)
+                && let (Some(s), Some(e)) = (node_start(node), node_end(node))
+            {
+                reports.push((s, e));
+            }
+        });
+        reports.sort_unstable();
+        for (start, end) in reports {
+            ctx.report(start, end, MESSAGE);
+        }
+    }
+}
 
 impl ScriptRule for NoSvelteInternal {
     fn meta(&self) -> &'static RuleMeta {
@@ -62,16 +122,9 @@ impl ScriptRule for NoSvelteInternal {
     fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
         let mut reports: Vec<(u32, u32)> = Vec::new();
         program.walk(|node, _| {
-            let matches = match node_type(node) {
-                Some(
-                    "ImportDeclaration"
-                    | "ImportExpression"
-                    | "ExportNamedDeclaration"
-                    | "ExportAllDeclaration",
-                ) => source_string(node).is_some_and(is_svelte_internal),
-                _ => false,
-            };
-            if matches && let (Some(s), Some(e)) = (node_start(node), node_end(node)) {
+            if is_prohibited(node)
+                && let (Some(s), Some(e)) = (node_start(node), node_end(node))
+            {
                 reports.push((s, e));
             }
         });
@@ -117,6 +170,22 @@ fn collect_export_all(ctx: &LintContext, program: &ProgramView<'_>, out: &mut Ve
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn dynamic_import_as_a_plain_call_is_matched() {
+        let call = json!({
+            "type": "CallExpression",
+            "callee": { "type": "Identifier", "name": "import" },
+            "arguments": [{ "type": "Literal", "value": "svelte/internal" }]
+        });
+        assert!(is_prohibited(&call));
+        let other = json!({
+            "type": "CallExpression",
+            "callee": { "type": "Identifier", "name": "load" },
+            "arguments": [{ "type": "Literal", "value": "svelte/internal" }]
+        });
+        assert!(!is_prohibited(&other));
+    }
 
     #[test]
     fn matches_svelte_internal_paths() {

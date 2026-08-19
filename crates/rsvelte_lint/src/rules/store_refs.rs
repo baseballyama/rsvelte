@@ -1,126 +1,19 @@
 //! Shared helpers for `svelte/store` rules.
 //!
-//! Shared helper for the `svelte/store` rules: resolve which call expressions
-//! are store-creator calls (`writable` / `readable` / `derived`), accounting for
-//! the import that binds them — direct (`import { writable }`), aliased
-//! (`import { writable as w }`), and namespace
-//! (`import * as store from 'svelte/store'` → `store.writable(...)`).
+//! Resolve which call expressions are store-creator calls (`writable` /
+//! `readable` / `derived`) by following the binding that names them: direct
+//! (`import { writable }`), aliased (`import { writable as w }`), const-aliased
+//! (`const w = writable`), destructured, and namespace members including
+//! constant-folded computed keys (`ns['writ' + 'able']`).
 //!
-//! Mirrors eslint-plugin-svelte's `extractStoreReferences` (ESM reference
-//! tracking) for the ECMAScript case.
+//! Mirrors eslint-plugin-svelte's `extractStoreReferences` — the
+//! `@eslint-community/eslint-utils` `ReferenceTracker` — for the ECMAScript case.
 
 use std::collections::{HashMap, HashSet};
 
 use serde_json::Value;
 
 use crate::script::{node_end, node_start, node_type, walk_js};
-
-fn ident_name(node: &Value) -> Option<&str> {
-    if node_type(node) == Some("Identifier") {
-        node.get("name").and_then(Value::as_str)
-    } else {
-        None
-    }
-}
-
-fn canonical(name: &str) -> Option<&'static str> {
-    match name {
-        "writable" => Some("writable"),
-        "readable" => Some("readable"),
-        "derived" => Some("derived"),
-        _ => None,
-    }
-}
-
-/// The `svelte/store` creator bindings found in a program.
-pub struct StoreCreators {
-    /// local name → canonical creator name.
-    direct: Vec<(String, &'static str)>,
-    /// namespace import local names (`import * as X`).
-    namespaces: Vec<String>,
-}
-
-impl StoreCreators {
-    #[must_use]
-    pub const fn is_empty(&self) -> bool {
-        self.direct.is_empty() && self.namespaces.is_empty()
-    }
-
-    /// The canonical creator name (`writable`/`readable`/`derived`) if `callee`
-    /// references a `svelte/store` creator, else `None`.
-    pub fn creator_of(&self, callee: &Value) -> Option<&'static str> {
-        match node_type(callee) {
-            Some("Identifier") => {
-                let n = ident_name(callee)?;
-                self.direct
-                    .iter()
-                    .find(|(local, _)| local == n)
-                    .map(|(_, c)| *c)
-            }
-            Some("MemberExpression") => {
-                if callee.get("computed").and_then(Value::as_bool) == Some(true) {
-                    return None;
-                }
-                let obj = callee.get("object")?;
-                let o = ident_name(obj)?;
-                if !self.namespaces.iter().any(|ns| ns == o) {
-                    return None;
-                }
-                canonical(callee.get("property").and_then(ident_name)?)
-            }
-            _ => None,
-        }
-    }
-}
-
-/// Collect the `svelte/store` creator bindings declared in `program`.
-#[must_use]
-pub fn collect_store_creators(program: &Value) -> StoreCreators {
-    let mut direct: Vec<(String, &'static str)> = Vec::new();
-    let mut namespaces: Vec<String> = Vec::new();
-
-    walk_js(program, |node, _| {
-        if node_type(node) != Some("ImportDeclaration") {
-            return;
-        }
-        if node
-            .get("source")
-            .and_then(|s| s.get("value"))
-            .and_then(Value::as_str)
-            != Some("svelte/store")
-        {
-            return;
-        }
-        let Some(specs) = node.get("specifiers").and_then(Value::as_array) else {
-            return;
-        };
-        for spec in specs {
-            match node_type(spec) {
-                Some("ImportSpecifier") => {
-                    let imported = spec.get("imported").and_then(ident_name).or_else(|| {
-                        spec.get("imported")
-                            .and_then(|i| i.get("value"))
-                            .and_then(Value::as_str)
-                    });
-                    if let Some(imp) = imported
-                        && let Some(c) = canonical(imp)
-                        && let Some(local) = spec.get("local").and_then(ident_name)
-                    {
-                        direct.push((local.to_string(), c));
-                    }
-                }
-                Some("ImportNamespaceSpecifier") => {
-                    if let Some(local) = spec.get("local").and_then(ident_name) {
-                        namespaces.push(local.to_string());
-                    }
-                }
-                _ => {}
-            }
-        }
-    });
-
-    StoreCreators { direct, namespaces }
-}
 
 /// Whether a node is an arrow/function expression.
 #[must_use]
@@ -146,6 +39,103 @@ pub fn is_function_expr(node: &Value) -> bool {
 
 fn ptr(v: &Value) -> usize {
     std::ptr::from_ref(v) as usize
+}
+
+/// Script index marking a template-local binding — `{#each … as x}`,
+/// `{@const}`, a snippet parameter, `let:x`, or a declaration inside a template
+/// expression. These have no oxc symbol table, so the tracker keeps its own.
+const TEMPLATE_SCOPE: usize = usize::MAX;
+
+/// A template-local binding and the identifiers that read it.
+struct TemplateVar<'a> {
+    decl_span: (u32, u32),
+    reads: Vec<&'a Value>,
+}
+
+/// Scan state for the template walk: a lexical scope stack over the bindings
+/// declared by the Svelte block binders and by JS inside template expressions.
+struct TemplateScan<'a> {
+    scopes: Vec<HashMap<String, u32>>,
+    vars: Vec<TemplateVar<'a>>,
+    /// Binding identifier node → its template variable.
+    decl_of: Vec<(&'a Value, u32)>,
+    /// Value reference and the template variable it resolves to, `None` when no
+    /// template scope binds the name.
+    refs: Vec<(&'a Value, Option<u32>)>,
+}
+
+impl<'a> TemplateScan<'a> {
+    fn new() -> Self {
+        Self {
+            scopes: Vec::new(),
+            vars: Vec::new(),
+            decl_of: Vec::new(),
+            refs: Vec::new(),
+        }
+    }
+
+    fn open(&mut self, binders: &Binders<'a>) {
+        let mut scope: HashMap<String, u32> = HashMap::new();
+        let mut idents: Vec<&'a Value> = Vec::new();
+        for pattern in &binders.patterns {
+            collect_binding_idents(pattern, &mut idents);
+        }
+        for ident in idents {
+            let Some(name) = ident.get("name").and_then(Value::as_str) else {
+                continue;
+            };
+            let span = (node_start(ident).unwrap_or(0), node_end(ident).unwrap_or(0));
+            let idx = self.declare(&mut scope, name, span);
+            self.decl_of.push((ident, idx));
+        }
+        for (name, span) in &binders.bare {
+            self.declare(&mut scope, name, *span);
+        }
+        self.scopes.push(scope);
+    }
+
+    fn declare(&mut self, scope: &mut HashMap<String, u32>, name: &str, span: (u32, u32)) -> u32 {
+        if let Some(&idx) = scope.get(name) {
+            return idx;
+        }
+        let idx = u32::try_from(self.vars.len()).unwrap_or(u32::MAX);
+        self.vars.push(TemplateVar {
+            decl_span: span,
+            reads: Vec::new(),
+        });
+        scope.insert(name.to_string(), idx);
+        idx
+    }
+
+    fn close(&mut self) {
+        self.scopes.pop();
+    }
+
+    fn resolve(&self, name: &str) -> Option<u32> {
+        self.scopes.iter().rev().find_map(|s| s.get(name).copied())
+    }
+}
+
+/// The bindings a scope-opening node introduces: binding-pattern subtrees plus
+/// names that exist only as strings (`{#each … as x, i}`, `let:x`).
+struct Binders<'n> {
+    patterns: Vec<&'n Value>,
+    bare: Vec<(String, (u32, u32))>,
+}
+
+impl Binders<'_> {
+    fn names(&self) -> HashSet<String> {
+        let mut idents = Vec::new();
+        for pattern in &self.patterns {
+            collect_binding_idents(pattern, &mut idents);
+        }
+        let mut out: HashSet<String> = idents
+            .into_iter()
+            .filter_map(|i| i.get("name").and_then(Value::as_str).map(str::to_string))
+            .collect();
+        out.extend(self.bare.iter().map(|(n, _)| n.clone()));
+        out
+    }
 }
 
 /// A resolved variable: `(script index, dense symbol index)`.
@@ -361,6 +351,9 @@ pub struct RefTracker<'a> {
     ident_at: HashMap<u32, &'a Value>,
     /// Template value references that resolve to a script root binding.
     template_rooted: HashMap<usize, Var>,
+    /// Template-local bindings and the identifier nodes that resolve to them.
+    template_vars: Vec<TemplateVar<'a>>,
+    template_local: HashMap<usize, Var>,
     template_refs_of_var: HashMap<Var, Vec<&'a Value>>,
     /// Unshadowed template value references that resolve to no script binding.
     template_unresolved: HashMap<String, Vec<&'a Value>>,
@@ -378,6 +371,8 @@ impl<'a> RefTracker<'a> {
             parents: HashMap::new(),
             ident_at: HashMap::new(),
             template_rooted: HashMap::new(),
+            template_vars: Vec::new(),
+            template_local: HashMap::new(),
             template_refs_of_var: HashMap::new(),
             template_unresolved: HashMap::new(),
             template_unresolved_writes: HashSet::new(),
@@ -446,13 +441,16 @@ impl<'a> RefTracker<'a> {
             let name = ident.get("name").and_then(Value::as_str)?;
             return self.cross_root(i, name);
         }
-        self.template_rooted.get(&ptr(ident)).copied()
+        self.template_local
+            .get(&ptr(ident))
+            .or_else(|| self.template_rooted.get(&ptr(ident)))
+            .copied()
     }
 
     /// Whether the variable is a top-level (root scope) binding.
     #[must_use]
     pub fn is_root(&self, var: Var) -> bool {
-        self.tables[var.0].sym_is_root[var.1 as usize]
+        var.0 != TEMPLATE_SCOPE && self.tables[var.0].sym_is_root[var.1 as usize]
     }
 
     /// The root binding named `name`, preferring the earlier script (instance
@@ -470,6 +468,9 @@ impl<'a> RefTracker<'a> {
     /// The `[start, end)` span of the variable's declaration node.
     #[must_use]
     pub fn decl_node_span(&self, var: Var) -> (u32, u32) {
+        if var.0 == TEMPLATE_SCOPE {
+            return self.template_vars[var.1 as usize].decl_span;
+        }
         self.tables[var.0].sym_decl_node_span[var.1 as usize]
     }
 
@@ -489,6 +490,12 @@ impl<'a> RefTracker<'a> {
     /// root binding's name, and unshadowed template references.
     #[must_use]
     pub fn read_references(&self, var: Var) -> Vec<&'a Value> {
+        if var.0 == TEMPLATE_SCOPE {
+            let mut nodes = self.template_vars[var.1 as usize].reads.clone();
+            nodes.sort_by_key(|n| node_start(n).unwrap_or(0));
+            nodes.dedup_by_key(|n| ptr(n));
+            return nodes;
+        }
         let table = &self.tables[var.0];
         let name = &table.sym_names[var.1 as usize];
         let mut starts: Vec<u32> = table.sym_read_refs[var.1 as usize].clone();
@@ -550,11 +557,18 @@ impl<'a> RefTracker<'a> {
     // --- template reference collection -----------------------------------
 
     fn collect_template_refs(&mut self, fragment: &'a Value) {
-        let mut scopes: Vec<HashSet<String>> = Vec::new();
-        let mut refs: Vec<(&'a Value, bool)> = Vec::new(); // (ident, shadowed)
-        Self::template_walk(fragment, None, false, &mut scopes, &mut refs);
-        for (node, shadowed) in refs {
-            if shadowed {
+        let mut scan = TemplateScan::new();
+        Self::template_walk(fragment, None, false, &mut scan);
+        self.template_vars = scan.vars;
+        for (ident, idx) in scan.decl_of {
+            self.template_local
+                .insert(ptr(ident), Var(TEMPLATE_SCOPE, idx));
+        }
+        for (node, local) in scan.refs {
+            if let Some(idx) = local {
+                self.template_local
+                    .insert(ptr(node), Var(TEMPLATE_SCOPE, idx));
+                self.template_vars[idx as usize].reads.push(node);
                 continue;
             }
             let Some(name) = node.get("name").and_then(Value::as_str) else {
@@ -587,21 +601,20 @@ impl<'a> RefTracker<'a> {
         }
     }
 
-    /// Walk a template subtree collecting identifier value references, tracking
-    /// function scopes (template block bindings — `{#each … as x}` etc. — are
-    /// deliberately NOT scopes: the upstream scope manager cannot resolve them,
-    /// so references to their names resolve to the script bindings).
+    /// Walk a template subtree collecting identifier value references under a
+    /// lexical scope stack: Svelte block binders (`{#each … as x}`, `{#await …
+    /// then x}`, `{#snippet f(x)}`, `{@const x = …}`, `let:x`) scope their own
+    /// region, and JS expressions inside them get real block scoping.
     fn template_walk(
         node: &'a Value,
         parent_field: Option<(&str, &'a Value)>,
         in_binding: bool,
-        scopes: &mut Vec<HashSet<String>>,
-        refs: &mut Vec<(&'a Value, bool)>,
+        scan: &mut TemplateScan<'a>,
     ) {
         match node {
             Value::Array(arr) => {
                 for v in arr {
-                    Self::template_walk(v, parent_field, in_binding, scopes, refs);
+                    Self::template_walk(v, parent_field, in_binding, scan);
                 }
             }
             Value::Object(map) => {
@@ -616,27 +629,16 @@ impl<'a> RefTracker<'a> {
                         return;
                     }
                     let name = map.get("name").and_then(Value::as_str).unwrap_or("");
-                    let shadowed = scopes.iter().any(|s| s.contains(name));
-                    refs.push((node, shadowed));
+                    let local = scan.resolve(name);
+                    scan.refs.push((node, local));
                     return;
                 }
-                let is_function = matches!(
-                    ty,
-                    Some("FunctionExpression" | "ArrowFunctionExpression" | "FunctionDeclaration")
-                );
-                if is_function {
-                    let mut declared = HashSet::new();
-                    if let Some(params) = map.get("params") {
-                        collect_binding_names(params, &mut declared);
-                    }
-                    if let Some(id) = map.get("id") {
-                        collect_binding_names(id, &mut declared);
-                    }
-                    if let Some(body) = map.get("body") {
-                        collect_declared_names(body, &mut declared);
-                    }
-                    scopes.push(declared);
+                if Self::walk_svelte_binder(node, map, ty, scan) {
+                    return;
                 }
+                let pushed = js_scope_binders(map, ty)
+                    .inspect(|b| scan.open(b))
+                    .is_some();
                 for (k, v) in map {
                     if k == "loc" || skip_template_field(ty, k) {
                         continue;
@@ -654,14 +656,75 @@ impl<'a> RefTracker<'a> {
                     } else {
                         false
                     };
-                    Self::template_walk(v, Some((k, node)), child_binding, scopes, refs);
+                    Self::template_walk(v, Some((k, node)), child_binding, scan);
                 }
-                if is_function {
-                    scopes.pop();
+                if pushed {
+                    scan.close();
                 }
             }
             _ => {}
         }
+    }
+
+    /// Handle the Svelte nodes that bind names over part of their own subtree.
+    /// Returns `true` when the node was walked here (the generic walk must not
+    /// repeat it).
+    fn walk_svelte_binder(
+        node: &'a Value,
+        map: &'a serde_json::Map<String, Value>,
+        ty: Option<&str>,
+        scan: &mut TemplateScan<'a>,
+    ) -> bool {
+        let walk = |field: &'static str, scan: &mut TemplateScan<'a>| {
+            if let Some(v) = map.get(field) {
+                Self::template_walk(v, Some((field, node)), false, scan);
+            }
+        };
+        match ty {
+            // `{@const}` declares for the whole enclosing fragment.
+            Some("Fragment") => {
+                scan.open(&const_tag_binders(map));
+                walk("nodes", scan);
+                scan.close();
+            }
+            Some("EachBlock") => {
+                walk("expression", scan);
+                scan.open(&each_binders(map));
+                walk("body", scan);
+                walk("key", scan);
+                scan.close();
+                walk("fallback", scan);
+            }
+            Some("AwaitBlock") => {
+                walk("expression", scan);
+                walk("pending", scan);
+                for (binder, branch) in [("value", "then"), ("error", "catch")] {
+                    scan.open(&await_binders(map, binder));
+                    walk(branch, scan);
+                    scan.close();
+                }
+            }
+            // `expression` is the snippet's own name — a declaration.
+            Some("SnippetBlock") => {
+                scan.open(&snippet_binders(map));
+                walk("body", scan);
+                scan.close();
+            }
+            // An element whose `let:` directives bind over its children.
+            _ if map.contains_key("fragment") && map.contains_key("attributes") => {
+                for (k, v) in map {
+                    if k == "loc" || k == "fragment" {
+                        continue;
+                    }
+                    Self::template_walk(v, Some((k, node)), false, scan);
+                }
+                scan.open(&let_binders(map));
+                walk("fragment", scan);
+                scan.close();
+            }
+            _ => return false,
+        }
+        true
     }
 
     // --- the eslint-utils tracking algorithm ------------------------------
@@ -967,40 +1030,328 @@ fn property_key_name(prop: &Value) -> Option<String> {
     } else {
         match node_type(key) {
             Some("Identifier") => key.get("name").and_then(Value::as_str).map(str::to_string),
-            Some("Literal") => key.get("value").map(literal_to_string),
+            Some("Literal") => literal_static_value(key).map(|v| v.to_js_string()),
             _ => None,
         }
     }
 }
 
-/// `getStringIfConstant` limited to literal shapes (no scope resolution).
+/// `getStringIfConstant`: the folded value of a constant expression, stringified.
+/// Scope resolution is deliberately absent — `getPropertyName` is called from the
+/// reference tracker without an `initialScope`, so an Identifier never folds.
 fn static_string_value(node: &Value) -> Option<String> {
-    match node_type(node) {
-        Some("Literal") => node.get("value").map(literal_to_string),
-        Some("TemplateLiteral") => {
-            let exprs = node.get("expressions").and_then(Value::as_array)?;
-            if !exprs.is_empty() {
-                return None;
+    if node_type(node) == Some("Literal") {
+        if let Some(regex) = node.get("regex") {
+            let pattern = regex.get("pattern").and_then(Value::as_str)?;
+            let flags = regex.get("flags").and_then(Value::as_str).unwrap_or("");
+            return Some(format!("/{pattern}/{flags}"));
+        }
+        if let Some(bigint) = node.get("bigint").and_then(Value::as_str) {
+            return Some(bigint.to_string());
+        }
+    }
+    static_value(node).map(|v| v.to_js_string())
+}
+
+/// A folded value (`getStaticValue`'s `{ value }`). `Obj` carries no properties
+/// because the only thing a folded object is ever asked for here is `String(v)`.
+#[derive(Debug, Clone, PartialEq)]
+enum StaticValue {
+    Str(String),
+    Num(f64),
+    Bool(bool),
+    Null,
+    Undefined,
+    Arr(Vec<StaticValue>),
+    Obj,
+}
+
+impl StaticValue {
+    fn to_js_string(&self) -> String {
+        match self {
+            Self::Str(s) => s.clone(),
+            Self::Num(n) => js_number_to_string(*n),
+            Self::Bool(b) => b.to_string(),
+            Self::Null => "null".to_string(),
+            Self::Undefined => "undefined".to_string(),
+            Self::Arr(items) => items
+                .iter()
+                .map(|v| match v {
+                    Self::Null | Self::Undefined => String::new(),
+                    other => other.to_js_string(),
+                })
+                .collect::<Vec<_>>()
+                .join(","),
+            Self::Obj => "[object Object]".to_string(),
+        }
+    }
+
+    fn to_number(&self) -> f64 {
+        match self {
+            Self::Str(_) | Self::Arr(_) => {
+                let s = self.to_js_string();
+                let t = s.trim();
+                if t.is_empty() {
+                    0.0
+                } else {
+                    t.parse::<f64>().unwrap_or(f64::NAN)
+                }
             }
+            Self::Num(n) => *n,
+            Self::Bool(b) => f64::from(u8::from(*b)),
+            Self::Null => 0.0,
+            Self::Undefined | Self::Obj => f64::NAN,
+        }
+    }
+
+    fn to_boolean(&self) -> bool {
+        match self {
+            Self::Str(s) => !s.is_empty(),
+            Self::Num(n) => *n != 0.0 && !n.is_nan(),
+            Self::Bool(b) => *b,
+            Self::Null | Self::Undefined => false,
+            Self::Arr(_) | Self::Obj => true,
+        }
+    }
+
+    fn type_of(&self) -> &'static str {
+        match self {
+            Self::Str(_) => "string",
+            Self::Num(_) => "number",
+            Self::Bool(_) => "boolean",
+            Self::Null | Self::Arr(_) | Self::Obj => "object",
+            Self::Undefined => "undefined",
+        }
+    }
+}
+
+fn js_number_to_string(n: f64) -> String {
+    if n.is_nan() {
+        return "NaN".to_string();
+    }
+    if n.is_infinite() {
+        return if n > 0.0 { "Infinity" } else { "-Infinity" }.to_string();
+    }
+    if n == 0.0 {
+        return "0".to_string();
+    }
+    if n.fract() == 0.0 && n.abs() < 1e21 {
+        return format!("{n:.0}");
+    }
+    format!("{n}")
+}
+
+#[expect(clippy::cast_possible_truncation, reason = "ToInt32 truncates by spec")]
+fn to_int32(v: &StaticValue) -> i32 {
+    let n = v.to_number();
+    if !n.is_finite() {
+        return 0;
+    }
+    (n.trunc() as i64 & 0xffff_ffff) as u32 as i32
+}
+
+fn literal_static_value(node: &Value) -> Option<StaticValue> {
+    match node.get("value")? {
+        Value::String(s) => Some(StaticValue::Str(s.clone())),
+        Value::Number(n) => n.as_f64().map(StaticValue::Num),
+        Value::Bool(b) => Some(StaticValue::Bool(*b)),
+        Value::Null => Some(StaticValue::Null),
+        _ => None,
+    }
+}
+
+/// `getStaticValue(node, null)`. `Identifier`, `CallExpression`, `NewExpression`
+/// and `MemberExpression` fold to nothing precisely because they need a scope.
+fn static_value(node: &Value) -> Option<StaticValue> {
+    match node_type(node)? {
+        "Literal" => literal_static_value(node),
+        "TemplateLiteral" => {
             let quasis = node.get("quasis").and_then(Value::as_array)?;
-            quasis
-                .first()
-                .and_then(|q| q.get("value"))
-                .and_then(|v| v.get("cooked"))
-                .and_then(Value::as_str)
-                .map(str::to_string)
+            let exprs = node.get("expressions").and_then(Value::as_array)?;
+            let cooked = |q: &Value| -> Option<String> {
+                q.get("value")
+                    .and_then(|v| v.get("cooked"))
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+            };
+            let mut out = cooked(quasis.first()?)?;
+            for (i, expr) in exprs.iter().enumerate() {
+                out.push_str(&static_value(expr)?.to_js_string());
+                out.push_str(&cooked(quasis.get(i + 1)?)?);
+            }
+            Some(StaticValue::Str(out))
+        }
+        "BinaryExpression" => {
+            let op = node.get("operator").and_then(Value::as_str)?;
+            let left = static_value(node.get("left")?)?;
+            let right = static_value(node.get("right")?)?;
+            static_binary(op, &left, &right)
+        }
+        "UnaryExpression" => {
+            let op = node.get("operator").and_then(Value::as_str)?;
+            if op == "void" {
+                return Some(StaticValue::Undefined);
+            }
+            let arg = static_value(node.get("argument")?)?;
+            match op {
+                "-" => Some(StaticValue::Num(-arg.to_number())),
+                "+" => Some(StaticValue::Num(arg.to_number())),
+                "!" => Some(StaticValue::Bool(!arg.to_boolean())),
+                "~" => Some(StaticValue::Num(f64::from(!to_int32(&arg)))),
+                "typeof" => Some(StaticValue::Str(arg.type_of().to_string())),
+                _ => None,
+            }
+        }
+        "LogicalExpression" => {
+            let op = node.get("operator").and_then(Value::as_str)?;
+            let left = static_value(node.get("left")?)?;
+            let short = match op {
+                "||" => left.to_boolean(),
+                "&&" => !left.to_boolean(),
+                "??" => !matches!(left, StaticValue::Null | StaticValue::Undefined),
+                _ => return None,
+            };
+            if short {
+                return Some(left);
+            }
+            static_value(node.get("right")?)
+        }
+        "ConditionalExpression" => {
+            let test = static_value(node.get("test")?)?;
+            if test.to_boolean() {
+                static_value(node.get("consequent")?)
+            } else {
+                static_value(node.get("alternate")?)
+            }
+        }
+        "SequenceExpression" => {
+            static_value(node.get("expressions").and_then(Value::as_array)?.last()?)
+        }
+        "ArrayExpression" => {
+            let mut items = Vec::new();
+            for el in node.get("elements").and_then(Value::as_array)? {
+                if el.is_null() {
+                    items.push(StaticValue::Undefined);
+                } else if node_type(el) == Some("SpreadElement") {
+                    match static_value(el.get("argument")?)? {
+                        StaticValue::Arr(inner) => items.extend(inner),
+                        _ => return None,
+                    }
+                } else {
+                    items.push(static_value(el)?);
+                }
+            }
+            Some(StaticValue::Arr(items))
+        }
+        "ObjectExpression" => {
+            // `String(obj)` is "[object Object]" unless the literal overrides
+            // `toString`/`valueOf`, which upstream would have to call.
+            for prop in node.get("properties").and_then(Value::as_array)? {
+                match node_type(prop) {
+                    Some("Property") => {
+                        if prop.get("kind").and_then(Value::as_str) != Some("init") {
+                            return None;
+                        }
+                        let key = property_key_name(prop)?;
+                        if key == "toString" || key == "valueOf" {
+                            return None;
+                        }
+                        static_value(prop.get("value")?)?;
+                    }
+                    Some("SpreadElement") => {
+                        static_value(prop.get("argument")?)?;
+                    }
+                    _ => return None,
+                }
+            }
+            Some(StaticValue::Obj)
+        }
+        "ChainExpression" => static_value(node.get("expression")?),
+        "ExpressionStatement" => static_value(node.get("expression")?),
+        "AssignmentExpression" if node.get("operator").and_then(Value::as_str) == Some("=") => {
+            static_value(node.get("right")?)
         }
         _ => None,
     }
 }
 
-fn literal_to_string(value: &Value) -> String {
-    match value {
-        Value::String(s) => s.clone(),
-        Value::Number(n) => n.to_string(),
-        Value::Bool(b) => b.to_string(),
-        Value::Null => "null".to_string(),
-        other => other.to_string(),
+fn static_binary(op: &str, l: &StaticValue, r: &StaticValue) -> Option<StaticValue> {
+    let num = |f: fn(f64, f64) -> f64| StaticValue::Num(f(l.to_number(), r.to_number()));
+    Some(match op {
+        "+" => {
+            if matches!(l, StaticValue::Str(_)) || matches!(r, StaticValue::Str(_)) {
+                StaticValue::Str(format!("{}{}", l.to_js_string(), r.to_js_string()))
+            } else {
+                StaticValue::Num(l.to_number() + r.to_number())
+            }
+        }
+        "-" => num(|a, b| a - b),
+        "*" => num(|a, b| a * b),
+        "/" => num(|a, b| a / b),
+        "%" => num(|a, b| a % b),
+        "**" => num(f64::powf),
+        "===" => StaticValue::Bool(strict_eq(l, r)),
+        "!==" => StaticValue::Bool(!strict_eq(l, r)),
+        "==" => StaticValue::Bool(loose_eq(l, r)),
+        "!=" => StaticValue::Bool(!loose_eq(l, r)),
+        "<" | "<=" | ">" | ">=" => StaticValue::Bool(static_compare(op, l, r)),
+        "&" => StaticValue::Num(f64::from(to_int32(l) & to_int32(r))),
+        "|" => StaticValue::Num(f64::from(to_int32(l) | to_int32(r))),
+        "^" => StaticValue::Num(f64::from(to_int32(l) ^ to_int32(r))),
+        "<<" => StaticValue::Num(f64::from(to_int32(l) << (to_int32(r) & 31))),
+        ">>" => StaticValue::Num(f64::from(to_int32(l) >> (to_int32(r) & 31))),
+        ">>>" => StaticValue::Num(f64::from(
+            #[expect(clippy::cast_sign_loss, reason = "ToUint32 reinterprets the bits")]
+            {
+                (to_int32(l) as u32) >> (to_int32(r) & 31)
+            },
+        )),
+        _ => return None,
+    })
+}
+
+fn strict_eq(l: &StaticValue, r: &StaticValue) -> bool {
+    match (l, r) {
+        (StaticValue::Str(a), StaticValue::Str(b)) => a == b,
+        (StaticValue::Num(a), StaticValue::Num(b)) => a == b,
+        (StaticValue::Bool(a), StaticValue::Bool(b)) => a == b,
+        (StaticValue::Null, StaticValue::Null)
+        | (StaticValue::Undefined, StaticValue::Undefined) => true,
+        _ => false,
+    }
+}
+
+fn loose_eq(l: &StaticValue, r: &StaticValue) -> bool {
+    match (l, r) {
+        (
+            StaticValue::Null | StaticValue::Undefined,
+            StaticValue::Null | StaticValue::Undefined,
+        ) => true,
+        (StaticValue::Null | StaticValue::Undefined, _)
+        | (_, StaticValue::Null | StaticValue::Undefined) => false,
+        (StaticValue::Str(a), StaticValue::Str(b)) => a == b,
+        _ => {
+            let (a, b) = (l.to_number(), r.to_number());
+            a == b
+        }
+    }
+}
+
+fn static_compare(op: &str, l: &StaticValue, r: &StaticValue) -> bool {
+    if let (StaticValue::Str(a), StaticValue::Str(b)) = (l, r) {
+        return match op {
+            "<" => a < b,
+            "<=" => a <= b,
+            ">" => a > b,
+            _ => a >= b,
+        };
+    }
+    let (a, b) = (l.to_number(), r.to_number());
+    match op {
+        "<" => a < b,
+        "<=" => a <= b,
+        ">" => a > b,
+        _ => a >= b,
     }
 }
 
@@ -1046,7 +1397,8 @@ fn is_value_ref_position(field: &str, parent: &Value) -> bool {
             // (binding subtrees are skipped before reaching here).
             true
         }
-        (Some("VariableDeclarator"), "id") => false,
+        (Some("VariableDeclarator"), "id")
+        | (Some("ClassDeclaration" | "ClassExpression"), "id") => false,
         (
             Some("FunctionExpression" | "ArrowFunctionExpression" | "FunctionDeclaration"),
             "params" | "id",
@@ -1082,89 +1434,295 @@ fn enters_binding_field(node_ty: Option<&str>, field: &str) -> bool {
     )
 }
 
-/// Template-node fields that hold binding patterns, not references.
+/// Template-node fields that hold binding patterns, not references. The other
+/// binders (`EachBlock`, `AwaitBlock`, `SnippetBlock`) are walked field by field
+/// by `walk_svelte_binder`, which never descends into their patterns.
 fn skip_template_field(node_ty: Option<&str>, field: &str) -> bool {
     matches!(
         (node_ty, field),
-        (Some("EachBlock"), "context" | "index")
-            | (Some("AwaitBlock"), "value" | "error")
-            | (Some("SnippetBlock"), "parameters")
-            | (Some("LetDirective"), "expression" | "name")
+        (Some("LetDirective"), "expression" | "name")
     )
 }
 
-/// Collect binding identifier names from a pattern subtree (params, ids).
-fn collect_binding_names(node: &Value, out: &mut HashSet<String>) {
+/// The bindings a JS scope-opening node introduces. Function scopes hold params
+/// plus `var` hoists; blocks, catch clauses, loop heads and switch bodies hold
+/// only their own `let`/`const`/`class`/`function` declarations.
+fn js_scope_binders<'n>(
+    map: &'n serde_json::Map<String, Value>,
+    ty: Option<&str>,
+) -> Option<Binders<'n>> {
+    let mut patterns: Vec<&'n Value> = Vec::new();
+    match ty? {
+        "FunctionExpression" | "ArrowFunctionExpression" | "FunctionDeclaration" => {
+            patterns.extend(map.get("params"));
+            patterns.extend(map.get("id"));
+            if let Some(body) = map.get("body") {
+                collect_var_decl_ids(body, &mut patterns);
+            }
+        }
+        "BlockStatement" | "StaticBlock" => {
+            if let Some(stmts) = map.get("body").and_then(Value::as_array) {
+                collect_lexical_decl_ids(stmts, &mut patterns);
+            }
+        }
+        "CatchClause" => patterns.extend(map.get("param")),
+        "ForStatement" => {
+            if let Some(init) = map.get("init") {
+                collect_lexical_declarator_ids(init, &mut patterns);
+            }
+        }
+        "ForInStatement" | "ForOfStatement" => {
+            if let Some(left) = map.get("left") {
+                collect_lexical_declarator_ids(left, &mut patterns);
+            }
+        }
+        "SwitchStatement" => {
+            for case in map
+                .get("cases")
+                .and_then(Value::as_array)
+                .map_or(&[] as &[Value], Vec::as_slice)
+            {
+                if let Some(stmts) = case.get("consequent").and_then(Value::as_array) {
+                    collect_lexical_decl_ids(stmts, &mut patterns);
+                }
+            }
+        }
+        "ClassDeclaration" | "ClassExpression" => patterns.extend(map.get("id")),
+        _ => return None,
+    }
+    Some(Binders {
+        patterns,
+        bare: Vec::new(),
+    })
+}
+
+/// `{#each expr as context, index}` — bound over the body and the key.
+fn each_binders<'n>(map: &'n serde_json::Map<String, Value>) -> Binders<'n> {
+    let mut bare = Vec::new();
+    if let Some(index) = map.get("index").and_then(Value::as_str) {
+        bare.push((index.to_string(), node_span(map)));
+    }
+    Binders {
+        patterns: map.get("context").into_iter().collect(),
+        bare,
+    }
+}
+
+/// `{#await … then value}` / `{:catch error}` — one binder per branch.
+fn await_binders<'n>(map: &'n serde_json::Map<String, Value>, field: &str) -> Binders<'n> {
+    Binders {
+        patterns: map.get(field).into_iter().collect(),
+        bare: Vec::new(),
+    }
+}
+
+fn snippet_binders<'n>(map: &'n serde_json::Map<String, Value>) -> Binders<'n> {
+    Binders {
+        patterns: map.get("parameters").into_iter().collect(),
+        bare: Vec::new(),
+    }
+}
+
+/// `{@const}` declares for the whole enclosing fragment.
+fn const_tag_binders<'n>(map: &'n serde_json::Map<String, Value>) -> Binders<'n> {
+    let mut patterns = Vec::new();
+    for child in map
+        .get("nodes")
+        .and_then(Value::as_array)
+        .map_or(&[] as &[Value], Vec::as_slice)
+    {
+        if node_type(child) == Some("ConstTag")
+            && let Some(decl) = child.get("declaration")
+        {
+            collect_lexical_declarator_ids(decl, &mut patterns);
+        }
+    }
+    Binders {
+        patterns,
+        bare: Vec::new(),
+    }
+}
+
+/// An element's `let:` directives, bound over its children.
+fn let_binders<'n>(map: &'n serde_json::Map<String, Value>) -> Binders<'n> {
+    let mut patterns = Vec::new();
+    let mut bare = Vec::new();
+    for attr in map
+        .get("attributes")
+        .and_then(Value::as_array)
+        .map_or(&[] as &[Value], Vec::as_slice)
+    {
+        if node_type(attr) != Some("LetDirective") {
+            continue;
+        }
+        match attr.get("expression").filter(|e| !e.is_null()) {
+            Some(pattern) => patterns.push(pattern),
+            None => {
+                if let Some(name) = attr.get("name").and_then(Value::as_str) {
+                    bare.push((
+                        name.to_string(),
+                        (node_start(attr).unwrap_or(0), node_end(attr).unwrap_or(0)),
+                    ));
+                }
+            }
+        }
+    }
+    Binders { patterns, bare }
+}
+
+fn node_span(map: &serde_json::Map<String, Value>) -> (u32, u32) {
+    let get = |k: &str| {
+        map.get(k)
+            .and_then(Value::as_u64)
+            .and_then(|v| u32::try_from(v).ok())
+            .unwrap_or(0)
+    };
+    (get("start"), get("end"))
+}
+
+/// The names `node`'s own scope binds — JS lexical scopes plus the Svelte block
+/// binders. `None` when the node opens no scope. One model, so an
+/// ancestor-walking rule and the reference tracker cannot disagree.
+#[must_use]
+pub fn scope_binding_names(node: &Value) -> Option<HashSet<String>> {
+    let map = node.as_object()?;
+    let ty = map.get("type").and_then(Value::as_str);
+    if let Some(binders) = js_scope_binders(map, ty) {
+        return Some(binders.names());
+    }
+    let binders = match ty {
+        Some("EachBlock") => each_binders(map),
+        Some("AwaitBlock") => {
+            let mut b = await_binders(map, "value");
+            b.patterns.extend(map.get("error"));
+            b
+        }
+        Some("SnippetBlock") => snippet_binders(map),
+        Some("Fragment") => const_tag_binders(map),
+        _ if map.contains_key("fragment") && map.contains_key("attributes") => let_binders(map),
+        _ => return None,
+    };
+    Some(binders.names())
+}
+
+/// The declarator ids of a `let`/`const` `VariableDeclaration` (nothing for `var`).
+fn collect_lexical_declarator_ids<'n>(node: &'n Value, out: &mut Vec<&'n Value>) {
+    if node_type(node) != Some("VariableDeclaration")
+        || node.get("kind").and_then(Value::as_str) == Some("var")
+    {
+        return;
+    }
+    for decl in node
+        .get("declarations")
+        .and_then(Value::as_array)
+        .map_or(&[] as &[Value], Vec::as_slice)
+    {
+        out.extend(decl.get("id"));
+    }
+}
+
+/// Block-scoped declarations of a statement list, direct children only.
+fn collect_lexical_decl_ids<'n>(stmts: &'n [Value], out: &mut Vec<&'n Value>) {
+    for stmt in stmts {
+        match node_type(stmt) {
+            Some("VariableDeclaration") => collect_lexical_declarator_ids(stmt, out),
+            Some("FunctionDeclaration" | "ClassDeclaration") => out.extend(stmt.get("id")),
+            _ => {}
+        }
+    }
+}
+
+/// `var` declarator ids hoisted to the enclosing function, not entering nested
+/// functions.
+fn collect_var_decl_ids<'n>(node: &'n Value, out: &mut Vec<&'n Value>) {
     match node {
         Value::Array(arr) => {
             for v in arr {
-                collect_binding_names(v, out);
+                collect_var_decl_ids(v, out);
+            }
+        }
+        Value::Object(map) => {
+            match map.get("type").and_then(Value::as_str) {
+                Some("FunctionExpression" | "ArrowFunctionExpression" | "FunctionDeclaration") => {
+                    return;
+                }
+                Some("VariableDeclaration")
+                    if map.get("kind").and_then(Value::as_str) == Some("var") =>
+                {
+                    for decl in map
+                        .get("declarations")
+                        .and_then(Value::as_array)
+                        .map_or(&[] as &[Value], Vec::as_slice)
+                    {
+                        out.extend(decl.get("id"));
+                    }
+                }
+                _ => {}
+            }
+            for (k, v) in map {
+                if k != "loc" {
+                    collect_var_decl_ids(v, out);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Collect the binding identifier nodes of a pattern subtree (params, ids).
+fn collect_binding_idents<'n>(node: &'n Value, out: &mut Vec<&'n Value>) {
+    match node {
+        Value::Array(arr) => {
+            for v in arr {
+                collect_binding_idents(v, out);
             }
         }
         Value::Object(map) => match map.get("type").and_then(Value::as_str) {
-            Some("Identifier") => {
-                if let Some(n) = map.get("name").and_then(Value::as_str) {
-                    out.insert(n.to_string());
-                }
-            }
+            Some("Identifier") => out.push(node),
             Some("ObjectPattern") => {
-                if let Some(props) = map.get("properties").and_then(Value::as_array) {
-                    for p in props {
-                        match node_type(p) {
-                            Some("Property") => {
-                                if let Some(v) = p.get("value") {
-                                    collect_binding_names(v, out);
-                                }
+                for p in map
+                    .get("properties")
+                    .and_then(Value::as_array)
+                    .map_or(&[] as &[Value], Vec::as_slice)
+                {
+                    match node_type(p) {
+                        Some("Property") => {
+                            if let Some(v) = p.get("value") {
+                                collect_binding_idents(v, out);
                             }
-                            Some("RestElement") => {
-                                if let Some(a) = p.get("argument") {
-                                    collect_binding_names(a, out);
-                                }
-                            }
-                            _ => {}
                         }
+                        Some("RestElement") => {
+                            if let Some(a) = p.get("argument") {
+                                collect_binding_idents(a, out);
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }
             Some("ArrayPattern") => {
-                if let Some(els) = map.get("elements").and_then(Value::as_array) {
-                    for e in els {
-                        collect_binding_names(e, out);
-                    }
+                for e in map
+                    .get("elements")
+                    .and_then(Value::as_array)
+                    .map_or(&[] as &[Value], Vec::as_slice)
+                {
+                    collect_binding_idents(e, out);
                 }
             }
             Some("AssignmentPattern") => {
                 if let Some(l) = map.get("left") {
-                    collect_binding_names(l, out);
+                    collect_binding_idents(l, out);
                 }
             }
             Some("RestElement") => {
                 if let Some(a) = map.get("argument") {
-                    collect_binding_names(a, out);
+                    collect_binding_idents(a, out);
                 }
             }
             _ => {}
         },
         _ => {}
     }
-}
-
-/// Collect names declared by `var`/`let`/`const`/`function`/`class` anywhere in
-/// a function body subtree (over-approximates block scoping to the function).
-fn collect_declared_names(node: &Value, out: &mut HashSet<String>) {
-    walk_js(node, |n, _| match node_type(n) {
-        Some("VariableDeclarator") => {
-            if let Some(id) = n.get("id") {
-                collect_binding_names(id, out);
-            }
-        }
-        Some("FunctionDeclaration" | "ClassDeclaration") => {
-            if let Some(id) = n.get("id") {
-                collect_binding_names(id, out);
-            }
-        }
-        _ => {}
-    });
 }
 
 /// Build the tracker for a component from the shared root JSON (both scripts +
@@ -1259,42 +1817,53 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    fn prog_with_import(spec: Value) -> Value {
-        json!({ "type": "Program", "body": [
-            { "type": "ImportDeclaration",
-              "source": { "type": "Literal", "value": "svelte/store" },
-              "specifiers": [spec] }
-        ] })
+    fn member(computed: bool, property: Value) -> Value {
+        json!({ "type": "MemberExpression", "computed": computed,
+                "object": { "type": "Identifier", "name": "ns" },
+                "property": property })
+    }
+
+    fn tpl(raw: &str) -> Value {
+        json!({ "type": "TemplateLiteral", "expressions": [],
+                "quasis": [{ "type": "TemplateElement", "value": { "cooked": raw, "raw": raw } }] })
     }
 
     #[test]
-    fn resolves_direct_and_aliased() {
-        let p = prog_with_import(json!({
-            "type": "ImportSpecifier",
-            "imported": { "type": "Identifier", "name": "writable" },
-            "local": { "type": "Identifier", "name": "w" }
-        }));
-        let c = collect_store_creators(&p);
-        assert_eq!(
-            c.creator_of(&json!({ "type": "Identifier", "name": "w" })),
-            Some("writable")
+    fn folds_constant_computed_keys() {
+        let plain = member(false, json!({ "type": "Identifier", "name": "derived" }));
+        assert_eq!(member_property_name(&plain).as_deref(), Some("derived"));
+
+        let literal = member(true, json!({ "type": "Literal", "value": "derived" }));
+        assert_eq!(member_property_name(&literal).as_deref(), Some("derived"));
+
+        let concat = member(
+            true,
+            json!({ "type": "BinaryExpression", "operator": "+",
+                    "left": { "type": "Literal", "value": "der" },
+                    "right": { "type": "Literal", "value": "ived" } }),
+        );
+        assert_eq!(member_property_name(&concat).as_deref(), Some("derived"));
+
+        let tpl_concat = member(
+            true,
+            json!({ "type": "BinaryExpression", "operator": "+",
+                    "left": tpl("der"), "right": tpl("ived") }),
         );
         assert_eq!(
-            c.creator_of(&json!({ "type": "Identifier", "name": "x" })),
-            None
+            member_property_name(&tpl_concat).as_deref(),
+            Some("derived")
         );
+
+        let dynamic = member(true, json!({ "type": "Identifier", "name": "k" }));
+        assert_eq!(member_property_name(&dynamic), None);
     }
 
     #[test]
-    fn resolves_namespace() {
-        let p = prog_with_import(json!({
-            "type": "ImportNamespaceSpecifier",
-            "local": { "type": "Identifier", "name": "store" }
-        }));
-        let c = collect_store_creators(&p);
-        let callee = json!({ "type": "MemberExpression", "computed": false,
-            "object": { "type": "Identifier", "name": "store" },
-            "property": { "type": "Identifier", "name": "derived" } });
-        assert_eq!(c.creator_of(&callee), Some("derived"));
+    fn stringifies_folded_values_like_js() {
+        assert_eq!(StaticValue::Num(1.0).to_js_string(), "1");
+        assert_eq!(StaticValue::Num(1.5).to_js_string(), "1.5");
+        assert_eq!(StaticValue::Null.to_js_string(), "null");
+        assert_eq!(StaticValue::Undefined.to_js_string(), "undefined");
+        assert_eq!(StaticValue::Bool(true).to_js_string(), "true");
     }
 }

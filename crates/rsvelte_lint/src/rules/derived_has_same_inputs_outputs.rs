@@ -5,9 +5,11 @@
 //!
 //! Category: Stylistic Issues (not recommended). Has suggestions (`hasSuggestions`).
 //!
-//! Runs over the `<script>` `ESTree` program via the [`ScriptRule`] hook.
-//! A `derived` call from `svelte/store` (detected via import tracking in
-//! the `store_refs` helper module) must satisfy:
+//! Upstream runs once per file over the joint scope tree, so `check_root` owns
+//! components (both scripts + template expressions) and the [`ScriptRule`] half
+//! covers standalone `.svelte.(js|ts)` modules.
+//! A `derived` call from `svelte/store` (resolved by the shared reference
+//! tracker in `store_refs`) must satisfy:
 //! - `derived(a, ($a) => …)` — single-store form: param must be `$a`.
 //! - `derived([a, b], ([$a, $b]) => …)` — array-store form: each array-pattern
 //!   element at index `i` must be `$stores[i]`.
@@ -18,10 +20,15 @@
 
 use serde_json::Value;
 
+use rsvelte_core::ast::template::Root;
+
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, Suggestion, TextEdit};
-use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::rules::store_refs::collect_store_creators;
+use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::store_refs::{
+    RefTracker, component_tracker, handled_by_template_pass, module_is_ts, module_tracker,
+    store_creator_calls,
+};
 use crate::script::{
     ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js,
 };
@@ -307,6 +314,77 @@ fn check_array_expression(store_arr: &Value, fn_node: &Value) -> Vec<Report> {
     reports
 }
 
+fn run(ctx: &mut LintContext, tracker: &RefTracker<'_>) {
+    let mut reports: Vec<Report> = Vec::new();
+
+    for (call, _name) in store_creator_calls(tracker, &["derived"]) {
+        let Some(args) = call.get("arguments").and_then(Value::as_array) else {
+            continue;
+        };
+        if args.len() < 2 {
+            continue;
+        }
+        let store_arg = &args[0];
+        let fn_arg = &args[1];
+        if !matches!(
+            node_type(fn_arg),
+            Some("ArrowFunctionExpression" | "FunctionExpression")
+        ) {
+            continue;
+        }
+        let Some(params) = fn_arg.get("params").and_then(Value::as_array) else {
+            continue;
+        };
+        if params.is_empty() {
+            continue;
+        }
+
+        match node_type(store_arg) {
+            Some("Identifier") => {
+                if let Some(r) = check_identifier(store_arg, fn_arg) {
+                    reports.push(r);
+                }
+            }
+            Some("ArrayExpression") => {
+                reports.extend(check_array_expression(store_arg, fn_arg));
+            }
+            _ => {}
+        }
+    }
+
+    reports.sort_by_key(|r| (r.param_start, r.param_end));
+    reports.dedup_by_key(|r| (r.param_start, r.param_end));
+
+    for report in reports {
+        let message = MSG_UNEXPECTED.replace("{{name}}", &report.expected_name);
+        let suggestions = match report.rename_spans {
+            Some(spans) => {
+                let desc = MSG_RENAME_PARAM
+                    .replace("{{oldName}}", &report.old_name)
+                    .replace("{{newName}}", &report.expected_name);
+                let new_name = report.expected_name.clone();
+                let edits = spans
+                    .into_iter()
+                    .map(|(s, e)| TextEdit {
+                        start: s,
+                        end: e,
+                        new_text: new_name.clone(),
+                    })
+                    .collect();
+                vec![Suggestion {
+                    desc,
+                    fix: Fix {
+                        message: String::new(),
+                        edits,
+                    },
+                }]
+            }
+            None => Vec::new(),
+        };
+        ctx.report_with_suggestions(report.param_start, report.param_end, message, suggestions);
+    }
+}
+
 #[derive(Default)]
 pub struct DerivedHasSameInputsOutputs;
 
@@ -316,84 +394,25 @@ impl ScriptRule for DerivedHasSameInputsOutputs {
     }
 
     fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
-        let creators = collect_store_creators(program);
-        if creators.is_empty() {
+        if handled_by_template_pass(ctx.filename()) {
             return;
         }
+        let tracker = module_tracker(ctx.source(), program.value(), module_is_ts(ctx.filename()));
+        run(ctx, &tracker);
+    }
+}
 
-        let mut reports: Vec<Report> = Vec::new();
+impl Rule for DerivedHasSameInputsOutputs {
+    fn meta(&self) -> &'static RuleMeta {
+        &META
+    }
 
-        program.walk(|node, _| {
-            if node_type(node) != Some("CallExpression") {
-                return;
-            }
-            let Some(callee) = node.get("callee") else {
-                return;
-            };
-            if creators.creator_of(callee) != Some("derived") {
-                return;
-            }
-            let Some(args) = node.get("arguments").and_then(Value::as_array) else {
-                return;
-            };
-            if args.len() < 2 {
-                return;
-            }
-            let store_arg = &args[0];
-            let fn_arg = &args[1];
-            if !matches!(
-                node_type(fn_arg),
-                Some("ArrowFunctionExpression" | "FunctionExpression")
-            ) {
-                return;
-            }
-            let Some(params) = fn_arg.get("params").and_then(Value::as_array) else {
-                return;
-            };
-            if params.is_empty() {
-                return;
-            }
-
-            match node_type(store_arg) {
-                Some("Identifier") => {
-                    if let Some(r) = check_identifier(store_arg, fn_arg) {
-                        reports.push(r);
-                    }
-                }
-                Some("ArrayExpression") => {
-                    reports.extend(check_array_expression(store_arg, fn_arg));
-                }
-                _ => {}
-            }
-        });
-
-        for report in reports {
-            let message = MSG_UNEXPECTED.replace("{{name}}", &report.expected_name);
-            let suggestions = match report.rename_spans {
-                Some(spans) => {
-                    let desc = MSG_RENAME_PARAM
-                        .replace("{{oldName}}", &report.old_name)
-                        .replace("{{newName}}", &report.expected_name);
-                    let new_name = report.expected_name.clone();
-                    let edits = spans
-                        .into_iter()
-                        .map(|(s, e)| TextEdit {
-                            start: s,
-                            end: e,
-                            new_text: new_name.clone(),
-                        })
-                        .collect();
-                    vec![Suggestion {
-                        desc,
-                        fix: Fix {
-                            message: String::new(),
-                            edits,
-                        },
-                    }]
-                }
-                None => Vec::new(),
-            };
-            ctx.report_with_suggestions(report.param_start, report.param_end, message, suggestions);
+    fn check_root(&self, ctx: &mut LintContext, root: &Root) {
+        let root_json = ctx.root_json(root);
+        if root_json.is_null() {
+            return;
         }
+        let tracker = component_tracker(ctx.source(), root, &root_json);
+        run(ctx, &tracker);
     }
 }

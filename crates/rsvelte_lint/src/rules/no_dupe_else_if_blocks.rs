@@ -107,9 +107,9 @@ fn visit_if(node: &Value, chain: &[OrAnd], src: &str, out: &mut Vec<(u32, u32)>)
         let cond = &src[start..end];
         let mask = mask(cond);
         if !chain.is_empty()
-            && let Some(offset) = evaluate(cond, &mask, chain)
+            && let Some((lo, hi)) = evaluate(cond, &mask, chain)
         {
-            out.push((offset_u32(start + offset), offset_u32(end)));
+            out.push((offset_u32(start + lo), offset_u32(start + hi)));
         }
         or_and(cond, &mask, 0, cond.len())
     });
@@ -150,9 +150,9 @@ fn offset_u32(value: usize) -> u32 {
     u32::try_from(value).expect("source offsets are represented as u32")
 }
 
-/// The byte offset within `cond` at which to report, when the condition (or one
-/// of its top-level `&&` operands) is covered by an earlier condition.
-fn evaluate(cond: &str, mask: &[u8], prev: &[OrAnd]) -> Option<usize> {
+/// The byte range within `cond` to report, when the condition (or one of its
+/// top-level `&&` operands) is covered by an earlier condition.
+fn evaluate(cond: &str, mask: &[u8], prev: &[OrAnd]) -> Option<(usize, usize)> {
     let (lo, hi) = strip_outer_parens(mask, 0, cond.len());
     // Upstream checks `[...splitByAnd(test), test]` — the individual `&&`
     // operands first, the whole expression last — and reports at the first
@@ -175,7 +175,7 @@ fn evaluate(cond: &str, mask: &[u8], prev: &[OrAnd]) -> Option<usize> {
             prev.iter()
                 .any(|earlier| earlier.iter().any(|and_set| is_subset(and_set, or_op)))
         });
-        covered.then_some(a)
+        covered.then_some((a, b))
     })
 }
 

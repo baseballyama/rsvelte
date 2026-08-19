@@ -36,9 +36,7 @@ cli = ["native", "eslint-import", "dep:clap", "dep:walkdir", "dep:rayon"]
 # Compiler parallelism is an independent opt-in owned by binary callers.
 native = []
 # `--config-from-eslint` importer (OXC). Off in the wasm build.
-eslint-import = [
-    "dep:oxc_ast_visit",
-]
+eslint-import = []
 
 [dependencies]
 rsvelte_core = { path = "../rsvelte_core", default-features = false }
@@ -62,7 +60,7 @@ rayon = { version = "1.10", optional = true }
 oxc_allocator = "0.144"
 oxc_parser = "0.144"
 oxc_ast = "0.144"
-oxc_ast_visit = { version = "0.144", optional = true }
+oxc_ast_visit = "0.144"
 oxc_span = "0.144"
 oxc_semantic = "0.144"
 oxc_syntax = "0.144"

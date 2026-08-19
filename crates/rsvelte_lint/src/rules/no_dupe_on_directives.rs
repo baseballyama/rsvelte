@@ -120,13 +120,11 @@ impl NoDupeOnDirectives {
                 };
                 let line_no = line_of(ctx.source(), directives[other_idx].start);
                 let ty = on.name.as_str();
-                let start = on.start;
-                let end = on.start
-                    + 3
-                    + u32::try_from(ty.len()).expect("event-name widths are represented as u32"); // covers `on:name`
+                // Upstream reports the whole `SvelteDirective`, modifiers and
+                // handler expression included.
                 ctx.report(
-                    start,
-                    end,
+                    on.start,
+                    on.end,
                     format!(
                         "This `on:{ty}` directive is the same and duplicate directives in L{line_no}."
                     ),

@@ -75,15 +75,25 @@ pub fn oracle_this_attr_span(src: &str, el_start: u32) -> Option<(u32, u32)> {
         }
         let name = &src[name_start..i];
         let mut value_end = i;
+        let mut value_start = None;
         let after_name = skip_ws(src, i);
         if bytes.get(after_name) == Some(&b'=') {
-            let value_start = skip_ws(src, after_name + 1);
-            value_end = scan_attribute_value(src, value_start)?;
+            let start = skip_ws(src, after_name + 1);
+            value_end = scan_attribute_value(src, start)?;
+            value_start = Some(start);
             i = value_end;
         } else {
             i = after_name;
         }
         if name == "this" {
+            // A value whose first non-space character is not `{` takes
+            // upstream's `SvelteAttribute` branch, whose end is arithmetic on
+            // the literal rather than the value's real extent.
+            if let Some(start) = value_start
+                && let Some(end) = string_literal_attribute_end(src, start, value_end)
+            {
+                return Some((u32::try_from(name_start).ok()?, u32::try_from(end).ok()?));
+            }
             // Upstream's `endIndex` scan: from the end of the value, advance to
             // the first `>` or whitespace, so a closing quote is included.
             let mut end = value_end;
@@ -96,6 +106,74 @@ pub fn oracle_this_attr_span(src: &str, el_start: u32) -> Option<(u32, u32)> {
             return Some((u32::try_from(name_start).ok()?, u32::try_from(end).ok()?));
         }
     }
+}
+
+/// Upstream's `createSvelteAttribute` end, for a quoted `this=` value that is a
+/// single `{'…'}` mustache — the one shape where svelte reports a string
+/// `Literal` while the value's source text is a mustache.
+///
+/// The number is upstream's arithmetic, not the attribute's real end: it adds
+/// the literal's LENGTH to the value's start on the assumption that the value's
+/// source text IS the literal, so for `this="{'div'}"` the end lands inside the
+/// value. Reproduced for byte parity.
+fn string_literal_attribute_end(src: &str, value_start: usize, value_end: usize) -> Option<usize> {
+    let quote = *src.as_bytes().get(value_start)?;
+    if quote != b'"' && quote != b'\'' {
+        return None;
+    }
+    let inner = src.get(value_start + 1..value_end.checked_sub(1)?)?;
+    let cooked = sole_mustache_string_literal(inner)?;
+    // `quote = code.startsWith(thisValue, valueStartIndex) ? null : …`
+    let (literal_start, quote_len) = if src[value_start..].starts_with(&cooked) {
+        (value_start, 0)
+    } else {
+        (value_start + 1, 1)
+    };
+    // `thisValue.length` counts UTF-16 units, applied as an offset into source.
+    let want = cooked.encode_utf16().count();
+    let mut seen = 0;
+    let mut end = literal_start;
+    for c in src.get(literal_start..)?.chars() {
+        if seen >= want {
+            break;
+        }
+        seen += c.len_utf16();
+        end += c.len_utf8();
+    }
+    (seen == want).then_some(end + quote_len)
+}
+
+/// The cooked value of `{'…'}` when the mustache is the whole attribute value
+/// and its expression is a single string literal; `None` for every other shape,
+/// which upstream routes to `createSvelteSpecialDirective` instead.
+fn sole_mustache_string_literal(inner: &str) -> Option<String> {
+    if !inner.starts_with('{') || scan_mustache(inner, 0)? != inner.len() {
+        return None;
+    }
+    let expr = inner
+        .get(1..inner.len() - 1)?
+        .trim_matches(is_js_whitespace);
+    let quote = expr.chars().next()?;
+    if (quote != '\'' && quote != '"') || expr.len() < 2 || !expr.ends_with(quote) {
+        return None;
+    }
+    let mut out = String::new();
+    let mut chars = expr.get(1..expr.len() - 1)?.chars();
+    while let Some(c) = chars.next() {
+        match c {
+            q if q == quote => return None,
+            '\\' => match chars.next()? {
+                e @ ('\\' | '\'' | '"' | '`') => out.push(e),
+                'n' => out.push('\n'),
+                't' => out.push('\t'),
+                'r' => out.push('\r'),
+                // Hex, unicode and octal escapes are not modelled.
+                _ => return None,
+            },
+            _ => out.push(c),
+        }
+    }
+    Some(out)
 }
 
 /// End offset (exclusive) of the attribute value starting at `from`: a quoted

@@ -14,7 +14,7 @@ static META: RuleMeta = RuleMeta {
     name: "svelte/infinite-reactive-loop",
     category: RuleCategory::Correctness,
     fixable: Fixable::No,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: true,
@@ -256,10 +256,11 @@ fn is_assign_target(ident: &Value, ancestors: &[&Value]) -> bool {
 
 /// Is `fn_node` a function argument to a `.then()` or `.catch()` call?
 fn is_promise_then_catch_arg(fn_node: &Value, ancestors: &[&Value]) -> bool {
-    if !matches!(
-        node_type(fn_node),
-        Some("ArrowFunctionExpression" | "FunctionExpression")
-    ) {
+    // Upstream reaches this through `getDeclarationBody`, whose only
+    // non-declaration arm is `ArrowFunctionExpression` — an inline
+    // `function () {}` returns null and the call is never treated as a
+    // then-callback.
+    if node_type(fn_node) != Some("ArrowFunctionExpression") {
         return false;
     }
     let Some(parent) = ancestors.last() else {

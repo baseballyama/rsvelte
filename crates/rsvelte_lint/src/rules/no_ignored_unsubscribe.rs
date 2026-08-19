@@ -3,9 +3,10 @@
 //!
 //! Port of the eslint-plugin-svelte rule — the esquery selector
 //! `ExpressionStatement > CallExpression > MemberExpression.callee[property.name='subscribe']`.
-//! `[property.name=…]` matches an Identifier property whether or not the access
-//! is computed (`bus[subscribe](…)` fires; `bus['subscribe'](…)` does not,
-//! because a Literal property has no `.name`). The selector also runs over
+//! `[property.name=…]` matches an Identifier or PrivateIdentifier property
+//! whether or not the access is computed (`bus[subscribe](…)` and
+//! `this.#subscribe(…)` fire; `bus['subscribe'](…)` does not, because a Literal
+//! property has no `.name`). The selector also runs over
 //! template-expression statements (event-handler bodies), so components are
 //! checked once in `check_root`; the script pass covers standalone modules.
 
@@ -16,7 +17,9 @@ use rsvelte_core::ast::template::Root;
 use crate::context::LintContext;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
 use crate::rules::store_refs::handled_by_template_pass;
-use crate::script::{ProgramView, ScriptKind, ScriptRule, node_start, node_type, walk_js};
+use crate::script::{
+    ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js,
+};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-ignored-unsubscribe",
@@ -34,7 +37,7 @@ static META: RuleMeta = RuleMeta {
 
 const MESSAGE: &str = "Ignoring returned value of the subscribe method is forbidden.";
 
-fn scan(tree: &Value, reports: &mut Vec<u32>) {
+fn scan(tree: &Value, reports: &mut Vec<(u32, u32)>) {
     walk_js(tree, |node, ancestors| {
         // `node` must be the `.subscribe` MemberExpression callee.
         if node_type(node) != Some("MemberExpression") {
@@ -43,9 +46,10 @@ fn scan(tree: &Value, reports: &mut Vec<u32>) {
         let Some(prop) = node.get("property") else {
             return;
         };
-        // esquery `[property.name='subscribe']`: an Identifier property matches
-        // regardless of `computed`; a Literal property never does.
-        if node_type(prop) != Some("Identifier")
+        // esquery `[property.name='subscribe']` reads the field, so an Identifier
+        // or a PrivateIdentifier property matches regardless of `computed`; a
+        // Literal property never does.
+        if !matches!(node_type(prop), Some("Identifier" | "PrivateIdentifier"))
             || prop.get("name").and_then(Value::as_str) != Some("subscribe")
         {
             return;
@@ -70,17 +74,18 @@ fn scan(tree: &Value, reports: &mut Vec<u32>) {
         if grandparent.map(|g| node_type(g)) != Some(Some("ExpressionStatement")) {
             return;
         }
-        if let Some(start) = node_start(prop) {
-            reports.push(start);
+        // Upstream reports `node.property`.
+        if let (Some(start), Some(end)) = (node_start(prop), node_end(prop)) {
+            reports.push((start, end));
         }
     });
 }
 
-fn emit(ctx: &mut LintContext, mut reports: Vec<u32>) {
+fn emit(ctx: &mut LintContext, mut reports: Vec<(u32, u32)>) {
     reports.sort_unstable();
     reports.dedup();
-    for start in reports {
-        ctx.report(start, start, MESSAGE);
+    for (start, end) in reports {
+        ctx.report(start, end, MESSAGE);
     }
 }
 

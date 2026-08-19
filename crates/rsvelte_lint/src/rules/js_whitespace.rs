@@ -31,6 +31,12 @@ pub fn js_trim_end(s: &str) -> &str {
     s.trim_end_matches(is_js_whitespace)
 }
 
+/// JS `String.prototype.trimStart`.
+#[must_use]
+pub fn js_trim_start(s: &str) -> &str {
+    s.trim_start_matches(is_js_whitespace)
+}
+
 fn source_offset(value: usize) -> u32 {
     u32::try_from(value).expect("source offsets are represented as u32")
 }

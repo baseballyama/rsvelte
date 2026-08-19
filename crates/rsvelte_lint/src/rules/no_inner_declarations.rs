@@ -11,9 +11,10 @@
 //! Options (`ESLint` ≥9 shape — the plugin's `v8` fixtures are skipped by the
 //! oracle): `[ "functions" | "both", { "blockScopedFunctions": "allow" | "disallow" } ]`.
 //! `"functions"` checks only function declarations; `"both"` also checks `var`
-//! declarations. Because a `<script>` is always a module (strict mode), a
-//! block-scoped function declaration is only reported when
-//! `blockScopedFunctions` is `"disallow"` (the default `"allow"` permits it).
+//! declarations. Under the default `blockScopedFunctions: "allow"` a function
+//! declaration is skipped when the scope enclosing it is strict — see
+//! [`upper_scope_is_strict`], which is why a *block*-scoped one is reported only
+//! with `"disallow"` while `$: function f() {}` is reported either way.
 
 use oxc_allocator::Allocator;
 use oxc_ast::AstKind;
@@ -50,10 +51,8 @@ impl ScriptRule for NoInnerDeclarations {
     }
 
     fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, kind: ScriptKind) {
-        let Some(opts) = Options::read(ctx) else {
-            return;
-        };
-        let mut reports: Vec<(u32, &'static str, &'static str)> = Vec::new();
+        let opts = Options::read(ctx);
+        let mut reports: Vec<(u32, u32, &'static str, &'static str)> = Vec::new();
         program.walk(|node, ancestors| collect(node, ancestors, opts, &mut reports));
         collect_static_blocks(ctx.source(), program, opts, &mut reports);
         // Upstream sees one `Program` spanning the whole component, so a handler
@@ -80,10 +79,8 @@ impl Rule for NoInnerDeclarations {
         if root.instance.is_some() {
             return;
         }
-        let Some(opts) = Options::read(ctx) else {
-            return;
-        };
-        let mut reports: Vec<(u32, &'static str, &'static str)> = Vec::new();
+        let opts = Options::read(ctx);
+        let mut reports: Vec<(u32, u32, &'static str, &'static str)> = Vec::new();
         let fragment = ctx.template_fragment_json();
         crate::script::walk_js(&fragment, |node, ancestors| {
             collect(node, ancestors, opts, &mut reports);
@@ -92,37 +89,93 @@ impl Rule for NoInnerDeclarations {
     }
 }
 
-/// The rule's two resolved switches. `None` when neither declaration kind is
-/// checked, so the walk can be skipped entirely.
+/// The rule's two resolved switches.
 #[derive(Clone, Copy)]
 struct Options {
-    functions: bool,
+    /// `blockScopedFunctions: "disallow"` — check a function declaration even
+    /// when the scope enclosing it is strict.
+    block_scoped_functions: bool,
     vars: bool,
 }
 
 impl Options {
-    fn read(ctx: &LintContext) -> Option<Self> {
+    fn read(ctx: &LintContext) -> Self {
         let opts = ctx.options();
         let vars = opts.and_then(|a| a.get(0)).and_then(Value::as_str) == Some("both");
-        // A `<script>` is always a module (strict mode), so block-scoped function
-        // declarations are only an error when explicitly disallowed.
-        let functions = opts
+        let block_scoped_functions = opts
             .and_then(|a| a.get(1))
             .and_then(|o| o.get("blockScopedFunctions"))
             .and_then(Value::as_str)
             == Some("disallow");
-        (functions || vars).then_some(Self { functions, vars })
+        Self {
+            block_scoped_functions,
+            vars,
+        }
     }
+}
+
+/// The scope-owning `ESTree` node types, minus `Program` and minus a
+/// `BlockStatement` that is a function body (the function scope covers it).
+const SCOPE_NODES: &[&str] = &[
+    "FunctionDeclaration",
+    "FunctionExpression",
+    "ArrowFunctionExpression",
+    "SwitchStatement",
+    "ForStatement",
+    "ForInStatement",
+    "ForOfStatement",
+    "CatchClause",
+    "ClassDeclaration",
+    "ClassExpression",
+    "StaticBlock",
+    "WithStatement",
+    "TSModuleDeclaration",
+    "TSEnumDeclaration",
+];
+
+/// Whether the scope `sourceCode.getScope(node)` lands on has a **strict**
+/// upper scope, which is what makes upstream skip a function declaration under
+/// the default `blockScopedFunctions: "allow"`.
+///
+/// The plugin hands the core rule a *proxy* node, so the scope manager's
+/// identity lookup misses and `ESLint` walks the parent chain to the nearest
+/// node that owns a scope: reaching the `Program` lands on the module scope,
+/// whose upper is the sloppy global scope, while any nested scope's upper is
+/// the strict module scope. So only a chain that reaches the program without
+/// crossing a scope — a `$:`/labelled statement, a braceless `if` — is checked.
+fn upper_scope_is_strict(ancestors: &[&Value]) -> bool {
+    for (i, node) in ancestors.iter().enumerate().rev() {
+        match node_type(node) {
+            Some("Program") => return false,
+            Some("BlockStatement") => {
+                let owner = i.checked_sub(1).and_then(|j| node_type(ancestors[j]));
+                if !matches!(
+                    owner,
+                    Some("FunctionDeclaration" | "FunctionExpression" | "ArrowFunctionExpression")
+                ) {
+                    return true;
+                }
+            }
+            Some(t) if SCOPE_NODES.contains(&t) => return true,
+            _ => {}
+        }
+    }
+    true
 }
 
 fn collect<'a>(
     node: &'a Value,
     ancestors: &[&'a Value],
     opts: Options,
-    reports: &mut Vec<(u32, &'static str, &'static str)>,
+    reports: &mut Vec<(u32, u32, &'static str, &'static str)>,
 ) {
     let kind = match node_type(node) {
-        Some("FunctionDeclaration") if opts.functions => "function",
+        Some("FunctionDeclaration") => {
+            if !opts.block_scoped_functions && upper_scope_is_strict(ancestors) {
+                return;
+            }
+            "function"
+        }
         Some("VariableDeclaration")
             if opts.vars && node.get("kind").and_then(Value::as_str) == Some("var") =>
         {
@@ -133,10 +186,10 @@ fn collect<'a>(
     if !is_inner(ancestors) {
         return;
     }
-    let Some(start) = node_start(node) else {
+    let (Some(start), Some(end)) = (node_start(node), node_end(node)) else {
         return;
     };
-    reports.push((start, kind, body_root(ancestors)));
+    reports.push((start, end, kind, body_root(ancestors)));
 }
 
 /// Report declarations nested inside a class `static { … }` block.
@@ -149,8 +202,13 @@ fn collect_static_blocks(
     source: &str,
     program: &ProgramView<'_>,
     opts: Options,
-    reports: &mut Vec<(u32, &'static str, &'static str)>,
+    reports: &mut Vec<(u32, u32, &'static str, &'static str)>,
 ) {
+    // Nothing a static block encloses is reportable unless one of the two
+    // switches is on, and the recovery parse below is not free.
+    if !opts.block_scoped_functions && !opts.vars {
+        return;
+    }
     let (Some(base), Some(end)) = (node_start(program.value()), node_end(program.value())) else {
         return;
     };
@@ -175,7 +233,9 @@ fn collect_static_blocks(
     let nodes = semantic.nodes();
     for node in nodes.iter() {
         let kind = match node.kind() {
-            AstKind::Function(function) if opts.functions && function.is_function_declaration() => {
+            AstKind::Function(function)
+                if opts.block_scoped_functions && function.is_function_declaration() =>
+            {
                 "function"
             }
             AstKind::VariableDeclaration(declaration) if opts.vars && declaration.kind.is_var() => {
@@ -190,7 +250,12 @@ fn collect_static_blocks(
             continue;
         }
         if let Some(place) = static_block_body_root(ancestors) {
-            reports.push((base + node.span().start, kind, place));
+            reports.push((
+                base + node.span().start,
+                base + node.span().end,
+                kind,
+                place,
+            ));
         }
     }
 }
@@ -235,13 +300,13 @@ fn static_block_body_root<'a>(
     None
 }
 
-fn emit(ctx: &mut LintContext, mut reports: Vec<(u32, &'static str, &'static str)>) {
+fn emit(ctx: &mut LintContext, mut reports: Vec<(u32, u32, &'static str, &'static str)>) {
     reports.sort_unstable();
     reports.dedup();
-    for (start, kind, place) in reports {
+    for (start, end, kind, place) in reports {
         ctx.report(
             start,
-            start,
+            end,
             format!("Move {kind} declaration to {place} root."),
         );
     }
@@ -350,7 +415,7 @@ mod tests {
         assert_eq!(body_root(&refs), "class static block body");
     }
 
-    fn static_block_reports(src: &str) -> Vec<(u32, &'static str, &'static str)> {
+    fn static_block_reports(src: &str) -> Vec<(u32, u32, &'static str, &'static str)> {
         let value = json!({ "type": "Program", "start": 0, "end": src.len() });
         let program = ProgramView::new(&value);
         let mut reports = Vec::new();
@@ -358,7 +423,7 @@ mod tests {
             src,
             &program,
             Options {
-                functions: true,
+                block_scoped_functions: true,
                 vars: true,
             },
             &mut reports,
@@ -372,7 +437,7 @@ mod tests {
         let start = u32::try_from(src.find("var nested").unwrap()).unwrap();
         assert_eq!(
             static_block_reports(src),
-            vec![(start, "variable", "class static block body")]
+            vec![(start, start + 15, "variable", "class static block body")]
         );
     }
 
@@ -382,7 +447,7 @@ mod tests {
         let start = u32::try_from(src.find("var x").unwrap()).unwrap();
         assert_eq!(
             static_block_reports(src),
-            vec![(start, "variable", "class static block body")]
+            vec![(start, start + 10, "variable", "class static block body")]
         );
     }
 
@@ -392,7 +457,7 @@ mod tests {
         let start = u32::try_from(src.find("var x").unwrap()).unwrap();
         assert_eq!(
             static_block_reports(src),
-            vec![(start, "variable", "function body")]
+            vec![(start, start + 10, "variable", "function body")]
         );
     }
 
@@ -400,6 +465,28 @@ mod tests {
     fn declarations_outside_a_static_block_are_left_to_the_json_walk() {
         let src = "if (1) { var x = 1; }\nfunction f() { if (1) { var y = 2; } }\n";
         assert!(static_block_reports(src).is_empty());
+    }
+
+    #[test]
+    fn only_a_chain_reaching_the_program_has_a_sloppy_upper_scope() {
+        // `$: function f() {}` — nothing between the declaration and the
+        // program owns a scope, so the module scope's upper (global) is sloppy.
+        let labeled = anc(&["Program", "LabeledStatement"]);
+        let refs: Vec<&Value> = labeled.iter().collect();
+        assert!(!upper_scope_is_strict(&refs));
+        // A block owns a scope, whose upper is the strict module scope.
+        let block = anc(&["Program", "IfStatement", "BlockStatement"]);
+        let refs: Vec<&Value> = block.iter().collect();
+        assert!(upper_scope_is_strict(&refs));
+        // A function body block does not own one; the function itself does.
+        let in_fn = anc(&[
+            "Program",
+            "FunctionDeclaration",
+            "BlockStatement",
+            "LabeledStatement",
+        ]);
+        let refs: Vec<&Value> = in_fn.iter().collect();
+        assert!(upper_scope_is_strict(&refs));
     }
 
     #[test]

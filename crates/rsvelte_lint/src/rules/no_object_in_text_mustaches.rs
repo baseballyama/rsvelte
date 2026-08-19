@@ -5,13 +5,16 @@
 //! `{() => a}`, `{class A {}}`), which stringifies to `[object Object]` etc.
 //! Port of the eslint-plugin-svelte rule.
 //!
-//! Fires for mustaches in **text** position (`check_expression_tag`) and for
+//! Fires for mustaches in **text** position (`check_expression_tag`), for
+//! `{@html …}` raw tags (upstream's visitor has no `kind` filter), and for
 //! mustaches that are **one segment among several** in an attribute value
 //! (`class="{[a]} x"`). It does NOT fire for a single-value attribute mustache
 //! (`<Comp prop={{ a }} />`), which is a prop binding — matching the plugin's
 //! `parent.type === 'SvelteAttribute' && parent.value.length === 1` exemption.
 
-use rsvelte_core::ast::template::{Attribute, AttributeValue, AttributeValuePart, ExpressionTag};
+use rsvelte_core::ast::template::{
+    Attribute, AttributeValue, AttributeValuePart, ExpressionTag, HtmlTag,
+};
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
@@ -31,8 +34,8 @@ static META: RuleMeta = RuleMeta {
 };
 
 /// The "phrase" the message uses for a non-stringifiable expression, or `None`.
-fn phrase(tag: &ExpressionTag) -> Option<&'static str> {
-    match tag.expression.node_type() {
+fn phrase(node_type: Option<&str>) -> Option<&'static str> {
+    match node_type {
         Some("ObjectExpression") => Some("object"),
         Some("ArrayExpression") => Some("array"),
         Some("ArrowFunctionExpression" | "FunctionExpression") => Some("function"),
@@ -46,10 +49,14 @@ pub struct NoObjectInTextMustaches;
 
 impl NoObjectInTextMustaches {
     fn check_tag(ctx: &mut LintContext, tag: &ExpressionTag) {
-        if let Some(p) = phrase(tag) {
+        Self::report_tag(ctx, tag.start, tag.end, tag.expression.node_type());
+    }
+
+    fn report_tag(ctx: &mut LintContext, start: u32, end: u32, node_type: Option<&str>) {
+        if let Some(p) = phrase(node_type) {
             ctx.report(
-                tag.start,
-                tag.end,
+                start,
+                end,
                 format!("Unexpected {p} in text mustache interpolation."),
             );
         }
@@ -71,6 +78,12 @@ impl Rule for NoObjectInTextMustaches {
 
     fn check_expression_tag(&self, ctx: &mut LintContext, tag: &ExpressionTag) {
         Self::check_tag(ctx, tag);
+    }
+
+    /// `{@html …}` is a `SvelteMustacheTag` upstream too — the visitor has no
+    /// `kind` filter, so a raw tag is reported exactly like a text one.
+    fn check_html_tag(&self, ctx: &mut LintContext, tag: &HtmlTag) {
+        Self::report_tag(ctx, tag.start, tag.end, tag.expression.node_type());
     }
 
     fn check_attribute(&self, ctx: &mut LintContext, attr: &Attribute) {

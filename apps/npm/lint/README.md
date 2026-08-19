@@ -231,9 +231,13 @@ authoritative list of ported rules and the handful of fixtures that genuinely
 need a JS/TS tokenizer or type checker (out of scope for the native engine,
 covered separately) is the oracle test registry at
 [`crates/rsvelte_lint/tests/eslint_plugin_oracle.rs`](https://github.com/baseballyama/rsvelte/blob/main/crates/rsvelte_lint/tests/eslint_plugin_oracle.rs). The default `recommended` preset runs every rule at its declared
-default severity: most correctness and style rules default to `warn` (a handful
-— e.g. `no-dupe-else-if-blocks`, `no-dupe-style-properties`,
-`no-object-in-text-mustaches` — to `error`), while all pure-formatting rules
+default severity, and each rule that `eslint-plugin-svelte`'s own
+`flat/recommended` runs is given **the same severity it has there** — so
+`rsvelte-lint`'s exit code matches ESLint's on the same source. The two
+exceptions are `no-unused-props` and `require-event-dispatcher-types`, which
+stay `off` for reasons recorded in
+[`compatibility/lint-preset-known-failures.md`](https://github.com/baseballyama/rsvelte/blob/main/compatibility/lint-preset-known-failures.md).
+Rules outside that list default to `warn`, while all pure-formatting rules
 (owned by the sibling [`@rsvelte/fmt`](../fmt)) plus a set of opinionated opt-in
 rules such as `button-has-type`, `no-restricted-html-elements`, and
 `sort-attributes` default to `off` and must be enabled via `rules` in your

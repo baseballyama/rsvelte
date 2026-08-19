@@ -46,32 +46,69 @@ impl Suppressions {
     /// Panics when a line count cannot be represented as `u32`.
     #[must_use]
     pub fn collect(source: &str) -> Self {
+        Self::collect_in(source, false)
+    }
+
+    /// [`Suppressions::collect`] for a `.svelte.(js|ts)` module, whose whole
+    /// body is script rather than template.
+    #[must_use]
+    pub fn collect_module(source: &str) -> Self {
+        Self::collect_in(source, true)
+    }
+
+    /// [`Suppressions::collect`] with the template/module reading chosen by the
+    /// file name — a `.svelte.(js|ts)` module has no template to scan.
+    #[must_use]
+    pub fn collect_for(source: &str, filename: &str) -> Self {
+        Self::collect_in(
+            source,
+            matches!(
+                crate::engine::classify_source(filename),
+                crate::engine::SourceKind::Module { .. }
+            ),
+        )
+    }
+
+    fn collect_in(source: &str, module: bool) -> Self {
         let mut s = Self::default();
         // Open block-disables: id (`*` for all) → (line it was opened on,
         // whether the directive is an HTML `<!-- … -->` comment).
         let mut open: HashMap<String, (u32, bool)> = HashMap::new();
         let mut last_line = 0u32;
-        let boundaries = script_start_tag_lines(source);
+        let (regions, script_ends) = crate::directive_regions::scan(source, module);
+        // The line the start tag's `>` sits on. Counted in `\n` only, to stay
+        // aligned with the `source.lines()` numbering used below.
+        let mut boundaries: Vec<u32> = script_ends
+            .iter()
+            .map(|&(_, end)| line_of(source, end as usize))
+            .collect();
+        boundaries.sort_unstable();
 
+        let mut line_off = 0usize;
         for (i, line) in source.lines().enumerate() {
             let lineno = u32::try_from(i).expect("line counts are represented as u32") + 1;
             last_line = lineno;
             // Order matters: check the more specific directives first.
-            if let Some(rest) = find_after(line, "eslint-disable-next-line") {
+            if let Some((rest, _)) =
+                find_directive(line, line_off, "eslint-disable-next-line", &regions)
+            {
                 s.add_line(lineno + 1, rest);
-            } else if let Some(rest) = find_after(line, "eslint-disable-line") {
+            } else if let Some((rest, _)) =
+                find_directive(line, line_off, "eslint-disable-line", &regions)
+            {
                 s.add_line(lineno, rest);
-            } else if let Some(rest) = find_after(line, "eslint-enable") {
+            } else if let Some((rest, _)) =
+                find_directive(line, line_off, "eslint-enable", &regions)
+            {
                 close_ranges(&mut s, &mut open, parse_ids(rest), lineno);
-            } else if let Some(rest) = find_after(line, "eslint-disable") {
-                let is_html = line
-                    .find("eslint-disable")
-                    .is_some_and(|at| line[..at].contains("<!--"));
+            } else if let Some((rest, is_html)) =
+                find_directive(line, line_off, "eslint-disable", &regions)
+            {
                 for id in parse_ids(rest) {
                     open.entry(id).or_insert((lineno, is_html));
                 }
             }
-            if let Some(rest) = find_after(line, "svelte-ignore") {
+            if let Some((rest, _)) = find_directive(line, line_off, "svelte-ignore", &regions) {
                 // Unlike `eslint-disable`, an empty `<!-- svelte-ignore -->`
                 // (no codes) suppresses NOTHING — Svelte's svelte-ignore needs
                 // explicit codes, and the eslint oracle never lets it disable
@@ -99,6 +136,9 @@ impl Suppressions {
                     }
                 }
             }
+            line_off += line.len();
+            line_off += usize::from(source.as_bytes().get(line_off) == Some(&b'\r'));
+            line_off += usize::from(source.as_bytes().get(line_off) == Some(&b'\n'));
         }
 
         // Anything still open runs to EOF.
@@ -171,65 +211,43 @@ fn close_ranges(
     }
 }
 
-/// 1-indexed lines on which a `<script …>` start tag ENDS (its closing `>`),
-/// sorted ascending. Mirrors `comment_directive::add_script_enable_boundaries`.
-fn script_start_tag_lines(source: &str) -> Vec<u32> {
-    let bytes = source.as_bytes();
-    let mut lines = Vec::new();
-    let mut line = 1u32;
-    let mut index = 0;
-    while index < bytes.len() {
-        if bytes[index] == b'\n' {
-            line += 1;
-            index += 1;
-            continue;
-        }
-        if index + 7 <= bytes.len()
-            && &bytes[index..index + 7] == b"<script"
-            && matches!(bytes.get(index + 7).copied(), Some(c) if c.is_ascii_whitespace() || c == b'>' || c == b'/')
-        {
-            // Find the `>` ending the start tag, skipping quoted attribute
-            // values, counting newlines as we go.
-            let mut tag_index = index + 7;
-            let mut quote: Option<u8> = None;
-            let mut found = false;
-            while tag_index < bytes.len() {
-                let c = bytes[tag_index];
-                if c == b'\n' {
-                    line += 1;
-                }
-                match quote {
-                    Some(q) => {
-                        if c == q {
-                            quote = None;
-                        }
-                    }
-                    None => {
-                        if c == b'"' || c == b'\'' {
-                            quote = Some(c);
-                        } else if c == b'>' {
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-                tag_index += 1;
-            }
-            if found {
-                lines.push(line);
-                index = tag_index + 1;
-                continue;
-            }
-            return lines;
-        }
-        index += 1;
-    }
-    lines
+/// The 1-indexed `\n`-counted line holding byte `offset`.
+fn line_of(source: &str, offset: usize) -> u32 {
+    let n = source.as_bytes()[..offset.min(source.len())]
+        .iter()
+        .filter(|&&c| c == b'\n')
+        .count();
+    u32::try_from(n).expect("line counts are represented as u32") + 1
 }
 
-/// Return the text after `needle` in `line`, if present.
-fn find_after<'a>(line: &'a str, needle: &str) -> Option<&'a str> {
-    line.find(needle).map(|i| &line[i + needle.len()..])
+/// The text following `needle` on `line`, clipped to the end of the
+/// directive-bearing region that contains it, plus whether that region is an
+/// HTML comment. `None` when no occurrence of `needle` on the line sits in one —
+/// upstream reads directives out of comment NODES, so an `eslint-disable` in an
+/// attribute value, a mustache, a JS/CSS string or a CSS comment is just text.
+fn find_directive<'a>(
+    line: &'a str,
+    line_off: usize,
+    needle: &str,
+    regions: &[crate::directive_regions::DirectiveRegion],
+) -> Option<(&'a str, bool)> {
+    let mut from = 0;
+    while let Some(rel) = line[from..].find(needle) {
+        let at = from + rel;
+        let abs = u32::try_from(line_off + at).ok()?;
+        if let Some(region) = crate::directive_regions::region_at(regions, abs) {
+            let start = at + needle.len();
+            let mut end = (region.end as usize)
+                .saturating_sub(line_off)
+                .clamp(start, line.len());
+            if !line.is_char_boundary(end) {
+                end = line.len();
+            }
+            return Some((&line[start..end], region.html));
+        }
+        from = at + needle.len();
+    }
+    None
 }
 
 /// Parse the rule/code list trailing a directive. An empty list means "all

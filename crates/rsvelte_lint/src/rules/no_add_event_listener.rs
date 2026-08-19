@@ -240,13 +240,15 @@ fn collect_callee_spans(callee: &Value) -> Option<(u32, u32, Option<(u32, u32)>)
 }
 
 /// Scan `source` forward from byte offset `from` to find the byte offset of the
-/// first `(` character, skipping ASCII whitespace and `/* … */` block comments.
-/// Line comments (`// …`) are not skipped because they cannot appear between a
-/// callee and its argument list without a newline, and a newline between them
-/// would be an ASI opportunity making the `(` the start of a new expression —
-/// the upstream tool relies on the parser having already handled that.
+/// first `(` character, skipping ASCII whitespace and comments — upstream's
+/// `getTokenAfter(callee)` skips both kinds. A `//` comment can sit between a
+/// callee and its argument list, because `(` continues the expression and so
+/// blocks ASI.
 ///
-/// Returns `None` if no `(` is found before the end of the source.
+/// Returns `None` when the next token is not `(`. Upstream has no such guard
+/// (`no-add-event-listener.ts:46-58` names the token `openParen` but never
+/// checks it), so on `el?.addEventListener?.(…)` its fixer inserts after the
+/// `?.` and produces text no JS parser accepts; we decline instead.
 fn find_open_paren(source: &str, from: u32) -> Option<u32> {
     let bytes = source.as_bytes();
     let mut i = from as usize;
@@ -254,6 +256,12 @@ fn find_open_paren(source: &str, from: u32) -> Option<u32> {
         match bytes[i] {
             b' ' | b'\t' | b'\r' | b'\n' => {
                 i += 1;
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'/') => {
+                i += 2;
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
             }
             b'/' if bytes.get(i + 1) == Some(&b'*') => {
                 // Skip block comment `/* … */`.

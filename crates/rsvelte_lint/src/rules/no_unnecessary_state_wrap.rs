@@ -31,7 +31,7 @@ static META: RuleMeta = RuleMeta {
     name: "svelte/no-unnecessary-state-wrap",
     category: RuleCategory::Correctness,
     fixable: Fixable::Suggestion,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: true,
         legacy_only: false,
@@ -93,7 +93,7 @@ impl ScriptRule for NoUnnecessaryStateWrap {
             program.value(),
             source_is_ts(ctx.source(), ctx.filename()),
         );
-        let reassigned = reassigned_bindings(ctx, options.allow_reassign);
+        let reassigned = reassigned_bindings(ctx, program, options.allow_reassign);
 
         report_unnecessary_wraps(ctx, program, &options, &tracker, &reassigned);
     }
@@ -154,13 +154,27 @@ fn reactive_class_constructions<'a>(tracker: &RefTracker<'a>) -> Vec<(&'a Value,
         .collect()
 }
 
-fn reassigned_bindings(ctx: &LintContext, allow_reassign: bool) -> HashSet<String> {
+fn reassigned_bindings(
+    ctx: &LintContext,
+    program: &ProgramView<'_>,
+    allow_reassign: bool,
+) -> HashSet<String> {
     // Upstream asks the scope manager whether the declared variable has any
     // write reference other than its own declaration, so both halves have to be
     // read off the tree: script assignments (the analyzed scope's `reassigned`)
     // and two-way `bind:` targets in the template.
     if !allow_reassign {
         return HashSet::new();
+    }
+    // A standalone module is not a component: the analysis and the template are
+    // both a reading of its JS text as markup, so the program is the only source.
+    if matches!(
+        crate::engine::classify_source(ctx.filename()),
+        crate::engine::SourceKind::Module { .. }
+    ) {
+        let mut set = HashSet::new();
+        collect_program_writes(program.value(), &mut set);
+        return set;
     }
     let mut set: HashSet<String> = ctx
         .scope_analysis()
@@ -175,6 +189,25 @@ fn reassigned_bindings(ctx: &LintContext, allow_reassign: bool) -> HashSet<Strin
         .unwrap_or_default();
     collect_bind_directive_names(&ctx.template_fragment_json(), &mut set);
     set
+}
+
+/// Names written by an `x = …` / `x++` whose target is the variable itself
+/// (`x.y = …` writes the object, not the binding).
+fn collect_program_writes(program: &Value, set: &mut HashSet<String>) {
+    walk_js(program, |node, _| {
+        let target = match node_type(node) {
+            Some("AssignmentExpression") => node.get("left"),
+            Some("UpdateExpression") => node.get("argument"),
+            _ => return,
+        };
+        if let Some(name) = target
+            .filter(|t| node_type(t) == Some("Identifier"))
+            .and_then(|t| t.get("name"))
+            .and_then(Value::as_str)
+        {
+            set.insert(name.to_string());
+        }
+    });
 }
 
 /// Add the base variable of every two-way `bind:` in the template to `set`

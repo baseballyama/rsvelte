@@ -65,6 +65,8 @@ enum ReportKind {
 
 struct ReportInfo {
     fn_start: u32,
+    /// Upstream reports `loc: fn.loc` — the whole callback function.
+    fn_end: u32,
     kind: ReportKind,
 }
 
@@ -327,7 +329,7 @@ fn collect_callback_reports(tracker: &RefTracker<'_>, source: &str) -> Vec<Repor
             continue;
         }
 
-        let Some(fn_start) = node_start(fn_arg) else {
+        let (Some(fn_start), Some(fn_end)) = (node_start(fn_arg), node_end(fn_arg)) else {
             continue;
         };
 
@@ -370,7 +372,11 @@ fn collect_callback_reports(tracker: &RefTracker<'_>, source: &str) -> Vec<Repor
             ReportKind::AddParam { paren_pos }
         };
 
-        reports.push(ReportInfo { fn_start, kind });
+        reports.push(ReportInfo {
+            fn_start,
+            fn_end,
+            kind,
+        });
     }
 
     reports
@@ -379,9 +385,10 @@ fn collect_callback_reports(tracker: &RefTracker<'_>, source: &str) -> Vec<Repor
 fn emit_callback_reports(ctx: &mut LintContext, reports: Vec<ReportInfo>) {
     for report in reports {
         let fn_start = report.fn_start;
+        let fn_end = report.fn_end;
         match report.kind {
             ReportKind::NoSuggestion => {
-                ctx.report(fn_start, fn_start, MESSAGE);
+                ctx.report(fn_start, fn_end, MESSAGE);
             }
             ReportKind::AddParam { paren_pos } => {
                 // Insert `set` immediately after the `(`.
@@ -389,7 +396,7 @@ fn emit_callback_reports(ctx: &mut LintContext, reports: Vec<ReportInfo>) {
                 let desc = "Add a `set` parameter.".to_string();
                 ctx.report_with_suggestions(
                     fn_start,
-                    fn_start,
+                    fn_end,
                     MESSAGE,
                     vec![Suggestion {
                         desc: desc.clone(),
@@ -428,7 +435,7 @@ fn emit_callback_reports(ctx: &mut LintContext, reports: Vec<ReportInfo>) {
                 }
                 ctx.report_with_suggestions(
                     fn_start,
-                    fn_start,
+                    fn_end,
                     MESSAGE,
                     vec![Suggestion {
                         desc: desc.clone(),

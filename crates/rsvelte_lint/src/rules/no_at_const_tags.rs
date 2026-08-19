@@ -25,7 +25,7 @@ use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
 use crate::rules::js_whitespace::is_js_whitespace;
-use crate::script::{node_start, node_type, walk_js};
+use crate::script::{node_end, node_start, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-at-const-tags",
@@ -43,34 +43,6 @@ static META: RuleMeta = RuleMeta {
 
 const MESSAGE: &str = "Use `{const ...}` declaration tag instead of legacy `{@const ...}`.";
 
-/// The rune symbols svelte-eslint-parser's `hasRunesSymbol` looks for.
-const RUNE_SYMBOLS: &[&str] = &[
-    "$state",
-    "$derived",
-    "$props",
-    "$effect",
-    "$bindable",
-    "$inspect",
-    "$host",
-];
-
-fn has_rune_symbol(json: &Value) -> bool {
-    let mut found = false;
-    walk_js(json, |node, _| {
-        if found || node_type(node) != Some("Identifier") {
-            return;
-        }
-        if node
-            .get("name")
-            .and_then(Value::as_str)
-            .is_some_and(|n| RUNE_SYMBOLS.contains(&n))
-        {
-            found = true;
-        }
-    });
-    found
-}
-
 #[derive(Default)]
 pub struct NoAtConstTags;
 
@@ -85,30 +57,28 @@ impl Rule for NoAtConstTags {
             return;
         }
         // `tag.start` points at the `{` of `{@const …}`.
-        let mut tags: Vec<(u32, Option<(u32, u32)>, bool)> = Vec::new();
+        let mut tags: Vec<(u32, u32, Option<(u32, u32)>, bool)> = Vec::new();
         walk_js(&json, |node, _| {
             if node_type(node) == Some("ConstTag")
-                && let Some(start) = node_start(node)
+                && let (Some(start), Some(end)) = (node_start(node), node_end(node))
             {
-                tags.push((start, init_span(node), init_is_derived_call(node)));
+                tags.push((start, end, init_span(node), init_is_derived_call(node)));
             }
         });
         if tags.is_empty() {
             return;
         }
-        let runes = root
-            .options
-            .as_ref()
-            .and_then(|o| o.runes)
-            .unwrap_or_else(|| has_rune_symbol(&json));
-        if !runes {
+        // Upstream declares no `runes` condition and gates in `create()`
+        // instead, so this cannot move to `RuleConditions`.
+        if !crate::runes_mode::component_runes_mode(root, ctx.source()) {
             return;
         }
         tags.sort_unstable();
-        for (start, init, already_derived) in tags {
+        // Upstream reports the whole `SvelteConstTag`, closing `}` included.
+        for (start, end, init, already_derived) in tags {
             match build_fix(ctx.source(), start, init, already_derived) {
-                Some(fix) => ctx.report_with_fix(start, start, MESSAGE, fix),
-                None => ctx.report(start, start, MESSAGE),
+                Some(fix) => ctx.report_with_fix(start, end, MESSAGE, fix),
+                None => ctx.report(start, end, MESSAGE),
             }
         }
     }
@@ -181,41 +151,4 @@ fn build_fix(
         message: MESSAGE.into(),
         edits,
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn rune_symbol_detection_is_whole_identifier() {
-        assert!(has_rune_symbol(
-            &json!({ "type": "Identifier", "name": "$state" })
-        ));
-        // A longer name that merely starts with a rune name is not a rune.
-        assert!(!has_rune_symbol(
-            &json!({ "type": "Identifier", "name": "$stateStore" })
-        ));
-        // A rune name appearing only as string data is not a rune symbol.
-        assert!(!has_rune_symbol(
-            &json!({ "type": "Literal", "value": "$derived(x)" })
-        ));
-    }
-
-    #[test]
-    fn rune_symbol_is_found_in_nested_nodes() {
-        let program = json!({
-            "type": "Program",
-            "body": [{
-                "type": "ExpressionStatement",
-                "expression": {
-                    "type": "CallExpression",
-                    "callee": { "type": "Identifier", "name": "$derived" },
-                    "arguments": []
-                }
-            }]
-        });
-        assert!(has_rune_symbol(&program));
-    }
 }

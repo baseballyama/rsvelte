@@ -57,16 +57,16 @@ impl Rule for NoDynamicSlotName {
             if node.name.as_str() != "name" {
                 continue;
             }
+            // `<slot {name} />` is a `SvelteShorthandAttribute` upstream, which
+            // the `SvelteAttribute` selector never matches.
+            if ctx.source().as_bytes().get(node.start as usize) == Some(&b'{') {
+                continue;
+            }
             match &node.value {
                 // `<slot name />` — boolean attribute, no value.
                 AttributeValue::True(_) => {
-                    ctx.report(
-                        node.start,
-                        node.start
-                            + u32::try_from(node.name.len())
-                                .expect("attribute-name widths are represented as u32"),
-                        REQUIRE_VALUE,
-                    );
+                    // Upstream reports the whole `SvelteAttribute`.
+                    ctx.report(node.start, node.end, REQUIRE_VALUE);
                 }
                 // `<slot name={expr} />` — single mustache.
                 AttributeValue::Expression(tag) => {
@@ -87,13 +87,7 @@ impl Rule for NoDynamicSlotName {
                         AttributeValuePart::ExpressionTag(_) => false,
                     });
                     if empty {
-                        ctx.report(
-                            node.start,
-                            node.start
-                                + u32::try_from(node.name.len())
-                                    .expect("attribute-name widths are represented as u32"),
-                            REQUIRE_VALUE,
-                        );
+                        ctx.report(node.start, node.end, REQUIRE_VALUE);
                     }
                     // Upstream keys the fix shape on `node.value.length === 1`:
                     // the lone value is replaced *with its quotes*, any other is

@@ -40,7 +40,7 @@ pub static META: RuleMeta = RuleMeta {
     default_severity: Severity::Off,
     conditions: RuleConditions {
         runes_only: false,
-        legacy_only: false,
+        legacy_only: true,
     },
     type_aware: false,
     docs: "require slot type declaration using the `$$Slots` interface",

@@ -30,7 +30,7 @@ static META: RuleMeta = RuleMeta {
     name: "svelte/prefer-writable-derived",
     category: RuleCategory::Correctness,
     fixable: Fixable::Suggestion,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: true,
         legacy_only: false,
@@ -140,8 +140,9 @@ fn single_assignment_info(arg: &Value) -> Option<EffectAssignment<'_>> {
 
 /// Information about the `$state` declaration for a variable name.
 struct StateDecl {
-    /// Start of the `VariableDeclarator` node (used for the lint report location).
+    /// Span of the `VariableDeclarator` node — upstream's reported node.
     decl_start: u32,
+    decl_end: u32,
     /// Start of the `$state(…)` init `CallExpression`.
     init_start: u32,
     /// End of the `$state(…)` init `CallExpression`.
@@ -171,10 +172,8 @@ impl ScriptRule for PreferWritableDerived {
             if node_type(node) != Some("VariableDeclarator") {
                 return;
             }
-            let Some(id) = node.get("id") else { return };
-            if node_type(id) != Some("Identifier") {
-                return;
-            }
+            // Upstream only inspects the declarator's `init`, so a destructuring
+            // pattern (`let [a] = $state([0])`) qualifies as well.
             let Some(init) = node.get("init").filter(|i| !i.is_null()) else {
                 return;
             };
@@ -193,15 +192,16 @@ impl ScriptRule for PreferWritableDerived {
                 (decl_start, decl_end),
                 StateDecl {
                     decl_start,
+                    decl_end,
                     init_start,
                     init_end,
                 },
             );
         });
 
-        // (decl_start, init_start, init_end, rhs_start, rhs_end,
+        // (decl_start, decl_end, init_start, init_end, rhs_start, rhs_end,
         //  effect_start, effect_end)
-        let mut reports: Vec<(u32, u32, u32, u32, u32, u32, u32)> = Vec::new();
+        let mut reports: Vec<(u32, u32, u32, u32, u32, u32, u32, u32)> = Vec::new();
         program.walk(|node, _| {
             if node_type(node) != Some("CallExpression") || !is_effect_call(node) {
                 return;
@@ -225,6 +225,7 @@ impl ScriptRule for PreferWritableDerived {
             };
             reports.push((
                 sd.decl_start,
+                sd.decl_end,
                 sd.init_start,
                 sd.init_end,
                 info.rhs_start,
@@ -237,14 +238,22 @@ impl ScriptRule for PreferWritableDerived {
         // Report each at the `$state` declarator with a suggestion that:
         //   1. Replaces the `$state(…)` init with `$derived(<rightCode>)`.
         //   2. Removes the `$effect(…)` CallExpression (leaving its trailing `;`).
-        for (decl_start, init_start, init_end, rhs_start, rhs_end, effect_start, effect_end) in
-            reports
+        for (
+            decl_start,
+            decl_end,
+            init_start,
+            init_end,
+            rhs_start,
+            rhs_end,
+            effect_start,
+            effect_end,
+        ) in reports
         {
             let right_code = ctx.slice(rhs_start, rhs_end).to_string();
             let new_init = format!("$derived({right_code})");
             ctx.report_with_suggestions(
                 decl_start,
-                decl_start,
+                decl_end,
                 MESSAGE,
                 vec![Suggestion {
                     desc: SUGGEST_DESC.to_string(),

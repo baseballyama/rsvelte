@@ -120,6 +120,9 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(ValidEachKey),
         Box::new(NoNotFunctionHandler::default()),
         Box::new(NoInspect),
+        // Dual-registered like `NoInspect`: this pass sees a dynamic `import()`
+        // in a template expression, which no script program contains.
+        Box::new(NoSvelteInternal),
         Box::new(NoUselessMustaches),
         Box::new(NoBindValueOnCheckableInputs),
         Box::new(NoConflictingModuleNames),
@@ -192,12 +195,16 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(crate::rules::require_stores_init::RequireStoresInit),
         Box::new(crate::rules::require_store_callbacks_use_set_param::RequireStoreCallbacksUseSetParam),
         Box::new(crate::rules::no_ignored_unsubscribe::NoIgnoredUnsubscribe),
+        Box::new(crate::rules::derived_has_same_inputs_outputs::DerivedHasSameInputsOutputs),
         Box::new(crate::rules::no_add_event_listener::NoAddEventListener),
         Box::new(crate::rules::no_dom_manipulating::NoDomManipulating),
         // `NoInnerDeclarations` also lives in `all_script_rules()`; the `Rule`
         // half only covers a component with no instance script, whose template
         // expressions nothing else would reach.
         Box::new(crate::rules::no_inner_declarations::NoInnerDeclarations),
+        // `PreferDerivedOverDerivedBy` also lives in `all_script_rules()`; the
+        // `Rule` half reaches `$derived.by(…)` in template expressions.
+        Box::new(crate::rules::prefer_derived_over_derived_by::PreferDerivedOverDerivedBy),
     ]
 }
 
@@ -251,9 +258,13 @@ pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
         Box::new(NoDomManipulating),
         Box::new(NoReactiveReassign),
         Box::new(crate::rules::derived_has_same_inputs_outputs::DerivedHasSameInputsOutputs),
+        Box::new(crate::rules::prefer_destructured_store_props::PreferDestructuredStoreProps),
         Box::new(crate::rules::valid_prop_names_in_kit_pages::ValidPropNamesInKitPages),
         Box::new(crate::rules::infinite_reactive_loop::InfiniteReactiveLoop),
         Box::new(crate::rules::no_unused_vars::NoUnusedVars),
         Box::new(NoUndef),
+        // Upstream's `Program:exit` source scan runs for every linted file; the
+        // `Rule` half covers components, this one standalone modules.
+        Box::new(crate::rules::no_trailing_spaces::NoTrailingSpaces),
     ]
 }

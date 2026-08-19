@@ -387,27 +387,81 @@ fn nav_kind_of(name: &str) -> Option<NavKind> {
 /// member through a literal computed key as well as a dotted one.
 #[must_use]
 pub fn nav_call_kind(idx: &ScopeIndex<'_>, call: &Value) -> Option<NavKind> {
-    let callee = call.get("callee")?;
-    match node_type(callee) {
-        Some("Identifier") => {
-            let binding = idx.resolve(callee)?;
-            let import = binding.import.as_ref()?;
-            if import.kind != ImportKind::Named || import.source != "$app/navigation" {
+    nav_expr_kind(idx, call.get("callee")?, &mut HashSet::new())
+}
+
+/// A value the `ReferenceTracker` would have propagated into: it unwraps the
+/// same pass-through parents (`isPassThrough`) and follows a copy through a
+/// declarator initializer, so `const alias = goto; alias('/x')` is a `goto` call
+/// while `[goto][0]('/x')` — an array element, which the tracker does not
+/// follow — is not.
+fn nav_expr_kind(
+    idx: &ScopeIndex<'_>,
+    expr: &Value,
+    visited: &mut HashSet<usize>,
+) -> Option<NavKind> {
+    match node_type(expr)? {
+        "Identifier" => {
+            if !visited.insert(ptr(expr)) {
                 return None;
             }
-            nav_kind_of(&import.imported)
+            let binding = idx.resolve(expr)?;
+            if let Some(import) = binding.import.as_ref() {
+                if import.kind != ImportKind::Named || import.source != "$app/navigation" {
+                    return None;
+                }
+                return nav_kind_of(&import.imported);
+            }
+            nav_expr_kind(idx, binding.init?, visited)
         }
-        Some("MemberExpression") => {
-            let object = callee
-                .get("object")
-                .filter(|o| node_type(o) == Some("Identifier"))?;
-            if !idx.resolve(object)?.is_namespace_import("$app/navigation") {
+        "MemberExpression" => {
+            let object = expr.get("object")?;
+            if !is_navigation_namespace(idx, object, visited) {
                 return None;
             }
-            nav_kind_of(member_key(callee)?)
+            nav_kind_of(member_key(expr)?)
         }
+        "TSAsExpression"
+        | "TSSatisfiesExpression"
+        | "TSNonNullExpression"
+        | "TSTypeAssertion"
+        | "TSInstantiationExpression"
+        | "ChainExpression" => nav_expr_kind(idx, expr.get("expression")?, visited),
+        "SequenceExpression" => nav_expr_kind(
+            idx,
+            expr.get("expressions").and_then(Value::as_array)?.last()?,
+            visited,
+        ),
+        "LogicalExpression" => nav_expr_kind(idx, expr.get("left")?, visited)
+            .or_else(|| nav_expr_kind(idx, expr.get("right")?, visited)),
+        "ConditionalExpression" => nav_expr_kind(idx, expr.get("consequent")?, visited)
+            .or_else(|| nav_expr_kind(idx, expr.get("alternate")?, visited)),
         _ => None,
     }
+}
+
+/// Whether an expression is the `$app/navigation` namespace object — directly,
+/// or through the copies the tracker follows.
+fn is_navigation_namespace(
+    idx: &ScopeIndex<'_>,
+    expr: &Value,
+    visited: &mut HashSet<usize>,
+) -> bool {
+    if node_type(expr) != Some("Identifier") {
+        return false;
+    }
+    if !visited.insert(ptr(expr)) {
+        return false;
+    }
+    let Some(binding) = idx.resolve(expr) else {
+        return false;
+    };
+    if binding.import.is_some() {
+        return binding.is_namespace_import("$app/navigation");
+    }
+    binding
+        .init
+        .is_some_and(|init| is_navigation_namespace(idx, init, visited))
 }
 
 /// The static property name a member expression reads (`ns.goto`, `ns['goto']`).
@@ -593,6 +647,59 @@ mod tests {
         let idx = ScopeIndex::build(&root);
         let call = &root["body"][1]["body"]["body"][0]["expression"];
         assert!(nav_call_kind(&idx, call).is_none());
+    }
+
+    /// `ReferenceTracker` follows the import through a declarator initializer
+    /// (`const alias = goto`) but not through an array element (`[goto][0]`).
+    #[test]
+    fn alias_copy_is_a_goto_call_but_an_array_element_is_not() {
+        let root = program(json!([
+            {
+                "type": "ImportDeclaration",
+                "source": { "type": "Literal", "value": "$app/navigation" },
+                "specifiers": [{
+                    "type": "ImportSpecifier",
+                    "imported": { "type": "Identifier", "name": "goto" },
+                    "local": { "type": "Identifier", "name": "goto" }
+                }]
+            },
+            {
+                "type": "VariableDeclaration", "kind": "const",
+                "declarations": [{
+                    "type": "VariableDeclarator",
+                    "id": { "type": "Identifier", "name": "alias" },
+                    "init": { "type": "Identifier", "name": "goto" }
+                }]
+            },
+            {
+                "type": "VariableDeclaration", "kind": "const",
+                "declarations": [{
+                    "type": "VariableDeclarator",
+                    "id": { "type": "Identifier", "name": "list" },
+                    "init": {
+                        "type": "ArrayExpression",
+                        "elements": [{ "type": "Identifier", "name": "goto" }]
+                    }
+                }]
+            },
+            { "type": "ExpressionStatement", "expression": {
+                "type": "CallExpression",
+                "callee": { "type": "Identifier", "name": "alias" },
+                "arguments": [{ "type": "Literal", "value": "/via-copy" }]
+            } },
+            { "type": "ExpressionStatement", "expression": {
+                "type": "CallExpression",
+                "callee": {
+                    "type": "MemberExpression", "computed": true,
+                    "object": { "type": "Identifier", "name": "list" },
+                    "property": { "type": "Literal", "value": 0 }
+                },
+                "arguments": [{ "type": "Literal", "value": "/via-array" }]
+            } }
+        ]));
+        let idx = ScopeIndex::build(&root);
+        assert!(nav_call_kind(&idx, &root["body"][3]["expression"]).is_some());
+        assert!(nav_call_kind(&idx, &root["body"][4]["expression"]).is_none());
     }
 
     #[test]

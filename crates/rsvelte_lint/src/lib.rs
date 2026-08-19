@@ -32,6 +32,7 @@ pub mod presets;
 pub mod registry;
 pub mod rule;
 pub mod rules;
+mod runes_mode;
 pub mod scope;
 pub mod script;
 pub mod suppression;

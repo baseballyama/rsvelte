@@ -13,7 +13,9 @@
 
 use serde_json::Value;
 
-use rsvelte_core::ast::template::{Attribute, RegularElement, SvelteDynamicElement};
+use rsvelte_core::ast::template::{
+    Attribute, RegularElement, SlotElement, SvelteDynamicElement, TitleElement,
+};
 
 use super::shared::style_decls::{
     StyleDecl, StyleInline, StyleNode, StyleRoot, inline_style_of_expr, parse_style_attr,
@@ -288,6 +290,15 @@ impl Rule for PreferStyleDirective {
     }
 
     fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
+        check_style_attr(ctx, &el.attributes);
+    }
+
+    // `<slot>` and `<title>` are `SvelteHTMLElement` (kind `html`) to svelte-eslint-parser.
+    fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
+        check_style_attr(ctx, &el.attributes);
+    }
+
+    fn check_title(&self, ctx: &mut LintContext, el: &TitleElement) {
         check_style_attr(ctx, &el.attributes);
     }
 }

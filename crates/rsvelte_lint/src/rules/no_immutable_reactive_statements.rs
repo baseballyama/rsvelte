@@ -38,7 +38,7 @@ static META: RuleMeta = RuleMeta {
     name: "svelte/no-immutable-reactive-statements",
     category: RuleCategory::Correctness,
     fixable: Fixable::No,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: true,
@@ -357,7 +357,7 @@ fn collect_written_names(
 
 /// Whether `ident` (with its parent) sits in a position that is NOT a variable
 /// read: a non-computed member `.property`, a non-computed/non-shorthand object
-/// `key`, the `$` reactive label.
+/// `key`, the `$` reactive label, the `const` of an `as const` assertion.
 fn is_ignored_position(ident: &Value, parent: &Value) -> bool {
     let id_start = ident.get("start").and_then(Value::as_u64);
     match node_type(parent) {
@@ -388,6 +388,10 @@ fn is_ignored_position(ident: &Value, parent: &Value) -> bool {
                 .and_then(Value::as_u64)
                 == id_start
         }
+        // `x as const` parses as a `TSTypeReference` whose `typeName` is the
+        // reserved word `const`; TypeScript's scope analysis creates no
+        // reference for it, so upstream never sees an unresolved name here.
+        Some("TSTypeReference") => ident.get("name").and_then(Value::as_str) == Some("const"),
         _ => false,
     }
 }

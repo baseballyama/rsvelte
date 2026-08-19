@@ -105,6 +105,7 @@ pub mod shorthand_attribute;
 pub mod shorthand_directive;
 pub mod sort_attributes;
 pub mod spaced_html_comment;
+pub mod start_tag;
 pub mod store_refs;
 pub mod this_attr;
 #[cfg(feature = "native")] // native-only source-scan meta rule (see above)

@@ -16,7 +16,7 @@ use crate::rules::store_refs::{
     RefTracker, component_tracker, handled_by_template_pass, module_is_ts, module_tracker,
     store_creator_calls,
 };
-use crate::script::{ProgramView, ScriptKind, ScriptRule, node_start, node_type};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/require-stores-init",
@@ -35,7 +35,7 @@ static META: RuleMeta = RuleMeta {
 const MESSAGE: &str = "Always set a default value for svelte stores.";
 
 fn run(ctx: &mut LintContext, tracker: &RefTracker<'_>) {
-    let mut reports: Vec<u32> = Vec::new();
+    let mut reports: Vec<(u32, u32)> = Vec::new();
     for (call, name) in store_creator_calls(tracker, &["writable", "readable", "derived"]) {
         let min_args = match name {
             "writable" | "readable" => 1,
@@ -49,14 +49,15 @@ fn run(ctx: &mut LintContext, tracker: &RefTracker<'_>) {
         if len >= min_args || has_spread {
             continue;
         }
-        if let Some(start) = node_start(call) {
-            reports.push(start);
+        // Upstream reports `node` — the whole creator call.
+        if let (Some(start), Some(end)) = (node_start(call), node_end(call)) {
+            reports.push((start, end));
         }
     }
     reports.sort_unstable();
     reports.dedup();
-    for start in reports {
-        ctx.report(start, start, MESSAGE);
+    for (start, end) in reports {
+        ctx.report(start, end, MESSAGE);
     }
 }
 

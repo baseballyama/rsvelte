@@ -29,7 +29,7 @@ static META: RuleMeta = RuleMeta {
     name: "svelte/no-export-load-in-svelte-module-in-kit-pages",
     category: RuleCategory::Correctness,
     fixable: Fixable::No,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: false,
@@ -109,7 +109,13 @@ fn exported_load_spans(statements: &[Statement<'_>], out: &mut Vec<(u32, u32)>) 
                         if let BindingPattern::BindingIdentifier(id) = &declarator.id
                             && id.name == "load"
                         {
-                            out.push((id.span.start, id.span.end));
+                            // A TSESTree `Identifier` range covers its type
+                            // annotation, which oxc keeps on the declarator.
+                            let end = declarator
+                                .type_annotation
+                                .as_ref()
+                                .map_or(id.span.end, |ann| ann.span.end);
+                            out.push((id.span.start, end));
                         }
                     }
                 }

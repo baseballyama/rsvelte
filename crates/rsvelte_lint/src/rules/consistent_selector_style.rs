@@ -29,6 +29,62 @@ use crate::rules::scss_selector::{
     ScssSelector, SelectorKind, extract_selectors, is_plain_css_lang, scss_lang,
 };
 
+/// Consume a CSS hex escape, returning the code point and how many characters
+/// after the backslash it spans. Mirrors `postcss-selector-parser`'s `gobbleHex`.
+fn gobble_hex(chars: &[char]) -> Option<(char, usize)> {
+    let mut hex = String::new();
+    let mut space_terminated = false;
+    for &c in chars.iter().take(6) {
+        space_terminated = c == ' ';
+        if !c.is_ascii_hexdigit() {
+            break;
+        }
+        hex.push(c);
+    }
+    if hex.is_empty() {
+        return None;
+    }
+    let code = u32::from_str_radix(&hex, 16).ok()?;
+    let ch = if code == 0 {
+        char::REPLACEMENT_CHARACTER
+    } else {
+        char::from_u32(code).unwrap_or(char::REPLACEMENT_CHARACTER)
+    };
+    Some((ch, hex.len() + usize::from(space_terminated)))
+}
+
+/// `postcss-selector-parser` exposes the UNESCAPED identifier as a selector
+/// node's `value`, while rsvelte's CSS parser keeps the raw source slice.
+pub(crate) fn unescape_css_identifier(s: &str) -> std::borrow::Cow<'_, str> {
+    if !s.contains('\\') {
+        return std::borrow::Cow::Borrowed(s);
+    }
+    let chars: Vec<char> = s.chars().collect();
+    let mut out = String::with_capacity(s.len());
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] != '\\' {
+            out.push(chars[i]);
+            i += 1;
+            continue;
+        }
+        let window_end = (i + 7).min(chars.len());
+        if let Some((c, consumed)) = gobble_hex(&chars[i + 1..window_end]) {
+            out.push(c);
+            i += 1 + consumed;
+        } else if chars.get(i + 1) == Some(&'\\') {
+            out.push('\\');
+            i += 2;
+        } else {
+            if i + 1 == chars.len() {
+                out.push('\\');
+            }
+            i += 1;
+        }
+    }
+    std::borrow::Cow::Owned(out)
+}
+
 fn json_offset(node: &Value, field: &str) -> u32 {
     node.get(field)
         .and_then(Value::as_u64)
@@ -262,14 +318,34 @@ fn walk_node(
         | TemplateNode::SvelteWindow(el) => {
             walk_fragment(&el.fragment, parent_occ, in_component, sel, vars);
         }
+        // `<svelte:component>` is a `special`, not a `component`, element to
+        // svelte-eslint-parser, so its children keep the parent's count.
         TemplateNode::SvelteComponent(c) => {
-            walk_fragment(&c.fragment, OccCount::ZeroToInf, true, sel, vars);
+            walk_fragment(&c.fragment, parent_occ, in_component, sel, vars);
         }
         TemplateNode::SvelteElement(e) => {
             walk_fragment(&e.fragment, parent_occ, in_component, sel, vars);
         }
+        // `<slot>` and `<title>` are `SvelteHTMLElement` (kind `html`) upstream.
+        TemplateNode::SlotElement(el) => {
+            let elem_occ = if in_component {
+                OccCount::ZeroToInf
+            } else {
+                parent_occ
+            };
+            sel.add_element_type(&el.name, el.start, elem_occ);
+            process_attrs(&el.attributes, el.start, elem_occ, sel, vars);
+            walk_fragment(&el.fragment, elem_occ, false, sel, vars);
+        }
         TemplateNode::TitleElement(t) => {
-            walk_fragment(&t.fragment, parent_occ, in_component, sel, vars);
+            let elem_occ = if in_component {
+                OccCount::ZeroToInf
+            } else {
+                parent_occ
+            };
+            sel.add_element_type(&t.name, t.start, elem_occ);
+            process_attrs(&t.attributes, t.start, elem_occ, sel, vars);
+            walk_fragment(&t.fragment, elem_occ, false, sel, vars);
         }
         _ => {}
     }
@@ -758,9 +834,10 @@ fn check_class_selector(
     if sel.class.universal_selector {
         return;
     }
-    let Some(name) = node.get("name").and_then(Value::as_str) else {
+    let Some(raw) = node.get("name").and_then(Value::as_str) else {
         return;
     };
+    let name = &*unescape_css_identifier(raw);
     if sel.whitelisted_classes.iter().any(|w| w == name) {
         return;
     }
@@ -797,9 +874,10 @@ fn check_id_selector(
     if sel.id.universal_selector {
         return;
     }
-    let Some(name) = node.get("name").and_then(Value::as_str) else {
+    let Some(raw) = node.get("name").and_then(Value::as_str) else {
         return;
     };
+    let name = &*unescape_css_identifier(raw);
     let start = json_offset(node, "start");
     let end = json_offset(node, "end");
 
@@ -830,9 +908,10 @@ fn check_type_selector(
     style: &[&str],
     ctx: &mut LintContext,
 ) {
-    let Some(name) = node.get("name").and_then(Value::as_str) else {
+    let Some(raw) = node.get("name").and_then(Value::as_str) else {
         return;
     };
+    let name = &*unescape_css_identifier(raw);
     let start = json_offset(node, "start");
     let end = json_offset(node, "end");
 
@@ -1058,5 +1137,23 @@ impl Rule for ConsistentSelectorStyle {
             check_stylesheet(css, &sel, &style, check_global, ctx);
         }
         // else: unknown lang (less, etc.) — skip entirely, matching oracle behavior.
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::unescape_css_identifier;
+
+    #[test]
+    fn css_identifier_escapes() {
+        assert_eq!(unescape_css_identifier("plain"), "plain");
+        assert_eq!(unescape_css_identifier(r"foo\.bar"), "foo.bar");
+        assert_eq!(unescape_css_identifier(r"a\:b"), "a:b");
+        assert_eq!(unescape_css_identifier(r"\31 23"), "123");
+        assert_eq!(unescape_css_identifier(r"\41 b"), "Ab");
+        assert_eq!(unescape_css_identifier(r"a\\b"), r"a\b");
+        assert_eq!(unescape_css_identifier(r"\0"), "\u{FFFD}");
+        assert_eq!(unescape_css_identifier(r"\D800"), "\u{FFFD}");
+        assert_eq!(unescape_css_identifier(r"\1F600"), "\u{1F600}");
     }
 }

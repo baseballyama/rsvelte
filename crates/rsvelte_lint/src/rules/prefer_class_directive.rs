@@ -16,15 +16,15 @@
 use serde_json::Value;
 
 use rsvelte_core::ast::template::{
-    Attribute, AttributeValue, AttributeValuePart, ExpressionTag, RegularElement,
-    SvelteDynamicElement,
+    Attribute, AttributeValue, AttributeValuePart, ExpressionTag, RegularElement, SlotElement,
+    SvelteDynamicElement, TitleElement,
 };
 
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
 use crate::rules::js_static::get_string_if_constant;
-use crate::rules::js_whitespace::{is_js_whitespace, js_trim};
+use crate::rules::js_whitespace::{is_js_whitespace, js_trim, js_trim_end, js_trim_start};
 use crate::script::{node_end, node_start, node_type};
 
 static META: RuleMeta = RuleMeta {
@@ -421,7 +421,7 @@ fn report_sequence_fix(
         // Pop trailing whitespace-only text parts.
         while let Some(last) = bp.last() {
             if let AttributeValuePart::Text(t) = last {
-                if t.data.trim().is_empty() {
+                if js_trim(&t.data).is_empty() {
                     bp.pop();
                 } else {
                     break;
@@ -436,7 +436,7 @@ fn report_sequence_fix(
         let mut ap: Vec<&AttributeValuePart> = after_parts.iter().collect();
         while !ap.is_empty() {
             if let AttributeValuePart::Text(t) = ap[0] {
-                if t.data.trim().is_empty() {
+                if js_trim(&t.data).is_empty() {
                     ap.remove(0);
                 } else {
                     break;
@@ -514,7 +514,7 @@ fn trim_before_expression(parts: &[AttributeValuePart], index: usize, edits: &mu
     let Some(AttributeValuePart::Text(text)) = parts[..index].iter().next_back() else {
         return;
     };
-    let trimmed = text.data.trim_end();
+    let trimmed = js_trim_end(&text.data);
     if trimmed == text.data.as_ref() {
         return;
     }
@@ -524,7 +524,7 @@ fn trim_before_expression(parts: &[AttributeValuePart], index: usize, edits: &mu
         return;
     }
     edits.push(TextEdit {
-        start: if text.data.trim().is_empty() {
+        start: if js_trim(&text.data).is_empty() {
             text.start
         } else {
             new_end
@@ -538,7 +538,7 @@ fn trim_after_expression(parts: &[AttributeValuePart], index: usize, edits: &mut
     let Some(AttributeValuePart::Text(text)) = parts.get(index + 1) else {
         return;
     };
-    let trimmed = text.data.trim_start();
+    let trimmed = js_trim_start(&text.data);
     if trimmed == text.data.as_ref() {
         return;
     }
@@ -547,7 +547,7 @@ fn trim_after_expression(parts: &[AttributeValuePart], index: usize, edits: &mut
             .expect("source offsets are represented as u32");
     edits.push(TextEdit {
         start: text.start,
-        end: if text.data.trim().is_empty() {
+        end: if js_trim(&text.data).is_empty() {
             text.end
         } else {
             new_start
@@ -593,26 +593,36 @@ fn check_class_attr(ctx: &mut LintContext, attributes: &[Attribute], prefer_empt
 #[derive(Default)]
 pub struct PreferClassDirective;
 
+impl PreferClassDirective {
+    fn check_attributes(&self, ctx: &mut LintContext, attributes: &[Attribute]) {
+        let prefer_empty = ctx
+            .option0()
+            .and_then(|v| v.get("prefer"))
+            .and_then(Value::as_str)
+            != Some("always");
+        check_class_attr(ctx, attributes, prefer_empty);
+    }
+}
+
 impl Rule for PreferClassDirective {
     fn meta(&self) -> &'static RuleMeta {
         &META
     }
 
     fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
-        let prefer_empty = ctx
-            .option0()
-            .and_then(|v| v.get("prefer"))
-            .and_then(Value::as_str)
-            != Some("always");
-        check_class_attr(ctx, &el.attributes, prefer_empty);
+        self.check_attributes(ctx, &el.attributes);
     }
 
     fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
-        let prefer_empty = ctx
-            .option0()
-            .and_then(|v| v.get("prefer"))
-            .and_then(Value::as_str)
-            != Some("always");
-        check_class_attr(ctx, &el.attributes, prefer_empty);
+        self.check_attributes(ctx, &el.attributes);
+    }
+
+    // `<slot>` and `<title>` are `SvelteHTMLElement` (kind `html`) to svelte-eslint-parser.
+    fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
+        self.check_attributes(ctx, &el.attributes);
+    }
+
+    fn check_title(&self, ctx: &mut LintContext, el: &TitleElement) {
+        self.check_attributes(ctx, &el.attributes);
     }
 }

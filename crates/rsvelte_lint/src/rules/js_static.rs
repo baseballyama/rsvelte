@@ -15,6 +15,10 @@ pub enum JsValue {
     Bool(bool),
     Null,
     Undefined,
+    /// An object literal's own enumerable entries, in insertion order.
+    Object(Vec<(String, JsValue)>),
+    /// An array literal's elements, with holes materialized as `undefined`.
+    Array(Vec<JsValue>),
 }
 
 impl JsValue {
@@ -35,6 +39,7 @@ impl JsValue {
             Self::Num(n) => *n != 0.0 && !n.is_nan(),
             Self::Bool(b) => *b,
             Self::Null | Self::Undefined => false,
+            Self::Object(_) | Self::Array(_) => true,
         }
     }
 
@@ -46,24 +51,30 @@ impl JsValue {
             Self::Bool(b) => b.to_string(),
             Self::Null => "null".to_string(),
             Self::Undefined => "undefined".to_string(),
+            Self::Object(_) => "[object Object]".to_string(),
+            // `Array.prototype.join` renders a nullish element as the empty
+            // string rather than as `null` / `undefined`.
+            Self::Array(items) => items
+                .iter()
+                .map(|item| match item {
+                    Self::Null | Self::Undefined => String::new(),
+                    other => other.to_js_string(),
+                })
+                .collect::<Vec<_>>()
+                .join(","),
         }
     }
 
     /// `ToNumber`.
     fn to_number(&self) -> f64 {
         match self {
-            Self::Str(s) => {
-                let t = s.trim();
-                if t.is_empty() {
-                    0.0
-                } else {
-                    t.parse::<f64>().unwrap_or(f64::NAN)
-                }
-            }
+            Self::Str(s) => string_to_number(s),
             Self::Num(n) => *n,
             Self::Bool(b) => f64::from(u8::from(*b)),
             Self::Null => 0.0,
             Self::Undefined => f64::NAN,
+            // `ToPrimitive` on a plain object/array is its string form.
+            Self::Object(_) | Self::Array(_) => string_to_number(&self.to_js_string()),
         }
     }
 
@@ -73,9 +84,18 @@ impl JsValue {
             Self::Str(_) => "string",
             Self::Num(_) => "number",
             Self::Bool(_) => "boolean",
-            Self::Null => "object",
+            Self::Null | Self::Object(_) | Self::Array(_) => "object",
             Self::Undefined => "undefined",
         }
+    }
+}
+
+fn string_to_number(s: &str) -> f64 {
+    let t = s.trim();
+    if t.is_empty() {
+        0.0
+    } else {
+        t.parse::<f64>().unwrap_or(f64::NAN)
     }
 }
 
@@ -112,6 +132,9 @@ pub struct ScriptVars {
     /// Names assigned to after their initializer, so they fail
     /// `isEffectivelyConst`.
     written: HashSet<String>,
+    /// Names whose *property* is assigned to (`o.k = v`, `o[k]++`) — upstream's
+    /// `hasMutationInProperty`, which rejects an object-valued binding outright.
+    property_mutated: HashSet<String>,
 }
 
 impl ScriptVars {
@@ -130,8 +153,10 @@ impl ScriptVars {
             out.collect_program(program);
         }
         let mut written = HashSet::new();
-        collect_writes(root_json, &mut written);
+        let mut property_mutated = HashSet::new();
+        collect_writes(root_json, &mut written, &mut property_mutated);
         out.written = written;
+        out.property_mutated = property_mutated;
         out
     }
 
@@ -281,12 +306,14 @@ fn collect_pattern_names(pattern: &Value, out: &mut Vec<String>) {
 }
 
 /// Every name written to after its declaration: an assignment or update target
-/// in either script or template, or a `bind:` directive's target.
-fn collect_writes(node: &Value, out: &mut HashSet<String>) {
+/// in either script or template, or a `bind:` directive's target. `mutated`
+/// collects the same for a *member* target, whose base name keeps its binding
+/// but loses its object value.
+fn collect_writes(node: &Value, out: &mut HashSet<String>, mutated: &mut HashSet<String>) {
     match node {
         Value::Array(items) => {
             for item in items {
-                collect_writes(item, out);
+                collect_writes(item, out, mutated);
             }
         }
         Value::Object(_) => {
@@ -296,16 +323,20 @@ fn collect_writes(node: &Value, out: &mut HashSet<String>) {
                         let mut names = Vec::new();
                         collect_pattern_names(left, &mut names);
                         out.extend(names);
+                        if let Some(base) = member_base_name(left) {
+                            mutated.insert(base);
+                        }
                     }
                 }
                 Some("UpdateExpression") => {
-                    if let Some(name) = node
-                        .get("argument")
-                        .filter(|a| node_type(a) == Some("Identifier"))
-                        .and_then(|a| a.get("name"))
-                        .and_then(Value::as_str)
-                    {
-                        out.insert(name.to_string());
+                    if let Some(argument) = node.get("argument") {
+                        if node_type(argument) == Some("Identifier") {
+                            if let Some(name) = argument.get("name").and_then(Value::as_str) {
+                                out.insert(name.to_string());
+                            }
+                        } else if let Some(base) = member_base_name(argument) {
+                            mutated.insert(base);
+                        }
                     }
                 }
                 Some("BindDirective") => {
@@ -313,16 +344,38 @@ fn collect_writes(node: &Value, out: &mut HashSet<String>) {
                         let mut names = Vec::new();
                         collect_pattern_names(expr, &mut names);
                         out.extend(names);
+                        if let Some(base) = member_base_name(expr) {
+                            mutated.insert(base);
+                        }
                     }
                 }
                 _ => {}
             }
             for (_, child) in node.as_object().into_iter().flatten() {
-                collect_writes(child, out);
+                collect_writes(child, out, mutated);
             }
         }
         _ => {}
     }
+}
+
+/// The identifier a chain of member accesses is rooted at, for a node that is
+/// itself a `MemberExpression`.
+fn member_base_name(node: &Value) -> Option<String> {
+    if node_type(node) != Some("MemberExpression") {
+        return None;
+    }
+    let mut current = node;
+    while node_type(current) == Some("MemberExpression") {
+        current = current.get("object")?;
+    }
+    if node_type(current) == Some("Identifier") {
+        return current
+            .get("name")
+            .and_then(Value::as_str)
+            .map(str::to_string);
+    }
+    None
 }
 
 /// Port of `@eslint-community/eslint-utils`' `getStaticValue`, restricted to the
@@ -402,6 +455,62 @@ fn get_static_value_inner(
             let exprs = node.get("expressions").and_then(Value::as_array)?;
             get_static_value_inner(exprs.last()?, vars, visited)
         }
+        // TS-only wrappers evaluate to their operand.
+        "TSAsExpression"
+        | "TSSatisfiesExpression"
+        | "TSTypeAssertion"
+        | "TSNonNullExpression"
+        | "TSInstantiationExpression" => {
+            get_static_value_inner(node.get("expression")?, vars, visited)
+        }
+        "ObjectExpression" => {
+            let mut entries: Vec<(String, JsValue)> = Vec::new();
+            for property in node.get("properties").and_then(Value::as_array)? {
+                match node_type(property)? {
+                    "Property" => {
+                        if property.get("kind").and_then(Value::as_str) != Some("init") {
+                            return None;
+                        }
+                        let key = static_property_name(property, vars, visited)?;
+                        let value = get_static_value_inner(property.get("value")?, vars, visited)?;
+                        set_entry(&mut entries, key, value);
+                    }
+                    "SpreadElement" => {
+                        match get_static_value_inner(property.get("argument")?, vars, visited)? {
+                            JsValue::Object(spread) => {
+                                for (key, value) in spread {
+                                    set_entry(&mut entries, key, value);
+                                }
+                            }
+                            _ => return None,
+                        }
+                    }
+                    _ => return None,
+                }
+            }
+            Some(JsValue::Object(entries))
+        }
+        "ArrayExpression" => {
+            let mut items = Vec::new();
+            for element in node.get("elements").and_then(Value::as_array)? {
+                if element.is_null() {
+                    items.push(JsValue::Undefined);
+                } else if node_type(element) == Some("SpreadElement") {
+                    match get_static_value_inner(element.get("argument")?, vars, visited)? {
+                        JsValue::Array(spread) => items.extend(spread),
+                        _ => return None,
+                    }
+                } else {
+                    items.push(get_static_value_inner(element, vars, visited)?);
+                }
+            }
+            Some(JsValue::Array(items))
+        }
+        "MemberExpression" => {
+            let object = get_static_value_inner(node.get("object")?, vars, visited)?;
+            let key = static_property_name(node, vars, visited)?;
+            property_of(&object, &key)
+        }
         "Identifier" => {
             let name = node.get("name").and_then(Value::as_str)?;
             match name {
@@ -417,7 +526,74 @@ fn get_static_value_inner(
             visited.push(name.to_string());
             let out = get_static_value_inner(&init, vars, visited);
             visited.pop();
+            // `hasMutationInProperty`: an object-valued binding whose property is
+            // written to anywhere no longer describes the value at this point.
+            if matches!(out, Some(JsValue::Object(_) | JsValue::Array(_)))
+                && vars.property_mutated.contains(name)
+            {
+                return None;
+            }
             out
+        }
+        _ => None,
+    }
+}
+
+fn set_entry(entries: &mut Vec<(String, JsValue)>, key: String, value: JsValue) {
+    if let Some(slot) = entries.iter_mut().find(|(k, _)| *k == key) {
+        slot.1 = value;
+    } else {
+        entries.push((key, value));
+    }
+}
+
+/// `getStaticPropertyNameValue`, stringified — a `Property`'s `key` or a
+/// `MemberExpression`'s `property`, which JS coerces to a string either way.
+fn static_property_name(
+    node: &Value,
+    vars: &ScriptVars,
+    visited: &mut Vec<String>,
+) -> Option<String> {
+    let name_node = if node_type(node) == Some("Property") {
+        node.get("key")?
+    } else {
+        node.get("property")?
+    };
+    if node.get("computed").and_then(Value::as_bool) == Some(true) {
+        return Some(get_static_value_inner(name_node, vars, visited)?.to_js_string());
+    }
+    match node_type(name_node)? {
+        "Identifier" => name_node
+            .get("name")
+            .and_then(Value::as_str)
+            .map(str::to_string),
+        "Literal" => {
+            if let Some(bigint) = name_node.get("bigint").and_then(Value::as_str) {
+                return Some(bigint.to_string());
+            }
+            Some(literal_value(name_node)?.to_js_string())
+        }
+        _ => None,
+    }
+}
+
+/// Property access on an already-evaluated value. A primitive receiver is not
+/// modelled, so it answers "unknown" rather than reaching a built-in.
+fn property_of(object: &JsValue, key: &str) -> Option<JsValue> {
+    match object {
+        JsValue::Object(entries) => Some(
+            entries
+                .iter()
+                .find(|(k, _)| k == key)
+                .map_or(JsValue::Undefined, |(_, v)| v.clone()),
+        ),
+        JsValue::Array(items) => {
+            if key == "length" {
+                #[allow(clippy::cast_precision_loss)]
+                return Some(JsValue::Num(items.len() as f64));
+            }
+            let index = key.parse::<usize>().ok()?;
+            Some(items.get(index).cloned().unwrap_or(JsValue::Undefined))
         }
         _ => None,
     }
@@ -455,7 +631,10 @@ fn to_int32(n: f64) -> i32 {
 fn binary(op: &str, left: &JsValue, right: &JsValue) -> Option<JsValue> {
     match op {
         "+" => {
-            if matches!(left, JsValue::Str(_)) || matches!(right, JsValue::Str(_)) {
+            // `ToPrimitive` of a plain object/array is a string, so `+` concatenates.
+            let stringy =
+                |v: &JsValue| matches!(v, JsValue::Str(_) | JsValue::Object(_) | JsValue::Array(_));
+            if stringy(left) || stringy(right) {
                 Some(JsValue::Str(format!(
                     "{}{}",
                     left.to_js_string(),
@@ -631,6 +810,68 @@ mod tests {
         let vars = ScriptVars::from_root_json(&root);
         assert_eq!(
             get_static_value(&json!({"type":"Identifier","name":"a"}), &vars),
+            None
+        );
+    }
+
+    fn types_object() -> serde_json::Value {
+        json!({"type":"ObjectExpression","properties":[
+            {"type":"Property","kind":"init","computed":false,
+             "key":{"type":"Identifier","name":"CHECK"},"value": lit("checkbox".into())},
+            {"type":"Property","kind":"init","computed":false,
+             "key":{"type":"Identifier","name":"RADIO"},"value": lit("radio".into())}]})
+    }
+
+    fn member(computed: bool, property: serde_json::Value) -> serde_json::Value {
+        json!({"type":"MemberExpression","computed":computed,
+            "object":{"type":"Identifier","name":"TYPES"},"property":property})
+    }
+
+    #[test]
+    fn static_value_reads_object_members_and_unwraps_ts() {
+        let root = json!({"instance": {"content": {"body": [
+            {"type":"VariableDeclaration","kind":"const","declarations":[
+                {"id":{"type":"Identifier","name":"TYPES"},"init": types_object()}]},
+            {"type":"VariableDeclaration","kind":"const","declarations":[
+                {"id":{"type":"Identifier","name":"kind"},
+                 "init":{"type":"TSAsExpression","expression": lit("checkbox".into())}}]}
+        ]}}});
+        let vars = ScriptVars::from_root_json(&root);
+        let as_str = |node: &serde_json::Value| {
+            get_static_value(node, &vars)
+                .as_ref()
+                .and_then(JsValue::as_str)
+                .map(str::to_string)
+        };
+        assert_eq!(
+            as_str(&member(false, json!({"type":"Identifier","name":"CHECK"}))).as_deref(),
+            Some("checkbox")
+        );
+        assert_eq!(
+            as_str(&member(true, lit("RADIO".into()))).as_deref(),
+            Some("radio")
+        );
+        assert_eq!(
+            as_str(&json!({"type":"Identifier","name":"kind"})).as_deref(),
+            Some("checkbox")
+        );
+    }
+
+    #[test]
+    fn a_mutated_property_makes_an_object_binding_unresolvable() {
+        let root = json!({"instance": {"content": {"body": [
+            {"type":"VariableDeclaration","kind":"const","declarations":[
+                {"id":{"type":"Identifier","name":"TYPES"},"init": types_object()}]},
+            {"type":"ExpressionStatement","expression":{"type":"AssignmentExpression",
+                "left": member(false, json!({"type":"Identifier","name":"CHECK"})),
+                "right": lit("text".into())}}
+        ]}}});
+        let vars = ScriptVars::from_root_json(&root);
+        assert_eq!(
+            get_static_value(
+                &member(false, json!({"type":"Identifier","name":"CHECK"})),
+                &vars
+            ),
             None
         );
     }

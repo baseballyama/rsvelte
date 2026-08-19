@@ -8493,15 +8493,11 @@ fn convert_declaration_for_program(
                 .map(|p| convert_this_param(arena, p, offset, line_offsets))
                 .into_iter()
                 .collect();
-            params.extend(func_decl
-                .params
-                .items
-                .iter()
-                .map(|param| {
-                    convert_formal_parameter(arena, param, offset, line_offsets)
-                        .as_json()
-                        .clone()
-                }));
+            params.extend(func_decl.params.items.iter().map(|param| {
+                convert_formal_parameter(arena, param, offset, line_offsets)
+                    .as_json()
+                    .clone()
+            }));
             if let Some(rest) = &func_decl.params.rest {
                 let rest_start = offset + rest.span.start as usize;
                 let rest_end = offset + rest.span.end as usize;
@@ -10253,14 +10249,20 @@ fn convert_function_expression_for_program_as_node(
     let mut params: Vec<JsNode> = func
         .this_param
         .as_deref()
-        .map(|p| expr_to_node(Expression::from_json(convert_this_param(arena, p, offset, line_offsets))))
+        .map(|p| {
+            expr_to_node(Expression::from_json(convert_this_param(
+                arena,
+                p,
+                offset,
+                line_offsets,
+            )))
+        })
         .into_iter()
         .collect();
     params.extend(
-        func.params
-            .items
-            .iter()
-            .map(|param| expr_to_node(convert_formal_parameter(arena, param, offset, line_offsets))),
+        func.params.items.iter().map(|param| {
+            expr_to_node(convert_formal_parameter(arena, param, offset, line_offsets))
+        }),
     );
     if let Some(rest) = &func.params.rest {
         let rest_start = offset + rest.span.start as usize;

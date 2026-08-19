@@ -125,7 +125,7 @@ fn run(ctx: &mut LintContext, tracker: &RefTracker<'_>, exported_spans: &[(u32, 
     constructs.sort_by_key(|t| node_start(t.node).unwrap_or(0));
     constructs.dedup_by_key(|t| ptr(t.node));
 
-    let mut reports: Vec<(u32, String)> = Vec::new();
+    let mut reports: Vec<(u32, u32, String)> = Vec::new();
     for tracked in &constructs {
         let class = tracked.key;
         let Some(msg) = class_message(class) else {
@@ -138,7 +138,7 @@ fn run(ctx: &mut LintContext, tracker: &RefTracker<'_>, exported_spans: &[(u32, 
         // containing exported declaration, mirroring upstream's `isIn` loop.
         for (es, ee) in exported_spans {
             if start >= *es && end <= *ee {
-                reports.push((start, msg.clone()));
+                reports.push((start, end, msg.clone()));
             }
         }
         let mutable = if class == "URL" {
@@ -150,12 +150,14 @@ fn run(ctx: &mut LintContext, tracker: &RefTracker<'_>, exported_spans: &[(u32, 
                 .any(|t| t.access == Access::Call)
         };
         if mutable {
-            reports.push((start, msg));
+            reports.push((start, end, msg));
         }
     }
     reports.sort_by_key(|a| a.0);
-    for (start, msg) in reports {
-        ctx.report(start, start, msg);
+    // Upstream reports the construction node itself (`context.report({ node })`
+    // on the `NewExpression`), so the range spans the whole `new Map()`.
+    for (start, end, msg) in reports {
+        ctx.report(start, end, msg);
     }
 }
 

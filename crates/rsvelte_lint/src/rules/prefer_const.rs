@@ -89,6 +89,14 @@ fn init_rune_callee(init: &Value) -> Option<&str> {
 /// itself. Used to cover template positions the compiler scope walk skips
 /// (e.g. `{@render}` arguments).
 fn collect_template_reassignments(ctx: &LintContext, out: &mut HashSet<String>) {
+    // A standalone module has no template: parsing its JS as one turns markup
+    // inside a string literal into real directives and expressions.
+    if matches!(
+        crate::engine::classify_source(ctx.filename()),
+        crate::engine::SourceKind::Module { .. }
+    ) {
+        return;
+    }
     // The template fragment is serialized once per file by the context (this
     // rule alone would otherwise re-parse + re-serialize the source on each of
     // its two call sites, for each script block).
@@ -426,52 +434,9 @@ fn check_template_declaration_tags(
         let Some(decl_json) = decl_json else {
             continue;
         };
-        // Only `let` declarations fire prefer-const.
-        if decl_json.get("kind").and_then(Value::as_str) != Some("let") {
-            continue;
-        }
-        let Some(declarators) = decl_json.get("declarations").and_then(Value::as_array) else {
-            continue;
-        };
-
-        let mut decl_idents: Vec<(u32, u32, String)> = Vec::new(); // (start, end, name)
-        let mut all_const_able = true;
-        let mut every_declarator_has_init = true;
-
-        for d in declarators {
-            let has_init = d.get("init").is_some_and(|i| !i.is_null());
-            if !has_init {
-                every_declarator_has_init = false;
-            }
-            let mut ids = Vec::new();
-            if let Some(id) = d.get("id") {
-                collect_pattern_idents(id, &mut ids);
-            }
-            for id in ids {
-                let name = ident_name(id).unwrap_or("").to_string();
-                let is_reassigned = reassigned.contains(&name);
-                if has_init && !is_reassigned {
-                    let start = node_start(id);
-                    let end = id.get("end").and_then(Value::as_u64).and_then(json_offset);
-                    if let (Some(s), Some(e)) = (start, end) {
-                        decl_idents.push((s, e, name));
-                    }
-                } else {
-                    all_const_able = false;
-                }
-            }
-        }
-        if decl_idents.is_empty() {
-            continue;
-        }
-        if destructuring_all && !all_const_able {
-            continue;
-        }
-        let fixable = every_declarator_has_init && all_const_able;
         // The `let` keyword position within the tag: scan forward from tag.start
         // for the first `l` that starts `let`.
-        let fix_start = if fixable {
-            // Find the `let` keyword start by scanning from tag.start.
+        let let_keyword_start = || {
             let src_bytes = source.as_bytes();
             let mut pos = tag.start as usize;
             let end = (tag.end as usize).min(src_bytes.len());
@@ -484,18 +449,136 @@ fn check_template_declaration_tags(
                 }
                 pos += 1;
             }
-        } else {
-            None
         };
-        for (s, e, name) in decl_idents {
-            reports.push((
-                s,
-                e,
-                format!("'{name}' is never reassigned. Use 'const' instead."),
-                fix_start,
-            ));
+        let_declaration_reports(
+            &decl_json,
+            reassigned,
+            destructuring_all,
+            &let_keyword_start,
+            &mut reports,
+        );
+    }
+    reports
+}
+
+/// Whether any `let` binding of one `VariableDeclaration` is never reassigned,
+/// pushing one report per const-able identifier. Shared by the `{let …}`
+/// declaration-tag path and the template-expression path.
+fn let_declaration_reports(
+    decl_json: &Value,
+    reassigned: &HashSet<String>,
+    destructuring_all: bool,
+    let_keyword_start: &dyn Fn() -> Option<u32>,
+    out: &mut Vec<(u32, u32, String, Option<u32>)>,
+) {
+    // Only `let` declarations fire prefer-const.
+    if decl_json.get("kind").and_then(Value::as_str) != Some("let") {
+        return;
+    }
+    let Some(declarators) = decl_json.get("declarations").and_then(Value::as_array) else {
+        return;
+    };
+
+    let mut decl_idents: Vec<(u32, u32, String)> = Vec::new(); // (start, end, name)
+    let mut all_const_able = true;
+    let mut every_declarator_has_init = true;
+
+    for d in declarators {
+        let has_init = d.get("init").is_some_and(|i| !i.is_null());
+        if !has_init {
+            every_declarator_has_init = false;
+        }
+        let mut ids = Vec::new();
+        if let Some(id) = d.get("id") {
+            collect_pattern_idents(id, &mut ids);
+        }
+        for id in ids {
+            let name = ident_name(id).unwrap_or("").to_string();
+            let is_reassigned = reassigned.contains(&name);
+            if has_init && !is_reassigned {
+                let start = node_start(id);
+                let end = id.get("end").and_then(Value::as_u64).and_then(json_offset);
+                if let (Some(s), Some(e)) = (start, end) {
+                    decl_idents.push((s, e, name));
+                }
+            } else {
+                all_const_able = false;
+            }
         }
     }
+    if decl_idents.is_empty() {
+        return;
+    }
+    if destructuring_all && !all_const_able {
+        return;
+    }
+    let fixable = every_declarator_has_init && all_const_able;
+    let fix_start = if fixable { let_keyword_start() } else { None };
+    for (s, e, name) in decl_idents {
+        out.push((
+            s,
+            e,
+            format!("'{name}' is never reassigned. Use 'const' instead."),
+            fix_start,
+        ));
+    }
+}
+
+/// Report `let` declarations that live inside a template *expression* — an
+/// event-handler arrow body, a callback passed to `{@render}`, and so on.
+/// Upstream runs core `prefer-const` over one program that already contains
+/// every template expression, so those `let`s are ordinary declarations there.
+fn check_template_expression_lets(
+    fragment: &Value,
+    destructuring_all: bool,
+) -> Vec<(u32, u32, String, Option<u32>)> {
+    let mut reports = Vec::new();
+    walk_js(fragment, |node, ancestors| {
+        if node_type(node) != Some("VariableDeclaration") {
+            return;
+        }
+        // A `{let …}` declaration tag is a fragment node, not a function body
+        // statement; `check_template_declaration_tags` owns those.
+        if !ancestors.iter().any(|a| {
+            matches!(
+                node_type(a),
+                Some("ArrowFunctionExpression" | "FunctionExpression" | "FunctionDeclaration")
+            )
+        }) {
+            return;
+        }
+        // A block-scoped `let` can only be written from inside its own block, so
+        // the name-keyed file-wide set would confuse it with a same-named outer
+        // binding (`bind:this={el}` above a handler-local `let el`).
+        let scope = ancestors
+            .iter()
+            .rev()
+            .find(|a| {
+                matches!(
+                    node_type(a),
+                    Some(
+                        "BlockStatement"
+                            | "StaticBlock"
+                            | "SwitchStatement"
+                            | "ForStatement"
+                            | "ForInStatement"
+                            | "ForOfStatement"
+                    )
+                )
+            })
+            .copied()
+            .unwrap_or(node);
+        let mut reassigned = HashSet::new();
+        walk_assignments(scope, &mut reassigned);
+        let start = node_start(node);
+        let_declaration_reports(
+            node,
+            &reassigned,
+            destructuring_all,
+            &|| start,
+            &mut reports,
+        );
+    });
     reports
 }
 
@@ -685,6 +768,9 @@ struct BindingWrites {
     /// Declaration-identifier span → where upstream reports a no-init `let`
     /// whose single write can become the declaration itself.
     sole_write: HashMap<(u32, u32), (u32, u32)>,
+    /// Declaration-identifier spans whose binding is read before its first
+    /// write — what `ignoreReadBeforeAssign` suppresses.
+    read_before_write: HashSet<(u32, u32)>,
     /// Names this script also binds in a NON-root scope. For such a name the
     /// compiler analysis's root-binding `reassigned` flag is not usable: the
     /// inner binding's write is what could have set it.
@@ -734,6 +820,9 @@ fn collect_binding_writes(
             out.sole_write
                 .insert(declaration, (base + report.0, base + report.1));
         }
+        if read_precedes_write(&semantic, id) {
+            out.read_before_write.insert(declaration);
+        }
         out.map.insert(declaration, (has_write, is_root));
     }
     out
@@ -744,6 +833,53 @@ fn collect_binding_writes(
 /// declaration, or at the declaration itself when a read precedes the write.
 /// `None` when the binding is reassigned, unwritten, or written from another
 /// scope.
+/// `getIdentifierIfShouldBeConst`'s `reference.isRead() && writer === null` —
+/// the state `ignoreReadBeforeAssign` turns into "do not report".
+fn read_precedes_write(
+    semantic: &oxc_semantic::Semantic<'_>,
+    symbol: oxc_semantic::SymbolId,
+) -> bool {
+    let scoping = semantic.scoping();
+    let nodes = semantic.nodes();
+    // A declarator's initializer is a write reference to ESLint's scope
+    // analyser; oxc records it as the declaration and not as a reference, so it
+    // has to be folded back in at its own source position.
+    let init_write = matches!(
+        semantic.symbol_declaration(symbol).kind(),
+        AstKind::VariableDeclarator(declarator) if declarator.init.is_some()
+    )
+    .then(|| scoping.symbol_span(symbol).start);
+    for reference_id in ordered_references(semantic, symbol) {
+        let reference = scoping.get_reference(reference_id);
+        let start = nodes.get_node(reference.node_id()).span().start;
+        if init_write.is_some_and(|w| w <= start) || reference.is_write() {
+            return false;
+        }
+        if reference.is_read() {
+            return true;
+        }
+    }
+    false
+}
+
+/// A symbol's resolved references in source order, as ESLint's scope analyser
+/// yields them.
+fn ordered_references(
+    semantic: &oxc_semantic::Semantic<'_>,
+    symbol: oxc_semantic::SymbolId,
+) -> Vec<oxc_semantic::ReferenceId> {
+    let scoping = semantic.scoping();
+    let nodes = semantic.nodes();
+    let mut references = scoping.get_resolved_reference_ids(symbol).to_vec();
+    references.sort_by_key(|&id| {
+        nodes
+            .get_node(scoping.get_reference(id).node_id())
+            .span()
+            .start
+    });
+    references
+}
+
 fn sole_write_report(
     semantic: &oxc_semantic::Semantic<'_>,
     symbol: oxc_semantic::SymbolId,
@@ -751,16 +887,10 @@ fn sole_write_report(
 ) -> Option<(u32, u32)> {
     let scoping = semantic.scoping();
     let nodes = semantic.nodes();
-    let mut references: Vec<_> = scoping.get_resolved_reference_ids(symbol).iter().collect();
-    references.sort_by_key(|&&id| {
-        nodes
-            .get_node(scoping.get_reference(id).node_id())
-            .span()
-            .start
-    });
+    let references = ordered_references(semantic, symbol);
     let mut writer = None;
     let mut read_before_write = false;
-    for &reference_id in references {
+    for reference_id in references {
         let reference = scoping.get_reference(reference_id);
         if reference.is_write() {
             if writer.is_some() {
@@ -846,9 +976,19 @@ struct ScopedReassigned {
     /// Upstream attaches it to a module-scope variable, so it only applies to a
     /// binding declared at the script's root.
     prop_names: HashSet<String>,
+    /// The `ignoreReadBeforeAssign` option.
+    ignore_read_before_assign: bool,
 }
 
 impl ScopedReassigned {
+    /// `getIdentifierIfShouldBeConst` returns null for this binding because a
+    /// read precedes its first write and the option is on.
+    fn read_before_assign_ignored(&self, id: &Value) -> bool {
+        self.ignore_read_before_assign
+            && matches!((node_start(id), node_end(id)), (Some(s), Some(e))
+                if self.writes.read_before_write.contains(&(s, e)))
+    }
+
     fn is_reassigned(&self, id: &Value) -> bool {
         let name = ident_name(id).unwrap_or("");
         if let (Some(s), Some(e)) = (node_start(id), node_end(id))
@@ -918,6 +1058,7 @@ impl ScriptRule for PreferConst {
             },
             fallback: reassigned.clone(),
             prop_names,
+            ignore_read_before_assign: ctx.option_bool("ignoreReadBeforeAssign", false),
         };
         let (excluded, destructuring_all) = prefer_const_options(ctx.option0());
         let mut reports = collect_script_reports(program, &scoped, &excluded, destructuring_all);
@@ -931,6 +1072,8 @@ impl ScriptRule for PreferConst {
             let tag_reports =
                 check_template_declaration_tags(ctx.source(), &reassigned, destructuring_all);
             reports.extend(tag_reports);
+            let fragment = ctx.template_fragment_json();
+            reports.extend(check_template_expression_lets(&fragment, destructuring_all));
         }
 
         report_no_init_destructuring(ctx, program, &excluded, &scoped, &mut reports);
@@ -1075,7 +1218,8 @@ fn collect_script_reports(
                 collect_pattern_idents(id, &mut ids);
             }
             for id in ids {
-                let is_reassigned = scoped.is_reassigned(id);
+                let is_reassigned =
+                    scoped.is_reassigned(id) || scoped.read_before_assign_ignored(id);
                 if (has_init || in_for_head) && !is_reassigned {
                     decl_idents.push(id);
                 } else {
@@ -1127,7 +1271,10 @@ fn report_no_init_destructuring(
     let mut declarations = Vec::new();
     collect_no_init_let_idents(program, excluded, &mut declarations);
     for (name, id, declaration_scope) in declarations {
-        if template_and_forin.contains(&name) || scoped.prop_names.contains(&name) {
+        if template_and_forin.contains(&name)
+            || scoped.prop_names.contains(&name)
+            || scoped.read_before_assign_ignored(id)
+        {
             continue;
         }
         // A plain `let x; x = 1;` converts to `const` when the single write can
@@ -1216,8 +1363,11 @@ impl Rule for PreferConst {
         let mut reassigned: HashSet<String> = HashSet::new();
         collect_template_reassignments(ctx, &mut reassigned);
 
-        let tag_reports =
+        let mut tag_reports =
             check_template_declaration_tags(ctx.source(), &reassigned, destructuring_all);
+        let fragment = ctx.template_fragment_json();
+        tag_reports.extend(check_template_expression_lets(&fragment, destructuring_all));
+        tag_reports.sort_by_key(|report| report.0);
         for (start, end, msg, fix_start) in tag_reports {
             match fix_start {
                 Some(decl_start) => ctx.report_with_fix(

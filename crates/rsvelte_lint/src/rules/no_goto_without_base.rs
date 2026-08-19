@@ -20,7 +20,9 @@ use crate::context::LintContext;
 use crate::engine::{SourceKind, classify_source};
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
 use crate::rules::kit_nav::{NavKind, PrefixVar, ScopeIndex, is_base_reference, nav_call_kind};
-use crate::script::{ProgramView, ScriptKind, ScriptRule, node_start, node_type, walk_js};
+use crate::script::{
+    ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js,
+};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-goto-without-base",
@@ -59,13 +61,36 @@ fn literal_value_string(lit: &Value) -> String {
     }
 }
 
+/// Whether `goto()`'s first argument counts as base-prefixed.
+///
+/// Upstream's `checkBinaryExpression` / `checkTemplateLiteral` require the
+/// prefix to be an `Identifier` *node* that is in `basePathNames`, so a
+/// namespace member (`paths.base + '/x'`) is reported however the set was
+/// built — which is why `is_base_reference` is called with `namespace_member:
+/// false` here and with `true` in `no-navigation-without-base`.
+fn first_arg_is_base_prefixed(idx: &ScopeIndex<'_>, path: &Value) -> bool {
+    match node_type(path) {
+        // `basePathNames` holds identifier occurrences, so only a direct
+        // `base` reference on the left counts.
+        Some("BinaryExpression") => path
+            .get("left")
+            .filter(|l| node_type(l) == Some("Identifier"))
+            .is_some_and(|l| is_base_reference(idx, &PrefixVar::Ident(l), false)),
+        Some("Literal") => is_scheme_prefixed(&literal_value_string(path)),
+        Some("TemplateLiteral") => crate::rules::kit_nav::template_first_part(path)
+            .filter(|part| node_type(part) == Some("Identifier"))
+            .is_some_and(|part| is_base_reference(idx, &PrefixVar::Ident(part), false)),
+        _ => false,
+    }
+}
+
 #[derive(Default)]
 pub struct NoGotoWithoutBase;
 
 impl NoGotoWithoutBase {
     fn run(ctx: &mut LintContext, json: &Value) {
         let idx = ScopeIndex::build(json);
-        let mut reports: Vec<u32> = Vec::new();
+        let mut reports: Vec<(u32, u32)> = Vec::new();
         walk_js(json, |node, _| {
             if node_type(node) != Some("CallExpression")
                 || nav_call_kind(&idx, node) != Some(NavKind::Goto)
@@ -79,26 +104,18 @@ impl NoGotoWithoutBase {
             else {
                 return;
             };
-            let ok = match node_type(path) {
-                // `basePathNames` holds identifier occurrences, so only a direct
-                // `base` reference on the left counts.
-                Some("BinaryExpression") => path
-                    .get("left")
-                    .filter(|l| node_type(l) == Some("Identifier"))
-                    .is_some_and(|l| is_base_reference(&idx, &PrefixVar::Ident(l), false)),
-                Some("Literal") => is_scheme_prefixed(&literal_value_string(path)),
-                Some("TemplateLiteral") => crate::rules::kit_nav::template_first_part(path)
-                    .filter(|part| node_type(part) == Some("Identifier"))
-                    .is_some_and(|part| is_base_reference(&idx, &PrefixVar::Ident(part), false)),
-                _ => false,
-            };
-            if !ok && let Some(s) = node_start(path) {
-                reports.push(s);
+            let ok = first_arg_is_base_prefixed(&idx, path);
+            // Upstream reports `loc: path.loc` — the whole first argument.
+            if !ok
+                && let Some(s) = node_start(path)
+                && let Some(e) = node_end(path)
+            {
+                reports.push((s, e));
             }
         });
         reports.sort_unstable();
-        for start in reports {
-            ctx.report(start, start, MESSAGE);
+        for (start, end) in reports {
+            ctx.report(start, end, MESSAGE);
         }
     }
 }
@@ -135,6 +152,77 @@ impl ScriptRule for NoGotoWithoutBase {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
+
+    fn base_import(local: &str, namespace: bool) -> Value {
+        json!({
+            "type": "ImportDeclaration",
+            "source": { "type": "Literal", "value": "$app/paths" },
+            "specifiers": [if namespace {
+                json!({
+                    "type": "ImportNamespaceSpecifier",
+                    "local": { "type": "Identifier", "name": local }
+                })
+            } else {
+                json!({
+                    "type": "ImportSpecifier",
+                    "imported": { "type": "Identifier", "name": "base" },
+                    "local": { "type": "Identifier", "name": local }
+                })
+            }]
+        })
+    }
+
+    /// `<prefix> + '/x'` as the first argument of a `goto()` call.
+    fn program_with_prefix(import: Value, prefix: Value) -> Value {
+        json!({ "type": "Program", "body": [import, {
+            "type": "ExpressionStatement",
+            "expression": {
+                "type": "BinaryExpression",
+                "operator": "+",
+                "left": prefix,
+                "right": { "type": "Literal", "value": "/x" }
+            }
+        }] })
+    }
+
+    #[test]
+    fn named_base_import_prefixes() {
+        let root = program_with_prefix(
+            base_import("base", false),
+            json!({ "type": "Identifier", "name": "base" }),
+        );
+        let idx = ScopeIndex::build(&root);
+        assert!(first_arg_is_base_prefixed(
+            &idx,
+            &root["body"][1]["expression"]
+        ));
+    }
+
+    /// `import * as paths from '$app/paths'; goto(paths.base + '/x')`.
+    ///
+    /// Upstream cannot be observed on this shape — `extractBasePathReferences`
+    /// throws on a namespace import — but its `checkBinaryExpression` reports
+    /// whenever the left operand is not an `Identifier`, so a namespace member
+    /// is not a base prefix for THIS rule (unlike `no-navigation-without-base`,
+    /// which resolves the member). Ungated by the corpus for that reason.
+    #[test]
+    fn namespace_base_member_is_not_a_prefix() {
+        let root = program_with_prefix(
+            base_import("paths", true),
+            json!({
+                "type": "MemberExpression",
+                "computed": false,
+                "object": { "type": "Identifier", "name": "paths" },
+                "property": { "type": "Identifier", "name": "base" }
+            }),
+        );
+        let idx = ScopeIndex::build(&root);
+        assert!(!first_arg_is_base_prefixed(
+            &idx,
+            &root["body"][1]["expression"]
+        ));
+    }
 
     #[test]
     fn scheme_prefix() {

@@ -85,7 +85,7 @@ pub fn lint_with_config(source: &str, filename: &str, config_json: &str) -> Stri
 
 fn lint_with(source: &str, filename: &str, config: &LintConfig) -> String {
     let line_index = LineIndex::new(source);
-    let suppressions = Suppressions::collect(source);
+    let suppressions = Suppressions::collect_for(source, filename);
     let mut entries: Vec<Entry> = Vec::new();
 
     // 1. Compiler warnings / errors (validator wrap) — codegen skipped.

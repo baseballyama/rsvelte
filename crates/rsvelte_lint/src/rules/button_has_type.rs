@@ -133,14 +133,17 @@ impl Rule for ButtonHasType {
             return;
         }
 
-        // No `type`, no `bind:type`, no spread → flag the `<button` opener.
-        let end = el.start
-            + 1
-            + u32::try_from(el.name.len()).expect("element-name widths are represented as u32");
-        ctx.report(
+        // Upstream reports the `SvelteStartTag`, i.e. `<button …>` up to and
+        // including its `>`, not just the name.
+        let Some((start, end)) = crate::rules::start_tag::start_tag_span(
+            ctx.source(),
             el.start,
-            end,
-            "Missing an explicit type attribute for button.",
-        );
+            el.name.len(),
+            &el.attributes,
+            None,
+        ) else {
+            return;
+        };
+        ctx.report(start, end, "Missing an explicit type attribute for button.");
     }
 }
