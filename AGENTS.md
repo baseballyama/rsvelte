@@ -744,8 +744,18 @@ that never look at a template event handler. Fixing them took the adversarial co
 accepted entries and the collected one from 104 to 45 — **the collected corpus had been
 suppressing 62 of its own entries' worth of defects it could not phrase**.
 
+That corpus has since grown to **1,365 patterns** across the four axes below, and the tree now
+stands at **5** accepted adversarial entries and **3** collected ones (6,788 real-world sources,
+73,378 findings compared). Read the composition before reading the count: **four of the five are
+upstream-side or deliberate** — two `svelte-eslint-parser` artifacts (`</style⏎⏎>` produces no
+`SvelteStyleElement`; the block-blanking regex is case-insensitive, so `<Style />` is treated as a
+style tag), the `globals.browser ∖ globals.node` split, and rsvelte's choice to treat a CSS
+`svelte-ignore` on an un-preprocessed `lang="scss"` block as *used*, which is also all three
+collected entries. Exactly one is an rsvelte limitation: `sort-attributes/07-lookahead-order`
+needs a JS-compatible regex engine.
+
 Three method notes, each of which cost real time here:
-- **Two of the four remaining entries are not rsvelte being wrong**, and neither is discoverable
+- **Two of the remaining entries are not rsvelte being wrong**, and neither is discoverable
   from the divergence alone: `svelte-eslint-parser` builds no `SvelteStyleElement` for
   `</style⏎⏎>` (so upstream's rule never runs), and upstream's browser-global set is
   `globals.browser ∖ globals.node`, which modern Node empties of `navigator`. Probe the oracle on
