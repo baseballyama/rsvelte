@@ -2993,6 +2993,29 @@ on the same value, a cache that is always warm by the time it matters — produc
 either. What they do exclude is the realistic shape, where the leak depends on which file ran
 first. Recorded so the axis is not re-opened as an unknown.
 
+### C12. The lint oracle's answer depended on a sibling `node_modules` — **[D]**
+
+Second instance of the property gate 27 records for the LSP oracle: **the measurement is a
+property of the installed tree, not only of the sources.** `eslint-plugin-svelte` transpiles a
+`<style lang="scss">` block before deciding whether its selectors are used, and finds the
+preprocessor with `loadModule`, which resolves from `context.cwd` and then from the linted file's
+directory — both of which walk up to the repository root, never to the isolated oracle package
+(its third fallback, the plugin's own `__filename`, is dead under ESM, so declaring `sass` as an
+oracle dependency does **not** fix this — measured).
+
+The corpus jobs never ran `pnpm install`, so CI had no root `node_modules` and blanked SCSS blocks,
+while a developer's checkout transpiled them. One `lint-adversarial` entry
+(`no-unused-svelte-ignore/10-style-scss-css-ignore.svelte`) diverged locally and passed on CI, and
+because the ratchet is two-sided that surfaced as a *stale entry* — the failure mode that reads
+like "someone forgot to re-baseline" rather than like an environment difference. Both directions
+are now pinned: the CI job installs the root dependencies, and all four oracle entry points abort
+with the resolution path named if `sass` does not resolve from the repository root
+(`lint-oracle/preconditions.mjs`). The guard was exercised on both arms — every gate passes with
+the dependency present and every gate exits 1 with the message when it is removed.
+
+Ask this of any oracle that shells out to a real toolchain: **what did the checkout provide that
+the sources did not?**
+
 ### C1. Path filters — gates that do not run on some PRs
 
 `ci.yml` is deliberately unfiltered (`:6-8`, with the reason in a comment), so every Rust

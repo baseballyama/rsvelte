@@ -26,6 +26,9 @@ import globalsPkg from 'globals';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertPreprocessorsAreResolvable } from './preconditions.mjs';
+
+assertPreprocessorsAreResolvable();
 
 const ORACLE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ENV_GLOBALS = JSON.parse(readFileSync(path.join(ORACLE_DIR, 'browser-globals.json'), 'utf8'));

@@ -451,6 +451,14 @@ jobs:
         # use `panic = "abort"`, which would SIGABRT the whole ~12k-file run.
         run: cargo build --profile dist-lint --bin rsvelte-lint
 
+      # eslint-plugin-svelte resolves a `<style lang="scss">` preprocessor from
+      # the LINTED FILE's directory upward, which reaches the repository root and
+      # never the oracle package. Without this the oracle blanks SCSS blocks here
+      # and transpiles them in a developer's checkout, which is a property of the
+      # tree rather than of either linter; `lint-oracle/run.mjs` asserts it.
+      - name: Install root dependencies (preprocessors the oracle resolves)
+        run: pnpm install --frozen-lockfile
+
       # The oracle is the pinned real eslint-plugin-svelte; deps install into an
       # isolated package so the comparison never drifts from what users run.
       - name: Install lint oracle (real eslint-plugin-svelte)

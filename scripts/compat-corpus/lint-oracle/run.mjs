@@ -18,6 +18,9 @@ import globalsPkg from 'globals';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertPreprocessorsAreResolvable } from './preconditions.mjs';
+
+assertPreprocessorsAreResolvable();
 
 // The lint environment's declared globals. eslint-plugin-svelte's `flat/base`
 // declares none, but several rules locate their targets with eslint-utils'
