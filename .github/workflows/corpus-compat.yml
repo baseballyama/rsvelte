@@ -483,6 +483,17 @@ jobs:
       - name: Verify lint environment parity (ratchet against lint-env-known-failures.json)
         run: node scripts/compat-corpus/lint-env.mjs
 
+      # Every gate above configures all shared rules to "warn" on both sides, so
+      # the set a user gets with NO config is a constant none of them can vary.
+      - name: Verify lint default-preset curation (ratchet against lint-preset-known-failures.json)
+        run: node scripts/compat-corpus/lint-preset.mjs
+
+      # Whether a rule runs at all in a given Svelte mode. A wrong flag is
+      # invisible to every finding-level gate unless the corpus happens to hold a
+      # file in the mode the flag wrongly excludes.
+      - name: Verify lint rule conditions (ratchet against lint-conditions-known-failures.json)
+        run: node scripts/compat-corpus/lint-conditions.mjs
+
       - name: Collect lint corpus
         run: node scripts/compat-corpus/lint-collect.mjs --ci
 

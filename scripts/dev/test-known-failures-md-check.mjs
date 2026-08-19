@@ -182,8 +182,8 @@ withCorpus(
 );
 
 withCorpus(
-	(d) => edit(d, 'lint-known-failures.md', 'by rule: `36 +', 'by rule: `35 +'),
-	(r) => check('a stale cluster count fails', [r.code, /sums to 103/.test(r.out)], [1, true]),
+	(d) => edit(d, 'fmt-known-failures.md', 'by cluster: `3 + 8 +', 'by cluster: `2 + 8 +'),
+	(r) => check('a stale cluster count fails', [r.code, /sums to 19 \(/.test(r.out)], [1, true]),
 );
 
 // The shape #2500 is about: an entry cited under two clusters, with the cluster
@@ -191,12 +191,12 @@ withCorpus(
 // another moves down, the sum is unchanged — and only a check that compares the
 // sum against the JSON rather than against a stated total can see it.
 withCorpus(
-	(d) => edit(d, 'lint-known-failures.md', 'by direction: `32 + 72`', 'by direction: `33 + 72`'),
-	(r) => check('a double-cited entry fails', [r.code, /sums to 105/.test(r.out)], [1, true]),
+	(d) => edit(d, 'lint-known-failures.md', 'by direction: `3`', 'by direction: `4`'),
+	(r) => check('a double-cited entry fails', [r.code, /sums to 4 \(/.test(r.out)], [1, true]),
 );
 
 withCorpus(
-	(d) => edit(d, 'lint-known-failures.md', 'Partition of `lint-known-failures.json` by repo: `45 + 28 + 18 + 10 + 3`\n', ''),
+	(d) => edit(d, 'lint-known-failures.md', 'Partition of `lint-known-failures.json` by repo: `3`\n', ''),
 	(r) => check('a deleted partition line fails', [r.code, /found 0/.test(r.out)], [1, true]),
 );
 

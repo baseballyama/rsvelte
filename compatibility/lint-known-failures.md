@@ -32,6 +32,13 @@ a floating dependency of the oracle. The oracle's versions are now exact
 adversarial corpus carries a committed repro of the same class
 (`compatibility/lint-adversarial/no-unused-svelte-ignore/10-style-scss-css-ignore.svelte`).
 
+All three sit in one cluster on every axis this file partitions by, so each partition
+is a single addend:
+
+Partition of `lint-known-failures.json` by rule: `3`
+Partition of `lint-known-failures.json` by direction: `3`
+Partition of `lint-known-failures.json` by repo: `3`
+
 ### How it got here — 104 → 45 → 3
 
 The entries this file used to describe were not burned down one at a time; they were a
