@@ -242,7 +242,9 @@ fn fix_one(file: &Path, config: &LintConfig) -> usize {
     let Ok(source) = std::fs::read_to_string(file) else {
         return 0;
     };
-    let Ok(res) = catch_unwind(AssertUnwindSafe(|| fix_all(&source, config))) else {
+    let Ok(res) = catch_unwind(AssertUnwindSafe(|| {
+        fix_all(&source, config, &file.to_string_lossy())
+    })) else {
         return 0;
     };
     if res.applied > 0 && res.output != source {

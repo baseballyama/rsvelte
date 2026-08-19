@@ -25,7 +25,7 @@ use rsvelte_diagnostics::Diagnostic;
 use rsvelte_lint::line_index::LineIndex;
 use rsvelte_lint::registry::registered_rule_metas;
 use rsvelte_lint::{
-    Fixable, LintConfig, LintDiagnostic, Severity, fix_source, lint_source, lint_source_raw,
+    Fixable, LintConfig, LintDiagnostic, Severity, fix_source_at, lint_source, lint_source_raw,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -587,7 +587,7 @@ fn eval_invalid_fixture(input: &Path, code: &str, fixable: bool) -> Option<Resul
         if let Some(opts) = load_options(input) {
             cfg = cfg.with_options(code, opts);
         }
-        let fixed = fix_source(&src, &cfg).output;
+        let fixed = fix_source_at(&src, &cfg, &input.to_string_lossy()).output;
         if fixed != expected_out {
             return Some(Err(format!(
                 "[fix mismatch] {}\n    expected:\n{}\n    actual:\n{}",

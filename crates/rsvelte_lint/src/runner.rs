@@ -312,6 +312,17 @@ pub struct FixResult {
 /// earliest and skipping any that overlap it (a second pass picks up the rest).
 #[must_use]
 pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
+    fix_source_at(source, config, "")
+}
+
+/// [`fix_source`] for a named file.
+///
+/// The name selects the rule set the same way linting does: a `.svelte.js` /
+/// `.svelte.ts` module is not a component, and running the component pass over
+/// it yields no findings and therefore no fixes — reporting on those files while
+/// fixing nothing.
+#[must_use]
+pub fn fix_source_at(source: &str, config: &LintConfig, filename: &str) -> FixResult {
     let line_index = LineIndex::new(source);
     let suppressions = Suppressions::collect(source);
     let effective = crate::inline_config::apply(source, config);
@@ -324,9 +335,17 @@ pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
     // atomic conflict resolution: if the merged range of a fix conflicts with the
     // already-consumed range, the ENTIRE fix is dropped.
     // Fixes never come from filesystem-aware rules, so no path is threaded here.
-    let mut fixes: Vec<Vec<TextEdit>> = run_native_rules(source, "", config, None)
+    let raw: Vec<LintDiagnostic> = match crate::engine::classify_source(filename) {
+        crate::engine::SourceKind::Module { ts } => {
+            crate::engine::run_script_rules_module(source, filename, ts, config)
+        }
+        crate::engine::SourceKind::Svelte => run_native_rules(source, "", config, None)
+            .into_iter()
+            .chain(run_script_rules(source, "", config))
+            .collect(),
+    };
+    let mut fixes: Vec<Vec<TextEdit>> = raw
         .into_iter()
-        .chain(run_script_rules(source, "", config))
         .filter(|d| !suppressions.is_suppressed(&d.rule, line_index.line(d.start)))
         .filter_map(|d| d.fix)
         .map(|f| f.edits)
@@ -395,11 +414,11 @@ const MAX_AUTOFIX_PASSES: usize = 10;
 /// leave the second unapplied, and a fix can expose a shape that is itself
 /// fixable — so one pass under-fixes exactly where a file needs fixing most.
 #[must_use]
-pub fn fix_all(source: &str, config: &LintConfig) -> FixResult {
+pub fn fix_all(source: &str, config: &LintConfig, filename: &str) -> FixResult {
     let mut output = source.to_string();
     let mut applied = 0;
     for _ in 0..MAX_AUTOFIX_PASSES {
-        let pass = fix_source(&output, config);
+        let pass = fix_source_at(&output, config, filename);
         if pass.applied == 0 || pass.output == output {
             break;
         }
