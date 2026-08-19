@@ -32,6 +32,7 @@ use crate::line_index::LineIndex;
 use crate::rule::{
     Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity, SpecialElement,
 };
+use crate::rules::js_whitespace::skip_js_ws_backward;
 use crate::rules::this_attr::oracle_this_attr_span;
 
 fn source_offset(value: usize) -> u32 {
@@ -192,18 +193,10 @@ impl HtmlClosingBracketNewLine {
 
         // The "between" zone: whitespace between the last token and `/>` or `>`.
         let between_end = bracket_start;
-        // Find the end of the token before the whitespace.
-        let prev_end = {
-            let mut p = between_end as usize;
-            while p > el_start as usize {
-                let b = src[p - 1];
-                if b != b' ' && b != b'\t' && b != b'\n' && b != b'\r' {
-                    break;
-                }
-                p -= 1;
-            }
-            source_offset(p)
-        };
+        // Find the end of the token before the whitespace. Upstream walks
+        // tokens, so anything JS calls whitespace sits between them — U+00A0 and
+        // U+2028 included, not just the ASCII four.
+        let prev_end = skip_js_ws_backward(ctx.source(), el_start, between_end);
 
         // Determine singleline vs multiline.
         // Upstream: "singleline if tag start line == prevToken end line".
@@ -290,15 +283,7 @@ impl HtmlClosingBracketNewLine {
         // Find the end of the token before the whitespace before `>`.
         // The end tag looks like `</name   >` — scan backwards from gt_pos.
         let between_end = gt_pos; // whitespace ends here (exclusive)
-        let mut prev_end = between_end as usize;
-        while prev_end > start_tag_end as usize {
-            let b = src[prev_end - 1];
-            if b != b' ' && b != b'\t' && b != b'\n' && b != b'\r' {
-                break;
-            }
-            prev_end -= 1;
-        }
-        let prev_end = source_offset(prev_end);
+        let prev_end = skip_js_ws_backward(ctx.source(), start_tag_end, between_end);
 
         // Use the end-tag's own `<` as the "node start" for singleline detection,
         // mirroring upstream's `node.loc.start` for the SvelteEndTag node.
