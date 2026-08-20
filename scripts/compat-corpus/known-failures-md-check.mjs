@@ -221,6 +221,11 @@ const PARTITIONS = [
 	{ doc: 'known-failures.md', key: 'known-failures.server.json', label: 'verdict' },
 	{ doc: 'known-failures.md', key: 'known-failures.server-dev.json', label: 'verdict' },
 	{ doc: 'known-failures.md', key: 'known-failures.client-dev.json', label: 'verdict' },
+	{
+		doc: 'svelte2tsx-known-failures.md',
+		key: 'svelte2tsx-known-failures.json',
+		label: 'verdict',
+	},
 	{ doc: 'fmt-known-failures.md', key: 'fmt-known-failures.json', label: 'cluster' },
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'rule' },
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'direction' },

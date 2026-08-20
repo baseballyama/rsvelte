@@ -4,7 +4,40 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 1 entry.**
+**Current baseline: `svelte2tsx-known-failures.json`, 173 entries.**
+
+Partition of `svelte2tsx-known-failures.json` by verdict: `168 + 5`
+
+- **168 — the emitted TSX differs** (`ts-mismatch`).
+- **5 — one side rejects and the other compiles** (`error-mismatch`): 3 where
+  official compiles and rsvelte errors, 2 the other way round.
+
+## Wave-2 enrolment (#3130)
+
+The list was **0** before the enrolment and every one of the 173 comes from one
+of the 67 new repositories — the 36 pre-existing sources still contribute zero,
+which is the same positive control the compiler ratchets report. 28 repositories
+contribute at least one; svelte-lexical (42), sveltekit (23) and
+svelte-tweakpane-ui (17) are 47% of the list between them.
+
+The clusters, keyed by the first differing line:
+
+| n | class |
+|---|---|
+| 44 | rsvelte emits an **extra** `/*Ωignore_startΩ*/` region marker |
+| 18 | rsvelte **omits** an `/*Ωignore_startΩ*/` marker official emits |
+| 12 | `return { props: {` — rsvelte appends a JSDoc block official does not |
+| 13 | `__sveltets_2_ensureType(String, Number, …)` — a text run's interior whitespace is collapsed |
+| 9 | an `import {` official keeps is emitted as a bare `;` |
+| 12 | a CSS selector inside a JSDoc comment (` * .demo {`) is truncated |
+| 65 | a 51-cluster tail, most of it one entry each |
+
+The two marker clusters are the single largest cause and are one question —
+**where a `/*Ωignore_*Ω*/` region begins and ends** — not two. Nothing here is
+an oracle bug: the `oracle-invalid` classification (94 entries this run) already
+carries those, and it is a pass, not a ratchet entry.
+
+
 
 - `pattern/issues/3200-asi-reactive-block.svelte` — **rsvelte is the worse side
   here, and the entry says so.** The file is a deliberately-unparseable repro
