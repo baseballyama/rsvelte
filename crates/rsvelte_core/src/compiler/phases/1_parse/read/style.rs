@@ -703,6 +703,7 @@ impl<'a> CssParser<'a> {
             if self.is_eof() || self.current_char() == '}' {
                 break;
             }
+            let index_before = self.index;
 
             // Skip comments so they don't get folded into the next child's
             // span (they're preserved via source gap copying in the printer).
@@ -729,6 +730,11 @@ impl<'a> CssParser<'a> {
                 children.push(decl);
             } else {
                 // Couldn't make progress — bail to avoid infinite loop.
+                self.advance();
+            }
+            // `parse_rule` consumes nothing when the selector is empty (a block
+            // item starting at `{`), which upstream rejects outright.
+            if self.index == index_before {
                 self.advance();
             }
             self.skip_whitespace();
@@ -1479,8 +1485,13 @@ impl<'a> CssParser<'a> {
             // Check if this looks like a nested rule (selector followed by {)
             // Look ahead to see if { comes before : or ;
             if self.is_nested_rule() {
+                let index_before = self.index;
                 if let Some(rule) = self.parse_rule() {
                     declarations.push(rule);
+                } else if self.index == index_before {
+                    // Empty selector (`{` at a block-item position): `parse_rule`
+                    // records the error and consumes nothing.
+                    self.advance();
                 }
                 self.skip_whitespace();
                 continue;
