@@ -4657,23 +4657,16 @@ pub(crate) fn is_svelte_ignored_before_offset(start: usize, code: &str, source: 
         // Look backwards from the start position, searching within a reasonable window
         // We look at up to 500 chars before the node to find preceding comments
         let search_start_byte = start.saturating_sub(500);
-        // Ensure we're at a valid char boundary
-        let search_start = if source.is_char_boundary(search_start_byte) {
-            search_start_byte
-        } else {
-            source[..search_start_byte]
-                .char_indices()
-                .next_back()
-                .map_or(0, |(i, _)| i)
+        // Both ends have to be floored to a character start: slicing to a
+        // non-boundary is what this guards, so the guard cannot slice either.
+        let floor = |mut index: usize| {
+            while index > 0 && !source.is_char_boundary(index) {
+                index -= 1;
+            }
+            index
         };
-        let start = if source.is_char_boundary(start) {
-            start
-        } else {
-            source[..start]
-                .char_indices()
-                .next_back()
-                .map_or(0, |(i, _)| i)
-        };
+        let search_start = floor(search_start_byte);
+        let start = floor(start);
         let before = &source[search_start..start];
 
         // Check for JS-style svelte-ignore comments: // svelte-ignore <code>
