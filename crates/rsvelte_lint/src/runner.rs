@@ -328,6 +328,19 @@ pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
 /// fixing nothing.
 #[must_use]
 pub fn fix_source_at(source: &str, config: &LintConfig, filename: &str) -> FixResult {
+    // The rules report on BOM-stripped offsets (the parser strips it, as ESLint's
+    // `SourceCode` does), so the edits have to be applied to the stripped text —
+    // three bytes off otherwise, splicing inside the BOM. ESLint's `--fix` keeps
+    // the BOM, so it goes back on the output.
+    let had_bom = source.len() != rsvelte_core::remove_bom(source).len();
+    let source = rsvelte_core::remove_bom(source);
+    let restore_bom = |text: String| {
+        if had_bom {
+            format!("\u{feff}{text}")
+        } else {
+            text
+        }
+    };
     let line_index = LineIndex::new(source);
     let suppressions = Suppressions::collect_for(source, filename);
     let effective = crate::inline_config::apply(source, config);
@@ -390,7 +403,7 @@ pub fn fix_source_at(source: &str, config: &LintConfig, filename: &str) -> FixRe
 
     if applied == 0 {
         return FixResult {
-            output: source.to_string(),
+            output: restore_bom(source.to_string()),
             applied: 0,
         };
     }
@@ -408,7 +421,10 @@ pub fn fix_source_at(source: &str, config: &LintConfig, filename: &str) -> FixRe
             output.replace_range(s..en, &e.new_text);
         }
     }
-    FixResult { output, applied }
+    FixResult {
+        output: restore_bom(output),
+        applied,
+    }
 }
 
 /// How many times [`fix_all`] re-lints its own output. ESLint's
