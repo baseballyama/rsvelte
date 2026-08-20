@@ -405,7 +405,7 @@ not observe failing, silently emptying the ratchets. Two assertions close it:
   worker leaves only the rsvelte-side `error.json`). A cleaned or partial tree
   aborts with exit 2 instead of passing.
 - `--update-baseline` (and `--from-report`) refuse to rewrite a ratchet from
-  fewer than 12000 corpus entries — the corpus is 14025 with every submodule
+  fewer than 30000 corpus entries — the corpus is 33471 with every submodule
   present, so anything far below that is a partial checkout, not a fix.
   `svelte2tsx-verify.mjs --update-baseline` enforces the same floor.
 
