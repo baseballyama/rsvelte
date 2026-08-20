@@ -161,10 +161,13 @@ loud half, and **how loud a given defect is depends on the input, not on the def
 one mis-splice made 9 files unparseable and 6 files parseable-and-wrong (one assigns a boolean
 instead of a ternary's result), and #2598 emitted a bare `$:` labelled statement that every
 parser accepts. Sizing a text-scanning defect by its parse-gate count therefore understates it —
-see gate-coverage 19a, where both are recorded as discriminating cases. And the four corpora that produced every one of
-these defects — huly, open-webui, carbon-components-svelte, SMUI — are **not corpus sources**,
-so the gate baselines at 0 while the instances live outside the population it inspects; that is
-why each fix lands a `compatibility/pattern-corpus` repro.
+see gate-coverage 19a, where both are recorded as discriminating cases. And the four corpora that
+produced every one of these defects — huly, open-webui, carbon-components-svelte, SMUI — **were
+not corpus sources at the time**, so the gate baselined at 0 while the instances lived outside the
+population it inspected; that is why each fix lands a `compatibility/pattern-corpus` repro. All
+four are corpus sources now (#3130 took the corpus to 103 repositories), which closes the
+population hole for these particular four and for nothing else — the lesson is that the gate's
+population is a choice, not a given.
 
 **A folded constant is a JS value, and a rendered string is not one.** `scope.evaluate` is
 ported twice: the server has a typed `EvalValue` (`3_transform/server/evaluate.rs`), and the
@@ -318,13 +321,13 @@ indistinguishable in the branch header.**
 ### Corpus output-equality pipeline (`scripts/compat-corpus/`)
 
 Every `.svelte` / `.svelte.(js|ts)` source (including markdown code blocks) from every corpus
-source repository — sveltejs/svelte, sveltejs/svelte.dev, and the real-world projects bits-ui /
-flowbite-svelte / melt-ui / shadcn-svelte, all pinned as submodules and listed in
-`scripts/compat-corpus/corpus-sources.json` — is compiled with both the official compiler and
-rsvelte for CSR, SSR, dev-mode CSR **and dev-mode SSR** — read the target list off
-`scripts/compat-corpus/targets.mjs` (`TARGETS`, i.e. every non-`reportOnly` descriptor) rather than
-off this sentence: verifying a new pattern file against three of the four is a green local check and
-a red CI run. Outputs must be byte-identical after comparison-side normalization
+source repository — sveltejs/svelte, sveltejs/svelte.dev and **103** real-world projects (huly,
+immich, open-webui, carbon-components-svelte, SMUI, threlte, bits-ui, …), all pinned as
+submodules and listed in `scripts/compat-corpus/corpus-sources.json` — is compiled with both the
+official compiler and rsvelte for CSR, SSR, dev-mode CSR **and dev-mode SSR** — read the target
+list off `scripts/compat-corpus/targets.mjs` (`TARGETS`, i.e. every non-`reportOnly` descriptor)
+rather than off this sentence: verifying a new pattern file against three of the four is a green
+local check and a red CI run. Outputs must be byte-identical after comparison-side normalization
 (oxfmt + blank-line stripping — never compiler post-passes). To grow the corpus, add a submodule
 plus a line to `corpus-sources.json`. CI ratchet: `compatibility/known-failures.{client,server,client-dev}.json`
 may only shrink, and each remaining failure is justified in `compatibility/known-failures.md`. Every

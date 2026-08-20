@@ -54,13 +54,83 @@ in [`compatibility/`](../../compatibility/).
 | [huntabyte/svelte-toolbelt](https://github.com/huntabyte/svelte-toolbelt) | `submodules/svelte-toolbelt` | Rune/DOM utilities — almost pure `.svelte.(js|ts)` |
 | [CriticalMoments/CMSaasStarter](https://github.com/CriticalMoments/CMSaasStarter) | `submodules/cmsaasstarter` | SvelteKit SaaS starter (awesome-svelte) |
 | [skeletonlabs/skeleton](https://github.com/skeletonlabs/skeleton) | `submodules/skeleton` | UI library + docs/playground monorepo (also the svelte-check e2e gate) |
+| [hcengineering/platform](https://github.com/hcengineering/platform) | `submodules/huly` | all-in-one workspace platform — the corpus's largest single source (2.5k components) |
+| [open-webui/open-webui](https://github.com/open-webui/open-webui) | `submodules/open-webui` | self-hosted LLM web UI (real-world app) |
+| [carbon-design-system/carbon-components-svelte](https://github.com/carbon-design-system/carbon-components-svelte) | `submodules/carbon-components-svelte` | IBM Carbon design system (real-world library) |
+| [hperrin/svelte-material-ui](https://github.com/hperrin/svelte-material-ui) | `submodules/svelte-material-ui` | Material Design components — SMUI (real-world library) |
+| [immich-app/immich](https://github.com/immich-app/immich) | `submodules/immich` | self-hosted photo/video library (SvelteKit app) |
+| [sveltejs/kit](https://github.com/sveltejs/kit) | `submodules/sveltekit` | SvelteKit's own test apps, docs sites and packages |
+| [imputnet/cobalt](https://github.com/imputnet/cobalt) | `submodules/cobalt` | media downloader web app (real-world) |
+| [VERT-sh/VERT](https://github.com/VERT-sh/VERT) | `submodules/vert` | in-browser file converter (real-world) |
+| [Abdenasser/neohtop](https://github.com/Abdenasser/neohtop) | `submodules/neohtop` | Tauri system monitor (real-world) |
+| [rajnandan1/kener](https://github.com/rajnandan1/kener) | `submodules/kener` | status-page app (real-world) |
+| [mathesar-foundation/mathesar](https://github.com/mathesar-foundation/mathesar) | `submodules/mathesar` | spreadsheet-like database UI (real-world) |
+| [seanmorley15/AdventureLog](https://github.com/seanmorley15/AdventureLog) | `submodules/adventurelog` | travel tracker / trip planner (real-world) |
+| [threlte/threlte](https://github.com/threlte/threlte) | `submodules/threlte` | Three.js framework for Svelte (real-world library) |
+| [matt8707/ha-fusion](https://github.com/matt8707/ha-fusion) | `submodules/ha-fusion` | Home Assistant dashboard (real-world) |
+| [open-source-labs/Svelvet](https://github.com/open-source-labs/Svelvet) | `submodules/svelvet` | node-based flow-diagram library (real-world) |
+| [gurucomputing/headscale-ui](https://github.com/gurucomputing/headscale-ui) | `submodules/headscale-ui` | headscale admin frontend (real-world) |
+| [lissy93/networking-toolbox](https://github.com/lissy93/networking-toolbox) | `submodules/networking-toolbox` | offline networking tools (real-world) |
+| [sparrowapp-dev/sparrow-app](https://github.com/sparrowapp-dev/sparrow-app) | `submodules/sparrow-app` | API testing desktop app (real-world) |
+| [primocms/primo](https://github.com/primocms/primo) | `submodules/primo` | visual CMS / site builder (real-world) |
+| [Niek/chatgpt-web](https://github.com/Niek/chatgpt-web) | `submodules/chatgpt-web` | OpenAI chat frontend (real-world) |
+| [itswadesh/svelte-commerce](https://github.com/itswadesh/svelte-commerce) | `submodules/svelte-commerce` | headless storefront (real-world) |
+| [animotionjs/animotion](https://github.com/animotionjs/animotion) | `submodules/animotion` | presentation framework (real-world) |
+| [chroxify/haptic](https://github.com/chroxify/haptic) | `submodules/haptic` | local-first notes app (real-world) |
+| [ItalyPaleAle/svelte-spa-router](https://github.com/ItalyPaleAle/svelte-spa-router) | `submodules/svelte-spa-router` | SPA router (real-world library) |
+| [ByteAtATime/flare](https://github.com/ByteAtATime/flare) | `submodules/flare` | Raycast-style launcher for Linux (real-world) |
+| [svelteuidev/svelteui](https://github.com/svelteuidev/svelteui) | `submodules/svelteui` | SvelteUI component monorepo (real-world library) |
+| [syntaxfm/website](https://github.com/syntaxfm/website) | `submodules/syntaxfm-website` | Syntax podcast site (SvelteKit app) |
+| [kagisearch/kite-public](https://github.com/kagisearch/kite-public) | `submodules/kite-public` | Kagi Kite news app (real-world) |
+| [kbrgl/svelte-french-toast](https://github.com/kbrgl/svelte-french-toast) | `submodules/svelte-french-toast` | toast notifications (real-world library) |
+| [vnphanquang/svelte-put](https://github.com/vnphanquang/svelte-put) | `submodules/svelte-put` | utility action/component monorepo (real-world library) |
+| [colinlienard/gitlight](https://github.com/colinlienard/gitlight) | `submodules/gitlight` | GitHub/GitLab notification desktop app (real-world) |
+| [basharovV/musicat](https://github.com/basharovV/musicat) | `submodules/musicat` | desktop music player/tagger (real-world) |
+| [Xyphyn/photon](https://github.com/Xyphyn/photon) | `submodules/photon` | fediverse client (real-world) |
+| [SveltePress/sveltepress](https://github.com/SveltePress/sveltepress) | `submodules/sveltepress` | content-centred site builder (real-world) |
+| [matiadev/joy-of-code](https://github.com/matiadev/joy-of-code) | `submodules/joy-of-code` | tutorial site (SvelteKit app) |
+| [umaranis/svelte-lexical](https://github.com/umaranis/svelte-lexical) | `submodules/svelte-lexical` | Lexical rich-text editor bindings (real-world library) |
+| [ieedan/shadcn-svelte-extras](https://github.com/ieedan/shadcn-svelte-extras) | `submodules/shadcn-svelte-extras` | shadcn-svelte add-on components (real-world library) |
+| [cpinitiative/ide](https://github.com/cpinitiative/ide) | `submodules/cpi-ide` | collaborative online IDE (real-world) |
+| [WardPearce/paaster](https://github.com/WardPearce/paaster) | `submodules/paaster` | encrypted pastebin (real-world) |
+| [Tsuzat/Edra](https://github.com/Tsuzat/Edra) | `submodules/edra` | TipTap-based rich text editor (real-world library) |
+| [ANovokmet/svelte-gantt](https://github.com/ANovokmet/svelte-gantt) | `submodules/svelte-gantt` | Gantt chart (real-world library) |
+| [DavidHDev/svelte-bits](https://github.com/DavidHDev/svelte-bits) | `submodules/svelte-bits` | animated component collection (real-world library) |
+| [kampsy/ui](https://github.com/kampsy/ui) | `submodules/kampsy-ui` | Svelte 5 UI kit (real-world library) |
+| [SikandarJODD/cnblocks](https://github.com/SikandarJODD/cnblocks) | `submodules/cnblocks` | marketing/UI blocks (real-world library) |
+| [MIERUNE/svelte-maplibre-gl](https://github.com/MIERUNE/svelte-maplibre-gl) | `submodules/svelte-maplibre-gl` | MapLibre GL wrapper (real-world library) |
+| [kitschpatrol/svelte-tweakpane-ui](https://github.com/kitschpatrol/svelte-tweakpane-ui) | `submodules/svelte-tweakpane-ui` | Tweakpane control panels (real-world library) |
+| [metonym/svelte-typeahead](https://github.com/metonym/svelte-typeahead) | `submodules/svelte-typeahead` | typeahead input (real-world library) |
+| [flekschas/svelte-simple-modal](https://github.com/flekschas/svelte-simple-modal) | `submodules/svelte-simple-modal` | modal (real-world library) |
+| [dnass/svelte-canvas](https://github.com/dnass/svelte-canvas) | `submodules/svelte-canvas` | reactive canvas rendering (real-world library) |
+| [SauravKanchan/svelte-chartjs](https://github.com/SauravKanchan/svelte-chartjs) | `submodules/svelte-chartjs` | Chart.js wrapper (real-world library) |
+| [agustinl/svelte-tags-input](https://github.com/agustinl/svelte-tags-input) | `submodules/svelte-tags-input` | tags input (real-world library) |
+| [Mitcheljager/svelte-confetti](https://github.com/Mitcheljager/svelte-confetti) | `submodules/svelte-confetti` | confetti effect (real-world library) |
+| [jonasgeiler/svelte-tiny-virtual-list](https://github.com/jonasgeiler/svelte-tiny-virtual-list) | `submodules/svelte-tiny-virtual-list` | list virtualization (real-world library) |
+| [touchifyapp/svelte-codemirror-editor](https://github.com/touchifyapp/svelte-codemirror-editor) | `submodules/svelte-codemirror-editor` | CodeMirror 6 editor (real-world library) |
+| [rohitpotato/svelte-command-palette](https://github.com/rohitpotato/svelte-command-palette) | `submodules/svelte-command-palette` | command palette (real-world library) |
+| [mskocik/svelty-picker](https://github.com/mskocik/svelty-picker) | `submodules/svelty-picker` | date/time picker (real-world library) |
+| [Ennoriel/svelte-awesome-color-picker](https://github.com/Ennoriel/svelte-awesome-color-picker) | `submodules/svelte-awesome-color-picker` | color picker (real-world library) |
+| [orefalo/svelte-virtuallists](https://github.com/orefalo/svelte-virtuallists) | `submodules/svelte-virtuallists` | virtual list (real-world library) |
+| [ampled/svelte-inspect-value](https://github.com/ampled/svelte-inspect-value) | `submodules/svelte-inspect-value` | value inspector (real-world library) |
+| [svar-widgets/grid](https://github.com/svar-widgets/grid) | `submodules/svar-grid` | SVAR datagrid (real-world library) |
+| [friendofsvelte/tipex](https://github.com/friendofsvelte/tipex) | `submodules/tipex` | TipTap text editor for SvelteKit (real-world library) |
+| [max-got/originui-svelte](https://github.com/max-got/originui-svelte) | `submodules/originui-svelte` | Origin UI component port (real-world library) |
+| [sveltejs/sites](https://github.com/sveltejs/sites) | `submodules/svelte-sites` | sveltejs/sites — Svelte's own smaller sites |
+| [khromov/svelte-render-scan](https://github.com/khromov/svelte-render-scan) | `submodules/svelte-render-scan` | render-debugging overlay (real-world library) |
+| [sockmaster27/svader](https://github.com/sockmaster27/svader) | `submodules/svader` | GPU-rendered shader components (real-world library) |
+| [appwrite/console](https://github.com/appwrite/console) | `submodules/appwrite-console` | Appwrite admin console (SvelteKit app) |
+| [trakt/trakt-web](https://github.com/trakt/trakt-web) | `submodules/trakt-web` | Trakt watch-history client (SvelteKit app) |
 | — (in-repo) | `compatibility/pattern-corpus` | hand-written patterns: one minimal repro per fixed divergence + the feature matrices around them ([README](../../compatibility/pattern-corpus/README.md)) |
 
-Every source but the last is **pinned by its submodule gitlink** and bumped by
-`auto-update-submodules.yml` (weekly PR per submodule; svelte itself goes through
-`auto-update-svelte.yml`). `skeleton` is the one exception: it also feeds the
-line-number-keyed svelte-check e2e ratchet, so it is deliberately excluded from
-the weekly bump (see `compatibility/check-e2e-known-failures.md`). For the
+Every source but the last is **pinned by its submodule gitlink**. The first 36 are
+bumped by `auto-update-submodules.yml` (weekly PR per submodule; svelte itself goes
+through `auto-update-svelte.yml`); `skeleton` is excluded there because it also feeds
+the line-number-keyed svelte-check e2e ratchet (see
+`compatibility/check-e2e-known-failures.md`), and so is the wave-2 block from `huly`
+down — 67 more weekly PRs is not reviewable, and each bump can require re-triaging the
+baselines. Freshness is what the rotation buys; wave 2 buys breadth, and a pinned
+source is a deterministic gate input. For
 real-world projects only their **shipped**
 `.svelte` / `.svelte.(js|ts)` files are collected — their markdown docs are
 skipped (they carry non-Svelte doc tooling and truncated pseudo-code the official
