@@ -92,7 +92,16 @@ fn main() {
             continue;
         }
 
-        match rsvelte_ast_equiv::compare(&source, &plain) {
+        // Parens are not semantics, and the printer deliberately adds one pair:
+        // esrap wraps a `return` argument when a comment sits between the keyword
+        // and the expression, so `return /*c*/ x` prints as `return (/*c*/ x);`.
+        // Comparing with parens preserved reports that rule as a changed program.
+        match rsvelte_ast_equiv::compare_with(
+            &source,
+            &plain,
+            rsvelte_ast_equiv::Options::default()
+                .with_parens(rsvelte_ast_equiv::ParenPolicy::Ignore),
+        ) {
             Comparison::Equivalent => {}
             difference => {
                 failures.push(format!(
