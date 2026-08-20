@@ -1950,6 +1950,7 @@ impl ComponentAnalysis {
             ast,
             &self.source,
             self.runes,
+            self.runes_explicitly_set == Some(false),
             self.is_typescript,
             arena,
         );

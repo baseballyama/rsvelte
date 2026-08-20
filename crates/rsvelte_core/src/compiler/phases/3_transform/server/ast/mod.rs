@@ -719,7 +719,11 @@ impl<'a> ServerTransformState<'a> {
         // Drop statement-position `$effect(…)` / `$effect.pre(…)` / `$inspect(…)`
         // calls nested in a template-expression IIFE arrow / function body (写经
         // server `ExpressionStatement` visitor → `b.empty`).
-        script::lower_nested_runes_in_expr(&mut out, self.b);
+        script::lower_nested_runes_in_expr(
+            &mut out,
+            self.b,
+            script::rune_names_are_store_subs(self.analysis),
+        );
         out
     }
 

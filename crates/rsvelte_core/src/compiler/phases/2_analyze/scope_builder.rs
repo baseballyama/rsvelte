@@ -52,6 +52,11 @@ pub struct ScopeBuilder<'a> {
     function_depth: usize,
     /// Whether we are in runes mode
     runes_mode: bool,
+    /// Whether legacy mode is explicit (compile option or `<svelte:options runes={false} />`).
+    /// Upstream assigns rune binding kinds only under `analysis.runes`, and
+    /// `runes_mode` alone is not that answer here because it is still being
+    /// auto-detected while scopes are built.
+    legacy_forced: bool,
     /// Whether any script in the component uses TypeScript (lang="ts").
     /// When true, template expressions are parsed as TypeScript so that
     /// TypeScript syntax in event handlers (e.g., type annotations, `as`, `!`)
@@ -105,6 +110,7 @@ impl<'a> ScopeBuilder<'a> {
     pub fn new(
         source: &'a str,
         runes_mode: bool,
+        legacy_forced: bool,
         is_typescript: bool,
         arena: &'a ParseArena,
     ) -> Self {
@@ -125,6 +131,7 @@ impl<'a> ScopeBuilder<'a> {
             // The validate_identifier_name check is `(!function_depth || function_depth <= 1)`.
             function_depth: 1,
             runes_mode,
+            legacy_forced,
             is_typescript,
             validation_errors: Vec::new(),
             possible_implicit_declarations: Vec::new(),
@@ -1442,6 +1449,9 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Detect the binding kind from a JsNode expression (e.g., $state(), $derived()).
     fn detect_binding_kind_from_node(&self, expr: &JsNode) -> BindingKind {
+        if self.legacy_forced {
+            return BindingKind::Normal;
+        }
         if let JsNode::CallExpression { callee, .. } = expr {
             let callee_node = self.arena.get_js_node(*callee);
             // Handle direct calls like $state(), $derived(), $props()
@@ -2443,6 +2453,9 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Detect the binding kind from an expression (e.g., $state(), $derived()).
     fn detect_binding_kind_from_expr(&self, expr: &Expression) -> BindingKind {
+        if self.legacy_forced {
+            return BindingKind::Normal;
+        }
         if let Expression::CallExpression(call) = expr {
             // Handle direct calls like $state(), $derived(), $props()
             if let Expression::Identifier(ident) = &call.callee {
@@ -3651,6 +3664,7 @@ impl<'a> ScopeBuilder<'a> {
                 let id_node = self.arena.get_js_node(id_id);
                 let init_node = decl.init().map(|i| self.arena.get_js_node(i));
                 let binding_kind = init_node
+                    .filter(|_| !self.legacy_forced)
                     .map(|n| binding_kind_from_init_node(n, self.arena))
                     .unwrap_or(BindingKind::Template);
                 self.declare_decl_tag_bindings_node(id_node, decl_kind, binding_kind);
@@ -3982,13 +3996,14 @@ pub fn build_scopes(
     ast: &Root,
     source: &str,
     runes_mode: bool,
+    legacy_forced: bool,
     is_typescript: bool,
     arena: &ParseArena,
 ) -> (
     ScopeRoot,
     Vec<crate::compiler::phases::phase2_analyze::AnalysisError>,
 ) {
-    let builder = ScopeBuilder::new(source, runes_mode, is_typescript, arena);
+    let builder = ScopeBuilder::new(source, runes_mode, legacy_forced, is_typescript, arena);
     builder.build(ast)
 }
 

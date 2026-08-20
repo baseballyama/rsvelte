@@ -39,6 +39,7 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     let state_is_store_sub = store_sub_vars.iter().any(|s| s == "$state");
     let effect_is_store_sub = store_sub_vars.iter().any(|s| s == "$effect");
     let derived_is_store_sub = store_sub_vars.iter().any(|s| s == "$derived");
+    let inspect_is_store_sub = store_sub_vars.iter().any(|s| s == "$inspect");
 
     // Lazily check if rune names appear as function parameters in this statement.
     // is_function_parameter_in_statement is expensive (scans the entire line), so
@@ -183,7 +184,7 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     // text trimming around the call site (leading tabs/spaces on the
     // same line, trailing `;`/newlines) that's statement-shaped rather
     // than expression-shaped and is awkward to express at the AST level.
-    if !dev {
+    if !dev && !inspect_is_store_sub {
         while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect.trace(") {
             let trace_start = pos + 15; // after "$inspect.trace("
             if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
@@ -218,7 +219,10 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     // emits the `/* $$async_hole:... */` async-mode marker or just
     // strips the call) is statement-shaped rather than expression-shaped
     // and is awkward to do at the AST level.
-    if !dev && let Some(pos) = memmem::find(result.as_bytes(), b"$inspect(") {
+    if !dev
+        && !inspect_is_store_sub
+        && let Some(pos) = memmem::find(result.as_bytes(), b"$inspect(")
+    {
         {
             // In non-dev mode, remove the entire $inspect(...) call
             // Find matching closing paren

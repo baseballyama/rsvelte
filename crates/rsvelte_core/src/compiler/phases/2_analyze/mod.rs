@@ -260,6 +260,9 @@ pub(crate) fn analyze_prepared_component_with_retained(
     // This must happen after scopes are created but before template analysis
     // Corresponds to Svelte's store subscription logic in 2-analyze/index.js L348-444
     let is_module_file = analysis.is_module_file;
+    // `<svelte:options runes>` overrides the compile option in upstream's
+    // `combined_options`, so the store loop's `runes_option` is the merged value.
+    let runes_option = analysis.runes_explicitly_set.or(options.runes);
     // Timed outside the `?` so a script that errors still charges its time and
     // its call: an early return that skips the record loses both, which reads
     // as the stage being cheaper than it is.
@@ -267,7 +270,7 @@ pub(crate) fn analyze_prepared_component_with_retained(
     let store_subs_result = store_subscriptions::detect_store_subscriptions(
         ast,
         &mut analysis,
-        options.runes,
+        runes_option,
         is_module_file,
         retained_scripts,
     );
@@ -3895,7 +3898,7 @@ fn js_node_check_features(
         }
     }
 
-    for_each_js_child(node, arena, &mut |child| {
+    for_each_js_reference_child(node, arena, &mut |child| {
         if results.all_found() {
             return;
         }
@@ -3910,6 +3913,40 @@ fn js_node_check_features(
     });
 
     shadowed.truncate(shadow_base);
+}
+
+/// Like [`for_each_js_child`], but skips a non-computed class member NAME.
+/// `for_each_js_child` walks it because the legacy JSON walker did; upstream's
+/// `scope.references` — the set runes-mode detection reads — never holds a
+/// declaration slot, so `class P { $inspect = 1 }` must not read as a rune.
+fn for_each_js_reference_child(node: &JsNode, arena: &ParseArena, f: &mut impl FnMut(&JsNode)) {
+    match node {
+        JsNode::MethodDefinition {
+            key,
+            value,
+            computed,
+            ..
+        } => {
+            if *computed {
+                f(arena.get_js_node(*key));
+            }
+            f(arena.get_js_node(*value));
+        }
+        JsNode::PropertyDefinition {
+            key,
+            value,
+            computed,
+            ..
+        } => {
+            if *computed {
+                f(arena.get_js_node(*key));
+            }
+            if let Some(value) = value {
+                f(arena.get_js_node(*value));
+            }
+        }
+        _ => for_each_js_child(node, arena, f),
+    }
 }
 
 /// Check if a name is a rune identifier.

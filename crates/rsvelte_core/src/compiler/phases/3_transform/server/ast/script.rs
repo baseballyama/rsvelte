@@ -182,9 +182,22 @@ fn inspect_hole_placeholder<'a>(state: &ServerTransformState<'a>) -> Option<Stat
     state.reparse_statement("($$inspect_hole);")
 }
 
+/// Upstream's `get_rune` returns null once the name resolves to a binding, so a
+/// legacy-mode `$effect` / `$inspect` store subscription is a plain call, not a rune.
+pub(super) fn rune_names_are_store_subs(
+    analysis: &crate::compiler::phases::phase2_analyze::ComponentAnalysis,
+) -> bool {
+    analysis.root.bindings.iter().any(|b| {
+        b.kind == BindingKind::StoreSub && matches!(b.name.as_str(), "$effect" | "$inspect")
+    })
+}
+
 /// Whether an expression-statement expression is a top-level effect/inspect rune
 /// call that upstream's server `ExpressionStatement` visitor removes.
-fn is_removed_effect_stmt(expr: &OxcExpression) -> bool {
+fn is_removed_effect_stmt(expr: &OxcExpression, rune_store_subs: bool) -> bool {
+    if rune_store_subs {
+        return false;
+    }
     let OxcExpression::CallExpression(call) = expr else {
         return false;
     };
@@ -231,7 +244,10 @@ enum InspectKind {
 /// `$inspect(...)` / `$inspect(...).with(...)` call. Returns `None` for
 /// `$inspect.trace` / `$effect.*` (those are removed in every mode) and for
 /// non-inspect expressions.
-fn inspect_kind(expr: &OxcExpression) -> Option<InspectKind> {
+fn inspect_kind(expr: &OxcExpression, rune_store_subs: bool) -> Option<InspectKind> {
+    if rune_store_subs {
+        return None;
+    }
     let OxcExpression::CallExpression(call) = expr else {
         return None;
     };
@@ -652,8 +668,9 @@ fn transform_script<'a>(
                     // it to a `console.log('$inspect(', args, ')')` / `(fn)('init', args)`
                     // call (`$inspect.trace` is still removed in dev). Detect it before
                     // the generic effect/inspect removal so we keep the call.
+                    let rune_store_subs = rune_names_are_store_subs(state.analysis);
                     if state.options.dev
-                        && let Some(kind) = inspect_kind(&es.expression)
+                        && let Some(kind) = inspect_kind(&es.expression, rune_store_subs)
                     {
                         // Pull the verbatim argument / `.with` callback source straight
                         // from the call spans — preserving operators/whitespace exactly
@@ -696,7 +713,7 @@ fn transform_script<'a>(
                         }
                         break 'emit;
                     }
-                    if is_removed_effect_stmt(&es.expression) {
+                    if is_removed_effect_stmt(&es.expression, rune_store_subs) {
                         // Under `experimental.async`, a removed `$inspect(...)` /
                         // `$effect(...)` statement must leave a PLACEHOLDER behind so
                         // the async-body transform keeps its `$$promises` slot (the
@@ -708,7 +725,8 @@ fn transform_script<'a>(
                         // top-level await actually splits the body, the fall-through
                         // can rehydrate it as `;;` (see below) instead of dropping it.
                         if state.eval_inputs.use_async {
-                            let marker = if inspect_kind(&es.expression).is_some() {
+                            let marker = if inspect_kind(&es.expression, rune_store_subs).is_some()
+                            {
                                 inspect_hole_placeholder(state)
                             } else {
                                 async_hole_placeholder(state)
@@ -735,7 +753,7 @@ fn transform_script<'a>(
                         // are removed by the `ExpressionStatement` visitor itself
                         // returning `b.empty` — a *bare* `EmptyStatement` that esrap
                         // elides (prints nothing), so those keep being dropped.
-                        if inspect_kind(&es.expression).is_some() {
+                        if inspect_kind(&es.expression, rune_store_subs).is_some() {
                             out.push(state.b.empty_kept(es.span.start));
                             out.push(state.b.empty_kept(es.span.start + 1));
                         }
@@ -889,7 +907,11 @@ pub(super) fn lower_effect_value_runes_expr<'a>(
 /// [`NestedRuneLower`] in nested-body mode so it only touches arrow / function
 /// bodies (a bare top-level template `$effect.tracking()` value-position rune is
 /// handled by [`lower_effect_value_runes_expr`] instead).
-pub(super) fn lower_nested_runes_in_expr<'a>(expr: &mut OxcExpression<'a>, b: B<'a>) {
+pub(super) fn lower_nested_runes_in_expr<'a>(
+    expr: &mut OxcExpression<'a>,
+    b: B<'a>,
+    rune_store_subs: bool,
+) {
     let mut v = NestedRuneLower {
         b,
         derived: vec![rustc_hash::FxHashSet::default()],
@@ -897,6 +919,7 @@ pub(super) fn lower_nested_runes_in_expr<'a>(expr: &mut OxcExpression<'a>, b: B<
         // Template-expression nested bodies (effect-drop pass) never carry a
         // top-level instance `$derived(await …)`; async-derived lowering is N/A.
         use_async: false,
+        rune_store_subs,
     };
     v.visit_expression(expr);
 }
@@ -1043,6 +1066,7 @@ fn lower_nested_runes<'a>(stmt: &mut Statement<'a>, state: &ServerTransformState
         derived: vec![rustc_hash::FxHashSet::default()],
         in_nested_body: false,
         use_async: state.eval_inputs.use_async,
+        rune_store_subs: rune_names_are_store_subs(state.analysis),
     };
     v.visit_statement(stmt);
 }
@@ -1067,6 +1091,7 @@ fn lower_module_export_runes<'a>(stmt: &mut Statement<'a>, state: &ServerTransfo
         derived: vec![rustc_hash::FxHashSet::default()],
         in_nested_body: true,
         use_async: state.eval_inputs.use_async,
+        rune_store_subs: rune_names_are_store_subs(state.analysis),
     };
     v.lower_var_decl(vd);
 }
@@ -1092,6 +1117,8 @@ struct NestedRuneLower<'a> {
     /// `VariableDeclaration.js:87-96`). Without it (or without an `await` arg),
     /// `$derived(e)` stays the plain `$.derived(() => e)`.
     use_async: bool,
+    /// See [`rune_names_are_store_subs`].
+    rune_store_subs: bool,
 }
 
 impl<'a> NestedRuneLower<'a> {
@@ -1185,7 +1212,7 @@ impl<'a> VisitMut<'a> for NestedRuneLower<'a> {
         // Remove nested effect / inspect expression statements.
         if self.in_nested_body
             && let Statement::ExpressionStatement(es) = stmt
-            && is_removed_effect_stmt(&es.expression)
+            && is_removed_effect_stmt(&es.expression, self.rune_store_subs)
         {
             *stmt = self.b.empty();
             return;
@@ -1619,7 +1646,7 @@ impl<'a, 'b> VisitMut<'a> for ClassFieldRuneLower<'a, 'b> {
             let Statement::ExpressionStatement(es) = stmt else {
                 return true;
             };
-            !is_removed_effect_stmt(&es.expression)
+            !is_removed_effect_stmt(&es.expression, rune_names_are_store_subs(self.analysis))
         });
         oxc_ast_visit::walk_mut::walk_statements(self, stmts);
     }
@@ -3107,7 +3134,10 @@ fn transform_script_legacy<'a>(
                     }
                 }
                 Statement::ExpressionStatement(es) => {
-                    if is_removed_effect_stmt(&es.expression) {
+                    if is_removed_effect_stmt(
+                        &es.expression,
+                        rune_names_are_store_subs(state.analysis),
+                    ) {
                         break 'emit;
                     }
                     let slice = &src[es.span.start as usize..es.span.end as usize];

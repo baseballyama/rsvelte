@@ -14,7 +14,7 @@ preset leaves `off`. Gate 33 (`lint-preset.mjs`) pins the two presets, but it
 reads them through `--list-rules` and upstream's exported config object — the
 declared tables, never a run (gate-coverage blind spot 33b).
 
-`lint-severity-known-failures.json` holds 66 entries.
+`lint-severity-known-failures.json` holds 62 entries.
 
 Key classes:
 
@@ -25,7 +25,13 @@ Key classes:
 | `exit` | `exit\|<id>\|<oracle>-><rsvelte>\|<causes>` | the process exit codes differ |
 | `oracle-crash` | `oracle-crash\|<id>\|<rule>` | an upstream rule threw and took the file's whole report with it |
 
-Partition of `lint-severity-known-failures.json` by cause: `59 + 4 + 1 + 1 + 1`
+Partition of `lint-severity-known-failures.json` by cause: `55 + 4 + 1 + 1 + 1`
+
+Two of those addends are a `4` and they are unrelated: the standalone `4` is the
+`exit` 1→0 class below (a type-aware rule `lint-universe.mjs` excludes, which
+still reports at `error` upstream). The four rsvelte over-rejections that used to
+sit *inside* the first addend are fixed and no longer listed, which is why it
+reads 55 rather than 59.
 
 ## `severity` — zero entries, and that is the measurement
 
@@ -43,61 +49,35 @@ oracle and 2,504 / 1,034 from rsvelte. The control was also exercised directly:
 re-running the subject with `--error svelte/no-at-debug-tags` moves 38 findings
 and the gate reports **76** `severity` keys.
 
-## `exit` 0→1, 59 entries — rsvelte surfaces a compiler diagnostic ESLint cannot see
+## `exit` 0→1, 55 entries — rsvelte surfaces a compiler diagnostic ESLint cannot see
 
 `rsvelte-lint` merges the Svelte compiler's own diagnostics into its report and
 exits non-zero on any `Error`, exactly as it does for a rule at `error`.
 `svelte-eslint-parser` is deliberately more permissive than the compiler, so a
 file the compiler rejects is linted cleanly by ESLint and exits 0.
 
-Every one of these 59 patterns fails to compile, and it is the compiler saying
+Every one of these 55 patterns fails to compile, and it is the compiler saying
 so rather than a rule: the key's cause field carries the diagnostic code, and
-all 59 are compiler codes (`slot_element_invalid_name` ×13,
+all 55 are compiler codes (`slot_element_invalid_name` ×13,
 `dollar_prefix_invalid` ×7, `state_invalid_placement` ×4, `legacy_export_invalid`
-×4, `animation_invalid_placement` ×4, `parse-error` ×4, and 15 more codes accounting for
-23 between them), never a `svelte/…` rule id. Many are inherent to the rule being
+×4, `animation_invalid_placement` ×4, `parse-error` ×4, and 13 more codes accounting for
+19 between them), never a `svelte/…` rule id. Many are inherent to the rule being
 exercised — `no-dynamic-slot-name`'s whole subject is a construct Svelte 5
 rejects outright.
 
-**Cross-checked against the official compiler, not assumed.** Compiling all 59
-with `submodules/svelte`'s own `compile`/`compileModule`: **55 are rejected by
-the official compiler too**, so on those the two tools disagree only about
-whether a linter should report a compile error — a product decision, and
-rsvelte's is the more useful one for a Svelte-specific linter.
+**Cross-checked against the official compiler, not assumed.** Compiling all 55
+with `submodules/svelte`'s own `compile`/`compileModule`: **all 55 are rejected by
+the official compiler too**, so the two tools disagree only about whether a linter
+should report a compile error — a product decision, and rsvelte's is the more
+useful one for a Svelte-specific linter.
 
-The other **4 are rsvelte over-rejections and are tracked as compiler defects**,
-not accepted behaviour. They are listed here because the exit code they produce
-is real today; the entries are expected to disappear, and the ratchet is
-two-sided, so they will fail rather than rot.
-
-| pattern | rsvelte code | defect |
-|---|---|---|
-| `experimental-require-slot-types/13-options-runes-false.svelte` | `rune_invalid_usage` | B |
-| `prefer-derived-over-derived-by/12-options-runes-false.svelte` | `rune_invalid_usage` | B |
-| `prefer-writable-derived/12-options-runes-false.svelte` | `rune_invalid_usage` | B |
-| `no-inspect/15-class-members.svelte` | `global_reference_invalid` | A |
-
-**Defect A — a `$`-prefixed class member name is read as a store reference.**
-`class P { $abc() { return 1; } }` is rejected with
-"`$abc` is an illegal variable name"; the official compiler accepts it. Fields
-and getters behave the same. The `$`-reference collector in
-`crates/rsvelte_core/src/compiler/phases/2_analyze/store_subscriptions.rs` is a
-lexical scan, and it already excludes object-literal keys, member-expression
-properties, string literals and comments — a class **body** is the shape it does
-not exclude. Upstream reads `module.scope.references`, which only ever holds real
-references.
-
-**Defect B — legacy mode does not turn a rune-named `$` reference into a store
-subscription.** Upstream's `phases/2-analyze/index.js:366` begins its condition
-with `runes_option === false ||`, so under `runes: false` — from the compiler
-option *or* `<svelte:options runes={false} />`, which upstream merges into
-`options` before analysing — `$state` is a store subscription and
-`let a = $state(1)` compiles to `$.store_get(state, '$state', …)`. rsvelte's
-`store_subscriptions.rs` has no such short-circuit: its `is_rune(ref_name)`
-branch runs regardless, finds no `state` binding, `continue`s, and
-`VariableDeclarator` then raises `rune_invalid_usage`. The value passed at
-`2_analyze/mod.rs:270` is `options.runes` alone, where the same file already
-computes a `merged_runes_false` for exactly this reason.
+This bucket held **59** entries until issues #3127 and #3128 were fixed. The four
+that left were rsvelte over-rejections rather than a product decision — a
+`$`-prefixed class member NAME read as a store reference, and legacy mode
+(`runes: false`, or `<svelte:options runes={false} />`) not turning a rune-named
+`$` reference into a store subscription. The remaining 55 are the ones official
+rejects too, which is what the re-measured cross-check above now reports as
+55 of 55.
 
 ## `exit` 1→0, 4 entries — `svelte/no-navigation-without-resolve`
 
