@@ -17,6 +17,7 @@ on:
       - 'Cargo.lock'
       - 'scripts/release/publish-vscode.mjs'
       - 'scripts/release/stage-vscode-language-server-binaries.mjs'
+      - 'scripts/release/vscode-targets.mjs'
       - '.github/workflows/publish-vscode.yml'
   workflow_dispatch:
     inputs:

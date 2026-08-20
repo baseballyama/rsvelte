@@ -138,10 +138,11 @@ test("every command referenced by a menu is contributed", () => {
   }
 });
 
-test("build stages platform servers into the runtime path", () => {
+test("build stages one platform server into the runtime path", () => {
   const build = readFileSync(join(root, "build.mjs"), "utf8");
   const extension = readFileSync(join(root, "src", "extension.ts"), "utf8");
-  assert.match(build, /cpSync\(nativeDir, join\(distDir, "bin"\)/);
+  assert.match(build, /cpSync\(source, join\(distDir, "bin", triple\)/);
+  assert.match(build, /RSVELTE_VSIX_TRIPLE/);
   assert.match(extension, /path\.join\("dist", "bin", triple, binary\)/);
   assert.match(extension, /RSVELTE_PREPROCESS_NODE/);
   assert.match(extension, /ELECTRON_RUN_AS_NODE/);
