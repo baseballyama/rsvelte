@@ -96,6 +96,10 @@ pub fn lint_source_messages(
     options: &CompileOptions,
     config: &LintConfig,
 ) -> Vec<LintMessage> {
+    // The compiler's parser strips a leading BOM, so its offsets are relative to
+    // the stripped text; ESLint's `SourceCode` does the same. Mixing the two
+    // slices inside the BOM.
+    let source = rsvelte_core::remove_bom(source);
     let line_index = LineIndex::new(source);
     let filename = lint_filename(file);
 
@@ -272,6 +276,7 @@ fn effective_config(source: &str, config: &LintConfig) -> LintConfig {
 /// the ported rules only. Editors want [`lint_source_messages`] instead.
 #[must_use]
 pub fn lint_source_raw(source: &str, file: &Path, config: &LintConfig) -> Vec<LintDiagnostic> {
+    let source = rsvelte_core::remove_bom(source);
     let line_index = LineIndex::new(source);
     let filename = file
         .file_name()
