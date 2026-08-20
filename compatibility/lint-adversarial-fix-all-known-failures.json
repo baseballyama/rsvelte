@@ -16,6 +16,5 @@
 	"no-target-blank/opt-key-allow-referrer.svelte",
 	"no-target-blank/opt-key-dynamic-never.svelte",
 	"oracle-crash:no-navigation-without-base/06-template-literals.svelte",
-	"shorthand-directive/16-never-mode-modifiers.svelte",
-	"sort-attributes/07-lookahead-order.svelte"
+	"shorthand-directive/16-never-mode-modifiers.svelte"
 ]
