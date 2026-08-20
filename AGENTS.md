@@ -112,6 +112,7 @@ one is the same shape: a scanner assuming input it did not get.
 | `\` before a quote means it is escaped | `'\\'` — the backslash was itself escaped |
 | a `$: if (…)` header ends its statement | `else` on the following line |
 | the setter call is rendered on one line | the printer breaking it across lines |
+| a backtick opens a template literal | a ```` ```svelte ```` fence inside a JSDoc comment |
 
 Do not size this work against the performance case: re-parsing is 3-4% of compile time, the
 profile is flat (no symbol in rsvelte's own code above ~1.6% self-time), and per-pass

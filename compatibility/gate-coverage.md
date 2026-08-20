@@ -129,6 +129,16 @@ their continuation lines, so layout-only re-indentation is not a content diverge
 relative indentation remains observable. It rejects fewer than 12,000 outputs in any
 tree/target and records the measured population in `esrap-report.json`.
 
+**What it caught that gate 1 could not [D].** The wave-2 enrolment brought in
+`carbon-components-svelte/src/Slider/{Slider,RangeSlider}.svelte`, whose JSDoc holds a
+```` ```svelte ```` fence. The client re-indenter read the backtick as a template-literal
+delimiter and stopped indenting every line after it, so rsvelte's output disagreed with
+official's *inside one comment* — half its lines carried the enclosing tab and half did not.
+Gate 1 cannot see that at all (blind spot 1a: comments are compared under
+`CommentPolicy::Ignore` on 100% of the corpus), and the formatter oracle re-aligns a JSDoc's
+` * ` lines, so it is invisible there too. Here it is a first-class failure, because the
+common-indentation rule above leaves *relative* indentation inside a comment observable.
+
 **Blind spot 26a — reparsing erases production AST provenance.** The gate consumes compiler
 text from `expected/` and `actual/` and constructs a fresh OXC `Program`; it never
 passes rsvelte's synthetic phase-3 AST, its `loc_map`, or original synthesized spans to the
