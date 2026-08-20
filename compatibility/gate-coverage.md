@@ -427,6 +427,19 @@ either compiler sees the file — 299 of 437 module entries (#2424). Verified lo
 `"export let x = 1;\n//! legal\n"`. This is the *narrower* cause; fixing it alone buys zero
 observability while 1a stands.
 
+**Second discriminating case [D], from the wave-2 enrolment.** A multi-line JSDoc on an
+instance-script statement comes out with the source's own inner indentation *and* the
+enclosing tab — `\t\t   * @template` where official prints `\t * @template`. Upstream's
+`onComment` dedents a block comment by its opener's line indentation; rsvelte's client path
+reaches `rsvelte_esrap`'s port of that rule (`printer.rs: dedent_block_comment`) with the
+statement text already trimmed at the front, so the opener sits at column 0, the computed
+indentation is empty, and nothing is stripped. `carbon-components-svelte/src/Button/Button.svelte`
+reproduces it and is not listed in `known-failures.client.json`. It is invisible to gate 1 for
+the reason above, and to gate 20 (formatter parity) because the oxfmt oracle re-aligns a JSDoc's
+` * ` lines on both sides. Unlike the fenced-backtick defect (gate 26), the indentation it
+produces is *uniform*, so the round-trip gate cannot see it either — no gate here observes it
+today.
+
 **Tracked:** #2424, PR #2436. **Closing it** requires rsvelte preserving comments *plus*
 `--comments` here — a compiler change, not a harness one. Note that even
 `CommentPolicy::Meaningful` filters JSDoc `@type` as prose (`lib.rs:259-269`), so flipping the
