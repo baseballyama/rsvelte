@@ -1,5 +1,93 @@
 [
 	{
+		"id": "submodules/appwrite-console/src/lib/commandCenter/panels/ai.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/appwrite-console/src/lib/commandCenter/panels/template.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/appwrite-console/src/lib/components/bottom-sheet/SheetMenuBlock.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/appwrite-console/src/lib/components/breadcrumbs.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/appwrite-console/src/lib/components/fakeModal.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/appwrite-console/src/lib/components/sidebar.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/appwrite-console/src/lib/layout/shell.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/appwrite-console/src/routes/(console)/onboarding/create-project/loading.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/header.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/empty.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/sidesheet.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/empty.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/backups/policy.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/editor/view.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/sonners/suggestions.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/spreadsheet.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/subNavigation.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/columns/encryptCheckbox.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/columns/string.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/spreadsheet.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/appwrite-console/src/routes/(public)/hackathon/+page.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/appwrite-console/src/routes/(public)/oauth2/+layout.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
 		"id": "submodules/attractions/attractions/autocomplete/autocomplete-field.scss",
 		"verdict": "css-mismatch"
 	},
@@ -72,6 +160,170 @@
 		"verdict": "css-mismatch"
 	},
 	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/breadcrumb/_breadcrumb.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/button/_button.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/checkbox/_checkbox.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/data-table/_data-table-action.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/data-table/_data-table-core.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/data-table/_data-table-expandable.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/data-table/_data-table-skeleton.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/data-table/_data-table-sort.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/date-picker/_date-picker.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/file-uploader/_file-uploader.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/form/_form.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/inline-loading/_inline-loading.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/link/_link.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/list/_list.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/loading/_loading.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/notification/_inline-notification.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/notification/_toast-notification.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/number-input/_number-input.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/overflow-menu/_overflow-menu.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/pagination-nav/_pagination-nav.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/progress-indicator/_progress-indicator.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/radio-button/_radio-button.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/search/_search.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/skeleton/_skeleton-placeholder.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/skeleton/_skeleton-text.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/skeleton/_skeleton.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/tabs/_tabs.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/tag/_tag.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/text-area/_text-area.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/tile/_tile.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/toggle/_toggle.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/tooltip/_tooltip.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/ui-shell/_header-panel.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/ui-shell/_header.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/ui-shell/_side-nav.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/ui-shell/_switcher.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/components/ui-shell/_ui-shell.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/globals/grid/_grid.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/globals/scss/_css--body.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/globals/scss/_css--helpers.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/carbon-components-svelte/css/vendor/carbon-components/scss/globals/scss/_tooltip.scss",
+		"verdict": "css-mismatch"
+	},
+	{
 		"id": "submodules/date-picker-svelte/src/lib/DateInput.svelte#style0",
 		"verdict": "grass-rejects-accepted"
 	},
@@ -96,7 +348,591 @@
 		"verdict": "grass-rejects-accepted"
 	},
 	{
+		"id": "submodules/huly/packages/theme/styles/_colors.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/packages/theme/styles/_layouts.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/packages/theme/styles/_text-editor.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/huly/packages/theme/styles/common.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/packages/theme/styles/components.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/packages/theme/styles/github-dark.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/packages/theme/styles/github-light.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/packages/theme/styles/global.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/huly/packages/theme/styles/love.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/packages/theme/styles/panel.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/huly/packages/theme/styles/prose.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/huly/packages/ui/src/components/calendar/WeekCalendar.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/packages/ui/src/components/internal/ThemeButton.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/plugins/calendar-resources/src/components/DayCalendar.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/plugins/diffview-resources/src/components/FileDiffContent.svelte#style0",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/huly/plugins/diffview-resources/src/components/theme/github-dark.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/plugins/diffview-resources/src/components/theme/github.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/plugins/gmail-resources/src/components/FullMessageContent.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/plugins/love-resources/src/components/meeting/ControlBarContainer.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/plugins/process-resources/src/components/attributeEditors/ContextValuePresenter.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/plugins/process-resources/src/components/criterias/ArraySizeCriteria.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/plugins/process-resources/src/components/criterias/BaseCriteriaEditor.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/plugins/process-resources/src/components/criterias/RangeCriteria.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/plugins/process-resources/src/components/settings/ContextEditor.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/plugins/process-resources/src/components/settings/ContextFooter.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/plugins/telegram-resources/src/components/Configure.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/plugins/telegram-resources/src/components/PinPad.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/plugins/text-editor-resources/src/components/StyledTextBox.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/plugins/tracker-resources/src/components/issues/IssuePreview.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/plugins/tracker-resources/src/components/issues/IssuesView.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/plugins/tracker-resources/src/components/issues/KanbanView.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/plugins/view-resources/src/components/filter/InlineFilterChips.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/plugins/view-resources/src/components/filter/InlineFilterChipsOverflow.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/huly/plugins/view-resources/src/components/list/ListHeader.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/App.svelte#style0",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/component-library/button/Button.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/component-library/common/styles/components/card.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/component-library/common/styles/components/main.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/component-library/common/styles/main.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/component-library/common/styles/themes/colors.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/component-library/common/styles/themes/dark/dark-base.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/component-library/common/styles/themes/dark/dark-bg.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/component-library/common/styles/themes/dark/dark-border.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/component-library/common/styles/themes/dark/dark-fg.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/component-library/common/styles/themes/light/light-base.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/component-library/common/styles/themes/light/light-bg.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/component-library/common/styles/themes/light/light-border.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/component-library/common/styles/themes/light/light-fg.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/component-library/common/styles/themes/main.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/component-library/common/styles/variables.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/component-library/date-time-picker/DateTimePicker.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/component-library/radio/Radio.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/component-library/styles.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/component-library/tabs/TabContainer.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/component-library/truncate/Truncate.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/component-library/window/Window.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/components/InspectorButton.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/components/file-attachments/lightbox/Lightbox.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/components/filter/FilterEntry.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/components/filter/FilterGroup.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/components/sheet/Sheet.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/components/sheet/SheetHeader.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/components/sheet/cells/SheetDataCell.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/components/sheet/virtual-list/VirtualList.svelte#style0",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/pages/home/HomePage.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/pages/import/preview/ImportPreviewSheet.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/pages/record/RecordPageContent.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/routes/AdminRoute.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/systems/data-forms/form-maker/DataForm.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/systems/data-forms/form-maker/elements/DataFormFieldsContainer.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/systems/data-forms/form-maker/elements/DataFormHeader.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/systems/data-forms/form-maker/elements/add-field/AddFormFieldElementDropdown.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/systems/databases/create-database/ConnectOption.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/systems/record-selector/ModalRecordSelector.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/systems/record-view-modal/ModalRecordViewContent.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/systems/table-view/link-table/LinkTypeOption.svelte#style0",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/systems/table-view/link-table/SelectLinkType.svelte#style0",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/systems/table-view/row/Row.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/systems/table-view/row/RowControl.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/mathesar/mathesar_ui/src/systems/table-view/table-inspector/table/TableDeleteConfirmationBody.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/App.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/albums/AlbumItem.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/info/ArtworkTab.svelte#style0",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/musicat/src/lib/info/CountrySection.svelte#style0",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/musicat/src/lib/info/FileTab.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/info/TrackInfoPopup.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/library/CassetteLoading.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/library/PlaylistHeader.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/library/SmartPlaylistHeader.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/library/StemSeparatePopup.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/library/ToDeleteHeader.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/map/Globe.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/player/Equalizer.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/settings/MigrationOverlay.svelte#style0",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/musicat/src/lib/settings/SettingsPopup.svelte#style0",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/musicat/src/lib/settings/UpdaterOverlay.svelte#style0",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/musicat/src/lib/sidebar/Sidebar.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/smart-query/SmartQueryBuilder.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/ui/CursorInfo.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/ui/menu/Menu.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/views/AlbumsView.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/views/ArtistsToolkitView.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/views/MapView.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/views/NotesView.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/views/QueueView.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/views/TopBar.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/your-music/ContentDropzone.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/your-music/FilePreviewOverlay.svelte#style0",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/musicat/src/lib/your-music/LyricsTab.svelte#style0",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/musicat/src/lib/your-music/MusicTab.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/your-music/SongProjects.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/your-music/TagCloud.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/musicat/src/lib/your-music/YourArtists.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/lib/components/furniture/ShortcutsDialog.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/lib/components/global/GlobalSearch.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/lib/components/global/ToolsCarousel.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/lib/components/tools/CIDRContains.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/lib/components/tools/CIDRDiff.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/lib/components/tools/CIDROverlap.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/lib/components/tools/DHCPOption60Builder.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/lib/components/tools/DMARCBuilder.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/lib/components/tools/DNSLabelNormalizer.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/lib/components/tools/IPRegexGenerator.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/lib/components/tools/NextAvailable.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/lib/components/tools/PTRGenerator.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/lib/components/tools/ReversePTRGenerator.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/lib/components/tools/SubnetPlanner.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/routes/cidr/set-operations/+layout.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/routes/diagnostics/dns/blacklist-checker/+page.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/routes/diagnostics/network/bgp-route-lookup/+page.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/routes/reference/common-subnets/+page.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/styles/a11y.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/styles/base.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/styles/converters.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/styles/diagnostics-pages.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/styles/page-specific/about-page.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/styles/ref-pages.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/styles/themes.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/networking-toolbox/src/styles/variables.scss",
+		"verdict": "css-mismatch"
+	},
+	{
 		"id": "submodules/powertable/app/src/lib/styles/power-table.scss",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/sparrow-app/packages/@sparrow-library/src/forms/Input/Input.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/sparrow-app/packages/@sparrow-library/src/forms/date-picker/DatePicker.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/sparrow-app/packages/@sparrow-library/src/forms/search/Search.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/sparrow-app/packages/@sparrow-library/src/forms/select/Select.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/sparrow-app/packages/@sparrow-library/src/forms/time-picker/TimePicker.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/sparrow-app/packages/@sparrow-support/src/components/Attachment/Attachment.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/sparrow-app/packages/@sparrow-workspaces/src/features/testflow-schedule-explorer/components/configurations/Configurations.svelte#style0",
 		"verdict": "css-mismatch"
 	},
 	{
@@ -106,6 +942,274 @@
 	{
 		"id": "submodules/svelte-formly/src/routes/__layout.svelte#style0",
 		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/_style.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/animation/_functions.import.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/animation/_index.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/animation/_variables.import.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/dom/_dom.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/dom/_index.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/dom/_mixins.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/elevation/_elevation-theme.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/elevation/_elevation.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/elevation/_functions.import.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/elevation/_functions.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/elevation/_index.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/elevation/_mixins.import.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/elevation/_mixins.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/elevation/_variables.import.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/elevation/_variables.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/elevation/mdc-elevation.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/elevation/overlay-styles.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/elevation/styles.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/focus-ring/_focus-ring.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/focus/_focus-ring-outward-theme.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/rtl/_index.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/rtl/_mixins.import.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/rtl/_mixins.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/rtl/_rtl.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/rtl/_variables.import.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/rtl/_variables.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/shape/_functions.import.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/shape/_functions.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/shape/_index.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/shape/_mixins.import.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/shape/_mixins.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/shape/_shape.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/shape/_variables.import.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/shape/_variables.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/theme/_all-theme-deprecated.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/theme/_color-palette.import.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/theme/_functions.import.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/theme/_functions.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/theme/_index.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/theme/_mixins.import.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/theme/_mixins.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/theme/_theme-color.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/theme/_theme.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/theme/_variables.import.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/theme/_variables.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/theme/mdc-theme.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/theme/styles.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/tokens/_resolvers.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/typography/_functions.import.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/typography/_functions.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/typography/_index.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/typography/_mixins.import.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/typography/_mixins.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/typography/_typography.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/typography/_variables.import.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/typography/_variables.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/typography/mdc-typography.import.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/typography/mdc-typography.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/common/typography/styles.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/layout-grid/_style.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/layout-grid/styles/_index.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/layout-grid/styles/_mixins.import.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/layout-grid/styles/_mixins.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/layout-grid/styles/_variables.import.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/layout-grid/styles/mdc-layout-grid.import.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/svelte-material-ui/packages/layout-grid/styles/mdc-layout-grid.scss",
+		"verdict": "grass-rejects-accepted"
 	},
 	{
 		"id": "submodules/svelte-splitpanes/src/lib/Splitpanes.svelte#style0",
@@ -118,5 +1222,53 @@
 	{
 		"id": "submodules/svelte-splitpanes/src/routes/examples/styling/splitters/code.svelte#style0",
 		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/trakt-web/projects/client/src/lib/sections/lists/recommended/RecommendationSourcesDrawer.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/trakt-web/projects/client/src/lib/sections/lists/smart/_internal/SmartListSummaryItem.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/trakt-web/projects/client/src/lib/sections/lists/user/_internal/ReorderDrawer.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/trakt-web/projects/client/src/lib/sections/navbar/_internal/NavbarContentToggle.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/trakt-web/projects/client/src/lib/sections/settings/_internal/DeleteAccount.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/trakt-web/projects/client/src/lib/sections/summary/components/soundtrack/_internal/SoundtrackUpsell.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/trakt-web/projects/client/src/lib/sections/yir/2024/_internal/Yir2024DailyPlaysChart.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/trakt-web/projects/client/src/lib/sections/yir/2024/_internal/Yir2024LineChart.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/trakt-web/projects/client/src/lib/sections/yir/2024/_internal/Yir2024WeeklyPlaysChart.svelte#style0",
+		"verdict": "css-mismatch"
+	},
+	{
+		"id": "submodules/trakt-web/projects/client/src/style/scss/mixins/index.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/trakt-web/projects/client/src/style/scss/variables/index.module.scss",
+		"verdict": "grass-rejects-accepted"
+	},
+	{
+		"id": "submodules/vert/src/lib/css/app.scss",
+		"verdict": "grass-rejects-accepted"
 	}
 ]

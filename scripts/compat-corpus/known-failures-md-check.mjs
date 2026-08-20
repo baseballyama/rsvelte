@@ -245,7 +245,7 @@ const PARTITIONS = [
 		key: 'lint-severity-known-failures.json',
 		label: 'cause',
 	},
-	{ doc: 'scss-known-failures.md', key: 'scss-known-failures.json', label: 'cluster' },
+	{ doc: 'scss-known-failures.md', key: 'scss-known-failures.json', label: 'verdict' },
 	{ doc: 'lsp-known-failures.md', key: 'lsp-known-failures.json', label: 'key kind' },
 	{ doc: 'lsp-known-failures.md', key: 'lsp-known-failures.json', label: 'request phase' },
 	{
