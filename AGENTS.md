@@ -246,7 +246,7 @@ indistinguishable in the branch header.**
 ### Corpus output-equality pipeline (`scripts/compat-corpus/`)
 
 Every `.svelte` / `.svelte.(js|ts)` source (including markdown code blocks) from every corpus
-source repository — sveltejs/svelte, sveltejs/svelte.dev and **103** real-world projects (huly,
+source repository — sveltejs/svelte, sveltejs/svelte.dev and **101** real-world projects (huly,
 immich, open-webui, carbon-components-svelte, SMUI, threlte, bits-ui, … ), all pinned as
 submodules and listed in `scripts/compat-corpus/corpus-sources.json` — is compiled with both the official compiler and
 rsvelte for CSR, SSR **and** dev-mode CSR (the three targets declared in
@@ -484,23 +484,31 @@ a necessary condition, never as parity.
 
 ### Corpus-seeded mutation fuzz (`scripts/compat-corpus/mutate-corpus.mjs`)
 
-The generalization of the matrix (`pnpm run corpus:mutate`, #2281 Gate 3): the 14,138 corpus
-entries stop being the test set and become a **seed set**. One semantics-preserving comment is
-inserted at a line boundary inside a `<script>` region and parity is required on the mutant.
-PRs get a deterministic sample; main gets the full sweep (which is what the two-sided ratchet
-needs). It found **#2351** (a comment containing `}`/`)`/`;` in a `$:` block body **aborts the
-client compiler with SIGSEGV**) and **#2347** (a `//` comment before a `$props()` pattern's
-closing brace swallows the `$.rest_props` initializer — output parses, attributes silently
-vanish) in its first run.
+The generalization of the matrix (`pnpm run corpus:mutate`, #2281 Gate 3): the corpus entries
+stop being the test set and become a **seed set** (32,712 eligible after the wave-2 enrolment).
+One semantics-preserving comment is inserted at a line boundary inside a `<script>` region and
+parity is required on the mutant. PRs get a deterministic sample; main gets the full sweep
+(which is what the two-sided ratchet needs). It found **#2351** (a comment containing `}`/`)`/`;`
+in a `$:` block body **aborts the client compiler with SIGSEGV**) and **#2347** (a `//` comment
+before a `$props()` pattern's closing brace swallows the `$.rest_props` initializer — output
+parses, attributes silently vanish) in its first run.
 
 **Only the code class is ratcheted.** A divergent mutant is `code-mismatch` when the difference
 survives normalizing comments, whitespace and trailing commas away, `comment-mismatch`
-otherwise. The full sweep yields **36** of the former and 12,910 of the latter; ratcheting per id
-without that split would be a 13,000-entry file that churns on every submodule bump. Comment
+otherwise. The full sweep yields **166** of the former and 45,070 of the latter; ratcheting per
+id without that split would be a 45,000-entry file that churns on every submodule bump. Comment
 fidelity is ratcheted per id by Gate 2 instead, on generated seeds that do not move when a
-submodule bumps. The delimiter-carrying/plain ratio has measured 2.81× (oxfmt 0.61), 1.30×
-(0.62) and **1.66×** (0.62, post-burndown): it tracks the normalizer and the current residue,
-not the mechanism's importance, so do not cite it as a constant.
+submodule bumps.
+
+**Two things this gate taught, and both were taught by adding inputs rather than by a fix.**
+The delimiter-carrying/plain ratio has measured 2.81× (oxfmt 0.61), 1.30× (0.62), 1.66×
+(post-burndown) and **0.92×** (enrolled corpus): it tracks the normalizer and the current
+residue, not the mechanism's importance, so do not cite it as a constant — and at 0.92× the
+"a delimiter is what breaks these scans" reading is simply false, with `svelte-ignore`
+(no delimiter at all) accounting for two of the four units whose output does not parse. And
+**#2347's shape came back**: `cnblocks/src/lib/svgs/vercel` drops the `$.rest_props`
+initializer under a mutant, on a seed the corpus did not hold when #2347 was fixed. A closed
+defect class reappearing on new seeds is evidence about coverage, not about the fix.
 
 Compilation runs in child processes (mirroring `compile.mjs`): a panic aborts the process, so a
 single-process sweep loses the whole run to one bad mutant — which is what happened first. The
