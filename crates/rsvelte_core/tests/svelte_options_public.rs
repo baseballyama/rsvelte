@@ -15,17 +15,24 @@ fn opts(name: Option<String>, disclose: bool) -> CompileOptions {
     }
 }
 
-/// H-114: `<svelte:options runes={false} />` must keep runes mode off, so a
-/// `$state` rune is rejected rather than silently re-enabling runes via
-/// auto-detection.
+/// H-114: `<svelte:options runes={false} />` must keep runes mode off. Official
+/// expresses that by making `$state` a store subscription rather than by
+/// rejecting it, so the observable is the emitted form: auto-detection having
+/// re-enabled runes would print `$.state(0)` instead.
 #[test]
 fn explicit_runes_false_is_not_undone_by_autodetection() {
     let src = "<svelte:options runes={false} />\n<script>let count = $state(0);</script>\n{count}";
-    let err = compile(src, opts(None, true)).err();
-    let msg = format!("{err:?}");
+    let code = compile(src, opts(None, true))
+        .expect("official compiles this")
+        .js
+        .code;
     assert!(
-        msg.contains("rune_invalid_usage"),
-        "runes={{false}} was undone by auto-detection: {msg}"
+        code.contains("$.store_get(state, '$state', $$stores)"),
+        "expected a `$state` store subscription, got:\n{code}"
+    );
+    assert!(
+        !code.contains("$.state("),
+        "runes={{false}} was undone by auto-detection:\n{code}"
     );
 }
 
