@@ -71,7 +71,7 @@ the official compiler too**, so the two tools disagree only about whether a lint
 should report a compile error — a product decision, and rsvelte's is the more
 useful one for a Svelte-specific linter.
 
-This bucket held **59** entries until issues #3127 and #3128 were fixed. The four
+This bucket held **59** entries until #3172 fixed issues #3127 and #3128. The four
 that left were rsvelte over-rejections rather than a product decision — a
 `$`-prefixed class member NAME read as a store reference, and legacy mode
 (`runes: false`, or `<svelte:options runes={false} />`) not turning a rune-named

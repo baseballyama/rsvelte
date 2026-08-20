@@ -55,6 +55,32 @@ them — only output equality can. All three are fixed: the class header comes f
 which read code bytes only. Treat the *rest* of that pipeline as unaudited rather than clean —
 the keyword axis that found these samples 5 of the ~30 tokens it is drawn from.
 
+**A third lexical scan lives in phase 2, and #3127 is its version of the same shape.** The
+`$`-reference collector in `2_analyze/store_subscriptions.rs` decides which `$name` occurrences
+are *references*, and it already excluded object keys, member properties, string literals and
+comments — a class **body** was the shape it did not, so `class P { $abc() {} }` was rejected
+with `global_reference_invalid`. What makes it worth a row is the second half: a class member is
+not delimited by a `;`, it is delimited by **ASI**, so the first fix classified `a = 1⏎$abc()`
+as a reference and reproduced the bug on `standard`-style source. Where a member ends has to be
+answered from the previous significant token, which is the same test an explicit `;` gets — and
+the opposite direction (`a = 1 +⏎$store`) has to keep reading its store, or the scan silently
+drops a real subscription. Upstream never has this problem because it reads
+`module.scope.references`, which holds no declaration slot; runes-mode auto-detection reads the
+same set, which is why `class P { $inspect = 1 }` also flipped the component into runes mode.
+
+**#3128 is the one to remember for a different reason: the first version of the fix stopped the
+over-rejection and emitted wrong code.** Upstream opens its store-subscription condition with
+`runes_option === false ||`, so an explicit `runes: false` — from the compile option or from
+`<svelte:options runes={false} />`, which upstream merges in `combined_options` before analysing
+— makes every rune-named `$` reference a store. Passing the merged option to the store loop is
+one line, and on its own it produced `$.mutable_source($state()(0))` where official emits
+`let src = $state()(0)`: upstream also assigns rune binding kinds only `if
+(analysis.runes)`, and the server's and client's `$effect` / `$inspect` removals are gated by
+`get_rune` returning null once the callee resolves to a binding. Four sites, and **no single
+rune reaches all four** — which is why the repro carries `$state`, `$derived.by`, `$effect` and
+`$inspect` in one file. An over-rejection is loud and its fix is quiet; a repro that only checks
+"it compiles" cannot tell the two apart.
+
 **The client instance-script pipeline is the exception, and it is a correctness hazard, not a
 cleanup.** That pipeline still decides where a statement or an expression ends by scanning
 characters. Feeding every corpus output to a JS parser — a question no ratchet asks, because
@@ -878,11 +904,13 @@ Three `RuleConditions` flags likewise disagreed, each making rsvelte run a rule 
 (gate 36) drives upstream's `flat/recommended` verbatim against `rsvelte-lint` with no `--config`
 and compares the findings *with severity in the key*, plus the process **exit code**. The rule-set
 half came back confirmed — **0 severity divergences over 1,179 / 1,178 findings** — while the exit
-code diverged on **64 of 1,365 patterns**, and that half is what generalizes. Fifty-nine are
+code diverged on **64 of 1,365 patterns**, and that half is what generalizes. Fifty-nine were
 rsvelte exiting 1 on a Svelte **compiler** diagnostic `svelte-eslint-parser` is too permissive to
-see (55 the official compiler also rejects; **4 are rsvelte over-rejections** — a `$`-prefixed class
-member name read as a store reference, and legacy mode not turning a rune-named `$` reference into a
-store subscription, both in `2_analyze/store_subscriptions.rs`). Four more are a rule
+see, and **the gate's value was the 4 of those 59 that were rsvelte over-rejections** rather than
+the 55 the official compiler also rejects: a `$`-prefixed class member NAME read as a store
+reference, and explicit legacy mode not turning a rune-named `$` reference into a store
+subscription (#3127 / #3128, both entered through `2_analyze/store_subscriptions.rs`). Both are
+fixed and the bucket now stands at 55, every one of which official rejects too. Four more are a rule
 `lint-universe.mjs` excludes as type-aware, still reporting at `error` upstream: **an `EXCLUDE` entry
 removes a rule from a finding comparison and cannot remove it from the exit status**, so a
 findings-only gate has no view of what a switching user's CI does. And driving the *default* preset
