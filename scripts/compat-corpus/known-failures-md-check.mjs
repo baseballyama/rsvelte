@@ -123,10 +123,28 @@ const RATCHETS = [
 		key: 'error-frame-known-failures.<target>.json',
 		jsons: perTarget('error-frame-known-failures'),
 	},
+	// Declared per target rather than through the `<target>` placeholder: the two
+	// client targets carry entries and the two server ones are still at 0, so one
+	// shared count would have to be wrong for two of the four.
 	{
 		doc: 'parse-known-failures.md',
-		key: 'parse-known-failures.<target>.json',
-		jsons: perTarget('parse-known-failures'),
+		key: 'parse-known-failures.client.json',
+		jsons: ['parse-known-failures.client.json'],
+	},
+	{
+		doc: 'parse-known-failures.md',
+		key: 'parse-known-failures.client-dev.json',
+		jsons: ['parse-known-failures.client-dev.json'],
+	},
+	{
+		doc: 'parse-known-failures.md',
+		key: 'parse-known-failures.server.json',
+		jsons: ['parse-known-failures.server.json'],
+	},
+	{
+		doc: 'parse-known-failures.md',
+		key: 'parse-known-failures.server-dev.json',
+		jsons: ['parse-known-failures.server-dev.json'],
 	},
 	{
 		doc: 'parse-oracle-excluded.md',
@@ -199,6 +217,10 @@ const RATCHETS = [
  * "this doc states no clusters" from "someone removed the one it stated".
  */
 const PARTITIONS = [
+	{ doc: 'known-failures.md', key: 'known-failures.client.json', label: 'verdict' },
+	{ doc: 'known-failures.md', key: 'known-failures.server.json', label: 'verdict' },
+	{ doc: 'known-failures.md', key: 'known-failures.server-dev.json', label: 'verdict' },
+	{ doc: 'known-failures.md', key: 'known-failures.client-dev.json', label: 'verdict' },
 	{ doc: 'fmt-known-failures.md', key: 'fmt-known-failures.json', label: 'cluster' },
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'rule' },
 	{ doc: 'lint-known-failures.md', key: 'lint-known-failures.json', label: 'direction' },

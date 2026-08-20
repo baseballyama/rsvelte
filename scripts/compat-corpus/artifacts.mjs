@@ -74,8 +74,10 @@ export const DISK_HEADROOM = 512 * MiB;
  * Floor for rewriting a ratchet from a run's results. `--update-baseline`
  * DELETES every baseline id it did not observe failing, so a run over a partial
  * corpus silently shrinks the ratchets to whatever it happened to measure. The
- * corpus is 14025 entries with every submodule present; anything far below that
- * is a partial checkout, not a fix.
+ * corpus is 33471 entries with every submodule present; anything far below that
+ * is a partial checkout, not a fix. The number is a measurement of a tree, so it
+ * moves when the corpus grows — left at the 12000 that fitted a 14025-entry
+ * corpus, it would have accepted a run that measured barely a third of this one.
  *
  * Before adding a gate here: a ratio floor and an absolute floor answer
  * different questions, and truncation is visible only to the second. A ratio is
@@ -85,7 +87,7 @@ export const DISK_HEADROOM = 512 * MiB;
  * subset refusals both have that shape. This constant is the one absolute floor
  * in the pipeline, which is why it is the one that survives a truncated corpus.
  */
-export const MIN_FULL_CORPUS_ENTRIES = 12000;
+export const MIN_FULL_CORPUS_ENTRIES = 30000;
 
 /**
  * Corpus generation stamp.

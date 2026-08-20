@@ -1962,14 +1962,25 @@ loop). `<target>.css` is never handed to a CSS parser, so a malformed stylesheet
 here exactly as it is to gate 1's byte comparison when the entry is ratcheted. `js.map` is not
 captured by `compile.mjs` at all (blind spot 1c), so there is nothing to validate.
 
-### Blind spot 19c — the population is inherited from the corpus, and the known defects are not in it
+### Blind spot 19c — the population is inherited from the corpus (CLOSED for these four inputs)
 
-**[S]** `corpus-sources.json` lists sveltejs/svelte, svelte.dev and 33 shipped libraries. The 30
-real-world components that currently produce unparseable rsvelte output are in huly, open-webui,
-carbon and SMUI — none of which is a corpus source. The ratchet is therefore empty **because the
-inputs are absent**, not because the class is fixed. This gate is a regression gate for that
-class, not a burn-down of it. Enrolling those repositories would change the number; nothing else
-in this gate's design would.
+**[D]** This row used to read: *`corpus-sources.json` lists sveltejs/svelte, svelte.dev and 33
+shipped libraries. The 30 real-world components that currently produce unparseable rsvelte
+output are in huly, open-webui, carbon and SMUI — none of which is a corpus source. The ratchet
+is therefore empty because the inputs are absent, not because the class is fixed. Enrolling
+those repositories would change the number; nothing else in this gate's design would.*
+
+#3130 enrolled all four (and 63 more), taking the corpus from 36 source repositories to 103 and
+from 14,138 entries to 33,471. The ratchet went from 0 to **12 entries across `client` and
+`client-dev`** on the first run, `server` and `server-dev` stayed at 0, and the enrolment also
+turned up two CSS-parser infinite loops, two UTF-8 char-boundary panics and a BOM that was being
+emitted as template text. That is the prediction paid out — this is a **discriminating case for
+the row, not for the gate**: the gate's design never changed.
+
+What is *not* closed is the general form. The population is still whatever
+`corpus-sources.json` happens to list, and the argument that a given defect class is absent is
+still an argument about which repositories somebody enrolled. Read the closure as "these four
+inputs are in now", never as "the population question is settled".
 
 ### Blind spot 19f — an excluded pair is checked on neither side
 

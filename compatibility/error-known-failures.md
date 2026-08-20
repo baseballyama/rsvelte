@@ -98,13 +98,16 @@ of two unrelated errors say nothing, and the code divergence is an
 
 ## Why the per-target files are near-identical
 
-`error-message-known-failures.client.json` holds 12 entries;
-`error-message-known-failures.client-dev.json` holds 12 entries;
-`error-message-known-failures.server.json` holds 11 entries; and
-`error-message-known-failures.server-dev.json` holds 11 entries. All four of
-`error-position-known-failures.<target>.json` hold 76 entries, all four of
-`error-end-known-failures.<target>.json` hold 88 entries, and all four of
-`error-frame-known-failures.<target>.json` hold 0 entries. Almost every
+`error-message-known-failures.client.json` holds 18 entries;
+`error-message-known-failures.client-dev.json` holds 18 entries;
+`error-message-known-failures.server.json` holds 17 entries; and
+`error-message-known-failures.server-dev.json` holds 17 entries. All four of
+`error-position-known-failures.<target>.json` hold 99 entries, all four of
+`error-end-known-failures.<target>.json` hold 128 entries, and all four of
+`error-frame-known-failures.<target>.json` hold 0 entries. The wave-2 enrolment
+(#3130) added 1 message, 16 position and 24 end entries — and **no frame entries
+at all**, which keeps that comparison's population saturated at 0 across a corpus
+that more than doubled. Almost every
 compile error is raised in Phase 1/2, before the target is consulted, so a
 divergence shows up on all four targets at once. Expect the sixteen files to move
 together in a burn-down PR.
@@ -188,27 +191,27 @@ and not one edit.
 ## Error end positions
 
 The codes agree; `end` does not, so the diagnostic underlines the wrong amount of
-code. The shape this section used to call canonical — `<div a="1" a="2">`, where
-`attribute_duplicate` reported `[11, 12]` against upstream's `[11, 16]` — is fixed
-(#3114); the five `attribute-unique*` entries it covered are retired, as are the
-three `window-*` entries a zero-width meta placement span retired (#3110) and the
-three `slot_snippet_conflict` entries that gained a span (#3124) and the
-`css-nesting-selector-root` entry that gained one (#3134) and the four an
-end-of-input point retired (#3206/#3220).
+code. The canonical shape is `<div a="1" a="2">`, where `attribute_duplicate`
+reports `position: [11, 12]` against upstream's `[11, 16]` — the right start, one
+character of highlight instead of the whole attribute.
 
-Partition of `error-end-known-failures.<target>.json` by shape: `24 + 42 + 22`
+Partition of `error-end-known-failures.<target>.json` by shape: `33 + 61 + 34`
 (client target, classified from the run's own `report.json`):
 
-- **24 — rsvelte reports no `end` at all.** The same `validation(...)` vs
+- **33 — rsvelte reports no `end` at all.** The same `validation(...)` vs
   `validation_at(...)` raising sites the `start` ratchet's no-span cluster names;
   these two clusters burn down together, one call per site.
-- **42 — same line, different column.** A span exists and stops in the wrong
-  place. This is the cluster the `start` ratchet cannot reach, and it is now the
+- **61 — same line, different column.** A span exists and stops in the wrong
+  place. This is the cluster the `start` ratchet cannot reach, and it is still the
   largest: attaching a span fixes `start` and leaves `end` free to be wrong.
-- **22 — different line entirely.** A multi-line construct whose closing node was
+- **34 — different line entirely.** A multi-line construct whose closing node was
   not threaded through.
 
-**12 of the 88 diverge on `end` while `start` agrees** (8 same-line, 4
+The wave-2 enrolment moved all three clusters roughly in proportion (+5, +8, +11),
+which is the answer to "did new repositories find a new *shape* of span defect, or
+more instances of the three we had?" — more instances.
+
+**29 of the 128 diverge on `end` while `start` agrees** (24 same-line, 5
 different-line). Those are the ones that would have been invisible had `end` been
 folded into the `start` ratchet, and they are the argument for the split: an
 entry already listed suppresses everything about that entry.

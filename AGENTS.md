@@ -516,7 +516,7 @@ does `--keep-artifacts`. `compile.mjs` aborts up front when free disk is below
 this checkout and every `.claude/worktrees/*` sibling — never the checked-in `*known-failures*`
 ratchets. Because a verify against an absent tree would score every entry `match`, `verify.mjs`
 asserts ≥99% of manifest entries have compiled output before comparing, and refuses
-`--update-baseline` below 12000 corpus entries (the FALSE-SHRINK trap: `--update-baseline` deletes
+`--update-baseline` below 30000 corpus entries (the FALSE-SHRINK trap: `--update-baseline` deletes
 every baseline id it did not measure) — `--update-warning-baseline` is held to the same floor.
 `--update-baseline` additionally refuses `--no-fmt`, which counts formatting-only differences as
 failures; `--update-warning-baseline` does not, because warning comparison never normalizes.

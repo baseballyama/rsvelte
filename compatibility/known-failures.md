@@ -27,9 +27,22 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-## Client (`known-failures.client.json`, 0 entries)
+## Client (`known-failures.client.json`, 667 entries)
 
-Empty. The one entry this list ever held — #2031, a `{#snippet}` declared inside
+Partition of `known-failures.client.json` by verdict: `561 + 34 + 30 + 31 + 11`
+
+- **561 — the generated JS differs** (`js` / `code-differs`).
+- **34 — both compilers reject the entry with a different error code.**
+- **30 — one compiler rejects and the other compiles** (11 under-rejections,
+  19 over-rejections; see § *Wave-2 enrolment* below).
+- **31 — the generated CSS differs.**
+- **11 — rsvelte's output is not JavaScript**, ratcheted in full in
+  [`parse-known-failures.md`](parse-known-failures.md) and listed here too
+  because unparseable output is necessarily byte-different.
+
+Every one of the 667 arrived with the wave-2 enrolment (#3130) and is described
+in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
+held — #2031, a `{#snippet}` declared inside this list ever held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
 through the dynamic path (`$.comment()` anchor + `$.snippet(...)`) instead of
 being called directly — was fixed by #2057: the scope builder gives each branch
@@ -52,9 +65,16 @@ everywhere". Divergences this target keeps on purpose — because reproducing
 upstream's bytes would emit invalid JavaScript — are recorded in
 [`deliberate-divergences.md`](deliberate-divergences.md), each pinned by a test.
 
-## Server (`known-failures.server.json`, 0 entries)
+## Server (`known-failures.server.json`, 307 entries)
 
-The last entry was #2308, from the `runed` / `svelte-toolbelt` enrolment:
+Partition of `known-failures.server.json` by verdict: `243 + 34 + 30`
+
+- **243 — the generated JS differs.**
+- **34 — both compilers reject with a different error code.**
+- **30 — one compiler rejects and the other compiles.**
+
+All 307 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+it. The last pre-enrolment entry was #2308, from the `runed` / `svelte-toolbelt` enrolment:
 `watch.test.svelte.ts` writes `runs = runs + 1` and rsvelte **contracted** it to
 `runs += 1` (that direction, not the reverse). The `.svelte.(js|ts)` server path
 round-trips through the client transform, which rewrote the assignment, so the
@@ -71,14 +91,37 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Server dev (`known-failures.server-dev.json`, 0 entries)
+## Server dev (`known-failures.server-dev.json`, 304 entries)
 
 The `server-dev` target is the server transform with `dev: true`. It separately
 ratchets server-only development instrumentation: component metadata, element
 locations, dynamic-element validation, snippet validation, and injected CSS.
-Its output baseline is empty.
 
-## Client dev (`known-failures.client-dev.json`, 0 entries)
+Partition of `known-failures.server-dev.json` by verdict: `240 + 34 + 30`
+
+- **240 — the generated JS differs.**
+- **34 — both compilers reject with a different error code.**
+- **30 — one compiler rejects and the other compiles.**
+
+All 304 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+it. It carries three fewer JS entries than `server` and no CSS or
+unparseable-output entries, which is the split doing its job: a divergence
+visible only with `dev: true` and one visible only without are different
+defects.
+
+## Client dev (`known-failures.client-dev.json`, 707 entries)
+
+Partition of `known-failures.client-dev.json` by verdict: `604 + 34 + 30 + 28 + 11`
+
+- **604 — the generated JS differs.**
+- **34 — both compilers reject with a different error code.**
+- **30 — one compiler rejects and the other compiles.**
+- **28 — the generated CSS differs** (three fewer than `client`).
+- **11 — rsvelte's output is not JavaScript.**
+
+All 707 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+it, and it is the largest of the four — 43 JS entries that `client` does not
+carry, which is the reason it is ratcheted separately.
 
 The `client-dev` target is the `client` target with `dev: true`. It is a
 separate ratchet because `dev` gates 18 client codegen files plus the CSS
@@ -265,6 +308,78 @@ being *absent*, so a positioning bug reads as an unported feature — #2020, #20
 and #2023 were all filed as "not emitted" and all turned out to be emitted in
 the right number and the wrong place.
 
+
+## Wave-2 enrolment (#3130) — where all 1,985 entries come from
+
+The corpus went from 36 source repositories to 103 and from 14,138 entries to
+33,471. Every entry in all four ratchets above comes from one of the 67 new
+repositories: **50 of them contribute at least one, and the 36 pre-existing
+sources contribute zero.** That is the positive control for the enrolment — it
+added inputs, it did not regress anything already covered.
+
+Four defect classes the enrolment found were fixed before the baseline was
+written rather than listed here, because none of them is a divergence you can
+ratchet:
+
+- **Two CSS-parser infinite loops.** `parse_rule` records
+  `css_expected_identifier` and consumes nothing when the selector is empty, so
+  both callers that dispatch to it spun forever. `@media #{devices.$break1} { … }`
+  (SCSS interpolation in plain CSS, from appwrite-console) reaches the first: the
+  prelude scan stops at the interpolation's brace, leaving ` {` as a block item.
+  A hang is not a verdict — it stalls the whole sweep, so `compile.mjs` now kills
+  a worker that stops making progress and records `rust_hang`.
+- **Two UTF-8 char-boundary panics**, both slicing a `&str` at a byte offset
+  measured somewhere else: the source-map column (an em dash in an instance-script
+  comment, threlte and primo) and the `svelte-ignore` back-scan (a variation
+  selector in markup, dev mode only, kite-public). Each aborted the process.
+- **The UTF-8 BOM was template text.** rsvelte had no equivalent of upstream's
+  `remove_bom`, so a component whose markup is one child element emitted a stray
+  text node around it. **320 of the enrolment's divergences were this one
+  character** — 14% of the backlog, in cnblocks alone.
+
+### The ten largest remaining clusters
+
+Counts are `(id, target)` pairs and clusters are keyed by the first differing
+line, so this is a diagnostic ordering, **not a partition** — the tail is 1,256
+clusters long and most of it is one entry each. `E:` is official, `A:` rsvelte.
+
+| n | target | first differing line | example repo |
+|---|---|---|---|
+| 71 | server-dev | `E:$$renderer.push("…");` / `A:$$renderer.push("…");` | appwrite-console |
+| 59 | server | `E:"…",` / `A:"…",` | appwrite-console |
+| 44 | client | `E:"…",` / `A:"…",` | appwrite-console |
+| 41 | client-dev | `E:$.from_html("…"),` / `A:$.from_html("…"),` | appwrite-console |
+| 39 | client-dev | `E:"…",` / `A:"…",` | appwrite-console |
+| 36 | server | `E:$$renderer.push("…");` / `A:$$renderer.push("…");` | appwrite-console |
+| 29+29 | client, client-dev | `E:})(res);` / `A:return res;` | huly |
+| 27+26 | server-dev, server | `E:$$renderer.push(` / `A:$$renderer.push("…");` | appwrite-console |
+| 20+20 | client, client-dev | `E:if (tab()) {` / `A:if (tab) {` | sparrow-app |
+| 16×4 | all four | a JSDoc comment body, wrong `@type` block | svelte-material-ui |
+
+Two of these are diagnosed and are the obvious first burn-down targets. The
+sparrow-app cluster is a prop read inside a legacy `$:` body that rsvelte does
+not unwrap to its getter call — `tab` where upstream writes `tab()` — which is a
+semantic difference, not a spelling one. The huly cluster is an `await` inside a
+template expression lowered to a `return` where upstream keeps the IIFE.
+The remaining eight are **not diagnosed**; the signature is recorded so the next
+person starts from data rather than from a guess.
+
+### The 30 entries where only one compiler rejects
+
+This is the class no amount of corpus growth found before, because it needs
+code that is *almost* legal. Split by direction, from the run's own
+`report.json`:
+
+- **11 under-rejections** — official rejects, rsvelte compiles: `js_parse_error`
+  ×9, `css_expected_identifier` ×2.
+- **19 over-rejections** — rsvelte rejects, official compiles:
+  `dollar_prefix_invalid` ×9, `store_invalid_scoped_subscription` ×3,
+  `global_reference_invalid` ×3, `expected_token` ×2,
+  `reactive_declaration_cycle` ×1, `attribute_invalid_event_handler` ×1.
+
+An over-rejection is the worse of the two for a drop-in replacement: it fails a
+build that upstream completes. The nine `dollar_prefix_invalid` entries are the
+largest single one.
 
 ## Hard-cluster warnings for future work
 
