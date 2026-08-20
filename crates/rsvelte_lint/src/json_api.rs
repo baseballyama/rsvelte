@@ -84,6 +84,7 @@ pub fn lint_with_config(source: &str, filename: &str, config_json: &str) -> Stri
 }
 
 fn lint_with(source: &str, filename: &str, config: &LintConfig) -> String {
+    let source = rsvelte_core::remove_bom(source);
     let line_index = LineIndex::new(source);
     let suppressions = Suppressions::collect_for(source, filename);
     let mut entries: Vec<Entry> = Vec::new();
@@ -311,6 +312,22 @@ mod tests {
 
         assert_eq!(line_of(&json, "svelte/html-quotes"), 3);
         assert_eq!(line_of(&json, "svelte/no-at-html-tags"), 2);
+    }
+
+    /// The compiler's parser strips a leading BOM (as upstream does, and as
+    /// ESLint's `SourceCode` does), so its offsets are relative to the stripped
+    /// text. This surface has no gate of its own, so the invariant is pinned
+    /// here: the BOM must not shift a column, and it must not make a rule slice
+    /// the source inside the BOM's own bytes.
+    #[test]
+    fn a_leading_bom_does_not_move_a_reported_position() {
+        let body = "<script>\n\tlet b = 2;  \n</script>\n\n<div>{b}</div>\n";
+        let with_bom = format!("\u{feff}{body}");
+
+        assert_eq!(
+            lint_with_config(body, "App.svelte", ""),
+            lint_with_config(&with_bom, "App.svelte", ""),
+        );
     }
 
     /// A directive is located on the parser table and filtered against the line

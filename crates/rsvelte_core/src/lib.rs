@@ -112,6 +112,7 @@ pub fn ast_rewrite_dual_run_work() -> Vec<(&'static str, AstRewriteWork, AstRewr
 pub fn ast_rewrite_termination_counts() -> (u32, u32) {
     compiler::phases::phase3_transform::shared::ast_rewrite::dual_run::termination_counts()
 }
+pub use compiler::remove_bom;
 #[cfg(feature = "parallel")]
 pub use compiler::{
     CompileError, CompileOptions, CompileResult, CssMode, ExperimentalOptions, GenerateMode,

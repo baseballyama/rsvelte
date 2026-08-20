@@ -543,7 +543,11 @@ fn tabs_to_spaces_column(line: &str, column: usize) -> usize {
 /// entry point. It has to happen before anything reads the source: leave it in
 /// and it is template text (a stray `\u{feff}` in every generated string);
 /// strip it after parsing and every offset is three bytes off.
-pub(crate) fn remove_bom(source: &str) -> &str {
+///
+/// Public because every consumer that maps a parse offset back into its own copy
+/// of the source has to strip the same three bytes: mixing a stripped offset with
+/// an unstripped `&str` slices inside the BOM.
+pub fn remove_bom(source: &str) -> &str {
     source.strip_prefix('\u{feff}').unwrap_or(source)
 }
 
