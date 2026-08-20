@@ -8,21 +8,17 @@ use super::nodes::*;
 use compact_str::CompactString;
 use smallvec::smallvec;
 
-/// Check if a string is a valid JavaScript identifier.
-fn is_valid_identifier(s: &str) -> bool {
-    if s.is_empty() {
-        return false;
+/// Upstream's `regex_is_valid_identifier` — `/^[a-zA-Z_$][a-zA-Z_$0-9]*$/`.
+/// Deliberately ASCII-only: a prop named with a non-ASCII letter is a legal JS
+/// identifier but upstream still emits it as a quoted key, and matching that is
+/// the point.
+pub fn is_valid_identifier(s: &str) -> bool {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(c) if c == '_' || c == '$' || c.is_ascii_alphabetic() => {}
+        _ => return false,
     }
-
-    // First character must be a letter, underscore, or dollar sign
-    let first_char = s.chars().next().unwrap();
-    if !first_char.is_alphabetic() && first_char != '_' && first_char != '$' {
-        return false;
-    }
-
-    // Remaining characters must be alphanumeric, underscore, or dollar sign
-    s.chars()
-        .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+    chars.all(|c| c == '_' || c == '$' || c.is_ascii_alphanumeric())
 }
 
 // ============================================================================

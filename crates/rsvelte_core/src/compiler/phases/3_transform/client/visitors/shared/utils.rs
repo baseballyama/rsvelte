@@ -8,6 +8,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use crate::compiler::phases::phase2_analyze::scope::{Binding, BindingKind};
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+use crate::compiler::phases::phase3_transform::js_ast::builders::is_valid_identifier;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 // The `scope.evaluate` port lives with the server transform, but it is the one
 // shared model of a folded JS value; the client fold must agree with it.
@@ -3373,23 +3374,6 @@ pub fn parse_directive_name(
     }
 
     expression
-}
-
-/// Check if a string is a valid JavaScript identifier.
-fn is_valid_identifier(s: &str) -> bool {
-    if s.is_empty() {
-        return false;
-    }
-
-    // First character must be a letter, underscore, or dollar sign
-    let first_char = s.chars().next().unwrap();
-    if !first_char.is_alphabetic() && first_char != '_' && first_char != '$' {
-        return false;
-    }
-
-    // Remaining characters must be alphanumeric, underscore, or dollar sign
-    s.chars()
-        .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
 }
 
 /// Result of building a template chunk.
