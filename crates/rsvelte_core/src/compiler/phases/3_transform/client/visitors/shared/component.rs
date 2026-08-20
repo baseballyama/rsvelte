@@ -169,6 +169,7 @@ pub fn build_component(
                     is_defined: false,
                     is_reactive: true,
                     replacement_id: None,
+                    store_source: None,
                 },
             );
             // Let directive bindings are template-kind.
@@ -1965,7 +1966,7 @@ fn process_bind_directive<'a>(
                 {
                     vec![b::stmt(
                         &context.arena,
-                        mutate_fn(&context.arena, b::id(replacement), assignment),
+                        mutate_fn(t, &context.arena, b::id(replacement), assignment),
                     )]
                 } else {
                     vec![b::stmt(&context.arena, assignment)]
@@ -2432,6 +2433,7 @@ fn build_slot_function(
                     is_defined: false,
                     is_reactive: true,
                     replacement_id: None,
+                    store_source: None,
                 },
             );
             // Let directive bindings are template-kind.
