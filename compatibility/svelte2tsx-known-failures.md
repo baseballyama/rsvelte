@@ -4,33 +4,41 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 173 entries.**
+**Current baseline: `svelte2tsx-known-failures.json`, 158 entries.**
 
-Partition of `svelte2tsx-known-failures.json` by verdict: `168 + 5`
+Partition of `svelte2tsx-known-failures.json` by verdict: `153 + 5`
 
-- **168 — the emitted TSX differs** (`ts-mismatch`).
+- **153 — the emitted TSX differs** (`ts-mismatch`).
 - **5 — one side rejects and the other compiles** (`error-mismatch`): 3 where
   official compiles and rsvelte errors, 2 the other way round.
 
 ## Wave-2 enrolment (#3130)
 
-The list was **0** before the enrolment and every one of the 173 comes from one
+The list was **0** before the enrolment and every one of the 158 comes from one
 of the 67 new repositories — the 36 pre-existing sources still contribute zero,
 which is the same positive control the compiler ratchets report. 28 repositories
-contribute at least one; svelte-lexical (42), sveltekit (23) and
-svelte-tweakpane-ui (17) are 47% of the list between them.
+contribute at least one; svelte-lexical (42), svelte-tweakpane-ui (17) and
+appwrite-console (10) are 45% of the `ts-mismatch` half between them.
 
-The clusters, keyed by the first differing line:
+**The first baseline was 173 and was written from a macOS run; Linux CI reports
+158.** The 15 it dropped are 14 tiny `sveltekit/packages/package/test/fixtures/…`
+components plus one carbon fixture, all `ts-mismatch`, all passing on Linux — the
+two-sided ratchet is what surfaced them, and this file now carries the Linux set.
+Read that as the same platform caveat `fmt-known-failures.md` states for its own
+gate: **shrink this ratchet from a Linux `corpus-compat.yml` run, not locally.**
+
+The `ts-mismatch` clusters, keyed mechanically by the first differing line
+(the classifier is the one in this file's history, not a hand review — it asks
+what the differing line contains, in this order):
 
 | n | class |
 |---|---|
 | 44 | rsvelte emits an **extra** `/*Ωignore_startΩ*/` region marker |
-| 18 | rsvelte **omits** an `/*Ωignore_startΩ*/` marker official emits |
-| 12 | `return { props: {` — rsvelte appends a JSDoc block official does not |
-| 13 | `__sveltets_2_ensureType(String, Number, …)` — a text run's interior whitespace is collapsed |
-| 9 | an `import {` official keeps is emitted as a bare `;` |
-| 12 | a CSS selector inside a JSDoc comment (` * .demo {`) is truncated |
-| 65 | a 51-cluster tail, most of it one entry each |
+| 19 | rsvelte **omits** an `/*Ωignore_startΩ*/` marker official emits |
+| 16 | `__sveltets_2_ensureType(String, Number, …)` — a text run's interior whitespace is collapsed |
+| 16 | a CSS selector inside a JSDoc comment (` * .demo {`) is truncated |
+| 12 | an `import {` official keeps is emitted as a bare `;` |
+| 46 | a tail, most of it one entry each |
 
 The two marker clusters are the single largest cause and are one question —
 **where a `/*Ωignore_*Ω*/` region begins and ends** — not two. Nothing here is
