@@ -546,6 +546,14 @@ pub(crate) fn remove_bom(source: &str) -> &str {
 /// Returned to the caller so the `Root` is pinned on the caller's stack before
 /// the arena guard is installed — the guard holds a raw pointer to `ast.arena`,
 /// so the `Root` must not move after the guard is created.
+/// Strip a leading UTF-8 BOM, as upstream's `remove_bom` does at every public
+/// entry point. It has to happen before anything reads the source: leave it in
+/// and it is template text (a stray `\u{feff}` in every generated string);
+/// strip it after parsing and every offset is three bytes off.
+pub(crate) fn remove_bom(source: &str) -> &str {
+    source.strip_prefix('\u{feff}').unwrap_or(source)
+}
+
 pub(crate) fn parse_component(
     source: &str,
     modern_ast: bool,
