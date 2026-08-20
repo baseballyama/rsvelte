@@ -1039,6 +1039,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     );
 
                 return assign_fn(
+                    transform,
                     &context.arena,
                     JsExpr::Identifier(name.clone()),
                     final_value,
@@ -1298,7 +1299,8 @@ pub fn apply_transforms_to_expression_with_shadowed(
                         JsExpr::Identifier(name.clone())
                     };
 
-                    let mutated = mutate_fn(&context.arena, mutate_target, full_assignment);
+                    let mutated =
+                        mutate_fn(transform, &context.arena, mutate_target, full_assignment);
 
                     // For store subscriptions, the store *source* (first arg of
                     // `$.store_mutate`) is read through its own binding's transform —
@@ -1419,6 +1421,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 && let Some(update_fn) = transform.update
             {
                 return update_fn(
+                    transform,
                     &context.arena,
                     update.operator,
                     JsExpr::Identifier(name.clone()),
@@ -1553,7 +1556,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                         JsExpr::Identifier(name.clone())
                     };
 
-                    return mutate_fn(&context.arena, mutate_target, full_update);
+                    return mutate_fn(transform, &context.arena, mutate_target, full_update);
                 }
             }
 
