@@ -62,11 +62,30 @@ static META: RuleMeta = RuleMeta {
 
 // ─── Pattern / option compilation ────────────────────────────────────────────
 
+/// A compiled `order` pattern. `regex` is tried first and handles every default
+/// pattern, so the backtracking engine never touches the hot path.
+#[derive(Clone)]
+enum CompiledRe {
+    Fast(Regex),
+    /// Lookaround and backreferences — legal in a JS regex, absent from `regex`.
+    Fancy(fancy_regex::Regex),
+}
+
+impl CompiledRe {
+    fn is_match(&self, s: &str) -> bool {
+        match self {
+            Self::Fast(re) => re.is_match(s),
+            // Exceeding the backtrack limit is a non-match, not a rule failure.
+            Self::Fancy(re) => re.is_match(s).unwrap_or(false),
+        }
+    }
+}
+
 /// A single compiled pattern (from a string entry in the order array).
 #[derive(Clone)]
 struct Pattern {
     negative: bool,
-    re: Regex,
+    re: CompiledRe,
 }
 
 impl Pattern {
@@ -99,15 +118,19 @@ fn compile_pattern(p: &str) -> Option<Pattern> {
         .map_or((false, p), |stripped| (true, stripped));
 
     let re = to_regex(rest).map_or_else(
-        || Regex::new(&format!("^{}$", regex::escape(rest))).ok(),
+        || {
+            Regex::new(&format!("^{}$", regex::escape(rest)))
+                .ok()
+                .map(CompiledRe::Fast)
+        },
         Some,
     )?;
     Some(Pattern { negative, re })
 }
 
-/// Convert a `/pattern/flags` string to a `Regex`, returning `None` for plain
+/// Convert a `/pattern/flags` string to a regex, returning `None` for plain
 /// strings (which should be compiled as exact matchers by the caller).
-fn to_regex(s: &str) -> Option<Regex> {
+fn to_regex(s: &str) -> Option<CompiledRe> {
     if !s.starts_with('/') {
         return None;
     }
@@ -116,14 +139,20 @@ fn to_regex(s: &str) -> Option<Regex> {
     let last_slash = s.rfind('/')?;
     let pattern = &s[..last_slash];
     let flags = &s[last_slash + 1..];
-    // Build a regex with the given flags.
+    let case_insensitive = flags.contains('i');
+
     let mut builder = regex::RegexBuilder::new(pattern);
-    for flag in flags.chars() {
-        if flag == 'i' {
-            builder.case_insensitive(true);
-        }
+    builder.case_insensitive(case_insensitive);
+    if let Ok(re) = builder.build() {
+        return Some(CompiledRe::Fast(re));
     }
-    builder.build().ok()
+
+    let fancy = if case_insensitive {
+        format!("(?i){pattern}")
+    } else {
+        pattern.to_string()
+    };
+    fancy_regex::Regex::new(&fancy).ok().map(CompiledRe::Fancy)
 }
 
 /// Compile a group's match spec (string or string[]) into a list of `Pattern`s.
@@ -723,5 +752,56 @@ impl Rule for SortAttributes {
 
     fn check_special_element(&self, ctx: &mut LintContext, el: &SpecialElement<'_>) {
         Self::check_tag(ctx, &el.attributes);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CompiledRe, compile_pattern, to_regex};
+
+    #[test]
+    fn a_plain_string_is_an_exact_matcher() {
+        let p = compile_pattern("x-a").unwrap();
+        assert!(p.matches("x-a"));
+        assert!(!p.matches("x-ab"));
+        assert!(!p.negative);
+    }
+
+    #[test]
+    fn a_leading_bang_negates() {
+        assert!(compile_pattern("!x-a").unwrap().negative);
+    }
+
+    /// The backtracking engine must stay off the path every default pattern
+    /// takes, so ordinary patterns have to select `Fast`.
+    #[test]
+    fn ordinary_patterns_stay_on_the_regex_crate() {
+        for src in ["/^x-/", "/^x-a$/u", "/^X-A$/i"] {
+            assert!(
+                matches!(to_regex(src), Some(CompiledRe::Fast(_))),
+                "{src} should not need the fallback"
+            );
+        }
+    }
+
+    #[test]
+    fn the_i_flag_survives_the_fallback() {
+        let p = to_regex("/^(?=X-)X-A$/i").unwrap();
+        assert!(matches!(p, CompiledRe::Fancy(_)));
+        assert!(p.is_match("x-a"));
+    }
+
+    /// `regex` has no lookaround; a JS `order` pattern may use it.
+    #[test]
+    fn lookahead_falls_back_and_matches() {
+        let p = compile_pattern("/^(?=x-)x-a$/u").unwrap();
+        assert!(matches!(p.re, CompiledRe::Fancy(_)));
+        assert!(p.matches("x-a"));
+        assert!(!p.matches("x-b"));
+    }
+
+    #[test]
+    fn a_pattern_neither_engine_accepts_is_dropped() {
+        assert!(to_regex("/(?</").is_none());
     }
 }

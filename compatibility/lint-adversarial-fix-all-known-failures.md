@@ -23,7 +23,7 @@ uncompared, and both turned out to hold defects:
 
 An entry needs a reason that is *not* "rsvelte is wrong here".
 
-`lint-adversarial-fix-all-known-failures.json` holds **19 entries** over 1364
+`lint-adversarial-fix-all-known-failures.json` holds 18 entries over 1364
 compared patterns; on the run that baselined it the oracle rewrote 793 files and
 rsvelte rewrote 792.
 
@@ -32,12 +32,11 @@ other on the same pattern: a bare `<id>` is a text divergence, and
 `oracle-crash:<id>` is a pattern ESLint threw on while fixing, where there is no
 text to compare.
 
-Partition of `lint-adversarial-fix-all-known-failures.json` by cause: `14 + 1 + 1 + 1 + 1 + 1`
+Partition of `lint-adversarial-fix-all-known-failures.json` by cause: `14 + 1 + 1 + 1 + 1`
 
 | cause | entries |
 |---|---|
 | rsvelte-only autofix (upstream rule is report-only) | 14 |
-| Rust `regex` has no lookaround | 1 |
 | upstream autofix defect we decline to reproduce | 1 |
 | `svelte_meta_invalid_placement` is a parse error upstream, an analyze error here | 1 |
 | a listed upstream-parser defect, surfaced by a fix oscillation | 1 |
@@ -101,16 +100,6 @@ to `target="_blank"`, and the *next* pass hands `no-target-blank` a static
 `_blank` it now flags. Both sides report it in that pass; only rsvelte has a
 fixer. Same cause, reached only through another rule's edit.
 
-### `sort-attributes/07-lookahead-order.svelte`
-
-The fix-side face of entry 4 in
-[`lint-adversarial-known-failures.md`](lint-adversarial-known-failures.md),
-identical to the per-rule gate's entry: the `order` option is
-`["/^(?=x-)x-a$/u", "x-b"]`, Rust's `regex` crate has no lookaround, the pattern
-fails to compile and the group is dropped, so rsvelte has no finding to fix while
-the oracle reorders. The option comes from an inline `/* eslint … */` comment, so
-the rule is enabled on both sides here regardless of the config.
-
 ### `shorthand-directive/16-never-mode-modifiers.svelte`
 
 Upstream's `prefer: "never"` fix inserts `={name}` after the directive *name*
@@ -135,7 +124,7 @@ verification.
 
 Two causes stacked, and the divergence needs both.
 
-The first is already a ratchet entry on the **report** gate, entry 5 in
+The first is already a ratchet entry on the **report** gate, entry 4 in
 [`lint-adversarial-known-failures.md`](lint-adversarial-known-failures.md), and
 **rsvelte is the correct side of it**: `svelte-eslint-parser` blanks
 `<(script|style|template)([\s>])` case-insensitively, so `<Style />` is rewritten

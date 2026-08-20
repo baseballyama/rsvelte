@@ -13,6 +13,5 @@
 	"no-target-blank/12-multibyte-crlf.svelte|svelte/no-target-blank",
 	"no-target-blank/opt-key-allow-referrer.svelte|svelte/no-target-blank",
 	"no-target-blank/opt-key-dynamic-never.svelte|svelte/no-target-blank",
-	"shorthand-directive/16-never-mode-modifiers.svelte|svelte/shorthand-directive",
-	"sort-attributes/07-lookahead-order.svelte|svelte/sort-attributes"
+	"shorthand-directive/16-never-mode-modifiers.svelte|svelte/shorthand-directive"
 ]

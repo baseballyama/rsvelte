@@ -24,14 +24,13 @@ and one of the four causes below is exactly that.
 
 An entry needs a reason that is *not* "rsvelte is wrong here".
 
-`lint-adversarial-fix-known-failures.json` holds **16 entries**.
+`lint-adversarial-fix-known-failures.json` holds 15 entries.
 
-Partition of `lint-adversarial-fix-known-failures.json` by cause: `13 + 1 + 1 + 1`
+Partition of `lint-adversarial-fix-known-failures.json` by cause: `13 + 1 + 1`
 
 | cause | entries |
 |---|---|
 | rsvelte-only autofix (upstream rule is report-only) | 13 |
-| Rust `regex` has no lookaround | 1 |
 | upstream autofix defect we decline to reproduce | 1 |
 | `svelte_meta_invalid_placement` is a parse error upstream, an analyze error here | 1 |
 
@@ -106,26 +105,6 @@ starts firing on a fourteenth shape, or stops firing on one of these thirteen,
 or writes different text — all of which a `svelte/no-target-blank` skip entry
 would swallow. The two-sided ratchet is what makes "rsvelte-only autofix" a
 claim about 13 named files rather than about a rule.
-
-### `sort-attributes/07-lookahead-order.svelte` `svelte/sort-attributes`
-
-Not an independent divergence: it is the fix-side face of entry 4 in
-[`lint-adversarial-known-failures.md`](lint-adversarial-known-failures.md), and
-that entry carries the reason. The `order` option is
-`["/^(?=x-)x-a$/u", "x-b"]`; Rust's `regex` crate has no lookaround, the pattern
-fails to compile, and the group is dropped.
-
-The two faces are the same root cause seen through two comparison keys. On the
-report side the missing group means rsvelte emits no finding at 5:14. Here it
-means rsvelte has no finding to fix, so it leaves the source alone while the
-oracle reorders:
-
-```svelte
-<div x-b="1" x-a="2">y</div>   <!-- oracle: <div x-a="2" x-b="1">y</div> -->
-```
-
-Both faces disappear together if the engine limitation is ever revisited; the
-ratchets are two-sided, so neither will rot.
 
 ### `shorthand-directive/16-never-mode-modifiers.svelte` `svelte/shorthand-directive`
 

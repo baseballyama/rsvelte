@@ -745,14 +745,22 @@ accepted entries and the collected one from 104 to 45 — **the collected corpus
 suppressing 62 of its own entries' worth of defects it could not phrase**.
 
 That corpus has since grown to **1,365 patterns** across the four axes below, and the tree now
-stands at **5** accepted adversarial entries and **3** collected ones (6,788 real-world sources,
-73,378 findings compared). Read the composition before reading the count: **four of the five are
-upstream-side or deliberate** — two `svelte-eslint-parser` artifacts (`</style⏎⏎>` produces no
+stands at **4** accepted adversarial entries and **3** collected ones (6,788 real-world sources,
+73,378 findings compared). Read the composition before reading the count: **every remaining entry
+is upstream-side or deliberate** — two `svelte-eslint-parser` artifacts (`</style⏎⏎>` produces no
 `SvelteStyleElement`; the block-blanking regex is case-insensitive, so `<Style />` is treated as a
 style tag), the `globals.browser ∖ globals.node` split, and rsvelte's choice to treat a CSS
 `svelte-ignore` on an un-preprocessed `lang="scss"` block as *used*, which is also all three
-collected entries. Exactly one is an rsvelte limitation: `sort-attributes/07-lookahead-order`
-needs a JS-compatible regex engine.
+collected entries.
+
+**The one entry that was an rsvelte limitation is gone, and how it was closed is the reusable
+part.** `sort-attributes`'s `order` option takes JS regexes; Rust's `regex` has no lookaround, so
+`"/^(?=x-)x-a$/u"` failed to compile and the group was **silently dropped**. The listed
+justification declined a lookaround-capable engine on performance grounds — correctly, if the
+choice were all-or-nothing. It is not: `regex` is tried first and every default pattern still
+compiles there, so `fancy-regex` is reached only by a pattern `regex` rejects and the backtracking
+engine never touches the hot path. When a dependency is refused on a cost that only applies to the
+*default* path, ask whether the fallback can be made unreachable from it.
 
 Three method notes, each of which cost real time here:
 - **Two of the remaining entries are not rsvelte being wrong**, and neither is discoverable
