@@ -1204,6 +1204,25 @@ Two triggers, both of which accept rsvelte's output *whatever it contains* (incl
 string, which oxfmt parses). **[S]** There is no `oracle-invalid` baseline, so the count can
 grow without bound and no step fails.
 
+
+### Blind spot 6f — a BOM-induced offset shift is absorbed by the reformatter
+
+The compiler's parser strips a leading BOM (upstream's `remove_bom`, at every public entry
+point), so its offsets are relative to the stripped text, while `svelte2tsx()` slices the
+**unstripped** `source` it was handed. **[D]** On
+`"\u{feff}<script>\n\tlet b = 2;\n</script>\n\n<div>{b}</div>\n"` rsvelte emits
+`async () => { ` where the BOM-free input gives `async () => {` — a one-character shift, which
+this gate's oxfmt pass removes before comparing. ~100 corpus components (cnblocks
+`src/routes/preview/veil/**`) carry a BOM and none of them appears in the ratchet, so the gate
+reports parity on inputs where the two tools' internal offsets disagree.
+
+Deliberately not "fixed" here: official svelte2tsx has the same shape (it calls a `parse` that
+strips and then slices the original), so making rsvelte strip could move ~100 files *away* from
+the oracle. It is recorded because the same mixing **was** a real defect one crate over —
+`rsvelte_lint` shifted every column on the BOM's line by three and panicked slicing at byte 1
+— and there the oracle (ESLint's `SourceCode`) does strip. The rule that separates the two
+cases is what the oracle does, not what looks tidy.
+
 ---
 
 ## 7. svelte2tsx source map
