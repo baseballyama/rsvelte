@@ -225,7 +225,7 @@ Pipeline stages (all idempotent, everything under `compatibility/` except
    compiler trees and all four targets, then requires `rsvelte_esrap` code-only and
    mapped printing to agree, preserve AST semantics and ordered raw comments, and
    produce ordered in-bounds source mappings. Each tree/target must contain at least
-   12,000 outputs, so a missing or partial tree cannot pass vacuously.
+   30,000 outputs, so a missing or partial tree cannot pass vacuously.
 4. `verify.mjs` — oxfmt-normalizes both trees, byte-compares, writes `report.json`,
    and ratchets each target independently against
    `compatibility/known-failures.client.json` (CSR),
