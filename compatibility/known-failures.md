@@ -27,11 +27,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-## Client (`known-failures.client.json`, 667 entries)
+## Client (`known-failures.client.json`, 663 entries)
 
-Partition of `known-failures.client.json` by verdict: `561 + 34 + 30 + 31 + 11`
+Partition of `known-failures.client.json` by verdict: `557 + 34 + 30 + 31 + 11`
 
-- **561 — the generated JS differs** (`js` / `code-differs`).
+- **557 — the generated JS differs** (`js` / `code-differs`).
 - **34 — both compilers reject the entry with a different error code.**
 - **30 — one compiler rejects and the other compiles** (11 under-rejections,
   19 over-rejections; see § *Wave-2 enrolment* below).
@@ -40,9 +40,9 @@ Partition of `known-failures.client.json` by verdict: `561 + 34 + 30 + 31 + 11`
   [`parse-known-failures.md`](parse-known-failures.md) and listed here too
   because unparseable output is necessarily byte-different.
 
-Every one of the 667 arrived with the wave-2 enrolment (#3130) and is described
+Every one of the 663 arrived with the wave-2 enrolment (#3130) and is described
 in § *Wave-2 enrolment*. The list was **0** before it, and the one entry it ever
-held — #2031, a `{#snippet}` declared inside this list ever held — #2031, a `{#snippet}` declared inside
+held — #2031, a `{#snippet}` declared inside
 an `{#if}` branch and `{@render}`ed as a sibling in that same branch, lowered
 through the dynamic path (`$.comment()` anchor + `$.snippet(...)`) instead of
 being called directly — was fixed by #2057: the scope builder gives each branch
@@ -109,17 +109,17 @@ unparseable-output entries, which is the split doing its job: a divergence
 visible only with `dev: true` and one visible only without are different
 defects.
 
-## Client dev (`known-failures.client-dev.json`, 707 entries)
+## Client dev (`known-failures.client-dev.json`, 703 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `604 + 34 + 30 + 28 + 11`
+Partition of `known-failures.client-dev.json` by verdict: `600 + 34 + 30 + 28 + 11`
 
-- **604 — the generated JS differs.**
+- **600 — the generated JS differs.**
 - **34 — both compilers reject with a different error code.**
 - **30 — one compiler rejects and the other compiles.**
 - **28 — the generated CSS differs** (three fewer than `client`).
 - **11 — rsvelte's output is not JavaScript.**
 
-All 707 arrived with the wave-2 enrolment (#3130); this target was at 0 before
+All 703 arrived with the wave-2 enrolment (#3130); this target was at 0 before
 it, and it is the largest of the four — 43 JS entries that `client` does not
 carry, which is the reason it is ratcheted separately.
 
@@ -309,7 +309,7 @@ and #2023 were all filed as "not emitted" and all turned out to be emitted in
 the right number and the wrong place.
 
 
-## Wave-2 enrolment (#3130) — where all 1,985 entries come from
+## Wave-2 enrolment (#3130) — where all 1,977 entries come from
 
 The corpus went from 36 source repositories to 103 and from 14,138 entries to
 33,471. Every entry in all four ratchets above comes from one of the 67 new
@@ -317,9 +317,9 @@ repositories: **50 of them contribute at least one, and the 36 pre-existing
 sources contribute zero.** That is the positive control for the enrolment — it
 added inputs, it did not regress anything already covered.
 
-Four defect classes the enrolment found were fixed before the baseline was
-written rather than listed here, because none of them is a divergence you can
-ratchet:
+Five defect classes the enrolment found were fixed rather than listed here.
+Four of them are not divergences you can ratchet at all; the fifth is, and the
+gate that found it is the one that compares rsvelte to nothing:
 
 - **Two CSS-parser infinite loops.** `parse_rule` records
   `css_expected_identifier` and consumes nothing when the selector is empty, so
@@ -336,6 +336,15 @@ ratchet:
   `remove_bom`, so a component whose markup is one child element emitted a stray
   text node around it. **320 of the enrolment's divergences were this one
   character** — 14% of the backlog, in cnblocks alone.
+- **A `$store` setter read its store as a bare name.** Upstream resolves the
+  store *variable* through its own binding (`get_store()`), so the first
+  argument of `$.store_set` is `$.get(store)` / `store()` / `$$props.store`.
+  Both ports of the store builders emitted the bare identifier and left a later
+  pass to fix it up — which the `$.store_mutate` call sites did and the
+  `$.store_set` ones did not, so eight bind-setter entries (mathesar,
+  svelte-lexical, svelvet) were wrong. **The transform-idempotency gate is what
+  found it**: applying the transform twice produced the *correct* text, and no
+  amount of output comparison names which of the two passes is the defect.
 
 ### The ten largest remaining clusters
 
