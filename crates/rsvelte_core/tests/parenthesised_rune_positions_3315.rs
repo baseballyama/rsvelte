@@ -195,6 +195,56 @@ fn parentheses_around_a_rune_do_not_change_a_module() {
     }
 }
 
+/// A component's `<script module>` is a fifth entry point: it is neither the
+/// instance script nor `compileModule`, and it reaches the module class-field
+/// lowering by its own route.
+#[test]
+fn parentheses_around_a_rune_do_not_change_a_module_script() {
+    let bodies = [
+        ("declarator", "export let shared = {};", "$state(1)"),
+        ("class_field", "export class M { f = {}; }", "$state(2)"),
+        (
+            "class_field_derived",
+            "export class M { a = $state(1); b = {}; }",
+            "$derived(this.a + 1)",
+        ),
+    ];
+    for (position, body, expr) in bodies {
+        for spelling in WRAPS {
+            let source = |script: &str| {
+                format!(
+                    "<script module>\n\t{}\n</script>\n<script>\n\tlet base = $state(3);\n</script>\n<p>{{base}}</p>\n",
+                    script.replace('\n', "\n\t")
+                )
+            };
+            let wrapped_body = body.replace("{}", &wrap(spelling, expr));
+            let bare_body = body.replace("{}", expr);
+            // Dev mode records the element's line, and a multi-line spelling
+            // really does move it — pad the twin so the comparison is about the
+            // rune rather than about where the `<p>` ended up.
+            let padding =
+                "\n".repeat(wrapped_body.matches('\n').count() - bare_body.matches('\n').count());
+            for (generate, dev, target) in [
+                (GenerateMode::Client, false, "client"),
+                (GenerateMode::Server, false, "server"),
+                (GenerateMode::Client, true, "client-dev"),
+            ] {
+                let expected =
+                    compile_component(&source(&format!("{padding}{bare_body}")), generate, dev);
+                let actual = compile_component(&source(&wrapped_body), generate, dev);
+                assert_is_javascript(
+                    &actual,
+                    &format!("module-script {position} | {spelling} | {target}"),
+                );
+                assert_eq!(
+                    actual, expected,
+                    "module-script {position} | {spelling} | {target} diverged from its unwrapped twin"
+                );
+            }
+        }
+    }
+}
+
 /// #3336: the server module's statement removal cut the call out of its own
 /// parentheses and left `();` behind — text no JS parser accepts.
 #[test]

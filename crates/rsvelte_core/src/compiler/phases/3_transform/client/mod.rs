@@ -2083,6 +2083,9 @@ pub(crate) fn transform_client(
                 .then(|| dead_comments::strip_dead_comments(&raw, dead_comments::Rules::ACCESSORS))
                 .flatten()
                 .unwrap_or(raw);
+            // Every lowering below decides what a rune call is from this text, so
+            // the grouping parens around one have to be gone before the first runs.
+            let raw = super::shared::rune_parens::strip_rune_parens(&raw).unwrap_or(raw);
             let (module_imports, rest) = extract_imports(&raw);
             let retained_comment_stripped = if !analysis.is_typescript {
                 retained_scripts
