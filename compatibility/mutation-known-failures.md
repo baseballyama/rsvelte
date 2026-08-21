@@ -9,10 +9,22 @@ what the normalizer absorbs, so these verdicts are only comparable across runs o
 version — which is why the gate prints the version it used. Re-deriving this baseline from
 0.61.0 to 0.62.0 moved the gated bucket from 213 to 525; see "Sensitivity to the normalizer".
 The bucket was burned down from 525 to **30**, and `unparseable` from 2 to **0**, on the
-14,229-seed corpus. The wave-2 enrolment (#3130) took the seed set to 32,712 and the ratchet to
-**174** — `code-mismatch` 166 and `unparseable` **8**. Those are not a regression: every one of
-the 144 new entries is a pre-existing defect in a repository the corpus did not previously hold,
+14,229-seed corpus. The wave-2 enrolment (#3130) took the seed set to 33,406 and the ratchet to
+**168** — `code-mismatch` 160 and `unparseable` **8**. Those are not a regression: every one of
+the new entries is a pre-existing defect in a repository the corpus did not previously hold,
 and the 30 that predate the enrolment all still diverge.
+
+**Six of those entries arrived from shrinking a different ratchet, and that coupling is worth
+stating once.** `eligible` here is `manifest ∖ (union of the four output ratchets)` — a seed that
+diverges *unmutated* is excluded, because a mutant of it could not attribute anything. So when
+the rebase onto `main` took the output ratchets from 759 ids to 601, **158 seeds entered this
+gate's population for the first time**, and two of them (`huly`'s
+`DocUpdateMessagePresenter` and `ProcessesExtension`) produced divergent mutants on 6
+`(id, target)` pairs. A `NEW` divergence here can therefore be a newly *reachable* seed rather
+than a regression, and the two are distinguished by asking whether the seed was in an output
+ratchet before — not by reading the count. Same shape as `start`/`end` in
+[`error-known-failures.md`](error-known-failures.md), where fixing one comparison adds rows to
+the other.
 
 ## Why this gate exists
 
@@ -54,7 +66,7 @@ whitespace and trailing commas away:
 | `comment-mismatch` | **no** | the comment was dropped, duplicated or relocated, or a line broke differently |
 
 The split is the difference between a gate and a backlog dump. The full sweep produces
-many comment-only divergences (**45,070** on the current sweep) against **174** gated ones — ratcheting per id without the
+many comment-only divergences (**41,802** on the current sweep) against **168** gated ones — ratcheting per id without the
 split would mean a 13,000-entry file that churns on every submodule bump and buries the class
 that matters. Comment fidelity is already ratcheted per id by Gate 2
 (`matrix-known-failures.md`), on **generated** seeds that do not move when a submodule bumps,
@@ -72,24 +84,24 @@ re-measured under 0.62, so it is in for honest reporting rather than to change a
 the gate prints must be the reason for the verdict, and before this a reviewer could see
 `import 'x'` vs `import "x"` and dismiss a real finding sitting further down the same file.
 
-## Mutation known failures (`mutation-known-failures.json`, 174 entries)
+## Mutation known failures (`mutation-known-failures.json`, 168 entries)
 
-Full sweep: 33,471 manifest entries, 759 already-diverging unmutated (excluded), **32,712
-eligible seeds** → 29,602 mutants → 118,408 comparisons, under oxfmt 0.63.0. 3,110 seeds are
+Full sweep: 34,007 manifest entries, 601 already-diverging unmutated (excluded), **33,406
+eligible seeds** → 30,254 mutants → 121,016 comparisons, under oxfmt 0.63.0. 3,152 seeds are
 skipped (no mutable `<script>` line boundary).
 
-The `mutation-known-failures.provenance.json` file records 64 entries, one SHA-256 seed-content
+The `mutation-known-failures.provenance.json` file records 63 entries, one SHA-256 seed-content
 hash for each source represented by the failure ratchet. A full sweep reports a changed
 hash as re-keyed instead of claiming that the old mutation now passes.
 
 | verdict | entries |
 |---|---|
-| `code-mismatch` | 166 |
+| `code-mismatch` | 160 |
 | `unparseable` | **8** |
 | `compiler-crash` | 0 |
 | `error-mismatch` | 0 |
 
-By target: `client` 62, `client-dev` 56, `server` 28, `server-dev` 28.
+By target: `client` 61, `client-dev` 55, `server` 26, `server-dev` 26.
 
 ### `unparseable` went back to 8 with the enrolment, and that is the entry to burn down first
 
@@ -138,20 +150,22 @@ cannot drift from the ratchet it describes:
 
 | comment kind | findings | mutants | per 1,000 |
 |---|---|---|---|
-| `block-with-paren` (`/* ) c */`) | 30 | 3,661 | 8.2 |
-| `line-with-semi` (`// ; c`) | 29 | 3,729 | 7.8 |
-| `block` (`/* c */`) | 26 | 3,635 | 7.2 |
-| `line-with-brace` (`// } c`) | 25 | 3,758 | 6.7 |
-| `line` (`// c`) | 20 | 3,703 | 5.4 |
-| `line-with-paren` (`// ) c`) | 20 | 3,752 | 5.3 |
-| `svelte-ignore` | 16 | 3,688 | 4.3 |
-| `block-with-brace` (`/* } c */`) | 8 | 3,676 | 2.2 |
+| `block-with-paren` (`/* ) c */`) | 30 | 3,746 | 8.0 |
+| `line-with-semi` (`// ; c`) | 29 | 3,815 | 7.6 |
+| `line-with-brace` (`// } c`) | 25 | 3,853 | 6.5 |
+| `line-with-paren` (`// ) c`) | 24 | 3,820 | 6.3 |
+| `line` (`// c`) | 20 | 3,772 | 5.3 |
+| `block` (`/* c */`) | 18 | 3,719 | 4.8 |
+| `svelte-ignore` | 14 | 3,762 | 3.7 |
+| `block-with-brace` (`/* } c */`) | 8 | 3,767 | 2.1 |
 
-**Delimiter-carrying kinds: 5.7 per 1,000. Plain comments: 6.3. Ratio 0.92×.**
+**Delimiter-carrying kinds: 5.7 per 1,000. Plain comments: 5.1. Ratio 1.13×.**
 
 The ratio has been measured at 2.81× (oxfmt 0.61), 1.30× (0.62), 1.66× (0.62, after the
-invalid-JS burndown), 1.38× after the inspect empty-statement fix, and **0.92×** on the enrolled
-corpus. It is not a stable property of the compiler: the earlier moves were the normalizer
+invalid-JS burndown), 1.38× after the inspect empty-statement fix, **0.92×** on the enrolled
+corpus, and **1.13×** after the rebase onto `main` — which moved it back across 1.0 with no
+change to this gate at all, only to which seeds are eligible and which divergences `main`
+had already fixed. That is the sharpest available demonstration of the next sentence. It is not a stable property of the compiler: the earlier moves were the normalizer
 changing what it absorbs and delimiter-signature fixes removing findings from the numerator by
 construction, and this one is a change of population. Read it as a description of the current
 residue, not as a measure of the mechanism's importance — the doc has said so at every previous
@@ -159,8 +173,8 @@ value, and this is the first one that would have supported the opposite conclusi
 
 **The claim this table used to carry is now falsified, and by a change of inputs alone.** At
 14,229 seeds the two plain kinds were at 0 findings each, and the doc concluded that "every
-surviving code divergence in this bucket involves a delimiter-carrying comment". On 32,712
-seeds `line` is at 20 and `svelte-ignore` at 16 — and `svelte-ignore` carries no delimiter at
+surviving code divergence in this bucket involves a delimiter-carrying comment". On 33,406
+seeds `line` is at 20 and `svelte-ignore` at 14 — and `svelte-ignore` carries no delimiter at
 all yet accounts for two of the four `unparseable` units. A plain comment that lands on a line
 where a *continuation* was expected breaks the same scans a delimiter does; the delimiter was
 never the mechanism, only the cheapest way to reach it.
@@ -181,16 +195,20 @@ parenthesisation — and this section said so. The enrolled corpus reopens two b
 that were "all gone" against the smaller seed set, so the sentence is retracted rather than
 edited.
 
-The 166 `code-mismatch` entries, keyed by comparing the two normalized outputs whole (not by the
+The 160 `code-mismatch` entries, keyed by comparing the two normalized outputs whole (not by the
 first differing line, which over-reports parenthesisation):
 
 | n | class | behavioral? |
 |---|---|---|
-| 84 | parenthesisation only | no |
-| 38 | empty-statement placement only | no |
+| 88 | parenthesisation only | no |
+| 28 | empty-statement placement only | no |
 | 24 | more than one of the above at once, or unclassified | no (inspected sample) |
 | 18 | **a `$.get()` read is lost** — `{"aria-hidden": labelled ? …}` where official emits `$.get(labelled)` | **yes: reactivity** |
 | 2 | **the `$.rest_props` initializer vanishes** — `var rest_excludes = new Set([…])` is simply absent | **yes: attributes silently disappear** |
+
+Both behavioural classes are **byte-for-byte the same entries** they were before the rebase —
+the same nine carbon components × two client targets and the same `cnblocks/…/vercel` pair — so
+the movement in the two cosmetic rows is the population changing, not these two defects.
 
 The 18 are nine carbon-components-svelte icon components × two client targets, all the same
 `$.set(attributes, {…})` spread. The 2 are `cnblocks/src/lib/svgs/vercel` and are #2347's shape
@@ -200,12 +218,12 @@ reappearing on new seeds is evidence about *coverage*, not about the fix.
 
 ### By source repository
 
-`huly` 82, `carbon-components-svelte` 18, `open-webui` 16, `svelte` 11, `threlte` 6,
-`svelte.dev` 5, `flowbite-svelte` 4, `layerchart` 4, `networking-toolbox` 4, `powertable` 4,
-`svelte-lexical` 4, `svelte-spa-router` 4, `cnblocks` 2, `cobalt` 2, `ha-fusion` 2, `runed` 2,
-`svelte-put` 2, `trakt-web` 2.
+`huly` 88, `carbon-components-svelte` 18, `open-webui` 16, `svelte` 7, `flowbite-svelte` 4,
+`layerchart` 4, `networking-toolbox` 4, `powertable` 4, `svelte-lexical` 4, `svelte-spa-router` 4,
+`cnblocks` 2, `cobalt` 2, `ha-fusion` 2, `runed` 2, `svelte-put` 2, `threlte` 2, `trakt-web` 2,
+`svelte.dev` 1.
 
-**`huly` alone is 47% of the ratchet**, on a corpus where it is one repository of 103. That is
+**`huly` alone is 52% of the ratchet**, on a corpus where it is one repository of 103. That is
 the concentration the old six-repository list could not show, and it is worth reading as a
 statement about the *seed distribution* rather than about huly: it is a large Svelte-4-era
 application, so it carries far more of the legacy `$:` / chained-promise shapes these scans
@@ -218,8 +236,8 @@ entries and looked complete — and `--update-baseline` would have deleted both 
 while it still diverges, after which CI would have reported it as new. The
 `MIN_FULL_CORPUS_ENTRIES` floor cannot catch that: 14,035 cleared the 12,000 lower bound of the
 day. **The enrolment makes that hazard larger, not smaller**: the floor is now 30,000 against
-33,471 collected entries, so the margin a silently-missing source has to eat before the floor
-notices is 3,471 entries — about 10%, which the largest source alone exceeds. Only 2 of the 104
+34,007 collected entries, so the margin a silently-missing source has to eat before the floor
+notices is 4,007 entries — about 12%, which the largest source alone exceeds. Only 2 of the 104
 corpus sources are marked `required`.
 
 ### Sensitivity to the normalizer

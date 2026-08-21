@@ -34,8 +34,8 @@ compilers already run on every entry.
 
 ## Why the four per-target files are currently identical
 
-`warning-known-failures.<target>.json` holds the same 171 entries on all four,
-and `warning-position-known-failures.<target>.json` the same 4 entries. That is not a
+`warning-known-failures.<target>.json` holds the same 90 entries on all four,
+and `warning-position-known-failures.<target>.json` the same 1 entry. That is not a
 bug in the partitioning — almost every warning is produced in Phase 1/2 (parse
 and analyze), before the target is consulted, so a divergence shows up on all
 four targets at once. Only target-specific codes (`node_invalid_placement_ssr`
@@ -46,31 +46,38 @@ and stays sensitive to an entry that starts diverging on a second target while
 already listed for the first. Expect all eight files to move together in a
 burn-down PR.
 
-## Warning codes (`warning-known-failures.<target>.json`, 171 entries each)
+## Warning codes (`warning-known-failures.<target>.json`, 90 entries each)
 
 The multiset of warning **codes** differs: rsvelte warns where upstream does
 not, or stays silent where upstream warns. This is a semantic bug — a user sees
 noise they cannot suppress, or misses a diagnostic they should have seen.
 
-Not every entry is equally bad. Of the 171 entries that still diverge, **22 are
-under-warnings** — rsvelte stays silent where upstream warns — **147 are
-over-warnings**, noise the user cannot suppress, and **2 diverge in both
-directions at once**. A missing diagnostic and an extra one fail differently, and
-the ratchet count alone does not distinguish them:
+Not every entry is equally bad. Of the 90 entries that still diverge, **24 are
+under-warnings** — rsvelte stays silent where upstream warns — and **66 are
+over-warnings**, noise the user cannot suppress. No entry diverges in both
+directions at once any more. A missing diagnostic and an extra one fail
+differently, and the ratchet count alone does not distinguish them:
 
-Partition of `warning-known-failures.<target>.json` by direction: `22 + 147 + 2`
+Partition of `warning-known-failures.<target>.json` by direction: `24 + 66`
 
-**149 of the 171 arrived with the wave-2 enrolment (#3130)**, which took the
-corpus from 36 source repositories to 103. The codes involved, counted over
-entries rather than tuples: `reactive_declaration_module_script_dependency` 83,
-`css_unused_selector` 46, `state_referenced_locally` 20, `non_reactive_update` 8,
-`component_name_lowercase` 6, `a11y_consider_explicit_label` 5,
-`export_let_unused` 3, `perf_avoid_nested_class` 1,
-`options_missing_custom_element` 1. The first two are 75% of the file and are the
-burn-down targets; `css_unused_selector` is new to this list and is the one that
-is neither over- nor under-warning in a fixed direction — it is a pruning
+**80 of the 90 arrived with the wave-2 enrolment (#3130)**, which took the
+corpus from 37 corpus sources to 104. The codes involved, counted over
+entries rather than tuples (they sum to exactly 90 — every listed entry diverges
+on one code): `css_unused_selector` 46, `state_referenced_locally` 20,
+`non_reactive_update` 8, `component_name_lowercase` 6,
+`a11y_consider_explicit_label` 5, `export_let_unused` 3,
+`perf_avoid_nested_class` 1, `options_missing_custom_element` 1.
+`css_unused_selector` is half the file and the burn-down target; it is the one
+that is neither over- nor under-warning in a fixed direction — it is a pruning
 disagreement, so it moves with the CSS entries in
 [`known-failures.md`](known-failures.md).
+
+The file was 171 entries before this branch was rebased onto `main`. Re-measuring
+against the rebased tree removed **81 and added none**, and all 81 were
+`reactive_declaration_module_script_dependency` — the code that used to head the
+list at 83 entries and is now absent from it entirely. That is `main`'s fix, not
+this branch's; the entries had simply never been re-measured against a tree that
+carried it.
 
 Four entries left in #3027, and they are one cause in both directions: phase 2's
 `UpdateExpression` visitor never walked its argument, so `x++` recorded no

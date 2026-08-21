@@ -14,6 +14,7 @@
 	"ha-fusion/src/lib/Sidebar/History.svelte": "901680135b9c9e7d95f2fa8f9cc2d0849b9aa9a9da0ac3c865ebf12bf508b4d3",
 	"huly/packages/presentation/src/components/AttributeBarEditor.svelte": "48212bf51161c3380cd442be1822eb8c2689c0f3e69ff550903bd66cc82319a3",
 	"huly/packages/presentation/src/components/InlineAttributeBarEditor.svelte": "e542c5cb7ec527dbc8480b6a9c694ed7683f1c2192c7d4c749c88d9ac235fd61",
+	"huly/plugins/activity-resources/src/components/doc-update-message/DocUpdateMessagePresenter.svelte": "520a2f2173541cc4d285cd76afe84796184f5192289f982101c7fa632719f523",
 	"huly/plugins/activity-resources/src/components/doc-update-message/DocUpdateMessagePreview.svelte": "b179f1787a192b3741dff8de2e8ac2cc0607bcecbb1c7eac7d3fdf6bcf62b901",
 	"huly/plugins/bitrix-resources/src/components/mappings/CopyMapping.svelte": "9b6f2a434ff994331a26ed5cbdf3797969ba8e7cfb8e7d66c819c5e2a810001e",
 	"huly/plugins/bitrix-resources/src/components/mappings/CreateChannelMapping.svelte": "f9ed5487ef091e5b3ab4dbb2c9cb9e0ac98ea39d862397ed393df4e4462c3088",
@@ -28,6 +29,7 @@
 	"huly/plugins/controlled-documents-resources/src/components/create-doc/steps/TemplateStep.svelte": "647966812a82e78ef47c1b17b630cc79f4990e3d98a03fdc8fb3294d30a6f764",
 	"huly/plugins/document-resources/src/components/navigator/TeamspaceSpacePresenter.svelte": "c45c80e4e54091dbb08ed9eaf421298daf2c4fed47417115fd7ad7d41a121a38",
 	"huly/plugins/drive-resources/src/components/DriveSpacePresenter.svelte": "b4ba7566c900074d1d19b87c3b6c97a5d7999da96c829a63e5d2fe802862ca15",
+	"huly/plugins/process-resources/src/components/ProcessesExtension.svelte": "5967da92fc782c7df23591fe67bdbe878e9c016dcee8db3b6c45d1a6222e7f2f",
 	"huly/plugins/recruit-resources/src/components/KanbanCard.svelte": "c60814b826619e32599309899721e65d3bc6bff1b8306910b66d65772131c247",
 	"huly/plugins/test-management-resources/src/components/project/ProjectSpacePresenter.svelte": "fa6ab340ce002472991b1dd9a9c72f103b23e5122b5c30be84ab4afa1618a94a",
 	"huly/plugins/tracker-resources/src/components/issues/edit/SubIssueList.svelte": "2063b0736810f77a0491a7c8a95717a87eda8a31a0c37aaa6c8197b9a9d8ab0e",
@@ -58,7 +60,6 @@
 	"svelte/packages/svelte/tests/runtime-runes/samples/inspect-with-untracked/main.svelte": "c4b58ef8bfead0591e47d48e23c17bf8c3a9cd84e43fcfd3696fa463ca2fb09e",
 	"svelte/packages/svelte/tests/validator/samples/runes-conflicting-store-in-module/input.svelte.js": "729e19c86c907954d917a3a01826dbf7ea019ef3d4043ddcf7deee3b24fa8487",
 	"svelte/packages/svelte/tests/validator/samples/unreferenced-variables/input.svelte": "3771bd95c200e34b46cd1a535949f5cecd9dcb07171bb612bd48f8d1febf67b8",
-	"threlte/apps/docs/src/examples/extras/instanced-mesh/colors/BallInstance.svelte.ts": "f23093dcf128d2ace19ce536905b20c6b501c9bd1eb425aeebb3022ab1f08aa1",
 	"threlte/apps/docs/src/examples/geometry/physics-terrain/Scene.svelte": "8f2febb603d7fc5a8f53ba687756c5bab44f7ade75e0d904160f0a075bde5068",
 	"trakt-web/projects/client/src/lib/sections/summary/components/episode/v2/EpisodeSummary.svelte": "dd41d5b6997b8cb41ef31bf46de82885b8789c780ca240f1b2359bfb71a0d3fa"
 }
