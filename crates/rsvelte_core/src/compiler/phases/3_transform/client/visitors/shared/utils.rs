@@ -6810,11 +6810,11 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
                         return false;
                     }
 
-                    // For Normal bindings: known if never updated with known initial
-                    // Functions are always "known" (they're defined)
-                    if binding.is_function() {
-                        return true;
-                    }
+                    // A function value is never `is_known` to upstream's
+                    // `scope.evaluate` — it recurses into the initializer and a
+                    // function expression falls through to `UNKNOWN`. Reading a
+                    // function is kept out of `has_state` by the separate
+                    // `!binding.is_function()` term, not by this one.
                     // A non-literal initializer lives in `init_expr_json`, and
                     // upstream's `scope.evaluate` recurses into the init node
                     // whatever its shape (`const b = `${a}y`` is known when `a` is).
