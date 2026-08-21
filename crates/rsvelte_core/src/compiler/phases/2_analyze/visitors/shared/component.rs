@@ -427,36 +427,10 @@ pub fn validate_component(
         )));
     }
 
-    // Check for duplicate attributes
-    let mut seen_names: FxHashSet<String> = FxHashSet::default();
-
-    for attr in &component.attributes {
-        // Only check for duplicates on:
-        // - Attribute and BindDirective (treated the same)
-        // - ClassDirective
-        // - StyleDirective
-        // OnDirective can have multiple handlers for the same event
-        let attr_name = match attr {
-            Attribute::Attribute(a) => Some(format!("Attribute{}", a.name)),
-            Attribute::BindDirective(b) => Some(format!("Attribute{}", b.name)), // bind:x and x are duplicates
-            Attribute::ClassDirective(c) => Some(format!("class:{}", c.name)),
-            Attribute::StyleDirective(s) => Some(format!("style:{}", s.name)),
-            _ => None, // Other directives can have duplicates
-        };
-
-        if let Some(name) = attr_name {
-            if seen_names.contains(&name) {
-                let (start, end) = attr.span();
-                return Err(AnalysisError::validation_at(
-                    "attribute_duplicate",
-                    "Attributes need to be unique",
-                    start,
-                    end,
-                ));
-            }
-            seen_names.insert(name);
-        }
-    }
+    // `attribute_duplicate` is raised once, while reading the attributes
+    // (`1-parse/state/element.js`), and that port exempts every attribute named
+    // `this`. A second copy here did not, so `<C bind:this={x} bind:this={x} />`
+    // was rejected.
 
     // Track component bindings (excluding bind:this which doesn't need the settling loop)
     let has_bindings = component
