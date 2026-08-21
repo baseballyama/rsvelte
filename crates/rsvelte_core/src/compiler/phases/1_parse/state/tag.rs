@@ -760,7 +760,14 @@ impl<'a> Parser<'a> {
             // after `{:else` (e.g. `{:else +++if cond}`) is an
             // `expected_token` error, in loose mode too.
             self.eat("}", true, true)?;
-            let alt_fragment = self.parse_fragment()?;
+            let mut alt_fragment = self.parse_fragment()?;
+
+            // Upstream's `next()` re-creates `block.alternate` on every `{:else}`
+            // it sees, so a second one silently replaces the first branch rather
+            // than being a parse error (tag.js L537-541).
+            while let Some(replacement) = self.parse_if_alternate()? {
+                alt_fragment = replacement;
+            }
 
             // Don't consume {/if} here - let parse_if_block handle it
 
@@ -1312,9 +1319,10 @@ impl<'a> Parser<'a> {
         // Parse body
         let body = self.parse_fragment()?;
 
-        // Check for {:else}
+        // Check for {:else}. Upstream re-creates `block.fallback` on every
+        // `{:else}` it sees, so a second one replaces the first (tag.js L582-591).
         let mut fallback = None;
-        if let Some(colon_pos) = self.match_block_continuation_marker() {
+        while let Some(colon_pos) = self.match_block_continuation_marker() {
             let continuation_start = self.index;
             self.index = colon_pos + 1;
             self.skip_whitespace();
