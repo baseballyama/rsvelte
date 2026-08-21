@@ -165,6 +165,7 @@ fn process_element_let_directives(
                         is_defined: false,
                         is_reactive: true,
                         replacement_id: None,
+                        store_source: None,
                     },
                 );
                 context.state.transform_deep_read.insert(name.clone(), ());
