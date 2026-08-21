@@ -81,6 +81,22 @@ rune reaches all four** — which is why the repro carries `$state`, `$derived.b
 `$inspect` in one file. An over-rejection is loud and its fix is quiet; a repro that only checks
 "it compiles" cannot tell the two apart.
 
+**And removing an over-rejection makes whatever was behind it reachable, which is a set diff
+rather than a count.** #3175 is the first thing through the door #3128 opened: the SSR
+constant-fold harvests `$derived(<expr>)` declarations by scanning the instance script for the
+literal text `$derived(`, on the premise that a derived value is read-only and so safe to
+inline. In legacy mode `$derived` is a store subscription, so the declared value is the call's
+**result** and the fold inlined its **argument** — the declaration lowered correctly to
+`$.store_get(..., '$derived', derived)(1)` while `{x}` rendered a frozen `1`. Output that
+parses, runs and is silently wrong; the client was byte-identical throughout, so it is the
+client/server two-ports shape again. The premise of a raw text scan can be **mode-dependent**,
+and the scan has no way to notice. What makes it worth its own row is which repro missed it:
+#3128's carries `$state`, `$derived.by`, `$effect` and `$inspect` because those are the four
+phase-2/phase-3 sites its fix touched — and **bare `$derived` is the one name that reaches this
+fold**, so the file written to be exhaustive about one defect enumerated exactly around the
+next one. After a fix that stops rejecting something, ask what the rejection was previously
+hiding, and enumerate the *names* a scan keys on rather than the sites your own patch visited.
+
 **The client instance-script pipeline is the exception, and it is a correctness hazard, not a
 cleanup.** That pipeline still decides where a statement or an expression ends by scanning
 characters. Feeding every corpus output to a JS parser — a question no ratchet asks, because

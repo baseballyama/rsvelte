@@ -117,7 +117,11 @@ pub(crate) fn compute_eval_inputs(
     // After we have both text-based and scope-based constants, try to fold
     // $derived() expressions whose inner value can be evaluated with known constants.
     // $derived values are readonly by definition, so they're safe to fold.
-    if let Some(script) = instance_script {
+    // Only in runes mode: in legacy mode `$derived` is a store subscription, so the
+    // declared value is the call's RESULT, not its argument.
+    if analysis.is_some_and(|a| a.runes)
+        && let Some(script) = instance_script
+    {
         let start = script.content.start().unwrap_or(0) as usize;
         let end = script.content.end().unwrap_or(0) as usize;
         if end > start && end <= source.len() {
