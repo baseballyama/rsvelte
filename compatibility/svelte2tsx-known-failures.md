@@ -4,20 +4,18 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 1 entry.**
+**Current baseline: `svelte2tsx-known-failures.json`, 0 entries.**
 
-- `pattern/issues/3200-asi-reactive-block.svelte` — **rsvelte is the worse side
-  here, and the entry says so.** The file is a deliberately-unparseable repro
-  (its point is the compiler's `js_parse_error` position inside a `$:` block),
-  and when the instance script does not parse rsvelte's svelte2tsx skips every
-  script transform: `export` is not blanked, the prop is missing from `props` /
-  `bindings` / `__sveltets_2_partial`, and the `$:` block is not wrapped in
-  `;() => { … }`. Official's transform is TypeScript-based and error-tolerant, so
-  it still applies them. Tracked as
-  [#3232](https://github.com/baseballyama/rsvelte/issues/3232); the entry exists
-  because the two gates share one population — the repro has to be in the corpus
-  for the compiler gate, and it cannot pass the svelte2tsx gate until #3232 is
-  fixed.
+The one entry this file used to hold, `pattern/issues/3200-asi-reactive-block.svelte`,
+was removed when [#3232](https://github.com/baseballyama/rsvelte/issues/3232) was
+fixed. It is worth keeping the reason on the page: the file is a
+deliberately-unparseable repro (its point is the compiler's `js_parse_error`
+position inside a `$:` block), so it exists for the *compiler* gate, and the two
+gates share one population — a repro the compiler gate needs is a component the
+svelte2tsx gate must also convert. Official's script transform is TypeScript-based
+and error-tolerant; rsvelte's oxc parse discards the AST on a fatal error, so the
+whole script pass was skipped. rsvelte now repairs the one missing-ASI class before
+re-parsing, and the entry passes.
 
 The usual justified reason to add an entry is that **official svelte2tsx is buggy
 and rsvelte is more correct** — matching the oracle would require reproducing a
