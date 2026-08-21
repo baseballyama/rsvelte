@@ -350,7 +350,7 @@ fn template_node_has_rune_global(
             expression_references_rune_global(&tag.expression, source, arena)
         }
         // AttachTag ({@attach expr}) — the expression may contain nested
-        // rune calls, e.g. `{@attach $effect(() => { ... })}`.
+        // rune references, e.g. `{@attach $effect(() => { ... })}`.
         // Reference: official svelte2tsx collects `@attach` expression globals
         // via `implicitStoreValues` just like any other template expression.
         TemplateNode::AttachTag(tag) => {
@@ -470,7 +470,7 @@ fn attr_has_rune_global(
             .as_ref()
             .is_some_and(|e| expression_references_rune_global(e, source, arena)),
 
-        // let:item — rarely carries a rune call, but check for completeness.
+        // let:item — rarely carries a rune reference, but check for completeness.
         Attribute::LetDirective(l) => l
             .expression
             .as_ref()
@@ -505,14 +505,6 @@ fn is_rune_global_name(name: &str) -> bool {
 /// For `Typed` expressions, walks the `JsNode` tree stored in the parse arena.
 /// For `Lazy` expressions (raw source spans), scans the source text.
 /// For `Value` (JSON) expressions, inspects the JSON AST.
-///
-/// The walk is deliberately shallow-but-sufficient: it recurses into the callee
-/// of a `CallExpression` and the object of a `MemberExpression` (the two patterns
-/// that can reference a rune global — `$state(x)` and `$state.eager(x)`) but
-/// does NOT recurse into every sub-expression.  Template expressions that use
-/// rune globals almost always have the global as the outermost callee or
-/// member-expression object, so this covers all real-world cases while keeping
-/// the implementation simple and fast.
 ///
 /// Reference: ExportedNames.ts `checkGlobalsForRunes` which sets
 ///   `hasRunesGlobals` when any of `$state`/`$derived`/`$effect` appear as an
@@ -721,7 +713,7 @@ fn js_node_references_rune_global(
             init.is_some_and(|i| js_node_references_rune_global(arena.get_js_node(i), arena))
         }
 
-        // ReturnStatement / IfStatement bodies can also host rune calls.
+        // ReturnStatement / IfStatement bodies can also host a rune reference.
         JsNode::ReturnStatement { argument, .. } => {
             argument.is_some_and(|a| js_node_references_rune_global(arena.get_js_node(a), arena))
         }

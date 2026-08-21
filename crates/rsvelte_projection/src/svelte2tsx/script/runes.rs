@@ -124,9 +124,9 @@ fn detect_rune_global_ref_expr(expr: &oxc::Expression, declared_names: &HashSet<
     }
 }
 
-/// Detect whether any rune global call (`$state`, `$derived`, `$effect` including
-/// member variants such as `$state.raw`, `$effect.pre`) appears anywhere inside
-/// a function, class, or arrow-function body — even when not at the top level.
+/// Detect whether a rune global (`$state`, `$derived`, `$effect`, including
+/// member reads such as `$state.raw`) is referenced anywhere in these
+/// statements or in any nested function, class or arrow body.
 ///
 /// The official svelte2tsx `checkGlobalsForRunes` works by collecting every
 /// undeclared identifier referenced anywhere in the script (via the TypeScript
@@ -295,12 +295,8 @@ pub(super) fn detect_rune_in_class_body(
     })
 }
 
-/// Recursively detect an undeclared `$state`/`$derived`/`$effect` reference
-/// (including member variants) anywhere inside the given expression tree.
-/// Clone `base` and add a function's parameter names, so a `$state`/`$derived`/
-/// `$effect` shadowed by a parameter (e.g. `function bar($derived) { $derived(x) }`)
-/// is treated as a store-sub / call of the param, not a rune. Mirrors official's
-/// scope-aware global resolution.
+/// Clone `base` and add the names a binding pattern introduces, so a rune name
+/// shadowed by a catch parameter is treated as that binding, not as a rune.
 fn scope_with_binding(base: &HashSet<String>, pattern: &oxc::BindingPattern) -> HashSet<String> {
     let mut s = base.clone();
     let mut tmp: Vec<String> = Vec::new();
@@ -309,6 +305,10 @@ fn scope_with_binding(base: &HashSet<String>, pattern: &oxc::BindingPattern) -> 
     s
 }
 
+/// Clone `base` and add a function's parameter names, so a `$state`/`$derived`/
+/// `$effect` shadowed by a parameter (e.g. `function bar($derived) { $derived }`)
+/// resolves to the param, not to the rune. Mirrors official's scope-aware
+/// global resolution.
 pub(super) fn scope_with_params(
     base: &HashSet<String>,
     params: &oxc::FormalParameters,
@@ -327,6 +327,8 @@ pub(super) fn scope_with_params(
     s
 }
 
+/// Recursively detect an unshadowed `$state`/`$derived`/`$effect` reference
+/// anywhere inside the given expression tree.
 pub(super) fn detect_rune_in_expr(
     expr: &oxc::Expression,
     declared_names: &HashSet<String>,
@@ -337,7 +339,7 @@ pub(super) fn detect_rune_in_expr(
     }
     match expr {
         oxc::Expression::CallExpression(call) => {
-            // The callee might not be a rune but the arguments could contain rune calls.
+            // The callee might not be a rune but the arguments could reference one.
             detect_rune_in_expr(&call.callee, declared_names)
                 || detect_rune_in_arguments(&call.arguments, declared_names)
         }
