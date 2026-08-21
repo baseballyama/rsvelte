@@ -56,10 +56,7 @@ use props_rune::{
     PropsRuneInfo, apply_props_typedef, collect_props_rune_info, detect_props_rune_oxc,
 };
 use reactive::handle_reactive_statement;
-use runes::{
-    detect_rune_in_class_body, detect_rune_in_expr, detect_rune_in_nested_body, detect_runes_call,
-    detect_runes_expr_stmt, scope_with_params,
-};
+use runes::detect_runes_in_program;
 use script_facts::ScriptFacts;
 use stores::{
     inject_store_subscriptions_vars_only_with_program, inject_store_subscriptions_with_program,
@@ -131,6 +128,10 @@ pub fn process_instance_script(
         // statement whose initializer we're checking. See
         // collect_top_level_declared_names.
         let declared_names: HashSet<String> = collect_top_level_declared_names(&program.body);
+        // Runes-globals detection is ONE walk over the whole instance script,
+        // mirroring upstream's single identifier pass — not a per-statement-kind
+        // dispatch, which structurally cannot see the kinds it has no arm for.
+        detect_runes_in_program(&program.body, exported_names, &declared_names);
         // Top-level `type` / `interface` declarations that may be hoistable
         // out of `function $$render()`. Resolved (with `instance_value_names`
         // and `module_*_names`) into `hoistable_type_ranges` after Pass 1.
@@ -151,7 +152,6 @@ pub fn process_instance_script(
                     // into the `exports:` return, not `props:`).
                     let is_let = matches!(var_decl.kind, oxc::VariableDeclarationKind::Let);
                     for declarator in &var_decl.declarations {
-                        detect_runes_call(declarator, exported_names, &declared_names);
                         detect_props_rune_oxc(declarator, exported_names, raw_content);
                         // Collect $props() info for typedef generation (one per
                         // `$props()` destructure).
@@ -240,40 +240,6 @@ pub fn process_instance_script(
                         }
                     }
                 }
-                oxc::Statement::FunctionDeclaration(func) => {
-                    // Detect rune calls nested inside the function body.
-                    // The official svelte2tsx `checkGlobalsForRunes` walks the
-                    // entire TypeScript AST (including function bodies) and flags
-                    // any undeclared `$state`/`$derived`/`$effect` reference.
-                    // Mirror that here by recursively scanning the body.
-                    // Reference: ExportedNames.ts `checkGlobalsForRunes`.
-                    if let Some(ref body) = func.body {
-                        // Add the function's params to the scope so a rune name
-                        // shadowed by a param (`function bar($derived){ … }`) is
-                        // treated as that param, not a rune.
-                        let scope = scope_with_params(&declared_names, &func.params);
-                        if detect_rune_in_nested_body(&body.statements, &scope) {
-                            exported_names.set_uses_runes(true);
-                        }
-                    }
-                }
-                // Detect rune calls nested inside class method bodies.
-                oxc::Statement::ClassDeclaration(class)
-                    if class.body.body.iter().any(|member| match member {
-                        oxc::ClassElement::MethodDefinition(method) => {
-                            method.value.body.as_ref().is_some_and(|body| {
-                                detect_rune_in_nested_body(&body.statements, &declared_names)
-                            })
-                        }
-                        oxc::ClassElement::PropertyDefinition(prop) => prop
-                            .value
-                            .as_ref()
-                            .is_some_and(|e| detect_rune_in_expr(e, &declared_names)),
-                        _ => false,
-                    }) =>
-                {
-                    exported_names.set_uses_runes(true);
-                }
                 oxc::Statement::ExportDeclaration(export) => {
                     // Also check exports for declared names
                     {
@@ -320,22 +286,6 @@ pub fn process_instance_script(
                                         );
                                     }
                                 }
-                            }
-                            oxc::Declaration::FunctionDeclaration(func) => {
-                                // Runes inside an exported function body still
-                                // put the component in runes mode.
-                                if let Some(ref body) = func.body {
-                                    let scope = scope_with_params(&declared_names, &func.params);
-                                    if detect_rune_in_nested_body(&body.statements, &scope) {
-                                        exported_names.set_uses_runes(true);
-                                    }
-                                }
-                            }
-                            // `export class C { x = $state(0) }` → runes mode.
-                            oxc::Declaration::ClassDeclaration(class)
-                                if detect_rune_in_class_body(class, &declared_names) =>
-                            {
-                                exported_names.set_uses_runes(true);
                             }
                             // `export type X = ...` / `export interface X { ... }`.
                             //
@@ -436,14 +386,6 @@ pub fn process_instance_script(
                             .dollar_generic_positions
                             .push((type_alias.span.start, type_alias.span.end));
                     }
-                }
-                // Detect rune globals used as standalone expression statements,
-                // e.g. `$effect(() => { ... })` or `$effect.pre(() => { ... })`.
-                // These are missed by `detect_runes_call` which only visits
-                // VariableDeclarator inits.
-                // Reference: svelte2tsx ExportedNames.ts `hasRunesGlobals` check.
-                oxc::Statement::ExpressionStatement(es) => {
-                    detect_runes_expr_stmt(es, exported_names, &declared_names);
                 }
                 _ => {}
             }
