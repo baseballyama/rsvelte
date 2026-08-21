@@ -44,6 +44,11 @@ const extPkg = JSON.parse(readFileSync(extPkgPath, 'utf8'));
 const target = JSON.parse(readFileSync(lsPkgPath, 'utf8')).version;
 const id = `${extPkg.publisher}.${extPkg.name}`;
 
+// Exact versions: these CLIs are resolved fresh by `npx` on every run, so a
+// floating range makes the publish decision depend on the day it ran.
+const VSCE = '@vscode/vsce@3.9.2';
+const OVSX = 'ovsx@0.10.12';
+
 // The universal package carries no `--target`, so it needs a name of its own.
 const UNIVERSAL = 'universal';
 /** Every (version, targetPlatform) pair a complete publish produces. */
@@ -98,21 +103,28 @@ async function marketplaceState() {
   }
 }
 
-/** Latest version on Open VSX, or null (queried via the public API). */
-async function openvsxVersion() {
+/**
+ * Open VSX state, mirroring `marketplaceState`'s three answers: `null` when the
+ * query itself failed, `{ latest: null }` when the extension is definitively not
+ * published, `{ latest }` otherwise. A failed query must not read as "absent" —
+ * that direction publishes.
+ */
+async function openvsxState() {
   try {
     const r = await fetch(
       `https://open-vsx.org/api/${extPkg.publisher}/${extPkg.name}`,
     );
+    if (r.status === 404) return { latest: null };
     if (!r.ok) return null;
-    return (await r.json())?.version ?? null;
+    return { latest: (await r.json())?.version ?? null };
   } catch {
     return null;
   }
 }
 
 const mp = await marketplaceState();
-const ovsxPublished = await openvsxVersion();
+const ovsx = await openvsxState();
+const ovsxPublished = ovsx?.latest ?? null;
 
 // A live Marketplace version newer than ours means the release already moved
 // on; otherwise every platform `target` is missing is still to be published.
@@ -124,7 +136,10 @@ const missingMp =
 const needMp = force || missingMp.length > 0;
 // Only consider Open VSX when a token is available to publish there.
 const needOvsx =
-  hasOvsx && (force || ovsxPublished === null || cmp(target, ovsxPublished) > 0);
+  hasOvsx &&
+  (force ||
+    (ovsx !== null &&
+      (ovsxPublished === null || cmp(target, ovsxPublished) > 0)));
 const shouldPublish = needMp || needOvsx;
 
 console.log(`extension:            ${id}`);
@@ -138,7 +153,8 @@ console.log(
 );
 console.log(`  missing:            ${missingMp.join(', ') || '(none)'}`);
 console.log(
-  `open vsx version:     ${ovsxPublished ?? '(none)'}  → publish: ${needOvsx}` +
+  `open vsx version:     ${ovsx === null ? '(query failed)' : (ovsxPublished ?? '(none)')}` +
+    `  → publish: ${needOvsx}` +
     (hasOvsx ? '' : ' (OVSX_PAT unset)'),
 );
 
@@ -182,7 +198,7 @@ function pack(platform) {
     'npx',
     [
       '--yes',
-      '@vscode/vsce@^3',
+      VSCE,
       'package',
       '--no-dependencies',
       ...(platform === UNIVERSAL ? [] : ['--target', platform]),
@@ -205,20 +221,37 @@ const packaged = new Map(wanted.map((platform) => [platform, pack(platform)]));
 
 if (needMp) {
   for (const platform of mpPlatforms) {
-    execFileSync(
-      'npx',
-      [
-        '--yes',
-        '@vscode/vsce@^3',
-        'publish',
-        '--no-dependencies',
-        '--packagePath',
-        packaged.get(platform),
-        '-p',
-        process.env.VSCE_PAT,
-      ],
-      { cwd: extDir, stdio: 'inherit' },
-    );
+    try {
+      execFileSync(
+        'npx',
+        [
+          '--yes',
+          VSCE,
+          'publish',
+          '--no-dependencies',
+          '--packagePath',
+          packaged.get(platform),
+          '-p',
+          process.env.VSCE_PAT,
+        ],
+        { cwd: extDir, stdio: 'inherit' },
+      );
+    } catch (error) {
+      // The gallery query above found NO live version, yet the Marketplace
+      // rejects the name as taken: the two only agree if the extension is
+      // unlisted (removed / unpublished) while its name stays reserved. No
+      // amount of retrying moves that, so say what has to happen instead.
+      if (mp && mp.latest === null) {
+        console.error(
+          `\nThe Marketplace gallery reports NO live version of ${id}, but the\n` +
+            'publish was rejected. That pair means the extension is unlisted while its\n' +
+            'name is still reserved — a publisher-account state, not a build problem.\n' +
+            `Check https://marketplace.visualstudio.com/manage/publishers/${extPkg.publisher}\n` +
+            'and either restore the extension or rename it in apps/npm/vscode/package.json.',
+        );
+      }
+      throw error;
+    }
     console.log(`✓ published ${platform} to VS Code Marketplace`);
   }
 } else if (mp === null) {
@@ -232,7 +265,7 @@ if (needOvsx) {
   try {
     execFileSync(
       'npx',
-      ['--yes', 'ovsx@^0', 'create-namespace', extPkg.publisher, '-p', process.env.OVSX_PAT],
+      ['--yes', OVSX, 'create-namespace', extPkg.publisher, '-p', process.env.OVSX_PAT],
       { cwd: extDir, stdio: 'inherit' },
     );
   } catch {
@@ -241,7 +274,7 @@ if (needOvsx) {
   for (const platform of PLATFORMS) {
     execFileSync(
       'npx',
-      ['--yes', 'ovsx@^0', 'publish', packaged.get(platform), '-p', process.env.OVSX_PAT],
+      ['--yes', OVSX, 'publish', packaged.get(platform), '-p', process.env.OVSX_PAT],
       { cwd: extDir, stdio: 'inherit' },
     );
     console.log(`✓ published ${platform} to Open VSX`);
