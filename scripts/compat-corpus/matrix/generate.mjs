@@ -75,6 +75,8 @@ import {
 	WRITE_HOSTS,
 	WRITE_SHAPES,
 	WRITE_PREAMBLE,
+	CLASS_MODIFIER_MEMBERS,
+	CLASS_MODIFIER_HOSTS,
 } from './axes.mjs';
 import { commentMutants } from './mutate.mjs';
 
@@ -532,6 +534,20 @@ function writeHostCases() {
 	return cases;
 }
 
+function classModifierCases() {
+	const cases = [];
+	for (const [memberName, member] of Object.entries(CLASS_MODIFIER_MEMBERS)) {
+		for (const [hostName, host] of Object.entries(CLASS_MODIFIER_HOSTS)) {
+			cases.push({
+				id: `class-modifier/${memberName}__${hostName}${host.ext}`,
+				source: host.wrap(member),
+				...(host.kind ? { kind: host.kind } : {}),
+			});
+		}
+	}
+	return cases;
+}
+
 export const FAMILIES = {
 	'binding-position': bindingPositionCases,
 	'async-derived': asyncDerivedCases,
@@ -550,6 +566,7 @@ export const FAMILIES = {
 	'private-field': privateFieldCases,
 	'opaque-keyword': opaqueKeywordCases,
 	'write-host': writeHostCases,
+	'class-modifier': classModifierCases,
 };
 
 export function generate(families = Object.keys(FAMILIES)) {

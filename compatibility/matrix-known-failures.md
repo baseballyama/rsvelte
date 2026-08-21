@@ -40,9 +40,9 @@ comment carrier in `opaque-keyword` diverged on comment placement (#2990), so re
 Those entries are gone now, which is what the split was for: the family clears rather than
 carrying a key that would absorb the next regression.
 
-## Matrix known failures (`matrix-known-failures.json`, 388 entries)
+## Matrix known failures (`matrix-known-failures.json`, 424 entries)
 
-Partition of `matrix-known-failures.json` by family: `4 + 172 + 0 + 24 + 0 + 0 + 0 + 180 + 0 + 8 + 0 + 0 + 0`
+Partition of `matrix-known-failures.json` by family: `4 + 172 + 0 + 24 + 0 + 0 + 0 + 180 + 0 + 8 + 0 + 0 + 0 + 36`
 
 ### `binding-position` — 4 entries
 
@@ -253,6 +253,46 @@ separately, which is why this section names the merge-order rule at the top of t
 
 The whole family (5 bindings × 6 hosts × 11 write shapes × 4 targets) now passes. It is the axis that would have caught #3026: `binding-position` varies binding kind
 but bakes one host into each binding's `wrap`, so binding × host has no cell there.
+
+### `class-modifier` — 36 entries
+
+The family (33 members × 7 hosts × 4 targets) is what #3100 and #3203 needed: its subject is
+what a **plain** `<script>` may contain, and upstream answers that with a different *parser*
+(stock acorn) rather than with a flag, while rsvelte answers it by switching OXC's
+`SourceType`. Every TypeScript-only class modifier, and the stage-3 `accessor`, therefore
+compiled here and was a `js_parse_error` there — an over-acceptance, which no collected corpus
+can hold because published code compiles. All of those rows pass now, on all three JS entry
+points (instance script, `<script module>`, `compileModule`), and so do the two rules
+acorn-typescript enforces in the parser that OXC leaves to a checker (`abstract` outside an
+`abstract class`, `override` with no superclass).
+
+What remains is one cause, and it is upstream's: **OXC's class-modifier table and
+acorn-typescript's are not the same table**, so on the three `lang="ts"` hosts three members
+are refused by both compilers under a different code.
+
+| member | official | rsvelte |
+|---|---|---|
+| `static accessor a = 1;` (`accessor-static`) | `js_parse_error` — `'accessor' modifier cannot be used with 'static' modifier.` | `typescript_invalid_feature` (accessor fields) |
+| `accessor static a = 1;` (`accessor-first`) | `typescript_invalid_feature` (accessor fields) | `js_parse_error` — `'static' modifier must precede 'accessor' modifier.` |
+| `declare accessor a;` (`accessor-declare`) | `typescript_invalid_feature` (accessor fields) | `js_parse_error` — `'accessor' modifier cannot be used with 'declare' modifier.` |
+
+Partition of `matrix-known-failures.json` entries under `class-modifier/` by cause:
+`error-code-mismatch, acorn-typescript modifier table: 36`
+
+The first row is the one that names the cause. `static accessor x` is **legal TypeScript** —
+`tsc` accepts it — and acorn-typescript refuses it from
+`incompatible(startLoc, modifier, 'accessor', 'static')`, at `loc.column` passed to a `raise`
+that takes a *position*, so upstream reports the error at offset 9 of the document, inside the
+`<script lang="ts">` tag. The second row is the same member with the modifiers transposed:
+`incompatible` only fires when the other modifier has already been seen, so upstream accepts
+that spelling and OXC — whose table has the order rule instead — rejects it. Reported in
+[`upstream_issues/3203-acorn-typescript-accessor-modifier-table.md`](../upstream_issues/3203-acorn-typescript-accessor-modifier-table.md).
+
+These are left listed rather than fixed because both compilers *do* refuse all three, the
+divergence is the code and the position only, and matching would mean either reproducing a
+wrong rule at a wrong offset (row 1) or hand-porting acorn-typescript's whole modifier table
+in place of OXC's — which would have to carry its bugs to be worth anything. The rows are
+generated rather than skipped so that the day upstream fixes its table, this gate says so.
 
 ## Burn-down
 

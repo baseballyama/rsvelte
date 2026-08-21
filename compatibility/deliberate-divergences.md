@@ -192,3 +192,62 @@ measurement rather than being folded into a fix for the two rows above.
 - **Corpus gate**: `pattern/issues/2573-ctor-private-derived-write.svelte.js` covers the two
   fixed rows on all three targets. Nothing in the collected corpus writes a private `$derived`
   field through any receiver — `known-failures.server.json` is `[]`.
+
+---
+
+## `abstract` on a class property is erased (every target)
+
+**Pinned by** `crates/rsvelte_core/tests/abstract_property_erasure_3082.rs`. Reported at
+`upstream_issues/3082-svelte-abstract-property-not-erased.md`.
+
+### Input
+
+```svelte
+<script lang="ts">
+	abstract class B {
+		abstract kind: string;
+	}
+	const b = 1;
+</script>
+
+<p>{b}</p>
+```
+
+### Both outputs, measured against `submodules/svelte` 5.56.9
+
+| member | official emits | parses | rsvelte emits | parses |
+|---|---|---|---|---|
+| `abstract kind: string;` | `abstract kind;` | **no** | *(dropped)* | yes |
+| `protected abstract kind: string;` | `abstract kind;` | **no** | *(dropped)* | yes |
+| `abstract m(): void;` | *(dropped)* | yes | *(dropped)* | yes |
+| `declare size: number;` | *(dropped)* | yes | *(dropped)* | yes |
+| `protected kind: string = 'k';` | `kind = 'k';` | yes | `kind = 'k';` | yes |
+
+`acorn.parse` rejects official's output with `Unexpected token (5:11)` — `abstract kind` is two
+adjacent identifiers. The target makes no difference: the eraser runs once in
+`phases/1-parse/remove_typescript_nodes.js`, before either transform.
+
+### Why upstream produces it
+
+The eraser strips a property's `accessibility` and `typeAnnotation` and drops an abstract
+**method** outright, but has no arm that drops an abstract **property** — so the `abstract`
+keyword survives into the emitted class body. TypeScript's own emit drops both, since an
+abstract member has no runtime representation at all.
+
+### What would make this entry disappear
+
+Upstream dropping an abstract property the way it already drops an abstract method. Delete the
+entry and its test when `submodules/svelte` is bumped past that fix — at which point byte parity
+and valid JavaScript stop disagreeing.
+
+### Why no gate sees it
+
+- **Corpus gate**: no collected entry carries the shape; `known-failures.*` are unaffected, and
+  the pattern corpus deliberately writes an abstract **method** for this reason
+  (`compatibility/pattern-corpus/README.md`, `typescript/`).
+- **Generated matrix**: it *cannot* carry the shape. `run.mjs` fails the run outright when the
+  **official** output does not parse, on the grounds that a generated case is authored and the
+  fix is the case — so adding an abstract-property cell would turn a recorded divergence into a
+  hard failure rather than a ratchet entry. The `class-modifier` family therefore declares its
+  class without `abstract`, and this entry plus its test is the whole record.
+- **Parse-output gate**: it parses rsvelte's side only, so it is green either way.
