@@ -169,9 +169,8 @@ pub fn visit_component<'a, 'b: 'a>(
             }
             Attribute::OnDirective(on) => {
                 // Validate event handler modifiers
-                // Only 'once' modifier is allowed on component events
-                let has_invalid_modifiers = on.modifiers.iter().any(|m| m.as_str() != "once");
-                if has_invalid_modifiers {
+                // `['once']` is the only accepted list — a repeat is not membership
+                if on.modifiers.len() > 1 || on.modifiers.iter().any(|m| m.as_str() != "once") {
                     return Err(
                         errors::event_handler_invalid_component_modifier().at(on.start, on.end)
                     );

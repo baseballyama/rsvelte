@@ -1143,6 +1143,41 @@ arrow through one prop name, and the write is always a member expression — a b
 `p = p + 1` reassignment is `binding-position`'s `assignment.right` row and is not repeated
 here. **[S]**
 
+### Blind spot 5r — CLOSED: `directive-element` baked ONE modifier spelling into each directive kind
+
+Originally: `DIRECTIVE_KINDS` × `DIRECTIVE_HOSTS` × `DIRECTIVE_MODES` varies which directive sits
+on which parent, and its rows carry a modifier only incidentally — `on-once`, `on-preventdefault`
+and nothing else. Directive kind and modifier spelling are therefore *confounded*, the same shape
+5q records for binding × host: the product "this directive, that modifier list" has no cell, and
+adding one to `DIRECTIVE_KINDS` moves that kind rather than crossing the axis. Every directive
+name is split at `|` by ONE upstream line and each directive then declares which modifiers it
+accepts, so there are two decisions per (directive, host) pair and the kinds axis samples one
+point of it.
+
+**[D]** #3221 / #3222 / #3223, all three from the first run of the product. `use:`, `class:`,
+`animate:` and `let:` — the four directives whose accepted modifier list is **empty** — never
+split the name at all, so the modifier reached codegen inside it: `action|once?.($$node)` and
+`() => flip|local` **parse** (a bitwise-or of two identifiers) and throw at runtime, and
+`{ 'active|once': flag }` does not even throw — it applies a class no stylesheet matches. An
+unknown `style:` modifier was rejected on a regular element and accepted on
+`<svelte:body|window|document>`, which is 5's `parent_type`-drift shape again (#2497). And a
+component's `on:` modifier check tested membership where upstream compares the whole list, so
+`on:click|once|once` compiled on `Component` and `<svelte:self>` while `<svelte:component>` — a
+third copy of the same three-line check — rejected it.
+
+The repeated-modifier rows are what make the family discriminating rather than a longer list of
+spellings, and they are the reusable part: `once`, `important` and `local` each pass a membership
+test **twice over**, so `|once|once`, `|important|important` and `|local|local` are the only
+cells that separate `list === ['x']` from `list.every(m => m === 'x')`. A family that varies only
+single modifiers reaches every one of these decision points and can tell neither rule apart.
+
+`DIRECTIVE_MODIFIERS` (29 spellings) × the existing 13 hosts × 2 modes = 754 cases, 3,016
+comparisons — 1,204 output pairs and 1,812 cells both compilers reject, compared by error code.
+The pre-fix binary diverges on PREFIX_DIVERGENCES of them. What it still
+does not vary: the modifier is always written on a directive whose *name* is a plain identifier,
+and the value slot is fixed per spelling — a modifier on a quoted or shorthand value is only
+sampled where the spelling names it. **[S]**
+
 **Closing 5b/5c:** the matrix costs ~25 s of CPU on ~10,200 comparisons (wall clock on a box
 running other agents' builds is unusable — a paired A/B inverted once). `constant-fold` is the
 first instalment of 5c's "second expression axis against `EXPRESSION_SLOTS`"; the directive
