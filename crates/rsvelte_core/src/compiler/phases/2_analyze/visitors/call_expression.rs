@@ -922,15 +922,7 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
     let args = arena.get_js_children(*arguments);
     let rune = super::shared::utils::get_rune_from_node(node, &context.analysis.root.scope, arena);
 
-    // Track expression metadata for non-rune calls
     let is_pure_call = super::shared::utils::is_pure_node(callee_node, context);
-    if let Some(expression) = context.current_expression() {
-        let has_dependencies = !expression.dependencies.is_empty();
-        if !is_pure_call || has_dependencies {
-            expression.set_has_call(true);
-            expression.set_has_state(true);
-        }
-    }
 
     // For $derived and $inspect, increment function_depth when visiting arguments
     let increment_depth = matches!(rune.as_deref(), Some("$derived") | Some("$inspect"));
@@ -958,6 +950,17 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
     }
     if increment_depth {
         context.function_depth -= 1;
+    }
+
+    // Upstream runs this AFTER `context.next()`, so the dependencies the
+    // arguments contribute are already in the set — `f($$restProps)` is
+    // `has_call` even though `f` is pure.
+    if let Some(expression) = context.current_expression() {
+        let has_dependencies = !expression.dependencies.is_empty();
+        if !is_pure_call || has_dependencies {
+            expression.set_has_call(true);
+            expression.set_has_state(true);
+        }
     }
 
     Ok(())
