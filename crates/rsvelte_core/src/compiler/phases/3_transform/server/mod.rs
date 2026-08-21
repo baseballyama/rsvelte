@@ -26,6 +26,7 @@ use super::js_ast::nodes::{JsImportDeclaration, JsImportSpecifier, JsStatement};
 use crate::ast::template::Root;
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
+use crate::compiler::phases::phase3_transform::shared::js_scan;
 use memchr::memmem;
 use std::cell::RefCell;
 
@@ -201,14 +202,16 @@ pub fn transform_server_module(
 /// one or two passes; the cap only guards against pathological nesting.
 const REWRITE_MAX_ITERS: usize = 16;
 
-/// Collect the byte offset of every occurrence of `needle` in `haystack` that
-/// lies in JS code — skipping string / template literals and `//` / `/*`
-/// comments — in a single left-to-right scan. The lexical-aware analogue of
-/// [`memmem::Finder::find_iter`].
+/// Collect the byte offset of every occurrence of the rune-call `needle` in
+/// `haystack` that names the rune: in JS code — skipping string / template
+/// literals and `//` / `/*` comments — and starting a fresh identifier rather
+/// than continuing one or naming a property.
 ///
-/// Without this guard a rune-call-shaped substring inside a string or comment
-/// such as `const a = "$effect.root()"` would be matched and rewritten,
-/// corrupting the literal (issue #447, H-029).
+/// Without the code guard a rune-call-shaped substring inside a string or
+/// comment such as `const a = "$effect.root()"` would be matched and rewritten,
+/// corrupting the literal (issue #447, H-029). Without the boundary guard
+/// `o.$effect(fn)` — an ordinary method on an object that has an `$effect` key —
+/// is deleted as if it were the rune (issue #3235).
 fn code_match_positions(haystack: &str, needle: &[u8]) -> Vec<usize> {
     let bytes = haystack.as_bytes();
     let n = bytes.len();
@@ -216,12 +219,15 @@ fn code_match_positions(haystack: &str, needle: &[u8]) -> Vec<usize> {
     if needle.is_empty() {
         return out;
     }
+    let rune_needle = needle.first() == Some(&b'$');
+    let mut before = js_scan::PrevChars::default();
     let mut i = 0usize;
     while i < n {
         match bytes[i] {
             b'\'' | b'"' | b'`' => {
                 // Skip the whole string / template (incl. ${} interpolations).
                 i = skip_string_literal(bytes, i);
+                before.push_opaque();
                 continue;
             }
             b'/' if i + 1 < n && bytes[i + 1] == b'/' => {
@@ -241,8 +247,14 @@ fn code_match_positions(haystack: &str, needle: &[u8]) -> Vec<usize> {
             }
             _ => {}
         }
-        if i + needle.len() <= n && &bytes[i..i + needle.len()] == needle {
+        if i + needle.len() <= n
+            && &bytes[i..i + needle.len()] == needle
+            && (!rune_needle || js_scan::is_rune_call_at(bytes, i, needle, &before))
+        {
             out.push(i);
+        }
+        if !bytes[i].is_ascii_whitespace() {
+            before.push_code_byte(bytes, i);
         }
         i += 1;
     }
