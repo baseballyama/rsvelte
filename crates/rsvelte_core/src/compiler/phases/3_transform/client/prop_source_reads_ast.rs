@@ -79,10 +79,25 @@ thread_local! {
 /// AST-based rewrite of bare prop-var reads to prop-getter calls.
 /// See module docs for the full mapping table and `None`-return
 /// rationale.
+/// Which JavaScript goal symbol `source` is written against.
+///
+/// A leading `{` means opposite things in the two: an object literal under
+/// [`Expression`](ParseGoal::Expression), a block statement under
+/// [`Statements`](ParseGoal::Statements). Only the caller knows which it handed
+/// over, so it says rather than the pass guessing from the first byte.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum ParseGoal {
+    /// A statement list — the instance script, or one statement out of it.
+    Statements,
+    /// A standalone expression, such as a prop's default value.
+    Expression,
+}
+
 pub fn wrap_prop_source_reads_ast(
     source: &str,
     prop_vars: &[String],
     non_bindable_prop_vars: &[String],
+    goal: ParseGoal,
 ) -> Option<String> {
     if prop_vars.is_empty() {
         return None;
@@ -106,7 +121,7 @@ pub fn wrap_prop_source_reads_ast(
     // BlockStatement, so shorthand properties would be invisible
     // to the AST. Wrap with `(...)` to force expression context
     // and adjust span offsets when applying replacements.
-    let needs_paren_wrap = source.trim_start().starts_with('{');
+    let needs_paren_wrap = goal == ParseGoal::Expression && source.trim_start().starts_with('{');
     let leading_ws = source.len() - source.trim_start().len();
     let parse_source: std::borrow::Cow<str> = if needs_paren_wrap {
         // Insert `(` after the leading whitespace and append `)`
@@ -226,8 +241,13 @@ impl<'a, 'ast> Visit<'ast> for PropDefaultCollector<'a> {
             let is_bare_prop = matches!(default, Argument::Identifier(id)
                 if self.prop_vars.iter().any(|prop| prop == id.name.as_str()));
             if !is_bare_prop {
-                let rewritten = wrap_prop_source_reads_ast(default_source, self.prop_vars, &[])
-                    .unwrap_or_else(|| default_source.to_string());
+                let rewritten = wrap_prop_source_reads_ast(
+                    default_source,
+                    self.prop_vars,
+                    &[],
+                    ParseGoal::Expression,
+                )
+                .unwrap_or_else(|| default_source.to_string());
                 if rewritten != default_source {
                     self.replacements.push((span.start, span.end, rewritten));
                 }
@@ -405,6 +425,45 @@ mod tests {
 
     fn ssv(names: &[&str]) -> Vec<String> {
         names.iter().map(|s| s.to_string()).collect()
+    }
+
+    /// The cases below are all expression fragments, so they share the goal
+    /// their callers declare rather than repeating it.
+    fn wrap_prop_source_reads_ast(
+        source: &str,
+        prop_vars: &[String],
+        non_bindable_prop_vars: &[String],
+    ) -> Option<String> {
+        super::wrap_prop_source_reads_ast(
+            source,
+            prop_vars,
+            non_bindable_prop_vars,
+            ParseGoal::Expression,
+        )
+    }
+
+    #[test]
+    fn a_bare_block_under_the_statement_goal_is_not_an_object_literal() {
+        assert_eq!(
+            super::wrap_prop_source_reads_ast(
+                "{ out = count; }",
+                &ssv(&["count"]),
+                &[],
+                ParseGoal::Statements,
+            ),
+            Some("{ out = count(); }".to_string())
+        );
+        // The same text under the expression goal is the object literal the
+        // default-value callers hand over, and does not parse.
+        assert_eq!(
+            super::wrap_prop_source_reads_ast(
+                "{ out = count; }",
+                &ssv(&["count"]),
+                &[],
+                ParseGoal::Expression,
+            ),
+            None
+        );
     }
 
     /// "Nothing to wrap" (parse succeeded, no replacements) now returns the

@@ -1344,8 +1344,13 @@ fn test_wrap_prop_source_reads_block_comment_before_property_key() {
     // is_property_key check to fail, wrapping `value` as `value()` in object literal.
     let prop_vars = vec!["value".to_string()];
     let input = r#"{ key: 1, /* comment */ value: 2 }"#;
-    let result = prop_source_reads_ast::wrap_prop_source_reads_ast(input, &prop_vars, &[])
-        .unwrap_or_else(|| input.to_string());
+    let result = prop_source_reads_ast::wrap_prop_source_reads_ast(
+        input,
+        &prop_vars,
+        &[],
+        prop_source_reads_ast::ParseGoal::Expression,
+    )
+    .unwrap_or_else(|| input.to_string());
     assert!(
         result.contains("value: 2"),
         "value after block comment should NOT be wrapped as value(): {}",
@@ -1362,8 +1367,13 @@ fn test_wrap_prop_source_reads_block_comment_before_property_key() {
 fn test_wrap_prop_source_reads_block_comment_multiline() {
     let prop_vars = vec!["value".to_string()];
     let input = "{ key: 1,\n\t/* multi\n\t   line\n\t   comment */\n\tvalue: 2 }";
-    let result = prop_source_reads_ast::wrap_prop_source_reads_ast(input, &prop_vars, &[])
-        .unwrap_or_else(|| input.to_string());
+    let result = prop_source_reads_ast::wrap_prop_source_reads_ast(
+        input,
+        &prop_vars,
+        &[],
+        prop_source_reads_ast::ParseGoal::Expression,
+    )
+    .unwrap_or_else(|| input.to_string());
     assert!(
         result.contains("value: 2"),
         "value after multiline block comment should NOT be wrapped: {}",
@@ -1376,8 +1386,13 @@ fn test_wrap_prop_source_reads_value_in_expression() {
     // When `value` is used as an expression (not a property key), it SHOULD be wrapped
     let prop_vars = vec!["value".to_string()];
     let input = "let x = value + 1;";
-    let result = prop_source_reads_ast::wrap_prop_source_reads_ast(input, &prop_vars, &[])
-        .unwrap_or_else(|| input.to_string());
+    let result = prop_source_reads_ast::wrap_prop_source_reads_ast(
+        input,
+        &prop_vars,
+        &[],
+        prop_source_reads_ast::ParseGoal::Expression,
+    )
+    .unwrap_or_else(|| input.to_string());
     assert!(
         result.contains("value() + 1"),
         "value in expression should be wrapped as value(): {}",
@@ -1391,8 +1406,13 @@ fn test_wrap_prop_source_reads_skips_nullish_assign() {
     // is_on_left_side_of_assignment didn't detect ??=
     let prop_vars = vec!["value".to_string()];
     let input = "value ??= 100;";
-    let result = prop_source_reads_ast::wrap_prop_source_reads_ast(input, &prop_vars, &[])
-        .unwrap_or_else(|| input.to_string());
+    let result = prop_source_reads_ast::wrap_prop_source_reads_ast(
+        input,
+        &prop_vars,
+        &[],
+        prop_source_reads_ast::ParseGoal::Expression,
+    )
+    .unwrap_or_else(|| input.to_string());
     assert!(
         !result.contains("value() ??= 100"),
         "value on LHS of ??= should NOT be wrapped: {}",
@@ -2615,5 +2635,89 @@ fn scoped_static_class_keeps_its_hash_when_the_expression_is_spanned() {
         !result.js.code.contains("'draggable', 'svelte-"),
         "the CSS hash must not become a separate dynamic argument: {}",
         result.js.code
+    );
+}
+
+/// Compile a component for the client and return its JavaScript. Every
+/// expectation below is the official compiler's output for the same source.
+fn client_js(source: &str) -> String {
+    crate::compiler::compile(
+        source,
+        crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            filename: Some("legacy-reactive.svelte".to_string()),
+            ..Default::default()
+        },
+    )
+    .expect("compiles")
+    .js
+    .code
+}
+
+#[test]
+fn a_gap_between_the_reactive_label_and_its_colon_still_builds_the_effect() {
+    for gap in [
+        " ", "  ", "\t", "\n", "\r\n", "/*c*/", " /*c*/ ", "\u{a0}", "\u{2028}",
+    ] {
+        let source = format!(
+            "<script>\n\texport let a = 1;\n\tlet out = 0;\n\t${gap}: out = a + 1;\n</script>\n\n<p>{{out}}</p>\n"
+        );
+        let js = client_js(&source);
+        assert!(
+            js.contains(
+                "$.legacy_pre_effect(() => ($.deep_read_state(a())), () => {\n\t\t$.set(out, a() + 1);\n\t});"
+            ),
+            "gap {gap:?} left the statement non-reactive: {js}"
+        );
+        assert!(
+            !js.contains("$:"),
+            "gap {gap:?} emitted a labelled statement: {js}"
+        );
+    }
+}
+
+#[test]
+fn closing_a_reactive_label_gap_preserves_byte_length_and_line_count() {
+    let script = "\nexport let a = 1;\nlet out = 0;\n$ /* c */\n: out = a + 1;\n";
+    let closed = close_reactive_label_gaps(script, false);
+    assert_eq!(closed.len(), script.len());
+    assert_eq!(closed.lines().count(), script.lines().count());
+    assert!(closed.contains("$:"), "{closed}");
+}
+
+#[test]
+fn a_newline_after_the_reactive_colon_keeps_a_trailing_comment_out_of_the_body() {
+    let js = client_js(
+        "<script>\n\texport let a = 1;\n\tlet out = 0;\n\t$:\n\t\tout = a + 1; // note\n\tvoid out;\n</script>\n\n<p>{out}</p>\n",
+    );
+    assert!(
+        js.contains("$.set(out, a() + 1);"),
+        "the trailing comment was spliced into the argument list: {js}"
+    );
+    assert!(
+        !js.contains("// note)"),
+        "the output is not parseable JavaScript: {js}"
+    );
+}
+
+#[test]
+fn a_state_read_in_an_object_literal_member_object_is_transformed() {
+    let js = client_js(
+        "<script>\n\tlet m = 0;\n\tlet out = 0;\n\t$: out = { a: m }.a;\n</script>\n\n<p>{out}</p>\n<button onclick={() => m++}>b</button>\n",
+    );
+    assert!(
+        js.contains("$.set(out, ({ a: $.get(m) }).a);"),
+        "the object literal reached the member expression untransformed: {js}"
+    );
+}
+
+#[test]
+fn a_prop_read_in_a_bare_block_statement_is_lowered_to_the_accessor_call() {
+    let js = client_js(
+        "<script>\n\texport let p = 1;\n\tlet out = 0;\n\t{\n\t\tout = p;\n\t}\n</script>\n\n<p>{out}</p>\n",
+    );
+    assert!(
+        js.contains("$.set(out, p());"),
+        "the prop read stayed a bare identifier: {js}"
     );
 }
