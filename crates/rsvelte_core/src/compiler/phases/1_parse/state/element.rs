@@ -75,11 +75,13 @@ impl<'a> Parser<'a> {
             if self.match_str("-->") {
                 self.advance_by(3); // consume '-->'
             } else if self.is_eof() {
-                // Comment was not closed
+                // Upstream reads a right-trimmed template, so it runs out of
+                // input at the last non-whitespace byte, not at the file's end.
+                let at = self.source[..self.index].trim_end().len();
                 return Err(crate::error::ParseError::svelte(
                     "expected_token",
                     "Expected token -->",
-                    (self.index, self.index),
+                    (at, at),
                 ));
             }
 
