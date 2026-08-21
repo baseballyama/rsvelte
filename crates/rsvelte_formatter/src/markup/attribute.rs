@@ -221,18 +221,28 @@ pub(super) fn render_attribute(
             }
         }
         Attribute::LetDirective(d) => {
-            // `let:item` (shorthand) or `let:item={pattern}` with a
-            // destructuring pattern as the value.
+            // Svelte parses a `let:` value as an EXPRESSION, and
+            // prettier-plugin-svelte prints it with the same `printJsExpression`
+            // as `on:` / `class:` — so a default inside it comes back
+            // parenthesised (`[(a = 1)]`) rather than as a binding pattern.
             if let Some(expr) = &d.expression {
-                let (Some(s), Some(e)) = (expr.start(), expr.end()) else {
-                    return Ok(format!("let:{}", d.name));
-                };
-                let raw = source.get(s as usize..e as usize).unwrap_or("").trim();
-                if raw.is_empty() || raw == d.name.as_str() {
+                // Columns before the value's `{`: `let:` + name + `=`.
+                let prefix = "let:".visual_width(tw) + d.name.as_str().visual_width(tw) + 1;
+                let inner = render_directive_value_narrow(
+                    source,
+                    expr,
+                    d.end,
+                    options,
+                    attr_depth,
+                    narrow_value,
+                    prefix,
+                )?;
+                // Upstream collapses `let:x={x}` unconditionally — the shorthand
+                // is not gated on `svelteAllowShorthand`.
+                if inner.is_empty() || inner == d.name.as_str() {
                     Ok(format!("let:{}", d.name))
                 } else {
-                    let pattern = crate::expression::format_pattern_source(raw, options)?;
-                    Ok(format!("let:{}={{{pattern}}}", d.name))
+                    Ok(format!("let:{}={{{inner}}}", d.name))
                 }
             } else {
                 Ok(format!("let:{}", d.name))
