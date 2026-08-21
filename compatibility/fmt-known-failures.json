@@ -786,7 +786,6 @@
 	"svelvet/src/lib/components/Node/InternalNode.svelte",
 	"syntaxfm-website/src/lib/ShowCard.svelte",
 	"syntaxfm-website/src/routes/(site)/admin/shows/+page.svelte",
-	"syntaxfm-website/src/routes/(site)/admin/submissions/+page.svelte",
 	"syntaxfm-website/src/routes/(site)/admin/videos/+page.svelte",
 	"syntaxfm-website/src/routes/(site)/admin/videos/import/+page.svelte",
 	"threlte/apps/docs/src/components/Hero/Intro/Intro.svelte",
