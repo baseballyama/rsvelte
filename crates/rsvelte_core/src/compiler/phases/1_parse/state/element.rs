@@ -1104,7 +1104,15 @@ impl<'a> Parser<'a> {
             {
                 break;
             }
-            if b == b'<' && self.index + 1 < self.bytes.len() && self.bytes[self.index + 1] == b'/'
+            // Upstream reads `<` as an attribute NAME (`regex_token_ending_character`
+            // does not list it) and only unwinds it afterwards, in loose mode, when
+            // the `>` never arrived — so stopping here is the loose recovery, not the
+            // strict one, and doing it in strict mode reports `expected_token` at the
+            // `<` instead of past the name upstream consumed.
+            if self.options.loose
+                && b == b'<'
+                && self.index + 1 < self.bytes.len()
+                && self.bytes[self.index + 1] == b'/'
             {
                 break;
             }
@@ -1957,8 +1965,7 @@ impl<'a> Parser<'a> {
 
                 while !self.is_eof() {
                     let c = self.current_char();
-                    // End of unquoted value (but NOT / alone)
-                    if is_js_whitespace(c) || c == '>' {
+                    if self.unquoted_attribute_value_ends_at(self.index) {
                         break;
                     }
                     // Expression start
@@ -2341,30 +2348,8 @@ impl<'a> Parser<'a> {
                 if cur_byte == q {
                     break;
                 }
-            } else {
-                // Unquoted value ends at whitespace or >
-                if cur_byte == b'>'
-                    || cur_byte == b' '
-                    || cur_byte == b'\t'
-                    || cur_byte == b'\n'
-                    || cur_byte == b'\r'
-                {
-                    break;
-                }
-                // Stop at /> (self-closing tag marker)
-                if cur_byte == b'/'
-                    && self.index + 1 < self.bytes.len()
-                    && self.bytes[self.index + 1] == b'>'
-                {
-                    break;
-                }
-                // Non-ASCII whitespace check
-                if cur_byte >= 0x80 {
-                    let c = self.source[self.index..].chars().next().unwrap_or('\0');
-                    if is_js_whitespace(c) {
-                        break;
-                    }
-                }
+            } else if self.unquoted_attribute_value_ends_at(self.index) {
+                break;
             }
 
             // Check for expression
@@ -2487,34 +2472,21 @@ impl<'a> Parser<'a> {
                     self.index += offset;
                     entity_before_stop = Some(seen);
                 } else {
-                    // Unquoted: scan for '{', whitespace, '>', or '/>'
+                    // Unquoted: `{` opens an expression, everything else is
+                    // upstream's `regex_invalid_unquoted_attribute_value`.
                     while self.index < self.bytes.len() {
                         let b = self.bytes[self.index];
-                        if b == b'{'
-                            || b == b'>'
-                            || b == b' '
-                            || b == b'\t'
-                            || b == b'\n'
-                            || b == b'\r'
-                        {
+                        if b == b'{' || self.unquoted_attribute_value_ends_at(self.index) {
                             break;
                         }
-                        if b == b'/'
-                            && self.index + 1 < self.bytes.len()
-                            && self.bytes[self.index + 1] == b'>'
-                        {
-                            break;
-                        }
-                        if b < 0x80 {
-                            self.index += 1;
+                        self.index += if b < 0x80 {
+                            1
                         } else {
-                            // Non-ASCII: check for Unicode whitespace
-                            let c = self.source[self.index..].chars().next().unwrap_or('\0');
-                            if is_js_whitespace(c) {
-                                break;
-                            }
-                            self.index += c.len_utf8();
-                        }
+                            self.source[self.index..]
+                                .chars()
+                                .next()
+                                .map_or(1, char::len_utf8)
+                        };
                     }
                 }
                 let text_end = self.index;
