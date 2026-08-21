@@ -903,6 +903,7 @@ pub fn visit_regular_element(
         context.state.analysis,
         preserve_whitespace || node.name == "script",
         context.state.options.preserve_comments,
+        context.state.options.hmr,
     );
 
     // Check if there are any SnippetBlocks in the fragment

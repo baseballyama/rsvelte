@@ -2288,13 +2288,21 @@ pub(crate) fn transform_client(
         //   if (import.meta.hot) {
         //     Component = $.hmr(Component);
         //     import.meta.hot.accept((module) => {
+        //       $.cleanup_styles('<hash>');   // only when the component has CSS
         //       Component[$.HMR].update(module.default);
         //     });
         //   }
+        // The `cleanup_styles` call removes the previous version's injected
+        // stylesheet, so rules do not accumulate across hot updates.
+        let cleanup_styles = if analysis.css.hash.is_empty() {
+            String::new()
+        } else {
+            format!("\t\t$.cleanup_styles('{}');\n", analysis.css.hash)
+        };
         body.push(JsStatement::Raw(
             format!(
-                "if (import.meta.hot) {{\n\t{} = $.hmr({});\n\n\timport.meta.hot.accept((module) => {{\n\t\t{}[$.HMR].update(module.default);\n\t}});\n}}",
-                analysis.name, analysis.name, analysis.name
+                "if (import.meta.hot) {{\n\t{name} = $.hmr({name});\n\n\timport.meta.hot.accept((module) => {{\n{cleanup_styles}\t\t{name}[$.HMR].update(module.default);\n\t}});\n}}",
+                name = analysis.name,
             ).into(),
         ));
 
@@ -2486,14 +2494,35 @@ pub(crate) fn transform_client(
 
         // If tag name is provided, call customElements.define
         if let Some(ref tag) = ce.tag {
-            body.push(b::stmt(
+            let define = b::stmt(
                 &context.arena,
                 b::call(
                     &context.arena,
                     b::member_path(&context.arena, "customElements.define"),
                     vec![b::string(tag.clone()), create_ce],
                 ),
-            ));
+            );
+            if options.hmr {
+                // `customElements.define` throws on an already-defined name, so a
+                // second hot update of the same module would otherwise abort.
+                body.push(b::if_stmt(
+                    &context.arena,
+                    b::binary_str(
+                        &context.arena,
+                        "==",
+                        b::call(
+                            &context.arena,
+                            b::member_path(&context.arena, "customElements.get"),
+                            vec![b::string(tag.clone())],
+                        ),
+                        b::null(),
+                    ),
+                    define,
+                    None,
+                ));
+            } else {
+                body.push(define);
+            }
         } else {
             body.push(b::stmt(&context.arena, create_ce));
         }

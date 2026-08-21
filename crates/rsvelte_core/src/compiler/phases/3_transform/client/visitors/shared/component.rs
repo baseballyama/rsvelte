@@ -2539,6 +2539,7 @@ fn visit_slot_children(
         context.state.analysis,
         context.state.preserve_whitespace,
         context.state.options.preserve_comments,
+        context.state.options.hmr,
     );
 
     // If no trimmed nodes and no hoisted nodes, return empty
