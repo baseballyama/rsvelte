@@ -442,6 +442,18 @@ oxfmt absorbs is visible to the mutation gate alone — and the mutation gate on
 seed it has a mutant for. A shape that no corpus file contains is therefore invisible to
 both, which is what the pattern corpus is for.
 
+**A second [D], because the erased statement is sometimes the WHOLE divergence rather than a
+terminator.** #3231: upstream removes a non-dev `$inspect(...)` by replacing the CALL with an
+empty statement and keeping the `ExpressionStatement`, so it prints `;;`; rsvelte's
+`.svelte.(js|ts)` module pipeline deleted the statement outright. Raw, that is a divergence on
+every module carrying the rune — and oxfmt deletes both sides' empty statements, so gate #1
+**and** gate #5 (which normalizes identically, by contract) score `match`. Gate #5 reaches the
+shape by construction: `removed-statement-comment` crosses `$inspect` against 6 comment kinds ×
+3 hosts and has 396 cases, and every non-dev module row of it was green throughout. The defect
+was found by a hand-built `compileModule` grid comparing **raw** `js.code`. So the row is not
+only "a redundant terminator is invisible": *any* statement whose entire printed form is `;` is
+outside what these two gates compare, no matter how many cases sit on it.
+
 ### Blind spot 1b — comment ordering, not position
 
 `ast_equiv/src/lib.rs:234` compares comments as an ordered `Vec<String>`. A meaningful comment
