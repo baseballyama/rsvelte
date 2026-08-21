@@ -211,3 +211,54 @@ fn each_long_header_does_not_break() {
         "each header must not break:\n{out}"
     );
 }
+
+#[test]
+fn each_index_separator_is_normalized() {
+    // The oracle re-prints the header's fixed parts (`' as'`, `', '`), so any
+    // spelling of the whitespace around them comes out canonical.
+    for src in [
+        "{#each rows as item , i}<p>{item}{i}</p>{/each}",
+        "{#each rows as item ,i}<p>{item}{i}</p>{/each}",
+        "{#each rows as item,    i}<p>{item}{i}</p>{/each}",
+        "{#each rows as item\t,\ti}<p>{item}{i}</p>{/each}",
+        "{#each rows as item , i }<p>{item}{i}</p>{/each}",
+    ] {
+        let out = fmt(src);
+        assert!(
+            out.contains("{#each rows as item, i}"),
+            "index separator not normalized for {src:?}:\n{out}"
+        );
+    }
+}
+
+#[test]
+fn each_index_separator_after_a_destructuring_pattern() {
+    let out = fmt("{#each rows as [a = 1, ...rest] , i}<p>{a}{rest.length}{i}</p>{/each}");
+    assert!(
+        out.contains("{#each rows as [a = 1, ...rest], i}"),
+        "index separator not normalized after an array pattern:\n{out}"
+    );
+    let out = fmt("{#each rows as {a, b} , i}<p>{a}{b}{i}</p>{/each}");
+    assert!(
+        out.contains("{#each rows as { a, b }, i}"),
+        "index separator not normalized after an object pattern:\n{out}"
+    );
+}
+
+#[test]
+fn each_index_separator_with_a_key_clause() {
+    let out = fmt("{#each rows as item , i (item.id)}<p>{item}{i}</p>{/each}");
+    assert!(
+        out.contains("{#each rows as item, i (item.id)}"),
+        "index separator not normalized before a key clause:\n{out}"
+    );
+}
+
+#[test]
+fn each_as_keyword_whitespace_is_normalized() {
+    let out = fmt("{#each rows  as  item , i}<p>{item}{i}</p>{/each}");
+    assert!(
+        out.contains("{#each rows as item, i}"),
+        "`as` spacing not normalized:\n{out}"
+    );
+}
