@@ -1143,6 +1143,58 @@ arrow through one prop name, and the write is always a member expression — a b
 `p = p + 1` reassignment is `binding-position`'s `assignment.right` row and is not repeated
 here. **[S]**
 
+### Blind spot 5r — CLOSED: every family injected into a value slot, none varied the value's TERMINATOR
+
+Originally: `literal-escape` and `each-collection` put text into an attribute *value*, and
+`directive-element` / `bind-setter` vary the attribute's *kind* — but every one of them writes a
+**quoted** value or a mustache, so no cell in the matrix ever asked where an **unquoted** value
+ends. That question has eight answers upstream
+(`regex_invalid_unquoted_attribute_value = /(\/>|[\s"'=<>`])/y`) and rsvelte implemented two of
+them, whitespace and `>`.
+
+**[D]** #3332: over 16 value shapes × 5 hosts × 2 targets, 100 of 160 cells diverged — 66 of them
+**over-acceptances**, where rsvelte compiled a start tag the official compiler rejects
+(`<div data-x=a=b>`, `<div data-x=a"b>`), and 22 where both compiled and the attribute *set*
+differed (`<div data-x=a<b>` is `data-x="a"` plus an attribute named `<b` upstream, one attribute
+valued `a<b` in rsvelte). Neither half is reachable from a collected corpus: an over-acceptance
+leaves no trace in published code, and the value shapes occur 0 times in it.
+
+The `unquoted-attribute` family (`generate.mjs`, `UNQUOTED_ATTRIBUTE_VALUES` ×
+`UNQUOTED_ATTRIBUTE_HOSTS`, 75 cases) declares the terminating **character** as the axis, with
+five control rows (`abc`, `a>b`, `a&b`, `&amp;`, `abc/`) that already worked — so a fix that
+simply ends the value earlier and everywhere fails them rather than passing everything.
+
+What it still does not see: `a{b` is deliberately absent, because `{` opens an expression rather
+than ending the value and where that mustache ends is #3333; and the family compares one
+attribute name (`data-x`) on five hosts, so a *directive* value (`style:` / `class:`) reading its
+unquoted value through a second scanner is covered by the Rust regression only. **[S]**
+
+### Blind spot 5s — CLOSED: character references were a spelling axis nobody had crossed with a HOST
+
+Originally: entity decoding was exercised only incidentally — whatever `&…` a corpus file
+happened to contain, in whatever position it happened to sit. Three decode rules exist and the
+host is what selects between them (markup text applies the semicolon-less legacy set, an
+attribute value does not, and `<textarea>` goes through `read_sequence`, which uses the
+*attribute* rule), so a spelling tested in one host says nothing about the same spelling in
+another.
+
+**[D]** #3337: 28 spellings × 10 hosts × 2 targets, 52 of 560 cells diverging on three
+independent causes — an uppercase `&#X41;` decoded by rsvelte and by no one else (upstream's
+`#(?:x[a-fA-F\d]+|\d+)` spells the marker lowercase); surrogate halves and out-of-range code
+points, where upstream emits `String.fromCodePoint(validate_code(code))` — **a literal NUL** —
+and rsvelte read the 0 as "undecodable"; and `&notit` inside `<textarea>` only, where rsvelte
+applied the legacy set and upstream does not. The host axis is the entire third finding: the
+identical text in `<p>`, `<title>`, an attribute or a component child matched on both sides.
+
+The controls are what make the second finding a statement about surrogates and range rather than
+about "unusual code points": `&#x80;` (the Windows-1252 remap), `&#xFFFE;` (a noncharacter),
+`&#0;` (falsy, left undecoded by both) and three astral rows all agree already, and neither
+compiler follows HTML, which replaces the divergent set with U+FFFD.
+
+What it still does not see: the named table itself is 2,125 entries and the family names six of
+them plus one legacy prefix, so a wrong *value* for some rare name is not covered by any gate
+except output equality on whatever the corpus happens to contain. **[S]**
+
 **Closing 5b/5c:** the matrix costs ~25 s of CPU on ~10,200 comparisons (wall clock on a box
 running other agents' builds is unusable — a paired A/B inverted once). `constant-fold` is the
 first instalment of 5c's "second expression axis against `EXPRESSION_SLOTS`"; the directive
