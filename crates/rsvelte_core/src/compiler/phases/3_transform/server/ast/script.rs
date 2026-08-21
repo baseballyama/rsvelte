@@ -84,9 +84,11 @@ pub(super) enum DeclRune {
 /// Detect a rune on a declarator-init oxc expression by callee / member name.
 /// Mirrors upstream `get_rune`: the rune is the CALLEE of a call expression
 /// (`$props.id()` → `$props.id`), so every rune here is matched on a
-/// `CallExpression`.
+/// `CallExpression`. Upstream parses with acorn, which builds no
+/// `ParenthesizedExpression` at all, so `let v = ($state(1))` reaches `get_rune`
+/// as the bare call and the parens never survive into the output (#3248).
 pub(super) fn detect_decl_rune(init: &OxcExpression) -> Option<DeclRune> {
-    let OxcExpression::CallExpression(call) = init else {
+    let OxcExpression::CallExpression(call) = init.without_parentheses() else {
         return None;
     };
     match &call.callee {
@@ -124,6 +126,15 @@ pub(super) fn detect_decl_rune(init: &OxcExpression) -> Option<DeclRune> {
     }
 }
 
+/// The owned counterpart of `Expression::without_parentheses`, for the lowerings
+/// that move the rune call out of its slot before reading it.
+pub(super) fn take_without_parens<'a>(mut e: OxcExpression<'a>) -> OxcExpression<'a> {
+    while let OxcExpression::ParenthesizedExpression(paren) = e {
+        e = paren.unbox().expression;
+    }
+    e
+}
+
 /// The `$`-prefixed callee name of a rune-shaped call (`$state(…)` → `$state`,
 /// `$state.raw(…)` → `$state`, `$props()` → `$props`), or `None` if `init` is not
 /// a `$…`-callee call. Used to detect the store-rune conflict: when this exact
@@ -134,7 +145,7 @@ pub(super) fn detect_decl_rune(init: &OxcExpression) -> Option<DeclRune> {
 /// the PREFIXED name (not the base) is essential: `let props = $props()` binds
 /// `props` but has no `$props` store subscription, so it stays the rune.
 pub(super) fn rune_callee_name<'a>(init: &OxcExpression<'a>) -> Option<&'a str> {
-    let OxcExpression::CallExpression(call) = init else {
+    let OxcExpression::CallExpression(call) = init.without_parentheses() else {
         return None;
     };
     let name = match &call.callee {
@@ -198,7 +209,7 @@ fn is_removed_effect_stmt(expr: &OxcExpression, rune_store_subs: bool) -> bool {
     if rune_store_subs {
         return false;
     }
-    let OxcExpression::CallExpression(call) = expr else {
+    let OxcExpression::CallExpression(call) = expr.without_parentheses() else {
         return false;
     };
     match &call.callee {
@@ -248,7 +259,7 @@ fn inspect_kind(expr: &OxcExpression, rune_store_subs: bool) -> Option<InspectKi
     if rune_store_subs {
         return None;
     }
-    let OxcExpression::CallExpression(call) = expr else {
+    let OxcExpression::CallExpression(call) = expr.without_parentheses() else {
         return None;
     };
     match &call.callee {
@@ -693,7 +704,9 @@ fn transform_script<'a>(
                         // Pull the verbatim argument / `.with` callback source straight
                         // from the call spans — preserving operators/whitespace exactly
                         // like the text oracle's slice-based extraction.
-                        let OxcExpression::CallExpression(call) = &es.expression else {
+                        let OxcExpression::CallExpression(call) =
+                            es.expression.without_parentheses()
+                        else {
                             unreachable!("inspect_kind matched a CallExpression");
                         };
                         let (args_src, with_fn_src) = match kind {
@@ -1186,7 +1199,7 @@ impl<'a> NestedRuneLower<'a> {
                 _ => None,
             };
             // Pull the first call argument expression out of the init call.
-            let arg: Option<OxcExpression<'a>> = match d.init.take() {
+            let arg: Option<OxcExpression<'a>> = match d.init.take().map(take_without_parens) {
                 Some(OxcExpression::CallExpression(call)) => {
                     let mut call = call.unbox();
                     call.arguments
@@ -1364,7 +1377,9 @@ impl<'a> ClassFieldRuneLower<'a> {
         // Take the `$state(...)` / `$derived(...)` call out and move its first
         // argument expression out directly (the rehomed call already lives in the
         // state allocator — no re-parse).
-        if let Some(OxcExpression::CallExpression(call)) = prop.value.take() {
+        if let Some(OxcExpression::CallExpression(call)) =
+            prop.value.take().map(take_without_parens)
+        {
             let mut call = call.unbox();
             // The emitted statement was already read-wrapped whole (the emit
             // loop / declarator paths wrap before this lowering runs), so the
@@ -1402,7 +1417,7 @@ impl<'a> ClassFieldRuneLower<'a> {
     ) -> Option<(DeclRune, OxcExpression<'a>)> {
         let rune = detect_decl_rune(rhs)?;
         let b = self.b;
-        let taken = std::mem::replace(rhs, b.void0());
+        let taken = take_without_parens(std::mem::replace(rhs, b.void0()));
         let OxcExpression::CallExpression(call) = taken else {
             return None;
         };
@@ -2073,8 +2088,8 @@ fn lower_variable_declaration<'a>(
             }
             Some(rune) => {
                 // Lower the init from the rune; keep the binding pattern verbatim.
-                let new_init =
-                    lower_decl_init(&rune, d.init.as_ref(), src, state, carry, &mut poisoned);
+                let init = d.init.as_ref().map(OxcExpression::without_parentheses);
+                let new_init = lower_decl_init(&rune, init, src, state, carry, &mut poisoned);
                 let pat_span = d.id.span();
                 let pat_slice = &src[pat_span.start as usize..pat_span.end as usize];
                 let Some(mut pat) = state.reparse_pattern(pat_slice) else {
@@ -2112,15 +2127,7 @@ fn lower_variable_declaration<'a>(
                     // `$.derived(() => <access>)` leaf per path and one
                     // `$$derived_array = $.derived(() => $.to_array(...))` per
                     // array sub-pattern (写经 `VariableDeclaration.js:97-156`).
-                    create_derived_declarators(
-                        &rune,
-                        d.init.as_ref(),
-                        src,
-                        pat,
-                        new_init,
-                        state,
-                        &mut decls,
-                    );
+                    create_derived_declarators(&rune, init, src, pat, new_init, state, &mut decls);
                 } else {
                     decls.push((pat, new_init));
                 }
