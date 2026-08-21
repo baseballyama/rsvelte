@@ -157,7 +157,16 @@ impl ExportFlags {
     const IS_PROP: u8 = 1 << 1;
     const IS_LET: u8 = 1 << 2;
     const IS_NAMED_EXPORT: u8 = 1 << 3;
+    /// Official `ExportedName.required`, set from `!node.initializer` for a
+    /// variable declaration and left `false` for every other export kind.
+    const IS_REQUIRED: u8 = 1 << 4;
 
+    pub const fn with_required_if(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.0 |= Self::IS_REQUIRED;
+        }
+        self
+    }
     pub const fn with_default_if(mut self, enabled: bool) -> Self {
         if enabled {
             self.0 |= Self::HAS_DEFAULT;
@@ -206,6 +215,11 @@ impl ExportedNameInfo {
     #[must_use]
     pub const fn is_named_export(&self) -> bool {
         self.flags.contains(ExportFlags::IS_NAMED_EXPORT)
+    }
+
+    #[must_use]
+    pub const fn is_required(&self) -> bool {
+        self.flags.contains(ExportFlags::IS_REQUIRED)
     }
 
     fn mark_named_export(&mut self) {
@@ -583,14 +597,14 @@ impl ExportedNames {
         // omit the `as {…}` cast entirely when every export is untyped AND
         // required — a plain `export let x` with no default and no type
         // annotation (`required = !initializer`). A typed or defaulted /
-        // optional export (or any non-`let` export) forces the cast. Computed
-        // up-front because it also gates whether the *value* elements carry the
-        // leading JSDoc (official `createReturnElements`: doc when dontAddTypeDef).
+        // optional export forces the cast. Computed up-front because it also
+        // gates whether the *value* elements carry the leading JSDoc (official
+        // `createReturnElements`: doc when dontAddTypeDef).
         let dont_add_type_def = !is_ts
             || self
                 .names
                 .values()
-                .all(|info| info.type_annotation.is_none() && info.is_let() && !info.has_default());
+                .all(|info| info.type_annotation.is_none() && info.is_required());
         // When `dontAddTypeDef`, the props object omits the `as {…}` type assert,
         // so a captured leading JSDoc `/** … */` is emitted before the prop's
         // value element — mirrors official `createReturnElements`.
@@ -848,7 +862,8 @@ impl ExportedNames {
             output.push(' ');
         }
         output.push_str(name);
-        if info.has_default() || !info.is_let() {
+        // Official `createReturnElementsType`: `${name}${value.required ? '' : '?'}`.
+        if !info.is_required() {
             output.push('?');
         }
         output.push_str(": ");
