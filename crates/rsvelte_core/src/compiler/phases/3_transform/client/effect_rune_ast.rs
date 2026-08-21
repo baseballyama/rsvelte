@@ -27,6 +27,7 @@ use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
 use oxc_parser::ParseOptions;
 use oxc_span::SourceType;
+use rustc_hash::FxHashSet;
 
 use super::ast_rewrite::{self, Edit};
 
@@ -51,27 +52,37 @@ pub fn apply_effect_rune_transforms_ast(source: &str, is_ts: bool) -> Option<Str
         },
         ParseOptions::default(),
         false,
-        collect_effect_rune_edits,
+        |program| collect_effect_rune_edits(program, &FxHashSet::default()),
     )
 }
 
 /// Collect `$effect.*` call-expression rewrites from a single parse.
 /// The batched module dev-tail driver folds this to a fixed point
 /// alongside the other dev-mode collectors.
-pub(super) fn collect_effect_rune_edits(program: &Program<'_>) -> Vec<Edit> {
+///
+/// `shadowed` holds the offsets of the rune-spelled identifiers that resolve to
+/// a declaration (`function f($effect) { $effect(1) }`), which upstream's
+/// `get_rune` reports as plain calls; it is empty unless the module declares
+/// such a name at all.
+pub(super) fn collect_effect_rune_edits(
+    program: &Program<'_>,
+    shadowed: &FxHashSet<usize>,
+) -> Vec<Edit> {
     let mut collector = EffectRuneCollector {
+        shadowed,
         replacements: Vec::new(),
     };
     collector.visit_program(program);
     collector.replacements
 }
 
-struct EffectRuneCollector {
+struct EffectRuneCollector<'a> {
+    shadowed: &'a FxHashSet<usize>,
     /// Each entry is `(span_start, span_end, replacement_string)`.
     replacements: Vec<Edit>,
 }
 
-impl<'a> Visit<'a> for EffectRuneCollector {
+impl<'a> Visit<'a> for EffectRuneCollector<'_> {
     fn visit_call_expression(&mut self, call: &CallExpression<'a>) {
         // Walk arguments first so nested `$effect(...)` (e.g.,
         // `$effect(() => $effect.tracking())`) get rewritten too.
@@ -80,6 +91,9 @@ impl<'a> Visit<'a> for EffectRuneCollector {
         match &call.callee {
             // `$effect(...)`
             Expression::Identifier(id) if id.name == "$effect" => {
+                if self.shadowed.contains(&(id.span.start as usize)) {
+                    return;
+                }
                 self.replacements
                     .push((id.span.start, id.span.end, "$.user_effect".to_string()));
             }
@@ -88,7 +102,7 @@ impl<'a> Visit<'a> for EffectRuneCollector {
                 let Expression::Identifier(obj) = &member.object else {
                     return;
                 };
-                if obj.name != "$effect" {
+                if obj.name != "$effect" || self.shadowed.contains(&(obj.span.start as usize)) {
                     return;
                 }
                 let property = member.property.name.as_str();

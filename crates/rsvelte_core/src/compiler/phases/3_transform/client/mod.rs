@@ -93,7 +93,8 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::LazyLock;
 
-use crate::compiler::phases::phase3_transform::shared::js_scan::{find_code, skip_opaque};
+use crate::compiler::phases::phase3_transform::shared::js_scan::{find_code_from, skip_opaque};
+use crate::compiler::phases::phase3_transform::shared::rune_shadow;
 use compact_str::CompactString;
 use memchr::memmem;
 // rustc_hash is used by submodules via their own imports
@@ -4323,6 +4324,17 @@ pub(crate) fn transform_module_script_runes(
 
 /// `pre_class_script` is the script before the class-field lowering — the dev
 /// `$.tag` label needs the name the user wrote, which the lowering erases.
+/// Whether this module declares a rune-spelled name at all — the cheap
+/// precondition for [`rune_shadow::RuneShadows`]: with no such declaration no
+/// call can resolve to one, so nothing needs a scope pass.
+fn module_binds_rune_name(analysis: &ComponentAnalysis) -> bool {
+    analysis
+        .root
+        .bindings
+        .iter()
+        .any(|b| rune_shadow::is_rune_name(&b.name))
+}
+
 fn transform_module_script_runes_with_target(
     script: &str,
     pre_class_script: &str,
@@ -4331,6 +4343,10 @@ fn transform_module_script_runes_with_target(
     server: bool,
 ) -> String {
     let mut result = script.to_string();
+    let mut shadows = rune_shadow::RuneShadows::new(
+        module_binds_rune_name(analysis),
+        analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts"),
+    );
 
     // Strip TypeScript generic parameters from $state<...>() and $derived<...>() calls.
     // These are type-only annotations that have no runtime meaning.
@@ -4369,7 +4385,13 @@ fn transform_module_script_runes_with_target(
     // In non-dev mode, remove $inspect.trace(...) statements from module scripts.
     // Mirrors the same logic in rune_transforms.rs for instance scripts.
     if !dev {
-        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect.trace(") {
+        let mut from = 0usize;
+        while let Some(pos) = memmem::find(&result.as_bytes()[from..], b"$inspect.trace(") {
+            let pos = from + pos;
+            if shadows.is_bound(&result, pos) {
+                from = pos + 1;
+                continue;
+            }
             let trace_start = pos + b"$inspect.trace(".len();
             if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
                 let mut end = trace_start + content_end + 1;
@@ -4383,6 +4405,7 @@ fn transform_module_script_runes_with_target(
                     start -= 1;
                 }
                 result = format!("{}{}", &result[..start], &result[end..]);
+                from = 0;
             } else {
                 break;
             }
@@ -4394,7 +4417,13 @@ fn transform_module_script_runes_with_target(
     // return b.empty`. The component-instance path handles this in rune_transforms.rs;
     // module scripts use this dedicated loop.
     if !dev {
-        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect(") {
+        let mut from = 0usize;
+        while let Some(pos) = memmem::find(&result.as_bytes()[from..], b"$inspect(") {
+            let pos = from + pos;
+            if shadows.is_bound(&result, pos) {
+                from = pos + 1;
+                continue;
+            }
             let inspect_start = pos + b"$inspect(".len();
             if let Some(content_end) = find_matching_paren(&result[inspect_start..]) {
                 let after_call = &result[inspect_start + content_end + 1..];
@@ -4424,6 +4453,7 @@ fn transform_module_script_runes_with_target(
                     end += 1;
                 }
                 result = format!("{}{}", &result[..start], &result[end..]);
+                from = 0;
             } else {
                 break;
             }
@@ -4578,10 +4608,15 @@ fn transform_module_script_runes_with_target(
     // `find_code`, not `memmem::find`: the AST batch above leaves a `$state(`
     // that sits in a string / template / regex / comment untouched, and this
     // fallback would otherwise rewrite that text as if it were a call (#2988).
-    while let Some(pos) = find_code(result.as_bytes(), b"$state(") {
+    let mut state_from = 0usize;
+    while let Some(pos) = find_code_from(result.as_bytes(), b"$state(", state_from) {
         // Make sure this is not $state.something
         if pos + 7 < result.len() && result.as_bytes()[pos + 6] != b'(' {
             break;
+        }
+        if shadows.is_bound(&result, pos) {
+            state_from = pos + 1;
+            continue;
         }
 
         let var_name = extract_var_name_before_rune(&result[..pos]);
@@ -4664,7 +4699,9 @@ fn transform_module_script_runes_with_target(
     // expression positions and can't make that mistake.
     {
         let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
-        if let Some(rewritten) = derived_by_ast::transform_derived_by_ast(&result, is_ts) {
+        if let Some(rewritten) =
+            derived_by_ast::transform_derived_by_ast(&result, is_ts, shadows.enabled())
+        {
             result = rewritten;
         }
     }
@@ -4707,10 +4744,15 @@ fn transform_module_script_runes_with_target(
     // / regex / comment is text. Matching it either rewrote the literal (#2988)
     // or aborted the loop on its unbalanced parens, leaving the real rune call
     // unlowered and the module referencing a global `$derived` (#2987).
-    while let Some(pos) = find_code(result.as_bytes(), b"$derived(") {
+    let mut derived_from = 0usize;
+    while let Some(pos) = find_code_from(result.as_bytes(), b"$derived(", derived_from) {
         if result[..pos].ends_with('$') {
             // Already transformed to $.derived() - skip
             break;
+        }
+        if shadows.is_bound(&result, pos) {
+            derived_from = pos + 1;
+            continue;
         }
         let derived_start = pos + 9; // after "$derived("
         if let Some(content_end) = find_matching_paren(&result[derived_start..]) {

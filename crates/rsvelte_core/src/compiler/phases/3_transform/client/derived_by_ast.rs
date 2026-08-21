@@ -22,6 +22,8 @@ use oxc_ast_visit::walk;
 use oxc_parser::ParseOptions;
 use oxc_span::{GetSpan, SourceType};
 
+use crate::compiler::phases::phase3_transform::shared::rune_shadow;
+
 use super::ast_rewrite::{self, Edit};
 
 thread_local! {
@@ -30,7 +32,7 @@ thread_local! {
 
 /// AST-based rewrite of `$derived.by(fn)` → `$.derived(fn)`.
 /// Returns `None` when nothing changed.
-pub fn transform_derived_by_ast(source: &str, is_ts: bool) -> Option<String> {
+pub fn transform_derived_by_ast(source: &str, is_ts: bool, check_shadow: bool) -> Option<String> {
     memchr::memmem::find(source.as_bytes(), b"$derived.by")?;
 
     ast_rewrite::rewrite_once(
@@ -44,7 +46,15 @@ pub fn transform_derived_by_ast(source: &str, is_ts: bool) -> Option<String> {
         ParseOptions::default(),
         false,
         |program| {
-            let mut collector = DerivedByCollector { spans: Vec::new() };
+            let shadowed = if check_shadow {
+                rune_shadow::shadowed_positions_in(program)
+            } else {
+                rustc_hash::FxHashSet::default()
+            };
+            let mut collector = DerivedByCollector {
+                shadowed: &shadowed,
+                spans: Vec::new(),
+            };
             collector.visit_program(program);
             collector
                 .spans
@@ -55,13 +65,16 @@ pub fn transform_derived_by_ast(source: &str, is_ts: bool) -> Option<String> {
     )
 }
 
-struct DerivedByCollector {
+struct DerivedByCollector<'a> {
+    /// Offsets of the rune-spelled identifiers that resolve to a declaration —
+    /// upstream's `get_rune` reports those calls as plain calls (#3237).
+    shadowed: &'a rustc_hash::FxHashSet<usize>,
     /// `(start, end)` byte offsets of `$derived.by` member-expression
     /// callees to overwrite with `$.derived`.
     spans: Vec<(u32, u32)>,
 }
 
-impl<'a> Visit<'a> for DerivedByCollector {
+impl<'a> Visit<'a> for DerivedByCollector<'_> {
     fn visit_call_expression(&mut self, call: &CallExpression<'a>) {
         walk::walk_call_expression(self, call);
 
@@ -71,7 +84,10 @@ impl<'a> Visit<'a> for DerivedByCollector {
         let Expression::Identifier(obj) = &member.object else {
             return;
         };
-        if obj.name != "$derived" || member.property.name != "by" {
+        if obj.name != "$derived"
+            || member.property.name != "by"
+            || self.shadowed.contains(&(obj.span.start as usize))
+        {
             return;
         }
         self.spans.push((member.span().start, member.span().end));
@@ -84,14 +100,14 @@ mod tests {
 
     #[test]
     fn rewrites_basic_derived_by() {
-        let out = transform_derived_by_ast("let d = $derived.by(() => x);", false).unwrap();
+        let out = transform_derived_by_ast("let d = $derived.by(() => x);", false, false).unwrap();
         assert_eq!(out, "let d = $.derived(() => x);");
     }
 
     #[test]
     fn rewrites_multiple_calls() {
         let src = "let a = $derived.by(() => 1); let b = $derived.by(() => 2);";
-        let out = transform_derived_by_ast(src, false).unwrap();
+        let out = transform_derived_by_ast(src, false, false).unwrap();
         assert_eq!(
             out,
             "let a = $.derived(() => 1); let b = $.derived(() => 2);"
@@ -101,19 +117,19 @@ mod tests {
     #[test]
     fn does_not_rewrite_inside_string_literal() {
         let src = r#"let s = "$derived.by(fn)";"#;
-        assert!(transform_derived_by_ast(src, false).is_none());
+        assert!(transform_derived_by_ast(src, false, false).is_none());
     }
 
     #[test]
     fn does_not_rewrite_static_template() {
         let src = "let s = `$derived.by(fn)`;";
-        assert!(transform_derived_by_ast(src, false).is_none());
+        assert!(transform_derived_by_ast(src, false, false).is_none());
     }
 
     #[test]
     fn rewrites_inside_template_expression() {
         let src = "let s = `${$derived.by(() => 1)}`;";
-        let out = transform_derived_by_ast(src, false).unwrap();
+        let out = transform_derived_by_ast(src, false, false).unwrap();
         assert_eq!(out, "let s = `${$.derived(() => 1)}`;");
     }
 
@@ -122,7 +138,7 @@ mod tests {
         // `$derived(x)` (no .by) is handled by other passes; this
         // helper only touches `$derived.by`.
         let src = "let d = $derived(x);";
-        assert!(transform_derived_by_ast(src, false).is_none());
+        assert!(transform_derived_by_ast(src, false, false).is_none());
     }
 
     #[test]
@@ -130,30 +146,30 @@ mod tests {
         // `$derived.bogus(x)` isn't a known rune — leave it for
         // downstream analysis to complain about.
         let src = "$derived.bogus(x)";
-        assert!(transform_derived_by_ast(src, false).is_none());
+        assert!(transform_derived_by_ast(src, false, false).is_none());
     }
 
     #[test]
     fn chained_member_after_call_works() {
         let src = "$derived.by(() => obj).foo";
-        let out = transform_derived_by_ast(src, false).unwrap();
+        let out = transform_derived_by_ast(src, false, false).unwrap();
         assert_eq!(out, "$.derived(() => obj).foo");
     }
 
     #[test]
     fn ts_source_works() {
         let src = "let d: number = $derived.by(() => 1);";
-        let out = transform_derived_by_ast(src, true).unwrap();
+        let out = transform_derived_by_ast(src, true, false).unwrap();
         assert!(out.contains("$.derived(() => 1)"));
     }
 
     #[test]
     fn parse_error_returns_none() {
-        assert!(transform_derived_by_ast("let x = $derived.by(", false).is_none());
+        assert!(transform_derived_by_ast("let x = $derived.by(", false, false).is_none());
     }
 
     #[test]
     fn no_op_without_keyword() {
-        assert!(transform_derived_by_ast("let x = 1;", false).is_none());
+        assert!(transform_derived_by_ast("let x = 1;", false, false).is_none());
     }
 }
