@@ -111,6 +111,10 @@ pub struct Parser<'a> {
     pub(crate) stylesheet: Option<StyleSheet>,
     /// Parsed svelte:options.
     pub(crate) svelte_options: Option<SvelteOptions<'a>>,
+    /// The `<svelte:options>` element as collected, before validation — upstream
+    /// validates it once the whole template has been parsed.
+    pub(crate) svelte_options_raw:
+        Option<crate::compiler::phases::phase1_parse::read::options::SvelteOptionsRaw<'a>>,
     /// Pending comments that could become leading comments for a script.
     pub(crate) pending_leading_comments: Vec<String>,
     /// Whether we're in TypeScript mode.
@@ -274,6 +278,7 @@ impl<'a> Parser<'a> {
             module_script: None,
             stylesheet: None,
             svelte_options: None,
+            svelte_options_raw: None,
             pending_leading_comments: Vec::new(),
             ts,
             script_ts: false,
@@ -321,6 +326,7 @@ impl<'a> Parser<'a> {
         self.module_script = None;
         self.stylesheet = None;
         self.svelte_options = None;
+        self.svelte_options_raw = None;
         self.pending_leading_comments.clear();
         self.meta_tags.clear();
         self.last_auto_closed_tag = None;

@@ -1,0 +1,5 @@
+---
+"@rsvelte/compiler": patch
+---
+
+`<svelte:options>` is now validated where the official compiler validates it — once the whole template has been parsed, between the meta-tag checks and the children check — so a duplicate `<svelte:options>` outranks a bad attribute value and a bad attribute value outranks the element's own children (both orders were reversed). The validator itself is a faithful port of upstream's `read_options`: an expression tag holding a string literal is accepted wherever the quoted form is (`namespace={"svg"}`, `css={"injected"}`), `customElement`'s `props` entries are checked, a non-string `tag` (`{ tag: null }`, `{ tag: 1 }`) is rejected while an empty `customElement=""` is accepted, the tag-name character class follows the HTML spec instead of an ASCII approximation, non-`Identifier` and computed keys in the `customElement` object are rejected, whitespace-only children are rejected, and the `shadow` error carries upstream's current message naming `ShadowRootInit`.

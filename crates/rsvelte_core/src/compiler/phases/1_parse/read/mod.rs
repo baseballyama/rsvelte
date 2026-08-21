@@ -5,7 +5,7 @@
 //! The style module also provides CSS parsing functionality.
 
 pub mod expression;
-mod options;
+pub(crate) mod options;
 pub(crate) mod script;
 pub(crate) mod strict_mode;
 pub mod style;
