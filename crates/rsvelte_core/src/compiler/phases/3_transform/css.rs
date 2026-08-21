@@ -625,7 +625,7 @@ fn generate_css_sourcemap(
     }
 
     Some(generate_sourcemap_json(
-        &file_name,
+        Some(&file_name),
         &source_name,
         include_sourcemap_content.then_some(source),
         &mappings_str,
