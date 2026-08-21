@@ -40,7 +40,9 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             // In runes mode, a top-level `$:` reactive statement is a hard
             // error (upstream LabeledStatement.js `legacy_reactive_statement_invalid`).
             if is_reactive_statement && context.analysis.runes {
-                return Err(super::super::errors::legacy_reactive_statement_invalid());
+                return Err(
+                    super::super::errors::legacy_reactive_statement_invalid().at(*start, *end)
+                );
             }
 
             if !context.analysis.runes

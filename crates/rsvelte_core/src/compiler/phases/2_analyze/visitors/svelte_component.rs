@@ -27,7 +27,9 @@ pub fn visit<'a, 'b: 'a>(
     // node type. Mirror upstream's `svelte_component_missing_this` instead of
     // silently accepting it. (issue #453, H-046)
     if component.expression.node_type().is_none() {
-        return Err(errors::svelte_component_missing_this().at(component.start, component.end));
+        // Upstream raises this from the parser with the element's start offset
+        // alone, so the range is zero-width rather than the whole element.
+        return Err(errors::svelte_component_missing_this().at(component.start, component.start));
     }
 
     // svelte:component requires a `this` expression
