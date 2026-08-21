@@ -1506,6 +1506,16 @@ fn synthesized_self_member_assign(
     ))
 }
 
+/// The store a `$.store_set` / `$.store_mutate` writes to is read like any other
+/// reference to its binding, so a prop reads as `store()` and a state source as
+/// `$.get(store)` (upstream visits `b.id(name.slice(1))` for the same reason).
+fn build_store_source(store_name: &str, context: &ComponentContext) -> JsExpr {
+    match context.state.transform.get(store_name).and_then(|t| t.read) {
+        Some(read_fn) => read_fn(&context.arena, b::id(store_name)),
+        None => b::id(store_name),
+    }
+}
+
 fn process_bind_directive<'a>(
     bind: &BindDirective<'a>,
     context: &mut ComponentContext,
@@ -1850,7 +1860,7 @@ fn process_bind_directive<'a>(
             b::call(
                 &context.arena,
                 b::member_path(&context.arena, "$.store_set"),
-                vec![b::id(&store_name), b::id("$$value")],
+                vec![build_store_source(&store_name, context), b::id("$$value")],
             ),
         )]
     } else if is_prop_binding {
@@ -1881,18 +1891,7 @@ fn process_bind_directive<'a>(
                 &store_prefix,
                 b::id("$$value"),
             );
-            // The store *source* (first arg) is read like any other reference to
-            // its binding: a prop reads as the getter call `store()`, a state /
-            // mutable_source reads as `$.get(store)`, and a plain store keeps the
-            // bare name. Apply the registered read transform (mirrors upstream's
-            // `context.state.transform[name].read`).
-            let store_source = match context.state.transform.get(&store_name) {
-                Some(transform) => match transform.read {
-                    Some(read_fn) => read_fn(&context.arena, b::id(&store_name)),
-                    None => b::id(&store_name),
-                },
-                None => b::id(&store_name),
-            };
+            let store_source = build_store_source(&store_name, context);
             vec![b::stmt(
                 &context.arena,
                 b::call(
