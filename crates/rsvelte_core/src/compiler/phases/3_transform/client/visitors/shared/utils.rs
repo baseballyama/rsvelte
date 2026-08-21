@@ -541,6 +541,14 @@ pub fn apply_transforms_to_expression_with_shadowed(
 
     match expr {
         JsExpr::Identifier(name) => {
+            // `Identifier.js` short-circuits on the NAME before any binding is
+            // resolved, so a local `$$props` (an each item, a snippet
+            // parameter) is renamed too. Upstream only ever visits USER
+            // expressions; the `$$props` object rsvelte's own prop reads are
+            // built on has no binding, which is what separates the two here.
+            if name.as_str() == "$$props" && context.state.get_binding(name).is_some() {
+                return JsExpr::Identifier("$$sanitized_props".into());
+            }
             // Skip transforms for shadowed variables (function parameters, local vars)
             if local_scope.contains(name) {
                 return expr.clone();
