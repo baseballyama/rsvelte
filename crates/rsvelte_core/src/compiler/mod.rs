@@ -39,6 +39,7 @@
 //! ```
 
 pub mod constants;
+pub(crate) mod identifier_escapes;
 pub mod legacy;
 pub mod phases;
 pub mod preprocess;
@@ -670,6 +671,8 @@ pub(crate) fn prepare_and_analyze<'source>(
 /// Returns a `CompileResult` containing the generated JavaScript and CSS.
 pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, CompileError> {
     let generate = options.generate;
+    let normalized = identifier_escapes::normalize_component_source(source, options.modern_ast);
+    let source = normalized.as_deref().unwrap_or(source);
     crate::toolchain::PreparedComponent::new(source, options)?.compile_mode(generate)
 }
 
@@ -683,6 +686,8 @@ pub fn compile_client_with_program_sink(
         &phases::phase3_transform::js_ast::arena::JsArena,
     ),
 ) -> Result<CompileResult, CompileError> {
+    let normalized = identifier_escapes::normalize_component_source(source, options.modern_ast);
+    let source = normalized.as_deref().unwrap_or(source);
     crate::toolchain::PreparedComponent::new(source, options)?
         .compile_client_with_program_sink(sink)
 }
@@ -693,6 +698,8 @@ pub fn compile_with_external_sourcemap_content(
     options: CompileOptions,
 ) -> Result<CompileResult, CompileError> {
     let generate = options.generate;
+    let normalized = identifier_escapes::normalize_component_source(source, options.modern_ast);
+    let source = normalized.as_deref().unwrap_or(source);
     crate::toolchain::PreparedComponent::new(source, options)?
         .compile_mode_with_sourcemap_content(generate, false)
 }
@@ -714,6 +721,8 @@ pub fn compile_both(
     source: &str,
     options: CompileOptions,
 ) -> Result<(CompileResult, CompileResult), CompileError> {
+    let normalized = identifier_escapes::normalize_component_source(source, options.modern_ast);
+    let source = normalized.as_deref().unwrap_or(source);
     crate::toolchain::PreparedComponent::new(source, options)?.compile_both()
 }
 
@@ -931,6 +940,10 @@ pub fn compile_module(
     source: &str,
     options: ModuleCompileOptions,
 ) -> Result<CompileResult, CompileError> {
+    // A rune name spelled with a unicode escape is the same identifier to the
+    // parser and a different one to every text scan below.
+    let normalized = identifier_escapes::normalize_module_source(source);
+    let source = normalized.as_deref().unwrap_or(source);
     // Parse JS source into an AST using the same infrastructure as component scripts.
     // Upstream `compileModule` → `analyze_module` always parses with
     // `typescript: false` (2-analyze/index.js `parse(source, comments, false,
