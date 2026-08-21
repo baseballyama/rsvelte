@@ -16,7 +16,8 @@ use super::text::{
     is_method_chain_break, starts_with_array_or_object_literal,
 };
 use super::width::{
-    format_content_expression, format_content_expression_with_prefix, format_inline_expression,
+    format_content_expression, format_content_expression_with_bounds,
+    format_content_expression_with_prefix, format_inline_expression,
 };
 use super::{format_expression_source, format_pattern_source, formatter_parse_options};
 use crate::error::FormatError;
@@ -167,9 +168,95 @@ pub(super) fn push_expression_tag(
         } else {
             1
         };
-    let formatted = format_content_expression_with_prefix(inner, options, depth, prefix_lead)?;
+    let suffix_trail = glued_tag_run_width(source, tag.end, options);
+    let formatted =
+        format_content_expression_with_bounds(inner, options, depth, prefix_lead, suffix_trail)?;
     edits.push((tag.start, tag.end, format!("{{{formatted}}}")));
     Ok(())
+}
+
+/// The columns a tag's own fit test must charge for the run of tags glued
+/// directly to the `}` at `from`.
+///
+/// The oracle prints a fragment's children as a plain concatenation, so a group
+/// is measured against the rest of the line — adjacent mustaches offer no break
+/// opportunity of their own, and the first breakable one has to absorb the whole
+/// run. The scan therefore stops at the first following tag that *can* break,
+/// charging only the text before that break point, exactly as prettier's `fits`
+/// stops at the first line it meets in an enclosing break context.
+fn glued_tag_run_width(source: &str, from: u32, options: &FormatOptions) -> usize {
+    let tw = tab_width(options);
+    let rest = source.get(from as usize..).unwrap_or("");
+    let mut total = 0usize;
+    let mut consumed = 0usize;
+    while rest.as_bytes().get(consumed) == Some(&b'{') {
+        // A block tag opens its own fragment, which is a break opportunity.
+        if matches!(
+            rest.as_bytes().get(consumed + 1),
+            Some(b'#' | b':' | b'/' | b'@')
+        ) {
+            break;
+        }
+        let Some(end) = glued_tag_end(rest, consumed) else {
+            break;
+        };
+        let Some(span) = rest.get(consumed..end) else {
+            break;
+        };
+        let inner = span
+            .strip_prefix('{')
+            .and_then(|s| s.strip_suffix('}'))
+            .map_or("", str::trim);
+        if inner.is_empty() {
+            break;
+        }
+        match crate::expression::reformat_content_at_width(inner, options, 1, 0) {
+            Ok(broken) if broken.contains('\n') => {
+                total += 1 + broken.lines().next().unwrap_or("").visual_width(tw);
+                break;
+            }
+            _ => total += span.visual_width(tw),
+        }
+        consumed = end;
+    }
+    total
+}
+
+/// The offset just past the `}` closing the tag that opens at `open`, or `None`
+/// when it does not close on the same line (a line break is a break opportunity,
+/// so the run ends there either way).
+fn glued_tag_end(source: &str, open: usize) -> Option<usize> {
+    let bytes = source.as_bytes();
+    let mut depth = 0usize;
+    let mut quote: Option<u8> = None;
+    let mut i = open;
+    while i < bytes.len() {
+        let byte = bytes[i];
+        if let Some(q) = quote {
+            if byte == b'\\' {
+                i += 2;
+                continue;
+            }
+            if byte == q {
+                quote = None;
+            }
+        } else {
+            match byte {
+                b'\'' | b'"' | b'`' => quote = Some(byte),
+                b'{' => depth += 1,
+                b'}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return Some(i + 1);
+                    }
+                }
+                b'\n' => return None,
+                _ => {}
+            }
+        }
+        i += 1;
+    }
+    None
 }
 
 /// Replace `{@<keyword> EXPR}` (full tag span) with the formatted expression
