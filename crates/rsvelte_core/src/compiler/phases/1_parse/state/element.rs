@@ -682,6 +682,23 @@ impl<'a> Parser<'a> {
                 fragment,
             }),
             ElementType::SvelteComponent => {
+                // element.js L273-276: a `this` that is not a single
+                // `{expression}` is rejected at parse time, before analysis
+                // ever looks at the node.
+                if let Some(definition) = attributes.iter().find_map(|attr| match attr {
+                    crate::ast::Attribute::Attribute(node) if node.name.as_str() == "this" => {
+                        Some(node)
+                    }
+                    _ => None,
+                }) && !Self::is_expression_attribute(definition)
+                {
+                    return Err(crate::error::ParseError::svelte(
+                        "svelte_component_invalid_this",
+                        "Invalid component definition — must be an `{expression}`\nhttps://svelte.dev/e/svelte_component_invalid_this",
+                        (definition.start as usize, definition.start as usize),
+                    ));
+                }
+
                 // Extract the "this" attribute to get the expression
                 let expression = self.extract_this_attribute(&attributes);
 
@@ -742,23 +759,14 @@ impl<'a> Parser<'a> {
                 for attr in &attributes {
                     if let crate::ast::Attribute::Attribute(node) = attr
                         && node.name.as_str() == "this"
+                        && !Self::is_expression_attribute(node)
                     {
-                        let is_expression_attribute = match &node.value {
-                            AttributeValue::Expression(_) => true,
-                            AttributeValue::Sequence(parts) => {
-                                parts.len() == 1
-                                    && matches!(&parts[0], AttributeValuePart::ExpressionTag(_))
-                            }
-                            _ => false,
-                        };
-                        if !is_expression_attribute {
-                            self.parse_warnings.push(crate::ast::template::ParseWarning {
-                                code: "svelte_element_invalid_this".to_string(),
-                                message: "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this".to_string(),
-                                start: node.start,
-                                end: node.end,
-                            });
-                        }
+                        self.parse_warnings.push(crate::ast::template::ParseWarning {
+                            code: "svelte_element_invalid_this".to_string(),
+                            message: "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this".to_string(),
+                            start: node.start,
+                            end: node.end,
+                        });
                     }
                 }
 
@@ -800,6 +808,18 @@ impl<'a> Parser<'a> {
         };
 
         Ok(Some(node))
+    }
+
+    /// Mirrors `utils/ast.js` `is_expression_attribute`: the value is a single
+    /// `{expression}`, either bare or as the sole chunk of a quoted value.
+    fn is_expression_attribute(node: &crate::ast::template::AttributeNode<'a>) -> bool {
+        match &node.value {
+            AttributeValue::Expression(_) => true,
+            AttributeValue::Sequence(parts) => {
+                parts.len() == 1 && matches!(&parts[0], AttributeValuePart::ExpressionTag(_))
+            }
+            AttributeValue::True(_) => false,
+        }
     }
 
     /// Extract the "this" attribute from a svelte:element to get the tag expression.
@@ -1443,6 +1463,36 @@ impl<'a> Parser<'a> {
         // Directive detection using first-byte dispatch to avoid multiple starts_with scans
         if let Some(colon_pos) = memchr(b':', name.as_bytes()) {
             let prefix = &name.as_bytes()[..colon_pos];
+            if matches!(
+                prefix,
+                b"on"
+                    | b"bind"
+                    | b"use"
+                    | b"class"
+                    | b"style"
+                    | b"transition"
+                    | b"in"
+                    | b"out"
+                    | b"animate"
+                    | b"let"
+            ) {
+                // Upstream splits modifiers off before testing emptiness, so
+                // `on:|once` is missing a name just as `on:` is.
+                let after_colon = &name[colon_pos + 1..];
+                let directive_name = match memchr(b'|', after_colon.as_bytes()) {
+                    Some(pipe) => &after_colon[..pipe],
+                    None => after_colon,
+                };
+                if directive_name.is_empty() {
+                    return Err(crate::error::ParseError::svelte(
+                        "directive_missing_name",
+                        format!(
+                            "`{name}` name cannot be empty\nhttps://svelte.dev/e/directive_missing_name"
+                        ),
+                        (start, start + colon_pos + 1),
+                    ));
+                }
+            }
             match prefix {
                 b"on" => {
                     return self.parse_on_directive(start, &name, name_loc, name_end);
@@ -1704,15 +1754,6 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         let action_name = &full_name[4..]; // Skip "use:"
 
-        // Check for empty directive name
-        if action_name.is_empty() {
-            return Err(crate::error::ParseError::svelte(
-                "directive_missing_name",
-                "`use:` name cannot be empty",
-                (start, name_end),
-            ));
-        }
-
         let (expression, end_pos) = if self.eat_optional("=") {
             self.skip_whitespace();
             // Handle quoted value: ="{expression}" or ="value"
@@ -1787,15 +1828,6 @@ impl<'a> Parser<'a> {
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         let class_name = &full_name[6..]; // Skip "class:"
-
-        // Check for empty directive name
-        if class_name.is_empty() {
-            return Err(crate::error::ParseError::svelte(
-                "directive_missing_name",
-                "`class:` name cannot be empty",
-                (start, name_end),
-            ));
-        }
 
         let had_value = self.eat_optional("=");
         let expression = if had_value {
@@ -2049,29 +2081,19 @@ impl<'a> Parser<'a> {
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Determine type and extract name with modifiers
-        let (directive_label, transition_name, intro, outro, modifiers) =
+        let (transition_name, intro, outro, modifiers) =
             if let Some(stripped) = full_name.strip_prefix("transition:") {
                 let (name, mods) = Self::extract_name_and_modifiers(stripped);
-                ("transition:", name, true, true, mods)
+                (name, true, true, mods)
             } else if let Some(stripped) = full_name.strip_prefix("in:") {
                 let (name, mods) = Self::extract_name_and_modifiers(stripped);
-                ("in:", name, true, false, mods)
+                (name, true, false, mods)
             } else if let Some(stripped) = full_name.strip_prefix("out:") {
                 let (name, mods) = Self::extract_name_and_modifiers(stripped);
-                ("out:", name, false, true, mods)
+                (name, false, true, mods)
             } else {
                 return Ok(None);
             };
-
-        // An empty name (`transition:`, `in:|global`, …) is a parse error —
-        // it would otherwise lower to an empty JS identifier. H-146 / M-040.
-        if transition_name.is_empty() {
-            return Err(crate::error::ParseError::svelte(
-                "directive_missing_name",
-                format!("`{directive_label}` name cannot be empty"),
-                (start, name_end),
-            ));
-        }
 
         let (expression, end_pos) = if self.eat_optional("=") {
             self.skip_whitespace();

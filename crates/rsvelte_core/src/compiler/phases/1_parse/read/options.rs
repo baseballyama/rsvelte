@@ -431,12 +431,22 @@ fn parse_custom_element_object<'a>(
             if let Some(JsonValue::String(key_name)) = prop.get("key").and_then(|k| k.get("name")) {
                 match key_name.as_str() {
                     "tag" => {
-                        if let Some(tag_value) = prop.get("value").and_then(|v| v.get("value"))
-                            && let Some(tag_str) = tag_value.as_str()
-                        {
-                            validate_tag_name(tag_str, attr)?;
-                            tag = Some(tag_str.to_string().into());
-                        }
+                        // options.js `validate_tag`: anything that is not a
+                        // string literal is `svelte_options_invalid_tagname`,
+                        // including `null`, a number and a non-literal node.
+                        let Some(tag_str) = prop
+                            .get("value")
+                            .and_then(|v| v.get("value"))
+                            .and_then(|v| v.as_str())
+                        else {
+                            return Err(ParseError::svelte(
+                                "svelte_options_invalid_tagname",
+                                INVALID_TAGNAME,
+                                (attr.start as usize, attr.end as usize),
+                            ));
+                        };
+                        validate_tag_name(tag_str, attr)?;
+                        tag = Some(tag_str.to_string().into());
                     }
                     "shadow" => {
                         // Mirrors 1-parse/read/options.js lines 134-142: a string
@@ -503,12 +513,9 @@ fn validate_tag_name<'a>(
     tag: &str,
     attr: &crate::ast::template::AttributeNode<'a>,
 ) -> ParseResult<()> {
+    // options.js guards the shape checks with `if (tag)`, so `""` is accepted.
     if tag.is_empty() {
-        return Err(ParseError::svelte(
-            "svelte_options_invalid_tagname",
-            INVALID_TAGNAME,
-            (attr.start as usize, attr.end as usize),
-        ));
+        return Ok(());
     }
 
     // Must start with a lowercase letter
