@@ -1068,6 +1068,26 @@ fn is_whole_string_literal(value: &str) -> bool {
     false
 }
 
+/// ECMA-262 TV/TRV line-terminator normalisation for a template literal body.
+fn normalize_template_line_terminators(body: &str) -> std::borrow::Cow<'_, str> {
+    if memchr::memchr(b'\r', body.as_bytes()).is_none() {
+        return std::borrow::Cow::Borrowed(body);
+    }
+    let mut out = String::with_capacity(body.len());
+    let mut rest = body;
+    while let Some(i) = memchr::memchr(b'\r', rest.as_bytes()) {
+        out.push_str(&rest[..i]);
+        out.push('\n');
+        rest = if rest.as_bytes().get(i + 1) == Some(&b'\n') {
+            &rest[i + 2..]
+        } else {
+            &rest[i + 1..]
+        };
+    }
+    out.push_str(rest);
+    std::borrow::Cow::Owned(out)
+}
+
 fn try_insert_constant_value(
     value: &str,
     name: &str,
@@ -1077,7 +1097,14 @@ fn try_insert_constant_value(
         // A folded constant is a value, so it holds the cooked string (matching
         // upstream's `scope.evaluate`); the emitter re-escapes it for the quasi.
         let content = &value[1..value.len() - 1];
-        let decoded = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::cook_string_literal(content);
+        // Only a template literal can carry a raw line terminator, and ECMA-262
+        // normalises `<CR><LF>` / a lone `<CR>` to `<LF>` in its cooked value.
+        let content = if value.as_bytes()[0] == b'`' {
+            normalize_template_line_terminators(content)
+        } else {
+            std::borrow::Cow::Borrowed(content)
+        };
+        let decoded = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::cook_string_literal(&content);
         constants.insert(name.to_string(), decoded);
         true
     } else if value == "true" || value == "false" || value == "null" || value == "undefined" {
