@@ -796,7 +796,11 @@ fn process_props_object_pattern_typed(
             JsNode::Identifier { name, .. } => Some(name.to_string()),
             JsNode::Literal { value, .. } => match value {
                 crate::ast::typed_expr::LiteralValue::String(s) => Some(s.to_string()),
-                crate::ast::typed_expr::LiteralValue::Number(n) => Some((*n as i64).to_string()),
+                crate::ast::typed_expr::LiteralValue::Number(n) => Some(
+                    crate::compiler::phases::phase3_transform::server::evaluate::js_number_to_string(
+                        *n,
+                    ),
+                ),
                 _ => None,
             },
             _ => None,
