@@ -1655,6 +1655,21 @@ pub fn parse_expression_with_end<'a>(
     Ok(create_invalid_identifier(offset, end, line_offsets))
 }
 
+/// Wrap a template expression's source text in `(` … `)` so OXC parses it as an
+/// expression rather than a program.
+///
+/// The newline before the closing paren restores what the caller's
+/// whitespace-trim removed: upstream parses in place, where a trailing `//`
+/// comment is still terminated by the template's own newline.
+fn wrap_in_parens(content: &str) -> String {
+    let mut wrapped = String::with_capacity(content.len() + 3);
+    wrapped.push('(');
+    wrapped.push_str(content);
+    wrapped.push('\n');
+    wrapped.push(')');
+    wrapped
+}
+
 /// Check if a JavaScript expression has parse errors, returning the failure
 /// position alongside the message.
 ///
@@ -1673,10 +1688,7 @@ pub fn parse_expression_with_end<'a>(
 /// where it stopped consuming tokens, which corresponds to the *end* of the
 /// problematic region, not its start.
 pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
-    let mut wrapped = String::with_capacity(content.len() + 2);
-    wrapped.push('(');
-    wrapped.push_str(content);
-    wrapped.push(')');
+    let wrapped = wrap_in_parens(content);
 
     let probe = |source_type: SourceType| -> Option<(String, usize)> {
         with_oxc_allocator(|allocator| {
@@ -1831,10 +1843,7 @@ pub fn trailing_token_offset(content: &str) -> Option<usize> {
     // the first error label lands on the first leftover token. (Parsing the bare
     // string as a program is unreliable: OXC's statement-level error recovery
     // folds trailing tokens into one recovered node, hiding the boundary.)
-    let mut wrapped = String::with_capacity(content.len() + 2);
-    wrapped.push('(');
-    wrapped.push_str(content);
-    wrapped.push(')');
+    let wrapped = wrap_in_parens(content);
 
     let probe = |source_type: SourceType| -> Option<usize> {
         with_oxc_allocator(|allocator| {
@@ -1920,10 +1929,7 @@ fn parse_expression_with_typescript<'a>(
         };
 
         // Wrap content in parens to parse as expression
-        let mut wrapped = String::with_capacity(content.len() + 2);
-        wrapped.push('(');
-        wrapped.push_str(content);
-        wrapped.push(')');
+        let wrapped = wrap_in_parens(content);
         let parser = OxcParser::new(allocator, &wrapped, source_type);
         let result = parser.parse();
 
