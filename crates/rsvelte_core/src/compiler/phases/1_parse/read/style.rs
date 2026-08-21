@@ -183,6 +183,89 @@ fn record_selector_comment_error(
 // ============================================================================
 
 impl<'a> Parser<'a> {
+    /// Advance `self.index` to the `</style` that closes the current block,
+    /// mirroring the CSS tokenisation upstream's readers perform: a `</style`
+    /// inside a CSS string, a `/* */` or `<!-- -->` comment, or an unquoted
+    /// `url(...)` is content, not a closing tag.
+    ///
+    /// Returns the first `<` that could not start a closing tag (used for the
+    /// `css_expected_identifier` diagnostic) and whether the scan ran out of
+    /// input inside a `url(`.
+    ///
+    /// `tokenise` is off for a non-CSS `lang` block in lenient (lint) mode: a
+    /// SCSS `// don't` would otherwise open a string that never closes.
+    fn scan_to_style_close(&mut self, tokenise: bool) -> (Option<usize>, bool) {
+        let content_start = self.index;
+        let bytes = self.bytes;
+        let len = bytes.len();
+        let mut first_invalid_lt: Option<usize> = None;
+        let mut quote: Option<u8> = None;
+        let mut in_url = false;
+        let mut escaped = false;
+        let mut i = self.index;
+
+        if !tokenise {
+            while let Some(offset) = memchr::memchr(b'<', &bytes[i..]) {
+                i += offset;
+                self.index = i;
+                if self.is_valid_closing_tag("</style") {
+                    return (first_invalid_lt, false);
+                }
+                if first_invalid_lt.is_none() {
+                    first_invalid_lt = Some(i);
+                }
+                i += 1;
+            }
+            self.index = len;
+            return (first_invalid_lt, false);
+        }
+
+        while i < len {
+            let ch = bytes[i];
+            // Mirrors the branch order of upstream's `read_value`.
+            if escaped {
+                escaped = false;
+            } else if ch == b'\\' {
+                escaped = true;
+            } else if Some(ch) == quote {
+                quote = None;
+            } else if ch == b')' {
+                in_url = false;
+            } else if quote.is_none() && (ch == b'"' || ch == b'\'') {
+                quote = Some(ch);
+            } else if ch == b'(' && i >= content_start + 3 && &bytes[i - 3..i] == b"url" {
+                in_url = true;
+            } else if quote.is_none() && !in_url {
+                if ch == b'/' && bytes.get(i + 1) == Some(&b'*') {
+                    // An unterminated comment keeps the old behaviour: fall
+                    // through so the CSS parse reports it.
+                    if let Some(off) = memchr::memmem::find(&bytes[i + 2..], b"*/") {
+                        i += 2 + off + 2;
+                        continue;
+                    }
+                } else if ch == b'<' {
+                    if bytes[i..].starts_with(b"<!--")
+                        && let Some(off) = memchr::memmem::find(&bytes[i + 4..], b"-->")
+                    {
+                        i += 4 + off + 3;
+                        continue;
+                    }
+                    self.index = i;
+                    if self.is_valid_closing_tag("</style") {
+                        return (first_invalid_lt, false);
+                    }
+                    if first_invalid_lt.is_none() {
+                        first_invalid_lt = Some(i);
+                    }
+                }
+            }
+            i += 1;
+        }
+
+        self.index = len;
+        (first_invalid_lt, in_url)
+    }
+
     /// Parse a `<style>` tag and store it in stylesheet.
     pub fn parse_style_tag(
         &mut self,
@@ -242,26 +325,12 @@ impl<'a> Parser<'a> {
 
         let content_start = self.index;
 
-        // Use SIMD-accelerated search for </style and check for invalid '<' along the way
-        let mut first_invalid_lt: Option<usize> = None;
-        loop {
-            // Search for next '<' using memchr
-            if let Some(offset) = memchr::memchr(b'<', &self.bytes[self.index..]) {
-                let lt_pos = self.index + offset;
-                self.index = lt_pos;
-                if self.is_valid_closing_tag("</style") {
-                    break;
-                }
-                // Track first invalid '<' that is not part of </style
-                if first_invalid_lt.is_none() {
-                    first_invalid_lt = Some(lt_pos);
-                }
-                self.index = lt_pos + 1;
-            } else {
-                self.index = self.bytes.len();
-                break;
-            }
-        }
+        // Upstream never scans the block as raw text: `read_body` only tests
+        // `parser.match('</style')` at a rule boundary, so a `</style` inside a
+        // CSS string, comment or `url()` is swallowed by `read_value` /
+        // `read_comment` / `allow_comment_or_whitespace`. Mirror that
+        // tokenisation instead of a plain byte search.
+        let (first_invalid_lt, unterminated_url) = self.scan_to_style_close(!lenient_non_css);
 
         let content_end = self.index;
         let style_content = &self.source[content_start..content_end];
@@ -314,7 +383,7 @@ impl<'a> Parser<'a> {
                 }
                 i += 1;
             }
-            if in_string {
+            if in_string || unterminated_url {
                 // Upstream's CSS reader always reports EOF at `parser.template.length`,
                 // and its template is the source with trailing whitespace trimmed.
                 return Err(crate::error::ParseError::svelte(
