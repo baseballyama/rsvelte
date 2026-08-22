@@ -11,9 +11,7 @@ use super::super::super::errors;
 use super::super::VisitorContext;
 use super::super::attribute::visit_attribute_value_expressions;
 use super::fragment;
-use super::utils::{
-    validate_assignment_node, validate_attribute_name as validate_attribute_name_colon,
-};
+use super::utils::validate_attribute_name as validate_attribute_name_colon;
 use crate::ast::template::{Attribute, Component};
 
 /// Visit a component and perform full analysis.
@@ -154,18 +152,9 @@ pub fn visit_component<'a, 'b: 'a>(
                 if bind.name != "this" {
                     context.analysis.uses_component_bindings = true;
                 }
-                // Getter/setter bindings (`bind:value={get, set}`) skip the
-                // assignment + identifier validation, mirroring upstream's
-                // early SequenceExpression return in BindDirective.js.
-                if bind.expression.node_type() != Some("SequenceExpression") {
-                    // Validate the binding expression (checks for const/import bindings)
-                    let bind_node = bind.expression.as_node();
-                    validate_assignment_node((bind.start, bind.end), &bind_node, context, true)?;
-                    // `bind:x={y}` must target state or props (bind_invalid_value).
-                    // Upstream's BindDirective visitor runs this for component
-                    // bindings too (BindDirective.js L193-207).
-                    super::super::bind_directive::validate_bind_value_for_component(bind, context)?;
-                }
+                // Upstream's `BindDirective` visitor runs its whole host-agnostic
+                // tail for a component too (BindDirective.js L129-273).
+                super::super::bind_directive::validate_expression_shape(bind, context)?;
             }
             Attribute::OnDirective(on) => {
                 // Validate event handler modifiers
@@ -427,36 +416,9 @@ pub fn validate_component(
         )));
     }
 
-    // Check for duplicate attributes
-    let mut seen_names: FxHashSet<String> = FxHashSet::default();
-
-    for attr in &component.attributes {
-        // Only check for duplicates on:
-        // - Attribute and BindDirective (treated the same)
-        // - ClassDirective
-        // - StyleDirective
-        // OnDirective can have multiple handlers for the same event
-        let attr_name = match attr {
-            Attribute::Attribute(a) => Some(format!("Attribute{}", a.name)),
-            Attribute::BindDirective(b) => Some(format!("Attribute{}", b.name)), // bind:x and x are duplicates
-            Attribute::ClassDirective(c) => Some(format!("class:{}", c.name)),
-            Attribute::StyleDirective(s) => Some(format!("style:{}", s.name)),
-            _ => None, // Other directives can have duplicates
-        };
-
-        if let Some(name) = attr_name {
-            if seen_names.contains(&name) {
-                let (start, end) = attr.span();
-                return Err(AnalysisError::validation_at(
-                    "attribute_duplicate",
-                    "Attributes need to be unique",
-                    start,
-                    end,
-                ));
-            }
-            seen_names.insert(name);
-        }
-    }
+    // Duplicate attributes are rejected by `read_attributes` in the parser, for
+    // every element alike — a second copy here is what let the `this` exemption
+    // (`<C bind:this={x} bind:this={x} />`, which upstream accepts) drift.
 
     // Track component bindings (excluding bind:this which doesn't need the settling loop)
     let has_bindings = component

@@ -33,6 +33,10 @@ pub fn visit(body: &mut SvelteElement, context: &mut VisitorContext) -> Result<(
 
     // Event expressions on special elements participate in normal reference analysis.
     // The target rule needs the attribute list, which the mutable loop below holds.
+    super::shared::special_element::reject_illegal_attributes(&body.attributes, |start, end| {
+        errors::svelte_body_illegal_attribute().at(start, end)
+    })?;
+
     for attr in &body.attributes {
         if let Attribute::BindDirective(bind) = attr {
             bind_directive::validate_binding_target(bind, "svelte:body", &body.attributes)?;

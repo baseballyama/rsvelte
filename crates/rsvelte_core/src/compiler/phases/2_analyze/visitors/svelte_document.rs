@@ -37,6 +37,11 @@ pub fn visit(
         return Err(errors::svelte_meta_invalid_content("svelte:document").at(start, end));
     }
 
+    super::shared::special_element::reject_illegal_attributes(
+        &document.attributes,
+        |start, end| errors::illegal_element_attribute("svelte:document").at(start, end),
+    )?;
+
     // Validate attributes - check for invalid ones
     // The target rule needs the attribute list, which the mutable loop below holds.
     for attr in &document.attributes {

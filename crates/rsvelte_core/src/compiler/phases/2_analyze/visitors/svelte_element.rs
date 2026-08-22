@@ -215,6 +215,7 @@ pub fn visit<'a, 'b: 'a>(
                 "svelte:element",
                 &element.attributes,
             )?;
+            super::bind_directive::validate_expression_shape(bind, context)?;
         }
     }
 
