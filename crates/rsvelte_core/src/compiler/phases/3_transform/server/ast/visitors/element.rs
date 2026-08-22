@@ -1799,10 +1799,17 @@ fn prepare_element_spread_object<'a>(
                 // emitted directly under its `get_attribute_name`, with NO
                 // `bind:value`-on-select skip and NO `bind:group` → `checked`
                 // transform (those are specific to `build_element_attributes`, the
-                // generic-element spread path). A `{get, set}` sequence would call
-                // `get()` — KNOWN GAP: the whole expression is used as-is.
+                // generic-element spread path). The `{get, set}` sequence form is
+                // collapsed to `get()` here too — a sequence evaluates to its LAST
+                // operand, so emitting it whole hands the renderer the setter.
                 let name = get_bind_attribute_name(node, bind.name.as_str());
                 let value = state.visit_expr(&bind.expression);
+                let value = if bind_expr_is_sequence(bind) {
+                    let getter = sequence_first(value, state);
+                    state.b.call(getter, vec![])
+                } else {
+                    value
+                };
                 props.push(state.b.init(&name, value));
             }
             Attribute::ClassDirective(dir) => class_directives.push(dir),
