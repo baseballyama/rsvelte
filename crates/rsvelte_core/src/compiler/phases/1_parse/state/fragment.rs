@@ -216,8 +216,12 @@ impl<'a> Parser<'a> {
             })
             .unwrap_or(0);
 
-        // End is the maximum of fragment end, script end, and style end
-        let end = fragment_end.max(max_special_end);
+        // Upstream sets `root.end = template.length` on the UNTRIMMED source
+        // (`1-parse/index.js`: the parser scans `template.trimEnd()`, but the
+        // root span is taken from the constructor argument), so a file ending
+        // in a newline still spans to EOF. The node ends below only bound it
+        // from beneath, for the degenerate case of a source shorter than a node.
+        let end = (self.source.len() as u32).max(fragment_end.max(max_special_end));
 
         Ok(Root {
             css: self.stylesheet.take().map(Box::new),

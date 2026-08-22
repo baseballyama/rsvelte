@@ -109,8 +109,11 @@ fn run_parser_tests(category: TestCategory, modern: bool) -> CategoryResult {
         let input_path = sample_dir.join("input.svelte");
         let output_path = sample_dir.join("output.json");
 
+        // Trailing whitespace is trimmed the way upstream's
+        // `parser-{modern,legacy}/test.ts` trims it, because every `output.json`
+        // was snapshotted from a trimmed source (`Root.end` spans to EOF).
         let input = if let Some(s) = read_fixture_file(&input_path) {
-            s
+            s.trim_end().to_string()
         } else {
             coverage.skipped(&name, SkipReason::MissingInput("input.svelte"));
             continue;

@@ -40,9 +40,15 @@ fn load_fixture(sample_dir: &Path) -> Result<(String, String, String), SkipReaso
     // Normalize CRLF to LF so AST byte offsets line up regardless of how the
     // submodule was checked out (Windows runners default to autocrlf=true,
     // which would otherwise shift every span by one byte per line).
+    // Upstream's `parser-{modern,legacy}/test.ts` trims trailing whitespace off
+    // the input before parsing, so every `output.json` was snapshotted from a
+    // trimmed source. Reading it untrimmed only agreed with those snapshots
+    // while `Root.end` was ALSO trailing-trimmed — two deviations cancelling.
     let input = fs::read_to_string(&input_path)
         .map_err(|_| SkipReason::MissingInput("readable input.svelte"))?
-        .replace("\r\n", "\n");
+        .replace("\r\n", "\n")
+        .trim_end()
+        .to_string();
     let expected_output = fs::read_to_string(&output_path)
         .map_err(|_| SkipReason::MissingInput("readable output.json"))?
         .replace("\r\n", "\n");

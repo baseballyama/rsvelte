@@ -146,6 +146,14 @@ pub struct NapiParseOptions {
     /// `svelte-eslint-parser` uses postcss). Saves ~5–10 KB of buffer
     /// and the matching JSON-parse cost on the JS side per component.
     pub skip_css_ast: Option<LenientScalar>,
+    /// `modern` from `svelte/compiler`'s `parse()`. **Defaults to `false`**,
+    /// which returns the LEGACY AST — the modern shape stays opt-in until
+    /// Svelte 6, and a drop-in replacement has to default the same way.
+    pub modern: Option<LenientScalar>,
+    /// `loose` from `svelte/compiler`'s `parse()`: recover from a parse error
+    /// and return an AST anyway, which is what an editor integration needs to
+    /// parse a document mid-keystroke.
+    pub loose: Option<LenientScalar>,
 }
 
 impl NapiParseOptions {
@@ -187,6 +195,8 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
         ));
     }
 
+    let modern =
+        NapiParseOptions::flag(options.as_ref().and_then(|o| o.modern.as_ref()), "modern")?;
     let parse_options = ParseOptions {
         skip_expression_loc: NapiParseOptions::flag(
             options
@@ -194,6 +204,7 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
                 .and_then(|o| o.skip_expression_loc.as_ref()),
             "skipExpressionLoc",
         )?,
+        loose: NapiParseOptions::flag(options.as_ref().and_then(|o| o.loose.as_ref()), "loose")?,
         // The public AST API mirrors svelte/compiler `parse()`, which keeps
         // `leadingComments`/`trailingComments` on nodes.
         capture_comments: true,
@@ -201,22 +212,34 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
     };
     match rust_parse(&source, &rsvelte_core::Allocator::default(), parse_options) {
         Ok(ast) => {
-            // Serialize within the AST's arena so `JsNodeId`s in the
-            // Serialize impls resolve (mirrors `wasm::parse_svelte`).
-            rsvelte_core::ast::arena::with_serialize_arena(&ast.arena, || {
-                // Spans are UTF-16 code-unit offsets to match svelte/compiler
-                // (#793). ASCII source needs no remap — keep the fast path.
-                if source.is_ascii() {
-                    return serde_json::to_string(&ast)
-                        .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")));
+            // Spans are UTF-16 code-unit offsets to match svelte/compiler
+            // (#793). ASCII source needs no remap — keep the fast path.
+            let remap = |mut value: serde_json::Value| {
+                if !source.is_ascii() {
+                    let conv = rsvelte_core::compiler::legacy::Utf8ToUtf16::new(&source);
+                    rsvelte_core::compiler::legacy::convert_positions_to_utf16(&mut value, &conv);
                 }
-                let mut value = serde_json::to_value(&ast)
-                    .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")))?;
-                let conv = rsvelte_core::compiler::legacy::Utf8ToUtf16::new(&source);
-                rsvelte_core::compiler::legacy::convert_positions_to_utf16(&mut value, &conv);
                 serde_json::to_string(&value)
                     .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")))
-            })
+            };
+            if modern {
+                // Serialize within the AST's arena so `JsNodeId`s in the
+                // Serialize impls resolve (mirrors `wasm::parse_svelte`).
+                rsvelte_core::ast::arena::with_serialize_arena(&ast.arena, || {
+                    if source.is_ascii() {
+                        return serde_json::to_string(&ast)
+                            .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")));
+                    }
+                    remap(
+                        serde_json::to_value(&ast)
+                            .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")))?,
+                    )
+                })
+            } else {
+                // `convert_to_legacy` consumes the AST and installs the
+                // serialize arena itself.
+                remap(rsvelte_core::convert_to_legacy(&source, ast))
+            }
         }
         Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
     }
