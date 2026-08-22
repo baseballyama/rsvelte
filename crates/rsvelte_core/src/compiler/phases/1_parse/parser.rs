@@ -885,23 +885,32 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Read an identifier.
+    /// Read an identifier. Mirrors upstream's `read_identifier`, which uses
+    /// acorn's `isIdentifierStart` / `isIdentifierChar` and so accepts every
+    /// `ID_Continue` character — combining marks and ZWNJ/ZWJ included.
     #[inline]
     pub fn read_identifier(&mut self) -> CompactString {
         let start = self.index;
 
-        // Fast path: ASCII identifier characters (a-z, A-Z, 0-9, _, $)
+        let Some(first) = self.source[start..].chars().next() else {
+            return CompactString::default();
+        };
+        if !oxc_syntax::identifier::is_identifier_start(first) {
+            return CompactString::default();
+        }
+        self.index += first.len_utf8();
+
         while self.index < self.bytes.len() {
             let b = self.bytes[self.index];
-            if b.is_ascii_alphanumeric() || b == b'_' || b == b'$' {
-                self.index += 1;
-            } else if b < 0x80 {
-                // ASCII non-identifier char: done
-                break;
+            if b.is_ascii() {
+                if oxc_syntax::identifier::is_identifier_part_ascii(b as char) {
+                    self.index += 1;
+                } else {
+                    break;
+                }
             } else {
-                // Non-ASCII: check via char
                 let c = self.source[self.index..].chars().next().unwrap_or('\0');
-                if c.is_alphanumeric() {
+                if oxc_syntax::identifier::is_identifier_part_unicode(c) {
                     self.index += c.len_utf8();
                 } else {
                     break;
