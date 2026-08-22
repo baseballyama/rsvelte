@@ -1771,9 +1771,11 @@ impl<'a> Parser<'a> {
             self.expression_line_offsets(),
         );
 
-        // Parse optional type parameters (between < and >)
+        // Parse optional type parameters (between < and >). Upstream guards the
+        // whole clause on `parser.ts`, so without a `lang="ts"` script the `<`
+        // is left for `eat('(', true)` to reject.
         let mut type_params = None;
-        if self.eat_optional("<") {
+        if self.ts && self.eat_optional("<") {
             let type_params_start = self.index;
             let mut depth = 1;
             while !self.is_eof() && depth > 0 {
@@ -2368,10 +2370,11 @@ impl<'a> Parser<'a> {
             // a *point* error at the byte where acorn stopped consuming
             // input. svelte2tsx's `expected.error.json` fixtures rely on
             // this character-accurate location.
-            let abs_pos = super::super::read::expression::check_js_parse_error_with_pos(trimmed)
-                .map_or(trimmed_offset, |(_, content_pos)| {
-                    trimmed_offset + content_pos
-                });
+            let abs_pos =
+                super::super::read::expression::check_js_parse_error_with_pos(trimmed, self.ts)
+                    .map_or(trimmed_offset, |(_, content_pos)| {
+                        trimmed_offset + content_pos
+                    });
             crate::error::ParseError::svelte("js_parse_error", msg, (abs_pos, abs_pos))
         })
     }
@@ -2453,12 +2456,21 @@ impl<'a> Parser<'a> {
             self.ts,
         )
         .map_err(|(msg, _)| {
+            // `read_attribute_value` is `read_expression` + `eat('}', true)`, so
+            // leftover input after a complete expression is a missing close
+            // token, not a broken expression.
+            if let Some(pos) =
+                super::super::read::expression::trailing_token_offset(trimmed, self.ts)
+            {
+                return crate::error::ParseError::expected_token("}", trimmed_offset + pos);
+            }
             // Recover the precise failure position from OXC's labeled span,
             // mirroring upstream Svelte's `js_parse_error(err.pos, ...)`.
-            let abs_pos = super::super::read::expression::check_js_parse_error_with_pos(trimmed)
-                .map_or(trimmed_offset, |(_, content_pos)| {
-                    trimmed_offset + content_pos
-                });
+            let abs_pos =
+                super::super::read::expression::check_js_parse_error_with_pos(trimmed, self.ts)
+                    .map_or(trimmed_offset, |(_, content_pos)| {
+                        trimmed_offset + content_pos
+                    });
             crate::error::ParseError::svelte("js_parse_error", msg, (abs_pos, abs_pos))
         })
     }
@@ -2523,14 +2535,16 @@ impl<'a> Parser<'a> {
                 // complete leading expression followed by leftover input is an
                 // `expected_token` (missing `close_char`); anything else is a
                 // `js_parse_error` at the point acorn/OXC stopped.
-                if let Some(pos) = super::super::read::expression::trailing_token_offset(trimmed) {
+                if let Some(pos) =
+                    super::super::read::expression::trailing_token_offset(trimmed, self.ts)
+                {
                     return Err(crate::error::ParseError::expected_token(
                         &close_char.to_string(),
                         trimmed_offset + pos,
                     ));
                 }
                 let abs_pos =
-                    super::super::read::expression::check_js_parse_error_with_pos(trimmed)
+                    super::super::read::expression::check_js_parse_error_with_pos(trimmed, self.ts)
                         .map_or(trimmed_offset + trimmed.len(), |(_, pos)| {
                             trimmed_offset + pos
                         });
