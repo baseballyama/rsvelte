@@ -61,9 +61,9 @@ const MIXED_FIELDS: &str = "export class R {
 #[test]
 fn constructor_logical_assignment_proxies_only_for_plain_state() {
     let out = client(MIXED_FIELDS);
-    assert_has(&out, "$.set(this.#x, this.#x.v ?? { a: s });");
-    assert_has(&out, "$.set(this.#n, this.#n.v ?? { a: s }, true);");
-    assert_has(&out, "$.set(this.#d, $.get(this.#d) ?? s);");
+    assert_has(&out, "this.#x.v ?? $.set(this.#x, { a: s });");
+    assert_has(&out, "this.#n.v ?? $.set(this.#n, { a: s }, true);");
+    assert_has(&out, "$.get(this.#d) ?? $.set(this.#d, s);");
 }
 
 #[test]
@@ -78,8 +78,8 @@ fn constructor_compound_assignment_reads_dot_v() {
 fn method_bodies_still_read_through_get() {
     // `.v` is `in_constructor`-only: outside one, upstream keeps `$.get`.
     let out = client(MIXED_FIELDS);
-    assert_has(&out, "$.set(this.#x, $.get(this.#x) ?? { a: s });");
-    assert_has(&out, "$.set(this.#n, $.get(this.#n) ?? { a: s }, true);");
+    assert_has(&out, "$.get(this.#x) ?? $.set(this.#x, { a: s });");
+    assert_has(&out, "$.get(this.#n) ?? $.set(this.#n, { a: s }, true);");
     assert_has(&out, "$.set(this.#x, $.get(this.#x) + 1);");
     assert_has(&out, "$.set(this.#n, $.get(this.#n) + 1);");
     assert_has(&out, "$.set(this.#n, $.get(this.#n) << 2);");
@@ -105,7 +105,7 @@ fn a_function_nested_in_the_constructor_reads_through_get() {
     );
     assert_has(&out, "$.set(this.#n, this.#n.v + 1);");
     assert_has(&out, "$.set(this.#n, $.get(this.#n) + 2);");
-    assert_has(&out, "$.set(this.#n, $.get(this.#n) ?? s, true);");
+    assert_has(&out, "$.get(this.#n) ?? $.set(this.#n, s, true);");
 }
 
 #[test]
@@ -144,7 +144,7 @@ fn the_reported_repro_matches_official_byte_for_byte() {
 }
 ",
     );
-    assert_has(&out, "$.set(this.#x, this.#x.v ?? { a: s, b: s });");
+    assert_has(&out, "this.#x.v ?? $.set(this.#x, { a: s, b: s });");
     assert_has(&out, "$.set(this.#n, this.#n.v + 1);");
     assert!(
         !out.contains("{ a: s, b: s }, true"),
