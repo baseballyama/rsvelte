@@ -160,10 +160,13 @@ pub fn visit_each_block<'a>(node: &EachBlock<'a>, state: &mut ServerTransformSta
     if let Some(ctx) = &node.context {
         collect_context_names(ctx, state, &mut each_shadow);
     }
-    if let Some(alias) = &index_alias {
-        each_shadow.insert(alias.clone());
+    // The source-level index name, not `index_alias` — without a group binding
+    // the loop variable *is* the user's name and there is no alias to record.
+    if let Some(idx) = &node.index {
+        each_shadow.insert(idx.to_string());
     }
     let pushed_shadow = !each_shadow.is_empty();
+    let fallback_shadow = each_shadow.clone();
     if pushed_shadow {
         // Push to BOTH shadow sets: `slot_let_shadows` suppresses the SSR
         // constant-fold (each-item reads are runtime values), and
@@ -207,10 +210,20 @@ pub fn visit_each_block<'a>(node: &EachBlock<'a>, state: &mut ServerTransformSta
         // EachBlock node, so it IS an `is_text_first` parent (upstream
         // `clean_nodes`: `parent.type === 'EachBlock'`) — a text-first fallback
         // gets a leading `<!---->` anchor, same as the loop body.
-        // rsvelte's scope builder visits the fallback inside the each block's
-        // scope, so enter it here too (the item bindings are shadow-vetoed above).
+        // Upstream visits the fallback with the each block's scope
+        // (`if (node.fallback) visit(node.fallback, { scope })`), so an item
+        // name still shadows a same-named instance binding here even though
+        // nothing is bound to it at runtime — the shadow frame goes back on.
         let saved_scope = state.enter_template_scope(node.start);
+        if pushed_shadow {
+            state.shadowed_names.push(fallback_shadow.clone());
+            state.slot_let_shadows.push(fallback_shadow);
+        }
         let mut fallback_body = build_fragment_body(&fallback.nodes, true, false, state);
+        if pushed_shadow {
+            state.slot_let_shadows.pop();
+            state.shadowed_names.pop();
+        }
         state.restore_scope(saved_scope);
         let b = state.b;
         let open_else_push = b.stmt(b.call("$$renderer.push", vec![b.string(BLOCK_OPEN_ELSE)]));
