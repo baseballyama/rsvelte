@@ -397,6 +397,65 @@ fn kept_comments_of_removed_range(source: &str, start: usize, end: usize) -> Str
 ///
 /// Matching is JS-lexical-aware via [`code_match_positions`], so effect-call-shaped
 /// text inside string literals or comments is left untouched (issue #447, H-029).
+/// Does a call starting at `pos` stand where a STATEMENT stands?
+///
+/// Upstream reads this off the AST: an `ExpressionStatement` whose expression is
+/// the call is removed, and a call anywhere else becomes the `() => {}` no-op.
+/// Asking instead whether the call starts its own physical line answers a
+/// different question — `let m = 1; $effect.root(…)` is a statement that shares
+/// a line, and it came out as `() => {};` (issue #3343).
+///
+/// A statement can only begin where the previous statement ended, so the
+/// previous significant code character settles it: `;`, `{`, `}`, or nothing at
+/// all. The line test stays as the second sufficient condition, because
+/// semicolon-free source ends its previous statement with ASI and leaves an
+/// ordinary token there.
+fn is_statement_position(s: &str, pos: usize) -> bool {
+    match previous_significant_code_byte(s, pos) {
+        None | Some(b';' | b'{' | b'}') => true,
+        Some(_) => {
+            let line_start = s[..pos].rfind('\n').map(|n| n + 1).unwrap_or(0);
+            s[line_start..pos].chars().all(char::is_whitespace)
+        }
+    }
+}
+
+/// The last non-whitespace byte of `s[..pos]` that is code — outside every
+/// string, template literal and comment.
+fn previous_significant_code_byte(s: &str, pos: usize) -> Option<u8> {
+    let bytes = s.as_bytes();
+    let n = pos.min(bytes.len());
+    let mut last = None;
+    let mut i = 0usize;
+    while i < n {
+        match bytes[i] {
+            b'\'' | b'"' | b'`' => {
+                i = skip_string_literal(bytes, i).min(n);
+                last = Some(b'"');
+                continue;
+            }
+            b'/' if i + 1 < n && bytes[i + 1] == b'/' => {
+                while i < n && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            b'/' if i + 1 < n && bytes[i + 1] == b'*' => {
+                i += 2;
+                while i + 1 < n && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(n);
+                continue;
+            }
+            b if !b.is_ascii_whitespace() => last = Some(b),
+            _ => {}
+        }
+        i += 1;
+    }
+    last
+}
+
 fn strip_effects_from_source(source: &str) -> String {
     use super::client::find_matching_paren;
 
@@ -426,11 +485,7 @@ fn strip_effects_from_source(source: &str) -> String {
         let call_start = pos + 13; // after "$effect.root("
         let content_end = find_matching_paren(&s[call_start..])?;
         let expr_end = call_start + content_end + 1; // after closing paren
-        // Statement position when everything from the line start to `pos` is
-        // whitespace (e.g. a bare `$effect.root(...)` in a constructor body).
-        let line_start = s[..pos].rfind('\n').map(|n| n + 1).unwrap_or(0);
-        let is_statement = s[line_start..pos].chars().all(|c| c.is_whitespace());
-        if is_statement {
+        if is_statement_position(s, pos) {
             Some(remove_statement(s, pos, expr_end))
         } else {
             Some((expr_end, "() => {}".to_string()))
