@@ -129,6 +129,11 @@ const RATCHETS = [
 		jsons: perTarget('parse-known-failures'),
 	},
 	{
+		doc: 'parse-ast-known-failures.md',
+		key: 'parse-ast-known-failures.json',
+		jsons: ['parse-ast-known-failures.json'],
+	},
+	{
 		doc: 'parse-oracle-excluded.md',
 		key: 'parse-oracle-excluded.json',
 		jsons: ['parse-oracle-excluded.json'],
@@ -218,6 +223,7 @@ const PARTITIONS = [
 		key: 'lint-severity-known-failures.json',
 		label: 'cause',
 	},
+	{ doc: 'parse-ast-known-failures.md', key: 'parse-ast-known-failures.json', label: 'cause' },
 	{ doc: 'scss-known-failures.md', key: 'scss-known-failures.json', label: 'cluster' },
 	{ doc: 'lsp-known-failures.md', key: 'lsp-known-failures.json', label: 'key kind' },
 	{ doc: 'lsp-known-failures.md', key: 'lsp-known-failures.json', label: 'request phase' },

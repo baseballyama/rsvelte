@@ -3116,6 +3116,74 @@ it loads, and every assertion then measures a binary that predates the change un
 
 ---
 
+## 39. `parse()` AST parity — `scripts/compat-corpus/parse-ast-verify.mjs`
+
+**Unit.** One (source, mode) pair: every `.svelte` file under `compatibility/pattern-corpus/`
+parsed by the official compiler and by rsvelte's NAPI `parse`, under `{ modern: true }` and under
+the default (legacy) shape, diffed as JSON after a `JSON.parse(JSON.stringify(...))` round-trip on
+both sides. A divergence is keyed by *class* — the JSON path with array indices collapsed plus how
+it differs — so one ratchet entry is one (file, mode, field-class). Shrink-only, two-sided,
+`compatibility/parse-ast-known-failures.json` (2721 entries, justified per cause in the paired
+`.md`).
+
+**Why it exists.** `parse()` is a public, documented export of `svelte/compiler`, and until this
+gate **no gate compared its output** (#3389). The ~38 gates before it compare compiled text,
+warnings, errors, TSX text and maps, lint findings and LSP responses; svelte2tsx and `rsvelte_lint`
+consume rsvelte's AST but never diff it against official's. The three defects fixed alongside it —
+#3385, #3386, #3387 — are each the kind a first run of this gate reports, and all three had shipped.
+
+**[D] The population it does not have is the strongest evidence about it.** Over the collected
+corpus's `svelte` + `svelte.dev` sources, **605 of 1893** compared (file, `modern`) pairs diverge —
+a population this gate never touches. `--corpus` reaches it and is *refused* a baseline rewrite,
+because a ratchet written from it cannot be reproduced on a checkout with fewer submodules.
+
+### 39a — the population is the committed pattern corpus, and nothing else — [D]
+
+697 files, 1282 compared pairs. No real-world repository, no `svelte.dev` documentation snippet, no
+upstream test sample is in it. The measurement above is the size of that hole. It was chosen so the
+gate needs no `corpus:collect` and no submodule beyond `submodules/svelte`, i.e. so it can run on
+every PR — a cost paid in population, deliberately.
+
+### 39b — the class key drops both the value and the index — [S]
+
+`.instance.content.body[].start:value` is one key whatever the two numbers are and whichever
+element they came from. Two different position bugs in one file under one path are one entry, and a
+fix that corrects one of them leaves the entry listed and the gate green. The key was chosen this
+way because the alternative — a key carrying the values — churns on every unrelated edit to the
+file, but the trade is real.
+
+### 39c — `loose` is not in the population — [S]
+
+The gate parses under `{ modern: true }` and `{ modern: false }` only. `loose: true` — half of
+what #3385 restored — is exercised nowhere but `scripts/dev/test-vps-shim.mjs`, which asserts that
+a `Root` comes back, not what is in it. A `loose` recovery tree that differs from official's is
+invisible here.
+
+### 39d — a source both compilers reject is not compared, and that is silent — [S]
+
+102 of the 1394 (file, mode) units are rejected by both sides and are skipped. Nothing compares the
+two errors: not the code, not the message, not the position. That is the vacuous-green class named
+at the top of this file — those 102 units contribute to no verdict in either direction. The one
+asymmetry the gate *does* see is a rejection by exactly one side, which becomes its own
+`<rejected-by:…>` class.
+
+### 39e — one of three ports of the same output — [S]
+
+`parse()` is exposed three times: the NAPI `parse` (this gate), the NAPI `parseEnvelope` (a binary
+encoding, driven by no gate), and the wasm `parse_svelte`
+(`crates/rsvelte_lint_bindings`, driven by no gate). This is the "two ports of one function and no
+gate compares the ports" shape recorded for the constant fold: the three already disagreed on
+comment fidelity when #3387 was filed, and only the NAPI one is now measured.
+
+### 39f — a stale binding measures the wrong tree — [S]
+
+It loads `.corpus-cache/rsvelte.node` if present, else the platform package's `rsvelte.node`, and
+exits **2** when neither exists. Unlike `verify.mjs` it does **not** call
+`unattributedBindingReason`, so a binding built before the change under test loads and every entry
+it produces describes that older tree.
+
+---
+
 ## Cross-cutting
 
 ### C0. A ratchet key is a lossy encoding, and it loses in two directions
