@@ -1152,6 +1152,38 @@ the `.warnings` half of that recommendation is done.
 
 ---
 
+### Blind spot 5r — the host axis is worth varying exactly where the rule is per-visitor
+
+`directive-element` crosses directive kind x element kind because upstream applies a
+per-directive rule from one `parent_type` test while rsvelte applies it from one arm per element
+visitor, so the product drifts. What the family did not say is **which rules that reasoning
+covers**, and the answer is not "all of them": it covers a rule decided in phase 2, and says
+nothing about one decided in the parser.
+
+**[D]** #3317/#3318 measured both on one harness, so the two are directly comparable:
+
+| rule | where it is decided | hosts | divergences |
+|---|---|---|---|
+| `experimental_async` on an attribute expression | one arm per element visitor (phase 2) | 12 | **29 of 84 cells**, spread unevenly — `use:` 7 hosts, `{@attach}` 6, `transition:` 4, `in:` 4, `animate:` 3, `class:` 3, spread 2 |
+| `{@debug}` argument-list shape | once, in the parser | 10 | **0** — all 17 argument shapes give an identical verdict on all 10 hosts, on both sides, and the pre-fix binary was uniformly *wrong* on all 10 |
+
+Both numbers are needed. The second alone reads as "the host axis found nothing here"; together
+they say the host axis is a **property of where the decision lives**, not of the construct being
+tested. A parser-level rule has no per-host arm to drift along, so crossing it with hosts buys
+coverage of the hosts' own attribute rules and nothing about the rule under test — and a family
+that varies hosts for such a rule will be green for a reason unrelated to its motivating defect.
+
+Two consequences for adding rows here. When a family's motivating defect is "one arm per
+visitor", the host axis is the axis; when the rule is decided once upstream of the visitors, the
+discriminating axis is whatever the single decision *reads* (for #3317, the argument list's
+shape). And a uniform result across hosts is worth recording as a measurement rather than
+discarded as a null: it is what distinguishes "this rule cannot drift" from "this rule did not
+drift on the inputs I wrote".
+
+What this row does **not** establish: rsvelte has phase-1, phase-2 and phase-3 copies of several
+decisions, and only phase 2 has been measured this way. Whether a phase-3 per-visitor rule
+drifts on the same axis is **unmeasured**. **[S]**
+
 ## 6. svelte2tsx TSX text parity
 
 **Unit.** `expected-s2t/<id>/index.tsx` vs `actual-s2t/<id>/index.tsx`, both oxfmt-normalized

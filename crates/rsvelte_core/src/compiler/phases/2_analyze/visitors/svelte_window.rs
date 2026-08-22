@@ -77,7 +77,9 @@ pub fn visit(
                 }
                 super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;
             }
-            _ => {}
+            other => {
+                super::shared::attribute::walk_remaining_attribute_expressions(other, context)?;
+            }
         }
     }
 

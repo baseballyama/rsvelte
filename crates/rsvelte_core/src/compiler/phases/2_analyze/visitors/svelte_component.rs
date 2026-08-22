@@ -57,7 +57,7 @@ pub fn visit<'a, 'b: 'a>(
                 // Walk the bind expression to add template references.
                 // This is important for legacy mode state promotion - bindings need
                 // template references to be promoted from 'normal' to 'state' kind.
-                super::script::walk_expression(&bind.expression, context)?;
+                super::shared::attribute::walk_template_expression(&bind.expression, context)?;
             }
             Attribute::OnDirective(on) => {
                 if on.modifiers.len() > 1 || on.modifiers.iter().any(|modifier| modifier != "once")
@@ -70,19 +70,21 @@ pub fn visit<'a, 'b: 'a>(
                 // in the CLIENT transform phase, not here. See OnDirective.js line 21.
                 // Walk event handler expression if present
                 if let Some(ref expr) = on.expression {
-                    super::script::walk_expression(expr, context)?;
+                    super::shared::attribute::walk_template_expression(expr, context)?;
                 }
             }
             Attribute::SpreadAttribute(spread) => {
-                // Walk the spread expression
-                super::script::walk_expression(&spread.expression, context)?;
+                super::shared::attribute::walk_template_expression(&spread.expression, context)?;
             }
             Attribute::Attribute(a) => {
                 super::shared::attribute::warn_attribute_quoted(context, a);
                 // Walk attribute value expressions
                 super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;
             }
-            Attribute::AttachTag(_) | Attribute::LetDirective(_) => {
+            Attribute::AttachTag(attach) => {
+                super::shared::attribute::walk_template_expression(&attach.expression, context)?;
+            }
+            Attribute::LetDirective(_) => {
                 // Allowed on components (matches the shared component validator)
             }
             _ => {

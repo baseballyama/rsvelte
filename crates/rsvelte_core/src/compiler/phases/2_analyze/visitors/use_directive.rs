@@ -24,7 +24,7 @@ pub fn visit(directive: &UseDirective, context: &mut VisitorContext) -> Result<(
 
     // Analyze the expression if present
     if let Some(ref expression) = directive.expression {
-        super::script::walk_expression(expression, context)?;
+        super::shared::attribute::walk_template_expression(expression, context)?;
     }
 
     Ok(())
