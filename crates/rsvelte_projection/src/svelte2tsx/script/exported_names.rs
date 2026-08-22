@@ -38,6 +38,10 @@ pub struct ExportedNames {
     pub dollar_generics: Vec<(String, Option<String>)>,
     /// Source positions of `type X = $$Generic...` statements to blank out.
     pub dollar_generic_positions: Vec<(u32, u32)>,
+    /// Message of the first invalid `$$Generic` declaration found in the
+    /// instance script. Upstream throws from inside its walk; the walk here has
+    /// no error channel, so the caller turns this into the returned error.
+    pub dollar_generic_error: Option<String>,
     /// Type/interface declarations from instance script that should be hoisted
     /// before $$`render()`. Each entry is (start, end) relative to source (absolute positions).
     pub hoistable_type_ranges: Vec<(u32, u32)>,
@@ -310,6 +314,7 @@ impl ExportedNames {
             events_type_decl_pos: None,
             dollar_generics: Vec::new(),
             dollar_generic_positions: Vec::new(),
+            dollar_generic_error: None,
             hoistable_type_ranges: Vec::new(),
             dollar_generic_referenced_ranges: Vec::new(),
             props_let_abs_pos: None,
