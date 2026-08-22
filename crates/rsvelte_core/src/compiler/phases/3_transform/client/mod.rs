@@ -368,9 +368,7 @@ pub(crate) fn print_module_program(
     let alloc = oxc_allocator::Allocator::default();
     if let Some(code) =
         super::js_ast::to_oxc::program_to_oxc(&program, &arena, &alloc).map(|converted| {
-            let print_opts = rsvelte_esrap::PrintOptions::default()
-                .with_empty_statements(true)
-                .with_unlocated_program(true);
+            let print_opts = rsvelte_esrap::PrintOptions::default().with_unlocated_program(true);
             match &converted.comment_source {
                 Some(cs) => {
                     rsvelte_esrap::print_split(
@@ -2568,11 +2566,8 @@ pub(crate) fn transform_client(
                 &ast_islands,
             )
             .map(|converted| {
-                // Keep `;` empty statements: the parsed-`Raw` `;;` are real
-                // EmptyStatement nodes the official compiler output preserves.
-                let print_opts = rsvelte_esrap::PrintOptions::default()
-                    .with_empty_statements(true)
-                    .with_unlocated_program(true);
+                let print_opts =
+                    rsvelte_esrap::PrintOptions::default().with_unlocated_program(true);
                 let oxc_prog = &converted.program;
                 match &converted.comment_source {
                     // The program carries comments, so it prints in the
