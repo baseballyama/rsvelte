@@ -1199,6 +1199,7 @@ impl<'a> Parser<'a> {
                     end: end as u32,
                     value,
                     loc,
+                    loc_has_character: true,
                 });
             true
         } else if self.match_str("/*") {
@@ -1223,6 +1224,7 @@ impl<'a> Parser<'a> {
                     end: end as u32,
                     value,
                     loc,
+                    loc_has_character: true,
                 });
             true
         } else {
@@ -1372,8 +1374,12 @@ impl<'a> Parser<'a> {
                 })));
             }
 
-            // Create the expression
-            let expression = self.parse_js_expression(expr_content.trim_ws(), expr_start);
+            // Create the expression. Upstream reads the shorthand's name with
+            // `read_identifier`, so its `loc` is a `locate-character` one.
+            let expression = super::super::expression::with_read_identifier_loc(
+                self.parse_js_expression(expr_content.trim_ws(), expr_start),
+                self.expression_line_offsets(),
+            );
 
             // Create the attribute name from the expression (shorthand)
             let name = expr_content.trim_ws().to_string();

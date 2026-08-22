@@ -2129,7 +2129,13 @@ impl<'a> Parser<'a> {
                             )
                             .unwrap_or_else(|| self.parse_js_expression(&pattern_clean, expr_start))
                         } else {
-                            self.parse_js_expression(&pattern_clean, expr_start)
+                            // A plain-identifier pattern goes through upstream's
+                            // `read_identifier`, not acorn, so its `loc` carries
+                            // `character`; only destructuring falls through.
+                            super::super::expression::with_read_identifier_loc(
+                                self.parse_js_expression(&pattern_clean, expr_start),
+                                self.expression_line_offsets(),
+                            )
                         };
 
                     // Calculate the offset for the init expression in the
