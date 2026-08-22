@@ -33,8 +33,8 @@ importers:
         specifier: ^4.1.0
         version: 4.1.1(prettier@3.9.6)(svelte@5.56.10)
       sass:
-        specifier: 1.102.0
-        version: 1.102.0
+        specifier: 1.103.1
+        version: 1.103.1
       svelte:
         specifier: ^5.56.9
         version: 5.56.10
@@ -1814,6 +1814,11 @@ packages:
     engines: {node: '>=20.19.0'}
     hasBin: true
 
+  sass@1.103.1:
+    resolution: {integrity: sha512-9icZURbP51S6S0QGoyaeqk9uB06GNWxsFYWfH5RgpFgqK5FA8tJcM3AdVxrZEVJ7dz+L87nG95gBKf4VuaMHGw==}
+    engines: {node: '>=20.19.0'}
+    hasBin: true
+
   sax@1.6.1:
     resolution: {integrity: sha512-42tBVwLWnaQvW5zc4HbZrTuWccECCZfBi92FDuwtqxasH+JbPB3/FOKb1m222K42R4WxuxzzMsTswfzgtSu64Q==}
     engines: {node: '>=11.0.0'}
@@ -3145,6 +3150,14 @@ snapshots:
     optional: true
 
   sass@1.102.0:
+    dependencies:
+      chokidar: 5.0.0
+      immutable: 5.1.9
+      source-map-js: 1.2.1
+    optionalDependencies:
+      '@parcel/watcher': 2.6.0
+
+  sass@1.103.1:
     dependencies:
       chokidar: 5.0.0
       immutable: 5.1.9
