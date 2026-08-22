@@ -532,27 +532,26 @@ pub(crate) fn analyze_prepared_component_with_retained(
     // expression reading `$$props.class` omits the
     // `$.deep_read_state($$sanitized_props)` dependency in `build_expression`.
     //
-    // (`$$restProps` is intentionally NOT declared here: it is already handled by
-    // the existing rest-props path, and binding it would re-route a plain
-    // `$$restProps.x` read through the `$$sanitized_props` rewrite.)
+    // `$$restProps` gets the same synthetic binding, which is what makes a call
+    // that reads it `has_call` (upstream's `dependencies.size > 0`) and so
+    // memoized into `$.template_effect`'s dependency-array form.
     if !analysis.runes {
         use crate::compiler::phases::phase2_analyze::scope::{
             Binding, BindingKind, DeclarationKind,
         };
         let instance_scope = analysis.root.instance_scope_index;
-        if analysis
-            .root
-            .get_binding("$$props", instance_scope)
-            .is_none()
-        {
+        for name in ["$$props", "$$restProps"] {
+            if analysis.root.get_binding(name, instance_scope).is_some() {
+                continue;
+            }
             let idx = analysis.root.push_binding(Binding::with_declaration_kind(
-                "$$props".to_string(),
+                name.to_string(),
                 BindingKind::RestProp,
                 DeclarationKind::Synthetic,
                 instance_scope,
             ));
             if let Some(scope) = analysis.root.all_scopes.get_mut(instance_scope) {
-                scope.declarations.insert("$$props".to_string(), idx);
+                scope.declarations.insert(name.to_string(), idx);
             }
         }
     }

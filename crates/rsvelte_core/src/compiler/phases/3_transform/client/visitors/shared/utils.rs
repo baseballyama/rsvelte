@@ -405,6 +405,31 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
     transformed
 }
 
+/// The store a `$.store_set` / `$.store_mutate` writes to is read through its own
+/// binding's transform — a prop reads as the getter call `store()`, a state source
+/// as `$.get(store)` — mirroring upstream's `get_store()` =
+/// `context.visit(b.id(store_name))`. The context-free store transforms emit the
+/// bare name, so resolve it here where `context` is available.
+fn resolve_store_source_arg(
+    expr: JsExpr,
+    store_sub_name: &str,
+    context: &ComponentContext,
+) -> JsExpr {
+    let Some(store_name) = store_sub_name.strip_prefix('$') else {
+        return expr;
+    };
+    let JsExpr::Call(mut call) = expr else {
+        return expr;
+    };
+    if let Some(first) = call.arguments.first_mut()
+        && matches!(first, JsExpr::Identifier(n) if n.as_str() == store_name)
+        && let Some(read_fn) = context.state.transform.get(store_name).and_then(|t| t.read)
+    {
+        *first = read_fn(&context.arena, b::id(store_name));
+    }
+    JsExpr::Call(call)
+}
+
 /// Is `RSVELTE_ASSERT_TRANSFORM_IDEMPOTENT` set?
 fn idempotency_check_enabled() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
@@ -516,6 +541,14 @@ pub fn apply_transforms_to_expression_with_shadowed(
 
     match expr {
         JsExpr::Identifier(name) => {
+            // `Identifier.js` short-circuits on the NAME before any binding is
+            // resolved, so a local `$$props` (an each item, a snippet
+            // parameter) is renamed too. Upstream only ever visits USER
+            // expressions; the `$$props` object rsvelte's own prop reads are
+            // built on has no binding, which is what separates the two here.
+            if name.as_str() == "$$props" && context.state.get_binding(name).is_some() {
+                return JsExpr::Identifier("$$sanitized_props".into());
+            }
             // Skip transforms for shadowed variables (function parameters, local vars)
             if local_scope.contains(name) {
                 return expr.clone();
@@ -1020,12 +1053,21 @@ pub fn apply_transforms_to_expression_with_shadowed(
                         local_scope,
                     );
 
-                return assign_fn(
+                let assigned = assign_fn(
                     &context.arena,
                     JsExpr::Identifier(name.clone()),
                     final_value,
                     needs_proxy,
                 );
+                let is_store_sub = context
+                    .state
+                    .get_binding(name)
+                    .is_some_and(|b| b.kind == BindingKind::StoreSub);
+                return if is_store_sub {
+                    resolve_store_source_arg(assigned, name.as_str(), context)
+                } else {
+                    assigned
+                };
             }
 
             // Track each item assignment for uses_index detection.
@@ -1282,29 +1324,8 @@ pub fn apply_transforms_to_expression_with_shadowed(
 
                     let mutated = mutate_fn(&context.arena, mutate_target, full_assignment);
 
-                    // For store subscriptions, the store *source* (first arg of
-                    // `$.store_mutate`) is read through its own binding's transform —
-                    // a prop reads as the getter call `store()`, a state /
-                    // mutable_source as `$.get(store)` — mirroring upstream's
-                    // `get_store()` = `context.visit(b.id(store_name))`. The
-                    // context-free `store_sub_mutate` emits the bare name, so apply
-                    // the transform here where `context` is available.
                     if is_store_sub {
-                        return match mutated {
-                            JsExpr::Call(mut call) => {
-                                let store_name =
-                                    name.as_str().strip_prefix('$').unwrap_or(name.as_str());
-                                if let Some(first) = call.arguments.first_mut()
-                                    && let Some(store_transform) =
-                                        context.state.transform.get(store_name)
-                                    && let Some(read_fn) = store_transform.read
-                                {
-                                    *first = read_fn(&context.arena, b::id(store_name));
-                                }
-                                JsExpr::Call(call)
-                            }
-                            other => other,
-                        };
+                        return resolve_store_source_arg(mutated, name.as_str(), context);
                     }
 
                     return mutated;

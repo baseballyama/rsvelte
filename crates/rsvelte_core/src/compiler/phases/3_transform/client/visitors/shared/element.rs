@@ -95,6 +95,10 @@ where
             // wrap pure calls like `<Child prop={encodeURIComponent('x')}>`
             // in `$.derived(...)` (regresses the `purity` snapshot fixture).
             let has_call = expr_tag.metadata.expression.has_call();
+            // `build_expression` reads the same flag upstream does, so a pure
+            // call (`String(1)`) must not be wrapped just because the phase-3
+            // walk saw a `CallExpression`.
+            metadata.set_has_call(has_call);
 
             // Apply transforms via build_expression (handles props: x -> x())
             let transformed = build_expression(context, &expression, &metadata);
@@ -142,6 +146,7 @@ where
                     // compiler) — see the matching comment in the
                     // `AttributeValue::Expression` arm above for why.
                     let has_call = expr_tag.metadata.expression.has_call();
+                    metadata.set_has_call(has_call);
 
                     // Apply transforms via build_expression (handles props: x -> x())
                     let transformed = build_expression(context, &expression, &metadata);

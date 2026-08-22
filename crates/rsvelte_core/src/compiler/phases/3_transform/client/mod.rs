@@ -46,6 +46,7 @@ mod reactive_update_ast;
 mod read_only_props_ast;
 mod rest_prop_member_access_ast;
 mod rune_transforms;
+mod sanitized_props;
 mod scan_index;
 mod scope_analysis;
 mod state_assigns_combined_ast;
@@ -590,12 +591,28 @@ pub(crate) fn transform_client(
                 }
             })
             .flatten();
-        let instance_raw = dead_comments_stripped
+        // In runes mode a `$$props` in the script is a name the user declared,
+        // and upstream renames it before generation — after it, the generated
+        // `$$props.x` prop reads would be renamed too. Legacy renames after
+        // generation instead, where `$$props` is the component's own props
+        // object (see the `REGEX_DOLLAR_PROPS` pass below).
+        let sanitized_props_renamed = analysis
+            .runes
+            .then(|| {
+                sanitized_props::rename_dollar_props(
+                    dead_comments_stripped
+                        .as_deref()
+                        .unwrap_or(&instance_script.raw),
+                )
+            })
+            .flatten();
+        let instance_raw = sanitized_props_renamed
             .as_deref()
+            .or(dead_comments_stripped.as_deref())
             .unwrap_or(&instance_script.raw);
         let retained_instance = retained_scripts
             .and_then(|scripts| scripts.instance.as_ref())
-            .filter(|_| dead_comments_stripped.is_none());
+            .filter(|_| dead_comments_stripped.is_none() && sanitized_props_renamed.is_none());
         let needs_projection = analysis.runes
             && retained_instance.is_some()
             && instance_script.source_projection.is_some();
