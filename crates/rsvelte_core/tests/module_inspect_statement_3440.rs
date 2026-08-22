@@ -12,7 +12,7 @@
 //! `$inspect` calls in a row print as `;;;;` rather than `;;\n;;`. That is a
 //! separate, pre-existing defect of the shared downstream printer — the
 //! component-instance path reproduces it on `origin/main` with none of this
-//! change applied — so it is tracked on its own issue rather than pinned here.
+//! change applied — so it is tracked as #3562 rather than pinned here.
 
 use rsvelte_core::{GenerateMode, ModuleCompileOptions, compile_module};
 
