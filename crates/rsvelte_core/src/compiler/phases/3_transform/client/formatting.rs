@@ -906,7 +906,9 @@ pub(super) fn strip_async_noop_placeholders(s: &str) -> String {
             {
                 result.push(';');
             }
-            result.push_str(";;");
+            // Marked so `to_oxc` can tell this pair from a `;;` the USER wrote,
+            // which esrap drops.
+            result.push_str("/* $$inspect_removed$$ */;;");
         } else {
             result.push_str(line);
         }
