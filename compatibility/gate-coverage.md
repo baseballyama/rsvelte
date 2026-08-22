@@ -1119,6 +1119,55 @@ arrow through one prop name, and the write is always a member expression — a b
 `p = p + 1` reassignment is `binding-position`'s `assignment.right` row and is not repeated
 here. **[S]**
 
+### Blind spot 5w — every comment family holds the TEMPLATE fixed, so none can say which position claims a script-tail run
+
+<!-- Letter provisional: `5q` is already used twice above, and the section is renumbered in one
+     pass once the merge order of the open comment PRs is settled. Cite this row by its title. -->
+
+A comment left pending at the end of an instance script is flushed by esrap at the next node
+upstream keeps a `loc` on, and on the server that node is the template's first **printed**
+expression. Which expression that is depends on the markup, and no family here varies it:
+`comment-slot` mutates line boundaries inside `<script module>` and instance scripts,
+`removed-statement-comment` wraps a JS statement in three hosts, and both leave the markup a
+constant. Every one of them therefore **reaches** the defect's decision point on every run and
+can never separate "the run is claimed" from "the run is claimed by a text `{expr}` and by
+nothing else" — the 5p shape one axis out, and the reason the corpus gate cannot substitute is
+blind spot 1a (comment-only server divergences score `match`).
+
+**[D]**, and the discriminating part is the size of the axis rather than its presence. #3426 and
+#3428 were reported off a 7-shape template axis and name five positions between them (an
+attribute value, an `{#if}` test, an `{#each}` collection, a `{@html}` argument, a component
+prop). Re-running the same script × comment product against a **21**-shape template axis — 10
+script shapes × 7 comment shapes × 21 templates = 1,470 cases, 2,940 comparisons against the
+pinned 5.56.9 oracle (`submodules/svelte` @ `20b341f10048`; the harness asserts `VERSION`) — puts
+the true server population at **16** columns each failing all 36 of their cells: the five above
+plus a quoted attribute value, a concatenated one, an attribute spread, a `class:` and a
+`style:` directive, an `{#await}` expression, a `{@render}` callee, a `{@const}` initializer, a
+component spread, a `<svelte:element>` `this` and a `<slot>` prop, with the already-handled text
+`{expr}` column still failing 12 (its two block-bodied `$:` shapes, which is #3428). The
+positions are not a closed set to enumerate — they are the ~40 `visit_expr` call sites under
+`server/ast/visitors/`, which is why `{@render}` survived the first version of the fix: its
+callee reaches `reparse_slice` rather than `visit_expr`, and its 36 cells stayed red while the
+other fifteen columns went green.
+
+Measured across the three trees: `main` 921 divergences (632 server / 289 client), `main` +
+the instance-script cursor fix 709 (588 / 121), and with the template-position claim 121
+(**0** server / 121 client), 0 of which are new.
+
+The client half of the same product is **not** closed, and its residue is two mechanisms plus
+one unrelated defect rather than one number. In every case the comment is the last thing in the
+script with no successor statement (`plain-tail` / `store-tail` only). 72 cells: official parks
+the run inside the parameter list of a thunk it builds — `$.html(node, (/* tail */⏎) => b)` —
+where rsvelte drops it (`{#each}`, `{#key}`, `{#await}`, `{@const}`, `<svelte:element>`, 60
+cells) or defers it to the fragment tail (`{@html}`, 12). 48 cells: official flushes it as a
+**leading** comment on the first template statement, where rsvelte drops it (a component prop,
+`<svelte:head>`, 24 cells) or attaches it **trailing** that same statement (a component spread,
+`{@render}`, 24). The last cell carries no comment at all and belongs to a different family:
+`<svelte:head><title>{b}</title>` with `let b = a + 1` prints `$.document.title = b` upstream and
+`b ?? ''` here, because upstream's `scope.evaluate` knows a `+` cannot yield nullish — the
+"is this value known" split recorded under `fold-value-type`, one host further out. All of that
+is **unmeasured by any gate**, not covered.
+
 **Closing 5b/5c:** the matrix costs ~25 s of CPU on ~10,200 comparisons (wall clock on a box
 running other agents' builds is unusable — a paired A/B inverted once). `constant-fold` is the
 first instalment of 5c's "second expression axis against `EXPRESSION_SLOTS`"; the directive
