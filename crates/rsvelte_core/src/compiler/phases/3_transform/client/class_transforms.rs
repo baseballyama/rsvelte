@@ -2433,7 +2433,7 @@ pub(super) fn transform_constructor_assignment(
         for field in fields {
             if field.is_private {
                 // Handle logical assignment operators: ||=, &&=, ??=
-                // this.#a ||= {val: 0} -> $.set(this.#a, this.#a.v || { val: 0 }, true);
+                // this.#a ||= {val: 0} -> this.#a.v || $.set(this.#a, { val: 0 }, true);
                 let logical_ops = [("||=", "||"), ("&&=", "&&"), ("??=", "??")];
                 for (assign_op, binary_op) in logical_ops {
                     let pattern = format!("this.#{} {}", field.name, assign_op);
@@ -2447,17 +2447,17 @@ pub(super) fn transform_constructor_assignment(
                         let qualified = format!("this.#{}", field.private_backing_name);
                         let read =
                             constructor_field_read(&field.rune_type, &qualified, at_ctor_depth);
-                        // Upstream `AssignmentExpression.js`: the built value is a
-                        // LogicalExpression, which `should_proxy` always proxies, so
-                        // the flag rides on the field kind alone.
-                        let proxy = if field.rune_type == "$state" {
+                        // The setter is only reached on the branch that assigns, so
+                        // the proxied value is the right-hand side itself.
+                        let proxy = if field.rune_type == "$state" && expression_needs_proxy(value)
+                        {
                             ", true"
                         } else {
                             ""
                         };
                         return format!(
-                            "$.set({}, {} {} {}{}){}",
-                            qualified, read, binary_op, value, proxy, tail
+                            "{} {} $.set({}, {}{}){}",
+                            read, binary_op, qualified, value, proxy, tail
                         );
                     }
                 }
