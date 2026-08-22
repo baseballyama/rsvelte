@@ -280,6 +280,144 @@ fn call_args_src(call: &oxc_ast::ast::CallExpression, src: &str) -> String {
         .join(", ")
 }
 
+/// Give every `$inspect(…)` / `$inspect(…).with(…)` statement BELOW `stmt` the
+/// residue upstream leaves — the dev `console.log(…)` call, or the non-dev `;;`
+/// pair. Upstream reaches these from a tree-wide `CallExpression` visitor, so
+/// the answer cannot depend on nesting depth; rsvelte's own answer lived only in
+/// the top-level arm of [`transform_script`], and everything below it was
+/// deleted outright by [`ClassFieldRuneLower`] — in dev too, which silently drops
+/// the logging call.
+///
+/// `origin` is where `stmt`'s source text starts in `src`. A verbatim statement
+/// is re-parsed from its own slice, so its spans are LOCAL to that slice and an
+/// argument's source text is `src[origin + span]`.
+fn lower_nested_inspect<'a>(
+    stmt: &mut Statement<'a>,
+    src: &str,
+    origin: u32,
+    state: &ServerTransformState<'a>,
+) {
+    let mut v = NestedInspectResidue {
+        b: state.b,
+        rune_store_subs: rune_names_are_store_subs(state.analysis),
+        src,
+        origin,
+        state,
+    };
+    v.visit_statement(stmt);
+}
+
+struct NestedInspectResidue<'a, 'b> {
+    b: B<'a>,
+    rune_store_subs: bool,
+    src: &'b str,
+    origin: u32,
+    state: &'b ServerTransformState<'a>,
+}
+
+impl<'a, 'b> VisitMut<'a> for NestedInspectResidue<'a, 'b> {
+    /// The non-dev residue is TWO statements, so the substitution has to happen
+    /// on the list rather than on a single-statement hook.
+    fn visit_statements(&mut self, stmts: &mut oxc_allocator::Vec<'a, Statement<'a>>) {
+        if stmts.iter().any(|stmt| self.is_inspect_stmt(stmt)) {
+            let mut rebuilt = oxc_allocator::ArenaVec::new_in(&self.b.ab());
+            for stmt in stmts.drain(..) {
+                match self.residue(&stmt) {
+                    Some(residue) => rebuilt.extend(residue),
+                    None => rebuilt.push(stmt),
+                }
+            }
+            *stmts = rebuilt;
+        }
+        oxc_ast_visit::walk_mut::walk_statements(self, stmts);
+    }
+}
+
+impl<'a, 'b> NestedInspectResidue<'a, 'b> {
+    fn is_inspect_stmt(&self, stmt: &Statement<'a>) -> bool {
+        matches!(stmt, Statement::ExpressionStatement(es)
+            if inspect_kind(&es.expression, self.rune_store_subs).is_some())
+    }
+
+    fn residue(&self, stmt: &Statement<'a>) -> Option<Vec<Statement<'a>>> {
+        let Statement::ExpressionStatement(es) = stmt else {
+            return None;
+        };
+        inspect_residue_local(
+            &es.expression,
+            es.span.start,
+            self.src,
+            self.origin,
+            self.state,
+        )
+    }
+}
+
+/// [`inspect_residue`] for a statement whose spans are local to `origin`.
+fn inspect_residue_local<'a>(
+    expr: &OxcExpression<'_>,
+    stmt_start: u32,
+    src: &str,
+    origin: u32,
+    state: &ServerTransformState<'a>,
+) -> Option<Vec<Statement<'a>>> {
+    inspect_residue(expr, stmt_start, src.get(origin as usize..)?, state)
+}
+
+/// The statements a removed `$inspect(…)` / `$inspect(…).with(…)` expression
+/// statement leaves behind for one call whose spans index into `src` — the dev
+/// `console.log(…)` lowering, or the non-dev `;;` pair upstream prints for an
+/// `ExpressionStatement` whose expression became `b.empty`.
+fn inspect_residue<'a>(
+    expr: &OxcExpression<'_>,
+    stmt_start: u32,
+    src: &str,
+    state: &ServerTransformState<'a>,
+) -> Option<Vec<Statement<'a>>> {
+    let rune_store_subs = rune_names_are_store_subs(state.analysis);
+    let kind = inspect_kind(expr, rune_store_subs)?;
+    if !state.options.dev {
+        // Upstream's `CallExpression` visitor returns `b.empty` as the *new
+        // expression* of a surviving `ExpressionStatement`, which esrap prints
+        // as the expression's `;` plus the statement's own `;`.
+        return Some(vec![
+            state.b.empty_kept(stmt_start),
+            state.b.empty_kept(stmt_start + 1),
+        ]);
+    }
+    // Pull the verbatim argument / `.with` callback source straight from the
+    // call spans — preserving operators/whitespace exactly like the text
+    // oracle's slice-based extraction.
+    let OxcExpression::CallExpression(call) = expr else {
+        unreachable!("inspect_kind matched a CallExpression");
+    };
+    let (args_src, with_fn_src) = match kind {
+        InspectKind::Plain => (call_args_src(call, src), None),
+        InspectKind::With => {
+            // For `<inner>.with(fn)`, the args belong to the INNER `$inspect(...)`
+            // call, and `fn` is this outer call's first argument.
+            let inner_args = match &call.callee {
+                OxcExpression::StaticMemberExpression(m) => match &m.object {
+                    OxcExpression::CallExpression(inner) => call_args_src(inner, src),
+                    _ => String::new(),
+                },
+                _ => String::new(),
+            };
+            let fn_src = call
+                .arguments
+                .first()
+                .and_then(|a| a.as_expression())
+                .map(|e| src[e.span().start as usize..e.span().end as usize].to_string());
+            (inner_args, fn_src)
+        }
+    };
+    Some(
+        build_dev_inspect(&kind, &args_src, with_fn_src.as_deref(), state)
+            .into_iter()
+            .collect(),
+    )
+}
+
 /// Build the dev-mode lowering of a `$inspect(...)` / `$inspect(...).with(...)`
 /// expression statement as re-parsed statements, mirroring upstream's server
 /// `CallExpression` visitor (and the text oracle's `transform_inspect_to_console_log`):
@@ -688,47 +826,10 @@ fn transform_script<'a>(
                     // the generic effect/inspect removal so we keep the call.
                     let rune_store_subs = rune_names_are_store_subs(state.analysis);
                     if state.options.dev
-                        && let Some(kind) = inspect_kind(&es.expression, rune_store_subs)
+                        && let Some(residue) =
+                            inspect_residue(&es.expression, es.span.start, src, state)
                     {
-                        // Pull the verbatim argument / `.with` callback source straight
-                        // from the call spans — preserving operators/whitespace exactly
-                        // like the text oracle's slice-based extraction.
-                        let OxcExpression::CallExpression(call) = &es.expression else {
-                            unreachable!("inspect_kind matched a CallExpression");
-                        };
-                        let (args_src, with_fn_src) = match kind {
-                            InspectKind::Plain => {
-                                let s = call_args_src(call, src);
-                                (s, None)
-                            }
-                            InspectKind::With => {
-                                // For `<inner>.with(fn)`, the args belong to the INNER
-                                // `$inspect(...)` call, and `fn` is this outer call's
-                                // first argument.
-                                let inner_args = match &call.callee {
-                                    OxcExpression::StaticMemberExpression(m) => match &m.object {
-                                        OxcExpression::CallExpression(inner) => {
-                                            call_args_src(inner, src)
-                                        }
-                                        _ => String::new(),
-                                    },
-                                    _ => String::new(),
-                                };
-                                let fn_src =
-                                    call.arguments.first().and_then(|a| a.as_expression()).map(
-                                        |e| {
-                                            src[e.span().start as usize..e.span().end as usize]
-                                                .to_string()
-                                        },
-                                    );
-                                (inner_args, fn_src)
-                            }
-                        };
-                        if let Some(stmt) =
-                            build_dev_inspect(&kind, &args_src, with_fn_src.as_deref(), state)
-                        {
-                            out.push(stmt);
-                        }
+                        out.extend(residue);
                         break 'emit;
                     }
                     if is_removed_effect_stmt(&es.expression, rune_store_subs) {
@@ -771,15 +872,19 @@ fn transform_script<'a>(
                         // are removed by the `ExpressionStatement` visitor itself
                         // returning `b.empty` — a *bare* `EmptyStatement` that esrap
                         // elides (prints nothing), so those keep being dropped.
-                        if inspect_kind(&es.expression, rune_store_subs).is_some() {
-                            out.push(state.b.empty_kept(es.span.start));
-                            out.push(state.b.empty_kept(es.span.start + 1));
+                        if let Some(residue) =
+                            inspect_residue(&es.expression, es.span.start, src, state)
+                        {
+                            out.extend(residue);
                         }
                         break 'emit;
                     }
                     let slice = &src[es.span.start as usize..es.span.end as usize];
                     if let Some(mut rehomed) = state.reparse_statement(slice) {
                         verbatim = Some(es.span);
+                        // A re-parsed statement's spans are local to `slice`, which is
+                        // its own verbatim source.
+                        lower_nested_inspect(&mut rehomed, slice, 0, state);
                         // Read-wrap the whole statement: derived / store reads (`d` →
                         // `d()`, `$x` → `$.store_get(...)`), derived / store WRITES &
                         // UPDATES (`count++` → `$.update_derived(count)`), and private
@@ -800,6 +905,7 @@ fn transform_script<'a>(
                     let slice = &src[span.start as usize..span.end as usize];
                     if let Some(mut rehomed) = state.reparse_statement(slice) {
                         verbatim = Some(span);
+                        lower_nested_inspect(&mut rehomed, slice, 0, state);
                         // Same whole-statement read-wrap for every other re-homed
                         // verbatim instance statement (function declarations, `if` /
                         // `for` / blocks, class declarations — the private-derived
@@ -1678,10 +1784,11 @@ impl<'a> VisitMut<'a> for ClassFieldRuneLower<'a> {
     /// private identifiers in source order, mirroring the analyze-phase
     /// `ClassBody` deconfliction.
     /// Drop `$effect` / `$effect.pre` / `$effect.root` / `$inspect.trace`
-    /// expression statements anywhere in the class subtree (e.g. inside a
-    /// constructor or method body), mirroring upstream's global server
-    /// `ExpressionStatement` visitor (`return b.empty`). `ClassFieldRuneLower`
-    /// only runs over class statements, so this scope is the class subtree.
+    /// expression statements anywhere below an emitted statement, mirroring
+    /// upstream's global server `ExpressionStatement` visitor (`return b.empty`).
+    /// A `$inspect(…)` that [`lower_nested_inspect`] already replaced is gone by
+    /// the time this runs; one it could not reach is dropped here rather than
+    /// surviving into the output as an undefined call.
     fn visit_statements(&mut self, stmts: &mut oxc_allocator::Vec<'a, Statement<'a>>) {
         stmts.retain(|stmt| {
             let Statement::ExpressionStatement(es) = stmt else {
@@ -1898,6 +2005,8 @@ fn reparse_var_decl_whole<'a>(
     }
     let slice = src.get(vd.span.start as usize..vd.span.end as usize)?;
     let mut stmt = state.reparse_statement(slice)?;
+    // Spans are local to `slice`, which is this declaration's own source.
+    lower_nested_inspect(&mut stmt, slice, 0, state);
     let Statement::VariableDeclaration(out_vd) = &mut stmt else {
         return None;
     };
