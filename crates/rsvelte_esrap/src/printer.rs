@@ -272,7 +272,7 @@ impl<'a> BorrowedCommentDriver<'a> {
         debug_assert!(start <= end);
         self.source
             .get(start as usize..end as usize)
-            .is_some_and(|text| text.as_bytes().contains(&b'\n'))
+            .is_some_and(contains_line_terminator)
     }
 
     fn write<const DIRECT: bool>(
@@ -317,13 +317,49 @@ impl<'a> BorrowedCommentDriver<'a> {
     }
 }
 
+/// Whether `text` holds an ECMAScript `LineTerminator`. esrap asks this by
+/// comparing acorn `loc.line` numbers, which advance on CR and on U+2028 /
+/// U+2029 as well as on LF.
+pub(crate) fn contains_line_terminator(text: &str) -> bool {
+    text.as_bytes().iter().any(|&b| b == b'\n' || b == b'\r')
+        || text.contains(['\u{2028}', '\u{2029}'])
+}
+
 /// Byte offsets at which each source line begins (line 1 starts at 0).
+///
+/// The line breaks counted are ECMAScript `LineTerminator`s, because esrap
+/// reads its line numbers off acorn's `loc`, which advances on CR and on
+/// U+2028 / U+2029 as well as on LF.
 pub fn line_starts(source: &str) -> Vec<u32> {
     // Sized off an assumed ~32 bytes per line so a long source does not walk the
     // whole doubling sequence.
     let mut starts = Vec::with_capacity(source.len() / 32 + 8);
     starts.push(0);
-    starts.extend(memchr::memchr_iter(b'\n', source.as_bytes()).map(|i| usize_to_u32(i) + 1));
+    let bytes = source.as_bytes();
+    let mut index = 0;
+    while let Some(offset) = memchr::memchr3(b'\n', b'\r', 0xE2, &bytes[index..]) {
+        let at = index + offset;
+        // U+2028 / U+2029 are `E2 80 A8` / `E2 80 A9`; any other `E2` lead byte
+        // is an ordinary character.
+        let next_line_start = match bytes[at] {
+            b'\n' => Some(at + 1),
+            b'\r' if bytes.get(at + 1) == Some(&b'\n') => Some(at + 2),
+            b'\r' => Some(at + 1),
+            _ if bytes.get(at + 1) == Some(&0x80)
+                && matches!(bytes.get(at + 2), Some(0xA8 | 0xA9)) =>
+            {
+                Some(at + 3)
+            }
+            _ => None,
+        };
+        match next_line_start {
+            Some(start) => {
+                starts.push(usize_to_u32(start));
+                index = start;
+            }
+            None => index = at + 1,
+        }
+    }
     starts
 }
 
@@ -727,7 +763,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             |source| {
                 source
                     .get(start as usize..end as usize)
-                    .is_some_and(|text| text.as_bytes().contains(&b'\n'))
+                    .is_some_and(contains_line_terminator)
             },
         )
     }
