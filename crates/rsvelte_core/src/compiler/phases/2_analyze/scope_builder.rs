@@ -538,6 +538,38 @@ impl<'a> ScopeBuilder<'a> {
         }
     }
 
+    /// acorn-typescript separates an overload SIGNATURE from an
+    /// IMPLEMENTATION: any number of body-less declarations may share a name,
+    /// two bodies may not. `declare_binding` exempts every `Function` from the
+    /// duplicate check so that overload sets and snippets stay legal, so the
+    /// implementation-vs-implementation half is answered here, at the only
+    /// three sites that declare a real `function`.
+    fn report_duplicate_function_implementation(
+        &mut self,
+        name: &str,
+        has_body: bool,
+        span: Option<(u32, u32)>,
+    ) {
+        if !has_body {
+            return;
+        }
+        let Some(&existing) = self.scopes[self.current_scope].declarations.get(name) else {
+            return;
+        };
+        if !self.bindings[existing].is_function_implementation {
+            return;
+        }
+        // Zero width, at the redeclaring identifier — acorn reports a single
+        // `pos` and stops there, and this has to be indistinguishable from the
+        // `js_parse_error` the parser raises for the same source without
+        // `lang="ts"`.
+        let mut error = errors::js_parse_error(name);
+        if let Some((start, _)) = span {
+            error = error.at(start, start);
+        }
+        self.validation_errors.push(error);
+    }
+
     /// Declare a binding in the current scope. `span` is the declaring
     /// identifier's source range, which `declaration_duplicate` is attributed to.
     fn declare_binding(
@@ -747,6 +779,12 @@ impl<'a> ScopeBuilder<'a> {
                         name, start, end, ..
                     } = id_node
                     {
+                        let has_body = body.is_some();
+                        self.report_duplicate_function_implementation(
+                            name,
+                            has_body,
+                            Some((*start, *end)),
+                        );
                         let idx = self.declare_binding(
                             name.to_string(),
                             BindingKind::Normal,
@@ -754,6 +792,7 @@ impl<'a> ScopeBuilder<'a> {
                             Some((*start, *end)),
                         );
                         self.bindings[idx].initial_is_function = true;
+                        self.bindings[idx].is_function_implementation = has_body;
                         self.bindings[idx].declaration_start = Some(*start);
                     }
                 }
@@ -1576,6 +1615,12 @@ impl<'a> ScopeBuilder<'a> {
                 if let Some(id) = &func_decl.id {
                     let name = id.name.to_string();
                     let offset = self.current_script_offset as u32;
+                    let has_body = func_decl.body.is_some();
+                    self.report_duplicate_function_implementation(
+                        &name,
+                        has_body,
+                        Some((id.span.start + offset, id.span.end + offset)),
+                    );
                     let idx = self.declare_binding(
                         name,
                         BindingKind::Normal,
@@ -1584,6 +1629,7 @@ impl<'a> ScopeBuilder<'a> {
                     );
                     // Mark as a true JS function (not a snippet block)
                     self.bindings[idx].initial_is_function = true;
+                    self.bindings[idx].is_function_implementation = has_body;
                     self.bindings[idx].declaration_start = Some(id.span.start + offset);
                 }
                 // Create a new scope for the function body (non-porous: function_depth + 1)
@@ -2348,6 +2394,12 @@ impl<'a> ScopeBuilder<'a> {
                 if let Some(id) = &func_decl.id {
                     let name = id.name.to_string();
                     let offset = self.current_script_offset as u32;
+                    let has_body = func_decl.body.is_some();
+                    self.report_duplicate_function_implementation(
+                        &name,
+                        has_body,
+                        Some((id.span.start + offset, id.span.end + offset)),
+                    );
                     let idx = self.declare_binding(
                         name,
                         BindingKind::Normal,
@@ -2355,6 +2407,7 @@ impl<'a> ScopeBuilder<'a> {
                         Some((id.span.start + offset, id.span.end + offset)),
                     );
                     self.bindings[idx].initial_is_function = true;
+                    self.bindings[idx].is_function_implementation = has_body;
                 }
                 // Process function body to track assignments inside exported functions.
                 // Without this, reassignments like `export function update() { x = 'new'; }`
