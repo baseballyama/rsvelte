@@ -21,8 +21,41 @@ use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
 use crate::compiler::utils::is_escaped;
 use crate::error::ParseResult;
 
-use super::super::parser::{Parser, StackEntry, is_js_whitespace};
+use super::super::parser::{Parser, StackEntry, is_js_whitespace, is_js_whitespace_byte};
 use super::super::utils::TrimWs;
+
+/// Bytes that can continue an identifier pattern. Non-ASCII is admitted whole:
+/// this only has to find where a *new* token starts.
+fn is_pattern_identifier_byte(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_' || b == b'$' || b >= 0x80
+}
+
+/// Offset of a token left over after one maximal expression, or `None` when the
+/// failure is *inside* the expression.
+///
+/// The probe's offset landing inside `content` is not on its own evidence of
+/// leftover input — an error within the expression (`s(a b)`) points at an inner
+/// token too. Only the prefix being a complete expression separates the two.
+fn leftover_token_offset(content: &str) -> Option<usize> {
+    super::super::read::expression::trailing_token_offset(content).filter(|&off| {
+        off > 0
+            && content.get(..off).is_some_and(|prefix| {
+                super::super::read::expression::check_js_parse_error_with_pos(prefix).is_none()
+            })
+    })
+}
+
+/// Upstream's `read_expression` parses ONE maximal expression and hands what is
+/// left to the caller's `eat(close, true)`. A slot that runs its own check on
+/// the parsed node (`{@render}`'s call test, `{@debug}`'s identifier test) must
+/// therefore see that prefix, not the whole slice: upstream reaches those tests
+/// with the leftover still unread.
+fn split_leading_expression(content: &str) -> (&str, Option<usize>) {
+    match leftover_token_offset(content) {
+        Some(off) => (content[..off].trim_end_ws(), Some(off)),
+        None => (content, None),
+    }
+}
 
 impl<'a> Parser<'a> {
     /// Try to parse a declaration tag (`{let x = …}` / `{const x = …}`,
@@ -1236,6 +1269,7 @@ impl<'a> Parser<'a> {
                 (pos, pos),
             ));
         }
+        self.reject_pattern_trailing_token(context_start, context_end)?;
         let trimmed_content = raw_content.trim_ws();
         // Calculate actual start position after trimming leading whitespace
         let leading_ws = raw_content.len() - raw_content.trim_start_ws().len();
@@ -1272,6 +1306,9 @@ impl<'a> Parser<'a> {
                     (pos, pos),
                 ));
             }
+            // Upstream reads ONE identifier here (`parser.read_identifier()`);
+            // a second token is left to `eat('}', true)`.
+            self.reject_pattern_trailing_token(idx_start, self.index)?;
             let idx_name = idx_segment.trim_ws();
             if !idx_name.is_empty() {
                 index = Some(CompactString::from(idx_name));
@@ -1366,6 +1403,56 @@ impl<'a> Parser<'a> {
             offset,
             self.expression_line_offsets(),
         )
+    }
+
+    /// Upstream's `read_pattern` reads ONE identifier (plus an optional
+    /// `: type`) or ONE bracketed destructuring pattern, and hands whatever
+    /// follows to the caller's `eat('}', true)`. Returns the absolute offset of
+    /// a second token inside `[start, end)`, which is therefore leftover input
+    /// rather than part of the binding.
+    fn pattern_trailing_token(&self, start: usize, end: usize) -> Option<usize> {
+        let end = end.min(self.bytes.len());
+        let mut i = start;
+        while i < end && is_js_whitespace_byte(self.bytes[i]) {
+            i += 1;
+        }
+        let open = *self.bytes.get(i)?;
+        let mut j = match open {
+            b'{' | b'[' => find_matching_bracket(self.source, i + 1, open as char)? + 1,
+            _ => {
+                let mut k = i;
+                while k < end && is_pattern_identifier_byte(self.bytes[k]) {
+                    k += 1;
+                }
+                // Not a shape `read_pattern` recognises; leave it to the
+                // pattern parser rather than inventing a leftover token.
+                if k == i {
+                    return None;
+                }
+                k
+            }
+        };
+        while j < end && is_js_whitespace_byte(self.bytes[j]) {
+            j += 1;
+        }
+        // `:` continues the pattern as a type annotation and `=` as a default;
+        // anything else can only be a new token.
+        match self.bytes.get(j) {
+            Some(b) if j < end && *b != b':' && *b != b'=' => Some(j),
+            _ => None,
+        }
+    }
+
+    /// `pattern_trailing_token` as an error, for the slots whose close token is
+    /// `}`. Loose (editor) mode keeps the lenient behaviour.
+    fn reject_pattern_trailing_token(&self, start: usize, end: usize) -> ParseResult<()> {
+        if self.options.loose {
+            return Ok(());
+        }
+        match self.pattern_trailing_token(start, end) {
+            Some(pos) => Err(crate::error::ParseError::expected_token("}", pos)),
+            None => Ok(()),
+        }
     }
 
     /// Parse {#await} block.
@@ -1534,14 +1621,18 @@ impl<'a> Parser<'a> {
         let adjusted_end = expr_end - (expr_content.len() - trimmed_content.trim_end_ws().len());
         // For await blocks, we parse the expression with a known end position
         // to avoid find_matching_bracket finding the block's closing }
+        let head = trimmed_content.trim_ws();
+        // `HeadBrace` rather than `Lenient`: upstream's `read_expression` +
+        // `eat('}', true)` reports here like every other block head, and
+        // swallowing meant `{#await a b}` compiled with the `b` dropped.
         let expression = if let Some(lazy) =
-            self.defer_expression(trimmed_content.trim_ws(), adjusted_start, LazyKind::Lenient)
+            self.defer_expression(head, adjusted_start, LazyKind::HeadBrace)
         {
             lazy
         } else {
-            super::super::expression::parse_expression_with_end(
+            match super::super::expression::parse_expression_with_end(
                 &self.arena,
-                trimmed_content.trim_ws(),
+                head,
                 adjusted_start,
                 adjusted_end,
                 self.expression_line_offsets(),
@@ -1550,16 +1641,33 @@ impl<'a> Parser<'a> {
                 false,
                 '{',
                 self.ts,
-            )
-            .unwrap_or_else(|(_, pos)| {
-                // Return an invalid identifier on parse error (empty name)
-                super::super::expression::create_identifier_with_character(
-                    "",
-                    pos,
-                    adjusted_end,
-                    self.expression_line_offsets(),
-                )
-            })
+            ) {
+                Ok(expr) => expr,
+                Err((msg, pos)) => {
+                    if self.options.loose {
+                        super::super::expression::create_identifier_with_character(
+                            "",
+                            pos,
+                            adjusted_end,
+                            self.expression_line_offsets(),
+                        )
+                    } else if let Some(off) = leftover_token_offset(head) {
+                        return Err(crate::error::ParseError::expected_token(
+                            "}",
+                            adjusted_start + off,
+                        ));
+                    } else {
+                        let at =
+                            super::super::read::expression::check_js_parse_error_with_pos(head)
+                                .map_or(adjusted_start + head.len(), |(_, p)| adjusted_start + p);
+                        return Err(crate::error::ParseError::svelte(
+                            "js_parse_error",
+                            msg,
+                            (at, at),
+                        ));
+                    }
+                }
+            }
         };
 
         // Parse 'then' value if present
@@ -1572,6 +1680,7 @@ impl<'a> Parser<'a> {
                 let value_start = self.index;
                 // Parse pattern with brace/bracket matching for destructuring patterns
                 self.skip_pattern_expression();
+                self.reject_pattern_trailing_token(value_start, self.index)?;
                 let value_content = &self.source[value_start..self.index];
                 if !value_content.trim_ws().is_empty() {
                     // Use parse_binding_pattern to properly parse destructuring patterns
@@ -1593,6 +1702,7 @@ impl<'a> Parser<'a> {
                 let error_start = self.index;
                 // Parse pattern with brace/bracket matching for destructuring patterns
                 self.skip_pattern_expression();
+                self.reject_pattern_trailing_token(error_start, self.index)?;
                 let error_content = &self.source[error_start..self.index];
                 if !error_content.trim_ws().is_empty() {
                     // Use parse_binding_pattern to properly parse destructuring patterns
@@ -1647,6 +1757,7 @@ impl<'a> Parser<'a> {
                     let value_start = self.index;
                     // Parse pattern with brace/bracket matching for destructuring patterns
                     self.skip_pattern_expression();
+                    self.reject_pattern_trailing_token(value_start, self.index)?;
                     let value_content = &self.source[value_start..self.index];
                     if !value_content.trim_ws().is_empty() {
                         // Use parse_binding_pattern to properly parse destructuring patterns
@@ -1669,6 +1780,7 @@ impl<'a> Parser<'a> {
                     let error_start = self.index;
                     // Parse pattern with brace/bracket matching for destructuring patterns
                     self.skip_pattern_expression();
+                    self.reject_pattern_trailing_token(error_start, self.index)?;
                     let error_content = &self.source[error_start..self.index];
                     if !error_content.trim_ws().is_empty() {
                         // Use parse_binding_pattern to properly parse destructuring patterns
@@ -2006,8 +2118,25 @@ impl<'a> Parser<'a> {
                 // render_tag.rs` performs the precise AST-based check, so we must
                 // not reject it here at parse time (svelte2tsx, which only parses,
                 // would otherwise diverge from official by erroring).
+                // Upstream reaches the call test with the leftover unread, so
+                // the test runs on the maximal leading expression — and a JS
+                // failure inside it is a `js_parse_error`, not the placeholder
+                // the call test would otherwise report as a semantic error.
+                // The retry runs only on the failing path, so a well-formed
+                // render tag still costs one parse.
+                let leading_ws = expr_content.len() - expr_content.trim_start_ws().len();
+                let offset = expr_start + leading_ws;
                 let trimmed = expr_content.trim_ws();
-                let expression = self.parse_js_expression_lenient(trimmed, expr_start);
+                let expression = match self.parse_head_expression_eager(trimmed, offset, false, '}')
+                {
+                    Ok(expr) => expr,
+                    Err(err) => match split_leading_expression(trimmed) {
+                        (prefix, Some(_)) => {
+                            self.parse_head_expression_eager(prefix, offset, false, '}')?
+                        }
+                        _ => return Err(err),
+                    },
+                };
 
                 // Upstream rejects anything but a call (optionally chained) here:
                 // `new foo()` and `foo` are parse errors, `foo?.()` is not.
@@ -2136,12 +2265,24 @@ impl<'a> Parser<'a> {
                     // original source.  `trimmed` starts at `expr_start` in
                     // the source, and `eq_idx` is the position of `=` within
                     // `trimmed`.
-                    let init_offset = expr_start
-                        + eq_idx
-                        + 1
-                        + (trimmed[eq_idx + 1..].len()
-                            - trimmed[eq_idx + 1..].trim_start_ws().len());
-                    let init_expr = self.parse_js_expression(init_str, init_offset);
+                    let init_offset = if init_str.is_empty() {
+                        // `trimmed` has already lost the whitespace upstream's
+                        // `allow_whitespace()` walks past, so an empty
+                        // initializer reports at the `}` rather than at the `=`.
+                        expr_end
+                    } else {
+                        expr_start
+                            + eq_idx
+                            + 1
+                            + (trimmed[eq_idx + 1..].len()
+                                - trimmed[eq_idx + 1..].trim_start_ws().len())
+                    };
+                    // Upstream's `read_expression` + `eat('}', true)`: a broken
+                    // initializer is a `js_parse_error` and a leftover token a
+                    // missing `}`. Swallowing both left the *placement* rule to
+                    // report a syntax error, in a later phase and without a span.
+                    let init_expr =
+                        self.parse_head_expression_eager(init_str, init_offset, false, '}')?;
 
                     // Reject a sequence-expression initializer, mirroring
                     // upstream: `{@const a = (b, c)}` is allowed but
@@ -2187,9 +2328,16 @@ impl<'a> Parser<'a> {
                         expr_end,
                         declarator_end,
                     )
-                } else {
+                } else if self.options.loose {
                     // No `=` found – fall back to parsing as a single expression
                     self.parse_js_expression(trimmed, expr_start)
+                } else {
+                    // Upstream reads the pattern and then `eat('=', true)`.
+                    let leading_ws = expr_content.len() - expr_content.trim_start_ws().len();
+                    return Err(crate::error::ParseError::expected_token(
+                        "=",
+                        expr_start + leading_ws + trimmed.len(),
+                    ));
                 };
 
                 Ok(Some(TemplateNode::ConstTag(Box::new(ConstTag {
@@ -2205,6 +2353,9 @@ impl<'a> Parser<'a> {
                 // {@debug x, y, z} debugs specific identifiers
                 self.skip_whitespace();
 
+                // Absolute offset of a token left over after the one maximal
+                // expression upstream's `read_expression` reads, if any.
+                let mut trailing: Option<usize> = None;
                 let identifiers: Vec<Expression> = if self.current_char() == '}' {
                     // {@debug} - no identifiers (debug all)
                     Vec::new()
@@ -2218,13 +2369,20 @@ impl<'a> Parser<'a> {
                     let end = find_matching_bracket(self.source, expr_start, '{')
                         .unwrap_or(self.source.len());
                     self.index = end;
-                    let expr_content = self.source[expr_start..end].trim_ws();
+                    let raw = &self.source[expr_start..end];
+                    let expr_offset = expr_start + (raw.len() - raw.trim_start_ws().len());
+                    let expr_content = raw.trim_ws();
 
                     if expr_content.is_empty() {
                         Vec::new()
                     } else {
-                        // Parse as expression
-                        let expression = self.parse_js_expression(expr_content, expr_start);
+                        // Upstream reaches the identifier test with the leftover
+                        // still unread, so a second token must neither join the
+                        // expression nor pre-empt that test.
+                        let (expr_src, leftover) = split_leading_expression(expr_content);
+                        let expression =
+                            self.parse_head_expression_eager(expr_src, expr_offset, false, '}')?;
+                        trailing = leftover.map(|off| expr_offset + off);
 
                         // Extract identifiers from the expression
                         // If it's a SequenceExpression (comma-separated), extract each one
@@ -2261,6 +2419,13 @@ impl<'a> Parser<'a> {
                             (at, at),
                         ));
                     }
+                }
+
+                // …and only then does `eat('}', true)` see the leftover.
+                if let Some(pos) = trailing
+                    && !self.options.loose
+                {
+                    return Err(crate::error::ParseError::expected_token("}", pos));
                 }
 
                 self.advance(); // consume '}'
@@ -2363,6 +2528,12 @@ impl<'a> Parser<'a> {
             self.ts,
         )
         .map_err(|(msg, _)| {
+            // The deferred twin of this arm (`LazyKind::Mustache`) classifies
+            // leftover input as a missing `}`; without the same test here the
+            // two disagree whenever the parse is not deferred.
+            if let Some(pos) = leftover_token_offset(trimmed) {
+                return crate::error::ParseError::expected_token("}", trimmed_offset + pos);
+            }
             // Recover the precise failure position from OXC's labeled span,
             // mirroring upstream Svelte's `js_parse_error(err.pos, ...)` —
             // a *point* error at the byte where acorn stopped consuming
@@ -2486,7 +2657,6 @@ impl<'a> Parser<'a> {
         let leading_ws = content.len() - content.trim_start_ws().len();
         let trimmed = content.trim_ws();
         let trimmed_offset = offset + leading_ws;
-        let opening_token = if close_char == ')' { '(' } else { '{' };
 
         let kind = if close_char == ')' {
             LazyKind::HeadParen
@@ -2496,6 +2666,22 @@ impl<'a> Parser<'a> {
         if let Some(lazy) = self.defer_expression(trimmed, trimmed_offset, kind) {
             return Ok(lazy);
         }
+        self.parse_head_expression_eager(content, offset, disallow_loose, close_char)
+    }
+
+    /// `parse_head_expression` without the deferral, for the slots that inspect
+    /// the parsed node during the parse itself (`{@const}`, `{@debug}`).
+    pub fn parse_head_expression_eager(
+        &self,
+        content: &str,
+        offset: usize,
+        disallow_loose: bool,
+        close_char: char,
+    ) -> crate::error::ParseResult<Expression<'a>> {
+        let leading_ws = content.len() - content.trim_start_ws().len();
+        let trimmed = content.trim_ws();
+        let trimmed_offset = offset + leading_ws;
+        let opening_token = if close_char == ')' { '(' } else { '{' };
 
         match super::super::read::expression::parse_expression(
             &self.arena,
@@ -2523,7 +2709,7 @@ impl<'a> Parser<'a> {
                 // complete leading expression followed by leftover input is an
                 // `expected_token` (missing `close_char`); anything else is a
                 // `js_parse_error` at the point acorn/OXC stopped.
-                if let Some(pos) = super::super::read::expression::trailing_token_offset(trimmed) {
+                if let Some(pos) = leftover_token_offset(trimmed) {
                     return Err(crate::error::ParseError::expected_token(
                         &close_char.to_string(),
                         trimmed_offset + pos,
