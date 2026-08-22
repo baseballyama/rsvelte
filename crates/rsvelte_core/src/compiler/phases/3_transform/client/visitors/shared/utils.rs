@@ -12,7 +12,8 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 // The `scope.evaluate` port lives with the server transform, but it is the one
 // shared model of a folded JS value; the client fold must agree with it.
 use crate::compiler::phases::phase3_transform::server::evaluate::{
-    EvalValue, eval_binary, eval_unary, to_js_string, to_number,
+    EvalScope, EvalValue, Evaluation, eval_binary, eval_unary, evaluate_binding_initial,
+    evaluate_estree, to_js_string, to_number,
 };
 
 /// Local scope information for tracking shadowed variables and their init expression types.
@@ -6722,285 +6723,55 @@ fn is_initial_value_literal_or_known(initial: &Option<String>) -> bool {
     false
 }
 
-/// Check if a JSON expression is "known" (can be evaluated at compile time).
-///
-/// This approximates the official Svelte compiler's `scope.evaluate().is_known` check.
-/// An expression is "known" if it evaluates to exactly one concrete value at compile time.
-///
-/// Key differences from `has_reactive_state_json`:
-/// - `has_reactive_state_json` checks if identifiers reference reactive bindings
-/// - `is_expression_known_json` checks if the expression can be compile-time evaluated
-///   (e.g., function calls to local functions are UNKNOWN even if the callee is non-reactive)
-fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentContext) -> bool {
-    let Some(obj) = json_value.as_object() else {
-        return false;
-    };
-    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
-        return false;
-    };
+/// `EvalScope` for the client transform: the same `scope.evaluate` walk the
+/// server runs, with Phase 2's reference-position resolution in place of the
+/// server's scope-index chain.
+struct ClientEvalScope<'a, 'b> {
+    context: &'a ComponentContext<'b>,
+}
 
-    match expr_type {
-        "Literal" => true,
-
-        "Identifier" => {
-            if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
-                if name == "undefined" {
-                    return true;
-                }
-                // Prefer `binding_at_reference` (the exact binding Phase 2 resolved
-                // this reference to — see its doc comment) over a plain
-                // `get_binding`, which walks the root-scope-polluted map and can
-                // return an outer binding shadowed by a template declaration
-                // (`{@const}`, `{#snippet}`, ...).
-                if let Some(binding) = obj
-                    .get("start")
-                    .and_then(|v| v.as_u64())
-                    .and_then(|start| {
-                        context
-                            .state
-                            .scope_root
-                            .binding_at_reference(name, start as u32)
-                    })
-                    .or_else(|| context.state.get_binding(name))
-                {
-                    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-
-                    // Props are never known (external values)
-                    if matches!(
-                        binding.kind,
-                        BindingKind::Prop
-                            | BindingKind::BindableProp
-                            | BindingKind::RestProp
-                            | BindingKind::Store
-                            | BindingKind::StoreSub
-                            | BindingKind::EachItem
-                            | BindingKind::SnippetParam
-                    ) {
-                        return false;
-                    }
-
-                    // Updated bindings are not known
-                    if binding.reassigned || binding.mutated {
-                        return false;
-                    }
-
-                    // For State bindings, check if state source
-                    if matches!(binding.kind, BindingKind::State | BindingKind::RawState) {
-                        use crate::compiler::phases::phase3_transform::client::utils::is_state_source;
-                        if is_state_source(binding, context.state.analysis) {
-                            return false;
-                        }
-                        // Non-state-source with known initial → known
-                        return is_initial_value_literal_or_known(&binding.initial);
-                    }
-
-                    // For Derived bindings, recursively check the initial
-                    if matches!(binding.kind, BindingKind::Derived) {
-                        if let Some(initial_json) = binding.initial_json() {
-                            return is_expression_known_json(initial_json, context);
-                        }
-                        return false;
-                    }
-
-                    // For Template bindings (@const), recursively check the initial
-                    if matches!(binding.kind, BindingKind::Template) {
-                        if let Some(initial_json) = binding.initial_json() {
-                            return is_expression_known_json(initial_json, context);
-                        }
-                        return false;
-                    }
-
-                    // For Normal bindings: known if never updated with known initial
-                    // Functions are always "known" (they're defined)
-                    if binding.is_function() {
-                        return true;
-                    }
-                    // A non-literal initializer lives in `init_expr_json`, and
-                    // upstream's `scope.evaluate` recurses into the init node
-                    // whatever its shape (`const b = `${a}y`` is known when `a` is).
-                    if binding.initial.is_none()
-                        && let Some(init_json) = binding.init_expr_json_parsed()
-                    {
-                        return REACTIVE_INIT_DEPTH.with(|d| {
-                            if d.get() >= 8 {
-                                return false;
-                            }
-                            d.set(d.get() + 1);
-                            let known = is_expression_known_json(init_json, context);
-                            d.set(d.get() - 1);
-                            known
-                        });
-                    }
-                    return is_initial_value_literal_or_known(&binding.initial);
-                }
-                // Unknown identifier - not known (could be a global)
-                false
-            } else {
-                false
-            }
-        }
-
-        "BinaryExpression" => {
-            // Both operands must be known
-            if let (Some(left), Some(right)) = (obj.get("left"), obj.get("right")) {
-                is_expression_known_json(left, context) && is_expression_known_json(right, context)
-            } else {
-                false
-            }
-        }
-
-        "UnaryExpression" => {
-            if let Some(arg) = obj.get("argument") {
-                is_expression_known_json(arg, context)
-            } else {
-                false
-            }
-        }
-
-        // Upstream takes the chosen side when the left operand is known, so the
-        // result is known whenever the folder can name it.
-        "LogicalExpression" => get_literal_value_json(json_value, context).is_some(),
-
-        "ConditionalExpression" => {
-            // Port of upstream scope.js ConditionalExpression case (lines 374-393):
-            //
-            // If the test evaluates to a known constant, prune to only the taken
-            // branch — e.g. `pin ? pin.replace(…) : 'enter your pin'` where
-            // `pin = $state('')` (non-state-source, known `""`) folds to the
-            // alternate `'enter your pin'`, which is known.
-            //
-            // If the test is unknown, the result is known only when BOTH branches
-            // evaluate to the SAME single known value (upstream: values.size === 1).
-            // e.g. `der1 ? "1" : "0"` → two different values → not known.
-            let (Some(test), Some(consequent), Some(alternate)) =
-                (obj.get("test"), obj.get("consequent"), obj.get("alternate"))
-            else {
-                return false;
-            };
-            // Try to fold the test to a constant via get_literal_value.
-            match get_literal_value_json(test, context).and_then(|v| v.truthy()) {
-                Some(truthy) => {
-                    // Test is a known constant — only the taken branch needs to be known.
-                    if truthy {
-                        is_expression_known_json(consequent, context)
-                    } else {
-                        is_expression_known_json(alternate, context)
-                    }
-                }
-                None => {
-                    // Test is unknown — result is known only if both branches yield the
-                    // SAME single compile-time value (mirrors upstream values.size === 1
-                    // after adding both branches' values to the set).
-                    let c_val = get_literal_value_json(consequent, context);
-                    let a_val = get_literal_value_json(alternate, context);
-                    match (c_val, a_val) {
-                        (Some(c), Some(a)) => c.same(&a),
-                        _ => false,
-                    }
-                }
-            }
-        }
-
-        "TemplateLiteral" => {
-            // Known only if all expressions are known
-            if let Some(expressions) = obj.get("expressions").and_then(|e| e.as_array()) {
-                expressions
-                    .iter()
-                    .all(|e| is_expression_known_json(e, context))
-            } else {
-                true // No expressions = just a string
-            }
-        }
-
-        // Function calls are generally NOT known (can't evaluate at compile time)
-        // except for rune calls $state / $state.raw / $derived whose argument IS known.
-        // Mirrors upstream scope.js lines 465-507.
-        "CallExpression" => {
-            let callee = obj.get("callee").and_then(|v| v.as_object());
-            if let Some(callee) = callee {
-                let callee_type = callee.get("type").and_then(|t| t.as_str());
-                // $state(arg) / $derived(arg)
-                if callee_type == Some("Identifier") {
-                    let rune_name = callee.get("name").and_then(|n| n.as_str()).unwrap_or("");
-                    if matches!(rune_name, "$state" | "$derived")
-                        && is_rune_callee(rune_name, context)
-                    {
-                        if let Some(args) = obj.get("arguments").and_then(|a| a.as_array())
-                            && let Some(first_arg) = args.first()
-                        {
-                            return is_expression_known_json(first_arg, context);
-                        }
-                        return true; // no arg → undefined (known)
-                    }
-                }
-                // $state.raw(arg)
-                if callee_type == Some("MemberExpression") {
-                    let obj_name = callee
-                        .get("object")
-                        .and_then(|o| o.as_object())
-                        .and_then(|o| o.get("name"))
-                        .and_then(|n| n.as_str())
-                        .unwrap_or("");
-                    let prop_name = callee
-                        .get("property")
-                        .and_then(|p| p.as_object())
-                        .and_then(|p| p.get("name"))
-                        .and_then(|n| n.as_str())
-                        .unwrap_or("");
-                    if obj_name == "$state"
-                        && prop_name == "raw"
-                        && is_rune_callee(obj_name, context)
-                    {
-                        if let Some(args) = obj.get("arguments").and_then(|a| a.as_array())
-                            && let Some(first_arg) = args.first()
-                        {
-                            return is_expression_known_json(first_arg, context);
-                        }
-                        return true; // no arg → undefined (known)
-                    }
-                }
-            }
-            // Upstream's `globals` table makes a pure global call over known
-            // arguments known too (`Math.max(1, 2)`); the folder already knows
-            // which, so ask it rather than keeping a second list.
-            get_literal_value_json(json_value, context).is_some()
-        }
-
-        // Arrow/function expressions are NOT "known" in the scope.evaluate sense:
-        // upstream evaluates them to the `FUNCTION` symbol, and a symbol value
-        // forces `is_known = false` (scope.js). So a `$derived(() => …)` (a
-        // function-valued derived) stays reactive — its prop must be emitted as a
-        // getter, not inlined by value. A plain `const fn = () => {}` reference is
-        // handled separately by the `binding.is_function()` fast-path above and
-        // never reaches here.
-        "ArrowFunctionExpression" | "FunctionExpression" => false,
-
-        // Member expressions are generally not known, EXCEPT a non-computed
-        // member of a pure global namespace whose members are compile-time
-        // constants — `Math.PI`, `Math.E`, `Number.MAX_VALUE`, etc. (mirrors the
-        // globals table in upstream `scope.evaluate`). This lets a derived like
-        // `$derived(2 * Math.PI * r)` fold to a known constant (no reactive deps).
-        "MemberExpression" => {
-            if obj.get("computed").and_then(|c| c.as_bool()) == Some(true) {
-                return false;
-            }
-            let Some(object) = obj.get("object") else {
-                return false;
-            };
-            if object.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
-                return false;
-            }
-            object
-                .get("name")
-                .and_then(|n| n.as_str())
-                .is_some_and(|name| {
-                    matches!(name, "Math" | "Number") && context.state.get_binding(name).is_none()
-                })
-        }
-
-        // Default: not known
-        _ => false,
+impl EvalScope for ClientEvalScope<'_, '_> {
+    fn identifier_has_binding(&self, name: &str) -> bool {
+        self.context.state.get_binding(name).is_some()
+            || self.context.state.transform.contains_key(name)
     }
+
+    fn evaluate_identifier(&self, node: &serde_json::Value, name: &str, depth: u8) -> Evaluation {
+        // An enclosing `{#each … as item, index}` shadows any outer binding of
+        // the same name, and the loop scope is not on `state.scope`.
+        for c in self.context.state.each_binding_context.iter().rev() {
+            if c.item_name == name {
+                return Evaluation::unknown();
+            }
+            if !c.index_name.is_empty() && c.index_name == name {
+                return Evaluation::single(EvalValue::NumberMarker);
+            }
+        }
+        let binding = node
+            .get("start")
+            .and_then(|v| v.as_u64())
+            .and_then(|start| {
+                self.context
+                    .state
+                    .scope_root
+                    .binding_at_reference(name, start as u32)
+            })
+            .or_else(|| self.context.state.get_binding(name));
+        match binding {
+            Some(b) => evaluate_binding_initial(self, b, depth),
+            None if name == "undefined" => Evaluation::single(EvalValue::Undefined),
+            None => Evaluation::unknown(),
+        }
+    }
+
+    fn binding_initial_is_props_id(&self, name: &str) -> bool {
+        self.context.state.analysis.props_id.as_deref() == Some(name)
+    }
+}
+
+/// Upstream's `scope.evaluate(node).is_known`.
+fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentContext) -> bool {
+    evaluate_estree(&ClientEvalScope { context }, json_value, 0).is_known()
 }
 
 /// Sanitize a template string by escaping special characters.
