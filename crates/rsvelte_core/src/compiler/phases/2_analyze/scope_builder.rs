@@ -90,6 +90,9 @@ pub struct ScopeBuilder<'a> {
     /// `{:else}` fragment scopes keyed by the enclosing `{#if}`'s start (see
     /// `ScopeRoot::if_alternate_scope_map`).
     if_alternate_scope_map: FxHashMap<u32, usize>,
+    /// `{:else}` fragment scopes keyed by the enclosing `{#each}`'s start (see
+    /// `ScopeRoot::each_fallback_scope_map`).
+    each_fallback_scope_map: FxHashMap<u32, usize>,
     /// Scope indices created for `{#snippet …}` bodies (see
     /// `ScopeRoot::snippet_scope_indices`).
     snippet_scope_indices: rustc_hash::FxHashSet<usize>,
@@ -144,6 +147,7 @@ impl<'a> ScopeBuilder<'a> {
             each_block_collection_infos: Vec::new(),
             template_scope_map: FxHashMap::default(),
             if_alternate_scope_map: FxHashMap::default(),
+            each_fallback_scope_map: FxHashMap::default(),
             snippet_scope_indices: rustc_hash::FxHashSet::default(),
             template_expression_params: Vec::new(),
             nested_declared_names: rustc_hash::FxHashSet::default(),
@@ -354,6 +358,7 @@ impl<'a> ScopeBuilder<'a> {
                 each_block_collection_infos,
                 template_scope_map: self.template_scope_map,
                 if_alternate_scope_map: self.if_alternate_scope_map,
+                each_fallback_scope_map: self.each_fallback_scope_map,
                 snippet_scope_indices: self.snippet_scope_indices,
                 conflicts,
                 bindings_by_name: self.bindings_by_name,
@@ -3447,9 +3452,16 @@ impl<'a> ScopeBuilder<'a> {
         // Visit body
         self.visit_fragment(&block.body);
 
-        // Visit fallback if present
+        // Upstream walks the body's NODES with the each scope but visits the
+        // fallback as a `Fragment`, so only the fallback reaches the `Fragment`
+        // visitor's `scope.child(...)`: a `{@const}` naming the item duplicates
+        // it in the body and shadows it here.
         if let Some(ref fallback) = block.fallback {
+            let fallback_outer = self.push_scope();
+            self.each_fallback_scope_map
+                .insert(block.start, self.current_scope);
             self.visit_fragment(fallback);
+            self.pop_scope(fallback_outer);
         }
 
         // Official Svelte compiler logic (index.js lines 638-674):

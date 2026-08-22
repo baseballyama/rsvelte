@@ -964,6 +964,7 @@ impl<'a> EvalCtx<'a> {
                         .template_scope_map
                         .values()
                         .chain(a.root.if_alternate_scope_map.values())
+                        .chain(a.root.each_fallback_scope_map.values())
                         .copied()
                         .collect()
                 });
