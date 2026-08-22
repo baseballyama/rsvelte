@@ -1143,7 +1143,7 @@ arrow through one prop name, and the write is always a member expression — a b
 `p = p + 1` reassignment is `binding-position`'s `assignment.right` row and is not repeated
 here. **[S]**
 
-### Blind spot 5r — CLOSED: every family injected into a value slot, none varied the value's TERMINATOR
+### Blind spot 5u — CLOSED: every family injected into a value slot, none varied the value's TERMINATOR
 
 Originally: `literal-escape` and `each-collection` put text into an attribute *value*, and
 `directive-element` / `bind-setter` vary the attribute's *kind* — but every one of them writes a
@@ -1164,19 +1164,32 @@ The `unquoted-attribute` family (`generate.mjs`, `UNQUOTED_ATTRIBUTE_VALUES` ×
 five control rows (`abc`, `a>b`, `a&b`, `&amp;`, `abc/`) that already worked — so a fix that
 simply ends the value earlier and everywhere fails them rather than passing everything.
 
-The controls only hold that line where the two readers agree, so the host axis carries a sixth
-row that does not share the lexer: a top-level `<script>` / `<style>` is read by
-`read_static_attribute`, whose `regex_attribute_value` (`[^>\s]+`) stops at neither the six
-characters nor `/`. Without `style-top-level`, a fix that ends the value earlier *everywhere*
-passes all 75 of the other cells and turns `<style a=b=c>` into a parse error — which is
-**[D]** what a competing implementation of the same fix did, and what the row caught. **[D]**
+**Those controls only hold the line where the two readers agree, and the family's first five
+hosts are all the same reader.** `div`, `div-next-attr`, `input-self-closing`, `component` and
+`svelte-element` reach `read_attribute`; upstream sends a **top-level `<script>` / `<style>`**
+to `read_static_attribute` instead (`element.js:232`,
+`is_top_level_script_or_style ? read_static_attribute : read_attribute`), whose
+`regex_attribute_value` is `[^>\s]+` — it stops at neither the six characters *nor* `/`. So
+`<style a=b=c>` compiles where `<div a=b=c>` is a parse error, and a host axis whose every row
+shares one lexer **reaches** the attribute-value question without being able to **tell the two
+answers apart** — the 5p shape, one level out.
+
+The cost is measurable rather than rhetorical. A fix that ends the value earlier *everywhere*
+passes all 75 cells of the five-host product and turns a real top-level `<style>` block into a
+parse error; **[D]** an independent implementation of this same fix (PR #3487) does exactly
+that, and `style-top-level` is what reported it. The row also found an rsvelte defect neither
+implementation had noticed: `<style a=b/>` was read as a self-closing tag, which a top-level
+script/style cannot be, so the block's `</style>` went unmatched. On the 740-comparison product
+(15 values × 6 hosts + 25 references × 2 hosts, × 2 targets, keyed on `js.code` byte equality
+and on `(code, start)` for a rejection) `origin/main` diverges on 177 and the fixed tree on 0.
+**[D]**
 
 What it still does not see: `a{b` is deliberately absent, because `{` opens an expression rather
 than ending the value and where that mustache ends is #3333; and the family compares one
 attribute name (`data-x`), so a *directive* value (`style:` / `class:`) reading its
 unquoted value through a second scanner is covered by the Rust regression only. **[S]**
 
-### Blind spot 5s — CLOSED: character references were a spelling axis nobody had crossed with a HOST
+### Blind spot 5v — CLOSED: character references were a spelling axis nobody had crossed with a HOST
 
 Originally: entity decoding was exercised only incidentally — whatever `&…` a corpus file
 happened to contain, in whatever position it happened to sit. Three decode rules exist and the
