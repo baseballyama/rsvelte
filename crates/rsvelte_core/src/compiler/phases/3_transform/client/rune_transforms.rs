@@ -56,6 +56,9 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     let derived_is_func_param = !derived_is_store_sub
         && memmem::find(line.as_bytes(), b"$derived").is_some()
         && is_function_parameter_in_statement(line, "$derived");
+    let inspect_is_func_param = !inspect_is_store_sub
+        && memmem::find(line.as_bytes(), b"$inspect").is_some()
+        && is_function_parameter_in_statement(line, "$inspect");
 
     // Skip all $state rune transforms if $state is actually a store subscription or function param
     if !state_is_store_sub && !state_is_func_param {
@@ -185,7 +188,7 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     // text trimming around the call site (leading tabs/spaces on the
     // same line, trailing `;`/newlines) that's statement-shaped rather
     // than expression-shaped and is awkward to express at the AST level.
-    if !dev && !inspect_is_store_sub {
+    if !dev && !inspect_is_store_sub && !inspect_is_func_param {
         while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect.trace(") {
             let trace_start = pos + 15; // after "$inspect.trace("
             if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
@@ -222,6 +225,7 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     // and is awkward to do at the AST level.
     if !dev
         && !inspect_is_store_sub
+        && !inspect_is_func_param
         && let Some(pos) = memmem::find(result.as_bytes(), b"$inspect(")
     {
         {
