@@ -493,9 +493,20 @@ assert(
 		),
 	'modern AST differs from svelte/compiler'
 );
+// Upstream fills `ast` either way — the modern tree under `modernAst`, the
+// Svelte-4 legacy tree otherwise. Key sets are compared rather than whole trees
+// because the legacy tree still diverges inside (#3295), and official is
+// round-tripped first: it sets absent blocks to `undefined`, which `Object.keys`
+// reports and no serialization boundary carries.
+const defaultAst = napi.compile(MODERN_AST_SRC, { filename: 'A.svelte' }).ast;
+const officialDefaultKeys = Object.keys(
+	JSON.parse(JSON.stringify(officialCompile(MODERN_AST_SRC, { filename: 'A.svelte' }).ast))
+).sort();
 assert(
-	'compile.modernAst: default remains null',
-	napi.compile(MODERN_AST_SRC, { filename: 'A.svelte' }).ast === null
+	'compile.modernAst: the default is the legacy AST, keyed as official',
+	defaultAst !== null &&
+		JSON.stringify(Object.keys(defaultAst).sort()) === JSON.stringify(officialDefaultKeys),
+	`default ast keys ${JSON.stringify(defaultAst && Object.keys(defaultAst).sort())} vs official ${JSON.stringify(officialDefaultKeys)}`
 );
 let modernAstEnvelopeError;
 try {

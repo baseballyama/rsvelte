@@ -2241,6 +2241,22 @@ which build the map in Rust. Neither covers `compileBuffers`, `compileModuleBuff
 `*ZeroCopy` entries, or `compileModule`'s map — and no assertion generalizes: each is a named
 field on a named entry.
 
+### 22g — the legacy `result.ast` is compared as a top-level KEY SET, nothing below it [D]
+
+`modernAst: true` is compared to official as a whole canonicalized tree; the **default** `ast` —
+the Svelte-4 legacy tree, wired in #3295 — is compared only as `Object.keys(ast).sort()`, so
+`{css, html, instance, module, _comments}` agreeing is the entire verdict. Everything inside is
+unobserved here and nowhere else: no gate in this repo compares the legacy tree's contents on
+either shape. Measured over 400 `runtime-legacy` components, **22 are byte-identical to official
+and 378 diverge** in nine classes (`.raw`/`.data` on 199 files from upstream's in-place
+`clean_nodes` mutation, expression `loc` coverage on 311 files, computed-key positions on 15,
+`.modifiers`, `_comments`/`leadingComments`/`trailingComments`, `name_loc`, `importKind`, an
+extra `attributes`) — every one of which this gate scores as a pass. The byte-exact pin is one
+component in `crates/rsvelte_core/tests/compile_result_legacy_ast_3295.rs`; a differential over
+the corpus is #3295's follow-up, not this gate. Official is round-tripped through JSON before its
+keys are read, because upstream assigns `undefined` to absent blocks and `Object.keys` reports
+those.
+
 ---
 
 ## 23. Escaped-quote lookback shape — `crates/rsvelte_core/tests/escaped_quote_lookback_guard.rs`
