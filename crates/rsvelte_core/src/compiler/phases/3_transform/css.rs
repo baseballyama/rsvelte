@@ -6926,7 +6926,18 @@ fn transform_complex_selector(
                 } else if result.is_empty() {
                     // First combinator at start (e.g., "> nav" as a nested selector)
                     // Don't add leading space
-                    let _ = write!(result, "{} ", name);
+                    match leading_combinator_text(
+                        node,
+                        relative_selector,
+                        name,
+                        css_source,
+                        css_start,
+                    ) {
+                        Some(text) => result.push_str(&text),
+                        None => {
+                            let _ = write!(result, "{} ", name);
+                        }
+                    }
                 } else {
                     let _ = write!(result, " {} ", name);
                 }
@@ -7264,6 +7275,37 @@ fn compound_start(relative_selector: &Value) -> Option<usize> {
         .map(|s| s as usize)
 }
 
+/// The source text between a complex selector's start and its first compound —
+/// a nested rule's leading combinator, which the in-place rewrite leaves alone.
+fn leading_combinator_text(
+    node: &Value,
+    relative_selector: &Value,
+    name: &str,
+    css_source: &str,
+    css_start: usize,
+) -> Option<String> {
+    let from = (node.get("start").and_then(|s| s.as_u64())? as usize).checked_sub(css_start)?;
+    let to = compound_start(relative_selector)?.checked_sub(css_start)?;
+    if to <= from || to > css_source.len() {
+        return None;
+    }
+    let text = css_source.get(from..to)?;
+    if !is_combinator_run(text.trim(), name) {
+        return None;
+    }
+    Some(text.to_string())
+}
+
+/// A gap that is nothing but combinator tokens ending in the one the AST kept.
+/// `>>` / `>>>` are read one token at a time upstream, keeping only the last.
+fn is_combinator_run(trimmed: &str, name: &str) -> bool {
+    !trimmed.is_empty()
+        && trimmed
+            .bytes()
+            .all(|b| matches!(b, b'>' | b'+' | b'~' | b'|'))
+        && trimmed.ends_with(name.trim())
+}
+
 /// Upstream rewrites the stylesheet in place, so the author's whitespace between
 /// two compounds — including line breaks — survives into the output.
 fn source_combinator_text(
@@ -7289,8 +7331,11 @@ fn source_combinator_text(
     }
     let text = css_source.get(from..to)?;
     // A gap holding anything but the combinator (a comment, a synthesized node's
-    // stale span) falls back to the canonical spelling.
-    if text.is_empty() || text.trim() != name.trim() {
+    // stale span) falls back to the canonical spelling. `>>` / `>>>` are a run of
+    // combinator tokens that upstream's regex reads one at a time, keeping only
+    // the last — but its in-place rewrite leaves the whole run in the output.
+    let trimmed = text.trim();
+    if text.is_empty() || (trimmed != name.trim() && !is_combinator_run(trimmed, name)) {
         return None;
     }
     Some(text.to_string())
