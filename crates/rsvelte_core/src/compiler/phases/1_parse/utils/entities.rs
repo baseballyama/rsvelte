@@ -75,6 +75,13 @@ pub fn decode_numeric_entity(entity: &str) -> Option<char> {
 ///
 /// # Returns
 /// The decoded string with all entities replaced
+/// Whether `next` suppresses a semicolon-less entity under upstream's
+/// `${entity_name}\b(?!=)` guard. `\b` is JavaScript's, so `_` is a word
+/// character and closes the boundary just like a letter or a digit.
+fn breaks_legacy_entity(next: Option<u8>) -> bool {
+    next.is_some_and(|b| b == b'=' || b == b'_' || b.is_ascii_alphanumeric())
+}
+
 pub fn decode_html_entities(s: &str, is_attribute_value: bool) -> String {
     let mut result = String::with_capacity(s.len());
     let bytes = s.as_bytes();
@@ -181,12 +188,9 @@ pub fn decode_html_entities(s: &str, is_attribute_value: bool) -> String {
                     // prefix — upstream's ordered alternation matches it there
                     // (`&notanentity;` → `¬anentity;`). The attribute-value rule
                     // still applies: no decode when the next character is `=` or
-                    // alphanumeric (there always is one here — the unmatched rest).
+                    // a word character (there always is one here — the unmatched rest).
                     let next_byte = bytes.get(entity_start + matched_len).copied();
-                    let should_skip = is_attribute_value
-                        && next_byte
-                            .map(|b| b == b'=' || b.is_ascii_alphanumeric())
-                            .unwrap_or(false);
+                    let should_skip = is_attribute_value && breaks_legacy_entity(next_byte);
                     if should_skip {
                         result.push_str(&s[start..i]);
                     } else {
@@ -223,12 +227,10 @@ pub fn decode_html_entities(s: &str, is_attribute_value: bool) -> String {
                         None
                     };
 
-                    // In attribute value mode, don't decode if followed by '=' or alphanumeric
-                    // (word boundary check from HTML spec)
-                    let should_skip = is_attribute_value
-                        && next_byte_after_match
-                            .map(|b| b == b'=' || b.is_ascii_alphanumeric())
-                            .unwrap_or(false);
+                    // In attribute value mode, don't decode if followed by '=' or a
+                    // word character (word boundary check from HTML spec)
+                    let should_skip =
+                        is_attribute_value && breaks_legacy_entity(next_byte_after_match);
 
                     if should_skip {
                         // Output as-is (including any chars collected but not consumed)
@@ -382,6 +384,18 @@ mod tests {
 
         // With semicolon, always decode
         assert_eq!(decode_html_entities("&amp;=", true), "&=");
+
+        // `\b` is JavaScript's, so `_` is a word character and closes the boundary.
+        assert_eq!(decode_html_entities("&amp_b", true), "&amp_b");
+        assert_eq!(decode_html_entities("&not_x", true), "&not_x");
+        // Control: content mode has no boundary rule at all.
+        assert_eq!(decode_html_entities("&amp_b", false), "&_b");
+
+        // A semicolon-terminated name that is unknown still matches its longest
+        // legacy prefix, and the boundary rule applies to that prefix too.
+        assert_eq!(decode_html_entities("&notreal;", true), "&notreal;");
+        assert_eq!(decode_html_entities("&ampx;", true), "&ampx;");
+        assert_eq!(decode_html_entities("&not real;", true), "¬ real;");
     }
 
     #[test]
