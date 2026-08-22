@@ -5064,6 +5064,109 @@ fn separate_same_line_legacy_export_declarations<'a>(
     Cow::Owned(separated)
 }
 
+/// Move a legacy `$:` label's colon up against its `$`.
+///
+/// JavaScript allows whitespace and comments between a label and its colon, but
+/// every downstream stage of this pipeline locates a reactive statement by the
+/// literal two bytes `$:`, so `$ : x = 1` reaches none of them and is emitted as
+/// an inert labelled statement. The parser decides what is a label; swapping the
+/// gap with the colon rather than deleting it keeps both byte length and line
+/// count, so nothing that indexes into this text moves.
+fn close_reactive_label_gaps<'a>(script: &'a str, is_typescript: bool) -> Cow<'a, str> {
+    use oxc_allocator::Allocator;
+    use oxc_ast::ast::Statement;
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
+
+    // A gapped label is a `$` followed by whitespace or a comment. Non-ASCII is
+    // a candidate because JavaScript's whitespace reaches past it (NBSP, U+2028,
+    // U+FEFF); every other successor byte — `:`, an identifier character, `{`,
+    // `.`, `(` — rules the `$` out without a parse.
+    let bytes = script.as_bytes();
+    let gap_candidate = bytes.iter().enumerate().any(|(i, &b)| {
+        b == b'$'
+            && bytes
+                .get(i + 1)
+                .is_some_and(|&n| n.is_ascii_whitespace() || n == b'\x0b' || n == b'/' || n >= 0x80)
+    });
+    if !gap_candidate {
+        return Cow::Borrowed(script);
+    }
+
+    let allocator = Allocator::default();
+    let source_type = if is_typescript {
+        SourceType::ts()
+    } else {
+        SourceType::mjs()
+    };
+    let parsed = Parser::new(&allocator, script, source_type).parse();
+    if parsed.panicked || !parsed.diagnostics.is_empty() {
+        return Cow::Borrowed(script);
+    }
+
+    // Only a top-level label is a reactive statement upstream
+    // (`2-analyze/visitors/LabeledStatement.js`), so a nested one is left alone.
+    let mut gaps: Vec<(usize, usize)> = Vec::new();
+    for statement in &parsed.program.body {
+        let Statement::LabeledStatement(labeled) = statement else {
+            continue;
+        };
+        if labeled.label.name != "$" {
+            continue;
+        }
+        let gap_start = labeled.label.span.end as usize;
+        if let Some(colon) = label_colon_offset(script, gap_start)
+            && colon > gap_start
+        {
+            gaps.push((gap_start, colon));
+        }
+    }
+
+    if gaps.is_empty() {
+        return Cow::Borrowed(script);
+    }
+
+    let mut out = String::with_capacity(script.len());
+    let mut cursor = 0;
+    for (gap_start, colon) in gaps {
+        out.push_str(&script[cursor..gap_start]);
+        out.push(':');
+        out.push_str(&script[gap_start..colon]);
+        cursor = colon + 1;
+    }
+    out.push_str(&script[cursor..]);
+    Cow::Owned(out)
+}
+
+/// Offset of the `:` that follows a label name at `from`, skipping the
+/// whitespace and comments the grammar allows in between.
+fn label_colon_offset(script: &str, from: usize) -> Option<usize> {
+    let bytes = script.as_bytes();
+    let mut i = from;
+    while i < bytes.len() {
+        match bytes[i] {
+            b':' => return Some(i),
+            b'/' if bytes.get(i + 1) == Some(&b'/') => {
+                i = script[i..].find('\n').map_or(script.len(), |nl| i + nl + 1);
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'*') => {
+                i = script[i + 2..]
+                    .find("*/")
+                    .map_or(script.len(), |end| i + 2 + end + 2);
+            }
+            _ => {
+                let c = script[i..].chars().next()?;
+                // JavaScript's whitespace is `White_Space` plus U+FEFF.
+                if !c.is_whitespace() && c != '\u{feff}' {
+                    return None;
+                }
+                i += c.len_utf8();
+            }
+        }
+    }
+    None
+}
+
 fn might_have_comma_separated_declaration(script: &str) -> bool {
     let bytes = script.as_bytes();
     if memmem::find(bytes, b", ").is_none()
@@ -5549,7 +5652,12 @@ fn transform_instance_script_for_visitors(
     }
     let separated_script =
         separate_same_line_legacy_export_declarations(script, analysis.is_typescript);
-    let script = separated_script.as_ref();
+    let normalized_labels = if analysis.runes {
+        Cow::Borrowed(separated_script.as_ref())
+    } else {
+        close_reactive_label_gaps(separated_script.as_ref(), analysis.is_typescript)
+    };
+    let script = normalized_labels.as_ref();
     let original_script = script;
 
     // Instance imports are removed by the caller before this pipeline.
@@ -7002,6 +7110,7 @@ fn transform_instance_script_for_visitors(
                         &t,
                         prop_assignment_transform_vars,
                         &non_bindable_prop_vars,
+                        prop_source_reads_ast::ParseGoal::Statements,
                     )
                     .map(Cow::Owned)
                     .unwrap_or(t)

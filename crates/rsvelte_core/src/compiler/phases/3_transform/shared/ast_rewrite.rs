@@ -61,6 +61,35 @@ pub fn with_program<R>(
     parse_options: ParseOptions,
     f: impl FnOnce(&Program<'_>) -> Option<R>,
 ) -> Option<R> {
+    with_program_attempt(arena, source, source_type, parse_options, f).into_option()
+}
+
+/// The outcome of [`with_program_attempt`]. A pass that can offer the same text
+/// to a second parse goal needs "did not parse" apart from "parsed, and the
+/// collector found nothing": only the first is worth retrying.
+pub enum ParseAttempt<R> {
+    Parsed(Option<R>),
+    NotParsed,
+}
+
+impl<R> ParseAttempt<R> {
+    pub fn into_option(self) -> Option<R> {
+        match self {
+            Self::Parsed(out) => out,
+            Self::NotParsed => None,
+        }
+    }
+}
+
+/// [`with_program`], reporting whether the parse itself succeeded.
+#[track_caller]
+pub fn with_program_attempt<R>(
+    arena: &'static LocalKey<RefCell<Allocator>>,
+    source: &str,
+    source_type: SourceType,
+    parse_options: ParseOptions,
+    f: impl FnOnce(&Program<'_>) -> Option<R>,
+) -> ParseAttempt<R> {
     dual_run::count_parse(
         dual_run::current_or(std::panic::Location::caller().file()),
         source.len(),
@@ -74,9 +103,9 @@ pub fn with_program<R>(
         let parse_time = super::super::profile::timer_elapsed(parse_start);
         let visit_start = super::super::profile::timer_start();
         let out = if parsed.diagnostics.is_empty() {
-            f(&parsed.program)
+            ParseAttempt::Parsed(f(&parsed.program))
         } else {
-            None
+            ParseAttempt::NotParsed
         };
         super::super::profile::record_reparse(
             parse_time,

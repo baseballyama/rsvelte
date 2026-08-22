@@ -175,9 +175,12 @@ pub(super) fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> 
     // Most callers hand us a complete JavaScript expression or statement. Let
     // the AST rewriter handle those in one traversal; this scanner remains only
     // for the incomplete fragments that cannot be parsed in program context.
-    if let Some(rewritten) =
-        super::prop_source_reads_ast::wrap_prop_source_reads_ast(expr, prop_vars, &[])
-    {
+    if let Some(rewritten) = super::prop_source_reads_ast::wrap_prop_source_reads_ast(
+        expr,
+        prop_vars,
+        &[],
+        super::prop_source_reads_ast::ParseGoal::Expression,
+    ) {
         return rewritten;
     }
 
@@ -855,6 +858,7 @@ pub(super) fn apply_prop_reads_in_prop_default_values(line: &str, prop_vars: &[S
                     default_val,
                     prop_vars,
                     &[],
+                    super::prop_source_reads_ast::ParseGoal::Expression,
                 )
                 .unwrap_or_else(|| default_val.to_string())
             };
@@ -2997,6 +3001,7 @@ pub(super) fn transform_props_destructuring(
                         &dv,
                         prop_source_vars,
                         &[],
+                        super::prop_source_reads_ast::ParseGoal::Expression,
                     )
                     .unwrap_or(dv);
                 }

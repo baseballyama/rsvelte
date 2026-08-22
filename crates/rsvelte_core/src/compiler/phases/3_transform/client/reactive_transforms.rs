@@ -473,6 +473,7 @@ pub(super) fn transform_reactive_statement(
                 &temp,
                 prop_assignment_transform_vars,
                 &[],
+                super::prop_source_reads_ast::ParseGoal::Statements,
             )
             .unwrap_or_else(|| transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars));
             let temp = transform_prop_assignments(
@@ -725,6 +726,7 @@ pub(super) fn transform_reactive_statement(
             &temp,
             prop_assignment_transform_vars,
             &[],
+            super::prop_source_reads_ast::ParseGoal::Statements,
         )
         .unwrap_or_else(|| transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars));
         // Then transform prop compound assignments (e.g., `count += 1` → `count(count() + 1)`)
