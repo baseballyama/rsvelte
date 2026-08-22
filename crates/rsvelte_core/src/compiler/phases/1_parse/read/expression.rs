@@ -6767,6 +6767,11 @@ pub struct ProgramParseParams<'source, 'context> {
     pub line_offsets: &'context [usize],
     /// Set to true if the script contains TypeScript.
     pub is_typescript: bool,
+    /// Whether this is a component `<script>` rather than a standalone module.
+    /// Upstream passes the same flag to `acorn.parse`, which uses it to clear
+    /// `undefinedExports` — an exported name may be declared elsewhere in the
+    /// component, so only a module raises `Export 'x' is not defined`.
+    pub is_script: bool,
     /// HTML comments that appeared before the script tag.
     pub leading_comments: &'context [String],
     /// Positions for loc calculation (Svelte uses locator(start) for
@@ -7047,6 +7052,7 @@ fn convert_parsed_program<'ast>(
         offset,
         line_offsets,
         is_typescript,
+        is_script,
         leading_comments,
         script_tag_start,
         script_tag_end,
@@ -7077,7 +7083,7 @@ fn convert_parsed_program<'ast>(
             // fragment with no enclosing class or loop.
             let earliest = [
                 acorn_only_violation(program, content, is_typescript),
-                super::early_errors::find_early_error(program, content),
+                super::early_errors::find_early_error(program, content, is_script),
             ]
             .into_iter()
             .flatten()

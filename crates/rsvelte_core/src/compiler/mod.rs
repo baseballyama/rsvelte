@@ -959,6 +959,7 @@ pub fn compile_module(
                     offset: 0, // source is the entire file
                     line_offsets: &[],
                     is_typescript: false, // upstream analyze_module always parses plain JS
+                    is_script: false,
                     leading_comments: &[],
                     script_tag_start: 0,
                     script_tag_end: source.len(),

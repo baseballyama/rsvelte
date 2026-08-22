@@ -63,6 +63,11 @@ struct Row {
     entry: &'static str,
     body: &'static str,
     message: &'static str,
+    /// A component `<script>` may export a name declared elsewhere in the
+    /// component, so upstream clears acorn's `undefinedExports` when it parses
+    /// one. A row set here is asserted as an error on the module entry point and
+    /// as still COMPILING in an instance script — both directions of one check.
+    module_only: bool,
 }
 
 const EARLY_ERRORS: &[Row] = &[
@@ -70,101 +75,142 @@ const EARLY_ERRORS: &[Row] = &[
         entry: "Multiple constructor implementations",
         body: "class K { constructor() {} |constructor() {} }",
         message: "Duplicate constructor in the same class",
+        module_only: false,
     },
     Row {
         entry: "Super calls are not permitted",
         body: "function f() { |super(); }",
         message: "'super' keyword outside a method",
+        module_only: false,
     },
     Row {
         entry: "'super' can only be referenced",
         body: "function f() { |super.x; }",
         message: "'super' keyword outside a method",
+        module_only: false,
     },
     Row {
         entry: "Illegal break statement",
         body: "function f() { |break; }",
         message: "Unsyntactic break",
+        module_only: false,
     },
     Row {
         entry: "Illegal continue statement",
         body: "function f() { |continue; }",
         message: "Unsyntactic continue",
+        module_only: false,
     },
     Row {
         entry: "Jump target cannot cross function boundary (break)",
         body: "function f() { |break nope; }",
         message: "Unsyntactic break",
+        module_only: false,
     },
     Row {
         entry: "Jump target cannot cross function boundary (continue)",
         body: "function f() { |continue nope; }",
         message: "Unsyntactic continue",
+        module_only: false,
     },
     Row {
         entry: "Label `x` has already been declared",
         body: "function f() { a: |a: for (;;) break a; }",
         message: "Label 'a' is already declared",
+        module_only: false,
     },
     Row {
         entry: "must be declared in an enclosing class",
         body: "class K { m() { return this.|#nope; } }",
         message: "Private field '#nope' must be declared in an enclosing class",
+        module_only: false,
     },
     Row {
         entry: "has already been declared (private name)",
         body: "class K { #a = 1; |#a = 2; }",
         message: "Identifier '#a' has already been declared",
+        module_only: false,
     },
     Row {
         entry: "has already been declared (function/function)",
         body: "function f(){} function |f(){}",
         message: "Identifier 'f' has already been declared",
+        module_only: false,
     },
     Row {
         entry: "has already been declared (function/let)",
         body: "function f(){} let |f = 1;",
         message: "Identifier 'f' has already been declared",
+        module_only: false,
     },
     Row {
         entry: "has already been declared (let/let)",
         body: "let x = 1; let |x = 2;",
         message: "Identifier 'x' has already been declared",
+        module_only: false,
     },
     Row {
         entry: "import declaration outside the top level",
         body: "function f() { |import './x.js'; }",
         message: "'import' and 'export' may only appear at the top level",
+        module_only: false,
     },
     Row {
         entry: "export declaration outside the top level",
         body: "function f() { |export const a = 1; }",
         message: "'import' and 'export' may only appear at the top level",
+        module_only: false,
     },
     Row {
         entry: "'use strict' with a non-simple parameter list (declaration)",
         body: "|function f(a = 1) { 'use strict'; }",
         message: "Illegal 'use strict' directive in function with non-simple parameter list",
+        module_only: false,
     },
     Row {
         entry: "'use strict' with a non-simple parameter list (arrow)",
         body: "const g = |(a = 1) => { 'use strict'; };",
         message: "Illegal 'use strict' directive in function with non-simple parameter list",
+        module_only: false,
     },
     Row {
         entry: "'use strict' with a non-simple parameter list (method)",
         body: "class K { m|(a = 1) { 'use strict'; } }",
         message: "Illegal 'use strict' directive in function with non-simple parameter list",
+        module_only: false,
     },
     Row {
         entry: "'super' can only be referenced in a derived class",
         body: "class K { constructor() { |super(); } }",
         message: "super() call outside constructor of a subclass",
+        module_only: false,
     },
     Row {
         entry: "The operand of a 'delete' operator cannot be a private identifier",
         body: "class K { #a = 1; m() { |delete this.#a; } }",
         message: "Private fields can not be deleted",
+        module_only: false,
+    },
+    // OXC gives the two `arguments` contexts one message each, and acorn words
+    // them differently from OXC and from each other, so neither the needle nor
+    // the wording can be shared — two rows, two repros.
+    Row {
+        entry: "'arguments' in a class field initializer",
+        body: "class K { a = |arguments; }",
+        message: "Cannot use 'arguments' in class field initializer",
+        module_only: false,
+    },
+    Row {
+        entry: "'arguments' in a class static initialization block",
+        body: "class K { static { this.a = |arguments; } }",
+        message: "Cannot use arguments in class static initialization block",
+        module_only: false,
+    },
+    Row {
+        entry: "Export 'x' is not defined",
+        body: "export { |nope };",
+        message: "Export 'nope' is not defined",
+        module_only: true,
     },
 ];
 
@@ -193,6 +239,14 @@ fn every_early_error_is_rejected_where_acorn_rejects_it() {
             let at = wrap(row.body)
                 .find('|')
                 .expect("the marker survives wrapping");
+            if row.module_only && host == "instance-script" {
+                assert!(
+                    run(&wrap(&body)).is_ok(),
+                    "[{}] {body:?} must still compile in {host}",
+                    row.entry
+                );
+                continue;
+            }
             let err = match run(&wrap(&body)) {
                 Err(err) => err,
                 Ok(code) => panic!(
@@ -247,6 +301,11 @@ const LEGAL: &[&str] = &[
     "const g = (a = 1) => 1;",
     "function f(a = 1) { const x = 1; 'use strict'; }",
     "class K { #a = 1; m() { return delete this.a; } }",
+    // `arguments` is only illegal in the two contexts that have no `arguments`
+    // object of their own — a method body has one.
+    "class K { a = 1; m() { return arguments; } }",
+    "class K { static { this.a = 1; } }",
+    "let n = 1; export { n };",
 ];
 
 #[test]
