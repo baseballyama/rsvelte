@@ -1954,6 +1954,40 @@ pub(super) fn calculate_prop_flags(
     flags
 }
 
+/// The public name a `$props()` destructuring key declares. Upstream takes
+/// `String(key.value)`, so a **BigInt** key carries its value and never its
+/// spelling: `0x10n` declares the prop `16`, `2n` the prop `2`.
+fn props_key_name(raw_key: &str, unquoted: &str) -> String {
+    bigint_key_digits(raw_key).unwrap_or_else(|| unquoted.to_string())
+}
+
+/// `Some(decimal digits)` when the raw key text is a BigInt literal. Parsed
+/// rather than pattern-matched, so `0x10n` / `1_000n` carry their value, and an
+/// identifier that merely ends in `n` is not mistaken for one.
+fn bigint_key_digits(raw_key: &str) -> Option<String> {
+    use oxc_allocator::Allocator;
+    use oxc_ast::ast::{Expression, Statement};
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
+
+    let trimmed = raw_key.trim();
+    if !trimmed.ends_with('n') || !trimmed.starts_with(|c: char| c.is_ascii_digit()) {
+        return None;
+    }
+    let alloc = Allocator::default();
+    let parsed = Parser::new(&alloc, trimmed, SourceType::mjs()).parse();
+    if parsed.panicked || !parsed.diagnostics.is_empty() {
+        return None;
+    }
+    let [Statement::ExpressionStatement(stmt)] = parsed.program.body.as_slice() else {
+        return None;
+    };
+    match &stmt.expression {
+        Expression::BigIntLiteral(lit) => Some(lit.value.to_string()),
+        _ => None,
+    }
+}
+
 /// Check if a string is a valid JavaScript identifier.
 pub(super) fn is_identifier_str(s: &str) -> bool {
     let trimmed = s.trim();
@@ -2898,18 +2932,19 @@ pub(super) fn transform_props_destructuring(
             //   prop_name = "disabled" (the actual prop)
             //   local_name = "disabledProp" (the local variable)
             let (prop_name, local_name) = if let Some(colon_pos) = name_part.find(':') {
-                let pn = name_part[..colon_pos].trim();
+                let raw_key = name_part[..colon_pos].trim();
                 // Strip surrounding quotes from prop name (e.g., 'weird-name': localVar)
-                let pn = pn
+                let pn = raw_key
                     .strip_prefix('\'')
                     .and_then(|s| s.strip_suffix('\''))
-                    .or_else(|| pn.strip_prefix('"').and_then(|s| s.strip_suffix('"')))
-                    .unwrap_or(pn);
+                    .or_else(|| raw_key.strip_prefix('"').and_then(|s| s.strip_suffix('"')))
+                    .unwrap_or(raw_key);
                 let ln = name_part[colon_pos + 1..].trim();
-                (pn, ln)
+                (props_key_name(raw_key, pn), ln)
             } else {
-                (name_part, name_part)
+                (name_part.to_string(), name_part)
             };
+            let prop_name = prop_name.as_str();
 
             // Strip $bindable() wrapper: $bindable(value) -> value
             // Reference: VariableDeclaration.js - unwrap_bindable()
@@ -3049,18 +3084,19 @@ pub(super) fn transform_props_destructuring(
         } else {
             // No default value - handle rename pattern: `originalProp: localVar`
             let (prop_name, local_name) = if let Some(colon_pos) = prop_part.find(':') {
-                let pn = prop_part[..colon_pos].trim();
+                let raw_key = prop_part[..colon_pos].trim();
                 // Strip surrounding quotes from prop name
-                let pn = pn
+                let pn = raw_key
                     .strip_prefix('\'')
                     .and_then(|s| s.strip_suffix('\''))
-                    .or_else(|| pn.strip_prefix('"').and_then(|s| s.strip_suffix('"')))
-                    .unwrap_or(pn);
+                    .or_else(|| raw_key.strip_prefix('"').and_then(|s| s.strip_suffix('"')))
+                    .unwrap_or(raw_key);
                 let ln = prop_part[colon_pos + 1..].trim();
-                (pn, ln)
+                (props_key_name(raw_key, pn), ln)
             } else {
-                (prop_part, prop_part)
+                (prop_part.to_string(), prop_part)
             };
+            let prop_name = prop_name.as_str();
 
             // Add to seen list for rest_props exclusion
             seen.push(prop_name.to_string());
