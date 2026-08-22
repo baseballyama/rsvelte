@@ -1935,30 +1935,35 @@ impl<'a> Parser<'a> {
         self.advance(); // consume '@'
 
         // Try to match known keywords using first-byte dispatch
-        let _keyword_start = self.index;
-        let keyword: CompactString = if self.index < self.bytes.len() {
-            let matched_kw = match self.bytes[self.index] {
+        let keyword_start = self.index;
+        let matched_kw = if self.index < self.bytes.len() {
+            match self.bytes[self.index] {
                 b'h' if self.match_str("html") => Some(("html", 4)),
                 b'r' if self.match_str("render") => Some(("render", 6)),
                 b'c' if self.match_str("const") => Some(("const", 5)),
                 b'd' if self.match_str("debug") => Some(("debug", 5)),
-                b'a' if self.match_str("attach") => Some(("attach", 6)),
                 _ => None,
-            };
-            if let Some((kw, len)) = matched_kw {
-                self.index += len;
-                // `{@debug}` is upstream's one argument-less special tag, so it
-                // is the only keyword that does not require a separator.
-                if kw != "debug" {
-                    self.require_whitespace()?;
-                }
-                CompactString::from(kw)
-            } else {
-                self.read_identifier()
             }
         } else {
-            self.read_identifier()
+            None
         };
+        // Upstream's `special()` knows four tags. `{@attach}` is an *attribute*
+        // form, parsed by `parse_attach_attribute`, so reaching it here — or any
+        // other name — is `expected_tag`, raised at the index after the `@`.
+        let Some((kw, len)) = matched_kw else {
+            return Err(crate::error::ParseError::svelte(
+                "expected_tag",
+                "Expected 'html', 'render', 'attach', 'const', or 'debug'\nhttps://svelte.dev/e/expected_tag",
+                (keyword_start, keyword_start),
+            ));
+        };
+        self.index += len;
+        // `{@debug}` is upstream's one argument-less special tag, so it
+        // is the only keyword that does not require a separator.
+        if kw != "debug" {
+            self.require_whitespace()?;
+        }
+        let keyword = CompactString::from(kw);
 
         self.skip_whitespace();
 
@@ -2205,6 +2210,7 @@ impl<'a> Parser<'a> {
                 // {@debug x, y, z} debugs specific identifiers
                 self.skip_whitespace();
 
+                let mut leftover = None;
                 let identifiers: Vec<Expression> = if self.current_char() == '}' {
                     // {@debug} - no identifiers (debug all)
                     Vec::new()
@@ -2218,17 +2224,28 @@ impl<'a> Parser<'a> {
                     let end = find_matching_bracket(self.source, expr_start, '{')
                         .unwrap_or(self.source.len());
                     self.index = end;
-                    let expr_content = self.source[expr_start..end].trim_ws();
+                    let expr_content = &self.source[expr_start..end];
 
-                    if expr_content.is_empty() {
+                    if expr_content.trim_ws().is_empty() {
                         Vec::new()
                     } else {
-                        // Parse as expression
-                        let expression = self.parse_js_expression(expr_content, expr_start);
+                        // Upstream hands the argument list to the same
+                        // `read_expression` every other tag body goes through, so
+                        // a malformed list (`s,`, `, s`, `...arr`) is that
+                        // parser's `js_parse_error` rather than a dropped
+                        // argument. The identifier check below then runs before
+                        // the leftover `expected_token`, as it does upstream.
+                        let (expression, trailing) = self.parse_head_expression_split(
+                            expr_content,
+                            expr_start,
+                            false,
+                            '}',
+                            false,
+                        )?;
+                        leftover = trailing;
 
-                        // Extract identifiers from the expression
-                        // If it's a SequenceExpression (comma-separated), extract each one
-                        // Otherwise treat as single identifier
+                        // A comma-separated list parses as a SequenceExpression;
+                        // anything else is one argument.
                         let value = expression.as_json();
                         let expr_type = value.get("type").and_then(|t| t.as_str());
 
@@ -2263,6 +2280,10 @@ impl<'a> Parser<'a> {
                     }
                 }
 
+                if let Some(err) = leftover {
+                    return Err(err);
+                }
+
                 self.advance(); // consume '}'
 
                 Ok(Some(TemplateNode::DebugTag(Box::new(DebugTag {
@@ -2272,15 +2293,8 @@ impl<'a> Parser<'a> {
                     metadata: Default::default(),
                 }))))
             }
-            // "attach" (not fully implemented yet) and any unknown special tag
-            // are both skipped verbatim up to the closing brace.
-            _ => {
-                while !self.is_eof() && self.current_char() != '}' {
-                    self.advance();
-                }
-                self.advance(); // consume '}'
-                Ok(None)
-            }
+            // Unreachable: the keyword dispatch above rejects everything else.
+            _ => Ok(None),
         }
     }
 
@@ -2483,6 +2497,30 @@ impl<'a> Parser<'a> {
         disallow_loose: bool,
         close_char: char,
     ) -> crate::error::ParseResult<Expression<'a>> {
+        let (expression, leftover) =
+            self.parse_head_expression_split(content, offset, disallow_loose, close_char, true)?;
+        match leftover {
+            Some(err) => Err(err),
+            None => Ok(expression),
+        }
+    }
+
+    /// [`Self::parse_head_expression`], but with the leading expression and the
+    /// `expected_token` its leftover input would raise handed back separately.
+    ///
+    /// Upstream runs `read_expression` first and `eat(close, true)` last, so a
+    /// caller that validates the expression in between (`{@debug o.k n}` is
+    /// `debug_tag_invalid_arguments`, not `expected_token`) needs both halves.
+    /// `allow_defer` is false for such a caller, which has to inspect the node
+    /// during the parse and so cannot take a `Lazy`.
+    fn parse_head_expression_split(
+        &self,
+        content: &str,
+        offset: usize,
+        disallow_loose: bool,
+        close_char: char,
+        allow_defer: bool,
+    ) -> crate::error::ParseResult<(Expression<'a>, Option<crate::error::ParseError>)> {
         let leading_ws = content.len() - content.trim_start_ws().len();
         let trimmed = content.trim_ws();
         let trimmed_offset = offset + leading_ws;
@@ -2493,30 +2531,37 @@ impl<'a> Parser<'a> {
         } else {
             LazyKind::HeadBrace
         };
-        if let Some(lazy) = self.defer_expression(trimmed, trimmed_offset, kind) {
-            return Ok(lazy);
+        if allow_defer && let Some(lazy) = self.defer_expression(trimmed, trimmed_offset, kind) {
+            return Ok((lazy, None));
         }
 
-        match super::super::read::expression::parse_expression(
-            &self.arena,
-            trimmed,
-            trimmed_offset,
-            self.expression_line_offsets(),
-            self.source,
-            self.options.loose,
-            disallow_loose,
-            opening_token,
-            self.ts,
-        ) {
-            Ok(expr) => Ok(expr),
+        let parse = |source: &str, at: usize| {
+            super::super::read::expression::parse_expression(
+                &self.arena,
+                source,
+                at,
+                self.expression_line_offsets(),
+                self.source,
+                self.options.loose,
+                disallow_loose,
+                opening_token,
+                self.ts,
+            )
+        };
+
+        match parse(trimmed, trimmed_offset) {
+            Ok(expr) => Ok((expr, None)),
             Err((msg, _)) => {
                 // Loose / editor mode: stay lenient with a placeholder, matching
                 // the previous `unwrap_or_else` swallow.
                 if self.options.loose {
-                    return Ok(super::super::read::expression::create_empty_identifier(
-                        "",
-                        trimmed_offset,
-                        trimmed_offset + trimmed.len(),
+                    return Ok((
+                        super::super::read::expression::create_empty_identifier(
+                            "",
+                            trimmed_offset,
+                            trimmed_offset + trimmed.len(),
+                        ),
+                        None,
                     ));
                 }
                 // Strict mode: classify the failure the way upstream does. A
@@ -2524,9 +2569,20 @@ impl<'a> Parser<'a> {
                 // `expected_token` (missing `close_char`); anything else is a
                 // `js_parse_error` at the point acorn/OXC stopped.
                 if let Some(pos) = super::super::read::expression::trailing_token_offset(trimmed) {
-                    return Err(crate::error::ParseError::expected_token(
-                        &close_char.to_string(),
-                        trimmed_offset + pos,
+                    let head = trimmed[..pos].trim_end_ws();
+                    let expression = parse(head, trimmed_offset).unwrap_or_else(|_| {
+                        super::super::read::expression::create_empty_identifier(
+                            "",
+                            trimmed_offset,
+                            trimmed_offset + head.len(),
+                        )
+                    });
+                    return Ok((
+                        expression,
+                        Some(crate::error::ParseError::expected_token(
+                            &close_char.to_string(),
+                            trimmed_offset + pos,
+                        )),
                     ));
                 }
                 let abs_pos =

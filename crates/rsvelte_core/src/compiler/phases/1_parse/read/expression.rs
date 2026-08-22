@@ -1655,6 +1655,24 @@ pub fn parse_expression_with_end<'a>(
     Ok(create_invalid_identifier(offset, end, line_offsets))
 }
 
+/// Parse `content` **unwrapped**, returning the first diagnostic as
+/// `(message, pos_in_content)` with `pos` at the *start* of the offending
+/// token — the coordinate acorn's `err.pos` carries.
+///
+/// Used to recover the diagnostic upstream would have seen when the `(…)`
+/// wrapper of [`check_js_parse_error_with_pos`] has produced one of its own.
+fn bare_parse_error(content: &str, source_type: SourceType) -> Option<(String, usize)> {
+    with_oxc_allocator(|allocator| {
+        let result = OxcParser::new(allocator, content, source_type).parse();
+        let first_error = result.diagnostics.first()?;
+        let pos = first_error
+            .labels
+            .first()
+            .map_or(0, |label| (label.offset() as usize).min(content.len()));
+        Some((first_error.message.to_string(), pos))
+    })
+}
+
 /// Check if a JavaScript expression has parse errors, returning the failure
 /// position alongside the message.
 ///
@@ -1669,9 +1687,10 @@ pub fn parse_expression_with_end<'a>(
 /// `content` is wrapped in `(...)` before being handed to OXC, so we subtract
 /// one from OXC's reported `offset + len` (the right-edge of the labeled span)
 /// to land back in the unwrapped expression's coordinate space — and clamp
-/// the result to `[0, content.len()]`. Acorn reports `err.pos` at the point
-/// where it stopped consuming tokens, which corresponds to the *end* of the
-/// problematic region, not its start.
+/// the result to `[0, content.len()]`. That right edge is only ever right
+/// because the clamp lands it on the close token, so when the wrapper is what
+/// failed, [`bare_parse_error`] re-reads the body and reports acorn's position
+/// directly.
 pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
     let mut wrapped = String::with_capacity(content.len() + 2);
     wrapped.push('(');
@@ -1679,7 +1698,10 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
     wrapped.push(')');
 
     let probe = |source_type: SourceType| -> Option<(String, usize)> {
-        with_oxc_allocator(|allocator| {
+        // `retry_bare` marks a diagnostic the `(…)` wrapper produced. The bare
+        // re-probe cannot run inside this closure: `with_oxc_allocator` hands
+        // out one thread-local arena and nesting it panics.
+        let (message, pos, retry_bare) = with_oxc_allocator(|allocator| {
             let parser = OxcParser::new(allocator, &wrapped, source_type);
             let result = parser.parse();
             if let Some(first_error) = result.diagnostics.first() {
@@ -1704,19 +1726,23 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
                         wrapped_end.saturating_sub(1).min(content.len())
                     })
                     .unwrap_or(0);
-                let message = if at_label_start {
-                    "Assigning to rvalue".to_string()
-                } else {
-                    first_error.message.to_string()
+                if at_label_start {
+                    return Some(("Assigning to rvalue".to_string(), pos, false));
+                }
+                // `()` is the wrapper's own diagnostic for an empty tag body;
+                // acorn, given the body unwrapped, calls it an unexpected token.
+                let message = match first_error.message.as_ref() {
+                    "Empty parenthesized expression" => "Unexpected token",
+                    other => other,
                 };
-                return Some((message, pos));
+                return Some((message.to_string(), pos, true));
             }
             // Check for invalid assignment targets that OXC doesn't report as errors
             if let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
                 result.program.body.first()
                 && is_invalid_assignment_expression(&expr_stmt.expression)
             {
-                return Some(("Assigning to rvalue".to_string(), 0));
+                return Some(("Assigning to rvalue".to_string(), 0, false));
             }
             // A template expression is parsed by its own function, so it needs
             // the acorn-only restrictions applied here too — the script path's
@@ -1726,10 +1752,20 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
                 acorn_only_violation(&result.program, &wrapped, source_type.is_typescript())
             {
                 let pos = (at as usize).saturating_sub(1).min(content.len());
-                return Some((message, pos));
+                return Some((message, pos, false));
             }
             None
-        })
+        })?;
+
+        // The `(…)` is ours, not the template's, so a diagnostic that only
+        // exists because of it (`()`, a trailing comma, an arrow parameter
+        // list) is not the one upstream's `parseExpressionAt` reports on the
+        // unwrapped body. When the body itself has a diagnostic, that is
+        // acorn's — and acorn reports the *start* of the token it stopped on.
+        if retry_bare && let Some(bare) = bare_parse_error(content, source_type) {
+            return Some(bare);
+        }
+        Some((message, pos))
     };
 
     // Try TypeScript first
@@ -1837,7 +1873,9 @@ pub fn trailing_token_offset(content: &str) -> Option<usize> {
     wrapped.push(')');
 
     let probe = |source_type: SourceType| -> Option<usize> {
-        with_oxc_allocator(|allocator| {
+        // The head re-parse below cannot run inside `with_oxc_allocator`: it
+        // hands out one thread-local arena and nesting it panics.
+        let content_pos = with_oxc_allocator(|allocator| {
             let result = OxcParser::new(allocator, &wrapped, source_type).parse();
             let first_error = result.diagnostics.first()?;
             let label = first_error.labels.first()?;
@@ -1852,8 +1890,22 @@ pub fn trailing_token_offset(content: &str) -> Option<usize> {
             if content_pos >= content.len() {
                 return None;
             }
+            // The wrapper turns a trailing comma into its own diagnostic; acorn,
+            // parsing the body unwrapped, keeps reading the sequence and fails at
+            // the token after it. That is an incomplete expression, not leftover.
+            if first_error.message == "Parenthesized expressions may not have a trailing comma." {
+                return None;
+            }
             Some(content_pos)
-        })
+        })?;
+        // "Leftover after a complete expression" is a premise, so check it:
+        // `{@debug s,,n}` and `{@debug , s}` also stop the parser inside the
+        // body, and neither prefix is an expression.
+        let head = content[..content_pos].trim_end_ws();
+        if head.trim_start_ws().is_empty() || check_js_parse_error_with_pos(head).is_some() {
+            return None;
+        }
+        Some(content_pos)
     };
     probe(SourceType::ts()).or_else(|| probe(SourceType::mjs()))
 }

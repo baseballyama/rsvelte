@@ -91,13 +91,15 @@ impl ParseError {
 
     /// Create an expected token error.
     ///
-    /// Corresponds to `expected_token()` in JavaScript errors.
+    /// Corresponds to `expected_token()` in JavaScript errors. Every upstream
+    /// call site passes an index rather than a node, and `e()` turns a number
+    /// into a zero-width span.
     #[must_use]
     pub fn expected_token(expected: &str, position: usize) -> Self {
         ParseError::svelte(
             "expected_token",
             format!("Expected token {expected}"),
-            (position, position + 1),
+            (position, position),
         )
     }
 
