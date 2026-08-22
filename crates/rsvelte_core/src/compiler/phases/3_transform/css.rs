@@ -1443,6 +1443,8 @@ fn check_selector_unused(prelude: &Value, ctx: &CssContext) -> UnusedStatus {
 /// Check if a complex selector is unused
 /// Returns UnusedStatus to distinguish between unused and no-match cases
 fn check_complex_selector_unused(complex: &Value, ctx: &CssContext) -> UnusedStatus {
+    let reachable = reachable_complex_selector(complex);
+    let complex = reachable.as_ref().unwrap_or(complex);
     let unused = is_complex_selector_unused_impl(complex, ctx);
     if unused {
         // Check if it's a no-match case (sibling combinator that absolutely cannot match)
@@ -1459,8 +1461,50 @@ fn check_complex_selector_unused(complex: &Value, ctx: &CssContext) -> UnusedSta
 
 /// Check if a complex selector is unused
 /// A complex selector is unused if it doesn't match any element in the template.
+/// Index of the leftmost relative selector upstream's backward walk reaches.
+///
+/// `apply_combinator`'s `default:` arm returns `true` *without* recursing, so a
+/// combinator it does not handle — `||`, and anything outside `' ' > + ~` —
+/// halts the walk: everything to its left is never visited, and so is neither
+/// marked `scoped` nor consulted for `used`.
+fn first_reachable_relative_selector(rel_selectors: &[Value]) -> usize {
+    truncate_trailing_globals(rel_selectors)
+        .iter()
+        .rposition(|rel| {
+            rel.get("combinator")
+                .and_then(|combinator| combinator.get("name"))
+                .and_then(|name| name.as_str())
+                .is_some_and(|name| !matches!(name, " " | ">" | "+" | "~"))
+        })
+        .unwrap_or(0)
+}
+
+/// The part of a complex selector upstream's backward walk actually visits, or
+/// `None` when that is the whole thing.
+fn reachable_complex_selector(complex: &Value) -> Option<Value> {
+    let children = complex.get("children").and_then(|c| c.as_array())?;
+    let from = first_reachable_relative_selector(children);
+    if from == 0 || from >= children.len() {
+        return None;
+    }
+    let mut visited: Vec<Value> = children[from..].to_vec();
+    // The halting combinator itself is never applied, so drop it rather than let
+    // a downstream check try to satisfy it.
+    if let Some(first) = visited.first_mut().and_then(|rel| rel.as_object_mut()) {
+        first.remove("combinator");
+    }
+    let mut reachable = complex.clone();
+    reachable
+        .as_object_mut()?
+        .insert("children".to_string(), Value::Array(visited));
+    Some(reachable)
+}
+
 fn is_complex_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
-    is_complex_selector_unused_impl(complex, ctx)
+    match reachable_complex_selector(complex) {
+        Some(reachable) => is_complex_selector_unused_impl(&reachable, ctx),
+        None => is_complex_selector_unused_impl(complex, ctx),
+    }
 }
 
 /// Implementation of complex selector unused check
@@ -6736,33 +6780,39 @@ fn transform_complex_selector(
                 }
             });
 
-        let complex_bumps_specificity = children.iter().any(|relative_selector| {
-            if is_global_like(relative_selector) {
-                return false;
-            }
-            let scoped = relative_selector
-                .get("metadata")
-                .and_then(|metadata| metadata.get("scoped"))
-                .and_then(|scoped| scoped.as_bool())
-                .unwrap_or(true);
-            scoped
-                && relative_selector
-                    .get("selectors")
-                    .and_then(|selectors| selectors.as_array())
-                    .is_some_and(|selectors| {
-                        selectors.iter().any(|selector| {
-                            let ty = selector.get("type").and_then(|ty| ty.as_str());
-                            !matches!(
-                                ty,
-                                Some(
-                                    "PseudoClassSelector"
-                                        | "PseudoElementSelector"
-                                        | "NestingSelector"
-                                )
-                            )
-                        })
-                    })
-        });
+        let first_reachable = first_reachable_relative_selector(children);
+
+        let complex_bumps_specificity =
+            children
+                .iter()
+                .skip(first_reachable)
+                .any(|relative_selector| {
+                    if is_global_like(relative_selector) {
+                        return false;
+                    }
+                    let scoped = relative_selector
+                        .get("metadata")
+                        .and_then(|metadata| metadata.get("scoped"))
+                        .and_then(|scoped| scoped.as_bool())
+                        .unwrap_or(true);
+                    scoped
+                        && relative_selector
+                            .get("selectors")
+                            .and_then(|selectors| selectors.as_array())
+                            .is_some_and(|selectors| {
+                                selectors.iter().any(|selector| {
+                                    let ty = selector.get("type").and_then(|ty| ty.as_str());
+                                    !matches!(
+                                        ty,
+                                        Some(
+                                            "PseudoClassSelector"
+                                                | "PseudoElementSelector"
+                                                | "NestingSelector"
+                                        )
+                                    )
+                                })
+                            })
+                });
 
         // Track if the next relative selector should be treated as global
         // (after a bare :global modifier)
@@ -6771,7 +6821,9 @@ fn transform_complex_selector(
         // the combinator gap can be copied verbatim from the stylesheet.
         let mut prev_rel_span: Option<(usize, usize)> = None;
 
-        for relative_selector in children {
+        for (rel_index, relative_selector) in children.iter().enumerate() {
+            // Left of a combinator upstream cannot apply, nothing is scoped.
+            let is_reachable = rel_index >= first_reachable;
             // Check if this relative selector starts with bare :global (no args)
             let starts_with_bare_global = relative_selector
                 .get("selectors")
@@ -6926,7 +6978,18 @@ fn transform_complex_selector(
                 } else if result.is_empty() {
                     // First combinator at start (e.g., "> nav" as a nested selector)
                     // Don't add leading space
-                    let _ = write!(result, "{} ", name);
+                    match leading_combinator_text(
+                        node,
+                        relative_selector,
+                        name,
+                        css_source,
+                        css_start,
+                    ) {
+                        Some(text) => result.push_str(&text),
+                        None => {
+                            let _ = write!(result, "{} ", name);
+                        }
+                    }
                 } else {
                     let _ = write!(result, " {} ", name);
                 }
@@ -7018,11 +7081,12 @@ fn transform_complex_selector(
                     _previous_was_scoped = false;
                 } else if has_partial_global {
                     // Handle partial :global() - scope non-global parts, unwrap :global() parts
-                    let needs_scoping = relative_selector
-                        .get("metadata")
-                        .and_then(|m| m.get("scoped"))
-                        .and_then(|s| s.as_bool())
-                        .unwrap_or(true);
+                    let needs_scoping = is_reachable
+                        && relative_selector
+                            .get("metadata")
+                            .and_then(|m| m.get("scoped"))
+                            .and_then(|s| s.as_bool())
+                            .unwrap_or(true);
 
                     // Check if this contains a NestingSelector - if so, skip scoping
                     // (the & inherits scoping from parent rule)
@@ -7089,11 +7153,12 @@ fn transform_complex_selector(
                     _previous_was_scoped = needs_scoping && !has_nesting;
                 } else {
                     // Regular scoped selector
-                    let needs_scoping = relative_selector
-                        .get("metadata")
-                        .and_then(|m| m.get("scoped"))
-                        .and_then(|s| s.as_bool())
-                        .unwrap_or(true); // Default to scoping
+                    let needs_scoping = is_reachable
+                        && relative_selector
+                            .get("metadata")
+                            .and_then(|m| m.get("scoped"))
+                            .and_then(|s| s.as_bool())
+                            .unwrap_or(true); // Default to scoping
 
                     // Check if this relative selector contains a NestingSelector (&)
                     // If so, skip adding scoping - the & refers to the parent rule which already has scoping
@@ -7264,6 +7329,37 @@ fn compound_start(relative_selector: &Value) -> Option<usize> {
         .map(|s| s as usize)
 }
 
+/// The source text between a complex selector's start and its first compound —
+/// a nested rule's leading combinator, which the in-place rewrite leaves alone.
+fn leading_combinator_text(
+    node: &Value,
+    relative_selector: &Value,
+    name: &str,
+    css_source: &str,
+    css_start: usize,
+) -> Option<String> {
+    let from = (node.get("start").and_then(|s| s.as_u64())? as usize).checked_sub(css_start)?;
+    let to = compound_start(relative_selector)?.checked_sub(css_start)?;
+    if to <= from || to > css_source.len() {
+        return None;
+    }
+    let text = css_source.get(from..to)?;
+    if !is_combinator_run(text.trim(), name) {
+        return None;
+    }
+    Some(text.to_string())
+}
+
+/// A gap that is nothing but combinator tokens ending in the one the AST kept.
+/// `>>` / `>>>` are read one token at a time upstream, keeping only the last.
+fn is_combinator_run(trimmed: &str, name: &str) -> bool {
+    !trimmed.is_empty()
+        && trimmed
+            .bytes()
+            .all(|b| matches!(b, b'>' | b'+' | b'~' | b'|'))
+        && trimmed.ends_with(name.trim())
+}
+
 /// Upstream rewrites the stylesheet in place, so the author's whitespace between
 /// two compounds — including line breaks — survives into the output.
 fn source_combinator_text(
@@ -7289,8 +7385,11 @@ fn source_combinator_text(
     }
     let text = css_source.get(from..to)?;
     // A gap holding anything but the combinator (a comment, a synthesized node's
-    // stale span) falls back to the canonical spelling.
-    if text.is_empty() || text.trim() != name.trim() {
+    // stale span) falls back to the canonical spelling. `>>` / `>>>` are a run of
+    // combinator tokens that upstream's regex reads one at a time, keeping only
+    // the last — but its in-place rewrite leaves the whole run in the output.
+    let trimmed = text.trim();
+    if text.is_empty() || (trimmed != name.trim() && !is_combinator_run(trimmed, name)) {
         return None;
     }
     Some(text.to_string())
@@ -7437,6 +7536,24 @@ fn format_simple_selector_with_scope(
             )
         }
         "AttributeSelector" => {
+            // Upstream never rewrites the brackets, so the author's spacing
+            // (`[ data-k ]`) survives; `name`/`matcher`/`value` cannot carry it.
+            if let (Some(start), Some(end), Some(css_start)) = (
+                sel.get("start").and_then(|s| s.as_u64()),
+                sel.get("end").and_then(|e| e.as_u64()),
+                css_start,
+            ) {
+                let src_start = (start as usize).saturating_sub(css_start);
+                let src_end = (end as usize).saturating_sub(css_start);
+                if src_end <= css_source.len()
+                    && src_start < src_end
+                    && css_source[src_start..src_end].starts_with('[')
+                    && css_source[src_start..src_end].ends_with(']')
+                {
+                    return css_source[src_start..src_end].to_string();
+                }
+            }
+
             let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
             let matcher = sel.get("matcher").and_then(|m| m.as_str());
             let value = sel.get("value").and_then(|v| v.as_str());
