@@ -114,12 +114,29 @@ pub struct Printer<'opt, const HAS_COMMENTS: bool = true, const DIRECT: bool = f
     /// they take no part in comment placement — the Rust equivalent of esrap's
     /// `if (node.loc)` guards. `None` = every span is a real location.
     loc_base: Option<u32>,
-    /// Sorted, disjoint `(start, end, mapped)` ranges translating a comment-space
-    /// offset back to a source-map-space offset. `None` mapped = unmapped.
-    loc_map: Vec<(u32, u32, Option<u32>)>,
+    /// Sorted, disjoint ranges translating a comment-space offset back to a
+    /// source-map-space offset.
+    loc_map: Vec<LocRange>,
     /// Decorator expressions have no esrap mapping visitor, so their nested
     /// tokens must stay unmapped too.
     map_nodes: bool,
+}
+
+/// One `loc_map` entry: comment-space `[start, end)` resolves to `source`.
+/// `linear` means byte *i* of the range resolves to `source + (i - start)`,
+/// which is how a verbatim-copied region is carried in one entry instead of one
+/// per byte; otherwise the whole range anchors at `source`. `None` is
+/// deliberately unmapped.
+#[derive(Debug, Clone, Copy)]
+pub struct LocRange {
+    /// First comment-space byte this entry covers.
+    pub start: u32,
+    /// One past the last comment-space byte this entry covers.
+    pub end: u32,
+    /// Source-map-space offset, or `None` for a deliberately unmapped run.
+    pub source: Option<u32>,
+    /// Whether the range advances through the source byte for byte.
+    pub linear: bool,
 }
 
 /// esrap's `write_comment`: re-emit a comment, splitting a multi-line block
@@ -693,7 +710,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         mut self,
         map_line_starts: Vec<u32>,
         loc_base: u32,
-        loc_map: &[(u32, u32, Option<u32>)],
+        loc_map: &[LocRange],
         emit_locations: bool,
     ) -> Self {
         self.emit_locations = emit_locations;
@@ -754,6 +771,18 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if !self.has_loc(offset) {
             return None;
         }
+        self.map_position(offset)
+    }
+
+    /// [`Self::offset_to_line_col`] without the `loc_base` gate. Under split
+    /// coordinates a real source offset is below `loc_base` and so is "no
+    /// location" *for comments*, but it is still exactly the position a source
+    /// map segment wants. Formatting decisions must keep using
+    /// [`Self::offset_to_line_col`], which cannot compare across the two spaces.
+    fn map_position(&self, offset: u32) -> Option<(u32, u32)> {
+        if offset == u32::MAX {
+            return None;
+        }
         let map_line_starts = self.map_line_starts.as_deref().unwrap_or(&self.line_starts);
         if map_line_starts.is_empty() {
             return None;
@@ -763,20 +792,23 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         } else {
             match self
                 .loc_map
-                .binary_search_by(|(start, end, _)| {
-                    if offset < *start {
+                .binary_search_by(|range| {
+                    if offset < range.start {
                         std::cmp::Ordering::Greater
-                    } else if offset >= *end {
+                    } else if offset >= range.end {
                         std::cmp::Ordering::Less
                     } else {
                         std::cmp::Ordering::Equal
                     }
                 })
                 .ok()
-                .map(|i| self.loc_map[i].2)
+                .map(|i| &self.loc_map[i])
             {
-                Some(Some(mapped)) => mapped,
-                Some(None) => return None,
+                Some(range) => match range.source {
+                    Some(mapped) if range.linear => mapped + (offset - range.start),
+                    Some(mapped) => mapped,
+                    None => return None,
+                },
                 None => offset,
             }
         };
@@ -804,7 +836,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             ctx.write(suffix);
             return;
         }
-        if let Some((line, column)) = self.offset_to_line_col(start) {
+        if let Some((line, column)) = self.map_position(start) {
             ctx.location(line, column);
             ctx.write(keyword);
             let line_starts = self.map_line_starts.as_deref().unwrap_or(&self.line_starts);
@@ -831,7 +863,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     /// guard.
     fn write_node(&self, ctx: &mut Context<DIRECT>, span: Span, content: impl AsRef<str>) {
         let content = content.as_ref();
-        if !self.emit_locations || !self.map_nodes || span.is_empty() || !self.has_loc(span.start) {
+        if !self.emit_locations || !self.map_nodes || span.is_empty() || span.start == u32::MAX {
             ctx.write(content);
             return;
         }
@@ -843,11 +875,11 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             return;
         }
 
-        if let Some((line, column)) = self.offset_to_line_col(span.start) {
+        if let Some((line, column)) = self.map_position(span.start) {
             ctx.location(line, column);
         }
         ctx.write(content);
-        if let Some((line, column)) = self.offset_to_line_col(span.end) {
+        if let Some((line, column)) = self.map_position(span.end) {
             ctx.location(line, column);
         }
     }
@@ -881,7 +913,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
     /// can't borrow `self` mutably across calls the way the JS closure does.
     fn keyword_cursor(&self, start: u32, map_ok: bool) -> KeywordCursor {
         let cursor = if map_ok && self.emit_locations {
-            self.offset_to_line_col(start)
+            self.map_position(start)
         } else {
             None
         };
@@ -2251,7 +2283,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         let start = node.span().start;
         let offset_ok = self.function_async_offset_ok(node);
         let gen_suffix = if node.generator { "* " } else { " " };
-        match self.offset_to_line_col(start) {
+        match self.map_position(start) {
             Some((line, column)) if node.r#async && offset_ok => {
                 Self::write_source_keyword(ctx, line, column, "async ");
                 let col2 = column + usize_to_u32("async ".len());
@@ -3672,7 +3704,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         // Builder-created calls carry `SPAN` (zero); a nonzero span is an
         // explicit source-backed call such as a lowered directive runtime call.
         if node.span.start != 0
-            && let Some((line, column)) = self.offset_to_line_col(node.span.start)
+            && let Some((line, column)) = self.map_position(node.span.start)
         {
             ctx.location(line, column);
         }
@@ -3694,7 +3726,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         }
         self.call_arguments(&node.arguments, node.span().end, ctx);
         if node.span.start != 0
-            && let Some((line, column)) = self.offset_to_line_col(node.span.end)
+            && let Some((line, column)) = self.map_position(node.span.end)
         {
             ctx.location(line, column);
         }

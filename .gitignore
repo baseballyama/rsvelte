@@ -185,3 +185,6 @@ compatibility/lsp-current-*.json
 compatibility/scss-node-modules-shim/
 compatibility/.lint-adversarial-config.json
 compatibility/.lint-adversarial-rules.json
+
+# Local, per-developer Claude Code settings
+.claude/settings.local.json

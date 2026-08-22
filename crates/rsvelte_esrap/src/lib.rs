@@ -40,6 +40,7 @@ mod printer;
 mod internal_tests;
 
 pub use command::Mapping;
+pub use printer::LocRange;
 
 use oxc_ast::ast::Program;
 use oxc_span::Span;
@@ -184,7 +185,7 @@ pub fn print_split(
     comment_source: &str,
     loc_base: u32,
     map_source: Option<&str>,
-    loc_map: &[(u32, u32, Option<u32>)],
+    loc_map: &[LocRange],
     options: &PrintOptions,
 ) -> PrintWithMap {
     let (comments, line_starts) = comments_and_line_starts(program, comment_source);
@@ -219,7 +220,7 @@ fn print_split_impl<const HAS_COMMENTS: bool>(
     program: &Program<'_>,
     loc_base: u32,
     map_source: Option<&str>,
-    loc_map: &[(u32, u32, Option<u32>)],
+    loc_map: &[LocRange],
     options: &PrintOptions,
     comments: Vec<printer::Cmt>,
     line_starts: Vec<u32>,

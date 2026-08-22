@@ -40,6 +40,44 @@ kept only as a fallback for comment-bearing / unsupported-node programs. The rem
 processing (client visitors building `Raw` strings, `shared/async_body.rs`) is internal IR
 construction with unchanged output — a maintainability cleanup only.
 
+**The client source map is the one output where that string processing is not free**, because
+a text fragment has no node to stamp a position on: #2954 rebuilt the map by matching generated
+text back against the source in eleven passes, and #3015 replaced the ones a span can carry.
+Three lessons outlive that work. **`has_loc` answers "may this node carry comments", and the
+printer was reading it as "is this a mappable source position"** — under split coordinates
+`loc_base` sits *above* every real source offset, so every `JsExpr::Spanned` in a component
+whose script has a comment was silently dropped from the map; `Printer::map_position` is the
+mapping-only lookup, and formatting decisions must keep `offset_to_line_col` because a
+comment-space line and a source-space line are not comparable. And **a span belongs on the
+identifier, not on the wrapper the lowering builds around it** (upstream's
+`b.call(b.id(name, loc))`): spanning the call makes the segment cover `foo()` where official
+covers `foo`. And **an in-band wrapper variant is only safe where every downstream matcher on
+that position has been enumerated** — leaving `JsExpr::Spanned` on a member expression's
+*object* bought 18 segments and broke 49 runtime fixtures, because the client lowering walks a
+member chain by variant (`while let JsExpr::Member` then `if let JsExpr::Identifier`) and a
+wrapper answers neither, so a `bind:` setter fell through to `bar.baz = $$value` instead of
+`bar(bar().baz = $$value, true)`. **The source-map gate cannot see that class at all**: its
+unit is a segment, not the generated statement, so it scored the change green.
+What still needs a pass — the `$.prop` declaration, hoisted `import` lines,
+element identifier *uses*, component `bind:` accessors — is a `Raw` fragment or a builder call
+that had the span and dropped it, which is why #3015 step 1 (`Raw` eradication) really is the
+prerequisite it claims to be.
+
+**Two further lessons came out of making that branch green.** `loc_base` is the *boundary*
+between the comment buffer and source coordinates, so a source offset must never raise it: a
+`note_span` on the instance script's **end** put the boundary in the middle of the source range,
+every template offset after the script then read as a comment-space position, and the printer
+flushed a script comment inline mid-argument-list where `//` swallowed the rest of the line —
+output no parser accepts, from one file in 13,284. And **a field is priced on the type, not on
+the node that sets it**: the block's brace range was one `Option<(u32,u32)>` on
+`JsBlockStatement`, a struct inside every statement and expression, which grew `JsStatement`
+192 → 208 bytes and `JsExpr` 184 → 200 and cost 77% of a 2.47% allocation-byte regression for a
+range exactly one block per program carries. Neither was visible to CodSpeed, which compiles
+with `enable_sourcemap: false` while the shipping default is `true` (gate-coverage, *the perf
+gates also compile with a different option set*). Per-pass numbers are in
+[docs/phase3-ast-refactor-plan.md](docs/phase3-ast-refactor-plan.md#findings-2026-08-18--the-client-map-is-86-span-carried-and-two-of-the-eleven-passes-delete);
+**a pass measuring 0 there is not evidence it is redundant** (gate-coverage 14f).
+
 **The `.svelte.(js|ts)` module path is not in that "cleanup only" set, and calling it one was
 wrong.** `compileModule` rewrites source text, and its scans decide structure: #2986 located a
 class with `memmem::find(b"class ")` over the whole script, so a comment mentioning `class` made
