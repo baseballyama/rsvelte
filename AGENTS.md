@@ -474,7 +474,13 @@ anchor comment instead of leaving an array hole, shifting every later slot of th
 walks positionally (#3459) — none of its twelve components contained a `{@render}`, `{@html}`,
 component tag or `{#await}` for the option to act on. Reaching an entry point is not being able to
 discriminate at it, one axis over from #3005, and it is why the component paired with each option
-is chosen rather than generic.
+is chosen rather than generic. **The trap then fired a second time in the throwaway grid built to
+check for the first one**, which is the part worth carrying: that grid's `warningFilter` row
+reached its axis value in 48 of 48 cells and diverged in 0 — not because rsvelte honoured the
+callback (it ignored it) but because no component emitted a warning; one `<img src="a.png" />`
+took it to 4. The reach column read 100% on the two blind rows and on the working one, so it
+separates nothing. **Count the cells where the two candidate rules disagree, never the cells that
+reached the axis value.**
 
 Normalization is deliberately identical to `verify.mjs`, so a divergence this gate reports is one
 the corpus gate would also report. `--update-baseline` refuses to run under `--no-fmt` or a

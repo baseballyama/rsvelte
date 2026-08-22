@@ -1158,14 +1158,15 @@ components in #3384's throwaway grid diverged with no options set at all, and wi
 row those two read as a divergence under every option — **38 of that run's 85 keys were that one
 artefact**. This is `derived-key-needs-its-own-control` in the option axis.
 
-Four things it structurally cannot observe, and three of them cost a real defect.
+Five things it structurally cannot observe, and four of them cost a real defect.
 
 **A per-process rule.** `run.mjs` compiles each case exactly once per target, so a rule about the
 *second* compile has no second compile to run. #3380 is that shape: upstream routes six options
 through `warn_once`, a module-level `Set` that is never reset, and rsvelte warned on every compile
 for `accessors` / `immutable` — a Vite build of 500 components printed the deprecation 500 times.
-Adding `accessors` as an axis here does not measure it; the first compile agrees. This is 2e one
-gate over, and it is why #3380 is pinned by a test that compiles the same source three times
+Adding `accessors` as an axis here does not measure it; the first compile agrees. A gate whose
+unit is one compile cannot hold a rule about the second one, and that is why #3380 is pinned by a
+test that compiles the same source three times
 (`rsvelte_capi`'s / the NAPI's `warn_once` flags are process-global, so the *unit* has to be a
 process, not a compile). **[D]**
 
@@ -1181,9 +1182,13 @@ which is not valid CSS. Under `external` none of that is observable at all. **[D
 
 **A function-valued option.** Upstream lets `css`, `customElement`, `runes`, `warningFilter` and
 `cssHash` take a callback (`validate-options.js` `parametric()` / `fun()`). The generator's
-variants are plain values; a function is expressible in JS but crosses the NAPI boundary, where
-two of the five are silently ignored and three are rejected (#3396). A family of scalar option
-*values* is blind to the whole callback half of the axis by construction. **[S]**
+variants are plain values, and a function has to cross the NAPI boundary this gate drives — so a
+family of scalar option *values* is blind to the whole callback half of the axis by construction.
+What that blindness cost is #3396: through the raw binding `runes` and `warningFilter` were
+**silently ignored** (a successful compile with the wrong result), while `css`, `customElement`
+and `cssHash` already threw. They are rejected uniformly now, and the wrapper
+(`@rsvelte/vite-plugin-svelte-native`) and the wasm entry both resolve them — but none of those
+three layers is what this gate compiles, so the axis stays unmeasured here. **[D]**
 
 **The absence of an option.** `run.mjs` seeds `filename` from the case id, so "the option was not
 supplied" is only reachable by an explicit `undefined` in the case's `options` — which one row
@@ -1203,6 +1208,15 @@ with a component it cannot act on is a clean cell that means clean about nothing
 tree shifts down one (#3459). Its twelve components simply had no `{@render}` / `{@html}` /
 component tag / `{#await}` in them. This family's `props-and-slot` row does, which is the only
 reason the cell discriminates; nothing about declaring `fragments-tree` as a variant made it so.
+
+The same trap fired a second time in the throwaway grid built to check for the first one, which
+is why the count to state is not the one that is easy to state. That grid's
+`warningFilter: (w) => !w.code.startsWith('a11y')` row reached its axis value in **48 of 48**
+cells and diverged in **0** — not because rsvelte honours the callback (through the raw binding it
+ignored it entirely, #3396) but because not one of the grid's twelve components emits a warning,
+so an ignored filter and an applied one both yield an empty list. One `<img src="a.png" />`
+component took it to 4. Cells that *reach* an axis value are trivially countable and are evidence
+of nothing; cells where the two candidate rules *disagree* are the number a row's name is claiming.
 **[D]**
 
 One further limit worth stating so a green is not over-read: options are varied one at a time

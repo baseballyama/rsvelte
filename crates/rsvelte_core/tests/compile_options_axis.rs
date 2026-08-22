@@ -178,3 +178,20 @@ fn a_fragment_without_an_anchor_is_unchanged() {
     );
     assert!(!code.contains(",,"), "got:\n{code}");
 }
+
+/// Two options at once, which the matrix family varies one at a time and so
+/// cannot reach: a kept comment is `['// …']` while the anchor `as_tree`
+/// unshifts ahead of it stays a hole, so the two comment kinds have to be
+/// distinguished inside one array.
+#[test]
+fn a_preserved_comment_keeps_its_entry_while_the_unshifted_anchor_stays_a_hole() {
+    let mut options = opts(GenerateMode::Client, false);
+    options.filename = Some("App.svelte".to_string());
+    options.fragments = FragmentMode::Tree;
+    options.preserve_comments = true;
+    let code = js("<!-- hi -->\n<b>x</b>\n", options);
+    assert!(
+        code.contains("$.from_tree([, ['//  hi '], ' ', ['b', null, 'x']], 1)"),
+        "got:\n{code}"
+    );
+}

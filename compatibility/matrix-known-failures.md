@@ -42,7 +42,7 @@ carrying a key that would absorb the next regression.
 
 ## Matrix known failures (`matrix-known-failures.json`, 388 entries)
 
-Partition of `matrix-known-failures.json` by family: `4 + 172 + 0 + 24 + 0 + 0 + 0 + 180 + 0 + 8 + 0 + 0 + 0`
+Partition of `matrix-known-failures.json` by family: `4 + 172 + 0 + 24 + 0 + 0 + 0 + 180 + 0 + 8 + 0 + 0 + 0 + 0`
 
 ### `binding-position` — 4 entries
 
@@ -254,7 +254,7 @@ separately, which is why this section names the merge-order rule at the top of t
 The whole family (5 bindings × 6 hosts × 11 write shapes × 4 targets) now passes. It is the axis that would have caught #3026: `binding-position` varies binding kind
 but bakes one host into each binding's `wrap`, so binding × host has no cell there.
 
-### `compiler-option` — 8 entries
+### `compiler-option` — 0 entries
 
 The family that closes #3384's axis: 17 `compilerOptions` variants × 8 components × 4 targets (544 comparisons).
 Everything it lists is a **known defect of another subsystem** that this family is simply the
