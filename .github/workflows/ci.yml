@@ -1096,6 +1096,11 @@ jobs:
       - name: Run NAPI cssHash gate
         run: pnpm run test:napi-csshash
 
+      # The one gate that varies whether the source starts with a BOM — an input
+      # axis every other gate holds at 0, because no corpus source carries one.
+      - name: Run leading-BOM parse gate
+        run: pnpm run test:parse-bom
+
   vps-sourcemaps:
     name: VPS postprocessing source-map parity
     runs-on: ubuntu-latest
