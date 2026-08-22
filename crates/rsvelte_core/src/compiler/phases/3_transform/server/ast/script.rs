@@ -537,6 +537,19 @@ fn transform_script<'a>(
             &state.source[start..end]
         };
 
+    // Every decision below reads this text (directly, or through spans into it),
+    // so the grouping parens around a rune call have to be gone first.
+    let paren_stripped;
+    let src: &str =
+        match crate::compiler::phases::phase3_transform::shared::rune_parens::strip_rune_parens(src)
+        {
+            Some(stripped) => {
+                paren_stripped = stripped;
+                &paren_stripped
+            }
+            None => src,
+        };
+
     // Parse with a FRESH allocator purely for CLASSIFICATION. We never move nodes
     // out of it; every emitted statement is re-parsed from `src` into the state
     // allocator instead.
@@ -3051,6 +3064,19 @@ fn transform_script_legacy<'a>(
             &stripped
         } else {
             &state.source[start..end]
+        };
+
+    // Every decision below reads this text (directly, or through spans into it),
+    // so the grouping parens around a rune call have to be gone first.
+    let paren_stripped;
+    let src: &str =
+        match crate::compiler::phases::phase3_transform::shared::rune_parens::strip_rune_parens(src)
+        {
+            Some(stripped) => {
+                paren_stripped = stripped;
+                &paren_stripped
+            }
+            None => src,
         };
 
     let alloc = oxc_allocator::Allocator::default();
