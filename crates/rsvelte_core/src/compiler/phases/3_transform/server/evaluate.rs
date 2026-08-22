@@ -124,7 +124,7 @@ impl Evaluation {
         }
     }
 
-    fn single(v: EvalValue) -> Self {
+    pub(crate) fn single(v: EvalValue) -> Self {
         Evaluation { values: vec![v] }
     }
 
