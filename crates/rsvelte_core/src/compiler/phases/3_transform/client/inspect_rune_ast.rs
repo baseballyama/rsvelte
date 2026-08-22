@@ -12,14 +12,144 @@
 //! The component instance script gets this from the state-transform visitor;
 //! module scripts had no equivalent, so the rune survived into the output and
 //! threw `ReferenceError: $inspect is not defined` when the module ran.
-//! Non-dev removal stays where it is, in the text pass in `mod.rs`.
+//!
+//! Non-dev removal lives here too ([`transform_module_inspect_removal_ast`]):
+//! upstream's `CallExpression` visitor returns `b.empty` for the call while the
+//! `ExpressionStatement` around it survives, so the printed statement is the
+//! `;;` pair this pass splices in.
 
+use std::cell::RefCell;
+
+use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_ast_visit::Visit;
 use oxc_ast_visit::walk;
-use oxc_span::GetSpan;
+use oxc_parser::ParseOptions;
+use oxc_span::{GetSpan, SourceType};
 
+use super::ast_rewrite;
 use super::ast_rewrite::Edit;
+
+thread_local! {
+    static INSPECT_REMOVAL_ALLOC: RefCell<Allocator> = RefCell::new(Allocator::default());
+}
+
+/// Non-dev `$inspect` removal for a module script.
+///
+/// A statement-position `$inspect(…)` / `$inspect(…).with(…)` becomes `;;` (the
+/// `ExpressionStatement` upstream keeps, holding an `EmptyStatement` where its
+/// expression was); a statement-position `$inspect.trace(…)` is dropped, which
+/// is upstream's `ExpressionStatement` visitor returning `b.empty` outright.
+/// Occurrences in any other position are left alone: upstream splices an
+/// `EmptyStatement` into expression position there and prints text no JS parser
+/// accepts, which is not worth reproducing.
+pub(super) fn transform_module_inspect_removal_ast(source: &str, is_ts: bool) -> Option<String> {
+    if !source_has_inspect_rune(source) {
+        return None;
+    }
+    let source_type = if is_ts {
+        SourceType::ts().with_module(true)
+    } else {
+        SourceType::mjs()
+    };
+    ast_rewrite::rewrite_batched(
+        &INSPECT_REMOVAL_ALLOC,
+        source,
+        source_type,
+        ParseOptions::default(),
+        collect_inspect_removal_edits,
+    )
+}
+
+fn collect_inspect_removal_edits(program: &Program<'_>, source: &str) -> Vec<Edit> {
+    let mut collector = RemovalCollector {
+        source,
+        edits: Vec::new(),
+    };
+    collector.visit_program(program);
+    collector.edits
+}
+
+/// What a statement-position `$inspect*` call lowers to when `dev` is off.
+enum Removal {
+    /// `$inspect(…)` / `$inspect(…).with(…)` — the statement survives as `;;`.
+    Hole,
+    /// `$inspect.trace(…)` — the whole statement goes.
+    Drop,
+}
+
+fn classify(expr: &Expression<'_>) -> Option<Removal> {
+    let Expression::CallExpression(call) = expr else {
+        return None;
+    };
+    if let Expression::Identifier(callee) = &call.callee
+        && callee.name == "$inspect"
+    {
+        return Some(Removal::Hole);
+    }
+    let Expression::StaticMemberExpression(member) = &call.callee else {
+        return None;
+    };
+    if member.property.name == "with"
+        && let Expression::CallExpression(inner) = &member.object
+        && matches!(&inner.callee, Expression::Identifier(id) if id.name == "$inspect")
+    {
+        return Some(Removal::Hole);
+    }
+    if member.property.name == "trace"
+        && matches!(&member.object, Expression::Identifier(id) if id.name == "$inspect")
+    {
+        return Some(Removal::Drop);
+    }
+    None
+}
+
+struct RemovalCollector<'src> {
+    source: &'src str,
+    edits: Vec<Edit>,
+}
+
+impl RemovalCollector<'_> {
+    /// Widen a dropped statement's span over the indentation before it and the
+    /// line break after it, so removing the only statement on a line does not
+    /// leave a whitespace-only one behind.
+    fn line_span(&self, span: oxc_span::Span) -> (u32, u32) {
+        let bytes = self.source.as_bytes();
+        let mut start = span.start as usize;
+        while start > 0 && matches!(bytes[start - 1], b' ' | b'\t') {
+            start -= 1;
+        }
+        if start > 0 && bytes[start - 1] != b'\n' {
+            start = span.start as usize;
+        }
+        let mut end = span.end as usize;
+        while end < bytes.len() && matches!(bytes[end], b' ' | b'\t') {
+            end += 1;
+        }
+        if end < bytes.len() && bytes[end] == b'\n' {
+            end += 1;
+        } else {
+            end = span.end as usize;
+        }
+        (start as u32, end as u32)
+    }
+}
+
+impl<'a> Visit<'a> for RemovalCollector<'_> {
+    fn visit_expression_statement(&mut self, stmt: &ExpressionStatement<'a>) {
+        match classify(&stmt.expression) {
+            Some(Removal::Hole) => {
+                self.edits
+                    .push((stmt.span.start, stmt.span.end, ";;".to_string()));
+            }
+            Some(Removal::Drop) => {
+                let (start, end) = self.line_span(stmt.span);
+                self.edits.push((start, end, String::new()));
+            }
+            None => walk::walk_expression_statement(self, stmt),
+        }
+    }
+}
 
 /// Cheap byte probe gating entry into the AST pass.
 pub(super) fn source_has_inspect_rune(s: &str) -> bool {

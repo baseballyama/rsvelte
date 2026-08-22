@@ -4395,68 +4395,15 @@ fn transform_module_script_runes_with_target(
         }
     }
 
-    // In non-dev mode, remove $inspect.trace(...) statements from module scripts.
-    // Mirrors the same logic in rune_transforms.rs for instance scripts.
-    if !dev {
-        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect.trace(") {
-            let trace_start = pos + b"$inspect.trace(".len();
-            if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
-                let mut end = trace_start + content_end + 1;
-                while end < result.len()
-                    && matches!(result.as_bytes()[end], b';' | b' ' | b'\t' | b'\n' | b'\r')
-                {
-                    end += 1;
-                }
-                let mut start = pos;
-                while start > 0 && matches!(result.as_bytes()[start - 1], b' ' | b'\t') {
-                    start -= 1;
-                }
-                result = format!("{}{}", &result[..start], &result[end..]);
-            } else {
-                break;
-            }
-        }
-    }
-
-    // In non-dev mode, remove $inspect(...) and $inspect(...).with(...) calls from
-    // module scripts. Mirrors CallExpression.js `transform_inspect_rune`: `if (!dev)
-    // return b.empty`. The component-instance path handles this in rune_transforms.rs;
-    // module scripts use this dedicated loop.
-    if !dev {
-        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect(") {
-            let inspect_start = pos + b"$inspect(".len();
-            if let Some(content_end) = find_matching_paren(&result[inspect_start..]) {
-                let after_call = &result[inspect_start + content_end + 1..];
-                let total_call_len = if after_call.trim_start().starts_with(".with(") {
-                    let with_offset = memmem::find(after_call.as_bytes(), b".with(").unwrap();
-                    let with_content_start =
-                        inspect_start + content_end + 1 + with_offset + b".with(".len();
-                    if let Some(with_end) = find_matching_paren(&result[with_content_start..]) {
-                        with_content_start + with_end + 1 - pos
-                    } else {
-                        inspect_start + content_end + 1 - pos
-                    }
-                } else {
-                    inspect_start + content_end + 1 - pos
-                };
-                // Remove leading whitespace on the same line
-                let mut start = pos;
-                while start > 0 && matches!(result.as_bytes()[start - 1], b' ' | b'\t') {
-                    start -= 1;
-                }
-                // Consume optional trailing semicolon then newline
-                let mut end = pos + total_call_len;
-                while end < result.len() && result.as_bytes()[end] == b';' {
-                    end += 1;
-                }
-                if end < result.len() && result.as_bytes()[end] == b'\n' {
-                    end += 1;
-                }
-                result = format!("{}{}", &result[..start], &result[end..]);
-            } else {
-                break;
-            }
-        }
+    // In non-dev mode, lower the `$inspect*` runes of a module script: upstream's
+    // `CallExpression` visitor returns `b.empty` for `$inspect` / `$inspect().with`
+    // (leaving the `ExpressionStatement` to print as `;;`) and its
+    // `ExpressionStatement` visitor drops `$inspect.trace(...)` outright.
+    if !dev
+        && let Some(rewritten) =
+            inspect_rune_ast::transform_module_inspect_removal_ast(&result, is_ts)
+    {
+        result = rewritten;
     }
 
     // Extract local reactive variable names from the module script
