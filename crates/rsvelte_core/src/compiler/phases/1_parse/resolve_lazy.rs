@@ -451,7 +451,7 @@ fn resolve_expression(
         Err((msg, pos)) => {
             // Store the first parse error encountered
             if first_error.is_none() {
-                *first_error = lazy_parse_error(kind, msg, content, start);
+                *first_error = lazy_parse_error(kind, msg, content, start, ts);
             }
             // Still set the expression to something valid to allow continued processing
             *expr = super::read::expression::create_empty_identifier("", pos, pos + content.len());
@@ -467,55 +467,33 @@ fn lazy_parse_error(
     msg: String,
     content: &str,
     start: usize,
+    ts: bool,
 ) -> Option<crate::error::ParseError> {
-    Some(match kind {
+    let close = match kind {
         LazyKind::Lenient => return None,
-        // Upstream's `read_expression` parses ONE maximal expression with acorn
-        // and then `eat('}', true)`: a complete leading expression followed by
-        // leftover tokens (e.g. `{foo();}` — the `;` is left over) surfaces as
-        // `expected_token` (Expected token }), while a malformed expression
-        // (e.g. `{42 = nope}`, where the error is *inside* the expression) is a
-        // `js_parse_error`. The prefix re-parse guards against the probe
-        // mislabelling an in-expression error as leftover input.
-        LazyKind::Mustache => {
-            let trailing = super::read::expression::trailing_token_offset(content).filter(|&off| {
-                off > 0
-                    && content.get(..off).is_some_and(|prefix| {
-                        super::read::expression::check_js_parse_error_with_pos(prefix).is_none()
-                    })
-            });
-            match trailing {
-                Some(offset) => crate::error::ParseError::expected_token("}", start + offset),
-                // Upstream rethrows acorn's `err.pos` as a point error, so the
-                // span is where it stopped consuming, not the whole expression.
-                None => {
-                    let at = super::read::expression::check_js_parse_error_with_pos(content)
-                        .map_or(start + content.len(), |(_, pos)| start + pos);
-                    crate::error::ParseError::svelte("js_parse_error", msg, (at, at))
-                }
-            }
-        }
-        // `parse_js_expression_attribute`: a point error at the byte where OXC
-        // stopped consuming input.
-        LazyKind::Attribute => {
-            let abs_pos = super::read::expression::check_js_parse_error_with_pos(content)
-                .map_or(start, |(_, content_pos)| start + content_pos);
-            crate::error::ParseError::svelte("js_parse_error", msg, (abs_pos, abs_pos))
-        }
-        // `parse_head_expression`: leftover input after a complete expression is
-        // a missing close token; anything else is a point `js_parse_error`.
-        LazyKind::HeadBrace | LazyKind::HeadParen => {
-            let close = if kind == LazyKind::HeadParen {
-                ")"
-            } else {
-                "}"
-            };
-            if let Some(pos) = super::read::expression::trailing_token_offset(content) {
-                return Some(crate::error::ParseError::expected_token(close, start + pos));
-            }
-            let abs_pos = super::read::expression::check_js_parse_error_with_pos(content)
-                .map_or(start + content.len(), |(_, pos)| start + pos);
-            crate::error::ParseError::svelte("js_parse_error", msg, (abs_pos, abs_pos))
-        }
-    })
+        LazyKind::HeadParen => ")",
+        LazyKind::Mustache | LazyKind::Attribute | LazyKind::HeadBrace => "}",
+    };
+    Some(template_expression_error(close, msg, content, start, ts))
+}
+
+/// Every template-expression entry point classifies a failure the same way,
+/// because upstream reaches all of them through `read_expression` + `eat(close)`:
+/// acorn parses ONE maximal expression, so leftover input after a complete one
+/// (`{foo();}` — the `;` is left over) is `expected_token`, while an error
+/// *inside* the expression (`{42 = nope}`) is a point `js_parse_error` at the
+/// byte acorn stopped on.
+pub(super) fn template_expression_error(
+    close: &str,
+    msg: String,
+    content: &str,
+    start: usize,
+    ts: bool,
+) -> crate::error::ParseError {
+    if let Some(offset) = super::read::expression::trailing_token_offset(content, ts) {
+        return crate::error::ParseError::expected_token(close, start + offset);
+    }
+    let at = super::read::expression::check_js_parse_error_with_pos(content, ts)
+        .map_or(start + content.len(), |(_, pos)| start + pos);
+    crate::error::ParseError::svelte("js_parse_error", msg, (at, at))
 }

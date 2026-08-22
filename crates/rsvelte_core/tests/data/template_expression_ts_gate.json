@@ -1,0 +1,472 @@
+{"name":"as-string__mustache__no-script","source":"<p>{y as string}</p>\n","expected":"expected_token"}
+{"name":"as-string__mustache__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{y as string}</p>\n","expected":"expected_token"}
+{"name":"as-string__mustache__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p>{y as string}</p>\n","expected":null}
+{"name":"as-string__mustache__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{y as string}</p>\n","expected":null}
+{"name":"as-string__attr-value__no-script","source":"<p id={y as string}>x</p>\n","expected":"expected_token"}
+{"name":"as-string__attr-value__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p id={y as string}>x</p>\n","expected":"expected_token"}
+{"name":"as-string__attr-value__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p id={y as string}>x</p>\n","expected":null}
+{"name":"as-string__attr-value__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p id={y as string}>x</p>\n","expected":null}
+{"name":"as-string__spread__no-script","source":"<p {...{ k: y as string }}>x</p>\n","expected":"js_parse_error"}
+{"name":"as-string__spread__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: y as string }}>x</p>\n","expected":"js_parse_error"}
+{"name":"as-string__spread__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p {...{ k: y as string }}>x</p>\n","expected":null}
+{"name":"as-string__spread__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: y as string }}>x</p>\n","expected":null}
+{"name":"as-string__each-collection__no-script","source":"{#each [y as string] as it}<p>{it}</p>{/each}\n","expected":"js_parse_error"}
+{"name":"as-string__each-collection__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#each [y as string] as it}<p>{it}</p>{/each}\n","expected":"js_parse_error"}
+{"name":"as-string__each-collection__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#each [y as string] as it}<p>{it}</p>{/each}\n","expected":null}
+{"name":"as-string__each-collection__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#each [y as string] as it}<p>{it}</p>{/each}\n","expected":null}
+{"name":"as-string__each-body__no-script","source":"{#each [1] as it}<p>{y as string}</p>{/each}\n","expected":"expected_token"}
+{"name":"as-string__each-body__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#each [1] as it}<p>{y as string}</p>{/each}\n","expected":"expected_token"}
+{"name":"as-string__each-body__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#each [1] as it}<p>{y as string}</p>{/each}\n","expected":null}
+{"name":"as-string__each-body__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#each [1] as it}<p>{y as string}</p>{/each}\n","expected":null}
+{"name":"as-string__if-test__no-script","source":"{#if y as string}<p>x</p>{/if}\n","expected":"expected_token"}
+{"name":"as-string__if-test__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#if y as string}<p>x</p>{/if}\n","expected":"expected_token"}
+{"name":"as-string__if-test__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#if y as string}<p>x</p>{/if}\n","expected":null}
+{"name":"as-string__if-test__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#if y as string}<p>x</p>{/if}\n","expected":null}
+{"name":"as-string__key__no-script","source":"{#key y as string}<p>x</p>{/key}\n","expected":"expected_token"}
+{"name":"as-string__key__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#key y as string}<p>x</p>{/key}\n","expected":"expected_token"}
+{"name":"as-string__key__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#key y as string}<p>x</p>{/key}\n","expected":null}
+{"name":"as-string__key__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#key y as string}<p>x</p>{/key}\n","expected":null}
+{"name":"as-string__await__no-script","source":"{#await Promise.resolve(y as string)}<p>x</p>{:then v}<p>{v}</p>{/await}\n","expected":"js_parse_error"}
+{"name":"as-string__await__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#await Promise.resolve(y as string)}<p>x</p>{:then v}<p>{v}</p>{/await}\n","expected":"js_parse_error"}
+{"name":"as-string__await__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#await Promise.resolve(y as string)}<p>x</p>{:then v}<p>{v}</p>{/await}\n","expected":null}
+{"name":"as-string__await__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#await Promise.resolve(y as string)}<p>x</p>{:then v}<p>{v}</p>{/await}\n","expected":null}
+{"name":"as-string__const-tag__no-script","source":"{#if true}{@const c = y as string}<p>{c}</p>{/if}\n","expected":"expected_token"}
+{"name":"as-string__const-tag__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#if true}{@const c = y as string}<p>{c}</p>{/if}\n","expected":"expected_token"}
+{"name":"as-string__const-tag__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#if true}{@const c = y as string}<p>{c}</p>{/if}\n","expected":null}
+{"name":"as-string__const-tag__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#if true}{@const c = y as string}<p>{c}</p>{/if}\n","expected":null}
+{"name":"as-string__html__no-script","source":"{@html y as string}\n","expected":"expected_token"}
+{"name":"as-string__html__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{@html y as string}\n","expected":"expected_token"}
+{"name":"as-string__html__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{@html y as string}\n","expected":null}
+{"name":"as-string__html__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{@html y as string}\n","expected":null}
+{"name":"as-string__render-arg__no-script","source":"{#snippet s(a)}<p>{a}</p>{/snippet}{@render s(y as string)}\n","expected":"js_parse_error"}
+{"name":"as-string__render-arg__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#snippet s(a)}<p>{a}</p>{/snippet}{@render s(y as string)}\n","expected":"js_parse_error"}
+{"name":"as-string__render-arg__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#snippet s(a)}<p>{a}</p>{/snippet}{@render s(y as string)}\n","expected":null}
+{"name":"as-string__render-arg__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#snippet s(a)}<p>{a}</p>{/snippet}{@render s(y as string)}\n","expected":null}
+{"name":"as-string__event-handler__no-script","source":"<button onclick={() => y as string}>x</button>\n","expected":"expected_token"}
+{"name":"as-string__event-handler__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<button onclick={() => y as string}>x</button>\n","expected":"expected_token"}
+{"name":"as-string__event-handler__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<button onclick={() => y as string}>x</button>\n","expected":null}
+{"name":"as-string__event-handler__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<button onclick={() => y as string}>x</button>\n","expected":null}
+{"name":"as-string__style-directive__no-script","source":"<p style:color={y as string}>x</p>\n","expected":"expected_token"}
+{"name":"as-string__style-directive__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p style:color={y as string}>x</p>\n","expected":"expected_token"}
+{"name":"as-string__style-directive__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p style:color={y as string}>x</p>\n","expected":null}
+{"name":"as-string__style-directive__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p style:color={y as string}>x</p>\n","expected":null}
+{"name":"as-string__class-directive__no-script","source":"<p class:on={y as string}>x</p>\n","expected":"expected_token"}
+{"name":"as-string__class-directive__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p class:on={y as string}>x</p>\n","expected":"expected_token"}
+{"name":"as-string__class-directive__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p class:on={y as string}>x</p>\n","expected":null}
+{"name":"as-string__class-directive__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p class:on={y as string}>x</p>\n","expected":null}
+{"name":"as-string__transition-param__no-script","source":"<p transition:fade={{ k: y as string }}>x</p>\n","expected":"js_parse_error"}
+{"name":"as-string__transition-param__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p transition:fade={{ k: y as string }}>x</p>\n","expected":"js_parse_error"}
+{"name":"as-string__transition-param__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p transition:fade={{ k: y as string }}>x</p>\n","expected":null}
+{"name":"as-string__transition-param__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p transition:fade={{ k: y as string }}>x</p>\n","expected":null}
+{"name":"as-string__snippet-param-default__no-script","source":"{#snippet s(a = y as string)}<p>{a}</p>{/snippet}{@render s()}\n","expected":"js_parse_error"}
+{"name":"as-string__snippet-param-default__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#snippet s(a = y as string)}<p>{a}</p>{/snippet}{@render s()}\n","expected":"js_parse_error"}
+{"name":"as-string__snippet-param-default__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#snippet s(a = y as string)}<p>{a}</p>{/snippet}{@render s()}\n","expected":null}
+{"name":"as-string__snippet-param-default__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#snippet s(a = y as string)}<p>{a}</p>{/snippet}{@render s()}\n","expected":null}
+{"name":"as-const__mustache__no-script","source":"<p>{y as const}</p>\n","expected":"expected_token"}
+{"name":"as-const__mustache__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{y as const}</p>\n","expected":"expected_token"}
+{"name":"as-const__mustache__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p>{y as const}</p>\n","expected":null}
+{"name":"as-const__mustache__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{y as const}</p>\n","expected":null}
+{"name":"as-const__spread__no-script","source":"<p {...{ k: y as const }}>x</p>\n","expected":"js_parse_error"}
+{"name":"as-const__spread__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: y as const }}>x</p>\n","expected":"js_parse_error"}
+{"name":"as-const__spread__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p {...{ k: y as const }}>x</p>\n","expected":null}
+{"name":"as-const__spread__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: y as const }}>x</p>\n","expected":null}
+{"name":"as-unknown-as__mustache__no-script","source":"<p>{y as unknown as string}</p>\n","expected":"expected_token"}
+{"name":"as-unknown-as__mustache__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{y as unknown as string}</p>\n","expected":"expected_token"}
+{"name":"as-unknown-as__mustache__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p>{y as unknown as string}</p>\n","expected":null}
+{"name":"as-unknown-as__mustache__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{y as unknown as string}</p>\n","expected":null}
+{"name":"as-unknown-as__spread__no-script","source":"<p {...{ k: y as unknown as string }}>x</p>\n","expected":"js_parse_error"}
+{"name":"as-unknown-as__spread__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: y as unknown as string }}>x</p>\n","expected":"js_parse_error"}
+{"name":"as-unknown-as__spread__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p {...{ k: y as unknown as string }}>x</p>\n","expected":null}
+{"name":"as-unknown-as__spread__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: y as unknown as string }}>x</p>\n","expected":null}
+{"name":"satisfies__mustache__no-script","source":"<p>{y satisfies string}</p>\n","expected":"expected_token"}
+{"name":"satisfies__mustache__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{y satisfies string}</p>\n","expected":"expected_token"}
+{"name":"satisfies__mustache__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p>{y satisfies string}</p>\n","expected":null}
+{"name":"satisfies__mustache__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{y satisfies string}</p>\n","expected":null}
+{"name":"satisfies__spread__no-script","source":"<p {...{ k: y satisfies string }}>x</p>\n","expected":"js_parse_error"}
+{"name":"satisfies__spread__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: y satisfies string }}>x</p>\n","expected":"js_parse_error"}
+{"name":"satisfies__spread__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p {...{ k: y satisfies string }}>x</p>\n","expected":null}
+{"name":"satisfies__spread__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: y satisfies string }}>x</p>\n","expected":null}
+{"name":"non-null__mustache__no-script","source":"<p>{y!}</p>\n","expected":"expected_token"}
+{"name":"non-null__mustache__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{y!}</p>\n","expected":"expected_token"}
+{"name":"non-null__mustache__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p>{y!}</p>\n","expected":null}
+{"name":"non-null__mustache__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{y!}</p>\n","expected":null}
+{"name":"non-null__spread__no-script","source":"<p {...{ k: y! }}>x</p>\n","expected":"js_parse_error"}
+{"name":"non-null__spread__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: y! }}>x</p>\n","expected":"js_parse_error"}
+{"name":"non-null__spread__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p {...{ k: y! }}>x</p>\n","expected":null}
+{"name":"non-null__spread__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: y! }}>x</p>\n","expected":null}
+{"name":"non-null-member__mustache__no-script","source":"<p>{y!.k}</p>\n","expected":"expected_token"}
+{"name":"non-null-member__mustache__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{y!.k}</p>\n","expected":"expected_token"}
+{"name":"non-null-member__mustache__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p>{y!.k}</p>\n","expected":null}
+{"name":"non-null-member__mustache__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{y!.k}</p>\n","expected":null}
+{"name":"non-null-member__spread__no-script","source":"<p {...{ k: y!.k }}>x</p>\n","expected":"js_parse_error"}
+{"name":"non-null-member__spread__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: y!.k }}>x</p>\n","expected":"js_parse_error"}
+{"name":"non-null-member__spread__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p {...{ k: y!.k }}>x</p>\n","expected":null}
+{"name":"non-null-member__spread__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: y!.k }}>x</p>\n","expected":null}
+{"name":"angle-cast__mustache__no-script","source":"<p>{<string>y}</p>\n","expected":"js_parse_error"}
+{"name":"angle-cast__mustache__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{<string>y}</p>\n","expected":"js_parse_error"}
+{"name":"angle-cast__mustache__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p>{<string>y}</p>\n","expected":null}
+{"name":"angle-cast__mustache__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{<string>y}</p>\n","expected":null}
+{"name":"angle-cast__attr-value__no-script","source":"<p id={<string>y}>x</p>\n","expected":"js_parse_error"}
+{"name":"angle-cast__attr-value__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p id={<string>y}>x</p>\n","expected":"js_parse_error"}
+{"name":"angle-cast__attr-value__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p id={<string>y}>x</p>\n","expected":null}
+{"name":"angle-cast__attr-value__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p id={<string>y}>x</p>\n","expected":null}
+{"name":"angle-cast__spread__no-script","source":"<p {...{ k: <string>y }}>x</p>\n","expected":"js_parse_error"}
+{"name":"angle-cast__spread__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: <string>y }}>x</p>\n","expected":"js_parse_error"}
+{"name":"angle-cast__spread__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p {...{ k: <string>y }}>x</p>\n","expected":null}
+{"name":"angle-cast__spread__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: <string>y }}>x</p>\n","expected":null}
+{"name":"angle-cast__each-collection__no-script","source":"{#each [<string>y] as it}<p>{it}</p>{/each}\n","expected":"js_parse_error"}
+{"name":"angle-cast__each-collection__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#each [<string>y] as it}<p>{it}</p>{/each}\n","expected":"js_parse_error"}
+{"name":"angle-cast__each-collection__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#each [<string>y] as it}<p>{it}</p>{/each}\n","expected":null}
+{"name":"angle-cast__each-collection__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#each [<string>y] as it}<p>{it}</p>{/each}\n","expected":null}
+{"name":"angle-cast__each-body__no-script","source":"{#each [1] as it}<p>{<string>y}</p>{/each}\n","expected":"js_parse_error"}
+{"name":"angle-cast__each-body__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#each [1] as it}<p>{<string>y}</p>{/each}\n","expected":"js_parse_error"}
+{"name":"angle-cast__each-body__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#each [1] as it}<p>{<string>y}</p>{/each}\n","expected":null}
+{"name":"angle-cast__each-body__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#each [1] as it}<p>{<string>y}</p>{/each}\n","expected":null}
+{"name":"angle-cast__if-test__no-script","source":"{#if <string>y}<p>x</p>{/if}\n","expected":"js_parse_error"}
+{"name":"angle-cast__if-test__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#if <string>y}<p>x</p>{/if}\n","expected":"js_parse_error"}
+{"name":"angle-cast__if-test__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#if <string>y}<p>x</p>{/if}\n","expected":null}
+{"name":"angle-cast__if-test__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#if <string>y}<p>x</p>{/if}\n","expected":null}
+{"name":"angle-cast__key__no-script","source":"{#key <string>y}<p>x</p>{/key}\n","expected":"js_parse_error"}
+{"name":"angle-cast__key__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#key <string>y}<p>x</p>{/key}\n","expected":"js_parse_error"}
+{"name":"angle-cast__key__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#key <string>y}<p>x</p>{/key}\n","expected":null}
+{"name":"angle-cast__key__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#key <string>y}<p>x</p>{/key}\n","expected":null}
+{"name":"angle-cast__await__no-script","source":"{#await Promise.resolve(<string>y)}<p>x</p>{:then v}<p>{v}</p>{/await}\n","expected":"js_parse_error"}
+{"name":"angle-cast__await__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#await Promise.resolve(<string>y)}<p>x</p>{:then v}<p>{v}</p>{/await}\n","expected":"js_parse_error"}
+{"name":"angle-cast__await__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#await Promise.resolve(<string>y)}<p>x</p>{:then v}<p>{v}</p>{/await}\n","expected":null}
+{"name":"angle-cast__await__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#await Promise.resolve(<string>y)}<p>x</p>{:then v}<p>{v}</p>{/await}\n","expected":null}
+{"name":"angle-cast__const-tag__no-script","source":"{#if true}{@const c = <string>y}<p>{c}</p>{/if}\n","expected":"js_parse_error"}
+{"name":"angle-cast__const-tag__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#if true}{@const c = <string>y}<p>{c}</p>{/if}\n","expected":"js_parse_error"}
+{"name":"angle-cast__const-tag__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#if true}{@const c = <string>y}<p>{c}</p>{/if}\n","expected":null}
+{"name":"angle-cast__const-tag__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#if true}{@const c = <string>y}<p>{c}</p>{/if}\n","expected":null}
+{"name":"angle-cast__html__no-script","source":"{@html <string>y}\n","expected":"js_parse_error"}
+{"name":"angle-cast__html__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{@html <string>y}\n","expected":"js_parse_error"}
+{"name":"angle-cast__html__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{@html <string>y}\n","expected":null}
+{"name":"angle-cast__html__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{@html <string>y}\n","expected":null}
+{"name":"angle-cast__render-arg__no-script","source":"{#snippet s(a)}<p>{a}</p>{/snippet}{@render s(<string>y)}\n","expected":"js_parse_error"}
+{"name":"angle-cast__render-arg__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#snippet s(a)}<p>{a}</p>{/snippet}{@render s(<string>y)}\n","expected":"js_parse_error"}
+{"name":"angle-cast__render-arg__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#snippet s(a)}<p>{a}</p>{/snippet}{@render s(<string>y)}\n","expected":null}
+{"name":"angle-cast__render-arg__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#snippet s(a)}<p>{a}</p>{/snippet}{@render s(<string>y)}\n","expected":null}
+{"name":"angle-cast__event-handler__no-script","source":"<button onclick={() => <string>y}>x</button>\n","expected":"js_parse_error"}
+{"name":"angle-cast__event-handler__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<button onclick={() => <string>y}>x</button>\n","expected":"js_parse_error"}
+{"name":"angle-cast__event-handler__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<button onclick={() => <string>y}>x</button>\n","expected":null}
+{"name":"angle-cast__event-handler__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<button onclick={() => <string>y}>x</button>\n","expected":null}
+{"name":"angle-cast__style-directive__no-script","source":"<p style:color={<string>y}>x</p>\n","expected":"js_parse_error"}
+{"name":"angle-cast__style-directive__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p style:color={<string>y}>x</p>\n","expected":"js_parse_error"}
+{"name":"angle-cast__style-directive__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p style:color={<string>y}>x</p>\n","expected":null}
+{"name":"angle-cast__style-directive__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p style:color={<string>y}>x</p>\n","expected":null}
+{"name":"angle-cast__class-directive__no-script","source":"<p class:on={<string>y}>x</p>\n","expected":"js_parse_error"}
+{"name":"angle-cast__class-directive__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p class:on={<string>y}>x</p>\n","expected":"js_parse_error"}
+{"name":"angle-cast__class-directive__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p class:on={<string>y}>x</p>\n","expected":null}
+{"name":"angle-cast__class-directive__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p class:on={<string>y}>x</p>\n","expected":null}
+{"name":"angle-cast__transition-param__no-script","source":"<p transition:fade={{ k: <string>y }}>x</p>\n","expected":"js_parse_error"}
+{"name":"angle-cast__transition-param__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p transition:fade={{ k: <string>y }}>x</p>\n","expected":"js_parse_error"}
+{"name":"angle-cast__transition-param__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p transition:fade={{ k: <string>y }}>x</p>\n","expected":null}
+{"name":"angle-cast__transition-param__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p transition:fade={{ k: <string>y }}>x</p>\n","expected":null}
+{"name":"angle-cast__snippet-param-default__no-script","source":"{#snippet s(a = <string>y)}<p>{a}</p>{/snippet}{@render s()}\n","expected":"js_parse_error"}
+{"name":"angle-cast__snippet-param-default__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#snippet s(a = <string>y)}<p>{a}</p>{/snippet}{@render s()}\n","expected":"js_parse_error"}
+{"name":"angle-cast__snippet-param-default__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#snippet s(a = <string>y)}<p>{a}</p>{/snippet}{@render s()}\n","expected":null}
+{"name":"angle-cast__snippet-param-default__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#snippet s(a = <string>y)}<p>{a}</p>{/snippet}{@render s()}\n","expected":null}
+{"name":"call-type-args__mustache__no-script","source":"<p>{f<string>()}</p>\n","expected":"js_parse_error"}
+{"name":"call-type-args__mustache__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{f<string>()}</p>\n","expected":"js_parse_error"}
+{"name":"call-type-args__mustache__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p>{f<string>()}</p>\n","expected":null}
+{"name":"call-type-args__mustache__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{f<string>()}</p>\n","expected":null}
+{"name":"call-type-args__spread__no-script","source":"<p {...{ k: f<string>() }}>x</p>\n","expected":"js_parse_error"}
+{"name":"call-type-args__spread__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: f<string>() }}>x</p>\n","expected":"js_parse_error"}
+{"name":"call-type-args__spread__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p {...{ k: f<string>() }}>x</p>\n","expected":null}
+{"name":"call-type-args__spread__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: f<string>() }}>x</p>\n","expected":null}
+{"name":"arrow-param-type__mustache__no-script","source":"<p>{((a: string) => a)(\"\")}</p>\n","expected":"js_parse_error"}
+{"name":"arrow-param-type__mustache__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{((a: string) => a)(\"\")}</p>\n","expected":"js_parse_error"}
+{"name":"arrow-param-type__mustache__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p>{((a: string) => a)(\"\")}</p>\n","expected":null}
+{"name":"arrow-param-type__mustache__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{((a: string) => a)(\"\")}</p>\n","expected":null}
+{"name":"arrow-param-type__spread__no-script","source":"<p {...{ k: ((a: string) => a)(\"\") }}>x</p>\n","expected":"js_parse_error"}
+{"name":"arrow-param-type__spread__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: ((a: string) => a)(\"\") }}>x</p>\n","expected":"js_parse_error"}
+{"name":"arrow-param-type__spread__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p {...{ k: ((a: string) => a)(\"\") }}>x</p>\n","expected":null}
+{"name":"arrow-param-type__spread__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: ((a: string) => a)(\"\") }}>x</p>\n","expected":null}
+{"name":"arrow-return-type__mustache__no-script","source":"<p>{((): string => \"\")()}</p>\n","expected":"js_parse_error"}
+{"name":"arrow-return-type__mustache__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{((): string => \"\")()}</p>\n","expected":"js_parse_error"}
+{"name":"arrow-return-type__mustache__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p>{((): string => \"\")()}</p>\n","expected":null}
+{"name":"arrow-return-type__mustache__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{((): string => \"\")()}</p>\n","expected":null}
+{"name":"arrow-return-type__spread__no-script","source":"<p {...{ k: ((): string => \"\")() }}>x</p>\n","expected":"js_parse_error"}
+{"name":"arrow-return-type__spread__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: ((): string => \"\")() }}>x</p>\n","expected":"js_parse_error"}
+{"name":"arrow-return-type__spread__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p {...{ k: ((): string => \"\")() }}>x</p>\n","expected":null}
+{"name":"arrow-return-type__spread__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: ((): string => \"\")() }}>x</p>\n","expected":null}
+{"name":"arrow-generic__mustache__no-script","source":"<p>{(<T,>(a: T) => a)(1)}</p>\n","expected":"js_parse_error"}
+{"name":"arrow-generic__mustache__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{(<T,>(a: T) => a)(1)}</p>\n","expected":"js_parse_error"}
+{"name":"arrow-generic__mustache__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p>{(<T,>(a: T) => a)(1)}</p>\n","expected":null}
+{"name":"arrow-generic__mustache__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{(<T,>(a: T) => a)(1)}</p>\n","expected":null}
+{"name":"arrow-generic__spread__no-script","source":"<p {...{ k: (<T,>(a: T) => a)(1) }}>x</p>\n","expected":"js_parse_error"}
+{"name":"arrow-generic__spread__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: (<T,>(a: T) => a)(1) }}>x</p>\n","expected":"js_parse_error"}
+{"name":"arrow-generic__spread__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p {...{ k: (<T,>(a: T) => a)(1) }}>x</p>\n","expected":null}
+{"name":"arrow-generic__spread__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: (<T,>(a: T) => a)(1) }}>x</p>\n","expected":null}
+{"name":"plain-js__mustache__no-script","source":"<p>{y}</p>\n","expected":null}
+{"name":"plain-js__mustache__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{y}</p>\n","expected":null}
+{"name":"plain-js__mustache__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p>{y}</p>\n","expected":null}
+{"name":"plain-js__mustache__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p>{y}</p>\n","expected":null}
+{"name":"plain-js__attr-value__no-script","source":"<p id={y}>x</p>\n","expected":null}
+{"name":"plain-js__attr-value__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p id={y}>x</p>\n","expected":null}
+{"name":"plain-js__attr-value__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p id={y}>x</p>\n","expected":null}
+{"name":"plain-js__attr-value__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p id={y}>x</p>\n","expected":null}
+{"name":"plain-js__spread__no-script","source":"<p {...{ k: y }}>x</p>\n","expected":null}
+{"name":"plain-js__spread__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: y }}>x</p>\n","expected":null}
+{"name":"plain-js__spread__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p {...{ k: y }}>x</p>\n","expected":null}
+{"name":"plain-js__spread__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p {...{ k: y }}>x</p>\n","expected":null}
+{"name":"plain-js__each-collection__no-script","source":"{#each [y] as it}<p>{it}</p>{/each}\n","expected":null}
+{"name":"plain-js__each-collection__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#each [y] as it}<p>{it}</p>{/each}\n","expected":null}
+{"name":"plain-js__each-collection__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#each [y] as it}<p>{it}</p>{/each}\n","expected":null}
+{"name":"plain-js__each-collection__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#each [y] as it}<p>{it}</p>{/each}\n","expected":null}
+{"name":"plain-js__each-body__no-script","source":"{#each [1] as it}<p>{y}</p>{/each}\n","expected":null}
+{"name":"plain-js__each-body__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#each [1] as it}<p>{y}</p>{/each}\n","expected":null}
+{"name":"plain-js__each-body__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#each [1] as it}<p>{y}</p>{/each}\n","expected":null}
+{"name":"plain-js__each-body__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#each [1] as it}<p>{y}</p>{/each}\n","expected":null}
+{"name":"plain-js__if-test__no-script","source":"{#if y}<p>x</p>{/if}\n","expected":null}
+{"name":"plain-js__if-test__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#if y}<p>x</p>{/if}\n","expected":null}
+{"name":"plain-js__if-test__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#if y}<p>x</p>{/if}\n","expected":null}
+{"name":"plain-js__if-test__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#if y}<p>x</p>{/if}\n","expected":null}
+{"name":"plain-js__key__no-script","source":"{#key y}<p>x</p>{/key}\n","expected":null}
+{"name":"plain-js__key__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#key y}<p>x</p>{/key}\n","expected":null}
+{"name":"plain-js__key__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#key y}<p>x</p>{/key}\n","expected":null}
+{"name":"plain-js__key__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#key y}<p>x</p>{/key}\n","expected":null}
+{"name":"plain-js__await__no-script","source":"{#await Promise.resolve(y)}<p>x</p>{:then v}<p>{v}</p>{/await}\n","expected":null}
+{"name":"plain-js__await__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#await Promise.resolve(y)}<p>x</p>{:then v}<p>{v}</p>{/await}\n","expected":null}
+{"name":"plain-js__await__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#await Promise.resolve(y)}<p>x</p>{:then v}<p>{v}</p>{/await}\n","expected":null}
+{"name":"plain-js__await__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#await Promise.resolve(y)}<p>x</p>{:then v}<p>{v}</p>{/await}\n","expected":null}
+{"name":"plain-js__const-tag__no-script","source":"{#if true}{@const c = y}<p>{c}</p>{/if}\n","expected":null}
+{"name":"plain-js__const-tag__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#if true}{@const c = y}<p>{c}</p>{/if}\n","expected":null}
+{"name":"plain-js__const-tag__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#if true}{@const c = y}<p>{c}</p>{/if}\n","expected":null}
+{"name":"plain-js__const-tag__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#if true}{@const c = y}<p>{c}</p>{/if}\n","expected":null}
+{"name":"plain-js__html__no-script","source":"{@html y}\n","expected":null}
+{"name":"plain-js__html__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{@html y}\n","expected":null}
+{"name":"plain-js__html__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{@html y}\n","expected":null}
+{"name":"plain-js__html__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{@html y}\n","expected":null}
+{"name":"plain-js__render-arg__no-script","source":"{#snippet s(a)}<p>{a}</p>{/snippet}{@render s(y)}\n","expected":null}
+{"name":"plain-js__render-arg__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#snippet s(a)}<p>{a}</p>{/snippet}{@render s(y)}\n","expected":null}
+{"name":"plain-js__render-arg__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#snippet s(a)}<p>{a}</p>{/snippet}{@render s(y)}\n","expected":null}
+{"name":"plain-js__render-arg__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#snippet s(a)}<p>{a}</p>{/snippet}{@render s(y)}\n","expected":null}
+{"name":"plain-js__event-handler__no-script","source":"<button onclick={() => y}>x</button>\n","expected":null}
+{"name":"plain-js__event-handler__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<button onclick={() => y}>x</button>\n","expected":null}
+{"name":"plain-js__event-handler__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<button onclick={() => y}>x</button>\n","expected":null}
+{"name":"plain-js__event-handler__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<button onclick={() => y}>x</button>\n","expected":null}
+{"name":"plain-js__style-directive__no-script","source":"<p style:color={y}>x</p>\n","expected":null}
+{"name":"plain-js__style-directive__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p style:color={y}>x</p>\n","expected":null}
+{"name":"plain-js__style-directive__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p style:color={y}>x</p>\n","expected":null}
+{"name":"plain-js__style-directive__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p style:color={y}>x</p>\n","expected":null}
+{"name":"plain-js__class-directive__no-script","source":"<p class:on={y}>x</p>\n","expected":null}
+{"name":"plain-js__class-directive__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p class:on={y}>x</p>\n","expected":null}
+{"name":"plain-js__class-directive__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p class:on={y}>x</p>\n","expected":null}
+{"name":"plain-js__class-directive__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p class:on={y}>x</p>\n","expected":null}
+{"name":"plain-js__transition-param__no-script","source":"<p transition:fade={{ k: y }}>x</p>\n","expected":null}
+{"name":"plain-js__transition-param__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n<p transition:fade={{ k: y }}>x</p>\n","expected":null}
+{"name":"plain-js__transition-param__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n<p transition:fade={{ k: y }}>x</p>\n","expected":null}
+{"name":"plain-js__transition-param__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n<p transition:fade={{ k: y }}>x</p>\n","expected":null}
+{"name":"plain-js__snippet-param-default__no-script","source":"{#snippet s(a = y)}<p>{a}</p>{/snippet}{@render s()}\n","expected":null}
+{"name":"plain-js__snippet-param-default__plain-script","source":"<script>let y = \"s\"; let f = (v) => v;</script>\n{#snippet s(a = y)}<p>{a}</p>{/snippet}{@render s()}\n","expected":null}
+{"name":"plain-js__snippet-param-default__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let f = (v: any) => v;</script>\n{#snippet s(a = y)}<p>{a}</p>{/snippet}{@render s()}\n","expected":null}
+{"name":"plain-js__snippet-param-default__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let f = (v) => v;</script>\n{#snippet s(a = y)}<p>{a}</p>{/snippet}{@render s()}\n","expected":null}
+{"name":"as-string__each-pattern-default__no-script","source":"{#each [{}] as { a = y as string }}<p>{a}</p>{/each}\n","expected":"js_parse_error"}
+{"name":"as-string__each-pattern-default__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [{}] as { a = y as string }}<p>{a}</p>{/each}\n","expected":"js_parse_error"}
+{"name":"as-string__each-pattern-default__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#each [{}] as { a = y as string }}<p>{a}</p>{/each}\n","expected":null}
+{"name":"as-string__each-pattern-default__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [{}] as { a = y as string }}<p>{a}</p>{/each}\n","expected":null}
+{"name":"as-string__await-then-pattern-default__no-script","source":"{#await Promise.resolve({})}<p>x</p>{:then { a = y as string }}<p>{a}</p>{/await}\n","expected":"js_parse_error"}
+{"name":"as-string__await-then-pattern-default__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#await Promise.resolve({})}<p>x</p>{:then { a = y as string }}<p>{a}</p>{/await}\n","expected":"js_parse_error"}
+{"name":"as-string__await-then-pattern-default__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#await Promise.resolve({})}<p>x</p>{:then { a = y as string }}<p>{a}</p>{/await}\n","expected":null}
+{"name":"as-string__await-then-pattern-default__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#await Promise.resolve({})}<p>x</p>{:then { a = y as string }}<p>{a}</p>{/await}\n","expected":null}
+{"name":"as-string__await-catch-pattern-default__no-script","source":"{#await Promise.reject({})}<p>x</p>{:catch { a = y as string }}<p>{a}</p>{/await}\n","expected":"js_parse_error"}
+{"name":"as-string__await-catch-pattern-default__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#await Promise.reject({})}<p>x</p>{:catch { a = y as string }}<p>{a}</p>{/await}\n","expected":"js_parse_error"}
+{"name":"as-string__await-catch-pattern-default__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#await Promise.reject({})}<p>x</p>{:catch { a = y as string }}<p>{a}</p>{/await}\n","expected":null}
+{"name":"as-string__await-catch-pattern-default__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#await Promise.reject({})}<p>x</p>{:catch { a = y as string }}<p>{a}</p>{/await}\n","expected":null}
+{"name":"as-string__const-tag-pattern-default__no-script","source":"{#if true}{@const { a = y as string } = {}}<p>{a}</p>{/if}\n","expected":"js_parse_error"}
+{"name":"as-string__const-tag-pattern-default__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#if true}{@const { a = y as string } = {}}<p>{a}</p>{/if}\n","expected":"js_parse_error"}
+{"name":"as-string__const-tag-pattern-default__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#if true}{@const { a = y as string } = {}}<p>{a}</p>{/if}\n","expected":null}
+{"name":"as-string__const-tag-pattern-default__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#if true}{@const { a = y as string } = {}}<p>{a}</p>{/if}\n","expected":null}
+{"name":"as-string__each-index-key__no-script","source":"{#each [1] as it, i (y as string)}<p>{it}{i}</p>{/each}\n","expected":"expected_token"}
+{"name":"as-string__each-index-key__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [1] as it, i (y as string)}<p>{it}{i}</p>{/each}\n","expected":"expected_token"}
+{"name":"as-string__each-index-key__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#each [1] as it, i (y as string)}<p>{it}{i}</p>{/each}\n","expected":null}
+{"name":"as-string__each-index-key__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [1] as it, i (y as string)}<p>{it}{i}</p>{/each}\n","expected":null}
+{"name":"as-string__else-if-test__no-script","source":"{#if false}<p>a</p>{:else if y as string}<p>b</p>{/if}\n","expected":"expected_token"}
+{"name":"as-string__else-if-test__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#if false}<p>a</p>{:else if y as string}<p>b</p>{/if}\n","expected":"expected_token"}
+{"name":"as-string__else-if-test__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#if false}<p>a</p>{:else if y as string}<p>b</p>{/if}\n","expected":null}
+{"name":"as-string__else-if-test__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#if false}<p>a</p>{:else if y as string}<p>b</p>{/if}\n","expected":null}
+{"name":"as-string__debug-tag__no-script","source":"{@debug y as string}\n","expected":"expected_token"}
+{"name":"as-string__debug-tag__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{@debug y as string}\n","expected":"expected_token"}
+{"name":"as-string__debug-tag__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{@debug y as string}\n","expected":"debug_tag_invalid_arguments"}
+{"name":"as-string__debug-tag__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{@debug y as string}\n","expected":"debug_tag_invalid_arguments"}
+{"name":"as-string__use-action-param__no-script","source":"<p use:act={y as string}>x</p>\n","expected":"expected_token"}
+{"name":"as-string__use-action-param__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<p use:act={y as string}>x</p>\n","expected":"expected_token"}
+{"name":"as-string__use-action-param__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n<p use:act={y as string}>x</p>\n","expected":null}
+{"name":"as-string__use-action-param__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<p use:act={y as string}>x</p>\n","expected":null}
+{"name":"as-string__animate-param__no-script","source":"{#each [1] as it (it)}<p animate:flip={{ k: y as string }}>x</p>{/each}\n","expected":"js_parse_error"}
+{"name":"as-string__animate-param__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [1] as it (it)}<p animate:flip={{ k: y as string }}>x</p>{/each}\n","expected":"js_parse_error"}
+{"name":"as-string__animate-param__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#each [1] as it (it)}<p animate:flip={{ k: y as string }}>x</p>{/each}\n","expected":null}
+{"name":"as-string__animate-param__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [1] as it (it)}<p animate:flip={{ k: y as string }}>x</p>{/each}\n","expected":null}
+{"name":"as-string__let-directive__no-script","source":"<Comp let:v={y as string}>x</Comp>\n","expected":"expected_token"}
+{"name":"as-string__let-directive__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<Comp let:v={y as string}>x</Comp>\n","expected":"expected_token"}
+{"name":"as-string__let-directive__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n<Comp let:v={y as string}>x</Comp>\n","expected":null}
+{"name":"as-string__let-directive__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<Comp let:v={y as string}>x</Comp>\n","expected":null}
+{"name":"as-string__attr-quoted-interp__no-script","source":"<p id=\"a{y as string}b\">x</p>\n","expected":"expected_token"}
+{"name":"as-string__attr-quoted-interp__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<p id=\"a{y as string}b\">x</p>\n","expected":"expected_token"}
+{"name":"as-string__attr-quoted-interp__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n<p id=\"a{y as string}b\">x</p>\n","expected":null}
+{"name":"as-string__attr-quoted-interp__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<p id=\"a{y as string}b\">x</p>\n","expected":null}
+{"name":"as-string__nested-mustache-in-each__no-script","source":"{#each [1] as it}{#if it}<p>{y as string}</p>{/if}{/each}\n","expected":"expected_token"}
+{"name":"as-string__nested-mustache-in-each__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [1] as it}{#if it}<p>{y as string}</p>{/if}{/each}\n","expected":"expected_token"}
+{"name":"as-string__nested-mustache-in-each__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#each [1] as it}{#if it}<p>{y as string}</p>{/if}{/each}\n","expected":null}
+{"name":"as-string__nested-mustache-in-each__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [1] as it}{#if it}<p>{y as string}</p>{/if}{/each}\n","expected":null}
+{"name":"as-string__snippet-body-mustache__no-script","source":"{#snippet s()}<p>{y as string}</p>{/snippet}{@render s()}\n","expected":"expected_token"}
+{"name":"as-string__snippet-body-mustache__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#snippet s()}<p>{y as string}</p>{/snippet}{@render s()}\n","expected":"expected_token"}
+{"name":"as-string__snippet-body-mustache__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#snippet s()}<p>{y as string}</p>{/snippet}{@render s()}\n","expected":null}
+{"name":"as-string__snippet-body-mustache__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#snippet s()}<p>{y as string}</p>{/snippet}{@render s()}\n","expected":null}
+{"name":"as-string__component-prop__no-script","source":"<Comp p={y as string} />\n","expected":"expected_token"}
+{"name":"as-string__component-prop__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<Comp p={y as string} />\n","expected":"expected_token"}
+{"name":"as-string__component-prop__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n<Comp p={y as string} />\n","expected":null}
+{"name":"as-string__component-prop__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<Comp p={y as string} />\n","expected":null}
+{"name":"as-string__component-spread__no-script","source":"<Comp {...{ k: y as string }} />\n","expected":"js_parse_error"}
+{"name":"as-string__component-spread__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<Comp {...{ k: y as string }} />\n","expected":"js_parse_error"}
+{"name":"as-string__component-spread__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n<Comp {...{ k: y as string }} />\n","expected":null}
+{"name":"as-string__component-spread__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<Comp {...{ k: y as string }} />\n","expected":null}
+{"name":"satisfies__each-pattern-default__no-script","source":"{#each [{}] as { a = y satisfies string }}<p>{a}</p>{/each}\n","expected":"js_parse_error"}
+{"name":"satisfies__each-pattern-default__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [{}] as { a = y satisfies string }}<p>{a}</p>{/each}\n","expected":"js_parse_error"}
+{"name":"satisfies__each-pattern-default__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#each [{}] as { a = y satisfies string }}<p>{a}</p>{/each}\n","expected":null}
+{"name":"satisfies__each-pattern-default__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [{}] as { a = y satisfies string }}<p>{a}</p>{/each}\n","expected":null}
+{"name":"non-null__each-pattern-default__no-script","source":"{#each [{}] as { a = y! }}<p>{a}</p>{/each}\n","expected":"js_parse_error"}
+{"name":"non-null__each-pattern-default__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [{}] as { a = y! }}<p>{a}</p>{/each}\n","expected":"js_parse_error"}
+{"name":"non-null__each-pattern-default__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#each [{}] as { a = y! }}<p>{a}</p>{/each}\n","expected":null}
+{"name":"non-null__each-pattern-default__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [{}] as { a = y! }}<p>{a}</p>{/each}\n","expected":null}
+{"name":"angle-cast__each-pattern-default__no-script","source":"{#each [{}] as { a = <string>y }}<p>{a}</p>{/each}\n","expected":"js_parse_error"}
+{"name":"angle-cast__each-pattern-default__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [{}] as { a = <string>y }}<p>{a}</p>{/each}\n","expected":"js_parse_error"}
+{"name":"angle-cast__each-pattern-default__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#each [{}] as { a = <string>y }}<p>{a}</p>{/each}\n","expected":null}
+{"name":"angle-cast__each-pattern-default__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [{}] as { a = <string>y }}<p>{a}</p>{/each}\n","expected":null}
+{"name":"angle-cast__await-then-pattern-default__no-script","source":"{#await Promise.resolve({})}<p>x</p>{:then { a = <string>y }}<p>{a}</p>{/await}\n","expected":"js_parse_error"}
+{"name":"angle-cast__await-then-pattern-default__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#await Promise.resolve({})}<p>x</p>{:then { a = <string>y }}<p>{a}</p>{/await}\n","expected":"js_parse_error"}
+{"name":"angle-cast__await-then-pattern-default__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#await Promise.resolve({})}<p>x</p>{:then { a = <string>y }}<p>{a}</p>{/await}\n","expected":null}
+{"name":"angle-cast__await-then-pattern-default__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#await Promise.resolve({})}<p>x</p>{:then { a = <string>y }}<p>{a}</p>{/await}\n","expected":null}
+{"name":"angle-cast__await-catch-pattern-default__no-script","source":"{#await Promise.reject({})}<p>x</p>{:catch { a = <string>y }}<p>{a}</p>{/await}\n","expected":"js_parse_error"}
+{"name":"angle-cast__await-catch-pattern-default__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#await Promise.reject({})}<p>x</p>{:catch { a = <string>y }}<p>{a}</p>{/await}\n","expected":"js_parse_error"}
+{"name":"angle-cast__await-catch-pattern-default__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#await Promise.reject({})}<p>x</p>{:catch { a = <string>y }}<p>{a}</p>{/await}\n","expected":null}
+{"name":"angle-cast__await-catch-pattern-default__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#await Promise.reject({})}<p>x</p>{:catch { a = <string>y }}<p>{a}</p>{/await}\n","expected":null}
+{"name":"angle-cast__const-tag-pattern-default__no-script","source":"{#if true}{@const { a = <string>y } = {}}<p>{a}</p>{/if}\n","expected":"js_parse_error"}
+{"name":"angle-cast__const-tag-pattern-default__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#if true}{@const { a = <string>y } = {}}<p>{a}</p>{/if}\n","expected":"js_parse_error"}
+{"name":"angle-cast__const-tag-pattern-default__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#if true}{@const { a = <string>y } = {}}<p>{a}</p>{/if}\n","expected":null}
+{"name":"angle-cast__const-tag-pattern-default__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#if true}{@const { a = <string>y } = {}}<p>{a}</p>{/if}\n","expected":null}
+{"name":"angle-cast__each-index-key__no-script","source":"{#each [1] as it, i (<string>y)}<p>{it}{i}</p>{/each}\n","expected":"js_parse_error"}
+{"name":"angle-cast__each-index-key__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [1] as it, i (<string>y)}<p>{it}{i}</p>{/each}\n","expected":"js_parse_error"}
+{"name":"angle-cast__each-index-key__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#each [1] as it, i (<string>y)}<p>{it}{i}</p>{/each}\n","expected":null}
+{"name":"angle-cast__each-index-key__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [1] as it, i (<string>y)}<p>{it}{i}</p>{/each}\n","expected":null}
+{"name":"angle-cast__else-if-test__no-script","source":"{#if false}<p>a</p>{:else if <string>y}<p>b</p>{/if}\n","expected":"js_parse_error"}
+{"name":"angle-cast__else-if-test__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#if false}<p>a</p>{:else if <string>y}<p>b</p>{/if}\n","expected":"js_parse_error"}
+{"name":"angle-cast__else-if-test__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#if false}<p>a</p>{:else if <string>y}<p>b</p>{/if}\n","expected":null}
+{"name":"angle-cast__else-if-test__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#if false}<p>a</p>{:else if <string>y}<p>b</p>{/if}\n","expected":null}
+{"name":"angle-cast__debug-tag__no-script","source":"{@debug <string>y}\n","expected":"js_parse_error"}
+{"name":"angle-cast__debug-tag__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{@debug <string>y}\n","expected":"js_parse_error"}
+{"name":"angle-cast__debug-tag__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{@debug <string>y}\n","expected":"debug_tag_invalid_arguments"}
+{"name":"angle-cast__debug-tag__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{@debug <string>y}\n","expected":"debug_tag_invalid_arguments"}
+{"name":"angle-cast__use-action-param__no-script","source":"<p use:act={<string>y}>x</p>\n","expected":"js_parse_error"}
+{"name":"angle-cast__use-action-param__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<p use:act={<string>y}>x</p>\n","expected":"js_parse_error"}
+{"name":"angle-cast__use-action-param__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n<p use:act={<string>y}>x</p>\n","expected":null}
+{"name":"angle-cast__use-action-param__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<p use:act={<string>y}>x</p>\n","expected":null}
+{"name":"angle-cast__animate-param__no-script","source":"{#each [1] as it (it)}<p animate:flip={{ k: <string>y }}>x</p>{/each}\n","expected":"js_parse_error"}
+{"name":"angle-cast__animate-param__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [1] as it (it)}<p animate:flip={{ k: <string>y }}>x</p>{/each}\n","expected":"js_parse_error"}
+{"name":"angle-cast__animate-param__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#each [1] as it (it)}<p animate:flip={{ k: <string>y }}>x</p>{/each}\n","expected":null}
+{"name":"angle-cast__animate-param__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [1] as it (it)}<p animate:flip={{ k: <string>y }}>x</p>{/each}\n","expected":null}
+{"name":"angle-cast__let-directive__no-script","source":"<Comp let:v={<string>y}>x</Comp>\n","expected":"js_parse_error"}
+{"name":"angle-cast__let-directive__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<Comp let:v={<string>y}>x</Comp>\n","expected":"js_parse_error"}
+{"name":"angle-cast__let-directive__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n<Comp let:v={<string>y}>x</Comp>\n","expected":null}
+{"name":"angle-cast__let-directive__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<Comp let:v={<string>y}>x</Comp>\n","expected":null}
+{"name":"angle-cast__attr-quoted-interp__no-script","source":"<p id=\"a{<string>y}b\">x</p>\n","expected":"js_parse_error"}
+{"name":"angle-cast__attr-quoted-interp__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<p id=\"a{<string>y}b\">x</p>\n","expected":"js_parse_error"}
+{"name":"angle-cast__attr-quoted-interp__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n<p id=\"a{<string>y}b\">x</p>\n","expected":null}
+{"name":"angle-cast__attr-quoted-interp__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<p id=\"a{<string>y}b\">x</p>\n","expected":null}
+{"name":"angle-cast__nested-mustache-in-each__no-script","source":"{#each [1] as it}{#if it}<p>{<string>y}</p>{/if}{/each}\n","expected":"js_parse_error"}
+{"name":"angle-cast__nested-mustache-in-each__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [1] as it}{#if it}<p>{<string>y}</p>{/if}{/each}\n","expected":"js_parse_error"}
+{"name":"angle-cast__nested-mustache-in-each__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#each [1] as it}{#if it}<p>{<string>y}</p>{/if}{/each}\n","expected":null}
+{"name":"angle-cast__nested-mustache-in-each__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [1] as it}{#if it}<p>{<string>y}</p>{/if}{/each}\n","expected":null}
+{"name":"angle-cast__snippet-body-mustache__no-script","source":"{#snippet s()}<p>{<string>y}</p>{/snippet}{@render s()}\n","expected":"js_parse_error"}
+{"name":"angle-cast__snippet-body-mustache__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#snippet s()}<p>{<string>y}</p>{/snippet}{@render s()}\n","expected":"js_parse_error"}
+{"name":"angle-cast__snippet-body-mustache__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#snippet s()}<p>{<string>y}</p>{/snippet}{@render s()}\n","expected":null}
+{"name":"angle-cast__snippet-body-mustache__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#snippet s()}<p>{<string>y}</p>{/snippet}{@render s()}\n","expected":null}
+{"name":"angle-cast__component-prop__no-script","source":"<Comp p={<string>y} />\n","expected":"js_parse_error"}
+{"name":"angle-cast__component-prop__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<Comp p={<string>y} />\n","expected":"js_parse_error"}
+{"name":"angle-cast__component-prop__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n<Comp p={<string>y} />\n","expected":null}
+{"name":"angle-cast__component-prop__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<Comp p={<string>y} />\n","expected":null}
+{"name":"angle-cast__component-spread__no-script","source":"<Comp {...{ k: <string>y }} />\n","expected":"js_parse_error"}
+{"name":"angle-cast__component-spread__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<Comp {...{ k: <string>y }} />\n","expected":"js_parse_error"}
+{"name":"angle-cast__component-spread__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n<Comp {...{ k: <string>y }} />\n","expected":null}
+{"name":"angle-cast__component-spread__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<Comp {...{ k: <string>y }} />\n","expected":null}
+{"name":"arrow-param-type__each-pattern-default__no-script","source":"{#each [{}] as { a = ((a: string) => a)(\"\") }}<p>{a}</p>{/each}\n","expected":"js_parse_error"}
+{"name":"arrow-param-type__each-pattern-default__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [{}] as { a = ((a: string) => a)(\"\") }}<p>{a}</p>{/each}\n","expected":"js_parse_error"}
+{"name":"arrow-param-type__each-pattern-default__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#each [{}] as { a = ((a: string) => a)(\"\") }}<p>{a}</p>{/each}\n","expected":null}
+{"name":"arrow-param-type__each-pattern-default__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [{}] as { a = ((a: string) => a)(\"\") }}<p>{a}</p>{/each}\n","expected":null}
+{"name":"plain-js__each-pattern-default__no-script","source":"{#each [{}] as { a = y }}<p>{a}</p>{/each}\n","expected":null}
+{"name":"plain-js__each-pattern-default__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [{}] as { a = y }}<p>{a}</p>{/each}\n","expected":null}
+{"name":"plain-js__each-pattern-default__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#each [{}] as { a = y }}<p>{a}</p>{/each}\n","expected":null}
+{"name":"plain-js__each-pattern-default__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [{}] as { a = y }}<p>{a}</p>{/each}\n","expected":null}
+{"name":"plain-js__await-then-pattern-default__no-script","source":"{#await Promise.resolve({})}<p>x</p>{:then { a = y }}<p>{a}</p>{/await}\n","expected":null}
+{"name":"plain-js__await-then-pattern-default__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#await Promise.resolve({})}<p>x</p>{:then { a = y }}<p>{a}</p>{/await}\n","expected":null}
+{"name":"plain-js__await-then-pattern-default__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#await Promise.resolve({})}<p>x</p>{:then { a = y }}<p>{a}</p>{/await}\n","expected":null}
+{"name":"plain-js__await-then-pattern-default__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#await Promise.resolve({})}<p>x</p>{:then { a = y }}<p>{a}</p>{/await}\n","expected":null}
+{"name":"plain-js__await-catch-pattern-default__no-script","source":"{#await Promise.reject({})}<p>x</p>{:catch { a = y }}<p>{a}</p>{/await}\n","expected":null}
+{"name":"plain-js__await-catch-pattern-default__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#await Promise.reject({})}<p>x</p>{:catch { a = y }}<p>{a}</p>{/await}\n","expected":null}
+{"name":"plain-js__await-catch-pattern-default__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#await Promise.reject({})}<p>x</p>{:catch { a = y }}<p>{a}</p>{/await}\n","expected":null}
+{"name":"plain-js__await-catch-pattern-default__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#await Promise.reject({})}<p>x</p>{:catch { a = y }}<p>{a}</p>{/await}\n","expected":null}
+{"name":"plain-js__const-tag-pattern-default__no-script","source":"{#if true}{@const { a = y } = {}}<p>{a}</p>{/if}\n","expected":null}
+{"name":"plain-js__const-tag-pattern-default__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#if true}{@const { a = y } = {}}<p>{a}</p>{/if}\n","expected":null}
+{"name":"plain-js__const-tag-pattern-default__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#if true}{@const { a = y } = {}}<p>{a}</p>{/if}\n","expected":null}
+{"name":"plain-js__const-tag-pattern-default__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#if true}{@const { a = y } = {}}<p>{a}</p>{/if}\n","expected":null}
+{"name":"plain-js__each-index-key__no-script","source":"{#each [1] as it, i (y)}<p>{it}{i}</p>{/each}\n","expected":null}
+{"name":"plain-js__each-index-key__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [1] as it, i (y)}<p>{it}{i}</p>{/each}\n","expected":null}
+{"name":"plain-js__each-index-key__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#each [1] as it, i (y)}<p>{it}{i}</p>{/each}\n","expected":null}
+{"name":"plain-js__each-index-key__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [1] as it, i (y)}<p>{it}{i}</p>{/each}\n","expected":null}
+{"name":"plain-js__else-if-test__no-script","source":"{#if false}<p>a</p>{:else if y}<p>b</p>{/if}\n","expected":null}
+{"name":"plain-js__else-if-test__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#if false}<p>a</p>{:else if y}<p>b</p>{/if}\n","expected":null}
+{"name":"plain-js__else-if-test__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#if false}<p>a</p>{:else if y}<p>b</p>{/if}\n","expected":null}
+{"name":"plain-js__else-if-test__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#if false}<p>a</p>{:else if y}<p>b</p>{/if}\n","expected":null}
+{"name":"plain-js__debug-tag__no-script","source":"{@debug y}\n","expected":null}
+{"name":"plain-js__debug-tag__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{@debug y}\n","expected":null}
+{"name":"plain-js__debug-tag__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{@debug y}\n","expected":null}
+{"name":"plain-js__debug-tag__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{@debug y}\n","expected":null}
+{"name":"plain-js__use-action-param__no-script","source":"<p use:act={y}>x</p>\n","expected":null}
+{"name":"plain-js__use-action-param__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<p use:act={y}>x</p>\n","expected":null}
+{"name":"plain-js__use-action-param__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n<p use:act={y}>x</p>\n","expected":null}
+{"name":"plain-js__use-action-param__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<p use:act={y}>x</p>\n","expected":null}
+{"name":"plain-js__animate-param__no-script","source":"{#each [1] as it (it)}<p animate:flip={{ k: y }}>x</p>{/each}\n","expected":null}
+{"name":"plain-js__animate-param__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [1] as it (it)}<p animate:flip={{ k: y }}>x</p>{/each}\n","expected":null}
+{"name":"plain-js__animate-param__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#each [1] as it (it)}<p animate:flip={{ k: y }}>x</p>{/each}\n","expected":null}
+{"name":"plain-js__animate-param__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [1] as it (it)}<p animate:flip={{ k: y }}>x</p>{/each}\n","expected":null}
+{"name":"plain-js__let-directive__no-script","source":"<Comp let:v={y}>x</Comp>\n","expected":null}
+{"name":"plain-js__let-directive__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<Comp let:v={y}>x</Comp>\n","expected":null}
+{"name":"plain-js__let-directive__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n<Comp let:v={y}>x</Comp>\n","expected":null}
+{"name":"plain-js__let-directive__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<Comp let:v={y}>x</Comp>\n","expected":null}
+{"name":"plain-js__attr-quoted-interp__no-script","source":"<p id=\"a{y}b\">x</p>\n","expected":null}
+{"name":"plain-js__attr-quoted-interp__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<p id=\"a{y}b\">x</p>\n","expected":null}
+{"name":"plain-js__attr-quoted-interp__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n<p id=\"a{y}b\">x</p>\n","expected":null}
+{"name":"plain-js__attr-quoted-interp__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<p id=\"a{y}b\">x</p>\n","expected":null}
+{"name":"plain-js__nested-mustache-in-each__no-script","source":"{#each [1] as it}{#if it}<p>{y}</p>{/if}{/each}\n","expected":null}
+{"name":"plain-js__nested-mustache-in-each__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [1] as it}{#if it}<p>{y}</p>{/if}{/each}\n","expected":null}
+{"name":"plain-js__nested-mustache-in-each__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#each [1] as it}{#if it}<p>{y}</p>{/if}{/each}\n","expected":null}
+{"name":"plain-js__nested-mustache-in-each__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#each [1] as it}{#if it}<p>{y}</p>{/if}{/each}\n","expected":null}
+{"name":"plain-js__snippet-body-mustache__no-script","source":"{#snippet s()}<p>{y}</p>{/snippet}{@render s()}\n","expected":null}
+{"name":"plain-js__snippet-body-mustache__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#snippet s()}<p>{y}</p>{/snippet}{@render s()}\n","expected":null}
+{"name":"plain-js__snippet-body-mustache__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#snippet s()}<p>{y}</p>{/snippet}{@render s()}\n","expected":null}
+{"name":"plain-js__snippet-body-mustache__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#snippet s()}<p>{y}</p>{/snippet}{@render s()}\n","expected":null}
+{"name":"plain-js__component-prop__no-script","source":"<Comp p={y} />\n","expected":null}
+{"name":"plain-js__component-prop__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<Comp p={y} />\n","expected":null}
+{"name":"plain-js__component-prop__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n<Comp p={y} />\n","expected":null}
+{"name":"plain-js__component-prop__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<Comp p={y} />\n","expected":null}
+{"name":"plain-js__component-spread__no-script","source":"<Comp {...{ k: y }} />\n","expected":null}
+{"name":"plain-js__component-spread__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<Comp {...{ k: y }} />\n","expected":null}
+{"name":"plain-js__component-spread__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n<Comp {...{ k: y }} />\n","expected":null}
+{"name":"plain-js__component-spread__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n<Comp {...{ k: y }} />\n","expected":null}
+{"name":"header-snippet-type-param-with-arg__no-script","source":"{#snippet s<T>(a)}<p>{a}</p>{/snippet}{@render s(1)}\n","expected":"expected_token"}
+{"name":"header-snippet-type-param-with-arg__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#snippet s<T>(a)}<p>{a}</p>{/snippet}{@render s(1)}\n","expected":"expected_token"}
+{"name":"header-snippet-type-param-with-arg__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#snippet s<T>(a)}<p>{a}</p>{/snippet}{@render s(1)}\n","expected":null}
+{"name":"header-snippet-type-param-with-arg__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#snippet s<T>(a)}<p>{a}</p>{/snippet}{@render s(1)}\n","expected":null}
+{"name":"header-snippet-type-param-no-arg__no-script","source":"{#snippet s<T>()}<p>x</p>{/snippet}{@render s()}\n","expected":"expected_token"}
+{"name":"header-snippet-type-param-no-arg__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#snippet s<T>()}<p>x</p>{/snippet}{@render s()}\n","expected":"expected_token"}
+{"name":"header-snippet-type-param-no-arg__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#snippet s<T>()}<p>x</p>{/snippet}{@render s()}\n","expected":null}
+{"name":"header-snippet-type-param-no-arg__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#snippet s<T>()}<p>x</p>{/snippet}{@render s()}\n","expected":null}
+{"name":"header-snippet-param-annotation__no-script","source":"{#snippet s(a: string)}<p>{a}</p>{/snippet}{@render s(\"x\")}\n","expected":"js_parse_error"}
+{"name":"header-snippet-param-annotation__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#snippet s(a: string)}<p>{a}</p>{/snippet}{@render s(\"x\")}\n","expected":"js_parse_error"}
+{"name":"header-snippet-param-annotation__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#snippet s(a: string)}<p>{a}</p>{/snippet}{@render s(\"x\")}\n","expected":null}
+{"name":"header-snippet-param-annotation__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#snippet s(a: string)}<p>{a}</p>{/snippet}{@render s(\"x\")}\n","expected":null}
+{"name":"header-snippet-plain__no-script","source":"{#snippet s(a)}<p>{a}</p>{/snippet}{@render s(1)}\n","expected":null}
+{"name":"header-snippet-plain__plain-script","source":"<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#snippet s(a)}<p>{a}</p>{/snippet}{@render s(1)}\n","expected":null}
+{"name":"header-snippet-plain__instance-ts","source":"<script lang=\"ts\">let y: any = \"s\"; let act = (): any => {}; let flip = (): any => {};</script>\n{#snippet s(a)}<p>{a}</p>{/snippet}{@render s(1)}\n","expected":null}
+{"name":"header-snippet-plain__module-ts-only","source":"<script module lang=\"ts\">export const zz: number = 1;</script>\n<script>let y = \"s\"; let act = () => {}; let flip = () => {};</script>\n{#snippet s(a)}<p>{a}</p>{/snippet}{@render s(1)}\n","expected":null}

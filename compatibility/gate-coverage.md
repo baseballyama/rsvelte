@@ -71,6 +71,34 @@ different defects it maps onto the same string.
 
 ---
 
+## A named blind-spot class: the one-directional verdict vocabulary
+
+**A grid scored in the vocabulary of the issue that motivated it reports the opposite
+direction as zero.** Not an empty population and not a coarse key — a *complete* verdict
+set that omits a direction, so cells moving that way are counted as agreement or are never
+constructed at all. It gets a name because it has now happened on both axes it can happen on:
+
+| instance | the vocabulary | what it could not report |
+|---|---|---|
+| the `bind:` family (AGENTS.md § Generated shape matrix) | inputs chosen because official **rejects** them | an over-**rejection** — a TypeScript assertion, `bind:group={c as T}`, which CI caught from a corpus file instead |
+| `param-default` | the same, until its legal rows were added | `async (p = { async m() { … } }) => p` **is** legal, so a check that scans the parameter subtree rejects real code |
+| #3261 (§39) | the issue is titled "330 over-acceptances", so the grid scores accept-vs-reject | **18 over-rejections of 38**, measured on a tree whose own grid read 330 → 66 |
+| #3261, one level down (s2tF, recorded in AGENTS.md) | `agree` / `over-accept` / `under-accept` | `both reject, different code` — 178 cells moved into a fourth verdict the three-value set cannot spell |
+
+The defence is not "add more inputs". It is two questions asked **before** measuring:
+**does my verdict set have a cell for the opposite direction**, and **does my population
+contain an input that would land in it?** A grid that answers no to either reports a clean
+number while the other direction moves freely underneath it — and the number *goes down*,
+which reads as progress.
+
+Corollary worth stating separately, because it is what makes this expensive: **the author of
+the grid is the person least able to see it.** The vocabulary comes from the issue, the issue
+is written from the defect that was noticed, and the defect that was noticed is the one whose
+direction someone already had a name for. §39's 18 were found by running a *different* gate on
+the same tree, not by extending the original grid.
+
+---
+
 ## Reading the corpus in one sentence
 
 The collected corpus samples the *marginal* distribution of published Svelte code. That is
@@ -112,6 +140,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 26 | esrap generated-output corpus | parsed JS output × official/rsvelte tree × 4 targets; AST equivalence, comment kind/body sequence, code/map equality, map bounds/order | production synthetic AST spans and whether a mapping points at the corresponding source token | [S] |
 | 27 | LSP differential parity | normalized JSON response field per request against the pinned official server and selected upstream snapshots | **every server notification**; incremental edit and resolve sequences; **inside a corpus `(file, method)`, everything but the divergent-request count** | [S] [D] |
 | 38 | NAPI `cssHash` | the scope class the callback produces, and the callback's own argument list, against **official** | one component shape and one option set; only `css.code` / the class in `js.code`; nothing about the wasm or facade ports of the same option | [S] |
+| 39 | Template-expression language mode | per-case error `code` (or acceptance) over 16 TypeScript constructs x 35 template slots x 4 script hosts, against the official compiler | the error's **position** and **message**; **accepted output is never compiled to bytes**; `loose` (editor) mode | [D] |
 
 Cross-cutting blind spots (**ratchet keys losing in both directions**, path filters, ratchet-doc
 drift, vacuity floors, the **performance**
@@ -3113,6 +3142,80 @@ reported the disagreement.
 Like gate 22 it exits **2** when `apps/npm/vite-plugin-svelte-native-<triple>/rsvelte.node` is
 absent, which CI treats as a failure but a local run can silently skip. A **stale** addon is worse:
 it loads, and every assertion then measures a binary that predates the change under test.
+
+---
+
+## 39. Template-expression language mode — `crates/rsvelte_core/tests/template_expression_ts_gate.rs`
+
+**Unit.** One `.svelte` source, compiled with default options for `client`, compared to the
+official compiler's error `code` — or to acceptance, when official compiles it. 472 rows in
+`tests/data/template_expression_ts_gate.json`: 16 constructs (TypeScript-only syntax plus a
+plain-JavaScript control) x 35 template slots x 4 hosts (no script, plain `<script>`,
+`<script lang="ts">`, `<script module lang="ts">` only). Hard gate, no ratchet.
+
+**Why it exists.** Upstream picks the acorn variant **once per component** from `parser.ts`;
+rsvelte parsed the component's mode and retried in the other one on failure, so TypeScript-only
+syntax compiled in a component with no `lang="ts"` anywhere (#3261). The retry existed at four
+call sites and the *classification* of a failed template expression at four more, one per
+`LazyKind` — and no gate above compares a rsvelte port to its sibling port, only each to
+upstream on whatever inputs a real file happens to supply.
+
+**The oracle version was measured, not assumed.** The repo has two candidates — the pinned
+`submodules/svelte` (5.56.9), which every gate here reads, and `node_modules/svelte` (5.56.10).
+All 472 rows were re-derived from both: the two oracles disagree with **each other** on 0 rows,
+and each matches the committed JSON on 0 mismatches. So on *this* population the oracle version
+is not a discriminating axis. That is a fact about these 472 rows and not a general one — see
+1d and 5j for the option axis, where it would be.
+
+**Vacuity guard.** `the_population_is_not_degenerate` asserts the row count, the presence of the
+specific discriminating cases, and that **both** verdicts occur — a fixture-driven comparison
+scores "0 compared" as a pass (§ the vacuous green).
+
+### Blind spot 39a — the error's position and message are dropped [S]
+
+`matches_the_official_compiler` compares `code` and nothing else, stated in the file's own
+header. OXC stops consuming where acorn does not, so the span differs on cells this gate calls
+agreement; that is gates 3 and 4's axis, and those populations do not contain these inputs.
+The companion unit test `trailing_token_offset_matches_acorns_stop` pins the *offset* for 17
+inputs, which is the only place in this gate where a position is compared at all.
+
+### Blind spot 39b — an accepted cell is never compiled to bytes [S]
+
+A row whose expectation is `null` asserts that `compile` returned `Ok`. Nothing looks at
+`js.code`. A component that parses in the **right** mode and then generates the **wrong** code
+scores `match` here; that belongs to gate 1, whose corpus contains none of these shapes (the
+constructs are chosen to be TypeScript-in-a-JavaScript-component, which published code does not
+contain — that is the point of generating them).
+
+### Blind spot 39c — one target, one option set [S]
+
+Every row runs `generate: Client`, `dev: false`, `css: External`. The server and client-dev
+targets are not built, so a mode decision that reaches only one of them is unobservable — the
+client/server two-ports shape this repo has paid for repeatedly. `loose` (editor) mode is also
+absent by construction: it keeps a placeholder identifier by design, so every rejecting row
+would score differently and the file says so rather than silently running the default.
+
+### Blind spot 39d — the population is a product the author wrote [D]
+
+The 5 axes are hand-declared, so a slot nobody listed is not covered. This is the standing limit
+on every generated family (AGENTS.md records #2535, where a css-prune grid was green on all
+1,955 rows while three real components reproduced the defect). Discriminating case from this
+gate's own construction: `each-pattern-default` appears **24** times where the sibling slots
+appear 12, because a *destructuring default* had to be crossed with the pattern's host
+separately — and that was the slot carrying 10 of the 38 divergences the gate found on #3351's
+tree. The 4 pattern-default slots and `debug-tag` were absent from the grid the issue shipped
+with; nothing structural stopped the same omission here.
+
+### Blind spot 39e — it scores accept-vs-reject, so it took a second gate to see over-rejection [D]
+
+This row is the worked example for § the one-directional verdict vocabulary. The gate's verdict
+is "does rsvelte's `code` equal official's", which **does** admit both directions — but the
+*grid the issue shipped* did not, and the two are easy to conflate when the numbers are quoted
+side by side. Measured: running this gate on #3351's head (a tree whose own grid reported
+330 -> 66 over-acceptances) returns 38 divergences, of which **18 are over-rejections**, 16
+over-acceptances and 4 both-reject-different-code. Twenty-six of the 38 sit in slots the
+originating issue never named. A count of "remaining over-acceptances" is monotone and
+reassuring while the reverse direction moves freely underneath it.
 
 ---
 

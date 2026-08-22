@@ -1498,10 +1498,10 @@ pub fn parse_expression<'a>(
         return Ok(expr);
     }
 
-    // Use known TS mode: parse with TS only if the file uses TypeScript,
-    // otherwise parse as JS directly. Fall back to the other mode only on failure.
-    let result = parse_expression_with_typescript(arena, content, offset, line_offsets, ts)
-        .or_else(|| parse_expression_with_typescript(arena, content, offset, line_offsets, !ts));
+    // Upstream picks ONE parser: `parse_expression_at` reaches acorn-typescript
+    // only when `parser.ts`, so a component with no `lang="ts"` must reject
+    // TypeScript here rather than retry in the other mode.
+    let result = parse_expression_with_typescript(arena, content, offset, line_offsets, ts);
 
     if let Some(expr) = result {
         return Ok(expr);
@@ -1518,7 +1518,7 @@ pub fn parse_expression<'a>(
 
     // Check for parse errors and return them when not in loose mode
     if (!loose || disallow_loose)
-        && let Some((error_msg, _)) = check_js_parse_error_with_pos(content)
+        && let Some((error_msg, _)) = check_js_parse_error_with_pos(content, ts)
     {
         return Err((error_msg, offset));
     }
@@ -1549,49 +1549,44 @@ pub fn parse_destructuring_pattern<'a>(
     content: &str,
     offset: usize,
     line_offsets: &[usize],
+    ts: bool,
 ) -> Option<Expression<'a>> {
-    // Try TypeScript first, then JavaScript
-    for use_typescript in [true, false] {
-        let result = with_oxc_allocator(|allocator| {
-            let source_type = if use_typescript {
-                SourceType::ts()
-            } else {
-                SourceType::mjs()
-            };
+    // The component's mode only. Trying the other one accepts a TypeScript
+    // annotation in a component that never declared `lang="ts"`.
+    let source_type = if ts {
+        SourceType::ts()
+    } else {
+        SourceType::mjs()
+    };
 
-            let mut wrapped = String::with_capacity(content.len() + 12);
-            wrapped.push_str("let ");
-            wrapped.push_str(content);
-            wrapped.push_str(" = null");
-            let parser = OxcParser::new(allocator, &wrapped, source_type);
-            let result = parser.parse();
+    with_oxc_allocator(|allocator| {
+        let mut wrapped = String::with_capacity(content.len() + 12);
+        wrapped.push_str("let ");
+        wrapped.push_str(content);
+        wrapped.push_str(" = null");
+        let parser = OxcParser::new(allocator, &wrapped, source_type);
+        let result = parser.parse();
 
-            if !result.diagnostics.is_empty() {
-                return None;
-            }
-
-            if let Some(oxc_ast::ast::Statement::VariableDeclaration(var_decl)) =
-                result.program.body.first()
-                && let Some(declarator) = var_decl.declarations.first()
-            {
-                let adjusted_offset = offset.wrapping_sub(4);
-                let pattern_node = convert_binding_pattern_for_param_as_node(
-                    arena,
-                    &declarator.id,
-                    adjusted_offset,
-                    line_offsets,
-                );
-                return Some(Expression::from_node(pattern_node));
-            }
-
-            None
-        });
-        if result.is_some() {
-            return result;
+        if !result.diagnostics.is_empty() {
+            return None;
         }
-    }
 
-    None
+        if let Some(oxc_ast::ast::Statement::VariableDeclaration(var_decl)) =
+            result.program.body.first()
+            && let Some(declarator) = var_decl.declarations.first()
+        {
+            let adjusted_offset = offset.wrapping_sub(4);
+            let pattern_node = convert_binding_pattern_for_param_as_node(
+                arena,
+                &declarator.id,
+                adjusted_offset,
+                line_offsets,
+            );
+            return Some(Expression::from_node(pattern_node));
+        }
+
+        None
+    })
 }
 
 /// Parse a JavaScript expression with a known end position.
@@ -1630,9 +1625,7 @@ pub fn parse_expression_with_end<'a>(
         return Ok(expr);
     }
 
-    // Use known TS mode, fall back to other mode on failure
-    let result = parse_expression_with_typescript(arena, content, offset, line_offsets, ts)
-        .or_else(|| parse_expression_with_typescript(arena, content, offset, line_offsets, !ts));
+    let result = parse_expression_with_typescript(arena, content, offset, line_offsets, ts);
 
     if let Some(expr) = result {
         return Ok(expr);
@@ -1646,7 +1639,7 @@ pub fn parse_expression_with_end<'a>(
 
     // Check for parse errors and return them when not in loose mode
     if (!loose || disallow_loose)
-        && let Some((error_msg, _)) = check_js_parse_error_with_pos(content)
+        && let Some((error_msg, _)) = check_js_parse_error_with_pos(content, ts)
     {
         return Err((error_msg, offset));
     }
@@ -1672,7 +1665,7 @@ pub fn parse_expression_with_end<'a>(
 /// the result to `[0, content.len()]`. Acorn reports `err.pos` at the point
 /// where it stopped consuming tokens, which corresponds to the *end* of the
 /// problematic region, not its start.
-pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
+pub fn check_js_parse_error_with_pos(content: &str, ts: bool) -> Option<(String, usize)> {
     let mut wrapped = String::with_capacity(content.len() + 2);
     wrapped.push('(');
     wrapped.push_str(content);
@@ -1732,19 +1725,13 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
         })
     };
 
-    // Try TypeScript first
-    let ts_result = probe(SourceType::ts());
-
-    // No TS errors means valid
-    ts_result.as_ref()?;
-
-    // Try JavaScript
-    let js_result = probe(SourceType::mjs());
-
-    // No JS errors means valid
-    js_result.as_ref()?;
-
-    js_result.or(ts_result)
+    // One mode only. Probing the other as a fallback reports "valid" for
+    // TypeScript-only syntax in a component that never declared `lang="ts"`.
+    probe(if ts {
+        SourceType::ts()
+    } else {
+        SourceType::mjs()
+    })
 }
 
 /// Check whether a parameter list (e.g. snippet params) parses as valid
@@ -1826,36 +1813,94 @@ pub fn check_js_statement_parse_error(content: &str, ts: bool) -> Option<(String
 /// This mirrors upstream Svelte's `read_expression` + `eat(close, true)` flow:
 /// acorn parses one maximal expression, and any leftover surfaces as
 /// `expected_token` while a broken expression surfaces as `js_parse_error`.
-pub fn trailing_token_offset(content: &str) -> Option<usize> {
+pub fn trailing_token_offset(content: &str, ts: bool) -> Option<usize> {
+    let source_type = if ts {
+        SourceType::ts()
+    } else {
+        SourceType::mjs()
+    };
     // Wrap in parens so a *complete* leading expression is consumed greedily and
-    // the first error label lands on the first leftover token. (Parsing the bare
-    // string as a program is unreliable: OXC's statement-level error recovery
-    // folds trailing tokens into one recovered node, hiding the boundary.)
+    // the error label lands on the offending region. (Parsing the bare string as
+    // a program is unreliable: OXC's statement-level error recovery folds
+    // trailing tokens into one recovered node, hiding the boundary.)
     let mut wrapped = String::with_capacity(content.len() + 2);
     wrapped.push('(');
     wrapped.push_str(content);
     wrapped.push(')');
 
-    let probe = |source_type: SourceType| -> Option<usize> {
-        with_oxc_allocator(|allocator| {
-            let result = OxcParser::new(allocator, &wrapped, source_type).parse();
-            let first_error = result.diagnostics.first()?;
-            let label = first_error.labels.first()?;
-            // Map the label's *start* back into `content` (strip the leading `(`).
-            let start = label.offset() as usize;
-            if start == 0 {
-                return None;
+    let label = with_oxc_allocator(|allocator| {
+        let result = OxcParser::new(allocator, &wrapped, source_type).parse();
+        let first_error = result.diagnostics.first()?;
+        let label = first_error.labels.first()?;
+        Some((label.offset() as usize, label.len() as usize))
+    });
+    let (label_offset, label_len) = label?;
+    // Map the label's *start* back into `content` (strip the leading `(`).
+    if label_offset == 0 {
+        return None;
+    }
+    let region_start = label_offset - 1;
+    if region_start >= content.len() {
+        return None;
+    }
+    let region_end = (region_start + label_len).min(content.len());
+
+    // Acorn stops at the first token it cannot consume. OXC labels either that
+    // token or, for a whole construct it understood and then rejected, the
+    // construct itself — so which of the two it is has to be decided before the
+    // label can be read as a stop.
+    let stop = if expression_parses(&content[..region_start], source_type) {
+        // Everything before the label is already a complete expression, so the
+        // label IS the token acorn would have stopped on.
+        region_start
+    } else {
+        // The label covers the construct. Recover acorn's stop by taking the
+        // longest prefix of it that is an expression on its own (`y as string`
+        // -> `y`), then the first token after that prefix.
+        let region = &content[region_start..region_end];
+        let mut consumed = 0usize;
+        for k in 1..=region.len() {
+            if region.is_char_boundary(k) && expression_parses(&region[..k], source_type) {
+                consumed = k;
             }
-            let content_pos = start - 1;
-            // A trailing-token error has leftover input *before* the synthetic
-            // closing `)`; an incomplete expression errors at/after the end.
-            if content_pos >= content.len() {
-                return None;
-            }
-            Some(content_pos)
-        })
+        }
+        // The whole labelled region is an expression and nothing precedes it that
+        // is one, so OXC consumed the region and rejected it on a rule acorn
+        // also applies after consuming (`42 = nope` -> `Assigning to rvalue`).
+        // There is no token it stopped on.
+        if consumed == region.len() {
+            return None;
+        }
+        let kept = region[..consumed].trim_end_ws().len();
+        let rest = &region[kept..];
+        region_start + kept + (rest.len() - rest.trim_start_ws().len())
     };
-    probe(SourceType::ts()).or_else(|| probe(SourceType::mjs()))
+
+    // Leftover input means the caller's close token is missing; an error at or
+    // past the end of the expression means the expression itself is broken.
+    if stop == 0 || stop >= content.trim_end_ws().len() {
+        return None;
+    }
+    // Upstream reaches `eat(close)` only because acorn RETURNED an expression,
+    // so the text before the stop has to be one.
+    expression_parses(&content[..stop], source_type).then_some(stop)
+}
+
+/// Whether `text` on its own is a complete expression in `source_type`.
+fn expression_parses(text: &str, source_type: SourceType) -> bool {
+    if text.trim_ws().is_empty() {
+        return false;
+    }
+    let mut wrapped = String::with_capacity(text.len() + 2);
+    wrapped.push('(');
+    wrapped.push_str(text);
+    wrapped.push(')');
+    with_oxc_allocator(|allocator| {
+        OxcParser::new(allocator, &wrapped, source_type)
+            .parse()
+            .diagnostics
+            .is_empty()
+    })
 }
 
 /// Create an identifier for invalid expressions
@@ -11224,6 +11269,7 @@ pub fn parse_binding_pattern<'a>(
     content: &str,
     offset: usize,
     line_offsets: &[usize],
+    ts: bool,
 ) -> Result<Expression<'a>, crate::error::ParseError> {
     // Check for reserved words in simple identifier contexts
     // (e.g., {#each cases as case} where "case" is a reserved word)
@@ -11254,7 +11300,15 @@ pub fn parse_binding_pattern<'a>(
     }
 
     with_oxc_allocator(|allocator| {
-        let source_type = SourceType::mjs();
+        // The component's mode, not JavaScript: a default value inside the
+        // pattern (`{#each xs as { a = y as T }}`) is an expression, and
+        // upstream's `read_pattern` parses it with the same `parser.ts` every
+        // other template expression gets.
+        let source_type = if ts {
+            SourceType::ts()
+        } else {
+            SourceType::mjs()
+        };
 
         let wrapped = format!("let {} = null", content);
         let parser = OxcParser::new(allocator, &wrapped, source_type);
@@ -12411,6 +12465,44 @@ fn convert_export_named_as_node(
 
 #[cfg(test)]
 mod tests {
+    /// Upstream reaches `eat(close)` only when acorn RETURNED an expression, so
+    /// leftover input is a missing close token and anything else is a
+    /// `js_parse_error`. OXC labels a construct it consumed and then rejected
+    /// (`42 = nope`) the same way it labels a token it could not read (`a b`),
+    /// so both directions are pinned here.
+    #[test]
+    fn trailing_token_offset_matches_acorns_stop() {
+        // (source, js stop, ts stop)
+        let cases: &[(&str, Option<usize>, Option<usize>)] = &[
+            // Consumed and then rejected: acorn throws `Assigning to rvalue`.
+            ("42 = nope", None, None),
+            ("1 + 2 = 3", None, None),
+            ("a, 42 = b", None, None),
+            // A token acorn cannot consume after a complete expression.
+            ("a b", Some(2), Some(2)),
+            ("a bcd", Some(2), Some(2)),
+            ("foo();", Some(5), Some(5)),
+            ("foo() bar", Some(6), Some(6)),
+            ("x.y = 1 z", Some(8), Some(8)),
+            // TypeScript-only syntax stops acorn at the TS token in JS mode and
+            // parses in TS mode.
+            ("y as string", Some(2), None),
+            ("y as unknown as string", Some(2), None),
+            ("y satisfies string", Some(2), None),
+            ("y!", Some(1), None),
+            ("y!.k", Some(1), None),
+            // Broken before any complete expression exists.
+            ("a +", None, None),
+            ("<string>y", None, None),
+            ("f<string>()", None, None),
+            ("((a: string) => a)(\"\")", None, None),
+        ];
+        for (source, js, ts) in cases {
+            assert_eq!(trailing_token_offset(source, false), *js, "js: `{source}`");
+            assert_eq!(trailing_token_offset(source, true), *ts, "ts: `{source}`");
+        }
+    }
+
     use super::*;
 
     #[test]
