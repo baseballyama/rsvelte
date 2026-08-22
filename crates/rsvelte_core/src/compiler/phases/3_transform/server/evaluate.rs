@@ -974,6 +974,7 @@ impl<'a> EvalCtx<'a> {
                         b.name == name
                             && (b.scope_index == 0
                                 || b.scope_index == a.root.instance_scope_index
+                                || b.scope_index == a.root.root_fragment_scope_index
                                 || (template_scopes.contains(&b.scope_index)
                                     && self.template_binding_is_reachable(b.scope_index)))
                     })

@@ -36,7 +36,9 @@ pub fn visit_svelte_head<'a>(node: &SvelteElement<'a>, state: &mut ServerTransfo
     // visited `b.block([...])` directly as the arrow body, so we splice the
     // fragment statements straight in — no extra `{ }` nesting).
     // SvelteHead body is NOT an `is_text_first` parent.
+    let saved_scope = state.enter_template_scope(node.start);
     let body_stmts = build_fragment_body(&node.fragment.nodes, false, false, state);
+    state.restore_scope(saved_scope);
 
     // `($$renderer) => { <body> }`
     let params = b.params(vec![b.id_pat("$$renderer")], None);
