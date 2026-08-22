@@ -269,10 +269,16 @@ sv  .a.svelte-1lj1c2j {color:red;&:hover {color:blue}}
 rs  .a.svelte-1lj1c2j {{color:red;;&:hover {color:blue ;}}
 ```
 
-The rsvelte string is not valid CSS. It is reachable only under `css: 'injected'` (or a custom
+The rsvelte string is not valid CSS — measured, not asserted: **3 opening braces to 2 closing**,
+against official's balanced 2/2. It is reachable only under `css: 'injected'` (or a custom
 element), because that is the only mode in which the minified string lands in `js.code` — under
 the default `external` it goes to `css.code`, which this gate does not read (gate-coverage 5r) and
 `targets.mjs` never leaves `external`. So #3226 had no gate at all before this family.
+
+Reachability is a separate question from correctness, and worth stating because the answer is not
+"exotic": `@rsvelte/vite-plugin-svelte` sets `css` from one flag —
+`const css = preResolveOptions.emitCss ? 'external' : 'injected'` (`utils/options.js:198`) — so
+`emitCss: false` puts every component in a project on this path.
 
 The component exists for that reason. `state-style` ends its declaration with a `;`, which is the
 one spelling the minifier already agrees on — a `css-injected` row against it is green and means
