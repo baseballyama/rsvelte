@@ -5235,6 +5235,17 @@ fn identifier_has_reactive_state(
         }
     }
 
+    // A name assigned after a top-level `await` is written inside the `$.run`
+    // block, so it holds nothing at first render however constant its
+    // initializer is. Upstream models this as `binding.blocker` and keeps the
+    // `template_effect` (with the `$$promises[n]` dependency) rather than
+    // folding the read into a one-shot write.
+    if context.state.blocker_map.borrow().contains_key(name)
+        || context.state.const_blocker_map.borrow().contains_key(name)
+    {
+        return true;
+    }
+
     // Replay Phase 2's scope-correct resolution for this reference.
     // A template declaration (`{@const}` / `{#await}`) that shadows a
     // component-scope binding is invisible to the name-based lookups
@@ -5273,7 +5284,16 @@ fn identifier_has_reactive_state(
 
         // Check if this is a Derived binding - if so, skip the early return
         // and fall through to the detailed binding kind check below.
-        let is_derived = resolved.is_some_and(|b| matches!(b.kind, BindingKind::Derived));
+        // `accessors` (which `customElement` turns on) installs a transform for a
+        // plain `$state` too. Upstream decides the READ from `scope.evaluate`, never
+        // from the lowered declaration form, so these fall through to the
+        // binding-kind check below instead of answering `transform.is_reactive`.
+        let is_derived = resolved.is_some_and(|b| {
+            matches!(
+                b.kind,
+                BindingKind::Derived | BindingKind::State | BindingKind::RawState
+            )
+        });
         if !is_derived {
             // For Template bindings (@const), check if the initial value is known
             // instead of blindly using transform.is_reactive.
@@ -5349,13 +5369,7 @@ fn identifier_has_reactive_state(
             // If the binding has a stored initial expression (the $derived argument),
             // parse it as JSON and check if it can be evaluated at compile time.
             // This approximates scope.evaluate().is_known from the official compiler.
-            if let Some(initial_json) = binding.initial_json() {
-                // Check if the expression is "known" (compile-time evaluable)
-                // If known, the derived value is effectively constant → not reactive
-                return !is_expression_known_json(initial_json, context);
-            }
-            // If no initial or couldn't parse, conservatively treat as reactive
-            return true;
+            return !binding_initial_is_known(binding, context);
         }
 
         // For Template bindings (@const tag), apply the same scope.evaluate()
@@ -5389,13 +5403,19 @@ fn identifier_has_reactive_state(
         // NOT when initial_is_defined is false. The latter can be false for
         // `$state(member.expr)` where the arg might evaluate to undefined at
         // runtime, but the binding is still reactive via $.proxy() wrapping.
+        // A bare `$state()` has no initializer, so upstream's `scope.evaluate`
+        // answers `undefined` — a known constant — and the READ is not reactive.
+        // This used to ask `is_state_source`, which also answers `accessors`
+        // (which `customElement` turns on); that term decides the lowered
+        // DECLARATION (`$.state(void 0)` is still emitted) and must not reach
+        // the read. `immutable` keeps legacy mode on its old answer.
         if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
             && binding.initial_node_type.is_none()
+            && context.state.analysis.immutable
+            && !binding.reassigned
+            && !binding.mutated
         {
-            use crate::compiler::phases::phase3_transform::client::utils::is_state_source;
-            if !is_state_source(binding, context.state.analysis) {
-                return false;
-            }
+            return false;
         }
 
         // For State, RawState, Derived, and Normal bindings:
@@ -6766,6 +6786,23 @@ impl EvalScope for ClientEvalScope<'_, '_> {
 
     fn binding_initial_is_props_id(&self, name: &str) -> bool {
         self.context.state.analysis.props_id.as_deref() == Some(name)
+    }
+}
+
+/// Upstream's `scope.evaluate(binding.initial).is_known`.
+///
+/// `Binding::initial` carries two encodings: the initializer node's JSON, or —
+/// when that initializer is a literal — the literal's own SOURCE TEXT. The text
+/// form is not always valid JSON (`'a'`, `1n`, `` `x` ``), and the forms that do
+/// parse arrive as a bare scalar rather than an estree `Literal` node, so a
+/// non-object parse is the text encoding rather than a failure.
+fn binding_initial_is_known(
+    binding: &crate::compiler::phases::phase2_analyze::scope::Binding,
+    context: &ComponentContext,
+) -> bool {
+    match binding.initial_json().filter(|value| value.is_object()) {
+        Some(json) => is_expression_known_json(json, context),
+        None => is_initial_value_literal_or_known(&binding.initial),
     }
 }
 
