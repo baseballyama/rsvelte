@@ -3198,7 +3198,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 ctx.write_ascii_bytes(b" = ");
                 self.print_expression(init, ctx);
             }
-            total_measure += ctx.measure();
+            total_measure += ctx.measure_with_layout_spaces(&scope);
             any_multiline |= ctx.end_scope(scope);
         }
 
