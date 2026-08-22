@@ -66,9 +66,9 @@ pub fn visit_svelte_element<'a>(
                 let owned = state.allocator.alloc_str(&r);
                 state
                     .reparse_slice_owned(owned)
-                    .unwrap_or_else(|| state.visit_expr(&node.tag))
+                    .unwrap_or_else(|| state.visit_expr_claiming(&node.tag))
             }
-            None => state.visit_expr(&node.tag),
+            None => state.visit_expr_claiming(&node.tag),
         }
     } else {
         // 写经 `context.visit(node.tag)`: the tag expression is visited by the
@@ -76,7 +76,7 @@ pub fn visit_svelte_element<'a>(
         // is read-wrapped (`$.store_get(...)`). Route through `visit_expr` (which
         // applies the read-wrapping pass) rather than the verbatim
         // `reparse_slice` so the store/derived lowering fires.
-        state.visit_expr(&node.tag)
+        state.visit_expr_claiming(&node.tag)
     };
 
     let tag = if state.options.dev {

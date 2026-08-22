@@ -129,7 +129,7 @@ pub fn visit_each_block<'a>(node: &EachBlock<'a>, state: &mut ServerTransformSta
     let collection = if has_await {
         save_wrap_expr_text(state, iterable_src.as_deref().unwrap_or(""))
     } else {
-        state.visit_expr(&node.expression)
+        state.visit_expr_claiming(&node.expression)
     };
     let b = state.b;
 

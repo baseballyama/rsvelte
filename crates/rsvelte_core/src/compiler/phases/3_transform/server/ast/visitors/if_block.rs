@@ -195,7 +195,7 @@ fn build_test<'a>(
     {
         return save_wrap_expr_text(state, text);
     }
-    state.visit_expr(&node.test)
+    state.visit_expr_claiming(&node.test)
 }
 
 /// Build the `else` arm. If `frag` is a single FLATTENABLE `{:else if}` (nested

@@ -121,6 +121,15 @@ impl ChunkRegistry {
         Some(prov_base)
     }
 
+    /// A position anchor whose node is a template expression, not a statement.
+    /// The layout keeps a chunk only when a statement reached it or it is
+    /// flagged here, so an expression anchor without the flag is dropped.
+    pub fn register_expression_position(&mut self, text: &str) -> Option<u32> {
+        let base = self.register_position(text)?;
+        self.chunks.last_mut()?.expression_anchor = true;
+        Some(base)
+    }
+
     pub fn is_empty(&self) -> bool {
         self.chunks.is_empty()
     }

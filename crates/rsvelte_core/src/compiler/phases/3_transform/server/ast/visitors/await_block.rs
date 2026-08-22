@@ -74,7 +74,7 @@ pub fn visit_await_block<'a>(node: &AwaitBlock<'a>, state: &mut ServerTransformS
     let mut expression = if has_await {
         save_wrap_expr_text(state, expr_text.as_deref().unwrap_or(""))
     } else {
-        state.visit_expr(&node.expression)
+        state.visit_expr_claiming(&node.expression)
     };
     // `has_await` → async-IIFE-wrap so `$.await` receives a promise (the inner
     // await is not eagerly awaited).

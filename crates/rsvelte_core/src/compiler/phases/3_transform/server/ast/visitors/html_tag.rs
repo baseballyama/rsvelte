@@ -47,7 +47,7 @@ pub fn visit_html_tag<'a>(tag: &HtmlTag, state: &mut ServerTransformState<'a>) {
     // 写经 `is_async()` = `has_await || has_blockers()`.
     if !has_await && blocker_indices.is_empty() {
         // Sync path: interpolate `$.html(expr)` into the surrounding push.
-        let visited = state.visit_expr(&tag.expression);
+        let visited = state.visit_expr_claiming(&tag.expression);
         let html = state.b.call("$.html", vec![visited]);
         state.template.push(TemplateEntry::Template {
             quasis: vec![String::new(), String::new()],
@@ -62,7 +62,7 @@ pub fn visit_html_tag<'a>(tag: &HtmlTag, state: &mut ServerTransformState<'a>) {
     let visited = if has_await && state.in_element_children {
         save_wrap_expr_text(state, expr_text.as_deref().unwrap_or(""))
     } else {
-        state.visit_expr(&tag.expression)
+        state.visit_expr_claiming(&tag.expression)
     };
     let b = state.b;
     let html = b.call("$.html", vec![visited]);

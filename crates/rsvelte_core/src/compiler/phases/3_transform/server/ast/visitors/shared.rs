@@ -659,7 +659,7 @@ enum SeqNode<'n> {
 /// — and the store arm builds the whole `$.store_get(...)` call fresh, so
 /// neither gives esrap's cursor a stop here. Every other read keeps the source
 /// expression's own `loc`.
-fn read_loses_its_location(state: &ServerTransformState<'_>, source: &str) -> bool {
+pub(crate) fn read_loses_its_location(state: &ServerTransformState<'_>, source: &str) -> bool {
     let name = source.trim();
     if !is_plain_identifier(name) {
         return false;
@@ -779,13 +779,7 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                     continue;
                 }
 
-                let mut visited = state.visit_expr(expr);
-                if !state
-                    .expr_source(expr)
-                    .is_some_and(|src| read_loses_its_location(state, src))
-                {
-                    state.claim_deferred_tail_comment(&mut visited);
-                }
+                let visited = state.visit_expr_claiming(expr);
                 let escaped = state.b.call("$.escape", vec![visited]);
                 exprs.push(escaped);
                 quasis.push(String::new());

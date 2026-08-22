@@ -87,6 +87,8 @@ pub fn visit_render_tag<'a>(node: &RenderTag, state: &mut ServerTransformState<'
     // `$.store_get($$store_subs ??= {}, "$snippet", snippet)`.
     let mut callee_expr = state.reparse_slice(c_start, c_end);
     state.wrap_reads_in_place(&mut callee_expr);
+    let callee_source = source_slice(state, c_start, c_end);
+    state.claim_on_visited(callee_source.as_deref(), &mut callee_expr);
 
     // 写经 `optimiser.transform(context.visit(callee), …)`: feed the callee through
     // a fresh `PromiseOptimiser` so a callee reading a top-level-await blocker

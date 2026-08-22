@@ -230,6 +230,9 @@ pub struct ServerTransformState<'a> {
     /// rebuilds loc-less. Their final anchor is decided after the reordered
     /// script body is assembled.
     pub pending_tail_comments: Vec<PendingTailComment>,
+    /// Only the first template expression stands where esrap's cursor next finds
+    /// a location, so only it may flush the script's trailing run.
+    tail_anchor_claimed: bool,
     /// Set when [`Self::reparse_program`] rejected text this compiler generated.
     /// The instance body cannot be reconstructed after that, so assembly aborts
     /// instead of shipping a component whose `<script>` silently did nothing.
@@ -329,6 +332,7 @@ impl<'a> ServerTransformState<'a> {
             current_scope_index: analysis.root.instance_scope_index,
             comments: comments::ChunkRegistry::default(),
             pending_tail_comments: Vec::new(),
+            tail_anchor_claimed: false,
             reparse_failure: std::cell::RefCell::new(None),
         }
     }
@@ -370,11 +374,25 @@ impl<'a> ServerTransformState<'a> {
     /// esrap's cursor writes the whole run before the next node it finds a
     /// location on. A comment a script successor already took is not among them.
     pub fn claim_deferred_tail_comment(&mut self, expression: &mut OxcExpression<'a>) {
+        if std::mem::replace(&mut self.tail_anchor_claimed, true) {
+            return;
+        }
         if self
             .pending_tail_comments
             .iter()
             .all(|comment| comment.replay_at_tail)
         {
+            // Nothing deferred, but a reordered `$:` body sends esrap's cursor
+            // backwards over a comment a script successor already printed, which
+            // makes it pending again. Anchoring the expression past the whole
+            // buffer is what flushes it here rather than at the component's end.
+            self.pending_tail_comments.clear();
+            if !self.comments.is_empty()
+                && let Some(base) = self.comments.register_expression_position(" ")
+            {
+                let mut place = comments::Place::At(base);
+                place.visit_expression(expression);
+            }
             return;
         }
         let mut text = String::from("x");
@@ -721,6 +739,27 @@ impl<'a> ServerTransformState<'a> {
             return None;
         }
         Some(&self.source[start..end])
+    }
+
+    /// Visit a template expression that is PRINTED, letting it claim the
+    /// script's trailing comment run: esrap flushes pending comments at the next
+    /// node it finds a location on, and a printed template expression is that
+    /// node. A read `build_getter` replaces wholesale has no location of its own,
+    /// so it is not one.
+    pub fn visit_expr_claiming(&mut self, expr: &Expression) -> OxcExpression<'a> {
+        let mut visited = self.visit_expr(expr);
+        let source = self.expr_source(expr).map(str::to_owned);
+        self.claim_on_visited(source.as_deref(), &mut visited);
+        visited
+    }
+
+    /// [`Self::visit_expr_claiming`] for a caller that built the expression from
+    /// a source slice rather than from a template [`Expression`].
+    pub fn claim_on_visited(&mut self, source: Option<&str>, visited: &mut OxcExpression<'a>) {
+        if source.is_some_and(|src| visitors::shared::read_loses_its_location(self, src)) {
+            return;
+        }
+        self.claim_deferred_tail_comment(visited);
     }
 
     pub fn visit_expr(&self, expr: &Expression) -> OxcExpression<'a> {

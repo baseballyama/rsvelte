@@ -154,7 +154,7 @@ fn visit_spread<'a>(
     spread: &SpreadAttribute,
     state: &mut ServerTransformState<'a>,
 ) -> OxcExpression<'a> {
-    state.visit_expr(&spread.expression)
+    state.visit_expr_claiming(&spread.expression)
 }
 
 /// `build_attribute_value(value, …, is_component = true)` for slot props: raw
@@ -167,12 +167,14 @@ fn slot_attribute_value<'a>(
 ) -> OxcExpression<'a> {
     match value {
         AttributeValue::True(_) => state.b.bool(true),
-        AttributeValue::Expression(tag) => state.visit_expr(&tag.expression),
+        AttributeValue::Expression(tag) => state.visit_expr_claiming(&tag.expression),
         AttributeValue::Sequence(parts) => {
             if parts.len() == 1 {
                 return match &parts[0] {
                     AttributeValuePart::Text(t) => state.b.string(t.data.as_ref()),
-                    AttributeValuePart::ExpressionTag(tag) => state.visit_expr(&tag.expression),
+                    AttributeValuePart::ExpressionTag(tag) => {
+                        state.visit_expr_claiming(&tag.expression)
+                    }
                 };
             }
             // Mixed run → template literal with `scope.evaluate` constant-folding
@@ -202,7 +204,7 @@ fn slot_attribute_value<'a>(
                             }
                             continue;
                         }
-                        let visited = state.visit_expr(&tag.expression);
+                        let visited = state.visit_expr_claiming(&tag.expression);
                         let emitted = if evaluation.is_string() && evaluation.is_defined() {
                             visited
                         } else {
