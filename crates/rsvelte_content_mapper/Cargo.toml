@@ -1,0 +1,28 @@
+[package]
+name = "rsvelte_content_mapper"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+description = "TypeScript content mapper that teaches tsc/tsgo to read .svelte files"
+license = "MIT"
+repository = "https://github.com/baseballyama/rsvelte"
+homepage = "https://baseballyama.github.io/rsvelte/"
+publish = false
+autobins = false
+autobenches = false
+
+[lib]
+crate-type = ["rlib"]
+
+[[bin]]
+name = "rsvelte-content-mapper"
+path = "src/main.rs"
+
+[dependencies]
+rsvelte_projection = { path = "../rsvelte_projection" }
+rayon = "1.10"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[lints]
+workspace = true
