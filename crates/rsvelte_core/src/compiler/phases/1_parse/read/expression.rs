@@ -222,6 +222,7 @@ fn record_oxc_comment(
         end: end as u32,
         value: compact_str::CompactString::from(value),
         loc,
+        loc_has_character: false,
     });
 }
 
@@ -4342,6 +4343,26 @@ pub fn create_identifier_with_character<'a>(
         optional: false,
         type_annotation: None,
     })
+}
+
+/// Re-emit an `Identifier`'s `loc` the way upstream's `Parser.read_identifier`
+/// builds it — from `locate-character`, so it carries `character`. Anything the
+/// JS parser produced keeps acorn's `{line, column}` and passes through.
+pub fn with_read_identifier_loc<'a>(
+    expr: Expression<'a>,
+    line_offsets: &[usize],
+) -> Expression<'a> {
+    if expr.node_type() != Some("Identifier") {
+        return expr;
+    }
+    let mut node = expr.as_node().into_owned();
+    if let JsNode::Identifier {
+        start, end, loc, ..
+    } = &mut node
+    {
+        *loc = create_typed_loc_with_character(*start as usize, *end as usize, line_offsets);
+    }
+    Expression::from_node(node)
 }
 
 /// Create an identifier WITHOUT a loc field.
