@@ -9,6 +9,7 @@
 
 use crate::ast::arena::ParseArena;
 use crate::ast::template::TemplateNode;
+use crate::compiler::phases::phase1_parse::utils::is_reserved;
 use crate::compiler::phases::phase2_analyze::scope::{Binding, Scope, ScopeRoot};
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::client::transform_template::Template;
@@ -2841,7 +2842,7 @@ impl Memoizer {
         // success.
         {
             let mut conflicts = self.conflicts.borrow_mut();
-            if !conflicts.contains(sanitized) {
+            if !conflicts.contains(sanitized) && !is_reserved(sanitized) {
                 conflicts.insert(sanitized.to_string());
                 return sanitized.to_string();
             }
@@ -2894,7 +2895,7 @@ impl Memoizer {
         // `insert` that tests and records the suffixed name in one hash.
         {
             let mut conflicts = self.conflicts.borrow_mut();
-            if !conflicts.contains(sanitized.as_str()) {
+            if !conflicts.contains(sanitized.as_str()) && !is_reserved(&sanitized) {
                 conflicts.insert(sanitized.clone());
                 return sanitized;
             }
