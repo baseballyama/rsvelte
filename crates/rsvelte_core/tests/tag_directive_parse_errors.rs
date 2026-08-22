@@ -38,15 +38,12 @@ fn try_compile(src: &str) -> Result<(), (String, usize, usize)> {
                 .span
                 .map(|(s, _)| rsvelte_core::compiler::source_position(src, s))
                 .expect("a coded parse error carries a span");
-            (
+            Err((
                 d.code.unwrap_or_else(|| "<uncoded>".to_string()),
                 start.line,
                 start.column,
-            )
-                .into()
+            ))
         }
-        .map(|_: ()| ())
-        .map_err(|e| e),
     }
 }
 
