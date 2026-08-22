@@ -5,6 +5,7 @@ use std::fmt::Write as _;
 
 use super::REGEX_INVALID_IDENTIFIER_CHARS;
 use super::expression_needs_proxy;
+use crate::compiler::phases::phase1_parse::parser::is_js_whitespace;
 use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
 use crate::compiler::phases::phase3_transform::shared::class_body::split_class_members_onto_lines;
 use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
@@ -14,6 +15,88 @@ use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
 /// skipping `)` inside strings / template literals / regex / comments (H-058).
 fn find_matching_paren_lexical(s: &str) -> Option<usize> {
     find_matching_bracket(s, 0, '(')
+}
+
+/// Byte offset of the first character after `from` that is neither JS whitespace
+/// nor a comment. `parse_state_field` reads the initializer with
+/// `is_whitespace`, so the gate that decides whether to call it has to be at
+/// least as permissive or the field is never seen.
+fn skip_ws_and_comments(s: &str, mut from: usize) -> usize {
+    loop {
+        let rest = &s[from..];
+        let ws = rest.len() - rest.trim_start_matches(is_js_whitespace).len();
+        from += ws;
+        let rest = &s[from..];
+        if let Some(inner) = rest.strip_prefix("/*") {
+            match memmem::find(inner.as_bytes(), b"*/") {
+                Some(end) => from += 2 + end + 2,
+                None => return s.len(),
+            }
+        } else {
+            return from;
+        }
+    }
+}
+
+/// Whether `line` holds `= <rune>(` or `= <rune><` with any run of JS whitespace
+/// and block comments between. Matching two literal spellings (`"= $state("`
+/// and `"=$state("`) missed a tab, a second space, a wrapped initializer and
+/// every non-ASCII JS space.
+fn has_rune_after_eq(line: &str, rune_type: &str) -> bool {
+    let bytes = line.as_bytes();
+    let mut from = 0;
+    while let Some(rel) = memmem::find(&bytes[from..], b"=") {
+        let eq = from + rel;
+        let init = skip_ws_and_comments(line, eq + 1);
+        if let Some(after) = line[init..].strip_prefix(rune_type)
+            && (after.starts_with('(') || after.starts_with('<'))
+        {
+            return true;
+        }
+        from = eq + 1;
+    }
+    false
+}
+
+/// Byte offset of the first `=` in `s` that is an assignment rather than part of
+/// `==`, `===`, `=>`, `!=`, `<=` or `>=`.
+fn find_assignment_eq(s: &str) -> Option<usize> {
+    let bytes = s.as_bytes();
+    let mut from = 0;
+    while let Some(rel) = memmem::find(&bytes[from..], b"=") {
+        let i = from + rel;
+        let prev = i.checked_sub(1).map(|p| bytes[p]);
+        let next = bytes.get(i + 1).copied();
+        if !matches!(prev, Some(b'=' | b'!' | b'<' | b'>')) && !matches!(next, Some(b'=' | b'>')) {
+            return Some(i);
+        }
+        from = i + 1;
+    }
+    None
+}
+
+/// The comment text a source wrote between `=` and the rune, normalised to end
+/// in one space. Whitespace-only separators return empty, so the common case
+/// stays byte-identical to the single-space spelling upstream emits.
+fn separator_comment(between: &str) -> String {
+    let t = between.trim_matches(is_js_whitespace);
+    if t.is_empty() {
+        String::new()
+    } else {
+        format!("{} ", t)
+    }
+}
+
+/// Whether `line` is the head of a field whose initializer starts on a later
+/// line, so the multi-line accumulator below has to be entered even though this
+/// line names no rune. `==`, `=>`, `!=`, `<=` and `>=` are not assignments.
+fn ends_with_assignment_eq(line: &str) -> bool {
+    let head = line.trim_end_matches(is_js_whitespace);
+    let head = match head.strip_suffix('=') {
+        Some(h) => h,
+        None => return false,
+    };
+    !matches!(head.as_bytes().last(), Some(b'=' | b'!' | b'<' | b'>'))
 }
 
 /// Given `s` positioned just after an opening `<` in a TypeScript generic type
@@ -446,6 +529,10 @@ pub(super) struct ClassStateField {
     /// just the bare `#x;` declaration — identical to the kept member — with no
     /// accessor). Defaults to `false`.
     pub(super) had_class_body_decl: bool,
+    /// Text the source wrote between `=` and the rune, normalised to end in one
+    /// space. Empty unless a comment sits there — upstream keeps it, and it is
+    /// the only separator a formatter does not collapse to a plain space.
+    pub(super) init_prefix: String,
     /// A leading comment that belongs in the synthesized backing field value.
     pub(super) trailing_comment: Option<String>,
 }
@@ -529,8 +616,8 @@ pub(super) fn emit_class_field(
         };
         let _ = writeln!(
             output,
-            "{}{} = {}$.state({});",
-            indent, private_name, comment_infix, wrapped_value
+            "{}{} = {}{}$.state({});",
+            indent, private_name, comment_infix, field.init_prefix, wrapped_value
         );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
@@ -550,8 +637,8 @@ pub(super) fn emit_class_field(
     } else if field.rune_type == "$state.raw" || field.rune_type == "$state.frozen" {
         let _ = writeln!(
             output,
-            "{}{} = {}$.state({});",
-            indent, private_name, comment_infix, field.value
+            "{}{} = {}{}$.state({});",
+            indent, private_name, comment_infix, field.init_prefix, field.value
         );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
@@ -621,8 +708,8 @@ pub(super) fn emit_class_field(
         let derived_expr = transform_class_methods(&field.value, all_fields);
         let _ = writeln!(
             output,
-            "{}{} = {}$.derived({});",
-            indent, private_name, comment_infix, derived_expr
+            "{}{} = {}{}$.derived({});",
+            indent, private_name, comment_infix, field.init_prefix, derived_expr
         );
         if !field.is_private {
             let getter_name = format_getter_name(&field.name);
@@ -1076,15 +1163,8 @@ fn transform_class_fields_client_with_options(
 
                 let mut parsed_as_rune = false;
                 for &(rune_type, _) in &rune_types_list {
-                    let pattern_eq = format!("= {}(", rune_type);
-                    let pattern_nospace = format!("={}(", rune_type);
-                    // Also match TypeScript generic forms: `= $state<T>(` / `= $state.raw<T>(`
-                    let pattern_eq_generic = format!("= {}<", rune_type);
-                    let pattern_nospace_generic = format!("={}<", rune_type);
-                    let has_pattern = trimmed.contains(&pattern_eq)
-                        || trimmed.contains(&pattern_nospace)
-                        || trimmed.contains(&pattern_eq_generic)
-                        || trimmed.contains(&pattern_nospace_generic);
+                    let has_pattern =
+                        has_rune_after_eq(trimmed, rune_type) || ends_with_assignment_eq(trimmed);
                     if !has_pattern {
                         continue;
                     }
@@ -1698,7 +1778,8 @@ pub(super) fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStat
     // Upstream reads the initializer NODE, so only a rune that IS the whole
     // initializer creates a field — one nested anywhere inside it belongs to
     // some other declaration, as in `inner = new (class { d = $state(1); })()`.
-    let init_start = name_end + 1 + trimmed[name_end + 1..].find(|c: char| !c.is_whitespace())?;
+    let init_start = skip_ws_and_comments(trimmed, name_end + 1);
+    let init_prefix = separator_comment(&trimmed[name_end + 1..init_start.min(trimmed.len())]);
     if rune_start != init_start {
         return None;
     }
@@ -1737,6 +1818,7 @@ pub(super) fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStat
         constructor_declared: false,
         had_class_body_decl: false,
         trailing_comment: None,
+        init_prefix,
     })
 }
 
@@ -1749,8 +1831,8 @@ pub(super) fn parse_constructor_state_assignment(
 
     let (is_private, name) = if trimmed.starts_with("this.") {
         // Handle `this.name = $state(...)` or `this.#name = $state(...)`
-        let eq_pos = memmem::find(trimmed.as_bytes(), b" = ")?;
-        let field_part = &trimmed[5..eq_pos];
+        let eq_pos = find_assignment_eq(trimmed)?;
+        let field_part = trimmed[5..eq_pos].trim_matches(is_js_whitespace);
         let is_priv = field_part.starts_with('#');
         let n = field_part.trim_start_matches('#').to_string();
         (is_priv, n)
@@ -1778,8 +1860,10 @@ pub(super) fn parse_constructor_state_assignment(
         return None;
     };
 
-    let eq_pos = memmem::find(trimmed.as_bytes(), b" = ")?;
-    let rhs = trimmed[eq_pos + 3..].trim();
+    let eq_pos = find_assignment_eq(trimmed)?;
+    let init_start = skip_ws_and_comments(trimmed, eq_pos + 1);
+    let init_prefix = separator_comment(&trimmed[eq_pos + 1..init_start]);
+    let rhs = trimmed[init_start..].trim_matches(is_js_whitespace);
 
     let already_exists = existing_fields.iter().any(|f| f.name == name);
     if already_exists {
@@ -1815,6 +1899,7 @@ pub(super) fn parse_constructor_state_assignment(
         constructor_declared: true,
         had_class_body_decl: false,
         trailing_comment: None,
+        init_prefix,
     })
 }
 
@@ -2354,10 +2439,15 @@ pub(super) fn transform_constructor_assignment(
         for (pattern, rune_type) in rune_patterns {
             let mut matched = false;
             for this_prefix in &this_prefixes {
-                let assign_pattern = format!("{} = {}", this_prefix, pattern);
-                if result.starts_with(&assign_pattern)
-                    || result.trim_end_matches(';').starts_with(&assign_pattern)
-                {
+                let Some(after_target) = result.strip_prefix(this_prefix.as_str()) else {
+                    continue;
+                };
+                let eq = skip_ws_and_comments(after_target, 0);
+                let Some(after_eq) = after_target[eq..].strip_prefix('=') else {
+                    continue;
+                };
+                let init = skip_ws_and_comments(after_eq, 0);
+                if after_eq[init..].starts_with(pattern) {
                     matched = true;
                     break;
                 }
@@ -2398,7 +2488,10 @@ pub(super) fn transform_constructor_assignment(
                         "$derived.by" => format!("$.derived({})", value),
                         _ => format!("$.state({})", value),
                     };
-                    return format!("{} = {};", private_name, transformed_rhs);
+                    return format!(
+                        "{} = {}{};",
+                        private_name, field.init_prefix, transformed_rhs
+                    );
                 }
             }
         }

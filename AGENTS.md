@@ -240,6 +240,15 @@ same string for every push to `main`, so at a high merge rate each merge cancell
 predecessor and `main` carried no verdict at all. **A cancelled run and a green run are
 indistinguishable in the branch header.**
 
+**And a cancelled run also shows up RED, where it is indistinguishable from a real regression.**
+`Tests` is a rollup job that reads its shards' `result`s and exits 1 unless every one is
+`success` — so a cancellation makes the rollup `FAILURE` while every shard under it is
+`cancelled`. Measured on four PRs during a mass `gh run cancel`: each reported 1–2 `FAILURE`
+against 28–54 `CANCELLED`, and the failing job's log was `BULK: cancelled UNIT: cancelled …`
+with no test output at all. So the check name and the conclusion together are not enough —
+read the rollup's step env before concluding a branch is broken, and never re-baseline or
+"fix" anything off a red rollup whose shards never ran.
+
 ### Corpus output-equality pipeline (`scripts/compat-corpus/`)
 
 Every `.svelte` / `.svelte.(js|ts)` source (including markdown code blocks) from every corpus

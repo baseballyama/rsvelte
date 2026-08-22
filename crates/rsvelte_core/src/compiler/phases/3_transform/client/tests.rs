@@ -2412,6 +2412,7 @@ fn a_private_state_read_stops_at_a_non_ascii_identifier_character() {
         constructor_declared: false,
         had_class_body_decl: false,
         trailing_comment: None,
+        init_prefix: String::new(),
     };
 
     for rune in ["$state", "$derived"] {

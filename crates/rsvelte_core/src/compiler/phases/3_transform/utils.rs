@@ -1274,7 +1274,12 @@ fn scan_nodes_for_namespace(nodes: &[TemplateNode], ns: &mut NsScan) -> bool {
 /// so collapsing the call whitespace is always semantics-preserving.
 pub(crate) fn canonicalize_props_call(s: &str) -> Cow<'_, str> {
     static REGEX_PROPS_ASSIGN: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
-        regex::Regex::new(r"=\s*(?:(?://[^\n]*\n|/\*(?s:.*?)\*/\s*))*\$props\s*\(\s*\)").unwrap()
+        // `[\s\u{feff}]` rather than `\s`: JS counts U+FEFF as whitespace and
+        // Unicode's `White_Space` property, which Rust's `\s` follows, does not.
+        regex::Regex::new(
+            r"=[\s\u{feff}]*(?:(?://[^\n]*\n|/\*(?s:.*?)\*/[\s\u{feff}]*))*\$props[\s\u{feff}]*\([\s\u{feff}]*\)",
+        )
+        .unwrap()
     });
     // `$$` is the regex-crate escape for a literal `$` in the replacement
     // string (a bare `$props` would be read as a capture-group reference).
@@ -1355,6 +1360,11 @@ mod tests {
             "let { x = 1 } = $props()"
         );
         assert_eq!(canonicalize_props_call("let y = 5"), "let y = 5");
+        // U+FEFF is whitespace to JS but not to Unicode's `White_Space`.
+        assert_eq!(
+            canonicalize_props_call("let { x } =\u{feff}$props()"),
+            "let { x } = $props()"
+        );
     }
 
     #[test]
