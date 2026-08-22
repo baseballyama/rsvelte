@@ -54,7 +54,7 @@ Everything under `.instance` / `.module` other than a `body:length` (cluster 5) 
   on a `function` statement, a missing `returnType`. The linter and svelte2tsx read the same
   serialized program, so these are not parse-only.
 
-## 3. `loc.*.character` — 392
+## 3. `loc.*.character` — 392 (#3489)
 
 Official's `loc` positions come from two different producers and rsvelte follows neither
 consistently: `locate-character`'s locator returns `{ line, column, character }`, while acorn's
@@ -63,7 +63,7 @@ expression's `loc` and **not** on `Root.comments[].loc`, and rsvelte has it exac
 round — 392 entries split between `:missing` (rsvelte lacks it where official has it) and
 `:extra` (rsvelte emits it where official does not). `crates/rsvelte_core/tests/parser_fixtures.rs`
 strips `character` from every `loc` before comparing, which is why the fixture suite is 100% while
-this class exists.
+this class exists. Tracked as #3489.
 
 ## 4. CSS — 201
 
