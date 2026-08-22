@@ -46,6 +46,7 @@ mod reactive_update_ast;
 mod read_only_props_ast;
 mod rest_prop_member_access_ast;
 mod rune_transforms;
+pub(crate) mod source_anchor;
 mod scan_index;
 mod scope_analysis;
 mod state_assigns_combined_ast;
@@ -490,6 +491,7 @@ pub(crate) fn transform_client(
         preserve_comments: options.preserve_comments,
         experimental_async: options.experimental.r#async,
         hmr: options.hmr,
+        source: source.into(),
     });
 
     // Create the component client transform state

@@ -661,6 +661,22 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         ))
     }
 
+    /// Append a retained island's own source to the comment buffer, so the
+    /// statements cloned out of it carry buffer locations instead of `.svelte`
+    /// offsets. Returns the shift to apply to their (already absolute) spans.
+    fn open_island_region(&self, island: &AstIsland<'_>) -> Option<u32> {
+        let mut synth = self.synth.borrow_mut();
+        if !synth.enabled {
+            return None;
+        }
+        let text = island.program.source();
+        let base = synth.cursor();
+        synth.source.push_str(text);
+        synth.source.push('\n');
+        synth.open_source_region = None;
+        base.checked_sub(island.source_offset)
+    }
+
     fn trailing_comment_anchor(&self, source_offset: Option<u32>) -> Span {
         let Some(anchor) = source_offset else {
             return SPAN;
@@ -1631,13 +1647,15 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             note_fallback("chunk-parse");
             return None;
         }
-        if ret.program.comments.is_empty() {
+        if ret.program.comments.is_empty() && !self.synth.borrow().enabled {
             // Chunk-local spans stay below `loc_base`, so they read as "no
             // location"; record the bound the second pass has to clear.
             self.note_span(text.len() as u32);
             return Some(ret.program.body.into_iter().collect());
         }
-        self.synth.borrow_mut().saw_comments = true;
+        if !ret.program.comments.is_empty() {
+            self.synth.borrow_mut().saw_comments = true;
+        }
         if !self.synth.borrow().enabled {
             // Probe pass: the comments are dropped here, but the result is
             // discarded — it only tells the driver a second pass is needed.
@@ -1718,6 +1736,11 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                 let program = island
                     .program
                     .clone_program_into_at(self.ab.allocator(), island.source_offset);
+                // Upstream keeps every retained node's `loc`, so a body it prints
+                // re-syncs the comment cursor; an island's spans index the
+                // `.svelte` source instead, which reads as "no location" and
+                // KILLS the cursor before anything later can flush.
+                let shift = self.open_island_region(island);
                 Some(
                     program
                         .body
@@ -1729,6 +1752,12 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                                 .binary_search(&index)
                                 .ok()
                                 .map(|_| statement)
+                        })
+                        .map(|mut statement| {
+                            if let Some(shift) = shift {
+                                ShiftSpans(shift).visit_statement(&mut statement);
+                            }
+                            statement
                         })
                         .collect(),
                 )
