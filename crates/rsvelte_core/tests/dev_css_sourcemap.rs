@@ -109,3 +109,182 @@ fn a_partially_pruned_selector_list_keeps_its_segments() {
         "got:\n{map}"
     );
 }
+
+/// Every expected `mappings` below is what the pinned official compiler emits
+/// for the same source with `dev: true`, `filename: "Child.svelte"`.
+fn assert_mappings(source: &str, expected: &str) {
+    let map = injected_css(source);
+    assert!(
+        map.contains(&format!("\"mappings\":\"{expected}\"")),
+        "expected {expected}\ngot:\n{map}"
+    );
+}
+
+#[test]
+fn a_nested_rule_maps_its_declarations() {
+    assert_mappings(
+        r#"<svelte:options css="injected" />
+
+<div class="a"><b class="b">b</b></div>
+
+<style>
+	.a {
+		color: red;
+		& .b { color: blue }
+	}
+</style>
+"#,
+        ";AAKA,CAAC,gBAAE,CAAC;AACJ,EAAE,UAAU;AACZ,EAAE,CAAC,CAAC,wBAAE,CAAC,EAAE,YAAY;AACrB;",
+    );
+}
+
+#[test]
+fn an_at_rule_maps_its_prelude_and_body() {
+    assert_mappings(
+        r#"<svelte:options css="injected" />
+
+<div class="a">a</div>
+
+<style>
+	@media (min-width: 10px) {
+		.a { color: red }
+	}
+</style>
+"#,
+        ";AAKA,CAAC,yBAAyB;AAC1B,EAAE,gBAAE,CAAC,EAAE,WAAW;AAClB;",
+    );
+}
+
+#[test]
+fn an_at_rule_nested_in_a_rule_maps_too() {
+    assert_mappings(
+        r#"<svelte:options css="injected" />
+
+<div class="a">a</div>
+
+<style>
+	.a {
+		@media (min-width: 10px) { color: red }
+	}
+</style>
+"#,
+        ";AAKA,CAAC,gBAAE,CAAC;AACJ,EAAE,yBAAyB,EAAE,WAAW;AACxC;",
+    );
+}
+
+#[test]
+fn a_keyframes_prefix_is_an_insertion_not_a_reset() {
+    assert_mappings(
+        r#"<svelte:options css="injected" />
+
+<div class="a">a</div>
+
+<style>
+	@keyframes k { from { opacity: 0 } }
+	.a { animation: k 1s }
+</style>
+"#,
+        ";AAKA,CAAC,yBAAW;AACZ,CAAC,gBAAE,CAAC,EAAE,yBAAW,KAAK;",
+    );
+}
+
+#[test]
+fn a_nested_keyframes_keeps_the_rest_of_the_stylesheet_mapped() {
+    assert_mappings(
+        r#"<svelte:options css="injected" />
+
+<div class="a">a</div>
+
+<style>
+	.a {
+		@keyframes k { from { opacity: 0 } }
+		animation: k 1s;
+	}
+</style>
+"#,
+        ";AAKA,CAAC,gBAAE,CAAC;AACJ,EAAE,yBAAW;AACb,EAAE,yBAAW,IAAI;AACjB;",
+    );
+}
+
+#[test]
+fn a_removed_global_pseudo_class_leaves_its_selector_mapped() {
+    assert_mappings(
+        r#"<svelte:options css="injected" />
+
+<div class="a">a</div>
+
+<style>
+	:global(.x) { color: red }
+	.a { color: blue }
+</style>
+"#,
+        ";AAKA,CAAS,EAAG,CAAC,EAAE,WAAW;AAC1B,CAAC,gBAAE,CAAC,EAAE,YAAY;",
+    );
+}
+
+#[test]
+fn a_global_pseudo_class_in_a_selector_list_keeps_the_rest_mapped() {
+    assert_mappings(
+        r#"<svelte:options css="injected" />
+
+<div class="a">a</div>
+
+<style>
+	:global(.x), .a { color: red }
+</style>
+"#,
+        ";AAKA,CAAS,EAAG,EAAE,gBAAE,CAAC,EAAE,WAAW;",
+    );
+}
+
+#[test]
+fn a_commented_out_global_block_maps_its_body() {
+    assert_mappings(
+        r#"<svelte:options css="injected" />
+
+<div class="a">a</div>
+
+<style>
+	:global {
+		.x { color: red }
+	}
+	.a { color: blue }
+</style>
+"#,
+        ";AAKA,IAAC,QAAQ;AACT,EAAE,EAAE,CAAC,EAAE,WAAW;AAClB,GAAC;AACD,CAAC,gBAAE,CAAC,EAAE,YAAY;",
+    );
+}
+
+#[test]
+fn nothing_inside_a_keyframes_block_is_marked() {
+    assert_mappings(
+        r#"<svelte:options css="injected" />
+
+<div class="a">a</div>
+
+<style>
+	:global {
+		@keyframes k { from { opacity: 0 } }
+	}
+	.a { animation: k 1s }
+</style>
+"#,
+        ";AAKA,IAAC,QAAQ;AACT,EAAE;AACF,GAAC;AACD,CAAC,gBAAE,CAAC,EAAE,gBAAgB;",
+    );
+}
+
+#[test]
+fn a_passthrough_at_rule_maps_its_declarations() {
+    assert_mappings(
+        r#"<svelte:options css="injected" />
+
+<div class="a">a</div>
+
+<style>
+	@font-face { font-family: x; src: url(a.woff) }
+	.a { color: red }
+</style>
+"#,
+        ";AAKA,CAAC,WAAW,EAAE,cAAc,EAAE,iBAAiB;AAC/C,CAAC,gBAAE,CAAC,EAAE,WAAW;",
+    );
+}

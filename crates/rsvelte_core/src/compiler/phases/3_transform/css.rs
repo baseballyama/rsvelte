@@ -507,11 +507,12 @@ fn render_stylesheet_internal(
         }
 
         // Post-process: replace animation keyframe references. Upstream inserts
-        // the prefix through MagicString, so the mapping is only accurate while
-        // no keyframe reference moved the output.
+        // the prefix with `prependRight`, which splits the chunk it lands in and
+        // maps both halves, so the copies are shifted rather than dropped.
         if !keyframes.is_empty() {
-            writer.text = replace_animation_keyframes(&writer.text, hash, &keyframes);
-            writer.copies.clear();
+            let (text, insertions) = replace_animation_keyframes(&writer.text, hash, &keyframes);
+            writer.text = text;
+            writer.apply_insertions(&insertions);
         }
 
         // Generate CSS source map
@@ -696,9 +697,18 @@ fn is_css_name_boundary(c: char) -> bool {
 /// Replace animation keyframe name references in the CSS output
 /// This follows the official Svelte implementation approach: scan through animation property
 /// values and prefix any tokens that match defined keyframe names.
-fn replace_animation_keyframes(css: &str, hash: &str, keyframes: &FxHashSet<String>) -> String {
+/// Returns the rewritten text and, in ascending order, every `(offset in the
+/// input text, inserted byte length)` — upstream inserts the prefix with
+/// `prependRight`, so the rest of the stylesheet keeps its mapping.
+fn replace_animation_keyframes(
+    css: &str,
+    hash: &str,
+    keyframes: &FxHashSet<String>,
+) -> (String, Vec<(u32, u32)>) {
     let mut result = String::with_capacity(css.len() + keyframes.len() * hash.len() * 2);
     let chars: Vec<char> = css.chars().collect();
+    let mut insertions: Vec<(u32, u32)> = Vec::new();
+    let mut inserted = 0usize;
     let mut i = 0;
 
     while i < chars.len() {
@@ -775,6 +785,8 @@ fn replace_animation_keyframes(css: &str, hash: &str, keyframes: &FxHashSet<Stri
                         // Insert prefix before the name
                         let prefix = format!("{}-", hash);
                         result.insert_str(name_start, &prefix);
+                        insertions.push(((name_start - inserted) as u32, prefix.len() as u32));
+                        inserted += prefix.len();
                     }
                     name.clear();
 
@@ -799,6 +811,8 @@ fn replace_animation_keyframes(css: &str, hash: &str, keyframes: &FxHashSet<Stri
             if !name.is_empty() && keyframes.contains(&name) {
                 let prefix = format!("{}-", hash);
                 result.insert_str(name_start, &prefix);
+                insertions.push(((name_start - inserted) as u32, prefix.len() as u32));
+                inserted += prefix.len();
             }
         } else {
             result.push(chars[i]);
@@ -806,7 +820,7 @@ fn replace_animation_keyframes(css: &str, hash: &str, keyframes: &FxHashSet<Stri
         }
     }
 
-    result
+    (result, insertions)
 }
 
 /// Extract CSS content from source (finds the <style> block)
@@ -907,6 +921,52 @@ impl CssWriter {
     fn mark(&mut self, offset: usize) {
         self.marks.insert(offset as u32);
     }
+
+    /// Re-base the copied runs over text inserted into `self.text` after the
+    /// fact. `insertions` is `(offset in the pre-insertion text, byte length)`
+    /// in ascending order; a run the insertion lands inside becomes two, which
+    /// is what MagicString's chunk split does.
+    fn apply_insertions(&mut self, insertions: &[(u32, u32)]) {
+        if insertions.is_empty() {
+            return;
+        }
+        let mut rebased: Vec<(u32, u32, u32)> = Vec::with_capacity(self.copies.len());
+        for &(gen_start, src_start, len) in &self.copies {
+            let mut shift = 0u32;
+            let mut piece_gen = gen_start;
+            let mut piece_src = src_start;
+            let mut consumed = 0u32;
+            for &(at, ins_len) in insertions {
+                if at <= gen_start {
+                    shift += ins_len;
+                } else if at < gen_start + len {
+                    let cut = at - gen_start;
+                    rebased.push((piece_gen + shift, piece_src, cut - consumed));
+                    shift += ins_len;
+                    piece_gen = gen_start + cut;
+                    piece_src = src_start + cut;
+                    consumed = cut;
+                }
+            }
+            rebased.push((piece_gen + shift, piece_src, len - consumed));
+        }
+        self.copies = rebased;
+    }
+
+    /// Emit `text` as a copy of `src_start` when the source really holds it
+    /// there, and as an insertion otherwise. MagicString maps an unedited chunk
+    /// and nothing else, so a run that was rebuilt rather than kept must not
+    /// claim a source position.
+    fn copy_verbatim(&mut self, css_source: &str, css_start: usize, src_start: usize, text: &str) {
+        if src_start >= css_start
+            && let from = src_start - css_start
+            && css_source.as_bytes().get(from..from + text.len()) == Some(text.as_bytes())
+        {
+            self.copy(src_start, text);
+        } else {
+            self.push_str(text);
+        }
+    }
 }
 
 impl std::fmt::Write for CssWriter {
@@ -948,6 +1008,7 @@ fn emit_selector(
     let emitted = produced.as_bytes();
     let mut runs: Vec<(usize, usize, usize)> = Vec::new();
     let (mut i, mut j) = (0usize, 0usize);
+    let mut open_globals = 0usize;
     'emitted: while j < emitted.len() {
         // `prependRight` / `appendRight` / `appendLeft` insertions carry no
         // segment of their own, so they only move the generated cursor.
@@ -963,6 +1024,32 @@ fn emit_selector(
             {
                 j += inserted.len();
                 continue 'emitted;
+            }
+        }
+        // `:global(…)` and a bare `:global` are `remove`d from the source, so
+        // what follows them is still an unedited chunk and keeps its position.
+        {
+            let mut k = i;
+            if !emitted[j].is_ascii_whitespace() {
+                while k < src.len() && src[k].is_ascii_whitespace() {
+                    k += 1;
+                }
+            }
+            let global_open = b":global(".as_slice();
+            let global_bare = b":global".as_slice();
+            if src[k..].starts_with(global_open) && !emitted[j..].starts_with(global_open) {
+                i = k + global_open.len();
+                open_globals += 1;
+                continue;
+            }
+            if open_globals > 0 && src.get(k) == Some(&b')') && emitted[j] != b')' {
+                i = k + 1;
+                open_globals -= 1;
+                continue;
+            }
+            if src[k..].starts_with(global_bare) && !emitted[j..].starts_with(global_bare) {
+                i = k + global_bare.len();
+                continue;
             }
         }
         // The separator before a pruned selector goes through `overwrite`,
@@ -1017,13 +1104,29 @@ fn mark_tree(output: &mut CssWriter, node: &Value) {
         Value::Object(map) => {
             if map.contains_key("start") && map.contains_key("type") {
                 mark_node(output, node);
-                if map.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                    && !matches!(
-                        map.get("name").and_then(|n| n.as_str()),
-                        Some("is" | "where" | "has" | "not")
-                    )
-                {
-                    return;
+                let name = map.get("name").and_then(|n| n.as_str());
+                match map.get("type").and_then(|t| t.as_str()) {
+                    Some("PseudoClassSelector")
+                        if !matches!(name, Some("is" | "where" | "has" | "not")) =>
+                    {
+                        return;
+                    }
+                    // The Atrule visitor returns before `next()` for keyframes,
+                    // so nothing inside one is ever visited.
+                    Some("Atrule")
+                        if matches!(
+                            name,
+                            Some(
+                                "keyframes"
+                                    | "-webkit-keyframes"
+                                    | "-moz-keyframes"
+                                    | "-o-keyframes"
+                            )
+                        ) =>
+                    {
+                        return;
+                    }
+                    _ => {}
                 }
             }
             for value in map.values() {
@@ -5673,7 +5776,8 @@ fn transform_block_with_nested_rules<'a>(
     let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
     // Output the opening brace
-    output.push('{');
+    mark_node(output, block);
+    output.copy_verbatim(css_source, css_start, block_start, "{");
 
     let mut last_end = block_start + 1; // After the '{'
 
@@ -5691,7 +5795,8 @@ fn transform_block_with_nested_rules<'a>(
                 let ws_end = child_start.saturating_sub(css_start);
                 if ws_end <= css_source.len() && ws_start < ws_end {
                     let gap = &css_source[ws_start..ws_end];
-                    output.push_str(if ctx.minify { gap.trim_end() } else { gap });
+                    let gap = if ctx.minify { gap.trim_end() } else { gap };
+                    output.copy_verbatim(css_source, css_start, last_end, gap);
                 }
             }
 
@@ -5773,7 +5878,8 @@ fn transform_block_with_nested_rules<'a>(
                         let decl_start = child_start.saturating_sub(css_start);
                         let decl_end = child_end.saturating_sub(css_start);
                         if decl_end <= css_source.len() && decl_start < decl_end {
-                            output.push_str(&css_source[decl_start..decl_end]);
+                            mark_node(output, child);
+                            output.copy(child_start, &css_source[decl_start..decl_end]);
                         }
                     }
                 }
@@ -5791,11 +5897,12 @@ fn transform_block_with_nested_rules<'a>(
         let ws_end = (block_end - 1).saturating_sub(css_start); // -1 to exclude the '}'
         if ws_end <= css_source.len() && ws_start < ws_end {
             let gap = &css_source[ws_start..ws_end];
-            output.push_str(if ctx.minify { gap.trim_end() } else { gap });
+            let gap = if ctx.minify { gap.trim_end() } else { gap };
+            output.copy_verbatim(css_source, css_start, last_end, gap);
         }
     }
 
-    output.push('}');
+    output.copy_verbatim(css_source, css_start, block_end.saturating_sub(1), "}");
 }
 
 /// Transform an at-rule that is nested inside a rule's block (e.g. `@media`
@@ -5820,6 +5927,8 @@ fn transform_nested_atrule<'a>(
     let node_start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
     let node_end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
     let name = node.get("name").and_then(|n| n.as_str()).unwrap_or("");
+
+    mark_node(output, node);
 
     let src = |from: usize, to: usize| -> &str {
         let s = from.saturating_sub(css_start);
@@ -5848,18 +5957,18 @@ fn transform_nested_atrule<'a>(
             p_start += 1;
         }
 
-        output.push_str(src(node_start, p_start));
+        output.copy(node_start, src(node_start, p_start));
 
         let prelude = node.get("prelude").and_then(|p| p.as_str()).unwrap_or("");
         if prelude.starts_with("-global-") {
             // Remove the `-global-` prefix
-            output.push_str(src(p_start + 8, node_end));
+            output.copy(p_start + 8, src(p_start + 8, node_end));
         } else {
             if !is_in_bare_global_block {
                 output.push_str(hash);
                 output.push('-');
             }
-            output.push_str(src(p_start, node_end));
+            output.copy(p_start, src(p_start, node_end));
         }
         return;
     }
@@ -5867,7 +5976,8 @@ fn transform_nested_atrule<'a>(
     // Blockless at-rules (e.g. @import) — copy verbatim.
     let block = node.get("block").filter(|b| !b.is_null());
     let Some(block) = block else {
-        output.push_str(src(node_start, node_end));
+        mark_tree(output, node);
+        output.copy(node_start, src(node_start, node_end));
         return;
     };
 
@@ -5875,7 +5985,8 @@ fn transform_nested_atrule<'a>(
     let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
     // `@media (...) {` — copied verbatim from source.
-    output.push_str(src(node_start, block_start + 1));
+    mark_node(output, block);
+    output.copy(node_start, src(node_start, block_start + 1));
 
     let mut last_end = block_start + 1;
 
@@ -5889,7 +6000,8 @@ fn transform_nested_atrule<'a>(
             // only the whitespace run immediately before the child).
             if child_start > last_end {
                 let gap = src(last_end, child_start);
-                output.push_str(if ctx.minify { gap.trim_end() } else { gap });
+                let gap = if ctx.minify { gap.trim_end() } else { gap };
+                output.copy_verbatim(css_source, css_start, last_end, gap);
             }
 
             match child_type {
@@ -5957,7 +6069,8 @@ fn transform_nested_atrule<'a>(
                         // Declaration end position is before the semicolon in our AST
                         output.push(';');
                     } else {
-                        output.push_str(src(child_start, child_end));
+                        mark_node(output, child);
+                        output.copy(child_start, src(child_start, child_end));
                     }
                 }
                 _ => {}
@@ -5971,10 +6084,11 @@ fn transform_nested_atrule<'a>(
     // final whitespace run).
     if block_end > last_end + 1 {
         let gap = src(last_end, block_end - 1);
-        output.push_str(if ctx.minify { gap.trim_end() } else { gap });
+        let gap = if ctx.minify { gap.trim_end() } else { gap };
+        output.copy_verbatim(css_source, css_start, last_end, gap);
     }
 
-    output.push('}');
+    output.copy_verbatim(css_source, css_start, block_end.saturating_sub(1), "}");
 }
 
 /// Transform a :global { ... } block by commenting out the :global wrapper
@@ -5998,12 +6112,18 @@ fn transform_global_block(
         let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
         if !_ctx.minify {
-            // Comment out `:global {`
+            // Comment out `:global {`. Upstream brackets it with `prependRight`
+            // / `appendLeft`, so the wrapper text itself stays a mapped chunk.
             output.push_str("/* ");
             let selector_start = prelude_start.saturating_sub(css_start);
             let open_brace_end = (block_start + 1).saturating_sub(css_start); // Include the '{'
             if open_brace_end <= css_source.len() && selector_start < open_brace_end {
-                output.push_str(&css_source[selector_start..open_brace_end]);
+                // Upstream returns after `visit(node.block)` without calling
+                // `next()`, so the prelude's own nodes are never visited and
+                // carry no `addSourcemapLocation`.
+                mark_node(output, node);
+                mark_node(output, block);
+                output.copy(prelude_start, &css_source[selector_start..open_brace_end]);
             }
             output.push_str("*/");
         }
@@ -6022,7 +6142,7 @@ fn transform_global_block(
                     let ws_start = last_end.saturating_sub(css_start);
                     let ws_end = child_start.saturating_sub(css_start);
                     if ws_end <= css_source.len() && ws_start < ws_end {
-                        output.push_str(&css_source[ws_start..ws_end]);
+                        output.copy(last_end, &css_source[ws_start..ws_end]);
                     }
                 }
 
@@ -6037,12 +6157,13 @@ fn transform_global_block(
                     collect_global_keyframe_prefixes(child, css_source, css_start, &mut cuts);
                     cuts.retain(|&c| c >= child_start_idx && c + 8 <= child_end_idx);
                     cuts.sort_unstable();
+                    mark_tree(output, child);
                     let mut from = child_start_idx;
                     for cut in cuts {
-                        output.push_str(&css_source[from..cut]);
+                        output.copy(from + css_start, &css_source[from..cut]);
                         from = cut + 8;
                     }
-                    output.push_str(&css_source[from..child_end_idx]);
+                    output.copy(from + css_start, &css_source[from..child_end_idx]);
                 }
 
                 last_end = child_end;
@@ -6053,14 +6174,16 @@ fn transform_global_block(
                 let ws_start = last_end.saturating_sub(css_start);
                 let ws_end = (block_end - 1).saturating_sub(css_start);
                 if ws_end <= css_source.len() && ws_start < ws_end {
-                    output.push_str(&css_source[ws_start..ws_end]);
+                    output.copy(last_end, &css_source[ws_start..ws_end]);
                 }
             }
         }
 
         if !_ctx.minify {
             // Comment out `}`
-            output.push_str("/*}*/");
+            output.push_str("/*");
+            output.copy_verbatim(css_source, css_start, block_end.saturating_sub(1), "}");
+            output.push_str("*/");
         }
         // In minify mode, skip the closing } wrapper
     }
@@ -6126,10 +6249,16 @@ fn transform_atrule_preserving<'a>(
         let ws_start = (*last_end).saturating_sub(css_start);
         let ws_end = node_start.saturating_sub(css_start);
         if ws_end <= css_source.len() && ws_start < ws_end {
-            output.push_str(&css_source[ws_start..ws_end]);
+            output.copy_verbatim(
+                css_source,
+                css_start,
+                *last_end,
+                &css_source[ws_start..ws_end],
+            );
         }
     }
 
+    mark_node(output, node);
     let name = node.get("name").and_then(|n| n.as_str()).unwrap_or("");
 
     // Handle keyframes - need special handling for name prefixing
@@ -6140,32 +6269,34 @@ fn transform_atrule_preserving<'a>(
     {
         let prelude = node.get("prelude").and_then(|p| p.as_str()).unwrap_or("");
 
-        // Check if it's a global keyframe
-        if let Some(keyframe_name) = prelude.strip_prefix("-global-") {
-            let _ = write!(output, "@{} {}", name, keyframe_name);
-        } else {
-            let _ = write!(output, "@{} {}-{}", name, hash, prelude);
+        // Mirror the official Atrule visitor: the prelude starts after `@name`
+        // plus any spaces, and the hash goes in as a `prependRight` insertion so
+        // everything around it stays a mapped chunk.
+        let mut p_start = node_start + name.len() + 1;
+        while p_start
+            .checked_sub(css_start)
+            .is_some_and(|off| css_source.as_bytes().get(off) == Some(&b' '))
+        {
+            p_start += 1;
         }
-
-        // Copy block from source, preserving original whitespace between prelude and block
-        if let Some(block) = node.get("block") {
-            let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
-            let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
-
-            // Check if there was whitespace between prelude and block in original source
-            let blk_s = block_start.saturating_sub(css_start);
-            if blk_s > 0 && blk_s <= css_source.len() {
-                let byte_before = css_source.as_bytes().get(blk_s.saturating_sub(1));
-                if byte_before.is_some_and(|&b| b == b' ' || b == b'\t' || b == b'\n') {
-                    output.push(' ');
-                }
+        // Everything but the inserted hash is copied through: the official
+        // Atrule visitor returns before `next()`, so nothing inside a keyframes
+        // block is transformed or gets an `addSourcemapLocation`.
+        let src = |from: usize, to: usize| -> &str {
+            let s = from.saturating_sub(css_start);
+            let e = to.saturating_sub(css_start);
+            if e <= css_source.len() && s < e {
+                &css_source[s..e]
+            } else {
+                ""
             }
-
-            let blk_start_off = blk_s;
-            let blk_end_off = block_end.saturating_sub(css_start);
-            if blk_end_off <= css_source.len() && blk_start_off < blk_end_off {
-                output.push_str(&css_source[blk_start_off..blk_end_off]);
-            }
+        };
+        output.copy(node_start, src(node_start, p_start));
+        if prelude.starts_with("-global-") {
+            output.copy(p_start + 8, src(p_start + 8, node_end));
+        } else {
+            let _ = write!(output, "{}-", hash);
+            output.copy(p_start, src(p_start, node_end));
         }
 
         *last_end = node_end;
@@ -6187,27 +6318,30 @@ fn transform_atrule_preserving<'a>(
         let src_start = node_start.saturating_sub(css_start);
         let src_end = node_end.saturating_sub(css_start);
         if src_end <= css_source.len() && src_start < src_end {
-            output.push_str(&css_source[src_start..src_end]);
+            mark_tree(output, node);
+            output.copy(node_start, &css_source[src_start..src_end]);
         }
         *last_end = node_end;
         return;
     }
 
     // Handle media, supports, layer, etc. - need to transform nested rules
-    output.push('@');
-    output.push_str(name);
+    let mut header = String::from("@");
+    header.push_str(name);
 
     if let Some(prelude) = node.get("prelude").and_then(|p| p.as_str())
         && !prelude.is_empty()
     {
-        output.push(' ');
-        output.push_str(prelude);
+        header.push(' ');
+        header.push_str(prelude);
     }
 
     if let Some(block) = block {
         let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
 
-        output.push_str(" {");
+        header.push_str(" {");
+        mark_node(output, block);
+        output.copy_verbatim(css_source, css_start, node_start, &header);
 
         if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
             let mut inner_last_end = block_start + 1; // after '{'
@@ -6232,14 +6366,21 @@ fn transform_atrule_preserving<'a>(
                     let trail_start = inner_last_end.saturating_sub(css_start);
                     let trail_end = (block_end - 1).saturating_sub(css_start); // -1 to exclude closing brace
                     if trail_end <= css_source.len() && trail_start < trail_end {
-                        output.push_str(&css_source[trail_start..trail_end]);
+                        output.copy_verbatim(
+                            css_source,
+                            css_start,
+                            inner_last_end,
+                            &css_source[trail_start..trail_end],
+                        );
                     }
                 }
             }
         }
 
-        output.push('}');
+        let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+        output.copy_verbatim(css_source, css_start, block_end.saturating_sub(1), "}");
     } else {
+        output.push_str(&header);
         output.push(';');
     }
 
