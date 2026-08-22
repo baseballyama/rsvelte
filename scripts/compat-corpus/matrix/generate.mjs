@@ -75,6 +75,12 @@ import {
 	WRITE_HOSTS,
 	WRITE_SHAPES,
 	WRITE_PREAMBLE,
+	UNQUOTED_ATTRIBUTE_VALUES,
+	UNQUOTED_ATTRIBUTE_HOSTS,
+	UNQUOTED_ATTRIBUTE_PREAMBLE,
+	CHARACTER_REFERENCES,
+	CHARACTER_REFERENCE_HOSTS,
+	CHARACTER_REFERENCE_PREAMBLE,
 } from './axes.mjs';
 import { commentMutants } from './mutate.mjs';
 
@@ -532,6 +538,34 @@ function writeHostCases() {
 	return cases;
 }
 
+function unquotedAttributeCases() {
+	const cases = [];
+	for (const [valueName, value] of Object.entries(UNQUOTED_ATTRIBUTE_VALUES)) {
+		for (const [hostName, host] of Object.entries(UNQUOTED_ATTRIBUTE_HOSTS)) {
+			cases.push({
+				id: `unquoted-attribute/${valueName}__${hostName}.svelte`,
+				source: UNQUOTED_ATTRIBUTE_PREAMBLE.replace('%s', () => host.replace('%s', () => value)),
+			});
+		}
+	}
+	return cases;
+}
+
+function characterReferenceCases() {
+	const cases = [];
+	for (const [refName, reference] of Object.entries(CHARACTER_REFERENCES)) {
+		for (const [hostName, host] of Object.entries(CHARACTER_REFERENCE_HOSTS)) {
+			cases.push({
+				id: `character-reference/${refName}__${hostName}.svelte`,
+				source: CHARACTER_REFERENCE_PREAMBLE.replace('%s', () =>
+					host.replaceAll('%s', () => reference)
+				),
+			});
+		}
+	}
+	return cases;
+}
+
 export const FAMILIES = {
 	'binding-position': bindingPositionCases,
 	'async-derived': asyncDerivedCases,
@@ -550,6 +584,8 @@ export const FAMILIES = {
 	'private-field': privateFieldCases,
 	'opaque-keyword': opaqueKeywordCases,
 	'write-host': writeHostCases,
+	'unquoted-attribute': unquotedAttributeCases,
+	'character-reference': characterReferenceCases,
 };
 
 export function generate(families = Object.keys(FAMILIES)) {

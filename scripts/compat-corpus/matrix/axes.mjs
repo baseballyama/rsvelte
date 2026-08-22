@@ -1886,3 +1886,146 @@ export const WRITE_PREAMBLE = `<script>
 
 %m
 `;
+
+/**
+ * Axis U1 — what follows `data-x=` in an UNQUOTED attribute value.
+ *
+ * The unquoted value state terminates on `/>`, whitespace, `"`, `'`, `` ` ``,
+ * `<`, `=` and `>` (upstream's `regex_invalid_unquoted_attribute_value`), and
+ * #3332 was every terminator except whitespace and `>` missing: rsvelte read one
+ * run of characters and swallowed the rest, so `<div data-x=a<b>` became a single
+ * attribute whose value is `a<b` where upstream has `data-x="a"` plus an
+ * attribute named `<b`, and `<div data-x=a=b>` compiled at all.
+ *
+ * The axis is the terminating CHARACTER, not "an unquoted value": `>` already
+ * worked, `&` and an entity already decoded, and a trailing `/` was already
+ * handled — those five rows are the controls that keep a fix from simply ending
+ * the value earlier and everywhere. The rows official REJECTS are the reason the
+ * family exists at all; an over-acceptance leaves no trace in published code, so
+ * no collected corpus can hold one.
+ *
+ * `a{b` is deliberately absent — `{` opens an expression rather than ending the
+ * value, and where THAT mustache ends is #3333.
+ */
+export const UNQUOTED_ATTRIBUTE_VALUES = {
+	plain: 'abc',
+	'gt-inside': 'a>b',
+	'amp-inside': 'a&b',
+	entity: '&amp;',
+	'trailing-slash': 'abc/',
+	'lt-inside': 'a<b',
+	'backtick-inside': 'a`b',
+	'lt-slash': 'a</b',
+	'lt-script-close': 'a</script>b',
+	'eq-inside': 'a=b',
+	'double-quote-inside': 'a"b',
+	'single-quote-inside': "a'b",
+	'html-comment-open': 'a<!--b',
+	cdata: 'a<![CDATA[x]]>b',
+	empty: '',
+};
+
+/**
+ * Axis U2 — the start tag carrying the attribute. The first five share one lexer,
+ * so a divergence that moves with the host is an element-path bug rather than an
+ * attribute-value one; the component and `<svelte:element>` rows are also where
+ * an attribute SET difference is visible in the output as a prop object.
+ *
+ * `style-top-level` is the row that does NOT share that lexer: upstream reads a
+ * top-level `<script>` / `<style>`'s attributes with `read_attribute` under
+ * `parse_static`, whose terminator set does not grow the six characters this
+ * family is about — so `<style a=b=c>` compiles where `<div a=b=c>` does not.
+ * Without it, a fix that ends the value earlier *everywhere* passes all 75 cells
+ * and turns a top-level style block into a parse error.
+ */
+export const UNQUOTED_ATTRIBUTE_HOSTS = {
+	div: '<div data-x=%s></div>',
+	'div-next-attr': '<div data-x=%s data-y="1"></div>',
+	'input-self-closing': '<input data-x=%s />',
+	component: '<Comp data-x=%s />',
+	'svelte-element': '<svelte:element this="div" data-x=%s></svelte:element>',
+	'style-top-level': '<style data-x=%s>\n\tp {\n\t\tcolor: red;\n\t}\n</style>',
+};
+
+export const UNQUOTED_ATTRIBUTE_PREAMBLE = `<script>
+	import Comp from './Comp.svelte';
+</script>
+
+%s
+`;
+
+/**
+ * Axis C1 — the character reference spelling.
+ *
+ * Two decoders answer this question — the named table and the numeric
+ * `validate_code` ladder — and #3337 found three disagreements in one sweep that
+ * a single spelling could not have separated: an uppercase `&#X41;` (upstream's
+ * pattern spells the marker lowercase, so it is not a reference at all), a
+ * surrogate half or an out-of-range code point (upstream emits a literal NUL,
+ * rsvelte left it undecoded), and the semicolon-less legacy set.
+ *
+ * The controls carry the load here. `&#x80;` (the Windows-1252 remap), `&#xFFFE;`
+ * (a noncharacter), `&#0;` and the three astral rows all agree on both sides, so
+ * a fix that treats "anything unusual" as undecodable — or as U+FFFD, which is
+ * what HTML actually says and neither compiler does — fails them.
+ */
+export const CHARACTER_REFERENCES = {
+	'named-amp': '&amp;',
+	'named-lt': '&lt;',
+	'named-gt': '&gt;',
+	'named-quot': '&quot;',
+	'named-apos': '&apos;',
+	'named-nbsp': '&nbsp;',
+	'legacy-copy': '&copy',
+	'legacy-not': '&not',
+	'legacy-not-word': '&notit',
+	'legacy-not-eq': '&not=x',
+	'unknown-with-legacy-prefix': '&notanentity;',
+	'decimal-no-semicolon': '&#65',
+	decimal: '&#65;',
+	hex: '&#x41;',
+	'hex-uppercase-marker': '&#X41;',
+	zero: '&#0;',
+	'carriage-return': '&#13;',
+	'windows-1252': '&#x80;',
+	'surrogate-low-bound': '&#xD800;',
+	'surrogate-high-bound': '&#xDFFF;',
+	'above-unicode': '&#x110000;',
+	'unicode-max': '&#x10FFFF;',
+	replacement: '&#xFFFD;',
+	noncharacter: '&#xFFFE;',
+	'astral-hex': '&#x1F600;',
+	'astral-decimal': '&#128512;',
+	'plane-1-start': '&#x10000;',
+	'astral-musical': '&#x1D11E;',
+};
+
+/**
+ * Axis C2 — the host the reference sits in. Three decode rules exist, keyed on
+ * where the text came from: markup text decodes with the legacy set enabled, an
+ * attribute value without it, and `<textarea>` goes through `read_sequence` —
+ * which is the ATTRIBUTE rule, not the text one. That last row is the whole
+ * finding for the legacy set: the identical text in `<p>` or `<title>` matched
+ * on both sides, so only the host axis could name it.
+ */
+export const CHARACTER_REFERENCE_HOSTS = {
+	text: '<p>%s</p>',
+	'attr-double-quoted': '<p title="%s">x</p>',
+	'attr-single-quoted': "<p title='%s'>x</p>",
+	'attr-unquoted': '<p title=%s>x</p>',
+	textarea: '<textarea>%s</textarea>',
+	title: '<title>%s</title>',
+	'component-child': '<Comp>%s</Comp>',
+	'component-attr': '<Comp title="%s" />',
+	'beside-style': '<p>%s</p>\n\n<style>\n\tp {\n\t\tcolor: red;\n\t}\n</style>',
+	'beside-mustache': '<p>%s{v}</p>',
+};
+
+export const CHARACTER_REFERENCE_PREAMBLE = `<script>
+	import Comp from './Comp.svelte';
+
+	let v = 1;
+</script>
+
+%s
+`;

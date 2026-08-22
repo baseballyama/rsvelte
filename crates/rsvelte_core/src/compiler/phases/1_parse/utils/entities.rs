@@ -34,23 +34,35 @@ use super::html::validate_code;
 pub fn decode_numeric_entity(entity: &str) -> Option<char> {
     let entity = entity.strip_suffix(';').unwrap_or(entity);
 
-    let num = if let Some(hex) = entity
-        .strip_prefix('x')
-        .or_else(|| entity.strip_prefix('X'))
-    {
-        u32::from_str_radix(hex, 16).ok()
-    } else {
-        entity.parse().ok()
-    };
+    // Upstream's `#(?:x[a-fA-F\d]+|\d+)(?:;)?` spells the marker lowercase, so
+    // `&#X41;` is not a character reference at all.
+    let code = match entity.strip_prefix('x') {
+        Some(hex) => parse_code_point(hex, 16),
+        None => parse_code_point(entity, 10),
+    }?;
 
-    num.and_then(|code| {
-        let validated = validate_code(code);
-        if validated == 0 {
-            None
-        } else {
-            char::from_u32(validated)
-        }
-    })
+    // `decode_character_references` bails on a falsy code (`&#0;`, `&#x0;`) and
+    // otherwise emits `String.fromCodePoint(validate_code(code))` — so a
+    // surrogate half or an out-of-range code point becomes a literal NUL rather
+    // than staying undecoded.
+    if code == 0 {
+        return None;
+    }
+    char::from_u32(validate_code(code))
+}
+
+/// `parseInt` over an unbounded digit run: JS widens past 2^32 into a float that
+/// `validate_code` rejects, so saturating at `u32::MAX` answers the same way.
+fn parse_code_point(digits: &str, radix: u32) -> Option<u32> {
+    if digits.is_empty() {
+        return None;
+    }
+    let mut acc: u64 = 0;
+    for c in digits.chars() {
+        let d = c.to_digit(radix)?;
+        acc = (acc * u64::from(radix) + u64::from(d)).min(u64::from(u32::MAX));
+    }
+    Some(acc as u32)
 }
 
 /// Decode all HTML entities in a string.
@@ -96,44 +108,23 @@ pub fn decode_html_entities(s: &str, is_attribute_value: bool) -> String {
             if is_numeric {
                 // Collect '#' first
                 i += 1;
-                // Check if hex (#x...) or decimal (#d...)
-                let is_hex = i < len && (bytes[i] == b'x' || bytes[i] == b'X');
+                // `x` is spelled lowercase in upstream's pattern; `&#X41;` is
+                // therefore decimal-shaped, matches nothing, and stays literal.
+                let is_hex = i < len && bytes[i] == b'x';
                 if is_hex {
-                    i += 1; // consume 'x' or 'X'
-                    // Collect hex digits only
-                    while i < len {
-                        let b = bytes[i];
-                        if b == b';' {
-                            found_semicolon = true;
-                            i += 1;
-                            break;
-                        }
-                        if b.is_ascii_hexdigit() {
-                            i += 1;
-                        } else {
-                            break;
-                        }
-                        if i - entity_start > 20 {
-                            break;
-                        }
+                    i += 1; // consume 'x'
+                }
+                while i < len {
+                    let b = bytes[i];
+                    if b == b';' {
+                        found_semicolon = true;
+                        i += 1;
+                        break;
                     }
-                } else {
-                    // Collect decimal digits only
-                    while i < len {
-                        let b = bytes[i];
-                        if b == b';' {
-                            found_semicolon = true;
-                            i += 1;
-                            break;
-                        }
-                        if b.is_ascii_digit() {
-                            i += 1;
-                        } else {
-                            break;
-                        }
-                        if i - entity_start > 15 {
-                            break;
-                        }
+                    if is_hex && b.is_ascii_hexdigit() || !is_hex && b.is_ascii_digit() {
+                        i += 1;
+                    } else {
+                        break;
                     }
                 }
             } else {
@@ -294,19 +285,23 @@ mod tests {
     #[test]
     fn test_decode_numeric_entity_hex() {
         assert_eq!(decode_numeric_entity("x41"), Some('A'));
-        assert_eq!(decode_numeric_entity("X41"), Some('A'));
+        // Upstream's pattern spells the marker lowercase, so `&#X41;` is not a
+        // character reference at all.
+        assert_eq!(decode_numeric_entity("X41"), None);
         assert_eq!(decode_numeric_entity("x61"), Some('a'));
         assert_eq!(decode_numeric_entity("x20AC"), Some('\u{20AC}')); // Euro sign
     }
 
     #[test]
     fn test_decode_numeric_entity_edge_cases() {
-        // NULL - validate_code returns 0, which results in None
+        // A falsy code is `return match` upstream, so it stays undecoded
         assert_eq!(decode_numeric_entity("0"), None);
-        // Surrogate - validate_code returns 0, which results in None
-        assert_eq!(decode_numeric_entity("xD800"), None);
-        // Out of range - beyond valid Unicode planes
-        assert_eq!(decode_numeric_entity("x110000"), None);
+        // A surrogate half validates to 0, which upstream emits as a NUL
+        assert_eq!(decode_numeric_entity("xD800"), Some('\0'));
+        // Out of range - beyond valid Unicode planes, likewise a NUL
+        assert_eq!(decode_numeric_entity("x110000"), Some('\0'));
+        // A digit run past 2^32 saturates rather than failing to parse
+        assert_eq!(decode_numeric_entity("111111111111111111111"), Some('\0'));
         // Windows-1252 mapping
         assert_eq!(decode_numeric_entity("x80"), Some('\u{20AC}')); // Euro
         assert_eq!(decode_numeric_entity("x99"), Some('\u{2122}')); // Trademark
@@ -326,7 +321,7 @@ mod tests {
     fn test_decode_html_entities_numeric() {
         assert_eq!(decode_html_entities("&#65;", false), "A");
         assert_eq!(decode_html_entities("&#x41;", false), "A");
-        assert_eq!(decode_html_entities("&#X41;", false), "A");
+        assert_eq!(decode_html_entities("&#X41;", false), "&#X41;");
     }
 
     #[test]
