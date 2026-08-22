@@ -1170,6 +1170,18 @@ test that compiles the same source three times
 (`rsvelte_capi`'s / the NAPI's `warn_once` flags are process-global, so the *unit* has to be a
 process, not a compile). **[D]**
 
+The corollary is a property of this gate worth stating, because it looks like flakiness and is
+not: **once both sides warn once per process, the `accessors` and `immutable` rows agree only
+because the two compilers latch on the same cell.** `run.mjs` calls official and rsvelte inside
+one loop iteration, in one Node process, so the first `accessors` case trips both latches
+together and every later case is silent on both. A harness that compiled all of official first
+and then all of rsvelte would agree just as well; one that ran each case in a fresh process would
+make every cell warn on both sides — also agreeing. The arrangement that would *not* agree is a
+gate that batches one side and reuses a process for the other, and nothing in the row's name says
+which of those it is. It is also what made the defect legible before the fix: in the pre-fix
+measurement `accessors` diverged in exactly **51 of 52** cells, the single agreeing cell being the
+first one compiled.
+
 **`css.code`.** The comparison reads `js.code`, the warning `code` multiset and the error `code`
 (5b). So `css: 'injected'` is observable only because the CSS lands *inside* `js.code`, and the
 `css-external` row compares the JS of a component whose CSS went to the other field — a row that
