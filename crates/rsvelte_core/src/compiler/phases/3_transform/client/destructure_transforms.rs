@@ -1385,6 +1385,19 @@ pub(super) fn extract_destructure_paths(
     paths: &mut Vec<(String, String)>,
     inserts: &mut Vec<(String, String)>,
 ) {
+    extract_destructure_paths_named(pattern, expression, array_read, "$$array", paths, inserts);
+}
+
+/// [`extract_destructure_paths`] with the array helper's base name spelled out —
+/// upstream's server `$derived` expansion generates `$$derived_array` instead.
+pub(super) fn extract_destructure_paths_named(
+    pattern: &str,
+    expression: &str,
+    array_read: ArrayHelperRead,
+    array_prefix: &str,
+    paths: &mut Vec<(String, String)>,
+    inserts: &mut Vec<(String, String)>,
+) {
     let pattern = pattern.trim();
     if pattern.is_empty() {
         return;
@@ -1396,7 +1409,14 @@ pub(super) fn extract_destructure_paths(
         && let Some(eq_pos) = find_default_equals(pattern)
     {
         let fallback = build_fallback_string(expression, pattern[eq_pos + 1..].trim());
-        extract_destructure_paths(&pattern[..eq_pos], &fallback, array_read, paths, inserts);
+        extract_destructure_paths_named(
+            &pattern[..eq_pos],
+            &fallback,
+            array_read,
+            array_prefix,
+            paths,
+            inserts,
+        );
         return;
     }
 
@@ -1417,10 +1437,11 @@ pub(super) fn extract_destructure_paths(
             if let Some(rest_target) = prop.strip_prefix("...") {
                 let rest_expression =
                     format!("$.exclude_from_object({}, [{}])", expression, excluded_keys);
-                extract_destructure_paths(
+                extract_destructure_paths_named(
                     rest_target,
                     &rest_expression,
                     array_read,
+                    array_prefix,
                     paths,
                     inserts,
                 );
@@ -1437,7 +1458,14 @@ pub(super) fn extract_destructure_paths(
                 },
             };
             let object_expression = derived_prop_access(expression, expression, key);
-            extract_destructure_paths(value, &object_expression, array_read, paths, inserts);
+            extract_destructure_paths_named(
+                value,
+                &object_expression,
+                array_read,
+                array_prefix,
+                paths,
+                inserts,
+            );
         }
         return;
     }
@@ -1452,7 +1480,7 @@ pub(super) fn extract_destructure_paths(
             .last()
             .is_some_and(|el| el.trim().starts_with("..."));
 
-        let array_var = next_script_array_var();
+        let array_var = next_script_array_var_named(array_prefix);
         let to_array = if ends_with_rest {
             format!("$.to_array({})", expression)
         } else {
@@ -1473,7 +1501,14 @@ pub(super) fn extract_destructure_paths(
                 Some(rest_target) => (rest_target, format!("{}.slice({})", helper, i)),
                 None => (element, format!("{}[{}]", helper, i)),
             };
-            extract_destructure_paths(target, &element_expression, array_read, paths, inserts);
+            extract_destructure_paths_named(
+                target,
+                &element_expression,
+                array_read,
+                array_prefix,
+                paths,
+                inserts,
+            );
         }
         return;
     }
@@ -1483,16 +1518,16 @@ pub(super) fn extract_destructure_paths(
 
 /// The next `$$array` / `$$array_<n>` helper name, mirroring upstream's
 /// `scope.generate('$$array')`.
-pub(super) fn next_script_array_var() -> String {
+fn next_script_array_var_named(prefix: &str) -> String {
     let index = SCRIPT_ARRAY_COUNTER.with(|c| {
         let current = c.get();
         c.set(current + 1);
         current
     });
     if index == 0 {
-        "$$array".to_string()
+        prefix.to_string()
     } else {
-        format!("$$array_{}", index)
+        format!("{}_{}", prefix, index)
     }
 }
 

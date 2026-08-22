@@ -1,18 +1,13 @@
 [
 	"svelte.dev/apps/svelte.dev/content/blog/2019-04-20-write-less-code.md/4.svelte",
 	"svelte.dev/apps/svelte.dev/content/docs/kit/30-advanced/25-errors.md/8.svelte",
-	"svelte.dev/apps/svelte.dev/content/docs/svelte/07-misc/06-v4-migration-guide.md/6.svelte",
 	"svelte.dev/apps/svelte.dev/content/tutorial/01-svelte/08-attachments/01-attach/index.md/4.svelte.js",
-	"svelte.dev/apps/svelte.dev/content/tutorial/02-advanced-svelte/06-context/01-context-api/index.md/3.svelte",
 	"svelte.dev/apps/svelte.dev/src/routes/llms-small.txt/content-sveltekit.md/23.svelte",
-	"svelte/documentation/docs/07-misc/06-v4-migration-guide.md/6.svelte",
-	"svelte/packages/svelte/tests/compiler-errors/samples/illegal-expression/main.svelte",
 	"svelte/packages/svelte/tests/compiler-errors/samples/malformed-snippet-2/main.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/svelte-component/input.svelte",
 	"svelte/packages/svelte/tests/parser-legacy/samples/loose-invalid-block/input.svelte",
 	"svelte/packages/svelte/tests/parser-modern/samples/loose-declaration-tag/input.svelte",
 	"svelte/packages/svelte/tests/parser-modern/samples/loose-invalid-block/input.svelte",
-	"svelte/packages/svelte/tests/preprocess/samples/attributes-with-closing-tag/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/each-block-destructured-object-rest-comma-after/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/each-block-invalid-context-destructured-object/input.svelte",
 	"svelte/packages/svelte/tests/validator/samples/each-block-invalid-context-destructured/input.svelte"

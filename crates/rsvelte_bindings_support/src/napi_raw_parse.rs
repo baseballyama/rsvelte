@@ -255,6 +255,7 @@ const LV_NUMBER_I64: u8 = 3;
 const LV_NUMBER_F64: u8 = 4;
 const LV_STRING: u8 = 5;
 const LV_REGEX: u8 = 6;
+const LV_BIGINT: u8 = 7;
 
 // ---------------------------------------------------------------------------
 // Writer trait + Vec impl
@@ -562,6 +563,10 @@ fn write_literal_value<W: Writer>(w: &mut W, v: &LiteralValue) {
             write_str(w, s.as_str());
         }
         LiteralValue::Regex(_) => write_u8(w, LV_REGEX),
+        LiteralValue::BigInt(d) => {
+            write_u8(w, LV_BIGINT);
+            write_str(w, d.as_str());
+        }
     }
 }
 

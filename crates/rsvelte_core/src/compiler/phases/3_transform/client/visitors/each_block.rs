@@ -1105,9 +1105,7 @@ fn build_declarations(
                 // time, matching the official compiler's
                 // `id.name = context.state.scope.generate('$$array')` (line 253 of EachBlock.js)
                 let (paths, inserts) =
-                    extract_destructured_paths(obj, &unwrapped_item, false, &mut || {
-                        context.state.generate_array_name()
-                    });
+                    extract_destructured_paths(obj, &unwrapped_item, false, context);
 
                 // Generate intermediate array declarations for ArrayPattern destructuring
                 // This corresponds to lines 256-262 in the official EachBlock.js
@@ -1292,7 +1290,7 @@ fn extract_destructured_paths(
     obj: &serde_json::Map<String, serde_json::Value>,
     base_expr: &str,
     has_parent_default: bool,
-    array_name_gen: &mut dyn FnMut() -> String,
+    context: &mut ComponentContext,
 ) -> (Vec<DestructuredPath>, Vec<ArrayInsert>) {
     let mut paths = Vec::new();
     let mut inserts = Vec::new();
@@ -1304,7 +1302,7 @@ fn extract_destructured_paths(
         base_expr,
         base_expr,
         has_parent_default,
-        array_name_gen,
+        context,
     );
 
     (paths, inserts)
@@ -1318,7 +1316,7 @@ fn _extract_destructured_paths(
     expression: &str,
     _update_expression: &str,
     has_default_value: bool,
-    array_name_gen: &mut dyn FnMut() -> String,
+    context: &mut ComponentContext,
 ) {
     match param.get("type").and_then(|v| v.as_str()) {
         Some("Identifier") => {
@@ -1432,7 +1430,7 @@ fn _extract_destructured_paths(
                                         &rest_expression,
                                         &rest_expression,
                                         has_default_value,
-                                        array_name_gen,
+                                        context,
                                     );
                                 }
                             }
@@ -1493,7 +1491,7 @@ fn _extract_destructured_paths(
                                         &prop_expr,
                                         &prop_update_expr,
                                         has_default_value,
-                                        array_name_gen,
+                                        context,
                                     );
                                     // Tag any newly-created paths with the deferred computed key info
                                     if let Some((base, key_json)) = deferred_key {
@@ -1518,7 +1516,7 @@ fn _extract_destructured_paths(
             };
 
             // Generate unique $$array name
-            let array_id = array_name_gen();
+            let array_id = context.state.generate_array_name();
 
             // Check if last element is RestElement
             let last_is_rest = elements
@@ -1580,7 +1578,7 @@ fn _extract_destructured_paths(
                                     &rest_expression,
                                     &rest_update_expression,
                                     has_default_value,
-                                    array_name_gen,
+                                    context,
                                 );
                             }
                         }
@@ -1599,7 +1597,7 @@ fn _extract_destructured_paths(
                             &array_expression,
                             &array_update_expression,
                             has_default_value,
-                            array_name_gen,
+                            context,
                         );
                     }
                 }
@@ -1626,14 +1624,23 @@ fn _extract_destructured_paths(
                         computed_key_json: None,
                     });
                 } else {
+                    // A NESTED pattern's default must wrap the base expression
+                    // (`meta: { tags: [t] } = {}` reads through
+                    // `$.fallback(item.meta, () => ({}), true)`), 写经 upstream
+                    // `_extract_paths`'s `build_fallback(expression, node.right)`.
+                    // The write-back LHS keeps the bare access.
+                    let read_expression = match default_val.as_ref() {
+                        Some(dv) => build_fallback_expression(expression, Some(dv), context),
+                        None => expression.to_string(),
+                    };
                     _extract_destructured_paths(
                         paths,
                         inserts,
                         left,
-                        expression,
+                        &read_expression,
                         _update_expression,
                         true,
-                        array_name_gen,
+                        context,
                     );
                 }
             }
@@ -1843,6 +1850,13 @@ fn build_fallback_expression(
                     &default_expr,
                     &context.arena,
                 );
+            // An object-literal default must be parenthesized in the arrow body
+            // (`() => ({})`), or it parses as an empty function body.
+            let default_str = if default_str.starts_with('{') {
+                format!("({})", default_str)
+            } else {
+                default_str
+            };
             format!("$.fallback({}, () => {}, true)", expression, default_str)
         }
     } else {
@@ -2063,6 +2077,25 @@ fn visit_fragment(fragment: &Fragment, context: &mut ComponentContext) -> JsBloc
 /// `key_state` transforms (`{ [labelKey]: label }` → `{ [$$props.labelKey]:
 /// label }`), while the each-context binding names remain shadowed via
 /// `local_scope`. All other pattern shapes convert structurally.
+/// The key of a non-computed, non-identifier destructuring property, keeping the
+/// source spelling so the printed quote style matches.
+fn literal_property_key(
+    key: &serde_json::Map<String, serde_json::Value>,
+) -> Option<crate::compiler::phases::phase3_transform::js_ast::JsLiteral> {
+    use crate::compiler::phases::phase3_transform::js_ast::JsLiteral;
+    match key.get("value") {
+        Some(serde_json::Value::String(s)) => Some(match key.get("raw").and_then(|r| r.as_str()) {
+            Some(raw) if !raw.is_empty() => JsLiteral::RawString {
+                value: s.as_str().into(),
+                raw: raw.into(),
+            },
+            _ => JsLiteral::String(s.as_str().into()),
+        }),
+        Some(serde_json::Value::Number(n)) => Some(JsLiteral::Number(n.as_f64()?)),
+        _ => None,
+    }
+}
+
 fn convert_context_pattern(
     context: &mut ComponentContext,
     expr: &Expression,
@@ -2124,12 +2157,19 @@ fn convert_context_pattern(
                                 shorthand: false,
                             });
                         } else {
-                            let Some(key_name) = key
-                                .as_object()
-                                .and_then(|k| k.get("name"))
-                                .and_then(|n| n.as_str())
-                            else {
-                                continue;
+                            let key_obj = key.as_object();
+                            let key_name =
+                                key_obj.and_then(|k| k.get("name")).and_then(|n| n.as_str());
+                            // A literal key that is not a valid identifier
+                            // (`{ 'a-b': z }`) carries no `name`; dropping the
+                            // property left its value binding unbound in the
+                            // emitted key function.
+                            let key_js = match key_name {
+                                Some(name) => JsPropertyKey::Identifier(name.into()),
+                                None => match key_obj.and_then(literal_property_key) {
+                                    Some(lit) => JsPropertyKey::Literal(lit),
+                                    None => continue,
+                                },
                             };
                             let value_pattern = if value.is_object() {
                                 convert_context_pattern(
@@ -2137,15 +2177,18 @@ fn convert_context_pattern(
                                     &Expression::from_json(value.clone()),
                                     local_scope,
                                 )
+                            } else if let Some(name) = key_name {
+                                JsPattern::Identifier(name.into())
                             } else {
-                                JsPattern::Identifier(key_name.into())
+                                continue;
                             };
-                            let shorthand = prop_obj
-                                .get("shorthand")
-                                .and_then(|s| s.as_bool())
-                                .unwrap_or(false);
+                            let shorthand = key_name.is_some()
+                                && prop_obj
+                                    .get("shorthand")
+                                    .and_then(|s| s.as_bool())
+                                    .unwrap_or(false);
                             properties.push(JsObjectPatternProperty::Property {
-                                key: JsPropertyKey::Identifier(key_name.into()),
+                                key: key_js,
                                 value: value_pattern,
                                 computed: false,
                                 shorthand,
@@ -2184,11 +2227,32 @@ fn convert_context_pattern(
             }
             Some("AssignmentPattern") => {
                 if let Some(left) = obj.get("left") {
-                    return convert_context_pattern(
+                    let left_pattern = convert_context_pattern(
                         context,
                         &Expression::from_json(left.clone()),
                         local_scope,
                     );
+                    // Keep the DEFAULT: upstream visits the whole pattern under
+                    // `key_state`, so `[first = 0]` keys on the defaulted value.
+                    // The default expression itself is visited (prop/state reads
+                    // rewritten; the context names stay shadowed).
+                    if let Some(right) = obj.get("right") {
+                        let right_js =
+                            convert_expression(&Expression::from_json(right.clone()), context);
+                        let right_js = apply_transforms_to_expression_with_shadowed(
+                            &right_js,
+                            context,
+                            local_scope,
+                        );
+                        let right_id = context.arena.alloc_expr(right_js);
+                        return JsPattern::Assignment(
+                            crate::compiler::phases::phase3_transform::js_ast::JsAssignmentPattern {
+                                left: Box::new(left_pattern),
+                                right: right_id,
+                            },
+                        );
+                    }
+                    return left_pattern;
                 }
             }
             _ => {}

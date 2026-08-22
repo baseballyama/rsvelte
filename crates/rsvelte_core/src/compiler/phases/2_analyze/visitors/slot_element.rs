@@ -77,7 +77,10 @@ pub fn visit<'a, 'b: 'a>(
     // Register the slot name - this does NOT set uses_slots
     // uses_slots is only set when $$slots is referenced in JS code (Identifier visitor)
     // This matches the official Svelte compiler (SlotElement.js line 39)
-    context.analysis.slot_names.insert(name, String::new());
+    context
+        .analysis
+        .slot_names
+        .insert(name, (slot.start, slot.end));
 
     // Visit attribute expressions to register template references
     // (e.g., <slot dummy={dummy}> needs `dummy` tracked as template reference)

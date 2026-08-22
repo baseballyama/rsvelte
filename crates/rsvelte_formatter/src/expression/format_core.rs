@@ -435,6 +435,7 @@ pub(super) fn format_expr_core(
         source_type,
     );
 
+    let formatted = drop_statement_semicolon(formatted);
     let s = formatted.trim_end().trim_end_matches(';').trim_end();
     // With semicolons set to "as needed", OXC prefixes expression statements
     // such as arrow functions with an ASI guard. Template expressions are not
@@ -726,4 +727,73 @@ fn expr_has_object_head(expr: &oxc_ast::ast::Expression) -> bool {
             _ => return false,
         };
     }
+}
+
+/// Drop the `;` oxc puts after the expression statement when a trailing comment
+/// follows it — `{n; /* x */}` is not an expression, so the tag stops parsing.
+fn drop_statement_semicolon(formatted: String) -> String {
+    let bytes = formatted.as_bytes();
+    let mut last_semi = None;
+    let mut i = 0usize;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\'' | b'"' | b'`' => {
+                let quote = bytes[i];
+                i += 1;
+                while i < bytes.len() && bytes[i] != quote {
+                    i += if bytes[i] == b'\\' { 2 } else { 1 };
+                }
+                i += 1;
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'/') => {
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'*') => {
+                i += 2;
+                while i < bytes.len() && !(bytes[i] == b'*' && bytes.get(i + 1) == Some(&b'/')) {
+                    i += 1;
+                }
+                i += 2;
+            }
+            b';' => {
+                last_semi = Some(i);
+                i += 1;
+            }
+            _ => i += 1,
+        }
+    }
+    let Some(semi) = last_semi else {
+        return formatted;
+    };
+    // Only a semicolon followed by nothing but trivia terminates the statement.
+    let rest = &formatted[semi + 1..];
+    let mut j = 0usize;
+    let rb = rest.as_bytes();
+    while j < rb.len() {
+        match rb[j] {
+            b' ' | b'\t' | b'\n' | b'\r' => j += 1,
+            b'/' if rb.get(j + 1) == Some(&b'/') => {
+                while j < rb.len() && rb[j] != b'\n' {
+                    j += 1;
+                }
+            }
+            b'/' if rb.get(j + 1) == Some(&b'*') => {
+                j += 2;
+                while j < rb.len() && !(rb[j] == b'*' && rb.get(j + 1) == Some(&b'/')) {
+                    j += 1;
+                }
+                j += 2;
+            }
+            _ => return formatted,
+        }
+    }
+    if rest.trim().is_empty() {
+        return formatted;
+    }
+    let mut out = String::with_capacity(formatted.len() - 1);
+    out.push_str(&formatted[..semi]);
+    out.push_str(rest);
+    out
 }

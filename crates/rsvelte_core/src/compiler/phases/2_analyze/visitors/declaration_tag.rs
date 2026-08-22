@@ -61,6 +61,7 @@ pub fn visit(tag: &mut DeclarationTag, context: &mut VisitorContext) -> Result<(
                 | FragmentOwnerType::SvelteFragment
                 | FragmentOwnerType::SvelteBoundary
                 | FragmentOwnerType::Component
+                | FragmentOwnerType::SvelteSelf
                 | FragmentOwnerType::RegularElementWithSlot
                 | FragmentOwnerType::SvelteElementWithSlot
         )

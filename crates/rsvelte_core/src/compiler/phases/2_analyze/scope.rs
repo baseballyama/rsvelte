@@ -360,6 +360,9 @@ pub struct Binding {
     /// When the initial value is an Identifier, stores its name (e.g., "undefined").
     /// Used by should_proxy() to check if the initial value is `undefined`.
     pub initial_identifier_name: Option<String>,
+    /// When the initial value is a rune CALL (`$host()`, `$state(0)`, …), the
+    /// callee keypath — upstream's `get_rune(declaration.initial, scope)`.
+    pub init_rune: Option<String>,
     /// Instance-level declarations may follow (or contain) a top-level `await`. In these cases,
     /// any reads that occur in the template must wait for the corresponding promise to resolve
     /// otherwise the initial value will not have been assigned.
@@ -462,6 +465,7 @@ impl Binding {
             initial_is_function: false,
             initial_node_type: None,
             initial_identifier_name: None,
+            init_rune: None,
             references: SmallVec::new(),
             mutations: SmallVec::new(),
             prop_alias: None,
@@ -500,6 +504,7 @@ impl Binding {
             initial_is_function: false,
             initial_node_type: None,
             initial_identifier_name: None,
+            init_rune: None,
             references: SmallVec::new(),
             mutations: SmallVec::new(),
             prop_alias: None,

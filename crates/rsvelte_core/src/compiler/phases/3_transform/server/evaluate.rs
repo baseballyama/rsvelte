@@ -37,6 +37,8 @@ const MAX_DEPTH: u8 = 16;
 pub(crate) enum EvalValue {
     Str(String),
     Num(f64),
+    /// A bigint whose exact value is known (JS renders it without the `n`).
+    BigInt(i128),
     Bool(bool),
     Null,
     Undefined,
@@ -68,6 +70,7 @@ impl EvalValue {
             (EvalValue::Num(a), EvalValue::Num(b)) => {
                 (a.is_nan() && b.is_nan()) || a == b || (*a == 0.0 && *b == 0.0)
             }
+            (EvalValue::BigInt(a), EvalValue::BigInt(b)) => a == b,
             (EvalValue::Bool(a), EvalValue::Bool(b)) => a == b,
             (EvalValue::Null, EvalValue::Null)
             | (EvalValue::Undefined, EvalValue::Undefined)
@@ -83,6 +86,7 @@ impl EvalValue {
         match self {
             EvalValue::Str(s) => Some(!s.is_empty()),
             EvalValue::Num(n) => Some(!(*n == 0.0 || n.is_nan())),
+            EvalValue::BigInt(v) => Some(*v != 0),
             EvalValue::Bool(b) => Some(*b),
             EvalValue::Null | EvalValue::Undefined => Some(false),
             EvalValue::Regex(_) => Some(true),
@@ -93,9 +97,11 @@ impl EvalValue {
     pub(crate) fn is_nullish(&self) -> Option<bool> {
         match self {
             EvalValue::Null | EvalValue::Undefined => Some(true),
-            EvalValue::Str(_) | EvalValue::Num(_) | EvalValue::Bool(_) | EvalValue::Regex(_) => {
-                Some(false)
-            }
+            EvalValue::Str(_)
+            | EvalValue::Num(_)
+            | EvalValue::BigInt(_)
+            | EvalValue::Bool(_)
+            | EvalValue::Regex(_) => Some(false),
             _ => None,
         }
     }
@@ -256,6 +262,7 @@ pub(crate) fn to_js_string(v: &EvalValue) -> Option<String> {
     match v {
         EvalValue::Str(s) | EvalValue::Regex(s) => Some(s.clone()),
         EvalValue::Num(n) => Some(js_number_to_string(*n)),
+        EvalValue::BigInt(v) => Some(v.to_string()),
         EvalValue::Bool(b) => Some(b.to_string()),
         EvalValue::Null => Some("null".to_string()),
         EvalValue::Undefined => Some("undefined".to_string()),
@@ -274,6 +281,7 @@ pub(crate) fn js_display_string(v: &EvalValue) -> String {
 
 fn strict_eq(a: &EvalValue, b: &EvalValue) -> Option<bool> {
     Some(match (a, b) {
+        (EvalValue::BigInt(x), EvalValue::BigInt(y)) => x == y,
         (EvalValue::Str(x), EvalValue::Str(y)) => x == y,
         (EvalValue::Num(x), EvalValue::Num(y)) => x == y, // NaN !== NaN holds
         (EvalValue::Bool(x), EvalValue::Bool(y)) => x == y,
@@ -305,6 +313,9 @@ fn loose_eq(a: &EvalValue, b: &EvalValue) -> Option<bool> {
         return loose_eq(&to_primitive(a), &to_primitive(b));
     }
     Some(match (a, b) {
+        (EvalValue::BigInt(x), EvalValue::BigInt(y)) => x == y,
+        // Mixed bigint comparisons have their own coercion table; decline.
+        (EvalValue::BigInt(_), _) | (_, EvalValue::BigInt(_)) => return None,
         (EvalValue::Str(x), EvalValue::Str(y)) => x == y,
         (EvalValue::Num(x), EvalValue::Num(y)) => x == y,
         (EvalValue::Bool(_), _) => return loose_eq(&EvalValue::Num(to_number(a)?), b),
@@ -358,12 +369,16 @@ fn to_uint32(n: f64) -> u32 {
 pub(crate) fn eval_unary(op: &str, a: &EvalValue) -> EvalValue {
     let r = match op {
         "!" => a.truthy().map(|t| EvalValue::Bool(!t)),
-        "-" => to_number(a).map(|n| EvalValue::Num(-n)),
+        "-" => match a {
+            EvalValue::BigInt(v) => v.checked_neg().map(EvalValue::BigInt),
+            _ => to_number(a).map(|n| EvalValue::Num(-n)),
+        },
         "+" => to_number(a).map(EvalValue::Num),
         "~" => to_number(a).map(|n| EvalValue::Num(!to_int32(n) as f64)),
         "typeof" => match a {
             EvalValue::Str(_) => Some("string"),
             EvalValue::Num(_) => Some("number"),
+            EvalValue::BigInt(_) => Some("bigint"),
             EvalValue::Bool(_) => Some("boolean"),
             EvalValue::Null | EvalValue::Regex(_) => Some("object"),
             EvalValue::Undefined => Some("undefined"),
@@ -686,7 +701,7 @@ fn parse_literal_text(text: &str) -> Option<EvalValue> {
         "true" => return Some(EvalValue::Bool(true)),
         "false" => return Some(EvalValue::Bool(false)),
         "null" => return Some(EvalValue::Null),
-        "undefined" => return Some(EvalValue::Undefined),
+        "undefined" | "void 0" => return Some(EvalValue::Undefined),
         _ => {}
     }
     if t.len() >= 2 {
@@ -749,9 +764,51 @@ fn parse_literal_text(text: &str) -> Option<EvalValue> {
             return Some(EvalValue::Str(out));
         }
     }
-    if let Ok(n) = t.parse::<f64>()
-        && t.chars()
-            .all(|c| c.is_ascii_digit() || matches!(c, '.' | '-' | '+' | 'e' | 'E'))
+    // Numeric literals: separators, 0b/0o/0x bases, and bigint suffix.
+    let cleaned: String = t.chars().filter(|c| *c != '_').collect();
+    let c = cleaned.as_str();
+    if let Some(digits) = c.strip_suffix('n') {
+        let v = if let Some(h) = digits
+            .strip_prefix("0x")
+            .or_else(|| digits.strip_prefix("0X"))
+        {
+            i128::from_str_radix(h, 16).ok()?
+        } else if let Some(o) = digits
+            .strip_prefix("0o")
+            .or_else(|| digits.strip_prefix("0O"))
+        {
+            i128::from_str_radix(o, 8).ok()?
+        } else if let Some(b) = digits
+            .strip_prefix("0b")
+            .or_else(|| digits.strip_prefix("0B"))
+        {
+            i128::from_str_radix(b, 2).ok()?
+        } else {
+            if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+                return None;
+            }
+            digits.parse::<i128>().ok()?
+        };
+        return Some(EvalValue::BigInt(v));
+    }
+    if let Some(h) = c.strip_prefix("0x").or_else(|| c.strip_prefix("0X")) {
+        return u128::from_str_radix(h, 16)
+            .ok()
+            .map(|v| EvalValue::Num(v as f64));
+    }
+    if let Some(o) = c.strip_prefix("0o").or_else(|| c.strip_prefix("0O")) {
+        return u128::from_str_radix(o, 8)
+            .ok()
+            .map(|v| EvalValue::Num(v as f64));
+    }
+    if let Some(b) = c.strip_prefix("0b").or_else(|| c.strip_prefix("0B")) {
+        return u128::from_str_radix(b, 2)
+            .ok()
+            .map(|v| EvalValue::Num(v as f64));
+    }
+    if let Ok(n) = c.parse::<f64>()
+        && c.chars()
+            .all(|ch| ch.is_ascii_digit() || matches!(ch, '.' | '-' | '+' | 'e' | 'E'))
     {
         return Some(EvalValue::Num(n));
     }
@@ -1169,8 +1226,11 @@ impl<'a> EvalCtx<'a> {
 
         match ty {
             "Literal" => {
-                if node.get("bigint").is_some() {
-                    return Evaluation::unknown();
+                if let Some(digits) = node.get("bigint").and_then(|b| b.as_str()) {
+                    return match digits.parse::<i128>() {
+                        Ok(v) => Evaluation::single(EvalValue::BigInt(v)),
+                        Err(_) => Evaluation::unknown(),
+                    };
                 }
                 // Regex literal: return its string representation (e.g. /[}]/gi)
                 if let Some(regex) = node.get("regex") {

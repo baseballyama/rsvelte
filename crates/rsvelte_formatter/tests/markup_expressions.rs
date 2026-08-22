@@ -406,3 +406,25 @@ fn sequence_in_block_header_keeps_parens() {
         "expected block-header sequence parens kept:\n{out}"
     );
 }
+
+// ─── Comments inside an expression tag ───────────────────────────────────
+
+#[test]
+fn trailing_comment_keeps_the_tag_an_expression() {
+    // The formatted body must stay a single expression; a `;` before the
+    // comment makes the tag unparseable.
+    let out = fmt("<p>{n /* trailing */}</p>");
+    assert!(
+        out.contains("{n /* trailing */}"),
+        "expected no statement semicolon:\n{out}"
+    );
+}
+
+#[test]
+fn this_expression_with_greater_than_does_not_end_the_open_tag() {
+    let out = fmt("<svelte:element this={n > 0 ? 'p' : 'span'}>{n}</svelte:element>");
+    assert!(
+        out.contains("<svelte:element this={n > 0 ? \"p\" : \"span\"}>{n}</svelte:element>"),
+        "expected the open tag to end at its own `>`:\n{out}"
+    );
+}

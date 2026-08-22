@@ -13,15 +13,16 @@ use crate::ast::template::SvelteElement;
 pub fn visit(options: &SvelteElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Check for duplicate
     if context.has_svelte_options {
-        return Err(errors::svelte_meta_duplicate("svelte:options").at(options.start, options.end));
+        return Err(
+            errors::svelte_meta_duplicate("svelte:options").at(options.start, options.start)
+        );
     }
     context.has_svelte_options = true;
 
     // Validate placement (must be at top level)
-    if context.is_inside_element_or_block() {
-        return Err(
-            errors::svelte_meta_invalid_placement("svelte:options").at(options.start, options.end)
-        );
+    if !context.in_root_fragment {
+        return Err(errors::svelte_meta_invalid_placement("svelte:options")
+            .at(options.start, options.start));
     }
 
     // svelte:options cannot have children

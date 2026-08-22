@@ -643,8 +643,37 @@ impl<'a> Parser<'a> {
         }
         match self.bytes.get(i + 1) {
             Some(b'*') | Some(b'/') => None,
+            _ if self.options.reparse_leading_slash_expression && !self.block_close_shaped(i) => {
+                None
+            }
             _ => Some(i),
         }
+    }
+
+    /// Whether the `/` at `slash` starts something shaped like a block close —
+    /// `/` + ws* + word + ws* + `}`. Only consulted under
+    /// `reparse_leading_slash_expression`: anything else after `{/` (e.g. the
+    /// regex in `{/^x/y.test(a)}`, which the JS printer legally emits by
+    /// stripping the parens off `{(/^x/y).test(a)}`) is then re-read as an
+    /// expression tag instead of an unclosable block close.
+    pub fn block_close_shaped(&self, slash: usize) -> bool {
+        let mut j = slash + 1;
+        while j < self.bytes.len() && is_js_whitespace_byte(self.bytes[j]) {
+            j += 1;
+        }
+        let word_start = j;
+        while j < self.bytes.len()
+            && (self.bytes[j].is_ascii_alphanumeric() || self.bytes[j] == b'_')
+        {
+            j += 1;
+        }
+        if j == word_start {
+            return false;
+        }
+        while j < self.bytes.len() && is_js_whitespace_byte(self.bytes[j]) {
+            j += 1;
+        }
+        self.bytes.get(j) == Some(&b'}')
     }
 
     /// If the parser is positioned at a block continuation marker — `{` +
@@ -673,7 +702,9 @@ impl<'a> Parser<'a> {
         };
         match self.bytes[i] {
             b'/' => (
-                !matches!(self.bytes.get(i + 1), Some(b'*') | Some(b'/')),
+                !matches!(self.bytes.get(i + 1), Some(b'*') | Some(b'/'))
+                    && (!self.options.reparse_leading_slash_expression
+                        || self.block_close_shaped(i)),
                 false,
             ),
             b':' => (

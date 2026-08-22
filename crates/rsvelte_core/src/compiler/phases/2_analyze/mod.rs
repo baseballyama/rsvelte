@@ -233,23 +233,6 @@ pub(crate) fn analyze_prepared_component_with_retained(
         analysis.accessors = true;
     }
 
-    // Check for options_missing_custom_element warning
-    // If svelte:options has customElement but the compile options don't have customElement: true
-    if let Some(ref svelte_options) = ast.options
-        && svelte_options.custom_element.is_some()
-        && !options.custom_element
-    {
-        let mut warning = warnings::options_missing_custom_element();
-        if let Some(attr) = svelte_options
-            .attributes
-            .iter()
-            .find(|attr| attr.name.as_str() == "customElement")
-        {
-            warning = warning.at(attr.start, attr.end);
-        }
-        analysis.warnings.push(warning);
-    }
-
     // Extract script content for Phase 3 (avoids re-parsing)
     analysis.extract_scripts(ast, source, retained_scripts);
 
@@ -260,6 +243,9 @@ pub(crate) fn analyze_prepared_component_with_retained(
     // This must happen after scopes are created but before template analysis
     // Corresponds to Svelte's store subscription logic in 2-analyze/index.js L348-444
     let is_module_file = analysis.is_module_file;
+    // `<svelte:options runes>` overrides the compile option in upstream's
+    // `combined_options`, so the store loop's `runes_option` is the merged value.
+    let runes_option = analysis.runes_explicitly_set.or(options.runes);
     // Timed outside the `?` so a script that errors still charges its time and
     // its call: an early return that skips the record loses both, which reads
     // as the stage being cheaper than it is.
@@ -267,7 +253,7 @@ pub(crate) fn analyze_prepared_component_with_retained(
     let store_subs_result = store_subscriptions::detect_store_subscriptions(
         ast,
         &mut analysis,
-        options.runes,
+        runes_option,
         is_module_file,
         retained_scripts,
     );
@@ -370,22 +356,43 @@ pub(crate) fn analyze_prepared_component_with_retained(
         }
     }
 
+    // `<svelte:options>` diagnostics run once over the attribute list, so they
+    // come out in source order and each carries its own attribute's span.
+    // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js L685-698
+    if let Some(ref svelte_options) = ast.options {
+        for attribute in &svelte_options.attributes {
+            let warning = match attribute.name.as_str() {
+                "accessors" if analysis.runes => warnings::options_deprecated_accessors(),
+                "customElement" if !options.custom_element => {
+                    warnings::options_missing_custom_element()
+                }
+                "immutable" if analysis.runes => warnings::options_deprecated_immutable(),
+                _ => continue,
+            };
+            analysis
+                .warnings
+                .push(warning.at(attribute.start, attribute.end));
+        }
+    }
+
     // In runes mode, immutable is always true and accessors is always false
     // (unless it's a custom element). This overrides any options passed by the user.
     // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js
     if analysis.runes {
-        // `<svelte:options immutable>` is deprecated in runes mode (it has no
-        // effect there). Mirror upstream's analyze-phase warning, which fires
-        // when the `immutable` option attribute is present and runes is on
-        // (2-analyze/index.js). M-061.
-        if ast.options.as_ref().is_some_and(|o| o.immutable.is_some()) {
-            analysis
-                .warnings
-                .push(warnings::options_deprecated_immutable());
-        }
         analysis.immutable = true;
         if analysis.custom_element.is_none() {
             analysis.accessors = false;
+        }
+
+        // Upstream raises these from the module scope's leftover references,
+        // before any visitor runs, so they outrank every diagnostic the walk
+        // below can produce — and `$$props` is checked ahead of `$$restProps`
+        // whichever comes first in the source.
+        if let Some((start, end)) = analysis.legacy_props_ref {
+            return Err(errors::legacy_props_invalid().at(start, end));
+        }
+        if let Some((start, end)) = analysis.legacy_rest_props_ref {
+            return Err(errors::legacy_rest_props_invalid().at(start, end));
         }
     }
 
@@ -802,7 +809,16 @@ pub(crate) fn analyze_prepared_component_with_retained(
         && (analysis.uses_slots
             || (analysis.custom_element.is_none() && !analysis.slot_names.is_empty()))
     {
-        return Err(errors::slot_snippet_conflict());
+        // Reference: 2-analyze/index.js L861 — the position is the FIRST `<slot>`,
+        // falling back to wherever `$$slot` is mentioned when there is no element.
+        let err = errors::slot_snippet_conflict();
+        return Err(match analysis.slot_names.values().next() {
+            Some(&(start, end)) => err.at(start, end),
+            None => match memchr::memmem::find(analysis.source.as_bytes(), b"$$slot") {
+                Some(pos) => err.at(pos as u32, pos as u32),
+                None => err,
+            },
+        });
     }
 
     // Analyze CSS if present
@@ -984,8 +1000,22 @@ fn synthesize_class_style_attributes(
             TemplateNode::SnippetBlock(snippet) => {
                 synthesize_class_style_attributes(&mut snippet.body, analysis);
             }
-            TemplateNode::SvelteHead(head) => {
-                synthesize_class_style_attributes(&mut head.fragment, analysis);
+            // Upstream reads one flat `analysis.elements`, so every container is
+            // covered by construction; re-enumerating them here is what let
+            // `<svelte:boundary>` and `<svelte:fragment>` children fall out.
+            TemplateNode::SvelteHead(el)
+            | TemplateNode::SvelteBoundary(el)
+            | TemplateNode::SvelteFragment(el)
+            | TemplateNode::SvelteBody(el)
+            | TemplateNode::SvelteDocument(el)
+            | TemplateNode::SvelteWindow(el) => {
+                synthesize_class_style_attributes(&mut el.fragment, analysis);
+            }
+            TemplateNode::SvelteComponent(comp) => {
+                synthesize_class_style_attributes(&mut comp.fragment, analysis);
+            }
+            TemplateNode::SvelteSelf(el) => {
+                synthesize_class_style_attributes(&mut el.fragment, analysis);
             }
             TemplateNode::SlotElement(slot) => {
                 synthesize_class_style_attributes(&mut slot.fragment, analysis);
@@ -1001,7 +1031,7 @@ fn synthesize_class_style_attributes(
 /// Synthesize class/style attributes for a single element's attribute list.
 fn synthesize_for_element_attrs(
     attributes: &mut Vec<crate::ast::template::Attribute>,
-    _is_scoped: bool,
+    is_scoped: bool,
 ) {
     use crate::ast::template::{
         Attribute, AttributeNode, AttributeValue, AttributeValuePart, Text,
@@ -1033,10 +1063,8 @@ fn synthesize_for_element_attrs(
         }
     }
 
-    // We need an empty class to generate the set_class() or class="" correctly.
-    // NOTE: We do NOT synthesize for scoped-only elements (no class directives) because
-    // the transform phase handles CSS hash injection for those elements directly.
-    if !has_spread && !has_class && has_class_directive {
+    // We need an empty class to generate the set_class() or class="" correctly
+    if !has_spread && !has_class && (is_scoped || has_class_directive) {
         attributes.push(Attribute::Attribute(AttributeNode {
             start: u32::MAX, // synthetic marker (uses -1 in JS, we use u32::MAX)
             end: u32::MAX,
@@ -3895,7 +3923,7 @@ fn js_node_check_features(
         }
     }
 
-    for_each_js_child(node, arena, &mut |child| {
+    for_each_js_reference_child(node, arena, &mut |child| {
         if results.all_found() {
             return;
         }
@@ -3910,6 +3938,40 @@ fn js_node_check_features(
     });
 
     shadowed.truncate(shadow_base);
+}
+
+/// Like [`for_each_js_child`], but skips a non-computed class member NAME.
+/// `for_each_js_child` walks it because the legacy JSON walker did; upstream's
+/// `scope.references` — the set runes-mode detection reads — never holds a
+/// declaration slot, so `class P { $inspect = 1 }` must not read as a rune.
+fn for_each_js_reference_child(node: &JsNode, arena: &ParseArena, f: &mut impl FnMut(&JsNode)) {
+    match node {
+        JsNode::MethodDefinition {
+            key,
+            value,
+            computed,
+            ..
+        } => {
+            if *computed {
+                f(arena.get_js_node(*key));
+            }
+            f(arena.get_js_node(*value));
+        }
+        JsNode::PropertyDefinition {
+            key,
+            value,
+            computed,
+            ..
+        } => {
+            if *computed {
+                f(arena.get_js_node(*key));
+            }
+            if let Some(value) = value {
+                f(arena.get_js_node(*value));
+            }
+        }
+        _ => for_each_js_child(node, arena, f),
+    }
 }
 
 /// Check if a name is a rune identifier.
@@ -4493,9 +4555,13 @@ fn mark_group_bindings_in_node(
                 analysis,
             );
         }
-        TemplateNode::SvelteHead(head) => {
+        // Every container that can hold an element has to be listed, because a
+        // `bind:group` anywhere under one still needs its group array declared.
+        TemplateNode::SvelteHead(el)
+        | TemplateNode::SvelteBoundary(el)
+        | TemplateNode::SvelteFragment(el) => {
             mark_group_bindings_in_fragment(
-                &mut head.fragment,
+                &mut el.fragment,
                 ancestor_stack,
                 assignments,
                 analysis,

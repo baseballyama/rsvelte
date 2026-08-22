@@ -702,39 +702,7 @@ fn build_snippet_declaration<'a>(
     state: &mut ServerTransformState<'a>,
 ) -> Vec<Statement<'a>> {
     let b = state.b;
-    // Emit the declared parameters VERBATIM (destructuring patterns / defaults),
-    // mirroring `visit_snippet_block` — a slot snippet `{#snippet children({ foo })}`
-    // must produce `function children($$renderer, { foo })`, not `…, undefined`.
-    let mut param_srcs: Vec<String> = vec!["$$renderer".to_string()];
-    for param in &snippet.parameters {
-        let s = super::snippet_block::extract_snippet_param(param, state.source);
-        if !s.is_empty() {
-            param_srcs.push(s);
-        }
-    }
-    let params = state
-        .reparse_params(&param_srcs)
-        .unwrap_or_else(|| b.params(vec![b.id_pat("$$renderer")], None));
-    // Snippet parameters shadow same-named component derived/store bindings inside
-    // the body (see `visit_snippet_block`).
-    let mut shadow = rustc_hash::FxHashSet::default();
-    for param in &snippet.parameters {
-        super::snippet_block::collect_param_pattern_names(param, &mut shadow);
-    }
-    state.shadowed_names.push(shadow);
-    // SnippetBlock body IS an `is_text_first` parent.
-    let saved_scope = state.enter_template_scope(snippet.start);
-    let mut body_block = super::shared::build_fragment_body(&snippet.body.nodes, true, true, state);
-    state.restore_scope(saved_scope);
-    state.shadowed_names.pop();
-    if state.options.dev {
-        body_block.insert(
-            0,
-            b.stmt(b.call("$.validate_snippet_args", vec![b.id("$$renderer")])),
-        );
-    }
-    let fn_body = state.b.body(body_block);
-    let fn_decl = state.b.function_declaration(name, params, fn_body, false);
+    let fn_decl = super::snippet_block::build_snippet_function(snippet, name, state);
     if state.options.dev {
         vec![
             b.stmt(b.call("$.prevent_snippet_stringification", vec![b.id(name)])),

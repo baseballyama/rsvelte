@@ -50,8 +50,15 @@ pub struct ScopeBuilder<'a> {
     updates: Vec<Update>,
     /// Current function depth (for validating $ prefixes)
     function_depth: usize,
+    /// Whether the template fragment, rather than a script, is being visited.
+    in_template: bool,
     /// Whether we are in runes mode
     runes_mode: bool,
+    /// Whether legacy mode is explicit (compile option or `<svelte:options runes={false} />`).
+    /// Upstream assigns rune binding kinds only under `analysis.runes`, and
+    /// `runes_mode` alone is not that answer here because it is still being
+    /// auto-detected while scopes are built.
+    legacy_forced: bool,
     /// Whether any script in the component uses TypeScript (lang="ts").
     /// When true, template expressions are parsed as TypeScript so that
     /// TypeScript syntax in event handlers (e.g., type annotations, `as`, `!`)
@@ -105,6 +112,7 @@ impl<'a> ScopeBuilder<'a> {
     pub fn new(
         source: &'a str,
         runes_mode: bool,
+        legacy_forced: bool,
         is_typescript: bool,
         arena: &'a ParseArena,
     ) -> Self {
@@ -124,7 +132,9 @@ impl<'a> ScopeBuilder<'a> {
             // - Variables inside a function body have function_depth = 2 (→ OK)
             // The validate_identifier_name check is `(!function_depth || function_depth <= 1)`.
             function_depth: 1,
+            in_template: false,
             runes_mode,
+            legacy_forced,
             is_typescript,
             validation_errors: Vec::new(),
             possible_implicit_declarations: Vec::new(),
@@ -196,7 +206,9 @@ impl<'a> ScopeBuilder<'a> {
         };
 
         // Visit template - still within the script scope so bindings are accessible
+        self.in_template = true;
         self.visit_fragment(&ast.fragment);
+        self.in_template = false;
 
         // Now pop the script scope after template processing is done
         if let Some(old_scope) = script_scope {
@@ -482,6 +494,9 @@ impl<'a> ScopeBuilder<'a> {
                         }
                     }
                 }
+                if let Some(rest) = &arr.rest {
+                    self.collect_assignment_lhs_identifiers(&rest.target);
+                }
             }
             oxc_ast::ast::AssignmentTarget::ObjectAssignmentTarget(obj) => {
                 for prop in &obj.properties {
@@ -502,6 +517,9 @@ impl<'a> ScopeBuilder<'a> {
                             }
                         }
                     }
+                }
+                if let Some(rest) = &obj.rest {
+                    self.collect_assignment_lhs_identifiers(&rest.target);
                 }
             }
             _ => {
@@ -583,24 +601,18 @@ impl<'a> ScopeBuilder<'a> {
             binding.declaration_start = Some(start);
         }
 
-        // Validate identifier name (check for invalid $ prefixes)
-        // In runes mode: validate without function_depth (all levels validated)
-        // In legacy mode: validate with function_depth so bindings inside function bodies
-        //   (function_depth >= 2) are allowed. This matches the official Svelte compiler's
-        //   scope.js behavior where `function_depth <= 1` means instance scope level only.
-        //
-        // Official Svelte scope.js:
-        //   this.function_depth = parent ? parent.function_depth + (porous ? 0 : 1) : 0;
-        //   validate_identifier_name(binding, this.function_depth);
-        //   validate_identifier_name checks: (!function_depth || function_depth <= 1)
-        //   So function_depth >= 2 (inside a function body) allows $ prefixed names.
-        {
-            let function_depth = if self.runes_mode {
-                None
-            } else {
-                Some(self.function_depth)
-            };
-            if let Err(e) = validate_identifier_name(&binding, function_depth) {
+        // `Scope.declare` always passes the declaring scope's depth, in both
+        // modes, so anything below the script's top level is exempt. Runes mode
+        // re-checks without the exemption, but only from the three analyze
+        // visitors upstream calls it from (variable declarator / function /
+        // class), which is why a `$`-prefixed template binding stays legal.
+        // A template binding is always at least two non-porous levels below the
+        // module scope upstream — the instance scope and the root `Fragment`,
+        // neither of which we materialise — so the `depth <= 1` guard inside
+        // `validate_identifier_name` never fires for one.
+        if !self.in_template {
+            let function_depth = self.scopes[target_scope].function_depth;
+            if let Err(e) = validate_identifier_name(&binding, Some(function_depth)) {
                 self.validation_errors.push(e);
             }
         }
@@ -996,6 +1008,12 @@ impl<'a> ScopeBuilder<'a> {
                         let param = *param;
                         let body = *body;
                         let old_scope = self.push_scope();
+                        // Keyed by the clause start, so the Phase-2 visitor can
+                        // enter it and see the parameter shadow an outer binding
+                        // of the same name.
+                        if let Some(cstart) = node_start(handler_node) {
+                            self.function_scope_map.insert(cstart, self.current_scope);
+                        }
                         // Declare catch parameter if present. Upstream declares it
                         // `let` (scope.js CatchClause), so `catch (e) { e = ... }`
                         // is legal and must not report `constant_assignment`.
@@ -1171,6 +1189,9 @@ impl<'a> ScopeBuilder<'a> {
                         JsNode::ArrowFunctionExpression { .. } | JsNode::FunctionExpression { .. }
                     ) {
                         self.bindings[idx].initial_is_function = true;
+                    }
+                    if let Some(rune) = self.rune_call_callee(init_node) {
+                        self.bindings[idx].init_rune = Some(rune);
                     }
                 }
             }
@@ -1435,13 +1456,55 @@ impl<'a> ScopeBuilder<'a> {
                 let left_node = self.arena.get_js_node(*left);
                 self.collect_assignment_lhs_identifiers_typed(left_node);
             }
+            // An array pattern carries its rest as the last element, so this
+            // arm is what reaches `[a, ...rest]`.
+            JsNode::RestElement { argument, .. } | JsNode::SpreadElement { argument, .. } => {
+                let arg_node = self.arena.get_js_node(*argument);
+                self.collect_assignment_lhs_identifiers_typed(arg_node);
+            }
             // MemberExpression, etc. - not implicit declarations
             _ => {}
         }
     }
 
+    /// The rune keypath of a CallExpression init (`$host()` → `"$host"`,
+    /// `$derived.by(…)` → `"$derived.by"`), or `None` when the callee is not a
+    /// rune or the rune name is shadowed by a real binding — upstream's
+    /// `get_rune(declaration.initial, scope)` / `get_global_keypath`.
+    fn rune_call_callee(&self, expr: &JsNode) -> Option<String> {
+        use crate::compiler::phases::phase2_analyze::visitors::shared::function::is_rune;
+        let JsNode::CallExpression { callee, .. } = expr else {
+            return None;
+        };
+        match self.arena.get_js_node(*callee) {
+            JsNode::Identifier { name, .. } => {
+                let name = name.as_str();
+                (is_rune(name) && self.find_binding_in_scope_chain(name).is_none())
+                    .then(|| name.to_string())
+            }
+            JsNode::MemberExpression {
+                object, property, ..
+            } => {
+                let JsNode::Identifier { name: obj, .. } = self.arena.get_js_node(*object) else {
+                    return None;
+                };
+                let JsNode::Identifier { name: prop, .. } = self.arena.get_js_node(*property)
+                else {
+                    return None;
+                };
+                let keypath = format!("{}.{}", obj.as_str(), prop.as_str());
+                (is_rune(&keypath) && self.find_binding_in_scope_chain(obj.as_str()).is_none())
+                    .then_some(keypath)
+            }
+            _ => None,
+        }
+    }
+
     /// Detect the binding kind from a JsNode expression (e.g., $state(), $derived()).
     fn detect_binding_kind_from_node(&self, expr: &JsNode) -> BindingKind {
+        if self.legacy_forced {
+            return BindingKind::Normal;
+        }
         if let JsNode::CallExpression { callee, .. } = expr {
             let callee_node = self.arena.get_js_node(*callee);
             // Handle direct calls like $state(), $derived(), $props()
@@ -2443,6 +2506,9 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Detect the binding kind from an expression (e.g., $state(), $derived()).
     fn detect_binding_kind_from_expr(&self, expr: &Expression) -> BindingKind {
+        if self.legacy_forced {
+            return BindingKind::Normal;
+        }
         if let Expression::CallExpression(call) = expr {
             // Handle direct calls like $state(), $derived(), $props()
             if let Expression::Identifier(ident) = &call.callee {
@@ -2677,9 +2743,13 @@ impl<'a> ScopeBuilder<'a> {
             if let Attribute::LetDirective(let_dir) = attr {
                 if let Some(ref expression) = let_dir.expression {
                     // Destructured let directive: let:x={{ a, b }}
-                    // Extract identifiers from the destructuring pattern
+                    // 写经 upstream `extract_identifiers_from_destructuring`:
+                    // object property values and object rest arguments recurse;
+                    // an ARRAY rest (`[a, ...rest]`) and a default
+                    // (`[a = 1]`, an AssignmentExpression) hit the switch
+                    // default and declare NOTHING — their reads stay raw.
                     let node = expression.as_node();
-                    self.declare_bindings_from_pattern_node(&node, BindingKind::Let, false);
+                    self.declare_let_directive_pattern_bindings(&node);
                 } else {
                     // Simple let directive: let:bar
                     self.declare_binding(
@@ -2690,6 +2760,47 @@ impl<'a> ScopeBuilder<'a> {
                     );
                 }
             }
+        }
+    }
+
+    /// 写经 upstream `extract_identifiers_from_destructuring` for `let:`
+    /// directive values: Identifier declares; ObjectExpression recurses into
+    /// property values and rest arguments; ArrayExpression recurses into
+    /// elements (a SpreadElement or AssignmentExpression element falls through
+    /// and declares nothing).
+    fn declare_let_directive_pattern_bindings(&mut self, node: &JsNode) {
+        match node {
+            JsNode::Identifier { name, .. } => {
+                self.declare_binding(
+                    name.to_string(),
+                    BindingKind::Let,
+                    DeclarationKind::Const,
+                    None,
+                );
+            }
+            JsNode::ObjectExpression { properties, .. } => {
+                let properties = *properties;
+                for prop in self.arena.get_js_children(properties) {
+                    match prop {
+                        JsNode::Property { value, .. } => {
+                            let value_node = self.arena.get_js_node(*value);
+                            self.declare_let_directive_pattern_bindings(value_node);
+                        }
+                        JsNode::SpreadElement { argument, .. }
+                        | JsNode::RestElement { argument, .. } => {
+                            let arg_node = self.arena.get_js_node(*argument);
+                            self.declare_let_directive_pattern_bindings(arg_node);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            JsNode::ArrayExpression { elements, .. } => {
+                for el in elements.iter().flatten() {
+                    self.declare_let_directive_pattern_bindings(el);
+                }
+            }
+            _ => {}
         }
     }
 
@@ -3581,6 +3692,19 @@ impl<'a> ScopeBuilder<'a> {
         // can find it and know that it's a local (non-dynamic) snippet
         if let Some(name) = block.expression.name() {
             let span = block.expression.start().zip(block.expression.end());
+            // A snippet declares with `Function`, which `declare_binding`
+            // exempts from the duplicate check so a TypeScript overload set
+            // stays legal. Two snippets are not an overload set.
+            if self.scopes[self.current_scope]
+                .declarations
+                .contains_key(name)
+            {
+                let mut error = errors::declaration_duplicate(name);
+                if let Some((start, end)) = span {
+                    error = error.at(start, end);
+                }
+                self.validation_errors.push(error);
+            }
             let idx = self.declare_binding(
                 name.to_string(),
                 BindingKind::Normal,
@@ -3651,6 +3775,7 @@ impl<'a> ScopeBuilder<'a> {
                 let id_node = self.arena.get_js_node(id_id);
                 let init_node = decl.init().map(|i| self.arena.get_js_node(i));
                 let binding_kind = init_node
+                    .filter(|_| !self.legacy_forced)
                     .map(|n| binding_kind_from_init_node(n, self.arena))
                     .unwrap_or(BindingKind::Template);
                 self.declare_decl_tag_bindings_node(id_node, decl_kind, binding_kind);
@@ -3982,13 +4107,14 @@ pub fn build_scopes(
     ast: &Root,
     source: &str,
     runes_mode: bool,
+    legacy_forced: bool,
     is_typescript: bool,
     arena: &ParseArena,
 ) -> (
     ScopeRoot,
     Vec<crate::compiler::phases::phase2_analyze::AnalysisError>,
 ) {
-    let builder = ScopeBuilder::new(source, runes_mode, is_typescript, arena);
+    let builder = ScopeBuilder::new(source, runes_mode, legacy_forced, is_typescript, arena);
     builder.build(ast)
 }
 
@@ -4162,6 +4288,7 @@ fn node_start(node: &JsNode) -> Option<u32> {
         | JsNode::UpdateExpression { start, .. }
         | JsNode::LogicalExpression { start, .. }
         | JsNode::NewExpression { start, .. }
+        | JsNode::CatchClause { start, .. }
         | JsNode::TemplateLiteral { start, .. } => Some(*start),
         _ => None,
     }

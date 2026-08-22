@@ -19,11 +19,12 @@ fn client(src: &str) -> String {
 }
 
 /// H-160: a backtick in multi-node `<title>` text must be escaped in the
-/// generated template literal.
+/// generated template literal. A prop keeps the title dynamic — a known local
+/// folds the whole title to a plain single-quoted string upstream.
 #[test]
 fn title_text_backtick_is_escaped() {
     let out =
-        client("<script>let x = 1;</script>\n<svelte:head><title>a`b {x}</title></svelte:head>");
+        client("<script>export let x;</script>\n<svelte:head><title>a`b {x}</title></svelte:head>");
     assert!(!out.contains("COMPILE_ERROR"), "{out}");
     assert!(out.contains(r"a\`b"), "title backtick not escaped: {out}");
 }

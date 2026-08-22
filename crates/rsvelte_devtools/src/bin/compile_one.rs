@@ -3,6 +3,7 @@
 //!
 //! Usage:
 //!   cargo run -p `rsvelte_devtools` --bin `compile_one` -- <file.svelte> [--server] [--dev]
+//!     [--runes-false | --runes-true]
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile};
 
@@ -13,6 +14,13 @@ fn main() {
         std::process::exit(1);
     };
     let dev = args.iter().any(|a| a == "--dev");
+    let runes = if args.iter().any(|a| a == "--runes-false") {
+        Some(false)
+    } else if args.iter().any(|a| a == "--runes-true") {
+        Some(true)
+    } else {
+        None
+    };
     let generate = if args.iter().any(|a| a == "--server") {
         GenerateMode::Server
     } else {
@@ -32,6 +40,7 @@ fn main() {
         CompileOptions {
             generate,
             dev,
+            runes,
             filename: Some(path.clone()),
             ..Default::default()
         },

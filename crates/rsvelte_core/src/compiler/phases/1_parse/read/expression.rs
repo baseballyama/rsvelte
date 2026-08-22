@@ -298,6 +298,13 @@ fn try_parse_simple_expression<'a>(
         return None;
     }
 
+    // The fast path never reaches OXC, and so never reaches the scan for the
+    // restrictions acorn applies and OXC does not. Hand anything that could
+    // carry one to the real parser instead.
+    if may_carry_acorn_violation(bytes) {
+        return None;
+    }
+
     let first = bytes[0];
 
     // Fast path for identifiers and member expressions (most common case)
@@ -1214,6 +1221,61 @@ fn is_ascii_ident_start_byte(b: u8) -> bool {
     b.is_ascii_alphabetic() || b == b'_' || b == b'$'
 }
 
+/// Words the fast path may spell but strict mode does not allow as an
+/// identifier, plus the two whose legality depends on how they are used.
+const FAST_PATH_SUSPECT_WORDS: &[&str] = &[
+    "let",
+    "yield",
+    "static",
+    "implements",
+    "interface",
+    "package",
+    "private",
+    "protected",
+    "public",
+    "eval",
+    "arguments",
+];
+
+/// Whether `bytes` could hold something the fast path would accept and acorn
+/// would not — a legacy octal literal, an escape inside a string literal, or one
+/// of the words strict mode reserves. Deliberately over-eager: a false positive
+/// only costs a real parse.
+fn may_carry_acorn_violation(bytes: &[u8]) -> bool {
+    let mut i = 0;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if b == b'\\' {
+            return true;
+        }
+        if is_ascii_ident_start_byte(b) {
+            let start = i;
+            while i < bytes.len() && is_ascii_ident_continue_byte(bytes[i]) {
+                i += 1;
+            }
+            let word = &bytes[start..i];
+            // A member/property name is not a binding, but the fast path does
+            // not distinguish them and a real parse is cheap enough.
+            if FAST_PATH_SUSPECT_WORDS.iter().any(|w| w.as_bytes() == word) {
+                return true;
+            }
+            continue;
+        }
+        if b.is_ascii_digit() {
+            let start = i;
+            while i < bytes.len() && (is_ascii_ident_continue_byte(bytes[i]) || bytes[i] == b'.') {
+                i += 1;
+            }
+            if bytes[start] == b'0' && bytes.get(start + 1).is_some_and(u8::is_ascii_digit) {
+                return true;
+            }
+            continue;
+        }
+        i += 1;
+    }
+    false
+}
+
 /// Can `b` continue a JS identifier, restricted to ASCII? See
 /// [`is_ascii_ident_start_byte`] for why the ASCII subset is the right gate here.
 #[inline(always)]
@@ -1621,16 +1683,33 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
             let parser = OxcParser::new(allocator, &wrapped, source_type);
             let result = parser.parse();
             if let Some(first_error) = result.diagnostics.first() {
+                // Acorn raises "Assigning to rvalue" at the target's start, not
+                // where it stopped consuming, so this one label reads left.
+                let at_label_start = matches!(
+                    first_error.message.as_ref(),
+                    "Cannot assign to this expression" | "Invalid left-hand side in assignment"
+                );
                 let pos = first_error
                     .labels
                     .first()
-                    .map(|label| label.offset() as usize + label.len() as usize)
+                    .map(|label| {
+                        if at_label_start {
+                            label.offset() as usize
+                        } else {
+                            label.offset() as usize + label.len() as usize
+                        }
+                    })
                     .map(|wrapped_end| {
                         // Strip the leading `(` we added and clamp.
                         wrapped_end.saturating_sub(1).min(content.len())
                     })
                     .unwrap_or(0);
-                return Some((first_error.message.to_string(), pos));
+                let message = if at_label_start {
+                    "Assigning to rvalue".to_string()
+                } else {
+                    first_error.message.to_string()
+                };
+                return Some((message, pos));
             }
             // Check for invalid assignment targets that OXC doesn't report as errors
             if let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
@@ -1639,10 +1718,15 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
             {
                 return Some(("Assigning to rvalue".to_string(), 0));
             }
-            if let Some((at, message)) = await_or_yield_in_params(&result.program, content) {
-                // Acorn reports the `await` / `yield` token's start; strip the `(`.
+            // A template expression is parsed by its own function, so it needs
+            // the acorn-only restrictions applied here too — the script path's
+            // scan never sees it. Acorn reports the violation's start; strip
+            // the `(` this probe wraps the expression in.
+            if let Some((at, message)) =
+                acorn_only_violation(&result.program, &wrapped, source_type.is_typescript())
+            {
                 let pos = (at as usize).saturating_sub(1).min(content.len());
-                return Some((message.to_string(), pos));
+                return Some((message, pos));
             }
             None
         })
@@ -1697,12 +1781,8 @@ pub fn check_params_parse_error(params: &str, ts: bool) -> Option<(String, usize
                 .unwrap_or(0);
             return Some((first_error.message.to_string(), pos));
         }
-        await_or_yield_in_params(&result.program, params).map(|(at, message)| {
-            (
-                message.to_string(),
-                (at as usize).saturating_sub(1).min(params.len()),
-            )
-        })
+        acorn_only_violation(&result.program, &wrapped, ts)
+            .map(|(at, message)| (message, (at as usize).saturating_sub(1).min(params.len())))
     })
 }
 
@@ -1729,8 +1809,8 @@ pub fn check_js_statement_parse_error(content: &str, ts: bool) -> Option<(String
                 .unwrap_or(0);
             return Some((first_error.message.to_string(), pos));
         }
-        await_or_yield_in_params(&result.program, content)
-            .map(|(at, message)| (message.to_string(), (at as usize).min(content.len())))
+        acorn_only_violation(&result.program, content, ts)
+            .map(|(at, message)| (message, (at as usize).min(content.len())))
     })
 }
 
@@ -1858,10 +1938,11 @@ fn parse_expression_with_typescript<'a>(
                 return None;
             }
 
-            // Same shape: acorn rejects `await` / `yield` in a parameter list
-            // and OXC does not. Failing here routes the caller to
-            // `check_js_parse_error_with_pos`, which reports acorn's message.
-            if await_or_yield_in_params(&result.program, content).is_some() {
+            // Same shape for every other restriction acorn applies and OXC does
+            // not — a template expression is strict too. Failing here routes the
+            // caller to `check_js_parse_error_with_pos`, which reports acorn's
+            // message and position.
+            if acorn_only_violation(&result.program, &wrapped, use_typescript).is_some() {
                 return None;
             }
 
@@ -3855,6 +3936,18 @@ fn convert_expression<'a>(
             let end = offset + num.span.end as usize - 1;
             let raw = num.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
             create_numeric_literal(num.value, raw, start, end, line_offsets)
+        }
+        OxcExpression::BigIntLiteral(big) => {
+            let start = offset + big.span.start as usize - 1;
+            let end = offset + big.span.end as usize - 1;
+            let raw = big.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
+            create_literal(
+                LiteralValue::BigInt(big.value.as_str().into()),
+                raw,
+                start,
+                end,
+                line_offsets,
+            )
         }
         OxcExpression::StringLiteral(str_lit) => {
             let start = offset + str_lit.span.start as usize - 1;
@@ -6847,6 +6940,102 @@ fn await_or_yield_in_params(program: &OxcProgram<'_>, source: &str) -> Option<(u
     scan.found
 }
 
+/// The earliest construct OXC accepts and acorn rejects, as `(offset, message)`.
+///
+/// acorn applies its restrictions uniformly because every fragment a component
+/// carries is parsed as an ES module and is therefore strict; OXC has no such
+/// pass, and additionally implements a wider grammar. acorn is single-pass and
+/// non-recovering, so it throws on the first violation it reaches and never sees
+/// any that follow — hence the earliest by position rather than all of them.
+///
+/// `is_typescript` gates the two acorn-typescript does not share: a decorator is
+/// legitimate TS, and so is a deprecated `assert` import clause.
+fn acorn_only_violation(
+    program: &OxcProgram<'_>,
+    content: &str,
+    is_typescript: bool,
+) -> Option<(u32, String)> {
+    use oxc_ast_visit::Visit;
+    struct Scan {
+        check_decorator: bool,
+        decorator_at: Option<u32>,
+        with_at: Option<u32>,
+    }
+    impl<'a> Visit<'a> for Scan {
+        fn visit_decorator(&mut self, dec: &oxc_ast::ast::Decorator<'a>) {
+            if self.check_decorator && self.decorator_at.is_none() {
+                self.decorator_at = Some(dec.span.start);
+            }
+        }
+        fn visit_with_statement(&mut self, stmt: &oxc_ast::ast::WithStatement<'a>) {
+            if self.with_at.is_none() {
+                self.with_at = Some(stmt.span.start);
+            }
+            oxc_ast_visit::walk::walk_with_statement(self, stmt);
+        }
+    }
+
+    let check_decorator = !is_typescript && content.contains('@');
+    let check_with = content.contains("with");
+    let mut finder = Scan {
+        check_decorator,
+        decorator_at: None,
+        with_at: None,
+    };
+    if check_decorator || check_with {
+        finder.visit_program(program);
+    }
+
+    [
+        finder
+            .decorator_at
+            .map(|at| (at, "Unexpected character '@'".to_string())),
+        finder.with_at.map(|at| {
+            (
+                at,
+                "'with' in strict mode\nhttps://svelte.dev/e/js_parse_error".to_string(),
+            )
+        }),
+        await_or_yield_in_params(program, content).map(|(at, message)| (at, message.to_string())),
+        super::strict_mode::find_violation(program, content, is_typescript),
+    ]
+    .into_iter()
+    .flatten()
+    .min_by_key(|(at, _)| *at)
+}
+
+/// OXC reports a missing semicolon at the INSERTION POINT — the end of the
+/// statement it just read — while acorn keeps reading and throws on the token
+/// that could not continue it. Move to that token, past whitespace and comments,
+/// and take acorn's wording with it.
+fn realign_missing_semicolon(content: &str, at: usize, message: &str) -> (usize, String) {
+    if !message.starts_with("Expected a semicolon or an implicit semicolon") {
+        return (at, message.to_string());
+    }
+    let bytes = content.as_bytes();
+    let mut i = at;
+    loop {
+        while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+            i += 1;
+        }
+        let rest = &bytes[i..];
+        if rest.starts_with(b"//") {
+            i += rest.iter().position(|&b| b == b'\n').unwrap_or(rest.len());
+        } else if rest.starts_with(b"/*") {
+            match content[i + 2..].find("*/") {
+                Some(end) => i += 2 + end + 2,
+                None => return (at, message.to_string()),
+            }
+        } else {
+            break;
+        }
+    }
+    if i >= bytes.len() {
+        return (at, message.to_string());
+    }
+    (i, "Unexpected token".to_string())
+}
+
 fn convert_parsed_program<'ast>(
     arena: &ParseArena,
     program: &OxcProgram<'_>,
@@ -6870,93 +7059,25 @@ fn convert_parsed_program<'ast>(
             .iter()
             .find(|d| !is_acorn_unchecked_ts_grammar_rule(d))
             .map(|first_error| {
-                let pos = first_error
+                let at = first_error
                     .labels
                     .first()
                     .map(|label| (label.offset() as usize).min(content.len()))
-                    .unwrap_or(0)
-                    + offset;
-                crate::error::ParseError::svelte(
-                    "js_parse_error",
-                    first_error.message.to_string(),
-                    (pos, pos),
-                )
+                    .unwrap_or(0);
+                let (at, message) = realign_missing_semicolon(content, at, &first_error.message);
+                let pos = at + offset;
+                crate::error::ParseError::svelte("js_parse_error", message, (pos, pos))
             });
 
-        // OXC has no strict-mode syntax-restriction pass at all, unlike acorn,
-        // which applies one uniformly because every script is parsed with
-        // `sourceType: 'module'` (component scripts are ESM and therefore
-        // always strict — see acorn.js's shared `parse`/`parse_expression_at`/
-        // `parse_statement_at`). Scan for constructs OXC accepts but acorn
-        // would reject, and report whichever occurs first in the source:
-        // acorn is a single-pass, non-recovering parser, so it throws on the
-        // first one it reaches and never sees any that would follow.
-        //
-        // - `@decorator` (Stage-3 syntax OXC accepts even in plain JS; a bare
-        //   `@` is never legal JS outside decorators). TS scripts legitimately
-        //   support decorators, so this one is JS-only.
-        // - `with (...) { ... }` (always a strict-mode violation; TS scripts
-        //   are strict too, so this applies regardless of `is_typescript`).
-        if parse_error.is_none() {
-            use oxc_ast_visit::Visit;
-            struct StrictModeScan {
-                check_decorator: bool,
-                decorator_at: Option<u32>,
-                with_at: Option<u32>,
-            }
-            impl<'a> Visit<'a> for StrictModeScan {
-                fn visit_decorator(&mut self, dec: &oxc_ast::ast::Decorator<'a>) {
-                    if self.check_decorator && self.decorator_at.is_none() {
-                        self.decorator_at = Some(dec.span.start);
-                    }
-                }
-                fn visit_with_statement(&mut self, stmt: &oxc_ast::ast::WithStatement<'a>) {
-                    if self.with_at.is_none() {
-                        self.with_at = Some(stmt.span.start);
-                    }
-                    oxc_ast_visit::walk::walk_with_statement(self, stmt);
-                }
-            }
-
-            let check_decorator = !is_typescript && content.contains('@');
-            let check_with = content.contains("with");
-            {
-                let mut finder = StrictModeScan {
-                    check_decorator,
-                    decorator_at: None,
-                    with_at: None,
-                };
-                if check_decorator || check_with {
-                    finder.visit_program(program);
-                }
-
-                let earliest = [
-                    finder
-                        .decorator_at
-                        .map(|at| (at, "Unexpected character '@'".to_string())),
-                    finder.with_at.map(|at| {
-                        (
-                            at,
-                            "'with' in strict mode\nhttps://svelte.dev/e/js_parse_error"
-                                .to_string(),
-                        )
-                    }),
-                    await_or_yield_in_params(program, content)
-                        .map(|(at, message)| (at, message.to_string())),
-                ]
-                .into_iter()
-                .flatten()
-                .min_by_key(|(at, _)| *at);
-
-                if let Some((at, message)) = earliest {
-                    let pos = at as usize + offset;
-                    parse_error = Some(crate::error::ParseError::svelte(
-                        "js_parse_error",
-                        message,
-                        (pos, pos),
-                    ));
-                }
-            }
+        if parse_error.is_none()
+            && let Some((at, message)) = acorn_only_violation(program, content, is_typescript)
+        {
+            let pos = at as usize + offset;
+            parse_error = Some(crate::error::ParseError::svelte(
+                "js_parse_error",
+                message,
+                (pos, pos),
+            ));
         }
 
         // Calculate actual positions within the document
@@ -8878,6 +8999,18 @@ fn convert_expression_for_program<'a>(
             let end = offset + num.span.end as usize;
             let raw = num.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
             create_numeric_literal(num.value, raw, start, end, line_offsets)
+        }
+        OxcExpression::BigIntLiteral(big) => {
+            let start = offset + big.span.start as usize;
+            let end = offset + big.span.end as usize;
+            let raw = big.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
+            create_literal(
+                LiteralValue::BigInt(big.value.as_str().into()),
+                raw,
+                start,
+                end,
+                line_offsets,
+            )
         }
         OxcExpression::StringLiteral(str_lit) => {
             let start = offset + str_lit.span.start as usize;
@@ -11472,6 +11605,19 @@ fn convert_expression_with_adjustment(
             let end = doc_offset + lit.span.end as usize - prefix_len;
             let raw = lit.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
             create_numeric_literal_for_binding(lit.value, raw, start, end, line_offsets).to_value()
+        }
+        OxcExpression::BigIntLiteral(lit) => {
+            let start = doc_offset + lit.span.start as usize - prefix_len;
+            let end = doc_offset + lit.span.end as usize - prefix_len;
+            let raw = lit.raw.as_ref().map(|a| a.as_str()).unwrap_or("");
+            create_literal_for_binding(
+                LiteralValue::BigInt(lit.value.as_str().into()),
+                raw,
+                start,
+                end,
+                line_offsets,
+            )
+            .to_value()
         }
         OxcExpression::StringLiteral(lit) => {
             let start = doc_offset + lit.span.start as usize - prefix_len;

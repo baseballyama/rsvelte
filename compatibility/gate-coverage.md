@@ -89,7 +89,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 3 | Compiler warning positions | multiset of `code@line:col` | warning **end** span | [S] |
 | 4 | Compiler **error** parity | `error.json` `code`, `message`, `start`, `end`, `frame` | `filename`; the NAPI entries the corpus does not call; a missing artifact scored `match` until the per-tree precondition | [D] |
 | 5 | Generated shape matrix | per-case × target JS text + warning `code` multiset, or error `code` where official rejects | neither output is parsed — identical **non-JavaScript** scores `match`; CSS; warning **position**; error **message** and **position**; multi-directive and ancestry rules; whether a folded constant is the *right* value | [D] |
-| 6 | svelte2tsx TSX text parity | per-component TSX text, oxfmt-normalized | `exportedNames` / `events`; TSX line+column layout | [S] |
+| 6 | svelte2tsx TSX text parity | per-component TSX text, oxfmt-normalized | `exportedNames` / `events`; TSX line+column layout; anything about an error both sides raise | [S] [D] |
 | 7 | svelte2tsx source map | structural invariants and corpus-wide mapped-line coverage on rsvelte's own map | relation between generated text and mapped original text; source index | [D] |
 | 8 | css-prune sweep | `css.code` + `code@line:col` warnings of 1969 generated components | `js.code`; **every element in the grid is a plain `<div>`/`<p>` in one component** | [D] |
 | 9 | Formatter parity (JS corpus) | whole-file bytes vs oxfmt oracle | ids whose oracle file is absent are skipped, uncounted | [D] |
@@ -111,6 +111,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 25 | Differential output-preservation corpus hash | per `.svelte` source × client/server/client-dev/server-dev hash from base-core vs merge-ref-core | changes outside `crates/rsvelte_core`; every PR without the maintainer-applied `output-preserving` label | [S] |
 | 26 | esrap generated-output corpus | parsed JS output × official/rsvelte tree × 4 targets; AST equivalence, comment kind/body sequence, code/map equality, map bounds/order | production synthetic AST spans and whether a mapping points at the corresponding source token | [S] |
 | 27 | LSP differential parity | normalized JSON response field per request against the pinned official server and selected upstream snapshots | **every server notification**; incremental edit and resolve sequences; **inside a corpus `(file, method)`, everything but the divergent-request count** | [S] [D] |
+| 38 | NAPI `cssHash` | the scope class the callback produces, and the callback's own argument list, against **official** | one component shape and one option set; only `css.code` / the class in `js.code`; nothing about the wasm or facade ports of the same option | [S] |
 
 Cross-cutting blind spots (**ratchet keys losing in both directions**, path filters, ratchet-doc
 drift, vacuity floors, the **performance**
@@ -421,6 +422,27 @@ observability while 1a stands.
 `CommentPolicy::Meaningful` filters JSDoc `@type` as prose (`lib.rs:259-269`), so flipping the
 flag does not close the flowbite case.
 
+### Blind spot 1e — a redundant semicolon, on 100% of the corpus
+
+`verify.mjs` normalizes both trees with oxfmt before comparing, and oxfmt deletes an
+empty statement. So `export default class C { … }` vs `export default class C { … };` —
+and `}` followed by a separately-printed `;` vs `};` — compare equal on every entry,
+on every target.
+
+**Evidence [D].** #3069: upstream prints a module's default-exported class through esrap's
+expression path and terminates it with `;`; rsvelte did not, for any class, runes or not.
+`compileModule('export default class Outer { n = 0; }')` differed raw on `client` and
+`server`, and the corpus gate scored the same file `match`. What reported it is the
+**mutation-fuzz** gate (#8 below), whose normalizer removes only comments, whitespace and
+trailing commas — it listed 8 entries for this one cause, all of which passed once the
+terminator landed.
+
+The general form is worth stating separately from the instance: **the corpus gate's
+normalizer is a strictly stronger eraser than the mutation gate's**, so any divergence
+oxfmt absorbs is visible to the mutation gate alone — and the mutation gate only sees a
+seed it has a mutant for. A shape that no corpus file contains is therefore invisible to
+both, which is what the pattern corpus is for.
+
 ### Blind spot 1b — comment ordering, not position
 
 `ast_equiv/src/lib.rs:234` compares comments as an ordered `Vec<String>`. A meaningful comment
@@ -505,6 +527,30 @@ corpus does not move this: `<svelte:element>` × an a11y-relevant attribute is a
 and published code writes it almost never. The coverage is
 `crates/rsvelte_core/tests/a11y_svelte_element_2523.rs`, which constructs one case per rule and
 pairs each `!is_dynamic_element` row with the static element that does raise it.
+
+### Blind spot 2e — the unit is one compile, so a per-process rule is unobservable
+
+Every entry is compiled once per target and its warnings compared in isolation. **[D]** A
+warning whose emission depends on *how many times the compiler has already run* therefore has
+no observable here at any corpus size — the divergence **is** the second call.
+
+Measured (#3239): upstream dedupes the compile-**option** deprecations through a module-level
+`warned` Set in `validate-options.js`, so three `compile()` calls with `{ accessors: true }` in
+one fresh process yield `[options_deprecated_accessors]`, `[]`, `[]`. rsvelte emits the warning
+all three times. Two independent reasons this gate is blind to it: the unit above, and the fact
+that **no corpus entry passes either option** — `targets.mjs` fixes the option set, so blind
+spot 1d (the compile-option surface is one point) covers the same hole from the other side.
+
+The divergence is **deliberate**, not a backlog item: reproducing a module-level `warned` Set
+needs process-global mutable state, and under the parallel NAPI driver *which* file receives the
+single warning would be nondeterministic — worse for a user than over-warning, since a warning
+that lands on an arbitrary file is one a build log cannot be diffed against. It is pinned by
+`compile_option_deprecations_repeat_on_every_call` in
+`crates/rsvelte_core/tests/svelte_options_deprecations.rs` so that a later move to
+once-per-process is a decision rather than a drift. Note the asymmetry the issue's title hides:
+only the **option** path dedupes upstream. The `<svelte:options accessors />` *tag* path is
+raised from `2-analyze/index.js` with no `warn_once` at all, so it warns on every compile in
+both compilers — and that half this gate does see.
 
 ---
 
@@ -1139,6 +1185,17 @@ is zero.)
 **[S]** `mode: 'dts'` (the `.d.ts` emit path), `namespace: 'svg'`, `namespace: 'mathml'`,
 `accessors: true` and `version: '4'` are never exercised; `emitDts` is never called. Related:
 #2438 (`namespace: 'foreign'` unreachable from the napi boundary).
+
+### Blind spot 6f — when both sides error, nothing about the error is compared
+
+`svelte2tsx-verify.mjs:219-220`: `expErr && actErr` scores `error-parity` and returns; the
+message, the position and the error kind are all dropped. **[D]** rsvelte prefixes its
+message with the variant name where official does not — `<div><svelte:head>…</svelte:head></div>`
+gives official `` `<svelte:head>` tags cannot be inside elements or blocks `` and rsvelte
+`Template error: ` + the same sentence (`svelte2tsx/utils/error.rs:30`). 15 cells of a
+288-cell content × container grid reproduce it and the gate reports every one as parity.
+The population is not small: the corpus run that found this scored **155** entries
+`error-parity`.
 
 ### Blind spot 6e — `oracle-invalid` accepts anything, unratcheted
 
@@ -2148,7 +2205,7 @@ both directions, so a new field with no case fails and a case naming a deleted f
 symbols only resolve when Node dlopens the addon), there is no `crates/rsvelte_napi/tests/`, and
 before this gate nothing anywhere crossed the JS-object → `CompileOptions` mapping per key.
 Deleting a field, or dropping its arm from `into_compile_options`, failed nothing. Denominator:
-**38 of 40 declared keys** are crossed; the 2 exclusions are listed in the script's `UNCOVERED`
+**39 of 41 declared keys** are crossed; the 2 exclusions are listed in the script's `UNCOVERED`
 map with their reasons, and the reasons are themselves asserted to exist.
 
 ### 22a — it compares rsvelte against rsvelte, never against official [S]
@@ -2165,10 +2222,15 @@ gate in this repo compares rsvelte's option behaviour to the official compiler's
 `napiObjectStructs()` reads the `pub <field>:` lines of the four `#[napi(object)]` option
 structs. An option a real caller passes that the boundary never declares is therefore not a
 failure — it is not even a row. Discriminating case: `warningFilter` and `cssHash` are genuine
-`svelte/compiler` options; the addon declares neither, and the shim resolves them in JS
-(`apps/npm/vite-plugin-svelte-native/index.cjs:57-77`). The denominator prints 40 and never
-mentions them. This is the #2438 shape one level out: that bug was a *declared* field nothing
-read; this blind spot is an *undeclared* option nothing accepts.
+`svelte/compiler` options; the addon declared neither, and the shim resolved them in JS
+(`apps/npm/vite-plugin-svelte-native/index.cjs`). The denominator printed 40 and never mentioned
+them. This is the #2438 shape one level out: that bug was a *declared* field nothing read; this
+blind spot is an *undeclared* option nothing accepts. **#3294 is the shipped instance**: a
+function-valued `cssHash` was dropped at this boundary with no error, so the component got a
+different scope class than the caller asked for, in `css.code` and in every `class` attribute of
+`js.code`. `cssHash` is now declared (and rejected) here, which puts it in the denominator; the
+option's *behaviour* is gate 38. `warningFilter` is still undeclared and still invisible to the
+count.
 
 ### 22c — one entry point per surface, and per-entry-point consistency is not asserted [S]
 
@@ -3022,6 +3084,62 @@ truncated-print skip — is therefore factored into `idempotency_report` and pin
 test (`idempotency_report_tests`), which is where that failure mode is caught. The remaining
 uncovered case is a break in the *re-application* itself (a second pass that silently becomes a
 no-op for the wrong reason); nothing here would see it.
+
+---
+
+## 38. NAPI `cssHash` — `scripts/dev/test-napi-css-hash.mjs`
+
+**Unit.** One component with one scoped selector, compiled through the raw addon for `client` and
+`server` under five callback shapes, compared to the **official** compiler's `css.code` for the
+same callback; plus the callback's own argument list, the rejection the synchronous entries raise,
+and the two degenerate returns (a non-string, and a throw). Hard gate, no ratchet.
+
+**Why it exists.** `cssHash` is the one compile option whose value is a *callback*, and that makes
+it invisible to gate 22 twice over. It was not declared at the boundary, so the exhaustiveness half
+had no row for it (22b); and gate 22's discrimination test is "do the two results differ", which is
+exactly what a *dropped* option fails — but the drop was at the JS-object decode, before any
+comparison, and the option never appeared in the denominator to be tested. #3294 is what that cost:
+`compile()` returned a wrong scope class with no error, and `compileWithCssHash` invoked the
+callback with three positional arguments (`name`, `filename`, `css`) where upstream passes one
+object carrying `hash`, so the documented `({ hash, css }) => …` idiom threw, and every failure on
+that entry was an **uncaught exception** rather than a rejected promise.
+
+**[D] Positive control on the last of those.** napi's `ThreadsafeFunction::call_async` documents
+that a JS throw is routed through `napi_fatal_exception`, which terminates the process;
+`call_async_catch` is the one that returns `Err`. Built with `call_async`, this gate's throwing-
+callback case kills the runner (the `try`/`catch` around the `await` never runs, and the awaited
+promise settles as `oneshot canceled`); with `call_async_catch` it rejects with the callback's own
+message. No other gate distinguishes the two, because `test-vps-shim.mjs` reaches this entry only
+through an adapter that catches the throw in JavaScript first.
+
+### 38a — one component, one option set [S]
+
+Every case compiles the same `<p class="k">` + one rule, with `filename: 'Probe.svelte'` and
+`css: 'external'`. A `cssHash` interaction with `customElement`, `dev`, a preprocessor map, or a
+component with several scoped selectors is not in the population.
+
+### 38b — only `css.code` and the class inside `js.code` are compared [S]
+
+The scope class is extracted from official's `css.code` with a regex and looked for in rsvelte's
+`js.code`; the rest of `js.code`, the maps and the warnings are not compared to official on this
+gate. A `cssHash` that reached the stylesheet and not (say) the server's `$.attr_class` argument
+list would pass, since `includes()` only needs one occurrence.
+
+### 38c — the other two ports of the same option are not here [S]
+
+`cssHash` is implemented three times: the napi bridge, the wasm bridge
+(`crates/rsvelte_lint_bindings/src/compiler_wasm/mod.rs`, exercised only by
+`scripts/dev/test-wasm-compile-options.mjs`, which compares rsvelte to rsvelte), and the
+`rsvelte` facade's `options.rs`, which no gate drives at all. This is the "two ports of one
+function and no gate compares the ports" shape recorded for the constant fold: the wasm port
+already passed the official argument shape while the napi port did not, and nothing would have
+reported the disagreement.
+
+### 38d — it needs a freshly built addon and says nothing when it cannot load one [S]
+
+Like gate 22 it exits **2** when `apps/npm/vite-plugin-svelte-native-<triple>/rsvelte.node` is
+absent, which CI treats as a failure but a local run can silently skip. A **stale** addon is worse:
+it loads, and every assertion then measures a binary that predates the change under test.
 
 ---
 

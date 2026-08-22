@@ -24,16 +24,14 @@ and one of the four causes below is exactly that.
 
 An entry needs a reason that is *not* "rsvelte is wrong here".
 
-`lint-adversarial-fix-known-failures.json` holds **16 entries**.
+`lint-adversarial-fix-known-failures.json` holds **14 entries**.
 
-Partition of `lint-adversarial-fix-known-failures.json` by cause: `13 + 1 + 1 + 1`
+Partition of `lint-adversarial-fix-known-failures.json` by cause: `13 + 1`
 
 | cause | entries |
 |---|---|
 | rsvelte-only autofix (upstream rule is report-only) | 13 |
-| Rust `regex` has no lookaround | 1 |
 | upstream autofix defect we decline to reproduce | 1 |
-| `svelte_meta_invalid_placement` is a parse error upstream, an analyze error here | 1 |
 
 The gate found one defect no other lint gate could have: a rule's *fix* path and
 its *report* path had two different notions of whitespace.
@@ -107,26 +105,6 @@ or writes different text — all of which a `svelte/no-target-blank` skip entry
 would swallow. The two-sided ratchet is what makes "rsvelte-only autofix" a
 claim about 13 named files rather than about a rule.
 
-### `sort-attributes/07-lookahead-order.svelte` `svelte/sort-attributes`
-
-Not an independent divergence: it is the fix-side face of entry 4 in
-[`lint-adversarial-known-failures.md`](lint-adversarial-known-failures.md), and
-that entry carries the reason. The `order` option is
-`["/^(?=x-)x-a$/u", "x-b"]`; Rust's `regex` crate has no lookaround, the pattern
-fails to compile, and the group is dropped.
-
-The two faces are the same root cause seen through two comparison keys. On the
-report side the missing group means rsvelte emits no finding at 5:14. Here it
-means rsvelte has no finding to fix, so it leaves the source alone while the
-oracle reorders:
-
-```svelte
-<div x-b="1" x-a="2">y</div>   <!-- oracle: <div x-a="2" x-b="1">y</div> -->
-```
-
-Both faces disappear together if the engine limitation is ever revisited; the
-ratchets are two-sided, so neither will rot.
-
 ### `shorthand-directive/16-never-mode-modifiers.svelte` `svelte/shorthand-directive`
 
 **Upstream's fix corrupts the file, and rsvelte's does not.** Reported in
@@ -190,71 +168,3 @@ one file contains a shorthand `style:` directive with a modifier
 linted with `prefer: "never"` — the rule defaults to `off` and, when enabled,
 to `prefer: "always"`, whose arm removes from the `=` onwards and leaves
 modifiers untouched. Only a generated adversarial pattern reaches this arm.
-
-### `no-raw-special-elements/14-nested-inside-each.svelte` `svelte/no-raw-special-elements`
-
-Neither side produces a valid file, and the difference is how many autofix
-passes each side survives.
-
-```svelte
-{#each items as item}
-	{#if item}
-		<div><head><body>{item}</body></head></div>
-	{/if}
-{/each}
-```
-
-**Both sides report identically** — `head` at 7:8 and `body` at 7:14 — which is
-why `lint-adversarial.mjs` is green on this file. The divergence is in the fix
-loop alone.
-
-**Pass 1 is the same on both sides.** Upstream's fix yields two
-`insertTextBeforeRange` edits whose merged range is `[node.start + 1, node.end]`,
-i.e. the whole element; `body`'s merged range sits inside it, so ESLint's
-`source-code-fixer.js` conflict rule (`lastPos >= start`) drops `body` and
-defers it. `runner.rs::fix_source_at` mirrors that rule and drops it too. Both
-sides therefore end pass 1 at:
-
-```svelte
-<div><svelte:head><body>{item}</body></svelte:head></div>
-```
-
-**Pass 2 is where they part, and the cause is in `rsvelte_core`, not in the
-rule.** Upstream's pass 2 never runs: `svelte-eslint-parser` calls the Svelte
-compiler's `parse()`, which raises
-`svelte_meta_invalid_placement` — "`<svelte:head>` tags cannot be inside
-elements or blocks" — from **`phases/1-parse/state/element.js:161`**, and
-`verifyAndFix` stops at a fatal parse error and returns the pass-1 text. rsvelte
-raises the same error from
-**`phases/2_analyze/visitors/svelte_head.rs:31-32`**; the linter only parses, so it
-never sees it, pass 2 relints cleanly and fixes `body` too:
-
-```svelte
-<div><svelte:head><svelte:body>{item}</svelte:body></svelte:head></div>
-```
-
-Verified directly: `rsvelte-lint` run on upstream's pass-1 text reports the
-`body` finding, so rsvelte's parse of that text succeeds where upstream's throws.
-
-**Neither output is correct.** `parse(src, { modern: true })` rejects *both*
-fixed files with the same `svelte_meta_invalid_placement`, because the offending
-`<div>` wrapper is in the source. The input is unfixable by this rule: there is
-no edit either compiler could make here that yields a file Svelte accepts.
-Upstream stopping one pass earlier is not a better answer, it is a different
-broken one.
-
-**Why it is listed rather than fixed.** The fix would be to give
-`fix_all`'s loop a strict re-parse between passes — stop when a pass produced
-text the compiler rejects — or to move
-`svelte_meta_invalid_placement` into rsvelte's parse phase where upstream has
-it. Both are outside the rule: nothing
-`no_raw_special_elements.rs` can emit changes the outcome, since its pass-1 edit
-already matches upstream's and its pass-2 edit is one upstream would also make
-if it got there. The phase mismatch is the more interesting half and should be
-tracked on its own — it means rsvelte's `parse()` accepts a document official's
-`parse()` rejects, which is observable to any consumer that parses without
-analyzing.
-
-**Reach.** Zero of the 6,788 real-world sources nest a raw special element
-inside another element: 11 raw special tags occur, all at a fragment's top
-level, where the fix is a single non-conflicting edit and both sides agree.

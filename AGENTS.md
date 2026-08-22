@@ -93,6 +93,48 @@ them — only output equality can. All three are fixed: the class header comes f
 which read code bytes only. Treat the *rest* of that pipeline as unaudited rather than clean —
 the keyword axis that found these samples 5 of the ~30 tokens it is drawn from.
 
+**A third lexical scan lives in phase 2, and #3127 is its version of the same shape.** The
+`$`-reference collector in `2_analyze/store_subscriptions.rs` decides which `$name` occurrences
+are *references*, and it already excluded object keys, member properties, string literals and
+comments — a class **body** was the shape it did not, so `class P { $abc() {} }` was rejected
+with `global_reference_invalid`. What makes it worth a row is the second half: a class member is
+not delimited by a `;`, it is delimited by **ASI**, so the first fix classified `a = 1⏎$abc()`
+as a reference and reproduced the bug on `standard`-style source. Where a member ends has to be
+answered from the previous significant token, which is the same test an explicit `;` gets — and
+the opposite direction (`a = 1 +⏎$store`) has to keep reading its store, or the scan silently
+drops a real subscription. Upstream never has this problem because it reads
+`module.scope.references`, which holds no declaration slot; runes-mode auto-detection reads the
+same set, which is why `class P { $inspect = 1 }` also flipped the component into runes mode.
+
+**#3128 is the one to remember for a different reason: the first version of the fix stopped the
+over-rejection and emitted wrong code.** Upstream opens its store-subscription condition with
+`runes_option === false ||`, so an explicit `runes: false` — from the compile option or from
+`<svelte:options runes={false} />`, which upstream merges in `combined_options` before analysing
+— makes every rune-named `$` reference a store. Passing the merged option to the store loop is
+one line, and on its own it produced `$.mutable_source($state()(0))` where official emits
+`let src = $state()(0)`: upstream also assigns rune binding kinds only `if
+(analysis.runes)`, and the server's and client's `$effect` / `$inspect` removals are gated by
+`get_rune` returning null once the callee resolves to a binding. Four sites, and **no single
+rune reaches all four** — which is why the repro carries `$state`, `$derived.by`, `$effect` and
+`$inspect` in one file. An over-rejection is loud and its fix is quiet; a repro that only checks
+"it compiles" cannot tell the two apart.
+
+**And removing an over-rejection makes whatever was behind it reachable, which is a set diff
+rather than a count.** #3175 is the first thing through the door #3128 opened: the SSR
+constant-fold harvests `$derived(<expr>)` declarations by scanning the instance script for the
+literal text `$derived(`, on the premise that a derived value is read-only and so safe to
+inline. In legacy mode `$derived` is a store subscription, so the declared value is the call's
+**result** and the fold inlined its **argument** — the declaration lowered correctly to
+`$.store_get(..., '$derived', derived)(1)` while `{x}` rendered a frozen `1`. Output that
+parses, runs and is silently wrong; the client was byte-identical throughout, so it is the
+client/server two-ports shape again. The premise of a raw text scan can be **mode-dependent**,
+and the scan has no way to notice. What makes it worth its own row is which repro missed it:
+#3128's carries `$state`, `$derived.by`, `$effect` and `$inspect` because those are the four
+phase-2/phase-3 sites its fix touched — and **bare `$derived` is the one name that reaches this
+fold**, so the file written to be exhaustive about one defect enumerated exactly around the
+next one. After a fix that stops rejecting something, ask what the rejection was previously
+hiding, and enumerate the *names* a scan keys on rather than the sites your own patch visited.
+
 **The client instance-script pipeline is the exception, and it is a correctness hazard, not a
 cleanup.** That pipeline still decides where a statement or an expression ends by scanning
 characters. Feeding every corpus output to a JS parser — a question no ratchet asks, because
@@ -534,6 +576,48 @@ deterministic round-trip `didChange` script that restores the source byte for by
 key is comparable to its phase-1 twin and a divergence is a state-transition difference alone. The
 phase is in the ratchet key, because an opened-phase entry would otherwise suppress the post-edit
 divergence in the same `(unit, method)`.
+**The real-world half of this gate is scheduled, not per-PR, and the reason is unit cost.** Its 16
+shards average ~59 minutes each, and the three Corpus Compat runs where all 16 finished total
+**950 / 959 / 934 job-minutes** — against ~160 for every other gate on a pull request combined, so
+one run of this job is ~86% of a push's total. (Sample the shards partially and the mean moves a
+lot: shard durations range 42–67 minutes, so a 2-shard sample has read as low as 47. Cite the
+three complete runs, not a partial one.) A GitHub Free personal account runs 20 concurrent jobs
+— 28,800 job-minutes a day — which puts the whole repository's ceiling near 26 pushes a day
+against a measured ~60 pull-request pushes plus ~10 merges. `lsp-corpus` and `lsp-current-merge`
+therefore run on `schedule` and `workflow_dispatch`; `push: main` is excluded on the same
+arithmetic (~10 merges/day would return a third of total capacity to this one job).
+
+**Do not cite a verdict-arrival rate measured during the congestion.** The obvious statistic —
+what fraction of recent runs reached a `conclusion` — was 13/100 when this landed and 3/100 an
+hour later, because the window it is drawn from is a few hours of the very backlog the change
+exists to remove. It moves with the queue, not with the gate. The unit cost above does not.
+
+The gate is still reachable per-branch two ways. `workflow_dispatch` against the branch runs the
+full 17-artifact population, which is what a re-baseline needs; and because the PR that *shrinks*
+the ratchet is the one that most needs the verdict and would otherwise be exempted by the
+event-name guard, the filter emits an `lsp-ratchet` output for a diff touching
+`compatibility/lsp-known-failures*.json` or `scripts/compat-lsp/**`, and that re-admits the job on
+a pull request. It fires on 0 of the 77 open PRs, so the escape hatch costs nothing until it is
+needed. The fixture and pinned-upstream suites still run on every PR — in `ci.yml`'s
+`Language server` job, whose `pull_request:` trigger is unfiltered; `corpus-compat`'s
+`lsp-fixtures-current` ran the identical `verify.mjs` invocation and now runs only where
+`lsp-current-merge` reads its artifact. **Sizing a gate by its strictness on paper and never by
+what it displaces is how this one ended up measuring almost nothing.**
+
+The rest of Corpus Compat is gated per job by `scripts/ci/corpus-compat-job-filter.mjs`, which
+derives each job's blast radius from `cargo metadata --no-deps` rather than a transcribed path
+table: a change confined to `crates/<c>` runs only the jobs whose build targets transitively
+depend on `<c>`, and **every** non-crate path (ratchets, scripts, submodules, lockfiles) enables
+everything. The asymmetry is deliberate — under-approximating costs a skipped gate, which reads
+exactly like a passing one (#2405), and over-approximating costs runner minutes. **The workflow's
+own conditions have to point the same way**: they read `!= 'false'`, so a filter step that fails
+to emit runs everything rather than skipping everything, and a crate directory is treated as inert
+only when its `Cargo.toml` declares its own `[workspace]` — a directory name is not a package
+name, so failing to match one proves nothing. Measured against
+the 77 open PRs, 50 touch `crates/rsvelte_core` and so narrow nothing; the filter's real
+population is the crates in no gate closure at all (`rsvelte_lint_types`, which is its own Cargo
+workspace, plus `rsvelte_bench`, `rsvelte_capi`, `rsvelte_fmt_wasm`, `rsvelte_lint_bindings`).
+
 Upstream ships **no** end-to-end protocol test, so the harness is built from scratch, and a baseline
 update needs the complete 17-artifact union (`CORPUS_SHARDS` + the fixture unit) at one
 project/language-tools/corpus revision — a
@@ -783,14 +867,22 @@ accepted entries and the collected one from 104 to 45 — **the collected corpus
 suppressing 62 of its own entries' worth of defects it could not phrase**.
 
 That corpus has since grown to **1,365 patterns** across the four axes below, and the tree now
-stands at **5** accepted adversarial entries and **3** collected ones (6,788 real-world sources,
-73,378 findings compared). Read the composition before reading the count: **four of the five are
-upstream-side or deliberate** — two `svelte-eslint-parser` artifacts (`</style⏎⏎>` produces no
+stands at **4** accepted adversarial entries and **3** collected ones (6,788 real-world sources,
+73,378 findings compared). Read the composition before reading the count: **every remaining entry
+is upstream-side or deliberate** — two `svelte-eslint-parser` artifacts (`</style⏎⏎>` produces no
 `SvelteStyleElement`; the block-blanking regex is case-insensitive, so `<Style />` is treated as a
 style tag), the `globals.browser ∖ globals.node` split, and rsvelte's choice to treat a CSS
 `svelte-ignore` on an un-preprocessed `lang="scss"` block as *used*, which is also all three
-collected entries. Exactly one is an rsvelte limitation: `sort-attributes/07-lookahead-order`
-needs a JS-compatible regex engine.
+collected entries.
+
+**The one entry that was an rsvelte limitation is gone, and how it was closed is the reusable
+part.** `sort-attributes`'s `order` option takes JS regexes; Rust's `regex` has no lookaround, so
+`"/^(?=x-)x-a$/u"` failed to compile and the group was **silently dropped**. The listed
+justification declined a lookaround-capable engine on performance grounds — correctly, if the
+choice were all-or-nothing. It is not: `regex` is tried first and every default pattern still
+compiles there, so `fancy-regex` is reached only by a pattern `regex` rejects and the backtracking
+engine never touches the hot path. When a dependency is refused on a cost that only applies to the
+*default* path, ask whether the fallback can be made unreachable from it.
 
 Three method notes, each of which cost real time here:
 - **Two of the remaining entries are not rsvelte being wrong**, and neither is discoverable
@@ -908,11 +1000,13 @@ Three `RuleConditions` flags likewise disagreed, each making rsvelte run a rule 
 (gate 36) drives upstream's `flat/recommended` verbatim against `rsvelte-lint` with no `--config`
 and compares the findings *with severity in the key*, plus the process **exit code**. The rule-set
 half came back confirmed — **0 severity divergences over 1,179 / 1,178 findings** — while the exit
-code diverged on **64 of 1,365 patterns**, and that half is what generalizes. Fifty-nine are
+code diverged on **64 of 1,365 patterns**, and that half is what generalizes. Fifty-nine were
 rsvelte exiting 1 on a Svelte **compiler** diagnostic `svelte-eslint-parser` is too permissive to
-see (55 the official compiler also rejects; **4 are rsvelte over-rejections** — a `$`-prefixed class
-member name read as a store reference, and legacy mode not turning a rune-named `$` reference into a
-store subscription, both in `2_analyze/store_subscriptions.rs`). Four more are a rule
+see, and **the gate's value was the 4 of those 59 that were rsvelte over-rejections** rather than
+the 55 the official compiler also rejects: a `$`-prefixed class member NAME read as a store
+reference, and explicit legacy mode not turning a rune-named `$` reference into a store
+subscription (#3127 / #3128, both entered through `2_analyze/store_subscriptions.rs`). Both are
+fixed and the bucket now stands at 55, every one of which official rejects too. Four more are a rule
 `lint-universe.mjs` excludes as type-aware, still reporting at `error` upstream: **an `EXCLUDE` entry
 removes a rule from a finding comparison and cannot remove it from the exit status**, so a
 findings-only gate has no view of what a switching user's CI does. And driving the *default* preset

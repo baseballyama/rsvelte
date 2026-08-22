@@ -6,6 +6,7 @@ use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions;
 
 use crate::svelte2tsx::template::ctx::{Counter, TemplateNodeExt};
+use crate::svelte2tsx::template::nodes::snippet_block::hoist_snippet_blocks;
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
 use crate::svelte2tsx::template::walk::process_fragment_inplace;
 
@@ -128,11 +129,13 @@ pub fn handle_await_block(
                 if prev_end < then_start {
                     str.overwrite(prev_end, then_start, "");
                 }
+                hoist_snippet_blocks(pending, source, str);
                 process_fragment_inplace(pending, source, options, str, counter, depth);
             } else {
                 // Parser couldn't span the expression — fall back to
                 // the original monolithic bake.
                 str.overwrite_fmt(block.start, pending_start, format_args!("{open_pad}{{ "));
+                hoist_snippet_blocks(pending, source, str);
                 process_fragment_inplace(pending, source, options, str, counter, depth);
                 // `try { ` wrapper when a catch/error is present (see above).
                 let try_prefix = if has_catch { "try { " } else { "" };
@@ -153,6 +156,7 @@ pub fn handle_await_block(
                 }
             }
 
+            hoist_snippet_blocks(then, source, str);
             process_fragment_inplace(then, source, options, str, counter, depth);
 
             // Handle catch after then
@@ -188,6 +192,7 @@ pub fn handle_await_block(
                     );
                 }
 
+                hoist_snippet_blocks(catch, source, str);
                 process_fragment_inplace(catch, source, options, str, counter, depth);
 
                 let catch_end = if catch.nodes.is_empty() {
@@ -230,6 +235,7 @@ pub fn handle_await_block(
             // Opening `{ ` — consume the `{#await PROMISE}` opener (PROMISE is
             // re-emitted as `await(...)` after the pending body).
             str.overwrite_fmt(block.start, pending_start, format_args!("{open_pad}{{ "));
+            hoist_snippet_blocks(pending, source, str);
             process_fragment_inplace(pending, source, options, str, counter, depth);
 
             if let Some(ref catch) = block.catch {
@@ -250,6 +256,7 @@ pub fn handle_await_block(
                 } else {
                     str.append_left(pending_end, &header);
                 }
+                hoist_snippet_blocks(catch, source, str);
                 process_fragment_inplace(catch, source, options, str, counter, depth);
                 let catch_end = if catch.nodes.is_empty() {
                     catch_start
@@ -321,6 +328,7 @@ pub fn handle_await_block(
             );
         }
 
+        hoist_snippet_blocks(then, source, str);
         process_fragment_inplace(then, source, options, str, counter, depth);
 
         let then_end = if then.nodes.is_empty() {
@@ -356,6 +364,7 @@ pub fn handle_await_block(
                 );
             }
 
+            hoist_snippet_blocks(catch, source, str);
             process_fragment_inplace(catch, source, options, str, counter, depth);
 
             let catch_end = if catch.nodes.is_empty() {
@@ -410,6 +419,7 @@ pub fn handle_await_block(
             );
         }
 
+        hoist_snippet_blocks(catch, source, str);
         process_fragment_inplace(catch, source, options, str, counter, depth);
 
         let catch_end = if catch.nodes.is_empty() {

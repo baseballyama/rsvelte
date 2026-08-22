@@ -1,10 +1,10 @@
 use super::{
     FormatOptions, Fragment, IndentUnit, TemplateNode, VisualWidth, attribute_span,
     block_branch_bounds, did_self_close, element_hug_parts, element_source_empty,
-    ends_with_space_no_break, is_block_display, is_html_void_element, is_inline_block,
+    ends_with_space_no_break, is_block_display, is_html_void_element, is_html_ws, is_inline_block,
     is_inline_regular_element, is_whitespace_preserving, leading_linebreaks, node_end, node_start,
-    node_to_child, omit_softline_allowed, starts_with_space_no_break, tab_width,
-    trailing_linebreaks,
+    node_to_child, omit_softline_allowed, split_html_ws, starts_with_space_no_break, tab_width,
+    trailing_linebreaks, trim_html_ws_end, trim_html_ws_start,
 };
 
 /// prettier-plugin-svelte's `printSvelteBlockChildren`:
@@ -36,10 +36,10 @@ pub(super) fn build_block_branch_doc(
     // The branch tag owns its own outer whitespace, so trim it off the edge text
     // children (prettier's `trimTextNodeLeft` / `trimTextNodeRight`).
     if let Some(Child::Text(t)) = children.first_mut() {
-        *t = t.trim_start().to_string();
+        *t = trim_html_ws_start(t).to_string();
     }
     if let Some(Child::Text(t)) = children.last_mut() {
-        *t = t.trim_end().to_string();
+        *t = trim_html_ws_end(t).to_string();
     }
 
     let mut inner: Vec<Doc> = Vec::new();
@@ -423,7 +423,7 @@ fn append_text_parts(text: &str, layout: &TextPartLayout, docs: &mut Vec<crate::
     let parts = split_text_to_docs(text, trim_left, trim_right);
     if let (true, Some(Doc::Fill(previous))) = (layout.merge_previous_fill, docs.last_mut()) {
         previous.extend(parts);
-    } else if text.split_whitespace().next().is_none() {
+    } else if split_html_ws(text).next().is_none() {
         docs.extend(parts);
     } else {
         docs.push(Doc::Fill(parts));
@@ -479,7 +479,7 @@ pub(super) fn build_children_doc_nodes(
                 // prettier's `handleTextChild` returns early for the first/last
                 // child (no trim, no flag) — the wrapper owns that boundary — so
                 // the boundary handling below only applies to middle text nodes.
-                let ws_only = txt.split_whitespace().next().is_none();
+                let ws_only = split_html_ws(txt).next().is_none();
                 //
                 // Leading space after an inline element: trim it from this fill
                 // and append a `line` to the previous element's doc so the
@@ -518,7 +518,7 @@ pub(super) fn build_children_doc_nodes(
                     // on the same line as the element even if it overflows by a char or two.
                     // With TWO or more words, the unified Fill correctly breaks before the
                     // first word when it doesn't fit after the element.
-                    let text_word_count = txt.split_whitespace().count();
+                    let text_word_count = split_html_ws(txt).count();
                     if trim_right && prev_is_void_inline && text_word_count >= 2 {
                         // Last text node (≥2 words) after a void inline element: unified Fill.
                         if let Some(prev) = docs.pop() {
@@ -1220,9 +1220,9 @@ pub(super) fn split_text_to_docs(
     trim_right: bool,
 ) -> Vec<crate::doc::Doc> {
     use crate::doc::Doc;
-    let starts_ws = text.starts_with(|c: char| c.is_whitespace());
-    let ends_ws = text.ends_with(|c: char| c.is_whitespace());
-    let words: Vec<&str> = text.split_whitespace().collect();
+    let starts_ws = text.starts_with(is_html_ws);
+    let ends_ws = text.ends_with(is_html_ws);
+    let words: Vec<&str> = split_html_ws(text).collect();
     let lead_break = leading_linebreaks(text);
     let trail_break = trailing_linebreaks(text);
 

@@ -41,6 +41,9 @@ pub(super) fn find_open_tag_end(
     source: &str,
     element_start: u32,
     attributes: &[Attribute],
+    // `<svelte:element>` / `<svelte:component>` carry `this={…}` outside
+    // `attributes`, so without it a `>` in that expression ends the tag.
+    this_end: Option<u32>,
 ) -> Option<u32> {
     let scan_from = attributes.last().map_or_else(
         || {
@@ -55,6 +58,7 @@ pub(super) fn find_open_tag_end(
         },
         |last| attribute_span(last).1 as usize,
     );
+    let scan_from = scan_from.max(this_end.unwrap_or(0) as usize);
 
     let bytes = source.as_bytes();
     let mut i = scan_from;

@@ -449,10 +449,17 @@ pub async fn napi_compile_with_css_hash(
     source: String,
     options: Option<NapiCompileOptions>,
     #[napi(
-        ts_arg_type = "(name: string, filename: string, css: string) => Promise<{ value: string | null } | { error: string }>"
+        ts_arg_type = "(input: { hash: (str: string) => string, css: string, name: string, filename: string }) => string"
     )]
     css_hash: css_hash_bridge::JsCssHashCb,
 ) -> napi::Result<CssHashOutcome> {
+    // The callback arrives as its own argument, so a `cssHash` left on the
+    // options object is this same function — drop it instead of rejecting it the
+    // way the synchronous entries do.
+    let mut options = options;
+    if let Some(o) = options.as_mut() {
+        o.css_hash = None;
+    }
     let mut opts = options_to_compile(options)?;
     let filename = opts.filename.clone();
     let handle: css_hash_bridge::Handle =
@@ -530,23 +537,50 @@ impl napi::bindgen_prelude::ToNapiValue for CssHashOutcome {
 
 mod css_hash_bridge {
     use napi::Status;
-    use napi::bindgen_prelude::{FnArgs, Promise, block_on};
+    use napi::bindgen_prelude::{FromNapiValue, ToNapiValue, block_on};
     use napi::threadsafe_function::ThreadsafeFunction;
     use rsvelte_core::compiler::{CssHashFn, CssHashInput};
     use serde_json::Value;
     use std::sync::{Arc, Mutex, RwLock};
 
-    // (name, filename, css) in; `{ value: string | null }` (string, or null to
-    // fall back to the default hash) or `{ error: string }` (throw → compile
-    // failure) out. `CalleeHandled = false` so the callback receives the args
-    // directly.
-    pub type JsCssHashCb = ThreadsafeFunction<
-        FnArgs<(String, String, String)>,
-        Promise<Value>,
-        FnArgs<(String, String, String)>,
-        Status,
-        false,
-    >;
+    /// The single argument upstream hands a `cssHash` callback:
+    /// `{ hash, css, name, filename }`. `hash` is a real JS function wrapping the
+    /// compiler's own digest, so `({ hash, css }) => \`x-${hash(css)}\`` — the
+    /// documented idiom — works verbatim.
+    pub struct CssHashArg {
+        pub name: String,
+        pub filename: String,
+        pub css: String,
+        pub hash: Arc<dyn Fn(&str) -> String + Send + Sync>,
+    }
+
+    impl ToNapiValue for CssHashArg {
+        unsafe fn to_napi_value(
+            env: napi::sys::napi_env,
+            val: Self,
+        ) -> napi::Result<napi::sys::napi_value> {
+            let e = napi::Env::from_raw(env);
+            let mut obj = napi::bindgen_prelude::Object::new(&e)?;
+            obj.set("name", val.name)?;
+            obj.set("filename", val.filename)?;
+            obj.set("css", val.css)?;
+            let digest = val.hash;
+            let hash_fn: napi::bindgen_prelude::Function<'_, String, String> = e
+                .create_function_from_closure("hash", move |ctx| {
+                    let input: String = ctx.get::<String>(0).unwrap_or_default();
+                    Ok(digest(&input))
+                })?;
+            obj.set("hash", hash_fn)?;
+            // SAFETY: same env, and `obj` is a value created from it.
+            unsafe { napi::bindgen_prelude::Object::to_napi_value(env, obj) }
+        }
+    }
+
+    // One `{ hash, css, name, filename }` object in, the scope class out. A
+    // non-string return falls back to the default hash (as upstream's own
+    // `cssHash` default would); a throw aborts the compile.
+    // `CalleeHandled = false` so the callback receives the argument directly.
+    pub type JsCssHashCb = ThreadsafeFunction<CssHashArg, Value, CssHashArg, Status, false>;
 
     pub type Handle = Arc<RwLock<Option<JsCssHashCb>>>;
     pub type ErrorSlot = Arc<Mutex<Option<String>>>;
@@ -557,39 +591,52 @@ mod css_hash_bridge {
             let Some(cb) = guard.as_ref() else {
                 return default_hash(input, root_dir.as_deref());
             };
-            let args = FnArgs::from((
-                input.name.clone(),
-                input.filename.clone(),
-                input.css.clone(),
-            ));
-            let outcome = block_on(async {
-                match cb.call_async(args).await {
-                    Ok(promise) => promise.await.map_err(|e| e.to_string()),
-                    Err(e) => Err(e.to_string()),
-                }
-            });
+            let arg = CssHashArg {
+                name: input.name.clone(),
+                filename: input.filename.clone(),
+                css: input.css.clone(),
+                hash: Arc::clone(&input.hash),
+            };
+            // `call_async_catch`, never `call_async`: the latter routes a JS
+            // throw through `napi_fatal_exception`, which kills the process
+            // instead of failing the compile.
+            let outcome = block_on(async { cb.call_async_catch(arg).await });
             drop(guard);
             match outcome {
-                Ok(v) => {
-                    if let Some(err) = v.get("error").and_then(Value::as_str) {
-                        // Record the first thrown cssHash error; the returned hash
-                        // is discarded once the caller sees the recorded failure.
-                        error_slot
-                            .lock()
-                            .unwrap()
-                            .get_or_insert_with(|| err.to_string());
-                        return default_hash(input, root_dir.as_deref());
-                    }
-                    v.get("value").and_then(Value::as_str).map_or_else(
-                        || default_hash(input, root_dir.as_deref()),
-                        ToString::to_string,
-                    )
+                // A non-string return is not usable as a scope class.
+                Ok(v) => v.as_str().map_or_else(
+                    || default_hash(input, root_dir.as_deref()),
+                    ToString::to_string,
+                ),
+                Err(e) => {
+                    // Record the first thrown cssHash error; the returned hash is
+                    // discarded once the caller sees the recorded failure. Upstream
+                    // lets the exception abort compilation.
+                    error_slot
+                        .lock()
+                        .unwrap()
+                        .get_or_insert_with(|| callback_error_message(&e));
+                    default_hash(input, root_dir.as_deref())
                 }
-                // Internal TSFN failure (not a user throw) → default hash.
-                Err(_) => default_hash(input, root_dir.as_deref()),
             }
         })
     }
+
+    /// The JS `Error.message` when there is one, else the raw reason.
+    fn callback_error_message(e: &napi::Error) -> String {
+        let reason = e.reason.clone();
+        if reason.is_empty() {
+            e.to_string()
+        } else {
+            reason
+        }
+    }
+
+    // Silence the unused-import lint when the trait is only needed for the bound.
+    const _: fn() = || {
+        fn assert_from_napi<T: FromNapiValue>() {}
+        assert_from_napi::<Value>();
+    };
 
     // Reproduces the compiler's default (no-cssHash) scope hash: the rootDir-relative
     // filename when known, else the CSS content (see phases/2-analyze/types.rs).
@@ -645,7 +692,11 @@ pub enum LenientScalar {
     // self-referential object safe to decode. `undefined` children are dropped
     // (unset); everything the consumers read lives at depth 1.
     Object(Vec<(String, Self)>),
-    // Arrays, functions, symbols and other non-scalars — JS-truthy, but not a
+    // A JS function. Kept apart from `Other` because `cssHash` is *only* legal
+    // as a function, so "a function was passed" and "a wrong type was passed"
+    // are different diagnoses.
+    Function,
+    // Arrays, symbols and other non-scalars — JS-truthy, but not a
     // value any option can consume.
     Other,
 }
@@ -700,6 +751,7 @@ unsafe fn decode_scalar(
             napi::sys::ValueType::napi_string => {
                 LenientScalar::Str(String::from_napi_value(env, napi_val)?)
             }
+            napi::sys::ValueType::napi_function => LenientScalar::Function,
             _ => LenientScalar::Other,
         })
     }
@@ -773,7 +825,7 @@ impl napi::bindgen_prelude::ToNapiValue for LenientScalar {
                 Self::Bool(b) => bool::to_napi_value(env, b),
                 Self::Number(n) => f64::to_napi_value(env, n),
                 Self::Str(s) => String::to_napi_value(env, s),
-                Self::Object(_) | Self::Other => {
+                Self::Object(_) | Self::Function | Self::Other => {
                     napi::bindgen_prelude::Null::to_napi_value(env, napi::bindgen_prelude::Null)
                 }
             }
@@ -969,6 +1021,11 @@ pub struct NapiCompileOptions {
     pub modern_ast: Option<LenientScalar>,
     pub experimental: Option<LenientScalar>,
     pub compatibility: Option<LenientScalar>,
+    /// Upstream's `cssHash` callback. The synchronous entries cannot call back
+    /// into JavaScript, so this is declared only to be *rejected* there: dropping
+    /// it silently hands the caller a different scope class than it asked for.
+    /// `compileWithCssHash` is the entry that honours it.
+    pub css_hash: Option<LenientScalar>,
     /// Pre-computed deterministic hash for the test harness (the JS
     /// `cssHash` callback can't be called from Rust).
     pub css_hash_override: Option<String>,
@@ -1088,6 +1145,14 @@ impl NapiCompileOptions {
         }
         if let Some(v) = &self.compatibility {
             opts.compatibility.component_api = coerce_compatibility(v)?;
+        }
+        if let Some(v) = &self.css_hash {
+            return Err(match v {
+                LenientScalar::Function => napi::Error::from_reason(
+                    "A function-valued `cssHash` cannot be called from this entry point; use `compileWithCssHash` (or `compileAsync`, which routes to it).".to_string(),
+                ),
+                _ => invalid_option("cssHash should be a function, if specified"),
+            });
         }
         if let Some(hash_override) = self.css_hash_override {
             opts.css_hash = Some(std::sync::Arc::new(
