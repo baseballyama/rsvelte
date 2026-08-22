@@ -252,20 +252,22 @@ fn reflow_template_type_unions(
 }
 
 fn expression_wrapper(expr_source: &str, typescript: bool) -> (String, SourceType, bool) {
+    // The closing `);` goes on its own line: a trailing `//` comment in
+    // `expr_source` would otherwise swallow it.
     if typescript && has_leading_await(expr_source) {
         (
-            format!("{TS_CONST_PREFIX}({expr_source});"),
+            format!("{TS_CONST_PREFIX}({expr_source}\n);"),
             SourceType::ts().with_module(true),
             true,
         )
     } else if typescript {
         (
-            format!("({expr_source});"),
+            format!("({expr_source}\n);"),
             SourceType::ts().with_module(true),
             false,
         )
     } else {
-        (format!("({expr_source});"), SourceType::default(), false)
+        (format!("({expr_source}\n);"), SourceType::default(), false)
     }
 }
 
