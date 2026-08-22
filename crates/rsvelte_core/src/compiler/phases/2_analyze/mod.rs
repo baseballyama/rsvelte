@@ -6152,12 +6152,10 @@ mod tests {
 
     #[test]
     fn directive_name_is_referenced_even_without_expression_loc() {
-        // Regression: the real `compile()` entry point (`parse_component` in
-        // compiler/mod.rs) always parses with `skip_expression_loc: true`, so
-        // directive-name reference tracking must not be gated on `name_loc`
-        // being `Some` — otherwise `use:`/`transition:`/`animate:`-only usages
-        // are invisible to `non_reactive_update` / unused-`export let` checks
-        // in production compiles.
+        // Regression: directive-name reference tracking must not be gated on
+        // `name_loc` being `Some` — otherwise `use:`/`transition:`/`animate:`-only
+        // usages are invisible to `non_reactive_update` / unused-`export let`
+        // checks under every entry point that sets `skip_expression_loc`.
         let source = r#"<script>
     let count = $state(0);
 </script>
