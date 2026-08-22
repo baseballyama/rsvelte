@@ -1683,6 +1683,23 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
             let parser = OxcParser::new(allocator, &wrapped, source_type);
             let result = parser.parse();
             if let Some(first_error) = result.diagnostics.first() {
+                // Acorn raises the shorthand-assignment error at the `=` token,
+                // while OXC labels the whole `a = 1` property.
+                if first_error.message.as_ref() == "Invalid assignment in object literal"
+                    && let Some(label) = first_error.labels.first()
+                {
+                    let label_start = label.offset() as usize;
+                    let label_end = label_start + label.len() as usize;
+                    if let Some(slice) = wrapped.get(label_start..label_end)
+                        && let Some(eq) = shorthand_assign_offset(slice)
+                    {
+                        return Some((
+                            "Shorthand property assignments are valid only in destructuring patterns"
+                                .to_string(),
+                            (label_start + eq).saturating_sub(1).min(content.len()),
+                        ));
+                    }
+                }
                 // Acorn raises "Assigning to rvalue" at the target's start, not
                 // where it stopped consuming, so this one label reads left.
                 let at_label_start = matches!(
@@ -1855,7 +1872,66 @@ pub fn trailing_token_offset(content: &str) -> Option<usize> {
             Some(content_pos)
         })
     };
-    probe(SourceType::ts()).or_else(|| probe(SourceType::mjs()))
+    // The label landing inside `content` is not on its own evidence of leftover
+    // input: an error *within* the expression (`{ a = 1 }`) labels an inner
+    // token too. Only what precedes the label being a complete expression
+    // distinguishes the two. The check runs outside `probe` because the OXC
+    // allocator is a thread-local that cannot be re-entered.
+    let confirm = |source_type: SourceType| -> Option<usize> {
+        let content_pos = probe(source_type)?;
+        let prefix = content.get(..content_pos)?;
+        parses_as_expression(prefix, source_type).then_some(content_pos)
+    };
+    confirm(SourceType::ts()).or_else(|| confirm(SourceType::mjs()))
+}
+
+/// Offset of the `=` in a shorthand object property (`a = 1`), or `None` when
+/// `slice` is not that shape. Comment bytes are skipped, so a `=` inside one is
+/// never mistaken for the operator.
+fn shorthand_assign_offset(slice: &str) -> Option<usize> {
+    use crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes;
+    let bytes = slice.as_bytes();
+    let is_ident = |b: u8| b.is_ascii_alphanumeric() || b == b'_' || b == b'$' || b >= 0x80;
+    let mut iter = code_bytes(bytes);
+    let (_, first) = iter.next()?;
+    if first.is_ascii_digit() || !is_ident(first) {
+        return None;
+    }
+    let mut seen_gap = false;
+    for (i, b) in iter {
+        if is_ident(b) {
+            if seen_gap {
+                return None;
+            }
+            continue;
+        }
+        if b.is_ascii_whitespace() {
+            seen_gap = true;
+            continue;
+        }
+        if b == b'=' && !matches!(bytes.get(i + 1), Some(b'=') | Some(b'>')) {
+            return Some(i);
+        }
+        return None;
+    }
+    None
+}
+
+/// Whether `content` on its own is a complete, diagnostic-free expression.
+fn parses_as_expression(content: &str, source_type: SourceType) -> bool {
+    if content.trim().is_empty() {
+        return false;
+    }
+    let mut wrapped = String::with_capacity(content.len() + 2);
+    wrapped.push('(');
+    wrapped.push_str(content);
+    wrapped.push(')');
+    with_oxc_allocator(|allocator| {
+        OxcParser::new(allocator, &wrapped, source_type)
+            .parse()
+            .diagnostics
+            .is_empty()
+    })
 }
 
 /// Create an identifier for invalid expressions
