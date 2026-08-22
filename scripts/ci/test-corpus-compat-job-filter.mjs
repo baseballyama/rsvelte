@@ -171,15 +171,21 @@ const tests = {
 			);
 	},
 
-	'the LSP corpus gate runs only on a schedule or a dispatch'() {
+	'the LSP jobs run only on a schedule or a dispatch'() {
 		const workflow = readFileSync(
 			join(ROOT, '.github/workflows/corpus-compat.yml'),
 			'utf8',
 		);
-		// The 950 job-minutes this job costs are the whole reason the account's
-		// Actions queue could not drain. ~60 pull-request pushes and ~10 merges a
-		// day both overrun the 20-job concurrency ceiling on their own.
-		for (const job of ['lsp-corpus', 'lsp-current-merge']) {
+		// The 950 job-minutes `lsp-corpus` costs are the whole reason the
+		// account's Actions queue could not drain. ~60 pull-request pushes and ~10
+		// merges a day both overrun the 20-job concurrency ceiling on their own.
+		// `lsp-fixtures-current` joins it because the only thing it still does that
+		// ci.yml does not is write the artifact `lsp-current-merge` consumes.
+		for (const job of [
+			'lsp-corpus',
+			'lsp-current-merge',
+			'lsp-fixtures-current',
+		]) {
 			const block = workflow.slice(workflow.indexOf(`\n  ${job}:\n`));
 			const head = block.slice(0, block.indexOf('\n    steps:'));
 			assert.match(
@@ -224,7 +230,14 @@ const tests = {
 			join(ROOT, '.github/workflows/corpus-compat.yml'),
 			'utf8',
 		);
-		for (const job of ['lsp-corpus', 'lsp-current-merge']) {
+		// `lsp-fixtures-current` is in the list because `merge-current.mjs` needs
+		// the complete 17-artifact union: admitting the 16 shards without the
+		// fixture artifact would fail the merge rather than re-baseline it.
+		for (const job of [
+			'lsp-corpus',
+			'lsp-current-merge',
+			'lsp-fixtures-current',
+		]) {
 			const block = workflow.slice(workflow.indexOf(`\n  ${job}:\n`));
 			const head = block.slice(0, block.indexOf('\n    steps:'));
 			assert.match(
@@ -249,6 +262,31 @@ const tests = {
 			),
 			false,
 			"job gates must read != 'false', not == 'true'",
+		);
+	},
+
+	'ci.yml still runs the LSP fixture comparison on every pull request'() {
+		// This is the load-bearing half of taking `lsp-fixtures-current` off the
+		// pull-request path: the gate did not move, it stopped being run twice.
+		// Delete the line below and the comparison is gated by nothing on a PR,
+		// which reads exactly like a passing gate.
+		const ci = readFileSync(join(ROOT, '.github/workflows/ci.yml'), 'utf8');
+		assert.match(
+			ci,
+			/pnpm run lsp:verify:fixtures/,
+			'ci.yml must still run the fixture/upstream LSP comparison',
+		);
+		const trigger = ci.slice(0, ci.indexOf('\njobs:'));
+		assert.match(
+			trigger,
+			/^\s{2}pull_request:\s*$/m,
+			'ci.yml must keep an unfiltered pull_request trigger for that gate',
+		);
+		const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+		assert.equal(
+			pkg.scripts['lsp:verify:fixtures'],
+			'node scripts/compat-lsp/verify.mjs --suites fixtures,upstream-features,upstream-testfiles',
+			'the script ci.yml runs must stay the same comparison corpus-compat measures',
 		);
 	},
 

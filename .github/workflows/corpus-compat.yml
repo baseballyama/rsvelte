@@ -796,10 +796,28 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  # The same `verify.mjs --suites fixtures,upstream-features,upstream-testfiles`
+  # runs in ci.yml's `Language server` job, over a workspace installed with the
+  # identical flags — so on a pull request this job re-decided a verdict that had
+  # already been decided, for ~8 job-minutes. That they agree is not an
+  # assumption: `verify.mjs` exits non-zero when `added` OR `removed` is
+  # non-empty, so a pass proves the measured key set equals the scoped ratchet
+  # exactly, and across the 19 pull requests where both ran the two verdicts
+  # matched 19 times out of 19.
+  #
+  # ci.yml keeps the gate because its `pull_request:` trigger is unfiltered:
+  # every PR runs it, while this workflow is path-filtered and 6 of the 77 open
+  # PRs never reach it. What survives here is the half ci.yml cannot do — writing
+  # `lsp-current-fixtures.json`, which `lsp-current-merge` needs to complete the
+  # 17-artifact union. That consumer runs on a schedule or a dispatch, so this
+  # job now runs exactly where its output is read.
   lsp-fixtures-current:
     name: LSP fixture parity current
     needs: [changes]
-    if: needs.changes.outputs.lsp-fixtures-current != 'false'
+    if: >-
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+       || needs.changes.outputs.lsp-ratchet == 'true')
+      && needs.changes.outputs.lsp-fixtures-current != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
