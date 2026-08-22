@@ -253,7 +253,9 @@ fn audit_parser(name: &str, modern: bool) -> Outcome {
         .join(name)
         .join("output.json");
 
-    let Ok(input) = fs::read_to_string(&input_path) else {
+    // Trimmed the way upstream's `parser-{modern,legacy}/test.ts` trims it —
+    // the snapshots were taken from a trimmed source, and `Root.end` is EOF.
+    let Ok(input) = fs::read_to_string(&input_path).map(|s| s.trim_end().to_string()) else {
         out.error = Some("input not found".to_string());
         out.missing = true;
         return out;

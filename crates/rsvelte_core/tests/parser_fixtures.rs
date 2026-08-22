@@ -40,9 +40,15 @@ fn load_fixture(sample_dir: &Path) -> Result<(String, String, String), SkipReaso
     // Normalize CRLF to LF so AST byte offsets line up regardless of how the
     // submodule was checked out (Windows runners default to autocrlf=true,
     // which would otherwise shift every span by one byte per line).
+    // Upstream's `parser-{modern,legacy}/test.ts` trims trailing whitespace off
+    // the input before parsing, so every `output.json` was snapshotted from a
+    // trimmed source. Reading it untrimmed only agreed with those snapshots
+    // while `Root.end` was ALSO trailing-trimmed — two deviations cancelling.
     let input = fs::read_to_string(&input_path)
         .map_err(|_| SkipReason::MissingInput("readable input.svelte"))?
-        .replace("\r\n", "\n");
+        .replace("\r\n", "\n")
+        .trim_end()
+        .to_string();
     let expected_output = fs::read_to_string(&output_path)
         .map_err(|_| SkipReason::MissingInput("readable output.json"))?
         .replace("\r\n", "\n");
@@ -120,9 +126,6 @@ struct TestResult {
 /// Tests to skip for parser-legacy due to known limitations.
 /// See README.md "Known Limitations" section for details.
 const LEGACY_SKIP_TESTS: &[&str] = &[
-    // OXC does not attach comments to AST nodes in ESTree format (leadingComments/trailingComments).
-    // The official Svelte compiler uses acorn which provides this functionality.
-    "javascript-comments",
     // Upstream skips this fixture (`_config.js` `skip: true`): the official
     // compiler now errors with `block_unexpected_close` (the open `<li>`
     // inside `{#if}` hits close()'s RegularElement case), so the checked-in

@@ -62,6 +62,13 @@ pub(crate) fn push_expr_comment(comment: crate::ast::template::JsComment) {
     EXPR_COMMENT_SINK.with(|sink| sink.borrow_mut().push(comment));
 }
 
+/// Snapshot the per-thread expression-comment sink without draining it.
+/// Upstream's `parser.root.comments` is the same array every script parse is
+/// handed, so a script's comment walk also sees what earlier parses recorded.
+pub(crate) fn peek_expr_comments() -> Vec<crate::ast::template::JsComment> {
+    EXPR_COMMENT_SINK.with(|sink| sink.borrow().clone())
+}
+
 /// Drain the per-thread expression-comment sink. Returns all comments
 /// collected since the last drain.
 pub(crate) fn take_expr_comments() -> Vec<crate::ast::template::JsComment> {
@@ -1947,15 +1954,10 @@ fn parse_expression_with_typescript<'a>(
             }
 
             // Adjust positions: subtract 1 for the opening paren we added
-            let mut expr = convert_expression(arena, &expr_stmt.expression, offset, line_offsets);
+            let expr = convert_expression(arena, &expr_stmt.expression, offset, line_offsets);
 
             // Attach comments to the expression
             if !result.program.comments.is_empty() {
-                // Get the actual expression's start and end positions
-                let inner_expr = unwrap_parenthesized(&expr_stmt.expression);
-                let expr_start = inner_expr.span().start;
-                let expr_end = inner_expr.span().end;
-
                 // Mirror upstream `parser.root.comments`: every comment seen
                 // by acorn is pushed there in source order, *in addition* to
                 // being attached as leading/trailing on the inner node.
@@ -1988,34 +1990,36 @@ fn parse_expression_with_typescript<'a>(
                     return Some(expr);
                 }
 
-                // Collect leading comments (before the expression)
-                let leading_comments: Vec<Value> = result
-                    .program
-                    .comments
-                    .iter()
-                    .filter(|comment| comment.span.end <= expr_start)
-                    .map(|comment| {
-                        // Adjust positions: -1 for the paren, then add offset
-                        let comment_start = offset + comment.span.start as usize - 1;
-                        let comment_end = offset + comment.span.end as usize - 1;
-
-                        // Get raw comment text
-                        let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
-                        let mut value = extract_comment_value(raw, comment.kind);
-
-                        // Normalize block comment indentation
-                        if matches!(
-                            comment.kind,
-                            oxc_ast::ast::CommentKind::SingleLineBlock
-                                | oxc_ast::ast::CommentKind::MultiLineBlock
-                        ) {
-                            value = normalize_block_comment_indentation(
-                                &value,
-                                content,
-                                comment.span.start as usize - 1,
-                            );
-                        }
-
+                // Upstream runs the same `add_comments` walk over a template
+                // expression as over a script program (`read_expression` shares
+                // `get_comment_handlers`), so the trailing-comment rules — the
+                // last-in-body case and the `/^[,) \t]*$/` separator — hold here too.
+                let mut comment_entries: Vec<CommentEntry> =
+                    Vec::with_capacity(result.program.comments.len());
+                let mut comment_values: Vec<Value> =
+                    Vec::with_capacity(result.program.comments.len());
+                for comment in result.program.comments.iter() {
+                    // -1 for the paren the expression was wrapped in.
+                    let comment_start = offset + comment.span.start as usize - 1;
+                    let comment_end = offset + comment.span.end as usize - 1;
+                    let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
+                    let mut value = extract_comment_value(raw, comment.kind);
+                    if matches!(
+                        comment.kind,
+                        oxc_ast::ast::CommentKind::SingleLineBlock
+                            | oxc_ast::ast::CommentKind::MultiLineBlock
+                    ) {
+                        value = normalize_block_comment_indentation(
+                            &value,
+                            content,
+                            comment.span.start as usize - 1,
+                        );
+                    }
+                    comment_entries.push(CommentEntry {
+                        start: comment_start as u32,
+                        text: CompactString::from(value.as_str()),
+                    });
+                    comment_values.push(
                         create_comment_object(
                             comment.kind,
                             value,
@@ -2023,116 +2027,42 @@ fn parse_expression_with_typescript<'a>(
                             comment_end,
                             line_offsets,
                         )
-                        .to_value()
-                    })
-                    .collect();
+                        .to_value(),
+                    );
+                }
 
-                // Collect trailing comments (after the expression)
-                let trailing_comments: Vec<Value> = result
-                    .program
-                    .comments
-                    .iter()
-                    .filter(|comment| comment.span.start >= expr_end)
-                    .map(|comment| {
-                        // Adjust positions: -1 for the paren, then add offset
-                        let comment_start = offset + comment.span.start as usize - 1;
-                        let comment_end = offset + comment.span.end as usize - 1;
+                let json_val = expr.as_json();
+                let root_span = json_val
+                    .get("start")
+                    .and_then(Value::as_u64)
+                    .zip(json_val.get("end").and_then(Value::as_u64))
+                    .map(|(s, e)| (s as u32, e as u32));
+                let mut ignore_comment_map: Vec<(u32, Vec<CompactString>)> = Vec::new();
+                let mut attacher = CommentAttacher {
+                    comments: &comment_entries,
+                    values: &comment_values,
+                    arena: Some(arena),
+                    next: 0,
+                    content,
+                    offset: offset as u32,
+                    map: &mut ignore_comment_map,
+                };
+                attacher.visit(json_val, None);
+                let claimed = attacher.next;
 
-                        // Get raw comment text
-                        let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
-                        let mut value = extract_comment_value(raw, comment.kind);
-
-                        // Normalize block comment indentation
-                        if matches!(
-                            comment.kind,
-                            oxc_ast::ast::CommentKind::SingleLineBlock
-                                | oxc_ast::ast::CommentKind::MultiLineBlock
-                        ) {
-                            value = normalize_block_comment_indentation(
-                                &value,
-                                content,
-                                comment.span.start as usize - 1,
-                            );
-                        }
-
-                        create_comment_object(
-                            comment.kind,
-                            value,
-                            comment_start,
-                            comment_end,
-                            line_offsets,
-                        )
-                        .to_value()
-                    })
-                    .collect();
-
-                // Interior comments: a comment that sits *inside* the
-                // expression (after its start, before its end) is attached as a
-                // `leadingComments` entry on the sub-node it immediately
-                // precedes — mirroring acorn (e.g. `a instanceof /* c */ B`
-                // attaches `/* c */` to `B`). Svelte 5.56.1 #18330.
-                let interior_comments: Vec<(usize, Value)> = result
-                    .program
-                    .comments
-                    .iter()
-                    .filter(|c| c.span.end > expr_start && c.span.start < expr_end)
-                    .map(|c| {
-                        let comment_start = offset + c.span.start as usize - 1;
-                        let comment_end = offset + c.span.end as usize - 1;
-                        let raw = &wrapped[c.span.start as usize..c.span.end as usize];
-                        let mut value = extract_comment_value(raw, c.kind);
-                        if matches!(
-                            c.kind,
-                            oxc_ast::ast::CommentKind::SingleLineBlock
-                                | oxc_ast::ast::CommentKind::MultiLineBlock
-                        ) {
-                            value = normalize_block_comment_indentation(
-                                &value,
-                                content,
-                                c.span.start as usize - 1,
-                            );
-                        }
-                        (
-                            comment_end,
-                            create_comment_object(
-                                c.kind,
-                                value,
-                                comment_start,
-                                comment_end,
-                                line_offsets,
-                            )
-                            .to_value(),
-                        )
-                    })
-                    .collect();
-
-                // Attach comments to the expression
-                if !leading_comments.is_empty()
-                    || !trailing_comments.is_empty()
-                    || !interior_comments.is_empty()
+                // Upstream's "trailing comments after the root node" case, which
+                // is what lets a caller find the end of the expression tag.
+                if let Some((root_start, root_end)) = root_span
+                    && comment_entries
+                        .get(claimed)
+                        .is_some_and(|c| c.start >= root_end)
                 {
-                    let mut json_val = expr.as_json().clone();
-                    if let Value::Object(ref mut obj) = json_val {
-                        if !leading_comments.is_empty() {
-                            obj.set_field("leadingComments", Value::Array(leading_comments));
-                        }
-                        if !trailing_comments.is_empty() {
-                            obj.set_field("trailingComments", Value::Array(trailing_comments));
-                        }
-                    }
-                    // Attach each interior comment to the node it precedes.
-                    for (comment_end, comment_obj) in interior_comments {
-                        if let Some(target) =
-                            json_min_node_start_at_or_after(&json_val, comment_end)
-                        {
-                            json_attach_leading_comment_at_start(
-                                &mut json_val,
-                                target,
-                                &comment_obj,
-                            );
-                        }
-                    }
-                    expr = Expression::from_json(json_val);
+                    let (leading, claimed_trailing) = arena
+                        .node_comments(root_start, root_end)
+                        .unwrap_or((None, None));
+                    let mut trailing = claimed_trailing.unwrap_or_default();
+                    trailing.extend(comment_values[claimed..].iter().cloned());
+                    arena.record_node_comments(root_start, root_end, leading, Some(trailing));
                 }
             }
 
@@ -2141,98 +2071,6 @@ fn parse_expression_with_typescript<'a>(
 
         None
     })
-}
-
-/// Smallest `start` among AST nodes (objects carrying a non-comment `type`)
-/// whose `start >= threshold`. Used to find the node an interior comment
-/// immediately precedes.
-fn json_min_node_start_at_or_after(node: &Value, threshold: usize) -> Option<usize> {
-    fn walk(node: &Value, threshold: usize, best: &mut Option<usize>) {
-        match node {
-            Value::Object(map) => {
-                let is_ast_node = map
-                    .get("type")
-                    .and_then(|t| t.as_str())
-                    .is_some_and(|t| t != "Block" && t != "Line");
-                if is_ast_node
-                    && let Some(s) = map
-                        .get("start")
-                        .and_then(|v| v.as_u64())
-                        .map(|v| v as usize)
-                    && s >= threshold
-                    && best.is_none_or(|b| s < b)
-                {
-                    *best = Some(s);
-                }
-                for v in map.values() {
-                    walk(v, threshold, best);
-                }
-            }
-            Value::Array(arr) => {
-                for v in arr {
-                    walk(v, threshold, best);
-                }
-            }
-            _ => {}
-        }
-    }
-    let mut best = None;
-    walk(node, threshold, &mut best);
-    best
-}
-
-/// Attach `comment` to the `leadingComments` of the first (pre-order /
-/// outermost) AST node whose `start == target_start`.
-fn json_attach_leading_comment_at_start(
-    node: &mut Value,
-    target_start: usize,
-    comment: &Value,
-) -> bool {
-    match node {
-        Value::Object(map) => {
-            let is_ast_node = map
-                .get("type")
-                .and_then(|t| t.as_str())
-                .is_some_and(|t| t != "Block" && t != "Line");
-            let start = map
-                .get("start")
-                .and_then(|v| v.as_u64())
-                .map(|v| v as usize);
-            if is_ast_node && start == Some(target_start) {
-                let entry = map
-                    .entry("leadingComments".to_string())
-                    .or_insert_with(|| Value::Array(Vec::new()));
-                if let Value::Array(arr) = entry {
-                    arr.push(comment.clone());
-                }
-                return true;
-            }
-            for v in map.values_mut() {
-                if json_attach_leading_comment_at_start(v, target_start, comment) {
-                    return true;
-                }
-            }
-            false
-        }
-        Value::Array(arr) => {
-            for v in arr.iter_mut() {
-                if json_attach_leading_comment_at_start(v, target_start, comment) {
-                    return true;
-                }
-            }
-            false
-        }
-        _ => false,
-    }
-}
-
-/// Unwrap ParenthesizedExpression to get the inner expression.
-/// This is needed because we wrap expressions in parentheses for parsing.
-fn unwrap_parenthesized<'a>(expr: &'a OxcExpression<'a>) -> &'a OxcExpression<'a> {
-    match expr {
-        OxcExpression::ParenthesizedExpression(paren) => unwrap_parenthesized(&paren.expression),
-        _ => expr,
-    }
 }
 
 /// Strip optional markers (`?`) from TypeScript parameter names.
@@ -7107,6 +6945,21 @@ fn convert_parsed_program<'ast>(
             start <= end && content[start..end].contains("svelte-ignore")
         });
 
+        // With capture on (the public `parse()` API and the parser fixtures) the
+        // walk below also has to record the comments on the nodes, which is what
+        // upstream's `add_comments` does — so it runs for capture as well, not
+        // only for a `svelte-ignore` harvest.
+        let capture = crate::ast::arena::comment_capture_active();
+        // Every script parse is handed the same `parser.root.comments` array
+        // upstream, and `read_script` passes no `index`, so comments recorded by
+        // an earlier parse are still in it and bind to this program's first
+        // statement. Snapshot before this script's own are appended.
+        let inherited = if capture {
+            peek_expr_comments()
+        } else {
+            Vec::new()
+        };
+
         // Mirror upstream `parser.root.comments`: forward every comment seen
         // by the script parser so it lands in `Root.comments`.
         for comment in all_comments.iter() {
@@ -7149,24 +7002,42 @@ fn convert_parsed_program<'ast>(
         // above, and codegen re-parses script text, so dropping the Raw wrapping changes no
         // output.
         let mut ignore_comment_map: Vec<(u32, Vec<CompactString>)> = Vec::new();
-        let body: Vec<JsNode> = if has_comments && has_ignore {
+        // How many comments the walk consumed; the rest belong to the Program.
+        let mut claimed = 0usize;
+        // The comment list the walk sees: what earlier parses left behind,
+        // followed by this script's own.
+        let mut comment_entries: Vec<CommentEntry> = Vec::new();
+        let mut comment_values: Vec<Value> = Vec::new();
+        let walk =
+            (has_comments && has_ignore) || (capture && (has_comments || !inherited.is_empty()));
+        let body: Vec<JsNode> = if walk {
             let mut body_nodes: Vec<JsNode> = Vec::with_capacity(program.body.len());
 
-            let comment_entries: Vec<CommentEntry> = all_comments
-                .iter()
-                .map(|comment| {
-                    let raw_text = content
-                        .get(comment.span.start as usize..comment.span.end as usize)
-                        .unwrap_or("");
-                    CommentEntry {
-                        start: offset as u32 + comment.span.start,
-                        text: CompactString::from(extract_comment_value(raw_text, comment.kind)),
-                    }
-                })
-                .collect();
+            comment_entries.reserve(inherited.len() + all_comments.len());
+            for comment in &inherited {
+                comment_entries.push(CommentEntry {
+                    start: comment.start,
+                    text: comment.value.clone(),
+                });
+                comment_values.push(js_comment_value(comment));
+            }
+            for comment in all_comments.iter() {
+                let raw_text = content
+                    .get(comment.span.start as usize..comment.span.end as usize)
+                    .unwrap_or("");
+                comment_entries.push(CommentEntry {
+                    start: offset as u32 + comment.span.start,
+                    text: CompactString::from(extract_comment_value(raw_text, comment.kind)),
+                });
+                if capture {
+                    comment_values.push(build_comment_value(comment, content, offset));
+                }
+            }
 
             let mut attacher = CommentAttacher {
                 comments: &comment_entries,
+                values: &comment_values,
+                arena: capture.then_some(arena),
                 next: 0,
                 content,
                 offset: offset as u32,
@@ -7193,6 +7064,7 @@ fn convert_parsed_program<'ast>(
                     attacher.skip_past(offset as u32 + stmt.span().end);
                 }
             }
+            claimed = attacher.next;
 
             body_nodes
         } else {
@@ -7205,16 +7077,21 @@ fn convert_parsed_program<'ast>(
                 .collect()
         };
 
-        // Build trailing comments (all JS comments stored on Program for backward compat)
-        let trailing_comments_val = if has_comments {
+        // Under capture this is upstream's "trailing comments after the root
+        // node" special case: only what no node claimed. Without capture the
+        // Program keeps carrying every comment, which is the shape Phase 2 /
+        // svelte2tsx / the linter have always read.
+        let trailing_comments_val = if capture {
+            (claimed < comment_values.len()).then(|| comment_values[claimed..].to_vec())
+        } else if !has_comments {
+            None
+        } else {
             Some(
                 all_comments
                     .iter()
                     .map(|comment| build_comment_value(comment, content, offset))
                     .collect(),
             )
-        } else {
-            None
         };
 
         // Build leading comments from HTML comments before script tag
@@ -7250,6 +7127,21 @@ fn convert_parsed_program<'ast>(
             parse_error,
         )
     }
+}
+
+/// The `{type, value, start, end}` shape upstream attaches to a node, built from
+/// an already-recorded `Root.comments` entry.
+fn js_comment_value(comment: &crate::ast::template::JsComment) -> Value {
+    let comment_type = match comment.kind {
+        crate::ast::template::JsCommentKind::Line => "Line",
+        crate::ast::template::JsCommentKind::Block => "Block",
+    };
+    let mut obj = Map::new();
+    obj.set_field("type", Value::String(comment_type.to_string()));
+    obj.set_field("value", Value::String(comment.value.to_string()));
+    obj.set_field("start", Value::Number((i64::from(comment.start)).into()));
+    obj.set_field("end", Value::Number((i64::from(comment.end)).into()));
+    Value::Object(obj)
 }
 
 /// Build a comment JSON value from an OXC comment.
@@ -7309,6 +7201,14 @@ struct ParentInfo {
 /// the key Phase 2 looks up while walking the typed AST.
 struct CommentAttacher<'a> {
     comments: &'a [CommentEntry],
+    /// The full `{type, value, start, end}` comment objects, parallel to
+    /// `comments`. Empty unless `arena` is set.
+    values: &'a [Value],
+    /// When set, the walk also records `leadingComments`/`trailingComments` on
+    /// each node — upstream's `add_comments`, which the public `parse()` output
+    /// carries. Left `None` on the compile path, where the side table is dead
+    /// weight (codegen re-parses script text).
+    arena: Option<&'a ParseArena>,
     next: usize,
     content: &'a str,
     offset: u32,
@@ -7323,6 +7223,7 @@ impl CommentAttacher<'_> {
         let start = obj.get("start").and_then(|v| v.as_u64()).map(|v| v as u32);
         let end = obj.get("end").and_then(|v| v.as_u64()).map(|v| v as u32);
 
+        let mut leading: Option<Vec<Value>> = None;
         if let Some(start) = start {
             while self
                 .comments
@@ -7330,6 +7231,9 @@ impl CommentAttacher<'_> {
                 .is_some_and(|comment| comment.start < start)
             {
                 self.record_leading(start, self.next);
+                if let Some(value) = self.arena.and(self.values.get(self.next)) {
+                    leading.get_or_insert_with(Vec::new).push(value.clone());
+                }
                 self.next += 1;
             }
         }
@@ -7378,7 +7282,13 @@ impl CommentAttacher<'_> {
             }
         }
 
-        self.claim_trailing(end, parent.as_ref());
+        let trailing = self.claim_trailing(end, parent.as_ref());
+        if let Some(arena) = self.arena
+            && (leading.is_some() || trailing.is_some())
+            && let (Some(start), Some(end)) = (start, end)
+        {
+            arena.record_node_comments(start, end, leading, trailing);
+        }
     }
 
     /// Discard every comment that starts before `end` without recording it.
@@ -7394,19 +7304,25 @@ impl CommentAttacher<'_> {
 
     /// Let this node claim the comments that follow it, so they cannot become leading
     /// comments of a later node.
-    fn claim_trailing(&mut self, end: Option<u32>, parent: Option<&ParentInfo>) {
-        let Some(comment) = self.comments.get(self.next) else {
-            return;
-        };
+    fn claim_trailing(
+        &mut self,
+        end: Option<u32>,
+        parent: Option<&ParentInfo>,
+    ) -> Option<Vec<Value>> {
+        let comment = self.comments.get(self.next)?;
         let parent_end = parent.and_then(|p| p.end);
         if matches!((end, parent_end), (Some(e), Some(pe)) if e == pe) {
-            return;
+            return None;
         }
 
+        let mut claimed: Option<Vec<Value>> = None;
         if parent.is_some_and(|p| p.is_last_in_body) {
             while let Some(comment) = self.comments.get(self.next) {
                 if parent_end.is_some_and(|pe| comment.start >= pe) {
                     break;
+                }
+                if let Some(value) = self.arena.and(self.values.get(self.next)) {
+                    claimed.get_or_insert_with(Vec::new).push(value.clone());
                 }
                 self.next += 1;
             }
@@ -7414,8 +7330,12 @@ impl CommentAttacher<'_> {
             && end <= comment.start
             && self.is_separator_slice(end, comment.start)
         {
+            if let Some(value) = self.arena.and(self.values.get(self.next)) {
+                claimed = Some(vec![value.clone()]);
+            }
             self.next += 1;
         }
+        claimed
     }
 
     /// `/^[,) \t]*$/` over the source between a node's end and a comment's start.
