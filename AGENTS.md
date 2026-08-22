@@ -246,8 +246,10 @@ Every `.svelte` / `.svelte.(js|ts)` source (including markdown code blocks) from
 source repository — sveltejs/svelte, sveltejs/svelte.dev, and the real-world projects bits-ui /
 flowbite-svelte / melt-ui / shadcn-svelte, all pinned as submodules and listed in
 `scripts/compat-corpus/corpus-sources.json` — is compiled with both the official compiler and
-rsvelte for CSR, SSR **and** dev-mode CSR (the three targets declared in
-`scripts/compat-corpus/targets.mjs`). Outputs must be byte-identical after comparison-side normalization
+rsvelte for CSR, SSR, dev-mode CSR **and dev-mode SSR** — read the target list off
+`scripts/compat-corpus/targets.mjs` (`TARGETS`, i.e. every non-`reportOnly` descriptor) rather than
+off this sentence: verifying a new pattern file against three of the four is a green local check and
+a red CI run. Outputs must be byte-identical after comparison-side normalization
 (oxfmt + blank-line stripping — never compiler post-passes). To grow the corpus, add a submodule
 plus a line to `corpus-sources.json`. CI ratchet: `compatibility/known-failures.{client,server,client-dev}.json`
 may only shrink, and each remaining failure is justified in `compatibility/known-failures.md`. Every
