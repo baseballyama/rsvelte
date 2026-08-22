@@ -4,8 +4,11 @@
 //! Usage:
 //!   cargo run -p `rsvelte_devtools` --bin `compile_one` -- <file.svelte> [--server] [--dev]
 //!     [--runes-false | --runes-true]
+//!
+//! A `.svelte.js` / `.svelte.ts` path goes through `compile_module`, which is a
+//! different entry point with its own defects — see #2986 / #3071.
 
-use rsvelte_core::{CompileOptions, GenerateMode, compile};
+use rsvelte_core::{CompileOptions, GenerateMode, ModuleCompileOptions, compile, compile_module};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -35,17 +38,34 @@ fn main() {
         }
     };
 
-    match compile(
-        &source,
-        CompileOptions {
-            generate,
-            dev,
-            runes,
-            filename: Some(path.clone()),
-            ..Default::default()
-        },
-    ) {
-        Ok(result) => print!("{}", result.js.code),
+    let is_module = path.ends_with(".svelte.js") || path.ends_with(".svelte.ts");
+    let result = if is_module {
+        compile_module(
+            &source,
+            ModuleCompileOptions {
+                generate,
+                dev,
+                filename: Some(path.clone()),
+                ..Default::default()
+            },
+        )
+        .map(|r| r.js.code)
+    } else {
+        compile(
+            &source,
+            CompileOptions {
+                generate,
+                dev,
+                runes,
+                filename: Some(path.clone()),
+                ..Default::default()
+            },
+        )
+        .map(|r| r.js.code)
+    };
+
+    match result {
+        Ok(code) => print!("{code}"),
         Err(err) => {
             eprintln!("{err:?}");
             std::process::exit(2);

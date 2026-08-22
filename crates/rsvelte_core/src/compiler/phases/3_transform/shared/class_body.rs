@@ -129,6 +129,9 @@ fn brace_opens_constructor_body(prefix: &str) -> bool {
 pub(crate) struct ClassHeader {
     pub(crate) keyword: usize,
     pub(crate) body_brace: usize,
+    /// Offset just past the `extends` keyword, when the header has one. The
+    /// superclass expression runs from there to `body_brace`.
+    pub(crate) heritage_start: Option<usize>,
 }
 
 /// Locate the first `class` declaration or expression in `source`.
@@ -151,20 +154,44 @@ pub(crate) fn find_class_header(source: &str) -> Option<ClassHeader> {
     let mut seen_after_keyword = false;
     let mut nesting = 0i32;
     let mut angle = 0i32;
+    let mut heritage_start: Option<usize> = None;
+    // `extends class { … }` puts a whole class body inside the header, so that
+    // many of the braces that follow belong to a nested class and not to this
+    // one. `skip_depth` walks such a body out.
+    let mut nested_classes = 0u32;
+    let mut skip_depth = 0i32;
 
     for (i, byte) in js_scan::code_bytes(bytes) {
+        if skip_depth > 0 {
+            match byte {
+                b'{' => skip_depth += 1,
+                b'}' => skip_depth -= 1,
+                _ => {}
+            }
+            run_start = None;
+            prev_end = i + 1;
+            prev_sig = Some(byte);
+            continue;
+        }
         if let Some(start) = run_start
             && (i != prev_end || !js_scan::is_ident_byte(byte))
         {
             run_start = None;
-            if keyword.is_none()
-                && &bytes[start..prev_end] == b"class"
-                && !matches!(run_prev, Some(b'.') | Some(b'#'))
-            {
+            let word = &bytes[start..prev_end];
+            let is_property = matches!(run_prev, Some(b'.') | Some(b'#'));
+            if keyword.is_none() && word == b"class" && !is_property {
                 keyword = Some(start);
                 seen_after_keyword = false;
                 nesting = 0;
                 angle = 0;
+                heritage_start = None;
+                nested_classes = 0;
+            } else if keyword.is_some() && nesting == 0 && angle == 0 && !is_property {
+                if word == b"class" {
+                    nested_classes += 1;
+                } else if word == b"extends" && heritage_start.is_none() {
+                    heritage_start = Some(prev_end);
+                }
             }
         }
         prev_end = i + 1;
@@ -193,6 +220,7 @@ pub(crate) fn find_class_header(source: &str) -> Option<ClassHeader> {
                 return Some(ClassHeader {
                     keyword: start,
                     body_brace: i,
+                    heritage_start: None,
                 });
             }
             keyword = None;
@@ -205,13 +233,23 @@ pub(crate) fn find_class_header(source: &str) -> Option<ClassHeader> {
             b'<' if nesting == 0 => angle += 1,
             b'>' if nesting == 0 && angle > 0 => angle -= 1,
             b'{' if nesting == 0 && angle == 0 => {
-                return Some(ClassHeader {
-                    keyword: start,
-                    body_brace: i,
-                });
+                if nested_classes > 0 {
+                    nested_classes -= 1;
+                    skip_depth = 1;
+                } else {
+                    return Some(ClassHeader {
+                        keyword: start,
+                        body_brace: i,
+                        heritage_start,
+                    });
+                }
             }
             // No class header contains a statement terminator.
-            b';' if nesting == 0 => keyword = None,
+            b';' if nesting == 0 => {
+                keyword = None;
+                heritage_start = None;
+                nested_classes = 0;
+            }
             _ => {}
         }
     }

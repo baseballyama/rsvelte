@@ -192,3 +192,55 @@ measurement rather than being folded into a fix for the two rows above.
 - **Corpus gate**: `pattern/issues/2573-ctor-private-derived-write.svelte.js` covers the two
   fixed rows on all three targets. Nothing in the collected corpus writes a private `$derived`
   field through any receiver — `known-failures.server.json` is `[]`.
+
+---
+
+## A superclass that is not a `LeftHandSideExpression`
+
+**Pinned by** `crates/rsvelte_core/tests/nested_class_expression_3071_3072.rs`.
+
+### Input
+
+`A.svelte.js`, `generate: 'client'` (server and dev print the same heritage):
+
+```js
+const Base = class {};
+export class E extends (Base ?? class {}) {}
+export class H extends (await Promise.resolve(Base)) {}
+export class J extends (true ? Base : Base) {}
+```
+
+### Output
+
+esrap prints a class as `class [id ][extends <visit superClass> ]{…}` — it visits the
+superclass with no parenthesisation at all. `extends` takes a `LeftHandSideExpression`, so for
+anything looser than one the parentheses are load-bearing and official drops them:
+
+| superclass | official | parses | rsvelte |
+|---|---|---|---|
+| `class {}` | `extends class {} {}` | yes | same |
+| `function () {}` | `extends function () {} {}` | yes | same |
+| `(0, Base)` | `extends (0, Base) {}` | yes | same |
+| `Base ?? class {}` | `extends Base ?? class {} {}` | **no** | `extends (Base ?? class {}) {}` |
+| `await …` | `extends await Promise.resolve(Base) {}` | **no** | `extends (await …) {}` |
+| `true ? Base : Base` | `extends true ? Base : Base {}` | **no** | `extends (true ? Base : Base) {}` |
+
+The first three rows were rsvelte defects and are fixed: a `ClassExpression`, a
+`FunctionExpression` and an `ObjectExpression` are `PrimaryExpression`s, so they need no
+parentheses even though their printer precedence sits below a `MemberExpression`'s, and
+wrapping the class one is half of [#3072](https://github.com/baseballyama/rsvelte/issues/3072).
+The sequence row already matched, because esrap's `SequenceExpression` printer writes its own
+parentheses.
+
+The last three rows are the divergence: rsvelte keeps parentheses official omits, because
+omitting them emits a module no parser accepts.
+
+### Why no gate sees it
+
+- **Corpus gate**: `pattern/issues/3072-extends-shapes-legal.svelte.js` covers the five shapes
+  that agree. The three that diverge are not in it — a pattern file has to match, and these are
+  cases where matching is the thing being refused, so nothing in the corpus gate can hold them.
+- **Generated matrix**: no family generates a heritage clause, so no axis reaches these shapes.
+- **Unmeasured**: how often a `??` / `await` / ternary superclass occurs in the collected
+  corpus. The choice above does not depend on the count — official's output for those shapes is
+  not JavaScript at any frequency — but the number is not known here and should not be quoted.

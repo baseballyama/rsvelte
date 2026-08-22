@@ -913,9 +913,31 @@ pub(crate) fn transform_module_class_fields_client(script: &str) -> String {
     transform_class_fields_client_with_options(script, false)
 }
 
+/// Lower a class expression nested inside a rune argument or an `extends`
+/// clause. Such a fragment starts mid-line, so the column its members belong at
+/// cannot be read off the fragment and is passed in.
+fn transform_nested_class_expression(
+    value: &str,
+    indent: &str,
+    retain_all_public_jsdoc: bool,
+) -> String {
+    if memmem::find(value.as_bytes(), b"class").is_none() {
+        return value.to_string();
+    }
+    transform_class_fields_client_with_options_at(value, retain_all_public_jsdoc, Some(indent))
+}
+
 fn transform_class_fields_client_with_options(
     script: &str,
     retain_all_public_jsdoc: bool,
+) -> String {
+    transform_class_fields_client_with_options_at(script, retain_all_public_jsdoc, None)
+}
+
+fn transform_class_fields_client_with_options_at(
+    script: &str,
+    retain_all_public_jsdoc: bool,
+    indent_override: Option<&str>,
 ) -> String {
     // Check if script contains a class with $state or $derived fields
     if memmem::find(script.as_bytes(), b"class ").is_none()
@@ -925,31 +947,53 @@ fn transform_class_fields_client_with_options(
         return script.to_string();
     }
 
-    // Find the class body
-    let Some(class_pos) = memmem::find(script.as_bytes(), b"class ") else {
+    // Both offsets have to come from the lexical scan, or `class Sub extends
+    // class { … } { … }` takes the inline heritage class's brace for its own and
+    // lowers the wrong body (#3072).
+    let Some(header) =
+        crate::compiler::phases::phase3_transform::shared::class_body::find_class_header(script)
+    else {
         return script.to_string();
     };
+    let class_pos = header.keyword;
+    let brace_pos = header.body_brace - class_pos;
 
-    // Find the opening brace of the class
     let after_class = &script[class_pos..];
-    let Some(brace_pos) = after_class.find('{') else {
-        return script.to_string();
-    };
-
-    let class_header = &after_class[..brace_pos + 1];
 
     // Synthesized members are printed relative to the class's own source
     // indentation: hard-coding one level made a module-level `class` (column 0)
     // come out one tab too deep, class body and closing brace alike.
-    let class_indent: String = {
-        let line_start = script[..class_pos].rfind('\n').map_or(0, |p| p + 1);
-        script[line_start..class_pos]
-            .chars()
-            .take_while(|c| *c == ' ' || *c == '\t')
-            .collect()
+    let class_indent: String = match indent_override {
+        Some(indent) => indent.to_string(),
+        None => {
+            let line_start = script[..class_pos].rfind('\n').map_or(0, |p| p + 1);
+            script[line_start..class_pos]
+                .chars()
+                .take_while(|c| *c == ' ' || *c == '\t')
+                .collect()
+        }
     };
     let member_indent = format!("{}\t", class_indent);
     let member_body_indent = format!("{}\t\t", class_indent);
+
+    // A superclass can be an inline class expression, whose own body upstream
+    // reaches through the ordinary walk.
+    let heritage_header;
+    let class_header: &str = match header.heritage_start {
+        Some(hs) => {
+            heritage_header = format!(
+                "{}{}{{",
+                &script[class_pos..hs],
+                transform_nested_class_expression(
+                    &script[hs..header.body_brace],
+                    &class_indent,
+                    retain_all_public_jsdoc,
+                )
+            );
+            &heritage_header
+        }
+        None => &after_class[..brace_pos + 1],
+    };
 
     // Find the matching closing brace with JS-lexical awareness so a `}` inside
     // a string / template / regex / comment (e.g. `return "}"`) doesn't truncate
@@ -1290,12 +1334,26 @@ fn transform_class_fields_client_with_options(
         // that follow it. Returning the whole script here would skip lowering
         // for every later class — e.g. a plain `Helper` before an
         // `export class Counter { count = $state(0) }`.
-        let before_and_current = &script[..class_body_end + 1];
+        // `class_header` rather than the source slice: an inline heritage class
+        // may have been lowered even though this class declares nothing.
         let after_class_body = &script[class_body_end + 1..];
         return format!(
-            "{}{}",
-            before_and_current,
+            "{}{}{}{}",
+            &script[..class_pos],
+            class_header,
+            &script[class_body_start..class_body_end + 1],
             transform_class_fields_client_with_options(after_class_body, retain_all_public_jsdoc)
+        );
+    }
+
+    // A rune argument is consumed as text by the member scan above, so a class
+    // expression inside one never reaches the scan. Upstream walks the
+    // initializer, so its `ClassBody` is visited like any other.
+    for field in &mut fields {
+        field.value = transform_nested_class_expression(
+            &field.value,
+            &member_indent,
+            retain_all_public_jsdoc,
         );
     }
 
