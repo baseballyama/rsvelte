@@ -141,6 +141,31 @@ const EARLY_ERRORS: &[Row] = &[
         body: "function f() { |export const a = 1; }",
         message: "'import' and 'export' may only appear at the top level",
     },
+    Row {
+        entry: "'use strict' with a non-simple parameter list (declaration)",
+        body: "|function f(a = 1) { 'use strict'; }",
+        message: "Illegal 'use strict' directive in function with non-simple parameter list",
+    },
+    Row {
+        entry: "'use strict' with a non-simple parameter list (arrow)",
+        body: "const g = |(a = 1) => { 'use strict'; };",
+        message: "Illegal 'use strict' directive in function with non-simple parameter list",
+    },
+    Row {
+        entry: "'use strict' with a non-simple parameter list (method)",
+        body: "class K { m|(a = 1) { 'use strict'; } }",
+        message: "Illegal 'use strict' directive in function with non-simple parameter list",
+    },
+    Row {
+        entry: "'super' can only be referenced in a derived class",
+        body: "class K { constructor() { |super(); } }",
+        message: "super() call outside constructor of a subclass",
+    },
+    Row {
+        entry: "The operand of a 'delete' operator cannot be a private identifier",
+        body: "class K { #a = 1; m() { |delete this.#a; } }",
+        message: "Private fields can not be deleted",
+    },
 ];
 
 fn instance(body: &str) -> String {
@@ -215,6 +240,13 @@ const LEGAL: &[&str] = &[
     "try {} catch (e) { let e2 = 1; }",
     "function f() { let a; } let a;",
     "export const a = 1;",
+    // A 'use strict' directive is only illegal when the parameter list is not
+    // simple AND the directive is in the prologue — both halves, both directions.
+    "function f(a) { 'use strict'; }",
+    "function f() { 'use strict'; }",
+    "const g = (a = 1) => 1;",
+    "function f(a = 1) { const x = 1; 'use strict'; }",
+    "class K { #a = 1; m() { return delete this.a; } }",
 ];
 
 #[test]
@@ -257,6 +289,15 @@ fn the_legal_neighbour_of_every_early_error_still_compiles() {
 /// input as a `.svelte.js` module puts them at the top level, where acorn
 /// rejects it. So the output oracle is blind to exactly one of 25 cells, and
 /// `every_early_error_is_rejected_where_acorn_rejects_it` is what covers it.
+///
+/// There are three ways a row is invisible here, and only the first is a fact
+/// about JavaScript. The second is another check firing first — the five cells
+/// the analyze phase rejected pre-fix emitted no output to inspect. The third
+/// was not predicted: with the `'use strict'` entry ablated,
+/// `function f(a = 1) { 'use strict'; }` compiles and rsvelte emits
+/// `function f(a = 1) {}` — the directive is DROPPED, so the output is legal
+/// JavaScript that silently does not run in strict mode. rsvelte deleting the
+/// evidence is not something a parse oracle can ever see.
 ///
 /// In-process this uses `Parser` + `SemanticBuilder`, which reproduces acorn's
 /// verdict for this class. That shares a mechanism with the fix, so it is a
@@ -301,6 +342,10 @@ fn typescript_declaration_merging_still_compiles() {
         "class K {\n\tconstructor(a: number);\n\tconstructor(a: any) {}\n}",
         "declare function g(a: number): void;\nfunction g(a: any) {}",
         "class C {}\ninterface C { a: number }",
+        // An overload signature repeats the member's name without defining it,
+        // so it must not read as a second constructor or a private-name clash.
+        "class K { #m(a: string): void; #m(a: any) {} }",
+        "class K { m(a: string): void; m(a: any) {} }",
     ] {
         let src = format!("<script lang=\"ts\">\n{body}\n</script>\n\n<p>ok</p>\n");
         assert!(
@@ -364,5 +409,19 @@ fn the_analyze_phase_duplicate_check_is_still_reachable() {
     assert!(
         err.contains("declaration_duplicate"),
         "expected the analyze-phase check for a template declaration, got: {err}"
+    );
+}
+
+/// A statement inside a `namespace` is not at the top level of a module, so a
+/// naive top-level `import` / `export` check fires there and REPLACES the
+/// diagnostic upstream gives. It must stay `typescript_invalid_feature`.
+#[test]
+fn a_namespace_still_answers_typescript_invalid_feature() {
+    let src =
+        "<script lang=\"ts\">\n\tnamespace N { export const a = 1; }\n</script>\n\n<p>ok</p>\n";
+    let err = component(src).expect_err("a namespace with a value member is rejected");
+    assert!(
+        err.contains("typescript_invalid_feature"),
+        "the parse-phase check must not take this over, got: {err}"
     );
 }

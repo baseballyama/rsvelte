@@ -617,7 +617,8 @@ to `SemanticBuilder` while acorn throws from inside `Parser`. rsvelte accepted a
 **copied the illegal construct straight into its output**, so every accepted case emitted text no
 JS parser accepts (#3243: `super()` outside a method, a duplicate constructor, an unsyntactic
 `break` / `continue`, a duplicate label, an undeclared or duplicated `#private` name, `import` /
-`export` below the top level; #3217: a duplicate declaration). One
+`export` below the top level, `delete this.#a`, a `'use strict'` directive in a function with a
+non-simple parameter list; #3217: a duplicate declaration). One
 `SemanticBuilder::new_compiler().build()` per script — `with_build_nodes(false)`, run only where
 the parser reported nothing — reports all of them, and reported nothing on any of the legal
 neighbours. Three things generalize past the fix. **The two do not agree on where the error is**:
@@ -633,7 +634,24 @@ single "all eight are rejected" assertion is satisfied by the other seven. And *
 mode exempts every function-vs-function redeclaration** — the same over-broad rule
 `2_analyze/scope_builder.rs` has for TS overloads — while acorn-typescript rejects a duplicate
 *implementation* and accepts only a signature set, so `function f(){}` twice in a `lang="ts"`
-script stays accepted here and is recorded rather than claimed.
+script stays accepted here and is recorded rather than claimed (#3484).
+
+**Two further lessons came out of the same work, and neither is about the parser.** The first is
+that **the set of classes has to be closed from the ORACLE's own list, not from the issue's
+table.** #3243 enumerates eight; enumerating all 90 `raise` / `raiseRecoverable` literals in
+acorn 8.17.0 instead and writing one input per context-dependent rule found **three more** —
+`'use strict'` in a function with a non-simple parameter list, `super()` in a class with no
+`extends`, and `delete this.#a`. An issue's list is a report of what someone hit, never a
+partition of what exists. The second is that **an oracle assembled from the component that is
+blind to the defect measures nothing**: the first version of
+`no_accepted_script_emits_unparseable_output` ran `oxc_parser` over the emitted output and
+**passed with the whole check ablated**, because `oxc_parser` is exactly the parser that defers
+this class to `SemanticBuilder`. Re-measured with real acorn on the ablated tree's own outputs,
+**24 of the 25 compiled cells are not JavaScript** — and the single exception is not a hole in
+the oracle but a fact about JavaScript: an instance script's statements are emitted *inside* the
+component function, where two `function f(){}` in one body are legal, while the same source as a
+`.svelte.js` puts them at module top level and acorn rejects it. Separating "the oracle cannot
+see this" from "the language permits this" needed the same input at two entry points.
 
 ### Docker (optional)
 

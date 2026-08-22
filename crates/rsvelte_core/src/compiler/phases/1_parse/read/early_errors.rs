@@ -16,9 +16,11 @@
 //! that a reworded OXC message silently stops matching, which is what
 //! `early_errors_3243.rs` pins one repro per entry against.
 
-use oxc_ast::ast::Program;
+use oxc_ast::ast::{ArrowFunctionExpression, Function, MethodDefinition, ObjectProperty, Program};
+use oxc_ast_visit::{Visit, walk};
 use oxc_diagnostics::OxcDiagnostic;
 use oxc_semantic::SemanticBuilder;
+use oxc_syntax::scope::ScopeFlags;
 
 /// Where acorn stops, relative to the labels OXC attaches.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -31,6 +33,11 @@ enum At {
     /// OXC labels the jump's target name; acorn stops at the `break` /
     /// `continue` keyword that introduced it.
     JumpKeyword,
+    /// OXC labels the `delete` operand; acorn stops at the `delete` keyword.
+    DeleteKeyword,
+    /// OXC labels the `'use strict'` directive; acorn stops at the start of the
+    /// function whose parameter list made the directive illegal.
+    EnclosingFunction,
 }
 
 /// How acorn spells the error.
@@ -73,6 +80,11 @@ const TABLE: &[EarlyError] = &[
         message: Message::Fixed("'super' keyword outside a method"),
     },
     EarlyError {
+        needle: "'super' can only be referenced in a derived class",
+        at: At::First,
+        message: Message::Fixed("super() call outside constructor of a subclass"),
+    },
+    EarlyError {
         needle: "Illegal break statement",
         at: At::First,
         message: Message::Fixed("Unsyntactic break"),
@@ -107,6 +119,18 @@ const TABLE: &[EarlyError] = &[
         at: At::First,
         message: Message::Fixed("'import' and 'export' may only appear at the top level"),
     },
+    EarlyError {
+        needle: "The operand of a 'delete' operator cannot be a private identifier",
+        at: At::DeleteKeyword,
+        message: Message::Fixed("Private fields can not be deleted"),
+    },
+    EarlyError {
+        needle: "Illegal 'use strict' directive in function with non-simple parameter list",
+        at: At::EnclosingFunction,
+        message: Message::Fixed(
+            "Illegal 'use strict' directive in function with non-simple parameter list",
+        ),
+    },
 ];
 
 /// The earliest early error in `program`, as `(offset, acorn's message)`.
@@ -116,26 +140,41 @@ const TABLE: &[EarlyError] = &[
 /// loop, so every one of these checks would answer a question it was not asked.
 pub fn find_early_error(program: &Program<'_>, source: &str) -> Option<(u32, String)> {
     let diagnostics = SemanticBuilder::new_compiler().build(program).diagnostics;
+    let mut functions = None;
     diagnostics
         .iter()
-        .filter_map(|d| translate(d, source))
+        .filter_map(|d| translate(d, source, program, &mut functions))
         .min_by_key(|(at, _)| *at)
 }
 
-fn translate(diagnostic: &OxcDiagnostic, source: &str) -> Option<(u32, String)> {
+fn translate(
+    diagnostic: &OxcDiagnostic,
+    source: &str,
+    program: &Program<'_>,
+    functions: &mut Option<FunctionStarts>,
+) -> Option<(u32, String)> {
     let text = diagnostic.message.as_ref();
     let entry = TABLE.iter().find(|e| text.contains(e.needle))?;
 
     let first = diagnostic.labels.first()?;
     let label = match entry.at {
-        At::First | At::JumpKeyword => first,
         At::Last => diagnostic.labels.last()?,
+        _ => first,
     };
     let start = label.offset();
     let name = source.get(start as usize..(start + label.len()) as usize)?;
 
     Some(match entry.message {
-        Message::Fixed(message) => (start, message.to_string()),
+        Message::Fixed(message) => {
+            let at = match entry.at {
+                At::DeleteKeyword => preceding_keyword(source, start, "delete")?,
+                At::EnclosingFunction => functions
+                    .get_or_insert_with(|| FunctionStarts::collect(program))
+                    .innermost_containing(start)?,
+                _ => start,
+            };
+            (at, message.to_string())
+        }
         Message::Named(template) => (start, template.replace("{}", name)),
         Message::Redeclaration => {
             // The declaring occurrence decides the wording; the redeclaring one
@@ -179,4 +218,87 @@ fn preceding_word(source: &str, at: u32) -> Option<(u32, &str)> {
         .rfind(|c: char| !c.is_ascii_alphanumeric() && c != '_' && c != '$')
         .map_or(0, |i| i + 1);
     (word_start < end).then(|| (word_start as u32, &source[word_start..end]))
+}
+
+/// The last standalone `keyword` token before `at`. The operand of a `delete`
+/// can be parenthesised or optional-chained, so the keyword is not always the
+/// word immediately preceding the label OXC attached.
+fn preceding_keyword(source: &str, at: u32, keyword: &str) -> Option<u32> {
+    let head = source.get(..at as usize)?;
+    let is_word = |c: u8| c.is_ascii_alphanumeric() || c == b'_' || c == b'$';
+    let bytes = source.as_bytes();
+    let mut from = head.len();
+    while let Some(i) = head[..from].rfind(keyword) {
+        let before_ok = i == 0 || !is_word(bytes[i - 1]);
+        let after = i + keyword.len();
+        let after_ok = after >= bytes.len() || !is_word(bytes[after]);
+        if before_ok && after_ok {
+            return Some(i as u32);
+        }
+        from = i;
+    }
+    None
+}
+
+/// Where acorn opens each function node: at the `function` / `async` keyword
+/// for a declaration or expression, and at the parameter list for a method —
+/// `parseMethod` starts its node only after the key has been consumed.
+struct FunctionStarts {
+    /// `(span_start, span_end, acorn_start)`.
+    spans: Vec<(u32, u32, u32)>,
+    in_method: u32,
+}
+
+impl FunctionStarts {
+    fn collect(program: &Program<'_>) -> Self {
+        let mut this = Self {
+            spans: Vec::new(),
+            in_method: 0,
+        };
+        this.visit_program(program);
+        this
+    }
+
+    fn innermost_containing(&self, at: u32) -> Option<u32> {
+        self.spans
+            .iter()
+            .filter(|(start, end, _)| *start <= at && at < *end)
+            .min_by_key(|(start, end, _)| end - start)
+            .map(|(_, _, acorn_start)| *acorn_start)
+    }
+}
+
+impl<'a> Visit<'a> for FunctionStarts {
+    fn visit_function(&mut self, func: &Function<'a>, flags: ScopeFlags) {
+        let acorn_start = if self.in_method > 0 {
+            func.params.span.start
+        } else {
+            func.span.start
+        };
+        self.spans
+            .push((func.span.start, func.span.end, acorn_start));
+        let outer = std::mem::take(&mut self.in_method);
+        walk::walk_function(self, func, flags);
+        self.in_method = outer;
+    }
+
+    fn visit_arrow_function_expression(&mut self, func: &ArrowFunctionExpression<'a>) {
+        self.spans
+            .push((func.span.start, func.span.end, func.span.start));
+        let outer = std::mem::take(&mut self.in_method);
+        walk::walk_arrow_function_expression(self, func);
+        self.in_method = outer;
+    }
+
+    fn visit_method_definition(&mut self, def: &MethodDefinition<'a>) {
+        self.in_method += 1;
+        walk::walk_method_definition(self, def);
+        self.in_method -= 1;
+    }
+
+    fn visit_object_property(&mut self, prop: &ObjectProperty<'a>) {
+        self.in_method += u32::from(prop.method);
+        walk::walk_object_property(self, prop);
+        self.in_method -= u32::from(prop.method);
+    }
 }
