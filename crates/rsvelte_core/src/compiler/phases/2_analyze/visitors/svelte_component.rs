@@ -102,6 +102,8 @@ pub fn visit<'a, 'b: 'a>(
     let was_direct_child = context.is_direct_child_of_component;
     let was_direct_snippet = context.is_direct_child_of_snippet;
     context.is_direct_child_of_component = true;
+    let was_slot_host = context.is_direct_child_of_slot_host;
+    context.is_direct_child_of_slot_host = true;
     context.is_direct_child_of_snippet = false;
     context.component_depth += 1;
     context
@@ -137,6 +139,7 @@ pub fn visit<'a, 'b: 'a>(
     // Restore context
     context.fragment_owner_stack.pop();
     context.slot_owner_ancestors.pop();
+    context.is_direct_child_of_slot_host = was_slot_host;
     context.component_depth -= 1;
     context.is_direct_child_of_component = was_direct_child;
     context.is_direct_child_of_snippet = was_direct_snippet;

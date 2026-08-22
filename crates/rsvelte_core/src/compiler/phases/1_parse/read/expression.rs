@@ -1531,6 +1531,20 @@ pub fn parse_expression<'a>(
     ))
 }
 
+/// Wrap a source slice for OXC, keeping the suffix off the slice's last line —
+/// a trailing `//` comment would otherwise swallow it.
+///
+/// The newline sits between `content` and `suffix`, so every offset inside
+/// `content` keeps its position and an arrow's `)` stays adjacent to its `=>`.
+fn wrap_for_parse(prefix: &str, content: &str, suffix: &str) -> String {
+    let mut wrapped = String::with_capacity(prefix.len() + content.len() + suffix.len() + 1);
+    wrapped.push_str(prefix);
+    wrapped.push_str(content);
+    wrapped.push('\n');
+    wrapped.push_str(suffix);
+    wrapped
+}
+
 /// Parse a destructuring pattern (for `{@const}` tags).
 ///
 /// Destructuring patterns like `{x = 1, y}` or `[a, b, ...rest]` cannot be parsed
@@ -1559,10 +1573,7 @@ pub fn parse_destructuring_pattern<'a>(
                 SourceType::mjs()
             };
 
-            let mut wrapped = String::with_capacity(content.len() + 12);
-            wrapped.push_str("let ");
-            wrapped.push_str(content);
-            wrapped.push_str(" = null");
+            let wrapped = wrap_for_parse("let ", content, "= null");
             let parser = OxcParser::new(allocator, &wrapped, source_type);
             let result = parser.parse();
 
@@ -1673,10 +1684,7 @@ pub fn parse_expression_with_end<'a>(
 /// where it stopped consuming tokens, which corresponds to the *end* of the
 /// problematic region, not its start.
 pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
-    let mut wrapped = String::with_capacity(content.len() + 2);
-    wrapped.push('(');
-    wrapped.push_str(content);
-    wrapped.push(')');
+    let wrapped = wrap_for_parse("(", content, ")");
 
     let probe = |source_type: SourceType| -> Option<(String, usize)> {
         with_oxc_allocator(|allocator| {
@@ -1757,10 +1765,7 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
 ///
 /// Returns `Some((message, pos_in_params))` when parsing fails.
 pub fn check_params_parse_error(params: &str, ts: bool) -> Option<(String, usize)> {
-    let mut wrapped = String::with_capacity(params.len() + 9);
-    wrapped.push('(');
-    wrapped.push_str(params);
-    wrapped.push_str(") => {}");
+    let wrapped = wrap_for_parse("(", params, ") => {}");
 
     with_oxc_allocator(|allocator| {
         let source_type = if ts {
@@ -1831,10 +1836,7 @@ pub fn trailing_token_offset(content: &str) -> Option<usize> {
     // the first error label lands on the first leftover token. (Parsing the bare
     // string as a program is unreliable: OXC's statement-level error recovery
     // folds trailing tokens into one recovered node, hiding the boundary.)
-    let mut wrapped = String::with_capacity(content.len() + 2);
-    wrapped.push('(');
-    wrapped.push_str(content);
-    wrapped.push(')');
+    let wrapped = wrap_for_parse("(", content, ")");
 
     let probe = |source_type: SourceType| -> Option<usize> {
         with_oxc_allocator(|allocator| {
@@ -1920,10 +1922,7 @@ fn parse_expression_with_typescript<'a>(
         };
 
         // Wrap content in parens to parse as expression
-        let mut wrapped = String::with_capacity(content.len() + 2);
-        wrapped.push('(');
-        wrapped.push_str(content);
-        wrapped.push(')');
+        let wrapped = wrap_for_parse("(", content, ")");
         let parser = OxcParser::new(allocator, &wrapped, source_type);
         let result = parser.parse();
 
@@ -2367,10 +2366,7 @@ pub fn parse_typescript_params<'a>(
     let source_type = SourceType::ts();
 
     // Wrap as arrow function to parse parameters: "(msg: string) => {}"
-    let mut wrapped = String::with_capacity(content.len() + 9);
-    wrapped.push('(');
-    wrapped.push_str(content);
-    wrapped.push_str(") => {}");
+    let wrapped = wrap_for_parse("(", content, ") => {}");
     let mut params = Vec::new();
 
     enum ParseOutcome<'a> {
@@ -2420,10 +2416,7 @@ pub fn parse_typescript_params<'a>(
 
     // OXC TS parser failed - try stripping optional markers and re-parsing
     let stripped = strip_optional_markers(content);
-    let mut cleaned_wrapped = String::with_capacity(stripped.content.len() + 9);
-    cleaned_wrapped.push('(');
-    cleaned_wrapped.push_str(&stripped.content);
-    cleaned_wrapped.push_str(") => {}");
+    let cleaned_wrapped = wrap_for_parse("(", &stripped.content, ") => {}");
 
     let cleaned_ok = with_oxc_allocator(|allocator| {
         let cleaned_parser = OxcParser::new(allocator, &cleaned_wrapped, source_type);
@@ -2474,10 +2467,7 @@ pub fn parse_typescript_params<'a>(
                 .map(|p| search_from + p)
                 .unwrap_or(search_from);
             search_from = part_offset_in_content + part.len();
-            let mut single_wrapped = String::with_capacity(stripped_part.content.len() + 9);
-            single_wrapped.push('(');
-            single_wrapped.push_str(&stripped_part.content);
-            single_wrapped.push_str(") => {}");
+            let single_wrapped = wrap_for_parse("(", &stripped_part.content, ") => {}");
             let single_result_expr = with_oxc_allocator(|allocator| {
                 let single_parser = OxcParser::new(allocator, &single_wrapped, source_type);
                 let single_result = single_parser.parse();

@@ -1207,6 +1207,7 @@ impl<'a> ScopeBuilder<'a> {
                     })
                     .unwrap_or(false);
                 let properties = *properties;
+                let first_new = self.bindings.len();
                 for prop in self.arena.get_js_children(properties) {
                     match prop {
                         JsNode::Property { value, .. } => {
@@ -1238,6 +1239,16 @@ impl<'a> ScopeBuilder<'a> {
                             }
                         }
                         _ => {}
+                    }
+                }
+                // Upstream gives every name a destructuring declares the whole
+                // declarator's initializer, so `let { props } = $props()` sees
+                // `get_rune(init) === '$props'` on the `props` binding itself.
+                if is_props_init {
+                    for binding in &mut self.bindings[first_new..] {
+                        binding
+                            .init_rune
+                            .get_or_insert_with(|| "$props".to_string());
                     }
                 }
             }
@@ -2465,6 +2476,7 @@ impl<'a> ScopeBuilder<'a> {
                     .map(|i| matches!(self.detect_binding_kind_from_expr(i), BindingKind::Prop))
                     .unwrap_or(false);
 
+                let first_new = self.bindings.len();
                 for prop in &obj.properties {
                     self.process_binding_pattern(&prop.value, &None, decl_kind);
                 }
@@ -2487,6 +2499,13 @@ impl<'a> ScopeBuilder<'a> {
                         }
                     } else {
                         self.process_binding_pattern(&rest.argument, &None, decl_kind);
+                    }
+                }
+                if is_props_init {
+                    for binding in &mut self.bindings[first_new..] {
+                        binding
+                            .init_rune
+                            .get_or_insert_with(|| "$props".to_string());
                     }
                 }
             }

@@ -9,7 +9,7 @@ use oxc_span::SourceType;
 use std::borrow::Cow;
 use std::fmt::Write as _;
 
-use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
+use crate::compiler::phases::phase3_transform::shared::js_scan::{find_code, skip_opaque};
 use crate::compiler::phases::phase3_transform::shared::offsets::{ByteOffset, CharOffset};
 use crate::compiler::utils::{is_escaped, is_escaped_char};
 
@@ -1886,7 +1886,7 @@ pub(super) fn extract_trace_call_label<'a>(
     source: &'a str,
 ) -> Option<&'a str> {
     // Look for the $inspect.trace() call in the source to find its context
-    if let Some(trace_pos) = memmem::find(source.as_bytes(), b"$inspect.trace(") {
+    if let Some(trace_pos) = find_code(source.as_bytes(), b"$inspect.trace(") {
         // Walk backwards to find the enclosing call expression
         let before = &source[..trace_pos];
         // Look for `$effect(` or `$effect.pre(` pattern
@@ -1912,7 +1912,7 @@ pub(super) fn find_trace_source_location(
     _label: &str,
 ) -> Option<(usize, usize)> {
     // Find $inspect.trace() in source and then find the enclosing function/arrow
-    if let Some(trace_pos) = memmem::find(source.as_bytes(), b"$inspect.trace(") {
+    if let Some(trace_pos) = find_code(source.as_bytes(), b"$inspect.trace(") {
         // The scans below read backwards for code punctuation, so prose in a
         // comment between the function head and the trace call would otherwise
         // answer for it.

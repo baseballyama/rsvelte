@@ -242,25 +242,55 @@ impl<'a> Parser<'a> {
 
         let content_start = self.index;
 
-        // Use SIMD-accelerated search for </style and check for invalid '<' along the way
+        // Upstream consults its `</style` predicate only at CSS top level between
+        // rules, so the text is a terminator only outside a string, a comment, a
+        // block and a parenthesised value — `content: "</style>"` and
+        // `url(</style>)` are declaration values it emits verbatim.
         let mut first_invalid_lt: Option<usize> = None;
-        loop {
-            // Search for next '<' using memchr
-            if let Some(offset) = memchr::memchr(b'<', &self.bytes[self.index..]) {
-                let lt_pos = self.index + offset;
-                self.index = lt_pos;
-                if self.is_valid_closing_tag("</style") {
-                    break;
+        let mut string_quote: Option<u8> = None;
+        let mut in_block_comment = false;
+        let mut brace_depth = 0usize;
+        let mut paren_depth = 0usize;
+        while self.index < self.bytes.len() {
+            let byte = self.bytes[self.index];
+            if in_block_comment {
+                if byte == b'*' && self.bytes.get(self.index + 1) == Some(&b'/') {
+                    in_block_comment = false;
+                    self.index += 1;
                 }
-                // Track first invalid '<' that is not part of </style
-                if first_invalid_lt.is_none() {
-                    first_invalid_lt = Some(lt_pos);
-                }
-                self.index = lt_pos + 1;
-            } else {
-                self.index = self.bytes.len();
-                break;
+                self.index += 1;
+                continue;
             }
+            if let Some(quote) = string_quote {
+                match byte {
+                    b'\\' => self.index += 1,
+                    b if b == quote => string_quote = None,
+                    _ => {}
+                }
+                self.index += 1;
+                continue;
+            }
+            match byte {
+                b'/' if self.bytes.get(self.index + 1) == Some(&b'*') => {
+                    in_block_comment = true;
+                    self.index += 1;
+                }
+                b'"' | b'\'' => string_quote = Some(byte),
+                b'{' => brace_depth += 1,
+                b'}' => brace_depth = brace_depth.saturating_sub(1),
+                b'(' => paren_depth += 1,
+                b')' => paren_depth = paren_depth.saturating_sub(1),
+                b'<' if brace_depth == 0 && paren_depth == 0 => {
+                    if self.is_valid_closing_tag("</style") {
+                        break;
+                    }
+                    if first_invalid_lt.is_none() {
+                        first_invalid_lt = Some(self.index);
+                    }
+                }
+                _ => {}
+            }
+            self.index += 1;
         }
 
         let content_end = self.index;

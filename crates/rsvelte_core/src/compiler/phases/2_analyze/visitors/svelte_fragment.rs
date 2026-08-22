@@ -56,12 +56,15 @@ pub fn visit<'a, 'b: 'a>(
     // is `slot_attribute_invalid_placement` upstream (`owner !== parent`) and a
     // nested `<svelte:fragment>` is invalid too.
     let was_direct_child = context.is_direct_child_of_component;
+    let was_slot_host = context.is_direct_child_of_slot_host;
     context.is_direct_child_of_component = false;
+    context.is_direct_child_of_slot_host = false;
 
     // Analyze children
     fragment::analyze(&mut frag.fragment, context)?;
 
     context.is_direct_child_of_component = was_direct_child;
+    context.is_direct_child_of_slot_host = was_slot_host;
 
     // Restore scope
     context.scope = old_scope;

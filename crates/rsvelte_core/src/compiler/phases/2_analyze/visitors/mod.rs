@@ -450,6 +450,11 @@ pub struct VisitorContext<'a> {
     /// This is set to true when entering a Component/SvelteComponent, and reset to false
     /// when entering any other element type.
     pub is_direct_child_of_component: bool,
+
+    /// Whether the current node's parent is a component-LIKE host for the
+    /// `slot` attribute rule, which upstream widens to `SvelteSelf` while
+    /// `<svelte:fragment>` keeps to `Component` / `SvelteComponent`.
+    pub is_direct_child_of_slot_host: bool,
     /// True while analyzing the *direct* children of a `{#snippet}` body. Mirrors
     /// upstream's `context.path.at(-2)?.type === 'SnippetBlock'` check in
     /// `validate_slot_attribute`: a `slot="…"` text attribute on an element whose
@@ -490,9 +495,11 @@ pub struct VisitorContext<'a> {
 /// Type of ancestor that can "own" a slot attribute.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SlotOwnerType {
-    /// A component (Component, SvelteComponent, SvelteSelf, SvelteElement)
+    /// A component (Component, SvelteComponent, SvelteSelf)
     Component,
-    /// A custom element (RegularElement with hyphen in name)
+    /// An owner a `slot` attribute may sit under at any depth — a custom
+    /// element, or `<svelte:element>`, which upstream finds as the owner but
+    /// then does not test against its component list.
     CustomElement,
 }
 
@@ -591,6 +598,7 @@ impl<'a> VisitorContext<'a> {
             each_block_stack: Vec::new(),
             is_direct_child_of_component: false,
             is_direct_child_of_snippet: false,
+            is_direct_child_of_slot_host: false,
             slot_owner_ancestors: Vec::new(),
             fragment_owner_stack: vec![FragmentOwnerType::Root],
             current_template_scope: 0,
