@@ -35,7 +35,8 @@ one semantics-preserving comment at a line boundary inside a `<script>` region a
 parity on the mutant.
 
 The enrolment restated the same point one level up. It broke the saturation by *adding inputs*
-(the collected ratchets went 0 to 1,977), and this gate then found 144 more defects **in those
+(the collected ratchets went 0 to 1,977, and to 1,413 once re-measured against a newer `main`),
+and this gate then found more defects **in those
 same inputs** that the unmutated comparison scores as passing. Growing the population and
 perturbing it are not substitutes.
 
