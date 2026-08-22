@@ -10,7 +10,6 @@ use super::super::warnings;
 use super::VisitorContext;
 use super::shared::fragment;
 use super::shared::special_element::validate_special_element_placement;
-use super::shared::utils::validate_assignment_node;
 use crate::ast::template::{Attribute, SvelteElement};
 
 /// Visit a svelte:self.
@@ -45,15 +44,7 @@ pub fn visit<'a, 'b: 'a>(
     for attr in &self_.attributes {
         match attr {
             Attribute::BindDirective(bind) => {
-                if bind.expression.node_type() != Some("SequenceExpression") {
-                    validate_assignment_node(
-                        (bind.start, bind.end),
-                        &bind.expression.as_node(),
-                        context,
-                        true,
-                    )?;
-                    super::bind_directive::validate_bind_value_for_component(bind, context)?;
-                }
+                super::bind_directive::validate_expression_shape(bind, context)?;
             }
             Attribute::OnDirective(on) => {
                 if on

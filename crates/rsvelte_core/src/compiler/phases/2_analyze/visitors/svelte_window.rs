@@ -36,6 +36,10 @@ pub fn visit(
         return Err(errors::svelte_meta_invalid_content("svelte:window").at(start, end));
     }
 
+    super::shared::special_element::reject_illegal_attributes(&window.attributes, |start, end| {
+        errors::illegal_element_attribute("svelte:window").at(start, end)
+    })?;
+
     // Validate attributes - check for invalid ones
     // The target rule needs the attribute list, which the mutable loop below holds.
     for attr in &window.attributes {
