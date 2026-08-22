@@ -62,6 +62,13 @@ pub(crate) fn push_expr_comment(comment: crate::ast::template::JsComment) {
     EXPR_COMMENT_SINK.with(|sink| sink.borrow_mut().push(comment));
 }
 
+/// Snapshot the per-thread expression-comment sink without draining it.
+/// Upstream's `parser.root.comments` is the same array every script parse is
+/// handed, so a script's comment walk also sees what earlier parses recorded.
+pub(crate) fn peek_expr_comments() -> Vec<crate::ast::template::JsComment> {
+    EXPR_COMMENT_SINK.with(|sink| sink.borrow().clone())
+}
+
 /// Drain the per-thread expression-comment sink. Returns all comments
 /// collected since the last drain.
 pub(crate) fn take_expr_comments() -> Vec<crate::ast::template::JsComment> {
@@ -6938,6 +6945,21 @@ fn convert_parsed_program<'ast>(
             start <= end && content[start..end].contains("svelte-ignore")
         });
 
+        // With capture on (the public `parse()` API and the parser fixtures) the
+        // walk below also has to record the comments on the nodes, which is what
+        // upstream's `add_comments` does — so it runs for capture as well, not
+        // only for a `svelte-ignore` harvest.
+        let capture = crate::ast::arena::comment_capture_active();
+        // Every script parse is handed the same `parser.root.comments` array
+        // upstream, and `read_script` passes no `index`, so comments recorded by
+        // an earlier parse are still in it and bind to this program's first
+        // statement. Snapshot before this script's own are appended.
+        let inherited = if capture {
+            peek_expr_comments()
+        } else {
+            Vec::new()
+        };
+
         // Mirror upstream `parser.root.comments`: forward every comment seen
         // by the script parser so it lands in `Root.comments`.
         for comment in all_comments.iter() {
@@ -6980,36 +7002,37 @@ fn convert_parsed_program<'ast>(
         // above, and codegen re-parses script text, so dropping the Raw wrapping changes no
         // output.
         let mut ignore_comment_map: Vec<(u32, Vec<CompactString>)> = Vec::new();
-        // With capture on (the public `parse()` API and the parser fixtures) the
-        // same walk also has to record the comments on the nodes, which is what
-        // upstream's `add_comments` does — so the walk runs for capture as well,
-        // not only for a `svelte-ignore` harvest.
-        let capture = crate::ast::arena::comment_capture_active();
         // How many comments the walk consumed; the rest belong to the Program.
         let mut claimed = 0usize;
-        let body: Vec<JsNode> = if has_comments && (has_ignore || capture) {
+        // The comment list the walk sees: what earlier parses left behind,
+        // followed by this script's own.
+        let mut comment_entries: Vec<CommentEntry> = Vec::new();
+        let mut comment_values: Vec<Value> = Vec::new();
+        let walk =
+            (has_comments && has_ignore) || (capture && (has_comments || !inherited.is_empty()));
+        let body: Vec<JsNode> = if walk {
             let mut body_nodes: Vec<JsNode> = Vec::with_capacity(program.body.len());
 
-            let comment_entries: Vec<CommentEntry> = all_comments
-                .iter()
-                .map(|comment| {
-                    let raw_text = content
-                        .get(comment.span.start as usize..comment.span.end as usize)
-                        .unwrap_or("");
-                    CommentEntry {
-                        start: offset as u32 + comment.span.start,
-                        text: CompactString::from(extract_comment_value(raw_text, comment.kind)),
-                    }
-                })
-                .collect();
-            let comment_values: Vec<Value> = if capture {
-                all_comments
-                    .iter()
-                    .map(|comment| build_comment_value(comment, content, offset))
-                    .collect()
-            } else {
-                Vec::new()
-            };
+            comment_entries.reserve(inherited.len() + all_comments.len());
+            for comment in &inherited {
+                comment_entries.push(CommentEntry {
+                    start: comment.start,
+                    text: comment.value.clone(),
+                });
+                comment_values.push(js_comment_value(comment));
+            }
+            for comment in all_comments.iter() {
+                let raw_text = content
+                    .get(comment.span.start as usize..comment.span.end as usize)
+                    .unwrap_or("");
+                comment_entries.push(CommentEntry {
+                    start: offset as u32 + comment.span.start,
+                    text: CompactString::from(extract_comment_value(raw_text, comment.kind)),
+                });
+                if capture {
+                    comment_values.push(build_comment_value(comment, content, offset));
+                }
+            }
 
             let mut attacher = CommentAttacher {
                 comments: &comment_entries,
@@ -7058,15 +7081,10 @@ fn convert_parsed_program<'ast>(
         // node" special case: only what no node claimed. Without capture the
         // Program keeps carrying every comment, which is the shape Phase 2 /
         // svelte2tsx / the linter have always read.
-        let trailing_comments_val = if !has_comments {
+        let trailing_comments_val = if capture {
+            (claimed < comment_values.len()).then(|| comment_values[claimed..].to_vec())
+        } else if !has_comments {
             None
-        } else if capture {
-            (claimed < all_comments.len()).then(|| {
-                all_comments[claimed..]
-                    .iter()
-                    .map(|comment| build_comment_value(comment, content, offset))
-                    .collect()
-            })
         } else {
             Some(
                 all_comments
@@ -7109,6 +7127,21 @@ fn convert_parsed_program<'ast>(
             parse_error,
         )
     }
+}
+
+/// The `{type, value, start, end}` shape upstream attaches to a node, built from
+/// an already-recorded `Root.comments` entry.
+fn js_comment_value(comment: &crate::ast::template::JsComment) -> Value {
+    let comment_type = match comment.kind {
+        crate::ast::template::JsCommentKind::Line => "Line",
+        crate::ast::template::JsCommentKind::Block => "Block",
+    };
+    let mut obj = Map::new();
+    obj.set_field("type", Value::String(comment_type.to_string()));
+    obj.set_field("value", Value::String(comment.value.to_string()));
+    obj.set_field("start", Value::Number((i64::from(comment.start)).into()));
+    obj.set_field("end", Value::Number((i64::from(comment.end)).into()));
+    Value::Object(obj)
 }
 
 /// Build a comment JSON value from an OXC comment.
