@@ -163,8 +163,11 @@ pub enum LazyKind {
     HeadBrace,
     /// `{#each … (key)}` head terminated by `)`.
     HeadParen,
-    /// Error-swallowing head (`{@render …}`, the `{#await …}` expression): a
-    /// parse failure recovers with an empty identifier and raises nothing.
+    /// `{#await …}` head: classified against the whole head, because acorn can
+    /// consume the `then` / `catch` keyword the template scan stopped at.
+    AwaitHead,
+    /// Error-swallowing head: a parse failure recovers with an empty identifier
+    /// and raises nothing.
     Lenient,
 }
 
