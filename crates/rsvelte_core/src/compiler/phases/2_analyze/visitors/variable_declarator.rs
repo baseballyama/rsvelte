@@ -846,6 +846,8 @@ fn process_props_object_pattern_typed(
                         let bindable_arg = args.first();
 
                         binding.initial = bindable_arg.map(|arg| format!("{:?}", arg.to_value()));
+                        binding.initial_span =
+                            bindable_arg.and_then(|arg| arg.start().zip(arg.end()));
                         binding.initial_node_type =
                             bindable_arg.map(|arg| arg.type_str().to_string());
                         if binding.initial_node_type.as_deref() == Some("Identifier") {
@@ -861,6 +863,7 @@ fn process_props_object_pattern_typed(
                     } else {
                         binding.initial = extract_literal_string_typed(init)
                             .or_else(|| Some(init.to_json_string()));
+                        binding.initial_span = init.start().zip(init.end());
                         binding.initial_node_type = Some(init.type_str().to_string());
                         if binding.initial_node_type.as_deref() == Some("Identifier")
                             && let JsNode::Identifier { name, .. } = init
@@ -871,6 +874,7 @@ fn process_props_object_pattern_typed(
                 } else {
                     binding.initial =
                         extract_literal_string_typed(init).or_else(|| Some(init.to_json_string()));
+                    binding.initial_span = init.start().zip(init.end());
                     binding.initial_node_type = Some(init.type_str().to_string());
                     if binding.initial_node_type.as_deref() == Some("Identifier")
                         && let JsNode::Identifier { name, .. } = init

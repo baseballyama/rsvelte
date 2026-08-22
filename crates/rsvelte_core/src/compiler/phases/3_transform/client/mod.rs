@@ -1712,8 +1712,32 @@ pub(crate) fn transform_client(
                     // In runes mode with an initial value, turn `set foo($$value)`
                     // into `set foo($$value = <initial>)`.
                     // Reference: transform-client.js lines 315-323
-                    if analysis.runes && binding.initial.is_some() {
-                        let initial = binding.initial.clone().unwrap();
+                    if analysis.runes
+                        && binding.initial.is_some()
+                        && let Some(initial) = binding
+                            .initial_span
+                            .and_then(|(s, e)| source.get(s as usize..e as usize))
+                            // The slice is raw source, so a type argument or an
+                            // annotation NESTED in the default is still in it —
+                            // upstream prints a node the TS erasure already
+                            // walked.
+                            .map(|text| {
+                                super::server::helpers::strip_ts_from_derived_inner(
+                                    text,
+                                    analysis.is_typescript,
+                                )
+                            })
+                            .or_else(|| {
+                                // `initial` is the literal's raw text only for the
+                                // shapes `extract_literal_string_typed` handles;
+                                // for the rest it is a JSON dump of the node, so
+                                // it can stand in only when a span is missing AND
+                                // the node was a literal.
+                                (binding.initial_node_type.as_deref() == Some("Literal"))
+                                    .then(|| binding.initial.clone())
+                                    .flatten()
+                            })
+                    {
                         exports_members.push(b::setter_with_default(
                             &context.arena,
                             alias,

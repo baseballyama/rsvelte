@@ -337,6 +337,11 @@ pub struct Binding {
     pub scope_index: usize,
     /// Initial value expression (if any)
     pub initial: Option<String>,
+    /// Source span of the initializer upstream keeps in `binding.initial` as a
+    /// NODE. `initial` above is a literal's raw text for some shapes and a JSON
+    /// dump for the rest, so a consumer that has to print the expression needs
+    /// the source instead.
+    pub initial_span: Option<(u32, u32)>,
     /// JSON of the initializer AST for a non-literal but potentially compile-time
     /// "known" initializer (template literals with interpolations). Separate from
     /// `initial` (which feeds `is_prop_source`); used only by reactive-state eval.
@@ -460,6 +465,7 @@ impl Binding {
             mutated: false,
             scope_index,
             initial: None,
+            initial_span: None,
             init_expr_json: None,
             initial_is_defined: false,
             initial_is_function: false,
@@ -499,6 +505,7 @@ impl Binding {
             mutated: false,
             scope_index,
             initial: None,
+            initial_span: None,
             init_expr_json: None,
             initial_is_defined: false,
             initial_is_function: false,
