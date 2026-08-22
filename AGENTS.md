@@ -766,6 +766,57 @@ Wave 4 architecture (decided; tsgo ships an LSP server as of TypeScript 7, so th
 - Ships its own TextMate grammar / language definition and accepts upstream `svelte.*`
   settings, so users replace the official extension rather than running both.
 
+### Content mapper (`crates/rsvelte_content_mapper`)
+
+A **content mapper** is an external process TypeScript spawns during program construction
+(`microsoft/typescript-go#4712`, merged 2026-08-19): it hands the mapper a file it cannot parse
+and gets back TypeScript text plus a span map, then reports its diagnostics at the original
+coordinates. It is how `tsc` and the TS language server read `.svelte` **directly**, instead of
+a tool materialising `.tsx` shadows beside every component.
+
+`rsvelte-content-mapper` implements protocol version 1 over stdio — `initialize`, `openProject`,
+`transform`, `closeProject`, `Content-Length` framing, UTF-8 positions (rsvelte's offsets are
+bytes, so any other encoding buys a conversion per span). svelte2tsx's `forward_map` is already
+equal-length copies, which is exactly `SpanMapKind.Verbatim`; the `Ωignore` regions become
+`Ignore` diagnostic directives, the port of dropping those diagnostics after the fact.
+
+**It is not a speed feature.** Type checking is 66-89% of an `rsvelte-check` run, and a content
+mapper changes how files *enter* the program, not how long checking them takes. It is a product
+and maintenance play — and the direction is that rsvelte's implementation becomes the reference
+other Svelte tooling ports from.
+
+Two hazards raised against the design were **falsified by measurement**, and both were structural
+counts rather than timings, so a loaded machine could not fake them:
+
+- **Serialization was the wrong worry.** With an artificial 20/50 ms delay per transform,
+  **200 of 200** requests were outstanding at once and up to 119 arrived in a single write.
+  TypeScript pipelines everything; whatever serializes is the mapper's own doing, which is why
+  transforms run on the rayon pool inside a `rayon::scope`. The scope is load-bearing: without it
+  end of stdin returns from `serve` while transforms are still queued and their replies are never
+  written.
+- **A crashing mapper is loud.** Five failures produce `TS100026` plus a `TS100025` per affected
+  file and **exit 2**. The residual hole is per file, not per run: once the mapper is disabled the
+  remaining components are treated as empty TypeScript, so *their* diagnostics vanish while the
+  run still fails.
+
+Protocol overhead is small — 200 transforms, 54 KiB of payload, served in an 8.2 ms window.
+
+**A content mapper cannot add a file to the program**, and in the language server the user's
+tsconfig is not ours to edit, so the ambient declarations svelte2tsx output depends on
+(`__sveltets_2_*`, the JSX namespace) reach the program as a `/// <reference path>` prefix per
+virtual file, from `contentMappers[].options.globalTypes`. The prefix shifts every span, and
+svelte2tsx's own `types="svelte"` directive is blanked **with spaces** so the offsets after it do
+not move. Without the shims the same 200-component project reports 599 `TS2304` and 200 `TS2688`;
+with them it is clean, and an injected error in a script *and* in a template expression both land
+on the original line and column.
+
+What is **not** settled, and blocks making this the default for `rsvelte-check`: unmappable-region
+diagnostics are reported rather than dropped, and the protocol cannot filter by diagnostic code
+while `mapper.rs` does; the overlay path must stay for TS 6 and TS 7.0; preprocessors would run
+inside the mapper, putting a Node sidecar under a Rust binary. Also note `panic = "abort"` in the
+release profile: a panic takes the whole mapper process down, so every failure path has to be a
+`Result`.
+
 `rsvelte_lint` (native Svelte linter: validator/a11y wrap + a native port of
 `eslint-plugin-svelte`'s rules, `crates/rsvelte_lint`) ships as its own npm package,
 [`@rsvelte/lint`](apps/npm/lint), fixed-versioned with `@rsvelte/compiler` via Changesets.
