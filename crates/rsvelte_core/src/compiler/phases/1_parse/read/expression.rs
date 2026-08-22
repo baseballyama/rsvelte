@@ -1858,6 +1858,41 @@ pub fn trailing_token_offset(content: &str) -> Option<usize> {
     probe(SourceType::ts()).or_else(|| probe(SourceType::mjs()))
 }
 
+/// Classify a failed `read_expression` for a construct terminated by
+/// `close_char`, the way upstream's caller does: acorn parses ONE maximal
+/// expression and the caller then `eat(close_char, true)`, so leftover input
+/// after a *complete* expression is a missing close token while a malformed
+/// expression is a `js_parse_error` at the byte where the parse stopped.
+///
+/// The prefix re-parse is what separates the two: OXC labels an invalid
+/// assignment target at the target's start, which the leftover-input probe
+/// would otherwise read as "the expression ended here".
+pub fn close_token_or_parse_error(
+    msg: String,
+    trimmed: &str,
+    trimmed_offset: usize,
+    close_char: char,
+) -> crate::error::ParseError {
+    let trailing = trailing_token_offset(trimmed).filter(|&off| {
+        off > 0
+            && trimmed
+                .get(..off)
+                .is_some_and(|prefix| check_js_parse_error_with_pos(prefix).is_none())
+    });
+    if let Some(off) = trailing {
+        let mut buf = [0u8; 4];
+        return crate::error::ParseError::expected_token(
+            close_char.encode_utf8(&mut buf),
+            trimmed_offset + off,
+        );
+    }
+    let at = check_js_parse_error_with_pos(trimmed)
+        .map_or(trimmed_offset + trimmed.len(), |(_, pos)| {
+            trimmed_offset + pos
+        });
+    crate::error::ParseError::svelte("js_parse_error", msg, (at, at))
+}
+
 /// Create an identifier for invalid expressions
 fn create_invalid_identifier<'a>(
     start: usize,
