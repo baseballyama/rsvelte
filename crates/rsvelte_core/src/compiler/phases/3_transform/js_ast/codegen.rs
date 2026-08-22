@@ -2668,6 +2668,19 @@ pub fn offset_to_line_col_utf16(
 ) -> (usize, usize) {
     let (line, _) = offset_to_line_col(line_starts, offset);
     let line_start = line_starts[line];
+    // Every mapping producer must hand this a char boundary; one that does not
+    // is a cursor advanced by a byte where a character was meant, and on
+    // ASCII-only input the same bug silently emits a wrong column instead of
+    // being caught here. Tests fail on it; a release build degrades the column
+    // rather than killing the user's build.
+    debug_assert!(
+        source.is_char_boundary(offset),
+        "source-map offset {offset} is not a char boundary"
+    );
+    let mut offset = offset;
+    while offset > line_start && !source.is_char_boundary(offset) {
+        offset -= 1;
+    }
     let column = &source[line_start..offset];
     let column = if column.is_ascii() {
         column.len()

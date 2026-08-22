@@ -1970,9 +1970,21 @@ fn generate_effect_callback_mappings_with_starts(
             if generated_byte != source_byte {
                 break;
             }
+            // A mapping offset is sliced to compute its column, so the walk has
+            // to step by whole characters — one byte at a time lands inside a
+            // multi-byte character and panics.
+            let (Some(generated_char), Some(source_char)) = (
+                generated[generated_offset..].chars().next(),
+                source[source_offset..].chars().next(),
+            ) else {
+                break;
+            };
+            if generated_char != source_char {
+                break;
+            }
             push(generated_offset, source_offset);
-            generated_offset += 1;
-            source_offset += 1;
+            generated_offset += generated_char.len_utf8();
+            source_offset += source_char.len_utf8();
             push(generated_offset, source_offset);
         }
     }
