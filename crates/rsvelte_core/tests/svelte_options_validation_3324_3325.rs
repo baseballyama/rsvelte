@@ -436,3 +436,48 @@ fn svelte_options_grid_matches_official() {
         failures.join("\n")
     );
 }
+
+/// `ErrUnpositioned` drops the span from the comparison, which is right for the
+/// oracle — upstream's `validate_tag` gets the `[name, value]` pair rather than
+/// the attribute node, so `e()` throws with `start`/`end` undefined — and leaves
+/// rsvelte's own span checked by nothing. No other gate covers it either: no
+/// `compatibility/` ratchet holds a `svelte_options_invalid_tagname` entry (a
+/// collected corpus is published code, and published code compiles), and
+/// `matrix/axes.mjs` has no `<svelte:options>` family. A later change that
+/// dropped the span to match upstream more closely would pass every gate.
+///
+/// The span is asserted as a *property* rather than as copied numbers: it must
+/// be the `customElement={…}` attribute's own extent, which is what makes it
+/// more useful than upstream's absent one.
+#[test]
+fn the_unpositioned_rows_keep_rsveltes_attribute_span() {
+    let mut checked = 0;
+    for (id, src, expect) in GRID.iter().chain(ORDERING) {
+        if !matches!(expect, Expect::ErrUnpositioned(..)) {
+            continue;
+        }
+        let start = src
+            .find("customElement=")
+            .unwrap_or_else(|| panic!("[{id}] every unpositioned row is a customElement row"));
+        let end = src[start..]
+            .find("}}")
+            .map(|at| start + at + 2)
+            .unwrap_or_else(|| panic!("[{id}] expected the object form"));
+
+        for generate in [GenerateMode::Client, GenerateMode::Server] {
+            let Err((_, _, span)) = observed(src, generate) else {
+                panic!("[{id}] generate={generate:?}: expected a rejection");
+            };
+            assert_eq!(
+                span,
+                Some((start as u32, end as u32)),
+                "[{id}] generate={generate:?}: span must be the `customElement={{…}}` attribute"
+            );
+        }
+        checked += 1;
+    }
+    assert!(
+        checked >= 12,
+        "only {checked} unpositioned rows were reached — the grid or the variant moved"
+    );
+}
