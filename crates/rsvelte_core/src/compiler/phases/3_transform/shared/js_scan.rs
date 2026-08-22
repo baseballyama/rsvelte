@@ -140,12 +140,82 @@ pub(crate) fn slash_starts_regex_at(bytes: &[u8], i: usize, prev: Option<u8>) ->
     KEYWORDS_BEFORE_REGEX.contains(&&bytes[start..end])
 }
 
+/// Byte just past the template literal opening at `i`.
+///
+/// A template literal is not delimited like a quoted string: `${ … }` re-enters
+/// **code**, which can open another template, so a scan that stops at the next
+/// backtick leaves the literal at the wrong one — text at even nesting depth
+/// then reads as code. The frame stack keeps that straight without recursing on
+/// nesting depth.
+fn skip_template_literal(bytes: &[u8], i: usize) -> usize {
+    // `None` is an open template's quasi; `Some(depth)` an open `${ … }`.
+    let mut frames: Vec<Option<usize>> = vec![None];
+    let mut prev: Option<u8> = None;
+    let mut j = i + 1;
+    while j < bytes.len() {
+        match frames.last_mut() {
+            None => break,
+            Some(None) => match bytes[j] {
+                b'\\' => j += 2,
+                b'`' => {
+                    frames.pop();
+                    j += 1;
+                }
+                b'$' if bytes.get(j + 1) == Some(&b'{') => {
+                    frames.push(Some(0));
+                    prev = None;
+                    j += 2;
+                }
+                _ => j += 1,
+            },
+            Some(Some(depth)) => match bytes[j] {
+                b'`' => {
+                    frames.push(None);
+                    j += 1;
+                }
+                b'{' => {
+                    *depth += 1;
+                    prev = Some(b'{');
+                    j += 1;
+                }
+                b'}' => {
+                    if *depth == 0 {
+                        frames.pop();
+                    } else {
+                        *depth -= 1;
+                        prev = Some(b'}');
+                    }
+                    j += 1;
+                }
+                _ => match skip_opaque(bytes, j, prev) {
+                    Some((next, was_comment)) => {
+                        if !was_comment {
+                            prev = Some(bytes[next - 1]);
+                        }
+                        j = next;
+                    }
+                    None => {
+                        if !bytes[j].is_ascii_whitespace() {
+                            prev = Some(bytes[j]);
+                        }
+                        j += 1;
+                    }
+                },
+            },
+        }
+        if frames.is_empty() {
+            break;
+        }
+    }
+    j.min(bytes.len())
+}
+
 /// If a string, template literal, regex literal or comment starts at `i`,
 /// return `(byte just past it, was_a_comment)`. `prev` is the last significant
 /// code byte, needed to tell a regex literal from a division.
 pub(crate) fn skip_opaque(bytes: &[u8], i: usize, prev: Option<u8>) -> Option<(usize, bool)> {
     match bytes[i] {
-        quote @ (b'\'' | b'"' | b'`') => {
+        quote @ (b'\'' | b'"') => {
             let mut j = i + 1;
             while j < bytes.len() {
                 match bytes[j] {
@@ -159,6 +229,7 @@ pub(crate) fn skip_opaque(bytes: &[u8], i: usize, prev: Option<u8>) -> Option<(u
             }
             Some((j.min(bytes.len()), false))
         }
+        b'`' => Some((skip_template_literal(bytes, i), false)),
         b'/' if bytes.get(i + 1) == Some(&b'/') => {
             let mut j = i + 2;
             while j < bytes.len() && bytes[j] != b'\n' {

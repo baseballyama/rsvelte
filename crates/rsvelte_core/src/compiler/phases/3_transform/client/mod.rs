@@ -4398,7 +4398,7 @@ fn transform_module_script_runes_with_target(
     // In non-dev mode, remove $inspect.trace(...) statements from module scripts.
     // Mirrors the same logic in rune_transforms.rs for instance scripts.
     if !dev {
-        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect.trace(") {
+        while let Some(pos) = find_code(result.as_bytes(), b"$inspect.trace(") {
             let trace_start = pos + b"$inspect.trace(".len();
             if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
                 let mut end = trace_start + content_end + 1;
@@ -4423,7 +4423,7 @@ fn transform_module_script_runes_with_target(
     // return b.empty`. The component-instance path handles this in rune_transforms.rs;
     // module scripts use this dedicated loop.
     if !dev {
-        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect(") {
+        while let Some(pos) = find_code(result.as_bytes(), b"$inspect(") {
             let inspect_start = pos + b"$inspect(".len();
             if let Some(content_end) = find_matching_paren(&result[inspect_start..]) {
                 let after_call = &result[inspect_start + content_end + 1..];
