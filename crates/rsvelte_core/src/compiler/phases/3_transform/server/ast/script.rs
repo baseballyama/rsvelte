@@ -3523,29 +3523,7 @@ fn topo_sort_reactive(entries: Vec<ReactiveEntry>) -> Vec<ReactiveEntry> {
 /// target binding to `reactive_statement.assignments` while walking the whole
 /// body). Member-expression targets (`obj.x = …`) declare no binding.
 fn reactive_assignment_indices(body: &Statement, state: &ServerTransformState) -> Vec<usize> {
-    use oxc_ast_visit::Visit;
-    struct AssignCollector<'o> {
-        out: &'o mut Vec<String>,
-    }
-    impl<'a, 'o> oxc_ast_visit::Visit<'a> for AssignCollector<'o> {
-        fn visit_assignment_expression(&mut self, it: &oxc_ast::ast::AssignmentExpression<'a>) {
-            collect_assignment_target_idents(&it.left, self.out);
-            // Recurse so a nested assignment in the RHS is also captured.
-            oxc_ast_visit::walk::walk_assignment_expression(self, it);
-        }
-        fn visit_update_expression(&mut self, it: &oxc_ast::ast::UpdateExpression<'a>) {
-            if let oxc_ast::ast::SimpleAssignmentTarget::AssignmentTargetIdentifier(id) =
-                &it.argument
-            {
-                self.out.push(id.name.to_string());
-            }
-            oxc_ast_visit::walk::walk_update_expression(self, it);
-        }
-    }
-    let mut names: Vec<String> = Vec::new();
-    let mut c = AssignCollector { out: &mut names };
-    c.visit_statement(body);
-    names_to_instance_binding_indices(&names, state)
+    names_to_instance_binding_indices(&ReactiveScopedCollector::run(body).assigns, state)
 }
 
 /// Instance-scope binding indices READ anywhere inside a reactive `$:` body
@@ -3557,11 +3535,206 @@ fn reactive_dependency_indices(
     state: &ServerTransformState,
     assigns: &[usize],
 ) -> Vec<usize> {
-    let mut names: Vec<String> = Vec::new();
-    collect_read_identifiers_in_statement(body, &mut names);
-    let mut out = names_to_instance_binding_indices(&names, state);
+    let mut out =
+        names_to_instance_binding_indices(&ReactiveScopedCollector::run(body).reads, state);
     out.retain(|idx| !assigns.contains(idx));
     out
+}
+
+/// Assignment targets and read references of one reactive `$:` body, resolved
+/// through the statement's own scope chain. Upstream reads them off
+/// `Scope`/`Binding` objects (`scope.get(name)`), so a name declared INSIDE the
+/// statement — a `catch` parameter, a block `let`, a function parameter, a
+/// `function`/`class` declaration — shadows the instance binding it collides
+/// with and must not become an ordering edge.
+#[derive(Default)]
+struct ReactiveScopedCollector {
+    locals: Vec<String>,
+    assigns: Vec<String>,
+    reads: Vec<String>,
+}
+
+impl ReactiveScopedCollector {
+    fn run(body: &Statement) -> Self {
+        use oxc_ast_visit::Visit;
+        let mut collector = Self::default();
+        collector.visit_statement(body);
+        collector
+    }
+
+    fn is_local(&self, name: &str) -> bool {
+        self.locals.iter().any(|l| l == name)
+    }
+
+    fn push_read(&mut self, name: &str) {
+        if !self.is_local(name) && !self.reads.iter().any(|n| n == name) {
+            self.reads.push(name.to_string());
+        }
+    }
+
+    fn push_assign(&mut self, name: &str) {
+        if !self.is_local(name) && !self.assigns.iter().any(|n| n == name) {
+            self.assigns.push(name.to_string());
+        }
+    }
+
+    fn declare_pattern(&mut self, pat: &oxc_ast::ast::BindingPattern) {
+        let mut names = Vec::new();
+        collect_binding_pattern_idents(pat, &mut names);
+        self.locals.extend(names);
+    }
+
+    /// `let` / `const` / `var` / `function` / `class` declared directly in a
+    /// block bind their names for the whole block.
+    fn hoist_block_declarations(&mut self, body: &[Statement]) {
+        for stmt in body {
+            match stmt {
+                Statement::VariableDeclaration(vd) => {
+                    for d in vd.declarations.iter() {
+                        self.declare_pattern(&d.id);
+                    }
+                }
+                Statement::FunctionDeclaration(f) => {
+                    if let Some(id) = &f.id {
+                        self.locals.push(id.name.to_string());
+                    }
+                }
+                Statement::ClassDeclaration(c) => {
+                    if let Some(id) = &c.id {
+                        self.locals.push(id.name.to_string());
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+impl<'a> oxc_ast_visit::Visit<'a> for ReactiveScopedCollector {
+    fn visit_identifier_reference(&mut self, it: &oxc_ast::ast::IdentifierReference<'a>) {
+        self.push_read(it.name.as_str());
+    }
+
+    fn visit_assignment_expression(&mut self, it: &oxc_ast::ast::AssignmentExpression<'a>) {
+        let mut names = Vec::new();
+        collect_assignment_target_idents(&it.left, &mut names);
+        for name in names {
+            self.push_assign(&name);
+        }
+        // Recurse so a nested assignment in the RHS is also captured.
+        oxc_ast_visit::walk::walk_assignment_expression(self, it);
+    }
+
+    fn visit_update_expression(&mut self, it: &oxc_ast::ast::UpdateExpression<'a>) {
+        if let oxc_ast::ast::SimpleAssignmentTarget::AssignmentTargetIdentifier(id) = &it.argument {
+            self.push_assign(id.name.as_str());
+        }
+        oxc_ast_visit::walk::walk_update_expression(self, it);
+    }
+
+    fn visit_block_statement(&mut self, it: &oxc_ast::ast::BlockStatement<'a>) {
+        let mark = self.locals.len();
+        self.hoist_block_declarations(&it.body);
+        oxc_ast_visit::walk::walk_block_statement(self, it);
+        self.locals.truncate(mark);
+    }
+
+    /// The cases share ONE block scope; the discriminant is outside it.
+    fn visit_switch_statement(&mut self, it: &oxc_ast::ast::SwitchStatement<'a>) {
+        self.visit_expression(&it.discriminant);
+        let mark = self.locals.len();
+        for case in it.cases.iter() {
+            self.hoist_block_declarations(&case.consequent);
+        }
+        for case in it.cases.iter() {
+            self.visit_switch_case(case);
+        }
+        self.locals.truncate(mark);
+    }
+
+    fn visit_catch_clause(&mut self, it: &oxc_ast::ast::CatchClause<'a>) {
+        let mark = self.locals.len();
+        if let Some(param) = &it.param {
+            self.declare_pattern(&param.pattern);
+        }
+        oxc_ast_visit::walk::walk_catch_clause(self, it);
+        self.locals.truncate(mark);
+    }
+
+    fn visit_function(
+        &mut self,
+        it: &oxc_ast::ast::Function<'a>,
+        flags: oxc_syntax::scope::ScopeFlags,
+    ) {
+        let mark = self.locals.len();
+        for param in it.params.items.iter() {
+            self.declare_pattern(&param.pattern);
+        }
+        if let Some(rest) = &it.params.rest {
+            self.declare_pattern(&rest.rest.argument);
+        }
+        oxc_ast_visit::walk::walk_function(self, it, flags);
+        self.locals.truncate(mark);
+    }
+
+    fn visit_arrow_function_expression(&mut self, it: &oxc_ast::ast::ArrowFunctionExpression<'a>) {
+        let mark = self.locals.len();
+        for param in it.params.items.iter() {
+            self.declare_pattern(&param.pattern);
+        }
+        if let Some(rest) = &it.params.rest {
+            self.declare_pattern(&rest.rest.argument);
+        }
+        oxc_ast_visit::walk::walk_arrow_function_expression(self, it);
+        self.locals.truncate(mark);
+    }
+
+    fn visit_for_statement(&mut self, it: &oxc_ast::ast::ForStatement<'a>) {
+        let mark = self.locals.len();
+        if let Some(oxc_ast::ast::ForStatementInit::VariableDeclaration(vd)) = &it.init {
+            for d in vd.declarations.iter() {
+                self.declare_pattern(&d.id);
+            }
+        }
+        oxc_ast_visit::walk::walk_for_statement(self, it);
+        self.locals.truncate(mark);
+    }
+
+    fn visit_for_in_statement(&mut self, it: &oxc_ast::ast::ForInStatement<'a>) {
+        // `right` is evaluated outside the loop binding's scope.
+        self.visit_expression(&it.right);
+        let mark = self.locals.len();
+        if let oxc_ast::ast::ForStatementLeft::VariableDeclaration(vd) = &it.left {
+            for d in vd.declarations.iter() {
+                self.declare_pattern(&d.id);
+            }
+        }
+        self.visit_for_statement_left(&it.left);
+        self.visit_statement(&it.body);
+        self.locals.truncate(mark);
+    }
+
+    fn visit_for_of_statement(&mut self, it: &oxc_ast::ast::ForOfStatement<'a>) {
+        self.visit_expression(&it.right);
+        let mark = self.locals.len();
+        if let oxc_ast::ast::ForStatementLeft::VariableDeclaration(vd) = &it.left {
+            for d in vd.declarations.iter() {
+                self.declare_pattern(&d.id);
+            }
+        }
+        self.visit_for_statement_left(&it.left);
+        self.visit_statement(&it.body);
+        self.locals.truncate(mark);
+    }
+
+    fn visit_class(&mut self, it: &oxc_ast::ast::Class<'a>) {
+        let mark = self.locals.len();
+        if let Some(id) = &it.id {
+            self.locals.push(id.name.to_string());
+        }
+        oxc_ast_visit::walk::walk_class(self, it);
+        self.locals.truncate(mark);
+    }
 }
 
 /// Resolve a list of identifier names to deduped instance-scope binding indices.
@@ -3578,27 +3751,6 @@ fn names_to_instance_binding_indices(names: &[String], state: &ServerTransformSt
         }
     }
     out
-}
-
-/// Collect every identifier-reference name READ inside a statement (RHS of
-/// assignments, test/loop conditions, call args, nested block bodies, …). Used
-/// to compute reactive-statement dependencies. Static member `.property` names,
-/// object-literal keys, and binding declarations are NOT references.
-fn collect_read_identifiers_in_statement(stmt: &Statement, out: &mut Vec<String>) {
-    use oxc_ast_visit::Visit;
-    struct IdentCollector<'o> {
-        out: &'o mut Vec<String>,
-    }
-    impl<'a, 'o> oxc_ast_visit::Visit<'a> for IdentCollector<'o> {
-        fn visit_identifier_reference(&mut self, it: &oxc_ast::ast::IdentifierReference<'a>) {
-            let name = it.name.to_string();
-            if !self.out.contains(&name) {
-                self.out.push(name);
-            }
-        }
-    }
-    let mut c = IdentCollector { out };
-    c.visit_statement(stmt);
 }
 
 /// Lower a legacy `VariableDeclaration`. `is_export` marks `export let …`
