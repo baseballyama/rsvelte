@@ -1647,15 +1647,13 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             note_fallback("chunk-parse");
             return None;
         }
-        if ret.program.comments.is_empty() && !self.synth.borrow().enabled {
+        if ret.program.comments.is_empty() {
             // Chunk-local spans stay below `loc_base`, so they read as "no
             // location"; record the bound the second pass has to clear.
             self.note_span(text.len() as u32);
             return Some(ret.program.body.into_iter().collect());
         }
-        if !ret.program.comments.is_empty() {
-            self.synth.borrow_mut().saw_comments = true;
-        }
+        self.synth.borrow_mut().saw_comments = true;
         if !self.synth.borrow().enabled {
             // Probe pass: the comments are dropped here, but the result is
             // discarded — it only tells the driver a second pass is needed.
