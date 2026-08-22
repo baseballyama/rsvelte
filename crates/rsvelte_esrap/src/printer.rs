@@ -26,18 +26,18 @@ use oxc_ast::ast::{
     JSXElementName, JSXExpressionContainer, JSXFragment, JSXMemberExpression,
     JSXMemberExpressionObject, JSXOpeningElement, LogicalExpression, MethodDefinition,
     MethodDefinitionKind, MethodDefinitionType, ModuleExportName, ObjectExpression, ObjectPattern,
-    ObjectProperty, ObjectPropertyKind, Program, PropertyDefinition, PropertyDefinitionType,
-    PropertyKey, PropertyKind, SequenceExpression, SimpleAssignmentTarget, Statement,
-    StaticMemberExpression, StringLiteral, SwitchStatement, TSAccessibility, TSEnumDeclaration,
-    TSEnumMember, TSEnumMemberName, TSExternalModuleDeclaration, TSGlobalDeclaration,
-    TSImportEqualsDeclaration, TSImportType, TSImportTypeQualifier, TSInterfaceDeclaration,
-    TSLiteral, TSMappedType, TSMappedTypeModifierOperator, TSModuleBlock, TSModuleReference,
-    TSNamedTupleMember, TSNamespaceDeclaration, TSNamespaceDeclarationBody,
-    TSNamespaceDeclarationKind, TSSignature, TSThisParameter, TSTupleElement, TSType,
-    TSTypeAliasDeclaration, TSTypeAnnotation, TSTypeLiteral, TSTypeName, TSTypeOperatorOperator,
-    TSTypeParameter, TSTypeParameterDeclaration, TSTypeParameterInstantiation, TSTypePredicateName,
-    TSTypeQueryExprName, TemplateLiteral, TryStatement, UnaryExpression, VariableDeclaration,
-    VariableDeclarationKind, WithClause,
+    ObjectProperty, ObjectPropertyKind, PrivateFieldExpression, PrivateInExpression, Program,
+    PropertyDefinition, PropertyDefinitionType, PropertyKey, PropertyKind, SequenceExpression,
+    SimpleAssignmentTarget, Statement, StaticMemberExpression, StringLiteral, SwitchStatement,
+    TSAccessibility, TSEnumDeclaration, TSEnumMember, TSEnumMemberName,
+    TSExternalModuleDeclaration, TSGlobalDeclaration, TSImportEqualsDeclaration, TSImportType,
+    TSImportTypeQualifier, TSInterfaceDeclaration, TSLiteral, TSMappedType,
+    TSMappedTypeModifierOperator, TSModuleBlock, TSModuleReference, TSNamedTupleMember,
+    TSNamespaceDeclaration, TSNamespaceDeclarationBody, TSNamespaceDeclarationKind, TSSignature,
+    TSThisParameter, TSTupleElement, TSType, TSTypeAliasDeclaration, TSTypeAnnotation,
+    TSTypeLiteral, TSTypeName, TSTypeOperatorOperator, TSTypeParameter, TSTypeParameterDeclaration,
+    TSTypeParameterInstantiation, TSTypePredicateName, TSTypeQueryExprName, TemplateLiteral,
+    TryStatement, UnaryExpression, VariableDeclaration, VariableDeclarationKind, WithClause,
 };
 use oxc_span::{GetSpan, Span};
 use oxc_syntax::operator::UnaryOperator;
@@ -500,7 +500,7 @@ fn expr_precedence(expr: &Expression) -> u8 {
         | Expression::ObjectExpression(_) => 17,
         Expression::UpdateExpression(_) => 16,
         Expression::UnaryExpression(_) => 15,
-        Expression::BinaryExpression(_) => 14,
+        Expression::BinaryExpression(_) | Expression::PrivateInExpression(_) => 14,
         // `as`/`satisfies` sit between binary and logical operators.
         Expression::TSAsExpression(_) | Expression::TSSatisfiesExpression(_) => 13,
         Expression::LogicalExpression(_) => 12,
@@ -594,6 +594,7 @@ fn child_binary_op(expr: &Expression) -> &'static str {
     match expr {
         Expression::BinaryExpression(b) => b.operator.as_str(),
         Expression::LogicalExpression(l) => l.operator.as_str(),
+        Expression::PrivateInExpression(_) => "in",
         _ => "",
     }
 }
@@ -3283,9 +3284,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 ChainElement::CallExpression(call) => self.call_expression(call, ctx),
                 ChainElement::StaticMemberExpression(m) => self.static_member(m, ctx),
                 ChainElement::ComputedMemberExpression(m) => self.computed_member(m, ctx),
-                ChainElement::PrivateFieldExpression(_) => {
-                    self.unsupported("PrivateFieldExpression", ctx);
-                }
+                ChainElement::PrivateFieldExpression(m) => self.private_field(m, ctx),
                 ChainElement::TSNonNullExpression(_) => self.unsupported("ChainElement", ctx),
             },
             Expression::Identifier(id) => self.write_node(ctx, id.span, id.name.as_str()),
@@ -3311,6 +3310,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             Expression::StringLiteral(s) => self.write_node(ctx, s.span, Self::string_literal(s)),
             Expression::TemplateLiteral(t) => self.template_literal(t, ctx),
             Expression::BinaryExpression(b) => self.binary_expression(b, ctx),
+            Expression::PrivateInExpression(p) => self.private_in_expression(p, ctx),
             Expression::LogicalExpression(l) => self.logical_expression(l, ctx),
             Expression::UnaryExpression(u) => self.unary_expression(u, ctx),
             Expression::CallExpression(c) => self.call_expression(c, ctx),
@@ -3323,12 +3323,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             Expression::ArrowFunctionExpression(a) => self.arrow_function(a, ctx),
             Expression::FunctionExpression(f) => self.function(f, ctx),
             Expression::ClassExpression(c) => self.class_node(c, ctx),
-            Expression::PrivateFieldExpression(m) => {
-                self.child_with_parens(&m.object, 19, ctx);
-                ctx.write(if m.optional { "?." } else { "." });
-                ctx.write_ascii(b'#');
-                ctx.write(m.field.name.as_str());
-            }
+            Expression::PrivateFieldExpression(m) => self.private_field(m, ctx),
             Expression::ImportMeta(_) => {
                 ctx.write("import");
                 ctx.write_ascii(b'.');
@@ -3613,6 +3608,23 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         } else {
             self.print_expression(child, ctx);
         }
+    }
+
+    fn private_field(&mut self, node: &PrivateFieldExpression, ctx: &mut Context<DIRECT>) {
+        self.child_with_parens(&node.object, 19, ctx);
+        ctx.write(if node.optional { "?." } else { "." });
+        ctx.write_ascii(b'#');
+        ctx.write(node.field.name.as_str());
+    }
+
+    /// ESTree has no `PrivateInExpression`; it models `#x in o` as a
+    /// `BinaryExpression` whose `left` is a `PrivateIdentifier`, which esrap
+    /// never parenthesizes. oxc gives it its own node, so print the same shape.
+    fn private_in_expression(&mut self, node: &PrivateInExpression, ctx: &mut Context<DIRECT>) {
+        ctx.write_ascii(b'#');
+        ctx.write(node.left.name.as_str());
+        ctx.write(" in ");
+        self.binary_child(&node.right, false, "in", true, ctx);
     }
 
     fn binary_expression(&mut self, node: &BinaryExpression, ctx: &mut Context<DIRECT>) {
