@@ -93,7 +93,9 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::LazyLock;
 
-use crate::compiler::phases::phase3_transform::shared::js_scan::{find_code, skip_opaque};
+use crate::compiler::phases::phase3_transform::shared::js_scan::{
+    code_bytes, find_code, skip_opaque,
+};
 use compact_str::CompactString;
 use memchr::memmem;
 // rustc_hash is used by submodules via their own imports
@@ -3748,6 +3750,31 @@ fn is_complete_side_effect_import(trimmed: &str) -> bool {
     after_import[i..].trim().is_empty()
 }
 
+/// True when `text` is a `let`/`const`/`var` declaration whose whole initializer
+/// is `$props.id()` — or an already-lowered `$.props_id()`. The component body
+/// always gets a hoisted `const` for it, so the source's own declaration has to
+/// go or the scope declares the name twice, which no JS parser accepts.
+///
+/// Compared over the statement's **code**: `code_bytes` steps over comments and
+/// string bodies, so trivia anywhere in the declaration cannot defeat the match
+/// and an `=` inside a string cannot be mistaken for the assignment. The
+/// text-level version this replaced was defeated by a comment on either side of
+/// the call and by a line break before it (#3346).
+fn is_props_id_declaration(text: &str) -> bool {
+    let code: Vec<u8> = code_bytes(text.as_bytes()).map(|(_, b)| b).collect();
+    let Ok(code) = std::str::from_utf8(&code) else {
+        return false;
+    };
+    let code = code.trim();
+    let head = code.strip_prefix("export ").unwrap_or(code);
+    if !(head.starts_with("let ") || head.starts_with("const ") || head.starts_with("var ")) {
+        return false;
+    }
+    code.find('=')
+        .map(|eq| code[eq + 1..].trim().trim_end_matches(';').trim())
+        .is_some_and(|rhs| rhs == "$props.id()" || rhs == "$.props_id()")
+}
+
 /// True when `trimmed` begins an `export { ... }` specifier statement,
 /// tolerating any whitespace between `export` and `{` — including none, since
 /// `export{a}` is valid JavaScript (M-021). Guards against matching longer
@@ -7303,24 +7330,12 @@ fn transform_instance_script_for_visitors(
         }
 
         // Skip $props.id() declarations - they will be added as const declarations
-        // in the component body. Match on the initializer being exactly
-        // `$props.id()` / `$.props_id()` (whitespace-tolerant) rather than the
-        // literal `= $props.id()` substring, so `let id=$props.id()` (no spaces)
-        // is also skipped instead of surviving alongside the generated const. H-060.
-        // An `export const` declarator is skipped too: upstream drops it in
-        // `VariableDeclaration` whichever way the declaration is reached, and the
-        // name still resolves — `$$exports` reads the hoisted `const`. Keeping it
-        // emitted `const x` twice in one scope, which is not parseable JS.
-        let declaration_head = trimmed.strip_prefix("export ").unwrap_or(trimmed);
-        if at_statement_boundary
-            && (declaration_head.starts_with("let ")
-                || declaration_head.starts_with("const ")
-                || declaration_head.starts_with("var "))
-            && trimmed
-                .find('=')
-                .map(|eq| trimmed[eq + 1..].trim().trim_end_matches(';').trim())
-                .is_some_and(|rhs| rhs == "$props.id()" || rhs == "$.props_id()")
-        {
+        // in the component body. An `export const` declarator is skipped too:
+        // upstream drops it in `VariableDeclaration` whichever way the declaration
+        // is reached, and the name still resolves — `$$exports` reads the hoisted
+        // `const`. Keeping it emitted `const x` twice in one scope, which is not
+        // parseable JS. H-060.
+        if at_statement_boundary && is_props_id_declaration(trimmed) {
             line_idx += 1;
             continue;
         }
@@ -7464,6 +7479,23 @@ fn transform_instance_script_for_visitors(
                 }
 
                 if !next_continues {
+                    // The same rule as the per-line skip, applied once the whole
+                    // statement is in hand, so an initializer that sits on the
+                    // next line is dropped too. Both sites call the one predicate
+                    // rather than restating it — a second spelling of this test is
+                    // how #3346 got here.
+                    if is_props_id_declaration(&accumulated_lines.join("\n")) {
+                        accumulated_lines.clear();
+                        depth_paren = 0;
+                        depth_bracket = 0;
+                        depth_brace = 0;
+                        depth_in_string = None;
+                        depth_in_block_comment = false;
+                        depth_template_interp_stack.clear();
+                        line_idx += 1;
+                        continue;
+                    }
+
                     // Runes fast-path: skip process_accumulated entirely when no transforms apply
                     if runes_fastpath_eligible {
                         let statement = accumulated_lines.join("\n");
