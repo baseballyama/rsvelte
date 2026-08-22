@@ -184,6 +184,7 @@ fn process_file(source: &str, filename: &str, task: &Task, dev: bool) {
                 runes: None,
                 emit_jsdoc: false,
                 rewrite_external_imports: None,
+                ..Svelte2TsxOptions::default()
             };
             let _ = svelte2tsx(source, options);
         }

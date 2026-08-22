@@ -119,6 +119,7 @@ pub(super) fn build_attributes_string(
     comments: &ElementOpenerCommentIndex,
     in_slot_context: bool,
     preserve_case: bool,
+    preserve_bind: bool,
 ) -> String {
     build_attributes_string_with_tag(
         attributes,
@@ -127,6 +128,7 @@ pub(super) fn build_attributes_string(
         "",
         in_slot_context,
         preserve_case,
+        preserve_bind,
     )
 }
 
@@ -137,6 +139,7 @@ pub(super) fn build_attributes_string_with_tag(
     parent_tag: &str,
     in_slot_context: bool,
     preserve_case: bool,
+    preserve_bind: bool,
 ) -> String {
     let segs = build_attribute_segments(
         attributes,
@@ -146,6 +149,7 @@ pub(super) fn build_attributes_string_with_tag(
         in_slot_context,
         None,
         preserve_case,
+        preserve_bind,
     );
     segs_to_string(&segs, source)
 }
@@ -167,6 +171,7 @@ pub(super) fn build_attribute_segments(
     in_slot_context: bool,
     opener_content_start: Option<u32>,
     preserve_case: bool,
+    preserve_bind: bool,
 ) -> Vec<Seg> {
     let mut segs: Vec<Seg> = Vec::with_capacity(attributes.len().saturating_mul(2));
     let mut any_pushed = false;
@@ -232,7 +237,7 @@ pub(super) fn build_attribute_segments(
                 if (is_get_set && bind.name != "this")
                     || !bind_is_filtered_from_props(&bind.name, parent_tag)
                 {
-                    let part = format_bind_directive_segments(bind, source);
+                    let part = format_bind_directive_segments(bind, source, preserve_bind);
                     push_with_separator(&mut segs, part);
                     any_pushed = true;
                 }
@@ -310,6 +315,7 @@ pub(super) fn build_component_props_string(
     source: &str,
     comments: &ElementOpenerCommentIndex,
     drop_slot: bool,
+    ns: &str,
 ) -> String {
     let mut parts: Vec<String> = Vec::new();
 
@@ -377,10 +383,10 @@ pub(super) fn build_component_props_string(
                 parts.push(format_style_directive(style, source));
             }
             Attribute::TransitionDirective(transition) => {
-                parts.push(format_transition_directive(transition, source));
+                parts.push(format_transition_directive(transition, source, ns));
             }
             Attribute::UseDirective(use_dir) => {
-                parts.push(format_use_directive(use_dir, source));
+                parts.push(format_use_directive(use_dir, source, ns));
             }
             Attribute::AttachTag(attach) => {
                 // `{@attach expr}` becomes `[Symbol("@attach")]:expr,`
