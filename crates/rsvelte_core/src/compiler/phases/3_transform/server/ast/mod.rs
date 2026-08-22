@@ -232,9 +232,9 @@ pub struct ServerTransformState<'a> {
     /// fold). Upstream keeps ONE esrap cursor over the file, so they flush at
     /// the next located node instead of disappearing with the expression.
     pub pending_template_comments: Option<PendingTemplateComments>,
-    /// Upstream's `component_block.loc = instance.loc` is what lets a template
-    /// comment reach the printer at all; without a `<script>` there is no `loc`
-    /// to copy and esrap's `reset_comment_index` discards the whole list.
+    /// Upstream copies the instance script's `loc` onto the component block
+    /// (`component_block.loc = instance.loc`); with no `<script>` there is none
+    /// to copy, and esrap's `reset_comment_index` then discards the whole list.
     pub has_instance_script: bool,
     /// Set when [`Self::reparse_program`] rejected text this compiler generated.
     /// The instance body cannot be reconstructed after that, so assembly aborts
@@ -421,9 +421,6 @@ impl<'a> ServerTransformState<'a> {
     /// The transform dropped this template expression, so whatever it carried
     /// waits for the next located node the printer reaches.
     pub fn defer_template_expression_comments(&mut self, region: (u32, u32)) {
-        if !self.has_instance_script {
-            return;
-        }
         let Some(comments) = self.template_region_comments(region.0, region.1) else {
             return;
         };
@@ -448,9 +445,6 @@ impl<'a> ServerTransformState<'a> {
         expr_span: (u32, u32),
         expr: &mut OxcExpression<'a>,
     ) {
-        if !self.has_instance_script {
-            return;
-        }
         let (expr_start, expr_end) = expr_span;
         let own = self.template_region_comments(region.0, region.1);
         let pending = self.pending_template_comments.take();
@@ -1527,7 +1521,9 @@ pub fn server_component_ast<'a>(
         // ($$renderer) => { <block_body> }
         let inner_params = b.params(vec![b.id_pat("$$renderer")], None);
         let mut inner_body = b.body(block_body);
-        comments::mark_component_body(&mut inner_body);
+        if state.has_instance_script {
+            comments::mark_component_body(&mut inner_body);
+        }
         let arrow = b.arrow(inner_params, inner_body, false, false);
         // 2nd arg: `dev && component_name` → the bare identifier in dev, omitted
         // (no 2nd arg) otherwise.
@@ -1654,7 +1650,7 @@ pub fn server_component_ast<'a>(
         b.params(vec![b.id_pat("$$renderer")], None)
     };
     let mut fn_body = b.body(final_body);
-    if !should_inject_context {
+    if !should_inject_context && state.has_instance_script {
         comments::mark_component_body(&mut fn_body);
     }
     let component_fn = b.function_declaration(component_name, params, fn_body, false);
