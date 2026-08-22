@@ -242,61 +242,25 @@ pub fn detect_store_subscriptions(
                 // is non-null — i.e. for ANY rune-call initializer, not only the
                 // $state/$derived family the binding KIND records. `const host =
                 // $host()` leaves a Normal binding, but `$host` is still the
-                // rune. `$props` inits are excluded here: the
-                // `is_props_rune_init` special case below owns that rule
-                // (`let state = $props()` must still make `$state` a store sub).
+                // rune. The one exception is its own name: `let state =
+                // $props()` still makes `$state` a store subscription, while
+                // `let { props } = $props()` keeps `$props` a rune.
                 if binding
                     .init_rune
                     .as_deref()
-                    .is_some_and(|r| r != "$props" && r != "$props.id")
+                    .is_some_and(|r| r != "$props" || store_name == "props")
                 {
                     continue;
                 }
 
-                // Special case from official compiler (2-analyze/index.js L366-368):
-                // "rune-like names received as props are valid too (but we have to protect
-                //  against $props as store)"
-                //
-                // When `let props = $props()` is used (Identifier pattern), the `props`
-                // binding has kind RestProp. In this case `$props` must NOT be treated as
-                // a store subscription - it is still the $props rune.
-                //
-                // However, if someone writes `let state = $props()`, the `state` binding
-                // also has kind Prop/RestProp, but `$state` references elsewhere SHOULD
-                // still be treated as store subscriptions (per official compiler logic):
-                //   get_rune(init) === '$props' && store_name === 'props'  -> skip (rune)
-                //   get_rune(init) === '$props' && store_name !== 'props'  -> create store
-                //
-                // We replicate this by checking binding kind is Prop/RestProp/BindableProp
-                // (i.e., init was $props()) AND store_name == "props".
-                // Also detect the `let { props } = $props()` case. Prop binding kinds are
-                // assigned during the later visitor walk, which runs AFTER store subscription
-                // detection, so at this point the binding kind may still be the default
-                // (Normal). As a fallback, scan the instance script source for any
-                // `= $props(` initializer — if one exists and `store_name == "props"`, then
-                // `$props` refers to the rune (not a store subscription).
-                let instance_has_props_rune_init = ast
-                    .instance
-                    .as_ref()
-                    .and_then(|inst| {
-                        let s = inst.content.start().unwrap_or(0) as usize;
-                        let e = inst.content.end().unwrap_or(0) as usize;
-                        if e > s && e <= analysis.source.len() {
-                            Some(&analysis.source[s..e])
-                        } else {
-                            None
-                        }
-                    })
-                    .map(|src| src.contains("$props(") || src.contains("$props.bindable("))
-                    .unwrap_or(false);
-                let is_props_rune_init = (matches!(
+                // A `$props()` destructuring assigns its binding kinds in the
+                // later visitor walk, which runs after this pass, so the kind is
+                // still the default here even though `init_rune` is already set.
+                if matches!(
                     binding.kind,
                     BindingKind::Prop | BindingKind::RestProp | BindingKind::BindableProp
-                ) || instance_has_props_rune_init)
-                    && store_name == "props";
-
-                if is_props_rune_init {
-                    // The binding is `let props = $props()` - $props is the rune, not a store
+                ) && store_name == "props"
+                {
                     continue;
                 }
 
