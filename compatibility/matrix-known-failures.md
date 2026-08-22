@@ -293,6 +293,10 @@ stays a signal in rsvelte, so `{n}` compiles to `$.child` + `$.template_effect(�
 where official folds it to a single `b.textContent = $.get(n)`. Pre-existing and not
 custom-element-specific — it reproduces on the `<svelte:options customElement="x-a" />` path that
 already worked, with three controls agreeing — so the option is only what makes the cell exist.
+It is #3448 **and nothing else** here, precisely because `state-style` writes the trailing `;`
+that keeps #3226 quiet: an earlier read of this row attributed the whole `custom-element` variant
+to #3448 by counting the variant's total instead of diffing each cell, and one of those cells was
+#3226 alone. Attribute a ratchet entry from its own diff, never from its variant's count.
 
 **Not listed, and worth stating:** `runes-true__legacy-export` is an **error-parity** cell in all
 four targets. Official rejects it with `legacy_export_invalid` and so does rsvelte, so the family
