@@ -61,7 +61,9 @@ pub fn visit(body: &mut SvelteElement, context: &mut VisitorContext) -> Result<(
                 }
                 super::attribute::visit_attribute_value_expressions(&mut attribute.value, context)?;
             }
-            _ => {}
+            other => {
+                super::shared::attribute::walk_remaining_attribute_expressions(other, context)?;
+            }
         }
     }
 
