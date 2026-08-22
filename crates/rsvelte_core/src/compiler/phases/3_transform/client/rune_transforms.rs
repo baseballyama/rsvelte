@@ -9,7 +9,7 @@ use super::{
     is_function_parameter_in_statement,
 };
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
-use crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque;
+use crate::compiler::phases::phase3_transform::shared::js_scan::{find_code, skip_opaque};
 use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
 
 /// Transform runes for client-side usage with skip and state variable handling.
@@ -222,7 +222,7 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     // and is awkward to do at the AST level.
     if !dev
         && !inspect_is_store_sub
-        && let Some(pos) = memmem::find(result.as_bytes(), b"$inspect(")
+        && let Some(pos) = find_code(result.as_bytes(), b"$inspect(")
     {
         {
             // In non-dev mode, remove the entire $inspect(...) call
