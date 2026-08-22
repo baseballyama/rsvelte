@@ -1852,20 +1852,36 @@ pub fn trailing_token_offset(content: &str, ts: bool) -> Option<usize> {
     }
     let region_end = (region_start + label_len).min(content.len());
 
-    // Acorn stops at the first token it cannot consume; OXC does not, and for a
-    // TypeScript construct in a JS file it labels the CONSTRUCT — `y as string`,
-    // not the `as`. Recover acorn's stop by taking the longest prefix of the
-    // labelled region that is valid on its own, then the first token after it.
-    let region = &content[region_start..region_end];
-    let mut consumed = 0usize;
-    for k in 1..=region.len() {
-        if region.is_char_boundary(k) && expression_parses(&region[..k], source_type) {
-            consumed = k;
+    // Acorn stops at the first token it cannot consume. OXC labels either that
+    // token or, for a whole construct it understood and then rejected, the
+    // construct itself — so which of the two it is has to be decided before the
+    // label can be read as a stop.
+    let stop = if expression_parses(&content[..region_start], source_type) {
+        // Everything before the label is already a complete expression, so the
+        // label IS the token acorn would have stopped on.
+        region_start
+    } else {
+        // The label covers the construct. Recover acorn's stop by taking the
+        // longest prefix of it that is an expression on its own (`y as string`
+        // -> `y`), then the first token after that prefix.
+        let region = &content[region_start..region_end];
+        let mut consumed = 0usize;
+        for k in 1..=region.len() {
+            if region.is_char_boundary(k) && expression_parses(&region[..k], source_type) {
+                consumed = k;
+            }
         }
-    }
-    let kept = region[..consumed].trim_end_ws().len();
-    let rest = &region[kept..];
-    let stop = region_start + kept + (rest.len() - rest.trim_start_ws().len());
+        // The whole labelled region is an expression and nothing precedes it that
+        // is one, so OXC consumed the region and rejected it on a rule acorn
+        // also applies after consuming (`42 = nope` -> `Assigning to rvalue`).
+        // There is no token it stopped on.
+        if consumed == region.len() {
+            return None;
+        }
+        let kept = region[..consumed].trim_end_ws().len();
+        let rest = &region[kept..];
+        region_start + kept + (rest.len() - rest.trim_start_ws().len())
+    };
 
     // Leftover input means the caller's close token is missing; an error at or
     // past the end of the expression means the expression itself is broken.
@@ -12456,6 +12472,44 @@ fn convert_export_named_as_node(
 
 #[cfg(test)]
 mod tests {
+    /// Upstream reaches `eat(close)` only when acorn RETURNED an expression, so
+    /// leftover input is a missing close token and anything else is a
+    /// `js_parse_error`. OXC labels a construct it consumed and then rejected
+    /// (`42 = nope`) the same way it labels a token it could not read (`a b`),
+    /// so both directions are pinned here.
+    #[test]
+    fn trailing_token_offset_matches_acorns_stop() {
+        // (source, js stop, ts stop)
+        let cases: &[(&str, Option<usize>, Option<usize>)] = &[
+            // Consumed and then rejected: acorn throws `Assigning to rvalue`.
+            ("42 = nope", None, None),
+            ("1 + 2 = 3", None, None),
+            ("a, 42 = b", None, None),
+            // A token acorn cannot consume after a complete expression.
+            ("a b", Some(2), Some(2)),
+            ("a bcd", Some(2), Some(2)),
+            ("foo();", Some(5), Some(5)),
+            ("foo() bar", Some(6), Some(6)),
+            ("x.y = 1 z", Some(8), Some(8)),
+            // TypeScript-only syntax stops acorn at the TS token in JS mode and
+            // parses in TS mode.
+            ("y as string", Some(2), None),
+            ("y as unknown as string", Some(2), None),
+            ("y satisfies string", Some(2), None),
+            ("y!", Some(1), None),
+            ("y!.k", Some(1), None),
+            // Broken before any complete expression exists.
+            ("a +", None, None),
+            ("<string>y", None, None),
+            ("f<string>()", None, None),
+            ("((a: string) => a)(\"\")", None, None),
+        ];
+        for (source, js, ts) in cases {
+            assert_eq!(trailing_token_offset(source, false), *js, "js: `{source}`");
+            assert_eq!(trailing_token_offset(source, true), *ts, "ts: `{source}`");
+        }
+    }
+
     use super::*;
 
     #[test]
