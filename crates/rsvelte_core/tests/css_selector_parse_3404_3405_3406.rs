@@ -180,6 +180,30 @@ fn well_formed_attribute_selectors_are_unchanged() {
     );
 }
 
+/// Upstream rewrites the stylesheet in place and never touches the brackets, so
+/// the author's spacing survives — `name` / `matcher` / `value` cannot carry it,
+/// and a printer that rebuilds the selector from them normalises it away.
+#[test]
+fn an_attribute_selector_keeps_the_source_spacing() {
+    check(
+        "[ x ] { color: red }",
+        Outcome::Css("\n\t[ x ].svelte-70s02x { color: red }\n"),
+    );
+    check(
+        "[ x = \"y\" ] { color: red }",
+        Outcome::Css("\n\t[ x = \"y\" ].svelte-70s02x { color: red }\n"),
+    );
+    check(
+        "[x~=\'y\'] { color: red }",
+        Outcome::Css("\n\t[x~=\'y\'].svelte-70s02x { color: red }\n"),
+    );
+    // Control: brackets holding only whitespace are still rejected.
+    check(
+        "[  ] { color: red }",
+        Outcome::Error("css_expected_identifier", 3, 4),
+    );
+}
+
 /// An empty comma-separated segment reaches `read_identifier` upstream, which
 /// raises at the index the leading whitespace and comments were consumed to.
 #[test]

@@ -7482,6 +7482,24 @@ fn format_simple_selector_with_scope(
             )
         }
         "AttributeSelector" => {
+            // Upstream never rewrites the brackets, so the author's spacing
+            // (`[ data-k ]`) survives; `name`/`matcher`/`value` cannot carry it.
+            if let (Some(start), Some(end), Some(css_start)) = (
+                sel.get("start").and_then(|s| s.as_u64()),
+                sel.get("end").and_then(|e| e.as_u64()),
+                css_start,
+            ) {
+                let src_start = (start as usize).saturating_sub(css_start);
+                let src_end = (end as usize).saturating_sub(css_start);
+                if src_end <= css_source.len()
+                    && src_start < src_end
+                    && css_source[src_start..src_end].starts_with('[')
+                    && css_source[src_start..src_end].ends_with(']')
+                {
+                    return css_source[src_start..src_end].to_string();
+                }
+            }
+
             let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
             let matcher = sel.get("matcher").and_then(|m| m.as_str());
             let value = sel.get("value").and_then(|v| v.as_str());
