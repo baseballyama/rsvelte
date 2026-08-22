@@ -1744,7 +1744,28 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
     // No JS errors means valid
     js_result.as_ref()?;
 
-    js_result.or(ts_result)
+    let result = js_result.or(ts_result);
+
+    // A body with no code in it has nothing of its own to fail on, so whatever
+    // OXC reported describes the `(…)` this probe wrapped it in. Acorn is given
+    // the unwrapped text and says `Unexpected token` at the delimiter.
+    if is_code_empty(content) {
+        return result.map(|(_, pos)| ("Unexpected token".to_string(), pos));
+    }
+    result
+}
+
+/// Whether `content` carries no JavaScript at all — only whitespace and
+/// comments. Answered by the parser rather than by a scan so that a `//` or
+/// `/*` inside a string cannot be mistaken for one.
+fn is_code_empty(content: &str) -> bool {
+    if content.is_empty() {
+        return true;
+    }
+    with_oxc_allocator(|allocator| {
+        let result = OxcParser::new(allocator, content, SourceType::mjs()).parse();
+        result.program.body.is_empty() && result.diagnostics.is_empty()
+    })
 }
 
 /// Check whether a parameter list (e.g. snippet params) parses as valid
