@@ -1538,37 +1538,42 @@ impl<'a> Parser<'a> {
         // For await blocks, we parse the expression with a known end position
         // to avoid find_matching_bracket finding the block's closing }
         let head = trimmed_content.trim_ws();
-        let expression = if let Some(lazy) =
-            self.defer_expression(head, adjusted_start, LazyKind::HeadBrace)
-        {
-            lazy
-        } else {
-            match super::super::expression::parse_expression_with_end(
-                &self.arena,
-                head,
-                adjusted_start,
-                adjusted_end,
-                self.expression_line_offsets(),
-                self.source,
-                self.options.loose,
-                false,
-                '{',
-                self.ts,
-            ) {
-                Ok(expr) => expr,
-                Err((_, pos)) if self.options.loose => {
-                    super::super::expression::create_identifier_with_character(
-                        "",
-                        pos,
-                        adjusted_end,
-                        self.expression_line_offsets(),
-                    )
+        let expression =
+            if let Some(lazy) = self.defer_expression(head, adjusted_start, LazyKind::HeadBrace) {
+                lazy
+            } else {
+                match super::super::expression::parse_expression_with_end(
+                    &self.arena,
+                    head,
+                    adjusted_start,
+                    adjusted_end,
+                    self.expression_line_offsets(),
+                    self.source,
+                    self.options.loose,
+                    false,
+                    '{',
+                    self.ts,
+                ) {
+                    Ok(expr) => expr,
+                    Err((_, pos)) if self.options.loose => {
+                        super::super::expression::create_identifier_with_character(
+                            "",
+                            pos,
+                            adjusted_end,
+                            self.expression_line_offsets(),
+                        )
+                    }
+                    Err((msg, _)) => {
+                        return Err(super::super::resolve_lazy::template_expression_error(
+                            "}",
+                            msg,
+                            head,
+                            adjusted_start,
+                            self.ts,
+                        ));
+                    }
                 }
-                Err((msg, _)) => {
-                    return Err(super::super::resolve_lazy::template_expression_error("}", msg, head, adjusted_start, self.ts));
-                }
-            }
-        };
+            };
 
         // Parse 'then' value if present
         if has_then {
@@ -2161,7 +2166,8 @@ impl<'a> Parser<'a> {
                         + 1
                         + (trimmed[eq_idx + 1..].len()
                             - trimmed[eq_idx + 1..].trim_start_ws().len());
-                    let init_expr = self.parse_js_expression_head_strict(init_str, init_offset, false)?;
+                    let init_expr =
+                        self.parse_js_expression_head_strict(init_str, init_offset, false)?;
 
                     // Reject a sequence-expression initializer, mirroring
                     // upstream: `{@const a = (b, c)}` is allowed but
@@ -2385,7 +2391,15 @@ impl<'a> Parser<'a> {
             '{',
             self.ts,
         )
-        .map_err(|(msg, _)| super::super::resolve_lazy::template_expression_error("}", msg, trimmed, trimmed_offset, self.ts))
+        .map_err(|(msg, _)| {
+            super::super::resolve_lazy::template_expression_error(
+                "}",
+                msg,
+                trimmed,
+                trimmed_offset,
+                self.ts,
+            )
+        })
     }
 
     /// Parse a JavaScript expression and return as Expression.
@@ -2459,13 +2473,13 @@ impl<'a> Parser<'a> {
             self.ts,
         ) {
             Ok(expr) => Ok(expr),
-            Err((_, pos)) if self.options.loose => Ok(
-                super::super::read::expression::create_empty_identifier(
+            Err((_, pos)) if self.options.loose => {
+                Ok(super::super::read::expression::create_empty_identifier(
                     "",
                     pos,
                     pos + trimmed.len(),
-                ),
-            ),
+                ))
+            }
             Err((msg, _)) => Err(super::super::resolve_lazy::template_expression_error(
                 "}",
                 msg,
@@ -2514,7 +2528,15 @@ impl<'a> Parser<'a> {
             '{',
             self.ts,
         )
-        .map_err(|(msg, _)| super::super::resolve_lazy::template_expression_error("}", msg, trimmed, trimmed_offset, self.ts))
+        .map_err(|(msg, _)| {
+            super::super::resolve_lazy::template_expression_error(
+                "}",
+                msg,
+                trimmed,
+                trimmed_offset,
+                self.ts,
+            )
+        })
     }
 
     /// Parse a block / directive head expression that, in strict (non-loose)

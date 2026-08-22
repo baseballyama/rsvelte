@@ -92,7 +92,10 @@ fn the_population_is_not_degenerate() {
 
     // Both verdicts, and both error codes, or the comparison is one-sided.
     let accepted = cases.iter().filter(|c| c.expected.is_none()).count();
-    assert!(accepted > 0 && accepted < cases.len(), "one-sided population");
+    assert!(
+        accepted > 0 && accepted < cases.len(),
+        "one-sided population"
+    );
     let codes: HashSet<&str> = cases.iter().filter_map(|c| c.expected.as_deref()).collect();
     assert!(codes.contains("expected_token"), "no expected_token case");
     assert!(codes.contains("js_parse_error"), "no js_parse_error case");

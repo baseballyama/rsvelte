@@ -1734,7 +1734,11 @@ pub fn check_js_parse_error_with_pos(content: &str, ts: bool) -> Option<(String,
 
     // One mode only. Probing the other as a fallback reports "valid" for
     // TypeScript-only syntax in a component that never declared `lang="ts"`.
-    probe(if ts { SourceType::ts() } else { SourceType::mjs() })
+    probe(if ts {
+        SourceType::ts()
+    } else {
+        SourceType::mjs()
+    })
 }
 
 /// Check whether a parameter list (e.g. snippet params) parses as valid
