@@ -3340,6 +3340,21 @@ pub fn build_render_statement_with_memoizer(
 /// # Returns
 ///
 /// Returns a member expression or identifier.
+/// Upstream lowercases an HTML element/attribute name with JS `toLowerCase`,
+/// which is not limited to ASCII; only the no-op fast path is.
+pub fn html_lowercase(name: &str) -> String {
+    let needs_lowering = if name.is_ascii() {
+        name.bytes().any(|b| b.is_ascii_uppercase())
+    } else {
+        name.chars().any(|c| c.to_lowercase().next() != Some(c))
+    };
+    if needs_lowering {
+        name.to_lowercase()
+    } else {
+        name.to_string()
+    }
+}
+
 pub fn parse_directive_name(
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     name: &str,

@@ -2960,18 +2960,20 @@ fn is_valid_identifier(name: &str) -> bool {
 fn sanitize_identifier(name: &str) -> String {
     let mut result = String::with_capacity(name.len());
 
+    // Upstream is `name.replace(/(^[^a-zA-Z_$]|[^a-zA-Z0-9_$])/g, '_')` over a
+    // UTF-16 string, so an astral character is replaced by *two* underscores.
     for (i, c) in name.chars().enumerate() {
-        if c.is_ascii_alphabetic() || c == '_' || c == '$' {
-            result.push(c);
-        } else if c.is_ascii_digit() {
-            if i == 0 {
-                // Can't start with a digit, prefix with underscore
-                result.push('_');
-            }
+        let keep = if i == 0 {
+            c.is_ascii_alphabetic() || c == '_' || c == '$'
+        } else {
+            c.is_ascii_alphanumeric() || c == '_' || c == '$'
+        };
+        if keep {
             result.push(c);
         } else {
-            // Replace invalid characters (like '-') with underscore
-            result.push('_');
+            for _ in 0..c.len_utf16() {
+                result.push('_');
+            }
         }
     }
 

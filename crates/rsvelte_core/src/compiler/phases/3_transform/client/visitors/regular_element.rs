@@ -197,10 +197,9 @@ pub fn visit_regular_element(
 ) -> TransformResult {
     // Push element to template
     let is_html = context.state.metadata.namespace == "html" && node.name != "svg";
-    // Avoid allocation when name is already lowercase (common case for HTML)
     let name_str = node.name.as_str();
-    let elem_name = if is_html && name_str.bytes().any(|b| b.is_ascii_uppercase()) {
-        name_str.to_lowercase()
+    let elem_name = if is_html {
+        super::shared::utils::html_lowercase(name_str)
     } else {
         name_str.to_string()
     };
