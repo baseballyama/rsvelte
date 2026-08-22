@@ -86,6 +86,49 @@ const ACCEPTED: &[&str] = &[
     "declare const dc: number;",
     "declare function df(): void;",
     "declare class DC {}",
+    // The body-content axis: upstream's decision is "did visiting this entry
+    // return `b.empty`", so anything the visitor erases keeps the namespace legal.
+    "namespace N { type T = 1; }",
+    "namespace N { export interface I {} }",
+    "namespace N { declare const a: number; }",
+    "namespace N { namespace M { } }",
+];
+
+/// The other half of the same decision: `(body, node start, node end, feature)`,
+/// offsets relative to the script body. A nested namespace and an enum raise from
+/// *inside* the visit, so the node upstream reports is not the outer module — and
+/// for an enum the feature is not even "namespaces". A bare `;` is rejected
+/// because upstream compares each visited entry against the `b.empty` **singleton**,
+/// which an `EmptyStatement` the source wrote is not.
+const REJECTED_BODY_CONTENT: &[(&str, usize, usize, &str)] = &[
+    ("namespace N { ; }", 0, 17, "namespaces with non-type nodes"),
+    (
+        "namespace N { class C {} }",
+        0,
+        26,
+        "namespaces with non-type nodes",
+    ),
+    (
+        "namespace N { function f() {} }",
+        0,
+        31,
+        "namespaces with non-type nodes",
+    ),
+    (
+        "namespace N { const a = 1; }",
+        0,
+        28,
+        "namespaces with non-type nodes",
+    ),
+    (
+        "namespace N { namespace M { const a = 1; } }",
+        14,
+        42,
+        "namespaces with non-type nodes",
+    ),
+    ("namespace N { enum E { A } }", 14, 26, "enums"),
+    ("namespace N { const enum E { A } }", 14, 32, "enums"),
+    ("export namespace N { enum E { A } }", 21, 33, "enums"),
 ];
 
 #[test]
@@ -111,6 +154,38 @@ fn a_namespace_with_non_type_nodes_is_rejected_through_every_modifier() {
                 );
                 let start = offset + node_offset;
                 let end = offset + body.len();
+                assert!(
+                    err.contains(&format!("span: ({start}, {end})")),
+                    "span must be ({start}, {end}) for {body:?}, got: {err}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn the_node_and_the_feature_come_from_the_visit_not_from_the_outer_module() {
+    for generate in [GenerateMode::Client, GenerateMode::Server] {
+        for (wrap, offset) in [
+            (instance as fn(&str) -> String, INSTANCE_OFFSET),
+            (module_script as fn(&str) -> String, MODULE_SCRIPT_OFFSET),
+        ] {
+            for (body, node_start, node_end, feature) in REJECTED_BODY_CONTENT {
+                let src = wrap(body);
+                let err = match compile_result(&src, generate) {
+                    Err(err) => err,
+                    Ok(code) => panic!("{body:?} must not compile; emitted:\n{code}"),
+                };
+                assert!(
+                    err.contains("typescript_invalid_feature"),
+                    "expected typescript_invalid_feature for {body:?}, got: {err}"
+                );
+                assert!(
+                    err.contains(feature),
+                    "feature must be {feature:?} for {body:?}, got: {err}"
+                );
+                let start = offset + node_start;
+                let end = offset + node_end;
                 assert!(
                     err.contains(&format!("span: ({start}, {end})")),
                     "span must be ({start}, {end}) for {body:?}, got: {err}"
