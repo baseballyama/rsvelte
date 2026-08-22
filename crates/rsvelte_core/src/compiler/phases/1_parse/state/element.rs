@@ -1463,36 +1463,6 @@ impl<'a> Parser<'a> {
         // Directive detection using first-byte dispatch to avoid multiple starts_with scans
         if let Some(colon_pos) = memchr(b':', name.as_bytes()) {
             let prefix = &name.as_bytes()[..colon_pos];
-            if matches!(
-                prefix,
-                b"on"
-                    | b"bind"
-                    | b"use"
-                    | b"class"
-                    | b"style"
-                    | b"transition"
-                    | b"in"
-                    | b"out"
-                    | b"animate"
-                    | b"let"
-            ) {
-                // Upstream splits modifiers off before testing emptiness, so
-                // `on:|once` is missing a name just as `on:` is.
-                let after_colon = &name[colon_pos + 1..];
-                let directive_name = match memchr(b'|', after_colon.as_bytes()) {
-                    Some(pipe) => &after_colon[..pipe],
-                    None => after_colon,
-                };
-                if directive_name.is_empty() {
-                    return Err(crate::error::ParseError::svelte(
-                        "directive_missing_name",
-                        format!(
-                            "`{name}` name cannot be empty\nhttps://svelte.dev/e/directive_missing_name"
-                        ),
-                        (start, start + colon_pos + 1),
-                    ));
-                }
-            }
             match prefix {
                 b"on" => {
                     return self.parse_on_directive(start, &name, name_loc, name_end);
@@ -1754,6 +1724,15 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         let action_name = &full_name[4..]; // Skip "use:"
 
+        // Check for empty directive name
+        if action_name.is_empty() {
+            return Err(crate::error::ParseError::svelte(
+                "directive_missing_name",
+                "`use:` name cannot be empty",
+                (start, name_end),
+            ));
+        }
+
         let (expression, end_pos) = if self.eat_optional("=") {
             self.skip_whitespace();
             // Handle quoted value: ="{expression}" or ="value"
@@ -1828,6 +1807,15 @@ impl<'a> Parser<'a> {
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         let class_name = &full_name[6..]; // Skip "class:"
+
+        // Check for empty directive name
+        if class_name.is_empty() {
+            return Err(crate::error::ParseError::svelte(
+                "directive_missing_name",
+                "`class:` name cannot be empty",
+                (start, name_end),
+            ));
+        }
 
         let had_value = self.eat_optional("=");
         let expression = if had_value {
@@ -2081,19 +2069,29 @@ impl<'a> Parser<'a> {
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Determine type and extract name with modifiers
-        let (transition_name, intro, outro, modifiers) =
+        let (directive_label, transition_name, intro, outro, modifiers) =
             if let Some(stripped) = full_name.strip_prefix("transition:") {
                 let (name, mods) = Self::extract_name_and_modifiers(stripped);
-                (name, true, true, mods)
+                ("transition:", name, true, true, mods)
             } else if let Some(stripped) = full_name.strip_prefix("in:") {
                 let (name, mods) = Self::extract_name_and_modifiers(stripped);
-                (name, true, false, mods)
+                ("in:", name, true, false, mods)
             } else if let Some(stripped) = full_name.strip_prefix("out:") {
                 let (name, mods) = Self::extract_name_and_modifiers(stripped);
-                (name, false, true, mods)
+                ("out:", name, false, true, mods)
             } else {
                 return Ok(None);
             };
+
+        // An empty name (`transition:`, `in:|global`, …) is a parse error —
+        // it would otherwise lower to an empty JS identifier. H-146 / M-040.
+        if transition_name.is_empty() {
+            return Err(crate::error::ParseError::svelte(
+                "directive_missing_name",
+                format!("`{directive_label}` name cannot be empty"),
+                (start, name_end),
+            ));
+        }
 
         let (expression, end_pos) = if self.eat_optional("=") {
             self.skip_whitespace();

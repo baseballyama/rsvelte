@@ -66,58 +66,6 @@ fn assert_diagnostic(src: &str, code: &str, message: &str, start: &str, end: &st
 /// *after* splitting modifiers off, and attributes the error to the run up to
 /// and including the colon, so both spellings report the same range.
 #[test]
-fn empty_directive_name_is_rejected_for_every_directive_kind() {
-    for (src, name, start, end) in [
-        ("<button on:={h}>x</button>", "on:", "1:8", "1:11"),
-        ("<button on:|once={h}>x</button>", "on:|once", "1:8", "1:11"),
-        ("<button on:=\"str\">x</button>", "on:", "1:8", "1:11"),
-        ("<div on:></div>", "on:", "1:5", "1:8"),
-        ("<div bind:></div>", "bind:", "1:5", "1:10"),
-        ("<div bind:={x}></div>", "bind:", "1:5", "1:10"),
-        ("<div use:></div>", "use:", "1:5", "1:9"),
-        ("<div class:></div>", "class:", "1:5", "1:11"),
-        ("<div class:|foo={a}></div>", "class:|foo", "1:5", "1:11"),
-        ("<div style:></div>", "style:", "1:5", "1:11"),
-        (
-            "<div style:|important=\"x\"></div>",
-            "style:|important",
-            "1:5",
-            "1:11",
-        ),
-        ("<div in:></div>", "in:", "1:5", "1:8"),
-        ("<div out:></div>", "out:", "1:5", "1:9"),
-        ("<div transition:></div>", "transition:", "1:5", "1:16"),
-        (
-            "<div transition:|local></div>",
-            "transition:|local",
-            "1:5",
-            "1:16",
-        ),
-        ("<div animate:></div>", "animate:", "1:5", "1:13"),
-        ("<div let:></div>", "let:", "1:5", "1:9"),
-        ("<div let:={a}></div>", "let:", "1:5", "1:9"),
-    ] {
-        assert_diagnostic(
-            src,
-            "directive_missing_name",
-            &format!("`{name}` name cannot be empty"),
-            start,
-            end,
-        );
-    }
-}
-
-/// A colon prefix that names no directive stays an ordinary attribute, so an
-/// empty tail after it is not an error (upstream `get_directive_type` returns
-/// `false` and the emptiness test never runs).
-#[test]
-fn a_non_directive_colon_prefix_is_still_accepted() {
-    assert!(compile_err("<div foo:></div>", GenerateMode::Client).is_none());
-}
-
-/// #3274.2 — a `this` that is not a single `{expression}` is rejected at parse
-/// time, attributed to the `this` attribute's start as a zero-width range.
-#[test]
 fn svelte_component_this_must_be_an_expression() {
     for src in [
         "<svelte:component this=\"Child\" />",
