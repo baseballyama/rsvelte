@@ -18,7 +18,10 @@
       color: olive;
     }
   }
-  .a:has(.b) {
+  .a:has(:has(.b)) {
     color: navy;
+  }
+  .a:has(.b) {
+    color: fuchsia;
   }
 </style>

@@ -1,5 +1,5 @@
-//! Regression tests for issues #3130, #3133 and #3204 — the argument list of a
-//! functional pseudo-class.
+//! Regression tests for issues #3130, #3133, #3204 and #3371 — the argument
+//! list of a functional pseudo-class, and what `&` means inside one.
 //!
 //! Every expectation here was taken from the official compiler
 //! (`submodules/svelte`, v5.56.9) with `generate: 'client', css: 'external'`.
@@ -287,4 +287,126 @@ fn a_reachable_has_is_left_alone() {
         let out = build(&src);
         assert!(!out.css.contains("(unused)"), "{rule} -> {:?}", out.css);
     }
+}
+
+// ---------------------------------------------------------------------------
+// #3371 — `&` inside `:is()` / `:where()` / `:has()` resolves to the parent
+// ---------------------------------------------------------------------------
+
+/// Markup whose every element carries a `data-n`, so the set of elements that
+/// received the scoping class can be read off the generated template instead of
+/// guessed at from class order.
+const SCOPE_MARKUP: &str = "<div class=\"card wide\" data-n=\"card\"><p class=\"a\" data-n=\"a\">x</p><span class=\"b\" data-n=\"b\">y</span></div>";
+
+/// The `data-n` of every element the compiler put the scoping class on.
+fn scoped(markup: &str, rule: &str) -> Vec<String> {
+    let out = compile(&styled(markup, rule), opts()).expect("compile");
+    let js = out.js.code;
+    let mut names = Vec::new();
+    let needle = "data-n=\"";
+    // Without this the probe answers "nothing was scoped" for a template shape
+    // it cannot read, and every assertion below passes vacuously.
+    assert!(js.contains(needle), "probe found no `data-n` in {js}");
+    let mut from = 0;
+    while let Some(at) = js[from..].find(needle).map(|i| i + from) {
+        let name_start = at + needle.len();
+        let name_end = name_start + js[name_start..].find('"').unwrap_or(0);
+        let tag_start = js[..at].rfind('<').unwrap_or(0);
+        let tag_end = at + js[at..].find('>').unwrap_or(0);
+        if js[tag_start..tag_end].contains("svelte-") {
+            names.push(js[name_start..name_end].to_string());
+        }
+        from = name_end;
+    }
+    names.sort();
+    names
+}
+
+#[test]
+fn nesting_inside_a_functional_pseudo_class_is_not_a_wildcard() {
+    // `:is(&)` is `:is(.card)` — it must not scope `.a` and `.b` as well.
+    for rule in [
+        ".card { :is(&) { color: red } }",
+        ".card { :where(&) { color: red } }",
+        ".card.wide { :is(&) { color: red } }",
+        ".card { :is(&, .nope) { color: red } }",
+    ] {
+        assert_eq!(scoped(SCOPE_MARKUP, rule), ["card"], "{rule}");
+    }
+    assert_eq!(
+        scoped(SCOPE_MARKUP, ".card { :is(&, .b) { color: red } }"),
+        ["b", "card"]
+    );
+}
+
+#[test]
+fn nesting_inside_a_functional_pseudo_class_still_scopes_its_descendants() {
+    // The opposite direction: the emitted `.a:where(.svelte-…)` can only match
+    // if `<p class="a">` was scoped too.
+    for (rule, expected) in [
+        (".card { :is(&) .a { color: red } }", ["a", "card"]),
+        (".card { :is(&) .b { color: red } }", ["b", "card"]),
+        (".card { :is(&) > .a { color: red } }", ["a", "card"]),
+        (".card { :where(&) .a { color: red } }", ["a", "card"]),
+    ] {
+        assert_eq!(scoped(SCOPE_MARKUP, rule), expected, "{rule}");
+    }
+}
+
+#[test]
+fn nesting_resolution_leaves_the_controls_alone() {
+    // `:not(&)` matches everything except the parent, so all three stay scoped —
+    // the axis is `&` inside `:is`/`:where`/`:has`, not nesting as such.
+    assert_eq!(
+        scoped(SCOPE_MARKUP, ".card { :not(&) { color: red } }"),
+        ["a", "b", "card"]
+    );
+    // A parent that matches nothing resolves `&` to nothing.
+    assert!(scoped(SCOPE_MARKUP, ".nope { :is(&) { color: red } }").is_empty());
+    // No parent to resolve against: `&` is kept as written.
+    assert_eq!(
+        scoped(SCOPE_MARKUP, ":is(&) { color: red }"),
+        ["a", "b", "card"]
+    );
+}
+
+#[test]
+fn has_of_the_parent_is_pruned_when_the_parent_is_not_a_descendant() {
+    // `:has(&)` under `.card` asks for a `.card` inside a `.card`.
+    for rule in [
+        ".card { :has(&) { color: red } }",
+        ".card { :has(&) .a { color: red } }",
+    ] {
+        let css = build(&styled(SCOPE_MARKUP, rule)).css;
+        assert!(
+            css.contains("(empty)") || css.contains("(unused)"),
+            "{rule} -> {css:?}"
+        );
+    }
+    // ...and kept when it is: a `.card` nested in a `.card`.
+    let nested = "<div class=\"card\" data-n=\"outer\"><div class=\"card\" data-n=\"inner\"><p class=\"a\" data-n=\"a\">x</p></div></div>";
+    let css = build(&styled(nested, ".card { :has(&) { color: red } }")).css;
+    assert!(!css.contains("(unused)"), "got {css:?}");
+}
+
+// ---------------------------------------------------------------------------
+// #3133 — a `:has()` inside a `:has()` argument
+// ---------------------------------------------------------------------------
+
+#[test]
+fn a_has_nested_in_a_has_argument_is_resolved_against_its_own_subject() {
+    // No descendant of `div.a` has a `.b` of its own, so the outer `:has()`
+    // never matches — the argument is not "a pseudo-class, therefore anything".
+    let src = styled(
+        "<div class=\"a\"><b class=\"b\">x</b></div>",
+        ".a:has(:has(.b)) { color: red }",
+    );
+    let out = build(&src);
+    assert!(out.css.contains("(unused)"), "got {:?}", out.css);
+    // ...and it is kept when one does.
+    let src = styled(
+        "<div class=\"a\"><div class=\"mid\"><b class=\"b\">x</b></div></div>",
+        ".a:has(:has(.b)) { color: red }",
+    );
+    assert!(!build(&src).css.contains("(unused)"));
 }
