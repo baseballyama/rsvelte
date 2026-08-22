@@ -670,39 +670,23 @@ fn recurse_into_children(
             }
         }
         TemplateNode::AwaitBlock(blk) => {
-            // When the pending block is whitespace-only AND there is a then/catch
-            // binding, the expression pass collapses the two headers into one
-            // (`{#await expr then value}`). Skip the pending fragment here so we
-            // don't emit a spurious blank-line edit inside the collapsed region.
-            // `await_pending_is_empty` returns false when pending is None (shorthand form)
-            // and true only when pending is Some but whitespace-only (expanded form to collapse).
-            // Mirror `try_collapse_await_header`'s collapse condition exactly so the
-            // two passes always agree on whether the pending block was collapsed.
-            let pending_collapsed = crate::expression::await_pending_is_empty(blk.pending.as_ref())
-                && ((blk.then.is_some() && blk.value.is_some())
-                    || (blk.catch.is_some() && blk.error.is_some()));
-            // When the pending block has real content but the `then` body is empty
-            // (and there's no catch), the expression pass strips the `{:then …}`
-            // separator entirely. Skip the then-body indent pass so we don't emit
-            // a spurious blank-line edit (`\n\n`) inside the erased region.
-            // Mirror `try_strip_await_then_separator`'s condition exactly.
-            let separator_stripped = !pending_collapsed
-                && blk.pending.is_some()
-                && blk.value.is_some()
-                && blk.catch.is_none()
-                && blk.then.as_ref().is_some_and(|f| {
-                    f.nodes.iter().all(|n| {
-                        matches!(n, rsvelte_core::ast::template::TemplateNode::Text(t)
-                            if crate::is_blank_text(t.data.as_ref()))
-                    })
-                });
-            if !pending_collapsed && let Some(frag) = &blk.pending {
+            // The expression pass erases whatever clauses the oracle drops, so
+            // indenting inside one of those regions would emit a blank-line edit
+            // into text that no longer exists. Both passes read the same plan.
+            let plan = crate::expression::plan_await_block(source, blk);
+            if plan.keep_pending
+                && let Some(frag) = &blk.pending
+            {
                 collect_indent_edits_inner(source, frag, next_depth, true, true, options, edits)?;
             }
-            if !separator_stripped && let Some(frag) = &blk.then {
+            if plan.keep_then
+                && let Some(frag) = &blk.then
+            {
                 collect_indent_edits_inner(source, frag, next_depth, true, true, options, edits)?;
             }
-            if let Some(frag) = &blk.catch {
+            if plan.keep_catch
+                && let Some(frag) = &blk.catch
+            {
                 collect_indent_edits_inner(source, frag, next_depth, true, true, options, edits)?;
             }
         }
