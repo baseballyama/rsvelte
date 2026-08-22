@@ -192,3 +192,73 @@ measurement rather than being folded into a fix for the two rows above.
 - **Corpus gate**: `pattern/issues/2573-ctor-private-derived-write.svelte.js` covers the two
   fixed rows on all three targets. Nothing in the collected corpus writes a private `$derived`
   field through any receiver — `known-failures.server.json` is `[]`.
+
+---
+
+## A removed `$inspect(…)` standing in an operand slot
+
+**Pinned by** `crates/rsvelte_core/tests/inspect_operand_slot_3441.rs`.
+**Reported upstream** in `upstream_issues/3441-svelte-inspect-in-an-operand-slot.md`.
+
+### Input
+
+`C.svelte`, `generate: 'client'` and `'server'`:
+
+```svelte
+<script>
+	let a = $state(1);
+	const t = $inspect(a);
+	const u = $inspect(a).with(console.log);
+	const o = [$inspect(a)];
+	console.log(t, u, o);
+</script>
+<b>{a}</b>
+```
+
+### Both outputs, measured against `submodules/svelte` @ `20b341f1` (`VERSION` 5.56.9)
+
+Upstream's `transform_inspect_rune` returns `b.empty` — an `EmptyStatement` — as the
+replacement **expression**. esrap elides an `EmptyStatement` only in a body position, so in
+an operand slot it prints its `;`.
+
+| slot | target | dev | official | parses | rsvelte | parses |
+|---|---|---|---|---|---|---|
+| `const t = $inspect(a)` | client | no | `const t = ;;` | **no** | `const t = undefined;` | yes |
+| `const t = $inspect(a)` | server | no | `const t = ;;` | **no** | `const t = undefined;` | yes |
+| `const o = [$inspect(a)]` | client | no | `const o = [;];` | **no** | `const o = [undefined];` | yes |
+| `const o = [$inspect(a)]` | server | no | `const o = [;];` | **no** | `const o = [undefined];` | yes |
+| `const u = $inspect(a).with(f)` | client | no | *(declarator dropped)* | yes | `const u = undefined;` | yes |
+| `const u = $inspect(a).with(f)` | server | no | `const u = console.log;` | yes | `const u = undefined;` | yes |
+| `const u = $inspect(a).with(f)` | server | yes | `const u = console.log;` | yes | `const u = (f)('init', a);` | yes |
+| `$inspect(a);` (statement) | both | both | `;;` | yes | same | yes |
+| `const t = $inspect(a)` | client | yes | `const t = $.inspect(…)` | yes | same | yes |
+| `const t = $inspect(a)` | server | yes | `const t = console.log('$inspect(', a, ')')` | yes | same | yes |
+
+The statement row and both `dev` rows are the **controls**: wherever upstream's own output is
+usable, rsvelte reproduces it byte for byte, and only the slots where it is not diverge.
+
+### Why `undefined` and not `;`
+
+The filler is the value the removed rune evaluates to. Outside `dev` the rune produces
+nothing, so the slot takes `undefined`; in `dev` the slot takes the lowering upstream itself
+emits (`console.log('$inspect(', args, ')')`, or `(fn)('init', args)` for the `.with()` form),
+which is why the two `dev` server rows above are parity and not a deviation. It is the same
+value `operand_expected_before()` writes for the sibling case in #3547.
+
+Leaving the call in place was the third option and is worse than both: `$inspect` is not a
+runtime import, so `const t = $inspect(a)` throws `ReferenceError` on the first render. That
+is what rsvelte did before this entry.
+
+`$inspect(…).with(fn)` diverges on the server in `dev` too, where official is parseable. It is
+listed as deviating rather than matched because `const u = console.log;` is upstream's
+allow-list fall-through taking the OUTER call's first argument — a value with no relation to
+the rune. Reproducing it would mean shipping a binding whose contents are an accident.
+
+### Why no gate sees it
+
+- **Corpus gate**: a `$inspect` whose result is *used* does not occur in the 12,523 collected
+  `.svelte` files — the rune returns nothing, so published code never reads it.
+- **Parse oracle**: it sees the four unparseable official cells, but the gate compares rsvelte
+  to official, and an entry listed for a divergence suppresses everything about that entry.
+- **Generated matrix**: `binding-position` varies the rune and the slot, but its `$inspect`
+  rows are all statement hosts, which is the one position upstream gets right.
