@@ -498,6 +498,31 @@ fn count_export_keyword(all: &[Comment], exp_start: u32, decl_start: u32) {
 /// Parse + lower a single RUNES-mode script into transformed top-level
 /// statements. `import_sink` receives instance-script imports to hoist (`None`
 /// for module).
+/// Phase 1 already accepted the script, so a rejection by the classification
+/// parse means the TypeScript eraser produced text that is not JavaScript.
+/// Returning an empty body there would ship a component whose `<script>`
+/// silently did nothing — output that still parses, so no gate can see it.
+fn record_classification_failure(
+    state: &ServerTransformState<'_>,
+    is_instance: bool,
+    diagnostics: &[oxc_diagnostics::OxcDiagnostic],
+) {
+    let mut slot = state.reparse_failure.borrow_mut();
+    if slot.is_some() {
+        return;
+    }
+    *slot = Some(format!(
+        "server {} script classification parse rejected the erased source ({} diagnostics): {}",
+        if is_instance { "instance" } else { "module" },
+        diagnostics.len(),
+        diagnostics
+            .iter()
+            .map(|d| d.message.to_string())
+            .collect::<Vec<_>>()
+            .join("; ")
+    ));
+}
+
 fn transform_script<'a>(
     script: &Script,
     state: &mut ServerTransformState<'a>,
@@ -544,6 +569,7 @@ fn transform_script<'a>(
     let owned = alloc.alloc_str(src);
     let ret = oxc_parser::Parser::new(&alloc, owned, oxc_span::SourceType::mjs()).parse();
     if !ret.diagnostics.is_empty() {
+        record_classification_failure(state, is_instance, &ret.diagnostics);
         return Vec::new();
     }
 
@@ -3057,6 +3083,7 @@ fn transform_script_legacy<'a>(
     let owned = alloc.alloc_str(src);
     let ret = oxc_parser::Parser::new(&alloc, owned, oxc_span::SourceType::mjs()).parse();
     if !ret.diagnostics.is_empty() {
+        record_classification_failure(state, is_instance, &ret.diagnostics);
         return Vec::new();
     }
 
