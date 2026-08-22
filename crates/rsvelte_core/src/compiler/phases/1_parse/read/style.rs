@@ -47,6 +47,27 @@ fn has_non_css_lang<'a>(attributes: &[crate::ast::Attribute<'a>]) -> bool {
 // Public API
 // ============================================================================
 
+/// Where the `<an+b> of <selector>` keyword ends inside an `:nth-*()` argument.
+///
+/// The space after `of` is optional when the selector begins with a token that
+/// already ends the identifier, which is what minifiers emit.
+fn find_nth_of_split(trimmed: &str) -> Option<usize> {
+    let bytes = trimmed.as_bytes();
+    let mut from = 0;
+
+    while let Some(rel) = memmem::find(&bytes[from..], b" of") {
+        let at = from + rel;
+        match bytes.get(at + 3) {
+            Some(b' ') => return Some(at + 4),
+            Some(b'.' | b'#' | b'[' | b'*' | b':' | b'&') => return Some(at + 3),
+            _ => {}
+        }
+        from = at + 1;
+    }
+
+    None
+}
+
 /// Parse CSS content and return the children array for StyleSheet.
 pub fn parse_css(content: &str, offset: usize) -> Vec<Value> {
     let mut parser = CssParser::new(content, offset);
@@ -1995,10 +2016,11 @@ impl<'a> SelectorParser<'a> {
                 // Universal selector
                 let start = self.offset + self.index;
                 self.advance();
-                // `*|el` — `*` is the namespace, so the local name wins.
                 let mut name = "*".to_string();
+                let mut namespace: Option<String> = None;
                 if self.current_char() == '|' {
                     self.advance();
+                    namespace = Some(name.clone());
                     match self.read_namespaced_local_name() {
                         Some(local) => name = local,
                         None => break,
@@ -2012,6 +2034,9 @@ impl<'a> SelectorParser<'a> {
                     Value::String("TypeSelector".to_string()),
                 );
                 obj.insert("name".to_string(), Value::String(name));
+                if let Some(namespace) = namespace {
+                    obj.insert("namespace".to_string(), Value::String(namespace));
+                }
                 obj.insert("start".to_string(), Value::Number((start as i64).into()));
                 obj.insert("end".to_string(), Value::Number((end as i64).into()));
                 selectors.push(Value::Object(obj));
@@ -2260,14 +2285,13 @@ impl<'a> SelectorParser<'a> {
                 let leading_ws = content.len() - content.trim_start_ws().len();
                 let nth_start = args_start + leading_ws;
 
-                // Check for 'of ' keyword to split An+B from selector
-                let (nth_value, selector_part, nth_end_pos) = if let Some(of_pos) =
-                    memmem::find(trimmed.as_bytes(), b" of ")
+                // Check for the `of` keyword to split An+B from selector
+                let (nth_value, selector_part, nth_end_pos) = if let Some(split) =
+                    find_nth_of_split(trimmed)
                 {
-                    // Split at ' of ' - include the ' of ' in the Nth value
-                    let nth_val = &trimmed[..of_pos + 4]; // Include ' of '
-                    let sel_part = &trimmed[of_pos + 4..];
-                    let end_pos = nth_start + of_pos + 4;
+                    let nth_val = &trimmed[..split];
+                    let sel_part = &trimmed[split..];
+                    let end_pos = nth_start + split;
                     (nth_val, Some((sel_part, end_pos)), end_pos)
                 } else {
                     // Check if it's a valid An+B expression or just a selector
@@ -2333,10 +2357,6 @@ impl<'a> SelectorParser<'a> {
                     }
                 };
 
-                // Build the selectors array
-                let mut selectors = Vec::new();
-
-                // Add Nth object
                 let mut nth_obj = Map::new();
                 nth_obj.insert("type".to_string(), Value::String("Nth".to_string()));
                 nth_obj.insert("value".to_string(), Value::String(nth_value.to_string()));
@@ -2348,68 +2368,81 @@ impl<'a> SelectorParser<'a> {
                     "end".to_string(),
                     Value::Number((nth_end_pos as i64).into()),
                 );
-                selectors.push(Value::Object(nth_obj));
+                let nth_node = Value::Object(nth_obj);
 
-                // Parse selector part if present
-                if let Some((sel_text, sel_start)) = selector_part {
-                    let mut sel_parser = self.nested(sel_text, sel_start);
-                    let mut parsed = Vec::new();
-                    sel_parser.parse_selectors(&mut parsed);
-                    self.absorb_nesting_error(&sel_parser);
-                    selectors.extend(parsed);
-                }
-
-                // Get the actual end position
                 let trailing_ws = content.len() - content.trim_end_ws().len();
                 let actual_end = self.offset + content_end - trailing_ws;
+                let nth_start_value = Value::Number((nth_start as i64).into());
 
-                // Wrap in RelativeSelector
-                let mut rel_sel = Map::new();
-                rel_sel.insert(
-                    "type".to_string(),
-                    Value::String("RelativeSelector".to_string()),
-                );
-                rel_sel.insert("combinator".to_string(), Value::Null);
-                rel_sel.insert("selectors".to_string(), Value::Array(selectors));
-                rel_sel.insert(
-                    "start".to_string(),
-                    Value::Number((nth_start as i64).into()),
-                );
-                rel_sel.insert("end".to_string(), Value::Number((actual_end as i64).into()));
+                if let Some((sel_text, sel_start)) = selector_part {
+                    // `of S` is a full selector list; the Nth token joins the first
+                    // compound of its first complex selector.
+                    let mut sel_list =
+                        self.parse_args_selector_list(sel_text, sel_start, actual_end);
+                    if let Some(first) = sel_list
+                        .get_mut("children")
+                        .and_then(Value::as_array_mut)
+                        .and_then(|c| c.first_mut())
+                    {
+                        if let Some(rel) = first
+                            .get_mut("children")
+                            .and_then(Value::as_array_mut)
+                            .and_then(|c| c.first_mut())
+                            .and_then(Value::as_object_mut)
+                        {
+                            rel.insert("start".to_string(), nth_start_value.clone());
+                            if let Some(selectors) =
+                                rel.get_mut("selectors").and_then(Value::as_array_mut)
+                            {
+                                selectors.insert(0, nth_node);
+                            }
+                        }
+                        if let Some(first) = first.as_object_mut() {
+                            first.insert("start".to_string(), nth_start_value.clone());
+                        }
+                    }
+                    if let Some(list) = sel_list.as_object_mut() {
+                        list.insert("start".to_string(), nth_start_value);
+                    }
+                    Some(sel_list)
+                } else {
+                    let mut rel_sel = Map::new();
+                    rel_sel.insert(
+                        "type".to_string(),
+                        Value::String("RelativeSelector".to_string()),
+                    );
+                    rel_sel.insert("combinator".to_string(), Value::Null);
+                    rel_sel.insert("selectors".to_string(), Value::Array(vec![nth_node]));
+                    rel_sel.insert("start".to_string(), nth_start_value.clone());
+                    rel_sel.insert("end".to_string(), Value::Number((actual_end as i64).into()));
 
-                // Wrap in ComplexSelector
-                let mut complex_sel = Map::new();
-                complex_sel.insert(
-                    "type".to_string(),
-                    Value::String("ComplexSelector".to_string()),
-                );
-                complex_sel.insert(
-                    "start".to_string(),
-                    Value::Number((nth_start as i64).into()),
-                );
-                complex_sel.insert("end".to_string(), Value::Number((actual_end as i64).into()));
-                complex_sel.insert(
-                    "children".to_string(),
-                    Value::Array(vec![Value::Object(rel_sel)]),
-                );
+                    let mut complex_sel = Map::new();
+                    complex_sel.insert(
+                        "type".to_string(),
+                        Value::String("ComplexSelector".to_string()),
+                    );
+                    complex_sel.insert("start".to_string(), nth_start_value.clone());
+                    complex_sel
+                        .insert("end".to_string(), Value::Number((actual_end as i64).into()));
+                    complex_sel.insert(
+                        "children".to_string(),
+                        Value::Array(vec![Value::Object(rel_sel)]),
+                    );
 
-                // Wrap in SelectorList
-                let mut sel_list = Map::new();
-                sel_list.insert(
-                    "type".to_string(),
-                    Value::String("SelectorList".to_string()),
-                );
-                sel_list.insert(
-                    "start".to_string(),
-                    Value::Number((nth_start as i64).into()),
-                );
-                sel_list.insert("end".to_string(), Value::Number((actual_end as i64).into()));
-                sel_list.insert(
-                    "children".to_string(),
-                    Value::Array(vec![Value::Object(complex_sel)]),
-                );
+                    let mut sel_list = Map::new();
+                    sel_list.insert(
+                        "type".to_string(),
+                        Value::String("SelectorList".to_string()),
+                    );
+                    sel_list.insert("start".to_string(), nth_start_value);
+                    sel_list.insert("end".to_string(), Value::Number((actual_end as i64).into()));
+                    sel_list.insert(
+                        "children".to_string(),
+                        Value::Array(vec![Value::Object(complex_sel)]),
+                    );
 
-                Some(Value::Object(sel_list))
+                    Some(Value::Object(sel_list))
+                }
             } else {
                 // Calculate trimmed content positions (strip whitespace and leading comments)
                 let mut trimmed = content.trim_ws();
@@ -3029,9 +3062,10 @@ impl<'a> SelectorParser<'a> {
             return None;
         }
 
-        // `ns|el` — the namespace is dropped and the local name is the selector.
+        let mut namespace: Option<String> = None;
         if self.current_char() == '|' {
             self.advance();
+            namespace = Some(name);
             name = self.read_namespaced_local_name()?;
         }
 
@@ -3043,6 +3077,9 @@ impl<'a> SelectorParser<'a> {
             Value::String("TypeSelector".to_string()),
         );
         obj.insert("name".to_string(), Value::String(name));
+        if let Some(namespace) = namespace {
+            obj.insert("namespace".to_string(), Value::String(namespace));
+        }
         obj.insert("start".to_string(), Value::Number((start as i64).into()));
         obj.insert("end".to_string(), Value::Number((end as i64).into()));
 
@@ -3053,6 +3090,10 @@ impl<'a> SelectorParser<'a> {
     /// reads with the same `read_identifier` — so an empty one is an error.
     fn read_namespaced_local_name(&mut self) -> Option<String> {
         let pos = self.offset + self.index;
+        if self.current_char() == '*' {
+            self.advance();
+            return Some("*".to_string());
+        }
         let local = self.read_identifier();
         if local.is_empty() {
             record_first_error(
@@ -3119,20 +3160,16 @@ impl<'a> SelectorParser<'a> {
         }
     }
 
-    /// Read a CSS identifier, handling CSS escape sequences.
-    ///
-    /// CSS escape sequences:
-    /// - `\XXXXXX` where X are hex digits (1-6 digits) - represents a unicode code point
-    /// - After hex digits, an optional single whitespace (space/tab/newline) terminates the escape
-    /// - `\c` where c is any non-hex character - represents the literal character c
+    /// Read a CSS identifier, decoding escape sequences the way the official
+    /// `read_identifier` does: a hex sequence becomes the character it denotes,
+    /// a single-character escape is carried through verbatim.
     fn read_identifier(&mut self) -> String {
-        let start = self.index;
+        let mut identifier = String::new();
 
         while !self.is_eof() {
             let c = self.current_char();
 
             if c == '\\' {
-                // CSS escape sequence
                 self.advance(); // consume '\'
 
                 if self.is_eof() {
@@ -3142,40 +3179,48 @@ impl<'a> SelectorParser<'a> {
                 let next = self.current_char();
 
                 if next.is_ascii_hexdigit() {
-                    // Read 1-6 hex digits
-                    let mut hex_count = 0;
-                    while !self.is_eof() && hex_count < 6 {
+                    let mut hex = String::new();
+                    while !self.is_eof() && hex.len() < 6 {
                         let hc = self.current_char();
                         if !hc.is_ascii_hexdigit() {
                             break;
                         }
+                        hex.push(hc);
                         self.advance();
-                        hex_count += 1;
                     }
-                    // After hex digits, optionally consume one whitespace character
-                    // but this whitespace is part of the escape and should be preserved
+                    match u32::from_str_radix(&hex, 16).ok().and_then(char::from_u32) {
+                        // A decoded backslash stays escaped, or the name reads back as
+                        // the opening of another escape sequence.
+                        Some('\\') => identifier.push_str("\\\\"),
+                        Some(ch) => identifier.push(ch),
+                        None => {}
+                    }
                     if !self.is_eof() {
                         let after = self.current_char();
-                        if after == ' ' || after == '\t' || after == '\n' || after == '\r' {
+                        if after == '\r' {
+                            self.advance();
+                            if self.current_char() == '\n' {
+                                self.advance();
+                            }
+                        } else if is_js_whitespace(after) {
                             self.advance();
                         }
                     }
                 } else {
-                    // Escape of a single non-hex character (e.g., \. means literal .)
+                    identifier.push('\\');
+                    identifier.push(next);
                     self.advance();
                 }
-            } else if c.is_alphanumeric() || c == '-' || c == '_' || (c as u32) >= 160 {
-                // Mirror the official `read_identifier` valid-character set:
-                // `[a-zA-Z0-9_-]` plus every code point >= 160 (CSS treats those
-                // as identifier characters, e.g. `×` is a valid type-selector
-                // name). Without the `>= 160` branch a non-alphanumeric code
-                // point >= 160 yields an empty identifier and spins the caller.
+            } else if c.is_ascii_alphanumeric() || c == '-' || c == '_' || (c as u32) >= 160 {
+                // Mirror the official valid-character set: `[a-zA-Z0-9_-]` plus every
+                // code point >= 160, which CSS treats as identifier characters.
+                identifier.push(c);
                 self.advance();
             } else {
                 break;
             }
         }
 
-        self.source[start..self.index].to_string()
+        identifier
     }
 }
