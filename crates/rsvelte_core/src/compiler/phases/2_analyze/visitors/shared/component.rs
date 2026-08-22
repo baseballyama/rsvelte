@@ -253,8 +253,10 @@ pub fn visit_component<'a, 'b: 'a>(
     // For now, just visit the fragment normally
     // Set is_direct_child_of_component for svelte:fragment validation
     let was_direct_child = context.is_direct_child_of_component;
+    let was_slot_host = context.is_direct_child_of_slot_host;
     let was_direct_snippet = context.is_direct_child_of_snippet;
     context.is_direct_child_of_component = true;
+    context.is_direct_child_of_slot_host = true;
     context.is_direct_child_of_snippet = false;
     // Track component depth for slot attribute validation
     context.component_depth += 1;
@@ -296,6 +298,7 @@ pub fn visit_component<'a, 'b: 'a>(
     context.component_depth -= 1;
     context.svelte_self_parent_depth -= 1;
     context.is_direct_child_of_component = was_direct_child;
+    context.is_direct_child_of_slot_host = was_slot_host;
     context.is_direct_child_of_snippet = was_direct_snippet;
 
     Ok(())

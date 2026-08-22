@@ -874,8 +874,10 @@ pub fn visit<'a, 'b: 'a>(
 
     // Clear is_direct_child_of_component since we're now inside an element
     let was_direct_child = context.is_direct_child_of_component;
+    let was_slot_host = context.is_direct_child_of_slot_host;
     let was_direct_snippet = context.is_direct_child_of_snippet;
     context.is_direct_child_of_component = false;
+    context.is_direct_child_of_slot_host = false;
     context.is_direct_child_of_snippet = false;
 
     // Push fragment owner type for const_tag placement validation
@@ -1092,6 +1094,7 @@ pub fn visit<'a, 'b: 'a>(
 
     // Restore is_direct_child_of_component
     context.is_direct_child_of_component = was_direct_child;
+    context.is_direct_child_of_slot_host = was_slot_host;
     context.is_direct_child_of_snippet = was_direct_snippet;
 
     // Pop from each_block_stack

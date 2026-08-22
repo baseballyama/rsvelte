@@ -126,7 +126,19 @@ pub fn visit<'a, 'b: 'a>(
     context
         .fragment_owner_stack
         .push(super::FragmentOwnerType::SvelteSelf);
+    // Upstream's `slot` rule widens its host list to `SvelteSelf`; its
+    // `<svelte:fragment>` rule does not, so only the slot flag is set.
+    let was_slot_host = context.is_direct_child_of_slot_host;
+    let was_direct_child = context.is_direct_child_of_component;
+    context.is_direct_child_of_slot_host = true;
+    context.is_direct_child_of_component = false;
+    context
+        .slot_owner_ancestors
+        .push(super::SlotOwnerType::Component);
     let result = fragment::analyze(&mut self_.fragment, context);
+    context.slot_owner_ancestors.pop();
+    context.is_direct_child_of_slot_host = was_slot_host;
+    context.is_direct_child_of_component = was_direct_child;
     context.fragment_owner_stack.pop();
     context.scope = saved_scope;
     result?;

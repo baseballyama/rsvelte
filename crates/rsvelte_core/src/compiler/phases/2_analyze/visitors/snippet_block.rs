@@ -123,12 +123,19 @@ pub fn visit<'a, 'b: 'a>(
     // which `validate_slot_attribute` treats specially (a `slot="…"` text attribute
     // there is allowed). Nested elements/blocks reset this flag.
     let was_direct_snippet = context.is_direct_child_of_snippet;
+    let was_direct_child = context.is_direct_child_of_component;
+    let was_slot_host = context.is_direct_child_of_slot_host;
     context.is_direct_child_of_snippet = true;
+    context.is_direct_child_of_component = false;
+    context.is_direct_child_of_slot_host = false;
 
     // Analyze the body
-    fragment::analyze(&mut block.body, context)?;
+    let result = fragment::analyze(&mut block.body, context);
 
     context.is_direct_child_of_snippet = was_direct_snippet;
+    context.is_direct_child_of_component = was_direct_child;
+    context.is_direct_child_of_slot_host = was_slot_host;
+    result?;
 
     // Restore parent_element and scope
     context.parent_element = old_parent_element;
