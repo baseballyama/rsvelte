@@ -354,6 +354,11 @@ pub struct Binding {
     /// compiler's behavior where snippet blocks (declared with DeclarationKind::Function) are
     /// NOT considered functions since their initial type is SnippetBlock.
     pub initial_is_function: bool,
+    /// Whether this binding is a function declaration WITH a body. TypeScript
+    /// lets a name carry any number of body-less overload signatures, so the
+    /// duplicate check has to be about implementations rather than about the
+    /// `function` keyword.
+    pub is_function_implementation: bool,
     /// The AST node type of the initial value expression (e.g., "BinaryExpression", "Literal").
     /// Used by should_proxy() to determine if an identifier's initial value needs deep reactivity.
     pub initial_node_type: Option<String>,
@@ -463,6 +468,7 @@ impl Binding {
             init_expr_json: None,
             initial_is_defined: false,
             initial_is_function: false,
+            is_function_implementation: false,
             initial_node_type: None,
             initial_identifier_name: None,
             init_rune: None,
@@ -502,6 +508,7 @@ impl Binding {
             init_expr_json: None,
             initial_is_defined: false,
             initial_is_function: false,
+            is_function_implementation: false,
             initial_node_type: None,
             initial_identifier_name: None,
             init_rune: None,
