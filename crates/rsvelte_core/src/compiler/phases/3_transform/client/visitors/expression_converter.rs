@@ -2281,14 +2281,20 @@ fn should_proxy_json(value: &Value) -> bool {
     }
 }
 
-/// Whether `value` is a direct `$state(...)` call — the only initializer shape
-/// `create_state_declarator` labels.
+/// Whether `value` is a direct rune call whose declarator NAME the lowering
+/// needs: `$state` / `$state.raw` decide `$.state` vs a bare value from the
+/// binding, and all four label their signal with `$.tag(…, name)` in dev.
 fn is_state_rune_call(value: &Value, context: &ComponentContext) -> bool {
     value
         .as_object()
         .filter(|obj| obj.get("type").and_then(|t| t.as_str()) == Some("CallExpression"))
         .and_then(|obj| get_rune_from_call(obj, context))
-        .is_some_and(|rune| rune == "$state")
+        .is_some_and(|rune| is_named_declarator_rune(&rune))
+}
+
+/// The runes whose declarator name reaches [`transform_rune_call`].
+fn is_named_declarator_rune(rune: &str) -> bool {
+    matches!(rune, "$state" | "$state.raw" | "$derived" | "$derived.by")
 }
 
 /// Typed counterpart of [`is_state_rune_call`].
@@ -2298,7 +2304,54 @@ fn is_state_rune_call_jsnode(node: &JsNode, pa: &ParseArena, context: &Component
     };
     let callee_node = pa.get_js_node(*callee);
     is_potential_rune_call(callee_node, context)
-        && get_rune_from_call_jsnode(callee_node, pa, context).is_some_and(|rune| rune == "$state")
+        && get_rune_from_call_jsnode(callee_node, pa, context)
+            .is_some_and(|rune| is_named_declarator_rune(&rune))
+}
+
+/// `$.tag(signal, name)` in dev — upstream labels every declared signal with the
+/// name it is bound to.
+fn tag_declared_signal(
+    signal: JsExpr,
+    declarator: Option<&str>,
+    context: &mut ComponentContext,
+) -> JsExpr {
+    match declarator {
+        Some(name) if context.state.dev => JsExpr::Call(JsCallExpression {
+            callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
+                property: JsMemberProperty::Identifier("tag".into()),
+                computed: false,
+                optional: false,
+            })),
+            arguments: vec![signal, JsExpr::Literal(JsLiteral::String(name.into()))],
+            optional: false,
+        }),
+        _ => signal,
+    }
+}
+
+/// `$.state(value)` — plus `$.tag(…, name)` in dev — when the declared binding
+/// is a state SOURCE, mirroring the tail of upstream's `create_state_declarator`.
+fn wrap_state_source(
+    value: JsExpr,
+    is_state: bool,
+    declarator: Option<&str>,
+    context: &mut ComponentContext,
+) -> JsExpr {
+    if !is_state {
+        return value;
+    }
+    let sourced = JsExpr::Call(JsCallExpression {
+        callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+            object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
+            property: JsMemberProperty::Identifier("state".into()),
+            computed: false,
+            optional: false,
+        })),
+        arguments: vec![value],
+        optional: false,
+    });
+    tag_declared_signal(sourced, declarator, context)
 }
 
 /// Transform a rune call expression.
@@ -2343,34 +2396,54 @@ fn transform_rune_call(
         }
 
         "$state" | "$state.raw" => {
-            // In template context (event handlers, etc.), $state() is used for local variables
-            // that don't need reactive tracking. We only need $.proxy() for deep reactivity.
+            // Upstream's `create_state_declarator` (client VariableDeclaration.js):
+            // `$.proxy(v)` when the value needs proxying, then `$.state(...)` on top
+            // when `is_state_source` — which in runes mode means the binding is
+            // reassigned. A declaration inside a template expression's function body
+            // is the same declaration, so it gets the same answer; treating it as a
+            // plain local left `x = 1` next to a `$.set(x, 2)` that sets a non-signal.
             //
-            // For script-level $state declarations, the transformation is handled by
-            // `transform_client_runes_with_skip_and_state` in mod.rs, which uses $.state()
-            // for reactive tracking when needed.
-            //
-            // $state(value) -> $.proxy(value) for objects/arrays, or just value for primitives
-            // $state.raw(value) -> value (no proxy needed)
-            let arg = arguments.first();
+            // For script-level `$state` declarations the transformation is handled by
+            // `transform_client_runes_with_skip_and_state` in mod.rs.
+            let declarator = context.state.state_declarator_name.take();
+            let is_state = declarator.as_deref().is_some_and(|name| {
+                context.state.get_binding(name).is_some_and(|binding| {
+                    crate::compiler::phases::phase3_transform::client::utils::is_state_source(
+                        binding,
+                        context.state.analysis,
+                    )
+                })
+            });
 
-            if let Some(arg_value) = arg {
-                let converted = convert_json_value(arg_value, context);
+            let Some(arg_value) = arguments.first() else {
+                // No argument - use undefined
+                return wrap_state_source(
+                    JsExpr::Identifier("undefined".into()),
+                    is_state,
+                    declarator.as_deref(),
+                    context,
+                );
+            };
 
-                // For $state (not $state.raw), wrap with $.proxy() if the value is an object/array
-                if rune == "$state" && should_proxy_json(arg_value) {
-                    let proxied = JsExpr::Call(JsCallExpression {
-                        callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
-                            object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
-                            property: JsMemberProperty::Identifier("proxy".into()),
-                            computed: false,
-                            optional: false,
-                        })),
-                        arguments: vec![converted],
+            let converted = convert_json_value(arg_value, context);
+
+            // For $state (not $state.raw), wrap with $.proxy() if the value is an object/array
+            let value = if rune == "$state" && should_proxy_json(arg_value) {
+                let proxied = JsExpr::Call(JsCallExpression {
+                    callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
+                        object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
+                        property: JsMemberProperty::Identifier("proxy".into()),
+                        computed: false,
                         optional: false,
-                    });
-                    match context.state.state_declarator_name.take() {
-                        Some(name) if context.state.dev => JsExpr::Call(JsCallExpression {
+                    })),
+                    arguments: vec![converted],
+                    optional: false,
+                });
+                // `$.tag_proxy` labels a proxy that is NOT also a source; a source
+                // gets its label from the `$.tag` below instead.
+                match declarator.as_deref() {
+                    Some(name) if context.state.dev && !is_state => {
+                        JsExpr::Call(JsCallExpression {
                             callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
                                 object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                                 property: JsMemberProperty::Identifier("tag_proxy".into()),
@@ -2382,17 +2455,16 @@ fn transform_rune_call(
                                 JsExpr::Literal(JsLiteral::String(name.into())),
                             ],
                             optional: false,
-                        }),
-                        _ => proxied,
+                        })
                     }
-                } else {
-                    // Primitives or $state.raw: just return the value as-is
-                    converted
+                    _ => proxied,
                 }
             } else {
-                // No argument - use undefined
-                JsExpr::Identifier("undefined".into())
-            }
+                // Primitives or $state.raw: just the value
+                converted
+            };
+
+            wrap_state_source(value, is_state, declarator.as_deref(), context)
         }
 
         "$state.snapshot" => {
@@ -2429,7 +2501,8 @@ fn transform_rune_call(
         "$derived" => {
             // $derived(expr) -> $.derived(() => expr), with unthunk optimization:
             // if expr is a simple 0-arg call, pass the callee directly: $.derived(value)
-            if let Some(arg) = arguments.first() {
+            let declarator = context.state.state_declarator_name.take();
+            let call = if let Some(arg) = arguments.first() {
                 let converted = convert_json_value(arg, context);
                 // Apply thunk with unthunk optimization
                 let thunk = crate::compiler::phases::phase3_transform::js_ast::builders::thunk(
@@ -2459,17 +2532,19 @@ fn transform_rune_call(
                     arguments: vec![],
                     optional: false,
                 })
-            }
+            };
+            tag_declared_signal(call, declarator.as_deref(), context)
         }
 
         "$derived.by" => {
             // $derived.by(fn) -> $.derived(fn)
+            let declarator = context.state.state_declarator_name.take();
             let converted_args: Vec<JsExpr> = arguments
                 .iter()
                 .map(|arg| convert_json_value(arg, context))
                 .collect();
 
-            JsExpr::Call(JsCallExpression {
+            let call = JsExpr::Call(JsCallExpression {
                 callee: context.arena.alloc_expr(JsExpr::Member(JsMemberExpression {
                     object: context.arena.alloc_expr(JsExpr::Identifier("$".into())),
                     property: JsMemberProperty::Identifier("derived".into()),
@@ -2478,7 +2553,8 @@ fn transform_rune_call(
                 })),
                 arguments: converted_args,
                 optional: false,
-            })
+            });
+            tag_declared_signal(call, declarator.as_deref(), context)
         }
 
         "$effect" | "$effect.pre" => {

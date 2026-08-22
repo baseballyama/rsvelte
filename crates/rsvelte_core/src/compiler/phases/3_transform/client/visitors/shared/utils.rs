@@ -90,6 +90,35 @@ impl LocalScope {
     }
 }
 
+/// Is `expr` a `$.state(…)` / `$.derived(…)` call — the two shapes a lowered
+/// rune declaration produces, and the only ones that make a local a signal?
+/// `$.tag(…)` wraps either of them in dev mode.
+fn is_signal_source_call(
+    expr: &JsExpr,
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+) -> bool {
+    let JsExpr::Call(call) = expr else {
+        return false;
+    };
+    let JsExpr::Member(member) = arena.get_expr(call.callee) else {
+        return false;
+    };
+    if !matches!(arena.get_expr(member.object), JsExpr::Identifier(o) if o.as_str() == "$") {
+        return false;
+    }
+    let JsMemberProperty::Identifier(property) = &member.property else {
+        return false;
+    };
+    match property.as_str() {
+        "state" | "derived" => true,
+        "tag" => call
+            .arguments
+            .first()
+            .is_some_and(|arg| is_signal_source_call(arg, arena)),
+        _ => false,
+    }
+}
+
 /// Classify a JsExpr into a JsExprKind for proxy decisions.
 fn classify_expr(expr: &JsExpr) -> JsExprKind {
     match expr {
@@ -205,6 +234,18 @@ fn register_block_local_vars(
         if let JsStatement::VariableDeclaration(var_decl) = stmt {
             for decl in &var_decl.declarations {
                 if let JsPattern::Identifier(name) = &decl.id {
+                    // A local the converter just turned into a signal
+                    // (`let x = $.state(…)` / `$.derived(…)`, from a rune written
+                    // inside a template expression's function body) is not a plain
+                    // shadow: its reads still have to go through `$.get`. Only a
+                    // local that shadows an outer transform gets registered here.
+                    if decl
+                        .init
+                        .as_ref()
+                        .is_some_and(|init| is_signal_source_call(arena.get_expr(*init), arena))
+                    {
+                        continue;
+                    }
                     let init_kind = decl
                         .init
                         .as_ref()

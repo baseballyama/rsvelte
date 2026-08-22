@@ -1,0 +1,5 @@
+---
+"@rsvelte/compiler": patch
+---
+
+Three fixes to what counts as a rune. A rune's name used as a member property or as a method name is no longer lowered as the rune (`o.$derived(1)` stayed `o.$.derived(() => 1)`, `o.$effect(fn)` and `o.$inspect(v)` were deleted outright leaving text no JS parser accepts, and `class C { $derived(v) {} }` had its declaration rewritten). A rune name spelled with a unicode escape is now the rune the parser sees, so `$state(1)` lowers instead of leaving an unresolved reference that throws at import, `$state(1)` is no longer rejected as the unknown global `$st`, and `$props()` turns runes mode on instead of raising `rune_invalid_usage`. And a `$state` / `$derived` declared inside a function body that lives in a template expression is lowered the way the same declaration inside `<script>` is — a reassigned one becomes a `$.state(...)` source whose reads go through `$.get`, where before the declaration emitted a plain value next to a `$.set` that set a non-signal.

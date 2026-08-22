@@ -93,7 +93,7 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::LazyLock;
 
-use crate::compiler::phases::phase3_transform::shared::js_scan::{find_code, skip_opaque};
+use crate::compiler::phases::phase3_transform::shared::js_scan::{find_rune_call, skip_opaque};
 use compact_str::CompactString;
 use memchr::memmem;
 // rustc_hash is used by submodules via their own imports
@@ -4398,7 +4398,7 @@ fn transform_module_script_runes_with_target(
     // In non-dev mode, remove $inspect.trace(...) statements from module scripts.
     // Mirrors the same logic in rune_transforms.rs for instance scripts.
     if !dev {
-        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect.trace(") {
+        while let Some(pos) = find_rune_call(result.as_bytes(), b"$inspect.trace(") {
             let trace_start = pos + b"$inspect.trace(".len();
             if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
                 let mut end = trace_start + content_end + 1;
@@ -4423,7 +4423,7 @@ fn transform_module_script_runes_with_target(
     // return b.empty`. The component-instance path handles this in rune_transforms.rs;
     // module scripts use this dedicated loop.
     if !dev {
-        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect(") {
+        while let Some(pos) = find_rune_call(result.as_bytes(), b"$inspect(") {
             let inspect_start = pos + b"$inspect(".len();
             if let Some(content_end) = find_matching_paren(&result[inspect_start..]) {
                 let after_call = &result[inspect_start + content_end + 1..];
@@ -4604,10 +4604,10 @@ fn transform_module_script_runes_with_target(
             result = rewritten;
         }
     }
-    // `find_code`, not `memmem::find`: the AST batch above leaves a `$state(`
-    // that sits in a string / template / regex / comment untouched, and this
-    // fallback would otherwise rewrite that text as if it were a call (#2988).
-    while let Some(pos) = find_code(result.as_bytes(), b"$state(") {
+    // `find_rune_call`, not `memmem::find`: the AST batch above leaves a
+    // `$state(` that sits in a string / template / regex / comment untouched
+    // (#2988), and `o.$state(1)` / `x$state(1)` are not the rune at all (#3235).
+    while let Some(pos) = find_rune_call(result.as_bytes(), b"$state(") {
         // Make sure this is not $state.something
         if pos + 7 < result.len() && result.as_bytes()[pos + 6] != b'(' {
             break;
@@ -4732,11 +4732,13 @@ fn transform_module_script_runes_with_target(
     ) {
         result = rewritten;
     }
-    // `find_code`, not `memmem::find`: a `$derived(` inside a string / template
-    // / regex / comment is text. Matching it either rewrote the literal (#2988)
-    // or aborted the loop on its unbalanced parens, leaving the real rune call
-    // unlowered and the module referencing a global `$derived` (#2987).
-    while let Some(pos) = find_code(result.as_bytes(), b"$derived(") {
+    // `find_rune_call`, not `memmem::find`: a `$derived(` inside a string /
+    // template / regex / comment is text. Matching it either rewrote the literal
+    // (#2988) or aborted the loop on its unbalanced parens, leaving the real rune
+    // call unlowered and the module referencing a global `$derived` (#2987). A
+    // `$derived` after a `.` is a property, and after an identifier char it is
+    // one longer identifier (#3235).
+    while let Some(pos) = find_rune_call(result.as_bytes(), b"$derived(") {
         if result[..pos].ends_with('$') {
             // Already transformed to $.derived() - skip
             break;
