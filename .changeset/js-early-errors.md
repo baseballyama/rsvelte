@@ -1,0 +1,5 @@
+---
+'@rsvelte/compiler': patch
+---
+
+Reject the JavaScript early errors acorn raises while parsing and OXC settles after it — a duplicate constructor, `super()` or `super.x` outside a method, an unsyntactic `break` / `continue`, a duplicate label, an undeclared or duplicated `#private` name, `import` / `export` below the top level, and a duplicate declaration (`function f(){} function f(){}`, `let x; let x;`, `function f(){} let f;`). All of them compiled, and every one of them emitted text no JS parser accepts, because the illegal construct was copied through verbatim. The message and the position now follow acorn, which stops at the *re*declaration where OXC labels the declaration, and at the `break` / `continue` keyword where OXC labels the jump's target. A TypeScript overload set, an interface merge and a constructor overload are unaffected, and the analyze-phase `declaration_duplicate` still covers the two cases acorn cannot see: a template declaration, and a collision between the module and instance scripts

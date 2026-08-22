@@ -606,6 +606,34 @@ abort with a stack overflow, which reads as a defect in whatever you just change
 `--release` does not need it.
 
 Pre-commit hooks run `cargo fmt` and `cargo clippy` automatically (`.githooks/pre-commit`).
+They inherit no `CARGO_TARGET_DIR`, so a plain `git commit` builds into the worktree's own
+`target/` — 1.4 GB per worktree, on a disk that has run out twice. Prefix the commit itself
+(`CARGO_TARGET_DIR=… git commit -m …`) rather than reaching for `--no-verify`.
+
+**acorn checks JavaScript's early errors while parsing; OXC settles them after it, and rsvelte
+ran only the parser.** An early error is syntactically shaped but illegal, and none of the class
+is decidable from the token stream — each needs the enclosing scope or class — so OXC leaves them
+to `SemanticBuilder` while acorn throws from inside `Parser`. rsvelte accepted all of them and
+**copied the illegal construct straight into its output**, so every accepted case emitted text no
+JS parser accepts (#3243: `super()` outside a method, a duplicate constructor, an unsyntactic
+`break` / `continue`, a duplicate label, an undeclared or duplicated `#private` name, `import` /
+`export` below the top level; #3217: a duplicate declaration). One
+`SemanticBuilder::new_compiler().build()` per script — `with_build_nodes(false)`, run only where
+the parser reported nothing — reports all of them, and reported nothing on any of the legal
+neighbours. Three things generalize past the fix. **The two do not agree on where the error is**:
+for every "already declared" class OXC labels the DECLARING occurrence and acorn stops at the
+REDECLARING one (`let x = 1; let x = 2;` — acorn 15, OXC 4), and OXC labels a jump's target where
+acorn stops at the `break` keyword; piping OXC's diagnostics through unchanged gets `code` right
+and every `start`/`end` wrong, which is the most common defect shape in this repo. **The mapping
+has to be an allow list, not a pass-through** — OXC reports more than acorn checks, so an unknown
+diagnostic must be ignored rather than raised, and the price of that is that a reworded OXC
+message makes an entry stop matching *silently*, with the symptom being a check that disappears;
+`early_errors_3243.rs` therefore carries one independently-failing repro per entry, because a
+single "all eight are rejected" assertion is satisfied by the other seven. And **OXC's TypeScript
+mode exempts every function-vs-function redeclaration** — the same over-broad rule
+`2_analyze/scope_builder.rs` has for TS overloads — while acorn-typescript rejects a duplicate
+*implementation* and accepts only a signature set, so `function f(){}` twice in a `lang="ts"`
+script stays accepted here and is recorded rather than claimed.
 
 ### Docker (optional)
 
