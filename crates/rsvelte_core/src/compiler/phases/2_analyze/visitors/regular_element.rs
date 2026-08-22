@@ -408,7 +408,7 @@ pub fn visit<'a, 'b: 'a>(
     context: &mut VisitorContext<'a>,
 ) -> Result<(), AnalysisError> {
     // Validate the element
-    validate_element(element, context)?;
+    validate_element(&element.attributes, context)?;
 
     // Check accessibility
     let a11y_warnings = a11y_check(
@@ -434,14 +434,7 @@ pub fn visit<'a, 'b: 'a>(
     let parent_idx = context.current_parent_idx();
     let is_root_child = parent_idx.is_none();
 
-    let mut element_classes = FxHashSet::default();
-    let mut element_id: Option<String> = None;
-    let mut static_attributes: Vec<(String, Option<String>)> = Vec::new();
-    let mut dynamic_attribute_names: FxHashSet<String> = FxHashSet::default();
-    let mut has_spread = false;
-    let mut has_class_directive = false;
-    let mut class_directive_names: FxHashSet<String> = FxHashSet::default();
-    let mut has_style_directive = false;
+    let mut css_facts = super::shared::element::CssAttributeFacts::default();
 
     if collect_css {
         context
@@ -449,310 +442,13 @@ pub fn visit<'a, 'b: 'a>(
             .css
             .used_elements
             .insert(element.name.to_string());
+        css_facts =
+            super::shared::element::collect_css_attribute_facts(&element.attributes, context);
+    }
 
-        for attr in &element.attributes {
-            if let Attribute::Attribute(attr_node) = attr {
-                // Track static attribute name/value for CSS attribute selector matching
-                match &attr_node.value {
-                    AttributeValue::True(_) => {
-                        // Boolean attribute like `<details open>`
-                        static_attributes.push((attr_node.name.to_string(), None));
-                    }
-                    AttributeValue::Sequence(parts) => {
-                        // Check if all parts are static text
-                        let mut all_static = true;
-                        let mut value = String::new();
-                        for part in parts {
-                            if let AttributeValuePart::Text(text) = part {
-                                value.push_str(&text.data);
-                            } else {
-                                all_static = false;
-                                break;
-                            }
-                        }
-                        if all_static {
-                            static_attributes.push((attr_node.name.to_string(), Some(value)));
-                        } else {
-                            // Has dynamic parts - try to determine possible values
-                            // for CSS attribute selector matching
-                            let mut all_resolved = true;
-                            let mut computed_values: Vec<String> = vec![String::new()];
-                            for part in parts {
-                                match part {
-                                    AttributeValuePart::Text(text) => {
-                                        for v in &mut computed_values {
-                                            v.push_str(&text.data);
-                                        }
-                                    }
-                                    AttributeValuePart::ExpressionTag(expr_tag) => {
-                                        use super::super::css::get_possible_values_expr;
-                                        if let Some(possible_vals) =
-                                            get_possible_values_expr(&expr_tag.expression, false)
-                                        {
-                                            if possible_vals.len() > 20 {
-                                                // Too many combinations, bail out
-                                                all_resolved = false;
-                                                break;
-                                            }
-                                            let prev = computed_values.clone();
-                                            computed_values.clear();
-                                            for pv in &prev {
-                                                for ev in &possible_vals {
-                                                    computed_values.push(format!("{}{}", pv, ev));
-                                                }
-                                            }
-                                            if computed_values.len() > 100 {
-                                                all_resolved = false;
-                                                break;
-                                            }
-                                        } else {
-                                            all_resolved = false;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                            if all_resolved && !computed_values.is_empty() {
-                                for value in &computed_values {
-                                    static_attributes
-                                        .push((attr_node.name.to_string(), Some(value.clone())));
-                                }
-                            } else {
-                                dynamic_attribute_names.insert(attr_node.name.to_string());
-                            }
-                        }
-                    }
-                    _ => {
-                        // Expression or other dynamic value
-                        // Try to statically determine the value for CSS attribute selector matching
-                        if let AttributeValue::Expression(expr_tag) = &attr_node.value {
-                            use super::super::css::get_possible_values_expr;
-                            if let Some(possible_values) =
-                                get_possible_values_expr(&expr_tag.expression, false)
-                            {
-                                // We can determine the possible values statically
-                                for value in &possible_values {
-                                    static_attributes.push((
-                                        attr_node.name.to_string(),
-                                        Some(value.to_string()),
-                                    ));
-                                }
-                            } else {
-                                dynamic_attribute_names.insert(attr_node.name.to_string());
-                            }
-                        } else {
-                            dynamic_attribute_names.insert(attr_node.name.to_string());
-                        }
-                    }
-                }
-
-                match attr_node.name.as_str() {
-                    "class" => {
-                        // Extract class names from attribute value using combinatorial expansion
-                        // to correctly handle string concatenation like class="foo{expr}bar"
-                        match &attr_node.value {
-                            AttributeValue::Sequence(parts) => {
-                                // Combinatorial expansion matching the official Svelte compiler.
-                                // We maintain partial strings and combine them with each chunk's
-                                // possible values, tracking whitespace boundaries.
-                                let mut possible_values: FxHashSet<String> = FxHashSet::default();
-                                let mut prev_values: Vec<String> = Vec::new();
-                                let mut bail_out = false;
-
-                                for part in parts {
-                                    let current_possible: Option<Vec<String>> = match part {
-                                        AttributeValuePart::Text(text) => {
-                                            Some(vec![text.data.to_string()])
-                                        }
-                                        AttributeValuePart::ExpressionTag(expr_tag) => {
-                                            use super::super::css::get_possible_values_expr;
-                                            get_possible_values_expr(&expr_tag.expression, true)
-                                        }
-                                    };
-
-                                    if current_possible.is_none() {
-                                        bail_out = true;
-                                        break;
-                                    }
-                                    let current_vals = current_possible.unwrap();
-
-                                    if prev_values.is_empty() {
-                                        // First chunk
-                                        for cv in &current_vals {
-                                            if cv.ends_with(char::is_whitespace) {
-                                                possible_values.insert(cv.clone());
-                                            } else {
-                                                prev_values.push(cv.clone());
-                                            }
-                                        }
-                                        if prev_values.len() < current_vals.len() {
-                                            prev_values.push(" ".to_string());
-                                        }
-                                    } else {
-                                        // Categorize new values by whitespace boundaries
-                                        let mut starts_with_space = Vec::new();
-                                        let mut remaining = Vec::new();
-                                        for cv in &current_vals {
-                                            if cv.starts_with(char::is_whitespace) {
-                                                starts_with_space.push(cv.clone());
-                                            } else {
-                                                remaining.push(cv.clone());
-                                            }
-                                        }
-
-                                        if !remaining.is_empty() {
-                                            if !starts_with_space.is_empty() {
-                                                // Some values start with space - previous values are complete
-                                                for pv in &prev_values {
-                                                    possible_values.insert(pv.clone());
-                                                }
-                                            }
-                                            // Combine prev_values with remaining (no-space) values
-                                            let mut combined = Vec::new();
-                                            for pv in &prev_values {
-                                                for rv in &remaining {
-                                                    combined.push(format!("{}{}", pv, rv));
-                                                }
-                                            }
-                                            prev_values = combined;
-                                            for sv in &starts_with_space {
-                                                if sv.ends_with(char::is_whitespace) {
-                                                    possible_values.insert(sv.clone());
-                                                } else {
-                                                    prev_values.push(sv.clone());
-                                                }
-                                            }
-                                        } else {
-                                            // All values start with space
-                                            for pv in &prev_values {
-                                                possible_values.insert(pv.clone());
-                                            }
-                                            prev_values.clear();
-                                            for sv in &starts_with_space {
-                                                if sv.ends_with(char::is_whitespace) {
-                                                    possible_values.insert(sv.clone());
-                                                } else {
-                                                    prev_values.push(sv.clone());
-                                                }
-                                            }
-                                        }
-                                        if prev_values.len() < current_vals.len() {
-                                            prev_values.push(" ".to_string());
-                                        }
-                                        if prev_values.len() > 20 {
-                                            // Exponential growth, bail out
-                                            bail_out = true;
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                if bail_out {
-                                    context.analysis.css.has_dynamic_classes = true;
-                                } else {
-                                    // Add remaining prev_values
-                                    for pv in &prev_values {
-                                        possible_values.insert(pv.clone());
-                                    }
-                                    // Extract class names from all possible values
-                                    for value in &possible_values {
-                                        for class_name in value.split_whitespace() {
-                                            if !class_name.is_empty() {
-                                                context
-                                                    .analysis
-                                                    .css
-                                                    .used_classes
-                                                    .insert(class_name.to_string());
-                                                element_classes.insert(class_name.to_string());
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            AttributeValue::Expression(expr_tag) => {
-                                // Expression as attribute value: class={{ ... }}
-                                // Use the cached JSON view of the expression to analyze it
-                                use super::super::css::get_possible_values_expr;
-                                if let Some(possible_values) =
-                                    get_possible_values_expr(&expr_tag.expression, true)
-                                {
-                                    // We can statically determine the classes
-                                    for value in &possible_values {
-                                        for class_name in value.split_whitespace() {
-                                            context
-                                                .analysis
-                                                .css
-                                                .used_classes
-                                                .insert(class_name.to_string());
-                                            element_classes.insert(class_name.to_string());
-                                        }
-                                    }
-                                } else {
-                                    // Unknown expression - mark as dynamic
-                                    context.analysis.css.has_dynamic_classes = true;
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                    "id" => {
-                        match &attr_node.value {
-                            AttributeValue::Sequence(parts) => {
-                                // An interpolated id (`id="a{x}"`) has an unknown runtime
-                                // value, so it could match any #id selector.
-                                let has_dynamic_part = parts
-                                    .iter()
-                                    .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
-                                if has_dynamic_part {
-                                    context.analysis.css.has_dynamic_ids = true;
-                                } else {
-                                    for part in parts {
-                                        if let AttributeValuePart::Text(text) = part {
-                                            let id = text.data.trim();
-                                            if !id.is_empty() {
-                                                context
-                                                    .analysis
-                                                    .css
-                                                    .used_ids
-                                                    .insert(id.to_string());
-                                                element_id = Some(id.to_string());
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            // `id={expr}` or the `{id}` shorthand: dynamic, unknown value.
-                            AttributeValue::Expression(_) => {
-                                context.analysis.css.has_dynamic_ids = true;
-                            }
-                            _ => {}
-                        }
-                    }
-                    _ => {}
-                }
-            } else if let Attribute::SpreadAttribute(spread) = attr {
-                // Visit spread attribute to set has_dynamic_classes
-                has_spread = true;
-                spread_attribute::visit(spread, context)?;
-            } else if let Attribute::BindDirective(bind) = attr {
-                // bind:name is a dynamic attribute
-                dynamic_attribute_names.insert(bind.name.to_string());
-            } else if let Attribute::ClassDirective(class_dir) = attr {
-                has_class_directive = true;
-                class_directive_names.insert(class_dir.name.to_string());
-                // `class:name` matches a `.name` class selector exactly (the official
-                // `attribute_matches` returns true for ClassDirective with `~=`), so
-                // track the directive name as a class on this element.
-                element_classes.insert(class_dir.name.to_string());
-            } else if let Attribute::StyleDirective(_) = attr {
-                has_style_directive = true;
-            }
-        }
-    } else {
-        for attr in &element.attributes {
-            if let Attribute::SpreadAttribute(spread) = attr {
-                spread_attribute::visit(spread, context)?;
-            }
+    for attr in &element.attributes {
+        if let Attribute::SpreadAttribute(spread) = attr {
+            spread_attribute::visit(spread, context)?;
         }
     }
 
@@ -1023,14 +719,14 @@ pub fn visit<'a, 'b: 'a>(
         });
         let dom_element = super::super::types::CssDomElement {
             tag_name: element.name.to_string(),
-            classes: element_classes,
-            id: element_id,
-            static_attributes,
-            dynamic_attribute_names,
-            has_spread,
-            has_class_directive,
-            class_directive_names,
-            has_style_directive,
+            classes: css_facts.classes,
+            id: css_facts.id,
+            static_attributes: css_facts.static_attributes,
+            dynamic_attribute_names: css_facts.dynamic_attribute_names,
+            has_spread: css_facts.has_spread,
+            has_class_directive: css_facts.has_class_directive,
+            class_directive_names: css_facts.class_directive_names,
+            has_style_directive: css_facts.has_style_directive,
             parent_idx,
             children_idx: Vec::new(),
             is_root_child,
@@ -1042,6 +738,7 @@ pub fn visit<'a, 'b: 'a>(
             has_opaque_content,
             is_dynamic_tag: false,
             snippet_name: context.current_snippet_name(),
+            sibling_walk_incomplete: false,
             prev_is_opaque_boundary: false,
             prev_has_opaque_boundary: false,
         };

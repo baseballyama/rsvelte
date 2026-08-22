@@ -1695,6 +1695,13 @@ pub(super) fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStat
     let rune_start = trimmed
         .find(&rune_pattern)
         .or_else(|| trimmed.find(&rune_pattern_generic))?;
+    // Upstream reads the initializer NODE, so only a rune that IS the whole
+    // initializer creates a field — one nested anywhere inside it belongs to
+    // some other declaration, as in `inner = new (class { d = $state(1); })()`.
+    let init_start = name_end + 1 + trimmed[name_end + 1..].find(|c: char| !c.is_whitespace())?;
+    if rune_start != init_start {
+        return None;
+    }
     // Skip past an optional `<…>` type-parameter list to reach the `(`.
     let after_rune = &trimmed[rune_start + rune_type.len()..];
     let value_start = if after_rune.starts_with('(') {

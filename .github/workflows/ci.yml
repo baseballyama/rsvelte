@@ -1091,6 +1091,11 @@ jobs:
       - name: Run NAPI option-boundary gate
         run: pnpm run test:napi-options
 
+      # Again a separate process, for the same reason: this one is the only gate
+      # that drives the `cssHash` callback across the boundary.
+      - name: Run NAPI cssHash gate
+        run: pnpm run test:napi-csshash
+
   vps-sourcemaps:
     name: VPS postprocessing source-map parity
     runs-on: ubuntu-latest

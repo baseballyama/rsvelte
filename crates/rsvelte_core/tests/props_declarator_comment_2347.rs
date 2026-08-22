@@ -6,8 +6,9 @@
 //! forwarded attribute silently vanished at runtime.
 //!
 //! The declarator splitter was already comment-aware; its caller only stripped
-//! *leading* comments from each part. Both ends are now trimmed lexically via
-//! `shared::js_scan::skip_opaque`.
+//! *leading* comments from each part. Both ends are now scanned lexically via
+//! `shared::js_scan::skip_opaque` and re-emitted where esrap's comment cursor
+//! puts them.
 
 use rsvelte_core::compiler::CompileOptions;
 use rsvelte_core::{GenerateMode, compile};
@@ -98,7 +99,7 @@ fn trailing_block_comment_is_trimmed_too() {
 }
 
 #[test]
-fn leading_comment_is_still_stripped() {
+fn leading_comment_flushes_before_the_kept_declarator() {
     let code = client(
         r#"<script>
 	let {
@@ -116,8 +117,10 @@ fn leading_comment_is_still_stripped() {
         code.contains("'class'"),
         "leading-comment declarator lost its prop name:\n{code}"
     );
+    // Official keeps the comment and flushes it before the next kept
+    // declarator, so the `let` and the binding land on separate lines.
     assert!(
-        code.contains("let props = $.rest_props($$props,"),
+        code.contains("let // eslint-disable-next-line\n\tprops = $.rest_props($$props,"),
         "leading-comment form regressed:\n{code}"
     );
 }

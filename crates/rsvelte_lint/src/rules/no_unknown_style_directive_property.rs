@@ -19,7 +19,7 @@ static META: RuleMeta = RuleMeta {
     name: "svelte/no-unknown-style-directive-property",
     category: RuleCategory::Correctness,
     fixable: Fixable::No,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: false,
@@ -50,41 +50,52 @@ fn has_vendor_prefix(prop: &str) -> bool {
     i > 1 && i < b.len() && b[i] == b'-'
 }
 
-/// An `ignoreProperties` matcher: a `/pattern/flags` string compiles to a regex;
+/// Splits a `/pattern/flags` string exactly like upstream's
+/// `/^\/(.+)\/([A-Za-z]*)$/u`: the pattern must be non-empty and free of line
+/// terminators (`.` never matches those), and the flags must be ASCII letters.
+fn split_regex_literal(s: &str) -> Option<(&str, &str)> {
+    let rest = s.strip_prefix('/')?;
+    let slash = rest.rfind('/')?;
+    let (pat, flags) = (&rest[..slash], &rest[slash + 1..]);
+    if pat.is_empty() || pat.contains(['\n', '\r', '\u{2028}', '\u{2029}']) {
+        return None;
+    }
+    flags
+        .chars()
+        .all(|c| c.is_ascii_alphabetic())
+        .then_some((pat, flags))
+}
+
+/// An option-string matcher: a `/pattern/flags` string compiles to a regex;
 /// any other string matches exactly. Mirrors upstream `toRegExp`.
-enum Matcher {
+pub(crate) enum Matcher {
     Exact(String),
-    Re(regex::Regex),
+    Re { re: regex::Regex, sticky: bool },
 }
 
 impl Matcher {
-    fn from_option(s: &str) -> Self {
-        if let Some(rest) = s.strip_prefix('/')
-            && let Some(slash) = rest.rfind('/')
-        {
-            let pat = &rest[..slash];
-            let flags = &rest[slash + 1..];
+    pub(crate) fn from_option(s: &str) -> Self {
+        if let Some((pat, flags)) = split_regex_literal(s) {
             let mut builder = regex::RegexBuilder::new(pat);
-            if flags.contains('i') {
-                builder.case_insensitive(true);
-            }
-            if flags.contains('s') {
-                builder.dot_matches_new_line(true);
-            }
-            if flags.contains('m') {
-                builder.multi_line(true);
-            }
+            builder.case_insensitive(flags.contains('i'));
+            builder.dot_matches_new_line(flags.contains('s'));
+            builder.multi_line(flags.contains('m'));
             if let Ok(re) = builder.build() {
-                return Self::Re(re);
+                return Self::Re {
+                    re,
+                    sticky: flags.contains('y'),
+                };
             }
         }
         Self::Exact(s.to_string())
     }
 
-    fn test(&self, name: &str) -> bool {
+    pub(crate) fn test(&self, name: &str) -> bool {
         match self {
             Self::Exact(e) => e == name,
-            Self::Re(re) => re.is_match(name),
+            // A sticky regex tested from `lastIndex` 0 must match at the start.
+            Self::Re { re, sticky: true } => re.find(name).is_some_and(|m| m.start() == 0),
+            Self::Re { re, sticky: false } => re.is_match(name),
         }
     }
 }
@@ -159,5 +170,18 @@ mod tests {
         assert!(re.test("bar"));
         assert!(re.test("bar-foo"));
         assert!(!re.test("foo-bar"));
+    }
+
+    #[test]
+    fn to_regexp_boundaries() {
+        assert!(split_regex_literal("//").is_none());
+        assert!(split_regex_literal("/a/1").is_none());
+        assert_eq!(split_regex_literal("/b/gy"), Some(("b", "gy")));
+        assert_eq!(split_regex_literal("/a/b/c"), Some(("a/b", "c")));
+        assert!(Matcher::from_option("//").test("//"));
+        assert!(!Matcher::from_option("//").test("zzz"));
+        let sticky = Matcher::from_option("/b/gy");
+        assert!(sticky.test("b-zzz"));
+        assert!(!sticky.test("zzz-b-zzz"));
     }
 }

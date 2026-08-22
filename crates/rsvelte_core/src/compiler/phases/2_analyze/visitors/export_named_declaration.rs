@@ -213,20 +213,14 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
                 }
                 JsNode::VariableDeclaration {
                     kind, declarations, ..
-                } => {
-                    if kind == "let" {
-                        return Err(errors::legacy_export_invalid().at(*start, *end));
-                    }
-
-                    if kind == "const" {
-                        for declarator in arena.get_js_children(*declarations) {
-                            if let JsNode::VariableDeclarator { id, .. } = declarator {
-                                extract_identifiers_and_add_exports(
-                                    arena.get_js_node(*id),
-                                    arena,
-                                    context,
-                                );
-                            }
+                } if kind == "const" => {
+                    for declarator in arena.get_js_children(*declarations) {
+                        if let JsNode::VariableDeclarator { id, .. } = declarator {
+                            extract_identifiers_and_add_exports(
+                                arena.get_js_node(*id),
+                                arena,
+                                context,
+                            );
                         }
                     }
                 }
@@ -292,6 +286,18 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
         // Walk into the declaration
         if let Some(decl) = decl_node {
             super::script::walk_js_node_typed(decl, context)?;
+        }
+
+        // Also after the walk, and before the per-declarator checks below —
+        // upstream raises this between `context.next()` and its own loop, so a
+        // rune error in the initializer (`export let x = $host()`) wins while
+        // `derived_invalid_export` does not.
+        if context.analysis.runes
+            && context.ast_type == super::AstType::Instance
+            && let Some(JsNode::VariableDeclaration { kind, .. }) = decl_node
+            && kind == "let"
+        {
+            return Err(errors::legacy_export_invalid().at(*start, *end));
         }
 
         // Check for invalid state/derived exports in VariableDeclarations.

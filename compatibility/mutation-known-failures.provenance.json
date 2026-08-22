@@ -4,12 +4,10 @@
 	"powertable/app/src/lib/components/PowerTable.svelte": "b88b8c8e302ac9d4273aef4a4c22e5084e118cdbbbc571639907a4eace33eb8e",
 	"runed/packages/runed/src/lib/utilities/watch/watch.svelte.ts": "b72041513f375a070b836ceebd3dac297411ef5f08c9f94f34a25bdb37e56bf0",
 	"svelte.dev/apps/svelte.dev/content/docs/svelte/02-runes/07-$inspect.md/1.svelte": "040d9b2125de49ad71ad6a09920e816a3cf00e5de8e2680a8ab2196065af6de5",
-	"svelte.dev/packages/repl/src/lib/Bundler.svelte.ts": "d035d25868ed622f227641ee40bf77d108ff37f905acea6613ca90779f6ea257",
 	"svelte/documentation/docs/02-runes/07-$inspect.md/1.svelte": "040d9b2125de49ad71ad6a09920e816a3cf00e5de8e2680a8ab2196065af6de5",
 	"svelte/documentation/docs/02-runes/07-$inspect.md/2.svelte": "6474daddf2f38349d9d3c1a67dc20e3d62bf4acc59dcaf54f466786cab3a395a",
 	"svelte/packages/svelte/tests/runtime-runes/samples/inspect-multiple/main.svelte": "d7099100fb1e08f5a37a8a7839f10a039528c8902c82aea7f4ee4a3c08117bdd",
 	"svelte/packages/svelte/tests/runtime-runes/samples/inspect-with-untracked/main.svelte": "c4b58ef8bfead0591e47d48e23c17bf8c3a9cd84e43fcfd3696fa463ca2fb09e",
-	"svelte/packages/svelte/tests/validator/samples/anonymous-declarations/class.svelte.js": "a495cd1b22c5689ed40ab73c25faaa0dfde4b84a875061b179875a5a58e10541",
 	"svelte/packages/svelte/tests/validator/samples/runes-conflicting-store-in-module/input.svelte.js": "729e19c86c907954d917a3a01826dbf7ea019ef3d4043ddcf7deee3b24fa8487",
 	"svelte/packages/svelte/tests/validator/samples/unreferenced-variables/input.svelte": "3771bd95c200e34b46cd1a535949f5cecd9dcb07171bb612bd48f8d1febf67b8"
 }

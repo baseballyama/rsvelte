@@ -1002,6 +1002,86 @@ pub(super) fn try_break_pre_content_tag(
     (broken != whole).then_some((start, end, broken))
 }
 
+/// Break a `<textarea>`'s tags around its whitespace-sensitive content the way
+/// prettier does: when the content is multiline (or the one-line element
+/// overflows), the open tag's `>` drops to its own line one level in iff the
+/// content does not start with a newline, and the close tag becomes
+/// `</textarea\n{indent}>` iff the content does not end with one — so no
+/// formatter-inserted newline ever changes the rendered value. Attributes stay
+/// on the open line (unlike `<pre>`, whose attrs break per line and hug `>`).
+pub(super) fn try_break_textarea_tags(
+    out: &str,
+    start: u32,
+    end: u32,
+    fragment: &Fragment,
+    line_width: usize,
+    options: &FormatOptions,
+) -> Option<(u32, u32, String)> {
+    let tw = tab_width(options);
+    let (s, e) = (start as usize, end as usize);
+    let whole = out.get(s..e)?;
+    let (first, last) = (fragment.nodes.first()?, fragment.nodes.last()?);
+    let (cs, ce) = (node_start(first) as usize, node_end(last) as usize);
+    let open = out.get(s..cs)?;
+    let close = out.get(ce..e)?;
+    let mut content = out.get(cs..ce)?.to_string();
+    // Only a still-unbroken element: one-line open tag, one-line close tag.
+    if open.contains('\n') || !open.ends_with('>') || close.contains('\n') || !close.ends_with('>')
+    {
+        return None;
+    }
+    let line_start = out[..s].rfind('\n').map_or(0, |i| i + 1);
+    let indent = out.get(line_start..s)?;
+    if !indent.bytes().all(|b| b == b' ' || b == b'\t') {
+        return None;
+    }
+    if !content.contains('\n') {
+        let column = current_column(out, start, tw);
+        if column + whole.visual_width(tw) <= line_width {
+            return None;
+        }
+        // A sole overflowing expression child breaks internally as well.
+        if let Some((_, _, rewritten)) =
+            try_break_pre_content_tag(out, start, end, fragment, line_width, options)
+        {
+            content = rewritten
+                .get(open.len()..rewritten.len() - close.len())?
+                .to_string();
+        }
+    }
+    // prettier borrows the parent's `>` only when the first child is
+    // leading-space-sensitive AND has no leading spaces at all
+    // (`needsToBorrowParentOpeningTagEndMarker`), and the closing tag's `<`
+    // only when the last child has no trailing spaces — ANY whitespace, not
+    // just a newline, keeps that tag glued.
+    let open_break = !content.starts_with(super::is_html_ws);
+    let close_break = !content.ends_with(super::is_html_ws);
+    if !open_break && !close_break {
+        return None;
+    }
+    let (unit, _) = indent_config(options);
+    let mut result = String::new();
+    if open_break {
+        result.push_str(&open[..open.len() - 1]);
+        result.push('\n');
+        result.push_str(indent);
+        result.push_str(&unit);
+        result.push('>');
+    } else {
+        result.push_str(open);
+    }
+    result.push_str(&content);
+    if close_break {
+        result.push_str(&close[..close.len() - 1]);
+        result.push('\n');
+        result.push_str(indent);
+        result.push('>');
+    } else {
+        result.push_str(close);
+    }
+    (result != whole).then_some((crate::source_offset(s), crate::source_offset(e), result))
+}
+
 /// Break a `<pre>` (or `<textarea>`) element's own open-tag attributes when the
 /// whole element is on one line but overflows `line_width`.
 ///

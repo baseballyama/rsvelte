@@ -74,65 +74,76 @@ impl Rule for ButtonHasType {
     }
 
     fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
-        if !el.name.eq_ignore_ascii_case("button") {
+        // Element and attribute names are matched exactly (upstream's selector
+        // is `[name.name='button']` and `findAttribute` compares `key.name`), so
+        // `<bUtTon>` is not a button and `TYPE=` is not the `type` attribute.
+        if el.name != "button" {
             return;
         }
 
-        let mut has_spread = false;
-        for attr in &el.attributes {
-            match attr {
-                Attribute::Attribute(node) if node.name.eq_ignore_ascii_case("type") => {
-                    // A static or dynamic `type=...` decides the outcome.
-                    match type_value(&node.value) {
-                        TypeValue::Empty => ctx.report(
+        // Upstream resolves in this order regardless of attribute order:
+        // `type=` first, then `bind:type`, then a spread.
+        let type_attr = el.attributes.iter().find_map(|attr| match attr {
+            Attribute::Attribute(node) if node.name == "type" => Some(node),
+            _ => None,
+        });
+        if let Some(node) = type_attr {
+            match type_value(&node.value) {
+                TypeValue::Empty => ctx.report(
+                    node.start,
+                    node.end,
+                    "A value must be set for button type attribute.",
+                ),
+                TypeValue::Dynamic => {}
+                TypeValue::Static(value) => {
+                    let allowed = matches!(value.as_str(), "button" | "submit" | "reset");
+                    if !allowed {
+                        ctx.report(
                             node.start,
                             node.end,
-                            "A value must be set for button type attribute.",
-                        ),
-                        TypeValue::Dynamic => {}
-                        TypeValue::Static(value) => {
-                            let allowed = matches!(value.as_str(), "button" | "submit" | "reset");
-                            if !allowed {
-                                ctx.report(
-                                    node.start,
-                                    node.end,
-                                    format!(
-                                        "{value} is an invalid value for button type attribute."
-                                    ),
-                                );
-                            } else if !ctx.option_bool(&value, true) {
-                                ctx.report(
-                                    node.start,
-                                    node.end,
-                                    format!(
-                                        "{value} is a forbidden value for button type attribute."
-                                    ),
-                                );
-                            }
-                        }
+                            format!("{value} is an invalid value for button type attribute."),
+                        );
+                    } else if !ctx.option_bool(&value, true) {
+                        ctx.report(
+                            node.start,
+                            node.end,
+                            format!("{value} is a forbidden value for button type attribute."),
+                        );
                     }
-                    return;
                 }
-                // `bind:type` carries a runtime value — trusted, no report.
-                Attribute::BindDirective(d) if d.name.eq_ignore_ascii_case("type") => return,
-                // A spread (`{...props}`) may carry `type` at runtime.
-                Attribute::SpreadAttribute(_) => has_spread = true,
-                _ => {}
             }
-        }
-
-        if has_spread {
             return;
         }
 
-        // No `type`, no `bind:type`, no spread → flag the `<button` opener.
-        let end = el.start
-            + 1
-            + u32::try_from(el.name.len()).expect("element-name widths are represented as u32");
-        ctx.report(
+        // `bind:type` carries a runtime value — trusted, no report.
+        if el
+            .attributes
+            .iter()
+            .any(|attr| matches!(attr, Attribute::BindDirective(d) if d.name == "type"))
+        {
+            return;
+        }
+
+        // A spread (`{...props}`) may carry `type` at runtime.
+        if el
+            .attributes
+            .iter()
+            .any(|attr| matches!(attr, Attribute::SpreadAttribute(_)))
+        {
+            return;
+        }
+
+        // Upstream reports the `SvelteStartTag`, i.e. `<button …>` up to and
+        // including its `>`, not just the name.
+        let Some((start, end)) = crate::rules::start_tag::start_tag_span(
+            ctx.source(),
             el.start,
-            end,
-            "Missing an explicit type attribute for button.",
-        );
+            el.name.len(),
+            &el.attributes,
+            None,
+        ) else {
+            return;
+        };
+        ctx.report(start, end, "Missing an explicit type attribute for button.");
     }
 }

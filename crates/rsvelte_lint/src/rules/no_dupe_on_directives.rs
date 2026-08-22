@@ -8,13 +8,20 @@
 //!
 //! Port of the eslint-plugin-svelte rule.
 //!
-//! Detection is per start-tag, so the same helper runs for both elements
-//! (`check_element`) and components (`check_component`).
+//! Detection is per start-tag, and upstream visits every `SvelteStartTag`, so
+//! every element hook has to run the same helper — a `<svelte:window>` start tag
+//! is as much a start tag as a `<div>` one.
 
-use rsvelte_core::ast::template::{Attribute, Component, OnDirective, RegularElement};
+use rsvelte_core::ast::template::{
+    Attribute, Component, OnDirective, RegularElement, SlotElement, SvelteComponentElement,
+    SvelteDynamicElement, SvelteElement,
+};
 
 use crate::context::LintContext;
-use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rule::{
+    Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity, SpecialElement,
+};
+use crate::rules::js_tokens::equal_tokens;
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-dupe-on-directives",
@@ -30,77 +37,32 @@ static META: RuleMeta = RuleMeta {
     options_schema: None,
 };
 
-/// Normalize an expression's source for token-equality comparison: strip JS
-/// line/block comments and all whitespace, while leaving the contents of
-/// string / template / char literals untouched.
-///
-/// This is a deliberately small approximation of token comparison — it does not
-/// tokenize, but stripping comments + whitespace outside of literals is enough
-/// to match upstream's `equalTokens` for the handler-expression shapes the rule
-/// cares about.
-fn normalize(src: &str) -> String {
-    let bytes = src.as_bytes();
-    let mut out = String::with_capacity(src.len());
-    let mut i = 0;
-    let n = bytes.len();
-    while i < n {
-        let c = bytes[i];
-        match c {
-            // String / char / template literal: copy verbatim until the
-            // matching (unescaped) closing delimiter.
-            b'"' | b'\'' | b'`' => {
-                let quote = c;
-                out.push(c as char);
-                i += 1;
-                while i < n {
-                    let d = bytes[i];
-                    if d == b'\\' && i + 1 < n {
-                        // Copy the escape and its escaped char verbatim.
-                        out.push(d as char);
-                        out.push(bytes[i + 1] as char);
-                        i += 2;
-                        continue;
-                    }
-                    out.push(d as char);
-                    i += 1;
-                    if d == quote {
-                        break;
-                    }
-                }
-            }
-            // Line comment: skip to end of line.
-            b'/' if i + 1 < n && bytes[i + 1] == b'/' => {
-                i += 2;
-                while i < n && bytes[i] != b'\n' {
-                    i += 1;
-                }
-            }
-            // Block comment: skip to closing `*/`.
-            b'/' if i + 1 < n && bytes[i + 1] == b'*' => {
-                i += 2;
-                while i + 1 < n && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
-                    i += 1;
-                }
-                // Skip the closing `*/` (or run to EOF if unterminated).
-                i = (i + 2).min(n);
-            }
-            // Drop all whitespace outside literals.
-            b' ' | b'\t' | b'\r' | b'\n' => {
-                i += 1;
-            }
-            _ => {
-                out.push(c as char);
-                i += 1;
-            }
-        }
-    }
-    out
+/// The handler expression of one directive, as upstream's `find` compares them:
+/// a missing expression matches only another missing one, and two present ones
+/// match when their token streams are equal.
+enum Handler<'a> {
+    None,
+    Source(&'a str),
+    /// A present expression whose span could not be recovered — never equal to
+    /// anything, since treating it as `None` would match bare directives.
+    Unknown,
 }
 
-/// The 1-based source line of `offset` (count newlines before it, + 1).
+impl Handler<'_> {
+    fn matches(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::None, Self::None) => true,
+            (Self::Source(a), Self::Source(b)) => equal_tokens(a, b),
+            _ => false,
+        }
+    }
+}
+
+/// 1-based line number of the byte `offset` within `source`, under the line
+/// convention the reported `loc` uses — a lone `\r` terminates a line, which
+/// counting `\n` alone misses.
 fn line_of(source: &str, offset: u32) -> usize {
-    let end = (offset as usize).min(source.len());
-    source[..end].bytes().filter(|&b| b == b'\n').count() + 1
+    crate::line_index::LineIndex::new(source).line(offset) as usize
 }
 
 #[derive(Default)]
@@ -119,38 +81,31 @@ impl NoDupeOnDirectives {
             })
             .collect();
 
-        // (event type, normalized-expr or None) -> list of directive indices.
-        // We preserve source order by iterating `directives` in order and
-        // pushing into the matching sub-group, mirroring upstream's Map.
-        let mut groups: Vec<(&str, Option<String>, Vec<usize>)> = Vec::new();
+        // (event type, handler) -> list of directive indices. Source order is
+        // preserved by iterating `directives` in order and pushing into the
+        // matching sub-group, mirroring upstream's Map.
+        let mut groups: Vec<(&str, Handler<'_>, Vec<usize>)> = Vec::new();
 
         for (idx, on) in directives.iter().enumerate() {
             let ty = on.name.as_str();
-            let norm: Option<String> = on.expression.as_ref().map_or_else(
-                || None,
-                |expr| {
-                    match (expr.start(), expr.end()) {
-                        (Some(s), Some(e)) => Some(normalize(ctx.slice(s, e))),
-                        // No usable span: treat as its own un-matchable bucket by
-                        // using the raw (unique) index marker. Fall back to None is
-                        // wrong (would match bare); use a sentinel that never
-                        // equals another. Encode the index into the string.
-                        _ => Some(format!("\0__nospan_{idx}")),
-                    }
-                },
-            );
+            let handler = on.expression.as_ref().map_or(Handler::None, |expr| {
+                match (expr.start(), expr.end()) {
+                    (Some(s), Some(e)) => Handler::Source(ctx.slice(s, e)),
+                    _ => Handler::Unknown,
+                }
+            });
 
             if let Some(group) = groups
                 .iter_mut()
-                .find(|(g_ty, g_norm, _)| *g_ty == ty && *g_norm == norm)
+                .find(|(g_ty, g_handler, _)| *g_ty == ty && g_handler.matches(&handler))
             {
                 group.2.push(idx);
             } else {
-                groups.push((ty, norm, vec![idx]));
+                groups.push((ty, handler, vec![idx]));
             }
         }
 
-        for (_ty, _norm, members) in &groups {
+        for (_ty, _handler, members) in &groups {
             if members.len() < 2 {
                 continue;
             }
@@ -165,13 +120,11 @@ impl NoDupeOnDirectives {
                 };
                 let line_no = line_of(ctx.source(), directives[other_idx].start);
                 let ty = on.name.as_str();
-                let start = on.start;
-                let end = on.start
-                    + 3
-                    + u32::try_from(ty.len()).expect("event-name widths are represented as u32"); // covers `on:name`
+                // Upstream reports the whole `SvelteDirective`, modifiers and
+                // handler expression included.
                 ctx.report(
-                    start,
-                    end,
+                    on.start,
+                    on.end,
                     format!(
                         "This `on:{ty}` directive is the same and duplicate directives in L{line_no}."
                     ),
@@ -193,39 +146,45 @@ impl Rule for NoDupeOnDirectives {
     fn check_component(&self, ctx: &mut LintContext, c: &Component) {
         Self::check_attributes(ctx, &c.attributes);
     }
+
+    fn check_svelte_element(&self, ctx: &mut LintContext, el: &SvelteElement) {
+        Self::check_attributes(ctx, &el.attributes);
+    }
+
+    fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
+        Self::check_attributes(ctx, &el.attributes);
+    }
+
+    fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
+        Self::check_attributes(ctx, &el.attributes);
+    }
+
+    fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
+        Self::check_attributes(ctx, &el.attributes);
+    }
+
+    fn check_special_element(&self, ctx: &mut LintContext, el: &SpecialElement<'_>) {
+        Self::check_attributes(ctx, &el.attributes);
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{line_of, normalize};
-
-    #[test]
-    fn normalize_strips_whitespace_and_comments() {
-        // Both forms from the inline-expression fixture normalize equal.
-        let a = "() => console.log('foo')";
-        let b = "() =>\n\t// foo\n\tconsole.log('foo')";
-        let c = "() =>\n\tconsole\n\t\t// bar\n\t\t.log('foo')";
-        assert_eq!(normalize(a), normalize(b));
-        assert_eq!(normalize(a), normalize(c));
-        assert_eq!(normalize(a), "()=>console.log('foo')");
-    }
-
-    #[test]
-    fn normalize_preserves_literal_whitespace() {
-        assert_eq!(normalize("'a b'"), "'a b'");
-        // Template literals (including their `${…}` interpolations) are copied
-        // verbatim — interpolation whitespace is treated as significant. This is
-        // a deliberate approximation of upstream `equalTokens` (which would tokenise
-        // the interpolation); no fixture exercises the difference.
-        assert_eq!(normalize("`a ${ x }`"), "`a ${ x }`");
-        // A `//` inside a string is not a comment.
-        assert_eq!(normalize("'http://x'"), "'http://x'");
-    }
+    use super::line_of;
 
     #[test]
     fn line_of_counts_newlines() {
         let src = "a\nb\nc";
         assert_eq!(line_of(src, 0), 1);
+        assert_eq!(line_of(src, 2), 2);
+        assert_eq!(line_of(src, 4), 3);
+    }
+
+    #[test]
+    fn line_of_counts_a_lone_cr() {
+        // The message embeds the other directive's line, and a CR-only file
+        // still has lines.
+        let src = "a\rb\rc";
         assert_eq!(line_of(src, 2), 2);
         assert_eq!(line_of(src, 4), 3);
     }

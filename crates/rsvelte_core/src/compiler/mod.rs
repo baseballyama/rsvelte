@@ -552,6 +552,7 @@ pub(crate) fn parse_component(
         lenient_script: false,
         skip_non_css_lang_style: false,
         capture_comments: modern_ast,
+        reparse_leading_slash_expression: false,
     };
     // M5-A: caller-owned arena, unused for now (Root borrows only `source`).
     let alloc = oxc_allocator::Allocator::default();

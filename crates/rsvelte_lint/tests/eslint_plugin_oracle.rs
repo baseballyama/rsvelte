@@ -25,7 +25,7 @@ use rsvelte_diagnostics::Diagnostic;
 use rsvelte_lint::line_index::LineIndex;
 use rsvelte_lint::registry::registered_rule_metas;
 use rsvelte_lint::{
-    Fixable, LintConfig, LintDiagnostic, Severity, fix_source, lint_source, lint_source_raw,
+    Fixable, LintConfig, LintDiagnostic, Severity, fix_source_at, lint_source, lint_source_raw,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -97,49 +97,17 @@ fn is_meta_rule(code: &str) -> bool {
 
 /// Fixture path substrings to skip, each with the porting gap it exercises.
 const SKIP: &[&str] = &[
-    // `require-store-reactive-access` TS fixtures: store detection by TYPE (a
-    // value whose type has a `subscribe` signature, imported from external `.ts`
-    // modules) needs the TypeScript checker / tsgo. The ES path (stores created
-    // via `writable`/`readable`/`derived`) covers every non-`ts/` fixture.
-    "require-store-reactive-access/valid/ts/",
+    // `require-store-reactive-access` TS *invalid* fixtures: store detection by
+    // TYPE (a value whose type has a `subscribe` signature, imported from an
+    // external `.ts` module) needs the TypeScript checker / tsgo. The ES path
+    // (stores created via `writable`/`readable`/`derived`) covers the rest, and
+    // the `valid/ts/` half is enrolled — rsvelte reports nothing there, which is
+    // what those fixtures expect.
     "require-store-reactive-access/invalid/ts/",
-    // rsvelte serializes a *computed* object-property key with an off-by-one
-    // span (the key node starts at the `[`), so the reported column / `$`-insert
-    // offset for `{ [store]: … }` don't match. A core serialization quirk, not a
-    // rule gap; every other store-access position is covered.
-    "require-store-reactive-access/invalid/properties01",
-    // Duplicate-property detection inside a ternary *interpolation* (the plugin
-    // collapses both branches); the port treats interpolations as opaque.
-    "no-dupe-style-properties/invalid/ternary01",
-    // Compound `&&` condition: the plugin reports at the precise covered
-    // sub-expression node (paren-stripped), e.g. column 17 for
-    // `d && ((c && e && b) || a)`. The text-based operand split reports at the
-    // whole condition (column 11). Logic/count are correct; only the column of
-    // that one compound branch differs.
-    "no-dupe-else-if-blocks/invalid/test02",
     // ESLint ≤8 `no-inner-declarations` fixtures (older option/strict-mode
     // semantics). rsvelte mirrors the ESLint ≥9 rule, exercised by the
     // sibling non-`v8` fixtures.
     "no-inner-declarations/invalid/v8",
-    // `prefer-svelte-reactivity` exported-instance fixtures are `.svelte.js`
-    // modules exercising the export path (flag exported `new X()` even without
-    // mutation), which is not ported — the mutation path covers the rest.
-    "prefer-svelte-reactivity/invalid/exports",
-    // `no-top-level-browser-globals` template-position case: the globals are used
-    // in markup (`{location.href}` / `{#if browser}`), not in `<script>`. This is
-    // a script-AST rule, so template usage is out of scope (would need a separate
-    // template-AST pass). All `<script>`-based fixtures are covered.
-    "no-top-level-browser-globals/invalid/in-template01",
-    // `no-shorthand-style-property-overrides` ternary fixture: CSS declarations
-    // written INSIDE a mustache interpolation (`{cond ? `background: x` : …}`).
-    // Parsing CSS inside template interpolations is out of scope; the static
-    // `style=""` and `style:` directive cases are covered.
-    "no-shorthand-style-property-overrides/invalid/ternary01",
-    // `no-add-event-listener` TS-cast case: `(window.addEventListener as any)(…)`.
-    // rsvelte's ESTree strips the TS `as` cast, so the call's callee looks like a
-    // plain `window.addEventListener` member (upstream keeps it a TSAsExpression
-    // and skips it). The non-cast member/identifier cases are covered.
-    "no-add-event-listener/invalid/typescript01",
     // `valid-compile` `svelte.config.js` `onwarn` / `warningFilter` callbacks are
     // JS functions; a native Rust linter can't execute them, so the fixtures that
     // transform/suppress warnings via those callbacks are out of scope.
@@ -256,7 +224,6 @@ const SKIP: &[&str] = &[
     "no-unused-props/invalid/extends-unused",
     "no-unused-props/invalid/generic-props-unused",
     "no-unused-props/invalid/ignore-external-type",
-    "no-unused-props/invalid/ignore-property-patterns-custom",
     "no-unused-props/invalid/ignored-type-patterns-custom",
     "no-unused-props/invalid/imported-type-check",
     "no-unused-props/invalid/imported-type-unused",
@@ -284,16 +251,9 @@ const SKIP: &[&str] = &[
     // reports, but the CSS-ignore (line 16) can't be reported for the reason
     // above, so the exact `errors.yaml` set won't match.
     "no-unused-svelte-ignore/invalid/transform-test",
-    // `ts-lang01-svelte4` exercises Svelte-4 legacy semantics (`export let` +
-    // the `unused-export-let` → `export_let_unused` warning). rsvelte runs
-    // Svelte-5 semantics; the Svelte-5 variant (`ts-lang01`) is covered.
-    "no-unused-svelte-ignore/valid/ts-lang01-svelte4",
     // Valid fixtures that would produce false positives without custom options.
-    "no-unused-props/valid/ignore-property-patterns-default",
     "no-unused-props/valid/ignore-property-patterns-custom",
     "no-unused-props/valid/custom-config-combination",
-    "no-unused-props/valid/ignored-type-patterns-custom",
-    "no-unused-props/valid/ignored-type-patterns-custom2",
 ];
 
 /// Upstream fixture directories that are **not** an eslint-plugin-svelte rule and
@@ -344,9 +304,23 @@ fn fixture_root() -> Option<PathBuf> {
     if p.exists() { Some(p) } else { None }
 }
 
+/// Fixtures a broad [`SKIP`] prefix matches but that rsvelte now handles. A
+/// prefix stays useful (the sibling fixtures still diverge), so the exception
+/// is recorded here instead of expanding the prefix into one entry per file —
+/// and the stale-skip gate below requires every skipped-and-passing fixture to
+/// be listed here or have its `SKIP` entry deleted.
+const UNSKIP: &[&str] = &[
+    // `script-export02` is the one `indent/invalid/script-*` fixture whose
+    // expected indentation the template walker already reproduces.
+    "indent/invalid/script-export02",
+    // The other `babel/` fixture needs Babel-only `::` syntax; this one is
+    // ordinary class syntax and passes.
+    "valid-compile/valid/babel/class01",
+];
+
 fn is_skipped(path: &Path) -> bool {
     let s = path.to_string_lossy().replace('\\', "/");
-    SKIP.iter().any(|frag| s.contains(frag))
+    SKIP.iter().any(|frag| s.contains(frag)) && !UNSKIP.iter().any(|frag| s.contains(frag))
 }
 
 /// Recursively collect fixture input files: a `.svelte` (or `.svelte.ts`) file
@@ -544,6 +518,88 @@ fn expected_record(e: &ExpectedError) -> FullRecord {
     (e.line, e.column, e.message.clone(), suggestions)
 }
 
+/// Judge one `valid/` fixture. `None` when it cannot be judged at all (the
+/// source is unreadable); otherwise `Ok(())` for parity and `Err(report)` for a
+/// divergence. Shared by the parity loop and the stale-skip gate so a skipped
+/// fixture is graded by the same comparison as an enrolled one.
+fn eval_valid_fixture(input: &Path, code: &str) -> Option<Result<(), String>> {
+    let src = std::fs::read_to_string(input).ok()?;
+    let found = findings_for(&src, input, code, &load_options(input));
+    if found.is_empty() {
+        return Some(Ok(()));
+    }
+    Some(Err(format!(
+        "[false positive] {}: expected 0, got {:?}",
+        input.display(),
+        found.iter().map(actual_tuple).collect::<Vec<_>>()
+    )))
+}
+
+/// Judge one `invalid/` fixture: the full record set, then autofix output when
+/// the rule is fixable. `None` when the fixture carries no readable
+/// `errors.yaml` to compare against.
+fn eval_invalid_fixture(input: &Path, code: &str, fixable: bool) -> Option<Result<(), String>> {
+    let src = std::fs::read_to_string(input).ok()?;
+    let epath = errors_path(input)?;
+    let eyaml = std::fs::read_to_string(&epath).ok()?;
+    let expected = match serde_yaml::from_str::<Vec<ExpectedError>>(&eyaml) {
+        Ok(e) => e,
+        Err(_) => return Some(Err(format!("[bad errors.yaml] {}", epath.display()))),
+    };
+
+    // Compare the full record set — (line, column, message, suggestions) — so
+    // message/position *and* every offered suggestion's description + applied
+    // output match upstream exactly.
+    let li = LineIndex::new(&src);
+    let opts = load_options(input);
+    let mut exp: Vec<FullRecord> = expected.iter().map(expected_record).collect();
+    // Meta-rules (`valid-compile`, `valid-style-parse`) are emitted via the
+    // compiler/source-scan path (output diagnostics), not the raw native/script
+    // rule path, and never carry editor suggestions — source them from
+    // `findings_for`.
+    let mut act: Vec<FullRecord> = if is_meta_rule(code) {
+        findings_for(&src, input, code, &opts)
+            .iter()
+            .map(output_record)
+            .collect()
+    } else {
+        raw_findings_for(&src, input, code, &opts)
+            .iter()
+            .map(|d| actual_record(d, &li, &src))
+            .collect()
+    };
+    exp.sort();
+    act.sort();
+    if exp != act {
+        return Some(Err(format!(
+            "[mismatch] {}\n    expected {:#?}\n    actual   {:#?}",
+            input.display(),
+            exp,
+            act
+        )));
+    }
+
+    if fixable
+        && let Some(opath) = output_path(input)
+        && let Ok(expected_out) = std::fs::read_to_string(&opath)
+    {
+        let mut cfg = LintConfig::empty().with_override(code, Severity::Error);
+        if let Some(opts) = load_options(input) {
+            cfg = cfg.with_options(code, opts);
+        }
+        let fixed = fix_source_at(&src, &cfg, &input.to_string_lossy()).output;
+        if fixed != expected_out {
+            return Some(Err(format!(
+                "[fix mismatch] {}\n    expected:\n{}\n    actual:\n{}",
+                input.display(),
+                expected_out,
+                fixed
+            )));
+        }
+    }
+    Some(Ok(()))
+}
+
 #[test]
 fn oracle_strict_parity() {
     let Some(root) = fixture_root() else {
@@ -589,17 +645,9 @@ fn oracle_strict_parity() {
             if is_skipped(&input) || !requirements_ok(&input) {
                 continue;
             }
-            let Ok(src) = std::fs::read_to_string(&input) else {
-                continue;
-            };
-            let found = findings_for(&src, &input, code, &load_options(&input));
-            checked += 1;
-            if !found.is_empty() {
-                failures.push(format!(
-                    "[false positive] {}: expected 0, got {:?}",
-                    input.display(),
-                    found.iter().map(actual_tuple).collect::<Vec<_>>()
-                ));
+            if let Some(verdict) = eval_valid_fixture(&input, code) {
+                checked += 1;
+                failures.extend(verdict.err());
             }
         }
 
@@ -610,72 +658,9 @@ fn oracle_strict_parity() {
             if is_skipped(&input) || !requirements_ok(&input) {
                 continue;
             }
-            let Ok(src) = std::fs::read_to_string(&input) else {
-                continue;
-            };
-            let Some(epath) = errors_path(&input) else {
-                continue;
-            };
-            let Ok(eyaml) = std::fs::read_to_string(&epath) else {
-                continue;
-            };
-            let Ok(expected) = serde_yaml::from_str::<Vec<ExpectedError>>(&eyaml) else {
-                failures.push(format!("[bad errors.yaml] {}", epath.display()));
-                continue;
-            };
-            checked += 1;
-
-            // Compare the full record set — (line, column, message, suggestions)
-            // — so message/position *and* every offered suggestion's
-            // description + applied output match upstream exactly.
-            let li = LineIndex::new(&src);
-            let opts = load_options(&input);
-            let mut exp: Vec<FullRecord> = expected.iter().map(expected_record).collect();
-            // Meta-rules (`valid-compile`, `valid-style-parse`) are emitted via the
-            // compiler/source-scan path (output diagnostics), not the raw
-            // native/script rule path, and never carry editor suggestions — source
-            // them from `findings_for`.
-            let mut act: Vec<FullRecord> = if is_meta_rule(code) {
-                findings_for(&src, &input, code, &opts)
-                    .iter()
-                    .map(output_record)
-                    .collect()
-            } else {
-                raw_findings_for(&src, &input, code, &opts)
-                    .iter()
-                    .map(|d| actual_record(d, &li, &src))
-                    .collect()
-            };
-            exp.sort();
-            act.sort();
-            if exp != act {
-                failures.push(format!(
-                    "[mismatch] {}\n    expected {:#?}\n    actual   {:#?}",
-                    input.display(),
-                    exp,
-                    act
-                ));
-                continue;
-            }
-
-            // Autofix parity (when the rule is fixable and an output exists).
-            if fixable
-                && let Some(opath) = output_path(&input)
-                && let Ok(expected_out) = std::fs::read_to_string(&opath)
-            {
-                let mut cfg = LintConfig::empty().with_override(code, Severity::Error);
-                if let Some(opts) = load_options(&input) {
-                    cfg = cfg.with_options(code, opts);
-                }
-                let fixed = fix_source(&src, &cfg).output;
-                if fixed != expected_out {
-                    failures.push(format!(
-                        "[fix mismatch] {}\n    expected:\n{}\n    actual:\n{}",
-                        input.display(),
-                        expected_out,
-                        fixed
-                    ));
-                }
+            if let Some(verdict) = eval_invalid_fixture(&input, code, fixable) {
+                checked += 1;
+                failures.extend(verdict.err());
             }
         }
     }
@@ -707,11 +692,76 @@ fn oracle_strict_parity() {
         .copied()
         .filter(|frag| !all_paths.iter().any(|p| p.contains(frag)))
         .collect();
+    // Dead-`UNSKIP` gate: an exception that no `SKIP` prefix actually suppresses
+    // is doing nothing, and reads as a documented carve-out that isn't one.
+    let dead_unskips: Vec<&str> = UNSKIP
+        .iter()
+        .copied()
+        .filter(|frag| {
+            !all_paths
+                .iter()
+                .any(|p| p.contains(frag) && SKIP.iter().any(|s| p.contains(s)))
+        })
+        .collect();
+    assert!(
+        dead_unskips.is_empty(),
+        "oracle dead-unskip gate: {} UNSKIP entr(ies) are not covered by any SKIP          prefix (remove them): {}",
+        dead_unskips.len(),
+        dead_unskips.join(", ")
+    );
+
     assert!(
         dead_skips.is_empty(),
         "oracle dead-skip gate: {} SKIP entr(ies) match no fixture (remove or fix): {}",
         dead_skips.len(),
         dead_skips.join(", ")
+    );
+
+    // Stale-skip gate — the other side of the dead-skip check. `dead_skips`
+    // only asks whether a fragment still *matches* a fixture, which stays true
+    // forever once the divergence it names is fixed: the skip then suppresses a
+    // fixture that would pass, and nothing else grades that shape. So re-run
+    // every skipped fixture through the same comparison and require it to still
+    // diverge.
+    let mut stale: Vec<String> = Vec::new();
+    for rut in &under_test {
+        let RuleUnderTest { dir, code, fixable } = *rut;
+        let rule_dir = root.join(dir);
+        if !rule_dir.exists() {
+            continue;
+        }
+        let mut inputs = Vec::new();
+        collect_inputs(&rule_dir.join("valid"), &mut inputs);
+        let valid_count = inputs.len();
+        collect_inputs(&rule_dir.join("invalid"), &mut inputs);
+        for (i, input) in inputs.iter().enumerate() {
+            if !is_skipped(input) || !requirements_ok(input) {
+                continue;
+            }
+            let verdict = if i < valid_count {
+                eval_valid_fixture(input, code)
+            } else {
+                eval_invalid_fixture(input, code, fixable)
+            };
+            if let Some(Ok(())) = verdict {
+                stale.push(
+                    input
+                        .strip_prefix(&root)
+                        .unwrap_or(input)
+                        .display()
+                        .to_string(),
+                );
+            }
+        }
+    }
+    stale.sort();
+    assert!(
+        stale.is_empty(),
+        "oracle stale-skip gate: {} skipped fixture(s) now PASS — delete the \
+         SKIP entry that covers each (a skip that no longer suppresses a \
+         divergence hides the shape from every gate):\n  {}",
+        stale.len(),
+        stale.join("\n  ")
     );
 
     // Coverage gate: every upstream rule fixture directory must map to a

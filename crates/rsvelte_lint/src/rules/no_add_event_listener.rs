@@ -5,12 +5,13 @@
 //! `svelte/events` (which respects the component lifecycle), so any direct use of
 //! `addEventListener` should be flagged.
 //!
-//! Runs over the `<script>` (instance / module) `ESTree` program via the
-//! [`ScriptRule`] hook.
+//! Components are checked once per file in `check_root` (both scripts plus
+//! template-expression handlers); the `ScriptRule` pass covers standalone
+//! modules.
 //!
 //! A `CallExpression` is reported when its callee is either:
-//!   - a non-computed `MemberExpression` whose property is an `Identifier`
-//!     named `addEventListener` (e.g. `el.addEventListener(...)`), or
+//!   - a `MemberExpression` whose property is an `Identifier` named
+//!     `addEventListener` (computed or not — mirrors upstream), or
 //!   - a bare `Identifier` named `addEventListener` (e.g. `addEventListener(...)`,
 //!     i.e. the global on `window`).
 //!
@@ -37,10 +38,15 @@
 
 use serde_json::Value;
 
+use rsvelte_core::ast::template::Root;
+
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, Suggestion, TextEdit};
-use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type};
+use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::store_refs::handled_by_template_pass;
+use crate::script::{
+    ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js,
+};
 
 const MESSAGE: &str =
     "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead.";
@@ -81,55 +87,79 @@ struct Report {
 #[derive(Default)]
 pub struct NoAddEventListener;
 
+fn scan(tree: &Value, reports: &mut Vec<Report>) {
+    walk_js(tree, |node, _ancestors| {
+        if node_type(node) != Some("CallExpression") {
+            return;
+        }
+        let Some(callee) = node.get("callee") else {
+            return;
+        };
+
+        let Some(entry) = collect_callee_spans(callee) else {
+            return;
+        };
+        let Some(call_start) = node_start(node) else {
+            return;
+        };
+        let Some(call_end) = node_end(node) else {
+            return;
+        };
+
+        reports.push(Report {
+            call_start,
+            call_end,
+            callee_start: entry.0,
+            callee_end: entry.1,
+            obj_span: entry.2,
+        });
+    });
+}
+
 impl ScriptRule for NoAddEventListener {
     fn meta(&self) -> &'static RuleMeta {
         &META
     }
 
     fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
+        if handled_by_template_pass(ctx.filename()) {
+            return;
+        }
         let mut reports: Vec<Report> = Vec::new();
-        program.walk(|node, _ancestors| {
-            if node_type(node) != Some("CallExpression") {
-                return;
-            }
-            let Some(callee) = node.get("callee") else {
-                return;
-            };
+        scan(program.value(), &mut reports);
+        emit(ctx, reports);
+    }
+}
 
-            let Some(entry) = collect_callee_spans(callee) else {
-                return;
-            };
-            let Some(call_start) = node_start(node) else {
-                return;
-            };
-            let Some(call_end) = node_end(node) else {
-                return;
-            };
+impl Rule for NoAddEventListener {
+    fn meta(&self) -> &'static RuleMeta {
+        &META
+    }
 
-            reports.push(Report {
-                call_start,
-                call_end,
-                callee_start: entry.0,
-                callee_end: entry.1,
-                obj_span: entry.2,
-            });
-        });
+    fn check_root(&self, ctx: &mut LintContext, root: &Root) {
+        let root_json = ctx.root_json(root);
+        if root_json.is_null() {
+            return;
+        }
+        let mut reports: Vec<Report> = Vec::new();
+        for tree in [
+            root_json.get("instance").and_then(|s| s.get("content")),
+            root_json.get("module").and_then(|s| s.get("content")),
+            root_json.get("fragment"),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            scan(tree, &mut reports);
+        }
+        emit(ctx, reports);
+    }
+}
 
-        // Filter out cases where the callee was wrapped in a TypeScript type
-        // assertion (`(expr as T)(...)` or `<T>expr(...)`). In rsvelte the
-        // TS cast is stripped from the AST so the inner `MemberExpression`
-        // is exposed as the callee — but the oracle (espree/TS parser) sees a
-        // `TSAsExpression` callee and does NOT flag it.
-        //
-        // Detection: if the CallExpression starts before the (stripped) callee
-        // AND the source byte at the call start is `(`, AND the source slice
-        // from callee_end onwards (before the next `)` that closes the cast)
-        // contains the keyword `as ` — it was a TS cast.
-        let reports: Vec<Report> = reports
-            .into_iter()
-            .filter(|r| !is_ts_cast_stripped_callee(ctx.source(), r.call_start, r.callee_end))
-            .collect();
-
+fn emit(ctx: &mut LintContext, mut reports: Vec<Report>) {
+    reports.sort_by_key(|r| r.call_start);
+    reports.dedup_by_key(|r| r.call_start);
+    {
         for r in reports {
             // Resolve the target text from source now that we hold `&mut ctx`.
             let target = match r.obj_span {
@@ -180,10 +210,9 @@ impl ScriptRule for NoAddEventListener {
 fn collect_callee_spans(callee: &Value) -> Option<(u32, u32, Option<(u32, u32)>)> {
     match node_type(callee)? {
         "MemberExpression" => {
-            // Computed member expressions (`obj["addEventListener"]`) are not matched.
-            if callee.get("computed").and_then(Value::as_bool) == Some(true) {
-                return None;
-            }
+            // Upstream matches on `callee.property.type === 'Identifier'` only,
+            // so a computed Identifier access (`el[addEventListener]`) fires
+            // while a Literal access (`el['addEventListener']`) does not.
             let property = callee.get("property")?;
             if node_type(property) != Some("Identifier") {
                 return None;
@@ -211,13 +240,15 @@ fn collect_callee_spans(callee: &Value) -> Option<(u32, u32, Option<(u32, u32)>)
 }
 
 /// Scan `source` forward from byte offset `from` to find the byte offset of the
-/// first `(` character, skipping ASCII whitespace and `/* … */` block comments.
-/// Line comments (`// …`) are not skipped because they cannot appear between a
-/// callee and its argument list without a newline, and a newline between them
-/// would be an ASI opportunity making the `(` the start of a new expression —
-/// the upstream tool relies on the parser having already handled that.
+/// first `(` character, skipping ASCII whitespace and comments — upstream's
+/// `getTokenAfter(callee)` skips both kinds. A `//` comment can sit between a
+/// callee and its argument list, because `(` continues the expression and so
+/// blocks ASI.
 ///
-/// Returns `None` if no `(` is found before the end of the source.
+/// Returns `None` when the next token is not `(`. Upstream has no such guard
+/// (`no-add-event-listener.ts:46-58` names the token `openParen` but never
+/// checks it), so on `el?.addEventListener?.(…)` its fixer inserts after the
+/// `?.` and produces text no JS parser accepts; we decline instead.
 fn find_open_paren(source: &str, from: u32) -> Option<u32> {
     let bytes = source.as_bytes();
     let mut i = from as usize;
@@ -225,6 +256,12 @@ fn find_open_paren(source: &str, from: u32) -> Option<u32> {
         match bytes[i] {
             b' ' | b'\t' | b'\r' | b'\n' => {
                 i += 1;
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'/') => {
+                i += 2;
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
             }
             b'/' if bytes.get(i + 1) == Some(&b'*') => {
                 // Skip block comment `/* … */`.
@@ -245,42 +282,6 @@ fn find_open_paren(source: &str, from: u32) -> Option<u32> {
         }
     }
     None
-}
-
-/// Detect whether a `CallExpression` whose callee spans `[callee_end..]` was
-/// wrapped in a TypeScript type assertion (`(expr as T)(...)`) that was
-/// stripped by rsvelte's TS-stripping. The oracle (espree/TS-parser) would see a
-/// `TSAsExpression` as the callee and NOT report it, but rsvelte's AST strips
-/// the cast, exposing the inner `MemberExpression`.
-///
-/// Heuristic: if the source at `call_start` is `(` AND the text from
-/// `callee_end` up to (and including) the matching `)` contains `as `, the
-/// callee was a TS `as`-cast.
-fn is_ts_cast_stripped_callee(source: &str, call_start: u32, callee_end: u32) -> bool {
-    let bytes = source.as_bytes();
-    let call_pos = call_start as usize;
-    let callee_end_pos = callee_end as usize;
-
-    // The call must start with `(` and there must be bytes before callee_end.
-    if call_pos >= callee_end_pos {
-        return false;
-    }
-    if bytes.get(call_pos) != Some(&b'(') {
-        return false;
-    }
-
-    // Look for `as ` (or `as\t`, `as\n`) between callee_end and the first `)`.
-    let mut i = callee_end_pos;
-    while i < bytes.len() && bytes[i] != b')' {
-        if bytes[i] == b'a'
-            && bytes.get(i + 1) == Some(&b's')
-            && bytes.get(i + 2).is_some_and(u8::is_ascii_whitespace)
-        {
-            return true;
-        }
-        i += 1;
-    }
-    false
 }
 
 #[cfg(test)]

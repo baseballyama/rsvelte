@@ -1,0 +1,6 @@
+{
+	"name": "rsvelte-lint-adversarial-fixtures",
+	"version": "0.0.0",
+	"private": true,
+	"dependencies": { "@sveltejs/kit": "^2.0.0", "svelte": "^5.0.0" }
+}

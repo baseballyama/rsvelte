@@ -53,16 +53,17 @@ use hug::{
 use open_tag::{collect_break_inline_open_tag, collect_recollapse_open_tag, split_open_tag_attrs};
 use pre::{
     collect_pre_block_reformats, try_break_pre_content_tag, try_break_pre_own_attrs,
-    try_fix_pre_child_open_tags,
+    try_break_textarea_tags, try_fix_pre_child_open_tags,
 };
 use state::{build_orig_text_map, in_pre_content, orig_text_for, with_orig_text, with_pre_content};
 use util::{
     apply_edits, attribute_span, child_fragments, current_column, did_self_close,
     element_container, element_source_empty, ends_with_space_no_break, fragment_has_prose_word,
-    indent_config, is_block_display, is_component_tag, is_html_void_element, is_inline_block,
-    is_inline_node, is_inline_regular_element, is_whitespace_preserving, leading_linebreaks,
-    node_end, node_start, omit_softline_allowed, parse_formatted, starts_with_space_no_break,
-    text_end, text_start, trailing_linebreaks, trims_edge_whitespace,
+    indent_config, is_block_display, is_component_tag, is_html_void_element, is_html_ws,
+    is_inline_block, is_inline_node, is_inline_regular_element, is_whitespace_preserving,
+    leading_linebreaks, node_end, node_start, omit_softline_allowed, parse_formatted,
+    split_html_ws, starts_with_space_no_break, text_end, text_start, trailing_linebreaks,
+    trim_html_ws_end, trim_html_ws_start, trims_edge_whitespace,
 };
 
 pub use util::template_node_span;
@@ -134,10 +135,10 @@ pub fn collapse_pure_text_elements(
     }
     // Collapse is a best-effort post-pass over the already-formatted output. If
     // that output can't be re-parsed, skip collapse and return it as-is rather
-    // than failing the whole format — the JS formatter can legitimately emit
-    // markup that rsvelte's (Svelte-faithful) parser rejects but the oxfmt oracle
-    // accepts, e.g. stripping the parens off `{(/regex/).test(x)}` to a `{/…}`
-    // expression that looks like a block close.
+    // than failing the whole format. (The known-legal case — the JS formatter
+    // stripping the parens off `{(/regex/).test(x)}` to a `{/…}` expression that
+    // looks like a block close — is handled by `reparse_leading_slash_expression`
+    // below rather than skipped, so the width passes still run on it.)
     // Re-parse the formatted output in the same dialect the document was formatted
     // in. A TS document (incl. one that reached TS via the formatter's force-TS
     // fallback) emits TS, so a JS-only re-parse would fail and silently skip
@@ -154,6 +155,11 @@ pub fn collapse_pure_text_elements(
         // expressions (only their source spans, which survive on the lazy
         // variant), so defer the oxc script/CSS parse the re-parse never uses.
         defer_script_parse: true,
+        // The JS printer legally emits `{/^x/y.test(a)}` (parens stripped off a
+        // leading regex) — text the strict parser reads as a block close. The
+        // re-parse must still see the tree, or every width pass silently skips
+        // the file (#3047).
+        reparse_leading_slash_expression: true,
         ..ParseOptions::default()
     };
     // The children-port helpers rebuild elements without carrying `FormatOptions`;

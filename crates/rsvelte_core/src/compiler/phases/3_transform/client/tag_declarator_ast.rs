@@ -175,6 +175,11 @@ fn handle_variable_declaration<'a>(
             continue;
         };
         let name = id.name.as_str();
+        // `$$`-prefixed names are the compiler's own temps (`$$d`, `$$array`);
+        // upstream labels a binding the user wrote, never one it generated.
+        if name.starts_with("$$") {
+            continue;
+        }
 
         let Some(init) = &decl.init else {
             continue;

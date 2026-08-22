@@ -90,10 +90,75 @@ const fn sarif_level(severity: DiagnosticSeverity) -> &'static str {
     }
 }
 
+/// `render` for findings that still carry their `fix` / `suggestions` payload.
+///
+/// Only SARIF can express the payload; the line-oriented formats print the same
+/// text either way, so they share `render`'s path.
+#[cfg(feature = "native")]
+#[must_use]
+pub fn render_messages(
+    messages: &[crate::diagnostic::LintMessage],
+    workspace_root: &Path,
+    files_checked: usize,
+    format: LintFormat,
+    tool_version: &str,
+) -> String {
+    let diagnostics: Vec<Diagnostic> = messages.iter().map(|m| m.diagnostic.clone()).collect();
+    match format {
+        LintFormat::Sarif => {
+            let payloads: Vec<Payload> = messages
+                .iter()
+                .map(|m| Payload {
+                    fix: m.fix.as_ref(),
+                    suggestions: &m.suggestions,
+                })
+                .collect();
+            let refs: Vec<Option<&Payload>> = payloads.iter().map(Some).collect();
+            sarif_document(&diagnostics, &refs, workspace_root, tool_version)
+        }
+        LintFormat::Core(_) => render(
+            &diagnostics,
+            workspace_root,
+            files_checked,
+            format,
+            tool_version,
+        ),
+    }
+}
+
 /// Build a SARIF 2.1.0 document for the diagnostics.
 #[must_use]
 pub fn write_sarif(
     diagnostics: &[Diagnostic],
+    workspace_root: &Path,
+    tool_version: &str,
+) -> String {
+    let empty: Vec<Option<&Payload>> = vec![None; diagnostics.len()];
+    sarif_document(diagnostics, &empty, workspace_root, tool_version)
+}
+
+/// The `--fix` / suggestion payload SARIF carries alongside a result.
+///
+/// SARIF's own `fixes[]` cannot express "offered but never auto-applied", so
+/// both live under `properties` with byte offsets into the file's UTF-8 source
+/// rather than SARIF regions — the form a differential comparison needs.
+pub struct Payload<'a> {
+    pub fix: Option<&'a crate::diagnostic::Fix>,
+    pub suggestions: &'a [crate::diagnostic::Suggestion],
+}
+
+fn edits_json(fix: &crate::diagnostic::Fix) -> Value {
+    Value::Array(
+        fix.edits
+            .iter()
+            .map(|e| json!({ "start": e.start, "end": e.end, "text": e.new_text }))
+            .collect(),
+    )
+}
+
+fn sarif_document(
+    diagnostics: &[Diagnostic],
+    payloads: &[Option<&Payload>],
     workspace_root: &Path,
     tool_version: &str,
 ) -> String {
@@ -123,7 +188,8 @@ pub fn write_sarif(
 
     let results: Vec<Value> = diagnostics
         .iter()
-        .map(|d| sarif_result(d, workspace_root))
+        .zip(payloads.iter().chain(std::iter::repeat(&None)))
+        .map(|(d, p)| sarif_result(d, *p, workspace_root))
         .collect();
 
     let doc = json!({
@@ -142,7 +208,7 @@ pub fn write_sarif(
     serde_json::to_string_pretty(&doc).unwrap_or_else(|_| "{}".to_string())
 }
 
-fn sarif_result(d: &Diagnostic, workspace_root: &Path) -> Value {
+fn sarif_result(d: &Diagnostic, payload: Option<&Payload>, workspace_root: &Path) -> Value {
     let rel = d.file.strip_prefix(workspace_root).unwrap_or(&d.file);
     let uri = rel.to_string_lossy().replace('\\', "/");
 
@@ -169,6 +235,29 @@ fn sarif_result(d: &Diagnostic, workspace_root: &Path) -> Value {
     });
     if let Some(code) = &d.code {
         result["ruleId"] = json!(code);
+    }
+    if let Some(p) = payload {
+        let mut props = serde_json::Map::new();
+        if let Some(fix) = p.fix {
+            props.insert(
+                "fix".into(),
+                json!({ "message": fix.message, "edits": edits_json(fix) }),
+            );
+        }
+        if !p.suggestions.is_empty() {
+            props.insert(
+                "suggestions".into(),
+                Value::Array(
+                    p.suggestions
+                        .iter()
+                        .map(|sg| json!({ "desc": sg.desc, "edits": edits_json(&sg.fix) }))
+                        .collect(),
+                ),
+            );
+        }
+        if !props.is_empty() {
+            result["properties"] = Value::Object(props);
+        }
     }
     result
 }

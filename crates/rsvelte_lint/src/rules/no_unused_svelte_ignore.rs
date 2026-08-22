@@ -66,7 +66,7 @@ pub static META: RuleMeta = RuleMeta {
     category: RuleCategory::Correctness,
     fixable: Fixable::No,
     // Upstream `recommended: true`.
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: false,
@@ -220,25 +220,51 @@ pub fn no_unused_svelte_ignore_diagnostics(
         }
     }
 
-    for item in &coded {
-        let code_fired_without_span = positionless.contains(item.code.as_str())
-            || positionless.contains(item.code_for_v5.as_str());
-        // A CSS-warning ignore leading the stripped non-CSS `<style>` is used —
-        // its warnings are undeterminable without a preprocessor (upstream's
-        // `stripStyleElements` loop in `processIgnore`).
-        let css_stripped_used = non_css_style
-            .is_some_and(|(elem, _)| is_css_warn_code(item) && item.scope == Some(elem));
-        let used = code_fired_without_span
-            || css_stripped_used
-            || item.scope.is_some_and(|(scope_start, scope_end)| {
-                let scope_start = li.position(scope_start);
-                let scope_end = li.position(scope_end);
-                warnings.iter().any(|&(code, pos)| {
-                    (code == item.code || code == item.code_for_v5)
-                        && scope_start <= pos
-                        && pos < scope_end
-                })
+    let mut used: Vec<bool> = coded
+        .iter()
+        .map(|item| {
+            positionless.contains(item.code.as_str())
+                || positionless.contains(item.code_for_v5.as_str())
+                // A CSS-warning ignore leading the stripped non-CSS `<style>` is
+                // used — its warnings are undeterminable without a preprocessor
+                // (upstream's `stripStyleElements` loop in `processIgnore`).
+                || non_css_style
+                    .is_some_and(|(elem, _)| is_css_warn_code(item) && item.scope == Some(elem))
+        })
+        .collect();
+
+    let scopes: Vec<Option<((u32, u32), (u32, u32))>> = coded
+        .iter()
+        .map(|item| item.scope.map(|(s, e)| (li.position(s), li.position(e))))
+        .collect();
+
+    // Upstream drives the match from the WARNING, and at each node level it
+    // consumes only the last of that node's leading comments — so a second
+    // identical ignore on the same node is left unused.
+    for &(code, pos) in &warnings {
+        for (i, item) in coded.iter().enumerate() {
+            let Some((scope_start, scope_end)) = scopes[i] else {
+                continue;
+            };
+            if !(scope_start <= pos && pos < scope_end) {
+                continue;
+            }
+            if code != item.code && code != item.code_for_v5 {
+                continue;
+            }
+            let shadowed = coded.iter().enumerate().any(|(j, other)| {
+                j != i
+                    && other.scope == item.scope
+                    && other.code_start > item.code_start
+                    && (code == other.code || code == other.code_for_v5)
             });
+            if !shadowed {
+                used[i] = true;
+            }
+        }
+    }
+
+    for (item, used) in coded.iter().zip(used) {
         if !used {
             out.push(mk(item.code_start, item.code_end, UNUSED_MSG));
         }

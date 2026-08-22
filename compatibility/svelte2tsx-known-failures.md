@@ -4,9 +4,22 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 0 entries** — full parity, no tracked divergences.
+**Current baseline: `svelte2tsx-known-failures.json`, 1 entry.**
 
-The only justified reason to add an entry is that **official svelte2tsx is buggy
+- `pattern/issues/3200-asi-reactive-block.svelte` — **rsvelte is the worse side
+  here, and the entry says so.** The file is a deliberately-unparseable repro
+  (its point is the compiler's `js_parse_error` position inside a `$:` block),
+  and when the instance script does not parse rsvelte's svelte2tsx skips every
+  script transform: `export` is not blanked, the prop is missing from `props` /
+  `bindings` / `__sveltets_2_partial`, and the `$:` block is not wrapped in
+  `;() => { … }`. Official's transform is TypeScript-based and error-tolerant, so
+  it still applies them. Tracked as
+  [#3232](https://github.com/baseballyama/rsvelte/issues/3232); the entry exists
+  because the two gates share one population — the repro has to be in the corpus
+  for the compiler gate, and it cannot pass the svelte2tsx gate until #3232 is
+  fixed.
+
+The usual justified reason to add an entry is that **official svelte2tsx is buggy
 and rsvelte is more correct** — matching the oracle would require reproducing a
 crash, executing embedded scripts, or emitting malformed TSX. Such cases should be
 fixed **upstream** (`sveltejs/language-tools`), never mirrored in rsvelte (that

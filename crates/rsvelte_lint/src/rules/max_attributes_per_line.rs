@@ -122,12 +122,18 @@ fn attr_name(src: &str, a: &Attribute) -> String {
     }
 }
 
-/// Reconstruct the `this={…}` attribute span from an optional inner-expression
-/// span (`<svelte:element>` / `<svelte:component>`), or `None` when either end
-/// is missing or the backward scan fails.
-fn this_attr_span(src: &str, expr_start: Option<u32>, expr_end: Option<u32>) -> Option<(u32, u32)> {
-    let (s, e) = (expr_start?, expr_end?);
-    crate::rules::find_this_attr_span(src.as_bytes(), s, e)
+/// The text upstream reports for the implicit `this` attribute: its key range,
+/// which ends at the `=` rather than at the name.
+fn this_key_text(src: &str, start: u32) -> String {
+    let rest = &src[start as usize..];
+    rest.find('=')
+        .map_or_else(|| "this".to_string(), |eq| rest[..eq].to_string())
+}
+
+/// The `this=…` attribute span of a `<svelte:element>` / `<svelte:component>`
+/// start tag, or `None` when the tag has none.
+fn this_attr_span(src: &str, el_start: u32) -> Option<(u32, u32)> {
+    crate::rules::this_attr::oracle_this_attr_span(src, el_start)
 }
 
 /// Find the end of the previous token before `attr_start` (the whitespace
@@ -234,7 +240,11 @@ impl MaxAttributesPerLine {
                 AttrItem {
                     start: s,
                     end: e,
-                    name: "this".to_string(),
+                    // Upstream names the attribute with
+                    // `sourceCode.text.slice(...attribute.key.range)`, and a
+                    // `SvelteSpecialDirective`'s key runs to the `=` — so
+                    // `this = {x}` is reported as `'this '`, whitespace included.
+                    name: this_key_text(src, s),
                 },
             );
         }
@@ -246,10 +256,20 @@ impl MaxAttributesPerLine {
         let src_bytes = src.as_bytes();
 
         // Determine singleline vs multiline: is the start-tag on one line?
-        // Upstream uses `node.loc.start.line === node.loc.end.line` (the
-        // SvelteStartTag); we approximate via the first item's start line vs the
-        // last item's end line.
-        let is_single = li.line(items.first().unwrap().start) == li.line(items.last().unwrap().end);
+        // Upstream uses `node.loc.start.line === node.loc.end.line` on the
+        // SvelteStartTag — `<` through `>` — so a bracket on its own line makes
+        // the tag multiline even when all attributes share a line. Scanning for
+        // the `>` from past the last attribute (which includes the spliced
+        // `this`) never hits a `>` inside an attribute value.
+        let scan_from = items.iter().map(|it| it.end).max().unwrap();
+        let start_tag_gt = src_bytes[scan_from as usize..]
+            .iter()
+            .position(|&b| b == b'>')
+            .map(|off| scan_from + source_offset(off));
+        let is_single = start_tag_gt.map_or_else(
+            || li.line(items.first().unwrap().start) == li.line(items.last().unwrap().end),
+            |gt| li.line(el_start) == li.line(gt),
+        );
 
         if is_single {
             // Single-line: more than singleline_max attributes ⇒ report the
@@ -310,13 +330,13 @@ impl Rule for MaxAttributesPerLine {
     fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
         // `<svelte:component this={…}>` — the `this` expression is stored
         // separately; reconstruct its span so it counts as the leading attribute.
-        let this_span = this_attr_span(ctx.source(), el.expression.start(), el.expression.end());
+        let this_span = this_attr_span(ctx.source(), el.start);
         Self::check_tag(ctx, el.start, &el.attributes, this_span, None);
     }
 
     fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
         // `<svelte:element this={…}>` — same as svelte:component, via `el.tag`.
-        let this_span = this_attr_span(ctx.source(), el.tag.start(), el.tag.end());
+        let this_span = this_attr_span(ctx.source(), el.start);
         Self::check_tag(ctx, el.start, &el.attributes, this_span, None);
     }
 

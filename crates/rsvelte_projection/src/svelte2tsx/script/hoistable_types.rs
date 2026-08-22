@@ -527,7 +527,16 @@ pub(super) fn resolve_hoistable_type_decls(
         // (whitespace + line / block comments) so JSDoc and explanatory
         // comments on the declaration travel with the hoisted chunk.
         // Matches TypeScript's `node.pos`, which spans leading trivia.
-        let start = walk_back_through_trivia(raw_bytes, c.rel_start as usize);
+        let mut start = walk_back_through_trivia(raw_bytes, c.rel_start as usize);
+        // One line break stays behind so the hoist does not shift the
+        // following statements up a line; the chunk gets it back as the `\n`
+        // in its `;\n` intro.
+        if raw_bytes.get(start) == Some(&b'\r') {
+            start += 1;
+        }
+        if raw_bytes.get(start).is_some_and(u8::is_ascii_whitespace) {
+            start += 1;
+        }
         exported_names
             .hoistable_type_ranges
             .push((u32_index(start) + offset, c.rel_end + offset));

@@ -364,3 +364,120 @@ fn gather_possible_values(
         }
     }
 }
+
+/// The class names an attribute value can produce, or `None` when the value is
+/// not statically knowable and every class selector therefore stays a candidate.
+///
+/// Shared so a dynamic element answers this the same way a regular one does; a
+/// per-element-type copy is what let `<svelte:element class={a ? 'x' : 'y'}>`
+/// keep every rule alive.
+pub fn possible_class_names(
+    value: &crate::ast::template::AttributeValue,
+) -> Option<rustc_hash::FxHashSet<String>> {
+    use crate::ast::template::{AttributeValue, AttributeValuePart};
+    use rustc_hash::FxHashSet;
+
+    let mut names: FxHashSet<String> = FxHashSet::default();
+
+    match value {
+        AttributeValue::Sequence(parts) => {
+            // Combinatorial expansion over the chunks, tracking whitespace
+            // boundaries so `class="foo{expr}bar"` yields the joined names.
+            let mut possible_values: FxHashSet<String> = FxHashSet::default();
+            let mut prev_values: Vec<String> = Vec::new();
+
+            for part in parts {
+                let current_vals = match part {
+                    AttributeValuePart::Text(text) => vec![text.data.to_string()],
+                    AttributeValuePart::ExpressionTag(expr_tag) => {
+                        get_possible_values_expr(&expr_tag.expression, true)?
+                    }
+                };
+
+                if prev_values.is_empty() {
+                    for cv in &current_vals {
+                        if cv.ends_with(char::is_whitespace) {
+                            possible_values.insert(cv.clone());
+                        } else {
+                            prev_values.push(cv.clone());
+                        }
+                    }
+                    if prev_values.len() < current_vals.len() {
+                        prev_values.push(" ".to_string());
+                    }
+                } else {
+                    let mut starts_with_space = Vec::new();
+                    let mut remaining = Vec::new();
+                    for cv in &current_vals {
+                        if cv.starts_with(char::is_whitespace) {
+                            starts_with_space.push(cv.clone());
+                        } else {
+                            remaining.push(cv.clone());
+                        }
+                    }
+
+                    if !remaining.is_empty() {
+                        if !starts_with_space.is_empty() {
+                            // Some values start with space - previous values are complete
+                            for pv in &prev_values {
+                                possible_values.insert(pv.clone());
+                            }
+                        }
+                        let mut combined = Vec::new();
+                        for pv in &prev_values {
+                            for rv in &remaining {
+                                combined.push(format!("{pv}{rv}"));
+                            }
+                        }
+                        prev_values = combined;
+                        for sv in &starts_with_space {
+                            if sv.ends_with(char::is_whitespace) {
+                                possible_values.insert(sv.clone());
+                            } else {
+                                prev_values.push(sv.clone());
+                            }
+                        }
+                    } else {
+                        for pv in &prev_values {
+                            possible_values.insert(pv.clone());
+                        }
+                        prev_values.clear();
+                        for sv in &starts_with_space {
+                            if sv.ends_with(char::is_whitespace) {
+                                possible_values.insert(sv.clone());
+                            } else {
+                                prev_values.push(sv.clone());
+                            }
+                        }
+                    }
+                    if prev_values.len() < current_vals.len() {
+                        prev_values.push(" ".to_string());
+                    }
+                    // Exponential growth, bail out
+                    if prev_values.len() > 20 {
+                        return None;
+                    }
+                }
+            }
+
+            for pv in prev_values {
+                possible_values.insert(pv);
+            }
+            for value in &possible_values {
+                for class_name in value.split_whitespace() {
+                    names.insert(class_name.to_string());
+                }
+            }
+        }
+        AttributeValue::Expression(expr_tag) => {
+            for value in get_possible_values_expr(&expr_tag.expression, true)? {
+                for class_name in value.split_whitespace() {
+                    names.insert(class_name.to_string());
+                }
+            }
+        }
+        AttributeValue::True(_) => {}
+    }
+
+    Some(names)
+}

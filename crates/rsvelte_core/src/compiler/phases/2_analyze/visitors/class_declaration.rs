@@ -18,10 +18,13 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
         if context.analysis.runes
             && let Some(id_ref) = id
             && let JsNode::Identifier { name, .. } = arena.get_js_node(*id_ref)
-            && let Some(binding_idx) = context.analysis.root.scope.declarations.get(name.as_str())
+            && let Some(binding_idx) = context
+                .analysis
+                .root
+                .get_binding(name.as_str(), context.scope)
         {
-            let binding = &context.analysis.root.bindings[*binding_idx];
-            validate_identifier_name(binding, Some(context.function_depth))?;
+            let binding = &context.analysis.root.bindings[binding_idx];
+            validate_identifier_name(binding, None)?;
         }
 
         // Only a component's `<script module>` allows top-level module scope only;

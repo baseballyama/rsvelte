@@ -8,7 +8,7 @@
 use rsvelte_core::ast::template::{
     Attribute, AwaitBlock, Comment, Component, ConstTag, DebugTag, DeclarationTag, EachBlock,
     ExpressionTag, HtmlTag, IfBlock, KeyBlock, RegularElement, RenderTag, Root, SlotElement,
-    SnippetBlock, SvelteComponentElement, SvelteDynamicElement, SvelteElement,
+    SnippetBlock, SvelteComponentElement, SvelteDynamicElement, SvelteElement, TitleElement,
 };
 
 use crate::context::LintContext;
@@ -136,6 +136,9 @@ pub trait Rule: Send + Sync {
     fn check_render_tag(&self, ctx: &mut LintContext, tag: &RenderTag) {}
     fn check_key(&self, ctx: &mut LintContext, block: &KeyBlock) {}
     fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {}
+    /// Called for `<title>` inside `<svelte:head>` (a plain HTML element to
+    /// svelte-eslint-parser, but a dedicated node in rsvelte's AST).
+    fn check_title(&self, ctx: &mut LintContext, el: &TitleElement) {}
 
     /// Called for every `svelte:*` special element (`SvelteHead`, `SvelteSelf`,
     /// `SvelteWindow`, …). The wrapped `SvelteElement` carries the element name

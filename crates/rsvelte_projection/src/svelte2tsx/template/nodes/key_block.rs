@@ -5,6 +5,7 @@ use crate::svelte2tsx::magic_string::MagicString;
 use crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions;
 
 use crate::svelte2tsx::template::ctx::{Counter, TemplateNodeExt};
+use crate::svelte2tsx::template::nodes::snippet_block::hoist_snippet_blocks;
 use crate::svelte2tsx::template::nodes::special_element::process_fragment_trimmed;
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
 
@@ -55,6 +56,8 @@ pub fn handle_key_block(
     } else {
         str.overwrite_fmt(block.start, content_start, format_args!("{expr_text}; {{"));
     }
+
+    hoist_snippet_blocks(&block.fragment, source, str);
 
     // Process children
     process_fragment_trimmed(&block.fragment.nodes, source, options, str, counter, depth);

@@ -521,7 +521,12 @@ impl<'a> Parser<'a> {
             ));
         }
 
-        if self.match_byte(b'/') && !self.match_str("/*") && !self.match_str("//") {
+        if self.match_byte(b'/')
+            && !self.match_str("/*")
+            && !self.match_str("//")
+            && (!self.options.reparse_leading_slash_expression
+                || self.block_close_shaped(self.index))
+        {
             // Block close (but not JS comment) - should not happen at top level
             return Ok(None);
         }
@@ -767,6 +772,46 @@ impl<'a> Parser<'a> {
     /// `` ` ``) is at `self.index`. Advances `self.index` past the closing quote.
     /// Handles backslash escapes and, for template literals, balanced `${ … }`
     /// interpolations so their braces aren't miscounted by header scanners.
+    /// Upstream's each-header reader allows only WHITESPACE between the item
+    /// pattern (or index identifier) and the next delimiter — a comment there
+    /// is `expected_token` / `expected_pattern` / `expected_identifier`, not
+    /// part of the pattern (#3057). Returns the absolute position of a comment
+    /// sitting before the first or after the last code byte of `segment`.
+    fn each_segment_comment(segment: &str, base: usize) -> Option<(bool, usize)> {
+        use crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes;
+        let bytes = segment.as_bytes();
+        let mut first_code = None;
+        let mut last_code = None;
+        for (i, b) in code_bytes(bytes) {
+            if !(b as char).is_ascii_whitespace() {
+                if first_code.is_none() {
+                    first_code = Some(i);
+                }
+                last_code = Some(i);
+            }
+        }
+        // Only a comment START counts: `code_bytes` mis-lexes a nested
+        // template (`` `${`"`}` `` ) and would otherwise flag its tail, and
+        // non-comment junk fails the pattern parse on both sides anyway.
+        let is_comment_start =
+            |i: usize| bytes[i] == b'/' && matches!(bytes.get(i + 1), Some(b'/') | Some(b'*'));
+        let first_raw = bytes.iter().position(|b| !b.is_ascii_whitespace());
+        match (first_raw, first_code) {
+            (Some(r), Some(c)) if r < c && is_comment_start(r) => return Some((true, base + r)),
+            (Some(r), None) if is_comment_start(r) => return Some((true, base + r)),
+            _ => {}
+        }
+        if let Some(last) = last_code {
+            let tail = &bytes[last + 1..];
+            if let Some(off) = tail.iter().position(|b| !b.is_ascii_whitespace())
+                && is_comment_start(last + 1 + off)
+            {
+                return Some((false, base + last + 1 + off));
+            }
+        }
+        None
+    }
+
     fn skip_header_string(&mut self, quote: u8) {
         self.index += 1; // consume the opening quote
         while self.index < self.bytes.len() {
@@ -1035,10 +1080,10 @@ impl<'a> Parser<'a> {
 
             // Handle {/each}. A mismatched close (e.g. `{/if}`) errors in strict
             // mode; in loose mode it is left for an outer block.
-            self.expect_block_close("each")?;
+            let found_closing = self.expect_block_close("each")?;
 
-            // Pop from stack (matched close, or EOF / loose-mode recovery).
-            if !self.stack.is_empty() {
+            // At EOF the entry stays on the stack for `block_unclosed`.
+            if found_closing && !self.stack.is_empty() {
                 self.stack.pop();
             }
 
@@ -1174,6 +1219,23 @@ impl<'a> Parser<'a> {
 
         let context_end = self.index;
         let raw_content = &self.source[context_start..context_end];
+        if !self.options.loose
+            && let Some((leading, pos)) = Self::each_segment_comment(raw_content, context_start)
+        {
+            return Err(crate::error::ParseError::svelte(
+                if leading {
+                    "expected_pattern"
+                } else {
+                    "expected_token"
+                },
+                if leading {
+                    "Expected identifier or destructure pattern"
+                } else {
+                    "Expected token }"
+                },
+                (pos, pos),
+            ));
+        }
         let trimmed_content = raw_content.trim_ws();
         // Calculate actual start position after trimming leading whitespace
         let leading_ws = raw_content.len() - raw_content.trim_start_ws().len();
@@ -1192,7 +1254,25 @@ impl<'a> Parser<'a> {
                 }
                 self.advance();
             }
-            let idx_name = self.source[idx_start..self.index].trim_ws();
+            let idx_segment = &self.source[idx_start..self.index];
+            if !self.options.loose
+                && let Some((leading, pos)) = Self::each_segment_comment(idx_segment, idx_start)
+            {
+                return Err(crate::error::ParseError::svelte(
+                    if leading {
+                        "expected_identifier"
+                    } else {
+                        "expected_token"
+                    },
+                    if leading {
+                        "Expected an identifier"
+                    } else {
+                        "Expected token }"
+                    },
+                    (pos, pos),
+                ));
+            }
+            let idx_name = idx_segment.trim_ws();
             if !idx_name.is_empty() {
                 index = Some(CompactString::from(idx_name));
             }
@@ -1215,6 +1295,13 @@ impl<'a> Parser<'a> {
         }
 
         self.skip_whitespace();
+        if !self.options.loose && !self.is_eof() && self.current_char() != '}' {
+            return Err(crate::error::ParseError::svelte(
+                "expected_token",
+                "Expected token }",
+                (self.index, self.index),
+            ));
+        }
         self.eat_optional("}"); // consume closing brace
 
         // Push block to stack
@@ -1247,10 +1334,10 @@ impl<'a> Parser<'a> {
 
         // Handle closing {/each}. A mismatched close (e.g. `{/if}`) errors in
         // strict mode; in loose mode it is left for an outer block.
-        self.expect_block_close("each")?;
+        let found_closing = self.expect_block_close("each")?;
 
-        // Pop from stack (matched close, or EOF / loose-mode recovery).
-        if !self.stack.is_empty() {
+        // At EOF the entry stays on the stack for `block_unclosed`.
+        if found_closing && !self.stack.is_empty() {
             self.stack.pop();
         }
 
@@ -1606,10 +1693,10 @@ impl<'a> Parser<'a> {
         // Handle closing {/await}. A mismatched close (e.g. `{#await}` closed by
         // `{/if}`) errors in strict mode; in loose mode it is left for an outer
         // block.
-        self.expect_block_close("await")?;
+        let found_closing = self.expect_block_close("await")?;
 
-        // Pop the stack (matched close, or EOF / loose-mode recovery).
-        if !self.stack.is_empty() {
+        // At EOF the entry stays on the stack for `block_unclosed`.
+        if found_closing && !self.stack.is_empty() {
             self.stack.pop();
         }
 
@@ -1651,10 +1738,10 @@ impl<'a> Parser<'a> {
 
         // Handle closing {/key}. A mismatched close (e.g. `{/if}`) errors in
         // strict mode; in loose mode it is left for an outer block.
-        self.expect_block_close("key")?;
+        let found_closing = self.expect_block_close("key")?;
 
-        // Pop from stack (matched close, or EOF / loose-mode recovery).
-        if !self.stack.is_empty() {
+        // At EOF the entry stays on the stack for `block_unclosed`.
+        if found_closing && !self.stack.is_empty() {
             self.stack.pop();
         }
 
@@ -1761,33 +1848,6 @@ impl<'a> Parser<'a> {
             let params_end = self.index;
             let params_content = &self.source[params_start..params_end];
 
-            // Check for rest parameters (snippets don't support them)
-            // Look for ... at top level (not inside nested parens/brackets).
-            // svelte raises this in the 2-analyze SnippetBlock visitor, NOT the
-            // parser — so svelte2tsx (parse-only) still COMPILES a snippet with
-            // a rest param. rsvelte keeps the parse-time check for the compiler
-            // (the compiler-errors fixture needs its position), but skips it in
-            // svelte2tsx mode (`script_ts`, set only by `parse_script_ts`).
-            if !self.script_ts {
-                let trimmed = params_content.trim_ws();
-                let mut depth = 0;
-                for (byte_offset, c) in trimmed.char_indices() {
-                    if c == '(' || c == '[' || c == '{' {
-                        depth += 1;
-                    } else if c == ')' || c == ']' || c == '}' {
-                        depth -= 1;
-                    } else if depth == 0 && c == '.' && trimmed[byte_offset..].starts_with("...") {
-                        // Found rest parameter
-                        let rest_start = params_start + byte_offset;
-                        return Err(crate::error::ParseError::svelte(
-                            "snippet_invalid_rest_parameter",
-                            "Snippets do not support rest parameters; use an array instead",
-                            (rest_start, rest_start + 7), // approximate end
-                        ));
-                    }
-                }
-            }
-
             // Parse parameters with TypeScript type annotations
             if !params_content.trim_ws().is_empty() {
                 // Upstream parses `${params} => {}` with `parse_expression_at`
@@ -1852,10 +1912,10 @@ impl<'a> Parser<'a> {
 
         // Handle closing {/snippet}. A mismatched close (e.g. `{/if}`) errors in
         // strict mode; in loose mode it is left for an outer block.
-        self.expect_block_close("snippet")?;
+        let found_closing = self.expect_block_close("snippet")?;
 
-        // Pop from stack (matched close, or EOF / loose-mode recovery).
-        if !self.stack.is_empty() {
+        // At EOF the entry stays on the stack for `block_unclosed`.
+        if found_closing && !self.stack.is_empty() {
             self.stack.pop();
         }
 
@@ -2189,6 +2249,19 @@ impl<'a> Parser<'a> {
                         }
                     }
                 };
+
+                // Upstream rejects a non-identifier argument here, on the parser,
+                // so it competes with every other parse error by source position.
+                for identifier in &identifiers {
+                    if identifier.node_type() != Some("Identifier") {
+                        let at = identifier.as_node().start().map_or(start, |s| s as usize);
+                        return Err(crate::error::ParseError::svelte(
+                            "debug_tag_invalid_arguments",
+                            "{@debug ...} arguments must be identifiers, not arbitrary expressions\nhttps://svelte.dev/e/debug_tag_invalid_arguments",
+                            (at, at),
+                        ));
+                    }
+                }
 
                 self.advance(); // consume '}'
 

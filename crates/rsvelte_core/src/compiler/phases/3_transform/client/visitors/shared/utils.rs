@@ -397,7 +397,108 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
     {
         return expr.clone();
     }
-    apply_transforms_to_expression_with_shadowed(expr, context, &LocalScope::new())
+    let transformed =
+        apply_transforms_to_expression_with_shadowed(expr, context, &LocalScope::new());
+    if idempotency_check_enabled() {
+        assert_transform_is_idempotent(&transformed, context);
+    }
+    transformed
+}
+
+/// Is `RSVELTE_ASSERT_TRANSFORM_IDEMPOTENT` set?
+fn idempotency_check_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("RSVELTE_ASSERT_TRANSFORM_IDEMPOTENT").is_some())
+}
+
+thread_local! {
+    static IN_IDEMPOTENCY_CHECK: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Marker the harness requires before it may report a clean run.
+///
+/// A binary with no check compiled in emits nothing, which is indistinguishable from a
+/// tree that satisfies the property — a `main` binding measured 0 violations for exactly
+/// that reason. Printed once per process from inside the comparison, so it also proves
+/// the comparison was reached, not just that the variable was read.
+fn announce_idempotency_check_armed() {
+    static ANNOUNCED: std::sync::Once = std::sync::Once::new();
+    ANNOUNCED.call_once(|| eprintln!("RSVELTE_IDEMPOTENCY_ARMED"));
+}
+
+/// Does every bracket in `s` close?
+fn is_balanced(s: &str) -> bool {
+    let mut depth = 0i32;
+    for b in s.bytes() {
+        match b {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            _ => {}
+        }
+        if depth < 0 {
+            return false;
+        }
+    }
+    depth == 0
+}
+
+/// Report when transforming an already-transformed expression changes it.
+///
+/// A transform whose output the next pass can transform again is #3026's defect class:
+/// `try_transform_assignment` hands a converted subtree back to the outer walk, so any
+/// read whose output is re-readable is applied twice. Shape cannot carry provenance, so
+/// the property has to be asserted rather than inspected. Off unless the env var is set —
+/// it doubles the walk and prints through the fallback text printer, which renders
+/// `Raw` nodes opaquely and so can only miss a divergence, never invent one.
+fn assert_transform_is_idempotent(transformed: &JsExpr, context: &ComponentContext) {
+    if IN_IDEMPOTENCY_CHECK.with(|c| c.get()) {
+        return;
+    }
+    IN_IDEMPOTENCY_CHECK.with(|c| c.set(true));
+    let again =
+        apply_transforms_to_expression_with_shadowed(transformed, context, &LocalScope::new());
+    IN_IDEMPOTENCY_CHECK.with(|c| c.set(false));
+
+    use crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr;
+    announce_idempotency_check_armed();
+    let once = generate_expr(transformed, &context.arena);
+    let twice = generate_expr(&again, &context.arena);
+    if let Some(line) = idempotency_report(&once, &twice) {
+        // A panic would abort the process (`panic = "abort"` in release), which turns a
+        // sweep into a bisect; the harness greps for this marker instead.
+        eprintln!("{line}");
+    }
+}
+
+/// The marker line for a pair of prints, or `None` when they agree.
+///
+/// Split out so the reporting rule — including the truncated-print skip — is reachable
+/// from a test; a comparison that silently stopped reporting would otherwise read as a
+/// clean sweep.
+fn idempotency_report(once: &str, twice: &str) -> Option<String> {
+    // The fallback text printer truncates the nodes it cannot render, and a truncated
+    // print differs from its twin for a reason that is not the transform.
+    if once == twice || !is_balanced(once) || !is_balanced(twice) {
+        return None;
+    }
+    Some(format!("RSVELTE_NON_IDEMPOTENT_TRANSFORM\t{once}\t{twice}"))
+}
+
+#[cfg(test)]
+mod idempotency_report_tests {
+    use super::idempotency_report;
+
+    #[test]
+    fn reports_a_doubled_getter_and_skips_a_truncated_print() {
+        assert_eq!(
+            idempotency_report("p().a", "p()().a").as_deref(),
+            Some("RSVELTE_NON_IDEMPOTENT_TRANSFORM\tp().a\tp()().a")
+        );
+        assert_eq!(idempotency_report("p().a", "p().a"), None);
+        // Either side truncated by the printer: not a transform difference.
+        assert_eq!(idempotency_report("() => {", ""), None);
+        assert_eq!(idempotency_report("{ a: p() }", "{"), None);
+    }
 }
 
 /// Apply transforms while treating specified variables as shadowed (preventing transformation).
@@ -2672,13 +2773,27 @@ fn collect_reactive_references_inner(
         }
 
         JsExpr::Call(call) => {
-            // Recurse into callee and arguments
-            collect_reactive_references_inner(
-                context.arena.get_expr(call.callee),
-                context,
-                getters,
-                seen,
-            );
+            // A read transform's getter call carries an opaque callee so a second
+            // transform pass cannot read it again; the dependency it stands for is
+            // still that identifier.
+            let callee = unspanned_expr(context.arena.get_expr(call.callee), &context.arena);
+            if call.arguments.is_empty()
+                && let JsExpr::OpaqueIdentifier(name) = callee
+            {
+                collect_reactive_references_inner(
+                    &JsExpr::Identifier(name.clone()),
+                    context,
+                    getters,
+                    seen,
+                );
+            } else {
+                collect_reactive_references_inner(
+                    context.arena.get_expr(call.callee),
+                    context,
+                    getters,
+                    seen,
+                );
+            }
             for arg in &call.arguments {
                 collect_reactive_references_inner(arg, context, getters, seen);
             }
@@ -3751,9 +3866,11 @@ fn get_literal_value_json(jv: &serde_json::Value, context: &ComponentContext) ->
                     let flags = regex.get("flags").and_then(|f| f.as_str())?;
                     return Some(EvalValue::Regex(format!("/{}/{}", pattern, flags)));
                 }
-                // A bigint also serializes `value` as null; it is not nullish.
-                if jv.get("bigint").is_some() {
-                    return None;
+                // A bigint serializes `value` as null; fold it from the digits
+                // (upstream evaluates to a real BigInt, so `typeof 1n` and a
+                // template `{1n}` both fold).
+                if let Some(digits) = jv.get("bigint").and_then(|b| b.as_str()) {
+                    return digits.parse::<i128>().ok().map(EvalValue::BigInt);
                 }
                 match jv.get("value")? {
                     serde_json::Value::String(s) => Some(EvalValue::Str(s.clone())),
@@ -3877,12 +3994,16 @@ fn get_literal_value_json(jv: &serde_json::Value, context: &ComponentContext) ->
                 if let Some(n) = parse_js_number_literal(trimmed) {
                     return Some(EvalValue::Num(n));
                 }
+                // A bigint init folds to its exact value (`String(9n)` → "9")
+                if let Some(v) = parse_js_bigint_text(trimmed) {
+                    return Some(EvalValue::BigInt(v));
+                }
                 // Handle boolean and null literals
                 match trimmed {
                     "true" => Some(EvalValue::Bool(true)),
                     "false" => Some(EvalValue::Bool(false)),
                     "null" => Some(EvalValue::Null),
-                    "undefined" => Some(EvalValue::Undefined),
+                    "undefined" | "void 0" => Some(EvalValue::Undefined),
                     _ => {
                         // Check for a JSON `Literal` node form (from binding.initial,
                         // e.g. a `{const x = 'nested'}` DeclarationTag whose initial is
@@ -4065,6 +4186,26 @@ fn parse_js_number_literal(text: &str) -> Option<f64> {
         _ => return cleaned.parse::<f64>().ok(),
     };
     u128::from_str_radix(digits, radix).ok().map(|n| n as f64)
+}
+
+/// Parse a JS bigint literal SOURCE (`9_007n`, `0x1fn`) to its exact value.
+fn parse_js_bigint_text(text: &str) -> Option<i128> {
+    let t = text.trim().strip_suffix('n')?;
+    let cleaned: String = t.chars().filter(|c| *c != '_').collect();
+    let t = cleaned.as_str();
+    if let Some(h) = t.strip_prefix("0x").or_else(|| t.strip_prefix("0X")) {
+        return i128::from_str_radix(h, 16).ok();
+    }
+    if let Some(o) = t.strip_prefix("0o").or_else(|| t.strip_prefix("0O")) {
+        return i128::from_str_radix(o, 8).ok();
+    }
+    if let Some(b) = t.strip_prefix("0b").or_else(|| t.strip_prefix("0B")) {
+        return i128::from_str_radix(b, 2).ok();
+    }
+    if t.is_empty() || !t.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    t.parse::<i128>().ok()
 }
 
 /// Mirrors upstream `get_global_keypath`, which yields a rune keypath only when
@@ -4262,13 +4403,72 @@ pub(crate) fn js_expr_keypath(
 /// `Number.*`, `String` / `String.from*`, and `BigInt`. Mirrors the `globals`
 /// table in `2-analyze/scope.js`.
 pub(crate) fn is_known_defined_global_call(keypath: &str) -> bool {
-    keypath.starts_with("Math.")
-        || keypath == "Number"
-        || keypath.starts_with("Number.")
-        || keypath == "String"
-        || keypath == "String.fromCharCode"
-        || keypath == "String.fromCodePoint"
-        || keypath == "BigInt"
+    // Upstream's `globals` table, name for name: one outside it evaluates to
+    // UNKNOWN, so a near-miss like `Math.nope()` must not read as known.
+    matches!(
+        keypath,
+        "BigInt"
+            | "Number"
+            | "Number.isInteger"
+            | "Number.isFinite"
+            | "Number.isNaN"
+            | "Number.isSafeInteger"
+            | "Number.parseFloat"
+            | "Number.parseInt"
+            | "String"
+            | "String.fromCharCode"
+            | "String.fromCodePoint"
+            | "Math.min"
+            | "Math.max"
+            | "Math.random"
+            | "Math.floor"
+            | "Math.f16round"
+            | "Math.round"
+            | "Math.abs"
+            | "Math.acos"
+            | "Math.asin"
+            | "Math.atan"
+            | "Math.atan2"
+            | "Math.ceil"
+            | "Math.cos"
+            | "Math.sin"
+            | "Math.tan"
+            | "Math.exp"
+            | "Math.log"
+            | "Math.pow"
+            | "Math.sqrt"
+            | "Math.clz32"
+            | "Math.imul"
+            | "Math.sign"
+            | "Math.log10"
+            | "Math.log2"
+            | "Math.log1p"
+            | "Math.expm1"
+            | "Math.cosh"
+            | "Math.sinh"
+            | "Math.tanh"
+            | "Math.acosh"
+            | "Math.asinh"
+            | "Math.atanh"
+            | "Math.trunc"
+            | "Math.fround"
+            | "Math.cbrt"
+    )
+}
+
+/// Upstream `scope.evaluate`'s `global_constants` table.
+pub(crate) fn is_global_constant(keypath: &str) -> bool {
+    matches!(
+        keypath,
+        "Math.PI"
+            | "Math.E"
+            | "Math.LN10"
+            | "Math.LN2"
+            | "Math.LOG10E"
+            | "Math.LOG2E"
+            | "Math.SQRT2"
+            | "Math.SQRT1_2"
+    )
 }
 
 pub(crate) fn is_js_expr_defined(
@@ -4427,6 +4627,19 @@ fn identifier_is_defined(name: &str, context: &ComponentContext) -> bool {
             return true;
         }
 
+        // A function declaration's binding carries the declaration itself as
+        // its initial, which upstream's evaluate types as FUNCTION — never
+        // null/undefined, so the interpolation reads bare.
+        if matches!(binding.kind, BindingKind::Normal)
+            && !binding.is_updated()
+            && matches!(
+                binding.declaration_kind,
+                crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Function
+            )
+        {
+            return true;
+        }
+
         // A non-updated `let`/`var`/`const x = <primitive literal>`
         // (e.g. legacy `let iconAsc = "↑"`): upstream's scope.evaluate
         // resolves the binding's Literal initial to a defined primitive
@@ -4532,7 +4745,7 @@ fn is_expression_defined_json(json_value: &serde_json::Value, context: &Componen
             // `BigInt`) returns a NUMBER/STRING — always defined — mirroring
             // upstream `scope.evaluate`'s `globals` table.
             obj.get("callee")
-                .and_then(json_callee_keypath)
+                .and_then(json_keypath)
                 .as_deref()
                 .is_some_and(is_known_defined_global_call)
         }
@@ -4545,7 +4758,7 @@ fn is_expression_defined_json(json_value: &serde_json::Value, context: &Componen
 }
 
 /// Dotted keypath of a static estree-JSON callee (`Math.round` → `"Math.round"`).
-fn json_callee_keypath(node: &serde_json::Value) -> Option<String> {
+pub(crate) fn json_keypath(node: &serde_json::Value) -> Option<String> {
     let obj = node.as_object()?;
     match obj.get("type").and_then(|t| t.as_str())? {
         "Identifier" => obj.get("name").and_then(|n| n.as_str()).map(String::from),
@@ -4555,7 +4768,7 @@ fn json_callee_keypath(node: &serde_json::Value) -> Option<String> {
                 return None;
             }
             let prop_name = prop.get("name").and_then(|n| n.as_str())?;
-            let base = json_callee_keypath(obj.get("object")?)?;
+            let base = json_keypath(obj.get("object")?)?;
             Some(format!("{base}.{prop_name}"))
         }
         _ => None,
@@ -6004,7 +6217,23 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
     };
 
     match expr_type {
-        "CallExpression" | "TaggedTemplateExpression" => {
+        "TaggedTemplateExpression" => {
+            // Upstream TaggedTemplateExpression.js: has_call iff the TAG is not
+            // pure — unlike CallExpression there is NO dependencies term, so
+            // `String.raw`…${state}…`` stays unmemoized.
+            if let Some(tag) = obj.get("tag")
+                && !is_pure_json(tag, context)
+            {
+                return true;
+            }
+            if let Some(quasi) = obj.get("quasi")
+                && has_call_json(quasi, context)
+            {
+                return true;
+            }
+            false
+        }
+        "CallExpression" => {
             // Match official Svelte compiler (CallExpression.js lines 264-273):
             //   if (!is_pure(node.callee, context) || context.state.expression.dependencies.size > 0) {
             //       context.state.expression.has_call = true;
@@ -6467,13 +6696,13 @@ fn is_initial_value_literal_or_known(initial: &Option<String>) -> bool {
         return true;
     }
 
-    // Number literal: all digits (possibly with decimal, radix prefix, separators)
-    if parse_js_number_literal(trimmed).is_some() {
+    // Number literal (separators/bases included) or bigint literal
+    if parse_js_number_literal(trimmed).is_some() || parse_js_bigint_text(trimmed).is_some() {
         return true;
     }
 
-    // Boolean/null literals
-    if matches!(trimmed, "true" | "false" | "null" | "undefined") {
+    // Boolean/null literals (`void 0` is the undefined a builder spells)
+    if matches!(trimmed, "true" | "false" | "null" | "undefined" | "void 0") {
         return true;
     }
 

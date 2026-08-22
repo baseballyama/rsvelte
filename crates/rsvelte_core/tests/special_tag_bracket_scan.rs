@@ -88,12 +88,21 @@ fn debug_tag_comment_with_brace() {
 
 #[test]
 fn debug_tag_string_stops_at_real_close() {
-    // The `}` inside the string must not close the tag; the trailing `X` stays a
-    // separate text node, so the DebugTag ends before it.
-    let src = r#"{@debug a["}"]}X"#;
-    let json = ast_json(src);
-    let end = find_node_end(&json, "DebugTag").expect("DebugTag");
-    assert_eq!(end as usize, src.len() - 1, "DebugTag must end before `X`");
+    // Official rejects this — a member expression is not an identifier — and the
+    // rejection is what shows the scan was right: the offset is the start of
+    // `a["}"]`, so the whole member expression parsed. Had the `}` inside the
+    // string closed the tag, `a["` would have failed to parse instead.
+    let err = parse(
+        r#"{@debug a["}"]}X"#,
+        &oxc_allocator::Allocator::default(),
+        ParseOptions::default(),
+    )
+    .expect_err("official rejects a non-identifier {@debug} argument");
+    let rsvelte_core::error::ParseError::SvelteError { code, span, .. } = err else {
+        panic!("expected a Svelte error, got {err:?}");
+    };
+    assert_eq!(code, "debug_tag_invalid_arguments");
+    assert_eq!(span.0, 8);
 }
 
 // ---- {@const} sequence-expression detection ---------------------------------

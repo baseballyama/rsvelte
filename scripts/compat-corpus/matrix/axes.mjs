@@ -1759,3 +1759,130 @@ export const OPAQUE_ENTRIES = {
 				.join('\n')}\n</script>\n\n<p>ok</p>\n`,
 	},
 };
+
+/**
+ * Axis W1 — the reactive binding that is written to and read back.
+ *
+ * `binding-position` (axis A) already varies the binding kind, but each of its
+ * rows bakes ONE host into `wrap`: `prop-destructured`, `state-local`,
+ * `derived-local`, `store-auto-sub` and `legacy-let-prop` all put the body in a
+ * named function inside `<script>`, and only the two each-block rows use an
+ * inline template arrow. Binding kind and host are therefore confounded there —
+ * the product is unenumerable, and #3026 lived in a cell it cannot express
+ * (a destructured prop written from an inline template arrow). Declaring the
+ * binding independently of the host is the whole point of this family.
+ */
+export const WRITE_BINDINGS = {
+	'prop-destructured': {
+		read: 'p',
+		crossRead: 'q',
+		declaration: 'const { p } = $props();',
+		crossDeclaration: 'const { p, q } = $props();',
+	},
+	'prop-bindable': {
+		read: 'p',
+		crossRead: 'q',
+		declaration: 'let { p = $bindable() } = $props();',
+		crossDeclaration: 'let { p = $bindable(), q = $bindable() } = $props();',
+	},
+	'state-local': {
+		read: 'p',
+		crossRead: 'q',
+		declaration: 'let p = $state({ a: 1, b: 2, c: 3 });',
+		crossDeclaration: 'let p = $state({ a: 1, b: 2, c: 3 });\n\tlet q = $state({ a: 1, b: 2, c: 3 });',
+	},
+	'store-auto-sub': {
+		read: '$s',
+		crossRead: '$t',
+		declaration: "import { writable } from 'svelte/store';\n\tconst s = writable({ a: 1, b: 2, c: 3 });",
+		crossDeclaration:
+			"import { writable } from 'svelte/store';\n\tconst s = writable({ a: 1, b: 2, c: 3 });\n\tconst t = writable({ a: 1, b: 2, c: 3 });",
+	},
+	'legacy-let-prop': {
+		read: 'p',
+		crossRead: 'q',
+		declaration: 'export let p = { a: 1, b: 2, c: 3 };',
+		crossDeclaration: 'export let p = { a: 1, b: 2, c: 3 };\n\texport let q = { a: 1, b: 2, c: 3 };',
+	},
+};
+
+/**
+ * Axis W2 — where the statement lives. `%s` is the write.
+ *
+ * rsvelte converts a template expression with a different function than a script
+ * body and then applies the identifier transforms a second time over the result,
+ * so "the same statement, moved" is a different code path and not merely a
+ * different position. #3026 was correct in every `script-*` host and wrong in
+ * every `template-*` one — a family that fixes the host cannot see it, however
+ * many binding kinds and syntactic positions it crosses.
+ */
+export const WRITE_HOSTS = {
+	'script-fn': {
+		script: 'function run() {\n\t\t%s;\n\t}',
+		markup: '<button onclick={run}>x</button>',
+	},
+	'script-arrow': {
+		script: 'const run = () => {\n\t\t%s;\n\t};',
+		markup: '<button onclick={run}>x</button>',
+	},
+	'template-arrow-block': {
+		markup: '<button\n\tonclick={() => {\n\t\t%s;\n\t}}>x</button\n>',
+	},
+	'template-arrow-expr': {
+		markup: '<button onclick={() => (%s)}>x</button>',
+	},
+	'template-snippet-arrow': {
+		markup:
+			'{#snippet row()}\n\t<button\n\t\tonclick={() => {\n\t\t\t%s;\n\t\t}}>x</button\n\t>\n{/snippet}\n\n{@render row()}',
+	},
+	'component-prop-arrow': {
+		script: "import Comp from './Comp.svelte';",
+		markup: '<Comp\n\tcb={() => {\n\t\t%s;\n\t}} />',
+	},
+};
+
+/**
+ * Axis W3 — the write itself, as an expression. `%s` is the binding read.
+ *
+ * The discriminating rows are the ones whose right-hand side reads the SAME
+ * binding the left-hand side writes: that is the only shape where rsvelte
+ * pre-transforms a subtree and then walks it again, and #3026 doubled every such
+ * read into `p()().b`. `member-assign-const` and `read-only` are the controls —
+ * the first has a transformed left and nothing to double, the second has no
+ * assignment at all — so a fix that simply stops transforming right-hand sides
+ * fails them instead of passing everything.
+ *
+ * `member-assign-cross` reads a SECOND binding of the same kind, declared only
+ * for this row so the other rows keep an unused-export warning out of the legacy
+ * mode cases. It separates "the read that doubles is the one the left writes"
+ * from "any read on the right doubles" — #3026 was the second, and a family
+ * carrying only the self rows would have pinned the wrong rule.
+ */
+export const WRITE_SHAPES = {
+	'member-assign-self': '%s.a = %s.b',
+	'member-compound-self': '%s.a += %s.b',
+	'member-index-self': '%s[0] = %s.b',
+	'deep-member-self': '%s.a.b = %s.c',
+	'member-assign-nested-arrow': '%s.a = [1].map(() => %s.b)[0]',
+	'member-assign-conditional': '%s.a = %s.b ? %s.c : %s.b',
+	'member-assign-sequence': '%s.a = (0, %s.b)',
+	'member-update-self': '%s.a++',
+	'member-assign-cross': '%s.a = %q.b',
+	'member-assign-const': '%s.a = 1',
+	'read-only': 'sink(%s.b)',
+};
+
+/**
+ * The declarations every write-host case shares. `sink` is what the `read-only`
+ * control reads into; keeping it a function declaration (not a `$state`) leaves
+ * the binding axis the only reactive name in the file.
+ */
+export const WRITE_PREAMBLE = `<script>
+	%d
+	function sink(x) {
+		return x;
+	}
+%h</script>
+
+%m
+`;

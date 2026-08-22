@@ -43,15 +43,17 @@ fn onclick_attr_brace_in_string_literal() {
 }
 
 /// H-018: a ` as ` inside a comment after the real alias separator must not be
-/// mistaken for the separator (the header scan now skips strings/comments).
+/// mistaken for the separator. Since #3057 the official grammar applies: only
+/// whitespace may follow the pattern, so the comment is a clean `expected_token`
+/// error — not a mis-split, and not accepted either.
 #[test]
 fn each_as_split_ignores_comment() {
     let out = client(r#"{#each items as item /* x as y */}{item}{/each}"#);
-    assert!(
-        out.is_ok(),
-        "each header mis-split on comment ` as `: {out:?}"
-    );
-    assert!(out.unwrap().contains("item"), "each alias lost");
+    let err = out.expect_err("official rejects a comment after the each pattern");
+    assert!(err.contains("expected_token"), "wrong code: {err}");
+    // The comment ` as ` must not shift where the header is split: the error
+    // points at the comment start, not somewhere inside the alias.
+    assert!(err.contains("span: (21, 21)"), "wrong position: {err}");
 }
 
 /// H-019: a `)` inside a string in the `{#each}` key expression must not close

@@ -3,19 +3,26 @@
 //! `svelte/no-store-async` — disallow passing an `async` function to a
 //! `svelte/store` creator (`writable` / `readable` / `derived`). An async start
 //! function breaks the store's auto-unsubscribe behaviour. Port of the
-//! eslint-plugin-svelte rule, over the script `ESTree` program via the
-//! [`ScriptRule`] hook (so it also lints `*.svelte.js` / `*.js` module files).
+//! eslint-plugin-svelte rule.
 //!
-//! The store creators are resolved from their `svelte/store` import — including
-//! aliases (`import { writable as w }`) and namespace imports
-//! (`import * as stores from 'svelte/store'` → `stores.writable(...)`). The
-//! finding is reported at the offending function (covering its `async` keyword),
-//! matching upstream's `start .. start + 5` location.
+//! Creator calls are resolved with the shared reference tracker
+//! ([`store_refs`](crate::rules::store_refs)): import aliases, const aliases,
+//! later assignments, namespace members (incl. literal computed keys), local
+//! shadows and template-expression calls all behave like upstream's
+//! `extractStoreReferences`. Components are handled once per file in
+//! `check_root`; the `ScriptRule` pass covers standalone `.svelte.(js|ts)`
+//! modules.
 
 use serde_json::Value;
 
+use rsvelte_core::ast::template::Root;
+
 use crate::context::LintContext;
-use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::store_refs::{
+    RefTracker, component_tracker, handled_by_template_pass, module_is_ts, module_tracker,
+    store_creator_calls,
+};
 use crate::script::{ProgramView, ScriptKind, ScriptRule, node_start, node_type};
 
 static META: RuleMeta = RuleMeta {
@@ -32,23 +39,35 @@ static META: RuleMeta = RuleMeta {
     options_schema: None,
 };
 
-const STORE_CREATORS: &[&str] = &["writable", "readable", "derived"];
-
 const MESSAGE: &str = "Do not pass async functions to svelte stores.";
-
-fn ident_name(node: &Value) -> Option<&str> {
-    if node_type(node) == Some("Identifier") {
-        node.get("name").and_then(Value::as_str)
-    } else {
-        None
-    }
-}
 
 fn is_async_function(node: &Value) -> bool {
     matches!(
         node_type(node),
         Some("ArrowFunctionExpression" | "FunctionExpression")
     ) && node.get("async").and_then(Value::as_bool) == Some(true)
+}
+
+fn run(ctx: &mut LintContext, tracker: &RefTracker<'_>) {
+    let mut reports: Vec<u32> = Vec::new();
+    for (call, _name) in store_creator_calls(tracker, &["writable", "readable", "derived"]) {
+        let Some(args) = call.get("arguments").and_then(Value::as_array) else {
+            continue;
+        };
+        if let Some(fn_arg) = args.get(1)
+            && is_async_function(fn_arg)
+            && let Some(start) = node_start(fn_arg)
+        {
+            reports.push(start);
+        }
+    }
+    reports.sort_unstable();
+    reports.dedup();
+    for start in reports {
+        // Upstream reports a 5-wide span starting at the function (its
+        // `async` keyword); only the start column is asserted.
+        ctx.report(start, start + 5, MESSAGE);
+    }
 }
 
 #[derive(Default)]
@@ -60,106 +79,26 @@ impl ScriptRule for NoStoreAsync {
     }
 
     fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
-        // Resolve `svelte/store` imports: local names bound to a store creator,
-        // and any namespace import alias.
-        let mut direct: Vec<String> = Vec::new(); // local names of writable/readable/derived
-        let mut namespaces: Vec<String> = Vec::new(); // `import * as X`
-
-        program.walk(|node, _| {
-            if node_type(node) != Some("ImportDeclaration") {
-                return;
-            }
-            if node
-                .get("source")
-                .and_then(|s| s.get("value"))
-                .and_then(Value::as_str)
-                != Some("svelte/store")
-            {
-                return;
-            }
-            let Some(specs) = node.get("specifiers").and_then(Value::as_array) else {
-                return;
-            };
-            for spec in specs {
-                match node_type(spec) {
-                    Some("ImportSpecifier") => {
-                        let imported = spec
-                            .get("imported")
-                            .and_then(ident_name)
-                            // string-literal imported names (`import { "x" as y }`)
-                            .or_else(|| {
-                                spec.get("imported")
-                                    .and_then(|i| i.get("value"))
-                                    .and_then(Value::as_str)
-                            });
-                        if let Some(imported) = imported
-                            && STORE_CREATORS.contains(&imported)
-                            && let Some(local) = spec.get("local").and_then(ident_name)
-                        {
-                            direct.push(local.to_string());
-                        }
-                    }
-                    Some("ImportNamespaceSpecifier") => {
-                        if let Some(local) = spec.get("local").and_then(ident_name) {
-                            namespaces.push(local.to_string());
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        });
-
-        if direct.is_empty() && namespaces.is_empty() {
+        if handled_by_template_pass(ctx.filename()) {
             return;
         }
+        let tracker = module_tracker(ctx.source(), program.value(), module_is_ts(ctx.filename()));
+        run(ctx, &tracker);
+    }
+}
 
-        // Find store-creator calls and report an async second argument.
-        let mut reports: Vec<u32> = Vec::new();
-        program.walk(|node, _| {
-            if node_type(node) != Some("CallExpression") {
-                return;
-            }
-            let Some(callee) = node.get("callee") else {
-                return;
-            };
-            let is_creator = match node_type(callee) {
-                Some("Identifier") => {
-                    ident_name(callee).is_some_and(|n| direct.iter().any(|d| d == n))
-                }
-                Some("MemberExpression") => {
-                    callee.get("computed").and_then(Value::as_bool) != Some(true)
-                        && callee
-                            .get("object")
-                            .and_then(ident_name)
-                            .is_some_and(|o| namespaces.iter().any(|n| n == o))
-                        && callee
-                            .get("property")
-                            .and_then(ident_name)
-                            .is_some_and(|p| STORE_CREATORS.contains(&p))
-                }
-                _ => false,
-            };
-            if !is_creator {
-                return;
-            }
-            let Some(args) = node.get("arguments").and_then(Value::as_array) else {
-                return;
-            };
-            if let Some(fn_arg) = args.get(1)
-                && is_async_function(fn_arg)
-                && let Some(start) = node_start(fn_arg)
-            {
-                reports.push(start);
-            }
-        });
+impl Rule for NoStoreAsync {
+    fn meta(&self) -> &'static RuleMeta {
+        &META
+    }
 
-        reports.sort_unstable();
-        reports.dedup();
-        for start in reports {
-            // Upstream reports a 5-wide span starting at the function (its
-            // `async` keyword); only the start column is asserted.
-            ctx.report(start, start + 5, MESSAGE);
+    fn check_root(&self, ctx: &mut LintContext, root: &Root) {
+        let root_json = ctx.root_json(root);
+        if root_json.is_null() {
+            return;
         }
+        let tracker = component_tracker(ctx.source(), root, &root_json);
+        run(ctx, &tracker);
     }
 }
 

@@ -118,9 +118,11 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(NoRawSpecialElements),
         Box::new(NoUselessChildrenSnippet),
         Box::new(ValidEachKey),
-        Box::new(NoNotFunctionHandler),
-        Box::new(NoSvelteInternal),
+        Box::new(NoNotFunctionHandler::default()),
         Box::new(NoInspect),
+        // Dual-registered like `NoInspect`: this pass sees a dynamic `import()`
+        // in a template expression, which no script program contains.
+        Box::new(NoSvelteInternal),
         Box::new(NoUselessMustaches),
         Box::new(NoBindValueOnCheckableInputs),
         Box::new(NoConflictingModuleNames),
@@ -140,6 +142,16 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(crate::rules::require_store_reactive_access::RequireStoreReactiveAccess),
         Box::new(crate::rules::max_lines_per_block::MaxLinesPerBlock),
         Box::new(crate::rules::no_navigation_without_base::NoNavigationWithoutBase),
+        // `NoGotoWithoutBase` also lives in `all_script_rules()`, but only for
+        // standalone modules: upstream's single `Program` handler shares one
+        // scope tree across both `<script>` blocks and the template, which only
+        // `check_root` can see.
+        Box::new(crate::rules::no_goto_without_base::NoGotoWithoutBase),
+        // Upstream keys this rule off the `<script>` element's attributes, which
+        // only the root pass can see.
+        Box::new(
+            crate::rules::no_export_load_in_svelte_module_in_kit_pages::NoExportLoadInSvelteModuleInKitPages,
+        ),
         Box::new(crate::rules::no_navigation_without_resolve::NoNavigationWithoutResolve),
         Box::new(
             crate::rules::no_spaces_around_equal_signs_in_attribute::NoSpacesAroundEqualSignsInAttribute,
@@ -176,6 +188,23 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         // `check_root` to detect cross-script cases (declared in module script,
         // mutated in instance script, or vice versa).
         Box::new(crate::rules::prefer_svelte_reactivity::PreferSvelteReactivity),
+        // Store/DOM rules whose upstream runs once per file over the joint
+        // scope tree (both scripts + template expressions): `check_root` owns
+        // components, their `ScriptRule` half covers standalone modules.
+        Box::new(crate::rules::no_store_async::NoStoreAsync),
+        Box::new(crate::rules::require_stores_init::RequireStoresInit),
+        Box::new(crate::rules::require_store_callbacks_use_set_param::RequireStoreCallbacksUseSetParam),
+        Box::new(crate::rules::no_ignored_unsubscribe::NoIgnoredUnsubscribe),
+        Box::new(crate::rules::derived_has_same_inputs_outputs::DerivedHasSameInputsOutputs),
+        Box::new(crate::rules::no_add_event_listener::NoAddEventListener),
+        Box::new(crate::rules::no_dom_manipulating::NoDomManipulating),
+        // `NoInnerDeclarations` also lives in `all_script_rules()`; the `Rule`
+        // half only covers a component with no instance script, whose template
+        // expressions nothing else would reach.
+        Box::new(crate::rules::no_inner_declarations::NoInnerDeclarations),
+        // `PreferDerivedOverDerivedBy` also lives in `all_script_rules()`; the
+        // `Rule` half reaches `$derived.by(…)` in template expressions.
+        Box::new(crate::rules::prefer_derived_over_derived_by::PreferDerivedOverDerivedBy),
     ]
 }
 
@@ -204,6 +233,10 @@ pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
     use crate::rules::require_store_callbacks_use_set_param::RequireStoreCallbacksUseSetParam;
     use crate::rules::require_stores_init::RequireStoresInit;
     vec![
+        Box::new(NoSvelteInternal),
+        // `NoInspect` is dual-registered: this pass covers script programs and
+        // standalone modules, the `Rule` pass covers template expressions.
+        Box::new(NoInspect),
         Box::new(NoInnerDeclarations),
         Box::new(PreferSvelteReactivity),
         Box::new(NoStoreAsync),
@@ -220,18 +253,18 @@ pub fn all_script_rules() -> Vec<Box<dyn crate::script::ScriptRule>> {
         Box::new(NoReactiveFunctions),
         Box::new(NoExtraReactiveCurlies),
         Box::new(NoGotoWithoutBase),
+        Box::new(crate::rules::no_navigation_without_base::NoNavigationWithoutBase),
         Box::new(NoImmutableReactiveStatements),
         Box::new(NoDomManipulating),
         Box::new(NoReactiveReassign),
         Box::new(crate::rules::derived_has_same_inputs_outputs::DerivedHasSameInputsOutputs),
-        Box::new(
-            crate::rules::valid_prop_names_in_kit_pages::ValidPropNamesInKitPages,
-        ),
-        Box::new(
-            crate::rules::no_export_load_in_svelte_module_in_kit_pages::NoExportLoadInSvelteModuleInKitPages,
-        ),
+        Box::new(crate::rules::prefer_destructured_store_props::PreferDestructuredStoreProps),
+        Box::new(crate::rules::valid_prop_names_in_kit_pages::ValidPropNamesInKitPages),
         Box::new(crate::rules::infinite_reactive_loop::InfiniteReactiveLoop),
         Box::new(crate::rules::no_unused_vars::NoUnusedVars),
         Box::new(NoUndef),
+        // Upstream's `Program:exit` source scan runs for every linted file; the
+        // `Rule` half covers components, this one standalone modules.
+        Box::new(crate::rules::no_trailing_spaces::NoTrailingSpaces),
     ]
 }

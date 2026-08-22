@@ -305,7 +305,8 @@ pub(super) fn transform_reactive_statement(
     let body = body.trim_end_matches(';').trim();
 
     if body.is_empty() {
-        return String::new();
+        // `$: ;` still emits an (empty) effect upstream.
+        return "$.legacy_pre_effect(() => {}, () => {});".to_string();
     }
 
     // Extract locally-declared variables from the body (e.g., `for (let i = 0; ...)`)
@@ -429,11 +430,19 @@ pub(super) fn transform_reactive_statement(
     // 2. Transform prop assignments to prop(value) calls
     let transformed_body: String;
 
+    // A CODE comma at bracket depth 0 makes the body a SEQUENCE expression
+    // (`$: a = x, b = y`). Splitting at the first `=` would swallow the rest of
+    // the sequence into the first assignment's RHS (`$.set(a, x, $.set(b, y))`),
+    // so route sequences through the expression path, whose per-assignment
+    // rewrite handles each element, and parenthesize like upstream.
+    let is_sequence_body =
+        !lhs_starts_with_keyword(body) && !body.starts_with('{') && has_top_level_comma(body);
+
     // First, check if this is an assignment statement: `c = expr`
     // We must guard against ternary expressions like `a ? b = x : b = y` where
     // find_assignment_position returns a position inside the ternary branch. In that
     // case the LHS would contain `?` which is not a valid assignment target.
-    if let Some(eq_pos) = find_assignment_position(body) {
+    if !is_sequence_body && let Some(eq_pos) = find_assignment_position(body) {
         let lhs = body[..eq_pos].trim();
         let rhs = body[eq_pos + 1..].trim();
         // If the LHS contains `?` it means the `=` was found inside a ternary branch;
@@ -745,6 +754,14 @@ pub(super) fn transform_reactive_statement(
         .into_owned();
     }
 
+    // Parenthesize a sequence body the way esrap prints a sequence-expression
+    // statement (`($.set(a, …), $.set(b, …));`).
+    let transformed_body = if is_sequence_body {
+        format!("({})", transformed_body)
+    } else {
+        transformed_body
+    };
+
     // Apply store subscription transformations to body.
     // First, transform store sub calls: `$t('key')` -> `$t()('key')` (double-call for store getters).
     // Then, transform store reads: `$foo` -> `$foo()` in the reactive statement body.
@@ -876,6 +893,23 @@ pub(super) fn transform_reactive_statement(
             deps_thunk, inner_body, semi
         )
     }
+}
+
+/// Whether `body` carries a CODE comma at bracket depth 0 — i.e. is a sequence
+/// expression. Comment-/string-/regex-aware via `js_scan::code_bytes`.
+fn has_top_level_comma(body: &str) -> bool {
+    let mut depth = 0i32;
+    for (_, c) in
+        crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes(body.as_bytes())
+    {
+        match c {
+            b'(' | b'{' | b'[' => depth += 1,
+            b')' | b'}' | b']' => depth -= 1,
+            b',' if depth == 0 => return true,
+            _ => {}
+        }
+    }
+    false
 }
 
 /// Unwrap a block statement `{ ... }` and return (inner_content, is_block).

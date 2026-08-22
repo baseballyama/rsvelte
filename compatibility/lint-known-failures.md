@@ -12,52 +12,57 @@ The exact-fixture oracle gate (`crates/rsvelte_lint/tests/eslint_plugin_oracle.r
 is the authoritative behaviour check and must stay 100%; this corpus is the
 real-world volume check.
 
-## Current baseline: `lint-known-failures.json`, 104 entries — 104 divergences (32 FP, 72 FN)
+## Current baseline: `lint-known-failures.json`, 3 entries — 3 divergences (0 FP, 3 FN)
 
-**24 of the 104 are the `.svelte.(js|ts)` surface, enrolled when it entered the gate.**
-Until then the diff loop iterated `kind === 'component'` only, so both linters were
-run over rune modules and the result was discarded. 23 of the 24 are one rule —
-`prefer-svelte-reactivity`, whose module path `rules/prefer_svelte_reactivity.rs:19-21`
-declined to port *citing the absence of this coverage as the reason*. That makes them
-a licensed gap now forced into view rather than drift, which is why they are enrolled
-rather than fixed here: the fix is a rule port, not a harness change. The 24th is
-`no-navigation-without-base` on a module, same shape as the 6 component `no-goto-without-base`
-entries below.
+All three are one shape: a `<!-- svelte-ignore css_unused_selector -->` in front of a
+`<style lang="scss">` block, on `no-unused-svelte-ignore/invalid/style-lang0{3,4,5}`
+in the eslint-plugin-svelte fixtures the corpus collects. Neither linter can run a
+preprocessor here, and they draw opposite conclusions from that: the oracle blanks the
+block, sees no CSS warning, and calls the ignore **unused**; rsvelte deliberately treats
+a CSS ignore on a non-CSS dialect as **used**, because reporting it is a false positive
+for every project that does have the preprocessor configured. Upstream recorded those
+fixtures' own expectations *with* the preprocessor installed — which is why
+`eslint_plugin_oracle.rs` skips the same three files, citing the same reason.
 
-The former largest cluster — `no-top-level-browser-globals` (136 FP) — is now
-resolved: an oxc-semantic scope resolver (`rsvelte_lint::compiler_scope` +
-`rsvelte_lint::scope::ScopeResolver`) distinguishes a real browser global
-(`window`) from a local binding that shares its name (`open` / `top` / `name` /
-`status` — a prop / import / `let`) in both the `<script>` and template paths.
-That dropped the baseline from 238 to 102. The `shorthand-directive` (11 FP) and
-`shorthand-attribute` (7 FP) clusters are now resolved as well, along with part of
-the `prefer-const` tail — 102 → 80.
+**They are ratcheted rather than excluded because they are not stable across the oracle
+install.** They appeared with no rsvelte change at all: rsvelte's output on all three is
+byte-identical between the pre-campaign binary and HEAD, so the only thing that moved was
+a floating dependency of the oracle. The oracle's versions are now exact
+(`scripts/compat-corpus/lint-oracle/package.json`) so this cannot recur silently, and the
+adversarial corpus carries a committed repro of the same class
+(`compatibility/lint-adversarial/no-unused-svelte-ignore/10-style-scss-css-ignore.svelte`).
 
-The remainder are genuine rsvelte gaps, each a self-contained follow-up rather
-than a novel class — production code re-surfaces the already-known clusters at
-higher volume:
+All three sit in one cluster on every axis this file partitions by, so each partition
+is a single addend:
 
-- **`sort-attributes` — 36 (11 FP / 25 FN).** Attribute ordering around
-  `bind:`/directives and inline `/* eslint … */` custom `order`.
-- **`prefer-svelte-reactivity` — 25 (25 FN).** 2 on components; 23 on
-  `.svelte.(js|ts)` modules, the deliberately unported path described above.
-- **`valid-prop-names-in-kit-pages` (16 FP) / `no-goto-without-base` (6 FN).**
-  SvelteKit route-file-type gating + `resolve()`/base-path handling on real
-  `src/routes/+page.svelte` files.
-- **`prefer-const` (9 — 8 FN / 1 FP) / `no-target-blank` (7 FN).** Small per-rule
-  tail (TS `let`, `{@const}`, template-attribute reassignment scan).
-- **Singletons:** `experimental-require-slot-types` (2 FP),
-  `prefer-destructured-store-props` (2 FP), `no-navigation-without-base` (1 FN,
-  on a module).
+Partition of `lint-known-failures.json` by rule: `3`
+Partition of `lint-known-failures.json` by direction: `3`
+Partition of `lint-known-failures.json` by repo: `3`
 
-By repo: flowbite-svelte 45, bits-ui 28, shadcn-svelte 18, eslint-plugin-svelte 10,
-melt-ui 3. By file kind: 80 component, 24 module.
+### How it got here — 104 → 45 → 3
 
-The three splits above each cover every entry exactly once:
+The entries this file used to describe were not burned down one at a time; they were a
+side effect of the adversarial campaign documented in `AGENTS.md` under `rsvelte_lint`.
+A *constructed* corpus of 809 patterns (`compatibility/lint-adversarial/`) found 330
+divergences on inputs written to separate two implementations of one rule, and the fixes
+for those classes closed 101 of the 104 entries here — the collected corpus had been
+carrying defects whose discriminating shape it could not phrase.
 
-Partition of `lint-known-failures.json` by rule: `36 + 25 + 16 + 6 + 9 + 7 + 2 + 2 + 1`
-Partition of `lint-known-failures.json` by direction: `32 + 72`
-Partition of `lint-known-failures.json` by repo: `45 + 28 + 18 + 10 + 3`
+Two clusters are worth remembering because they were the largest and neither was found
+by the adversarial patterns first:
+
+- **`sort-attributes` (36 entries)** stayed at 36 through the whole adversarial pass and
+  then went to 0 in one fix: shorthand attributes and `this` are not `SvelteAttribute`
+  nodes upstream, so the port was grouping and *naming* the wrong neighbour in
+  "should go before". A generated family reaching a rule is not the same as it being able
+  to discriminate that rule's decision.
+- **`prefer-svelte-reactivity` (25 entries)** was a licensed gap: the module path declined
+  to port *citing the absence of module coverage as the reason*, and enrolling
+  `.svelte.(js|ts)` into the gate turned that licence into 23 visible entries. It is now
+  ported, exports and all.
+
+The historical narrative for the 238 → 104 phase (the `no-top-level-browser-globals`
+scope resolver, the shorthand clusters) is preserved in this file's git history.
 
 ## Harness-config decisions (NOT rsvelte bugs)
 

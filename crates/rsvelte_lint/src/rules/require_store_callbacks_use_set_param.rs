@@ -16,10 +16,15 @@
 
 use serde_json::Value;
 
+use rsvelte_core::ast::template::Root;
+
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, Suggestion, TextEdit};
-use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::rules::store_refs::{StoreCreators, collect_store_creators, is_function_expr};
+use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::store_refs::{
+    RefTracker, component_tracker, handled_by_template_pass, is_function_expr, module_is_ts,
+    module_tracker, store_creator_calls,
+};
 use crate::script::{
     ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js,
 };
@@ -60,6 +65,8 @@ enum ReportKind {
 
 struct ReportInfo {
     fn_start: u32,
+    /// Upstream reports `loc: fn.loc` — the whole callback function.
+    fn_end: u32,
     kind: ReportKind,
 }
 
@@ -261,43 +268,48 @@ impl ScriptRule for RequireStoreCallbacksUseSetParam {
     }
 
     fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
-        let creators = collect_store_creators(program);
-        if creators.is_empty() {
+        if handled_by_template_pass(ctx.filename()) {
             return;
         }
-
-        let mut reports = collect_callback_reports(program, &creators, ctx.source());
-        reports.sort_by_key(|report| report.fn_start);
-        emit_callback_reports(ctx, reports);
+        let tracker = module_tracker(ctx.source(), program.value(), module_is_ts(ctx.filename()));
+        run(ctx, &tracker);
     }
 }
 
-fn collect_callback_reports(
-    program: &ProgramView<'_>,
-    creators: &StoreCreators,
-    source: &str,
-) -> Vec<ReportInfo> {
+impl Rule for RequireStoreCallbacksUseSetParam {
+    fn meta(&self) -> &'static RuleMeta {
+        &META
+    }
+
+    fn check_root(&self, ctx: &mut LintContext, root: &Root) {
+        let root_json = ctx.root_json(root);
+        if root_json.is_null() {
+            return;
+        }
+        let tracker = component_tracker(ctx.source(), root, &root_json);
+        run(ctx, &tracker);
+    }
+}
+
+fn run(ctx: &mut LintContext, tracker: &RefTracker<'_>) {
+    let mut reports = collect_callback_reports(tracker, ctx.source());
+    reports.sort_by_key(|report| report.fn_start);
+    reports.dedup_by_key(|report| report.fn_start);
+    emit_callback_reports(ctx, reports);
+}
+
+fn collect_callback_reports(tracker: &RefTracker<'_>, source: &str) -> Vec<ReportInfo> {
     let mut reports = Vec::new();
-    program.walk(|node, _| {
-        if node_type(node) != Some("CallExpression") {
-            return;
-        }
-        let Some(callee) = node.get("callee") else {
-            return;
-        };
-        // Only `readable` / `writable` take a `set`-style start callback.
-        match creators.creator_of(callee) {
-            Some("readable" | "writable") => {}
-            _ => return,
-        }
+    // Only `readable` / `writable` take a `set`-style start callback.
+    for (node, _name) in store_creator_calls(tracker, &["readable", "writable"]) {
         let Some(args) = node.get("arguments").and_then(Value::as_array) else {
-            return;
+            continue;
         };
         let Some(fn_arg) = args.get(1) else {
-            return;
+            continue;
         };
         if !is_function_expr(fn_arg) {
-            return;
+            continue;
         }
 
         let parameters = fn_arg.get("params").and_then(Value::as_array);
@@ -314,11 +326,11 @@ fn collect_callback_reports(
         };
 
         if !bad {
-            return;
+            continue;
         }
 
-        let Some(fn_start) = node_start(fn_arg) else {
-            return;
+        let (Some(fn_start), Some(fn_end)) = (node_start(fn_arg), node_end(fn_arg)) else {
+            continue;
         };
 
         // Determine the suggestion kind.
@@ -333,13 +345,13 @@ fn collect_callback_reports(
         } else if let Some(p) = first_parameter {
             // updateParam: param exists but is misnamed Identifier
             let Some(old_name) = p.get("name").and_then(Value::as_str).map(str::to_string) else {
-                return;
+                continue;
             };
             let Some(param_start) = node_start(p) else {
-                return;
+                continue;
             };
             let Some(param_end) = node_end(p) else {
-                return;
+                continue;
             };
             // Collect references to old_name in the body (not the param itself).
             let mut refs: Vec<(u32, u32)> = Vec::new();
@@ -355,13 +367,17 @@ fn collect_callback_reports(
         } else {
             // addParam: no params at all — find the `(` before the body.
             let Some(paren_pos) = body_start.and_then(|bs| find_open_paren(source, bs)) else {
-                return;
+                continue;
             };
             ReportKind::AddParam { paren_pos }
         };
 
-        reports.push(ReportInfo { fn_start, kind });
-    });
+        reports.push(ReportInfo {
+            fn_start,
+            fn_end,
+            kind,
+        });
+    }
 
     reports
 }
@@ -369,9 +385,10 @@ fn collect_callback_reports(
 fn emit_callback_reports(ctx: &mut LintContext, reports: Vec<ReportInfo>) {
     for report in reports {
         let fn_start = report.fn_start;
+        let fn_end = report.fn_end;
         match report.kind {
             ReportKind::NoSuggestion => {
-                ctx.report(fn_start, fn_start, MESSAGE);
+                ctx.report(fn_start, fn_end, MESSAGE);
             }
             ReportKind::AddParam { paren_pos } => {
                 // Insert `set` immediately after the `(`.
@@ -379,7 +396,7 @@ fn emit_callback_reports(ctx: &mut LintContext, reports: Vec<ReportInfo>) {
                 let desc = "Add a `set` parameter.".to_string();
                 ctx.report_with_suggestions(
                     fn_start,
-                    fn_start,
+                    fn_end,
                     MESSAGE,
                     vec![Suggestion {
                         desc: desc.clone(),
@@ -418,7 +435,7 @@ fn emit_callback_reports(ctx: &mut LintContext, reports: Vec<ReportInfo>) {
                 }
                 ctx.report_with_suggestions(
                     fn_start,
-                    fn_start,
+                    fn_end,
                     MESSAGE,
                     vec![Suggestion {
                         desc: desc.clone(),

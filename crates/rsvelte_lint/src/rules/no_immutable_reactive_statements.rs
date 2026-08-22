@@ -9,9 +9,10 @@
 //! reference (`$store`), reassigned, or mutated — and `analyze_scope` already
 //! folds template-side writes (two-way `bind:`, `{#each}` context writes, member
 //! writes inside event handlers) into the `reassigned` / `mutated` flags, so no
-//! template walk is needed here. Identifiers that don't resolve to a top-level
-//! binding are treated as builtin (`$$…`) or undeclared (→ not reported) unless
-//! they are known globals (`console`, …), which are simply ignored.
+//! template walk is needed here. Each identifier is resolved through the script's
+//! scopes: one that binds inside the statement shadows the outer name and is
+//! ignored, and one that resolves nowhere is a builtin (`$$…`), a declared
+//! global (harmless), or undeclared (→ not reported).
 //!
 //! `analyze_scope` propagates a single level of `{#each}` context write back to
 //! the iterated source, but not through *nested* each-blocks, so the rule also
@@ -20,20 +21,24 @@
 //! nested each whose own context is written) as mutable — matching upstream's
 //! `hasWriteMember`/`hasWriteReference` recursion.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use rsvelte_core::compiler::ComponentAnalysis;
 use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::reactive_stmt::{
+    is_declared_global, is_reactive_statement, is_unmapped_placeholder, source_is_ts,
+};
+use crate::rules::store_refs::{RefTracker, module_tracker};
 use crate::script::{ProgramView, ScriptKind, ScriptRule, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-immutable-reactive-statements",
     category: RuleCategory::Correctness,
     fixable: Fixable::No,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: true,
@@ -43,25 +48,103 @@ static META: RuleMeta = RuleMeta {
     options_schema: None,
 };
 
-fn scope_binding_sets(analysis: Option<&ComponentAnalysis>) -> (HashSet<&str>, HashSet<&str>) {
-    analysis.map_or_else(
-        || (HashSet::new(), HashSet::new()),
-        |analysis| {
-            let names = analysis
-                .root
-                .bindings
-                .iter()
-                .map(|binding| binding.name.as_str())
-                .collect();
-            let mutable = analysis
-                .root
-                .bindings
-                .iter()
-                .filter(|binding| binding.reassigned || binding.mutated)
-                .map(|binding| binding.name.as_str())
-                .collect();
-            (names, mutable)
-        },
+/// The component's top-level binding names, across both `<script>` blocks.
+/// Only consulted for identifiers the per-program resolver leaves unresolved.
+fn root_binding_names(analysis: Option<&ComponentAnalysis>) -> HashSet<&str> {
+    analysis.map_or_else(HashSet::new, |analysis| {
+        analysis
+            .root
+            .bindings
+            .iter()
+            .map(|binding| binding.name.as_str())
+            .collect()
+    })
+}
+
+/// How a top-level name is declared, which decides whether a write to it can
+/// make it mutable at all — upstream's per-`def` switch in `isMutableVariable`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum DeclKind {
+    /// `export let` / `export var` — a prop, mutable whatever else happens.
+    Prop,
+    /// An import binding, a `function` / `class` name, or a `const` bound to a
+    /// function or a literal: never mutable, however it is written to.
+    Immutable,
+    /// Everything else: mutable exactly when something writes it.
+    Writable,
+}
+
+/// Classify every name the program's top level declares.
+fn collect_decl_kinds(program: &Value) -> HashMap<String, DeclKind> {
+    let mut kinds = HashMap::new();
+    let Some(body) = program.get("body").and_then(Value::as_array) else {
+        return kinds;
+    };
+    for stmt in body {
+        let exported = node_type(stmt) == Some("ExportNamedDeclaration");
+        let decl = if exported {
+            stmt.get("declaration").unwrap_or(&Value::Null)
+        } else {
+            stmt
+        };
+        match node_type(decl) {
+            Some("ImportDeclaration") => {
+                if let Some(specs) = decl.get("specifiers").and_then(Value::as_array) {
+                    for spec in specs {
+                        if let Some(local) = spec
+                            .get("local")
+                            .and_then(|l| l.get("name"))
+                            .and_then(Value::as_str)
+                        {
+                            kinds.insert(local.to_string(), DeclKind::Immutable);
+                        }
+                    }
+                }
+            }
+            Some("FunctionDeclaration" | "ClassDeclaration") => {
+                if let Some(name) = decl
+                    .get("id")
+                    .and_then(|i| i.get("name"))
+                    .and_then(Value::as_str)
+                {
+                    kinds.insert(name.to_string(), DeclKind::Immutable);
+                }
+            }
+            Some("VariableDeclaration") => {
+                let is_const = decl.get("kind").and_then(Value::as_str) == Some("const");
+                let Some(declarators) = decl.get("declarations").and_then(Value::as_array) else {
+                    continue;
+                };
+                for declarator in declarators {
+                    let mut names = HashSet::new();
+                    collect_pattern_idents(declarator.get("id"), &mut names);
+                    let kind = if is_const {
+                        if declarator.get("init").is_some_and(is_frozen_init) {
+                            DeclKind::Immutable
+                        } else {
+                            DeclKind::Writable
+                        }
+                    } else if exported {
+                        DeclKind::Prop
+                    } else {
+                        DeclKind::Writable
+                    };
+                    for name in names {
+                        kinds.insert(name, kind);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    kinds
+}
+
+/// A `const` initializer that fixes the binding's value for good.
+fn is_frozen_init(init: &Value) -> bool {
+    matches!(
+        node_type(init),
+        Some("FunctionExpression" | "ArrowFunctionExpression" | "Literal")
     )
 }
 
@@ -70,76 +153,6 @@ fn json_offset(value: u64) -> Option<u32> {
 }
 
 const MESSAGE: &str = "This statement is not reactive because all variables referenced in the reactive statement are immutable.";
-
-/// A conservative set of known global identifiers — referencing one neither
-/// makes a statement reactive nor counts as an undeclared variable. Only needs
-/// to be broad enough that genuine globals aren't mistaken for undeclared names.
-const KNOWN_GLOBALS: &[&str] = &[
-    "console",
-    "window",
-    "document",
-    "globalThis",
-    "Math",
-    "JSON",
-    "Object",
-    "Array",
-    "String",
-    "Number",
-    "Boolean",
-    "Date",
-    "RegExp",
-    "Map",
-    "Set",
-    "WeakMap",
-    "WeakSet",
-    "Promise",
-    "Symbol",
-    "BigInt",
-    "Error",
-    "Infinity",
-    "NaN",
-    "undefined",
-    "parseInt",
-    "parseFloat",
-    "isNaN",
-    "isFinite",
-    "setTimeout",
-    "setInterval",
-    "clearTimeout",
-    "clearInterval",
-    "fetch",
-    "navigator",
-    "location",
-    "history",
-    "localStorage",
-    "sessionStorage",
-    "URL",
-    "URLSearchParams",
-];
-
-/// Collect names declared by `export let` / `export var` (props).
-fn collect_export_let_props(program: &ProgramView<'_>, out: &mut HashSet<String>) {
-    program.walk(|node, _| {
-        if node_type(node) != Some("ExportNamedDeclaration") {
-            return;
-        }
-        let Some(decl) = node.get("declaration") else {
-            return;
-        };
-        if node_type(decl) != Some("VariableDeclaration") {
-            return;
-        }
-        let kind = decl.get("kind").and_then(Value::as_str);
-        if kind != Some("let") && kind != Some("var") {
-            return;
-        }
-        if let Some(declarators) = decl.get("declarations").and_then(Value::as_array) {
-            for d in declarators {
-                collect_pattern_idents(d.get("id"), out);
-            }
-        }
-    });
-}
 
 /// Collect bound identifier names from a declarator `id` pattern.
 fn collect_pattern_idents(id: Option<&Value>, out: &mut HashSet<String>) {
@@ -182,26 +195,6 @@ fn expr_base_name(e: Option<&Value>) -> Option<&str> {
         Some("MemberExpression") => expr_base_name(e.get("object")),
         _ => None,
     }
-}
-
-/// Collect the base identifier of every `delete <member>` expression in the
-/// program (`delete obj.prop` ⇒ `obj`). Such a delete mutates the object, so the
-/// base name is mutable — mirrors upstream's `hasWriteMember` handling of
-/// `UnaryExpression { operator: 'delete' }`.
-fn collect_delete_mutated(program: &ProgramView<'_>) -> HashSet<String> {
-    let mut out = HashSet::new();
-    program.walk(|node, _| {
-        if node_type(node) != Some("UnaryExpression") {
-            return;
-        }
-        if node.get("operator").and_then(Value::as_str) != Some("delete") {
-            return;
-        }
-        if let Some(base) = expr_base_name(node.get("argument")) {
-            out.insert(base.to_string());
-        }
-    });
-    out
 }
 
 /// Whether `name` is *written* anywhere in `scope`: as a `bind:` directive
@@ -260,9 +253,111 @@ fn collect_mutable_via_each(ctx: &LintContext) -> HashSet<String> {
     out
 }
 
+/// Whether two nodes are the same node (their spans coincide).
+fn same_span(a: &Value, b: &Value) -> bool {
+    let span = |n: &Value| (n.get("start").cloned(), n.get("end").cloned());
+    span(a) == span(b)
+}
+
+/// Whether the identifier is a **write** to its variable: an assignment,
+/// update or `for…of` target (through any destructuring pattern), a write to a
+/// member path rooted at it, a `delete` of such a path, or a two-way `bind:`.
+/// Mirrors upstream's `reference.isWrite()` plus `hasWriteMember`. A
+/// declarator's own `id` is not a write here, matching upstream's exclusion of
+/// references inside the definition's binding identifier.
+fn is_write_reference(ident: &Value, ancestors: &[&Value]) -> bool {
+    let mut node = ident;
+    let mut depth = ancestors.len();
+    // Climb the member path: `x` → `x.y` → `x.y.z`.
+    while depth > 0 {
+        let parent = ancestors[depth - 1];
+        if node_type(parent) == Some("MemberExpression")
+            && parent.get("object").is_some_and(|o| same_span(o, node))
+        {
+            node = parent;
+            depth -= 1;
+        } else {
+            break;
+        }
+    }
+    // Climb out of a destructuring pattern to its root.
+    while depth > 0 {
+        let parent = ancestors[depth - 1];
+        let climbs = match node_type(parent) {
+            Some("ArrayPattern") => true,
+            Some("ObjectPattern") => true,
+            Some("Property") => parent.get("value").is_some_and(|v| same_span(v, node)),
+            Some("AssignmentPattern") => parent.get("left").is_some_and(|l| same_span(l, node)),
+            Some("RestElement") => parent.get("argument").is_some_and(|a| same_span(a, node)),
+            _ => false,
+        };
+        if !climbs {
+            break;
+        }
+        node = parent;
+        depth -= 1;
+    }
+    let Some(parent) = depth.checked_sub(1).map(|i| ancestors[i]) else {
+        return false;
+    };
+    match node_type(parent) {
+        Some("AssignmentExpression" | "ForInStatement" | "ForOfStatement") => {
+            parent.get("left").is_some_and(|l| same_span(l, node))
+        }
+        Some("UpdateExpression") => parent.get("argument").is_some_and(|a| same_span(a, node)),
+        Some("UnaryExpression") => {
+            parent.get("operator").and_then(Value::as_str) == Some("delete")
+                && parent.get("argument").is_some_and(|a| same_span(a, node))
+        }
+        Some("BindDirective") => parent.get("expression").is_some_and(|e| same_span(e, node)),
+        _ => false,
+    }
+}
+
+/// The top-level names something writes — upstream's `hasWrite`. Script
+/// references are filtered through the resolver, so a same-named parameter,
+/// block `let` or catch binding does not count as a write to the outer
+/// variable; template references resolve by name, as they do upstream.
+fn collect_written_names(
+    tracker: &RefTracker<'_>,
+    program: &ProgramView<'_>,
+    fragment: &Value,
+) -> HashSet<String> {
+    let mut written = HashSet::new();
+    program.walk(|node, ancestors| {
+        if node_type(node) != Some("Identifier") {
+            return;
+        }
+        let Some(name) = node.get("name").and_then(Value::as_str) else {
+            return;
+        };
+        if tracker
+            .find_variable(node)
+            .is_some_and(|var| !tracker.is_root(var))
+        {
+            return;
+        }
+        if is_write_reference(node, ancestors) {
+            written.insert(name.to_string());
+        }
+    });
+    walk_js(fragment, |node, ancestors| {
+        if node_type(node) != Some("Identifier") {
+            return;
+        }
+        let Some(name) = node.get("name").and_then(Value::as_str) else {
+            return;
+        };
+        if is_write_reference(node, ancestors) {
+            written.insert(name.to_string());
+        }
+    });
+    written
+}
+
 /// Whether `ident` (with its parent) sits in a position that is NOT a variable
 /// read: a non-computed member `.property`, a non-computed/non-shorthand object
-/// `key`, the `$` reactive label.
+/// `key`, the `$` reactive label, the `const` of an `as const` assertion.
 fn is_ignored_position(ident: &Value, parent: &Value) -> bool {
     let id_start = ident.get("start").and_then(Value::as_u64);
     match node_type(parent) {
@@ -293,6 +388,10 @@ fn is_ignored_position(ident: &Value, parent: &Value) -> bool {
                 .and_then(Value::as_u64)
                 == id_start
         }
+        // `x as const` parses as a `TSTypeReference` whose `typeName` is the
+        // reserved word `const`; TypeScript's scope analysis creates no
+        // reference for it, so upstream never sees an unresolved name here.
+        Some("TSTypeReference") => ident.get("name").and_then(Value::as_str) == Some("const"),
         _ => false,
     }
 }
@@ -388,42 +487,6 @@ fn collect_reactive_decl_names(program: &Value, out: &mut HashSet<String>) {
     }
 }
 
-/// Collect all names declared by `VariableDeclaration` nodes or function
-/// parameters anywhere **inside** the reactive statement node (including inside
-/// nested function bodies). These are local bindings that shadow any outer
-/// top-level binding with the same name — references to them are not references
-/// to the outer binding and must be ignored.
-///
-/// Mirrors the upstream behaviour where `iterateRangeReferences` only yields
-/// references from the *top-level* (module/instance) scope: references to
-/// names declared inside the reactive statement itself are block- or
-/// function-scoped and therefore not yielded.
-fn collect_local_decls(node: &Value, out: &mut HashSet<String>) {
-    // We skip the LabeledStatement node itself (the reactive label `$:`) so we
-    // don't accidentally treat the label `$` as a declaration. Only the body
-    // subtree contains local declarations.
-    let body = node.get("body");
-    let Some(body) = body else { return };
-    walk_js(body, |n, _| {
-        let nt = node_type(n);
-        if nt == Some("VariableDeclaration") {
-            if let Some(declarators) = n.get("declarations").and_then(Value::as_array) {
-                for d in declarators {
-                    collect_pattern_idents(d.get("id"), out);
-                }
-            }
-        } else if matches!(
-            nt,
-            Some("FunctionExpression" | "ArrowFunctionExpression" | "FunctionDeclaration")
-        ) && let Some(params) = n.get("params").and_then(Value::as_array)
-        {
-            for p in params {
-                collect_pattern_idents(Some(p), out);
-            }
-        }
-    });
-}
-
 #[derive(Default)]
 pub struct NoImmutableReactiveStatements;
 
@@ -433,52 +496,63 @@ impl ScriptRule for NoImmutableReactiveStatements {
     }
 
     fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
-        // Try to get full scope analysis. If it fails (e.g. constant_assignment
-        // or constant_binding errors that the upstream ESLint scope manager
-        // wouldn't reject), continue with empty binding maps — the write-only
-        // LHS detection and the "unknown identifier → skip" guard ensure we
-        // only report structurally obvious non-reactive statements.
+        // The scope analysis only supplies the *other* `<script>`'s top-level
+        // names; it can fail (e.g. on a component the Svelte compiler rejects)
+        // and the rule still works, because everything else is resolved here.
         let analysis = ctx.scope_analysis();
+        let binding_names = root_binding_names(analysis.as_deref());
 
-        let (binding_names, mutable_bindings) = scope_binding_sets(analysis.as_deref());
-
-        let mut props: HashSet<String> = HashSet::new();
-        collect_export_let_props(program, &mut props);
+        // Upstream yields only references that resolve into the top-level scope,
+        // so an identifier that resolves to a binding declared *inside* the
+        // reactive statement (a `const`, a parameter, a catch binding) is not a
+        // reference to the same-named outer variable and must not stand in for
+        // it. Only a resolver can tell those apart.
+        let tracker = module_tracker(
+            ctx.source(),
+            program.value(),
+            source_is_ts(ctx.source(), ctx.filename()),
+        );
+        let fragment = ctx.template_fragment_json();
+        let decl_kinds = collect_decl_kinds(program.value());
+        let written = collect_written_names(&tracker, program, &fragment);
+        // `analyze_scope` propagates one level of `{#each}` context write back to
+        // the iterated source but not through nested each-blocks, so the rule
+        // recovers those itself.
         let mutable_via_each = collect_mutable_via_each(ctx);
-        let delete_mutated = collect_delete_mutated(program);
-        let globals: HashSet<&str> = KNOWN_GLOBALS.iter().copied().collect();
 
-        // Collect names implicitly declared by reactive assignment statements
-        // (e.g. `$: foo = 1`, `$: ([...foo] = arr)`). These are reactive vars
-        // that Svelte creates but that may not appear in `analyze_scope`'s
-        // `binding_names` for destructuring patterns. We need them to correctly
-        // classify write-only LHS identifiers as "known" so they're skipped
-        // rather than triggering the "undeclared → should_skip" path.
+        // Names implicitly declared by a top-level reactive assignment
+        // (`$: foo = 1`, `$: ([...foo] = arr)`). Svelte creates these as
+        // reactive bindings; no resolver sees them, so they are collected here.
         let mut reactive_decl_names: HashSet<String> = HashSet::new();
-        collect_reactive_decl_names(program, &mut reactive_decl_names);
+        collect_reactive_decl_names(program.value(), &mut reactive_decl_names);
 
         let is_mutable = |name: &str| -> bool {
-            props.contains(name)
-                || mutable_bindings.contains(name)
-                || mutable_via_each.contains(name)
-                || delete_mutated.contains(name)
+            // A name whose definition is a `$: name = …` assignment is a
+            // reactive value, which upstream classes as mutable outright.
+            if reactive_decl_names.contains(name) {
+                return true;
+            }
+            match decl_kinds.get(name) {
+                Some(DeclKind::Prop) => true,
+                Some(DeclKind::Immutable) => false,
+                Some(DeclKind::Writable) | None => {
+                    written.contains(name) || mutable_via_each.contains(name)
+                }
+            }
         };
 
         // A name is "known" when it appears in the component's top-level
         // bindings OR is implicitly declared by a reactive assignment statement.
+        // Consulted only for identifiers the resolver leaves unresolved — a name
+        // declared in the *other* `<script>` is one, since each program is
+        // resolved on its own.
         let is_known_name = |name: &str| -> bool {
             binding_names.contains(name) || reactive_decl_names.contains(name)
         };
 
         let mut reports: Vec<(u32, u32)> = Vec::new();
-        program.walk(|node, _| {
-            if node_type(node) != Some("LabeledStatement")
-                || node
-                    .get("label")
-                    .and_then(|l| l.get("name"))
-                    .and_then(Value::as_str)
-                    != Some("$")
-            {
+        program.walk(|node, ancestors| {
+            if !is_reactive_statement(node, ancestors) {
                 return;
             }
             let Some(body) = node.get("body") else { return };
@@ -513,14 +587,6 @@ impl ScriptRule for NoImmutableReactiveStatements {
             let mut write_only_lhs_spans: Vec<(u32, u32)> = Vec::new();
             collect_write_only_lhs_spans(node, &mut write_only_lhs_spans);
 
-            // Pre-collect all names declared INSIDE the reactive statement body
-            // (variable declarations and function params at any depth). These are
-            // local bindings that shadow outer top-level variables with the same
-            // name. References to such names within the reactive statement are NOT
-            // references to the outer top-level binding and must be ignored.
-            let mut local_decls: HashSet<String> = HashSet::new();
-            collect_local_decls(node, &mut local_decls);
-
             // Walk the statement subtree, classifying each referenced identifier.
             let mut should_skip = false;
             walk_js(node, |inner, ancestors| {
@@ -533,18 +599,23 @@ impl ScriptRule for NoImmutableReactiveStatements {
                 if is_ignored_position(inner, parent) {
                     return;
                 }
+                // A serializer placeholder (a `BigInt` literal, say) is not a
+                // variable reference at all; reading it as an undeclared name
+                // silences the whole statement.
+                if is_unmapped_placeholder(ctx.source(), inner) {
+                    return;
+                }
                 let Some(name) = inner.get("name").and_then(Value::as_str) else {
                     return;
                 };
 
-                // Identifiers that name a LOCAL declaration within this reactive
-                // statement (a block-scoped variable or a function param) are not
-                // references to the outer top-level binding — ignore them entirely.
-                // This mirrors the upstream `iterateRangeReferences` which only
-                // yields references from the top-level (module/instance) scope.
-                if local_decls.contains(name) {
+                // A reference that resolves to a binding declared inside the
+                // statement shadows the outer name: upstream never yields it.
+                let resolved = tracker.find_variable(inner);
+                if resolved.is_some_and(|var| !tracker.is_root(var)) {
                     return;
                 }
+                let is_toplevel = resolved.is_some() || is_known_name(name);
 
                 let id_pos = inner.get("start").and_then(Value::as_u64).unwrap_or(0);
                 let is_write_only = write_only_lhs_spans
@@ -552,7 +623,7 @@ impl ScriptRule for NoImmutableReactiveStatements {
                     .any(|&(s, e)| u64::from(s) <= id_pos && id_pos < u64::from(e));
 
                 if is_write_only {
-                    if is_known_name(name) {
+                    if is_toplevel {
                         // Known variable in write-only position: this is a write
                         // target, not a read — skip it. The upstream's
                         // `reference.isWriteOnly() → continue` mirrors this.
@@ -571,11 +642,11 @@ impl ScriptRule for NoImmutableReactiveStatements {
                     should_skip = true; // builtin `$$` var
                 } else if name.starts_with('$') {
                     should_skip = true; // reactive store reference → mutable
-                } else if is_known_name(name) {
+                } else if is_toplevel {
                     if is_mutable(name) {
                         should_skip = true;
                     }
-                } else if !globals.contains(name) {
+                } else if !is_declared_global(name) {
                     should_skip = true; // undeclared / unresolved
                 }
             });

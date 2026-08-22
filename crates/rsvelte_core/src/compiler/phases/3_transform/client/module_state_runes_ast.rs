@@ -59,6 +59,7 @@ pub fn transform_module_state_runes_ast(
                 src,
                 non_reactive_vars,
             ));
+            edits.extend(super::state_eager_ast::collect_eager_edits(program, src));
             edits.extend(super::state_call_ast::collect_state_call_edits(
                 program,
                 src,

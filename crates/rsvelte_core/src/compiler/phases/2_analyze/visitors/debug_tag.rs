@@ -5,7 +5,6 @@
 //! Corresponds to Svelte's `2-analyze/visitors/DebugTag.js`.
 
 use super::super::AnalysisError;
-use super::super::errors;
 use super::VisitorContext;
 use super::shared::fragment::mark_subtree_dynamic;
 use super::shared::utils::{validate_opening_tag, walk_js_expression_node};
@@ -22,17 +21,6 @@ pub fn visit(tag: &mut DebugTag, context: &mut VisitorContext) -> Result<(), Ana
     // In runes mode, validate that the tag starts with '{@' (no whitespace)
     if context.analysis.runes {
         validate_opening_tag(tag.start as usize, &context.analysis.source, '@')?;
-    }
-
-    // Validate that all arguments are identifiers
-    // In the official Svelte parser, this is done in Phase 1, but our parser doesn't
-    // have this check, so we do it here.
-    for identifier in &tag.identifiers {
-        if identifier.node_type() != Some("Identifier") {
-            // Upstream passes a bare offset, so the span is zero-width
-            let start = identifier.as_node().start().unwrap_or(tag.start);
-            return Err(errors::debug_tag_invalid_arguments().at(start, start));
-        }
     }
 
     // Mark the subtree as dynamic when there are identifiers.

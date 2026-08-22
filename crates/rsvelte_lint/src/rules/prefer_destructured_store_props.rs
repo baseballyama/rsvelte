@@ -24,13 +24,16 @@
 use std::collections::HashSet;
 
 use rsvelte_core::ast::arena::with_serialize_arena;
-use rsvelte_core::ast::template::{Root, ScriptContext};
+use rsvelte_core::ast::template::{
+    AttributeValue, AttributeValuePart, Root, Script, ScriptContext,
+};
 use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, Suggestion, TextEdit};
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{node_type, walk_js};
+use crate::rules::store_refs::{handled_by_template_pass, scope_binding_names};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/prefer-destructured-store-props",
@@ -221,34 +224,134 @@ fn compute_var_name(prop_name: &str, top_level: &HashSet<String>) -> String {
     }
 }
 
-/// Identifier names bound by an enclosing template block (`{#each}` context /
-/// index, `{#await}` value / error, `{#snippet}` params) — block-scoped, so a
-/// member access using one is left alone.
-fn collect_block_names(ancestors: &[&Value]) -> HashSet<String> {
+/// Upstream's `mainScript`: the last `<script>` element in document order that
+/// carries no literal `context="module"` attribute. It tests that attribute
+/// alone, so the Svelte 5 `<script module>` shorthand reads as the main script.
+fn main_script<'a>(root: &'a Root<'a>) -> Option<&'a Script<'a>> {
+    let mut scripts: Vec<&Script<'a>> = [root.instance.as_ref(), root.module.as_ref()]
+        .into_iter()
+        .flatten()
+        .map(std::convert::AsRef::as_ref)
+        .filter(|s| !has_context_module_attribute(s))
+        .collect();
+    scripts.sort_by_key(|s| s.start);
+    scripts.pop()
+}
+
+/// `findAttribute(node, 'context')` with a single `SvelteLiteral` value `module`.
+fn has_context_module_attribute(script: &Script<'_>) -> bool {
+    script.attributes.iter().any(|attr| {
+        attr.name == "context"
+            && match &attr.value {
+                AttributeValue::Sequence(parts) => matches!(
+                    parts.as_slice(),
+                    [AttributeValuePart::Text(text)] if text.data == "module"
+                ),
+                _ => false,
+            }
+    })
+}
+
+/// Names bound by the scopes enclosing a node. Upstream resolves
+/// member-expression identifiers with `findVariable`; anything whose scope is
+/// not module/global suppresses the report, and svelte-eslint-parser does build
+/// scopes for the template blocks. The scope model is shared with the store
+/// reference tracker so the two cannot disagree.
+fn enclosing_scope_names(ancestors: &[&Value], member_start: u64) -> HashSet<String> {
     let mut out = HashSet::new();
     for a in ancestors {
-        match node_type(a) {
-            Some("EachBlock") => {
-                collect_pattern_idents(a.get("context"), &mut out);
-                if let Some(idx) = a.get("index").and_then(Value::as_str) {
-                    out.insert(idx.to_string());
-                }
-            }
-            Some("AwaitBlock") => {
-                collect_pattern_idents(a.get("value"), &mut out);
-                collect_pattern_idents(a.get("error"), &mut out);
-            }
-            Some("SnippetBlock") => {
-                if let Some(params) = a.get("parameters").and_then(Value::as_array) {
-                    for p in params {
-                        collect_pattern_idents(Some(p), &mut out);
-                    }
-                }
-            }
-            _ => {}
+        // A `let:` directive binds over the element's children, not over its
+        // own attributes.
+        if a.get("fragment").is_some() && attribute_span_contains(a, member_start) {
+            continue;
+        }
+        if let Some(names) = scope_binding_names(a) {
+            out.extend(names);
         }
     }
     out
+}
+
+/// Whether `pos` falls inside one of the element's attribute spans.
+fn attribute_span_contains(element: &Value, pos: u64) -> bool {
+    element
+        .get("attributes")
+        .and_then(Value::as_array)
+        .is_some_and(|attrs| {
+            attrs.iter().any(|attr| {
+                let (Some(s), Some(e)) = (
+                    attr.get("start").and_then(Value::as_u64),
+                    attr.get("end").and_then(Value::as_u64),
+                ) else {
+                    return false;
+                };
+                pos >= s && pos < e
+            })
+        })
+}
+
+/// Whether any expression identifier inside the member expression resolves to
+/// an enclosing non-top-level scope (upstream: `findVariable` resolves it and
+/// its scope is not module/global). A `$name` identifier falls back to `name`,
+/// mirroring upstream's store-access `findVariable`.
+fn member_uses_fn_scoped(member: &Value, shadowed: &HashSet<String>) -> bool {
+    if shadowed.is_empty() {
+        return false;
+    }
+    let mut found = false;
+    walk_member_expr_idents(member, None, &mut |name| {
+        if shadowed.contains(name)
+            || name
+                .strip_prefix('$')
+                .is_some_and(|stripped| shadowed.contains(stripped))
+        {
+            found = true;
+        }
+    });
+    found
+}
+
+fn walk_member_expr_idents<'v>(
+    node: &'v Value,
+    parent_field: Option<(&str, &'v Value)>,
+    f: &mut impl FnMut(&str),
+) {
+    match node {
+        Value::Array(arr) => {
+            for v in arr {
+                walk_member_expr_idents(v, parent_field, f);
+            }
+        }
+        Value::Object(map) => {
+            let ty = map.get("type").and_then(Value::as_str);
+            if ty == Some("Identifier") {
+                // `isExpressionIdentifier`: a COMPUTED member property / object
+                // key is not one (upstream ast-utils.ts:640-649), so `$foo[x]`
+                // never consults `x`'s scope while `$foo[`p${x}`]` does.
+                let is_expression_ident = parent_field.is_none_or(|(field, parent)| {
+                    let computed = parent.get("computed").and_then(Value::as_bool) == Some(true);
+                    match (node_type(parent), field) {
+                        (Some("MemberExpression"), "property")
+                        | (Some("Property" | "MethodDefinition" | "PropertyDefinition"), "key") => {
+                            !computed
+                        }
+                        _ => true,
+                    }
+                });
+                if is_expression_ident && let Some(name) = map.get("name").and_then(Value::as_str) {
+                    f(name);
+                }
+                return;
+            }
+            for (k, v) in map {
+                if k == "loc" {
+                    continue;
+                }
+                walk_member_expr_idents(v, Some((k, node)), f);
+            }
+        }
+        _ => {}
+    }
 }
 
 fn collect_pattern_idents(id: Option<&Value>, out: &mut HashSet<String>) {
@@ -485,37 +588,6 @@ fn get_property_name(prop: &Value) -> Option<String> {
     }
 }
 
-/// Whether any expression identifier in the member (its object, plus identifiers
-/// in a computed key) is block-scoped.
-fn member_uses_block_scoped(member: &Value, computed: bool, block: &HashSet<String>) -> bool {
-    if let Some(obj_name) = member
-        .get("object")
-        .and_then(|o| o.get("name"))
-        .and_then(Value::as_str)
-        && block.contains(obj_name)
-    {
-        return true;
-    }
-    if computed {
-        let mut found = false;
-        if let Some(prop) = member.get("property") {
-            walk_js(prop, |n, _| {
-                if !found
-                    && node_type(n) == Some("Identifier")
-                    && let Some(name) = n.get("name").and_then(Value::as_str)
-                    && block.contains(name)
-                {
-                    found = true;
-                }
-            });
-        }
-        if found {
-            return true;
-        }
-    }
-    false
-}
-
 /// Find the byte offset of the `<` in `</script>` by scanning backward from
 /// `script_end` (the exclusive end of the whole `<script>…</script>` span).
 ///
@@ -541,6 +613,29 @@ struct PendingReport {
 #[derive(Default)]
 pub struct PreferDestructuredStoreProps;
 
+impl ScriptRule for PreferDestructuredStoreProps {
+    fn meta(&self) -> &'static RuleMeta {
+        &META
+    }
+
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
+        // Upstream suppresses the rule inside a `<script>` element, so in a
+        // component only the template reports (`check_root`); a standalone
+        // module has no script element and reports throughout.
+        if handled_by_template_pass(ctx.filename()) {
+            return;
+        }
+        let mut reports = Vec::new();
+        // Only a standalone `.svelte.(js|ts)` reaches here, and that is runes
+        // mode by definition.
+        collect_member_reports(ctx, program.value(), true, &mut reports);
+        // No script element means upstream's `mainScript` stays null (no
+        // destructuring suggestion), and `$:` is a plain labelled statement
+        // rather than a `SvelteReactiveStatement` (no reactive-variable one).
+        emit_reports(ctx, reports, None, None, &HashSet::new());
+    }
+}
+
 impl Rule for PreferDestructuredStoreProps {
     fn meta(&self) -> &'static RuleMeta {
         &META
@@ -558,16 +653,14 @@ impl Rule for PreferDestructuredStoreProps {
         // so, find the insertion point (start of `</script>`) and the script
         // content for reactive-variable / top-level-name analysis.
         //
-        // "main script" = `<script>` without `context="module"`.
-        let instance_script = root
-            .instance
-            .as_ref()
-            .filter(|s| s.context == ScriptContext::Default);
-
         // Serialize the script content for analysis (only if we have a script).
         // The script program's own JSON cache — re-serializing it would rebuild
         // a whole ESTree tree the engine already materialised for this file.
-        let script_content: Option<&Value> = if instance_script.is_some() {
+        let script_content: Option<&Value> = if root
+            .instance
+            .as_ref()
+            .is_some_and(|s| s.context == ScriptContext::Default)
+        {
             with_serialize_arena(&root.arena, || {
                 root.instance.as_ref().map(|s| s.content.as_json())
             })
@@ -577,7 +670,7 @@ impl Rule for PreferDestructuredStoreProps {
 
         // Find the insertion offset (position of '<' in '</script>').
         let close_tag_offset: Option<u32> =
-            instance_script.and_then(|s| find_close_script_tag(ctx.source(), s.end));
+            main_script(root).and_then(|s| find_close_script_tag(ctx.source(), s.end));
 
         // Collect top-level variable names (for hasTopLevelVariable).
         let top_level_names: HashSet<String> = script_content
@@ -585,70 +678,9 @@ impl Rule for PreferDestructuredStoreProps {
             .unwrap_or_default();
 
         // Walk the fragment and collect reports.
+        let runes = crate::runes_mode::component_runes_mode(root, ctx.source());
         let mut reports: Vec<PendingReport> = Vec::new();
-        walk_js(frag, |node, ancestors| {
-            if node_type(node) != Some("MemberExpression") {
-                return;
-            }
-            let object = node.get("object");
-            if object.map(node_type) != Some(Some("Identifier")) {
-                return;
-            }
-            let Some(store) = object.and_then(|o| o.get("name")).and_then(Value::as_str) else {
-                return;
-            };
-            if !is_store_object(store) || SVELTE_RUNES.contains(&store) {
-                return;
-            }
-            let computed = node.get("computed").and_then(Value::as_bool) == Some(true);
-            let block = collect_block_names(ancestors);
-            if member_uses_block_scoped(node, computed, &block) {
-                return;
-            }
-            // Property name: identifier name (non-computed) or collapsed source.
-            let (property_display, prop_name) = if computed {
-                let display = match (
-                    node.get("property")
-                        .and_then(|p| p.get("start"))
-                        .and_then(Value::as_u64),
-                    node.get("property")
-                        .and_then(|p| p.get("end"))
-                        .and_then(Value::as_u64),
-                ) {
-                    (Some(s), Some(e)) => match (json_offset(s), json_offset(e)) {
-                        (Some(s), Some(e)) => Some(collapse_ws(ctx.slice(s, e))),
-                        _ => None,
-                    },
-                    _ => None,
-                };
-                (display, String::new())
-            } else {
-                let name = node
-                    .get("property")
-                    .and_then(|p| p.get("name"))
-                    .and_then(Value::as_str)
-                    .map(str::to_string);
-                (name.clone(), name.unwrap_or_default())
-            };
-            let Some(property_display) = property_display else {
-                return;
-            };
-            if let (Some(s), Some(e)) = (
-                node.get("start").and_then(Value::as_u64),
-                node.get("end").and_then(Value::as_u64),
-            ) {
-                reports.push(PendingReport {
-                    start: json_offset(s).expect("AST source offsets are represented as u32"),
-                    end: json_offset(e).expect("AST source offsets are represented as u32"),
-                    message: format!(
-                        "Destructure {property_display} from {store} for better change tracking & fewer redraws"
-                    ),
-                    store: store.to_string(),
-                    prop_name,
-                    computed,
-                });
-            }
-        });
+        collect_member_reports(ctx, frag, runes, &mut reports);
 
         emit_reports(
             ctx,
@@ -658,6 +690,82 @@ impl Rule for PreferDestructuredStoreProps {
             &top_level_names,
         );
     }
+}
+
+/// Collect every `$store.prop` access in `tree` that upstream's
+/// `MemberExpression[object.name=/^\$[^\$]/]` handler reports.
+fn collect_member_reports(
+    ctx: &LintContext,
+    tree: &Value,
+    runes: bool,
+    reports: &mut Vec<PendingReport>,
+) {
+    walk_js(tree, |node, ancestors| {
+        if node_type(node) != Some("MemberExpression") {
+            return;
+        }
+        let object = node.get("object");
+        if object.map(node_type) != Some(Some("Identifier")) {
+            return;
+        }
+        let Some(store) = object.and_then(|o| o.get("name")).and_then(Value::as_str) else {
+            return;
+        };
+        // Outside runes mode `$derived` is a store subscription, not a rune, so
+        // the skip is conditional upstream too (`runes === true`).
+        if !is_store_object(store) || (runes && SVELTE_RUNES.contains(&store)) {
+            return;
+        }
+        let computed = node.get("computed").and_then(Value::as_bool) == Some(true);
+        let member_start = node.get("start").and_then(Value::as_u64).unwrap_or(0);
+        let shadowed = enclosing_scope_names(ancestors, member_start);
+        if member_uses_fn_scoped(node, &shadowed) {
+            return;
+        }
+        // Property name: identifier name (non-computed) or collapsed source.
+        let (property_display, prop_name) = if computed {
+            let display = match (
+                node.get("property")
+                    .and_then(|p| p.get("start"))
+                    .and_then(Value::as_u64),
+                node.get("property")
+                    .and_then(|p| p.get("end"))
+                    .and_then(Value::as_u64),
+            ) {
+                (Some(s), Some(e)) => match (json_offset(s), json_offset(e)) {
+                    (Some(s), Some(e)) => Some(collapse_ws(ctx.slice(s, e))),
+                    _ => None,
+                },
+                _ => None,
+            };
+            (display, String::new())
+        } else {
+            let name = node
+                .get("property")
+                .and_then(|p| p.get("name"))
+                .and_then(Value::as_str)
+                .map(str::to_string);
+            (name.clone(), name.unwrap_or_default())
+        };
+        let Some(property_display) = property_display else {
+            return;
+        };
+        if let (Some(s), Some(e)) = (
+            node.get("start").and_then(Value::as_u64),
+            node.get("end").and_then(Value::as_u64),
+        ) {
+            reports.push(PendingReport {
+                start: json_offset(s).expect("AST source offsets are represented as u32"),
+                end: json_offset(e).expect("AST source offsets are represented as u32"),
+                message: format!(
+                    "Destructure {property_display} from {store} for better change tracking & fewer redraws"
+                ),
+                store: store.to_string(),
+                prop_name,
+                computed,
+            });
+        }
+    });
 }
 
 fn emit_reports(

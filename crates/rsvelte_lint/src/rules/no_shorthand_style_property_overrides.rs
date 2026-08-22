@@ -10,9 +10,14 @@
 //! by extracting CSS property names from string/template literals within
 //! conditional/logical expressions, mirroring upstream's `getAllInlineStyles`).
 
-use rsvelte_core::ast::template::{Attribute, AttributeValue, AttributeValuePart, RegularElement};
+use std::collections::HashSet;
 
-use super::shared::style_decls::{extract_inline_style_decls, parse_style_decls};
+use rsvelte_core::ast::template::{
+    Attribute, Component, RegularElement, SlotElement, SvelteComponentElement,
+    SvelteDynamicElement, SvelteElement,
+};
+
+use super::shared::style_decls::style_decl_sets;
 use crate::context::LintContext;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
 
@@ -20,7 +25,7 @@ static META: RuleMeta = RuleMeta {
     name: "svelte/no-shorthand-style-property-overrides",
     category: RuleCategory::Correctness,
     fixable: Fixable::No,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: false,
@@ -97,68 +102,70 @@ fn vendor_prefix(prop: &str) -> &str {
 #[derive(Default)]
 pub struct NoShorthandStylePropertyOverrides;
 
+fn check_start_tag(ctx: &mut LintContext, attributes: &[Attribute]) {
+    let source = ctx.source();
+    let sets = style_decl_sets(attributes, source);
+
+    let mut before: HashSet<String> = HashSet::new();
+    let mut reports: Vec<(u32, u32, String)> = Vec::new();
+
+    for set in &sets {
+        for decl in set {
+            let prefix = vendor_prefix(&decl.prop);
+            let normalized = &decl.prop[prefix.len()..];
+            if let Some(longhands) = longhands_of(normalized) {
+                for lh in longhands {
+                    let with_prefix = format!("{prefix}{lh}");
+                    if before.contains(&with_prefix) {
+                        reports.push((
+                            decl.start,
+                            decl.end,
+                            format!(
+                                "Unexpected shorthand '{}' after '{with_prefix}'.",
+                                decl.prop
+                            ),
+                        ));
+                    }
+                }
+            }
+        }
+        for decl in set {
+            before.insert(decl.prop.clone());
+        }
+    }
+
+    for (start, end, msg) in reports {
+        ctx.report(start, end, msg);
+    }
+}
+
 impl Rule for NoShorthandStylePropertyOverrides {
     fn meta(&self) -> &'static RuleMeta {
         &META
     }
 
     fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
-        // Ordered (property, report-start) declarations across `style:` directives
-        // and the static `style="…"` attribute, in source order.
-        let mut decls: Vec<(String, u32)> = Vec::new();
-        for attr in &el.attributes {
-            match attr {
-                Attribute::StyleDirective(d) => {
-                    let name_start = d.start
-                        + u32::try_from("style:".len())
-                            .expect("directive prefix widths are represented as u32");
-                    decls.push((d.name.to_string(), name_start));
-                }
-                Attribute::Attribute(node) if node.name.eq_ignore_ascii_case("style") => {
-                    if let AttributeValue::Sequence(parts) = &node.value {
-                        for part in parts {
-                            match part {
-                                AttributeValuePart::Text(t) => {
-                                    decls.extend(
-                                        parse_style_decls(&t.raw, t.start)
-                                            .into_iter()
-                                            .map(|(n, s, _)| (n, s)),
-                                    );
-                                }
-                                AttributeValuePart::ExpressionTag(tag) => {
-                                    let src = ctx.slice(tag.start, tag.end);
-                                    let inline = extract_inline_style_decls(src, tag.start);
-                                    decls.extend(inline.into_iter().map(|(n, s, _)| (n, s)));
-                                }
-                            }
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
+        check_start_tag(ctx, &el.attributes);
+    }
 
-        let mut seen: Vec<String> = Vec::new();
-        let mut reports: Vec<(u32, String)> = Vec::new();
-        for (prop, start) in &decls {
-            let prefix = vendor_prefix(prop);
-            let normalized = &prop[prefix.len()..];
-            if let Some(longhands) = longhands_of(normalized) {
-                for lh in longhands {
-                    let with_prefix = format!("{prefix}{lh}");
-                    if seen.iter().any(|s| s == &with_prefix) {
-                        reports.push((
-                            *start,
-                            format!("Unexpected shorthand '{prop}' after '{with_prefix}'."),
-                        ));
-                    }
-                }
-            }
-            seen.push(prop.clone());
-        }
-        for (start, msg) in reports {
-            ctx.report(start, start, msg);
-        }
+    fn check_component(&self, ctx: &mut LintContext, c: &Component) {
+        check_start_tag(ctx, &c.attributes);
+    }
+
+    fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
+        check_start_tag(ctx, &el.attributes);
+    }
+
+    fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
+        check_start_tag(ctx, &el.attributes);
+    }
+
+    fn check_svelte_element(&self, ctx: &mut LintContext, el: &SvelteElement) {
+        check_start_tag(ctx, &el.attributes);
+    }
+
+    fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
+        check_start_tag(ctx, &el.attributes);
     }
 }
 
@@ -181,12 +188,5 @@ mod tests {
                 .contains(&"background-repeat")
         );
         assert!(longhands_of("color").is_none());
-    }
-
-    #[test]
-    fn parses_decl_names() {
-        let out = parse_style_decls("background-repeat: repeat; background: green", 0);
-        assert_eq!(out[0].0, "background-repeat");
-        assert_eq!(out[1].0, "background");
     }
 }

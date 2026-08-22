@@ -85,7 +85,7 @@ pub fn lint_with_config(source: &str, filename: &str, config_json: &str) -> Stri
 
 fn lint_with(source: &str, filename: &str, config: &LintConfig) -> String {
     let line_index = LineIndex::new(source);
-    let suppressions = Suppressions::collect(source);
+    let suppressions = Suppressions::collect_for(source, filename);
     let mut entries: Vec<Entry> = Vec::new();
 
     // 1. Compiler warnings / errors (validator wrap) — codegen skipped.
@@ -138,11 +138,10 @@ fn lint_with(source: &str, filename: &str, config: &LintConfig) -> String {
         .into_iter()
         .chain(crate::engine::run_script_rules(source, filename, config));
     for d in native {
-        let (l, c) = line_index.position(d.start);
+        let ((l, c), (el, ec)) = d.report_span(&line_index);
         if suppressions.is_suppressed(&d.rule, l) {
             continue;
         }
-        let (el, ec) = line_index.position(d.end);
         entries.push(Entry {
             severity: sev_str(d.severity),
             line: l,
@@ -285,6 +284,70 @@ mod tests {
     fn extends_none_silences_every_rule() {
         let json = lint_with_config(SOURCE, "App.svelte", r#"{ "extends": ["none"] }"#);
         assert_eq!(codes(&json), Vec::<String>::new());
+    }
+
+    fn line_of(json: &str, code: &str) -> u32 {
+        serde_json::from_str::<Vec<serde_json::Value>>(json)
+            .unwrap()
+            .into_iter()
+            .find(|e| e["code"] == code)
+            .unwrap_or_else(|| panic!("{code} not reported"))["line"]
+            .as_u64()
+            .unwrap() as u32
+    }
+
+    /// The bindings must report on the same line table the CLI does: the seven
+    /// rules upstream positions with `getLocFromIndex` count U+2028, the rest
+    /// do not. The `no-at-html-tags` finding is the control — it sits on the
+    /// same physical line and must *not* move.
+    #[test]
+    fn the_json_api_reports_each_rule_on_its_own_line_table() {
+        let source = "<i>\u{2028}</i>\n<div a=b>{@html x}</div>";
+        let json = lint_with_config(
+            source,
+            "App.svelte",
+            r#"{ "rules": { "svelte/html-quotes": "warn" } }"#,
+        );
+
+        assert_eq!(line_of(&json, "svelte/html-quotes"), 3);
+        assert_eq!(line_of(&json, "svelte/no-at-html-tags"), 2);
+    }
+
+    /// A directive is located on the parser table and filtered against the line
+    /// the rule *reports* on, so which rule a U+2028 shields is a property of
+    /// the pair. All four verdicts were measured against eslint-plugin-svelte.
+    #[test]
+    fn a_directive_shields_the_rule_whose_table_agrees_with_it() {
+        let quotes = r#"{ "rules": { "svelte/html-quotes": "warn" } }"#;
+        let cases: [(&str, &str, bool); 4] = [
+            (
+                "svelte/html-quotes",
+                "<i>\u{2028}</i>\n<!-- eslint-disable-next-line svelte/html-quotes -->\n<div a=b></div>",
+                false,
+            ),
+            (
+                "svelte/html-quotes",
+                "<!-- eslint-disable-next-line svelte/html-quotes -->\u{2028}<div a=b></div>",
+                true,
+            ),
+            (
+                "svelte/no-at-html-tags",
+                "<i>\u{2028}</i>\n<!-- eslint-disable-next-line svelte/no-at-html-tags -->\n<div>{@html x}</div>",
+                true,
+            ),
+            (
+                "svelte/no-at-html-tags",
+                "<!-- eslint-disable-next-line svelte/no-at-html-tags -->\u{2028}<div>{@html x}</div>",
+                false,
+            ),
+        ];
+
+        for (rule, source, suppressed) in cases {
+            let reported = codes(&lint_with_config(source, "App.svelte", quotes))
+                .iter()
+                .any(|c| c == rule);
+            assert_eq!(!reported, suppressed, "{rule} on {source:?}");
+        }
     }
 
     #[test]

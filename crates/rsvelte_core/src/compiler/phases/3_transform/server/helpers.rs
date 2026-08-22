@@ -83,20 +83,24 @@ pub(crate) fn compute_eval_inputs(
             {
                 let trimmed = init.trim();
                 // Parse the initial value as a constant
-                if (trimmed.starts_with('\'') && trimmed.ends_with('\''))
-                    || (trimmed.starts_with('"') && trimmed.ends_with('"'))
-                {
-                    if trimmed.len() >= 2 {
-                        constant_vars.insert(
-                            binding.name.clone(),
-                            trimmed[1..trimmed.len() - 1].to_string(),
-                        );
-                    }
+                if is_whole_string_literal(trimmed) {
+                    // A folded constant holds the COOKED value (upstream's
+                    // `scope.evaluate`); the emitter re-escapes it for the quasi.
+                    // Raw quote-stripping double-escaped `'\\\''` (#3055).
+                    constant_vars.insert(
+                        binding.name.clone(),
+                        crate::compiler::phases::phase3_transform::client::visitors::shared::utils::cook_string_literal(
+                            &trimmed[1..trimmed.len() - 1],
+                        ),
+                    );
                 } else if let Ok(n) = trimmed.parse::<i64>() {
                     constant_vars.insert(binding.name.clone(), n.to_string());
                 } else if let Ok(n) = trimmed.parse::<f64>() {
                     if n.is_finite() {
-                        constant_vars.insert(binding.name.clone(), n.to_string());
+                        constant_vars.insert(
+                            binding.name.clone(),
+                            crate::compiler::phases::phase3_transform::server::evaluate::js_number_to_string(n),
+                        );
                     }
                 } else {
                     match trimmed {
@@ -117,7 +121,11 @@ pub(crate) fn compute_eval_inputs(
     // After we have both text-based and scope-based constants, try to fold
     // $derived() expressions whose inner value can be evaluated with known constants.
     // $derived values are readonly by definition, so they're safe to fold.
-    if let Some(script) = instance_script {
+    // Only in runes mode: in legacy mode `$derived` is a store subscription, so the
+    // declared value is the call's RESULT, not its argument.
+    if analysis.is_some_and(|a| a.runes)
+        && let Some(script) = instance_script
+    {
         let start = script.content.start().unwrap_or(0) as usize;
         let end = script.content.end().unwrap_or(0) as usize;
         if end > start && end <= source.len() {
@@ -1080,7 +1088,10 @@ fn try_insert_constant_value(
         true
     } else if let Ok(n) = value.parse::<f64>() {
         if n.is_finite() {
-            constants.insert(name.to_string(), n.to_string());
+            constants.insert(
+                name.to_string(),
+                crate::compiler::phases::phase3_transform::server::evaluate::js_number_to_string(n),
+            );
             true
         } else {
             false
@@ -1110,7 +1121,9 @@ pub(crate) fn try_evaluate_with_constants(
     if let Ok(n) = trimmed.parse::<f64>()
         && n.is_finite()
     {
-        return Some(n.to_string());
+        return Some(
+            crate::compiler::phases::phase3_transform::server::evaluate::js_number_to_string(n),
+        );
     }
     if !trimmed.starts_with('`') && is_whole_string_literal(trimmed) {
         return Some(crate::compiler::phases::phase3_transform::client::visitors::shared::utils::cook_string_literal(
@@ -1137,7 +1150,9 @@ pub(crate) fn try_evaluate_with_constants(
                 if result == (result as i64) as f64 {
                     return Some((result as i64).to_string());
                 }
-                return Some(result.to_string());
+                return Some(
+                    crate::compiler::phases::phase3_transform::server::evaluate::js_number_to_string(result),
+                );
             }
         }
     }
@@ -1162,7 +1177,9 @@ pub(crate) fn try_evaluate_with_constants(
                 if result == (result as i64) as f64 {
                     return Some((result as i64).to_string());
                 }
-                return Some(result.to_string());
+                return Some(
+                    crate::compiler::phases::phase3_transform::server::evaluate::js_number_to_string(result),
+                );
             }
             // String concatenation
             return Some(format!("{}{}", l, r));

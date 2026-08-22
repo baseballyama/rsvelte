@@ -18,13 +18,14 @@ use serde_json::Value;
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, Suggestion, TextEdit};
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::reactive_stmt::is_reactive_statement;
 use crate::script::{ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-reactive-functions",
     category: RuleCategory::Correctness,
     fixable: Fixable::Suggestion,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: true,
@@ -78,16 +79,8 @@ impl ScriptRule for NoReactiveFunctions {
     fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
         // (labeled-statement start, labeled-statement end, `$`-label end).
         let mut reports: Vec<(u32, u32, u32)> = Vec::new();
-        program.walk(|node, _| {
-            if node_type(node) != Some("LabeledStatement") {
-                return;
-            }
-            if node
-                .get("label")
-                .and_then(|l| l.get("name"))
-                .and_then(Value::as_str)
-                != Some("$")
-            {
+        program.walk(|node, ancestors| {
+            if !is_reactive_statement(node, ancestors) {
                 return;
             }
             let Some(body) = node.get("body") else { return };

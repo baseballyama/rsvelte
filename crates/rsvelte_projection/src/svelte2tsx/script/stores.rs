@@ -1015,26 +1015,33 @@ pub(super) fn inject_store_subscriptions_vars_only_with_program(
     }
 
     for stmt in &program.body {
-        if let oxc::Statement::VariableDeclaration(var_decl) = stmt {
-            let last_decl_end = var_decl
-                .declarations
-                .last()
-                .map_or(var_decl.span.end, |d| d.span.end);
-            let inject_pos = last_decl_end + offset;
+        let var_decl = match stmt {
+            oxc::Statement::VariableDeclaration(var_decl) => var_decl,
+            oxc::Statement::ExportDeclaration(export) => match &export.declaration {
+                oxc::Declaration::VariableDeclaration(var_decl) => var_decl,
+                _ => continue,
+            },
+            _ => continue,
+        };
 
-            for declarator in &var_decl.declarations {
-                let names = extract_all_names_from_binding_pattern(&declarator.id);
-                let matching: Vec<String> = names
-                    .into_iter()
-                    .filter(|name| context.is_accessed(name))
-                    .collect();
+        let last_decl_end = var_decl
+            .declarations
+            .last()
+            .map_or(var_decl.span.end, |d| d.span.end);
+        let inject_pos = last_decl_end + offset;
 
-                if !matching.is_empty() {
-                    let name_refs: Vec<&str> =
-                        matching.iter().map(std::string::String::as_str).collect();
-                    let store_decls = create_store_declarations(&name_refs);
-                    str.append_left(inject_pos, &store_decls);
-                }
+        for declarator in &var_decl.declarations {
+            let names = extract_all_names_from_binding_pattern(&declarator.id);
+            let matching: Vec<String> = names
+                .into_iter()
+                .filter(|name| context.is_accessed(name))
+                .collect();
+
+            if !matching.is_empty() {
+                let name_refs: Vec<&str> =
+                    matching.iter().map(std::string::String::as_str).collect();
+                let store_decls = create_store_declarations(&name_refs);
+                str.append_left(inject_pos, &store_decls);
             }
         }
     }
