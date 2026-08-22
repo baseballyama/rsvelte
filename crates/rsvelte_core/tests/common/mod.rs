@@ -467,12 +467,6 @@ pub const RUNTIME_RUNES_SKIP_NAMES: &[&str] = &[
     // wrapper for the IfBlock branch — the awaited `@const` blocker is not
     // propagated across the closure boundary.
     "async-style-after-await",
-    // `hmr: true` fixtures whose SERVER output drops the `<!---->` anchor the
-    // official compiler emits around a dev-mode dynamic component (and, for
-    // `hmr-each-keyed-unshift`, a preserved JSDoc comment). Client output
-    // matches for both; the other four `hmr: true` fixtures pass outright.
-    "hmr-removal",
-    "hmr-each-keyed-unshift",
 ];
 
 /// runtime-legacy fixtures still failing on the rsvelte port.

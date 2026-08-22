@@ -34,6 +34,10 @@ name: Corpus Compat
 
 on:
   workflow_dispatch:
+  # The LSP real-world gate runs nowhere else (see `lsp-corpus`), so this
+  # schedule is the only thing that fires it. Removing it retires the gate.
+  schedule:
+    - cron: '0 18 * * *'
   push:
     branches: [main]
     paths:
@@ -169,8 +173,49 @@ env:
   CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
 
 jobs:
+  changes:
+    name: Affected gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      corpus: ${{ steps.filter.outputs.corpus }}
+      fmt-parity: ${{ steps.filter.outputs.fmt-parity }}
+      scss-parity: ${{ steps.filter.outputs.scss-parity }}
+      lint-parity: ${{ steps.filter.outputs.lint-parity }}
+      check-parity: ${{ steps.filter.outputs.check-parity }}
+      check-e2e-parity: ${{ steps.filter.outputs.check-e2e-parity }}
+      shape-matrix: ${{ steps.filter.outputs.shape-matrix }}
+      lsp-fixtures-current: ${{ steps.filter.outputs.lsp-fixtures-current }}
+      lsp-corpus: ${{ steps.filter.outputs.lsp-corpus }}
+      lsp-ratchet: ${{ steps.filter.outputs.lsp-ratchet }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+
+      # `cargo metadata --no-deps` reads manifests only — no registry, no build.
+      - uses: ./.github/actions/setup-rust
+
+      # Only a `pull_request` has a diff to narrow by. A push, schedule or
+      # dispatch writes no list, and the filter then enables every job.
+      - name: Collect the changed files
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASE_SHA" "$HEAD_SHA"
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > changed-files.txt
+          wc -l < changed-files.txt
+
+      - name: Decide which gates the change can reach
+        id: filter
+        run: node scripts/ci/corpus-compat-job-filter.mjs --changed-files changed-files.txt
+
   corpus:
     name: Compiler parity
+    needs: [changes]
+    if: needs.changes.outputs.corpus != 'false'
     runs-on: ubuntu-latest
     # Full compilation can consume the former hour before verification begins.
     timeout-minutes: 120
@@ -334,6 +379,8 @@ jobs:
 
   fmt-parity:
     name: Formatter parity
+    needs: [changes]
+    if: needs.changes.outputs.fmt-parity != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -400,6 +447,8 @@ jobs:
 
   scss-parity:
     name: SCSS parity (grass vs dart-sass)
+    needs: [changes]
+    if: needs.changes.outputs.scss-parity != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -430,6 +479,8 @@ jobs:
 
   lint-parity:
     name: Lint parity (eslint-plugin-svelte)
+    needs: [changes]
+    if: needs.changes.outputs.lint-parity != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -530,6 +581,8 @@ jobs:
 
   check-parity:
     name: svelte-check parity (official svelte-check vs ${{ matrix.backend }})
+    needs: [changes]
+    if: needs.changes.outputs.check-parity != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -592,6 +645,8 @@ jobs:
 
   check-e2e-parity:
     name: svelte-check e2e parity (real projects)
+    needs: [changes]
+    if: needs.changes.outputs.check-e2e-parity != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -665,6 +720,8 @@ jobs:
   # failures while a 329-case matrix found 21 divergences in seconds.
   shape-matrix:
     name: Shape matrix parity (generated inputs)
+    needs: [changes]
+    if: needs.changes.outputs.shape-matrix != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -741,6 +798,8 @@ jobs:
 
   lsp-fixtures-current:
     name: LSP fixture parity current
+    needs: [changes]
+    if: needs.changes.outputs.lsp-fixtures-current != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -793,8 +852,25 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  # 16 shards x ~65 min = ~950 job-minutes, which was 86% of everything this
+  # account's Actions runners did. At a 20-job concurrency ceiling that is a
+  # ceiling of ~26 pushes a day against a measured ~60, so the queue could not
+  # drain: of the last 100 runs only 13 reached a verdict and the rest were
+  # cancelled or still queued — a gate that costs everything and decides nothing.
+  #
+  # Scheduled and dispatched runs only. `push: main` is excluded for the same
+  # arithmetic: ~10 merges a day would put a third of the account's total
+  # capacity back into this one job. A shrink-only ratchet tolerates a daily
+  # verdict; to get one before merging (the two-sided ratchet requires the PR
+  # that fixes entries to re-baseline in the same PR), dispatch this workflow
+  # against the branch.
   lsp-corpus:
     name: LSP real-world parity (stable shard ${{ matrix.shard }}/16)
+    needs: [changes]
+    if: >-
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+       || needs.changes.outputs.lsp-ratchet == 'true')
+      && needs.changes.outputs.lsp-corpus != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 180
     strategy:
@@ -859,8 +935,14 @@ jobs:
 
   lsp-current-merge:
     name: LSP full-population ratchet
-    if: always()
-    needs: [lsp-fixtures-current, lsp-corpus]
+    # `merge-current.mjs` requires the complete 17-artifact union, so this can
+    # only run where `lsp-corpus` does. A partial run cannot shrink the ratchet.
+    if: >-
+      always()
+      && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+       || needs.changes.outputs.lsp-ratchet == 'true')
+      && needs.lsp-corpus.result == 'success'
+    needs: [changes, lsp-fixtures-current, lsp-corpus]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
