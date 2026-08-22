@@ -7149,7 +7149,14 @@ fn convert_parsed_program<'ast>(
         // above, and codegen re-parses script text, so dropping the Raw wrapping changes no
         // output.
         let mut ignore_comment_map: Vec<(u32, Vec<CompactString>)> = Vec::new();
-        let body: Vec<JsNode> = if has_comments && has_ignore {
+        // With capture on (the public `parse()` API and the parser fixtures) the
+        // same walk also has to record the comments on the nodes, which is what
+        // upstream's `add_comments` does — so the walk runs for capture as well,
+        // not only for a `svelte-ignore` harvest.
+        let capture = crate::ast::arena::comment_capture_active();
+        // How many comments the walk consumed; the rest belong to the Program.
+        let mut claimed = 0usize;
+        let body: Vec<JsNode> = if has_comments && (has_ignore || capture) {
             let mut body_nodes: Vec<JsNode> = Vec::with_capacity(program.body.len());
 
             let comment_entries: Vec<CommentEntry> = all_comments
@@ -7164,9 +7171,19 @@ fn convert_parsed_program<'ast>(
                     }
                 })
                 .collect();
+            let comment_values: Vec<Value> = if capture {
+                all_comments
+                    .iter()
+                    .map(|comment| build_comment_value(comment, content, offset))
+                    .collect()
+            } else {
+                Vec::new()
+            };
 
             let mut attacher = CommentAttacher {
                 comments: &comment_entries,
+                values: &comment_values,
+                arena: capture.then_some(arena),
                 next: 0,
                 content,
                 offset: offset as u32,
@@ -7193,6 +7210,7 @@ fn convert_parsed_program<'ast>(
                     attacher.skip_past(offset as u32 + stmt.span().end);
                 }
             }
+            claimed = attacher.next;
 
             body_nodes
         } else {
@@ -7205,16 +7223,26 @@ fn convert_parsed_program<'ast>(
                 .collect()
         };
 
-        // Build trailing comments (all JS comments stored on Program for backward compat)
-        let trailing_comments_val = if has_comments {
+        // Under capture this is upstream's "trailing comments after the root
+        // node" special case: only what no node claimed. Without capture the
+        // Program keeps carrying every comment, which is the shape Phase 2 /
+        // svelte2tsx / the linter have always read.
+        let trailing_comments_val = if !has_comments {
+            None
+        } else if capture {
+            (claimed < all_comments.len()).then(|| {
+                all_comments[claimed..]
+                    .iter()
+                    .map(|comment| build_comment_value(comment, content, offset))
+                    .collect()
+            })
+        } else {
             Some(
                 all_comments
                     .iter()
                     .map(|comment| build_comment_value(comment, content, offset))
                     .collect(),
             )
-        } else {
-            None
         };
 
         // Build leading comments from HTML comments before script tag
@@ -7309,6 +7337,14 @@ struct ParentInfo {
 /// the key Phase 2 looks up while walking the typed AST.
 struct CommentAttacher<'a> {
     comments: &'a [CommentEntry],
+    /// The full `{type, value, start, end}` comment objects, parallel to
+    /// `comments`. Empty unless `arena` is set.
+    values: &'a [Value],
+    /// When set, the walk also records `leadingComments`/`trailingComments` on
+    /// each node — upstream's `add_comments`, which the public `parse()` output
+    /// carries. Left `None` on the compile path, where the side table is dead
+    /// weight (codegen re-parses script text).
+    arena: Option<&'a ParseArena>,
     next: usize,
     content: &'a str,
     offset: u32,
@@ -7323,6 +7359,7 @@ impl CommentAttacher<'_> {
         let start = obj.get("start").and_then(|v| v.as_u64()).map(|v| v as u32);
         let end = obj.get("end").and_then(|v| v.as_u64()).map(|v| v as u32);
 
+        let mut leading: Option<Vec<Value>> = None;
         if let Some(start) = start {
             while self
                 .comments
@@ -7330,6 +7367,9 @@ impl CommentAttacher<'_> {
                 .is_some_and(|comment| comment.start < start)
             {
                 self.record_leading(start, self.next);
+                if let Some(value) = self.arena.and(self.values.get(self.next)) {
+                    leading.get_or_insert_with(Vec::new).push(value.clone());
+                }
                 self.next += 1;
             }
         }
@@ -7378,7 +7418,13 @@ impl CommentAttacher<'_> {
             }
         }
 
-        self.claim_trailing(end, parent.as_ref());
+        let trailing = self.claim_trailing(end, parent.as_ref());
+        if let Some(arena) = self.arena
+            && (leading.is_some() || trailing.is_some())
+            && let (Some(start), Some(end)) = (start, end)
+        {
+            arena.record_node_comments(start, end, leading, trailing);
+        }
     }
 
     /// Discard every comment that starts before `end` without recording it.
@@ -7394,19 +7440,25 @@ impl CommentAttacher<'_> {
 
     /// Let this node claim the comments that follow it, so they cannot become leading
     /// comments of a later node.
-    fn claim_trailing(&mut self, end: Option<u32>, parent: Option<&ParentInfo>) {
-        let Some(comment) = self.comments.get(self.next) else {
-            return;
-        };
+    fn claim_trailing(
+        &mut self,
+        end: Option<u32>,
+        parent: Option<&ParentInfo>,
+    ) -> Option<Vec<Value>> {
+        let comment = self.comments.get(self.next)?;
         let parent_end = parent.and_then(|p| p.end);
         if matches!((end, parent_end), (Some(e), Some(pe)) if e == pe) {
-            return;
+            return None;
         }
 
+        let mut claimed: Option<Vec<Value>> = None;
         if parent.is_some_and(|p| p.is_last_in_body) {
             while let Some(comment) = self.comments.get(self.next) {
                 if parent_end.is_some_and(|pe| comment.start >= pe) {
                     break;
+                }
+                if let Some(value) = self.arena.and(self.values.get(self.next)) {
+                    claimed.get_or_insert_with(Vec::new).push(value.clone());
                 }
                 self.next += 1;
             }
@@ -7414,8 +7466,12 @@ impl CommentAttacher<'_> {
             && end <= comment.start
             && self.is_separator_slice(end, comment.start)
         {
+            if let Some(value) = self.arena.and(self.values.get(self.next)) {
+                claimed = Some(vec![value.clone()]);
+            }
             self.next += 1;
         }
+        claimed
     }
 
     /// `/^[,) \t]*$/` over the source between a node's end and a comment's start.
