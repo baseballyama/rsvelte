@@ -618,22 +618,17 @@ pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::An
             } else if !attribute_map.contains_key("src") {
                 // Skip video caption check if no src attribute
             } else {
+                // Upstream reads only the FIRST `<track>` (`nodes.find(...)`), so a
+                // `<video>` whose caption track is not the first one still warns.
                 let has_caption = node
                     .fragment
                     .nodes
                     .iter()
-                    .filter_map(|n| {
-                        if let TemplateNode::RegularElement(el) = n {
-                            if el.name == "track" {
-                                Some(el)
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
+                    .find_map(|n| match n {
+                        TemplateNode::RegularElement(el) if el.name == "track" => Some(el),
+                        _ => None,
                     })
-                    .any(|track| {
+                    .is_some_and(|track| {
                         track.attributes.iter().any(|a| {
                             matches!(a, AttributeNode::SpreadAttribute(_))
                                 || matches!(a, AttributeNode::Attribute(attr) if attr.name == "kind" && get_static_value(a) == Some(StaticValue::Text("captions")))
