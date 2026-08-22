@@ -5,52 +5,24 @@
 //! `no-navigation-without-resolve`, but still a distinct rule with its own
 //! fixtures).
 //!
-//! Runs over the `<script>` `ESTree` program via the [`ScriptRule`] hook. `goto`
-//! is matched through its `$app/navigation` import (alias aware) and `base`
-//! through its `$app/paths` import. For each `goto(arg)` call the first argument
-//! must be base-prefixed: a `base + '…'` binary expression, a `` `${base}…` ``
-//! template literal starting with `base`, or an absolute-URL string literal
-//! (`scheme:` prefix). Anything else is reported.
+//! Upstream's single `Program` handler sees the whole component — both
+//! `<script>` blocks and every template expression share one scope tree — so
+//! this runs as a `check_root` rule over the serialized component and falls back
+//! to `check_program` only for standalone JS/TS modules, which have no root.
+//! `goto` and `base` are matched by resolving each occurrence against that scope
+//! tree (see the `kit_nav` module), not by name, so a parameter named `goto` is not a
+//! navigation call and a parameter named `base` is not the base path.
 
-use std::collections::HashSet;
-
+use rsvelte_core::ast::template::Root;
 use serde_json::Value;
 
 use crate::context::LintContext;
-use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ProgramView, ScriptKind, ScriptRule, node_start, node_type};
-
-/// Collect the local namespace alias for `import * as X from module` into `out`.
-fn import_ns_locals(program: &ProgramView<'_>, module: &str, out: &mut HashSet<String>) {
-    program.walk(|node, _| {
-        if node_type(node) != Some("ImportDeclaration") {
-            return;
-        }
-        if node
-            .get("source")
-            .and_then(|s| s.get("value"))
-            .and_then(Value::as_str)
-            != Some(module)
-        {
-            return;
-        }
-        let Some(specs) = node.get("specifiers").and_then(Value::as_array) else {
-            return;
-        };
-        for spec in specs {
-            if node_type(spec) != Some("ImportNamespaceSpecifier") {
-                continue;
-            }
-            if let Some(local) = spec
-                .get("local")
-                .and_then(|l| l.get("name"))
-                .and_then(Value::as_str)
-            {
-                out.insert(local.to_string());
-            }
-        }
-    });
-}
+use crate::engine::{SourceKind, classify_source};
+use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::kit_nav::{NavKind, PrefixVar, ScopeIndex, is_base_reference, nav_call_kind};
+use crate::script::{
+    ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js,
+};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-goto-without-base",
@@ -67,44 +39,6 @@ static META: RuleMeta = RuleMeta {
 };
 
 const MESSAGE: &str = "Found a goto() call with a url that isn't prefixed with the base path.";
-
-/// Collect the local names that an import from `module` binds for the given
-/// exported `name` (alias aware: `import { base as b }` → `b`).
-fn import_locals(program: &ProgramView<'_>, module: &str, name: &str, out: &mut HashSet<String>) {
-    program.walk(|node, _| {
-        if node_type(node) != Some("ImportDeclaration") {
-            return;
-        }
-        if node
-            .get("source")
-            .and_then(|s| s.get("value"))
-            .and_then(Value::as_str)
-            != Some(module)
-        {
-            return;
-        }
-        let Some(specs) = node.get("specifiers").and_then(Value::as_array) else {
-            return;
-        };
-        for spec in specs {
-            if node_type(spec) != Some("ImportSpecifier") {
-                continue;
-            }
-            let imported = spec
-                .get("imported")
-                .and_then(|i| i.get("name"))
-                .and_then(Value::as_str);
-            if imported == Some(name)
-                && let Some(local) = spec
-                    .get("local")
-                    .and_then(|l| l.get("name"))
-                    .and_then(Value::as_str)
-            {
-                out.insert(local.to_string());
-            }
-        }
-    });
-}
 
 /// A string literal value counts as base-prefixed only when it is an absolute
 /// URL — `^[+a-z]*:` (optional scheme chars then a colon), case-insensitive.
@@ -127,54 +61,78 @@ fn literal_value_string(lit: &Value) -> String {
     }
 }
 
-/// The starting identifier name of a template literal — the first non-empty
-/// part, if it is an interpolated identifier. Mirrors upstream's
-/// `extractStartingIdentifier`.
-fn template_starting_identifier(tpl: &Value) -> Option<String> {
-    let quasis = tpl.get("quasis").and_then(Value::as_array)?;
-    let exprs = tpl.get("expressions").and_then(Value::as_array)?;
-    // (start, is_quasi, raw-empty / identifier-name) parts sorted by position.
-    let mut parts: Vec<(u64, bool, Option<String>)> = Vec::new();
-    for q in quasis {
-        let start = q.get("start").and_then(Value::as_u64).unwrap_or(0);
-        let raw_empty = q
-            .get("value")
-            .and_then(|v| v.get("raw"))
-            .and_then(Value::as_str)
-            .is_some_and(str::is_empty);
-        // store identifier-name = None for quasis; raw_empty flagged via bool
-        parts.push((
-            start,
-            true,
-            if raw_empty { Some(String::new()) } else { None },
-        ));
+/// Whether `goto()`'s first argument counts as base-prefixed.
+///
+/// Upstream's `checkBinaryExpression` / `checkTemplateLiteral` require the
+/// prefix to be an `Identifier` *node* that is in `basePathNames`, so a
+/// namespace member (`paths.base + '/x'`) is reported however the set was
+/// built — which is why `is_base_reference` is called with `namespace_member:
+/// false` here and with `true` in `no-navigation-without-base`.
+fn first_arg_is_base_prefixed(idx: &ScopeIndex<'_>, path: &Value) -> bool {
+    match node_type(path) {
+        // `basePathNames` holds identifier occurrences, so only a direct
+        // `base` reference on the left counts.
+        Some("BinaryExpression") => path
+            .get("left")
+            .filter(|l| node_type(l) == Some("Identifier"))
+            .is_some_and(|l| is_base_reference(idx, &PrefixVar::Ident(l), false)),
+        Some("Literal") => is_scheme_prefixed(&literal_value_string(path)),
+        Some("TemplateLiteral") => crate::rules::kit_nav::template_first_part(path)
+            .filter(|part| node_type(part) == Some("Identifier"))
+            .is_some_and(|part| is_base_reference(idx, &PrefixVar::Ident(part), false)),
+        _ => false,
     }
-    for e in exprs {
-        let start = e.get("start").and_then(Value::as_u64).unwrap_or(0);
-        let ident = if node_type(e) == Some("Identifier") {
-            e.get("name").and_then(Value::as_str).map(str::to_string)
-        } else {
-            None
-        };
-        parts.push((start, false, ident));
-    }
-    parts.sort_by_key(|p| p.0);
-    for (_start, is_quasi, payload) in parts {
-        if is_quasi {
-            // Empty quasi (payload == Some("")) → skip; non-empty → not an ident.
-            match payload {
-                Some(ref s) if s.is_empty() => continue,
-                _ => return None,
-            }
-        }
-        // Expression part: identifier name or None (non-identifier).
-        return payload;
-    }
-    None
 }
 
 #[derive(Default)]
 pub struct NoGotoWithoutBase;
+
+impl NoGotoWithoutBase {
+    fn run(ctx: &mut LintContext, json: &Value) {
+        let idx = ScopeIndex::build(json);
+        let mut reports: Vec<(u32, u32)> = Vec::new();
+        walk_js(json, |node, _| {
+            if node_type(node) != Some("CallExpression")
+                || nav_call_kind(&idx, node) != Some(NavKind::Goto)
+            {
+                return;
+            }
+            let Some(path) = node
+                .get("arguments")
+                .and_then(Value::as_array)
+                .and_then(|args| args.first())
+            else {
+                return;
+            };
+            let ok = first_arg_is_base_prefixed(&idx, path);
+            // Upstream reports `loc: path.loc` — the whole first argument.
+            if !ok
+                && let Some(s) = node_start(path)
+                && let Some(e) = node_end(path)
+            {
+                reports.push((s, e));
+            }
+        });
+        reports.sort_unstable();
+        for (start, end) in reports {
+            ctx.report(start, end, MESSAGE);
+        }
+    }
+}
+
+impl Rule for NoGotoWithoutBase {
+    fn meta(&self) -> &'static RuleMeta {
+        &META
+    }
+
+    fn check_root(&self, ctx: &mut LintContext, root: &Root) {
+        let json = ctx.root_json(root);
+        if json.is_null() {
+            return;
+        }
+        Self::run(ctx, &json);
+    }
+}
 
 impl ScriptRule for NoGotoWithoutBase {
     fn meta(&self) -> &'static RuleMeta {
@@ -182,76 +140,12 @@ impl ScriptRule for NoGotoWithoutBase {
     }
 
     fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
-        let mut goto_names: HashSet<String> = HashSet::new();
-        import_locals(program, "$app/navigation", "goto", &mut goto_names);
-        let mut nav_ns: HashSet<String> = HashSet::new();
-        import_ns_locals(program, "$app/navigation", &mut nav_ns);
-        if goto_names.is_empty() && nav_ns.is_empty() {
+        // A component is covered by `check_root`, which sees both scripts and
+        // the template at once; only a standalone module needs this pass.
+        if !matches!(classify_source(ctx.filename()), SourceKind::Module { .. }) {
             return;
         }
-        let mut base_names: HashSet<String> = HashSet::new();
-        import_locals(program, "$app/paths", "base", &mut base_names);
-
-        let mut reports: Vec<u32> = Vec::new();
-        program.walk(|node, _| {
-            if node_type(node) != Some("CallExpression") {
-                return;
-            }
-            // Check: named import `goto(...)` or namespace `nav.goto(...)`.
-            let Some(callee) = node.get("callee") else {
-                return;
-            };
-            let is_goto = match node_type(callee) {
-                Some("Identifier") => callee
-                    .get("name")
-                    .and_then(Value::as_str)
-                    .is_some_and(|n| goto_names.contains(n)),
-                Some("MemberExpression")
-                    if callee.get("computed").and_then(Value::as_bool) != Some(true) =>
-                {
-                    let obj_is_nav = callee
-                        .get("object")
-                        .filter(|o| node_type(o) == Some("Identifier"))
-                        .and_then(|o| o.get("name"))
-                        .and_then(Value::as_str)
-                        .is_some_and(|n| nav_ns.contains(n));
-                    let prop_is_goto = callee
-                        .get("property")
-                        .and_then(|p| p.get("name"))
-                        .and_then(Value::as_str)
-                        == Some("goto");
-                    obj_is_nav && prop_is_goto
-                }
-                _ => false,
-            };
-            if !is_goto {
-                return;
-            }
-            let Some(args) = node.get("arguments").and_then(Value::as_array) else {
-                return;
-            };
-            let Some(path) = args.first() else { return };
-            let ok = match node_type(path) {
-                Some("BinaryExpression") => path
-                    .get("left")
-                    .filter(|l| node_type(l) == Some("Identifier"))
-                    .and_then(|l| l.get("name"))
-                    .and_then(Value::as_str)
-                    .is_some_and(|n| base_names.contains(n)),
-                Some("Literal") => is_scheme_prefixed(&literal_value_string(path)),
-                Some("TemplateLiteral") => {
-                    template_starting_identifier(path).is_some_and(|n| base_names.contains(&n))
-                }
-                _ => false,
-            };
-            if !ok && let Some(s) = node_start(path) {
-                reports.push(s);
-            }
-        });
-
-        for start in reports {
-            ctx.report(start, start, MESSAGE);
-        }
+        Self::run(ctx, program.value());
     }
 }
 
@@ -259,6 +153,76 @@ impl ScriptRule for NoGotoWithoutBase {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    fn base_import(local: &str, namespace: bool) -> Value {
+        json!({
+            "type": "ImportDeclaration",
+            "source": { "type": "Literal", "value": "$app/paths" },
+            "specifiers": [if namespace {
+                json!({
+                    "type": "ImportNamespaceSpecifier",
+                    "local": { "type": "Identifier", "name": local }
+                })
+            } else {
+                json!({
+                    "type": "ImportSpecifier",
+                    "imported": { "type": "Identifier", "name": "base" },
+                    "local": { "type": "Identifier", "name": local }
+                })
+            }]
+        })
+    }
+
+    /// `<prefix> + '/x'` as the first argument of a `goto()` call.
+    fn program_with_prefix(import: Value, prefix: Value) -> Value {
+        json!({ "type": "Program", "body": [import, {
+            "type": "ExpressionStatement",
+            "expression": {
+                "type": "BinaryExpression",
+                "operator": "+",
+                "left": prefix,
+                "right": { "type": "Literal", "value": "/x" }
+            }
+        }] })
+    }
+
+    #[test]
+    fn named_base_import_prefixes() {
+        let root = program_with_prefix(
+            base_import("base", false),
+            json!({ "type": "Identifier", "name": "base" }),
+        );
+        let idx = ScopeIndex::build(&root);
+        assert!(first_arg_is_base_prefixed(
+            &idx,
+            &root["body"][1]["expression"]
+        ));
+    }
+
+    /// `import * as paths from '$app/paths'; goto(paths.base + '/x')`.
+    ///
+    /// Upstream cannot be observed on this shape — `extractBasePathReferences`
+    /// throws on a namespace import — but its `checkBinaryExpression` reports
+    /// whenever the left operand is not an `Identifier`, so a namespace member
+    /// is not a base prefix for THIS rule (unlike `no-navigation-without-base`,
+    /// which resolves the member). Ungated by the corpus for that reason.
+    #[test]
+    fn namespace_base_member_is_not_a_prefix() {
+        let root = program_with_prefix(
+            base_import("paths", true),
+            json!({
+                "type": "MemberExpression",
+                "computed": false,
+                "object": { "type": "Identifier", "name": "paths" },
+                "property": { "type": "Identifier", "name": "base" }
+            }),
+        );
+        let idx = ScopeIndex::build(&root);
+        assert!(!first_arg_is_base_prefixed(
+            &idx,
+            &root["body"][1]["expression"]
+        ));
+    }
 
     #[test]
     fn scheme_prefix() {
@@ -268,30 +232,5 @@ mod tests {
         assert!(is_scheme_prefixed("tel:+1"));
         assert!(!is_scheme_prefixed("/foo"));
         assert!(!is_scheme_prefixed("/user:42"));
-    }
-
-    #[test]
-    fn template_start_ident() {
-        // `${base}/foo/` → leading empty quasi, then base identifier.
-        let tpl = json!({
-            "type": "TemplateLiteral",
-            "quasis": [
-                { "type": "TemplateElement", "start": 1, "value": { "raw": "" } },
-                { "type": "TemplateElement", "start": 8, "value": { "raw": "/foo/" } }
-            ],
-            "expressions": [ { "type": "Identifier", "start": 3, "name": "base" } ]
-        });
-        assert_eq!(template_starting_identifier(&tpl).as_deref(), Some("base"));
-
-        // `/foo/${base}` → leading non-empty quasi → None.
-        let tpl2 = json!({
-            "type": "TemplateLiteral",
-            "quasis": [
-                { "type": "TemplateElement", "start": 1, "value": { "raw": "/foo/" } },
-                { "type": "TemplateElement", "start": 12, "value": { "raw": "" } }
-            ],
-            "expressions": [ { "type": "Identifier", "start": 8, "name": "base" } ]
-        });
-        assert_eq!(template_starting_identifier(&tpl2), None);
     }
 }

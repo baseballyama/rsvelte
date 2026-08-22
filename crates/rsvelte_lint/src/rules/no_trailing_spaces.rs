@@ -30,8 +30,11 @@ use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
+use crate::engine::{SourceKind, classify_source};
 use crate::line_index::LineIndex;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::js_whitespace::{js_trim, js_trim_end};
+use crate::script::{ProgramView, ScriptKind, ScriptRule};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-trailing-spaces",
@@ -181,6 +184,10 @@ impl Rule for NoTrailingSpaces {
         for program in programs {
             collect_template_elements(program, &li, &mut ignore_lines);
         }
+        // Template literals inside markup mustaches are TemplateElements to the
+        // oracle as well — walk the serialized template fragment for them.
+        let fragment_json = ctx.template_fragment_json();
+        collect_template_elements(&fragment_json, &li, &mut ignore_lines);
 
         if ignore_comments {
             // JS comments captured during parsing (script blocks + `{...}`).
@@ -199,23 +206,91 @@ impl Rule for NoTrailingSpaces {
             collect_html_comments(&root.fragment.nodes, &li, &mut ignore_lines);
         }
 
-        // Scan every physical line. We split on `\n` and treat a trailing `\r`
-        // as part of the line terminator (so CRLF files behave like ESLint's
-        // `sourceCode.lines`).
-        let mut line_start_byte: usize = 0;
+        Self::scan_lines(ctx, source, skip_blank_lines, &ignore_lines);
+    }
+}
+
+impl ScriptRule for NoTrailingSpaces {
+    fn meta(&self) -> &'static RuleMeta {
+        &META
+    }
+
+    /// Upstream's `Program:exit` runs for every file the plugin lints, and a
+    /// standalone `.svelte.(js|ts)` module never reaches [`Rule::check_root`].
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
+        let SourceKind::Module { ts } = classify_source(ctx.filename()) else {
+            return;
+        };
+        let skip_blank_lines = ctx.option_bool("skipBlankLines", false);
+        let ignore_comments = ctx.option_bool("ignoreComments", false);
+
+        let source = ctx.source();
+        let li = LineIndex::new(source);
+        let mut ignore_lines: HashSet<u32> = HashSet::new();
+        collect_template_elements(program.value(), &li, &mut ignore_lines);
+        if ignore_comments {
+            collect_module_comments(source, ts, &li, &mut ignore_lines);
+        }
+        Self::scan_lines(ctx, source, skip_blank_lines, &ignore_lines);
+    }
+}
+
+/// Gather the ignorable line range of every JS comment in a standalone module.
+///
+/// The module program is serialized without its comment list, so they are
+/// re-derived from a parse rather than scanned for (a `//` inside a regex
+/// literal or a string is not a comment).
+fn collect_module_comments(source: &str, ts: bool, li: &LineIndex, set: &mut HashSet<u32>) {
+    use oxc_span::SourceType;
+    let allocator = oxc_allocator::Allocator::default();
+    let source_type = if ts {
+        SourceType::ts()
+    } else {
+        SourceType::mjs()
+    };
+    let parsed = oxc_parser::Parser::new(&allocator, source, source_type).parse();
+    for comment in &parsed.program.comments {
+        let start = li.line(comment.span.start);
+        let end = li.line(comment.span.end);
+        let end_line = if comment.is_line() {
+            end
+        } else {
+            end.saturating_sub(1)
+        };
+        if end_line >= start {
+            collect_range(set, start, end_line);
+        }
+    }
+}
+
+impl NoTrailingSpaces {
+    /// Scan every physical line. This rule reads `sourceCode.lines`, so it uses
+    /// ESLint's terminator set — `\r\n`, lone `\r`, `\n`, and also U+2028 /
+    /// U+2029, which are line terminators to JavaScript. (Rules that report an
+    /// AST node's `loc` instead get the parser's CR/LF-only lines; see
+    /// `uses_eslint_line_table`.)
+    fn scan_lines(
+        ctx: &mut LintContext,
+        source: &str,
+        skip_blank_lines: bool,
+        ignore_lines: &HashSet<u32>,
+    ) {
         let bytes = source.as_bytes();
+        // ESLint removes a leading BOM before a rule ever sees the text, so it
+        // is not part of line 1. A BOM *is* JS whitespace, so leaving it in
+        // makes a BOM-only line look like trailing space — and the autofix
+        // would then delete the BOM.
+        let mut line_start_byte: usize = usize::from(source.starts_with('\u{FEFF}')) * 3;
         let mut line_number: u32 = 1;
-        let mut i = 0usize;
-        // Iterate line by line including a final line with no trailing newline.
         loop {
-            // Find the end of this line (exclusive of the `\n`).
-            let nl = source[i..].find('\n').map(|off| i + off);
-            let raw_end = nl.unwrap_or(source.len());
-            // Strip a trailing `\r` from the logical line content.
-            let mut content_end = raw_end;
-            if content_end > line_start_byte && bytes[content_end - 1] == b'\r' {
-                content_end -= 1;
-            }
+            let terminator = (line_start_byte..bytes.len()).find(|&i| {
+                bytes[i] == b'\n'
+                    || bytes[i] == b'\r'
+                    || (bytes[i] == 0xE2
+                        && bytes.get(i + 1) == Some(&0x80)
+                        && matches!(bytes.get(i + 2), Some(0xA8 | 0xA9)))
+            });
+            let content_end = terminator.unwrap_or(source.len());
             let line = &source[line_start_byte..content_end];
 
             Self::check_line(
@@ -224,25 +299,26 @@ impl Rule for NoTrailingSpaces {
                 source_offset(line_start_byte),
                 line_number,
                 skip_blank_lines,
-                &ignore_lines,
+                ignore_lines,
             );
 
-            match nl {
+            match terminator {
                 Some(pos) => {
-                    line_start_byte = pos + 1;
-                    i = pos + 1;
+                    let width = if bytes[pos] == b'\r' && bytes.get(pos + 1) == Some(&b'\n') {
+                        2
+                    } else if bytes[pos] == 0xE2 {
+                        3
+                    } else {
+                        1
+                    };
+                    line_start_byte = pos + width;
                     line_number += 1;
-                    if i > source.len() {
-                        break;
-                    }
                 }
                 None => break,
             }
         }
     }
-}
 
-impl NoTrailingSpaces {
     fn check_line(
         ctx: &mut LintContext,
         line: &str,
@@ -251,13 +327,13 @@ impl NoTrailingSpaces {
         skip_blank_lines: bool,
         ignore_lines: &HashSet<u32>,
     ) {
-        if skip_blank_lines && line.trim().is_empty() {
+        if skip_blank_lines && js_trim(line).is_empty() {
             return;
         }
         if ignore_lines.contains(&line_number) {
             return;
         }
-        let trimmed = line.trim_end();
+        let trimmed = js_trim_end(line);
         if trimmed.len() == line.len() {
             return;
         }

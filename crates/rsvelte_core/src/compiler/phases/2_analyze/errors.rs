@@ -56,8 +56,8 @@ diagnostics! {
     /// `$props()` can only be used at the component top level as a variable declaration initializer.
     props_invalid_placement() => "`$props()` can only be used at the top level of components as a variable declaration initializer";
 
-    /// `$props()` can only be used with an object destructuring pattern or an identifier
-    props_invalid_identifier() => "`$props()` can only be used with an object destructuring pattern or an identifier";
+    /// `$props()` can only be used with an object destructuring pattern
+    props_invalid_identifier() => "`$props()` can only be used with an object destructuring pattern";
 
     /// `%rune%` has already been declared
     props_duplicate(rune: &str) => "Cannot use `{}()` more than once", rune;
@@ -65,8 +65,8 @@ diagnostics! {
     /// Declaring or accessing a prop starting with `$$` is illegal (they are reserved for Svelte internals)
     props_illegal_name() => "Declaring or accessing a prop starting with `$$` is illegal (they are reserved for Svelte internals)";
 
-    /// `$props.id()` can only be used as a variable declaration initializer at the top level of the `<script>` tag
-    props_id_invalid_placement() => "`$props.id()` can only be used as a variable declaration initializer at the top level of the `<script>` tag";
+    /// `$props.id()` can only be used at the top level of components as a variable declaration initializer
+    props_id_invalid_placement() => "`$props.id()` can only be used at the top level of components as a variable declaration initializer";
 
     /// `%rune%` cannot be used with arguments
     rune_invalid_arguments(rune: &str) => "`{}` cannot be called with arguments", rune;
@@ -326,8 +326,8 @@ diagnostics! {
     /// Cannot use `%rune%` rune in non-runes mode
     rune_invalid_usage(rune: &str) => "Cannot use `{}` rune in non-runes mode\nhttps://svelte.dev/e/rune_invalid_usage", rune;
 
-    /// Props destructuring pattern cannot use computed properties
-    props_invalid_pattern() => "Props destructuring pattern cannot use computed properties or non-identifier keys";
+    /// `$props()` assignment must not contain nested properties or computed keys
+    props_invalid_pattern() => "`$props()` assignment must not contain nested properties or computed keys";
 
     // Component-related errors
 
@@ -372,6 +372,12 @@ diagnostics! {
 
     /// Cannot use `export let` in runes mode — use `$props()` instead
     legacy_export_invalid() => "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid";
+
+    /// Cannot use `$$props` in runes mode
+    legacy_props_invalid() => "Cannot use `$$props` in runes mode\nhttps://svelte.dev/e/legacy_props_invalid";
+
+    /// Cannot use `$$restProps` in runes mode
+    legacy_rest_props_invalid() => "Cannot use `$$restProps` in runes mode\nhttps://svelte.dev/e/legacy_rest_props_invalid";
 
     /// `$:` is not allowed in runes mode, use `$derived` or `$effect` instead
     legacy_reactive_statement_invalid() => "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid";

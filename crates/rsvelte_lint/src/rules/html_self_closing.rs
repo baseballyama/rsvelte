@@ -23,7 +23,7 @@
 
 use rsvelte_core::ast::template::{
     Attribute, Component, RegularElement, SlotElement, SvelteComponentElement,
-    SvelteDynamicElement, SvelteElement, TemplateNode,
+    SvelteDynamicElement, SvelteElement, TemplateNode, TitleElement,
 };
 
 use crate::context::LintContext;
@@ -31,6 +31,8 @@ use crate::diagnostic::{Fix, TextEdit};
 use crate::rule::{
     Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity, SpecialElement,
 };
+use crate::rules::js_whitespace::is_js_whitespace;
+use crate::rules::this_attr::oracle_this_attr_span;
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/html-self-closing",
@@ -355,14 +357,16 @@ const fn attr_end(a: &Attribute) -> u32 {
 }
 
 /// True when the element is empty (no children, or only whitespace text).
+/// Upstream tests `/^\s*$/` — JS `\s`, so U+FEFF-only content counts as empty.
 fn is_empty(children: &[TemplateNode]) -> bool {
     children.iter().all(|c| match c {
-        TemplateNode::Text(t) => t.data.as_ref().chars().all(char::is_whitespace),
+        TemplateNode::Text(t) => t.data.as_ref().chars().all(is_js_whitespace),
         _ => false,
     })
 }
 
 impl HtmlSelfClosing {
+    #[allow(clippy::too_many_arguments)]
     fn check(
         ctx: &mut LintContext,
         el_start: u32,
@@ -372,6 +376,7 @@ impl HtmlSelfClosing {
         children: &[TemplateNode],
         ty: ElementType,
         opts: Options,
+        this_end: Option<u32>,
     ) {
         if !is_empty(children) {
             return;
@@ -386,7 +391,12 @@ impl HtmlSelfClosing {
         let name_end = el_start
             + 1
             + u32::try_from(name.len()).expect("element-name widths are represented as u32");
-        let scan_from = attributes.last().map_or(name_end, attr_end);
+        // Start past the reconstructed `this={…}` attribute so a `>` inside the
+        // `this` expression is never taken as the tag bracket.
+        let scan_from = attributes
+            .last()
+            .map_or(name_end, attr_end)
+            .max(this_end.unwrap_or(0));
         let Some(stag_end) = start_tag_end(src, scan_from) else {
             return;
         };
@@ -479,6 +489,7 @@ impl Rule for HtmlSelfClosing {
             &el.fragment.nodes,
             ty,
             opts,
+            None,
         );
     }
 
@@ -493,6 +504,7 @@ impl Rule for HtmlSelfClosing {
             &c.fragment.nodes,
             ElementType::Component,
             opts,
+            None,
         );
     }
 
@@ -511,6 +523,24 @@ impl Rule for HtmlSelfClosing {
             &el.fragment.nodes,
             ty,
             opts,
+            None,
+        );
+    }
+
+    fn check_title(&self, ctx: &mut LintContext, el: &TitleElement) {
+        // `<title>` is a plain HTML element to svelte-eslint-parser.
+        let opts = Options::resolve(ctx);
+        let ty = html_element_type("title");
+        Self::check(
+            ctx,
+            el.start,
+            el.end,
+            "title",
+            &el.attributes,
+            &el.fragment.nodes,
+            ty,
+            opts,
+            None,
         );
     }
 
@@ -525,11 +555,13 @@ impl Rule for HtmlSelfClosing {
             &el.fragment.nodes,
             ElementType::Svelte,
             opts,
+            None,
         );
     }
 
     fn check_svelte_component(&self, ctx: &mut LintContext, c: &SvelteComponentElement) {
         let opts = Options::resolve(ctx);
+        let this_end = oracle_this_attr_span(ctx.source(), c.start).map(|(_, end)| end);
         Self::check(
             ctx,
             c.start,
@@ -539,11 +571,13 @@ impl Rule for HtmlSelfClosing {
             &c.fragment.nodes,
             ElementType::Svelte,
             opts,
+            this_end,
         );
     }
 
     fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, e: &SvelteDynamicElement) {
         let opts = Options::resolve(ctx);
+        let this_end = oracle_this_attr_span(ctx.source(), e.start).map(|(_, end)| end);
         Self::check(
             ctx,
             e.start,
@@ -553,6 +587,7 @@ impl Rule for HtmlSelfClosing {
             &e.fragment.nodes,
             ElementType::Svelte,
             opts,
+            this_end,
         );
     }
 
@@ -572,6 +607,7 @@ impl Rule for HtmlSelfClosing {
             &[],
             ty,
             opts,
+            None,
         );
     }
 }

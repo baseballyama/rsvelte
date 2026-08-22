@@ -1,6 +1,6 @@
 [package]
 name = "rsvelte_core"
-version = "0.10.16"
+version = "0.10.17"
 edition = "2024"
 rust-version = "1.95"
 description = "Low-level compiler implementation for the rsvelte Svelte toolchain"
@@ -94,7 +94,7 @@ oxc_ast = { version = "0.144", features = ["serialize"] }
 oxc_span = "0.144"
 oxc_diagnostics = "0.144"
 oxc_codegen = "0.144"
-rsvelte_esrap = { version = "=0.10.29", path = "../rsvelte_esrap" }
+rsvelte_esrap = { version = "=0.10.31", path = "../rsvelte_esrap" }
 oxc_syntax = "0.144"
 oxc_semantic = "0.144"
 

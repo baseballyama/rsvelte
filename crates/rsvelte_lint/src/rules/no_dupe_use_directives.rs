@@ -11,10 +11,16 @@
 //! Mirrors `no-dupe-on-directives` but for `UseDirective` (which, unlike event
 //! handlers, has no modifiers — the key is purely `use:<name>`).
 
-use rsvelte_core::ast::template::{Attribute, Component, RegularElement, UseDirective};
+use rsvelte_core::ast::template::{
+    Attribute, Component, RegularElement, SlotElement, SvelteComponentElement,
+    SvelteDynamicElement, SvelteElement, UseDirective,
+};
 
 use crate::context::LintContext;
-use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rule::{
+    Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity, SpecialElement,
+};
+use crate::rules::js_tokens::equal_tokens;
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-dupe-use-directives",
@@ -48,32 +54,29 @@ impl NoDupeUseDirectives {
             return;
         }
 
-        // Group by (key text, token-equal handler expression). `None` (a bare
-        // `use:foo`) only matches another bare directive; a directive without a
-        // usable span gets a unique sentinel so it never falsely matches.
-        let mut groups: Vec<(String, Option<String>, Vec<usize>)> = Vec::new();
+        // Group by (key text, token-equal handler expression).
+        let mut groups: Vec<(String, Handler<'_>, Vec<usize>)> = Vec::new();
 
         for (i, d) in directives.iter().enumerate() {
             let key_text = format!("use:{}", d.name.as_str());
-            let norm: Option<String> = d.expression.as_ref().map_or_else(
-                || None,
-                |expr| match (expr.start(), expr.end()) {
-                    (Some(s), Some(e2)) => Some(normalize_expr(ctx.slice(s, e2))),
-                    _ => Some(format!("\0__nospan_{i}")),
-                },
-            );
+            let handler = d.expression.as_ref().map_or(Handler::None, |expr| {
+                match (expr.start(), expr.end()) {
+                    (Some(s), Some(e2)) => Handler::Source(ctx.slice(s, e2)),
+                    _ => Handler::Unknown,
+                }
+            });
 
             if let Some(group) = groups
                 .iter_mut()
-                .find(|(k, n, _)| *k == key_text && *n == norm)
+                .find(|(k, h, _)| *k == key_text && h.matches(&handler))
             {
                 group.2.push(i);
             } else {
-                groups.push((key_text, norm, vec![i]));
+                groups.push((key_text, handler, vec![i]));
             }
         }
 
-        for (key_text, _norm, members) in &groups {
+        for (key_text, _handler, members) in &groups {
             if members.len() < 2 {
                 continue;
             }
@@ -111,74 +114,54 @@ impl Rule for NoDupeUseDirectives {
     fn check_component(&self, ctx: &mut LintContext, c: &Component) {
         Self::check_start_tag(ctx, &c.attributes);
     }
+
+    fn check_svelte_element(&self, ctx: &mut LintContext, el: &SvelteElement) {
+        Self::check_start_tag(ctx, &el.attributes);
+    }
+
+    fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
+        Self::check_start_tag(ctx, &el.attributes);
+    }
+
+    fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
+        Self::check_start_tag(ctx, &el.attributes);
+    }
+
+    fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
+        Self::check_start_tag(ctx, &el.attributes);
+    }
+
+    fn check_special_element(&self, ctx: &mut LintContext, el: &SpecialElement<'_>) {
+        Self::check_start_tag(ctx, &el.attributes);
+    }
 }
 
-/// 1-based line number of the byte `offset` within `source`.
-fn line_of(source: &str, offset: u32) -> usize {
-    let end = (offset as usize).min(source.len());
-    bytecount::count(&source.as_bytes()[..end], b'\n') + 1
+/// The action expression of one directive, compared the way upstream's `find`
+/// compares them: a missing expression matches only another missing one, and two
+/// present ones match when their token streams are equal.
+enum Handler<'a> {
+    None,
+    Source(&'a str),
+    /// A present expression whose span could not be recovered — never equal to
+    /// anything, since treating it as `None` would match bare directives.
+    Unknown,
 }
 
-/// Canonical token string of an expression source slice: strips `//` and
-/// `/* */` comments and drops all whitespace **outside** string/template/char
-/// literals (literal contents are copied verbatim). Mirrors `equalTokens`
-/// (token-by-token equality, comments excluded) closely enough for the
-/// handler-expression shapes the rule compares.
-fn normalize_expr(src: &str) -> String {
-    let bytes = src.as_bytes();
-    let mut out = String::with_capacity(src.len());
-    let mut i = 0;
-    let n = bytes.len();
-    while i < n {
-        let c = bytes[i];
-        match c {
-            // String / char / template literal: copy verbatim until the
-            // matching (unescaped) closing delimiter.
-            b'"' | b'\'' | b'`' => {
-                let quote = c;
-                out.push(c as char);
-                i += 1;
-                while i < n {
-                    let d = bytes[i];
-                    if d == b'\\' && i + 1 < n {
-                        out.push(d as char);
-                        out.push(bytes[i + 1] as char);
-                        i += 2;
-                        continue;
-                    }
-                    out.push(d as char);
-                    i += 1;
-                    if d == quote {
-                        break;
-                    }
-                }
-            }
-            // Line comment: skip to end of line.
-            b'/' if i + 1 < n && bytes[i + 1] == b'/' => {
-                i += 2;
-                while i < n && bytes[i] != b'\n' {
-                    i += 1;
-                }
-            }
-            // Block comment: skip to closing `*/`.
-            b'/' if i + 1 < n && bytes[i + 1] == b'*' => {
-                i += 2;
-                while i + 1 < n && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
-                    i += 1;
-                }
-                i = (i + 2).min(n);
-            }
-            // Drop all whitespace outside literals.
-            b' ' | b'\t' | b'\r' | b'\n' => {
-                i += 1;
-            }
-            _ => {
-                out.push(c as char);
-                i += 1;
-            }
+impl Handler<'_> {
+    fn matches(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::None, Self::None) => true,
+            (Self::Source(a), Self::Source(b)) => equal_tokens(a, b),
+            _ => false,
         }
     }
-    out
+}
+
+/// 1-based line number of the byte `offset` within `source`, under the line
+/// convention the reported `loc` uses — a lone `\r` terminates a line, which
+/// counting `\n` alone misses.
+fn line_of(source: &str, offset: u32) -> usize {
+    crate::line_index::LineIndex::new(source).line(offset) as usize
 }
 
 #[cfg(test)]
@@ -186,25 +169,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn comments_and_whitespace_are_ignored() {
-        let a = normalize_expr("() =>\n\t\t// foo\n\t\tconsole.log('foo')");
-        let b = normalize_expr("() =>\n\t\tconsole\n\t\t\t// bar\n\t\t\t.log('foo')");
-        assert_eq!(a, b);
-    }
-
-    #[test]
-    fn distinct_objects_differ() {
-        assert_ne!(normalize_expr("{ a: 42 }"), normalize_expr("{ b: 42 }"));
-        assert_ne!(
-            normalize_expr("{ a: 42 }"),
-            normalize_expr("{ a: 42, b: 42 }")
-        );
-    }
-
-    #[test]
     fn line_of_counts_newlines() {
         assert_eq!(line_of("a\nb\nc", 0), 1);
         assert_eq!(line_of("a\nb\nc", 2), 2);
         assert_eq!(line_of("a\nb\nc", 4), 3);
+    }
+
+    #[test]
+    fn line_of_counts_a_lone_cr() {
+        assert_eq!(line_of("a\rb\rc", 2), 2);
+        assert_eq!(line_of("a\rb\rc", 4), 3);
     }
 }

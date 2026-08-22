@@ -2,17 +2,20 @@
 //! more than once on the same element, across both the static `style="…"`
 //! attribute and `style:` directives.
 //!
-//! Port of the eslint-plugin-svelte rule.
-//!
-//! The static value is parsed by splitting on `;` and reading the name before
-//! each `:`; interpolation segments (`{expr}`) are handled by extracting CSS
-//! property names from string/template literals within conditional/logical
-//! expressions inside the mustache, mirroring the upstream `getAllInlineStyles`
-//! behaviour.
+//! Port of the eslint-plugin-svelte rule, on the shared
+//! `parseStyleAttributeValue` model: declarations from one interpolation
+//! (ternary/logical/template branches) form a single set and never conflict
+//! with each other, mirroring upstream's `iterateStyleDeclSetFromStyleRoot`.
 
-use rsvelte_core::ast::template::{Attribute, AttributeValue, AttributeValuePart, RegularElement};
+use std::collections::HashMap;
+use std::collections::HashSet;
 
-use super::shared::style_decls::{extract_inline_style_decls, parse_style_decls};
+use rsvelte_core::ast::template::{
+    Attribute, Component, RegularElement, SlotElement, SvelteComponentElement,
+    SvelteDynamicElement, SvelteElement,
+};
+
+use super::shared::style_decls::style_decl_sets;
 use crate::context::LintContext;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
 
@@ -33,89 +36,65 @@ static META: RuleMeta = RuleMeta {
 #[derive(Default)]
 pub struct NoDupeStyleProperties;
 
+fn check_start_tag(ctx: &mut LintContext, attributes: &[Attribute]) {
+    let source = ctx.source();
+    let sets = style_decl_sets(attributes, source);
+
+    let mut reported: HashSet<(u32, u32)> = HashSet::new();
+    let mut before: HashMap<String, (u32, u32)> = HashMap::new();
+    let mut reports: Vec<(u32, u32, String)> = Vec::new();
+
+    for set in &sets {
+        for decl in set {
+            if let Some(&(ps, pe)) = before.get(&decl.prop) {
+                if reported.insert((ps, pe)) {
+                    reports.push((ps, pe, format!("Duplicate property '{}'.", decl.prop)));
+                }
+                if reported.insert((decl.start, decl.end)) {
+                    reports.push((
+                        decl.start,
+                        decl.end,
+                        format!("Duplicate property '{}'.", decl.prop),
+                    ));
+                }
+            }
+        }
+        for decl in set {
+            before.insert(decl.prop.clone(), (decl.start, decl.end));
+        }
+    }
+
+    for (start, end, msg) in reports {
+        ctx.report(start, end, msg);
+    }
+}
+
 impl Rule for NoDupeStyleProperties {
     fn meta(&self) -> &'static RuleMeta {
         &META
     }
 
     fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
-        // Collect every property declaration occurrence: (name, start, end).
-        // For expression tags (mustache), property declarations from all
-        // string/template literal branches are grouped into one "set" so that
-        // duplicates between branches of a ternary are reported together —
-        // matching the oracle's `iterateStyleDeclSetFromStyleRoot` / `inline`
-        // handling.
-        //
-        // Each element of `sets` is a Vec of declarations from one logical
-        // "source" (one Text chunk or one ExpressionTag inline group).
-        let mut sets: Vec<Vec<(String, u32, u32)>> = Vec::new();
-        for attr in &el.attributes {
-            match attr {
-                Attribute::Attribute(node) if node.name.eq_ignore_ascii_case("style") => {
-                    if let AttributeValue::Sequence(parts) = &node.value {
-                        for part in parts {
-                            match part {
-                                AttributeValuePart::Text(t) => {
-                                    let decls = parse_style_decls(&t.raw, t.start);
-                                    for d in decls {
-                                        sets.push(vec![d]);
-                                    }
-                                }
-                                AttributeValuePart::ExpressionTag(tag) => {
-                                    // The expression tag source is `{expr}`.
-                                    // Extract CSS declarations from string/template
-                                    // literals in the expression.
-                                    let src = ctx.slice(tag.start, tag.end);
-                                    let inline = extract_inline_style_decls(src, tag.start);
-                                    if !inline.is_empty() {
-                                        sets.push(inline);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                Attribute::StyleDirective(d) => {
-                    let name_start = d.start
-                        + u32::try_from("style:".len())
-                            .expect("directive prefix widths are represented as u32");
-                    sets.push(vec![(
-                        d.name.to_string(),
-                        name_start,
-                        name_start
-                            + u32::try_from(d.name.len())
-                                .expect("property-name widths are represented as u32"),
-                    )]);
-                }
-                _ => {}
-            }
-        }
+        check_start_tag(ctx, &el.attributes);
+    }
 
-        // Walk the sets in order, keeping track of which property names were
-        // seen in earlier sets.  When a set introduces a name that was already
-        // seen, report ALL occurrences of that name (both the earlier one(s)
-        // and the current set's declaration), but report each occurrence at
-        // most once.
-        let mut before: Vec<(String, u32, u32)> = Vec::new();
-        let mut reported: std::collections::HashSet<u32> = std::collections::HashSet::new();
+    fn check_component(&self, ctx: &mut LintContext, c: &Component) {
+        check_start_tag(ctx, &c.attributes);
+    }
 
-        for set in &sets {
-            for (name, start, end) in set {
-                // Look for a prior occurrence.
-                let dup_before = before.iter().find(|(n, ..)| n == name);
-                if let Some((_, ps, pe)) = dup_before {
-                    // Report the first (prior) occurrence if not yet reported.
-                    if reported.insert(*ps) {
-                        ctx.report(*ps, *pe, format!("Duplicate property '{name}'."));
-                    }
-                    // Report this occurrence if not yet reported.
-                    if reported.insert(*start) {
-                        ctx.report(*start, *end, format!("Duplicate property '{name}'."));
-                    }
-                }
-            }
-            // Add current set to the "before" list.
-            before.extend(set.iter().cloned());
-        }
+    fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
+        check_start_tag(ctx, &el.attributes);
+    }
+
+    fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
+        check_start_tag(ctx, &el.attributes);
+    }
+
+    fn check_svelte_element(&self, ctx: &mut LintContext, el: &SvelteElement) {
+        check_start_tag(ctx, &el.attributes);
+    }
+
+    fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
+        check_start_tag(ctx, &el.attributes);
     }
 }

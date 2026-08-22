@@ -46,37 +46,103 @@ impl Suppressions {
     /// Panics when a line count cannot be represented as `u32`.
     #[must_use]
     pub fn collect(source: &str) -> Self {
-        let mut s = Self::default();
-        // Open block-disables: id (`*` for all) → line it was opened on.
-        let mut open: HashMap<String, u32> = HashMap::new();
-        let mut last_line = 0u32;
+        Self::collect_in(source, false)
+    }
 
+    /// [`Suppressions::collect`] for a `.svelte.(js|ts)` module, whose whole
+    /// body is script rather than template.
+    #[must_use]
+    pub fn collect_module(source: &str) -> Self {
+        Self::collect_in(source, true)
+    }
+
+    /// [`Suppressions::collect`] with the template/module reading chosen by the
+    /// file name — a `.svelte.(js|ts)` module has no template to scan.
+    #[must_use]
+    pub fn collect_for(source: &str, filename: &str) -> Self {
+        Self::collect_in(
+            source,
+            matches!(
+                crate::engine::classify_source(filename),
+                crate::engine::SourceKind::Module { .. }
+            ),
+        )
+    }
+
+    fn collect_in(source: &str, module: bool) -> Self {
+        let mut s = Self::default();
+        // Open block-disables: id (`*` for all) → (line it was opened on,
+        // whether the directive is an HTML `<!-- … -->` comment).
+        let mut open: HashMap<String, (u32, bool)> = HashMap::new();
+        let mut last_line = 0u32;
+        let (regions, script_ends) = crate::directive_regions::scan(source, module);
+        // The line the start tag's `>` sits on. Counted in `\n` only, to stay
+        // aligned with the `source.lines()` numbering used below.
+        let mut boundaries: Vec<u32> = script_ends
+            .iter()
+            .map(|&(_, end)| line_of(source, end as usize))
+            .collect();
+        boundaries.sort_unstable();
+
+        let mut line_off = 0usize;
         for (i, line) in source.lines().enumerate() {
             let lineno = u32::try_from(i).expect("line counts are represented as u32") + 1;
             last_line = lineno;
             // Order matters: check the more specific directives first.
-            if let Some(rest) = find_after(line, "eslint-disable-next-line") {
+            if let Some((rest, _)) =
+                find_directive(line, line_off, "eslint-disable-next-line", &regions)
+            {
                 s.add_line(lineno + 1, rest);
-            } else if let Some(rest) = find_after(line, "eslint-disable-line") {
+            } else if let Some((rest, _)) =
+                find_directive(line, line_off, "eslint-disable-line", &regions)
+            {
                 s.add_line(lineno, rest);
-            } else if let Some(rest) = find_after(line, "eslint-enable") {
+            } else if let Some((rest, _)) =
+                find_directive(line, line_off, "eslint-enable", &regions)
+            {
                 close_ranges(&mut s, &mut open, parse_ids(rest), lineno);
-            } else if let Some(rest) = find_after(line, "eslint-disable") {
+            } else if let Some((rest, is_html)) =
+                find_directive(line, line_off, "eslint-disable", &regions)
+            {
                 for id in parse_ids(rest) {
-                    open.entry(id).or_insert(lineno);
+                    open.entry(id).or_insert((lineno, is_html));
                 }
             }
-            if let Some(rest) = find_after(line, "svelte-ignore") {
+            if let Some((rest, _)) = find_directive(line, line_off, "svelte-ignore", &regions) {
                 // Unlike `eslint-disable`, an empty `<!-- svelte-ignore -->`
                 // (no codes) suppresses NOTHING — Svelte's svelte-ignore needs
                 // explicit codes, and the eslint oracle never lets it disable
                 // `svelte/*` rules. Only add codes when the list is non-empty.
                 s.add_line_no_wildcard(lineno + 1, rest);
             }
+            // Upstream re-enables ALL (plugin) suppressions at every `<script>`
+            // start tag (`SvelteScriptElement` pushes an enable-all block at the
+            // tag's end). Close the open HTML-comment block-disables here; JS
+            // `/* eslint-disable */` comments are ESLint-core directives, which
+            // that boundary does not touch.
+            if boundaries.binary_search(&lineno).is_ok() {
+                let to_close: Vec<String> = open
+                    .iter()
+                    .filter(|(_, (_, is_html))| *is_html)
+                    .map(|(id, _)| id.clone())
+                    .collect();
+                for id in to_close {
+                    if let Some((from, _)) = open.remove(&id) {
+                        s.ranges.push(DisableRange {
+                            from,
+                            to: lineno,
+                            ids: HashSet::from([id]),
+                        });
+                    }
+                }
+            }
+            line_off += line.len();
+            line_off += usize::from(source.as_bytes().get(line_off) == Some(&b'\r'));
+            line_off += usize::from(source.as_bytes().get(line_off) == Some(&b'\n'));
         }
 
         // Anything still open runs to EOF.
-        for (id, from) in open {
+        for (id, (from, _)) in open {
             s.ranges.push(DisableRange {
                 from,
                 to: last_line.max(from),
@@ -124,7 +190,7 @@ impl Suppressions {
 /// Close open block-disables that `enable_ids` re-enables, emitting ranges.
 fn close_ranges(
     s: &mut Suppressions,
-    open: &mut HashMap<String, u32>,
+    open: &mut HashMap<String, (u32, bool)>,
     enable_ids: Vec<String>,
     lineno: u32,
 ) {
@@ -135,7 +201,7 @@ fn close_ranges(
         enable_ids
     };
     for id in to_close {
-        if let Some(from) = open.remove(&id) {
+        if let Some((from, _)) = open.remove(&id) {
             s.ranges.push(DisableRange {
                 from,
                 to: lineno,
@@ -145,9 +211,43 @@ fn close_ranges(
     }
 }
 
-/// Return the text after `needle` in `line`, if present.
-fn find_after<'a>(line: &'a str, needle: &str) -> Option<&'a str> {
-    line.find(needle).map(|i| &line[i + needle.len()..])
+/// The 1-indexed `\n`-counted line holding byte `offset`.
+fn line_of(source: &str, offset: usize) -> u32 {
+    let n = source.as_bytes()[..offset.min(source.len())]
+        .iter()
+        .filter(|&&c| c == b'\n')
+        .count();
+    u32::try_from(n).expect("line counts are represented as u32") + 1
+}
+
+/// The text following `needle` on `line`, clipped to the end of the
+/// directive-bearing region that contains it, plus whether that region is an
+/// HTML comment. `None` when no occurrence of `needle` on the line sits in one —
+/// upstream reads directives out of comment NODES, so an `eslint-disable` in an
+/// attribute value, a mustache, a JS/CSS string or a CSS comment is just text.
+fn find_directive<'a>(
+    line: &'a str,
+    line_off: usize,
+    needle: &str,
+    regions: &[crate::directive_regions::DirectiveRegion],
+) -> Option<(&'a str, bool)> {
+    let mut from = 0;
+    while let Some(rel) = line[from..].find(needle) {
+        let at = from + rel;
+        let abs = u32::try_from(line_off + at).ok()?;
+        if let Some(region) = crate::directive_regions::region_at(regions, abs) {
+            let start = at + needle.len();
+            let mut end = (region.end as usize)
+                .saturating_sub(line_off)
+                .clamp(start, line.len());
+            if !line.is_char_boundary(end) {
+                end = line.len();
+            }
+            return Some((&line[start..end], region.html));
+        }
+        from = at + needle.len();
+    }
+    None
 }
 
 /// Parse the rule/code list trailing a directive. An empty list means "all
@@ -235,6 +335,27 @@ mod tests {
         assert!(!s.is_suppressed("svelte/no-at-html-tags", 5));
         // A different rule is unaffected inside the block.
         assert!(!s.is_suppressed("svelte/require-each-key", 3));
+    }
+
+    #[test]
+    fn script_start_tag_closes_open_html_block_disables() {
+        // Upstream re-enables all plugin suppressions at every `<script>` start
+        // tag; a top-of-file `<!-- eslint-disable -->` must not reach past it.
+        let src =
+            "<!-- eslint-disable -->\n{@html x}\n\n<script>\nlet a = 1;\n</script>\n{@html y}";
+        let s = Suppressions::collect(src);
+        assert!(s.is_suppressed("svelte/no-at-html-tags", 2));
+        assert!(!s.is_suppressed("svelte/prefer-const", 5));
+        assert!(!s.is_suppressed("svelte/no-at-html-tags", 7));
+    }
+
+    #[test]
+    fn script_start_tag_leaves_js_block_disables_open() {
+        // A `/* eslint-disable */` is an ESLint-core directive; the plugin's
+        // script-boundary enable does not touch it.
+        let src = "<script>\n/* eslint-disable */\nlet a = 1;\n</script>\n<script module>\nlet b = 2;\n</script>";
+        let s = Suppressions::collect(src);
+        assert!(s.is_suppressed("svelte/prefer-const", 6));
     }
 
     #[test]

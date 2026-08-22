@@ -1,6 +1,6 @@
 {
   "name": "@rsvelte/language-server-darwin-x64",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Prebuilt rsvelte-language-server binary for darwin-x64",
   "license": "MIT",
   "repository": {

@@ -198,6 +198,16 @@ where
 
 /// A replacement to apply to the source text.
 #[derive(Debug)]
+/// See [`StateVarCollector::trailing_update_comment`].
+struct TrailingUpdateComment {
+    comment: String,
+    is_line: bool,
+    new_end: u32,
+    indent: String,
+    line_start: u32,
+    stmt_starts_line: bool,
+}
+
 struct Replacement {
     /// Byte offset start (inclusive) in the original source.
     start: u32,
@@ -737,6 +747,254 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         member.property.name == "by"
     }
 
+    /// A same-line comment trailing a whole-statement `x++;` / `x--;`.
+    /// Upstream rewrites the update by REUSING the argument node (with loc),
+    /// so esrap's comment cursor pulls the trailing comment INSIDE the
+    /// `$.update(...)` call; the text splice has to reproduce that placement.
+    fn trailing_update_comment(&self, start: u32, end: u32) -> Option<TrailingUpdateComment> {
+        let src = self.source.as_bytes();
+        // Forward from `end`: horizontal ws, `;`, horizontal ws, then a comment
+        // that is the last thing on the line.
+        let mut j = end as usize;
+        while j < src.len() && matches!(src[j], b' ' | b'\t') {
+            j += 1;
+        }
+        if j >= src.len() || src[j] != b';' {
+            return None;
+        }
+        j += 1;
+        while j < src.len() && matches!(src[j], b' ' | b'\t') {
+            j += 1;
+        }
+        let (comment, is_line, mut new_end) = if self.source[j..].starts_with("//") {
+            let line_end = memchr::memchr(b'\n', &src[j..]).map_or(src.len(), |p| j + p);
+            (
+                self.source[j..line_end].trim_end().to_string(),
+                true,
+                line_end,
+            )
+        } else if self.source[j..].starts_with("/*") {
+            let close = memchr::memmem::find(&src[j + 2..], b"*/")? + j + 4;
+            let line_end = memchr::memchr(b'\n', &src[close..]).map_or(src.len(), |p| close + p);
+            if !self.source[close..line_end].trim().is_empty() {
+                return None;
+            }
+            (self.source[j..close].to_string(), false, close)
+        } else {
+            return None;
+        };
+        if is_line {
+            new_end = new_end.min(src.len());
+        }
+        // Statement position: the last CODE byte before `start` (comment- and
+        // string-aware) must end a statement or open a block. Run only after
+        // the forward check succeeded — the prefix scan is O(prefix).
+        let mut last_code: Option<u8> = None;
+        for (_, c) in crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes(
+            &src[..start as usize],
+        ) {
+            if !c.is_ascii_whitespace() {
+                last_code = Some(c);
+            }
+        }
+        if !matches!(last_code, None | Some(b'{') | Some(b'}') | Some(b';')) {
+            return None;
+        }
+        let line_start = memchr::memrchr(b'\n', &src[..start as usize]).map_or(0, |p| p + 1);
+        let prefix = &self.source[line_start..start as usize];
+        let indent: String = prefix
+            .chars()
+            .take_while(|c| *c == ' ' || *c == '\t')
+            .collect();
+        Some(TrailingUpdateComment {
+            comment,
+            is_line,
+            new_end: new_end as u32,
+            indent,
+            line_start: line_start as u32,
+            stmt_starts_line: prefix.trim().is_empty(),
+        })
+    }
+
+    /// Comment spans inside the trivia region `source[from..to]` (between two
+    /// code tokens, so only whitespace and comments can occur there).
+    fn trivia_comment_spans(&self, from: u32, to: u32) -> Vec<(u32, u32)> {
+        let mut spans = Vec::new();
+        if from >= to || to as usize > self.source.len() {
+            return spans;
+        }
+        let bytes = self.source.as_bytes();
+        let mut i = from as usize;
+        let end = to as usize;
+        while i < end {
+            if bytes[i].is_ascii_whitespace() {
+                i += 1;
+            } else if bytes[i] == b'/' && i + 1 < end && bytes[i + 1] == b'/' {
+                let stop = memchr::memchr(b'\n', &bytes[i..end]).map_or(end, |p| i + p);
+                spans.push((i as u32, stop as u32));
+                i = stop;
+            } else if bytes[i] == b'/' && i + 1 < end && bytes[i + 1] == b'*' {
+                let Some(close) = memchr::memmem::find(&bytes[i + 2..end], b"*/") else {
+                    return spans;
+                };
+                let stop = i + 2 + close + 2;
+                spans.push((i as u32, stop as u32));
+                i = stop;
+            } else {
+                break;
+            }
+        }
+        spans
+    }
+
+    /// Render `spans` the way esrap's `flush_comments_until` does before the
+    /// node starting at `to`: each comment is followed by a newline when the
+    /// source has one before `to`, else by a space when `pad`.
+    fn flush_trivia_comments(&self, spans: &[(u32, u32)], to: u32, pad: bool) -> String {
+        let mut out = String::new();
+        for &(start, end) in spans {
+            out.push_str(&self.source[start as usize..end as usize]);
+            if self.source[end as usize..to as usize].contains('\n') {
+                out.push('\n');
+            } else if pad {
+                out.push(' ');
+            }
+        }
+        out
+    }
+
+    /// The comments a rune call holds around its single argument: (everything
+    /// between the callee and the argument — the `(` does not divide them —
+    /// and everything between the argument and `)`).
+    fn rune_call_comment_slots(
+        &self,
+        call: &CallExpression<'_>,
+        arg_span: Span,
+    ) -> (Vec<(u32, u32)>, Vec<(u32, u32)>) {
+        let callee_end = call.callee.span().end;
+        let open = self
+            .trivia_code_start(callee_end, arg_span.start)
+            .filter(|&p| self.source.as_bytes().get(p as usize) == Some(&b'('))
+            .map(|p| p + 1);
+        let mut pre = self.trivia_comment_spans(callee_end, arg_span.start);
+        if let Some(open) = open {
+            pre.extend(self.trivia_comment_spans(open, arg_span.start));
+        }
+        let post = self.trivia_comment_spans(arg_span.end, call.span.end.saturating_sub(1));
+        (pre, post)
+    }
+
+    /// First code byte at/after `from` (skipping whitespace and comments),
+    /// bounded by `to`.
+    fn trivia_code_start(&self, from: u32, to: u32) -> Option<u32> {
+        let bytes = self.source.as_bytes();
+        let mut i = from as usize;
+        let end = (to as usize).min(bytes.len());
+        while i < end {
+            if bytes[i].is_ascii_whitespace() {
+                i += 1;
+            } else if bytes[i] == b'/' && i + 1 < end && bytes[i + 1] == b'/' {
+                i = memchr::memchr(b'\n', &bytes[i..end]).map_or(end, |p| i + p);
+            } else if bytes[i] == b'/' && i + 1 < end && bytes[i + 1] == b'*' {
+                let close = memchr::memmem::find(&bytes[i + 2..end], b"*/")?;
+                i = i + 2 + close + 2;
+            } else {
+                return Some(i as u32);
+            }
+        }
+        None
+    }
+
+    /// Same-line trailing comments (esrap's `flush_trailing_comments`): each is
+    /// emitted after a space; a `//` comment forces a newline so it cannot
+    /// swallow what the caller appends. Comments past the first newline are not
+    /// trailing and are returned in `rest`.
+    fn split_trailing_comments(
+        &self,
+        spans: &[(u32, u32)],
+        prev_end: u32,
+    ) -> (String, Vec<(u32, u32)>) {
+        let mut out = String::new();
+        let mut rest = Vec::new();
+        let mut broken = false;
+        for &(start, end) in spans {
+            let same_line = !self.source[prev_end as usize..start as usize].contains('\n');
+            if broken || !same_line {
+                broken = true;
+                rest.push((start, end));
+                continue;
+            }
+            out.push(' ');
+            out.push_str(&self.source[start as usize..end as usize]);
+            if self.source[start as usize..].starts_with("//") {
+                out.push('\n');
+                broken = true;
+            }
+        }
+        (out, rest)
+    }
+
+    /// Append comments that follow the rune argument to the statement, after
+    /// the source `;` when there is one — the placement esrap gives them once
+    /// the wrapper call that held them is gone. Returns the (possibly extended)
+    /// replacement end.
+    fn append_comments_past_semicolon(
+        &self,
+        spans: &[(u32, u32)],
+        call_end: u32,
+        replacement: &mut String,
+    ) -> u32 {
+        if spans.is_empty() {
+            return call_end;
+        }
+        let bytes = self.source.as_bytes();
+        let mut j = call_end as usize;
+        while j < bytes.len() && matches!(bytes[j], b' ' | b'\t') {
+            j += 1;
+        }
+        let end = if j < bytes.len() && bytes[j] == b';' {
+            replacement.push(';');
+            (j + 1) as u32
+        } else {
+            call_end
+        };
+        // A comment the source put on its own line becomes a leading comment of
+        // the next statement, so esrap prints it after the statement break.
+        let indent = self.line_indent(call_end);
+        for &(start, cend) in spans {
+            if starts_its_own_line(bytes, start as usize) {
+                replacement.push_str("\n\n");
+                replacement.push_str(indent);
+            } else {
+                replacement.push(' ');
+            }
+            replacement.push_str(&self.source[start as usize..cend as usize]);
+        }
+        end
+    }
+
+    /// The leading whitespace of the line `offset` sits on.
+    fn line_indent(&self, offset: u32) -> &str {
+        let head = &self.source[..offset as usize];
+        let line_start = head.rfind('\n').map_or(0, |p| p + 1);
+        let rest = &self.source[line_start..];
+        &rest[..rest.len() - rest.trim_start_matches([' ', '\t']).len()]
+    }
+
+    /// Whether a blank line separates well: previous non-ws char before
+    /// `line_start` opens a block or the previous line is already blank.
+    fn margin_before_allowed(&self, line_start: u32) -> bool {
+        let head = self.source[..line_start as usize].trim_end();
+        !head.ends_with('{') && !self.source[head.len()..line_start as usize].contains("\n\n")
+    }
+
+    fn margin_after_allowed(&self, new_end: u32) -> bool {
+        let tail = &self.source[new_end as usize..];
+        let after_line = tail.strip_prefix('\n').unwrap_or(tail);
+        let next = after_line.trim_start();
+        !next.starts_with('}') && !next.is_empty() && !after_line.starts_with('\n')
+    }
+
     /// Add a replacement.
     fn add_replacement(&mut self, start: u32, end: u32, text: String) {
         if self
@@ -820,9 +1078,16 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         // them into the outer text — matching the behaviour the text pipeline
         // produced indirectly (it emitted `$.state(arg)` which the AST then
         // visited and rewrote inner refs of).
+        let mut pre_comments = String::new();
+        let mut post_comments: Vec<(u32, u32)> = Vec::new();
+        let mut arg_end = call.span.end;
         let arg_text = if let Some(arg) = call.arguments.first() {
             self.visit_argument(arg);
             let arg_span = arg.span();
+            let (pre, post) = self.rune_call_comment_slots(call, arg_span);
+            pre_comments = self.flush_trivia_comments(&pre, arg_span.start, true);
+            post_comments = post;
+            arg_end = arg_span.end;
             let transformed = self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end);
             if transformed.trim().is_empty() {
                 "void 0".to_string()
@@ -832,15 +1097,23 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         } else {
             "void 0".to_string()
         };
+        let arg_text = format!("{pre_comments}{arg_text}");
 
-        let replacement = if is_non_reactive {
-            arg_text
+        let (trailing, spilled) = if is_non_reactive {
+            (String::new(), post_comments)
         } else {
-            format!("$.state({})", arg_text)
+            self.split_trailing_comments(&post_comments, arg_end)
         };
 
-        let replacement = self.maybe_tag_declarator(var_name, replacement);
-        self.add_replacement(call.span.start, call.span.end, replacement);
+        let mut replacement = if is_non_reactive {
+            arg_text
+        } else {
+            format!("$.state({arg_text}{trailing})")
+        };
+
+        replacement = self.maybe_tag_declarator(var_name, replacement);
+        let end = self.append_comments_past_semicolon(&spilled, call.span.end, &mut replacement);
+        self.add_replacement(call.span.start, end, replacement);
         true
     }
 
@@ -851,7 +1124,7 @@ impl<'a, 's> StateVarCollector<'a, 's> {
     /// |                    | non-reactive (in `non_reactive_vars`)        | reactive                                      |
     /// | `$state()` (empty) | `void 0`                                     | `$.state(void 0)`                             |
     /// | `$state(prim)`     | `prim`                                       | `$.state(prim)`                               |
-    /// | `$state(undefined)`| `void 0` (special case, matches text)        | `$.state(undefined)` (literal kept)           |
+    /// | `$state(undefined)`| `undefined` (source spelling kept, #3049)    | `$.state(undefined)` (literal kept)           |
     /// | `$state(obj/arr/…)`| `$.proxy(obj/arr/…)` if `should_proxy_ast`   | `$.state($.proxy(obj/arr/…))`                 |
     ///
     /// Proxy decision uses `should_proxy_ast(arg, &[])` — the text pipeline
@@ -884,18 +1157,12 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         // Snapshot a few facts from the original argument AST *before* walking,
         // because the walk drains/replaces inner spans that we want to query
         // by node kind here (not by post-rewrite text).
-        let (needs_proxy, is_explicit_undefined) = if let Some(arg) = call.arguments.first() {
-            let arg_expr = arg.as_expression();
-            let needs_proxy = arg_expr
+        let needs_proxy = if let Some(arg) = call.arguments.first() {
+            arg.as_expression()
                 .map(|e| should_proxy_ast(e, self.non_proxy_vars, self.dev))
-                .unwrap_or(false);
-            let is_undef = matches!(
-                arg_expr,
-                Some(Expression::Identifier(id)) if id.name == "undefined"
-            );
-            (needs_proxy, is_undef)
+                .unwrap_or(false)
         } else {
-            (false, false)
+            false
         };
 
         // Walk the argument first so any inner state-var refs get `$.get(...)`
@@ -904,9 +1171,16 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         // produced indirectly: it emitted `$.state(arg)` (or `$.proxy(arg)`)
         // which the existing AST pass then re-visited and rewrote inner
         // refs of.
+        let mut pre_comments = String::new();
+        let mut post_comments: Vec<(u32, u32)> = Vec::new();
+        let mut arg_end = call.span.end;
         let arg_text = if let Some(arg) = call.arguments.first() {
             self.visit_argument(arg);
             let arg_span = arg.span();
+            let (pre, post) = self.rune_call_comment_slots(call, arg_span);
+            pre_comments = self.flush_trivia_comments(&pre, arg_span.start, true);
+            post_comments = post;
+            arg_end = arg_span.end;
             let transformed = self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end);
             if transformed.trim().is_empty() {
                 "void 0".to_string()
@@ -916,27 +1190,35 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         } else {
             "void 0".to_string()
         };
+        let arg_text = format!("{pre_comments}{arg_text}");
 
-        let replacement = if is_non_reactive {
+        let bare = is_non_reactive && !needs_proxy;
+        // A wrapper call keeps same-line trailing comments inside its parens
+        // (the argument node still precedes a `)`); the bare-argument form has
+        // no node after them, so they land after the statement's `;`.
+        let (trailing, spilled) = if bare {
+            (String::new(), post_comments)
+        } else {
+            self.split_trailing_comments(&post_comments, arg_end)
+        };
+
+        let mut replacement = if is_non_reactive {
             if needs_proxy {
-                format!("$.proxy({})", arg_text)
-            } else if is_explicit_undefined {
-                // Special case from the old text path: in the non-reactive
-                // branch, `$state(undefined)` → `void 0` (not `undefined`).
-                // The reactive branch keeps the literal as-is, so we only
-                // apply this rewrite when non-reactive.
-                "void 0".to_string()
+                format!("$.proxy({arg_text}{trailing})")
             } else {
+                // Upstream keeps the spelling the source used — an explicit
+                // `$state(undefined)` stays `undefined`, never `void 0` (#3049).
                 arg_text
             }
         } else if needs_proxy {
-            format!("$.state($.proxy({}))", arg_text)
+            format!("$.state($.proxy({arg_text}{trailing}))")
         } else {
-            format!("$.state({})", arg_text)
+            format!("$.state({arg_text}{trailing})")
         };
 
-        let replacement = self.maybe_tag_declarator(var_name, replacement);
-        self.add_replacement(call.span.start, call.span.end, replacement);
+        replacement = self.maybe_tag_declarator(var_name, replacement);
+        let end = self.append_comments_past_semicolon(&spilled, call.span.end, &mut replacement);
+        self.add_replacement(call.span.start, end, replacement);
         true
     }
 
@@ -1712,11 +1994,17 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         let arg = &call.arguments[0];
         self.visit_argument(arg);
         let arg_span = arg.span();
+        let (pre_spans, post_spans) = self.rune_call_comment_slots(call, arg_span);
+        let lead_comments = self.flush_trivia_comments(&pre_spans, arg_span.start, true);
         let transformed_arg = self.apply_and_drain_inner_replacements(arg_span.start, arg_span.end);
 
-        let replacement = format!("$.derived({})", transformed_arg);
-        let replacement = self.maybe_tag_declarator(var_name, replacement);
-        self.add_replacement(call.span.start, call.span.end, replacement);
+        // No thunk is synthesized here, so the argument stays the last located
+        // node inside the call and esrap flushes its trailing comment there.
+        let (trail, spilled) = self.split_trailing_comments(&post_spans, arg_span.end);
+        let replacement = format!("$.derived({lead_comments}{transformed_arg}{trail})");
+        let mut replacement = self.maybe_tag_declarator(var_name, replacement);
+        let end = self.append_comments_past_semicolon(&spilled, call.span.end, &mut replacement);
+        self.add_replacement(call.span.start, end, replacement);
         true
     }
 
@@ -1785,6 +2073,14 @@ impl<'a, 's> StateVarCollector<'a, 's> {
             .strip_suffix(',')
             .map_or(arg_source_trimmed, |s| s.trim_end());
 
+        // Comments between the call's `(` and the argument ride along: into the
+        // synthesized thunk's empty parameter parens (where esrap flushes them
+        // — the params sequence runs until the body's start), or straight
+        // before the argument when no thunk is added.
+        let (pre_spans, post_spans) = self.rune_call_comment_slots(call, arg_span);
+        let param_comments = self.flush_trivia_comments(&pre_spans, arg_span.start, false);
+        let lead_comments = self.flush_trivia_comments(&pre_spans, arg_span.start, true);
+
         // Walk the argument once so inner state-var refs get `$.get(...)`,
         // then drain those inner replacements into a transformed string we
         // can feed to the text helpers (mirroring `wrap_state_vars_in_expr`
@@ -1804,10 +2100,15 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         // byte-identical in edge cases.
         let starts_as_function =
             arg_source_trimmed.starts_with("()") || arg_source_trimmed.starts_with("function");
+        // A synthesized thunk ends the call with an unlocated node, so esrap
+        // carries the argument's trailing comment past the statement's `;`;
+        // without one the comment stays inside the call.
         if starts_as_function {
-            let replacement = format!("$.derived(() => {})", walked_for_emit);
-            let replacement = self.maybe_tag_declarator(var_name, replacement);
-            self.add_replacement(call.span.start, call.span.end, replacement);
+            let replacement = format!("$.derived(({param_comments}) => {walked_for_emit})");
+            let mut replacement = self.maybe_tag_declarator(var_name, replacement);
+            let end =
+                self.append_comments_past_semicolon(&post_spans, call.span.end, &mut replacement);
+            self.add_replacement(call.span.start, end, replacement);
             return true;
         }
 
@@ -1848,22 +2149,26 @@ impl<'a, 's> StateVarCollector<'a, 's> {
                     format!("$.async_derived({thunk_arg}{dev_tail})")
                 }
             };
-            let replacement = if should_save {
+            let mut replacement = if should_save {
                 // Unreachable post-5.56.0; kept inert to mirror the upstream
                 // structure of `should_save ? save(call) : b.await(call)`.
                 format!("(await $.save({}))()", async_derived_call)
             } else {
                 format!("await {}", async_derived_call)
             };
-            self.add_replacement(call.span.start, call.span.end, replacement);
+            let end =
+                self.append_comments_past_semicolon(&post_spans, call.span.end, &mut replacement);
+            self.add_replacement(call.span.start, end, replacement);
             return true;
         }
 
         // Case 3: object literal — paren-wrap so the body isn't parsed as a block.
         if matches!(arg_expr_opt, Some(Expression::ObjectExpression(_))) {
-            let replacement = format!("$.derived(() => ({}))", walked_for_emit);
-            let replacement = self.maybe_tag_declarator(var_name, replacement);
-            self.add_replacement(call.span.start, call.span.end, replacement);
+            let replacement = format!("$.derived(({param_comments}) => ({walked_for_emit}))");
+            let mut replacement = self.maybe_tag_declarator(var_name, replacement);
+            let end =
+                self.append_comments_past_semicolon(&post_spans, call.span.end, &mut replacement);
+            self.add_replacement(call.span.start, end, replacement);
             return true;
         }
 
@@ -1874,9 +2179,12 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         if let Some(Expression::Identifier(ident)) = arg_expr_opt {
             let name = ident.name.as_str();
             if self.store_sub_vars.contains(name) || self.prop_source_vars.contains(name) {
-                let replacement = format!("$.derived({})", name);
-                let replacement = self.maybe_tag_declarator(var_name, replacement);
-                self.add_replacement(call.span.start, call.span.end, replacement);
+                let (trail, spilled) = self.split_trailing_comments(&post_spans, arg_span.end);
+                let replacement = format!("$.derived({lead_comments}{name}{trail})");
+                let mut replacement = self.maybe_tag_declarator(var_name, replacement);
+                let end =
+                    self.append_comments_past_semicolon(&spilled, call.span.end, &mut replacement);
+                self.add_replacement(call.span.start, end, replacement);
                 return true;
             }
         }
@@ -1884,9 +2192,20 @@ impl<'a, 's> StateVarCollector<'a, 's> {
         // Case 5: default — unthunk if the walked arg is a `name()` /
         // `$.foo()` shape, otherwise wrap in a thunk.
         let derived_arg = unthunk_string(walked_for_emit);
-        let replacement = format!("$.derived({})", derived_arg);
-        let replacement = self.maybe_tag_declarator(var_name, replacement);
-        self.add_replacement(call.span.start, call.span.end, replacement);
+        let (thunked, derived_arg) = if let Some(body) = derived_arg.strip_prefix("() => ") {
+            (true, format!("({param_comments}) => {body}"))
+        } else {
+            (false, format!("{lead_comments}{derived_arg}"))
+        };
+        let (trail, spilled) = if thunked {
+            (String::new(), post_spans)
+        } else {
+            self.split_trailing_comments(&post_spans, arg_span.end)
+        };
+        let replacement = format!("$.derived({derived_arg}{trail})");
+        let mut replacement = self.maybe_tag_declarator(var_name, replacement);
+        let end = self.append_comments_past_semicolon(&spilled, call.span.end, &mut replacement);
+        self.add_replacement(call.span.start, end, replacement);
         true
     }
 
@@ -2643,15 +2962,14 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
                                 return;
                             }
                             "pending" if expr.arguments.is_empty() => {
-                                // Whole-call rewrite: `$effect.pending()` becomes
-                                // `$.eager(() => $.pending())`, matching upstream
-                                // (`$.eager` receives a thunk that calls
-                                // `$.pending()`). The entire CallExpression span is
-                                // replaced.
+                                // Whole-call rewrite. Upstream builds
+                                // `b.thunk(b.call('$.pending'))`, and `thunk`
+                                // unthunks a zero-argument call of an identifier,
+                                // so the argument is the bare reference.
                                 self.add_replacement(
                                     expr.span.start,
                                     expr.span.end,
-                                    "$.eager(() => $.pending())".to_string(),
+                                    "$.eager($.pending)".to_string(),
                                 );
                                 return;
                             }
@@ -2737,7 +3055,10 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
             self.add_replacement(
                 expr.span.start,
                 expr.span.end,
-                format!("$.eager(() => {})", transformed_arg),
+                format!(
+                    "$.eager({})",
+                    super::destructure_transforms::unthunk_string(&transformed_arg)
+                ),
             );
             return;
         }
@@ -3228,38 +3549,71 @@ impl<'a, 's, 'ast> Visit<'ast> for StateVarCollector<'a, 's> {
             self.rest_operand_member_starts.insert(member.span.start);
         }
 
+        // --- Prop member updates (bindable props): `p.a++` →
+        // `p(p().a++, true)`, mirroring the assignment branch (#3048). ---
+        let member_object = match &expr.argument {
+            SimpleAssignmentTarget::StaticMemberExpression(m) => Some(&m.object),
+            SimpleAssignmentTarget::ComputedMemberExpression(m) => Some(&m.object),
+            _ => None,
+        };
+        if let Some(object) = member_object
+            && let Some(obj_name) = Self::extract_root_object_from_expr(object)
+            && self.is_active_prop_var(&obj_name)
+            && !self.non_bindable_prop_vars.contains(&obj_name)
+        {
+            let (full_start, full_end) = self.effective_span(expr.span.start, expr.span.end);
+            walk::walk_update_expression(self, expr);
+            let full_text = self.apply_and_drain_inner_replacements(full_start, full_end);
+            let replacement = format!("{}({}, true)", obj_name, full_text);
+            self.add_replacement(full_start, full_end, replacement);
+            return;
+        }
+
         if let SimpleAssignmentTarget::AssignmentTargetIdentifier(ident) = &expr.argument {
             let name = ident.name.as_str();
             let (full_start, full_end) = self.effective_span(expr.span.start, expr.span.end);
 
             // --- State variable updates ---
             if self.is_any_state_var(name) {
-                match (expr.prefix, expr.operator) {
-                    (true, UpdateOperator::Increment) => {
-                        self.add_replacement(
-                            full_start,
-                            full_end,
-                            format!("$.update_pre({})", name),
-                        );
-                    }
-                    (true, UpdateOperator::Decrement) => {
-                        self.add_replacement(
-                            full_start,
-                            full_end,
-                            format!("$.update_pre({}, -1)", name),
-                        );
-                    }
-                    (false, UpdateOperator::Increment) => {
-                        self.add_replacement(full_start, full_end, format!("$.update({})", name));
-                    }
-                    (false, UpdateOperator::Decrement) => {
-                        self.add_replacement(
-                            full_start,
-                            full_end,
-                            format!("$.update({}, -1)", name),
-                        );
-                    }
+                let callee = if expr.prefix {
+                    "$.update_pre"
+                } else {
+                    "$.update"
+                };
+                let decrement = expr.operator == UpdateOperator::Decrement;
+                if let Some(tc) = self.trailing_update_comment(full_start, full_end) {
+                    let text = match (decrement, tc.is_line) {
+                        (false, false) => format!("{callee}({name} {});", tc.comment),
+                        (true, false) => format!("{callee}({name}, {} -1);", tc.comment),
+                        (false, true) => {
+                            format!("{callee}({name} {}\n{});", tc.comment, tc.indent)
+                        }
+                        (true, true) => {
+                            // Multiline argument list; esrap puts a blank line
+                            // on each side of a multiline statement.
+                            if tc.stmt_starts_line && self.margin_before_allowed(tc.line_start) {
+                                self.add_replacement(tc.line_start, tc.line_start, "\n".into());
+                            }
+                            let margin_after = if self.margin_after_allowed(tc.new_end) {
+                                "\n"
+                            } else {
+                                ""
+                            };
+                            format!(
+                                "{callee}(\n{i}\t{name}, {}\n{i}\t-1\n{i});{margin_after}",
+                                tc.comment,
+                                i = tc.indent
+                            )
+                        }
+                    };
+                    self.add_replacement(full_start, tc.new_end, text);
+                    return;
                 }
+                let text = match decrement {
+                    false => format!("{callee}({name})"),
+                    true => format!("{callee}({name}, -1)"),
+                };
+                self.add_replacement(full_start, full_end, text);
                 return;
             }
 
@@ -4824,6 +5178,21 @@ fn collect_state_var_replacements_without_semantic_scan(
         }
     }
     collector.replacements
+}
+
+/// Is the byte at `at` the first non-whitespace on its line?
+fn starts_its_own_line(bytes: &[u8], at: usize) -> bool {
+    let mut i = at;
+    while i > 0 {
+        i -= 1;
+        if bytes[i] == b'\n' {
+            return true;
+        }
+        if !bytes[i].is_ascii_whitespace() {
+            return false;
+        }
+    }
+    true
 }
 
 #[cfg(test)]

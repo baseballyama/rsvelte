@@ -21,6 +21,7 @@ pub(super) fn indent_config(options: &FormatOptions) -> (String, usize) {
 pub(super) fn parse_formatted(formatted: &str) -> Option<rsvelte_core::ast::template::Root<'_>> {
     let opts = ParseOptions {
         skip_non_css_lang_style: true,
+        reparse_leading_slash_expression: true,
         ..ParseOptions::default()
     };
     parse(formatted, &rsvelte_core::Allocator::default(), opts)
@@ -220,7 +221,7 @@ pub(super) fn fragment_has_prose_word(fragment: &Fragment) -> bool {
     fragment
         .nodes
         .iter()
-        .any(|n| matches!(n, TemplateNode::Text(t) if t.data.split_whitespace().next().is_some()))
+        .any(|n| matches!(n, TemplateNode::Text(t) if split_html_ws(&t.data).next().is_some()))
 }
 
 /// Source span of an attribute, mirroring `markup::attribute_span`.
@@ -250,10 +251,29 @@ pub(super) fn is_inline_regular_element(node: &TemplateNode) -> bool {
             if !is_block_display(e.name.as_str()) && !is_whitespace_preserving(e.name.as_str()))
 }
 
+/// HTML whitespace (`[\t\n\f\r ]`), prettier's class — NOT Unicode whitespace.
+/// U+2028/U+2029/U+3000 in text are content and must survive formatting.
+pub(super) fn is_html_ws(c: char) -> bool {
+    matches!(c, ' ' | '\t' | '\n' | '\r' | '\x0C')
+}
+
+/// `split_whitespace` on the HTML class only.
+pub(super) fn split_html_ws(s: &str) -> impl Iterator<Item = &str> + '_ {
+    s.split(is_html_ws).filter(|w| !w.is_empty())
+}
+
+pub(super) fn trim_html_ws_start(s: &str) -> &str {
+    s.trim_start_matches(is_html_ws)
+}
+
+pub(super) fn trim_html_ws_end(s: &str) -> &str {
+    s.trim_end_matches(is_html_ws)
+}
+
 /// Number of newlines in the leading whitespace run (capped at 2).
 pub(super) fn leading_linebreaks(s: &str) -> usize {
     s.chars()
-        .take_while(|c| c.is_whitespace())
+        .take_while(|c| is_html_ws(*c))
         .filter(|c| *c == '\n')
         .take(2)
         .count()
@@ -263,18 +283,18 @@ pub(super) fn leading_linebreaks(s: &str) -> usize {
 pub(super) fn trailing_linebreaks(s: &str) -> usize {
     s.chars()
         .rev()
-        .take_while(|c| c.is_whitespace())
+        .take_while(|c| is_html_ws(*c))
         .filter(|c| *c == '\n')
         .take(2)
         .count()
 }
 
 pub(super) fn ends_with_space_no_break(s: &str) -> bool {
-    s.ends_with(|c: char| c.is_whitespace()) && trailing_linebreaks(s) == 0
+    s.ends_with(is_html_ws) && trailing_linebreaks(s) == 0
 }
 
 pub(super) fn starts_with_space_no_break(s: &str) -> bool {
-    s.starts_with(|c: char| c.is_whitespace()) && leading_linebreaks(s) == 0
+    s.starts_with(is_html_ws) && leading_linebreaks(s) == 0
 }
 
 pub(super) fn is_inline_node(node: &TemplateNode) -> bool {
@@ -361,7 +381,7 @@ pub(super) fn element_source_empty(out: &str, nodes: &[TemplateNode], el_start: 
     let all_ws = nodes.iter().all(|n| {
         matches!(n, TemplateNode::Text(t)
             if out.get(t.start as usize..t.end as usize)
-                .is_some_and(|s| s.split_whitespace().next().is_none()))
+                .is_some_and(|s| split_html_ws(s).next().is_none()))
     });
     if !all_ws {
         return false;

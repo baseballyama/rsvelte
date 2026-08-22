@@ -9,11 +9,12 @@
 //! Port of `eslint-plugin-svelte/src/rules/no-spaces-around-equal-signs-in-attribute.ts`.
 //! Upstream: `meta.fixable = 'whitespace'`, `type: 'layout'`, no options.
 
-use rsvelte_core::ast::template::Attribute;
+use rsvelte_core::ast::template::{Attribute, SvelteComponentElement, SvelteDynamicElement};
 
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::js_whitespace::is_js_whitespace;
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-spaces-around-equal-signs-in-attribute",
@@ -30,7 +31,7 @@ static META: RuleMeta = RuleMeta {
 };
 
 /// Find the end of the attribute key by scanning from `start` forward,
-/// stopping at the first `=` or ASCII whitespace character.
+/// stopping at the first `=` or whitespace (JS `\s`) character.
 ///
 /// This works uniformly for all attribute variants:
 /// - `AttributeNode` (`class`): stops at `=` or whitespace before the value.
@@ -39,22 +40,19 @@ static META: RuleMeta = RuleMeta {
 /// - Shorthand (`{class}`, i.e., `class` starts at `{`): `{` is neither `=`
 ///   nor whitespace, so the scan runs to the end — `eqSource` is empty and
 ///   no whitespace is found, naturally excluding the shorthand.
-fn key_end(source: &[u8], node_start: u32, node_end: u32) -> u32 {
-    let end = node_end as usize;
-    let mut pos = node_start as usize;
-    while pos < end {
-        let b = source[pos];
-        if b == b'=' || b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
-            break;
-        }
-        pos += 1;
-    }
-    u32::try_from(pos).expect("source offsets are represented as u32")
+fn key_end(source: &str, node_start: u32, node_end: u32) -> u32 {
+    let end = (node_end as usize).min(source.len());
+    let slice = &source[node_start as usize..end];
+    let off = slice
+        .find(|c: char| c == '=' || is_js_whitespace(c))
+        .unwrap_or(slice.len());
+    node_start + u32::try_from(off).expect("source offsets are represented as u32")
 }
 
-/// The leading `^[\s=]*` prefix of `src` (bytes while char is whitespace or `=`).
+/// The leading `^[\s=]*` prefix of `src` (bytes while char is JS whitespace or
+/// `=`).
 fn eq_source_len(src: &str) -> usize {
-    src.find(|c: char| c != '=' && !c.is_whitespace())
+    src.find(|c: char| c != '=' && !is_js_whitespace(c))
         .unwrap_or(src.len())
 }
 
@@ -63,8 +61,13 @@ pub struct NoSpacesAroundEqualSignsInAttribute;
 
 impl NoSpacesAroundEqualSignsInAttribute {
     fn check(ctx: &mut LintContext, node_start: u32, node_end: u32) {
-        let src_bytes = ctx.source().as_bytes();
-        let ke = key_end(src_bytes, node_start, node_end);
+        let ke = key_end(ctx.source(), node_start, node_end);
+        Self::check_eq_region(ctx, ke, node_end);
+    }
+
+    /// Verify the `^[\s=]*` region starting at `ke` (the oracle's key-range
+    /// end) against `node_end`.
+    fn check_eq_region(ctx: &mut LintContext, ke: u32, node_end: u32) {
         // Slice from key-end to node-end.
         let tail = ctx.slice(ke, node_end);
         let eq_len = eq_source_len(tail);
@@ -74,7 +77,7 @@ impl NoSpacesAroundEqualSignsInAttribute {
         // inner spaces (`{ id }`) has a whitespace-only eq region (the key scan
         // stops at the space after `{`) but no `=`, so upstream — which measures
         // the gap between the key node and the value node — never reports it.
-        if !eq_src.contains('=') || !eq_src.chars().any(char::is_whitespace) {
+        if !eq_src.contains('=') || !eq_src.chars().any(is_js_whitespace) {
             return;
         }
         let eq_end = ke + u32::try_from(eq_len).expect("source offsets are represented as u32");
@@ -94,9 +97,40 @@ impl NoSpacesAroundEqualSignsInAttribute {
     }
 }
 
+impl NoSpacesAroundEqualSignsInAttribute {
+    /// The virtual `this=` on `<svelte:component>` / `<svelte:element>` is a
+    /// `SvelteSpecialDirective` upstream, whose KEY range runs from `this` up to
+    /// the `=` itself — so whitespace before the `=` is inside the key and only
+    /// whitespace after the `=` is ever reported.
+    fn check_this(ctx: &mut LintContext, el_start: u32) {
+        let Some((this_start, this_end)) =
+            crate::rules::this_attr::oracle_this_attr_span(ctx.source(), el_start)
+        else {
+            return;
+        };
+        let bytes = ctx.source().as_bytes();
+        let Some(eq) = bytes[(this_start as usize + 4)..this_end as usize]
+            .iter()
+            .position(|&b| b == b'=')
+            .map(|off| this_start + 4 + u32::try_from(off).expect("offsets fit u32"))
+        else {
+            return;
+        };
+        Self::check_eq_region(ctx, eq, this_end);
+    }
+}
+
 impl Rule for NoSpacesAroundEqualSignsInAttribute {
     fn meta(&self) -> &'static RuleMeta {
         &META
+    }
+
+    fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
+        Self::check_this(ctx, el.start);
+    }
+
+    fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
+        Self::check_this(ctx, el.start);
     }
 
     fn check_attribute(&self, ctx: &mut LintContext, attr: &Attribute) {

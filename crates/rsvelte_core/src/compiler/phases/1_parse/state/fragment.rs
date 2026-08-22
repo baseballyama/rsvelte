@@ -301,6 +301,18 @@ impl<'a> Parser<'a> {
                 && self.index + 1 < self.bytes.len()
                 && self.bytes[self.index + 1] == b'/'
             {
+                // Upstream reads the name off a right-trimmed template, so a
+                // `</` with nothing but whitespace left runs out of input
+                // before any closing-tag rule can apply.
+                if !self.options.loose && self.source[self.index + 2..].trim_start().is_empty() {
+                    let at = self.index + 2;
+                    return Err(crate::error::ParseError::svelte(
+                        "unexpected_eof",
+                        "Unexpected end of input",
+                        (at, at),
+                    ));
+                }
+
                 // Check if this is a closing tag at root level (only Root on stack)
                 let is_root_level =
                     self.stack.len() == 1 && matches!(self.stack.first(), Some(StackEntry::Root));

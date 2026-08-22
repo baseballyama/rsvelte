@@ -21,12 +21,14 @@
 
 use rsvelte_core::ast::template::{
     Attribute, AttributeValue, AttributeValuePart, AwaitBlock, DebugTag, DeclarationTag, EachBlock,
-    ExpressionTag, HtmlTag, IfBlock, KeyBlock, RenderTag, SnippetBlock, TemplateNode,
+    ExpressionTag, HtmlTag, IfBlock, KeyBlock, RenderTag, SnippetBlock, SvelteComponentElement,
+    SvelteDynamicElement, TemplateNode,
 };
 
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::js_whitespace::{skip_js_ws_backward, skip_js_ws_forward};
 
 fn source_offset(value: usize) -> u32 {
     u32::try_from(value).expect("source offsets are represented as u32")
@@ -106,24 +108,14 @@ impl Options {
     }
 }
 
-/// First non-whitespace byte at or after `from` (clamped to `end`).
-fn first_non_ws(src: &[u8], from: u32, end: u32) -> u32 {
-    let mut i = from as usize;
-    let end = end as usize;
-    while i < end && (src[i] as char).is_ascii_whitespace() {
-        i += 1;
-    }
-    source_offset(i)
+/// First non-whitespace (JS `\s`) byte at or after `from` (clamped to `end`).
+fn first_non_ws(src: &str, from: u32, end: u32) -> u32 {
+    skip_js_ws_forward(src, from, end)
 }
 
-/// Byte just past the last non-whitespace byte in `[start, before)`.
-fn last_non_ws_end(src: &[u8], start: u32, before: u32) -> u32 {
-    let start = start as usize;
-    let mut i = before as usize;
-    while i > start && (src[i - 1] as char).is_ascii_whitespace() {
-        i -= 1;
-    }
-    source_offset(i)
+/// Byte just past the last non-whitespace (JS `\s`) byte in `[start, before)`.
+fn last_non_ws_end(src: &str, start: u32, before: u32) -> u32 {
+    skip_js_ws_backward(src, start, before)
 }
 
 /// First `}` at or after `from`.
@@ -171,7 +163,7 @@ impl MustacheSpacing {
         if is_inside_pug_template(ctx.source(), open_brace) {
             return;
         }
-        let src = ctx.source().as_bytes();
+        let src = ctx.source();
         let after_open = open_brace + 1;
         // Stop the inner scan at the closing brace (or EOF) so we don't run past
         // the mustache region.
@@ -307,6 +299,14 @@ impl Rule for MustacheSpacing {
         Self::verify_tag_node(ctx, tag.start, tag.end);
     }
 
+    fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
+        Self::verify_this(ctx, el.start, el.expression.start(), el.expression.end());
+    }
+
+    fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
+        Self::verify_this(ctx, el.start, el.tag.start(), el.tag.end());
+    }
+
     fn check_attribute(&self, ctx: &mut LintContext, attr: &Attribute) {
         let opts = Options::resolve(ctx);
         let src = ctx.source().as_bytes();
@@ -421,7 +421,17 @@ impl Rule for MustacheSpacing {
                 .nodes
                 .iter()
                 .any(|n| matches!(n, TemplateNode::IfBlock(b) if b.elseif));
-            if !is_elseif && let Some((eo, ec)) = find_else_tag(src, block.start, block.end) {
+            // The `{:else}` tag sits after the open tag and the consequent
+            // content; scanning from there keeps `{ :else }` decoys inside the
+            // test expression or a nested block from being matched.
+            let mut else_lo = block.start + 1;
+            if let Some(c) = block.test.end().and_then(|te| first_close_brace(src, te)) {
+                else_lo = else_lo.max(c + 1);
+            }
+            if let Some(n) = block.consequent.nodes.last() {
+                else_lo = else_lo.max(n.span().1);
+            }
+            if !is_elseif && let Some((eo, ec)) = find_else_tag(src, else_lo, block.end) {
                 Self::verify_braces(
                     ctx,
                     eo,
@@ -483,9 +493,17 @@ impl Rule for MustacheSpacing {
                 false,
             );
         }
-        // `{:else}` fallback.
+        // `{:else}` fallback — scan from past the open tag and the body content
+        // so decoys inside them are skipped.
+        let mut else_lo = block.start + 1;
+        if let Some(c) = first_close_brace(src, last) {
+            else_lo = else_lo.max(c + 1);
+        }
+        if let Some(n) = block.body.nodes.last() {
+            else_lo = else_lo.max(n.span().1);
+        }
         if block.fallback.is_some()
-            && let Some((eo, ec)) = find_else_tag(src, block.start, block.end)
+            && let Some((eo, ec)) = find_else_tag(src, else_lo, block.end)
         {
             Self::verify_braces(
                 ctx,
@@ -595,13 +613,32 @@ impl Rule for MustacheSpacing {
             );
         }
 
+        // Branch tags sit after the open tag and the preceding branch content;
+        // scanning from there keeps `{ :then }` / `{ :catch }` decoys inside
+        // expressions from being matched.
+        let mut then_lo = block.start + 1;
+        if let Some(c) = block
+            .expression
+            .end()
+            .and_then(|ee| first_close_brace(src, ee))
+        {
+            then_lo = then_lo.max(c + 1);
+        }
+        if let Some(n) = block.pending.as_ref().and_then(|p| p.nodes.last()) {
+            then_lo = then_lo.max(n.span().1);
+        }
+
         // `{:then …}` / combined `{#await … then …}`.
+        let mut then_open: Option<u32> = None;
         if block.then.is_some() {
             let open_b = if await_then {
                 block.start
             } else {
-                find_branch_tag(src, block.start, block.end, b":then")
+                find_branch_tag(src, then_lo, block.end, b":then")
             };
+            if open_b != u32::MAX {
+                then_open = Some(open_b);
+            }
             let open_block_last = block
                 .value
                 .as_ref()
@@ -618,10 +655,28 @@ impl Rule for MustacheSpacing {
 
         // `{:catch …}` / combined `{#await … catch …}`.
         if block.catch.is_some() {
+            let mut catch_lo = then_lo;
+            if let Some(o) = then_open
+                && !await_then
+                && let Some(c) = first_close_brace(src, o + 1)
+            {
+                catch_lo = catch_lo.max(c + 1);
+            }
+            if let Some(c) = block
+                .value
+                .as_ref()
+                .and_then(rsvelte_core::ast::js::Expression::end)
+                .and_then(|ve| first_close_brace(src, ve))
+            {
+                catch_lo = catch_lo.max(c + 1);
+            }
+            if let Some(n) = block.then.as_ref().and_then(|t| t.nodes.last()) {
+                catch_lo = catch_lo.max(n.span().1);
+            }
             let open_b = if await_catch {
                 block.start
             } else {
-                find_branch_tag(src, block.start, block.end, b":catch")
+                find_branch_tag(src, catch_lo, block.end, b":catch")
             };
             let open_block_last = block
                 .error
@@ -669,6 +724,33 @@ fn verify_attribute_value(
 impl MustacheSpacing {
     /// Verify a directive value (`name={expr}`): find the `{` before the
     /// expression and the `}` after it; skip shorthands / value-less directives.
+    /// The implicit `this=` of `<svelte:component>` / `<svelte:element>` is a
+    /// `SvelteSpecialDirective` upstream, so its braces are governed by
+    /// `directiveExpressions` like any other directive's.
+    fn verify_this(
+        ctx: &mut LintContext,
+        el_start: u32,
+        expr_start: Option<u32>,
+        expr_end: Option<u32>,
+    ) {
+        let opts = Options::resolve(ctx);
+        let Some((this_start, this_end)) =
+            crate::rules::this_attr::oracle_this_attr_span(ctx.source(), el_start)
+        else {
+            return;
+        };
+        let src = ctx.source().as_bytes();
+        Self::verify_directive(
+            ctx,
+            src,
+            this_start,
+            this_end,
+            expr_start,
+            expr_end,
+            opts.directive_expressions,
+        );
+    }
+
     fn verify_directive(
         ctx: &mut LintContext,
         src: &[u8],
@@ -725,11 +807,12 @@ impl MustacheSpacing {
         if open_b == u32::MAX {
             return;
         }
+        let src_str = std::str::from_utf8(src).expect("lint sources are UTF-8");
         let (close, has_expr) = open_block_last.map_or((None, false), |last| {
             first_close_brace(src, last).map_or((None, false), |close_brace| {
                 // hasExpression ⇔ the close brace is the first token after
                 // the binding (only whitespace between them).
-                let has_expression = last_non_ws_end(src, last, close_brace) == last;
+                let has_expression = last_non_ws_end(src_str, last, close_brace) == last;
                 (Some(close_brace), has_expression)
             })
         });

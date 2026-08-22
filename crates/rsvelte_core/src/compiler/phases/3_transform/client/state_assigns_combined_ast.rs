@@ -650,7 +650,19 @@ impl<'a> oxc_ast_visit::VisitMut<'a> for StateAssignsRewriter<'a> {
             }
             Rewrite::Update { prefix, decrement } => {
                 let callee = if prefix { "$.update_pre" } else { "$.update" };
-                let mut args = vec![self.b.id(name)];
+                // Keep the ORIGINAL argument span (upstream reuses the node):
+                // the printer's comment cursor attaches a trailing comment
+                // inside the call (`$.update(x /* c */)`) only if `x` is
+                // located.
+                let arg_span = match expr {
+                    Expression::UpdateExpression(update) => update.argument.span(),
+                    _ => oxc_span::SPAN,
+                };
+                let mut args = vec![Expression::new_identifier(
+                    arg_span,
+                    self.b.str(name),
+                    &self.b.ab(),
+                )];
                 if decrement {
                     args.push(
                         self.b

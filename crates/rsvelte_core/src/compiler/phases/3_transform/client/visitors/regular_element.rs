@@ -138,6 +138,37 @@ fn process_element_let_directives(
             // each_block.rs / snippet_block.rs). e.g. `let { data } = $props()`
             // outside + `<tbody slot="…" let:data>` must read `$.get(data)`.
             context.state.shadowed_prop_names.insert(name.clone());
+        } else if let Some((derived_name, binding_names, const_stmt)) =
+            crate::compiler::phases::phase3_transform::client::visitors::shared::component::build_destructured_let_directive(
+                let_dir, context,
+            )
+        {
+            // Destructured case (`let:cell={[first, ...rest]}`): emit the
+            // `$.derived` destructure const and route each extracted binding's
+            // reads through it (`$.get(cell).first`).
+            context.state.let_directives.push(const_stmt);
+            for binding_name in &binding_names {
+                let name = binding_name.to_string();
+                saved_transforms.push((name.clone(), context.state.transform.get(&name).cloned()));
+                context.state.transform.insert(
+                    name.clone(),
+                    crate::compiler::phases::phase3_transform::client::types::IdentifierTransform {
+                        read: Some(|arena, node| {
+                            b::call(arena, b::member_path(arena, "$.get"), vec![node])
+                        }),
+                        read_source: Some(derived_name.clone()),
+                        assign: None,
+                        mutate: None,
+                        update: None,
+                        skip_proxy: false,
+                        is_defined: false,
+                        is_reactive: true,
+                        replacement_id: None,
+                    },
+                );
+                context.state.transform_deep_read.insert(name.clone(), ());
+                context.state.shadowed_prop_names.insert(name);
+            }
         }
     }
 
@@ -587,40 +618,39 @@ pub fn visit_regular_element(
                     && !cannot_be_set_statically(&name)
                     && (is_true_value || is_text_attribute(attr))
                 {
-                    let mut value = if is_text_attribute(attr) {
-                        if let AttributeValue::Sequence(parts) = &attr.value {
-                            if let crate::ast::template::AttributeValuePart::Text(text) = &parts[0]
-                            {
-                                text.data.to_string()
-                            } else {
-                                String::new()
-                            }
-                        } else {
-                            String::new()
+                    // `None` is upstream's boolean `true` for a valueless attribute,
+                    // and it has to stay distinct from `Some("")`: scoping treats it
+                    // as empty, the emptiness gate below treats it as present.
+                    let mut value: Option<String> = if is_text_attribute(attr) {
+                        match &attr.value {
+                            AttributeValue::Sequence(parts) => match &parts[0] {
+                                crate::ast::template::AttributeValuePart::Text(text) => {
+                                    Some(text.data.to_string())
+                                }
+                                _ => Some(String::new()),
+                            },
+                            _ => Some(String::new()),
                         }
                     } else {
-                        String::new()
+                        None
                     };
 
                     // Add scoped class if needed (only for class without class directives)
                     if name == "class" && is_scoped {
                         let hash = &context.state.analysis.css.hash;
-                        if value.is_empty() {
-                            value = hash.clone();
-                        } else {
-                            value.push(' ');
-                            value.push_str(hash);
+                        if !hash.is_empty() {
+                            value = Some(match value.as_deref() {
+                                None | Some("") => hash.clone(),
+                                Some(v) => format!("{v} {hash}"),
+                            });
                         }
                     }
 
-                    if name != "class" || !value.is_empty() {
-                        let prop_value = if is_true_value {
-                            Some(String::new())
-                        } else {
-                            Some(value)
-                        };
-
-                        context.state.template.set_prop(name.clone(), prop_value);
+                    if name != "class" || value.as_deref().is_none_or(|v| !v.is_empty()) {
+                        context
+                            .state
+                            .template
+                            .set_prop(name.clone(), Some(value.unwrap_or_default()));
                     }
                 } else if name == "autofocus" {
                     // Special case: autofocus needs $.autofocus() call
@@ -873,6 +903,7 @@ pub fn visit_regular_element(
         context.state.analysis,
         preserve_whitespace || node.name == "script",
         context.state.options.preserve_comments,
+        context.state.options.hmr,
     );
 
     // Check if there are any SnippetBlocks in the fragment
@@ -2124,13 +2155,39 @@ fn is_value_known_defined(
         // Known defined literals: numbers, strings, booleans, regex
         JsExpr::Literal(JsLiteral::Number(_)) => true,
         JsExpr::Literal(JsLiteral::String(_)) => true,
+        JsExpr::Literal(JsLiteral::RawString { .. }) => true,
+        JsExpr::Literal(JsLiteral::RawNumber { .. }) => true,
         JsExpr::Literal(JsLiteral::Boolean(_)) => true,
         JsExpr::Literal(JsLiteral::Regex { .. }) => true,
-        // Arrays and objects are always defined
-        JsExpr::Array(_) => true,
-        JsExpr::Object(_) => true,
+        // Arrays and objects evaluate to UNKNOWN upstream (`scope.evaluate`
+        // cannot represent objects), so official KEEPS the `?? ""` guard on
+        // `<option value={{ id: 2 }}>` / `<select value={['a']}>`.
+        JsExpr::Array(_) => false,
+        JsExpr::Object(_) => false,
         // Template literals are always strings (defined)
         JsExpr::TemplateLiteral(_) => true,
+        // Upstream unions the branch values, so a branch it cannot evaluate
+        // makes the whole thing unknown. Requiring both is the conservative
+        // reading of that: it never claims defined where upstream would not.
+        JsExpr::Conditional(cond) => {
+            is_value_known_defined(arena.get_expr(cond.consequent), arena, scope_root, scope)
+                && is_value_known_defined(arena.get_expr(cond.alternate), arena, scope_root, scope)
+        }
+        JsExpr::Logical(logical) => {
+            is_value_known_defined(arena.get_expr(logical.left), arena, scope_root, scope)
+                && is_value_known_defined(arena.get_expr(logical.right), arena, scope_root, scope)
+        }
+        // A raw source fragment: classify the trivially-literal spellings the
+        // way `scope.evaluate` would (string/number/boolean literals are
+        // defined; object/array literals and everything else are UNKNOWN).
+        JsExpr::Raw(text) => {
+            let t = text.trim();
+            (t.starts_with('\'') || t.starts_with('"'))
+                || t.parse::<f64>().is_ok()
+                || t == "true"
+                || t == "false"
+                || (t.starts_with('`') && !t.contains("${"))
+        }
         JsExpr::Call(call) => js_expr_keypath(arena.get_expr(call.callee), arena)
             .as_deref()
             .is_some_and(is_known_defined_global_call),

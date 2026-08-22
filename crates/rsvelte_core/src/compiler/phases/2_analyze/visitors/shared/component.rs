@@ -258,6 +258,7 @@ pub fn visit_component<'a, 'b: 'a>(
     context.is_direct_child_of_snippet = false;
     // Track component depth for slot attribute validation
     context.component_depth += 1;
+    context.svelte_self_parent_depth += 1;
     // Track that this is a component for slot owner resolution
     context
         .slot_owner_ancestors
@@ -293,6 +294,7 @@ pub fn visit_component<'a, 'b: 'a>(
     context.fragment_owner_stack.pop();
     context.slot_owner_ancestors.pop();
     context.component_depth -= 1;
+    context.svelte_self_parent_depth -= 1;
     context.is_direct_child_of_component = was_direct_child;
     context.is_direct_child_of_snippet = was_direct_snippet;
 

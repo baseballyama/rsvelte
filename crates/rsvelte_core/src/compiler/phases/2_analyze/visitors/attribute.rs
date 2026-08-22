@@ -179,13 +179,22 @@ pub fn visit_attribute_value_expressions(
         }
         AttributeValue::Sequence(parts) => {
             for part in parts {
-                if let AttributeValuePart::ExpressionTag(expr_tag) = part {
-                    let node = expr_tag.expression.as_node();
-                    super::shared::utils::walk_js_expression_node(
-                        &node,
-                        context,
-                        &mut expr_tag.metadata.expression,
-                    )?;
+                match part {
+                    AttributeValuePart::ExpressionTag(expr_tag) => {
+                        let node = expr_tag.expression.as_node();
+                        super::shared::utils::walk_js_expression_node(
+                            &node,
+                            context,
+                            &mut expr_tag.metadata.expression,
+                        )?;
+                    }
+                    // A value chunk is a `Text` node upstream, so its `Text`
+                    // visitor runs on it too.
+                    AttributeValuePart::Text(text) => {
+                        super::text::check_bidirectional_control_characters(
+                            &text.data, text.start, context,
+                        );
+                    }
                 }
             }
         }

@@ -9,6 +9,7 @@ import {
 } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { VSCODE_TARGETS } from "./vscode-targets.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const artifactRoot = resolve(
@@ -19,17 +20,10 @@ const destinationRoot = resolve(
 	repoRoot,
 	process.env.VSCODE_NATIVE_ROOT || "apps/npm/vscode/native",
 );
-const targets = [
-	{ triple: "darwin-arm64", binary: "rsvelte-language-server" },
-	{ triple: "darwin-x64", binary: "rsvelte-language-server" },
-	{ triple: "linux-arm64-gnu", binary: "rsvelte-language-server" },
-	{ triple: "linux-x64-gnu", binary: "rsvelte-language-server" },
-	{ triple: "win32-x64-msvc", binary: "rsvelte-language-server.exe" },
-];
 
 rmSync(destinationRoot, { recursive: true, force: true });
 
-for (const { triple, binary } of targets) {
+for (const { triple, binary } of VSCODE_TARGETS) {
 	const source = resolve(
 		artifactRoot,
 		`rsvelte-language-server-${triple}`,

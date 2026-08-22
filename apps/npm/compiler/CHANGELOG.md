@@ -1,5 +1,23 @@
 # @rsvelte/compiler
 
+## 0.10.17
+
+### Patch Changes
+
+- bb1d3e1: Wrap a member-chain read of a `$derived` class field in a constructor. `this.#props.x` kept the raw private read where `$.get(this.#props).x` was required — the standalone-read pass skips a chain root by design and the constructor path, unlike the method path, never ran the member-chain pass.
+- 5b197cf: Stop a `@keyframes` rule inside a `:global { … }` block from scoping the component. Upstream's prune walker visits only such a rule's prelude, so nothing in its body can mark an element used — rsvelte read a percentage step (`0%`) there and gave every element the scope class. The same block also kept the `-global-` prefix on the keyframes name, because its children were copied verbatim.
+- 6fba1c9: Print the `;;` a removed non-dev `$inspect(...)` leaves as one statement. Upstream keeps the `ExpressionStatement` and replaces its expression with `b.empty`, so esrap emits `;;` on one line and a comment trailing the call stays on it; rsvelte modelled the pair as two empty statements on separate lines, which put a blank line in front of the comment and, on the client, dropped the second `;` entirely.
+- 8e85bad: Keep the `<script module>` comments official keeps. The client output dropped every comment that was not lexically inside a function or class body, but the module's builder-made `Program` only leaves esrap's comment cursor dead until a located body revives it — so a comment _after_ a class body, a bare block or a static block still reaches the output. Both that rule and the rune-accessor kill are now one walk over the same cursor events.
+- f67ce0b: fix(client): fold a constant with its JS type, not its rendered text
+
+  The client constant-folder carried a folded value as `Option<Option<String>>`,
+  in which `null` and `undefined` are the same value and `0` and `'0'` are the
+  same value. It now shares the `scope.evaluate` port the server transform
+  already used, so a fold keeps the operand's type: `$derived(cond ? undefined :
+null)` stays reactive instead of being judged constant and hoisted out of
+  `$.template_effect`, and `typeof '0'`, `'0' + 0`, `'0' === 0`, `'10' < '9'`,
+  `null + ''` and `true + 1` all fold to what the official compiler folds them to.
+
 ## 0.10.16
 
 ### Patch Changes

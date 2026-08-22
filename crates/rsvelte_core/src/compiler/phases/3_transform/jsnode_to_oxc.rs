@@ -1071,6 +1071,29 @@ impl<'a, 'arena> Cx<'a, 'arena> {
                 NumberBase::Decimal,
                 &self.ab,
             )),
+            LiteralValue::BigInt(d) => {
+                let base = if raw.starts_with("0x") || raw.starts_with("0X") {
+                    oxc_ast::ast::BigintBase::Hex
+                } else if raw.starts_with("0o") || raw.starts_with("0O") {
+                    oxc_ast::ast::BigintBase::Octal
+                } else if raw.starts_with("0b") || raw.starts_with("0B") {
+                    oxc_ast::ast::BigintBase::Binary
+                } else {
+                    oxc_ast::ast::BigintBase::Decimal
+                };
+                let raw_text = if raw.is_empty() {
+                    format!("{d}n")
+                } else {
+                    raw.to_string()
+                };
+                Some(Expression::new_big_int_literal(
+                    SPAN,
+                    self.str(d),
+                    Some(self.str(&raw_text).into()),
+                    base,
+                    &self.ab,
+                ))
+            }
             LiteralValue::Bool(b) => Some(Expression::new_boolean_literal(SPAN, *b, &self.ab)),
             LiteralValue::Null => Some(Expression::new_null_literal(SPAN, &self.ab)),
             // Regex handled above; reaching here would be a `Regex` value with

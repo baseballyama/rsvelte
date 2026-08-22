@@ -22,13 +22,15 @@ use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::reactive_stmt::{is_reactive_statement, source_is_ts};
+use crate::rules::store_refs::{RefTracker, member_property_name, module_tracker};
 use crate::script::{ProgramView, ScriptKind, ScriptRule, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-reactive-reassign",
     category: RuleCategory::Correctness,
     fixable: Fixable::No,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: true,
@@ -63,22 +65,6 @@ fn same_pos(a: Option<&Value>, node: &Value) -> bool {
     matches!((a.and_then(pos), pos(node)), (Some(x), Some(y)) if x == y)
 }
 
-/// The (non-computed identifier / computed string-literal) property name of a
-/// member expression.
-fn property_name(member: &Value) -> Option<String> {
-    let prop = member.get("property")?;
-    let computed = member.get("computed").and_then(Value::as_bool) == Some(true);
-    if !computed && node_type(prop) == Some("Identifier") {
-        prop.get("name").and_then(Value::as_str).map(str::to_string)
-    } else if computed && node_type(prop) == Some("Literal") {
-        prop.get("value")
-            .and_then(Value::as_str)
-            .map(str::to_string)
-    } else {
-        None
-    }
-}
-
 /// Walk up the parent chain from a reactive-value reference. Returns
 /// `(report_start, report_end, property_path_len)` when the reference is a write.
 fn get_reassign<'a>(id: &'a Value, ancestors: &[&'a Value]) -> Option<(u32, u32, usize)> {
@@ -109,7 +95,7 @@ fn get_reassign<'a>(id: &'a Value, ancestors: &[&'a Value]) -> Option<(u32, u32,
             Some("CallExpression") => {
                 if !path.is_empty() && same_pos(parent.get("callee"), node) {
                     let mem = *path.last().unwrap();
-                    if let Some(name) = property_name(mem)
+                    if let Some(name) = member_property_name(mem)
                         && ARRAY_MUTATORS.contains(&name.as_str())
                     {
                         path.pop();
@@ -248,14 +234,8 @@ fn collect_reactive_values(
 ) -> (HashSet<String>, HashSet<(u64, u64)>) {
     let mut names = HashSet::new();
     let mut def_lhs = HashSet::new();
-    program.walk(|node, _| {
-        if node_type(node) != Some("LabeledStatement")
-            || node
-                .get("label")
-                .and_then(|l| l.get("name"))
-                .and_then(Value::as_str)
-                != Some("$")
-        {
+    program.walk(|node, ancestors| {
+        if !is_reactive_statement(node, ancestors) {
             return;
         }
         let Some(body) = node.get("body") else { return };
@@ -302,6 +282,7 @@ fn scan_refs(
     reactive: &HashSet<String>,
     def_lhs: &HashSet<(u64, u64)>,
     props: bool,
+    tracker: &RefTracker<'_>,
     reports: &mut Vec<(u32, u32, String)>,
 ) {
     walk_js(tree, |node, ancestors| {
@@ -315,6 +296,15 @@ fn scan_refs(
             return;
         }
         if pos(node).is_some_and(|p| def_lhs.contains(&p)) {
+            return;
+        }
+        // Upstream iterates the reactive *variable's* own references, so a
+        // same-named parameter or block-scoped `let` is a different variable
+        // and writing to it is not a write to the reactive value.
+        if tracker
+            .find_variable(node)
+            .is_some_and(|var| !tracker.is_root(var))
+        {
             return;
         }
         if let Some((s, e, path_len)) = get_reassign(node, ancestors) {
@@ -352,11 +342,16 @@ impl ScriptRule for NoReactiveReassign {
             .and_then(Value::as_bool)
             != Some(false);
 
+        let tracker = module_tracker(
+            ctx.source(),
+            program.value(),
+            source_is_ts(ctx.source(), ctx.filename()),
+        );
         let mut reports: Vec<(u32, u32, String)> = Vec::new();
-        scan_refs(program, &reactive, &def_lhs, props, &mut reports);
+        scan_refs(program, &reactive, &def_lhs, props, &tracker, &mut reports);
         // Reassignments via a two-way `bind:` live in the template.
         let frag = ctx.template_fragment_json();
-        scan_refs(&frag, &reactive, &def_lhs, props, &mut reports);
+        scan_refs(&frag, &reactive, &def_lhs, props, &tracker, &mut reports);
 
         for (start, end, msg) in reports {
             ctx.report(start, end, msg);

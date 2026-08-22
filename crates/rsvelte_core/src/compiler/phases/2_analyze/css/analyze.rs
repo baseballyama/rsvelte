@@ -409,7 +409,17 @@ fn validate_nesting_selectors(
                 // Also check inside pseudo-class args for NestingSelector
                 if selector.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector") {
                     if let Some(args) = selector.get("args") {
-                        validate_nesting_in_pseudo_args(args, state, rule)?;
+                        validate_nesting_in_pseudo_args(
+                            args,
+                            state,
+                            rule,
+                            prelude,
+                            complex_selectors,
+                            children,
+                            relative_selector,
+                            selectors,
+                            is_global_block,
+                        )?;
                     }
                 }
             }
@@ -421,7 +431,7 @@ fn validate_nesting_selectors(
 
 /// Validate a single NestingSelector node.
 fn validate_single_nesting_selector(
-    _nesting_node: &serde_json::Value,
+    nesting_node: &serde_json::Value,
     state: &CssAnalysisState,
     _rule: &serde_json::Value,
     prelude: &serde_json::Value,
@@ -436,12 +446,20 @@ fn validate_single_nesting_selector(
         // Check: is this rule's prelude a single :global(&) or :global(& ...) ?
         let complex_selectors = match prelude.get("children").and_then(|c| c.as_array()) {
             Some(c) => c,
-            None => return Err(errors::css_nesting_selector_invalid_placement()),
+            None => {
+                return Err(at_node(
+                    errors::css_nesting_selector_invalid_placement(),
+                    nesting_node,
+                ));
+            }
         };
 
         // Must be a single complex selector
         if complex_selectors.len() > 1 {
-            return Err(errors::css_nesting_selector_invalid_placement());
+            return Err(at_node(
+                errors::css_nesting_selector_invalid_placement(),
+                nesting_node,
+            ));
         }
 
         let children = match complex_selectors[0]
@@ -449,7 +467,12 @@ fn validate_single_nesting_selector(
             .and_then(|c| c.as_array())
         {
             Some(c) => c,
-            None => return Err(errors::css_nesting_selector_invalid_placement()),
+            None => {
+                return Err(at_node(
+                    errors::css_nesting_selector_invalid_placement(),
+                    nesting_node,
+                ));
+            }
         };
 
         // Must be a single relative selector
@@ -463,18 +486,29 @@ fn validate_single_nesting_selector(
         let first_child = &children[0];
         let selectors = match first_child.get("selectors").and_then(|s| s.as_array()) {
             Some(s) => s,
-            None => return Err(errors::css_nesting_selector_invalid_placement()),
+            None => {
+                return Err(at_node(
+                    errors::css_nesting_selector_invalid_placement(),
+                    nesting_node,
+                ));
+            }
         };
 
         if selectors.len() != 1 {
-            return Err(errors::css_nesting_selector_invalid_placement());
+            return Err(at_node(
+                errors::css_nesting_selector_invalid_placement(),
+                nesting_node,
+            ));
         }
 
         let first_sel = &selectors[0];
         if first_sel.get("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector")
             || first_sel.get("name").and_then(|n| n.as_str()) != Some("global")
         {
-            return Err(errors::css_nesting_selector_invalid_placement());
+            return Err(at_node(
+                errors::css_nesting_selector_invalid_placement(),
+                nesting_node,
+            ));
         }
 
         // Check that & is the first selector inside :global(...)
@@ -492,9 +526,10 @@ fn validate_single_nesting_selector(
                                     if first_inner.get("type").and_then(|t| t.as_str())
                                         != Some("NestingSelector")
                                     {
-                                        return Err(
+                                        return Err(at_node(
                                             errors::css_nesting_selector_invalid_placement(),
-                                        );
+                                            nesting_node,
+                                        ));
                                     }
                                     // & is the first selector inside :global(...) - valid
                                     return Ok(());
@@ -506,7 +541,10 @@ fn validate_single_nesting_selector(
             }
         }
 
-        return Err(errors::css_nesting_selector_invalid_placement());
+        return Err(at_node(
+            errors::css_nesting_selector_invalid_placement(),
+            nesting_node,
+        ));
     }
 
     // Check: parent rule is a :global block without a grandparent rule,
@@ -552,44 +590,66 @@ fn is_parent_lone_global_block(rule: &serde_json::Value) -> bool {
     false
 }
 
-/// Validate NestingSelector inside pseudo-class args (e.g., :global(& div)).
+/// Upstream visits every `NestingSelector` in the prelude, however deeply a
+/// pseudo-class argument list buries it, and judges each against the same rule.
+#[allow(clippy::too_many_arguments)]
 fn validate_nesting_in_pseudo_args(
     args: &serde_json::Value,
     state: &CssAnalysisState,
-    _rule: &serde_json::Value,
+    rule: &serde_json::Value,
+    prelude: &serde_json::Value,
+    complex_selectors: &[serde_json::Value],
+    children: &[serde_json::Value],
+    relative_selector: &serde_json::Value,
+    selectors: &[serde_json::Value],
+    is_global_block: bool,
 ) -> Result<(), AnalysisError> {
-    // Walk through args looking for NestingSelector
-    if let Some(children) = args.get("children").and_then(|c| c.as_array()) {
-        for complex in children {
-            if let Some(complex_children) = complex.get("children").and_then(|c| c.as_array()) {
-                for relative in complex_children {
-                    if let Some(selectors) = relative.get("selectors").and_then(|s| s.as_array()) {
-                        for sel in selectors {
-                            if sel.get("type").and_then(|t| t.as_str()) == Some("NestingSelector") {
-                                // & inside :global(...) args at root level is OK
-                                // only if it's the FIRST selector
-                                // The css-nesting-selector-root test expects error for :global(div &)
-                                // but NOT for :global(&) or :global(& div)
-                                if state.parent_rule.is_none() {
-                                    // Check if this & is the first selector in the first relative selector
-                                    // of the first complex selector
-                                    let is_first = children.first() == Some(complex)
-                                        && complex_children.first() == Some(relative)
-                                        && selectors.first() == Some(sel);
+    let Some(arg_children) = args.get("children").and_then(|c| c.as_array()) else {
+        return Ok(());
+    };
 
-                                    if !is_first {
-                                        return Err(
-                                            errors::css_nesting_selector_invalid_placement(),
-                                        );
-                                    }
-                                }
-                            }
+    for complex in arg_children {
+        let Some(complex_children) = complex.get("children").and_then(|c| c.as_array()) else {
+            continue;
+        };
+        for relative in complex_children {
+            let Some(arg_selectors) = relative.get("selectors").and_then(|s| s.as_array()) else {
+                continue;
+            };
+            for sel in arg_selectors {
+                match sel.get("type").and_then(|t| t.as_str()) {
+                    Some("NestingSelector") => validate_single_nesting_selector(
+                        sel,
+                        state,
+                        rule,
+                        prelude,
+                        complex_selectors,
+                        children,
+                        relative_selector,
+                        selectors,
+                        is_global_block,
+                    )?,
+                    Some("PseudoClassSelector") => {
+                        if let Some(inner) = sel.get("args") {
+                            validate_nesting_in_pseudo_args(
+                                inner,
+                                state,
+                                rule,
+                                prelude,
+                                complex_selectors,
+                                children,
+                                relative_selector,
+                                selectors,
+                                is_global_block,
+                            )?;
                         }
                     }
+                    _ => {}
                 }
             }
         }
     }
+
     Ok(())
 }
 

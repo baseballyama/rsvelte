@@ -21,8 +21,7 @@ pub fn visit_with_element(
     element: &RegularElement,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
-    // Validate binding for the element
-    validate_binding_for_regular_element(directive, element, context)?;
+    validate_binding_for_element(directive, &element.name, &element.attributes)?;
 
     // Continue with the rest of the validation
     visit_common(directive, context)
@@ -33,14 +32,19 @@ pub fn visit_with_element(
 /// This is called from special element visitors like svelte_window.
 pub fn visit_with_svelte_element(
     directive: &BindDirective,
-    element_name: &str,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
-    // Validate binding for the svelte element
-    validate_binding_for_svelte_element(directive, element_name)?;
-
-    // Continue with the rest of the validation
     visit_common(directive, context)
+}
+
+/// The target half of the check, for callers that hold the attribute list
+/// immutably while `visit_with_svelte_element` needs `context` mutably.
+pub fn validate_binding_target(
+    directive: &BindDirective,
+    element_name: &str,
+    attributes: &[crate::ast::template::Attribute],
+) -> Result<(), AnalysisError> {
+    validate_binding_for_element(directive, element_name, attributes)
 }
 /// Common validation logic for bind directives.
 fn visit_common(
@@ -427,48 +431,22 @@ pub(super) fn validate_bind_value_for_component(
 
     validate_bind_value_identifier(directive, binding)
 }
-/// Validate binding for a Svelte special element (svelte:window, svelte:document, svelte:body).
-fn validate_binding_for_svelte_element(
+/// Upstream runs one `BindDirective` check for a `RegularElement`, a `SvelteElement`,
+/// and `<svelte:window>` / `<svelte:document>` / `<svelte:body>` alike, keyed on the
+/// element's name. Three copies of it drifted: the special-element one reported the
+/// `invalid_elements` sentence for a `valid_elements` violation, and the
+/// `<svelte:element>` one hard-coded four names and never reached the
+/// contenteditable check.
+fn validate_binding_for_element(
     directive: &BindDirective,
     element_name: &str,
+    attributes: &[crate::ast::template::Attribute],
 ) -> Result<(), AnalysisError> {
     let binding_name = directive.name.as_str();
     let (start, end) = (directive.start, directive.end);
 
-    // Check if binding exists in binding_properties
-    if let Some(property) = BINDING_PROPERTIES.get(binding_name) {
-        // Check valid_elements
-        if let Some(valid_elements) = property.valid_elements
-            && !valid_elements.contains(&element_name)
-        {
-            // For svelte: elements, provide a list of possible bindings
-            let valid_bindings = get_valid_bindings(element_name);
-            let message = format!(
-                "Possible bindings for <{}> are {}",
-                element_name,
-                valid_bindings.join(", ")
-            );
-
-            return Err(errors::bind_invalid_target(binding_name, &message).at(start, end));
-        }
-
-        // Check invalid_elements
-        if let Some(invalid_elements) = property.invalid_elements
-            && invalid_elements.contains(&element_name)
-        {
-            let valid_bindings = get_valid_bindings(element_name);
-            let message = format!(
-                "Possible bindings for <{}> are {}",
-                element_name,
-                valid_bindings.join(", ")
-            );
-
-            return Err(errors::bind_invalid_name(binding_name, Some(&message)).at(start, end));
-        }
-    } else {
-        // Binding not found - try fuzzy match
+    let Some(property) = BINDING_PROPERTIES.get(binding_name) else {
         let match_name = fuzzy_match(binding_name, &all_binding_names());
-
         if let Some(match_name) = match_name
             && let Some(property) = BINDING_PROPERTIES.get(match_name)
             && (property.valid_elements.is_none()
@@ -480,92 +458,49 @@ fn validate_binding_for_svelte_element(
             )
             .at(start, end));
         }
-
         return Err(errors::bind_invalid_name(binding_name, None).at(start, end));
+    };
+
+    if let Some(valid_elements) = property.valid_elements
+        && !valid_elements.contains(&element_name)
+    {
+        let valid_list = valid_elements
+            .iter()
+            .map(|e| format!("`<{e}>`"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        return Err(errors::bind_invalid_target(binding_name, &valid_list).at(start, end));
     }
 
-    Ok(())
-}
+    if let Some(invalid_elements) = property.invalid_elements
+        && invalid_elements.contains(&element_name)
+    {
+        let message = format!(
+            "Possible bindings for <{}> are {}",
+            element_name,
+            get_valid_bindings(element_name).join(", ")
+        );
+        return Err(errors::bind_invalid_name(binding_name, Some(&message)).at(start, end));
+    }
 
-/// Validate binding for a regular element directly (without going through path).
-fn validate_binding_for_regular_element(
-    directive: &BindDirective,
-    element: &RegularElement,
-    context: &VisitorContext,
-) -> Result<(), AnalysisError> {
-    let binding_name = directive.name.as_str();
-    let (start, end) = (directive.start, directive.end);
-    let parent_name = element.name.as_str();
+    if element_name == "input" && binding_name != "this" {
+        validate_input_binding(directive, attributes)?;
+    }
 
-    // Check if binding exists in binding_properties
-    if let Some(property) = BINDING_PROPERTIES.get(binding_name) {
-        // Check valid_elements
-        if let Some(valid_elements) = property.valid_elements
-            && !valid_elements.contains(&parent_name)
-        {
-            let valid_list = valid_elements
-                .iter()
-                .map(|e| format!("`<{e}>`"))
-                .collect::<Vec<_>>()
-                .join(", ");
+    if element_name == "select" && binding_name != "this" {
+        validate_select_binding(attributes)?;
+    }
 
-            return Err(errors::bind_invalid_target(binding_name, &valid_list).at(start, end));
-        }
+    if binding_name == "offsetWidth" && is_svg(element_name) {
+        return Err(errors::bind_invalid_target(
+            binding_name,
+            "non-`<svg>` elements. Use `bind:clientWidth` for `<svg>` instead",
+        )
+        .at(start, end));
+    }
 
-        // Check invalid_elements
-        if let Some(invalid_elements) = property.invalid_elements
-            && invalid_elements.contains(&parent_name)
-        {
-            let valid_bindings = get_valid_bindings(parent_name);
-            let message = format!(
-                "Possible bindings for <{}> are {}",
-                parent_name,
-                valid_bindings.join(", ")
-            );
-
-            return Err(errors::bind_invalid_name(binding_name, Some(&message)).at(start, end));
-        }
-
-        // Special validation for <input> elements
-        if parent_name == "input" && binding_name != "this" {
-            validate_input_binding(directive, element, context)?;
-        }
-
-        // Special validation for <select> elements
-        if parent_name == "select" && binding_name != "this" {
-            validate_select_binding(element)?;
-        }
-
-        // Special validation for SVG elements
-        if binding_name == "offsetWidth" && is_svg(parent_name) {
-            return Err(errors::bind_invalid_target(
-                binding_name,
-                "non-`<svg>` elements. Use `bind:clientWidth` for `<svg>` instead",
-            )
-            .at(start, end));
-        }
-
-        // Validate contenteditable bindings
-        if is_content_editable_binding(binding_name) {
-            validate_contenteditable_binding(directive, element)?;
-        }
-    } else {
-        // Binding not found - try fuzzy match
-        let match_name = fuzzy_match(binding_name, &all_binding_names());
-
-        if let Some(match_name) = match_name
-            && let Some(property) = BINDING_PROPERTIES.get(match_name)
-            && (property.valid_elements.is_none()
-                || property.valid_elements.unwrap().contains(&parent_name))
-        {
-            return Err(errors::bind_invalid_name(
-                binding_name,
-                Some(&format!("Did you mean '{}'?", match_name)),
-            )
-            .at(start, end));
-        }
-
-        return Err(errors::bind_invalid_name(binding_name, None).at(start, end));
+    if is_content_editable_binding(binding_name) {
+        validate_contenteditable_binding(directive, attributes)?;
     }
 
     Ok(())
@@ -574,14 +509,13 @@ fn validate_binding_for_regular_element(
 /// Validate binding for <input> elements based on their type attribute.
 fn validate_input_binding(
     directive: &BindDirective,
-    element: &crate::ast::template::RegularElement,
-    _context: &VisitorContext,
+    attributes: &[crate::ast::template::Attribute],
 ) -> Result<(), AnalysisError> {
     let binding_name = directive.name.as_str();
     let (start, end) = (directive.start, directive.end);
 
     // Find the type attribute
-    let type_attr = element.attributes.iter().find_map(|attr| {
+    let type_attr = attributes.iter().find_map(|attr| {
         if let crate::ast::template::Attribute::Attribute(a) = attr
             && a.name == "type"
         {
@@ -652,10 +586,10 @@ fn validate_input_binding(
 
 /// Validate binding for <select> elements.
 fn validate_select_binding(
-    element: &crate::ast::template::RegularElement,
+    attributes: &[crate::ast::template::Attribute],
 ) -> Result<(), AnalysisError> {
     // Find the multiple attribute that is dynamic (not static text, not boolean true)
-    let multiple = element.attributes.iter().find_map(|attr| {
+    let multiple = attributes.iter().find_map(|attr| {
         let crate::ast::template::Attribute::Attribute(a) = attr else {
             return None;
         };
@@ -689,10 +623,10 @@ fn validate_select_binding(
 /// Validate contenteditable bindings.
 fn validate_contenteditable_binding(
     directive: &BindDirective,
-    element: &crate::ast::template::RegularElement,
+    attributes: &[crate::ast::template::Attribute],
 ) -> Result<(), AnalysisError> {
     // Find contenteditable attribute
-    let contenteditable = element.attributes.iter().find_map(|attr| {
+    let contenteditable = attributes.iter().find_map(|attr| {
         if let crate::ast::template::Attribute::Attribute(a) = attr
             && a.name == "contenteditable"
         {

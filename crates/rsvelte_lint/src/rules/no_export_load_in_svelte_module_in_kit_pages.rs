@@ -1,28 +1,35 @@
 //! `svelte/no-export-load-in-svelte-module-in-kit-pages` — disallow exporting
 //! `load` functions in `*.svelte` module scripts in `SvelteKit` page components.
 //!
-//! The rule only applies to `SvelteKit` route files (`+page.svelte`,
-//! `+layout.svelte`, `+error.svelte`) and only to `<script context="module">`
-//! blocks. Within those it flags top-level exports whose declared name is
-//! exactly `load`:
-//!
-//! - `export function load() {}`
-//! - `export const load = ...`
+//! Two upstream quirks are load-bearing here and both are reproduced verbatim.
+//! Its `isModule` flag is set by a selector matching only
+//! `SvelteAttribute[key.name="context"] > SvelteLiteral[value="module"]`, so the
+//! Svelte 5 spelling `<script module>` never turns the rule on; and its export
+//! selector is not anchored to `Program`, so an `export function load()` nested
+//! inside `export namespace App { … }` does fire.
 //!
 //! Port of
 //! `eslint-plugin-svelte/src/rules/no-export-load-in-svelte-module-in-kit-pages.ts`.
 
+use oxc_allocator::Allocator;
+use oxc_ast::ast::{
+    BindingPattern, Declaration, Statement, TSNamespaceDeclaration, TSNamespaceDeclarationBody,
+};
+use oxc_parser::Parser;
+use oxc_span::SourceType;
+use rsvelte_core::ast::template::Root;
 use serde_json::Value;
 
 use crate::context::LintContext;
-use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type};
+use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::kit_routes;
+use crate::script::node_type;
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-export-load-in-svelte-module-in-kit-pages",
     category: RuleCategory::Correctness,
     fixable: Fixable::No,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: false,
@@ -35,118 +42,154 @@ static META: RuleMeta = RuleMeta {
 const MESSAGE: &str =
     "disallow exporting load functions in `*.svelte` module in SvelteKit page components.";
 
-/// Whether this file is a `SvelteKit` route file that the rule should run on.
-///
-/// Mirrors upstream's `svelteKitFileType` check: only applies when the file
-/// is under a `routes` directory inside an `src` folder (default `src/routes`).
-/// Files named `+page.svelte` etc. that live outside any `src/routes/` path
-/// (e.g., test fixtures under an unrelated directory) are silently skipped
-/// just as the oracle does.
-///
-/// When the path has no parent directory component (e.g. `path = "+page.svelte"`
-/// in tests or wasm contexts), we fall back to the filename-only gate so that
-/// oracle/unit-tests that pass just a bare filename still exercise the rule.
-fn is_kit_route_file(ctx: &LintContext) -> bool {
-    let filename = ctx.filename();
-    if !matches!(
-        filename,
-        "+page.svelte" | "+layout.svelte" | "+error.svelte"
-    ) {
+/// Whether a `<script>` element carries `context="module"` — the only module
+/// spelling upstream's selector recognizes.
+fn has_context_module_attribute(script: &Value) -> bool {
+    let Some(attributes) = script.get("attributes").and_then(Value::as_array) else {
         return false;
-    }
-    // Require the file to be under a `src/routes` directory segment, matching
-    // upstream's `filePath.startsWith(path.join(projectRootDir, "src/routes"))`.
-    if let Some(path) = ctx.path() {
-        // If there is no parent directory (the path is a bare filename), treat
-        // it as if it's in the right place — this preserves oracle-test behavior.
-        if path.parent().is_none_or(|p| p == std::path::Path::new("")) {
-            return true;
+    };
+    attributes.iter().any(|attr| {
+        if node_type(attr) != Some("Attribute")
+            || attr.get("name").and_then(Value::as_str) != Some("context")
+        {
+            return false;
         }
-        let path_str = path.to_string_lossy();
-        // Accept `/…/src/routes/…` or a path starting with `src/routes/`.
-        path_str.contains("/src/routes/") || path_str.starts_with("src/routes/")
-    } else {
-        // No filesystem path (wasm / in-memory): fall back to filename-only gate.
-        true
+        attr.get("value")
+            .and_then(Value::as_array)
+            .is_some_and(|parts| {
+                parts.iter().any(|part| {
+                    part.get("data")
+                        .or_else(|| part.get("raw"))
+                        .and_then(Value::as_str)
+                        == Some("module")
+                })
+            })
+    })
+}
+
+/// The `lang` attribute of a `<script>` element, lowercased.
+fn script_lang(script: &Value) -> String {
+    script
+        .get("attributes")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .find(|attr| {
+            node_type(attr) == Some("Attribute")
+                && attr.get("name").and_then(Value::as_str) == Some("lang")
+        })
+        .and_then(|attr| attr.get("value").and_then(Value::as_array))
+        .and_then(|parts| parts.first())
+        .and_then(|part| part.get("data").or_else(|| part.get("raw")))
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase()
+}
+
+/// Spans of every `load` name declared by a named export, anywhere in the
+/// statement list — upstream's selector is not anchored to `Program`, so an
+/// export nested inside `export namespace App { … }` counts too.
+fn exported_load_spans(statements: &[Statement<'_>], out: &mut Vec<(u32, u32)>) {
+    for statement in statements {
+        match statement {
+            Statement::ExportDeclaration(export) => match &export.declaration {
+                // A body-less `export declare function load()` is a
+                // `TSDeclareFunction` upstream, which the selector misses.
+                Declaration::FunctionDeclaration(function) => {
+                    if function.body.is_some()
+                        && let Some(id) = &function.id
+                        && id.name == "load"
+                    {
+                        out.push((id.span.start, id.span.end));
+                    }
+                }
+                Declaration::VariableDeclaration(declaration) => {
+                    for declarator in &declaration.declarations {
+                        if let BindingPattern::BindingIdentifier(id) = &declarator.id
+                            && id.name == "load"
+                        {
+                            // A TSESTree `Identifier` range covers its type
+                            // annotation, which oxc keeps on the declarator.
+                            let end = declarator
+                                .type_annotation
+                                .as_ref()
+                                .map_or(id.span.end, |ann| ann.span.end);
+                            out.push((id.span.start, end));
+                        }
+                    }
+                }
+                Declaration::TSNamespaceDeclaration(namespace) => {
+                    namespace_load_spans(namespace, out);
+                }
+                _ => {}
+            },
+            Statement::TSNamespaceDeclaration(namespace) => {
+                namespace_load_spans(namespace, out);
+            }
+            _ => {}
+        }
+    }
+}
+
+fn namespace_load_spans(namespace: &TSNamespaceDeclaration<'_>, out: &mut Vec<(u32, u32)>) {
+    match &namespace.body {
+        TSNamespaceDeclarationBody::TSModuleBlock(block) => {
+            exported_load_spans(&block.body, out);
+        }
+        TSNamespaceDeclarationBody::TSNamespaceDeclaration(inner) => {
+            namespace_load_spans(inner, out);
+        }
     }
 }
 
 #[derive(Default)]
 pub struct NoExportLoadInSvelteModuleInKitPages;
 
-impl ScriptRule for NoExportLoadInSvelteModuleInKitPages {
+impl Rule for NoExportLoadInSvelteModuleInKitPages {
     fn meta(&self) -> &'static RuleMeta {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, kind: ScriptKind) {
-        // Only inspect the module script (`<script context="module">`).
-        if kind != ScriptKind::Module {
+    fn check_root(&self, ctx: &mut LintContext, root: &Root) {
+        if kit_routes::route_file_type(ctx).is_none() {
             return;
         }
-
-        if !is_kit_route_file(ctx) {
+        let json = ctx.root_json(root);
+        let Some(module) = json.get("module").filter(|m| !m.is_null()) else {
+            return;
+        };
+        if !has_context_module_attribute(module) {
             return;
         }
+        // rsvelte's own ESTree elides a `namespace` body (it serializes as an
+        // `EmptyStatement`), so the statements come from a direct oxc parse.
+        let Some(program_span) = module.get("content").and_then(|c| {
+            Some((
+                u32::try_from(c.get("start")?.as_u64()?).ok()?,
+                u32::try_from(c.get("end")?.as_u64()?).ok()?,
+            ))
+        }) else {
+            return;
+        };
+        let source = ctx.source();
+        let Some(body) = source.get(program_span.0 as usize..program_span.1 as usize) else {
+            return;
+        };
+        let lang = script_lang(module);
+        let source_type = if lang == "ts" || lang == "typescript" {
+            SourceType::ts().with_module(true)
+        } else {
+            SourceType::mjs()
+        };
+        let allocator = Allocator::default();
+        let parsed = Parser::new(&allocator, body, source_type).parse();
 
-        // Walk top-level ExportNamedDeclaration nodes and look for `load`
-        // declared directly under them.
         let mut reports: Vec<(u32, u32)> = Vec::new();
-
-        program.walk(|node, ancestors| {
-            if node_type(node) != Some("ExportNamedDeclaration") {
-                return;
-            }
-
-            // Must be a direct child of the program body (top-level export).
-            // The closest ancestor with a type should be the Program node.
-            let parent_is_program = ancestors
-                .last()
-                .is_some_and(|p| node_type(p) == Some("Program"));
-            if !parent_is_program {
-                return;
-            }
-
-            let Some(declaration) = node.get("declaration") else {
-                return;
-            };
-
-            match node_type(declaration) {
-                // export function load() {}
-                Some("FunctionDeclaration") => {
-                    if let Some(id) = declaration.get("id")
-                        && node_type(id) == Some("Identifier")
-                        && id.get("name").and_then(Value::as_str) == Some("load")
-                        && let (Some(s), Some(e)) = (node_start(id), node_end(id))
-                    {
-                        reports.push((s, e));
-                    }
-                }
-                // export const load = ...  /  export let load = ...
-                Some("VariableDeclaration") => {
-                    let Some(decls) = declaration.get("declarations").and_then(Value::as_array)
-                    else {
-                        return;
-                    };
-                    for decl in decls {
-                        if node_type(decl) != Some("VariableDeclarator") {
-                            continue;
-                        }
-                        let Some(id) = decl.get("id") else { continue };
-                        if node_type(id) == Some("Identifier")
-                            && id.get("name").and_then(Value::as_str) == Some("load")
-                            && let (Some(s), Some(e)) = (node_start(id), node_end(id))
-                        {
-                            reports.push((s, e));
-                        }
-                    }
-                }
-                _ => {}
-            }
-        });
-
+        exported_load_spans(&parsed.program.body, &mut reports);
+        reports.sort_unstable();
         for (start, end) in reports {
-            ctx.report(start, end, MESSAGE);
+            ctx.report(start + program_span.0, end + program_span.0, MESSAGE);
         }
     }
 }

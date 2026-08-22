@@ -23,13 +23,13 @@ pub fn visit<'a, 'b: 'a>(
 
     // Check for duplicate
     if context.has_svelte_head {
-        return Err(errors::svelte_meta_duplicate("svelte:head").at(head.start, head.end));
+        return Err(errors::svelte_meta_duplicate("svelte:head").at(head.start, head.start));
     }
     context.has_svelte_head = true;
 
     // Validate placement (must be at top level)
-    if context.is_inside_element_or_block() {
-        return Err(errors::svelte_meta_invalid_placement("svelte:head").at(head.start, head.end));
+    if !context.in_root_fragment {
+        return Err(errors::svelte_meta_invalid_placement("svelte:head").at(head.start, head.start));
     }
 
     // Analyze children

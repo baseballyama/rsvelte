@@ -26,6 +26,11 @@ pub mod html_quotes;
 pub mod html_self_closing;
 pub mod indent;
 pub mod infinite_reactive_loop;
+pub mod js_static;
+pub mod js_tokens;
+pub mod js_whitespace;
+pub mod kit_nav;
+pub mod kit_routes;
 pub mod max_attributes_per_line;
 pub mod max_lines_per_block;
 pub mod mustache_spacing;
@@ -86,6 +91,7 @@ pub mod prefer_destructured_store_props;
 pub mod prefer_style_directive;
 pub mod prefer_svelte_reactivity;
 pub mod prefer_writable_derived;
+pub mod reactive_stmt;
 pub mod require_each_key;
 #[cfg(feature = "native")] // native-only source-scan meta rule (see above)
 pub mod require_event_dispatcher_types;
@@ -99,73 +105,12 @@ pub mod shorthand_attribute;
 pub mod shorthand_directive;
 pub mod sort_attributes;
 pub mod spaced_html_comment;
+pub mod start_tag;
 pub mod store_refs;
+pub mod this_attr;
 #[cfg(feature = "native")] // native-only source-scan meta rule (see above)
 pub mod valid_compile;
 pub mod valid_each_key;
 pub mod valid_prop_names_in_kit_pages;
 #[cfg(feature = "native")] // native-only source-scan meta rule (see above)
 pub mod valid_style_parse;
-
-/// Reconstruct the full `this={…}` attribute span of a `<svelte:element>` /
-/// `<svelte:component>` start tag from its inner expression span.
-///
-/// The parser filters `this` out of `el.attributes`, storing only the inner
-/// expression in `el.tag` / `el.expression`. Several layout rules
-/// (`sort-attributes`, `max-attributes-per-line`, …) need to treat `this` as a
-/// normal leading attribute, so they scan backward from the expression to find
-/// the `this=` keyword. Tolerant of optional whitespace around `=` and `{`
-/// (e.g. `this = { expr }`).
-///
-/// Returns `(attr_start, attr_end)` where `attr_start` is the byte offset of the
-/// `t` in `this` and `attr_end` is the byte past the closing `}`.
-pub(crate) fn find_this_attr_span(
-    src_bytes: &[u8],
-    expr_start: u32,
-    expr_end: u32,
-) -> Option<(u32, u32)> {
-    let mut pos = expr_start as usize;
-    if pos == 0 {
-        return None;
-    }
-    // Step back over optional whitespace before the value opener.
-    while pos > 0 && matches!(src_bytes[pos - 1], b' ' | b'\t' | b'\n' | b'\r') {
-        pos -= 1;
-    }
-    // Expect the value opener: `{` for `this={expr}`, or a quote for a static
-    // `this="div"` / `this='div'` (svelte:element with a non-expression `this`,
-    // whose `el.tag` is a Literal spanning the inner string — `expr_end + 1`
-    // still lands just past the matching closing quote, as with `}`).
-    if pos == 0 || !matches!(src_bytes[pos - 1], b'{' | b'"' | b'\'') {
-        return None;
-    }
-    pos -= 1;
-    // Step back over optional whitespace before `=`.
-    while pos > 0 && matches!(src_bytes[pos - 1], b' ' | b'\t' | b'\n' | b'\r') {
-        pos -= 1;
-    }
-    // Expect `=`.
-    if pos == 0 || src_bytes[pos - 1] != b'=' {
-        return None;
-    }
-    pos -= 1;
-    // Step back over optional whitespace before `this`.
-    while pos > 0 && matches!(src_bytes[pos - 1], b' ' | b'\t' | b'\n' | b'\r') {
-        pos -= 1;
-    }
-    // Expect `this` backwards: pos-1=`s`, pos-2=`i`, pos-3=`h`, pos-4=`t`.
-    if pos < 4 {
-        return None;
-    }
-    if src_bytes[pos - 1] != b's'
-        || src_bytes[pos - 2] != b'i'
-        || src_bytes[pos - 3] != b'h'
-        || src_bytes[pos - 4] != b't'
-    {
-        return None;
-    }
-    let attr_start = u32::try_from(pos - 4).expect("source offsets are represented as u32");
-    // The closing `}` is right after expr_end.
-    let attr_end = expr_end + 1;
-    Some((attr_start, attr_end))
-}

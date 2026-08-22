@@ -663,6 +663,7 @@ fn get_name_node(node: &JsNode) -> Option<String> {
         JsNode::Literal { value, .. } => match value {
             LiteralValue::String(s) => Some(s.to_string()),
             LiteralValue::Number(n) => Some(n.to_string()),
+            LiteralValue::BigInt(d) => Some(d.to_string()),
             LiteralValue::Bool(b) => Some(b.to_string()),
             LiteralValue::Null => Some("null".to_string()),
             LiteralValue::Regex(r) => Some(format!("/{}/{}", r.pattern, r.flags)),
@@ -1247,11 +1248,16 @@ pub fn walk_js_expression_node(
             // visitor, but we re-check here because template
             // ExpressionTags walk straight through `walk_js_expression_node`
             // and never hit the JS identifier visitor.
-            if name == "$"
+            if (name == "$"
                 || (name.starts_with("$$")
                     && name != "$$props"
                     && name != "$$restProps"
-                    && name != "$$slots")
+                    && name != "$$slots"))
+                && context
+                    .analysis
+                    .root
+                    .get_binding(name.as_str(), context.scope)
+                    .is_none()
             {
                 return Err(
                     super::super::super::errors::global_reference_invalid(name).at(*start, *end)
@@ -1373,23 +1379,16 @@ pub fn walk_js_expression_node(
             }
         }
         JsNode::CallExpression {
-            callee,
-            arguments,
-            start,
-            end,
-            ..
+            callee, arguments, ..
         } => {
             let callee_node = arena.get_js_node(*callee);
             let rune_name = get_rune_name_node(callee_node, context);
 
-            if let Some(ref rn) = rune_name
-                && matches!(
-                    rn.as_str(),
-                    "$state" | "$state.raw" | "$derived" | "$derived.by"
-                )
-                && context.in_const_tag
-            {
-                return Err(errors::state_invalid_placement(rn).at(*start, *end));
+            // A template expression is one more caller of the rune rules, but
+            // this walker keeps no `js_path`, so a rune inside a function body
+            // here would read as having no parent and be rejected wrongly.
+            if rune_name.is_some() && context.function_depth == 0 {
+                super::super::call_expression::validate_rune_call(expression, context)?;
             }
 
             if rune_name.is_none() && !is_safe_identifier_node(callee_node, context) {
@@ -1623,10 +1622,22 @@ pub fn walk_js_expression_node(
             metadata.set_has_state(true);
             walk_js_expression_node(arena.get_js_node(*argument), context, metadata)?;
         }
-        JsNode::TemplateLiteral { expressions, .. } => {
+        JsNode::TemplateLiteral {
+            quasis,
+            expressions,
+            ..
+        } => {
+            // `quasis` precedes `expressions` in the ESTree node, and upstream's
+            // walk order decides the order the warnings come out in.
+            for quasi in arena.get_js_children(*quasis) {
+                super::super::template_element::visit_typed(quasi, context)?;
+            }
             for expr in arena.get_js_children(*expressions) {
                 walk_js_expression_node(expr, context, metadata)?;
             }
+        }
+        JsNode::Literal { .. } => {
+            super::super::literal::visit_typed(expression, context)?;
         }
         JsNode::TaggedTemplateExpression { tag, quasi, .. } => {
             walk_js_expression_node(arena.get_js_node(*tag), context, metadata)?;
@@ -1856,4 +1867,21 @@ pub fn walk_js_statement_node(
     }
 
     Ok(())
+}
+
+/// Upstream `is_event_attribute`: the two-character `on` prefix plus a value that
+/// is a lone expression. `<svelte:window>`, `<svelte:document>` and
+/// `<svelte:body>` allow exactly this and nothing else, so the name test alone
+/// admits `onclick="f(1)"` and a valueless `onclick`, which they reject.
+pub fn is_event_attribute(attribute: &crate::ast::template::AttributeNode) -> bool {
+    use crate::ast::template::{AttributeValue, AttributeValuePart};
+
+    attribute.name.starts_with("on")
+        && match &attribute.value {
+            AttributeValue::True(_) => false,
+            AttributeValue::Expression(_) => true,
+            AttributeValue::Sequence(parts) => {
+                parts.len() == 1 && matches!(parts[0], AttributeValuePart::ExpressionTag(_))
+            }
+        }
 }

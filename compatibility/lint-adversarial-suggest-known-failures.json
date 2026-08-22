@@ -1,0 +1,5 @@
+[
+	"html-closing-bracket-new-line/05-script-style-tags.svelte|svelte/block-lang 7:1",
+	"no-add-event-listener/06-comment-as-decoy.svelte|svelte/no-add-event-listener 3:3",
+	"no-add-event-listener/13-optional-and-computed.svelte|svelte/no-add-event-listener 6:3"
+]

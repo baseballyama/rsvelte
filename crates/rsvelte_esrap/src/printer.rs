@@ -1573,11 +1573,14 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             let layout_mark = ctx.event_mark();
             let mut has_margin = false;
             if let Some((prev_elem, prev_multiline)) = &prev {
-                has_margin = *prev_multiline || !elem.same_kind(prev_elem);
+                let joined = prev_elem.is_kept_empty() && elem.is_kept_empty();
+                has_margin = !joined && (*prev_multiline || !elem.same_kind(prev_elem));
                 if has_margin {
                     ctx.margin();
                 }
-                ctx.newline();
+                if !joined {
+                    ctx.newline();
+                }
             }
 
             let scope = ctx.begin_scope();
@@ -1588,8 +1591,8 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 ctx.insert_event(layout_mark, EventKind::Margin);
             }
 
-            let end = elem.span_end();
-            let next = elems.peek().map(BodyElem::span_end);
+            let end = elem.comment_end();
+            let next = elems.peek().map(BodyElem::comment_end);
             comments.flush_trailing(ctx, end, next);
             last_end = Some(end);
             prev = Some((elem, multiline));
@@ -1674,12 +1677,15 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             let layout_mark = ctx.event_mark();
             let mut has_margin = false;
             if let Some((prev_statement, prev_multiline)) = prev {
-                has_margin = prev_multiline
-                    || std::mem::discriminant(prev_statement) != std::mem::discriminant(statement);
+                let joined = is_kept_empty_stmt(prev_statement) && is_kept_empty_stmt(statement);
+                has_margin =
+                    !joined && (prev_multiline || !same_statement_kind(prev_statement, statement));
                 if has_margin {
                     ctx.margin();
                 }
-                ctx.newline();
+                if !joined {
+                    ctx.newline();
+                }
             }
 
             let scope = ctx.begin_scope();
@@ -1690,8 +1696,10 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 ctx.insert_event(layout_mark, EventKind::Margin);
             }
 
-            let end = statement.span().end;
-            let next = statements.peek().map(|statement| statement.span().end);
+            let end = statement_comment_end(statement);
+            let next = statements
+                .peek()
+                .map(|statement| statement_comment_end(statement));
             self.flush_trailing_comments(ctx, end, next);
             last_end = Some(end);
             prev = Some((statement, multiline));
@@ -1731,11 +1739,16 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             let layout_mark = ctx.event_mark();
             let mut has_margin = false;
             if let Some((prev_elem, prev_multiline)) = &prev {
-                has_margin = *prev_multiline || !elem.same_kind(prev_elem);
+                // The two kept empties of one `;;` hole are a single upstream
+                // statement, so nothing separates them.
+                let joined = prev_elem.is_kept_empty() && elem.is_kept_empty();
+                has_margin = !joined && (*prev_multiline || !elem.same_kind(prev_elem));
                 if has_margin {
                     ctx.margin();
                 }
-                ctx.newline();
+                if !joined {
+                    ctx.newline();
+                }
             }
 
             let scope = ctx.begin_scope();
@@ -1759,8 +1772,8 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 ctx.insert_event(layout_mark, EventKind::Margin);
             }
 
-            let end = elem.span_end();
-            let next = elems.peek().map(BodyElem::span_end);
+            let end = elem.comment_end();
+            let next = elems.peek().map(BodyElem::comment_end);
             self.flush_trailing_comments(ctx, end, next);
 
             last_end = Some(end);
@@ -2267,10 +2280,18 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             self.type_parameter_declaration(tp, ctx);
         }
         ctx.write_ascii(b'(');
+        // esrap: until `(returnType ?? body).loc.start`; a bodyless declare /
+        // overload falls back to the node's own end.
+        let until = node
+            .return_type
+            .as_ref()
+            .map(|rt| rt.span().start)
+            .or_else(|| node.body.as_ref().map(|b| b.span().start))
+            .unwrap_or(node.span.end);
         self.formal_parameters_with_this(
             &node.params,
             node.this_param.as_deref(),
-            Some(node.params.span().end),
+            Some(until),
             ctx,
         );
         ctx.write_ascii(b')');
@@ -3012,7 +3033,14 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             self.type_parameter_declaration(tp, ctx);
         }
         ctx.write_ascii(b'(');
-        self.formal_parameters(&node.params, ctx);
+        // esrap runs the params sequence until `(returnType ?? body).loc.start`,
+        // so a comment ahead of a located body flushes inside a synthesized
+        // arrow's empty parens.
+        let until = node
+            .return_type
+            .as_ref()
+            .map_or_else(|| node.body.span().start, |rt| rt.span().start);
+        self.formal_parameters_with_this(&node.params, None, Some(until), ctx);
         ctx.write_ascii(b')');
         if let Some(rt) = &node.return_type {
             self.type_annotation(rt, ctx);
@@ -4253,7 +4281,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 ctx.newline();
             }
             self.print_argument(arg, ctx);
+            // esrap flushes the trailing comment into a child context nothing
+            // is written to afterwards, so its `newline()` never reaches the
+            // `)` write — the statement is NOT multiline and gets no blank-line
+            // margins. Isolate the flush the same way.
+            let scope = ctx.begin_scope();
             self.flush_trailing_comments(ctx, arg.span().end, Some(call_end));
+            ctx.end_scope(scope);
             if wrap {
                 ctx.dedent();
                 ctx.newline();
@@ -5178,6 +5212,26 @@ impl<'a> BodyElem<'a, '_> {
         }
     }
 
+    /// A surviving `EmptyStatement` is half of the `;;` upstream prints for a
+    /// removed `$inspect(...)`: one `ExpressionStatement` whose expression is
+    /// `b.empty`. The pair must print on one line and group with an
+    /// `ExpressionStatement` for esrap's margin rule.
+    fn is_kept_empty(&self) -> bool {
+        matches!(self, BodyElem::Statement(Statement::EmptyStatement(_)))
+    }
+
+    /// A sentinel empty has no real end, but its start is the removed
+    /// statement's own start — the anchor a comment trailing it on that line
+    /// needs.
+    fn comment_end(&self) -> u32 {
+        match self {
+            BodyElem::Statement(Statement::EmptyStatement(s)) if s.span.end == u32::MAX => {
+                s.span.start
+            }
+            _ => self.span_end(),
+        }
+    }
+
     fn span_end(&self) -> u32 {
         match self {
             BodyElem::Directive(d) => d.span.end,
@@ -5200,9 +5254,7 @@ impl<'a> BodyElem<'a, '_> {
     fn same_kind(&self, other: &BodyElem<'a, '_>) -> bool {
         match (self, other) {
             (BodyElem::Directive(_), BodyElem::Directive(_)) => true,
-            (BodyElem::Statement(a), BodyElem::Statement(b)) => {
-                std::mem::discriminant(*a) == std::mem::discriminant(*b)
-            }
+            (BodyElem::Statement(a), BodyElem::Statement(b)) => same_statement_kind(a, b),
             (BodyElem::ClassMember(a), BodyElem::ClassMember(b)) => {
                 std::mem::discriminant(*a) == std::mem::discriminant(*b)
             }
@@ -5221,6 +5273,35 @@ impl<'a> BodyElem<'a, '_> {
             BodyElem::ClassMember(e) => printer.class_element(e, ctx),
         }
     }
+}
+
+/// A surviving `EmptyStatement` is half of one `;;` hole (see
+/// [`BodyElem::is_kept_empty`]).
+const fn is_kept_empty_stmt(stmt: &Statement) -> bool {
+    matches!(stmt, Statement::EmptyStatement(_))
+}
+
+/// A sentinel empty's end is `u32::MAX`; its start is the anchor a trailing
+/// comment needs (see [`BodyElem::comment_end`]).
+fn statement_comment_end(stmt: &Statement) -> u32 {
+    match stmt {
+        Statement::EmptyStatement(s) if s.span.end == u32::MAX => s.span.start,
+        _ => stmt.span().end,
+    }
+}
+
+/// esrap's `child.type === prev_type` margin rule. A kept `EmptyStatement` is
+/// half of the `;;` upstream emits as an `ExpressionStatement`, so it groups
+/// with one.
+fn same_statement_kind(a: &Statement, b: &Statement) -> bool {
+    const fn expression_like(s: &Statement) -> bool {
+        matches!(
+            s,
+            Statement::EmptyStatement(_) | Statement::ExpressionStatement(_)
+        )
+    }
+    (expression_like(a) && expression_like(b))
+        || std::mem::discriminant(a) == std::mem::discriminant(b)
 }
 
 const fn expression_kind(expr: &Expression) -> &'static str {

@@ -46,7 +46,8 @@ export interface CompileOptions {
 	 * Custom hash function for CSS scoping. Called once per component with the
 	 * component's CSS; the returned string becomes the scope class. Because it
 	 * depends on the CSS, it is bridged into the compiler through a threadsafe
-	 * callback and is only supported on the async path — use `compileAsync`.
+	 * callback and is only supported on the async path — use `compileAsync`
+	 * (or `compileWithCssHash`, which it routes to).
 	 * The synchronous `compile` throws if given a `cssHash` function; pass a
 	 * pre-computed constant via `cssHashOverride` instead.
 	 */
@@ -273,6 +274,19 @@ export function decodeBatch(
 export function compileAsync(
 	source: string,
 	options?: CompileOptions,
+): Promise<CompileResult>;
+
+/**
+ * The one entry that honours a function-valued `cssHash`. The callback receives
+ * upstream's single `{ hash, css, name, filename }` argument and returns the
+ * scope class; a throw aborts the compile. `compileAsync` routes here
+ * automatically when `options.cssHash` is a function, so most callers never need
+ * this directly.
+ */
+export function compileWithCssHash(
+	source: string,
+	options: CompileOptions | undefined | null,
+	cssHash: NonNullable<CompileOptions['cssHash']>,
 ): Promise<CompileResult>;
 
 /** Async variant of {@link compileBatch}. */

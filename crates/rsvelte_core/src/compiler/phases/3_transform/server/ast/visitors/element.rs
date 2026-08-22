@@ -251,7 +251,9 @@ fn emit_element_body<'a>(
 
     // -- children -----------------------------------------------------------
     if !is_void {
-        let namespace = if node.metadata.svg {
+        let namespace = if node.name.as_str() == "foreignObject" {
+            "html"
+        } else if node.metadata.svg {
             "svg"
         } else if node.metadata.mathml {
             "mathml"
@@ -278,12 +280,7 @@ fn emit_element_body<'a>(
             }
             // Content bind: render the bound value as the body when truthy,
             // otherwise fall back to the element's own (trimmed) children.
-            // Mirrors upstream RegularElement.js lines 178-198 + the text
-            // oracle's `TextareaBody` / `ContentEditableBody` split: a
-            // `<textarea>` suppresses the fallback children (its content IS the
-            // value), while a contenteditable element renders them in the else.
-            let is_textarea = name == "textarea";
-            emit_content_body(node, content, namespace, is_textarea, state);
+            emit_content_body(node, content, namespace, state);
         } else {
             let mut leading_debug = 0;
             let mut has_debug = false;
@@ -404,7 +401,7 @@ fn element_has_async_attribute(node: &RegularElement, state: &ServerTransformSta
                 // would spuriously route the element through `emit_async_element`,
                 // breaking the surrounding push coalescing.
                 let raw_name = a.name.as_str();
-                if is_event_attribute_name(raw_name)
+                if is_event_attribute(a)
                     || raw_name == "defaultValue"
                     || raw_name == "defaultChecked"
                 {
@@ -510,18 +507,13 @@ fn emit_content_body<'a>(
     node: &RegularElement<'a>,
     content: OxcExpression<'a>,
     namespace: &str,
-    suppress_children: bool,
     state: &mut ServerTransformState<'a>,
 ) {
     use super::shared::build_template;
 
     // Build the inner-children template into a SEPARATE buffer (the `else`
-    // branch body). Upstream uses a fresh `inner_state.template`. For
-    // `<textarea>` the children are SUPPRESSED (the value is the content), so
-    // the else branch is empty — matching the text oracle's `TextareaBody`.
-    let else_body = if suppress_children {
-        Vec::new()
-    } else {
+    // branch body). Upstream uses a fresh `inner_state.template`.
+    let else_body = {
         let saved = std::mem::take(&mut state.template);
         process_children(&node.fragment.nodes, Some(node), namespace, state);
         let inner_entries = std::mem::replace(&mut state.template, saved);
@@ -1015,10 +1007,7 @@ pub(super) fn build_element_attributes<'a>(
         // Event handlers (`on*` as Attribute form) + defaultValue/defaultChecked
         // are omitted by upstream as attributes. An `onload`/`onerror` handler on
         // a load/error element is recorded for the trailing capture literal.
-        if is_event_attribute_name(raw_name)
-            || raw_name == "defaultValue"
-            || raw_name == "defaultChecked"
-        {
+        if is_event_attribute(a) || raw_name == "defaultValue" || raw_name == "defaultChecked" {
             if (raw_name == "onload" || raw_name == "onerror")
                 && is_load_error_element(node.name.as_str())
             {
@@ -1050,15 +1039,16 @@ pub(super) fn build_element_attributes<'a>(
         if can_use_literal {
             match &a.value {
                 AttributeValue::True(_) => {
-                    let mut literal_value = String::new();
-                    if is_class && let Some(hash) = css_hash {
-                        literal_value = format!(" {hash}").trim().to_string();
-                    }
-                    if !is_class || !literal_value.is_empty() {
-                        state.template.push(TemplateEntry::Literal(format!(
-                            " {name}=\"{literal_value}\""
-                        )));
-                    }
+                    // Upstream carries the boolean into the class join, where it
+                    // stringifies to `true`, and its emptiness gate sees a truthy
+                    // value either way — so a valueless attribute always lands.
+                    let literal_value = match css_hash {
+                        Some(hash) if is_class => format!("true {hash}").trim().to_string(),
+                        _ => String::new(),
+                    };
+                    state.template.push(TemplateEntry::Literal(format!(
+                        " {name}=\"{literal_value}\""
+                    )));
                     continue;
                 }
                 AttributeValue::Sequence(parts) => {
@@ -1336,7 +1326,7 @@ fn build_element_spread_attributes<'a>(
                 if raw_name == "value" && matches!(node.name.as_str(), "select" | "textarea") {
                     continue;
                 }
-                if is_event_attribute_name(raw_name)
+                if is_event_attribute(a)
                     || raw_name == "defaultValue"
                     || raw_name == "defaultChecked"
                 {
@@ -1734,7 +1724,9 @@ fn render_children_body<'a>(
     state: &mut ServerTransformState<'a>,
 ) -> Vec<Statement<'a>> {
     use super::shared::build_template;
-    let namespace = if node.metadata.svg {
+    let namespace = if node.name.as_str() == "foreignObject" {
+        "html"
+    } else if node.metadata.svg {
         "svg"
     } else if node.metadata.mathml {
         "mathml"
@@ -2246,8 +2238,23 @@ fn attr_expr_value<'a>(
 
 /// Whether `name` is an event-handler attribute (`on` + lowercase letter), the
 /// `is_event_attribute` predicate from upstream `utils/ast.js`.
-fn is_event_attribute_name(name: &str) -> bool {
-    name.len() > 2 && name.starts_with("on") && name.as_bytes()[2].is_ascii_lowercase()
+fn is_event_attribute(a: &AttributeNode) -> bool {
+    // Upstream's name test reads the two leading characters and nothing else, so
+    // `onClick` is a handler; what keeps `onclick="alert(1)"` an ordinary
+    // attribute is the value shape, not the spelling of the name.
+    a.name.starts_with("on") && is_expression_attribute(&a.value)
+}
+
+/// Upstream `is_expression_attribute`: a lone expression, in either the bare or
+/// the one-part sequence spelling.
+fn is_expression_attribute(value: &AttributeValue) -> bool {
+    match value {
+        AttributeValue::True(_) => false,
+        AttributeValue::Expression(_) => true,
+        AttributeValue::Sequence(parts) => {
+            parts.len() == 1 && matches!(parts[0], AttributeValuePart::ExpressionTag(_))
+        }
+    }
 }
 
 /// Whether the element emits `load` / `error` events (upstream

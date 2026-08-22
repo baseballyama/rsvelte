@@ -8,7 +8,6 @@ use std::path::Path;
 #[cfg(feature = "native")]
 use rsvelte_diagnostics::{Diagnostic, DiagnosticSeverity, Position, Range};
 
-#[cfg(feature = "native")]
 use crate::line_index::LineIndex;
 use crate::rule::Severity;
 
@@ -106,6 +105,13 @@ pub struct LintMessage {
 }
 
 #[cfg(feature = "native")]
+impl From<Diagnostic> for LintMessage {
+    fn from(diagnostic: Diagnostic) -> Self {
+        Self::from_diagnostic(diagnostic)
+    }
+}
+
+#[cfg(feature = "native")]
 impl LintMessage {
     /// Wrap a rule finding, keeping its fix payload alongside the converted
     /// line/column diagnostic.
@@ -121,7 +127,8 @@ impl LintMessage {
 
     /// Wrap a diagnostic that has no fix payload (validator wrap, source-scan
     /// meta rules).
-    pub(crate) const fn from_diagnostic(diagnostic: Diagnostic) -> Self {
+    #[must_use]
+    pub const fn from_diagnostic(diagnostic: Diagnostic) -> Self {
         Self {
             diagnostic,
             span: None,
@@ -129,6 +136,56 @@ impl LintMessage {
             fix: None,
             suggestions: Vec::new(),
         }
+    }
+}
+
+/// Rules whose upstream positions come from `sourceCode.getLocFromIndex`, i.e.
+/// ESLint's own line table rather than the AST node's `loc`. Only these count
+/// U+2028 / U+2029 as line terminators; every other rule reports the parser's
+/// lines. Derived from the `getLocFromIndex` call sites in
+/// `eslint-plugin-svelte/src/rules`.
+fn uses_eslint_line_table(rule: &str) -> bool {
+    matches!(
+        rule,
+        "svelte/comment-directive"
+            | "svelte/html-closing-bracket-spacing"
+            | "svelte/html-quotes"
+            | "svelte/html-self-closing"
+            | "svelte/no-spaces-around-equal-signs-in-attribute"
+            // Reads `sourceCode.lines` rather than calling `getLocFromIndex`,
+            // which is the same line table.
+            | "svelte/no-trailing-spaces"
+            | "svelte/no-unused-svelte-ignore"
+    )
+}
+
+impl LintDiagnostic {
+    /// Start and end of this finding under the line table its own rule reports
+    /// on. Every consumer — CLI, LSP shape and the JSON API the bindings wrap —
+    /// must go through here, or two of them answer differently for one finding.
+    #[must_use]
+    pub fn report_span(&self, line_index: &LineIndex) -> ((u32, u32), (u32, u32)) {
+        if uses_eslint_line_table(&self.rule) {
+            (
+                line_index.position_js(self.start),
+                line_index.position_js(self.end),
+            )
+        } else {
+            (
+                line_index.position(self.start),
+                line_index.position(self.end),
+            )
+        }
+    }
+
+    /// The line this finding is *reported* on, under its own rule's line table.
+    ///
+    /// Upstream filters disable directives against `message.line`, so a path
+    /// that suppresses on the parser table alone disagrees with the report it is
+    /// meant to filter wherever the two tables differ (U+2028 / U+2029).
+    #[must_use]
+    pub fn report_line(&self, line_index: &LineIndex) -> u32 {
+        self.report_span(line_index).0.0
     }
 }
 
@@ -142,8 +199,7 @@ impl LintDiagnostic {
             Severity::Error => DiagnosticSeverity::Error,
             Severity::Warn | Severity::Off => DiagnosticSeverity::Warning,
         };
-        let start = line_index.position(self.start);
-        let end = line_index.position(self.end);
+        let (start, end) = self.report_span(line_index);
         Diagnostic {
             file: file.to_path_buf(),
             severity,

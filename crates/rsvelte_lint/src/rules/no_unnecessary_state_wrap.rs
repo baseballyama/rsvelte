@@ -14,20 +14,24 @@
 //! (including via a two-way `bind:`) is left alone. The upstream fix is
 //! suggestion-only, so the rule reports without an autofix.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, Suggestion, TextEdit};
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type};
+use crate::rules::reactive_stmt::source_is_ts;
+use crate::rules::store_refs::{RefTracker, Trace, module_tracker};
+use crate::script::{
+    ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js,
+};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-unnecessary-state-wrap",
     category: RuleCategory::Correctness,
     fixable: Fixable::Suggestion,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: true,
         legacy_only: false,
@@ -84,11 +88,14 @@ impl ScriptRule for NoUnnecessaryStateWrap {
 
     fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
         let options = StateWrapOptions::from_value(ctx.option0());
-        let import_map = collect_reactivity_imports(program);
+        let tracker = module_tracker(
+            ctx.source(),
+            program.value(),
+            source_is_ts(ctx.source(), ctx.filename()),
+        );
+        let reassigned = reassigned_bindings(ctx, program, options.allow_reassign);
 
-        let reassigned = reassigned_bindings(ctx, options.allow_reassign);
-
-        report_unnecessary_wraps(ctx, program, &options.additional, &import_map, &reassigned);
+        report_unnecessary_wraps(ctx, program, &options, &tracker, &reassigned);
     }
 }
 
@@ -118,126 +125,211 @@ impl StateWrapOptions {
     }
 }
 
-fn collect_reactivity_imports(program: &ProgramView<'_>) -> HashMap<String, String> {
-    let mut import_map = HashMap::new();
-    program.walk(|node, _| {
-        if node_type(node) != Some("ImportDeclaration") {
-            return;
-        }
-        if node
-            .get("source")
-            .and_then(|s| s.get("value"))
-            .and_then(Value::as_str)
-            != Some("svelte/reactivity")
-        {
-            return;
-        }
-        let Some(specs) = node.get("specifiers").and_then(Value::as_array) else {
-            return;
-        };
-        for spec in specs {
-            if node_type(spec) != Some("ImportSpecifier") {
-                continue;
-            }
-            let imported = spec
-                .get("imported")
-                .and_then(|i| i.get("name"))
-                .and_then(Value::as_str);
-            let local = spec
-                .get("local")
-                .and_then(|l| l.get("name"))
-                .and_then(Value::as_str);
-            if let (Some(imported), Some(local)) = (imported, local)
-                && REACTIVE_CLASSES.contains(&imported)
-            {
-                import_map.insert(local.to_string(), imported.to_string());
-            }
-        }
-    });
-    import_map
+/// Every `new X()` / `X()` on a `svelte/reactivity` reactive class reachable
+/// from the module's imports, as `(constructor node, canonical class name)`.
+/// Upstream tracks these with `iterateEsmReferences`, which follows aliases
+/// (`import { SvelteSet as S }`) *and* namespace imports
+/// (`import * as r` then `new r.SvelteSet()`) — the latter has no local name to
+/// key an import map on.
+fn reactive_class_constructions<'a>(tracker: &RefTracker<'a>) -> Vec<(&'a Value, &'static str)> {
+    let trace = Trace::parent(
+        REACTIVE_CLASSES
+            .iter()
+            .map(|class| {
+                (
+                    *class,
+                    Trace {
+                        call: true,
+                        construct: true,
+                        ..Trace::default()
+                    },
+                )
+            })
+            .collect(),
+    );
+    tracker
+        .esm_refs("svelte/reactivity", &trace)
+        .into_iter()
+        .map(|tracked| (tracked.node, tracked.key))
+        .collect()
 }
 
-fn reassigned_bindings(ctx: &LintContext, allow_reassign: bool) -> HashSet<String> {
-    // Reassignment set (only needed when `allowReassign` is on). Covers
-    // `x = ...` and `bind:` getter/setter writes via the analyzed scope, plus
-    // shorthand `bind:x` two-way bindings detected from the source.
-    if allow_reassign {
-        let mut set: HashSet<String> = ctx
-            .scope_analysis()
-            .map(|a| {
-                a.root
-                    .bindings
-                    .iter()
-                    .filter(|b| b.reassigned)
-                    .map(|b| b.name.clone())
-                    .collect()
-            })
-            .unwrap_or_default();
-        collect_shorthand_bind_names(ctx.source(), &mut set);
-        set
-    } else {
-        HashSet::new()
+fn reassigned_bindings(
+    ctx: &LintContext,
+    program: &ProgramView<'_>,
+    allow_reassign: bool,
+) -> HashSet<String> {
+    // Upstream asks the scope manager whether the declared variable has any
+    // write reference other than its own declaration, so both halves have to be
+    // read off the tree: script assignments (the analyzed scope's `reassigned`)
+    // and two-way `bind:` targets in the template.
+    if !allow_reassign {
+        return HashSet::new();
     }
+    // A standalone module is not a component: the analysis and the template are
+    // both a reading of its JS text as markup, so the program is the only source.
+    if matches!(
+        crate::engine::classify_source(ctx.filename()),
+        crate::engine::SourceKind::Module { .. }
+    ) {
+        let mut set = HashSet::new();
+        collect_program_writes(program.value(), &mut set);
+        return set;
+    }
+    let mut set: HashSet<String> = ctx
+        .scope_analysis()
+        .map(|a| {
+            a.root
+                .bindings
+                .iter()
+                .filter(|b| b.reassigned)
+                .map(|b| b.name.clone())
+                .collect()
+        })
+        .unwrap_or_default();
+    collect_bind_directive_names(&ctx.template_fragment_json(), &mut set);
+    set
+}
+
+/// Names written by an `x = …` / `x++` whose target is the variable itself
+/// (`x.y = …` writes the object, not the binding).
+fn collect_program_writes(program: &Value, set: &mut HashSet<String>) {
+    walk_js(program, |node, _| {
+        let target = match node_type(node) {
+            Some("AssignmentExpression") => node.get("left"),
+            Some("UpdateExpression") => node.get("argument"),
+            _ => return,
+        };
+        if let Some(name) = target
+            .filter(|t| node_type(t) == Some("Identifier"))
+            .and_then(|t| t.get("name"))
+            .and_then(Value::as_str)
+        {
+            set.insert(name.to_string());
+        }
+    });
+}
+
+/// Add the base variable of every two-way `bind:` in the template to `set`
+/// (`bind:x`, `bind:x={y}`, `bind:x={() => …, (v) => …}` alike).
+fn collect_bind_directive_names(fragment: &Value, set: &mut HashSet<String>) {
+    walk_js(fragment, |node, _| {
+        if node_type(node) != Some("BindDirective") {
+            return;
+        }
+        if let Some(name) = binding_base_name(node.get("expression")) {
+            set.insert(name.to_string());
+        }
+    });
+}
+
+/// The base identifier of a `bind:` expression: `x` → `x`, `x.y[0]` → `x`.
+fn binding_base_name(expression: Option<&Value>) -> Option<&str> {
+    let expression = expression?;
+    match node_type(expression) {
+        Some("Identifier") => expression.get("name").and_then(Value::as_str),
+        Some("MemberExpression") => binding_base_name(expression.get("object")),
+        _ => None,
+    }
+}
+
+/// The `let x = $state(<arg>)` declarator a wrapped constructor sits in, as
+/// `(binding name, $state call node)`. `None` when the `$state(…)` is not the
+/// whole initializer of an identifier declarator.
+fn state_wrap_declarator<'a>(
+    tracker: &RefTracker<'a>,
+    constructor: &'a Value,
+) -> Option<(&'a str, &'a Value)> {
+    let state_call = tracker.parent_of(constructor)?;
+    if !is_state_call(state_call) {
+        return None;
+    }
+    let declarator = tracker.parent_of(state_call)?;
+    if node_type(declarator) != Some("VariableDeclarator") {
+        return None;
+    }
+    let id = declarator.get("id")?;
+    if node_type(id) != Some("Identifier") {
+        return None;
+    }
+    Some((id.get("name").and_then(Value::as_str)?, state_call))
 }
 
 fn report_unnecessary_wraps(
     ctx: &mut LintContext,
     program: &ProgramView<'_>,
-    additional: &HashSet<String>,
-    import_map: &HashMap<String, String>,
+    options: &StateWrapOptions,
+    tracker: &RefTracker<'_>,
     reassigned: &HashSet<String>,
 ) {
-    // Each `$state(...)` must sit in a `const/let x = $state(...)` declarator
-    // (VariableDeclarator with an Identifier id); associate the wrap with that
-    // binding so the allow-reassign skip can apply.
-    // (report-position start, class-name, $state-call start, $state-call
-    // end, arg start, arg end). The suggestion replaces the whole
-    // `$state(...)` call with the inner argument's source text.
-    let mut valid_reports: Vec<(u32, String, u32, u32, u32, u32)> = Vec::new();
-    program.walk(|node, _| {
-        if node_type(node) != Some("VariableDeclarator") {
-            return;
-        }
-        let id_name = node
-            .get("id")
-            .filter(|i| node_type(i) == Some("Identifier"))
-            .and_then(|i| i.get("name"))
-            .and_then(Value::as_str);
-        let Some(id_name) = id_name else { return };
-        let Some(init) = node.get("init").filter(|i| !i.is_null()) else {
-            return;
-        };
-        if !is_state_call(init) {
-            return;
-        }
-        if !reassigned.is_empty() && reassigned.contains(id_name) {
-            return;
-        }
-        let Some(args) = init.get("arguments").and_then(Value::as_array) else {
-            return;
-        };
-        // The `$state(...)` call node itself — the suggestion replaces it.
-        let (Some(state_start), Some(state_end)) = (node_start(init), node_end(init)) else {
-            return;
-        };
-        for arg in args {
-            let Some(name) = ctor_callee_name(arg) else {
-                continue;
-            };
-            let class_name = if let Some(canonical) = import_map.get(name) {
-                canonical.clone()
-            } else if additional.contains(name) {
-                name.to_string()
-            } else {
-                continue;
-            };
-            if let (Some(s), Some(ae)) = (node_start(arg), node_end(arg)) {
-                valid_reports.push((s, class_name, state_start, state_end, s, ae));
-            }
-        }
-    });
+    // (class name, `$state(…)` span, reported constructor span). The suggestion
+    // replaces the whole `$state(...)` call with the constructor's source text.
+    let mut found: Vec<(String, u32, u32, u32, u32)> = Vec::new();
 
-    for (_start, class_name, state_start, state_end, arg_start, arg_end) in valid_reports {
+    for (constructor, class_name) in reactive_class_constructions(tracker) {
+        let Some((binding, state_call)) = state_wrap_declarator(tracker, constructor) else {
+            continue;
+        };
+        if reassigned.contains(binding) {
+            continue;
+        }
+        let (Some(state_start), Some(state_end), Some(arg_start), Some(arg_end)) = (
+            node_start(state_call),
+            node_end(state_call),
+            node_start(constructor),
+            node_end(constructor),
+        ) else {
+            continue;
+        };
+        found.push((
+            class_name.to_string(),
+            state_start,
+            state_end,
+            arg_start,
+            arg_end,
+        ));
+    }
+
+    // `additionalReactiveClasses` is matched by callee name alone upstream (it
+    // has no module to trace from), so it stays a plain AST scan.
+    if !options.additional.is_empty() {
+        program.walk(|node, _| {
+            if node_type(node) != Some("CallExpression") || !is_state_call(node) {
+                return;
+            }
+            let Some(args) = node.get("arguments").and_then(Value::as_array) else {
+                return;
+            };
+            for arg in args {
+                let Some(name) = ctor_callee_name(arg) else {
+                    continue;
+                };
+                if !options.additional.contains(name) {
+                    continue;
+                }
+                let Some((binding, state_call)) = state_wrap_declarator(tracker, arg) else {
+                    continue;
+                };
+                if reassigned.contains(binding) {
+                    continue;
+                }
+                let (Some(state_start), Some(state_end), Some(arg_start), Some(arg_end)) = (
+                    node_start(state_call),
+                    node_end(state_call),
+                    node_start(arg),
+                    node_end(arg),
+                ) else {
+                    continue;
+                };
+                found.push((name.to_string(), state_start, state_end, arg_start, arg_end));
+            }
+        });
+    }
+
+    found.sort_by_key(|(_, _, _, arg_start, _)| *arg_start);
+    found.dedup_by_key(|(_, _, _, arg_start, _)| *arg_start);
+
+    for (class_name, state_start, state_end, arg_start, arg_end) in found {
         let arg_text = ctx.slice(arg_start, arg_end).to_string();
         ctx.report_with_suggestions(
             arg_start,
@@ -255,41 +347,6 @@ fn report_unnecessary_wraps(
                 },
             }],
         );
-    }
-}
-
-/// Add variables targeted by a shorthand two-way binding (`bind:name` with no
-/// `={...}`) to `set`. These are write references upstream's `isReassigned` sees
-/// but that don't appear as an assignment in the analyzed scope.
-fn collect_shorthand_bind_names(source: &str, set: &mut HashSet<String>) {
-    let bytes = source.as_bytes();
-    let needle = b"bind:";
-    let mut i = 0;
-    while i + needle.len() < bytes.len() {
-        if &bytes[i..i + needle.len()] == needle {
-            let mut j = i + needle.len();
-            let start = j;
-            while j < bytes.len() {
-                let c = bytes[j];
-                if c == b'_' || c == b'$' || c.is_ascii_alphanumeric() {
-                    j += 1;
-                } else {
-                    break;
-                }
-            }
-            if j > start {
-                let name = &source[start..j];
-                // Shorthand only: not followed by `=` (which would be a
-                // `bind:name={...}` getter/setter form already covered by scope).
-                let next = bytes.get(j).copied();
-                if next != Some(b'=') {
-                    set.insert(name.to_string());
-                }
-            }
-            i = j;
-        } else {
-            i += 1;
-        }
     }
 }
 
@@ -319,14 +376,23 @@ mod tests {
     }
 
     #[test]
-    fn shorthand_bind_scan() {
+    fn bind_directive_names_come_from_the_template_tree() {
+        let fragment = json!({ "type": "Fragment", "nodes": [
+            { "type": "BindDirective", "expression": { "type": "Identifier", "name": "shorthand" } },
+            { "type": "BindDirective", "expression": { "type": "MemberExpression",
+                "object": { "type": "Identifier", "name": "nested" } } }
+        ] });
         let mut set = HashSet::new();
-        collect_shorthand_bind_names("<Bug3 bind:svelteSet />", &mut set);
-        assert!(set.contains("svelteSet"));
+        collect_bind_directive_names(&fragment, &mut set);
+        assert!(set.contains("shorthand"));
+        assert!(set.contains("nested"));
 
-        // Getter/setter form is not a shorthand → not added here.
-        let mut set2 = HashSet::new();
-        collect_shorthand_bind_names("<Bug3 bind:svelteSet={x} />", &mut set2);
-        assert!(!set2.contains("svelteSet"));
+        // The same text inside a script template literal is not a binding.
+        let mut none = HashSet::new();
+        collect_bind_directive_names(
+            &json!({ "type": "Literal", "value": "bind:filters" }),
+            &mut none,
+        );
+        assert!(none.is_empty());
     }
 }

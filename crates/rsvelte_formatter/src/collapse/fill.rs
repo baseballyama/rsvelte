@@ -23,7 +23,7 @@ fn trimmed_fill_run<'a>(run: &'a [TemplateNode<'a>]) -> &'a [TemplateNode<'a>] {
 
 fn fill_run_has_prose(run: &[TemplateNode]) -> bool {
     let has_text_word = run.iter().any(
-        |node| matches!(node, TemplateNode::Text(text) if text.data.split_whitespace().next().is_some()),
+        |node| matches!(node, TemplateNode::Text(text) if super::split_html_ws(&text.data).next().is_some()),
     );
     let non_whitespace_count = run
         .iter()
@@ -51,7 +51,7 @@ fn fill_run_span(
     let mut start = node_start(first) as usize;
     let leading_whitespace = if let TemplateNode::Text(text) = first {
         let data = out.get(text.start as usize..text.end as usize)?;
-        let leading_len = data.len() - data.trim_start().len();
+        let leading_len = data.len() - super::trim_html_ws_start(data).len();
         if leading_len > 0 {
             start += leading_len;
             (!data.starts_with("\n\n")).then_some(data.starts_with('\n'))
@@ -70,7 +70,7 @@ fn fill_run_span(
     let mut end = node_end(last) as usize;
     if let TemplateNode::Text(text) = last {
         let data = out.get(text.start as usize..text.end as usize)?;
-        end -= data.len() - data.trim_end().len();
+        end -= data.len() - super::trim_html_ws_end(data).len();
     }
     Some((start, end, first_text_start, leading_whitespace))
 }
@@ -115,7 +115,7 @@ fn wrap_trailing_content_call(
     let glued = printed
         .strip_suffix(mustache)
         .and_then(|prefix| prefix.chars().next_back())
-        .is_some_and(|character| !character.is_whitespace());
+        .is_some_and(|character| !super::is_html_ws(character));
     let inner = mustache
         .strip_prefix('{')
         .and_then(|source| source.strip_suffix('}'))
@@ -653,10 +653,9 @@ pub(super) fn try_fill_mixed(
     // source blank line or a newline between two non-text nodes). Otherwise such
     // content stays on one line / is hugged, so leave it to the hug / indent
     // passes (prettier doesn't prose-fill space-separated mustaches that fit).
-    let has_text_word = fragment
-        .nodes
-        .iter()
-        .any(|n| matches!(n, TemplateNode::Text(t) if t.data.split_whitespace().next().is_some()));
+    let has_text_word = fragment.nodes.iter().any(
+        |n| matches!(n, TemplateNode::Text(t) if super::split_html_ws(&t.data).next().is_some()),
+    );
     match flat_mixed_decision(
         tag,
         &fragment.nodes,

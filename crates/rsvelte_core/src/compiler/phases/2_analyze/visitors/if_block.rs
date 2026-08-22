@@ -68,6 +68,7 @@ pub fn visit<'a, 'b: 'a>(
 
     // Increment block depth for child analysis
     context.block_depth += 1;
+    context.svelte_self_parent_depth += 1;
 
     // Clear is_direct_child_of_component since children of control flow blocks
     // are not direct children of a component
@@ -116,6 +117,7 @@ pub fn visit<'a, 'b: 'a>(
 
     // Decrement block depth
     context.block_depth -= 1;
+    context.svelte_self_parent_depth -= 1;
 
     Ok(())
 }

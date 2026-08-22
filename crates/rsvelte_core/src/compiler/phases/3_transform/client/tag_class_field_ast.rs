@@ -38,7 +38,20 @@ thread_local! {
 /// Returns `None` if there's nothing to wrap (no class, no
 /// tag-eligible callee, parse failure, or every match already
 /// tagged).
-pub fn wrap_state_derived_with_tag_class_fields_ast(source: &str) -> Option<String> {
+/// Test-only entry point: with no original to consult, the label falls back to the
+/// accessor-pair heuristic alone, which is what the cases below pin down.
+#[cfg(test)]
+fn wrap_state_derived_with_tag_class_fields_ast(source: &str) -> Option<String> {
+    wrap_state_derived_with_tag_class_fields_ast_from(source, "")
+}
+
+/// `original` is the script as the user wrote it, before the class lowering. The
+/// generated accessor pair over a public field is byte-identical to a hand-written
+/// one over a private field, so only the original says which name the label takes.
+pub fn wrap_state_derived_with_tag_class_fields_ast_from(
+    source: &str,
+    original: &str,
+) -> Option<String> {
     if memchr::memmem::find(source.as_bytes(), b"$.state").is_none()
         && memchr::memmem::find(source.as_bytes(), b"$.derived").is_none()
         && memchr::memmem::find(source.as_bytes(), b"$.proxy").is_none()
@@ -57,97 +70,156 @@ pub fn wrap_state_derived_with_tag_class_fields_ast(source: &str) -> Option<Stri
         },
         false,
         |program| {
+            let ctx = ClassTagCtx {
+                source,
+                declared_private: collect_declared_private_fields(original),
+            };
             let mut replacements: Vec<Edit> = Vec::new();
             for stmt in &program.body {
-                walk_statement_for_classes(stmt, source, &mut replacements);
+                walk_statement_for_classes(stmt, &ctx, &mut replacements);
             }
             replacements
         },
     )
 }
 
+struct ClassTagCtx<'s> {
+    source: &'s str,
+    /// `(class name, field name without the `#`)` for every private field the
+    /// user wrote themselves.
+    declared_private: rustc_hash::FxHashSet<(String, String)>,
+}
+
+/// Parse the pre-lowering script and record which `#field`s it declared. Best
+/// effort: an unparseable original just leaves the accessor heuristic alone.
+fn collect_declared_private_fields(original: &str) -> rustc_hash::FxHashSet<(String, String)> {
+    let mut out = rustc_hash::FxHashSet::default();
+    if memchr::memmem::find(original.as_bytes(), b"#").is_none() {
+        return out;
+    }
+    let allocator = Allocator::default();
+    for source_type in [SourceType::mjs(), SourceType::mjs().with_typescript(true)] {
+        let ret = oxc_parser::Parser::new(&allocator, original, source_type)
+            .with_options(ParseOptions {
+                allow_return_outside_function: true,
+                ..ParseOptions::default()
+            })
+            .parse();
+        if !ret.diagnostics.is_empty() {
+            continue;
+        }
+        let mut collector = PrivateFieldCollector { out: &mut out };
+        oxc_ast_visit::Visit::visit_program(&mut collector, &ret.program);
+        break;
+    }
+    out
+}
+
+struct PrivateFieldCollector<'o> {
+    out: &'o mut rustc_hash::FxHashSet<(String, String)>,
+}
+
+impl<'a> oxc_ast_visit::Visit<'a> for PrivateFieldCollector<'_> {
+    fn visit_class(&mut self, class: &Class<'a>) {
+        let class_name = class
+            .id
+            .as_ref()
+            .map(|i| i.name.as_str())
+            .unwrap_or("[class]");
+        for el in &class.body.body {
+            if let ClassElement::PropertyDefinition(prop) = el
+                && let PropertyKey::PrivateIdentifier(id) = &prop.key
+            {
+                self.out
+                    .insert((class_name.to_string(), id.name.to_string()));
+            }
+        }
+        oxc_ast_visit::walk::walk_class(self, class);
+    }
+}
+
 fn walk_statement_for_classes<'a>(
     stmt: &Statement<'a>,
-    source: &str,
+    ctx: &ClassTagCtx<'_>,
     replacements: &mut Vec<(u32, u32, String)>,
 ) {
     match stmt {
         Statement::ClassDeclaration(class) => {
-            handle_class(class, source, replacements);
+            handle_class(class, ctx, replacements);
         }
         Statement::ExportDeclaration(e) => {
             if let Declaration::ClassDeclaration(class) = &e.declaration {
-                handle_class(class, source, replacements);
+                handle_class(class, ctx, replacements);
             } else if let Declaration::VariableDeclaration(vd) = &e.declaration {
                 for decl in &vd.declarations {
                     if let Some(init) = &decl.init {
-                        walk_expression_for_classes(init, source, replacements);
+                        walk_expression_for_classes(init, ctx, replacements);
                     }
                 }
             }
         }
         Statement::ExportDefaultDeclaration(e) => {
             if let ExportDefaultDeclarationKind::ClassDeclaration(class) = &e.declaration {
-                handle_class(class, source, replacements);
+                handle_class(class, ctx, replacements);
             } else if let Some(expr) = e.declaration.as_expression() {
-                walk_expression_for_classes(expr, source, replacements);
+                walk_expression_for_classes(expr, ctx, replacements);
             }
         }
         Statement::BlockStatement(b) => {
             for s in &b.body {
-                walk_statement_for_classes(s, source, replacements);
+                walk_statement_for_classes(s, ctx, replacements);
             }
         }
         Statement::FunctionDeclaration(f) => {
             if let Some(body) = &f.body {
                 for s in &body.statements {
-                    walk_statement_for_classes(s, source, replacements);
+                    walk_statement_for_classes(s, ctx, replacements);
                 }
             }
         }
         Statement::IfStatement(s) => {
-            walk_statement_for_classes(&s.consequent, source, replacements);
+            walk_statement_for_classes(&s.consequent, ctx, replacements);
             if let Some(alt) = &s.alternate {
-                walk_statement_for_classes(alt, source, replacements);
+                walk_statement_for_classes(alt, ctx, replacements);
             }
         }
         Statement::ForStatement(s) => {
-            walk_statement_for_classes(&s.body, source, replacements);
+            walk_statement_for_classes(&s.body, ctx, replacements);
         }
         Statement::ForInStatement(s) => {
-            walk_statement_for_classes(&s.body, source, replacements);
+            walk_statement_for_classes(&s.body, ctx, replacements);
         }
         Statement::ForOfStatement(s) => {
-            walk_statement_for_classes(&s.body, source, replacements);
+            walk_statement_for_classes(&s.body, ctx, replacements);
         }
         Statement::WhileStatement(s) => {
-            walk_statement_for_classes(&s.body, source, replacements);
+            walk_statement_for_classes(&s.body, ctx, replacements);
         }
         Statement::DoWhileStatement(s) => {
-            walk_statement_for_classes(&s.body, source, replacements);
+            walk_statement_for_classes(&s.body, ctx, replacements);
         }
         Statement::TryStatement(s) => {
             for stmt in &s.block.body {
-                walk_statement_for_classes(stmt, source, replacements);
+                walk_statement_for_classes(stmt, ctx, replacements);
             }
             if let Some(handler) = &s.handler {
                 for stmt in &handler.body.body {
-                    walk_statement_for_classes(stmt, source, replacements);
+                    walk_statement_for_classes(stmt, ctx, replacements);
                 }
             }
             if let Some(finalizer) = &s.finalizer {
                 for stmt in &finalizer.body {
-                    walk_statement_for_classes(stmt, source, replacements);
+                    walk_statement_for_classes(stmt, ctx, replacements);
                 }
             }
         }
         Statement::ExpressionStatement(es) => {
-            walk_expression_for_classes(&es.expression, source, replacements);
+            walk_expression_for_classes(&es.expression, ctx, replacements);
         }
         Statement::VariableDeclaration(vd) => {
             for decl in &vd.declarations {
                 if let Some(init) = &decl.init {
-                    walk_expression_for_classes(init, source, replacements);
+                    walk_expression_for_classes(init, ctx, replacements);
                 }
             }
         }
@@ -157,29 +229,34 @@ fn walk_statement_for_classes<'a>(
 
 fn walk_expression_for_classes<'a>(
     expr: &Expression<'a>,
-    source: &str,
+    ctx: &ClassTagCtx<'_>,
     replacements: &mut Vec<(u32, u32, String)>,
 ) {
     match expr {
         Expression::ClassExpression(class) => {
-            handle_class(class, source, replacements);
+            handle_class(class, ctx, replacements);
         }
         Expression::ParenthesizedExpression(p) => {
-            walk_expression_for_classes(&p.expression, source, replacements);
+            walk_expression_for_classes(&p.expression, ctx, replacements);
         }
         Expression::AssignmentExpression(a) => {
-            walk_expression_for_classes(&a.right, source, replacements);
+            walk_expression_for_classes(&a.right, ctx, replacements);
         }
         Expression::SequenceExpression(s) => {
             for e in &s.expressions {
-                walk_expression_for_classes(e, source, replacements);
+                walk_expression_for_classes(e, ctx, replacements);
             }
         }
         _ => {}
     }
 }
 
-fn handle_class<'a>(class: &Class<'a>, source: &str, replacements: &mut Vec<(u32, u32, String)>) {
+fn handle_class<'a>(
+    class: &Class<'a>,
+    ctx: &ClassTagCtx<'_>,
+    replacements: &mut Vec<(u32, u32, String)>,
+) {
+    let source = ctx.source;
     // Upstream's fallback for a class with no id (`ClassBody.js:82`).
     let class_name = class
         .id
@@ -187,7 +264,11 @@ fn handle_class<'a>(class: &Class<'a>, source: &str, replacements: &mut Vec<(u32
         .map(|i| i.name.as_str())
         .unwrap_or("[class]");
 
-    let originally_public = compute_originally_public(class, source);
+    let mut originally_public = compute_originally_public(class, source);
+    originally_public.retain(|(backing, _)| {
+        !ctx.declared_private
+            .contains(&(class_name.to_string(), backing.clone()))
+    });
 
     for el in &class.body.body {
         match el {
@@ -715,6 +796,34 @@ mod tests {
         let src = "class C { #count = $.state(0); get count() { return $.get(this.#count); } set count(val) { $.set(this.#count, val, true); } }";
         let out = wrap_state_derived_with_tag_class_fields_ast(src).unwrap();
         assert!(out.contains("$.tag($.state(0), 'C.#count')"), "got: {out}");
+    }
+
+    #[test]
+    fn the_original_settles_a_hand_written_accessor_the_heuristic_cannot() {
+        // Both spellings lower to the same text; only the original says which is which.
+        let generated = "class C { #count = $.state(0); get count() { return $.get(this.#count); } set count(value) { $.set(this.#count, value, true); } }";
+        let from_public = wrap_state_derived_with_tag_class_fields_ast_from(
+            generated,
+            "class C { count = $state(0); }",
+        )
+        .unwrap();
+        assert!(from_public.contains("'C.count'"), "got: {from_public}");
+
+        let from_private = wrap_state_derived_with_tag_class_fields_ast_from(
+            generated,
+            "class C { #count = $state(0); get count() { return this.#count; } set count(value) { this.#count = value; } }",
+        )
+        .unwrap();
+        assert!(from_private.contains("'C.#count'"), "got: {from_private}");
+    }
+
+    #[test]
+    fn an_unparseable_original_leaves_the_heuristic_alone() {
+        let generated = "class C { #count = $.state(0); get count() { return $.get(this.#count); } set count(value) { $.set(this.#count, value, true); } }";
+        let out =
+            wrap_state_derived_with_tag_class_fields_ast_from(generated, "class C { #count =")
+                .unwrap();
+        assert!(out.contains("'C.count'"), "got: {out}");
     }
 
     #[test]

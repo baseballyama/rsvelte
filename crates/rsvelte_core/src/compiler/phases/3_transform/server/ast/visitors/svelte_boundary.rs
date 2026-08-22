@@ -265,27 +265,7 @@ fn build_boundary_snippet<'a>(
     state: &mut ServerTransformState<'a>,
 ) -> Vec<Statement<'a>> {
     let b = state.b;
-    let mut patterns = vec![b.id_pat("$$renderer")];
-    for param in &snippet.parameters {
-        let pat_name = param
-            .identifier_name()
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| "undefined".to_string());
-        patterns.push(b.id_pat(&pat_name));
-    }
-    let params = b.params(patterns, None);
-    // SnippetBlock body IS an `is_text_first` parent.
-    let saved_scope = state.enter_template_scope(snippet.start);
-    let mut body_block = super::shared::build_fragment_body(&snippet.body.nodes, true, true, state);
-    state.restore_scope(saved_scope);
-    if state.options.dev {
-        body_block.insert(
-            0,
-            b.stmt(b.call("$.validate_snippet_args", vec![b.id("$$renderer")])),
-        );
-    }
-    let fn_body = state.b.body(body_block);
-    let fn_decl = state.b.function_declaration(name, params, fn_body, false);
+    let fn_decl = super::snippet_block::build_snippet_function(snippet, name, state);
     if state.options.dev {
         vec![
             b.stmt(b.call("$.prevent_snippet_stringification", vec![b.id(name)])),

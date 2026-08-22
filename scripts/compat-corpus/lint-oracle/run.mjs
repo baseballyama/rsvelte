@@ -18,6 +18,9 @@ import globalsPkg from 'globals';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertPreprocessorsAreResolvable } from './preconditions.mjs';
+
+assertPreprocessorsAreResolvable();
 
 // The lint environment's declared globals. eslint-plugin-svelte's `flat/base`
 // declares none, but several rules locate their targets with eslint-utils'
@@ -50,6 +53,10 @@ const args = process.argv.slice(2);
 let rulesPath = null;
 let useStdin = false;
 let bench = false;
+// Suggestions are opt-in: they carry replacement text, and emitting them for
+// the whole collected corpus would multiply the report's size for the one gate
+// that reads them.
+let withSuggestions = false;
 let iterations = 3;
 let warmup = 1;
 const files = [];
@@ -59,6 +66,7 @@ for (let i = 0; i < args.length; i++) {
 	else if (args[i] === '--bench') bench = true;
 	else if (args[i] === '--iterations') iterations = Number(args[++i]);
 	else if (args[i] === '--warmup') warmup = Number(args[++i]);
+	else if (args[i] === '--suggestions') withSuggestions = true;
 	else files.push(args[i]);
 }
 
@@ -200,13 +208,31 @@ for (const f of targets) {
 	}
 	const messages = (r.messages || [])
 		.filter((m) => m.ruleId && m.ruleId.startsWith('svelte/'))
-		.map((m) => ({
-			ruleId: m.ruleId,
-			line: m.line,
-			column: m.column,
-			messageId: m.messageId ?? null,
-			message: m.message
-		}));
+		.map((m) => {
+			const out = {
+				ruleId: m.ruleId,
+				line: m.line,
+				column: m.column,
+				// The end of the reported range. ESLint omits it for a report
+				// made with a bare `loc`/node-less position, so it stays null
+				// rather than being defaulted to the start.
+				endLine: m.endLine ?? null,
+				endColumn: m.endColumn ?? null,
+				messageId: m.messageId ?? null,
+				message: m.message
+			};
+			if (withSuggestions) {
+				// `range` is in the same UTF-16 code units as the JS string the
+				// comparator slices, so no coordinate conversion is involved.
+				out.suggestions = (m.suggestions || []).map((sg) => ({
+					desc: sg.desc,
+					range: sg.fix.range,
+					text: sg.fix.text
+				}));
+				if (m.fix) out.fix = { range: m.fix.range, text: m.fix.text };
+			}
+			return out;
+		});
 	const entry = { file: f, messages };
 	const fatal = (r.messages || []).find((m) => m.fatal);
 	if (fatal) entry.fatal = fatal.message;

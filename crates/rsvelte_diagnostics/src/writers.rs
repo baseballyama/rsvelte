@@ -102,7 +102,7 @@ fn write_human(out: &mut String, diag: &Diagnostic, workspace_root: &std::path::
     let rel = diag.file.strip_prefix(workspace_root).unwrap_or(&diag.file);
     let position = diag
         .range
-        .map(|r| format!(":{}:{}", r.start.line, r.start.column))
+        .map(|r| format!(":{}:{}", r.start.line, r.start.column + 1))
         .unwrap_or_default();
     let _ = writeln!(
         out,
@@ -313,7 +313,7 @@ fn write_github_actions(out: &mut String, diag: &Diagnostic, workspace_root: &st
         DiagnosticSeverity::Info | DiagnosticSeverity::Hint => "notice",
     };
     let line = diag.range.map_or(1, |r| r.start.line);
-    let col = diag.range.map_or(1, |r| r.start.column);
+    let col = diag.range.map_or(1, |r| r.start.column + 1);
     let mut message = format!("({}) {}", diag.source, diag.message);
     if let Some(code) = diag.code.as_deref() {
         message = format!("{message} [{code}]");
@@ -407,6 +407,25 @@ mod tests {
         }
     }
 
+    /// `Position::column` is stored zero-based, so every writer a person reads
+    /// must agree on adding 1 — `machine` and `sarif` always did, `human` and
+    /// `github-actions` did not, and no gate compared them because all of them
+    /// read `sarif`.
+    #[test]
+    fn user_facing_writers_agree_on_one_based_columns() {
+        let ws = Path::new("/work");
+        let d = diag(DiagnosticSeverity::Error, "/work/src/Foo.svelte", 12, 0);
+        for (format, needle) in [
+            (OutputFormat::Human, "src/Foo.svelte:12:1 "),
+            (OutputFormat::GithubActions, "line=12,col=1:"),
+            (OutputFormat::Machine, " 12:1 "),
+        ] {
+            let mut out = String::new();
+            write_diagnostic(&mut out, &d, ws, format);
+            assert!(out.contains(needle), "{format:?} → {out}");
+        }
+    }
+
     #[test]
     fn parse_recognises_github_actions_alias() {
         assert_eq!(
@@ -427,7 +446,7 @@ mod tests {
         let mut out = String::new();
         write_diagnostic(&mut out, &d, workspace, OutputFormat::GithubActions);
         assert!(
-            out.starts_with("::error file=src/Foo.svelte,line=12,col=3::"),
+            out.starts_with("::error file=src/Foo.svelte,line=12,col=4::"),
             "{out}"
         );
         assert!(out.contains("[css_unused_selector]"), "{out}");
@@ -476,7 +495,7 @@ mod tests {
         let mut out = String::new();
         write_diagnostic(&mut out, &d, ws, OutputFormat::GithubActions);
         assert!(
-            out.starts_with("::error file=sub%2Cdir/Foo.svelte,line=1,col=2::"),
+            out.starts_with("::error file=sub%2Cdir/Foo.svelte,line=1,col=3::"),
             "comma in path not escaped: {out}"
         );
     }

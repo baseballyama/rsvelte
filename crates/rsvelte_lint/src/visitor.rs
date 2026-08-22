@@ -320,6 +320,10 @@ impl<'r> LintVisitor<'r> {
     fn visit_template_special_elements(&self, ctx: &mut LintContext, node: &TemplateNode) -> bool {
         match node {
             TemplateNode::TitleElement(element) => {
+                for rule in &self.rules {
+                    ctx.enter_rule(rule.meta, rule.severity);
+                    rule.rule.check_title(ctx, element);
+                }
                 self.visit_attributes(ctx, &element.attributes);
                 self.visit_fragment(ctx, &element.fragment);
             }

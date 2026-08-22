@@ -15,13 +15,13 @@ use crate::ast::template::{Attribute, SvelteElement};
 pub fn visit(body: &mut SvelteElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Check for duplicate
     if context.has_svelte_body {
-        return Err(errors::svelte_meta_duplicate("svelte:body").at(body.start, body.end));
+        return Err(errors::svelte_meta_duplicate("svelte:body").at(body.start, body.start));
     }
     context.has_svelte_body = true;
 
     // Validate placement (must be at top level)
-    if context.is_inside_element_or_block() {
-        return Err(errors::svelte_meta_invalid_placement("svelte:body").at(body.start, body.end));
+    if !context.in_root_fragment {
+        return Err(errors::svelte_meta_invalid_placement("svelte:body").at(body.start, body.start));
     }
 
     // svelte:body cannot have children
@@ -32,10 +32,17 @@ pub fn visit(body: &mut SvelteElement, context: &mut VisitorContext) -> Result<(
     }
 
     // Event expressions on special elements participate in normal reference analysis.
+    // The target rule needs the attribute list, which the mutable loop below holds.
+    for attr in &body.attributes {
+        if let Attribute::BindDirective(bind) = attr {
+            bind_directive::validate_binding_target(bind, "svelte:body", &body.attributes)?;
+        }
+    }
+
     for attr in &mut body.attributes {
         match attr {
             Attribute::BindDirective(bind) => {
-                bind_directive::visit_with_svelte_element(bind, "svelte:body", context)?;
+                bind_directive::visit_with_svelte_element(bind, context)?;
             }
             Attribute::OnDirective(on) => on_directive::visit(on, context)?,
             Attribute::LetDirective(let_dir) => {
@@ -47,7 +54,7 @@ pub fn visit(body: &mut SvelteElement, context: &mut VisitorContext) -> Result<(
                 return Err(errors::svelte_body_illegal_attribute().at(spread.start, spread.end));
             }
             Attribute::Attribute(attribute) => {
-                if !attribute.name.starts_with("on") {
+                if !super::shared::utils::is_event_attribute(attribute) {
                     return Err(
                         errors::svelte_body_illegal_attribute().at(attribute.start, attribute.end)
                     );

@@ -19,6 +19,7 @@ use rsvelte_core::ast::template::Comment;
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::js_whitespace::{is_js_space_not_crlf, is_js_whitespace, js_trim};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/spaced-html-comment",
@@ -34,13 +35,6 @@ static META: RuleMeta = RuleMeta {
     options_schema: Some(r#"[{"enum":["always","never"]}]"#),
 };
 
-/// Whether `c` is a horizontal whitespace character (space or tab) but NOT a
-/// line terminator. Mirrors upstream's `[^\S\n\r]` character class.
-#[inline]
-const fn is_h_space(c: char) -> bool {
-    c == ' ' || c == '\t'
-}
-
 #[derive(Default)]
 pub struct SpacedHtmlComment;
 
@@ -53,8 +47,8 @@ impl Rule for SpacedHtmlComment {
         let data = comment.data.as_str();
 
         // Skip blank comments (trimmed content is empty). Mirrors upstream:
-        // `if (!node.value.trim()) return;`
-        if data.trim().is_empty() {
+        // `if (!node.value.trim()) return;` — JS trim, so U+FEFF is blank.
+        if js_trim(data).is_empty() {
             return;
         }
 
@@ -71,7 +65,7 @@ impl Rule for SpacedHtmlComment {
 
         if require_space {
             // always: data must START with whitespace (space/tab/newline all OK)
-            if data.starts_with(|c: char| !c.is_whitespace()) {
+            if data.starts_with(|c: char| !is_js_whitespace(c)) {
                 // Insert a single space immediately after `<!--`.
                 ctx.report_with_fix(
                     comment.start,
@@ -88,7 +82,7 @@ impl Rule for SpacedHtmlComment {
                 );
             }
             // always: data must END with whitespace
-            if data.ends_with(|c: char| !c.is_whitespace()) {
+            if data.ends_with(|c: char| !is_js_whitespace(c)) {
                 // Insert a single space immediately before `-->`.
                 ctx.report_with_fix(
                     comment.start,
@@ -105,13 +99,14 @@ impl Rule for SpacedHtmlComment {
                 );
             }
         } else {
-            // never: leading horizontal whitespace (NOT \n/\r) → report
-            // Mirrors upstream `/^[^\S\n\r]/u.exec(node.value)?.[0]`
-            let begin_spaces: String = data.chars().take_while(|&c| is_h_space(c)).collect();
-            if !begin_spaces.is_empty() {
+            // never: a leading non-line-terminator whitespace char → report.
+            // Mirrors upstream `/^[^\S\n\r]/u.exec(node.value)?.[0]` — the
+            // pattern has no quantifier, so it matches (and the fix removes)
+            // exactly one character.
+            let begin_space = data.chars().next().filter(|&c| is_js_space_not_crlf(c));
+            if let Some(c) = begin_space {
                 let remove_end = after_open
-                    + u32::try_from(begin_spaces.len())
-                        .expect("source offsets are represented as u32");
+                    + u32::try_from(c.len_utf8()).expect("source offsets are represented as u32");
                 ctx.report_with_fix(
                     comment.start,
                     comment.end,
@@ -127,31 +122,21 @@ impl Rule for SpacedHtmlComment {
                 );
             }
 
-            // never: trailing horizontal whitespace (space/tab but NOT \n/\r)
-            // preceded IMMEDIATELY by a non-whitespace character → report.
-            // Mirrors upstream `/(?<=\S)[^\S\n\r]$/u`.
-            //
-            // The regex matches when the LAST character of `data` is a space/tab
-            // AND the character immediately before it is non-whitespace.
-            // `comment ` → flagged; `comment\n    ` → NOT flagged (before trail
-            // is `\n`).
+            // never: a trailing non-line-terminator whitespace char preceded
+            // IMMEDIATELY by a non-whitespace character → report. Mirrors
+            // upstream `/(?<=\S)[^\S\n\r]$/u` — again a single-character match,
+            // so `x  ` (two trailing spaces) is NOT flagged (the lookbehind
+            // sees a space).
             let last_ch = data.chars().next_back();
-            if last_ch.is_some_and(is_h_space) {
-                // Count how many trailing h-space bytes to remove.
-                let trailing_bytes: usize = data
-                    .bytes()
-                    .rev()
-                    .take_while(|&b| b == b' ' || b == b'\t')
-                    .count();
-                // The char immediately before the trailing h-spaces.
-                let before_trail = &data[..data.len() - trailing_bytes];
+            if let Some(last) = last_ch.filter(|&c| is_js_space_not_crlf(c)) {
+                let before_trail = &data[..data.len() - last.len_utf8()];
                 if before_trail
                     .chars()
                     .next_back()
-                    .is_some_and(|c| !c.is_whitespace())
+                    .is_some_and(|c| !is_js_whitespace(c))
                 {
                     let remove_start = before_close
-                        - u32::try_from(trailing_bytes)
+                        - u32::try_from(last.len_utf8())
                             .expect("source offsets are represented as u32");
                     ctx.report_with_fix(
                         comment.start,

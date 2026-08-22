@@ -20,7 +20,7 @@ use super::process_instance_script_tag::process_instance_script_tag;
 use super::script::{ComponentEvents, ExportedNames, StoreScanContext};
 use super::template;
 use super::utils::htmlxparser::{blank_style_content, blank_style_tags, remove_orphan_scripts};
-use super::utils::source_features::scan_source_features;
+use super::utils::source_features::{confirm_dollar_features, scan_source_features};
 use super::validation::{validate_debug_tag_arguments, validate_meta_element_placement};
 
 pub use super::interfaces::{
@@ -473,6 +473,7 @@ pub fn svelte2tsx(
         lenient_script: false,
         skip_non_css_lang_style: false,
         capture_comments: false,
+        reparse_leading_slash_expression: false,
     };
     let mut ast = phase1_parse::parse_script_ts(&parse_source, parse_options)?;
     let parsed_scripts = super::script::ParsedScripts::new(&mut ast);
@@ -628,9 +629,14 @@ pub fn svelte2tsx(
     blank_style_tags(&ast, source, &mut str);
 
     // Step 8.5: Detect $$props, $$restProps, $$slots usage in source (before wrapping)
-    let uses_dollar_props = source_features.uses_dollar_props();
-    let uses_dollar_rest_props = source_features.uses_dollar_rest_props();
-    let uses_dollar_slots = source_features.uses_dollar_slots();
+    let dollar_features = confirm_dollar_features(
+        source_features,
+        source,
+        module_script_span.map(|(start, _)| start),
+    );
+    let uses_dollar_props = dollar_features.uses_dollar_props();
+    let uses_dollar_rest_props = dollar_features.uses_dollar_rest_props();
+    let uses_dollar_slots = dollar_features.uses_dollar_slots();
 
     // Step 9: Process template nodes in-place via MagicString.
     template::process_template_inplace(

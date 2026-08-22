@@ -38,7 +38,7 @@ static META: RuleMeta = RuleMeta {
     name: "svelte/no-useless-mustaches",
     category: RuleCategory::Style,
     fixable: Fixable::Code,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: false,

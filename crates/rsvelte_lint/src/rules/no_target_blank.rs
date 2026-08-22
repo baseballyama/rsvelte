@@ -20,7 +20,8 @@
 //! this rule is now the only place the repair can live.
 
 use rsvelte_core::ast::template::{
-    Attribute, AttributeNode, AttributeValue, AttributeValuePart, RegularElement,
+    Attribute, AttributeNode, AttributeValue, AttributeValuePart, Component, RegularElement,
+    SlotElement, SvelteComponentElement, SvelteDynamicElement, SvelteElement, TitleElement,
 };
 
 use crate::context::LintContext;
@@ -111,9 +112,9 @@ pub struct NoTargetBlank;
 impl NoTargetBlank {
     /// `target="_blank"` (static literal exactly `_blank`).
     fn target_blank_attr<'b, 'a>(
-        el: &'b RegularElement<'a>,
+        attrs: &'b [Attribute<'a>],
     ) -> Option<&'b rsvelte_core::ast::template::AttributeNode<'a>> {
-        for attr in &el.attributes {
+        for attr in attrs {
             if let Attribute::Attribute(node) = attr
                 && node.name == "target"
                 && static_attribute_value(&node.value) == Some("_blank")
@@ -125,16 +126,16 @@ impl NoTargetBlank {
     }
 
     /// The element's first `rel` attribute — the one `has_secure_rel` judges.
-    fn rel_attr<'b, 'a>(el: &'b RegularElement<'a>) -> Option<&'b AttributeNode<'a>> {
-        el.attributes.iter().find_map(|attr| match attr {
+    fn rel_attr<'b, 'a>(attrs: &'b [Attribute<'a>]) -> Option<&'b AttributeNode<'a>> {
+        attrs.iter().find_map(|attr| match attr {
             Attribute::Attribute(node) if node.name == "rel" => Some(node),
             _ => None,
         })
     }
 
     /// True when the element has a secure `rel` attribute.
-    fn has_secure_rel(el: &RegularElement, allow_referrer: bool) -> bool {
-        let Some(node) = Self::rel_attr(el) else {
+    fn has_secure_rel(attrs: &[Attribute], allow_referrer: bool) -> bool {
+        let Some(node) = Self::rel_attr(attrs) else {
             return false;
         };
         // Upstream concatenates only the SvelteLiteral parts; a value with a
@@ -155,8 +156,8 @@ impl NoTargetBlank {
     }
 
     /// True when any `href` attribute's first static text part is an external URL.
-    fn has_external_link(el: &RegularElement) -> bool {
-        for attr in &el.attributes {
+    fn has_external_link(attrs: &[Attribute]) -> bool {
+        for attr in attrs {
             if let Attribute::Attribute(node) = attr
                 && node.name == "href"
                 && let AttributeValue::Sequence(parts) = &node.value
@@ -171,9 +172,9 @@ impl NoTargetBlank {
 
     /// True when the link's `href` is dynamic: a mustache in the value, a
     /// shorthand `href` (`{href}`), or `bind:href`.
-    fn has_dynamic_link(el: &RegularElement) -> bool {
+    fn has_dynamic_link(attrs: &[Attribute]) -> bool {
         let mut href_attr: Option<&AttributeValue> = None;
-        for attr in &el.attributes {
+        for attr in attrs {
             match attr {
                 Attribute::Attribute(node) if node.name == "href" => {
                     href_attr = Some(&node.value);
@@ -200,11 +201,11 @@ impl NoTargetBlank {
     /// mustache would be a guess.
     fn build_fix(
         source: &str,
-        el: &RegularElement,
+        attrs: &[Attribute],
         target: &AttributeNode,
         allow_referrer: bool,
     ) -> Option<Fix> {
-        let Some(rel) = Self::rel_attr(el) else {
+        let Some(rel) = Self::rel_attr(attrs) else {
             let tags = required_tags(allow_referrer).join(" ");
             return Some(Fix {
                 message: format!("Add rel=\"{tags}\""),
@@ -291,31 +292,61 @@ impl Rule for NoTargetBlank {
     }
 
     fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
-        let allow_referrer = ctx.option_bool("allowReferrer", false);
-        let enforce_dynamic_links = ctx
-            .option0()
-            .and_then(|o| o.get("enforceDynamicLinks"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("always");
+        check_attributes(ctx, &el.attributes);
+    }
 
-        let Some(target) = Self::target_blank_attr(el) else {
-            return;
-        };
-        if Self::has_secure_rel(el, allow_referrer) {
-            return;
-        }
+    // Upstream listens on `SvelteAttribute`, so the check applies to every kind
+    // of start tag, not just HTML elements.
+    fn check_component(&self, ctx: &mut LintContext, c: &Component) {
+        check_attributes(ctx, &c.attributes);
+    }
 
-        let has_danger_href = Self::has_external_link(el)
-            || (enforce_dynamic_links == "always" && Self::has_dynamic_link(el));
+    fn check_svelte_element(&self, ctx: &mut LintContext, el: &SvelteElement) {
+        check_attributes(ctx, &el.attributes);
+    }
 
-        if !has_danger_href {
-            return;
-        }
+    fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
+        check_attributes(ctx, &el.attributes);
+    }
 
-        match Self::build_fix(ctx.source(), el, target, allow_referrer) {
-            Some(fix) => ctx.report_with_fix(target.start, target.end, MESSAGE, fix),
-            None => ctx.report(target.start, target.end, MESSAGE),
-        }
+    fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
+        check_attributes(ctx, &el.attributes);
+    }
+
+    fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
+        check_attributes(ctx, &el.attributes);
+    }
+
+    fn check_title(&self, ctx: &mut LintContext, el: &TitleElement) {
+        check_attributes(ctx, &el.attributes);
+    }
+}
+
+fn check_attributes(ctx: &mut LintContext, attrs: &[Attribute]) {
+    let allow_referrer = ctx.option_bool("allowReferrer", false);
+    let enforce_dynamic_links = ctx
+        .option0()
+        .and_then(|o| o.get("enforceDynamicLinks"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("always");
+
+    let Some(target) = NoTargetBlank::target_blank_attr(attrs) else {
+        return;
+    };
+    if NoTargetBlank::has_secure_rel(attrs, allow_referrer) {
+        return;
+    }
+
+    let has_danger_href = NoTargetBlank::has_external_link(attrs)
+        || (enforce_dynamic_links == "always" && NoTargetBlank::has_dynamic_link(attrs));
+
+    if !has_danger_href {
+        return;
+    }
+
+    match NoTargetBlank::build_fix(ctx.source(), attrs, target, allow_referrer) {
+        Some(fix) => ctx.report_with_fix(target.start, target.end, MESSAGE, fix),
+        None => ctx.report(target.start, target.end, MESSAGE),
     }
 }
 

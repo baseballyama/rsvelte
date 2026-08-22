@@ -23,7 +23,7 @@ use super::component_slots::{
     build_named_slot_element_attrs, default_slot_let_block, named_slot_let_block,
 };
 use super::slot_element::slot_attr_static_name;
-use super::snippet_block::handle_snippet_block_as_component_prop;
+use super::snippet_block::{handle_snippet_block_as_component_prop, hoist_snippet_blocks};
 
 /// The `svelte:` tags upstream `Element.ts` names with a plain string literal in
 /// `getStartTransformation` / the `_name` switch. Everything else — including
@@ -315,6 +315,8 @@ fn handle_standard_special_element(
     let (opener, has_directives) =
         standard_special_element_opener(el, source, options, depth, indent, attrs);
     str.overwrite(el.start, opening_tag_end, &opener);
+
+    hoist_snippet_blocks(&el.fragment, source, str);
 
     for (index, node) in el.fragment.nodes.iter().enumerate() {
         process_child(

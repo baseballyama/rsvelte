@@ -114,6 +114,13 @@ pub struct ParseOptions {
     /// this). The compiler leaves it `false`: codegen strips comments, and
     /// keeping the side table off avoids any per-node recording on the hot path.
     pub capture_comments: bool,
+    /// When true, a `{/…}` whose tail is not shaped like a block close
+    /// (`/word}`) is read as an expression tag instead of a block close. The
+    /// compiler keeps this `false` (official rejects `{/^x/y.test(a)}` with
+    /// `block_unexpected_close`); the *formatter*'s re-parse sets it, because
+    /// the JS printer legally strips the parens off `{(/^x/y).test(a)}` and the
+    /// collapse pass must still be able to re-read its own output.
+    pub reparse_leading_slash_expression: bool,
 }
 
 /// Extended parse options with filename (separate to keep ParseOptions Copy).

@@ -24,7 +24,7 @@ pub fn prefix_with_for(prefix: &str) -> String {
 /// `header_after_expr`: `))` closes `__sveltets_2_ensureArray(EXPR)` and
 /// the `for(...)` argument list; `{` opens the for body; the idx / key
 /// bindings still travel as plain text — only CTX is source-preserved.
-pub fn build_each_after_ctx_tail(block: &EachBlock, source: &str) -> String {
+pub fn build_each_after_ctx_tail(block: &EachBlock, source: &str, comma_wrap: bool) -> String {
     let suffix = if block.context.is_some() {
         ""
     } else {
@@ -32,7 +32,8 @@ pub fn build_each_after_ctx_tail(block: &EachBlock, source: &str) -> String {
     };
     // `))` closes `__sveltets_2_ensureArray(EXPR)` + the `for(...)`
     // argument list; `{` opens the for body.
-    let mut s = format!(")){{{suffix}");
+    let close = if comma_wrap { ")" } else { "" };
+    let mut s = format!("{close})){{{suffix}");
     if let Some(ref index) = block.index {
         let _ = write!(s, "let {index} = 1;");
     }
@@ -165,6 +166,9 @@ pub fn handle_each_block(
     // expression in source but appear earlier (or later) in the for-loop
     // header — bake them as ordinary text. Their column mapping is lost
     // but they're rarely the target of type errors.
+    // `{#each true, [1, 2] as x}` is legal Svelte but `for (const x of true, [1, 2])`
+    // is not, so upstream parenthesises any expression whose source carries a comma.
+    let comma_wrap = expr_text.contains(',');
     let (header_before_expr, header_after_expr) = build_each_loop_header(
         block,
         source,
@@ -172,6 +176,7 @@ pub fn handle_each_block(
         &context_text,
         has_context,
         needs_temp_var,
+        comma_wrap,
     );
 
     if let Some((expr_start, expr_end)) = expr_range {
@@ -205,11 +210,18 @@ pub fn handle_each_block(
             // little user value for trivial identifiers.
             str.move_range(ctx_s, ctx_e, expr_start);
             str.overwrite(block.start, expr_start, &prefix_with_for(&prefix));
-            str.prepend_right(expr_start, " of __sveltets_2_ensureArray(");
+            str.prepend_right(
+                expr_start,
+                if comma_wrap {
+                    " of __sveltets_2_ensureArray(("
+                } else {
+                    " of __sveltets_2_ensureArray("
+                },
+            );
             // " as " (or whitespace) between EXPR and CTX → "){...tail".
             // Then the trailing characters between CTX and body get
             // emitted/cleared.
-            let tail = build_each_after_ctx_tail(block, source);
+            let tail = build_each_after_ctx_tail(block, source, comma_wrap);
             if expr_end < ctx_s {
                 str.overwrite(expr_end, ctx_s, &tail);
             } else {
@@ -262,6 +274,7 @@ pub fn handle_each_block(
         str.overwrite(body_end, fallback_start, "}");
 
         // Process fallback
+        hoist_snippet_blocks(fallback, source, str);
         process_fragment_trimmed(&fallback.nodes, source, options, str, counter, depth);
 
         let fallback_end = if fallback.nodes.is_empty() {
@@ -297,17 +310,19 @@ fn build_each_loop_header(
     context_text: &str,
     has_context: bool,
     needs_temp_var: bool,
+    comma_wrap: bool,
 ) -> (String, String) {
+    let (open, close) = if comma_wrap { ("(", ")") } else { ("", "") };
     let (before, mut after) = if needs_temp_var {
         (
-            format!("{prefix}{{ const $$_each = __sveltets_2_ensureArray("),
-            format!("); for(let {context_text} of $$_each){{"),
+            format!("{prefix}{{ const $$_each = __sveltets_2_ensureArray({open}"),
+            format!("{close}); for(let {context_text} of $$_each){{"),
         )
     } else {
         let suffix = if has_context { "" } else { "$$each_item;" };
         (
-            format!("{prefix}for(let {context_text} of __sveltets_2_ensureArray("),
-            format!(")){{{suffix}"),
+            format!("{prefix}for(let {context_text} of __sveltets_2_ensureArray({open}"),
+            format!("{close})){{{suffix}"),
         )
     };
     if let Some(index) = &block.index {

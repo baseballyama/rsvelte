@@ -36,9 +36,14 @@ const markers = ["{@debug", "<svelte:", "use:"];
 }
 
 #[test]
-fn debug_error_keeps_precedence_over_meta_error() {
-    let source = "<div><svelte:window /></div>{@debug user.name}";
-    assert!(error(source).contains("arguments must be identifiers"));
+fn the_first_error_in_source_order_wins() {
+    // The parser raises both of these, so position decides which one surfaces —
+    // the marker scan must not reorder them.
+    assert!(error("<div><svelte:window /></div>{@debug user.name}").contains("cannot be inside"));
+    assert!(
+        error("{@debug user.name}<div><svelte:window /></div>")
+            .contains("arguments must be identifiers")
+    );
 }
 
 #[test]

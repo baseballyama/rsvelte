@@ -42,7 +42,7 @@ carrying a key that would absorb the next regression.
 
 ## Matrix known failures (`matrix-known-failures.json`, 388 entries)
 
-Partition of `matrix-known-failures.json` by family: `4 + 172 + 8 + 24 + 180 + 0`
+Partition of `matrix-known-failures.json` by family: `4 + 172 + 0 + 24 + 0 + 0 + 0 + 180 + 0 + 8 + 0 + 0 + 0`
 
 ### `binding-position` — 4 entries
 
@@ -238,6 +238,21 @@ later comment survives. rsvelte builds its accessors as source text, so its curs
 died; `client/dead_comments.rs` now deletes what upstream loses. The upstream report stays in
 [`upstream_issues/2990-svelte-class-accessor-drops-later-comments.md`](../upstream_issues/2990-svelte-class-accessor-drops-later-comments.md),
 and these rows are what will report the day it lands in `submodules/svelte`.
+
+### `write-host` — 0 entries
+
+The eight `member-update-self` rows this family shipped with are gone: `p.a++` on a
+**bindable** prop (`prop-bindable` in runes mode, `legacy-let-prop` in legacy) written in a
+`script-fn` or `script-arrow` host, on `client` and `client-dev`. Upstream wraps the update in
+the prop setter so the parent is notified (`p(p().a++, true)`); rsvelte emitted a bare
+`p().a++`, so a `bind:`-ing parent never saw the mutation. `prop_member_mutate_ast` handled
+`AssignmentExpression` only, and the runes instance path in `ast_state_transform.rs` had a
+prop-member branch in `visit_assignment_expression` with no counterpart in
+`visit_update_expression`. Fixed by #3048; the family's own PR and the fix's PR landed
+separately, which is why this section names the merge-order rule at the top of the file.
+
+The whole family (5 bindings × 6 hosts × 11 write shapes × 4 targets) now passes. It is the axis that would have caught #3026: `binding-position` varies binding kind
+but bakes one host into each binding's `wrap`, so binding × host has no cell there.
 
 ## Burn-down
 

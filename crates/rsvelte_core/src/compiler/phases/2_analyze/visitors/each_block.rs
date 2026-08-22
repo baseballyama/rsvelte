@@ -104,6 +104,7 @@ pub fn visit<'a, 'b: 'a>(
 
     // Increment block depth for child analysis
     context.block_depth += 1;
+    context.svelte_self_parent_depth += 1;
 
     // Count non-empty children for animate: validation
     let child_count = block
@@ -160,13 +161,15 @@ pub fn visit<'a, 'b: 'a>(
     // Visit the body and fallback
     fragment::analyze(&mut block.body, context)?;
 
-    // Pop EachBlock context
-    context.each_block_stack.pop();
-
-    // Fallback is still in the each block's scope (same scope as body)
+    // Fallback is still in the each block's scope (same scope as body), and
+    // upstream's `animate:` rule reads the parent's key and BODY child count for
+    // a fallback element too — so the frame stays pushed across it.
     if let Some(ref mut fallback) = block.fallback {
         fragment::analyze(fallback, context)?;
     }
+
+    // Pop EachBlock context
+    context.each_block_stack.pop();
 
     // Restore scope
     context.scope = old_scope;
@@ -192,6 +195,7 @@ pub fn visit<'a, 'b: 'a>(
 
     // Decrement block depth
     context.block_depth -= 1;
+    context.svelte_self_parent_depth -= 1;
 
     // In Svelte 4 (non-runes mode), handle legacy reactivity
     // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/EachBlock.js L47-76

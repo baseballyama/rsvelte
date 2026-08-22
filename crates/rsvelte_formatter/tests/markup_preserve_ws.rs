@@ -141,3 +141,50 @@ fn pre_block_reformat_survives_ts_in_plain_script() {
         "expected the block pass to run with the TS body intact:\n{out}"
     );
 }
+
+#[test]
+fn unicode_separators_in_text_are_content() {
+    // U+2028/U+2029/U+3000 are Unicode whitespace but NOT HTML whitespace
+    // (`[\t\n\f\r ]`): prettier keeps them verbatim, so collapsing or
+    // trimming them changes what the browser renders (#3046).
+    let src = "<p>a\u{2028}b</p>\n<p>c\u{2029}d</p>\n";
+    assert_eq!(fmt(src), "<p>a\u{2028}b</p>\n<p>c\u{2029}d</p>");
+}
+
+#[test]
+fn ideographic_space_at_text_edges_survives() {
+    let src = "<p>\u{3000}x\u{3000}</p>\n";
+    assert_eq!(fmt(src), "<p>\u{3000}x\u{3000}</p>");
+}
+
+#[test]
+fn multiline_textarea_breaks_its_tags() {
+    // prettier breaks a whitespace-sensitive `<textarea>`'s tags so no
+    // formatter-inserted newline changes the value (#3060): `>` drops one
+    // level in when content starts inline, the close tag when it ends inline.
+    let out = fmt("<textarea>static\n\tmultiline</textarea>");
+    assert_eq!(out, "<textarea\n  >static\n\tmultiline</textarea\n>");
+}
+
+#[test]
+fn textarea_edge_newlines_keep_that_tag_unbroken() {
+    // A leading newline keeps the open tag glued; a trailing one the close.
+    let out = fmt("<textarea>\na\nb</textarea>");
+    assert_eq!(out, "<textarea>\na\nb</textarea\n>");
+    let out = fmt("<textarea>a\nb\n</textarea>");
+    assert_eq!(out, "<textarea\n  >a\nb\n</textarea>");
+    let out = fmt("<textarea>\na\nb\n</textarea>");
+    assert_eq!(out, "<textarea>\na\nb\n</textarea>");
+}
+
+#[test]
+fn overflowing_textarea_keeps_attrs_on_the_open_line() {
+    // Unlike `<pre>`, an overflowing one-line `<textarea>` does not break its
+    // attributes — the whole open tag stays and only `>` drops.
+    let src = "<textarea class=\"aaaaaaaaaaaaaaaaaaaa bbbbbbbbbbbbbbbbbbbb cccccccccccccccccccc\" rows=\"10\">some content here</textarea>";
+    let out = fmt(src);
+    assert_eq!(
+        out,
+        "<textarea class=\"aaaaaaaaaaaaaaaaaaaa bbbbbbbbbbbbbbbbbbbb cccccccccccccccccccc\" rows=\"10\"\n  >some content here</textarea\n>"
+    );
+}

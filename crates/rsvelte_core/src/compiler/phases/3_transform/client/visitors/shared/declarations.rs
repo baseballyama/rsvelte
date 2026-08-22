@@ -226,7 +226,7 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
 /// This transforms `x` into `x()` by calling it as a function.
 /// In the generated code, `$.prop()` returns a getter function.
 fn prop_source_read(arena: &JsArena, node: JsExpr) -> JsExpr {
-    b::call(arena, node, vec![])
+    b::getter_call(arena, node)
 }
 
 /// Transform a prop source assignment.
@@ -296,7 +296,7 @@ fn prop_update(arena: &JsArena, operator: JsUpdateOp, argument: JsExpr, prefix: 
 ///
 /// A call expression: `$store()`
 fn store_sub_read(arena: &JsArena, node: JsExpr) -> JsExpr {
-    b::call(arena, node, vec![])
+    b::getter_call(arena, node)
 }
 
 /// Transform a store subscription assignment.

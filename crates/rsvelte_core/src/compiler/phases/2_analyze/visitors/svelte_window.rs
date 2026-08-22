@@ -18,14 +18,14 @@ pub fn visit(
 ) -> Result<(), AnalysisError> {
     // Check for duplicate
     if context.has_svelte_window {
-        return Err(errors::svelte_meta_duplicate("svelte:window").at(window.start, window.end));
+        return Err(errors::svelte_meta_duplicate("svelte:window").at(window.start, window.start));
     }
     context.has_svelte_window = true;
 
     // Validate placement (must be at top level)
-    if context.is_inside_element_or_block() {
+    if !context.in_root_fragment {
         return Err(
-            errors::svelte_meta_invalid_placement("svelte:window").at(window.start, window.end)
+            errors::svelte_meta_invalid_placement("svelte:window").at(window.start, window.start)
         );
     }
 
@@ -37,10 +37,17 @@ pub fn visit(
     }
 
     // Validate attributes - check for invalid ones
+    // The target rule needs the attribute list, which the mutable loop below holds.
+    for attr in &window.attributes {
+        if let Attribute::BindDirective(bind) = attr {
+            bind_directive::validate_binding_target(bind, "svelte:window", &window.attributes)?;
+        }
+    }
+
     for attr in &mut window.attributes {
         match attr {
             Attribute::BindDirective(bind) => {
-                bind_directive::visit_with_svelte_element(bind, "svelte:window", context)?;
+                bind_directive::visit_with_svelte_element(bind, context)?;
             }
             Attribute::OnDirective(on) => {
                 on_directive::visit(on, context)?;
@@ -63,6 +70,11 @@ pub fn visit(
             // component-context emission. Previously these were ignored, so a
             // `<svelte:window onkeydown={…goto(…)…}>` left `needs_context` false.
             Attribute::Attribute(a) => {
+                if !super::shared::utils::is_event_attribute(a) {
+                    return Err(
+                        errors::illegal_element_attribute("svelte:window").at(a.start, a.end)
+                    );
+                }
                 super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;
             }
             _ => {}

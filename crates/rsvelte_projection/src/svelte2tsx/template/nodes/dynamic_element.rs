@@ -14,6 +14,7 @@ use crate::svelte2tsx::template::attributes::build_attributes_string;
 use crate::svelte2tsx::template::attributes::class_style::build_class_style_directive_suffix_segments;
 use crate::svelte2tsx::template::attributes::directive_suffix::build_directive_prefix_suffix;
 use crate::svelte2tsx::template::ctx::Counter;
+use crate::svelte2tsx::template::nodes::snippet_block::hoist_snippet_blocks;
 use crate::svelte2tsx::template::segs::segs_to_string;
 use crate::svelte2tsx::template::utils::expr::{get_expression_range, get_expression_text};
 use crate::svelte2tsx::template::utils::opener_spacing::{OpenerCtx, opener_spacing};
@@ -221,6 +222,7 @@ fn render_dynamic_element(
         input.opening_tag_end,
         &format!("{}{{{directive_prefix}{inner_open}{create}", input.indent),
     );
+    hoist_snippet_blocks(&el.fragment, input.source, str);
     process_fragment_inplace(
         &el.fragment,
         input.source,

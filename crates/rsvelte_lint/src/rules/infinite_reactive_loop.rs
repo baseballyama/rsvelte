@@ -4,6 +4,8 @@ use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::reactive_stmt::{is_reactive_statement, source_is_ts};
+use crate::rules::store_refs::{RefTracker, Trace, module_tracker};
 use crate::script::{
     ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js,
 };
@@ -12,7 +14,7 @@ static META: RuleMeta = RuleMeta {
     name: "svelte/infinite-reactive-loop",
     category: RuleCategory::Correctness,
     fixable: Fixable::No,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: true,
@@ -54,15 +56,8 @@ fn is_direct_call_callee(ident: &Value, parent: Option<&Value>) -> bool {
 }
 
 /// Collect top-level bound names and function bodies from the program.
-/// The `func_map` value is (body, `param_names`) where `param_names` are the
-/// function's own parameter names that shadow any outer reactive variables.
-fn collect_top_level<'a>(
-    program: &'a Value,
-) -> (
-    HashMap<String, (&'a Value, HashSet<String>)>,
-    HashSet<String>,
-) {
-    let mut func_map: HashMap<String, (&'a Value, HashSet<String>)> = HashMap::new();
+fn collect_top_level<'a>(program: &'a Value) -> (HashMap<String, &'a Value>, HashSet<String>) {
+    let mut func_map: HashMap<String, &'a Value> = HashMap::new();
     let mut all_names: HashSet<String> = HashSet::new();
 
     let Some(body) = program.get("body").and_then(Value::as_array) else {
@@ -74,17 +69,6 @@ fn collect_top_level<'a>(
     }
 
     (func_map, all_names)
-}
-
-/// Collect all bound names from a function's `params` array into a `HashSet`.
-fn collect_param_names(params: &Value) -> HashSet<String> {
-    let mut names = HashSet::new();
-    if let Some(arr) = params.as_array() {
-        for p in arr {
-            collect_pattern_names(p, &mut names);
-        }
-    }
-    names
 }
 
 fn collect_pattern_names(pat: &Value, names: &mut HashSet<String>) {
@@ -126,7 +110,7 @@ fn collect_pattern_names(pat: &Value, names: &mut HashSet<String>) {
 
 fn collect_stmt_names<'a>(
     stmt: &'a Value,
-    func_map: &mut HashMap<String, (&'a Value, HashSet<String>)>,
+    func_map: &mut HashMap<String, &'a Value>,
     all_names: &mut HashSet<String>,
 ) {
     match node_type(stmt) {
@@ -134,32 +118,27 @@ fn collect_stmt_names<'a>(
             if let Some(name) = stmt.get("id").and_then(|id| ident_name(id)) {
                 all_names.insert(name.to_string());
                 if let Some(b) = stmt.get("body") {
-                    let params = stmt
-                        .get("params")
-                        .map(collect_param_names)
-                        .unwrap_or_default();
-                    func_map.insert(name.to_string(), (b, params));
+                    func_map.insert(name.to_string(), b);
                 }
             }
         }
         Some("VariableDeclaration") => {
             if let Some(decls) = stmt.get("declarations").and_then(Value::as_array) {
                 for decl in decls {
-                    if let Some(name) = decl.get("id").and_then(|id| ident_name(id)) {
-                        all_names.insert(name.to_string());
-                        if let Some(init) = decl.get("init") {
-                            let init_ty = node_type(init);
-                            if (init_ty == Some("ArrowFunctionExpression")
-                                || init_ty == Some("FunctionExpression"))
-                                && let Some(b) = init.get("body")
-                            {
-                                let params = init
-                                    .get("params")
-                                    .map(collect_param_names)
-                                    .unwrap_or_default();
-                                func_map.insert(name.to_string(), (b, params));
-                            }
-                        }
+                    // Every name a declarator binds is a top-level variable —
+                    // `let { retries } = config` included, not just `let x = …`.
+                    if let Some(id) = decl.get("id") {
+                        collect_pattern_names(id, all_names);
+                    }
+                    if let Some(name) = decl.get("id").and_then(|id| ident_name(id))
+                        && let Some(init) = decl.get("init")
+                        && matches!(
+                            node_type(init),
+                            Some("ArrowFunctionExpression" | "FunctionExpression")
+                        )
+                        && let Some(b) = init.get("body")
+                    {
+                        func_map.insert(name.to_string(), b);
                     }
                 }
             }
@@ -182,82 +161,25 @@ fn collect_stmt_names<'a>(
     }
 }
 
-/// Collect the set of names that are "microtask scheduler" functions:
-/// - Global builtins: `setTimeout`, `setInterval`, `queueMicrotask`
-/// - `tick` from `'svelte'`
-/// - Top-level const aliases of the above
-fn collect_task_names(program: &Value, top_level_names: &HashSet<String>) -> HashSet<String> {
-    let mut tasks: HashSet<String> = HashSet::new();
-
-    // Builtins (only if not re-declared at top level).
-    for b in &["setTimeout", "setInterval", "queueMicrotask"] {
-        if !top_level_names.contains(*b) {
-            tasks.insert(b.to_string());
-        }
-    }
-
-    let Some(body) = program.get("body").and_then(Value::as_array) else {
-        return tasks;
-    };
-
-    // Import `{ tick [as X] } from 'svelte'`.
-    for stmt in body {
-        if node_type(stmt) != Some("ImportDeclaration") {
-            continue;
-        }
-        let source = stmt
-            .get("source")
-            .and_then(|s| s.get("value"))
-            .and_then(Value::as_str);
-        if source != Some("svelte") {
-            continue;
-        }
-        if let Some(specs) = stmt.get("specifiers").and_then(Value::as_array) {
-            for spec in specs {
-                let imported = spec.get("imported").and_then(|i| ident_name(i));
-                if imported != Some("tick") {
-                    continue;
-                }
-                if let Some(local) = spec.get("local").and_then(|l| ident_name(l)) {
-                    tasks.insert(local.to_string());
-                }
-            }
-        }
-    }
-
-    // Alias chains: `const X = knownTask` at top level.
-    loop {
-        let mut added = false;
-        for stmt in body {
-            if node_type(stmt) != Some("VariableDeclaration") {
-                continue;
-            }
-            if let Some(decls) = stmt.get("declarations").and_then(Value::as_array) {
-                for decl in decls {
-                    let alias = decl.get("id").and_then(|id| ident_name(id));
-                    let init_name = decl.get("init").and_then(|init| {
-                        if node_type(init) == Some("Identifier") {
-                            ident_name(init)
-                        } else {
-                            None
-                        }
-                    });
-                    if let (Some(a), Some(i)) = (alias, init_name)
-                        && tasks.contains(i)
-                        && !tasks.contains(a)
-                    {
-                        tasks.insert(a.to_string());
-                        added = true;
-                    }
-                }
-            }
-        }
-        if !added {
-            break;
-        }
-    }
-
-    tasks
+/// The spans of every microtask-scheduling call in the program: `setTimeout` /
+/// `setInterval` / `queueMicrotask` (upstream's `iterateGlobalReferences`, which
+/// also reaches them through the global object — `window.setTimeout`) and
+/// `tick` imported from `svelte` (`iterateEsmReferences`, alias- and
+/// namespace-aware).
+fn collect_task_call_spans(tracker: &RefTracker<'_>) -> HashSet<(u32, u32)> {
+    let globals = Trace::parent(
+        ["setTimeout", "setInterval", "queueMicrotask"]
+            .into_iter()
+            .map(|name| (name, Trace::call()))
+            .collect(),
+    );
+    let tick = Trace::parent(vec![("tick", Trace::call())]);
+    tracker
+        .global_refs(&globals)
+        .into_iter()
+        .chain(tracker.esm_refs("svelte", &tick))
+        .filter_map(|tracked| Some((node_start(tracked.node)?, node_end(tracked.node)?)))
+        .collect()
 }
 
 /// Collect all top-level identifier names referenced (not in call position)
@@ -334,10 +256,11 @@ fn is_assign_target(ident: &Value, ancestors: &[&Value]) -> bool {
 
 /// Is `fn_node` a function argument to a `.then()` or `.catch()` call?
 fn is_promise_then_catch_arg(fn_node: &Value, ancestors: &[&Value]) -> bool {
-    if !matches!(
-        node_type(fn_node),
-        Some("ArrowFunctionExpression" | "FunctionExpression")
-    ) {
+    // Upstream reaches this through `getDeclarationBody`, whose only
+    // non-declaration arm is `ArrowFunctionExpression` — an inline
+    // `function () {}` returns null and the call is never treated as a
+    // then-callback.
+    if node_type(fn_node) != Some("ArrowFunctionExpression") {
         return false;
     }
     let Some(parent) = ancestors.last() else {
@@ -374,43 +297,26 @@ fn is_left_of_await_assign(node: &Value, ancestors: &[&Value]) -> bool {
         .is_some_and(|r| node_type(r) == Some("AwaitExpression"))
 }
 
-/// Is `node` inside a call to a task scheduler function?
-/// We check if any ancestor is a `CallExpression` whose callee is a task-named Identifier.
-fn is_inside_task_call(node: &Value, ancestors: &[&Value], task_names: &HashSet<String>) -> bool {
+/// Is `node` strictly inside one of the tracked task-scheduler calls?
+/// Mirrors upstream's `isChildNode(callExpression, node)`, which starts from
+/// `node.parent` and so never matches the call expression itself.
+fn is_inside_task_call(
+    node: &Value,
+    ancestors: &[&Value],
+    task_calls: &HashSet<(u32, u32)>,
+) -> bool {
     let Some(ns) = node_start(node) else {
         return false;
     };
     let Some(ne) = node_end(node) else {
         return false;
     };
-    for anc in ancestors {
-        if node_type(anc) != Some("CallExpression") {
-            continue;
-        }
-        let callee_name = anc.get("callee").and_then(|c| {
-            if node_type(c) == Some("Identifier") {
-                ident_name(c)
-            } else {
-                None
-            }
-        });
-        let Some(cn) = callee_name else {
-            continue;
+    ancestors.iter().any(|anc| {
+        let (Some(as_), Some(ae)) = (node_start(anc), node_end(anc)) else {
+            return false;
         };
-        if !task_names.contains(cn) {
-            continue;
-        }
-        let Some(as_) = node_start(anc) else {
-            continue;
-        };
-        let Some(ae) = node_end(anc) else {
-            continue;
-        };
-        if ns >= as_ && ne <= ae {
-            return true;
-        }
-    }
-    false
+        task_calls.contains(&(as_, ae)) && ns >= as_ && ne <= ae
+    })
 }
 
 /// Is `node` inside an async function declaration/expression? (Not the outermost.)
@@ -439,76 +345,26 @@ fn is_inside_async_fn(ancestors: &[&Value]) -> bool {
     false
 }
 
-/// Is `name` locally declared (shadowing top-level) at the call site?
-fn is_shadowed_locally(name: &str, ancestors: &[&Value]) -> bool {
-    for anc in ancestors.iter().rev() {
-        match node_type(anc) {
-            Some("BlockStatement") => {
-                if let Some(stmts) = anc.get("body").and_then(Value::as_array) {
-                    for stmt in stmts {
-                        if node_type(stmt) != Some("VariableDeclaration") {
-                            continue;
-                        }
-                        if let Some(decls) = stmt.get("declarations").and_then(Value::as_array) {
-                            for d in decls {
-                                if d.get("id").and_then(|id| ident_name(id)) == Some(name) {
-                                    return true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            Some("ArrowFunctionExpression" | "FunctionExpression" | "FunctionDeclaration") => {
-                if let Some(params) = anc.get("params")
-                    && params_contain(params, name)
-                {
-                    return true;
-                }
-            }
-            _ => {}
+/// Whether `ident` is a reference to a **top-level** variable — upstream's
+/// `reactiveVariableReferences.includes(node)`, which is built from
+/// `toplevelScope.variables[].references` and therefore excludes a same-named
+/// parameter, block `let`, or catch binding. Names the resolver cannot see
+/// (a `$store` subscription, a `$: x = …` reactive value, a binding declared in
+/// the other `<script>`) fall back to the collected top-level name set.
+fn is_top_level_reference(
+    tracker: &RefTracker<'_>,
+    ident: &Value,
+    name: &str,
+    top_level_names: &HashSet<String>,
+) -> bool {
+    match tracker.find_variable(ident) {
+        Some(var) => tracker.is_root(var),
+        None => {
+            top_level_names.contains(name)
+                || name
+                    .strip_prefix('$')
+                    .is_some_and(|base| top_level_names.contains(base))
         }
-    }
-    false
-}
-
-fn params_contain(params: &Value, name: &str) -> bool {
-    if let Some(arr) = params.as_array() {
-        for p in arr {
-            if pattern_contains(p, name) {
-                return true;
-            }
-        }
-    }
-    false
-}
-
-fn pattern_contains(pat: &Value, name: &str) -> bool {
-    match node_type(pat) {
-        Some("Identifier") => ident_name(pat) == Some(name),
-        Some("AssignmentPattern") => pat.get("left").is_some_and(|l| pattern_contains(l, name)),
-        Some("ObjectPattern") => {
-            pat.get("properties")
-                .and_then(Value::as_array)
-                .is_some_and(|ps| {
-                    ps.iter().any(|p| {
-                        p.get("value").is_some_and(|v| pattern_contains(v, name))
-                            || p.get("key").is_some_and(|k| pattern_contains(k, name))
-                    })
-                })
-        }
-        Some("ArrayPattern") => pat
-            .get("elements")
-            .and_then(Value::as_array)
-            .is_some_and(|es| {
-                es.iter()
-                    .filter(|e| !e.is_null())
-                    .any(|e| pattern_contains(e, name))
-            }),
-        Some("RestElement") => pat
-            .get("argument")
-            .is_some_and(|a| pattern_contains(a, name)),
-        _ => false,
     }
 }
 
@@ -520,8 +376,9 @@ type Rep = (u32, u32, String);
 /// from the call stack).
 fn verify_node<'a>(
     node: &'a Value,
-    func_map: &'a HashMap<String, (&'a Value, HashSet<String>)>,
-    task_names: &HashSet<String>,
+    func_map: &'a HashMap<String, &'a Value>,
+    tracker: &RefTracker<'_>,
+    task_calls: &HashSet<(u32, u32)>,
     reactive_names: &HashSet<String>,
     top_level_names: &HashSet<String>,
     call_chain: &[(u32, u32, String)], // (ident_start, ident_end, fn_name) of the callers
@@ -538,11 +395,12 @@ fn verify_node<'a>(
         Value::Object(map) => {
             if let Some((ty_str, ns, ne)) = node_metadata(map) {
                 let is_boundary_node =
-                    enter_microtask_boundary(node, ancestors, task_names, ns, is_same, boundary);
+                    enter_microtask_boundary(node, ancestors, task_calls, ns, is_same, boundary);
 
                 let mut recursion = FunctionRecursion {
                     func_map,
-                    task_names,
+                    tracker,
+                    task_calls,
                     reactive_names,
                     top_level_names,
                     processed,
@@ -561,7 +419,8 @@ fn verify_node<'a>(
                         verify_node(
                             v,
                             func_map,
-                            task_names,
+                            tracker,
+                            task_calls,
                             reactive_names,
                             top_level_names,
                             call_chain,
@@ -592,10 +451,14 @@ fn verify_node<'a>(
                 }
 
                 // Restore is_same on leave of a boundary node.
+                // Upstream's `leaveNode` sets `isSameMicroTask = true` for any
+                // node it recorded on entry — it does NOT restore what the flag
+                // was, so a task call after an `await` puts the statement back
+                // in "same microtask". Parity requires reproducing that.
                 if is_boundary_node && let Some(pos) = boundary.iter().rposition(|(s, _)| *s == ns)
                 {
-                    let (_, old) = boundary.remove(pos);
-                    *is_same = old;
+                    boundary.remove(pos);
+                    *is_same = true;
                 }
             } else {
                 for (k, v) in map {
@@ -603,7 +466,8 @@ fn verify_node<'a>(
                         verify_node(
                             v,
                             func_map,
-                            task_names,
+                            tracker,
+                            task_calls,
                             reactive_names,
                             top_level_names,
                             call_chain,
@@ -623,7 +487,8 @@ fn verify_node<'a>(
                 verify_node(
                     v,
                     func_map,
-                    task_names,
+                    tracker,
+                    task_calls,
                     reactive_names,
                     top_level_names,
                     call_chain,
@@ -654,16 +519,17 @@ fn node_metadata(map: &serde_json::Map<String, Value>) -> Option<(&str, u32, u32
     ))
 }
 
-struct FunctionRecursion<'a> {
-    func_map: &'a HashMap<String, (&'a Value, HashSet<String>)>,
-    task_names: &'a HashSet<String>,
+struct FunctionRecursion<'a, 'b> {
+    func_map: &'a HashMap<String, &'a Value>,
+    tracker: &'b RefTracker<'b>,
+    task_calls: &'a HashSet<(u32, u32)>,
     reactive_names: &'a HashSet<String>,
     top_level_names: &'a HashSet<String>,
     processed: &'a mut HashSet<u32>,
     reports: &'a mut Vec<Rep>,
 }
 
-impl FunctionRecursion<'_> {
+impl FunctionRecursion<'_, '_> {
     fn visit_call(
         &mut self,
         node: &Value,
@@ -682,25 +548,17 @@ impl FunctionRecursion<'_> {
             return;
         };
         if !is_direct_call_callee(node, ancestors.last().copied())
-            || is_shadowed_locally(function_name, ancestors)
+            || !is_top_level_reference(self.tracker, node, function_name, self.top_level_names)
         {
             return;
         }
-        let Some((body, parameters)) = self.func_map.get(function_name) else {
+        let Some(body) = self.func_map.get(function_name) else {
             return;
         };
-        let body_key = node_start(body).unwrap_or(u32::MAX);
-        if self.processed.contains(&body_key) {
-            return;
-        }
-        let reactive_names: HashSet<String> = self
-            .reactive_names
-            .iter()
-            .filter(|name| !parameters.contains(*name))
-            .cloned()
-            .collect();
-        if reactive_names.is_empty() {
-            self.processed.insert(body_key);
+        if self
+            .processed
+            .contains(&node_start(body).unwrap_or(u32::MAX))
+        {
             return;
         }
         let mut chain = call_chain.to_vec();
@@ -708,8 +566,9 @@ impl FunctionRecursion<'_> {
         verify_root(
             body,
             self.func_map,
-            self.task_names,
-            &reactive_names,
+            self.tracker,
+            self.task_calls,
+            self.reactive_names,
             self.top_level_names,
             &chain,
             is_same,
@@ -739,7 +598,7 @@ impl FunctionRecursion<'_> {
         if !self.reactive_names.contains(name)
             || is_direct_call_callee(node, ancestors.last().copied())
             || !is_assign_target(node, ancestors)
-            || is_shadowed_locally(name, ancestors)
+            || !is_top_level_reference(self.tracker, node, name, self.top_level_names)
         {
             return;
         }
@@ -754,15 +613,14 @@ impl FunctionRecursion<'_> {
 fn enter_microtask_boundary(
     node: &Value,
     ancestors: &[&Value],
-    task_names: &HashSet<String>,
+    task_calls: &HashSet<(u32, u32)>,
     node_start: u32,
     is_same: &mut bool,
     boundaries: &mut Vec<(u32, bool)>,
 ) -> bool {
-    let enters_boundary = *is_same
-        && (is_promise_then_catch_arg(node, ancestors)
-            || is_inside_task_call(node, ancestors, task_names)
-            || is_left_of_await_assign(node, ancestors));
+    let enters_boundary = is_promise_then_catch_arg(node, ancestors)
+        || is_inside_task_call(node, ancestors, task_calls)
+        || is_left_of_await_assign(node, ancestors);
     if enters_boundary {
         boundaries.push((node_start, *is_same));
         *is_same = false;
@@ -773,8 +631,9 @@ fn enter_microtask_boundary(
 /// Entry point for verifying a single body node (reactive stmt body or function body).
 fn verify_root<'a>(
     body: &'a Value,
-    func_map: &'a HashMap<String, (&'a Value, HashSet<String>)>,
-    task_names: &HashSet<String>,
+    func_map: &'a HashMap<String, &'a Value>,
+    tracker: &RefTracker<'_>,
+    task_calls: &HashSet<(u32, u32)>,
     reactive_names: &HashSet<String>,
     top_level_names: &HashSet<String>,
     call_chain: &[(u32, u32, String)],
@@ -795,7 +654,8 @@ fn verify_root<'a>(
     verify_node(
         body,
         func_map,
-        task_names,
+        tracker,
+        task_calls,
         reactive_names,
         top_level_names,
         call_chain,
@@ -817,19 +677,17 @@ impl ScriptRule for InfiniteReactiveLoop {
 
     fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
         let (func_map, top_level_names) = collect_top_level(program);
-        let task_names = collect_task_names(program, &top_level_names);
+        let tracker = module_tracker(
+            ctx.source(),
+            program.value(),
+            source_is_ts(ctx.source(), ctx.filename()),
+        );
+        let task_calls = collect_task_call_spans(&tracker);
 
         let mut all_reports: Vec<Rep> = Vec::new();
 
-        program.walk(|node, _| {
-            if node_type(node) != Some("LabeledStatement") {
-                return;
-            }
-            let label_name = node
-                .get("label")
-                .and_then(|l| l.get("name"))
-                .and_then(Value::as_str);
-            if label_name != Some("$") {
+        program.walk(|node, ancestors| {
+            if !is_reactive_statement(node, ancestors) {
                 return;
             }
             let Some(body) = node.get("body") else {
@@ -847,7 +705,8 @@ impl ScriptRule for InfiniteReactiveLoop {
             verify_root(
                 body,
                 &func_map,
-                &task_names,
+                &tracker,
+                &task_calls,
                 &reactive_names,
                 &top_level_names,
                 &[],

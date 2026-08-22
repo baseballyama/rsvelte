@@ -60,7 +60,12 @@ pub fn handle_slot_element(
     let bind_this_expr = get_bind_this_expr(&el.attributes, source);
 
     // Build slot props string (excluding the `name` attribute and `bind:this`).
-    let slot_props = build_slot_props_string(&el.attributes, source, named_slot.is_some());
+    let slot_props = build_slot_props_string(
+        &el.attributes,
+        source,
+        named_slot.is_some(),
+        saved_slot.is_some(),
+    );
     // `__sveltets_createSlot("name"` keeps the source range of a static slot
     // name; a defaulted (absent) name is a literal and keeps none.
     let name_range = get_slot_name_range(&el.attributes);
@@ -273,6 +278,7 @@ pub fn build_slot_props_string(
     attributes: &[Attribute],
     source: &str,
     drop_slot_attr: bool,
+    in_component_slot: bool,
 ) -> String {
     let mut parts: Vec<String> = Vec::new();
 
@@ -296,6 +302,18 @@ pub fn build_slot_props_string(
                     continue;
                 }
                 parts.push(format_bind_directive(bind, source));
+            }
+            Attribute::LetDirective(let_dir) if !in_component_slot => {
+                // Outside a component's children a `let:` is just a deprecated
+                // attribute, exactly as `Let.ts` `handleLet`'s else branch has it.
+                parts.push(match &let_dir.expression {
+                    Some(expr) => format!(
+                        "\"let:{}\":{},",
+                        let_dir.name,
+                        get_expression_text(expr, source)
+                    ),
+                    None => format!("\"let:{}\":true,", let_dir.name),
+                });
             }
             _ => {
                 // Other directives are not typical on slot elements

@@ -261,6 +261,7 @@ impl<'a, 'ast> Visit<'ast> for Collector<'a> {
                     }
                 }
                 Argument::UpdateExpression(update) => {
+                    self.skip.push(update.span);
                     if let Some((name, path)) = self.simple_target_root_and_path(&update.argument) {
                         self.wrap(call.span, name, path);
                     }
@@ -296,6 +297,9 @@ impl<'a, 'ast> Visit<'ast> for Collector<'a> {
 
     fn visit_update_expression(&mut self, update: &UpdateExpression<'ast>) {
         walk::walk_update_expression(self, update);
+        if self.skip.contains(&update.span) {
+            return;
+        }
         if let Some((name, path)) = self.simple_target_root_and_path(&update.argument) {
             self.wrap(update.span, name, path);
         }

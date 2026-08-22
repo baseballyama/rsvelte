@@ -108,12 +108,13 @@ pub fn validator_diagnostics(
             if sev == Severity::Off {
                 return Vec::new();
             }
+            let (message, range) = compile_error_text_and_range(&e, source);
             vec![Diagnostic {
                 file: file.to_path_buf(),
                 severity: to_dsev(sev),
                 code: Some(code),
-                message: format!("{e}"),
-                range: None,
+                message,
+                range,
                 source: "svelte",
             }]
         }
@@ -123,8 +124,32 @@ pub fn validator_diagnostics(
 /// Extract `(code, message, range)` from a hard compile error for the
 /// `valid-compile` rule. Analysis errors (`ValidationWithCode`) carry no span
 /// today, so the range is `None` (callers fall back to the default position).
-pub(crate) fn compile_error_parts(e: &CompileError) -> (String, String, Option<Range>) {
-    (compile_error_code(e), format!("{e}"), None)
+pub(crate) fn compile_error_parts(
+    e: &CompileError,
+    source: &str,
+) -> (String, String, Option<Range>) {
+    let (message, range) = compile_error_text_and_range(e, source);
+    (compile_error_code(e), message, range)
+}
+
+/// A parse error's own `Display` plus its span; every other kind falls back to
+/// `CompileError`'s, which has no position to give.
+///
+/// `CompileError::Parse` formats its payload with `{:?}`, so going through it
+/// would put a Rust struct literal in front of the user.
+fn compile_error_text_and_range(e: &CompileError, source: &str) -> (String, Option<Range>) {
+    match e {
+        CompileError::Parse(pe) => {
+            let (start, end) = pe.span();
+            let li = crate::line_index::LineIndex::new(source);
+            let clamp = |b: usize| u32::try_from(b.min(source.len())).unwrap_or(u32::MAX);
+            (
+                format!("Parsing error: {pe}"),
+                Some(range_from_byte(&li, clamp(start), clamp(end))),
+            )
+        }
+        _ => (format!("{e}"), None),
+    }
 }
 
 /// Best-effort extraction of a stable code from a hard compile error so it can
