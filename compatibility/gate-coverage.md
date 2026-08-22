@@ -1145,8 +1145,9 @@ plus a quoted attribute value, a concatenated one, an attribute spread, a `class
 `style:` directive, an `{#await}` expression, a `{@render}` callee, a `{@const}` initializer, a
 component spread, a `<svelte:element>` `this` and a `<slot>` prop, with the already-handled text
 `{expr}` column still failing 12 (its two block-bodied `$:` shapes, which is #3428). The
-positions are not a closed set to enumerate — they are the ~40 `visit_expr` call sites under
-`server/ast/visitors/`, which is why `{@render}` survived the first version of the fix: its
+positions are not a closed set to enumerate — they are the 41 expression-visit sites under
+`server/ast/visitors/` (27 of which now offer the claim), which is why `{@render}` survived the
+first version of the fix: its
 callee reaches `reparse_slice` rather than `visit_expr`, and its 36 cells stayed red while the
 other fifteen columns went green.
 
