@@ -1673,6 +1673,16 @@ pub fn parse_expression_with_end<'a>(
 /// where it stopped consuming tokens, which corresponds to the *end* of the
 /// problematic region, not its start.
 pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
+    // Two inputs acorn rejects on their very first token are described by the
+    // `(…)` wrapper below instead of by themselves — nothing is left for OXC to
+    // complain about but the parentheses it never saw in the source. Answer
+    // them here, where the wrapper cannot reach.
+    let leading_ws = content.len() - content.trim_start_ws().len();
+    let head = &content[leading_ws..];
+    if head.trim_end_ws().is_empty() || head.starts_with("...") {
+        return Some(("Unexpected token".to_string(), leading_ws));
+    }
+
     let mut wrapped = String::with_capacity(content.len() + 2);
     wrapped.push('(');
     wrapped.push_str(content);

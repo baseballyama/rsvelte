@@ -772,46 +772,6 @@ impl<'a> Parser<'a> {
     /// `` ` ``) is at `self.index`. Advances `self.index` past the closing quote.
     /// Handles backslash escapes and, for template literals, balanced `${ … }`
     /// interpolations so their braces aren't miscounted by header scanners.
-    /// Upstream's each-header reader allows only WHITESPACE between the item
-    /// pattern (or index identifier) and the next delimiter — a comment there
-    /// is `expected_token` / `expected_pattern` / `expected_identifier`, not
-    /// part of the pattern (#3057). Returns the absolute position of a comment
-    /// sitting before the first or after the last code byte of `segment`.
-    fn each_segment_comment(segment: &str, base: usize) -> Option<(bool, usize)> {
-        use crate::compiler::phases::phase3_transform::shared::js_scan::code_bytes;
-        let bytes = segment.as_bytes();
-        let mut first_code = None;
-        let mut last_code = None;
-        for (i, b) in code_bytes(bytes) {
-            if !(b as char).is_ascii_whitespace() {
-                if first_code.is_none() {
-                    first_code = Some(i);
-                }
-                last_code = Some(i);
-            }
-        }
-        // Only a comment START counts: `code_bytes` mis-lexes a nested
-        // template (`` `${`"`}` `` ) and would otherwise flag its tail, and
-        // non-comment junk fails the pattern parse on both sides anyway.
-        let is_comment_start =
-            |i: usize| bytes[i] == b'/' && matches!(bytes.get(i + 1), Some(b'/') | Some(b'*'));
-        let first_raw = bytes.iter().position(|b| !b.is_ascii_whitespace());
-        match (first_raw, first_code) {
-            (Some(r), Some(c)) if r < c && is_comment_start(r) => return Some((true, base + r)),
-            (Some(r), None) if is_comment_start(r) => return Some((true, base + r)),
-            _ => {}
-        }
-        if let Some(last) = last_code {
-            let tail = &bytes[last + 1..];
-            if let Some(off) = tail.iter().position(|b| !b.is_ascii_whitespace())
-                && is_comment_start(last + 1 + off)
-            {
-                return Some((false, base + last + 1 + off));
-            }
-        }
-        None
-    }
-
     fn skip_header_string(&mut self, quote: u8) {
         self.index += 1; // consume the opening quote
         while self.index < self.bytes.len() {
@@ -852,7 +812,55 @@ impl<'a> Parser<'a> {
         let j = self.skip_js_whitespace_from(self.index);
         self.bytes.get(j) == Some(&b'a')
             && self.bytes.get(j + 1) == Some(&b's')
-            && self.is_js_whitespace_at(j + 2)
+            && (self.is_js_whitespace_at(j + 2)
+                // `{#each xs as}` is upstream's `expected_whitespace`, which is
+                // only reachable once the `as` is taken as the separator.
+                || (!self.options.loose && self.bytes.get(j + 2) == Some(&b'}')))
+    }
+
+    /// Byte index just past the identifier starting at `i`, or `i` when none
+    /// starts there. Mirrors upstream `Parser#read_identifier`, whose first
+    /// character must satisfy `isIdentifierStart` — so a digit begins no
+    /// identifier, and `{#each xs as v, 1}` has no index name to read.
+    fn identifier_end_at(&self, i: usize) -> usize {
+        let Some(first) = self.source.get(i..).and_then(|s| s.chars().next()) else {
+            return i;
+        };
+        if !(first.is_alphabetic() || first == '_' || first == '$') {
+            return i;
+        }
+        let mut j = i + first.len_utf8();
+        while let Some(c) = self.source.get(j..).and_then(|s| s.chars().next()) {
+            if c.is_alphanumeric() || c == '_' || c == '$' {
+                j += c.len_utf8();
+            } else {
+                break;
+            }
+        }
+        j
+    }
+
+    /// Byte index just past the binding pattern starting at `i`. Mirrors
+    /// upstream `read_pattern` (1-parse/read/context.js): a pattern is an
+    /// identifier or a `{` / `[` destructuring, and anything else — a literal,
+    /// a rest element, a member expression — is `expected_pattern` right where
+    /// the pattern was supposed to begin.
+    fn binding_pattern_end(&self, i: usize) -> ParseResult<usize> {
+        let ident_end = self.identifier_end_at(i);
+        if ident_end > i {
+            return Ok(ident_end);
+        }
+        match self.bytes.get(i) {
+            Some(&open @ (b'{' | b'[')) => {
+                Ok(find_matching_bracket(self.source, i + 1, open as char)
+                    .map_or(self.bytes.len(), |close| close + 1))
+            }
+            _ => Err(crate::error::ParseError::svelte(
+                "expected_pattern",
+                "Expected identifier or destructure pattern",
+                (i, i),
+            )),
+        }
     }
 
     pub fn parse_each_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
@@ -1062,7 +1070,6 @@ impl<'a> Parser<'a> {
             // Check for {:else}
             let mut fallback = None;
             if let Some(colon_pos) = self.match_block_continuation_marker() {
-                let continuation_start = self.index;
                 self.index = colon_pos + 1;
                 self.skip_whitespace();
                 if self.eat_optional("else") {
@@ -1073,7 +1080,7 @@ impl<'a> Parser<'a> {
                     return Err(crate::error::ParseError::svelte(
                         "expected_token",
                         "Expected token {:else}",
-                        (continuation_start, continuation_start),
+                        (colon_pos, colon_pos),
                     ));
                 }
             }
@@ -1106,7 +1113,7 @@ impl<'a> Parser<'a> {
         // (newline-split headers), so we can't assume a fixed-width ` as `.
         self.skip_whitespace();
         self.advance_by(2); // `as`
-        self.skip_whitespace();
+        self.require_whitespace()?;
 
         // Parse the context (binding pattern)
         let context_start = self.index;
@@ -1219,27 +1226,25 @@ impl<'a> Parser<'a> {
 
         let context_end = self.index;
         let raw_content = &self.source[context_start..context_end];
-        if !self.options.loose
-            && let Some((leading, pos)) = Self::each_segment_comment(raw_content, context_start)
-        {
-            return Err(crate::error::ParseError::svelte(
-                if leading {
-                    "expected_pattern"
-                } else {
-                    "expected_token"
-                },
-                if leading {
-                    "Expected identifier or destructure pattern"
-                } else {
-                    "Expected token }"
-                },
-                (pos, pos),
-            ));
-        }
-        let trimmed_content = raw_content.trim_ws();
         // Calculate actual start position after trimming leading whitespace
         let leading_ws = raw_content.len() - raw_content.trim_start_ws().len();
         let actual_context_start = context_start + leading_ws;
+        // Upstream reads ONE binding pattern here and then expects the header's
+        // next token, so the scanned region is only a candidate: everything past
+        // the pattern has to be whitespace, or a `:` continuing it as a
+        // TypeScript type annotation.
+        let mut content_end = context_end;
+        if !self.options.loose {
+            let pattern_end = self.binding_pattern_end(actual_context_start)?;
+            let after = self.skip_js_whitespace_from(pattern_end);
+            if self.bytes.get(after) != Some(&b':') {
+                if after < context_end {
+                    return Err(crate::error::ParseError::expected_token("}", after));
+                }
+                content_end = pattern_end;
+            }
+        }
+        let trimmed_content = self.source[actual_context_start..content_end].trim_ws();
         let context = self.parse_binding_pattern(trimmed_content, actual_context_start)?;
 
         // Check for index
@@ -1247,35 +1252,26 @@ impl<'a> Parser<'a> {
         if self.eat_optional(",") {
             self.skip_whitespace();
             let idx_start = self.index;
-            while !self.is_eof() {
-                let c = self.current_char();
-                if c == '}' || c == '(' {
-                    break;
+            // Upstream's index is `parser.read_identifier()` and nothing else —
+            // a destructuring pattern, a member expression or a literal there is
+            // `expected_identifier`, not a silently dropped index.
+            let idx_end = self.identifier_end_at(idx_start);
+            if idx_end == idx_start {
+                if !self.options.loose {
+                    return Err(crate::error::ParseError::svelte(
+                        "expected_identifier",
+                        "Expected an identifier",
+                        (idx_start, idx_start),
+                    ));
                 }
-                self.advance();
+                while !self.is_eof() && !matches!(self.current_char(), '}' | '(') {
+                    self.advance();
+                }
+            } else {
+                index = Some(CompactString::from(&self.source[idx_start..idx_end]));
+                self.index = idx_end;
             }
-            let idx_segment = &self.source[idx_start..self.index];
-            if !self.options.loose
-                && let Some((leading, pos)) = Self::each_segment_comment(idx_segment, idx_start)
-            {
-                return Err(crate::error::ParseError::svelte(
-                    if leading {
-                        "expected_identifier"
-                    } else {
-                        "expected_token"
-                    },
-                    if leading {
-                        "Expected an identifier"
-                    } else {
-                        "Expected token }"
-                    },
-                    (pos, pos),
-                ));
-            }
-            let idx_name = idx_segment.trim_ws();
-            if !idx_name.is_empty() {
-                index = Some(CompactString::from(idx_name));
-            }
+            self.skip_whitespace();
         }
 
         // Check for key expression
@@ -1315,7 +1311,6 @@ impl<'a> Parser<'a> {
         // Check for {:else}
         let mut fallback = None;
         if let Some(colon_pos) = self.match_block_continuation_marker() {
-            let continuation_start = self.index;
             self.index = colon_pos + 1;
             self.skip_whitespace();
             if self.eat_optional("else") {
@@ -1327,7 +1322,7 @@ impl<'a> Parser<'a> {
                 return Err(crate::error::ParseError::svelte(
                     "expected_token",
                     "Expected token {:else}",
-                    (continuation_start, continuation_start),
+                    (colon_pos, colon_pos),
                 ));
             }
         }
@@ -1352,6 +1347,33 @@ impl<'a> Parser<'a> {
             key,
             metadata: Default::default(),
         }))))
+    }
+
+    /// Read the single binding pattern an `{#await … then/catch …}` clause
+    /// takes, leaving `self.index` just past it. A `{:then}` / `{:catch}` value
+    /// is a pattern, not a parameter list, so a rest element or a default is
+    /// rejected the same way a literal is.
+    fn read_block_pattern(&mut self) -> ParseResult<Option<Expression<'a>>> {
+        let start = self.index;
+        if !self.options.loose {
+            let pattern_end = self.binding_pattern_end(start)?;
+            let after = self.skip_js_whitespace_from(pattern_end);
+            self.index = pattern_end;
+            if self.bytes.get(after) == Some(&b':') {
+                // TypeScript type annotation: upstream reads it as part of the
+                // pattern, so keep the tolerant scan for the annotation's own text.
+                self.skip_pattern_expression();
+            } else if self.bytes.get(after) != Some(&b'}') {
+                return Err(crate::error::ParseError::expected_token("}", after));
+            }
+        } else {
+            self.skip_pattern_expression();
+        }
+        let content = self.source[start..self.index].trim_ws();
+        if content.is_empty() {
+            return Ok(None);
+        }
+        Ok(Some(self.parse_binding_pattern(content, start)?))
     }
 
     /// Parse a binding pattern (for each block context).
@@ -1532,6 +1554,19 @@ impl<'a> Parser<'a> {
         let leading_ws = expr_content.len() - trimmed_content.len();
         let adjusted_start = expr_start + leading_ws;
         let adjusted_end = expr_end - (expr_content.len() - trimmed_content.trim_end_ws().len());
+        // `{#await }` has no expression at all: upstream's `read_expression`
+        // hands acorn a `}` and rethrows. Everything else stays lenient here.
+        if !self.options.loose
+            && !has_then
+            && !has_catch
+            && trimmed_content.trim_end_ws().is_empty()
+        {
+            return Err(crate::error::ParseError::svelte(
+                "js_parse_error",
+                "Unexpected token",
+                (adjusted_start, adjusted_start),
+            ));
+        }
         // For await blocks, we parse the expression with a known end position
         // to avoid find_matching_bracket finding the block's closing }
         let expression = if let Some(lazy) =
@@ -1567,19 +1602,10 @@ impl<'a> Parser<'a> {
             self.advance_by(4); // consume 'then'
             self.skip_whitespace();
 
-            // Check if there's a value identifier/pattern
+            // In the opening tag upstream matches `\s*}` before requiring a
+            // pattern, so `{#await p then }` binds nothing.
             if self.current_char() != '}' {
-                let value_start = self.index;
-                // Parse pattern with brace/bracket matching for destructuring patterns
-                self.skip_pattern_expression();
-                let value_content = &self.source[value_start..self.index];
-                if !value_content.trim_ws().is_empty() {
-                    // Use parse_binding_pattern to properly parse destructuring patterns
-                    // (e.g., `{ width, height }` -> ObjectPattern) instead of creating
-                    // a simple identifier. This ensures phase 2 scope analysis correctly
-                    // declares individual bindings for destructured names.
-                    value = Some(self.parse_binding_pattern(value_content.trim_ws(), value_start)?);
-                }
+                value = self.read_block_pattern()?;
             }
         }
 
@@ -1588,17 +1614,8 @@ impl<'a> Parser<'a> {
             self.advance_by(5); // consume 'catch'
             self.skip_whitespace();
 
-            // Check if there's an error identifier/pattern
             if self.current_char() != '}' {
-                let error_start = self.index;
-                // Parse pattern with brace/bracket matching for destructuring patterns
-                self.skip_pattern_expression();
-                let error_content = &self.source[error_start..self.index];
-                if !error_content.trim_ws().is_empty() {
-                    // Use parse_binding_pattern to properly parse destructuring patterns
-                    // (same as for then values above).
-                    error = Some(self.parse_binding_pattern(error_content.trim_ws(), error_start)?);
-                }
+                error = self.read_block_pattern()?;
             }
         }
 
@@ -1635,46 +1652,35 @@ impl<'a> Parser<'a> {
             self.skip_whitespace();
 
             if self.eat_optional("then") {
+                if !self.options.loose && then_fragment.is_some() {
+                    return Err(crate::error::ParseError::svelte(
+                        "block_duplicate_clause",
+                        "{:then} cannot appear more than once within a block",
+                        (colon_pos, colon_pos),
+                    ));
+                }
                 // Upstream eats `}` before requiring the separator, so `{:then}`
-                // stays legal while `{:thenv}` is not.
+                // stays legal while `{:thenv}` is not — and, unlike the opening
+                // tag, `{:then }` has no `\s*}` escape: it must carry a pattern.
                 if !self.match_str("}") {
                     self.require_whitespace()?;
-                }
-                self.skip_whitespace();
-
-                // Check if there's a value identifier/pattern
-                if self.current_char() != '}' {
-                    let value_start = self.index;
-                    // Parse pattern with brace/bracket matching for destructuring patterns
-                    self.skip_pattern_expression();
-                    let value_content = &self.source[value_start..self.index];
-                    if !value_content.trim_ws().is_empty() {
-                        // Use parse_binding_pattern to properly parse destructuring patterns
-                        value =
-                            Some(self.parse_binding_pattern(value_content.trim_ws(), value_start)?);
-                    }
+                    value = self.read_block_pattern()?;
                 }
                 self.skip_whitespace();
                 self.eat_optional("}");
 
                 then_fragment = Some(self.parse_fragment()?);
             } else if self.eat_optional("catch") {
+                if !self.options.loose && catch_fragment.is_some() {
+                    return Err(crate::error::ParseError::svelte(
+                        "block_duplicate_clause",
+                        "{:catch} cannot appear more than once within a block",
+                        (colon_pos, colon_pos),
+                    ));
+                }
                 if !self.match_str("}") {
                     self.require_whitespace()?;
-                }
-                self.skip_whitespace();
-
-                // Check if there's an error identifier/pattern
-                if self.current_char() != '}' {
-                    let error_start = self.index;
-                    // Parse pattern with brace/bracket matching for destructuring patterns
-                    self.skip_pattern_expression();
-                    let error_content = &self.source[error_start..self.index];
-                    if !error_content.trim_ws().is_empty() {
-                        // Use parse_binding_pattern to properly parse destructuring patterns
-                        error =
-                            Some(self.parse_binding_pattern(error_content.trim_ws(), error_start)?);
-                    }
+                    error = self.read_block_pattern()?;
                 }
                 self.skip_whitespace();
                 self.eat_optional("}");
@@ -1685,7 +1691,7 @@ impl<'a> Parser<'a> {
                 return Err(crate::error::ParseError::svelte(
                     "expected_token",
                     "Expected token {:then ...} or {:catch ...}",
-                    (self.index - 2, self.index - 2),
+                    (colon_pos, colon_pos),
                 ));
             }
         }

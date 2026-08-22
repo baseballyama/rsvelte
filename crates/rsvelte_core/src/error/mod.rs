@@ -97,7 +97,8 @@ impl ParseError {
         ParseError::svelte(
             "expected_token",
             format!("Expected token {expected}"),
-            (position, position + 1),
+            // Upstream passes a bare index, so `start` and `end` coincide.
+            (position, position),
         )
     }
 
