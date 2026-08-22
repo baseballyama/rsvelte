@@ -912,7 +912,8 @@ fn test_attribute(operator: &str, expected: &str, case_insensitive: bool, value:
     };
     match operator {
         "=" => value == expected,
-        "~=" => value.split_whitespace().any(|w| w == expected),
+        // JS `"".split(/\s/)` is `[""]`, so `[a~=""]` matches an empty value.
+        "~=" => value.split(char::is_whitespace).any(|w| w == expected),
         "|=" => format!("{}-", value).starts_with(&format!("{}-", expected)),
         "^=" => value.starts_with(&expected),
         "$=" => value.ends_with(&expected),
