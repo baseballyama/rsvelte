@@ -12,6 +12,19 @@ use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::shared::js_scan::{find_code, skip_opaque};
 use crate::compiler::phases::phase3_transform::shared::template::escape_js_string;
 
+/// Was a removed call a statement of its own rather than an operand? The last
+/// significant character answers it: only a terminator, a block delimiter or the
+/// `)` of a bodyless `if`/`for`/`while` head can be followed by a fresh
+/// statement.
+fn in_statement_position(before: &str) -> bool {
+    let before = before.trim_end();
+    before.ends_with("*/")
+        || matches!(
+            before.as_bytes().last(),
+            None | Some(b';' | b'{' | b'}' | b')')
+        )
+}
+
 /// Transform runes for client-side usage with skip and state variable handling.
 pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     line: &'a str,
@@ -259,10 +272,11 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
                     // and later transforms, then gets converted to ;; before OXC processing
                     return Cow::Owned(format!("/* $$async_hole:{} */", args));
                 } else {
-                    let trailing_comment = after.strip_prefix(';').unwrap_or(after).trim_start();
-                    let marker = if before.is_empty() && trailing_comment.starts_with("/*") {
-                        // The trailing `;` of the removed call is one of the
-                        // `;;` upstream prints for the empty-as-expression.
+                    let marker = if in_statement_position(before) {
+                        // Upstream substitutes an `EmptyStatement` for the CALL and
+                        // keeps the `ExpressionStatement` around it, so esrap prints
+                        // the expression's `;` plus the statement's own — this one
+                        // plus the `;` already in `after`.
                         "/* $$inspect_removed$$ */;"
                     } else {
                         ""
