@@ -36,12 +36,25 @@ pub(crate) fn compute_eval_inputs(
     // Extract constant variables from script
     let mut constant_vars = FxHashMap::default();
 
+    // A name with no knowable value has to be excluded before anything reads it,
+    // not removed afterwards — see `extract_constant_vars`.
+    let excluded: rustc_hash::FxHashSet<String> = analysis
+        .map(|a| {
+            a.root
+                .bindings
+                .iter()
+                .filter(|b| matches!(b.kind, BindingKind::BindableProp) || b.is_updated())
+                .map(|b| b.name.clone())
+                .collect()
+        })
+        .unwrap_or_default();
+
     // Extract constants from module script first (only const declarations)
     if let Some(script) = module_script {
         let start = script.content.start().unwrap_or(0) as usize;
         let end = script.content.end().unwrap_or(0) as usize;
         if end > start && end <= source.len() {
-            for (k, v) in extract_constant_vars(&source[start..end], source) {
+            for (k, v) in extract_constant_vars(&source[start..end], source, &excluded) {
                 constant_vars.insert(k, v);
             }
         }
@@ -52,7 +65,7 @@ pub(crate) fn compute_eval_inputs(
         let start = script.content.start().unwrap_or(0) as usize;
         let end = script.content.end().unwrap_or(0) as usize;
         if end > start && end <= source.len() {
-            for (k, v) in extract_constant_vars(&source[start..end], source) {
+            for (k, v) in extract_constant_vars(&source[start..end], source, &excluded) {
                 constant_vars.insert(k, v);
             }
         }
@@ -1315,7 +1328,16 @@ pub(crate) fn extract_rune_inner(value: &str, prefix: &str) -> Option<String> {
     None
 }
 
-pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMap<String, String> {
+/// `excluded` holds the names whose value is not knowable — a bindable prop, or
+/// a binding phase 2 saw written. They must be gone *before* the second pass:
+/// upstream's `scope.evaluate` recurses into a binding's initializer and stops at
+/// `!binding.updated`, so a declaration reading one of these has no folded value
+/// either, and removing the name afterwards leaves behind the value it leaked.
+pub(crate) fn extract_constant_vars(
+    script: &str,
+    full_source: &str,
+    excluded: &rustc_hash::FxHashSet<String>,
+) -> FxHashMap<String, String> {
     let mut constants = FxHashMap::default();
     let mut let_vars: Vec<String> = Vec::new();
     // Collect unresolved expressions for a second pass
@@ -1368,6 +1390,10 @@ pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMa
                 if let Some(eq_idx) = decl.find('=') {
                     let name = decl[..eq_idx].trim();
                     let value = decl[eq_idx + 1..].trim();
+
+                    if excluded.contains(name) {
+                        continue;
+                    }
 
                     if try_insert_constant_value(value, name, &mut constants) {
                         if !is_const {
