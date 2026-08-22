@@ -49,6 +49,11 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
 
     let mut suspend = tla;
 
+    if context.bind_await_depth == Some(context.function_depth) {
+        context.bind_has_await = true;
+        suspend = true;
+    }
+
     if let Some(metadata) = context.current_expression() {
         metadata.set_has_await(true);
         suspend = true;
