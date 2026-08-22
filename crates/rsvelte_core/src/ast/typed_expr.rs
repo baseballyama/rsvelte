@@ -73,6 +73,8 @@ pub struct TemplateElementValue {
 pub enum LiteralValue {
     String(CompactString),
     Number(f64),
+    /// Base-10 digits, no `_` separators and no trailing `n`.
+    BigInt(CompactString),
     Bool(bool),
     Null,
     /// Boxed: a regex payload is two `CompactString`s, and inlining it would
@@ -95,6 +97,9 @@ impl Serialize for LiteralValue {
                 }
             }
             Self::Bool(b) => serializer.serialize_bool(*b),
+            // ESTree JSON: a bigint's `value` is null; the digits live in the
+            // sibling `bigint` entry the Literal serializer adds.
+            Self::BigInt(_) => serializer.serialize_none(),
             Self::Null => serializer.serialize_none(),
             Self::Regex(_) => {
                 // Regex value serializes as empty object in ESTree
@@ -872,6 +877,9 @@ impl Serialize for JsNode {
                 ser_loc!(map, loc);
                 map.serialize_entry("value", value)?;
                 map.serialize_entry("raw", raw.as_str())?;
+                if let LiteralValue::BigInt(digits) = value {
+                    map.serialize_entry("bigint", digits.as_str())?;
+                }
                 if let Some(regex) = regex {
                     let mut regex_map = serde_json::Map::new();
                     regex_map.insert(
@@ -2445,17 +2453,22 @@ impl JsNode {
                                 flags: get_str(r, "flags"),
                             })
                         });
-                        let lit_value = match obj.get("value") {
-                            Some(Value::String(s)) => LiteralValue::String(s.as_str().into()),
-                            Some(Value::Number(n)) => {
-                                LiteralValue::Number(n.as_f64().unwrap_or(0.0))
+                        let bigint = obj.get("bigint").and_then(|b| b.as_str());
+                        let lit_value = if let Some(digits) = bigint {
+                            LiteralValue::BigInt(digits.into())
+                        } else {
+                            match obj.get("value") {
+                                Some(Value::String(s)) => LiteralValue::String(s.as_str().into()),
+                                Some(Value::Number(n)) => {
+                                    LiteralValue::Number(n.as_f64().unwrap_or(0.0))
+                                }
+                                Some(Value::Bool(b)) => LiteralValue::Bool(*b),
+                                Some(Value::Object(_)) => regex.as_ref().map_or_else(
+                                    || LiteralValue::Null,
+                                    |r| LiteralValue::Regex(r.clone()),
+                                ),
+                                _ => LiteralValue::Null,
                             }
-                            Some(Value::Bool(b)) => LiteralValue::Bool(*b),
-                            Some(Value::Object(_)) => regex.as_ref().map_or_else(
-                                || LiteralValue::Null,
-                                |r| LiteralValue::Regex(r.clone()),
-                            ),
-                            _ => LiteralValue::Null,
                         };
                         Self::Literal {
                             start,

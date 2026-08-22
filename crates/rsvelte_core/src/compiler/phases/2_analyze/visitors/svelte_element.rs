@@ -9,7 +9,6 @@ use super::super::errors;
 use super::VisitorContext;
 use super::shared::fragment;
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, SvelteDynamicElement};
-use rustc_hash::FxHashSet;
 
 const NAMESPACE_SVG: &str = "http://www.w3.org/2000/svg";
 const NAMESPACE_MATHML: &str = "http://www.w3.org/1998/Math/MathML";
@@ -29,71 +28,18 @@ pub fn visit<'a, 'b: 'a>(
     element: &mut SvelteDynamicElement<'b>,
     context: &mut VisitorContext<'a>,
 ) -> Result<(), AnalysisError> {
+    // Upstream's `SvelteElement` visitor runs the same `validate_element` as the
+    // regular one, so an illegal attribute name or a non-expression `on*` handler
+    // is rejected here too.
+    super::shared::element::validate_element(&element.attributes, context)?;
+
     let collect_css = context.analysis.css.has_css;
-    let mut element_classes = rustc_hash::FxHashSet::default();
-    let mut element_id = None;
+    let mut css_facts = super::shared::element::CssAttributeFacts::default();
 
     if collect_css {
         context.analysis.css.has_dynamic_elements = true;
-        for attr in &element.attributes {
-            match attr {
-                Attribute::Attribute(attr_node) if attr_node.name == "class" => {
-                    match &attr_node.value {
-                        AttributeValue::Sequence(parts) => {
-                            for part in parts {
-                                match part {
-                                    AttributeValuePart::Text(text) => {
-                                        for class_name in text.data.split_whitespace() {
-                                            context
-                                                .analysis
-                                                .css
-                                                .used_classes
-                                                .insert(class_name.to_string());
-                                            element_classes.insert(class_name.to_string());
-                                        }
-                                    }
-                                    AttributeValuePart::ExpressionTag(_) => {
-                                        context.analysis.css.has_dynamic_classes = true;
-                                    }
-                                }
-                            }
-                        }
-                        AttributeValue::Expression(_) => {
-                            context.analysis.css.has_dynamic_classes = true;
-                        }
-                        _ => {}
-                    }
-                }
-                Attribute::Attribute(attr_node) if attr_node.name == "id" => match &attr_node.value
-                {
-                    AttributeValue::Sequence(parts) => {
-                        let has_dynamic_part = parts
-                            .iter()
-                            .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
-                        if has_dynamic_part {
-                            context.analysis.css.has_dynamic_ids = true;
-                        } else if parts.len() == 1
-                            && let Some(AttributeValuePart::Text(text)) = parts.first()
-                        {
-                            element_id = Some(text.data.to_string());
-                        }
-                    }
-                    AttributeValue::Expression(_) => {
-                        context.analysis.css.has_dynamic_ids = true;
-                    }
-                    _ => {}
-                },
-                Attribute::ClassDirective(cd) => {
-                    context
-                        .analysis
-                        .css
-                        .used_classes
-                        .insert(cd.name.to_string());
-                    element_classes.insert(cd.name.to_string());
-                }
-                _ => {}
-            }
-        }
+        css_facts =
+            super::shared::element::collect_css_attribute_facts(&element.attributes, context);
     }
 
     let parent_idx = context.current_parent_idx();
@@ -101,14 +47,14 @@ pub fn visit<'a, 'b: 'a>(
     let element_idx = if collect_css {
         let dom_element = super::super::types::CssDomElement {
             tag_name: String::new(),
-            classes: element_classes,
-            id: element_id,
-            static_attributes: Vec::new(),
-            dynamic_attribute_names: FxHashSet::default(),
-            has_spread: false,
-            has_class_directive: false,
-            class_directive_names: FxHashSet::default(),
-            has_style_directive: false,
+            classes: css_facts.classes,
+            id: css_facts.id,
+            static_attributes: css_facts.static_attributes,
+            dynamic_attribute_names: css_facts.dynamic_attribute_names,
+            has_spread: css_facts.has_spread,
+            has_class_directive: css_facts.has_class_directive,
+            class_directive_names: css_facts.class_directive_names,
+            has_style_directive: css_facts.has_style_directive,
             parent_idx,
             children_idx: Vec::new(),
             is_root_child,
@@ -120,6 +66,7 @@ pub fn visit<'a, 'b: 'a>(
             has_opaque_content: false,
             is_dynamic_tag: true,
             snippet_name: context.current_snippet_name(),
+            sibling_walk_incomplete: false,
             prev_is_opaque_boundary: false,
             prev_has_opaque_boundary: false,
         };
@@ -251,8 +198,6 @@ pub fn visit<'a, 'b: 'a>(
         }
     }
 
-    // Check for invalid bindings on svelte:element
-    // bind:value, bind:files, bind:group can only be used with specific elements
     for attr in &element.attributes {
         if let Attribute::AnimateDirective(animate) = attr
             && context.each_block_stack.last().is_none()
@@ -265,42 +210,11 @@ pub fn visit<'a, 'b: 'a>(
                 &bind.expression,
                 true,
             );
-            let name = bind.name.as_str();
-            match name {
-                "value" => {
-                    return Err(AnalysisError::validation_at(
-                        "bind_invalid_target",
-                        "`bind:value` can only be used with `<input>`, `<textarea>`, `<select>`",
-                        bind.start,
-                        bind.end,
-                    ));
-                }
-                "files" => {
-                    return Err(AnalysisError::validation_at(
-                        "bind_invalid_target",
-                        "`bind:files` can only be used with `<input type=\"file\">`",
-                        bind.start,
-                        bind.end,
-                    ));
-                }
-                "group" => {
-                    return Err(AnalysisError::validation_at(
-                        "bind_invalid_target",
-                        "`bind:group` can only be used with `<input type=\"checkbox\">` or `<input type=\"radio\">`",
-                        bind.start,
-                        bind.end,
-                    ));
-                }
-                "checked" => {
-                    return Err(AnalysisError::validation_at(
-                        "bind_invalid_target",
-                        "`bind:checked` can only be used with `<input type=\"checkbox\">` or `<input type=\"radio\">`",
-                        bind.start,
-                        bind.end,
-                    ));
-                }
-                _ => {}
-            }
+            super::bind_directive::validate_binding_target(
+                bind,
+                "svelte:element",
+                &element.attributes,
+            )?;
         }
     }
 
@@ -362,7 +276,15 @@ pub fn visit<'a, 'b: 'a>(
     let saved_element_ancestors = std::mem::take(&mut context.element_ancestors);
     let saved_block_depth_at_element = std::mem::take(&mut context.block_depth_at_element);
     let saved_parent_element = context.parent_element.take();
+    // Enter the template scope the scope builder created for this node, the way
+    // the plain-component visitor does. Without it a `{@render}` cannot see a
+    // `{#snippet}` declared as its sibling here, so the tag reads as dynamic.
+    let saved_scope = context.scope;
+    if let Some(&node_scope) = context.analysis.root.template_scope_map.get(&element.start) {
+        context.scope = node_scope;
+    }
     fragment::analyze(&mut element.fragment, context)?;
+    context.scope = saved_scope;
     context.element_ancestors = saved_element_ancestors;
     context.block_depth_at_element = saved_block_depth_at_element;
     context.parent_element = saved_parent_element;

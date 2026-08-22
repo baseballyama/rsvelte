@@ -29,6 +29,12 @@ const ALLOWED: &[(&str, &str)] = &[
         "crates/rsvelte_lint/src/rules/consistent_selector_style.rs",
         r"if chars[i] != '\\' {",
     ),
+    // Also a forward scan over the CURRENT byte: the loop advances by two past
+    // an escape, so `'\\'` is consumed whole and never read as a lookback.
+    (
+        "crates/rsvelte_core/src/compiler/phases/1_parse/read/strict_mode.rs",
+        r"if b[i] != b'\\' {",
+    ),
 ];
 
 /// A minimum file count, so a walk that silently reaches nothing fails instead

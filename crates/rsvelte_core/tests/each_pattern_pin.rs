@@ -57,11 +57,13 @@ fn h136_nested_default_uses_fallback() {
 fn h136_default_in_keyed_each() {
     let out =
         client(r#"<script>let items = [{ }];</script>{#each items as { id = 1 } (id)}{id}{/each}"#);
-    // Default is applied in the body (via $.fallback) even though the key
-    // function only reads `id` directly.
+    // Default is applied in the body (via $.fallback) AND kept in the key
+    // function's parameter pattern — official keys on the defaulted value
+    // (`({ id = 1 }) => id`), so an item without `id` keys on `1`, not
+    // `undefined` (#3035).
     assert!(
         out.contains("$.fallback($.get($$item).id, 1)"),
         "got:\n{out}"
     );
-    assert!(out.contains("({ id }) => id"), "got:\n{out}");
+    assert!(out.contains("({ id = 1 }) => id"), "got:\n{out}");
 }

@@ -57,7 +57,17 @@ fn visit_identifier_inner(
     // Corresponds to Svelte's L266-269 and L351-352 in 2-analyze/index.js
     if name == "$" || name.starts_with("$$") {
         // $$ prefixed names except reserved ones ($$props, $$restProps, $$slots) are illegal
-        if name != "$$props" && name != "$$restProps" && name != "$$slots" {
+        // Upstream walks the module scope's UNRESOLVED references, so a `$` that
+        // resolves to a binding — a parameter, most often — is not one of these.
+        if name != "$$props"
+            && name != "$$restProps"
+            && name != "$$slots"
+            && context
+                .analysis
+                .root
+                .get_binding(name, context.scope)
+                .is_none()
+        {
             return Err(errors::global_reference_invalid(name).at(start, end));
         }
     }
@@ -420,8 +430,13 @@ fn visit_identifier_inner(
     // Corresponds to Svelte's Identifier.js L154-159
     if context.in_reactive_declaration {
         let binding = &context.analysis.root.bindings[binding_idx];
-        // Check if binding is in module scope (scope_index == 0) and is reassigned
-        if binding.scope_index == 0 && binding.reassigned {
+        // Upstream declares synthetic store subscriptions in the *instance* scope, so
+        // they never satisfy its `binding.scope === module.scope` test; rsvelte parks
+        // them in scope 0 alongside the real module-script declarations.
+        if binding.scope_index == 0
+            && binding.reassigned
+            && !matches!(binding.kind, BindingKind::StoreSub)
+        {
             // Route through emit_warning so a `svelte-ignore` in scope can
             // suppress it (H-118); a direct push bypasses the ignore stack.
             context.emit_warning(
@@ -610,7 +625,9 @@ fn check_const_tag_snippet_reference(
                 snippet_scope = Some(*scope);
                 snippet_name = Some(sname.clone());
             }
-            super::FragmentOwnerType::Component if found_snippet => {
+            super::FragmentOwnerType::Component | super::FragmentOwnerType::SvelteSelf
+                if found_snippet =>
+            {
                 // For components, all named snippets trigger this check
                 if snippet_scope == Some(binding_scope) {
                     return Err(errors::const_tag_invalid_reference(name));

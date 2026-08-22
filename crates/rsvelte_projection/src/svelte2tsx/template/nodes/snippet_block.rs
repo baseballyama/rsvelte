@@ -2,7 +2,7 @@
 
 use crate::ast::template::{Fragment, SnippetBlock, TemplateNode};
 use crate::svelte2tsx::magic_string::MagicString;
-use crate::svelte2tsx::svelte2tsx::Svelte2TsxOptions;
+use crate::svelte2tsx::svelte2tsx::{Svelte2TsxOptions, slice_src};
 
 use crate::svelte2tsx::template::ctx::{Counter, TemplateNodeExt};
 use crate::svelte2tsx::template::nodes::special_element::process_fragment_trimmed;
@@ -97,6 +97,79 @@ pub fn handle_snippet_block_as_component_prop(
     handle_snippet_block_inner(block, source, options, str, counter, true, depth);
 }
 
+/// The parameter list is emitted as one verbatim source range, so comments,
+/// defaults and spacing between the parentheses survive. Upstream anchors the
+/// range at the first parameter's first leading comment; the Svelte parser
+/// attaches every comment between `(` and that parameter to it, and no comment
+/// can precede the `(` (the parser only allows whitespace there), so the first
+/// `/` after the `(` opens that comment.
+fn params_text<'a>(block: &SnippetBlock, source: &'a str) -> &'a str {
+    let Some((first_start, _)) = block.parameters.first().and_then(get_expression_range) else {
+        return "";
+    };
+    let Some((_, last_end)) = block.parameters.last().and_then(get_expression_range) else {
+        return "";
+    };
+    let start = params_open_paren(block, source)
+        .and_then(|open| {
+            let region = open + 1;
+            let upto = (first_start as usize).min(source.len());
+            source
+                .as_bytes()
+                .get(region..upto)
+                .and_then(|gap| memchr::memchr(b'/', gap))
+                .map(|offset| region + offset)
+        })
+        .unwrap_or(first_start as usize);
+    slice_src(source, start, last_end as usize)
+}
+
+/// Byte offset of the `(` that opens the snippet's parameter list. Only
+/// whitespace and an optional `<…>` type-parameter list separate it from the
+/// snippet name, and the type parameters may themselves contain `(`.
+fn params_open_paren(block: &SnippetBlock, source: &str) -> Option<usize> {
+    let (_, name_end) = get_expression_range(&block.expression)?;
+    let bytes = source.as_bytes();
+    let mut index = name_end as usize;
+    let skip_whitespace = |index: &mut usize| {
+        while bytes.get(*index).is_some_and(u8::is_ascii_whitespace) {
+            *index += 1;
+        }
+    };
+    skip_whitespace(&mut index);
+    if bytes.get(index) == Some(&b'<') {
+        let mut depth = 0u32;
+        while let Some(&byte) = bytes.get(index) {
+            match byte {
+                b'\'' | b'"' => {
+                    index += 1;
+                    while let Some(&inner) = bytes.get(index) {
+                        index += 1;
+                        if inner == b'\\' {
+                            index += 1;
+                        } else if inner == byte {
+                            break;
+                        }
+                    }
+                    continue;
+                }
+                b'<' => depth += 1,
+                b'>' => {
+                    depth = depth.saturating_sub(1);
+                    if depth == 0 {
+                        index += 1;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+            index += 1;
+        }
+        skip_whitespace(&mut index);
+    }
+    (bytes.get(index) == Some(&b'(')).then_some(index)
+}
+
 /// Upstream reaches the standalone form through `transform()`, which turns the
 /// gap in front of the moved name into one space and then collapses whatever is
 /// left before `}` into a second one — so a snippet whose header ends flush
@@ -138,17 +211,7 @@ pub fn handle_snippet_block_inner(
 
     let name_text = get_expression_text(&block.expression, source);
 
-    // Build parameters string
-    let params_text = if block.parameters.is_empty() {
-        String::new()
-    } else {
-        block
-            .parameters
-            .iter()
-            .map(|p| get_expression_text(p, source))
-            .collect::<Vec<_>>()
-            .join(", ")
-    };
+    let params_text = params_text(block, source);
 
     let has_body_nodes = !block.body.nodes.is_empty();
     let body_start = if has_body_nodes {
@@ -212,6 +275,7 @@ pub fn handle_snippet_block_inner(
         // enclosing component's slot scope, so a `let:`/`slot=` inside the body
         // is a plain attribute rather than a `$$slot_def` consumer.
         let saved_slot = counter.slot_inst.take();
+        hoist_snippet_blocks(&block.body, source, str);
         process_fragment_trimmed(&block.body.nodes, source, options, str, counter, 0);
         counter.slot_inst = saved_slot;
 

@@ -1,7 +1,10 @@
 <script>
 	export let count;
-	$: function decl() {
-		return count;
+	$: {
+		function decl() {
+			return count;
+		}
+		void decl;
 	}
 	if (count) {
 		function nested() {}
@@ -9,7 +12,6 @@
 	}
 	function top() {}
 	top();
-	void decl;
 </script>
 
 {count}

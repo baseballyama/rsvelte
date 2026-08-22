@@ -9,15 +9,15 @@ to separate two plausible implementations of one rule, so a divergence is a
 deliberate probe coming back positive rather than an accident of what published
 code happens to contain.
 
-**The expectation is that `lint-adversarial-known-failures.json` stays at 5 entries.**
+**The expectation is that `lint-adversarial-known-failures.json` stays at 4 entries.**
 It is not a burndown backlog: a new entry needs a reason that is *not*
-"rsvelte is wrong here", and the five below are the only such reasons found
+"rsvelte is wrong here", and the four below are the only such reasons found
 across 1365 patterns and 74 rules. Everything else the corpus surfaced (330
 divergences on the first run, 35 more when it grew past 1000 patterns) was fixed.
 
 `+` = rsvelte reports, oracle silent. `-` = oracle reports, rsvelte silent.
 
-## The five accepted entries
+## The four accepted entries
 
 ### 1. `html-closing-bracket-new-line/05-script-style-tags.svelte` `+svelte/block-lang 7:1`
 
@@ -56,19 +56,7 @@ the preprocessor configured. This is the same reasoning the exact-fixture gate
 records for `no-unused-svelte-ignore/invalid/style-lang0*`, whose expectations
 upstream recorded *with* the preprocessor installed.
 
-### 4. `sort-attributes/07-lookahead-order.svelte` `-svelte/sort-attributes 5:14`
-
-A custom `order` option containing a JS regex with lookahead
-(`"/^(?=x-)x-a$/u"`). Rust's `regex` crate does not implement lookaround, so the
-pattern fails to compile and the order group is dropped. Accepted as a **known
-engine limitation** rather than fixed, because the alternative is a
-lookaround-capable engine (`fancy-regex`) in a linter whose rule set is
-performance-critical, for a JS-only construct in one rule's option. Plain and
-`(?i)`-style patterns in `order` are handled and covered by sibling patterns.
-Note the failure is silent today: if this is ever revisited, the first move is to
-make an uncompilable `order` pattern observable rather than to widen the engine.
-
-### 5. `no-nested-style-tag/14-component-lookalike.svelte` `-svelte/html-self-closing 5:8`
+### 4. `no-nested-style-tag/14-component-lookalike.svelte` `-svelte/html-self-closing 5:8`
 
 `<Style />` — a component whose name differs from `style` only in case. Upstream
 reports `html-self-closing` on it; rsvelte does not, and **rsvelte is right**.

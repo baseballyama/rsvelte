@@ -6,7 +6,7 @@ entirely (neither matched nor failed). Each entry carries a `"class"`
 (`oracle-bug` | `invalid-input` | `migrate` | `engine-divergence`) and a
 `"reason"`; this file records the class-level rationale.
 
-**Current baseline: `fmt-oracle-excluded.json`, 22 entries.**
+**Current baseline: `fmt-oracle-excluded.json`, 28 entries.**
 
 `fmt-verify.mjs` warns if an excluded id is no longer in the parity set (can be
 deleted) and notices if an excluded id now matches byte-for-byte (the oracle bug
@@ -24,6 +24,11 @@ correct; file upstream at `oxformatter/oxfmt` or `prettier/prettier-plugin-svelt
   `await-then-destruct-array-nested-rest`.
 - **`{@const x = (h = 0)}` closing paren dropped** → `{@const x = (h = 0}`, invalid
   Svelte. — `block-expression-assign`.
+- **Nested object destructure with a default loses its key.** In an `{#each}`
+  context, `{ id, meta: { tags: […] } = {} }` is emitted as
+  `{ id, { tags: … } = { } }` — the `meta:` key vanishes and the output is not
+  JavaScript. — `pattern/issues/3035-destructure-defaults`,
+  `pattern/adversarial/control-flow/each-destructure-exotic`.
 - **`<textarea>` whitespace collapse.** Whitespace-significant body (`\n  A\n  B\n`)
   collapsed to `A B`, with inconsistent per-case rules. — `textarea-content`,
   `textarea-end-tag` (adversarial split close-tags).
@@ -38,10 +43,23 @@ correct; file upstream at `oxformatter/oxfmt` or `prettier/prettier-plugin-svelt
   (`css-vars`); emits a single space before `{` after an escaped-unicode selector
   (`unicode-identifier`); wraps a deeply-nested `calc(...)` differently
   (`svelte.dev .../docs/[topic]/[...path]/+layout.svelte`).
+- **oxfmt formats embedded CSS differently from standalone CSS.** For
+  `--arr: [1, 2]` / `--sel: a > b ~ c`, `oxfmt x.css` prints `[1 , 2]` /
+  `a > b ~ c` while `oxfmt --svelte` prints `[1, 2]` / `a > b ~c` — the same tool
+  disagreeing with itself, because the svelte path uses prettier's CSS printer
+  and the `.css` path the oxc engine. rsvelte-fmt reproduces oxfmt's own `.css`
+  output byte-for-byte, so parity against the svelte path is undefined here (and
+  the svelte path's `~c` changes the token stream the value substitutes). —
+  `pattern/adversarial/css/css-custom-property-values`.
 - **Cross-platform non-determinism.** oxfmt produces different output on macOS vs
   Linux for the same input (an overflowing self-closing component inside `<pre>` is
   collapsed on macOS, attribute-wrapped on Linux), so byte-parity is undefined. —
   `shadcn-svelte .../theme-customizer-code.svelte`.
+- **Nested object-destructure default in `{#each}` loses its key.**
+  `{#each xs as { id, meta: { tags: [t = 'x'] } = {} }}` is mangled to
+  `{ id, { tags: [t = 'x'] } = { } }` — the `meta:` property key is dropped,
+  which is not JavaScript. — `pattern/issues/3035-destructure-defaults.svelte`,
+  `pattern/adversarial/control-flow/each-destructure-exotic.svelte`.
 
 ## invalid-input — the input is invalid and rsvelte correctly rejects it
 
@@ -53,6 +71,9 @@ correct; file upstream at `oxformatter/oxfmt` or `prettier/prettier-plugin-svelt
   `snippet-rest-args`.
 - **Genuinely-invalid Svelte-specific CSS** — a parser-modern edge `<style>` block
   with invalid `:nth` syntax. — `css-nth-syntax`.
+- **At-rule inside `:global()`** — `:global(@keyframes shared)` is rejected by both
+  compilers (`css_expected_identifier`, #3120); rsvelte-fmt leaves a stylesheet its
+  parser rejects untouched. — `rejected-global-keyframes-selector`.
 
 ## migrate — Svelte 4→5 migrator output (out of scope per AGENTS.md)
 
@@ -61,6 +82,12 @@ Svelte-5 compiler formats differently. — `migrate/samples/slot-non-identifier/
 `migrate/samples/slot-usages/output.svelte`.
 
 ## engine-divergence — oxc vs prettier JS layout, both valid
+
+- **`let:` value read as an expression** — a default inside a `let:` destructuring pattern
+  comes back parenthesised (`[(head = "none")]`, `meta: ({ n } = {})`). Svelte accepts
+  both spellings; rsvelte-fmt parses the value as a binding pattern, where the parens are
+  a syntax error (#3125). — `let-directive-destructuring`,
+  `3123-let-directive-pattern-defaults`.
 
 Not oracle bugs and not rsvelte bugs: rsvelte formats embedded JS with the
 `oxc_formatter` crate (a deliberate design choice for the 100x-perf / oxc

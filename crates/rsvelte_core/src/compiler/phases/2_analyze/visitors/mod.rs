@@ -382,8 +382,19 @@ pub struct VisitorContext<'a> {
     pub element_depth: usize,
     /// Depth inside control flow blocks (for placement validation).
     pub block_depth: usize,
+    /// Depth of the ancestors upstream's `SvelteSelf` visitor accepts as a parent —
+    /// `{#if}`, `{#each}`, `{#snippet}` and a `Component`, so neither an `{#await}`
+    /// nor a `<svelte:component>` counts.
+    pub svelte_self_parent_depth: usize,
     /// Depth inside component elements (for placement validation).
     pub component_depth: usize,
+    /// Whether the fragment being analysed is the component's root fragment.
+    /// Upstream's root-only meta tags are rejected on `parent.type !== 'Root'`
+    /// alone, which no depth counter reproduces — each one is maintained by a
+    /// hand-written list of the containers that increment it.
+    pub in_root_fragment: bool,
+    /// Set by the caller of the root fragment's `analyze`, consumed by it.
+    pub next_fragment_is_root: bool,
     /// Whether we've seen svelte:window.
     pub has_svelte_window: bool,
     /// Whether we've seen svelte:body.
@@ -495,8 +506,12 @@ pub enum FragmentOwnerType {
     RegularElement,
     /// Inside a RegularElement with a slot attribute
     RegularElementWithSlot,
-    /// Inside a Component (or SvelteComponent, SvelteSelf)
+    /// Inside a Component (or SvelteComponent)
     Component,
+    /// Inside a `<svelte:self>`. Upstream's `{@const}` placement rule names
+    /// `Component` and `SvelteComponent` and stops there, so this cannot share
+    /// the variant above even though the two behave alike elsewhere.
+    SvelteSelf,
     /// Inside an IfBlock branch
     IfBlock,
     /// Inside an EachBlock body or fallback
@@ -556,7 +571,10 @@ impl<'a> VisitorContext<'a> {
             dom_element_stack: Vec::new(),
             element_depth: 0,
             block_depth: 0,
+            svelte_self_parent_depth: 0,
             component_depth: 0,
+            in_root_fragment: false,
+            next_fragment_is_root: false,
             has_svelte_window: false,
             has_svelte_body: false,
             has_svelte_document: false,
@@ -580,11 +598,6 @@ impl<'a> VisitorContext<'a> {
             in_bind_this: false,
             decl_undo_log: Vec::new(),
         }
-    }
-
-    /// Check if currently inside an element or block (for placement validation).
-    pub fn is_inside_element_or_block(&self) -> bool {
-        self.element_depth > 0 || self.block_depth > 0 || self.component_depth > 0
     }
 
     /// Add a DOM element to the structure and return its index.
@@ -691,7 +704,9 @@ pub fn analyze_template(
     let instance_scope_index = analysis.root.instance_scope_index;
     let mut context = VisitorContext::new(analysis, parse_arena);
     context.scope = instance_scope_index;
+    context.next_fragment_is_root = true;
     fragment::analyze(&mut ast.fragment, &mut context)?;
+    snippet_block::promote_mutual_snippet_hoists(&mut ast.fragment.nodes, &mut context);
 
     // Check for mixed event handler syntaxes (on:event and onevent mixed)
     if let Some(ref event_name) = context.event_directive_node

@@ -22,6 +22,7 @@ fn run(source: &str) -> String {
         lenient_script: false,
         skip_non_css_lang_style: false,
         capture_comments: false,
+        reparse_leading_slash_expression: false,
     };
     let mut ast = phase1_parse::parse(source, &oxc_allocator::Allocator::default(), parse_options)
         .expect("parse");
@@ -70,6 +71,7 @@ fn run_async_both(source: &str) -> (String, String) {
         lenient_script: false,
         skip_non_css_lang_style: false,
         capture_comments: false,
+        reparse_leading_slash_expression: false,
     };
     let mut ast = phase1_parse::parse(source, &oxc_allocator::Allocator::default(), parse_options)
         .expect("parse");
@@ -1763,6 +1765,7 @@ fn oracle_dump(source: &str) -> String {
         lenient_script: false,
         skip_non_css_lang_style: false,
         capture_comments: false,
+        reparse_leading_slash_expression: false,
     };
     let mut ast = phase1_parse::parse(source, &oxc_allocator::Allocator::default(), parse_options)
         .expect("parse");
@@ -2273,6 +2276,7 @@ fn run_both_opts(source: &str, customize: impl Fn(&mut CompileOptions)) -> (Stri
         lenient_script: false,
         skip_non_css_lang_style: false,
         capture_comments: false,
+        reparse_leading_slash_expression: false,
     };
     let mut ast = phase1_parse::parse(source, &oxc_allocator::Allocator::default(), parse_options)
         .expect("parse");
@@ -3783,6 +3787,7 @@ fn compile_both(source: &str) -> Outcome {
         lenient_script: false,
         skip_non_css_lang_style: false,
         capture_comments: false,
+        reparse_leading_slash_expression: false,
     };
 
     // Parse into a heap-stable Box so the arena address stays valid for the

@@ -1591,6 +1591,12 @@ pub struct ComponentAnalysis {
     /// decision without waiting for the post-walk reconciliation.
     pub instance_has_legacy_patterns: bool,
 
+    /// First unresolved `$$props` / `$$restProps` reference, in upstream's
+    /// module-then-instance-then-template order. Recorded while scanning for
+    /// store subscriptions, but reported only once runes mode has settled.
+    pub legacy_props_ref: Option<(u32, u32)>,
+    pub legacy_rest_props_ref: Option<(u32, u32)>,
+
     /// Whether the component uses $$props
     pub uses_props: bool,
 
@@ -1699,8 +1705,8 @@ pub struct ComponentAnalysis {
     /// Maps from (key, bindings) to the generated identifier
     pub binding_groups: FxHashMap<String, String>,
 
-    /// Slot names mapped to their SlotElement nodes
-    pub slot_names: indexmap::IndexMap<String, String, rustc_hash::FxBuildHasher>,
+    /// Slot names mapped to their `<slot>` element's span
+    pub slot_names: indexmap::IndexMap<String, (u32, u32), rustc_hash::FxBuildHasher>,
 
     /// Every render tag/component and whether it could be definitively resolved
     pub snippet_renderers: FxHashMap<String, bool>,
@@ -1797,6 +1803,8 @@ impl ComponentAnalysis {
             has_await: false,
             maybe_runes: false,
             instance_has_legacy_patterns: false,
+            legacy_props_ref: None,
+            legacy_rest_props_ref: None,
             uses_props: false,
             uses_rest_props: false,
             uses_slots: false,
@@ -1950,6 +1958,7 @@ impl ComponentAnalysis {
             ast,
             &self.source,
             self.runes,
+            self.runes_explicitly_set == Some(false),
             self.is_typescript,
             arena,
         );
@@ -2387,6 +2396,11 @@ pub struct CssDomElement {
     /// Innermost enclosing `{#snippet}` name — its real DOM ancestors are that
     /// snippet's render sites, not its lexical `parent_idx`.
     pub snippet_name: Option<String>,
+    /// Set when the sibling walk stopped at something it could not enumerate, so
+    /// the four lists above are a subset of the real siblings rather than all of
+    /// them. A `{#if}` / `{#each}` / `{#await}` / `{#key}` branch does not set it:
+    /// an inexhaustive branch demotes a sibling to `Probable` instead.
+    pub sibling_walk_incomplete: bool,
     /// Whether this element can be immediately preceded by an opaque boundary
     /// (slot, render tag, component) - used for :global(X) + Y detection
     pub prev_is_opaque_boundary: bool,

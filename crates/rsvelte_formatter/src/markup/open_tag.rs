@@ -362,7 +362,8 @@ pub(super) fn push_open_tag(
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<bool, FormatError> {
     let tw = crate::width::tab_width(options);
-    let Some(open_tag_end) = find_open_tag_end(source, element_start, attributes) else {
+    let this_end = this_expression.and_then(Expression::end);
+    let Some(open_tag_end) = find_open_tag_end(source, element_start, attributes, this_end) else {
         return Ok(false);
     };
 

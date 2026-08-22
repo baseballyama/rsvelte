@@ -2366,51 +2366,6 @@ fn strip_bindable_wrapper(s: &str) -> Option<&str> {
     rest.strip_prefix('(')?.strip_suffix(')')
 }
 
-/// Drop the comments that bracket a `$props()` declarator. A trailing `//` one
-/// would otherwise stay glued to the binding name and swallow the initializer
-/// this helper appends after it.
-fn trim_declarator_comments(s: &str) -> &str {
-    let bytes = s.as_bytes();
-    let mut comments: Vec<(usize, usize)> = Vec::new();
-    let mut prev: Option<u8> = None;
-    let mut i = 0;
-    while i < bytes.len() {
-        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
-            if is_comment {
-                comments.push((i, next));
-            } else {
-                prev = next.checked_sub(1).and_then(|k| bytes.get(k)).copied();
-            }
-            i = next;
-            continue;
-        }
-        if !bytes[i].is_ascii_whitespace() {
-            prev = Some(bytes[i]);
-        }
-        i += 1;
-    }
-
-    let mut start = 0;
-    let mut end = s.len();
-    loop {
-        let slice = &s[start..end];
-        let lo = start + (slice.len() - slice.trim_start().len());
-        let hi = lo + s[lo..end].trim_end().len();
-        if lo == hi {
-            return "";
-        }
-        if let Some(&(_, e)) = comments.iter().find(|&&(st, _)| st == lo) {
-            start = e;
-            end = hi;
-        } else if let Some(&(st, _)) = comments.iter().find(|&&(_, e)| e == hi) {
-            start = lo;
-            end = st;
-        } else {
-            return &s[lo..hi];
-        }
-    }
-}
-
 /// Split declarators by comma, handling nested braces, brackets, parens, and
 /// string / template literals.
 ///
@@ -2656,6 +2611,119 @@ fn props_pattern_span(trimmed: &str) -> Option<(usize, usize)> {
     Some((open?, close?))
 }
 
+/// A declarator part's comment layout: comments before its first code token,
+/// the code range between (interior comments included), and comments after the
+/// last code token. All offsets are absolute in the pattern text the parts were
+/// split from; `part_off` is the part's offset there.
+fn scan_part_comments(
+    part_off: usize,
+    part: &str,
+) -> (
+    Vec<(usize, usize)>,
+    Option<(usize, usize)>,
+    Vec<(usize, usize)>,
+) {
+    let bytes = part.as_bytes();
+    let mut comments: Vec<(usize, usize)> = Vec::new();
+    let mut first_code: Option<usize> = None;
+    let mut last_code_end: usize = 0;
+    let mut prev: Option<u8> = None;
+    let mut i = 0;
+    while i < bytes.len() {
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            if is_comment {
+                comments.push((i, next));
+            } else {
+                first_code.get_or_insert(i);
+                last_code_end = next;
+                prev = next.checked_sub(1).and_then(|k| bytes.get(k)).copied();
+            }
+            i = next;
+            continue;
+        }
+        if !bytes[i].is_ascii_whitespace() {
+            first_code.get_or_insert(i);
+            last_code_end = i + 1;
+            prev = Some(bytes[i]);
+        }
+        i += 1;
+    }
+    let Some(first) = first_code else {
+        let all = comments
+            .into_iter()
+            .map(|(s, e)| (part_off + s, part_off + e))
+            .collect();
+        return (all, None, Vec::new());
+    };
+    let lead = comments
+        .iter()
+        .filter(|&&(_, e)| e <= first)
+        .map(|&(s, e)| (part_off + s, part_off + e))
+        .collect();
+    let trail = comments
+        .iter()
+        .filter(|&&(s, _)| s >= last_code_end)
+        .map(|&(s, e)| (part_off + s, part_off + e))
+        .collect();
+    (
+        lead,
+        Some((part_off + first, part_off + last_code_end)),
+        trail,
+    )
+}
+
+/// esrap's `flush_trailing_comments` for the pattern text: a comment on the
+/// same line as the previous kept declarator's default value lands inside that
+/// `$.prop(...)` call (before its closing paren, a `//` one forcing a line
+/// break); anything else queues to flush before the next kept declarator.
+fn attach_or_pend(
+    comments: &[(usize, usize)],
+    props_str: &str,
+    declarators: &mut [String],
+    pending: &mut Vec<(usize, String)>,
+    prev_value_end: Option<usize>,
+    trail_broken: &mut bool,
+) {
+    for &(start, end) in comments {
+        let text = &props_str[start..end];
+        let attachable = pending.is_empty()
+            && !*trail_broken
+            && prev_value_end.is_some_and(|e| e <= start && !props_str[e..start].contains('\n'));
+        if attachable
+            && let Some(last) = declarators.last_mut()
+            && let Some(pos) = last.rfind(')')
+        {
+            let is_line = text.starts_with("//");
+            let insert = if is_line {
+                format!(" {}\n", text)
+            } else {
+                format!(" {}", text)
+            };
+            last.insert_str(pos, &insert);
+            if is_line {
+                *trail_broken = true;
+            }
+            continue;
+        }
+        pending.push((end, text.to_string()));
+    }
+}
+
+/// Render queued comments ahead of the kept declarator starting at `to`,
+/// keeping each one's source line break toward it.
+fn flush_pending_before(pending: &mut Vec<(usize, String)>, props_str: &str, to: usize) -> String {
+    let mut out = String::new();
+    for (end, text) in pending.drain(..) {
+        out.push_str(&text);
+        if props_str[end..to].contains('\n') {
+            out.push('\n');
+        } else {
+            out.push(' ');
+        }
+    }
+    out
+}
+
 pub(super) fn transform_props_destructuring(
     line: &str,
     prop_source_vars: &[String],
@@ -2737,17 +2805,69 @@ pub(super) fn transform_props_destructuring(
         seen.push("$$host".to_string());
     }
 
-    for prop_part in split_declarators(props_str) {
-        let prop_part = prop_part.trim();
-        if prop_part.is_empty() {
-            continue;
-        }
+    // Comments that bracket a declarator ride the esrap comment cursor
+    // upstream: a same-line one after a kept default lands inside that
+    // `$.prop(...)` call, everything else flushes before the next kept
+    // declarator, and leftovers spill past the statement's `;`.
+    let mut pending: Vec<(usize, String)> = Vec::new();
+    let mut prev_value_end: Option<usize> = None;
+    let mut trail_broken = false;
 
-        let prop_part = trim_declarator_comments(prop_part);
-        if prop_part.is_empty() {
+    for raw_part in split_declarators(props_str) {
+        let part_off = raw_part.as_ptr() as usize - props_str.as_ptr() as usize;
+        let (lead, core, trail) = scan_part_comments(part_off, raw_part);
+        attach_or_pend(
+            &lead,
+            props_str,
+            &mut declarators,
+            &mut pending,
+            prev_value_end,
+            &mut trail_broken,
+        );
+        let Some((core_start, core_end)) = core else {
             continue;
+        };
+        let prop_part = &props_str[core_start..core_end];
+        let before_len = declarators.len();
+        let value_located = emit_prop_declarator(
+            prop_part,
+            &mut declarators,
+            &mut seen,
+            prop_source_vars,
+            exported_names,
+            analysis,
+            read_only_props,
+            dev,
+        );
+        if declarators.len() > before_len {
+            if !pending.is_empty() {
+                let prefix = flush_pending_before(&mut pending, props_str, core_start);
+                declarators[before_len].insert_str(0, &prefix);
+            }
+            prev_value_end = value_located.then_some(core_end);
+            trail_broken = false;
         }
+        attach_or_pend(
+            &trail,
+            props_str,
+            &mut declarators,
+            &mut pending,
+            prev_value_end,
+            &mut trail_broken,
+        );
+    }
 
+    #[allow(clippy::too_many_arguments)]
+    fn emit_prop_declarator(
+        prop_part: &str,
+        declarators: &mut Vec<String>,
+        seen: &mut Vec<String>,
+        prop_source_vars: &[String],
+        exported_names: &[String],
+        analysis: &ComponentAnalysis,
+        read_only_props: &[(String, String)],
+        dev: bool,
+    ) -> bool {
         // Handle rest element: ...rest
         // Reference: VariableDeclaration.js lines 96-107
         if let Some(rest_name) = prop_part.strip_prefix("...") {
@@ -2765,7 +2885,7 @@ pub(super) fn transform_props_destructuring(
                 seen_literals.join(", "),
                 dev_name
             ));
-            continue;
+            return false;
         }
 
         // Handle: name = default_value (always generate for props with defaults)
@@ -2846,7 +2966,7 @@ pub(super) fn transform_props_destructuring(
                             local_name, prop_name, flags
                         ));
                     }
-                    continue;
+                    return false;
                 }
                 inner
             } else {
@@ -2925,6 +3045,7 @@ pub(super) fn transform_props_destructuring(
                     local_name, prop_name, flags, lazy_arg
                 ));
             }
+            true
         } else {
             // No default value - handle rename pattern: `originalProp: localVar`
             let (prop_name, local_name) = if let Some(colon_pos) = prop_part.find(':') {
@@ -2956,14 +3077,22 @@ pub(super) fn transform_props_destructuring(
                 ));
             }
             // Read-only props without defaults are accessed directly via $$props.propName
+            false
         }
     }
+
+    // Comments left after the last kept declarator flush before whatever
+    // statement follows — past this statement's `;`.
+    let tail: String = pending
+        .iter()
+        .map(|(_, text)| format!("\n{}", text))
+        .collect();
 
     // Combine all declarators into a single `let` statement with comma separators
     if declarators.is_empty() {
         Some(String::new())
     } else if declarators.len() == 1 {
-        Some(format!("{} {};\n", decl_keyword, declarators[0]))
+        Some(format!("{} {};{}\n", decl_keyword, declarators[0], tail))
     } else {
         // Multi-prop: combine with comma + newline + tab indent, matching official compiler
         let mut result = format!("{} {}", decl_keyword, declarators[0]);
@@ -2971,7 +3100,9 @@ pub(super) fn transform_props_destructuring(
             result.push_str(",\n\t");
             result.push_str(decl);
         }
-        result.push_str(";\n");
+        result.push(';');
+        result.push_str(&tail);
+        result.push('\n');
         Some(result)
     }
 }
@@ -3635,7 +3766,12 @@ impl PropMutationSites {
                 continue;
             }
             if let Some((after, chain)) = scan_member_chain_names(source, chain_start)
-                && let Some(value_start) = mutation_value_start(source, after)
+                && let Some(value_start) = mutation_value_start(source, after).or_else(|| {
+                    // A PREFIX update (`--p.deep.c`) has its operator before
+                    // the identifier; the site's position stays the identifier.
+                    let head = source[..start].trim_end();
+                    (head.ends_with("++") || head.ends_with("--")).then_some(after)
+                })
             {
                 let (line, column) =
                     crate::compiler::phases::phase3_transform::utils::locate_in_source(

@@ -98,6 +98,15 @@ impl<'a> Parser<'a> {
             let close_start = self.index - 1; // start includes '<'
             self.advance(); // consume '/'
             let name_start_idx = self.index;
+            // Upstream reads the name off a right-trimmed template, so a `</`
+            // with nothing but whitespace left runs out of input.
+            if !self.options.loose && self.source[self.index..].trim_start().is_empty() {
+                return Err(crate::error::ParseError::svelte(
+                    "unexpected_eof",
+                    "Unexpected end of input",
+                    (self.index, self.index),
+                ));
+            }
             self.read_tag_name();
             let name_end_idx = self.index;
             self.skip_whitespace();
@@ -153,6 +162,33 @@ impl<'a> Parser<'a> {
                     (name_start, name_end),
                 ));
             }
+
+            // Upstream decides both of these here, on the parser stack, so they
+            // precede every analysis error the node's own content could raise.
+            if matches!(suffix, "head" | "options" | "window" | "document" | "body") {
+                if self.meta_tags.contains_key(name.as_str()) {
+                    return Err(crate::error::ParseError::svelte(
+                        "svelte_meta_duplicate",
+                        format!(
+                            "A component can only have one `<{name}>` element\nhttps://svelte.dev/e/svelte_meta_duplicate"
+                        ),
+                        (start, start),
+                    ));
+                }
+                if !matches!(
+                    self.stack.last(),
+                    Some(crate::compiler::phases::phase1_parse::parser::StackEntry::Root)
+                ) {
+                    return Err(crate::error::ParseError::svelte(
+                        "svelte_meta_invalid_placement",
+                        format!(
+                            "`<{name}>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement"
+                        ),
+                        (start, start),
+                    ));
+                }
+                self.meta_tags.insert(name.to_string(), true);
+            }
         } else if !name.is_empty() && !self.options.loose {
             // Validate element/component names
             // regex_valid_element_name: /^(?:![a-zA-Z]+|[a-zA-Z](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?|[a-zA-Z][a-zA-Z0-9]*:[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9])$/
@@ -167,8 +203,10 @@ impl<'a> Parser<'a> {
         }
 
         if name.is_empty() {
-            // If we're at EOF with just '<', report unexpected_eof (unless in loose mode)
-            if self.is_eof() {
+            // Upstream keeps reading and runs out of input, so trailing
+            // whitespace after the `<` does not make it text.
+            let only_whitespace_left = self.source[self.index..].trim_start().is_empty();
+            if self.is_eof() || only_whitespace_left {
                 if self.options.loose {
                     // In loose mode, allow EOF after '<'
                     return Ok(None);
@@ -176,6 +214,15 @@ impl<'a> Parser<'a> {
                 return Err(crate::error::ParseError::svelte(
                     "unexpected_eof",
                     "Unexpected end of input",
+                    (self.index, self.index),
+                ));
+            }
+            if !self.options.loose {
+                // Upstream validates the empty name like any other, so a `<`
+                // that starts no tag is an error rather than text.
+                return Err(crate::error::ParseError::svelte(
+                    "tag_invalid_name",
+                    "Expected a valid element or component name. Components must have a valid variable name or dot notation expression\nhttps://svelte.dev/e/tag_invalid_name",
                     (self.index, self.index),
                 ));
             }
@@ -240,10 +287,18 @@ impl<'a> Parser<'a> {
         if !has_closing_bracket && !self.options.loose {
             self.skip_whitespace();
             if self.is_eof() {
+                // Upstream throws from `read_until`, which has not consumed the
+                // trailing whitespace, so the point is the last token's end.
+                let at = self.source[..self.index].trim_end().len();
+                // Consuming the `/` got past `read_attribute`, so what runs out
+                // is `eat('>', true)` rather than the attribute reader.
+                if self_closing {
+                    return Err(crate::error::ParseError::expected_token(">", at));
+                }
                 return Err(crate::error::ParseError::svelte(
                     "unexpected_eof",
                     "Unexpected end of input",
-                    (self.source.len(), self.source.len()),
+                    (at, at),
                 ));
             }
             return Err(crate::error::ParseError::expected_token(">", self.index));
@@ -1063,14 +1118,14 @@ impl<'a> Parser<'a> {
             if let Some(attr) = self.parse_attribute()? {
                 // Check for duplicate attributes - linear scan over existing attributes.
                 // No separate data structure needed (most elements have < 10 attributes).
-                let (attr_type_prefix, attr_name, attr_start): (u8, &str, u32) = match &attr {
-                    crate::ast::Attribute::Attribute(a) => (b'A', a.name.as_str(), a.start),
+                let (attr_type_prefix, attr_name): (u8, &str) = match &attr {
+                    crate::ast::Attribute::Attribute(a) => (b'A', a.name.as_str()),
                     crate::ast::Attribute::BindDirective(b) => {
                         // bind:attribute and attribute are the same, normalize to Attribute
-                        (b'A', b.name.as_str(), b.start)
+                        (b'A', b.name.as_str())
                     }
-                    crate::ast::Attribute::ClassDirective(c) => (b'C', c.name.as_str(), c.start),
-                    crate::ast::Attribute::StyleDirective(s) => (b'S', s.name.as_str(), s.start),
+                    crate::ast::Attribute::ClassDirective(c) => (b'C', c.name.as_str()),
+                    crate::ast::Attribute::StyleDirective(s) => (b'S', s.name.as_str()),
                     _ => {
                         // Other attribute types are not checked for duplicates
                         attributes.push(attr);
@@ -1094,10 +1149,13 @@ impl<'a> Parser<'a> {
                     });
 
                     if is_dup {
+                        // Reference: element.js L250 — the span is the whole attribute,
+                        // not just its name.
+                        let (start, end) = attr.span();
                         return Err(crate::error::ParseError::svelte(
                             "attribute_duplicate",
                             "Attributes need to be unique",
-                            (attr_start as usize, attr_start as usize + attr_name.len()),
+                            (start as usize, end as usize),
                         ));
                     }
                 }
@@ -2606,7 +2664,9 @@ impl<'a> Parser<'a> {
                         start: text_start as u32,
                         end: self.index as u32,
                         raw: Cow::Borrowed(text_content),
-                        data: Cow::Borrowed(text_content),
+                        // `textarea` is escapable raw text, so its content still
+                        // decodes character references.
+                        data: Cow::Owned(decode_html_entities(text_content, false)),
                     }));
                 }
 
@@ -2627,7 +2687,7 @@ impl<'a> Parser<'a> {
                 start: text_start as u32,
                 end: self.index as u32,
                 raw: text_content.to_string().into(),
-                data: text_content.to_string().into(),
+                data: Cow::Owned(decode_html_entities(text_content, false)),
             }));
         }
 

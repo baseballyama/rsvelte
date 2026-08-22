@@ -713,8 +713,13 @@ fn push_static_element_to_template_inner(
                         }
                     }
 
-                    // Skip empty class attributes (matches official compiler behavior)
-                    if a.name == "class" && value.as_deref() == Some("") {
+                    // Skip empty class attributes (matches official compiler behavior).
+                    // A valueless `class` is upstream's boolean `true`, which is
+                    // truthy here and survives as `class=""`.
+                    if a.name == "class"
+                        && value.as_deref() == Some("")
+                        && !matches!(&a.value, crate::ast::template::AttributeValue::True(_))
+                    {
                         continue;
                     }
                     // Lowercase attribute names for HTML elements (matches official compiler)

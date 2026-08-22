@@ -712,8 +712,14 @@ fn is_inside_generator_function(context: &VisitorContext) -> bool {
     false
 }
 
-/// Visit a call expression (typed JsNode path).
-pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+/// Apply the rune arity and placement rules to one call expression.
+///
+/// Split out of [`visit_typed`] because the template walker reaches a call
+/// through its own traversal and has to run the same rules.
+pub(crate) fn validate_rune_call(
+    node: &JsNode,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
     let JsNode::CallExpression {
         callee,
         arguments,
@@ -784,7 +790,8 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
             if context.analysis.props_id.is_some() {
                 return Err(errors::props_duplicate("$props.id").at(*start, *end));
             }
-            if !is_props_id_valid_placement(context) {
+            if context.ast_type != super::AstType::Instance || !is_props_id_valid_placement(context)
+            {
                 return Err(errors::props_id_invalid_placement().at(*start, *end));
             }
             if arg_count > 0 {
@@ -895,6 +902,25 @@ pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), An
         }
         _ => {}
     }
+
+    Ok(())
+}
+
+/// Visit a call expression (typed JsNode path).
+pub fn visit_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    let JsNode::CallExpression {
+        callee, arguments, ..
+    } = node
+    else {
+        return Ok(());
+    };
+
+    validate_rune_call(node, context)?;
+
+    let arena = context.parse_arena;
+    let callee_node = arena.get_js_node(*callee);
+    let args = arena.get_js_children(*arguments);
+    let rune = super::shared::utils::get_rune_from_node(node, &context.analysis.root.scope, arena);
 
     // Track expression metadata for non-rune calls
     let is_pure_call = super::shared::utils::is_pure_node(callee_node, context);

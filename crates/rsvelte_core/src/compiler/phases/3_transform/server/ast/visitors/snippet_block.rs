@@ -46,54 +46,7 @@ pub fn visit_snippet_block<'a>(node: &SnippetBlock<'a>, state: &mut ServerTransf
         .map(|s| s.to_string())
         .unwrap_or_else(|| "snippet".to_string());
 
-    // -- parameters ---------------------------------------------------------
-    // 写经 upstream: `[b.id('$$renderer'), ...node.parameters]` — the declared
-    // parameters are spread VERBATIM into the formal-parameter list. We
-    // reconstruct each parameter's source spelling (mirroring the text oracle's
-    // `extract_snippet_param`: TS-strip, default-value via span, parenthesize a
-    // SequenceExpression default) and reparse the whole list into oxc
-    // FormalParameters so destructuring patterns + default values survive.
-    let mut param_srcs: Vec<String> = vec!["$$renderer".to_string()];
-    for param in &node.parameters {
-        let s = extract_snippet_param(param, state.source);
-        if !s.is_empty() {
-            param_srcs.push(s);
-        }
-    }
-    let params = state
-        .reparse_params(&param_srcs)
-        // Fallback (unreachable for valid input): `($$renderer)` only.
-        .unwrap_or_else(|| b.params(vec![b.id_pat("$$renderer")], None));
-
-    // The snippet PARAMETERS shadow any same-named component-level `$derived` /
-    // `$store` binding inside the body (upstream `context.state.scope` resolves a
-    // body identifier to the snippet parameter, a normal binding, not the
-    // component derived). Push the param names as a shadow frame around the body
-    // build so e.g. `{#snippet foo(doubled)} {doubled} {/snippet}` does not
-    // read-wrap `doubled` to `doubled()`.
-    let mut shadow = rustc_hash::FxHashSet::default();
-    for param in &node.parameters {
-        collect_param_pattern_names(param, &mut shadow);
-    }
-    state.shadowed_names.push(shadow);
-
-    // Body: render the fragment as a `{ ... }` block, then reuse its statements
-    // as the function body.
-    // SnippetBlock body IS an `is_text_first` parent (upstream `clean_nodes`).
-    let saved_scope = state.enter_template_scope(node.start);
-    let mut body_block = super::shared::build_fragment_body(&node.body.nodes, true, true, state);
-    state.restore_scope(saved_scope);
-    if state.options.dev {
-        body_block.insert(
-            0,
-            b.stmt(b.call("$.validate_snippet_args", vec![b.id("$$renderer")])),
-        );
-    }
-    let fn_body = b.body(body_block);
-
-    state.shadowed_names.pop();
-
-    let fn_decl = b.function_declaration(&name, params, fn_body, false);
+    let fn_decl = build_snippet_function(node, &name, state);
 
     // 写经 upstream `fn.___snippet = true`: record the snippet's function name so
     // the `uses_component_bindings` settle-loop assembly can hoist this
@@ -129,15 +82,82 @@ pub fn visit_snippet_block<'a>(node: &SnippetBlock<'a>, state: &mut ServerTransf
                     "$.prevent_snippet_stringification",
                     vec![b.id(&name)],
                 ))));
-            state
-                .template
-                .push(super::shared::TemplateEntry::HoistableDecl(fn_decl));
-        } else {
-            state
-                .template
-                .push(super::shared::TemplateEntry::HoistableDecl(fn_decl));
+        }
+        state
+            .template
+            .push(super::shared::TemplateEntry::HoistableDecl(fn_decl));
+    }
+}
+
+/// Build `function <name>($$renderer, ...params) { <body> }` for a snippet.
+///
+/// All three server call sites go through this: the `SnippetBlock` visitor, a
+/// component-child slot snippet and a `<svelte:boundary>` `failed` / `pending`
+/// snippet. They must agree on both halves — a parameter reconstructed by name
+/// alone drops a destructuring pattern, and a missing shadow frame lets a body
+/// read of a parameter constant-fold to the same-named component binding.
+pub(super) fn build_snippet_function<'a>(
+    node: &SnippetBlock<'a>,
+    name: &str,
+    state: &mut ServerTransformState<'a>,
+) -> oxc_ast::ast::Statement<'a> {
+    let b = state.b;
+
+    // -- parameters ---------------------------------------------------------
+    // 写经 upstream: `[b.id('$$renderer'), ...node.parameters]` — the declared
+    // parameters are spread VERBATIM into the formal-parameter list. We
+    // reconstruct each parameter's source spelling (mirroring the text oracle's
+    // `extract_snippet_param`: TS-strip, default-value via span, parenthesize a
+    // SequenceExpression default) and reparse the whole list into oxc
+    // FormalParameters so destructuring patterns + default values survive.
+    let mut param_srcs: Vec<String> = vec!["$$renderer".to_string()];
+    for param in &node.parameters {
+        let s = extract_snippet_param(param, state.source);
+        if !s.is_empty() {
+            param_srcs.push(s);
         }
     }
+    let params = state
+        .reparse_params(&param_srcs)
+        // Fallback (unreachable for valid input): `($$renderer)` only.
+        .unwrap_or_else(|| b.params(vec![b.id_pat("$$renderer")], None));
+
+    // The snippet PARAMETERS shadow any same-named component-level `$derived` /
+    // `$store` binding inside the body (upstream `context.state.scope` resolves a
+    // body identifier to the snippet parameter, a normal binding, not the
+    // component derived). Push the param names as a shadow frame around the body
+    // build so e.g. `{#snippet foo(doubled)} {doubled} {/snippet}` does not
+    // read-wrap `doubled` to `doubled()`.
+    let mut shadow = rustc_hash::FxHashSet::default();
+    for param in &node.parameters {
+        collect_param_pattern_names(param, &mut shadow);
+    }
+    // Push to BOTH shadow sets (mirroring the each-block visitor): a snippet
+    // parameter is a runtime value, so a body read of a param that shadows a
+    // same-named component binding must NOT constant-fold to the outer
+    // binding's value (`{#snippet row(count)}` + instance `count = $state('x')`
+    // rendered `x` for every `{@render row(…)}`).
+    state.slot_let_shadows.push(shadow.clone());
+    state.shadowed_names.push(shadow);
+
+    // Body: render the fragment as a `{ ... }` block, then reuse its statements
+    // as the function body.
+    // SnippetBlock body IS an `is_text_first` parent (upstream `clean_nodes`).
+    let saved_scope = state.enter_template_scope(node.start);
+    let mut body_block = super::shared::build_fragment_body(&node.body.nodes, true, true, state);
+    state.restore_scope(saved_scope);
+    if state.options.dev {
+        body_block.insert(
+            0,
+            b.stmt(b.call("$.validate_snippet_args", vec![b.id("$$renderer")])),
+        );
+    }
+    let fn_body = b.body(body_block);
+
+    state.shadowed_names.pop();
+    state.slot_let_shadows.pop();
+
+    b.function_declaration(name, params, fn_body, false)
 }
 
 /// Collect every binding identifier name introduced by a snippet / slot

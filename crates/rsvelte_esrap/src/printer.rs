@@ -2280,10 +2280,18 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             self.type_parameter_declaration(tp, ctx);
         }
         ctx.write_ascii(b'(');
+        // esrap: until `(returnType ?? body).loc.start`; a bodyless declare /
+        // overload falls back to the node's own end.
+        let until = node
+            .return_type
+            .as_ref()
+            .map(|rt| rt.span().start)
+            .or_else(|| node.body.as_ref().map(|b| b.span().start))
+            .unwrap_or(node.span.end);
         self.formal_parameters_with_this(
             &node.params,
             node.this_param.as_deref(),
-            Some(node.params.span().end),
+            Some(until),
             ctx,
         );
         ctx.write_ascii(b')');
@@ -3025,7 +3033,14 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             self.type_parameter_declaration(tp, ctx);
         }
         ctx.write_ascii(b'(');
-        self.formal_parameters(&node.params, ctx);
+        // esrap runs the params sequence until `(returnType ?? body).loc.start`,
+        // so a comment ahead of a located body flushes inside a synthesized
+        // arrow's empty parens.
+        let until = node
+            .return_type
+            .as_ref()
+            .map_or_else(|| node.body.span().start, |rt| rt.span().start);
+        self.formal_parameters_with_this(&node.params, None, Some(until), ctx);
         ctx.write_ascii(b')');
         if let Some(rt) = &node.return_type {
             self.type_annotation(rt, ctx);
@@ -4266,7 +4281,13 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 ctx.newline();
             }
             self.print_argument(arg, ctx);
+            // esrap flushes the trailing comment into a child context nothing
+            // is written to afterwards, so its `newline()` never reaches the
+            // `)` write — the statement is NOT multiline and gets no blank-line
+            // margins. Isolate the flush the same way.
+            let scope = ctx.begin_scope();
             self.flush_trailing_comments(ctx, arg.span().end, Some(call_end));
+            ctx.end_scope(scope);
             if wrap {
                 ctx.dedent();
                 ctx.newline();

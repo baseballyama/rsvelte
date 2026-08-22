@@ -6,8 +6,9 @@ use super::{
     indent_config, is_block_display, is_component_tag, is_whitespace_preserving, tab_width,
     text_end, text_start, trims_edge_whitespace, try_break_block_multiline_content,
     try_break_block_overflow, try_break_content_tag_block, try_break_pre_content_tag,
-    try_break_pre_own_attrs, try_children_port, try_fill_mixed, try_fix_pre_child_open_tags,
-    try_hug_block_inline_body, try_hug_mixed, try_strip_trailing_slot_space,
+    try_break_pre_own_attrs, try_break_textarea_tags, try_children_port, try_fill_mixed,
+    try_fix_pre_child_open_tags, try_hug_block_inline_body, try_hug_mixed,
+    try_strip_trailing_slot_space,
 };
 
 /// Pass 1.6: targeted `try_collapse` sweep on inline/component pure-text
@@ -172,7 +173,23 @@ pub(super) fn collect(
                     // mutually exclusive — only the first that fires is used.
                     // Case 3 targets child sub-spans and is skipped when case 1 or
                     // 2 fires (to avoid overlapping edits).
-                    if matches!(elem.name.as_str(), "pre" | "textarea") {
+                    // `<textarea>` gets prettier's inline-content tag breaking
+                    // (attrs stay on the open line, `>` drops); the `<pre>` chain
+                    // below would break its attrs per line instead.
+                    if elem.name.as_str() == "textarea" {
+                        if let Some(edit) = try_break_textarea_tags(
+                            out,
+                            elem.start,
+                            elem.end,
+                            &elem.fragment,
+                            line_width,
+                            options,
+                        ) {
+                            edits.push(edit);
+                        }
+                        continue;
+                    }
+                    if elem.name.as_str() == "pre" {
                         if let Some(edit) = try_break_pre_content_tag(
                             out,
                             elem.start,
@@ -583,7 +600,7 @@ pub(super) fn try_collapse(
     let raw = out.get(content_start as usize..content_end as usize)?;
     let had_lead = raw.starts_with([' ', '\t', '\n', '\r']);
     let had_trail = raw.ends_with([' ', '\t', '\n', '\r']);
-    let collapsed = raw.split_whitespace().collect::<Vec<_>>().join(" ");
+    let collapsed = super::split_html_ws(raw).collect::<Vec<_>>().join(" ");
 
     // Components (`<Button>`, `<Foo.Bar>`, `<svelte:*>`) and block-display
     // elements are NOT whitespace-sensitive: boundary whitespace between the tag
@@ -805,7 +822,7 @@ pub(super) fn try_collapse(
             let mut fill_lines: Vec<String> = Vec::new();
             let mut cur = String::new();
             let avail_for = |n: usize| if n == 0 { first_avail } else { cont_avail };
-            for word in collapsed.split_whitespace() {
+            for word in super::split_html_ws(&collapsed) {
                 if cur.is_empty() {
                     cur.push_str(word);
                 } else if cur.visual_width(tw) + 1 + word.visual_width(tw)
@@ -892,7 +909,7 @@ pub(super) fn try_collapse(
                 let open_doc = node
                     .and_then(|n| build_open_attr_doc(out, n, tag, true))
                     .unwrap_or_else(|| Doc::Text(open_no_bracket.to_string()));
-                let words: Vec<&str> = collapsed.split_whitespace().collect();
+                let words: Vec<&str> = super::split_html_ws(&collapsed).collect();
                 if !words.is_empty() {
                     // Build Fill([word1, Line, word2, Line, …, wordN])
                     let mut fill_parts: Vec<Doc> = Vec::with_capacity(words.len() * 2 - 1);

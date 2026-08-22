@@ -240,6 +240,7 @@ fn extract_literal_string_typed(node: &JsNode) -> Option<String> {
                         Some(n.to_string())
                     }
                 }
+                crate::ast::typed_expr::LiteralValue::BigInt(d) => Some(format!("{d}n")),
                 crate::ast::typed_expr::LiteralValue::Bool(b) => Some(b.to_string()),
                 crate::ast::typed_expr::LiteralValue::Null => Some("null".to_string()),
                 crate::ast::typed_expr::LiteralValue::Regex(_) => None,
@@ -310,9 +311,10 @@ fn is_expression_defined_typed(node: &JsNode, arena: &crate::ast::arena::ParseAr
             is_expression_defined_typed(arena.get_js_node(*consequent), arena)
                 && is_expression_defined_typed(arena.get_js_node(*alternate), arena)
         }
-        JsNode::ArrayExpression { .. }
-        | JsNode::ObjectExpression { .. }
-        | JsNode::ArrowFunctionExpression { .. }
+        // Upstream's `evaluate` has a case for the function forms and for a
+        // template literal, and none for an array or object — those fall through
+        // to UNKNOWN, which includes nullish (scope.js L560, L530).
+        JsNode::ArrowFunctionExpression { .. }
         | JsNode::FunctionExpression { .. }
         | JsNode::TemplateLiteral { .. } => true,
         // See the JSON variant above — Svelte 5.53.3 `f67d03df5` treats
@@ -385,12 +387,10 @@ fn visit_runes_mode_typed(
 
     // Validate identifier names
     for path in &paths {
-        if let Some(&binding_idx) = context
+        if let Some(binding_idx) = context
             .analysis
             .root
-            .scope
-            .declarations
-            .get(path.name.as_str())
+            .get_binding(path.name.as_str(), context.scope)
         {
             let binding = &context.analysis.root.bindings[binding_idx];
             utils::validate_identifier_name(binding, None)?;
@@ -407,13 +407,29 @@ fn visit_runes_mode_typed(
         }
         // For $state/$state.raw/$derived, extract the rune argument as
         // the binding's initial value
-        if matches!(rune_name.as_str(), "$state" | "$state.raw" | "$derived")
-            && let Some(init) = init_node
+        if matches!(
+            rune_name.as_str(),
+            "$state" | "$state.raw" | "$derived" | "$derived.by"
+        ) && let Some(init) = init_node
         {
             let rune_arg = match init {
                 JsNode::CallExpression { arguments, .. } => {
                     let args = arena.get_js_children(*arguments);
-                    args.first()
+                    if rune_name == "$derived.by" {
+                        // Upstream evaluates the arrow's EXPRESSION body
+                        // (scope.js `case '$derived.by'`); a block body stays
+                        // unknown, so store nothing for it.
+                        match args.first() {
+                            Some(JsNode::ArrowFunctionExpression {
+                                body,
+                                expression: true,
+                                ..
+                            }) => Some(arena.get_js_node(*body)),
+                            _ => None,
+                        }
+                    } else {
+                        args.first()
+                    }
                 }
                 _ => None,
             };
@@ -430,13 +446,36 @@ fn visit_runes_mode_typed(
                         .or_else(|| context.analysis.root.find_binding_any_scope(&path.name));
                     if let Some(bi) = bi {
                         let b = &mut context.analysis.root.bindings[bi];
-                        b.initial = extract_literal_string_typed(arg).or_else(|| {
-                            if rune_name == "$derived" {
-                                Some(arg.to_json_string())
-                            } else {
-                                None
-                            }
-                        });
+                        b.initial = extract_literal_string_typed(arg)
+                            .or_else(|| {
+                                // `$state(void 0)` is a known undefined — the
+                                // value is undefined whatever the (pure) literal
+                                // operand is, and the lowering re-reads the
+                                // argument from its source span, never from here.
+                                if let JsNode::UnaryExpression {
+                                    operator, argument, ..
+                                } = arg
+                                    && operator == "void"
+                                    && matches!(
+                                        arena.get_js_node(*argument),
+                                        JsNode::Literal { .. }
+                                    )
+                                {
+                                    Some("void 0".to_string())
+                                } else {
+                                    None
+                                }
+                            })
+                            .or_else(|| {
+                                if rune_name == "$derived" || rune_name == "$derived.by" {
+                                    Some(arg.to_json_string())
+                                } else {
+                                    None
+                                }
+                            });
+                        if init_needs_expr_json(arg) {
+                            b.init_expr_json = Some(arg.to_json_string());
+                        }
                         b.initial_is_defined = is_expression_defined_typed(arg, arena);
                         b.initial_node_type = Some(arg.type_str().to_string());
                         if b.initial_node_type.as_deref() == Some("Identifier")
@@ -1006,6 +1045,10 @@ fn init_needs_expr_json(init: &JsNode) -> bool {
         | JsNode::UnaryExpression { .. }
         | JsNode::ConditionalExpression { .. }
         | JsNode::CallExpression { .. } => true,
+        // `const K = 1; let v = K` — upstream's `scope.evaluate` recurses
+        // through the alias into `K`'s own initializer, so the alias has to
+        // keep its init node.
+        JsNode::Identifier { name, .. } => name != "undefined",
         // A member read is UNKNOWN to `scope.evaluate` unless it is a
         // global-constant keypath (`Math.PI`); the consumers re-check that, and
         // asking here would miss a `Raw`-wrapped initializer. Matched by type

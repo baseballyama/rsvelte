@@ -108,5 +108,35 @@
 		"id": "svelte/packages/svelte/tests/parser-modern/samples/css-nth-syntax/input.svelte",
 		"class": "invalid-input",
 		"reason": "The <style> block is a parser-modern EDGE fixture containing genuinely-invalid / svelte-specific CSS (`:global(nav)`, `h1:nth-child(p)`, `h1:nth-of-type(+12)`) that oxfmt's CSS parser rejects with 'invalid An+B syntax'. rsvelte's --no-native-css path forwards the block to that same oxfmt CSS parser, which errors, so rsvelte leaves the source verbatim; oxfmt's `--svelte` path instead tolerates it. Not a valid, formattable stylesheet."
+	},
+	{
+		"id": "pattern/issues/3035-destructure-defaults.svelte",
+		"class": "oracle-bug",
+		"reason": "oxfmt/prettier-plugin-svelte mangles a nested object destructure with a default in an {#each} context: `{ id, meta: { tags: [...] } = {} }` loses the `meta:` key (emitting `{ id, { tags: ... } = { } }`, not JavaScript)"
+	},
+	{
+		"id": "pattern/adversarial/control-flow/each-destructure-exotic.svelte",
+		"class": "oracle-bug",
+		"reason": "same oxfmt nested-destructure-in-{#each} mangling as pattern/issues/3035-destructure-defaults.svelte"
+	},
+	{
+		"id": "pattern/adversarial/css/css-custom-property-values.svelte",
+		"class": "oracle-bug",
+		"reason": "oxfmt formats the SAME custom-property value two ways depending on the host file: given `--arr: [1, 2]` and `--sel: a > b ~ c`, `oxfmt x.css` prints `[1 , 2]` / `a > b ~ c` (the oxc CSS engine, which is what rsvelte-fmt uses in-process and reproduces byte-for-byte), while `oxfmt --svelte` prints `[1, 2]` / `a > b ~c` (prettier's CSS printer, which also drops the space after `~` and so changes the token stream the value substitutes). The two oxfmt paths disagree with each other, so parity with the svelte path is undefined for these values."
+	},
+	{
+		"id": "pattern/adversarial/css/rejected-global-keyframes-selector.svelte",
+		"class": "invalid-input",
+		"reason": "`:global(@keyframes shared)` is rejected by both compilers (css_expected_identifier, #3120); rsvelte-fmt falls back to raw passthrough for a stylesheet its CSS parser rejects, so the block keeps its source indentation while the oracle formats it anyway without validating"
+	},
+	{
+		"id": "pattern/adversarial/legacy/let-directive-destructuring.svelte",
+		"class": "engine-divergence",
+		"reason": "prettier-plugin-svelte reformats a `let:` destructuring pattern as an EXPRESSION, so a default becomes a parenthesised assignment (`[head = 'none']` → `[(head = \"none\")]`, `meta: { n } = {}` → `meta: ({ n } = {})`). Svelte's parser accepts both spellings, but the oracle's is no longer a valid binding pattern, and rsvelte-fmt parses the value as one (#3125)"
+	},
+	{
+		"id": "pattern/issues/3123-let-directive-pattern-defaults.svelte",
+		"class": "engine-divergence",
+		"reason": "prettier-plugin-svelte reformats a `let:` destructuring pattern as an EXPRESSION, so a default becomes a parenthesised assignment (`[head = 'none']` → `[(head = \"none\")]`, `meta: { n } = {}` → `meta: ({ n } = {})`). Svelte's parser accepts both spellings, but the oracle's is no longer a valid binding pattern, and rsvelte-fmt parses the value as one (#3125)"
 	}
 ]

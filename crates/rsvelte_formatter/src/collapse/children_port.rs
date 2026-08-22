@@ -14,7 +14,7 @@ pub(super) enum ChildrenPortResult {
 
 fn child_profile(fragment: &Fragment) -> (bool, bool, bool, bool) {
     let has_prose_word = fragment.nodes.iter().any(
-        |node| matches!(node, TemplateNode::Text(text) if text.data.split_whitespace().next().is_some()),
+        |node| matches!(node, TemplateNode::Text(text) if super::split_html_ws(&text.data).next().is_some()),
     );
     let has_non_text = fragment
         .nodes
@@ -26,7 +26,7 @@ fn child_profile(fragment: &Fragment) -> (bool, bool, bool, bool) {
         .any(|node| matches!(node, TemplateNode::Text(_)));
     let block_run = has_any_text
         && fragment.nodes.iter().all(|node| match node {
-            TemplateNode::Text(text) => text.data.split_whitespace().next().is_none(),
+            TemplateNode::Text(text) => super::split_html_ws(&text.data).next().is_none(),
             TemplateNode::IfBlock(_) | TemplateNode::RenderTag(_) => true,
             _ => false,
         });

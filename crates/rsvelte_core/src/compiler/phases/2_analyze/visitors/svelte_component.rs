@@ -116,7 +116,20 @@ pub fn visit<'a, 'b: 'a>(
     let saved_element_ancestors = std::mem::take(&mut context.element_ancestors);
     let saved_block_depth_at_element = std::mem::take(&mut context.block_depth_at_element);
     let saved_parent_element = context.parent_element.take();
+    // Enter the template scope the scope builder created for this node, the way
+    // the plain-component visitor does. Without it a `{@render}` cannot see a
+    // `{#snippet}` declared as its sibling here, so the tag reads as dynamic.
+    let saved_scope = context.scope;
+    if let Some(&node_scope) = context
+        .analysis
+        .root
+        .template_scope_map
+        .get(&component.start)
+    {
+        context.scope = node_scope;
+    }
     fragment::analyze(&mut component.fragment, context)?;
+    context.scope = saved_scope;
     context.element_ancestors = saved_element_ancestors;
     context.block_depth_at_element = saved_block_depth_at_element;
     context.parent_element = saved_parent_element;

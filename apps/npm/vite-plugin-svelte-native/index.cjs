@@ -54,32 +54,6 @@ function prepareCompileOptions(options) {
 	return { options: resolved, warningFilter: hasWarningFilter ? warningFilter : undefined };
 }
 
-// Port of Svelte's `hash()` (submodules/svelte/packages/svelte/src/utils.js),
-// handed to a user `cssHash` callback so custom scope classes match upstream's digest.
-const regexReturnCharacters = /\r/g;
-function hash(str) {
-	str = str.replace(regexReturnCharacters, '');
-	let h = 5381;
-	let i = str.length;
-	while (i--) h = ((h << 5) - h) ^ str.charCodeAt(i);
-	return (h >>> 0).toString(36);
-}
-
-// Adapt a user `cssHash` to the bridge shape. It must never reject: a rejected
-// Promise crossing the NAPI boundary can crash V8 during threadsafe-function
-// teardown — so a throw becomes `{ error }` (Rust turns it into a compile failure)
-// and a non-string return becomes `{ value: null }` (Rust falls back to the default hash).
-function makeCssHashCallback(userCssHash) {
-	return async (name, filename, css) => {
-		try {
-			const result = await userCssHash({ hash, css, name, filename });
-			return { value: typeof result === 'string' ? result : null };
-		} catch (err) {
-			return { error: err instanceof Error ? err.message : String(err) };
-		}
-	};
-}
-
 function applyWarningFilter(result, warningFilter) {
 	if (!warningFilter || result == null) return result;
 	const warnings = result.warnings;
@@ -183,11 +157,9 @@ async function compileAsync(source, options) {
 	const { options: resolved, warningFilter } = prepareCompileOptions(options);
 	if (typeof options?.cssHash === 'function') {
 		// The bridge entry returns a plain (JSON) CompileResult, not an envelope.
-		const result = await binding.compileWithCssHash(
-			source,
-			resolved,
-			makeCssHashCallback(options.cssHash),
-		);
+		// The callback is handed straight through: Rust calls it with upstream's
+		// own `{ hash, css, name, filename }` object and reads the string back.
+		const result = await binding.compileWithCssHash(source, resolved, options.cssHash);
 		return applyWarningFilter(result, warningFilter);
 	}
 	if (resolved?.modernAst) {
@@ -254,6 +226,11 @@ module.exports.compileModuleBuffers = binding.compileModuleBuffers;
 module.exports.compileBatch = compileBatch;
 module.exports.compileBatchRaw = binding.compileBatch;
 module.exports.compileAsync = compileAsync;
+// The only entry that honours a function-valued `cssHash`. The callback takes
+// upstream's single `{ hash, css, name, filename }` argument and returns the
+// scope class; the synchronous entries reject a function `cssHash` rather than
+// dropping it. Returns a plain CompileResult (no envelope).
+module.exports.compileWithCssHash = binding.compileWithCssHash;
 module.exports.compileBatchAsync = compileBatchAsync;
 module.exports.compileEnvelopeAsync = binding.compileEnvelopeAsync;
 module.exports.compileBatchAsyncRaw = binding.compileBatchAsync;

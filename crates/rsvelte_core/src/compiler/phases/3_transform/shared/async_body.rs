@@ -533,6 +533,45 @@ pub fn strip_module_async_derived_ignore_comments(source: &str, mut transformed:
     transformed
 }
 
+/// Whether `stmt` IS one of the internal async placeholder statements for
+/// `marker` — the WHOLE statement, not a substring. The compiler only ever
+/// emits `/* $$marker */`, `/* $$marker:args */` (each optionally followed by
+/// `;`) or a bare `($$marker);` / `$$marker;` reference statement. User source
+/// that merely CONTAINS the marker text — a string literal, a template — must
+/// never match, or its declarations are silently deleted (#3032).
+pub(crate) fn is_placeholder_stmt(stmt: &str, marker: &str) -> bool {
+    let t = stmt.trim();
+    let t = t.trim_end_matches(';').trim_end();
+    if let Some(rest) = t.strip_prefix("/*") {
+        let Some(inner) = rest.strip_suffix("*/") else {
+            return false;
+        };
+        let inner = inner.trim();
+        return inner == marker
+            || inner
+                .strip_prefix(marker)
+                .is_some_and(|r| r.starts_with(':'));
+    }
+    let bare = t
+        .strip_prefix('(')
+        .and_then(|x| x.strip_suffix(')'))
+        .unwrap_or(t)
+        .trim();
+    bare == marker
+}
+
+/// [`is_placeholder_stmt`] over every internal async placeholder marker.
+pub(crate) fn is_any_async_placeholder_stmt(stmt: &str) -> bool {
+    [
+        "$$async_hole",
+        "$$inspect_hole",
+        "$$async_void_noop",
+        "$$async_noop",
+    ]
+    .iter()
+    .any(|m| is_placeholder_stmt(stmt, m))
+}
+
 fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<AsyncBodyResult> {
     let trimmed = script.trim();
     if trimmed.is_empty() {
@@ -559,16 +598,11 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
             continue;
         }
 
-        let (leading_comments, trimmed_stmt) =
-            if memmem::find(trimmed_stmt.as_bytes(), b"$$async_hole").is_some()
-                || memmem::find(trimmed_stmt.as_bytes(), b"$$inspect_hole").is_some()
-                || memmem::find(trimmed_stmt.as_bytes(), b"$$async_void_noop").is_some()
-                || memmem::find(trimmed_stmt.as_bytes(), b"$$async_noop").is_some()
-            {
-                ("", trimmed_stmt)
-            } else {
-                split_leading_comments(trimmed_stmt)
-            };
+        let (leading_comments, trimmed_stmt) = if is_any_async_placeholder_stmt(trimmed_stmt) {
+            ("", trimmed_stmt)
+        } else {
+            split_leading_comments(trimmed_stmt)
+        };
         if trimmed_stmt.is_empty() {
             continue;
         }
@@ -596,10 +630,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
         // leak into the prelude as a literal `$$async_hole;` statement. (The
         // post-await case is handled below as a `Hole` thunk; a `$$inspect_hole`
         // is intentionally NOT dropped here — a removed `$inspect` keeps its `;;`.)
-        if !found_await
-            && !has_await
-            && memmem::find(trimmed_stmt.as_bytes(), b"$$async_hole").is_some()
-        {
+        if !found_await && !has_await && is_placeholder_stmt(trimmed_stmt, "$$async_hole") {
             continue;
         }
 
@@ -625,8 +656,8 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
             // `$effect` hole; only the no-await sync-prelude case differs, and
             // that never reaches this transform).
             // Produces an array hole (empty slot) in the thunk array.
-            if memmem::find(trimmed_stmt.as_bytes(), b"$$async_hole").is_some()
-                || memmem::find(trimmed_stmt.as_bytes(), b"$$inspect_hole").is_some()
+            if is_placeholder_stmt(trimmed_stmt, "$$async_hole")
+                || is_placeholder_stmt(trimmed_stmt, "$$inspect_hole")
             {
                 // Extract args if present (for blocker_map tracking)
                 let args = if let Some(colon_pos) =
@@ -651,7 +682,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
 
             // Handle async void noop placeholder (from $effect() removed on server)
             // Format: /* $$async_void_noop */
-            if memmem::find(trimmed_stmt.as_bytes(), b"$$async_void_noop").is_some() {
+            if is_placeholder_stmt(trimmed_stmt, "$$async_void_noop") {
                 async_stmts.push(AsyncStmt {
                     kind: AsyncStmtKind::VoidNoop,
                     has_await: false,
@@ -662,7 +693,7 @@ fn transform_async_body_inner(script: &str, runner: &str, dev: bool) -> Option<A
 
             // Handle async noop placeholder (from $props() that transformed to empty)
             // Format: /* $$async_noop */ or /* $$async_noop:var1,var2 */
-            if memmem::find(trimmed_stmt.as_bytes(), b"$$async_noop").is_some() {
+            if is_placeholder_stmt(trimmed_stmt, "$$async_noop") {
                 // Extract variable names for hoisting if present
                 if let Some(colon_pos) = memmem::find(trimmed_stmt.as_bytes(), b"$$async_noop:") {
                     let start = colon_pos + 13; // "$$async_noop:".len()

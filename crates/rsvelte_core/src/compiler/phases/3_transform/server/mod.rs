@@ -10,9 +10,11 @@
 pub mod ast;
 pub(crate) mod await_save_ast;
 pub(crate) mod derived_reads_ast;
+pub(crate) mod effect_pending_ast;
 pub(crate) mod evaluate;
 pub mod helpers;
 pub(crate) mod rune_call_ast;
+pub(crate) mod snapshot_declarator_ast;
 pub(crate) mod strip_export_ast;
 pub mod transform_legacy;
 pub mod transform_script;
@@ -109,12 +111,28 @@ pub fn transform_server_module(
     // `$effect.tracking()` has no effect tracking on the server → `false`
     // (mirrors the instance-script path + upstream server CallExpression visitor).
     let source_without_effects = source_without_effects.replace("$effect.tracking()", "false");
+    // `$effect.pending()` → `0` for the same reason; the module path reused the
+    // client transform, which lowers it to a client-only `$.eager($.pending)`.
+    let source_without_effects = {
+        let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
+        effect_pending_ast::transform_effect_pending_ast(&source_without_effects, is_ts)
+            .unwrap_or(source_without_effects)
+    };
 
     // Lower `$state` to its bare initializer BEFORE the client transform, the way
     // upstream's server `VariableDeclaration` visitor does. Otherwise the client
     // transform signal-wraps the binding and collapses both `x = x + 1` and
     // `x += 1` to the same `$.set(x, $.get(x) + 1)`, losing the operator that
     // `post_process_for_server` would have to restore.
+    // `$state*` destructuring has to expand while the rune is still there —
+    // the call-stripping below turns `let { a } = $state(1)` into
+    // `let { a } = 1`, which no longer says where the value came from.
+    let source_without_effects = super::client::expand_module_rune_destructuring_for_server(
+        &source_without_effects,
+        analysis,
+    )
+    .unwrap_or(source_without_effects);
+
     let source_without_effects = rune_call_ast::transform_rune_calls_combined(
         &source_without_effects,
         &["$state(", "$state.raw(", "$state.eager("],
@@ -151,7 +169,11 @@ pub fn transform_server_module(
     // upstream `compileModule` server keeps `$.snapshot` everywhere EXCEPT a plain
     // variable-declarator init, where it is redundant and strips to the bare arg
     // (e.g. melt-ui Popover / selection-state `const prev = $state.snapshot(this.x)`).
-    let transformed = transform_script::strip_snapshot_declarator_init_module(&transformed);
+    let transformed = {
+        let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
+        snapshot_declarator_ast::strip_snapshot_declarator_init(&transformed, is_ts)
+            .unwrap_or(transformed)
+    };
 
     // Split imports from body
     let (script_imports, script_rest) = super::client::extract_imports_str(&transformed);

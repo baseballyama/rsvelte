@@ -173,6 +173,10 @@ const DECLARED = new Map([
 // than a gap: it reads as surveyed.
 const UNCOVERED = new Map([
 	[
+		'compile.cssHash',
+		'a callback, not a value: the synchronous entries reject it and only `compileWithCssHash` can call it, so it has no baseline/variant pair here — covered end-to-end by `pnpm run test:napi-csshash` (its own process, because two addons in one process SIGSEGV)',
+	],
+	[
 		'compileModule.rootDir',
 		'forwarded to CompileOptions but every consumer of `root_dir` (the `$.FILENAME` / HMR key in the client component transform, and the CSS scope hash) is component-only, so a module compile has nothing to observe',
 	],
@@ -350,9 +354,15 @@ const COMPILE_CASES = [
 	{
 		key: 'outputFilename',
 		src: CSS_SRC,
-		base: { filename: 'A.svelte' },
-		variant: { filename: 'A.svelte', outputFilename: 'out.js' },
-		marker: (r) => r.js.map.file === 'out.js',
+		// Upstream's map carries no `file` key at all (esrap's `print()` never
+		// sets one), so what `outputFilename` moves is `sources`: it becomes the
+		// path from the OUTPUT's directory to the source. A same-directory output
+		// leaves the bare basename, which is what the baseline already is — hence
+		// the nested pair.
+		base: { filename: 'src/A.svelte' },
+		variant: { filename: 'src/A.svelte', outputFilename: 'dist/out.js' },
+		marker: (r) => r.js.map.sources[0] === '../src/A.svelte',
+		differsIn: (r) => r.js.map.sources.join(','),
 	},
 	{
 		key: 'cssOutputFilename',

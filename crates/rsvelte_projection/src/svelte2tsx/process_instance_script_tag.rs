@@ -236,12 +236,11 @@ pub fn process_instance_script_tag(
     } else {
         ""
     };
-    // When there's a hoistable type/interface, JS reference puts a
-    // newline between the moved declaration and the synthesised
-    // `;type $$ComponentProps = ...;function $$render() {` (which
-    // sits in `ts_component_props_before_render`). Mirror that with
-    // a `\n` prefix on part_b in that case.
-    let part_b_prefix = if !exported_names.hoistable_type_ranges.is_empty()
+    // A hoisted type declaration is moved after the imports, so the `\n` that
+    // `type_decl_prefix` leaves to the last import no longer sits next to the
+    // alias — put it back here.
+    let part_b_prefix = if has_imports
+        && !exported_names.hoistable_type_ranges.is_empty()
         && !ts_component_props_before_render.is_empty()
         && !ts_component_props_in_part_a
     {
@@ -288,10 +287,9 @@ pub fn process_instance_script_tag(
         // sit BEFORE the snippets in the chunk list, matching the JS
         // reference's `scriptTag.start + 1` ordering.
         //
-        // Each chunk already extends backward through the original
-        // leading whitespace (see `resolve_hoistable_type_decls`),
-        // so a single `;` prepend is enough — the chunk supplies
-        // its own newline + indent, and the trailing `;` mirrors
+        // The chunk starts one line break into its leading trivia (see
+        // `resolve_hoistable_type_decls`), so the `;\n` intro restores the
+        // break the chunk gave up; the trailing `;` mirrors
         // `appendLeft(node.end, ';')` from the JS reference so the
         // declaration is statement-terminated.
         // Preserve the promotion (topological) order produced by
@@ -307,7 +305,7 @@ pub fn process_instance_script_tag(
                 // so the `;` markers travel with the chunk to its
                 // hoist target — `prepend_left` would leave the
                 // semicolon stranded at the original location.
-                str.prepend_right(s, ";");
+                str.prepend_right(s, ";\n");
                 str.append_left(e, ";");
                 str.move_range(s, e, sp);
             }
