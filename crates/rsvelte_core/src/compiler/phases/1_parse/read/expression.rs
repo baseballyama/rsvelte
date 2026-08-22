@@ -1814,6 +1814,21 @@ pub fn check_js_statement_parse_error(content: &str, ts: bool) -> Option<(String
     })
 }
 
+/// [`trailing_token_offset`], confirmed by re-parsing the leading slice.
+///
+/// The probe reports where OXC's first label sits, which is also where an error
+/// *inside* the expression lands (`s(42 = nope)`, `1</div>`). Only a prefix that
+/// parses on its own is a place upstream's `read_expression` would have stopped,
+/// leaving the missing close token as the diagnostic.
+pub fn trailing_close_offset(content: &str) -> Option<usize> {
+    trailing_token_offset(content).filter(|&off| {
+        off > 0
+            && content
+                .get(..off)
+                .is_some_and(|prefix| check_js_parse_error_with_pos(prefix.trim_end()).is_none())
+    })
+}
+
 /// For an *invalid* expression string, determine whether the failure is caused
 /// by **trailing tokens after an otherwise-complete expression** (e.g. `a b c`)
 /// rather than an incomplete / malformed expression (e.g. `a +`).

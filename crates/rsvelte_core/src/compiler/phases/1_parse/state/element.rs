@@ -1443,6 +1443,19 @@ impl<'a> Parser<'a> {
         // Directive detection using first-byte dispatch to avoid multiple starts_with scans
         if let Some(colon_pos) = memchr(b':', name.as_bytes()) {
             let prefix = &name.as_bytes()[..colon_pos];
+            // Upstream raises `directive_missing_name` once, for every directive
+            // kind, and only after the value has been read — so a broken value
+            // (`use:={1 +}`) still reports its own `js_parse_error` first.
+            if is_directive_prefix(prefix)
+                && name[colon_pos + 1..].split('|').next() == Some("")
+            {
+                self.read_attribute_value_for_error()?;
+                return Err(crate::error::ParseError::svelte(
+                    "directive_missing_name",
+                    format!("`{name}` name cannot be empty"),
+                    (start, start + colon_pos + 1),
+                ));
+            }
             match prefix {
                 b"on" => {
                     return self.parse_on_directive(start, &name, name_loc, name_end);
@@ -1501,6 +1514,36 @@ impl<'a> Parser<'a> {
             value,
             metadata: Default::default(),
         })))
+    }
+
+    /// Consume an attribute's value and discard it, propagating any error it
+    /// raises. Upstream reads the value before rejecting a nameless directive,
+    /// so the value's own diagnostic has to win.
+    fn read_attribute_value_for_error(&mut self) -> ParseResult<()> {
+        if self.eat_optional("=") {
+            self.skip_whitespace();
+            let mut value = self.parse_attribute_value()?;
+            // The value is thrown away, so a deferred expression inside it would
+            // never reach `resolve_lazy_expressions` — resolve it here.
+            let mut deferred = None;
+            super::super::resolve_lazy::resolve_attribute_value(
+                &self.arena,
+                &mut value,
+                self.expression_line_offsets(),
+                self.source,
+                &mut deferred,
+            );
+            if let Some(err) = deferred {
+                return Err(err);
+            }
+        } else if !self.is_eof() && (self.current_char() == '"' || self.current_char() == '\'') {
+            return Err(crate::error::ParseError::svelte(
+                "expected_token",
+                "Expected token =\nhttps://svelte.dev/e/expected_token",
+                (self.index, self.index),
+            ));
+        }
+        Ok(())
     }
 
     /// Parse an on: directive (event handler).
@@ -1704,15 +1747,6 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         let action_name = &full_name[4..]; // Skip "use:"
 
-        // Check for empty directive name
-        if action_name.is_empty() {
-            return Err(crate::error::ParseError::svelte(
-                "directive_missing_name",
-                "`use:` name cannot be empty",
-                (start, name_end),
-            ));
-        }
-
         let (expression, end_pos) = if self.eat_optional("=") {
             self.skip_whitespace();
             // Handle quoted value: ="{expression}" or ="value"
@@ -1787,15 +1821,6 @@ impl<'a> Parser<'a> {
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         let class_name = &full_name[6..]; // Skip "class:"
-
-        // Check for empty directive name
-        if class_name.is_empty() {
-            return Err(crate::error::ParseError::svelte(
-                "directive_missing_name",
-                "`class:` name cannot be empty",
-                (start, name_end),
-            ));
-        }
 
         let had_value = self.eat_optional("=");
         let expression = if had_value {
@@ -2049,29 +2074,19 @@ impl<'a> Parser<'a> {
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
         // Determine type and extract name with modifiers
-        let (directive_label, transition_name, intro, outro, modifiers) =
+        let (transition_name, intro, outro, modifiers) =
             if let Some(stripped) = full_name.strip_prefix("transition:") {
                 let (name, mods) = Self::extract_name_and_modifiers(stripped);
-                ("transition:", name, true, true, mods)
+                (name, true, true, mods)
             } else if let Some(stripped) = full_name.strip_prefix("in:") {
                 let (name, mods) = Self::extract_name_and_modifiers(stripped);
-                ("in:", name, true, false, mods)
+                (name, true, false, mods)
             } else if let Some(stripped) = full_name.strip_prefix("out:") {
                 let (name, mods) = Self::extract_name_and_modifiers(stripped);
-                ("out:", name, false, true, mods)
+                (name, false, true, mods)
             } else {
                 return Ok(None);
             };
-
-        // An empty name (`transition:`, `in:|global`, …) is a parse error —
-        // it would otherwise lower to an empty JS identifier. H-146 / M-040.
-        if transition_name.is_empty() {
-            return Err(crate::error::ParseError::svelte(
-                "directive_missing_name",
-                format!("`{directive_label}` name cannot be empty"),
-                (start, name_end),
-            ));
-        }
 
         let (expression, end_pos) = if self.eat_optional("=") {
             self.skip_whitespace();
@@ -2412,22 +2427,10 @@ impl<'a> Parser<'a> {
                 // comments (// and /* */), and regex expressions.
                 // The simple depth-tracking approach fails when JS comments
                 // contain quote characters (e.g., `don't` in a // comment).
-                if let Some(close_pos) =
-                    crate::compiler::phases::phase1_parse::utils::find_matching_bracket(
-                        self.source,
-                        expr_start + 1,
-                        '{',
-                    )
-                {
-                    self.index = close_pos + 1;
-                } else {
+                let close_pos = self.attribute_expression_close(expr_start + 1).inspect_err(|_| {
                     self.index = self.source.len();
-                    return Err(crate::error::ParseError::svelte(
-                        "expected_token",
-                        "Expected token }",
-                        (self.index, self.index),
-                    ));
-                }
+                })?;
+                self.index = close_pos + 1;
 
                 let expr_end = self.index;
 
@@ -2697,6 +2700,15 @@ impl<'a> Parser<'a> {
             ..Default::default()
         })
     }
+}
+
+/// The prefixes upstream's `get_directive_type` recognises.
+fn is_directive_prefix(prefix: &[u8]) -> bool {
+    matches!(
+        prefix,
+        b"use" | b"animate" | b"bind" | b"class" | b"style" | b"on" | b"let" | b"in" | b"out"
+            | b"transition"
+    )
 }
 
 /// Check if a name is a valid HTML element name.

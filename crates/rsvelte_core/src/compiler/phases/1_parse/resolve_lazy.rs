@@ -371,7 +371,7 @@ fn resolve_attributes(
     }
 }
 
-fn resolve_attribute_value(
+pub(crate) fn resolve_attribute_value(
     arena: &ParseArena,
     value: &mut AttributeValue,
     line_offsets: &[usize],
@@ -451,7 +451,7 @@ fn resolve_expression(
         Err((msg, pos)) => {
             // Store the first parse error encountered
             if first_error.is_none() {
-                *first_error = lazy_parse_error(kind, msg, content, start);
+                *first_error = lazy_parse_error(kind, msg, content, start, source);
             }
             // Still set the expression to something valid to allow continued processing
             *expr = super::read::expression::create_empty_identifier("", pos, pos + content.len());
@@ -467,9 +467,11 @@ fn lazy_parse_error(
     msg: String,
     content: &str,
     start: usize,
+    source: &str,
 ) -> Option<crate::error::ParseError> {
     Some(match kind {
         LazyKind::Lenient => return None,
+        LazyKind::AwaitHead => super::state::tag::await_head_parse_error(source, start, msg),
         // Upstream's `read_expression` parses ONE maximal expression with acorn
         // and then `eat('}', true)`: a complete leading expression followed by
         // leftover tokens (e.g. `{foo();}` — the `;` is left over) surfaces as
@@ -478,13 +480,7 @@ fn lazy_parse_error(
         // `js_parse_error`. The prefix re-parse guards against the probe
         // mislabelling an in-expression error as leftover input.
         LazyKind::Mustache => {
-            let trailing = super::read::expression::trailing_token_offset(content).filter(|&off| {
-                off > 0
-                    && content.get(..off).is_some_and(|prefix| {
-                        super::read::expression::check_js_parse_error_with_pos(prefix).is_none()
-                    })
-            });
-            match trailing {
+            match super::read::expression::trailing_close_offset(content) {
                 Some(offset) => crate::error::ParseError::expected_token("}", start + offset),
                 // Upstream rethrows acorn's `err.pos` as a point error, so the
                 // span is where it stopped consuming, not the whole expression.
@@ -510,7 +506,7 @@ fn lazy_parse_error(
             } else {
                 "}"
             };
-            if let Some(pos) = super::read::expression::trailing_token_offset(content) {
+            if let Some(pos) = super::read::expression::trailing_close_offset(content) {
                 return Some(crate::error::ParseError::expected_token(close, start + pos));
             }
             let abs_pos = super::read::expression::check_js_parse_error_with_pos(content)
