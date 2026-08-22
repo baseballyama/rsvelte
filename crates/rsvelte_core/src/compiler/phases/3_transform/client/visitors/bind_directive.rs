@@ -984,17 +984,27 @@ fn build_group_binding_call(
     // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/BindDirective.js L248
     let binding_group_name;
     {
+        // Strategy 0: the name analysis resolved for THIS directive. An each
+        // block carries one name, so two directives under it whose expressions
+        // key to different groups can only be told apart here.
+        let own_group = directive_expr
+            .and_then(|expr| expr.as_node().start())
+            .and_then(|start| context.state.analysis.binding_group_names.get(&start))
+            .cloned();
+
         // Strategy 1: For EachItem-based bind:group, look up via the innermost ancestor
         // EachBindingContext that has contains_group_binding=true and a binding_group_name.
         // This covers cases like bind:group={selected} inside {#each items as selected}.
-        let each_group = context
-            .state
-            .each_binding_context
-            .iter()
-            .rev()
-            .find(|ctx| ctx.contains_group_binding && ctx.binding_group_name.is_some())
-            .and_then(|ctx| ctx.binding_group_name.as_ref())
-            .cloned();
+        let each_group = own_group.or_else(|| {
+            context
+                .state
+                .each_binding_context
+                .iter()
+                .rev()
+                .find(|ctx| ctx.contains_group_binding && ctx.binding_group_name.is_some())
+                .and_then(|ctx| ctx.binding_group_name.as_ref())
+                .cloned()
+        });
 
         if let Some(group_name) = each_group {
             binding_group_name = b::id(&group_name);
