@@ -43,6 +43,14 @@ pub struct ScopeRoot {
     /// with the other links of the chain), so the alternates live in their own
     /// map under the enclosing block's unique start.
     pub if_alternate_scope_map: FxHashMap<u32, usize>,
+    /// Scope indices of `{:else}` fragments, keyed by their `{#each}`'s start
+    /// position. Upstream's `EachBlock` visitor walks the body's *nodes* with
+    /// the each scope but visits the fallback as a `Fragment`, so only the
+    /// fallback reaches the `Fragment` visitor's `scope.child(...)` — which is
+    /// why `{@const it = 1}` duplicates the item binding in the body and merely
+    /// shadows it in the fallback. Keyed like `if_alternate_scope_map` and for
+    /// the same reason: the fallback has no start offset of its own.
+    pub each_fallback_scope_map: FxHashMap<u32, usize>,
     /// Scope indices created for `{#snippet …}` bodies. Snippet bodies become
     /// separate functions in the generated output, so template declarations
     /// (`{@const}` / `{const}` / `{let}`) made inside one snippet are NOT
@@ -82,6 +90,7 @@ impl ScopeRoot {
             each_block_collection_infos: Vec::new(),
             template_scope_map: FxHashMap::default(),
             if_alternate_scope_map: FxHashMap::default(),
+            each_fallback_scope_map: FxHashMap::default(),
             snippet_scope_indices: FxHashSet::default(),
             conflicts: FxHashSet::default(),
             bindings_by_name: FxHashMap::default(),
