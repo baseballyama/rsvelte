@@ -252,19 +252,38 @@ requireDiskSpace(
 );
 
 const JOBS = Number(argValue('--jobs', String(Math.max(2, Math.min(8, os.cpus().length - 2)))));
+// A worker that stops making progress is killed and its entry recorded, the same
+// way a panic is. A crash announces itself; a non-terminating compile does not —
+// it is indistinguishable from a slow run, so without this the whole sweep hangs
+// on one entry and reports nothing at all.
+const STALL_MS = Number(argValue('--stall-timeout', '120000'));
 const startedAt = Date.now();
 const panics = [];
+const stalls = [];
 
-function recordPanic(i) {
+function recordFailure(i, list, err) {
 	const { id } = manifest[i];
-	panics.push(id);
+	list.push(id);
 	// Official side may not have been written either — compile it in-process.
 	const dir = path.join(ACTUAL, id);
 	fs.mkdirSync(dir, { recursive: true });
-	const err = { code: 'rust_panic', message: 'rsvelte compiler panicked (process aborted)' };
 	const errors = Object.fromEntries(TARGETS.map((t) => [t.key, err]));
 	fs.writeFileSync(path.join(dir, 'error.json'), JSON.stringify(errors, null, '\t') + '\n');
 	fs.writeFileSync(path.join(dir, 'warnings.json'), '{}\n');
+}
+
+function recordPanic(i) {
+	recordFailure(i, panics, {
+		code: 'rust_panic',
+		message: 'rsvelte compiler panicked (process aborted)',
+	});
+}
+
+function recordStall(i) {
+	recordFailure(i, stalls, {
+		code: 'rust_hang',
+		message: `rsvelte made no progress for ${STALL_MS}ms (process killed)`,
+	});
 }
 
 function runRange(start, end) {
@@ -289,20 +308,39 @@ function runRange(start, end) {
 		);
 		let last = start - 1;
 		let buf = '';
+		let progressAt = Date.now();
+		let stalled = false;
 		child.stdout.on('data', (d) => {
 			buf += d;
 			let nl;
 			while ((nl = buf.indexOf('\n')) !== -1) {
 				const line = buf.slice(0, nl);
 				buf = buf.slice(nl + 1);
-				if (line.startsWith('IDX ')) last = Number(line.slice(4));
+				if (line.startsWith('IDX ')) {
+					last = Number(line.slice(4));
+					progressAt = Date.now();
+				}
 			}
 		});
+		const watchdog = setInterval(() => {
+			if (Date.now() - progressAt <= STALL_MS) return;
+			stalled = true;
+			clearInterval(watchdog);
+			child.kill('SIGKILL');
+		}, 5_000).unref();
 		child.on('exit', (code, signal) => {
+			clearInterval(watchdog);
 			if (code === 0) return resolve();
-			// crashed while compiling manifest[last] — record + resume after it
-			console.error(`[compile] worker crashed (${signal ?? code}) on ${manifest[last]?.id}`);
-			recordPanic(last);
+			// crashed (or was killed as stalled) while compiling manifest[last] —
+			// record + resume after it
+			const id = manifest[last]?.id;
+			if (stalled) {
+				console.error(`[compile] worker STALLED on ${id} (>${STALL_MS}ms, killed)`);
+				recordStall(last);
+			} else {
+				console.error(`[compile] worker crashed (${signal ?? code}) on ${id}`);
+				recordPanic(last);
+			}
 			runRange(last + 1, end).then(resolve, reject);
 		});
 		child.on('error', reject);
@@ -326,5 +364,9 @@ requireGenerationUnchanged(CORPUS, generation, 'compile');
 if (panics.length) {
 	console.error(`[compile] ${panics.length} entries PANICKED in rsvelte:`);
 	for (const id of panics.slice(0, 20)) console.error(`  - ${id}`);
+}
+if (stalls.length) {
+	console.error(`[compile] ${stalls.length} entries STALLED in rsvelte:`);
+	for (const id of stalls.slice(0, 20)) console.error(`  - ${id}`);
 }
 console.log(`[compile] done in ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);

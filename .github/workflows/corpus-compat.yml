@@ -43,45 +43,9 @@ on:
       - 'scripts/fixtures/fmt-corpus.oxfmtrc.json'
       - 'pnpm-lock.yaml'
       - 'compatibility/**'
-      - 'submodules/svelte'
-      - 'submodules/svelte.dev'
-      - 'submodules/language-tools'
-      - 'submodules/eslint-plugin-svelte'
-      - 'submodules/svelte-eslint-parser'
-      - 'submodules/bits-ui'
-      - 'submodules/flowbite-svelte'
-      - 'submodules/melt-ui'
-      - 'submodules/shadcn-svelte'
-      - 'submodules/sveltestrap'
-      - 'submodules/attractions'
-      - 'submodules/svelte-ux'
-      - 'submodules/smelte'
-      - 'submodules/svar-core'
-      - 'submodules/svelte-table'
-      - 'submodules/powertable'
-      - 'submodules/svelte-pivottable'
-      - 'submodules/svelte-toast'
-      - 'submodules/svelte-sonner'
-      - 'submodules/svelte-notifications'
-      - 'submodules/svelte-fa'
-      - 'submodules/svelte-heroicons'
-      - 'submodules/svelte-calendar'
-      - 'submodules/date-picker-svelte'
-      - 'submodules/svelte-maplibre'
-      - 'submodules/layercake'
-      - 'submodules/layerchart'
-      - 'submodules/svelte-splitpanes'
-      - 'submodules/svelte-stepper'
-      - 'submodules/svelte-formly'
-      - 'submodules/svelte-form-builder'
-      - 'submodules/svelte-checkbox'
-      - 'submodules/svelte-toggle'
-      - 'submodules/svelthree'
-      - 'submodules/runed'
-      - 'submodules/mode-watcher'
-      - 'submodules/svelte-toolbelt'
-      - 'submodules/cmsaasstarter'
-      - 'submodules/skeleton'
+      # Every corpus source is a submodule and the list is 100+ entries long; glob
+      # instead of restating scripts/compat-corpus/corpus-sources.json here.
+      - 'submodules/**'
       - 'scripts/compat-corpus/corpus-sources.json'
       - '.gitmodules'
       - 'Cargo.toml'
@@ -96,45 +60,9 @@ on:
       - 'scripts/fixtures/fmt-corpus.oxfmtrc.json'
       - 'pnpm-lock.yaml'
       - 'compatibility/**'
-      - 'submodules/svelte'
-      - 'submodules/svelte.dev'
-      - 'submodules/language-tools'
-      - 'submodules/eslint-plugin-svelte'
-      - 'submodules/svelte-eslint-parser'
-      - 'submodules/bits-ui'
-      - 'submodules/flowbite-svelte'
-      - 'submodules/melt-ui'
-      - 'submodules/shadcn-svelte'
-      - 'submodules/sveltestrap'
-      - 'submodules/attractions'
-      - 'submodules/svelte-ux'
-      - 'submodules/smelte'
-      - 'submodules/svar-core'
-      - 'submodules/svelte-table'
-      - 'submodules/powertable'
-      - 'submodules/svelte-pivottable'
-      - 'submodules/svelte-toast'
-      - 'submodules/svelte-sonner'
-      - 'submodules/svelte-notifications'
-      - 'submodules/svelte-fa'
-      - 'submodules/svelte-heroicons'
-      - 'submodules/svelte-calendar'
-      - 'submodules/date-picker-svelte'
-      - 'submodules/svelte-maplibre'
-      - 'submodules/layercake'
-      - 'submodules/layerchart'
-      - 'submodules/svelte-splitpanes'
-      - 'submodules/svelte-stepper'
-      - 'submodules/svelte-formly'
-      - 'submodules/svelte-form-builder'
-      - 'submodules/svelte-checkbox'
-      - 'submodules/svelte-toggle'
-      - 'submodules/svelthree'
-      - 'submodules/runed'
-      - 'submodules/mode-watcher'
-      - 'submodules/svelte-toolbelt'
-      - 'submodules/cmsaasstarter'
-      - 'submodules/skeleton'
+      # Every corpus source is a submodule and the list is 100+ entries long; glob
+      # instead of restating scripts/compat-corpus/corpus-sources.json here.
+      - 'submodules/**'
       - 'scripts/compat-corpus/corpus-sources.json'
       - '.gitmodules'
       - 'Cargo.toml'
@@ -188,7 +116,7 @@ jobs:
         run: node scripts/compat-corpus/known-failures-md-check.mjs
 
       - name: Checkout corpus source submodules (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev submodules/language-tools submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte submodules/sveltestrap submodules/attractions submodules/svelte-ux submodules/smelte submodules/svar-core submodules/svelte-table submodules/powertable submodules/svelte-pivottable submodules/svelte-toast submodules/svelte-sonner submodules/svelte-notifications submodules/svelte-fa submodules/svelte-heroicons submodules/svelte-calendar submodules/date-picker-svelte submodules/svelte-maplibre submodules/layercake submodules/layerchart submodules/svelte-splitpanes submodules/svelte-stepper submodules/svelte-formly submodules/svelte-form-builder submodules/svelte-checkbox submodules/svelte-toggle submodules/svelthree submodules/runed submodules/mode-watcher submodules/svelte-toolbelt submodules/cmsaasstarter submodules/skeleton
+        run: git submodule update --init --depth 1 $(node scripts/compat-corpus/submodule-paths.mjs) submodules/language-tools
 
       - uses: ./.github/actions/setup-rust
 
@@ -342,7 +270,7 @@ jobs:
           submodules: false
 
       - name: Checkout corpus source submodules (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte submodules/sveltestrap submodules/attractions submodules/svelte-ux submodules/smelte submodules/svar-core submodules/svelte-table submodules/powertable submodules/svelte-pivottable submodules/svelte-toast submodules/svelte-sonner submodules/svelte-notifications submodules/svelte-fa submodules/svelte-heroicons submodules/svelte-calendar submodules/date-picker-svelte submodules/svelte-maplibre submodules/layercake submodules/layerchart submodules/svelte-splitpanes submodules/svelte-stepper submodules/svelte-formly submodules/svelte-form-builder submodules/svelte-checkbox submodules/svelte-toggle submodules/svelthree submodules/runed submodules/mode-watcher submodules/svelte-toolbelt submodules/cmsaasstarter submodules/skeleton
+        run: git submodule update --init --depth 1 $(node scripts/compat-corpus/submodule-paths.mjs)
 
       - uses: ./.github/actions/setup-rust
 
@@ -369,7 +297,7 @@ jobs:
         # cached fmt oracle. The in-repo `pattern` source has no gitlink, so its
         # files are hashed into the cache key directly (see below).
         run: |
-          echo "sources=$(git submodule status submodules/svelte submodules/svelte.dev submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte submodules/sveltestrap submodules/attractions submodules/svelte-ux submodules/smelte submodules/svar-core submodules/svelte-table submodules/powertable submodules/svelte-pivottable submodules/svelte-toast submodules/svelte-sonner submodules/svelte-notifications submodules/svelte-fa submodules/svelte-heroicons submodules/svelte-calendar submodules/date-picker-svelte submodules/svelte-maplibre submodules/layercake submodules/layerchart submodules/svelte-splitpanes submodules/svelte-stepper submodules/svelte-formly submodules/svelte-form-builder submodules/svelte-checkbox submodules/svelte-toggle submodules/svelthree submodules/runed submodules/mode-watcher submodules/svelte-toolbelt submodules/cmsaasstarter submodules/skeleton | awk '{print $1}' | sort | git hash-object --stdin)" >> "$GITHUB_OUTPUT"
+          echo "sources=$(git submodule status $(node scripts/compat-corpus/submodule-paths.mjs) | awk '{print $1}' | sort | git hash-object --stdin)" >> "$GITHUB_OUTPUT"
 
       # The oracle depends only on the pins + oxfmt version + oracle config, so
       # cache it: only the first run per pin pays the batched oracle build.
@@ -408,7 +336,7 @@ jobs:
           submodules: false
 
       - name: Checkout corpus source submodules (shallow)
-        run: git submodule update --init --depth 1 submodules/svelte submodules/svelte.dev submodules/language-tools submodules/bits-ui submodules/flowbite-svelte submodules/melt-ui submodules/shadcn-svelte submodules/sveltestrap submodules/attractions submodules/svelte-ux submodules/smelte submodules/svar-core submodules/svelte-table submodules/powertable submodules/svelte-pivottable submodules/svelte-toast submodules/svelte-sonner submodules/svelte-notifications submodules/svelte-fa submodules/svelte-heroicons submodules/svelte-calendar submodules/date-picker-svelte submodules/svelte-maplibre submodules/layercake submodules/layerchart submodules/svelte-splitpanes submodules/svelte-stepper submodules/svelte-formly submodules/svelte-form-builder submodules/svelte-checkbox submodules/svelte-toggle submodules/svelthree submodules/runed submodules/mode-watcher submodules/svelte-toolbelt submodules/cmsaasstarter submodules/skeleton
+        run: git submodule update --init --depth 1 $(node scripts/compat-corpus/submodule-paths.mjs) submodules/language-tools
 
       - uses: ./.github/actions/setup-rust
 

@@ -4,7 +4,57 @@ The svelte2tsx output-parity corpus (`scripts/compat-corpus/svelte2tsx-*`) compa
 rsvelte's svelte2tsx port against **official `svelte2tsx`** byte-for-byte (after
 oxfmt normalization). The ratchet may only shrink.
 
-**Current baseline: `svelte2tsx-known-failures.json`, 1 entry.**
+**Current baseline: `svelte2tsx-known-failures.json`, 140 entries.**
+
+Partition of `svelte2tsx-known-failures.json` by verdict: `135 + 5`
+
+- **135 — the emitted TSX differs** (`ts-mismatch`).
+- **5 — one side rejects and the other compiles** (`error-mismatch`): 3 where
+  official compiles and rsvelte errors, 2 the other way round.
+
+## Wave-2 enrolment (#3130)
+
+The list was **0** before the enrolment and 139 of the 140 come from one of the
+67 new repositories. The single exception is
+`pattern/issues/3200-asi-reactive-block.svelte`, a repro `main` added to
+`compatibility/pattern-corpus`; the 37 pre-existing *real-world* sources still
+contribute zero, which is the same positive control the compiler ratchets report.
+27 repositories contribute at least one; svelte-lexical (42),
+svelte-tweakpane-ui (16) and svelte-gantt (10) are half of the `ts-mismatch`
+half between them.
+
+**The first baseline was 173 and was written from a macOS run; Linux CI reports
+the set this file carries.** The 15 it dropped are 14 tiny
+`sveltekit/packages/package/test/fixtures/…` components plus one carbon fixture,
+all `ts-mismatch`, all passing on Linux — the two-sided ratchet is what surfaced
+them. That platform split is **still live**: re-measuring on macOS after the
+rebase reports those same 15 as NEW failures, which is the positive control that
+the file here is the Linux set and not a local one. Read it as the same caveat
+`fmt-known-failures.md` states for its own gate: **shrink this ratchet from a
+Linux `corpus-compat.yml` run, not locally.**
+
+The drop from 158 to 140 is the rebase onto `main`, less the one entry `main`
+added: re-measuring removed **19 entries that already passed and added none**.
+
+The `ts-mismatch` clusters, keyed mechanically by the first differing line
+(the classifier is the one in this file's history, not a hand review — it asks
+what the differing line contains, in this order):
+
+| n | class |
+|---|---|
+| 42 | rsvelte emits an **extra** `/*Ωignore_startΩ*/` region marker |
+| 8 | rsvelte **omits** an `/*Ωignore_startΩ*/` marker official emits |
+| 16 | `__sveltets_2_ensureType(String, Number, …)` — a text run's interior whitespace is collapsed |
+| 17 | a CSS selector inside a JSDoc comment (` * .demo {`) is truncated |
+| 14 | an `import {` official keeps is emitted as a bare `;` |
+| 38 | a tail, most of it one entry each |
+
+The two marker clusters are the single largest cause and are one question —
+**where a `/*Ωignore_*Ω*/` region begins and ends** — not two. Nothing here is
+an oracle bug: the `oracle-invalid` classification (94 entries this run) already
+carries those, and it is a pass, not a ratchet entry.
+
+
 
 - `pattern/issues/3200-asi-reactive-block.svelte` — **rsvelte is the worse side
   here, and the entry says so.** The file is a deliberately-unparseable repro

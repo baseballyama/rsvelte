@@ -1,3 +1,4 @@
 [
+	"open-webui/src/lib/components/common/Tags.svelte",
 	"svelte/packages/svelte/tests/migrate/samples/self-closing-elements/input.svelte"
 ]

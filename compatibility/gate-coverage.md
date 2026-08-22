@@ -129,6 +129,16 @@ their continuation lines, so layout-only re-indentation is not a content diverge
 relative indentation remains observable. It rejects fewer than 12,000 outputs in any
 tree/target and records the measured population in `esrap-report.json`.
 
+**What it caught that gate 1 could not [D].** The wave-2 enrolment brought in
+`carbon-components-svelte/src/Slider/{Slider,RangeSlider}.svelte`, whose JSDoc holds a
+```` ```svelte ```` fence. The client re-indenter read the backtick as a template-literal
+delimiter and stopped indenting every line after it, so rsvelte's output disagreed with
+official's *inside one comment* — half its lines carried the enclosing tab and half did not.
+Gate 1 cannot see that at all (blind spot 1a: comments are compared under
+`CommentPolicy::Ignore` on 100% of the corpus), and the formatter oracle re-aligns a JSDoc's
+` * ` lines, so it is invisible there too. Here it is a first-class failure, because the
+common-indentation rule above leaves *relative* indentation inside a comment observable.
+
 **Blind spot 26a — reparsing erases production AST provenance.** The gate consumes compiler
 text from `expected/` and `actual/` and constructs a fresh OXC `Program`; it never
 passes rsvelte's synthetic phase-3 AST, its `loc_map`, or original synthesized spans to the
@@ -416,6 +426,19 @@ either compiler sees the file — 299 of 437 module entries (#2424). Verified lo
 `transformSync("// c\nexport let x = 1; /* b */\n//! legal\n")` returns
 `"export let x = 1;\n//! legal\n"`. This is the *narrower* cause; fixing it alone buys zero
 observability while 1a stands.
+
+**Second discriminating case [D], from the wave-2 enrolment.** A multi-line JSDoc on an
+instance-script statement comes out with the source's own inner indentation *and* the
+enclosing tab — `\t\t   * @template` where official prints `\t * @template`. Upstream's
+`onComment` dedents a block comment by its opener's line indentation; rsvelte's client path
+reaches `rsvelte_esrap`'s port of that rule (`printer.rs: dedent_block_comment`) with the
+statement text already trimmed at the front, so the opener sits at column 0, the computed
+indentation is empty, and nothing is stripped. `carbon-components-svelte/src/Button/Button.svelte`
+reproduces it and is not listed in `known-failures.client.json`. It is invisible to gate 1 for
+the reason above, and to gate 20 (formatter parity) because the oxfmt oracle re-aligns a JSDoc's
+` * ` lines on both sides. Unlike the fenced-backtick defect (gate 26), the indentation it
+produces is *uniform*, so the round-trip gate cannot see it either — no gate here observes it
+today.
 
 **Tracked:** #2424, PR #2436. **Closing it** requires rsvelte preserving comments *plus*
 `--comments` here — a compiler change, not a harness one. Note that even
@@ -1204,6 +1227,25 @@ Two triggers, both of which accept rsvelte's output *whatever it contains* (incl
 string, which oxfmt parses). **[S]** There is no `oracle-invalid` baseline, so the count can
 grow without bound and no step fails.
 
+
+### Blind spot 6f — a BOM-induced offset shift is absorbed by the reformatter
+
+The compiler's parser strips a leading BOM (upstream's `remove_bom`, at every public entry
+point), so its offsets are relative to the stripped text, while `svelte2tsx()` slices the
+**unstripped** `source` it was handed. **[D]** On
+`"\u{feff}<script>\n\tlet b = 2;\n</script>\n\n<div>{b}</div>\n"` rsvelte emits
+`async () => { ` where the BOM-free input gives `async () => {` — a one-character shift, which
+this gate's oxfmt pass removes before comparing. ~100 corpus components (cnblocks
+`src/routes/preview/veil/**`) carry a BOM and none of them appears in the ratchet, so the gate
+reports parity on inputs where the two tools' internal offsets disagree.
+
+Deliberately not "fixed" here: official svelte2tsx has the same shape (it calls a `parse` that
+strips and then slices the original), so making rsvelte strip could move ~100 files *away* from
+the oracle. It is recorded because the same mixing **was** a real defect one crate over —
+`rsvelte_lint` shifted every column on the BOM's line by three and panicked slicing at byte 1
+— and there the oracle (ESLint's `SourceCode`) does strip. The rule that separates the two
+cases is what the oracle does, not what looks tidy.
+
 ---
 
 ## 7. svelte2tsx source map
@@ -1962,14 +2004,25 @@ loop). `<target>.css` is never handed to a CSS parser, so a malformed stylesheet
 here exactly as it is to gate 1's byte comparison when the entry is ratcheted. `js.map` is not
 captured by `compile.mjs` at all (blind spot 1c), so there is nothing to validate.
 
-### Blind spot 19c — the population is inherited from the corpus, and the known defects are not in it
+### Blind spot 19c — the population is inherited from the corpus (CLOSED for these four inputs)
 
-**[S]** `corpus-sources.json` lists sveltejs/svelte, svelte.dev and 33 shipped libraries. The 30
-real-world components that currently produce unparseable rsvelte output are in huly, open-webui,
-carbon and SMUI — none of which is a corpus source. The ratchet is therefore empty **because the
-inputs are absent**, not because the class is fixed. This gate is a regression gate for that
-class, not a burn-down of it. Enrolling those repositories would change the number; nothing else
-in this gate's design would.
+**[D]** This row used to read: *`corpus-sources.json` lists sveltejs/svelte, svelte.dev and 33
+shipped libraries. The 30 real-world components that currently produce unparseable rsvelte
+output are in huly, open-webui, carbon and SMUI — none of which is a corpus source. The ratchet
+is therefore empty because the inputs are absent, not because the class is fixed. Enrolling
+those repositories would change the number; nothing else in this gate's design would.*
+
+#3130 enrolled all four (and 63 more), taking the corpus from 37 corpus sources to 104 and
+from 14,780 entries to 34,007. The ratchet went from 0 to **12 entries across `client` and
+`client-dev`** on the first run, `server` and `server-dev` stayed at 0, and the enrolment also
+turned up two CSS-parser infinite loops, two UTF-8 char-boundary panics and a BOM that was being
+emitted as template text. That is the prediction paid out — this is a **discriminating case for
+the row, not for the gate**: the gate's design never changed.
+
+What is *not* closed is the general form. The population is still whatever
+`corpus-sources.json` happens to list, and the argument that a given defect class is absent is
+still an argument about which repositories somebody enrolled. Read the closure as "these four
+inputs are in now", never as "the population question is settled".
 
 ### Blind spot 19f — an excluded pair is checked on neither side
 

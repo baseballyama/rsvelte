@@ -19,7 +19,7 @@ const compatibility = path.resolve(
   argument("--compatibility-dir", path.join(root, "compatibility")),
 );
 const manifestPath = path.join(compatibility, "manifest.json");
-const minimumPerTreeTarget = Number(argument("--minimum-per-tree-target", "12000"));
+const minimumPerTreeTarget = Number(argument("--minimum-per-tree-target", "30000"));
 if (!Number.isInteger(minimumPerTreeTarget) || minimumPerTreeTarget < 1) {
   throw new Error("--minimum-per-tree-target must be a positive integer");
 }
@@ -28,11 +28,38 @@ if (!fs.existsSync(manifestPath)) {
 }
 
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+
+// This gate's question is whether `rsvelte_esrap` round-trips valid JavaScript.
+// An rsvelte output that is not JavaScript at all fails its precondition, and it
+// already has a ratchet of its own — `parse-known-failures.<target>.json`, which
+// is shrink-only and justified per entry. Excluding those pairs here keeps the
+// two gates from reporting the same defect twice, with one of them unratcheted
+// and therefore unfixable-in-place. The exclusion is bounded by that ratchet: a
+// pair not listed there is not skipped, so the set cannot grow silently.
+const unparseableOutputs = new Map(
+  TARGETS.map((target) => [
+    target.key,
+    new Set(
+      JSON.parse(
+        fs.readFileSync(
+          path.join(compatibility, `parse-known-failures.${target.key}.json`),
+          "utf8",
+        ),
+      ),
+    ),
+  ]),
+);
+
 const populations = [];
+let excluded = 0;
 for (const tree of ["expected", "actual"]) {
   for (const target of TARGETS) {
     const population = [];
     for (const { id } of manifest) {
+      if (tree === "actual" && unparseableOutputs.get(target.key).has(id)) {
+        excluded += 1;
+        continue;
+      }
       const candidate = path.join(compatibility, tree, id, `${target.key}.js`);
       if (fs.existsSync(candidate)) population.push(candidate);
     }
@@ -43,6 +70,11 @@ for (const tree of ["expected", "actual"]) {
     }
     populations.push({ tree, target: target.key, paths: population });
   }
+}
+if (excluded > 0) {
+  console.log(
+    `[esrap-verify] skipped ${excluded} actual-tree output(s) listed in parse-known-failures.<target>.json`,
+  );
 }
 
 const stage = fs.mkdtempSync(path.join(os.tmpdir(), "rsvelte-esrap-corpus-"));

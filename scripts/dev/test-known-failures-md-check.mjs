@@ -181,10 +181,19 @@ withCorpus(
 	(r) => check('unmutated corpus copy passes', r.code, 0),
 );
 
-withCorpus(
-	(d) => edit(d, 'fmt-known-failures.md', 'by cluster: `3 + 8 +', 'by cluster: `2 + 8 +'),
-	(r) => check('a stale cluster count fails', [r.code, /sums to 19 \(/.test(r.out)], [1, true]),
-);
+// Derived, not a literal: the expected sum is the ratchet's own size less the
+// one this mutation removes, so the assertion survives the ratchet moving.
+{
+	const fmtEntries = JSON.parse(fs.readFileSync(path.join(CORPUS, 'fmt-known-failures.json'), 'utf8')).length;
+	withCorpus(
+		(d) => edit(d, 'fmt-known-failures.md', 'by cluster: `3 + 8 +', 'by cluster: `2 + 8 +'),
+		(r) => check(
+			'a stale cluster count fails',
+			[r.code, new RegExp(`sums to ${fmtEntries - 1} \\(`).test(r.out)],
+			[1, true],
+		),
+	);
+}
 
 // The shape #2500 is about: an entry cited under two clusters, with the cluster
 // totals adjusted so the doc still reads as if it summed. One addend moves up,

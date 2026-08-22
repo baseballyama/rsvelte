@@ -18,7 +18,9 @@
 
 use crate::compiler::phases::phase2_analyze::scope::{BindingKind, DeclarationKind};
 use crate::compiler::phases::phase3_transform::client::types::*;
-use crate::compiler::phases::phase3_transform::client::visitors::shared::declarations::add_state_transformers;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::declarations::{
+    add_state_transformers, resolve_store_sources, store_source,
+};
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 
@@ -59,6 +61,7 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
                 is_defined: false,
                 is_reactive: true,
                 replacement_id: None,
+                store_source: None,
             };
             context
                 .state
@@ -123,6 +126,7 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
                 is_defined: false,
                 is_reactive: true,
                 replacement_id: Some(import_id.clone()),
+                store_source: None,
             };
 
             context.state.transform.insert(name.clone(), transform);
@@ -195,6 +199,7 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
                             is_defined: false,
                             is_reactive: true,
                             replacement_id: None,
+                            store_source: None,
                         },
                     );
                 }
@@ -219,6 +224,7 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
                                     is_defined: false,
                                     is_reactive: true,
                                     replacement_id: None,
+                                    store_source: None,
                                 },
                             );
                         }
@@ -238,6 +244,7 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
                                 is_defined: false,
                                 is_reactive: true,
                                 replacement_id: None,
+                                store_source: None,
                             },
                         );
                     }
@@ -246,6 +253,10 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
             }
         }
     }
+
+    // The `$$props.x` fallback props above are registered after
+    // `add_state_transformers`, so re-resolve with the final map.
+    resolve_store_sources(context);
 
     // If this is the instance script, we might need async transformation
     // For now, we skip this as it requires complex AST traversal
@@ -318,22 +329,16 @@ fn store_sub_read(
 /// * `value` - The value being assigned
 /// * `_needs_proxy` - Whether the value needs to be proxified (not used for stores)
 fn store_sub_assign(
+    transform: &IdentifierTransform,
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     node: JsExpr,
     value: JsExpr,
     _needs_proxy: bool,
 ) -> JsExpr {
-    // Extract store name from $store → store
-    let store_name = if let JsExpr::Identifier(ref name) = node {
-        name.strip_prefix('$').unwrap_or(name).to_string()
-    } else {
-        "unknown".to_string()
-    };
-
     b::call(
         arena,
         b::member_path(arena, "$.store_set"),
-        vec![b::id(&store_name), value],
+        vec![store_source(transform, &node), value],
     )
 }
 
@@ -353,17 +358,11 @@ fn store_sub_assign(
 /// * `node` - The store subscription identifier (e.g., `$store`)
 /// * `mutation` - The mutation expression (e.g., `$store.prop = value`)
 fn store_sub_mutate(
+    transform: &IdentifierTransform,
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     node: JsExpr,
     mutation: JsExpr,
 ) -> JsExpr {
-    // Extract store name from $store → store
-    let store_name = if let JsExpr::Identifier(ref name) = node {
-        name.strip_prefix('$').unwrap_or(name).to_string()
-    } else {
-        "unknown".to_string()
-    };
-
     // We need to untrack the store read, for consistency with Svelte 4
     let untracked = b::call(
         arena,
@@ -378,7 +377,11 @@ fn store_sub_mutate(
     b::call(
         arena,
         b::member_path(arena, "$.store_mutate"),
-        vec![b::id(&store_name), transformed_mutation, untracked],
+        vec![
+            store_source(transform, &node),
+            transformed_mutation,
+            untracked,
+        ],
     )
 }
 
@@ -444,17 +447,13 @@ fn replace_store_with_untracked(
 /// * `argument` - The store subscription identifier (e.g., `$store`)
 /// * `prefix` - Whether the operator is prefix (++$store) or postfix ($store++)
 fn store_sub_update(
+    transform: &IdentifierTransform,
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     operator: JsUpdateOp,
     argument: JsExpr,
     prefix: bool,
 ) -> JsExpr {
-    // Extract store name from $store → store
-    let store_name = if let JsExpr::Identifier(ref name) = argument {
-        name.strip_prefix('$').unwrap_or(name).to_string()
-    } else {
-        "unknown".to_string()
-    };
+    let store = store_source(transform, &argument);
 
     let method = if prefix {
         "$.update_pre_store"
@@ -465,7 +464,7 @@ fn store_sub_update(
     // Build the current value accessor: $store()
     let current_value = b::call(arena, argument, vec![]);
 
-    let mut args = vec![b::id(&store_name), current_value];
+    let mut args = vec![store, current_value];
 
     // For decrement, pass -1 as the delta
     if operator == JsUpdateOp::Decrement {
@@ -529,6 +528,7 @@ fn prop_read(
 /// * `value` - The value being assigned
 /// * `_needs_proxy` - Whether the value needs to be proxified (not used for props)
 fn prop_assign(
+    _transform: &IdentifierTransform,
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     node: JsExpr,
     value: JsExpr,
@@ -548,6 +548,7 @@ fn prop_assign(
 /// Transforms `x++` to `$.update_prop(x)` or `++x` to `$.update_pre_prop(x)`.
 /// Transforms `x--` to `$.update_prop(x, -1)` or `--x` to `$.update_pre_prop(x, -1)`.
 fn prop_update(
+    _transform: &IdentifierTransform,
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     operator: JsUpdateOp,
     argument: JsExpr,
@@ -586,6 +587,7 @@ fn prop_update(
 /// * `_node` - The prop identifier (unused for passthrough)
 /// * `mutation` - The mutation expression (returned as-is)
 fn prop_mutate(
+    _transform: &IdentifierTransform,
     _arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     _node: JsExpr,
     mutation: JsExpr,
@@ -611,6 +613,7 @@ fn prop_mutate(
 /// * `node` - The prop identifier (e.g., `foo`)
 /// * `mutation` - The mutation expression (e.g., `foo()[0] = value`)
 fn prop_bindable_mutate(
+    _transform: &IdentifierTransform,
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     node: JsExpr,
     mutation: JsExpr,
@@ -657,6 +660,7 @@ fn reactive_import_read(
 /// mutate: (_, mutation) => b.call(id, mutation)
 /// ```
 fn reactive_import_mutate(
+    _transform: &IdentifierTransform,
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     node: JsExpr,
     mutation: JsExpr,

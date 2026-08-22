@@ -126,6 +126,11 @@ jobs:
             path: submodules/svelte-toolbelt
           - name: cmsaasstarter
             path: submodules/cmsaasstarter
+          # The wave-2 corpus repositories (scripts/compat-corpus/corpus-sources.json,
+          # everything from `huly` down) are deliberately absent: 67 more weekly PRs is
+          # not reviewable, and each corpus bump can require re-triaging the baselines.
+          # Freshness is already covered by the rotation above; wave 2 buys breadth, and
+          # a pinned source is a deterministic gate input. Bump one by hand when needed.
     concurrency:
       group: auto-update-submodules-${{ matrix.name }}
       cancel-in-progress: false
