@@ -3094,6 +3094,12 @@ fn transform_script_legacy<'a>(
         // Set by every branch that re-parses the statement WHOLE from a source
         // range, to that range.
         let mut verbatim: Option<Span> = None;
+        // Set by a branch that REBUILDS the statement but whose upstream
+        // counterpart keeps the source node (and therefore its `loc`) — the
+        // prop lowering of `let x` / `export let x`, where upstream only
+        // rewrites the declarator's init. Such a statement is still a comment
+        // flush point, which matters once a `$:` statement is reordered past it.
+        let mut rebuilt_but_located = false;
         let mut defer_block_reactive_trailing = false;
 
         'emit: {
@@ -3158,6 +3164,7 @@ fn transform_script_legacy<'a>(
                                 &mut verbatim,
                             );
                             if verbatim.is_none() {
+                                rebuilt_but_located = true;
                                 count_non_reparse(&ret.program.comments, vd.span);
                             }
                             out.extend(lowered);
@@ -3199,6 +3206,7 @@ fn transform_script_legacy<'a>(
                         &mut verbatim,
                     );
                     if verbatim.is_none() {
+                        rebuilt_but_located = true;
                         count_non_reparse(&ret.program.comments, vd.span);
                     }
                     out.extend(lowered);
@@ -3230,9 +3238,21 @@ fn transform_script_legacy<'a>(
                             state.analysis.root.instance_scope_index,
                             &mut array_counter,
                         );
+                        // Upstream's hoisted `let x;` reuses the `$: x = …`
+                        // TARGET identifier, so the declarator keeps that source
+                        // `loc` while the declaration around it has none — and
+                        // the hoist is printed FIRST, which makes it the flush
+                        // point for every comment written before that target.
+                        let decl_anchor =
+                            if decl_names.is_empty() || ret.program.comments.is_empty() {
+                                None
+                            } else {
+                                state.comments.register_anchor()
+                            };
                         reactive.push(ReactiveEntry {
                             stmt: rehomed,
                             decl_names,
+                            decl_anchor,
                             assigns,
                             deps,
                         });
@@ -3353,7 +3373,10 @@ fn transform_script_legacy<'a>(
             stmt_span,
             verbatim,
         );
-        if place.is_none() && verbatim.is_some() && !ret.program.comments.is_empty() {
+        if place.is_none()
+            && (verbatim.is_some() || rebuilt_but_located)
+            && !ret.program.comments.is_empty()
+        {
             place = place_on_position(&mut state.comments, src, region_start, stmt_span, verbatim);
         }
         if place.is_none() && reactive_leading_comment_pending && !into_sink && anchor.is_some() {
@@ -3406,11 +3429,11 @@ fn transform_script_legacy<'a>(
     // not source order (写经 the `for (const [node] of analysis.reactive_statements)`
     // loop that drives `legacy_reactive_declarations`).
     let reactive = topo_sort_reactive(reactive);
-    let mut reactive_decl_names: Vec<String> = Vec::new();
+    let mut reactive_decl_names: Vec<(String, Option<u32>)> = Vec::new();
     for entry in &reactive {
         for name in &entry.decl_names {
-            if !reactive_decl_names.contains(name) {
-                reactive_decl_names.push(name.clone());
+            if !reactive_decl_names.iter().any(|(seen, _)| seen == name) {
+                reactive_decl_names.push((name.clone(), entry.decl_anchor));
             }
         }
     }
@@ -3422,12 +3445,22 @@ fn transform_script_legacy<'a>(
         // hoist stays combined.
         let pairs: Vec<_> = reactive_decl_names
             .iter()
-            .map(|n| (b.id_pat(n), None))
+            .map(|(n, _)| (b.id_pat(n), None))
             .collect();
-        out.insert(
-            0,
-            b.var_decl_from_pairs(VariableDeclarationKind::Let, pairs),
-        );
+        let mut decl = b.var_decl_from_pairs(VariableDeclarationKind::Let, pairs);
+        if let Statement::VariableDeclaration(vd) = &mut decl {
+            for (declarator, (_, anchor)) in vd.declarations.iter_mut().zip(&reactive_decl_names) {
+                if let Some(anchor) = *anchor {
+                    let at = Span::new(anchor, anchor);
+                    declarator.span = at;
+                    if let oxc_ast::ast::BindingPattern::BindingIdentifier(id) = &mut declarator.id
+                    {
+                        id.span = at;
+                    }
+                }
+            }
+        }
+        out.insert(0, decl);
     }
     out.extend(reactive.into_iter().map(|e| e.stmt));
     out
@@ -3440,6 +3473,10 @@ struct ReactiveEntry<'a> {
     stmt: Statement<'a>,
     /// legacy_reactive var names assigned to by this statement (hoisted-decl).
     decl_names: Vec<String>,
+    /// Comment-buffer position the hoisted declarators of `decl_names` are
+    /// anchored at, standing in for the source `loc` of the `$:` assignment
+    /// target upstream carries onto them.
+    decl_anchor: Option<u32>,
     /// Instance-scope binding indices this statement assigns to.
     assigns: Vec<usize>,
     /// Instance-scope binding indices this statement depends on (reads), with

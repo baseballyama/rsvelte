@@ -3402,6 +3402,76 @@ pub struct TemplateChunkResult {
     pub blocker_indices: Vec<usize>,
 }
 
+/// The JS comments inside `source[start..end]`, as absolute `(start, end)`
+/// pairs. The `/` probe keeps the re-parse off every comment-free template
+/// expression, which is nearly all of them; a real parse is what tells a
+/// comment apart from a division or a regex literal.
+fn interior_comment_spans(source: &str, start: usize, end: usize) -> Vec<(usize, usize)> {
+    if start >= end || end > source.len() {
+        return Vec::new();
+    }
+    let slice = &source[start..end];
+    if memchr::memchr(b'/', slice.as_bytes()).is_none() {
+        return Vec::new();
+    }
+    let allocator = oxc_allocator::Allocator::default();
+    let owned = allocator.alloc_str(slice);
+    let ret = oxc_parser::Parser::new(&allocator, owned, oxc_span::SourceType::mjs()).parse();
+    if !ret.diagnostics.is_empty() {
+        return Vec::new();
+    }
+    ret.program
+        .comments
+        .iter()
+        .map(|comment| {
+            (
+                start + comment.span.start as usize,
+                start + comment.span.end as usize,
+            )
+        })
+        .collect()
+}
+
+/// Upstream's comment cursor hands a comment to whichever LOCATED node comes
+/// next, so a constant-folded tag — which leaves no node behind — does not
+/// swallow the one written inside it. Re-emit it as an opaque chunk at its
+/// source position; it parses to zero statements and one comment, so the next
+/// generated node that carries a source anchor flushes it, exactly as upstream's
+/// cursor does.
+fn push_folded_tag_comments(tag_start: u32, tag_end: u32, context: &mut ComponentContext) {
+    let (Some(start), Some(end)) = (tag_start.checked_add(1), tag_end.checked_sub(1)) else {
+        return;
+    };
+    // Upstream's component block borrows the instance script's `loc`
+    // (`component_block.loc = instance.loc`), and `reset_comment_index` then
+    // parks the cursor at the first comment that is not before it: with no
+    // `<script>` there is no `loc`, the cursor starts dead, and every comment in
+    // the file is dropped — as is every comment written ahead of the script.
+    let Some(cursor_start) = context
+        .state
+        .analysis
+        .instance_script_content
+        .as_ref()
+        .map(|script| script.start as usize)
+    else {
+        return;
+    };
+    let spans =
+        interior_comment_spans(&context.state.analysis.source, start as usize, end as usize);
+    for (start, end) in spans {
+        if start < cursor_start {
+            continue;
+        }
+        let code = context.state.analysis.source[start..end].to_string();
+        context.state.init.push(JsStatement::RawMapped {
+            code: code.into(),
+            source_offset: start as u32,
+            comment_anchor: None,
+            copied_spans: Vec::new(),
+        });
+    }
+}
+
 /// Build a template chunk from text/expression nodes.
 ///
 /// Corresponds to `build_template_chunk` in
@@ -3446,6 +3516,7 @@ pub fn build_template_chunk(
                         last_quasi.raw.push_str(&val);
                         last_quasi.cooked.push_str(&val);
                     }
+                    push_folded_tag_comments(expr_tag.start, expr_tag.end, context);
                     // Even when the expression evaluates to a literal, check if it
                     // references variables in the blocker_map. This corresponds to
                     // the official compiler's `has_blockers()` check in build_template_chunk:

@@ -30,7 +30,7 @@ use crate::compiler::phases::phase3_transform::jsnode_to_oxc::jsnode_to_oxc_expr
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{Comment, Expression as OxcExpression, Statement};
 use oxc_ast_visit::VisitMut;
-use oxc_span::SPAN;
+use oxc_span::{SPAN, Span};
 use visitors::shared::TemplateEntry;
 
 /// Mutable state threaded through the AST-based server transform.
@@ -228,6 +228,11 @@ pub struct ServerTransformState<'a> {
     /// Comments trailing direct block-bodied legacy `$:` statements. Their final
     /// anchor is decided after the reordered script body is assembled.
     pub pending_reactive_comments: Vec<PendingReactiveComment>,
+    /// Comments written inside template expressions the transform DROPPED —
+    /// constant-folded tags, mostly. Upstream's cursor hands every comment to
+    /// whichever located node comes next, and a folded tag leaves no node
+    /// behind, so they wait here for the next expression that does emit one.
+    pending_template_comments: Option<PendingTemplateComments>,
     /// Set when [`Self::reparse_program`] rejected text this compiler generated.
     /// The instance body cannot be reconstructed after that, so assembly aborts
     /// instead of shipping a component whose `<script>` silently did nothing.
@@ -263,6 +268,15 @@ pub struct PendingReactiveComment {
     suffix: String,
     comments: Vec<Comment>,
     replay_at_tail: bool,
+}
+
+/// Comments from template expressions that emitted no node, waiting for one
+/// that does. `start` is where their region begins in the ORIGINAL source, so
+/// the replayed buffer keeps the line structure the printer needs to decide
+/// whether a comment sits above its node or beside it.
+struct PendingTemplateComments {
+    start: u32,
+    comments: Vec<Comment>,
 }
 
 /// The precomputed inputs to the SSR constant-folding evaluator
@@ -327,6 +341,7 @@ impl<'a> ServerTransformState<'a> {
             current_scope_index: analysis.root.instance_scope_index,
             comments: comments::ChunkRegistry::default(),
             pending_reactive_comments: Vec::new(),
+            pending_template_comments: None,
             reparse_failure: std::cell::RefCell::new(None),
         }
     }
@@ -364,15 +379,141 @@ impl<'a> ServerTransformState<'a> {
         }
     }
 
+    /// The JS comments inside `source[start..end]`, with spans in ORIGINAL
+    /// source coordinates. The `/` probe keeps the re-parse off every
+    /// comment-free template expression, which is nearly all of them.
+    fn expression_comments(&self, start: u32, end: u32) -> Vec<Comment> {
+        let (Some(slice), true) = (
+            self.source.get(start as usize..end as usize),
+            start < end && (end as usize) <= self.source.len(),
+        ) else {
+            return Vec::new();
+        };
+        if memchr::memchr(b'/', slice.as_bytes()).is_none() {
+            return Vec::new();
+        }
+        let allocator = Allocator::default();
+        let owned = allocator.alloc_str(slice);
+        let ret = oxc_parser::Parser::new(&allocator, owned, oxc_span::SourceType::mjs()).parse();
+        if !ret.diagnostics.is_empty() {
+            return Vec::new();
+        }
+        ret.program
+            .comments
+            .iter()
+            .map(|comment| {
+                let mut comment = *comment;
+                comment.span = Span::new(comment.span.start + start, comment.span.end + start);
+                comment.attached_to = comment.span.end;
+                comment
+            })
+            .collect()
+    }
+
+    /// The interior of `{ … }` — the region a tag's comments can live in. The
+    /// expression node's own span excludes them: a leading `{/* c */ x}` starts
+    /// before it and a trailing `{x /* c */}` ends after it.
+    ///
+    /// `None` once the comment cursor cannot be alive there. Upstream's
+    /// component block borrows the instance script's `loc`
+    /// (`component_block.loc = instance.loc`) and `reset_comment_index` parks
+    /// the cursor at the first comment that is not before it, so with no
+    /// `<script>` every comment in the file is dropped, as is every comment
+    /// written ahead of the script.
+    fn tag_interior(&self, tag_start: u32, tag_end: u32) -> Option<(u32, u32)> {
+        let cursor_start = self.analysis.instance_script_content.as_ref()?.start;
+        let start = tag_start.checked_add(1)?.max(cursor_start);
+        let end = tag_end.checked_sub(1)?;
+        (start < end && (end as usize) <= self.source.len()).then_some((start, end))
+    }
+
+    /// Carry the comments of a template expression that emitted no node (a
+    /// constant fold, say) forward to the next one that does.
+    pub fn carry_template_expression_comments(&mut self, tag_start: u32, tag_end: u32) {
+        let Some((start, end)) = self.tag_interior(tag_start, tag_end) else {
+            return;
+        };
+        let comments = self.expression_comments(start, end);
+        if comments.is_empty() {
+            return;
+        }
+        match &mut self.pending_template_comments {
+            Some(pending) => pending.comments.extend(comments),
+            None => {
+                self.pending_template_comments = Some(PendingTemplateComments { start, comments });
+            }
+        }
+    }
+
+    /// Replay every carried comment, plus this tag's own, onto a region of the
+    /// original source ending at the emitted expression — so they flush right
+    /// before it, on the lines they were written on.
+    pub fn place_template_expression_comments(
+        &mut self,
+        tag_start: u32,
+        tag_end: u32,
+        expr: &Expression,
+        emitted: &mut OxcExpression<'a>,
+    ) {
+        let Some((start, end)) = self.tag_interior(tag_start, tag_end) else {
+            return;
+        };
+        let anchor = expr.start().unwrap_or(start).clamp(start, end);
+        // A comment written AFTER the expression is not this node's to flush;
+        // upstream's cursor hands it to whatever it reaches next.
+        let trailing_from = expr.end().unwrap_or(end).clamp(anchor, end);
+        let carried = match self.pending_template_comments.take() {
+            // A carried region that does not precede this tag cannot be replayed
+            // against it without moving a comment backwards; drop the carry.
+            Some(pending) if pending.start < start => Some(pending),
+            _ => None,
+        };
+        let region_start = carried.as_ref().map_or(start, |pending| pending.start);
+        let mut comments = carried.map(|pending| pending.comments).unwrap_or_default();
+        comments.extend(self.expression_comments(start, anchor));
+        let trailing = self.expression_comments(trailing_from, end);
+        if !trailing.is_empty() {
+            self.pending_template_comments = Some(PendingTemplateComments {
+                start: trailing_from,
+                comments: trailing,
+            });
+        }
+        if comments.is_empty() {
+            return;
+        }
+        let Some(text) = self.source.get(region_start as usize..anchor as usize) else {
+            return;
+        };
+        let text = text.to_string();
+        let relative: Vec<Comment> = comments
+            .iter()
+            .map(|comment| {
+                let mut comment = *comment;
+                comment.span = Span::new(
+                    comment.span.start - region_start,
+                    comment.span.end - region_start,
+                );
+                comment.attached_to = comment.span.end;
+                comment
+            })
+            .collect();
+        if let Some(base) = self.comments.register_expression(&text, &relative) {
+            let mut place = comments::Place::At(base + (anchor - region_start));
+            place.visit_expression(emitted);
+        }
+    }
+
     /// The first template expression receives a deferred comment only when no
-    /// script successor already claimed its initial landing.
-    pub fn claim_deferred_reactive_comment(&mut self, expression: &mut OxcExpression<'a>) {
+    /// script successor already claimed its initial landing. Returns whether it
+    /// took this expression's placement, which the template-expression carry
+    /// must then leave alone — an expression can only sit on one region.
+    pub fn claim_deferred_reactive_comment(&mut self, expression: &mut OxcExpression<'a>) -> bool {
         let Some(index) = self
             .pending_reactive_comments
             .iter()
             .position(|comment| !comment.replay_at_tail)
         else {
-            return;
+            return false;
         };
         let comment = self.pending_reactive_comments.remove(index);
         let mut text = String::from("x");
@@ -386,7 +527,9 @@ impl<'a> ServerTransformState<'a> {
         if let Some(base) = self.comments.register_expression(&text, &comments) {
             let mut place = comments::Place::At(base + text.len() as u32);
             place.visit_expression(expression);
+            return true;
         }
+        false
     }
 
     /// A script successor receives the first copy; the cursor then replays the
