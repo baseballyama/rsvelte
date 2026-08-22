@@ -1498,10 +1498,10 @@ pub fn parse_expression<'a>(
         return Ok(expr);
     }
 
-    // Use known TS mode: parse with TS only if the file uses TypeScript,
-    // otherwise parse as JS directly. Fall back to the other mode only on failure.
-    let result = parse_expression_with_typescript(arena, content, offset, line_offsets, ts)
-        .or_else(|| parse_expression_with_typescript(arena, content, offset, line_offsets, !ts));
+    // Upstream picks ONE parser: `parse_expression_at` reaches acorn-typescript
+    // only when `parser.ts`, so a component with no `lang="ts"` must reject
+    // TypeScript here rather than retry in the other mode.
+    let result = parse_expression_with_typescript(arena, content, offset, line_offsets, ts);
 
     if let Some(expr) = result {
         return Ok(expr);
@@ -1518,7 +1518,7 @@ pub fn parse_expression<'a>(
 
     // Check for parse errors and return them when not in loose mode
     if (!loose || disallow_loose)
-        && let Some((error_msg, _)) = check_js_parse_error_with_pos(content)
+        && let Some((error_msg, _)) = check_js_parse_error_with_pos(content, ts)
     {
         return Err((error_msg, offset));
     }
@@ -1549,9 +1549,11 @@ pub fn parse_destructuring_pattern<'a>(
     content: &str,
     offset: usize,
     line_offsets: &[usize],
+    ts: bool,
 ) -> Option<Expression<'a>> {
-    // Try TypeScript first, then JavaScript
-    for use_typescript in [true, false] {
+    // The component's mode only. Trying the other one accepts a TypeScript
+    // annotation in a component that never declared `lang="ts"`.
+    for use_typescript in [ts] {
         let result = with_oxc_allocator(|allocator| {
             let source_type = if use_typescript {
                 SourceType::ts()
@@ -1630,9 +1632,7 @@ pub fn parse_expression_with_end<'a>(
         return Ok(expr);
     }
 
-    // Use known TS mode, fall back to other mode on failure
-    let result = parse_expression_with_typescript(arena, content, offset, line_offsets, ts)
-        .or_else(|| parse_expression_with_typescript(arena, content, offset, line_offsets, !ts));
+    let result = parse_expression_with_typescript(arena, content, offset, line_offsets, ts);
 
     if let Some(expr) = result {
         return Ok(expr);
@@ -1646,7 +1646,7 @@ pub fn parse_expression_with_end<'a>(
 
     // Check for parse errors and return them when not in loose mode
     if (!loose || disallow_loose)
-        && let Some((error_msg, _)) = check_js_parse_error_with_pos(content)
+        && let Some((error_msg, _)) = check_js_parse_error_with_pos(content, ts)
     {
         return Err((error_msg, offset));
     }
@@ -1672,7 +1672,7 @@ pub fn parse_expression_with_end<'a>(
 /// the result to `[0, content.len()]`. Acorn reports `err.pos` at the point
 /// where it stopped consuming tokens, which corresponds to the *end* of the
 /// problematic region, not its start.
-pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
+pub fn check_js_parse_error_with_pos(content: &str, ts: bool) -> Option<(String, usize)> {
     let mut wrapped = String::with_capacity(content.len() + 2);
     wrapped.push('(');
     wrapped.push_str(content);
@@ -1732,19 +1732,9 @@ pub fn check_js_parse_error_with_pos(content: &str) -> Option<(String, usize)> {
         })
     };
 
-    // Try TypeScript first
-    let ts_result = probe(SourceType::ts());
-
-    // No TS errors means valid
-    ts_result.as_ref()?;
-
-    // Try JavaScript
-    let js_result = probe(SourceType::mjs());
-
-    // No JS errors means valid
-    js_result.as_ref()?;
-
-    js_result.or(ts_result)
+    // One mode only. Probing the other as a fallback reports "valid" for
+    // TypeScript-only syntax in a component that never declared `lang="ts"`.
+    probe(if ts { SourceType::ts() } else { SourceType::mjs() })
 }
 
 /// Check whether a parameter list (e.g. snippet params) parses as valid
@@ -1826,36 +1816,78 @@ pub fn check_js_statement_parse_error(content: &str, ts: bool) -> Option<(String
 /// This mirrors upstream Svelte's `read_expression` + `eat(close, true)` flow:
 /// acorn parses one maximal expression, and any leftover surfaces as
 /// `expected_token` while a broken expression surfaces as `js_parse_error`.
-pub fn trailing_token_offset(content: &str) -> Option<usize> {
+pub fn trailing_token_offset(content: &str, ts: bool) -> Option<usize> {
+    let source_type = if ts {
+        SourceType::ts()
+    } else {
+        SourceType::mjs()
+    };
     // Wrap in parens so a *complete* leading expression is consumed greedily and
-    // the first error label lands on the first leftover token. (Parsing the bare
-    // string as a program is unreliable: OXC's statement-level error recovery
-    // folds trailing tokens into one recovered node, hiding the boundary.)
+    // the error label lands on the offending region. (Parsing the bare string as
+    // a program is unreliable: OXC's statement-level error recovery folds
+    // trailing tokens into one recovered node, hiding the boundary.)
     let mut wrapped = String::with_capacity(content.len() + 2);
     wrapped.push('(');
     wrapped.push_str(content);
     wrapped.push(')');
 
-    let probe = |source_type: SourceType| -> Option<usize> {
-        with_oxc_allocator(|allocator| {
-            let result = OxcParser::new(allocator, &wrapped, source_type).parse();
-            let first_error = result.diagnostics.first()?;
-            let label = first_error.labels.first()?;
-            // Map the label's *start* back into `content` (strip the leading `(`).
-            let start = label.offset() as usize;
-            if start == 0 {
-                return None;
-            }
-            let content_pos = start - 1;
-            // A trailing-token error has leftover input *before* the synthetic
-            // closing `)`; an incomplete expression errors at/after the end.
-            if content_pos >= content.len() {
-                return None;
-            }
-            Some(content_pos)
-        })
-    };
-    probe(SourceType::ts()).or_else(|| probe(SourceType::mjs()))
+    let label = with_oxc_allocator(|allocator| {
+        let result = OxcParser::new(allocator, &wrapped, source_type).parse();
+        let first_error = result.diagnostics.first()?;
+        let label = first_error.labels.first()?;
+        Some((label.offset() as usize, label.len() as usize))
+    });
+    let (label_offset, label_len) = label?;
+    // Map the label's *start* back into `content` (strip the leading `(`).
+    if label_offset == 0 {
+        return None;
+    }
+    let region_start = label_offset - 1;
+    if region_start >= content.len() {
+        return None;
+    }
+    let region_end = (region_start + label_len).min(content.len());
+
+    // Acorn stops at the first token it cannot consume; OXC does not, and for a
+    // TypeScript construct in a JS file it labels the CONSTRUCT — `y as string`,
+    // not the `as`. Recover acorn's stop by taking the longest prefix of the
+    // labelled region that is valid on its own, then the first token after it.
+    let region = &content[region_start..region_end];
+    let mut consumed = 0usize;
+    for k in 1..=region.len() {
+        if region.is_char_boundary(k) && expression_parses(&region[..k], source_type) {
+            consumed = k;
+        }
+    }
+    let kept = region[..consumed].trim_end_ws().len();
+    let rest = &region[kept..];
+    let stop = region_start + kept + (rest.len() - rest.trim_start_ws().len());
+
+    // Leftover input means the caller's close token is missing; an error at or
+    // past the end of the expression means the expression itself is broken.
+    if stop == 0 || stop >= content.trim_end_ws().len() {
+        return None;
+    }
+    // Upstream reaches `eat(close)` only because acorn RETURNED an expression,
+    // so the text before the stop has to be one.
+    expression_parses(&content[..stop], source_type).then_some(stop)
+}
+
+/// Whether `text` on its own is a complete expression in `source_type`.
+fn expression_parses(text: &str, source_type: SourceType) -> bool {
+    if text.trim_ws().is_empty() {
+        return false;
+    }
+    let mut wrapped = String::with_capacity(text.len() + 2);
+    wrapped.push('(');
+    wrapped.push_str(text);
+    wrapped.push(')');
+    with_oxc_allocator(|allocator| {
+        OxcParser::new(allocator, &wrapped, source_type)
+            .parse()
+            .diagnostics
+            .is_empty()
+    })
 }
 
 /// Create an identifier for invalid expressions

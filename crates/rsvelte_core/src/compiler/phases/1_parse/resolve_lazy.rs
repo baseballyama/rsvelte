@@ -451,7 +451,7 @@ fn resolve_expression(
         Err((msg, pos)) => {
             // Store the first parse error encountered
             if first_error.is_none() {
-                *first_error = lazy_parse_error(kind, msg, content, start);
+                *first_error = lazy_parse_error(kind, msg, content, start, ts);
             }
             // Still set the expression to something valid to allow continued processing
             *expr = super::read::expression::create_empty_identifier("", pos, pos + content.len());
@@ -467,6 +467,7 @@ fn lazy_parse_error(
     msg: String,
     content: &str,
     start: usize,
+    ts: bool,
 ) -> Option<crate::error::ParseError> {
     Some(match kind {
         LazyKind::Lenient => return None,
@@ -478,10 +479,10 @@ fn lazy_parse_error(
         // `js_parse_error`. The prefix re-parse guards against the probe
         // mislabelling an in-expression error as leftover input.
         LazyKind::Mustache => {
-            let trailing = super::read::expression::trailing_token_offset(content).filter(|&off| {
+            let trailing = super::read::expression::trailing_token_offset(content, ts).filter(|&off| {
                 off > 0
                     && content.get(..off).is_some_and(|prefix| {
-                        super::read::expression::check_js_parse_error_with_pos(prefix).is_none()
+                        super::read::expression::check_js_parse_error_with_pos(prefix, ts).is_none()
                     })
             });
             match trailing {
@@ -489,7 +490,7 @@ fn lazy_parse_error(
                 // Upstream rethrows acorn's `err.pos` as a point error, so the
                 // span is where it stopped consuming, not the whole expression.
                 None => {
-                    let at = super::read::expression::check_js_parse_error_with_pos(content)
+                    let at = super::read::expression::check_js_parse_error_with_pos(content, ts)
                         .map_or(start + content.len(), |(_, pos)| start + pos);
                     crate::error::ParseError::svelte("js_parse_error", msg, (at, at))
                 }
@@ -498,7 +499,7 @@ fn lazy_parse_error(
         // `parse_js_expression_attribute`: a point error at the byte where OXC
         // stopped consuming input.
         LazyKind::Attribute => {
-            let abs_pos = super::read::expression::check_js_parse_error_with_pos(content)
+            let abs_pos = super::read::expression::check_js_parse_error_with_pos(content, ts)
                 .map_or(start, |(_, content_pos)| start + content_pos);
             crate::error::ParseError::svelte("js_parse_error", msg, (abs_pos, abs_pos))
         }
@@ -510,10 +511,10 @@ fn lazy_parse_error(
             } else {
                 "}"
             };
-            if let Some(pos) = super::read::expression::trailing_token_offset(content) {
+            if let Some(pos) = super::read::expression::trailing_token_offset(content, ts) {
                 return Some(crate::error::ParseError::expected_token(close, start + pos));
             }
-            let abs_pos = super::read::expression::check_js_parse_error_with_pos(content)
+            let abs_pos = super::read::expression::check_js_parse_error_with_pos(content, ts)
                 .map_or(start + content.len(), |(_, pos)| start + pos);
             crate::error::ParseError::svelte("js_parse_error", msg, (abs_pos, abs_pos))
         }
