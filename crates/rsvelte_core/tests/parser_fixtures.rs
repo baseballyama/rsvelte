@@ -126,9 +126,6 @@ struct TestResult {
 /// Tests to skip for parser-legacy due to known limitations.
 /// See README.md "Known Limitations" section for details.
 const LEGACY_SKIP_TESTS: &[&str] = &[
-    // OXC does not attach comments to AST nodes in ESTree format (leadingComments/trailingComments).
-    // The official Svelte compiler uses acorn which provides this functionality.
-    "javascript-comments",
     // Upstream skips this fixture (`_config.js` `skip: true`): the official
     // compiler now errors with `block_unexpected_close` (the open `<li>`
     // inside `{#if}` hits close()'s RegularElement case), so the checked-in
