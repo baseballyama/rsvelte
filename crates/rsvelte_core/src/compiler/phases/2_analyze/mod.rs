@@ -3922,6 +3922,12 @@ fn js_node_check_features(
             collect_dollar_param_names(param, arena, shadowed);
         }
     }
+    if let JsNode::CatchClause {
+        param: Some(param), ..
+    } = node
+    {
+        collect_dollar_param_names(arena.get_js_node(*param), arena, shadowed);
+    }
 
     for_each_js_reference_child(node, arena, &mut |child| {
         if results.all_found() {
@@ -3940,12 +3946,21 @@ fn js_node_check_features(
     shadowed.truncate(shadow_base);
 }
 
-/// Like [`for_each_js_child`], but skips a non-computed class member NAME.
-/// `for_each_js_child` walks it because the legacy JSON walker did; upstream's
-/// `scope.references` — the set runes-mode detection reads — never holds a
-/// declaration slot, so `class P { $inspect = 1 }` must not read as a rune.
+/// Like [`for_each_js_child`], but skips the slots that BIND or LABEL a name
+/// rather than reading one. `for_each_js_child` walks them because the legacy
+/// JSON walker did; upstream's `scope.references` — the set runes-mode
+/// detection reads — holds neither a declaration slot nor a label, so
+/// `class P { $inspect = 1 }`, `$state: for (;;) break $state;` and
+/// `catch ($state) {}` must none of them read as a rune.
 fn for_each_js_reference_child(node: &JsNode, arena: &ParseArena, f: &mut impl FnMut(&JsNode)) {
     match node {
+        // A label lives in its own namespace: it is not an ESTree reference,
+        // and neither is the `break` / `continue` that names it.
+        JsNode::LabeledStatement { body, .. } => f(arena.get_js_node(*body)),
+        JsNode::BreakStatement { .. } | JsNode::ContinueStatement { .. } => {}
+        // The catch parameter is a declaration, and it shadows the name for the
+        // block — `js_node_check_features` pushes it onto `shadowed`.
+        JsNode::CatchClause { body, .. } => f(arena.get_js_node(*body)),
         JsNode::MethodDefinition {
             key,
             value,
