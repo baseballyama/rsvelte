@@ -757,8 +757,10 @@ distinguishes the failing shape from the working one.
 
 ### Blind spot 5d — both-reject cases discard the message and the position
 
-`run.mjs:146-162` now compares the two error **codes** and reports `error-code-mismatch` when
-they differ, so "both threw" no longer stands in for "both diagnosed the same thing". What it
+`run.mjs` now compares the two error **codes** and reports
+`error-code-mismatch:<official>-vs-<rsvelte>` when they differ, so "both threw" no longer stands
+in for "both diagnosed the same thing" and a listed pairing no longer absorbs a different one
+(5t). What it
 still drops is everything else the error carries: the message prose and `start`. **[S]** rsvelte
 can reject a shape with the right code, the wrong wording and an offset pointing at the wrong
 token, and the case scores as parity. The collected-corpus gate does ratchet both
@@ -777,7 +779,8 @@ slots) and `param-default` (2 illegal and 5 legal parameter initializers × 5 po
 list × 9 function forms + 3 template forms × 2 entry points) are the *generated* population of
 programs official rejects. Both halves are needed: the
 invalid rows report "rsvelte accepts what official rejects", the valid rows report the reverse,
-and neither can see the other's direction. The valid half exists because the first version of
+and neither can see the other's direction — which is why the *verdict* has to carry the
+direction too, and did not until 5t. The valid half exists because the first version of
 this family had only the invalid one, and CI then caught an over-rejection
 (`bind:group={c as T}`, a TypeScript assertion) from a **corpus file** rather than from the
 gate — on the one slot that file happens to use. Everywhere else that question is
@@ -799,6 +802,35 @@ implement. These two families cross one validation and one parser rule with thei
 same drift is possible for any check written per call site rather than once — `{@render}`,
 `use:`, `{#each … as}` patterns, `<svelte:element>` — and no gate here generates invalid inputs
 for them.
+
+### Blind spot 5t — CLOSED: one `error-mismatch` verdict folded the two directions into one key
+
+Blind spot 5e above states that the invalid and the valid rows of `invalid-bind` /
+`param-default` "report opposite directions, and neither can see the other's". That was true of
+the **comparison** and false of the **ratchet**: `run.mjs` scored both as the single verdict
+`error-mismatch` and put the direction in `detail`, which is printed and never keyed. The ratchet
+id is `<case> [<verdict>] (<target>)`, so a listed over-rejection on a case covered a later
+over-acceptance on the same case and target — and the population most exposed to it was the one
+built to find accept-where-official-rejects. It is now `over-accept` (rsvelte compiles what
+official refuses) and `over-reject` (the reverse), each ratcheted two-sided.
+
+`error-code-mismatch` carried the same shape one step over: both compilers rejecting with
+different codes produced one verdict whatever the codes were, so an entry recorded for
+"official *X*, rsvelte *Y*" also absorbed a later degradation to *Z* on that case — which is the
+regression 5d's own comparison exists to catch. The verdict is now
+`error-code-mismatch:<official>-vs-<rsvelte>`.
+
+**[D]**, by fault injection at the harness rather than at the compiler, because the claim is
+about the key and not about any compiler behaviour: forcing rsvelte to reject one
+`invalid-bind` case, baselining it, then forcing the *opposite* direction on that same case
+leaves the pre-split gate reporting **0 new divergences** and the post-split gate reporting
+**1 NEW `over-accept`**. Both arms were run; the numbers are in the PR that split the verdict.
+The split cost **zero** baseline churn — the ratchet held 388 entries and none of them was an
+`error-mismatch` or an `error-code-mismatch`, so nothing that was tolerated before is tolerated
+now and nothing had to be re-justified.
+
+What this does **not** close is 5d: a both-reject cell still compares nothing but the codes, so
+the message prose and `start` remain unmeasured here. **[S]**
 
 ### Blind spot 5f — the `each-collection` family sees precedence, not evaluation
 

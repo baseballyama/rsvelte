@@ -28,10 +28,13 @@ Normalization here is identical to `verify.mjs` (flatten template holes → oxfm
 blank lines), so formatting-only differences are tolerated exactly as the corpus gate
 tolerates them. An entry is a divergence that survives that.
 
-The **verdict is part of the key**, and three of them can appear: `js-mismatch` (the
+The **verdict is part of the key**, and these can appear: `js-mismatch` (the
 difference survives comment + whitespace normalization), `comment-mismatch` (it does not),
-and `output-unparseable` (acorn rejects what rsvelte emitted, whatever the bytes say).
-None of the three is more tolerated than another — every one is ratcheted two-sided. The
+`output-unparseable` (acorn rejects what rsvelte emitted, whatever the bytes say),
+`warning-missing:<code>` / `warning-extra:<code>`, `over-accept` (rsvelte compiles a
+program official rejects) and `over-reject` (the reverse), and
+`error-code-mismatch:<official>-vs-<rsvelte>` (both reject, with different codes).
+None of them is more tolerated than another — every one is ratcheted two-sided. The
 split exists because a listed entry suppresses everything its key cannot tell apart: under
 one flat `js-mismatch`, an id whose comments already diverge absorbs a later code
 regression on that id for free. That is not hypothetical — when the split was added, every
@@ -39,6 +42,16 @@ comment carrier in `opaque-keyword` diverged on comment placement (#2990), so re
 #2986 would have reproduced an already-listed key on the very cases written to catch it.
 Those entries are gone now, which is what the split was for: the family clears rather than
 carrying a key that would absorb the next regression.
+
+The direction and the code pair are in the key for the same reason and were folded in
+until they were separated. `over-accept` and `over-reject` are the two **opposite**
+failures of one check, which is why `invalid-bind` and `param-default` each carry invalid
+*and* valid rows; a single `error-mismatch` verdict made a listed over-rejection cover a
+later over-acceptance on the same `(id, target)`, so the one population built to find
+accept-where-official-rejects was the population most exposed to it. The code pair is the
+same argument for `error-code-mismatch`: without it, an entry recorded for "official
+`bind_invalid_expression`, rsvelte `js_parse_error`" also absorbs a later degradation to
+any other code on that case.
 
 ## Matrix known failures (`matrix-known-failures.json`, 388 entries)
 
