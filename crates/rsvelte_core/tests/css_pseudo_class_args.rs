@@ -363,10 +363,11 @@ fn nesting_resolution_leaves_the_controls_alone() {
     );
     // A parent that matches nothing resolves `&` to nothing.
     assert!(scoped(SCOPE_MARKUP, ".nope { :is(&) { color: red } }").is_empty());
-    // No parent to resolve against: `&` is kept as written.
+    // No parent to resolve against at all: upstream rejects the rule rather
+    // than resolving `&` to nothing, and so does this.
     assert_eq!(
-        scoped(SCOPE_MARKUP, ":is(&) { color: red }"),
-        ["a", "b", "card"]
+        error_code(&styled(SCOPE_MARKUP, ":is(&) { color: red }")),
+        "css_nesting_selector_invalid_placement"
     );
 }
 
@@ -408,5 +409,6 @@ fn a_has_nested_in_a_has_argument_is_resolved_against_its_own_subject() {
         "<div class=\"a\"><div class=\"mid\"><b class=\"b\">x</b></div></div>",
         ".a:has(:has(.b)) { color: red }",
     );
-    assert!(!build(&src).css.contains("(unused)"));
+    let css = build(&src).css;
+    assert!(!css.contains("(unused)"), "over-pruned: {css:?}");
 }

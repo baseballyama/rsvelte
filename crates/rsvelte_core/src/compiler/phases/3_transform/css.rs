@@ -5109,6 +5109,21 @@ fn elements_matching_relative(
         .and_then(|c| c.get("name"))
         .and_then(|n| n.as_str())
         .unwrap_or(" ");
+    // `selector_matches_element` answers "matches nothing" for a compound with
+    // no tag/class/id, but here that compound is the bare `:has()` whose
+    // argument is checked separately — every reachable element is a candidate.
+    let universal = SelectorInfo {
+        tag_name: None,
+        classes: Vec::new(),
+        id: None,
+        is_universal: true,
+        is_groups: Vec::new(),
+    };
+    let info = if selector_info_has_constraints(info) || !info.is_groups.is_empty() {
+        info
+    } else {
+        &universal
+    };
     let mut matched = Vec::new();
     match combinator {
         ">" => {
