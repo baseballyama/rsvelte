@@ -192,3 +192,66 @@ measurement rather than being folded into a fix for the two rows above.
 - **Corpus gate**: `pattern/issues/2573-ctor-private-derived-write.svelte.js` covers the two
   fixed rows on all three targets. Nothing in the collected corpus writes a private `$derived`
   field through any receiver — `known-failures.server.json` is `[]`.
+
+---
+
+## TypeScript overload signature on a class member
+
+**Pinned by** `crates/rsvelte_core/tests/ts_overload_signature_3421.rs`.
+**Reported upstream** in `upstream_issues/3421-svelte-overload-signature-not-erased.md`.
+
+The TypeScript eraser drops a `MethodDefinition` only when it is `abstract`
+(`phases/1-parse/remove_typescript_nodes.js:156-161`). A bodiless **non-abstract** member — an
+overload signature — therefore survives into the output as a class member with no body, which no
+JavaScript parser accepts. rsvelte erases it instead, so the two outputs differ by exactly that
+member.
+
+### Input
+
+```svelte
+<script lang="ts">
+	class K {
+		m(a: number): number;
+		m(a: any) { return a; }
+	}
+	const v = 1;
+</script>
+<b>{v}</b>
+```
+
+### Both outputs, measured against `submodules/svelte` 5.56.9
+
+| member | official | parses | rsvelte | parses |
+|---|---|---|---|---|
+| `m(a: number): number;` | `m(a)` with no body, then the impl | **no** | impl only | yes |
+| two signatures + impl | both signatures kept | **no** | impl only | yes |
+| `static m(a: number): number;` | `static m(a)` with no body | **no** | impl only | yes |
+| `constructor(a: number);` | `constructor(a)` with no body | **no** | impl only | yes |
+| `#m(a: number): number;` | `#m(a)` with no body | **no** | impl only | yes |
+| `get m(): number;` | `get m()` with no body | **no** | impl only | yes |
+| `abstract m(a: number): number;` | member dropped | yes | member dropped | yes |
+| `function f(a: number): number;` + impl | declaration dropped | yes | declaration dropped | yes |
+
+Both compilers agree on the two control rows, which is what isolates the axis to a bodiless
+`MethodDefinition` rather than to overloads in general.
+
+### The rsvelte-side defect this closed
+
+The divergence is the smaller half. `transform_script` /
+`transform_script_legacy` (`3_transform/server/ast/script.rs`) re-parse the **erased** script to
+classify its statements, and a parse failure there returned an empty body — so on `server` the
+entire instance script vanished (imports, the class, and every neighbouring declaration) while
+the output still parsed and threw `ReferenceError` at render time. That silent drop is now a
+compile failure through `reparse_failure`, the same channel the async instance-body reparse
+already used.
+
+### Why no gate sees it
+
+- **Output-parseability gate**: parses rsvelte's side only, so it never observes that upstream's
+  output is the invalid one; and the `server` half it *could* see was invisible anyway, because
+  an empty instance script parses.
+- **Output-equality gates**: score `match`/`mismatch` and cannot distinguish "different bytes"
+  from "not JavaScript" (AGENTS.md, *What each gate cannot see*).
+- **Collected corpus**: unmeasured here — the corpus submodules were not checked out for this
+  work. The shape cannot ship in a published component either way, since neither compiler
+  produced valid JavaScript for it before this change.
