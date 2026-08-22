@@ -1367,6 +1367,7 @@ impl<'a> Parser<'a> {
             content,
             offset,
             self.expression_line_offsets(),
+            self.ts,
         )
     }
 
@@ -1778,9 +1779,11 @@ impl<'a> Parser<'a> {
             self.expression_line_offsets(),
         );
 
-        // Parse optional type parameters (between < and >)
+        // Parse optional type parameters (between < and >). Upstream gates this
+        // on `parser.ts && parser.match('<')`, so without `lang="ts"` the `<` is
+        // never consumed and the missing `(` is the error.
         let mut type_params = None;
-        if self.eat_optional("<") {
+        if self.ts && self.eat_optional("<") {
             let type_params_start = self.index;
             let mut depth = 1;
             while !self.is_eof() && depth > 0 {
@@ -2128,16 +2131,25 @@ impl<'a> Parser<'a> {
                     // standalone expressions.
                     let pattern_expr =
                         if pattern_clean.starts_with('{') || pattern_clean.starts_with('[') {
-                            super::super::read::expression::parse_destructuring_pattern(
+                            match super::super::read::expression::parse_destructuring_pattern(
                                 &self.arena,
                                 &pattern_clean,
                                 expr_start,
                                 self.expression_line_offsets(),
                                 self.ts,
-                            )
-                            .unwrap_or_else(|| self.parse_js_expression(&pattern_clean, expr_start))
+                            ) {
+                                Some(expr) => expr,
+                                // A pattern that does not parse in the component's
+                                // mode is upstream's `read_pattern` throwing, not a
+                                // reason to fall back to expression parsing.
+                                None => self.parse_js_expression_head_strict(
+                                    &pattern_clean,
+                                    expr_start,
+                                    false,
+                                )?,
+                            }
                         } else {
-                            self.parse_js_expression(&pattern_clean, expr_start)
+                            self.parse_js_expression_head_strict(&pattern_clean, expr_start, false)?
                         };
 
                     // Calculate the offset for the init expression in the
@@ -2231,8 +2243,11 @@ impl<'a> Parser<'a> {
                     if expr_content.is_empty() {
                         Vec::new()
                     } else {
-                        // Parse as expression
-                        let expression = self.parse_js_expression(expr_content, expr_start);
+                        // Upstream reads this with `read_expression`, which throws;
+                        // swallowing the failure makes the placeholder an
+                        // Identifier and the argument check below accept it.
+                        let expression =
+                            self.parse_js_expression_head_strict(expr_content, expr_start, false)?;
 
                         // Extract identifiers from the expression
                         // If it's a SequenceExpression (comma-separated), extract each one

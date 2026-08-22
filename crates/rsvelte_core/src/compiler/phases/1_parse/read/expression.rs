@@ -11256,6 +11256,7 @@ pub fn parse_binding_pattern<'a>(
     content: &str,
     offset: usize,
     line_offsets: &[usize],
+    ts: bool,
 ) -> Result<Expression<'a>, crate::error::ParseError> {
     // Check for reserved words in simple identifier contexts
     // (e.g., {#each cases as case} where "case" is a reserved word)
@@ -11286,7 +11287,15 @@ pub fn parse_binding_pattern<'a>(
     }
 
     with_oxc_allocator(|allocator| {
-        let source_type = SourceType::mjs();
+        // The component's mode, not JavaScript: a default value inside the
+        // pattern (`{#each xs as { a = y as T }}`) is an expression, and
+        // upstream's `read_pattern` parses it with the same `parser.ts` every
+        // other template expression gets.
+        let source_type = if ts {
+            SourceType::ts()
+        } else {
+            SourceType::mjs()
+        };
 
         let wrapped = format!("let {} = null", content);
         let parser = OxcParser::new(allocator, &wrapped, source_type);
