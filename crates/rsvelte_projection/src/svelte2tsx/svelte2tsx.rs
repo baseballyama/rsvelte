@@ -546,7 +546,7 @@ pub fn svelte2tsx(
         .and_then(|s| s.to_str())
         .unwrap_or("")
         .to_string();
-    let script_generic_names: std::collections::HashSet<String> = ast
+    let script_generics_attr: Option<String> = ast
         .instance
         .as_ref()
         .map(|instance| {
@@ -558,8 +558,12 @@ pub fn svelte2tsx(
             extract_generics_from_script_tag(tag_text)
         })
         .unwrap_or_default()
+        .filter(|raw| !raw.is_empty());
+    let has_generics_attr = script_generics_attr.is_some();
+    let script_generic_names: std::collections::HashSet<String> = script_generics_attr
+        .as_deref()
         .map(|raw| {
-            split_generic_param_names(&raw)
+            split_generic_param_names(raw)
                 .into_iter()
                 .collect::<std::collections::HashSet<String>>()
         })
@@ -583,7 +587,11 @@ pub fn svelte2tsx(
             options.emit_jsdoc,
             matches!(options.mode, Svelte2TsxMode::Dts),
             &script_generic_names,
+            has_generics_attr,
         );
+        if let Some(message) = exported_names.dollar_generic_error.take() {
+            return Err(super::utils::error::Svelte2TsxError::Script(message));
+        }
     }
 
     // Step 7.48: Find and remove embedded `<script>` tags (those NOT matching
