@@ -24,6 +24,68 @@ use crate::error::ParseResult;
 use super::super::parser::{Parser, StackEntry, is_js_whitespace};
 use super::super::utils::TrimWs;
 
+/// A `{:…}` continuation clause.
+///
+/// Whether a *second* one is legal is decided per block type, and the two
+/// directions are easy to drift apart: upstream's `next()`
+/// (`1-parse/state/tag.js:527-635`) re-creates `block.alternate` for `{#if}` and
+/// `block.fallback` for `{#each}` unconditionally — a repeat is **accepted** and
+/// replaces the earlier branch — while `{#await}` guards both of its clauses
+/// with `block_duplicate_clause` and **rejects** it. Two issues found the two
+/// directions separately (#3284 accepted-but-rejected, #3349
+/// rejected-but-accepted), so the decision lives here rather than at each site.
+///
+/// The `match` is the invariant: a new clause cannot be added without answering
+/// the question for it.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Clause {
+    Else,
+    // `expect` rather than `allow`: the `{#await}` clause loop reads these arms
+    // as soon as its duplicate check lands, and an unfulfilled `expect` is a
+    // compile error — so the placeholder cannot outlive its reason.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "the {#await} clause loop constructs these")
+    )]
+    Then,
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "the {#await} clause loop constructs these")
+    )]
+    Catch,
+}
+
+impl Clause {
+    /// The spelling upstream puts in `block_duplicate_clause`'s message.
+    const fn tag(self) -> &'static str {
+        match self {
+            Self::Else => "{:else}",
+            Self::Then => "{:then}",
+            Self::Catch => "{:catch}",
+        }
+    }
+
+    /// Whether a second occurrence of this clause in one block is an error.
+    const fn duplicate_is_error(self) -> bool {
+        match self {
+            Self::Else => false,
+            Self::Then | Self::Catch => true,
+        }
+    }
+
+    /// Upstream positions every clause diagnostic at the `:`.
+    fn duplicate_error(self, at: usize) -> crate::error::ParseError {
+        crate::error::ParseError::svelte(
+            "block_duplicate_clause",
+            format!(
+                "{} cannot appear more than once within a block\nhttps://svelte.dev/e/block_duplicate_clause",
+                self.tag()
+            ),
+            (at, at),
+        )
+    }
+}
+
 impl<'a> Parser<'a> {
     /// Try to parse a declaration tag (`{let x = …}` / `{const x = …}`,
     /// Svelte 5.56.0 #18282). Returns `Ok(None)` when the source at
@@ -762,10 +824,9 @@ impl<'a> Parser<'a> {
             self.eat("}", true, true)?;
             let mut alt_fragment = self.parse_fragment()?;
 
-            // Upstream's `next()` re-creates `block.alternate` on every `{:else}`
-            // it sees, so a second one silently replaces the first branch rather
-            // than being a parse error (tag.js L537-541).
-            while let Some(replacement) = self.parse_if_alternate()? {
+            while !Clause::Else.duplicate_is_error()
+                && let Some(replacement) = self.parse_if_alternate()?
+            {
                 alt_fragment = replacement;
             }
 
@@ -1319,10 +1380,11 @@ impl<'a> Parser<'a> {
         // Parse body
         let body = self.parse_fragment()?;
 
-        // Check for {:else}. Upstream re-creates `block.fallback` on every
-        // `{:else}` it sees, so a second one replaces the first (tag.js L582-591).
         let mut fallback = None;
         while let Some(colon_pos) = self.match_block_continuation_marker() {
+            if fallback.is_some() && Clause::Else.duplicate_is_error() {
+                return Err(Clause::Else.duplicate_error(colon_pos));
+            }
             let continuation_start = self.index;
             self.index = colon_pos + 1;
             self.skip_whitespace();
@@ -2829,5 +2891,41 @@ fn expression_into_node(expr: Expression<'_>) -> JsNode {
         Expression::Lazy { .. } => {
             panic!("Expression::Lazy must be resolved before building a declaration")
         }
+    }
+}
+
+#[cfg(test)]
+mod duplicate_clause_table {
+    use super::Clause;
+
+    /// Pins the table against upstream's `next()`. `{#if}` / `{#each}` re-create
+    /// their fragment on every `{:else}`; `{#await}` guards `block.then` and
+    /// `block.catch`. The `{#await}` call sites read these arms.
+    #[test]
+    fn matches_upstream() {
+        assert!(!Clause::Else.duplicate_is_error());
+        assert!(Clause::Then.duplicate_is_error());
+        assert!(Clause::Catch.duplicate_is_error());
+    }
+
+    #[test]
+    fn tags_are_the_spellings_upstream_reports() {
+        assert_eq!(Clause::Else.tag(), "{:else}");
+        assert_eq!(Clause::Then.tag(), "{:then}");
+        assert_eq!(Clause::Catch.tag(), "{:catch}");
+    }
+
+    /// The diagnostic is a point span on the `:`, which is upstream's
+    /// `start = parser.index - 1` in `next()`.
+    #[test]
+    fn the_error_is_a_point_span_on_the_colon() {
+        let error = Clause::Catch.duplicate_error(33);
+        let text = format!("{error:?}");
+        assert!(text.contains("block_duplicate_clause"), "{text}");
+        assert!(
+            text.contains("{:catch} cannot appear more than once within a block"),
+            "{text}"
+        );
+        assert!(text.contains("(33, 33)"), "{text}");
     }
 }
