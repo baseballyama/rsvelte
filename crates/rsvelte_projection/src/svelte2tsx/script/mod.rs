@@ -57,8 +57,8 @@ use props_rune::{
 };
 use reactive::handle_reactive_statement;
 use runes::{
-    detect_rune_in_class_body, detect_rune_in_expr, detect_rune_in_nested_body, detect_runes_call,
-    detect_runes_expr_stmt, scope_with_params,
+    detect_rune_in_class_body, detect_rune_in_expr, detect_rune_in_nested_body,
+    detect_rune_in_stmt, detect_runes_call, detect_runes_expr_stmt, scope_with_params,
 };
 use script_facts::ScriptFacts;
 use stores::{
@@ -445,7 +445,14 @@ pub fn process_instance_script(
                 oxc::Statement::ExpressionStatement(es) => {
                     detect_runes_expr_stmt(es, exported_names, &declared_names);
                 }
-                _ => {}
+                // Every other statement kind — a block, `if`, loop, `switch`,
+                // `try`, label — reaches the recursive walker, which official's
+                // whole-AST globals walk also sees below a statement.
+                other => {
+                    if detect_rune_in_stmt(other, &declared_names) {
+                        exported_names.set_uses_runes(true);
+                    }
+                }
             }
         }
 
