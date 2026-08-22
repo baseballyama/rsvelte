@@ -4931,6 +4931,19 @@ fn analyze_props_json(
                 }
             }
         }
+        "NewExpression" => {
+            // Upstream's `NewExpression` visitor only calls `context.next()`, so a
+            // `new` contributes no flag of its own — every flag comes from the
+            // callee and the arguments.
+            if let Some(callee) = obj.get("callee") {
+                analyze_props_json(callee, context, props);
+            }
+            if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+                for arg in args {
+                    analyze_props_json(arg, context, props);
+                }
+            }
+        }
         "AwaitExpression" => {
             // has_await: always true
             props.has_await = true;
@@ -6373,6 +6386,23 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
             }
             false
         }
+        "NewExpression" => {
+            // A `new` is not itself a call upstream, but its callee and arguments
+            // are still walked, so `new Foo(bar())` does carry `has_call`.
+            if let Some(callee) = obj.get("callee")
+                && has_call_json(callee, context)
+            {
+                return true;
+            }
+            if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+                for arg in args {
+                    if has_call_json(arg, context) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
         "AssignmentExpression" => {
             if let Some(right) = obj.get("right") {
                 return has_call_json(right, context);
@@ -6406,7 +6436,7 @@ fn has_member_json(json_value: &serde_json::Value) -> bool {
 
     match expr_type {
         "MemberExpression" => true,
-        "CallExpression" => {
+        "CallExpression" | "NewExpression" => {
             if let Some(callee) = obj.get("callee")
                 && has_member_json(callee)
             {
@@ -6558,7 +6588,7 @@ fn has_await_json(json_value: &serde_json::Value) -> bool {
 
     match expr_type {
         "AwaitExpression" => true,
-        "CallExpression" => {
+        "CallExpression" | "NewExpression" => {
             if let Some(callee) = obj.get("callee")
                 && has_await_json(callee)
             {
