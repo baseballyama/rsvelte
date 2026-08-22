@@ -574,10 +574,20 @@ fn collect_store_candidates(
                 i = next;
                 continue;
             }
-            // `use:$store` / `transition:$x` / `in:$x` / `out:$x` / `animate:$x`
-            // — the `$name` is a DIRECTIVE NAME (in an element opener), not a
-            // store auto-subscription. Official collects template stores from
-            // expression VALUES, never directive names.
+            // A `$name` written as a DIRECTIVE NAME subscribes for every
+            // directive except `style:` and `on:`, measured against official
+            // svelte2tsx across all nine kinds:
+            //
+            //   use / transition / in / out / animate / class / bind  subscribe
+            //   style / on                                            do not
+            //
+            // The split is not shorthand-vs-value and not directive-vs-value:
+            // `class:$store` subscribes while `style:$store` does not, and
+            // `style:color={$store}` subscribes while `style:$store` does not.
+            // Upstream's `style:` shorthand therefore emits an
+            // `__sveltets_2_ensureType(…, $store)` that references a binding it
+            // never declares — see `upstream_issues/3234-*`. Mirrored here
+            // because output parity is the contract.
             if prev == b':' {
                 let kw_end = pos - 1;
                 let mut k = kw_end;
@@ -587,7 +597,7 @@ fn collect_store_candidates(
                 let kw = &scan_source[k..kw_end];
                 let boundary_ok =
                     k == 0 || matches!(bytes[k - 1], b' ' | b'\t' | b'\n' | b'\r' | b'<');
-                if boundary_ok && matches!(kw, "use" | "transition" | "in" | "out" | "animate") {
+                if boundary_ok && matches!(kw, "style" | "on") {
                     i = next;
                     continue;
                 }
