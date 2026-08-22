@@ -1368,6 +1368,15 @@ impl<'a> Parser<'a> {
         )
     }
 
+    /// Upstream anchors this at the `:` of the continuation marker, not the `{`.
+    fn block_duplicate_clause(colon_pos: usize, name: &str) -> crate::error::ParseError {
+        crate::error::ParseError::svelte(
+            "block_duplicate_clause",
+            format!("{name} cannot appear more than once within a block"),
+            (colon_pos, colon_pos),
+        )
+    }
+
     /// Parse {#await} block.
     pub fn parse_await_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode<'a>>> {
         self.require_whitespace()?;
@@ -1635,6 +1644,9 @@ impl<'a> Parser<'a> {
             self.skip_whitespace();
 
             if self.eat_optional("then") {
+                if then_fragment.is_some() {
+                    return Err(Self::block_duplicate_clause(colon_pos, "{:then}"));
+                }
                 // Upstream eats `}` before requiring the separator, so `{:then}`
                 // stays legal while `{:thenv}` is not.
                 if !self.match_str("}") {
@@ -1659,6 +1671,9 @@ impl<'a> Parser<'a> {
 
                 then_fragment = Some(self.parse_fragment()?);
             } else if self.eat_optional("catch") {
+                if catch_fragment.is_some() {
+                    return Err(Self::block_duplicate_clause(colon_pos, "{:catch}"));
+                }
                 if !self.match_str("}") {
                     self.require_whitespace()?;
                 }
