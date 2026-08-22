@@ -365,6 +365,17 @@ impl<'a> Parser<'a> {
             // For raw text elements, parse content as raw text instead of HTML
             if is_raw_text_element {
                 fragment = self.parse_raw_text_content(&name)?;
+                // `<textarea>` is escapable raw text, so upstream reads its body
+                // with `read_sequence`, which raises `unexpected_eof` at the
+                // trimmed end when the closing tag never arrives — the element is
+                // not "left open", the input ran out inside it.
+                if !self.options.loose && name == "textarea" && self.index >= self.content_end {
+                    return Err(crate::error::ParseError::svelte(
+                        "unexpected_eof",
+                        "Unexpected end of input",
+                        (self.content_end, self.content_end),
+                    ));
+                }
             } else {
                 fragment = self.parse_fragment()?;
             }
