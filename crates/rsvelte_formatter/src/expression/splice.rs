@@ -153,23 +153,33 @@ pub(super) fn push_expression_tag(
         return Ok(());
     }
 
-    let prefix_lead =
-        if tag.start > 0 && source.as_bytes().get(tag.start as usize - 1) == Some(&b'}') {
-            let line_start = source[..tag.start as usize]
-                .rfind('\n')
-                .map_or(0, |index| index + 1);
-            let source_column = source
-                .get(line_start..tag.start as usize)
-                .unwrap_or("")
-                .visual_width(tab_width(options));
-            let indent = depth * options.js.indent_width.value() as usize;
-            source_column.saturating_sub(indent) + 1
-        } else {
-            1
-        };
+    let prefix_lead = glued_prefix_width(source, tag.start, options) + 1;
     let formatted = format_content_expression_with_prefix(inner, options, depth, prefix_lead)?;
     edits.push((tag.start, tag.end, format!("{{{formatted}}}")));
     Ok(())
+}
+
+/// The columns a tag's own fit test must charge for what precedes it on its
+/// OUTPUT line, when it is glued to a preceding tag's `}`.
+///
+/// The measurement stops at the last `>` before the tag rather than at the
+/// source line start: everything up to that `>` is an open tag whose own wrap
+/// decision is taken elsewhere, and when it wraps the content restarts at the
+/// element indent. Measuring to the line start charges the *source* column,
+/// which is the output column only when the input is already formatted — so an
+/// unformatted one-liner over-charged the tag and broke expressions that fit.
+fn glued_prefix_width(source: &str, tag_start: u32, options: &FormatOptions) -> usize {
+    let start = tag_start as usize;
+    if start == 0 || source.as_bytes().get(start - 1) != Some(&b'}') {
+        return 0;
+    }
+    let line_start = source[..start].rfind('\n').map_or(0, |index| index + 1);
+    let line = source.get(line_start..start).unwrap_or("");
+    // `+ 1` for the `>` itself, which occupies a column on the output line.
+    line.rfind('>').map_or_else(
+        || line.visual_width(tab_width(options)),
+        |index| line[index + 1..].visual_width(tab_width(options)) + 1,
+    )
 }
 
 /// Replace `{@<keyword> EXPR}` (full tag span) with the formatted expression
