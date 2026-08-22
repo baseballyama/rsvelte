@@ -696,12 +696,13 @@ pub fn build_style_directives_object_with_memoizer(
 
     for directive in style_directives {
         // Track metadata for memoization decision
-        let expr = &get_directive_expression(directive);
-        has_call = has_call || super::utils::expression_has_call(expr, context);
-        has_state = has_state
-            || super::utils::expression_has_reactive_state(expr, context)
-            || super::utils::expression_has_call(expr, context);
-        has_await = has_await || super::utils::expression_has_await(expr);
+        for expr in &get_directive_expressions(directive) {
+            has_call = has_call || super::utils::expression_has_call(expr, context);
+            has_state = has_state
+                || super::utils::expression_has_reactive_state(expr, context)
+                || super::utils::expression_has_call(expr, context);
+            has_await = has_await || super::utils::expression_has_await(expr);
+        }
 
         // Build the expression for this directive
         let expression = if matches!(&directive.value, AttributeValue::True(true)) {
@@ -1072,10 +1073,10 @@ pub fn build_set_style(
                     break;
                 }
             } else {
-                let expr = &get_directive_expression(directive);
-                if super::utils::expression_has_reactive_state(expr, context)
-                    || super::utils::expression_has_call(expr, context)
-                {
+                if get_directive_expressions(directive).iter().any(|expr| {
+                    super::utils::expression_has_reactive_state(expr, context)
+                        || super::utils::expression_has_call(expr, context)
+                }) {
                     has_state = true;
                     break;
                 }
@@ -1358,29 +1359,33 @@ fn build_style_attribute_value_with_memoization(
     }
 }
 
-/// Helper to get the expression from a style directive value.
-fn get_directive_expression<'a>(directive: &StyleDirective<'a>) -> crate::ast::js::Expression<'a> {
+/// Helper to get the expressions from a style directive value.
+///
+/// Upstream's phase-2 `StyleDirective` visitor merges the metadata of EVERY
+/// `ExpressionTag` chunk, so a directive is reactive when any chunk is.
+fn get_directive_expressions<'a>(
+    directive: &StyleDirective<'a>,
+) -> Vec<crate::ast::js::Expression<'a>> {
     use crate::ast::js::Expression;
 
     match &directive.value {
-        AttributeValue::Expression(expr_tag) => expr_tag.expression.clone(),
+        AttributeValue::Expression(expr_tag) => vec![expr_tag.expression.clone()],
         AttributeValue::True(_) => {
             // For style:color shorthand, create an identifier expression
-            Expression::from_json(serde_json::json!({
+            vec![Expression::from_json(serde_json::json!({
                 "type": "Identifier",
                 "name": directive.name.to_string()
-            }))
+            }))]
         }
-        AttributeValue::Sequence(parts) => {
-            // For sequence, check if there are any expression tags
-            for part in parts {
-                if let crate::ast::template::AttributeValuePart::ExpressionTag(expr_tag) = part {
-                    return expr_tag.expression.clone();
+        AttributeValue::Sequence(parts) => parts
+            .iter()
+            .filter_map(|part| match part {
+                crate::ast::template::AttributeValuePart::ExpressionTag(expr_tag) => {
+                    Some(expr_tag.expression.clone())
                 }
-            }
-            // Static text - return a literal
-            Expression::from_json(serde_json::Value::Null)
-        }
+                _ => None,
+            })
+            .collect(),
     }
 }
 
