@@ -831,9 +831,6 @@ pub(crate) fn analyze_prepared_component_with_retained(
         // Extract CSS selector information for per-element scoping
         css::extract_css_selector_info(stylesheet, &mut analysis);
 
-        // Prune unused selectors
-        css::prune_css(stylesheet, &analysis);
-
         // Mark elements as scoped based on CSS selector matching.
         // Extract CSS selectors and match them against template elements,
         // properly considering combinators (>, space, +, ~).
