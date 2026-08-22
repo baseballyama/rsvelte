@@ -890,13 +890,9 @@ impl<'a> Parser<'a> {
             "svelte:self" => ElementType::SvelteSelf,
             "svelte:options" => ElementType::SvelteOptions,
             _ => {
-                // Check if component (starts with uppercase or contains dot)
-                // Fast byte-level check: uppercase ASCII or first char is uppercase Unicode
-                let first = name.as_bytes().first().copied().unwrap_or(0);
-                if first.is_ascii_uppercase()
-                    || (first >= 0x80 && name.chars().next().is_some_and(|c| c.is_uppercase()))
-                    || memchr(b'.', name.as_bytes()).is_some()
-                {
+                // Upstream decides this with `regex_valid_component_name`, so a
+                // name it rejects (`X-a`, `x-a.b`) is a regular element.
+                if is_valid_component_name(name) || (self.options.loose && name.ends_with('.')) {
                     ElementType::Component
                 } else {
                     ElementType::Regular
@@ -2699,142 +2695,147 @@ impl<'a> Parser<'a> {
     }
 }
 
-/// Check if a name is a valid HTML element name.
-/// Based on: /^(?:![a-zA-Z]+|[a-zA-Z](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?|[a-zA-Z][a-zA-Z0-9]*:[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9])$/
+/// Mirrors upstream `is_valid_element_name`: a doctype, a namespaced name, or
+/// `REGEX_VALID_TAG_NAME` (`svelte/src/utils.js`).
 fn is_valid_element_name(name: &str) -> bool {
+    is_doctype_name(name) || is_namespaced_name(name) || is_valid_tag_name(name)
+}
+
+/// `/^![a-zA-Z]+$/`
+fn is_doctype_name(name: &str) -> bool {
+    let Some(rest) = name.strip_prefix('!') else {
+        return false;
+    };
+    !rest.is_empty() && rest.bytes().all(|b| b.is_ascii_alphabetic())
+}
+
+/// `/^[a-zA-Z][a-zA-Z0-9]*:[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9]$/`
+fn is_namespaced_name(name: &str) -> bool {
     let bytes = name.as_bytes();
-    if bytes.is_empty() {
+    let Some(colon) = memchr(b':', bytes) else {
+        return false;
+    };
+    let (before, after) = (&bytes[..colon], &bytes[colon + 1..]);
+
+    if before.is_empty() || !before[0].is_ascii_alphabetic() {
+        return false;
+    }
+    if !before[1..].iter().all(u8::is_ascii_alphanumeric) {
         return false;
     }
 
-    // Check for doctype-like: !DOCTYPE, etc.
-    if bytes[0] == b'!' {
-        return bytes.len() > 1 && bytes[1..].iter().all(|b| b.is_ascii_alphabetic());
-    }
-
-    // Must start with a letter
-    if !bytes[0].is_ascii_alphabetic() {
+    // The tail needs an alphabetic head *and* an alphanumeric last character.
+    if after.len() < 2 || !after[0].is_ascii_alphabetic() {
         return false;
     }
-
-    // Check for namespaced element (e.g., svg:rect)
-    if let Some(colon_pos) = memchr(b':', bytes) {
-        let before_bytes = &name.as_bytes()[..colon_pos];
-        let after_bytes = &name.as_bytes()[colon_pos + 1..];
-
-        // Before colon: [a-zA-Z][a-zA-Z0-9]*
-        if before_bytes.is_empty() || !before_bytes[0].is_ascii_alphabetic() {
-            return false;
-        }
-        if !before_bytes[1..].iter().all(|b| b.is_ascii_alphanumeric()) {
-            return false;
-        }
-
-        // After colon: [a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9]
-        if after_bytes.is_empty() || !after_bytes[0].is_ascii_alphabetic() {
-            return false;
-        }
-        if after_bytes.len() == 1 {
-            return true;
-        }
-        // Must end with alphanumeric
-        if !after_bytes.last().unwrap().is_ascii_alphanumeric() {
-            return false;
-        }
-        // Middle can be alphanumeric or hyphen
-        return after_bytes[1..after_bytes.len() - 1]
-            .iter()
-            .all(|b| b.is_ascii_alphanumeric() || *b == b'-');
-    }
-
-    // Simple element name: [a-zA-Z](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?
-    if bytes.len() == 1 {
-        return true; // Single letter is valid
-    }
-
-    // Must end with alphanumeric
-    if !bytes.last().unwrap().is_ascii_alphanumeric() {
+    if !after[after.len() - 1].is_ascii_alphanumeric() {
         return false;
     }
-
-    // Middle can be alphanumeric or hyphen
-    bytes[1..bytes.len() - 1]
+    after[1..after.len() - 1]
         .iter()
         .all(|b| b.is_ascii_alphanumeric() || *b == b'-')
 }
 
-/// Check if a name is a valid Svelte component name.
-/// Based on: /^(?:\p{Lu}[$\u200c\u200d\p{ID_Continue}.]*|\p{ID_Start}[$\u200c\u200d\p{ID_Continue}]*(?:\.[$\u200c\u200d\p{ID_Continue}]+)+)$/u
-///
-/// Simplified implementation that handles the common cases:
-/// 1. Uppercase starting names: Component, MyComponent, Cæжαकン中
-/// 2. Dot notation: foo.Bar, a.b.C
-fn is_valid_component_name(name: &str) -> bool {
-    if name.is_empty() {
-        return false;
+/// Upstream `REGEX_VALID_TAG_NAME`: `/^[a-zA-Z][a-zA-Z0-9]*(-[PCENChar]*)?$/u`.
+fn is_valid_tag_name(name: &str) -> bool {
+    let mut chars = name.char_indices();
+    match chars.next() {
+        Some((_, c)) if c.is_ascii_alphabetic() => {}
+        _ => return false,
     }
+    // Nothing may follow the `[a-zA-Z0-9]*` run except the optional hyphen
+    // group, so the first character outside it must be that group's `-`.
+    let Some((i, c)) = chars.find(|(_, c)| !c.is_ascii_alphanumeric()) else {
+        return true;
+    };
+    c == '-'
+        && name[i + 1..]
+            .chars()
+            .all(is_potential_custom_element_name_char)
+}
 
+/// The `PCENChar` continuation set of the HTML custom-element-name production.
+fn is_potential_custom_element_name_char(c: char) -> bool {
+    matches!(c,
+        'a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '-' | '_'
+            | '\u{b7}'
+            | '\u{c0}'..='\u{d6}'
+            | '\u{d8}'..='\u{f6}'
+            | '\u{f8}'..='\u{37d}'
+            | '\u{37f}'..='\u{1fff}'
+            | '\u{200c}'..='\u{200d}'
+            | '\u{203f}'..='\u{2040}'
+            | '\u{2070}'..='\u{218f}'
+            | '\u{2c00}'..='\u{2fef}'
+            | '\u{3001}'..='\u{d7ff}'
+            | '\u{f900}'..='\u{fdcf}'
+            | '\u{fdf0}'..='\u{fffd}'
+            | '\u{10000}'..='\u{effff}')
+}
+
+/// Upstream `regex_valid_component_name`:
+/// /^(?:\p{Lu}[$\u200c\u200d\p{ID_Continue}.]*|\p{ID_Start}[$\u200c\u200d\p{ID_Continue}]*(?:\.[$\u200c\u200d\p{ID_Continue}]+)+)$/u
+fn is_valid_component_name(name: &str) -> bool {
     let mut chars = name.chars();
-    let first = chars.next().unwrap();
+    let Some(first) = chars.next() else {
+        return false;
+    };
 
-    // Check for uppercase-starting component (e.g., Component, MyComponent)
-    // Also supports Unicode uppercase letters (e.g., Wunderschön, Cæжαकン中)
-    if first.is_uppercase() {
-        // Rest can be identifier characters, $, or .
+    if is_uppercase_letter(first) {
         return chars.all(is_component_name_char);
     }
 
-    // Check for dot-notation component (e.g., foo.Bar, a.b.C)
-    // Must start with a valid identifier start character
-    if !is_identifier_start(first) {
+    if !is_id_start(first) {
         return false;
     }
 
-    // Split by dots
-    let parts: Vec<&str> = name.split('.').collect();
-    if parts.len() < 2 {
-        return false; // Must have at least one dot for non-uppercase start
+    // The star class excludes `.`, so splitting on it reproduces the grouping.
+    let mut parts = name.split('.');
+    let head = parts.next().unwrap_or_default();
+    if !head[first.len_utf8()..].chars().all(is_identifier_continue) {
+        return false;
     }
 
-    // Each part must be a valid identifier
-    for (i, part) in parts.iter().enumerate() {
-        if part.is_empty() {
-            return false;
-        }
-        let mut part_chars = part.chars();
-        let part_first = part_chars.next().unwrap();
-
-        // First part must start with identifier start
-        if i == 0 {
-            if !is_identifier_start(part_first) {
-                return false;
-            }
-        } else {
-            // Subsequent parts can start with identifier continue, $
-            if !is_identifier_continue(part_first) && part_first != '$' {
-                return false;
-            }
-        }
-
-        // Rest of part must be identifier continue or $
-        if !part_chars.all(|c| is_identifier_continue(c) || c == '$') {
+    let mut has_member = false;
+    for part in parts {
+        has_member = true;
+        if part.is_empty() || !part.chars().all(is_identifier_continue) {
             return false;
         }
     }
+    has_member
+}
 
-    true
+/// `\p{Lu}`. Rust's `char::is_uppercase` is the Uppercase property, which is
+/// `Lu` plus `Other_Uppercase`; the regex class means the category alone.
+fn is_uppercase_letter(c: char) -> bool {
+    c.is_uppercase()
+        && !matches!(c,
+            '\u{2160}'..='\u{216f}'
+                | '\u{24b6}'..='\u{24cf}'
+                | '\u{1f130}'..='\u{1f149}'
+                | '\u{1f150}'..='\u{1f169}'
+                | '\u{1f170}'..='\u{1f189}')
+}
+
+/// `\p{ID_Start}` alone — unlike acorn's identifier-start test it admits
+/// neither `$` nor `_`.
+fn is_id_start(c: char) -> bool {
+    if c.is_ascii() {
+        c.is_ascii_alphabetic()
+    } else {
+        oxc_syntax::identifier::is_identifier_start_unicode(c)
+    }
 }
 
 /// Check if a character can start a JavaScript identifier.
-/// Simplified version of Unicode ID_Start.
 fn is_identifier_start(c: char) -> bool {
-    c.is_alphabetic() || c == '_' || c == '$'
+    oxc_syntax::identifier::is_identifier_start(c)
 }
 
 /// Check if a character can continue a JavaScript identifier.
-/// Simplified version of Unicode ID_Continue.
 fn is_identifier_continue(c: char) -> bool {
-    c.is_alphanumeric() || c == '_' || c == '$' || c == '\u{200c}' || c == '\u{200d}'
+    oxc_syntax::identifier::is_identifier_part(c)
 }
 
 /// Check if a character is valid in a component name (after the first char).

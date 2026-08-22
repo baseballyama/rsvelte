@@ -1763,6 +1763,14 @@ impl<'a> Parser<'a> {
         let name = self.read_identifier();
         let name_end = self.index;
 
+        if name.is_empty() && !self.options.loose {
+            return Err(crate::error::ParseError::svelte(
+                "expected_identifier",
+                "Expected an identifier\nhttps://svelte.dev/e/expected_identifier",
+                (self.index, self.index),
+            ));
+        }
+
         // Create expression for the snippet name (with character field in loc)
         let expression = super::super::expression::create_identifier_with_character(
             &name,
