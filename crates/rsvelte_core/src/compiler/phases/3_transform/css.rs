@@ -226,7 +226,8 @@ fn collect_is_where_unused_warnings(
                 // substituted into the enclosing chain, and upstream's `css-warn.js`
                 // never recurses into it — so it is marked but never reported.
                 if sel_name == "has" {
-                    let flags = has_argument_unused_flags(rel_selectors, ri, selectors, sel, ctx);
+                    let flags =
+                        has_pseudo_unused_under_every_host(rel_selectors, ri, selectors, sel, ctx);
                     for (bi, inner_complex) in children.iter().enumerate() {
                         let unused = flags.as_ref().is_some_and(|f| f.get(bi) == Some(&true))
                             || is_functional_branch_unused(inner_complex, None, ctx);
@@ -269,10 +270,22 @@ fn collect_is_where_unused_warnings(
                         .and_then(|s| s.as_array());
 
                     let unused = match branch_selectors {
-                        Some(bs) => {
-                            let synth = substitute_is_branch(complex_selector, ri, si, bs);
-                            is_complex_selector_unused(&synth, ctx)
-                        }
+                        // A branch that resolves its own `&` is matched from
+                        // the document root, not below the parent: upstream's
+                        // `get_relative_selectors` prepends the parent only
+                        // when no `&` is present.
+                        Some(bs) => match branch_alternatives(bs, ctx) {
+                            Some(alternatives) => without_parent_preludes(ctx, || {
+                                alternatives.iter().all(|bs| {
+                                    let synth = substitute_is_branch(complex_selector, ri, si, bs);
+                                    is_complex_selector_unused(&synth, ctx)
+                                })
+                            }),
+                            None => {
+                                let synth = substitute_is_branch(complex_selector, ri, si, bs);
+                                is_complex_selector_unused(&synth, ctx)
+                            }
+                        },
                         // Empty branch (e.g. `:is()`) — fall back to the
                         // isolated check.
                         None => is_complex_selector_unused(inner_complex, ctx),
@@ -4416,8 +4429,8 @@ fn is_has_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
             if !is_has_pseudo(sel) {
                 continue;
             }
-            if let Some(flags) = has_argument_unused_flags(rel_selectors, ri, selectors, sel, ctx)
-                && flags.iter().all(|&unused| unused)
+            if has_pseudo_unused_under_every_host(rel_selectors, ri, selectors, sel, ctx)
+                .is_some_and(|flags| flags.iter().all(|&unused| unused))
             {
                 return true;
             }
@@ -4425,6 +4438,219 @@ fn is_has_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
     }
 
     false
+}
+
+/// Per-argument verdicts for one `:has()`, taken under every way the enclosing
+/// rule's `&` can resolve — an argument is unused only when no resolution keeps
+/// it reachable. `None` when nothing may be concluded.
+fn has_pseudo_unused_under_every_host(
+    rel_selectors: &[Value],
+    ri: usize,
+    selectors: &[Value],
+    sel: &Value,
+    ctx: &CssContext,
+) -> Option<Vec<bool>> {
+    let mut merged: Option<Vec<bool>> = None;
+    for (chain, offset) in effective_host_chains(rel_selectors, ctx) {
+        let flags = has_argument_unused_flags(&chain, offset + ri, selectors, sel, ctx)?;
+        merged = Some(match merged {
+            None => flags,
+            Some(prev) => prev
+                .iter()
+                .zip(flags.iter())
+                .map(|(a, b)| *a && *b)
+                .collect(),
+        });
+    }
+    merged
+}
+
+/// The relative-selector chains this rule really matches against, and where
+/// `rel_selectors` starts inside each. A nested rule with no explicit `&` is
+/// `parent <selector>` — upstream's `get_relative_selectors` prepends exactly
+/// that, and [`build_parent_chains`] is this file's port of it — so the `:has()`
+/// subject has to satisfy the parent chain too. One entry per parent
+/// alternative; the bare selector when the rule is not nested or resolves its
+/// own `&`.
+fn effective_host_chains(rel_selectors: &[Value], ctx: &CssContext) -> Vec<(Vec<Value>, usize)> {
+    let bare = || vec![(rel_selectors.to_vec(), 0usize)];
+
+    if rel_selectors.iter().any(relative_selector_has_nesting) {
+        return bare();
+    }
+    let parent_preludes = ctx.parent_preludes.borrow();
+    if parent_preludes.is_empty() {
+        return bare();
+    }
+    let Some(chains) = build_parent_chains(&parent_preludes, parent_preludes.len()) else {
+        return bare();
+    };
+
+    chains
+        .into_iter()
+        .map(|mut chain| {
+            let offset = chain.len();
+            for (i, rel) in rel_selectors.iter().enumerate() {
+                chain.push(if i == 0 {
+                    with_descendant_head(rel)
+                } else {
+                    rel.clone()
+                });
+            }
+            (chain, offset)
+        })
+        .collect()
+}
+
+/// What a `&` stands for inside an argument list: the subject compound of each
+/// alternative the enclosing rules resolve to. Reuses [`build_parent_chains`],
+/// this file's port of upstream's `get_relative_selectors`, so there is one
+/// answer to "what is the parent" rather than a second one here.
+///
+/// Only the chain's **last** compound is taken. A multi-part parent (`.x .y`)
+/// therefore contributes `.y` alone, dropping the `.x` ancestor requirement —
+/// which weakens the test, so a branch can only come out *less* unused, never
+/// more.
+fn nesting_substitute_alternatives(ctx: &CssContext) -> Option<Vec<Vec<Value>>> {
+    let parent_preludes = ctx.parent_preludes.borrow();
+    if parent_preludes.is_empty() {
+        return None;
+    }
+    let chains = build_parent_chains(&parent_preludes, parent_preludes.len())?;
+    let alternatives: Vec<Vec<Value>> = chains
+        .iter()
+        .filter_map(|chain| {
+            chain
+                .last()?
+                .get("selectors")
+                .and_then(|s| s.as_array())
+                .cloned()
+        })
+        .collect();
+    (!alternatives.is_empty()).then_some(alternatives)
+}
+
+/// Whether any relative selector of `complex` carries a top-level `&`.
+fn relative_selectors_carry_nesting(complex: &Value) -> bool {
+    complex
+        .get("children")
+        .and_then(|c| c.as_array())
+        .is_some_and(|rels| {
+            rels.iter().any(|rel| {
+                rel.get("selectors")
+                    .and_then(|s| s.as_array())
+                    .is_some_and(|sels| {
+                        sels.iter().any(|s| {
+                            s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector")
+                        })
+                    })
+            })
+        })
+}
+
+/// The forms one `:is()` / `:where()` argument compound takes once its `&` is
+/// resolved — one per way the enclosing rules resolve it. `None` when the
+/// compound carries no `&`, or when no parent can resolve it, in which case the
+/// compound is used as written.
+fn branch_alternatives(branch: &[Value], ctx: &CssContext) -> Option<Vec<Vec<Value>>> {
+    if !branch
+        .iter()
+        .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
+    {
+        return None;
+    }
+    let alternatives: Vec<Vec<Value>> = nesting_substitute_alternatives(ctx)?
+        .iter()
+        .filter_map(|sub| replace_nesting_in_selectors(branch, sub))
+        .collect();
+    // An empty list would make the `all()` below vacuously true.
+    (!alternatives.is_empty()).then_some(alternatives)
+}
+
+/// Evaluate `f` as if the rule were not nested — the counterpart of resolving
+/// `&` by substitution, since the substituted selector already carries the
+/// parent and must not also be required to sit below it.
+fn without_parent_preludes<T>(ctx: &CssContext, f: impl FnOnce() -> T) -> T {
+    let saved = ctx.parent_preludes.replace(Vec::new());
+    let out = f();
+    ctx.parent_preludes.replace(saved);
+    out
+}
+
+/// Rewrite one argument-list compound, replacing its `&` with `substitute`.
+/// `None` when the compound has no `&` to replace.
+fn replace_nesting_in_selectors(selectors: &[Value], substitute: &[Value]) -> Option<Vec<Value>> {
+    if !selectors
+        .iter()
+        .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
+    {
+        return None;
+    }
+    let mut out = Vec::with_capacity(selectors.len() + substitute.len());
+    for sel in selectors {
+        if sel.get("type").and_then(|t| t.as_str()) == Some("NestingSelector") {
+            out.extend(substitute.iter().cloned());
+        } else {
+            out.push(sel.clone());
+        }
+    }
+    Some(out)
+}
+
+/// Rewrite an argument `ComplexSelector` so each `&` becomes `substitute`.
+fn replace_nesting_in_complex(complex: &Value, substitute: &[Value]) -> Option<Value> {
+    let rels = complex.get("children")?.as_array()?;
+    let mut children = Vec::with_capacity(rels.len());
+    let mut replaced = false;
+    for rel in rels {
+        let selectors = rel.get("selectors").and_then(|s| s.as_array());
+        match selectors.and_then(|s| replace_nesting_in_selectors(s, substitute)) {
+            Some(new_selectors) => {
+                replaced = true;
+                let mut cloned = rel.clone();
+                if let Value::Object(map) = &mut cloned {
+                    map.insert("selectors".to_string(), Value::Array(new_selectors));
+                }
+                children.push(cloned);
+            }
+            None => children.push(rel.clone()),
+        }
+    }
+    if !replaced {
+        return None;
+    }
+    let mut out = complex.clone();
+    if let Value::Object(map) = &mut out {
+        map.insert("children".to_string(), Value::Array(children));
+    }
+    Some(out)
+}
+
+/// Whether a `&` appears anywhere in this compound, a pseudo-class's argument
+/// list included — upstream finds it with a `walk`, which descends into `args`.
+fn relative_selector_has_nesting(rel: &Value) -> bool {
+    rel.get("selectors")
+        .and_then(|s| s.as_array())
+        .is_some_and(|sels| sels.iter().any(simple_selector_has_nesting))
+}
+
+fn simple_selector_has_nesting(sel: &Value) -> bool {
+    match sel.get("type").and_then(|t| t.as_str()) {
+        Some("NestingSelector") => true,
+        Some("PseudoClassSelector") => sel
+            .get("args")
+            .and_then(|a| a.get("children"))
+            .and_then(|c| c.as_array())
+            .is_some_and(|complexes| {
+                complexes.iter().any(|complex| {
+                    complex
+                        .get("children")
+                        .and_then(|c| c.as_array())
+                        .is_some_and(|rels| rels.iter().any(relative_selector_has_nesting))
+                })
+            }),
+        _ => false,
+    }
 }
 
 fn is_has_pseudo(sel: &Value) -> bool {
@@ -4458,27 +4684,28 @@ fn has_argument_unused_flags(
         .and_then(|c| c.as_array())
         .filter(|c| !c.is_empty())?;
 
-    // `&` inside the argument refers to the parent CSS rule, not to an element,
-    // so it cannot be resolved through the DOM structure.
-    let has_nesting_in_args = has_children.iter().any(|complex| {
-        complex
-            .get("children")
-            .and_then(|c| c.as_array())
-            .is_some_and(|rels| {
-                rels.iter().any(|rel| {
-                    rel.get("selectors")
-                        .and_then(|s| s.as_array())
-                        .is_some_and(|sels| {
-                            sels.iter().any(|s| {
-                                s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector")
-                            })
-                        })
-                })
+    // `&` inside the argument refers to the parent CSS rule, not to an element.
+    // Resolve it against the enclosing preludes; if it cannot be resolved,
+    // nothing may be concluded about this `:has()`.
+    let resolved;
+    let has_children: &[Value] = if has_children.iter().any(relative_selectors_carry_nesting) {
+        let alternatives = nesting_substitute_alternatives(ctx)?;
+        // One alternative only: with several, an argument would have to be
+        // unreachable under all of them, which this per-argument shape cannot
+        // express — so decline rather than guess.
+        let [substitute] = alternatives.as_slice() else {
+            return None;
+        };
+        resolved = has_children
+            .iter()
+            .map(|complex| {
+                replace_nesting_in_complex(complex, substitute).unwrap_or_else(|| complex.clone())
             })
-    });
-    if has_nesting_in_args {
-        return None;
-    }
+            .collect::<Vec<_>>();
+        &resolved
+    } else {
+        has_children
+    };
 
     // The subject is the compound the `:has()` sits in, `:has()` itself excluded.
     let subject_info = extract_selector_info_from_selectors(selectors);
@@ -4724,6 +4951,26 @@ fn is_has_argument_unused(
         }
     }
 
+    // A `:has()` nested inside the argument has its own subject set — the
+    // elements this argument could match — so it has to be resolved against
+    // those. `selector_info_has_constraints` sees no tag/class/id in
+    // `:has(:has(.b))` and would otherwise call the argument a possible match.
+    if rel_selectors.len() == 1
+        && let Some(nested) = nested_has_arguments(first)
+    {
+        let Some(candidates) =
+            elements_matching_relative(first, &first_info, subject_elements, ctx)
+        else {
+            return false;
+        };
+        if candidates.is_empty() {
+            return true;
+        }
+        return nested
+            .iter()
+            .all(|arg| is_has_argument_unused(arg, &candidates, ctx));
+    }
+
     // Arguments without any concrete constraint (e.g. `:has(:focus-visible)`)
     // can match any element; the official matcher skips plain pseudo-classes and
     // treats the selector as a possible match.
@@ -4823,6 +5070,72 @@ fn is_has_argument_unused(
         }
         _ => false, // Unknown combinator, be conservative
     }
+}
+
+/// The argument list of a `:has()` sitting inside one compound, when there is
+/// exactly one — several would each constrain the same element and this shape
+/// cannot express the conjunction.
+fn nested_has_arguments(rel: &Value) -> Option<&Vec<Value>> {
+    let selectors = rel.get("selectors")?.as_array()?;
+    let mut found = None;
+    for sel in selectors {
+        if !is_has_pseudo(sel) {
+            continue;
+        }
+        if found.is_some() {
+            return None;
+        }
+        found = sel
+            .get("args")
+            .and_then(|a| a.get("children"))
+            .and_then(|c| c.as_array())
+            .filter(|c| !c.is_empty());
+        found?;
+    }
+    found
+}
+
+/// The elements one relative selector of a `:has()` argument can match, given
+/// the subjects it is measured from. `None` when the answer cannot be trusted
+/// (an unhandled combinator, or content this component does not see).
+fn elements_matching_relative(
+    rel: &Value,
+    info: &SelectorInfo,
+    subject_elements: &[usize],
+    ctx: &CssContext,
+) -> Option<Vec<usize>> {
+    let combinator = rel
+        .get("combinator")
+        .and_then(|c| c.get("name"))
+        .and_then(|n| n.as_str())
+        .unwrap_or(" ");
+    let mut matched = Vec::new();
+    match combinator {
+        ">" => {
+            if ctx.has_opaque_sibling_boundaries {
+                return None;
+            }
+            for &subject_idx in subject_elements {
+                for &child_idx in &ctx.dom_structure.elements[subject_idx].children_idx {
+                    if let Some(child) = ctx.dom_structure.elements.get(child_idx)
+                        && selector_matches_element(info, child)
+                    {
+                        matched.push(child_idx);
+                    }
+                }
+            }
+        }
+        " " => {
+            if ctx.has_opaque_sibling_boundaries {
+                return None;
+            }
+            for &subject_idx in subject_elements {
+                collect_matching_descendants(subject_idx, info, ctx, &mut matched);
+            }
+        }
+        _ => return None,
+    }
+    Some(matched)
 }
 
 /// Check if a multi-part :has() argument (like > h > i) is unused
