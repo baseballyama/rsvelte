@@ -1707,9 +1707,13 @@ pub fn visit_regular_element(
 /// child_init is merged. Since our Phase 2 analysis doesn't mutate the AST to set
 /// this flag (immutable references), we check for DebugTag presence as a fallback.
 fn has_hoisted_init_producers(hoisted: &[Cow<'_, TemplateNode>]) -> bool {
-    hoisted
-        .iter()
-        .any(|n| matches!(n.as_ref(), TemplateNode::DebugTag(_)))
+    hoisted.iter().any(|n| match n.as_ref() {
+        // Upstream's dynamism comes from the Identifier visitor, so a `{@debug}`
+        // with no identifiers leaves the fragment static and its effect is
+        // discarded with the rest of `child_state.init`.
+        TemplateNode::DebugTag(tag) => !tag.identifiers.is_empty(),
+        _ => false,
+    })
 }
 
 /// Check if any trimmed children are dynamic (non-static, non-text).
