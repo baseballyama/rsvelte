@@ -85,6 +85,7 @@ fn collect_svelte_window_open_tag_edits(
             None,
             &window.fragment,
             depth,
+            false,
             options,
             edits,
         );
@@ -97,6 +98,7 @@ fn collect_svelte_window_open_tag_edits(
         None,
         depth,
         true,
+        false,
         false,
         options,
         edits,
@@ -118,11 +120,22 @@ fn collect_element_open_tag_edits(
     expression: Option<&Expression>,
     fragment: &Fragment,
     depth: usize,
+    regular_element: bool,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
     handle_element(
-        source, start, end, name, attributes, expression, fragment, depth, options, edits,
+        source,
+        start,
+        end,
+        name,
+        attributes,
+        expression,
+        fragment,
+        depth,
+        regular_element,
+        options,
+        edits,
     )
 }
 
@@ -144,6 +157,7 @@ fn collect_plain_element_open_tag_edits(
                 None,
                 &element.fragment,
                 depth,
+                true,
                 options,
                 edits,
             )?;
@@ -159,6 +173,7 @@ fn collect_plain_element_open_tag_edits(
                 None,
                 &element.fragment,
                 depth,
+                false,
                 options,
                 edits,
             )?;
@@ -174,6 +189,7 @@ fn collect_plain_element_open_tag_edits(
                 None,
                 &element.fragment,
                 depth,
+                false,
                 options,
                 edits,
             )?;
@@ -189,6 +205,7 @@ fn collect_plain_element_open_tag_edits(
                 None,
                 &element.fragment,
                 depth,
+                false,
                 options,
                 edits,
             )?;
@@ -210,6 +227,7 @@ fn collect_plain_element_open_tag_edits(
                 None,
                 &element.fragment,
                 depth,
+                false,
                 options,
                 edits,
             )?;
@@ -265,6 +283,7 @@ pub fn collect_options_open_tag_edit(
         &attrs,
         None,
         0,
+        false,
         false,
         false,
         options,
@@ -325,6 +344,7 @@ fn handle_element(
     this_expression: Option<&Expression>,
     fragment: &Fragment,
     depth: usize,
+    regular_element: bool,
     options: &FormatOptions,
     edits: &mut Vec<(u32, u32, String)>,
 ) -> Result<(), FormatError> {
@@ -339,6 +359,7 @@ fn handle_element(
         depth,
         is_empty,
         empty_nonhug,
+        regular_element,
         options,
         edits,
     )?;
@@ -380,6 +401,7 @@ fn collect_node_open_tag_edits(
             Some(&c.expression),
             &c.fragment,
             depth,
+            false,
             options,
             edits,
         )?,
@@ -392,6 +414,7 @@ fn collect_node_open_tag_edits(
             Some(&e.tag),
             &e.fragment,
             depth,
+            false,
             options,
             edits,
         )?,

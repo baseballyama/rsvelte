@@ -20,12 +20,18 @@ pub(super) fn render_attribute(
     options: &FormatOptions,
     attr_depth: usize,
     narrow_value: bool,
+    regular_element: bool,
 ) -> Result<String, FormatError> {
     let tw = tab_width(options);
     match attr {
-        Attribute::Attribute(node) => {
-            render_attribute_node(node, source, options, attr_depth, narrow_value)
-        }
+        Attribute::Attribute(node) => render_attribute_node(
+            node,
+            source,
+            options,
+            attr_depth,
+            narrow_value,
+            regular_element,
+        ),
         Attribute::SpreadAttribute(spread) => render_spread(spread, source, options, attr_depth),
         Attribute::AttachTag(attach) => {
             let mut inner = format_expression_at(source, &attach.expression, options, attr_depth)?
