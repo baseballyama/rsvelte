@@ -797,6 +797,9 @@ fn process_props_object_pattern_typed(
             JsNode::Literal { value, .. } => match value {
                 crate::ast::typed_expr::LiteralValue::String(s) => Some(s.to_string()),
                 crate::ast::typed_expr::LiteralValue::Number(n) => Some((*n as i64).to_string()),
+                // Upstream takes `String(key.value)`, and a BigInt stringifies to
+                // its decimal digits — which is what this variant already holds.
+                crate::ast::typed_expr::LiteralValue::BigInt(digits) => Some(digits.to_string()),
                 _ => None,
             },
             _ => None,
