@@ -235,9 +235,32 @@ fn the_legal_neighbour_of_every_early_error_still_compiles() {
 }
 
 /// The reason the class is worth its own gate: the accepted output was not
-/// JavaScript. Ablating the check must fail HERE too, not only above — a fix
-/// that rejects the input for the wrong reason still leaves this green, and a
-/// fix that stops rejecting leaves only this one red.
+/// JavaScript. "Differs from official" and "is not JavaScript" are two
+/// questions, and no ratchet here can tell them apart.
+///
+/// **The oracle has to be chosen, not assumed.** The first version of this test
+/// ran `oxc_parser` on the output and was satisfied by every row — including
+/// with the whole check ablated — because `oxc_parser` is exactly the parser
+/// that defers this class to `SemanticBuilder`. An oracle built from the
+/// component that is blind to a defect measures nothing about it. Running the
+/// real oracle instead — acorn, on the outputs this tree emitted with the check
+/// ablated — rejects **24 of the 25** compiled cells:
+///
+/// | cell | acorn on the emitted output |
+/// |---|---|
+/// | every row except the one below, both entry points | `Unsyntactic break`, `Duplicate constructor in the same class`, `'super' keyword outside a method`, … |
+/// | `function f(){} function f(){}` in an INSTANCE script | **parses** |
+///
+/// That single exception is not a gap in the oracle, it is JavaScript: the
+/// instance script's statements are emitted inside the component function, and
+/// two `function f(){}` declarations in one function body are legal. The same
+/// input as a `.svelte.js` module puts them at the top level, where acorn
+/// rejects it. So the output oracle is blind to exactly one of 25 cells, and
+/// `every_early_error_is_rejected_where_acorn_rejects_it` is what covers it.
+///
+/// In-process this uses `Parser` + `SemanticBuilder`, which reproduces acorn's
+/// verdict for this class. That shares a mechanism with the fix, so it is a
+/// weaker control than the acorn run above and is recorded as such.
 #[test]
 fn no_accepted_script_emits_unparseable_output() {
     for row in EARLY_ERRORS {
@@ -255,11 +278,13 @@ fn no_accepted_script_emits_unparseable_output() {
             let allocator = oxc_allocator::Allocator::default();
             let parsed =
                 oxc_parser::Parser::new(&allocator, &code, oxc_span::SourceType::mjs()).parse();
+            let semantic = oxc_semantic::SemanticBuilder::new_compiler().build(&parsed.program);
             assert!(
-                parsed.diagnostics.is_empty(),
-                "[{}] {host} accepted {body:?} and emitted text no JS parser accepts: {:?}\n{code}",
+                parsed.diagnostics.is_empty() && semantic.diagnostics.is_empty(),
+                "[{}] {host} accepted {body:?} and emitted text that is not JavaScript: {:?} {:?}\n{code}",
                 row.entry,
-                parsed.diagnostics
+                parsed.diagnostics,
+                semantic.diagnostics,
             );
         }
     }
