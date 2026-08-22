@@ -128,15 +128,5 @@
 		"id": "pattern/adversarial/css/rejected-global-keyframes-selector.svelte",
 		"class": "invalid-input",
 		"reason": "`:global(@keyframes shared)` is rejected by both compilers (css_expected_identifier, #3120); rsvelte-fmt falls back to raw passthrough for a stylesheet its CSS parser rejects, so the block keeps its source indentation while the oracle formats it anyway without validating"
-	},
-	{
-		"id": "pattern/adversarial/legacy/let-directive-destructuring.svelte",
-		"class": "engine-divergence",
-		"reason": "prettier-plugin-svelte reformats a `let:` destructuring pattern as an EXPRESSION, so a default becomes a parenthesised assignment (`[head = 'none']` → `[(head = \"none\")]`, `meta: { n } = {}` → `meta: ({ n } = {})`). Svelte's parser accepts both spellings, but the oracle's is no longer a valid binding pattern, and rsvelte-fmt parses the value as one (#3125)"
-	},
-	{
-		"id": "pattern/issues/3123-let-directive-pattern-defaults.svelte",
-		"class": "engine-divergence",
-		"reason": "prettier-plugin-svelte reformats a `let:` destructuring pattern as an EXPRESSION, so a default becomes a parenthesised assignment (`[head = 'none']` → `[(head = \"none\")]`, `meta: { n } = {}` → `meta: ({ n } = {})`). Svelte's parser accepts both spellings, but the oracle's is no longer a valid binding pattern, and rsvelte-fmt parses the value as one (#3125)"
 	}
 ]

@@ -164,6 +164,37 @@ fn let_directive_with_destructuring() {
     );
 }
 
+// ─── #3125: a `let:` value is an EXPRESSION, not a binding pattern ─────────
+
+#[test]
+fn let_directive_value_is_formatted_as_an_expression() {
+    // prettier-plugin-svelte prints a `LetDirective` with the same
+    // `printJsExpression` as `on:` / `class:`, so a default comes back
+    // parenthesised and string quotes are normalised by the JS printer.
+    let out = fmt("<Component let:item={{ a: [b = 'x'], c: { d } = {} }}>y</Component>");
+    assert!(
+        out.contains(r#"let:item={{ a: [(b = "x")], c: ({ d } = {}) }}"#),
+        "expected let directive value printed as an expression:\n{out}"
+    );
+}
+
+#[test]
+fn let_directive_accepts_a_parenthesised_default() {
+    // The oracle's own output must format again instead of aborting the whole
+    // file with a script parse error (`(b = "x")` is not a binding pattern).
+    let src = r#"<Component let:item={{ a: [(b = "x")] }}>y</Component>"#;
+    assert_eq!(fmt(src), src);
+}
+
+#[test]
+fn let_directive_shorthand_collapses() {
+    let out = fmt("<Component let:item={item}>y</Component>");
+    assert!(
+        out.contains("<Component let:item>"),
+        "expected `let:item={{item}}` collapsed to shorthand:\n{out}"
+    );
+}
+
 // ─── #797: long {#snippet} headers break like a function signature ─────────
 
 #[test]

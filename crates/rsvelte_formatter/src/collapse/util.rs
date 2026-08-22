@@ -168,6 +168,14 @@ pub(super) fn is_block_display(tag: &str) -> bool {
     crate::markup::is_html_block_display_element(tag)
 }
 
+/// Tags whose start/end tag never hugs its first/last child, so their content
+/// always lands on its own indented line once the element breaks. Mirrors
+/// prettier-plugin-svelte's `shouldHugStart` / `shouldHugEnd`, which bail on a
+/// block-display element and — by node type — on `<svelte:boundary>`.
+pub(super) fn never_hugs(tag: &str) -> bool {
+    is_block_display(tag) || tag == "svelte:boundary"
+}
+
 pub(super) fn is_whitespace_preserving(tag: &str) -> bool {
     // `pre` / `textarea` preserve whitespace; `script` / `style` carry raw
     // JS/CSS already formatted by their dedicated passes (oxfmt). None of these
