@@ -158,6 +158,23 @@ non-literal initializer as **source text** that only the JSON branch re-parses. 
 `{1 || 2}` folds and `const c = 1 || 2; {c}` does not, and the same for `const c = /ab/g` and
 for a `1n` bigint anywhere. Treat that as the next instalment, not as covered.
 
+**And #3027 is not one bug, it is the shape of a class — the inventory is
+[`compatibility/two-ports-inventory.md`](compatibility/two-ports-inventory.md).** Every gate here
+compares rsvelte to *upstream*; **none compares rsvelte to itself**, so a second port of one
+upstream function is only ever exercised on whatever inputs a real file happens to supply. On
+2026-08-22 four instances were reported on one day by four people in four files — #3403, #3427,
+#3472, #3569 — and a sweep from the upstream side then found twelve, of which the ports
+*demonstrably* answer differently in ten. Three are self-documented: `assign_dev_ast.rs:56` says
+"the two must agree or the same source would be wrapped on one path and not the other" and its
+twin lacks three `match` arms; the server's rune table says "mirrors `is_rune` in utils.js" and is
+missing two names the client's is not; `truncate_globals` and `truncate_trailing_globals` both
+claim `css-prune.js`'s `truncate` and return *opposite* results when every relative selector is
+global. **A comment asserting fidelity is where this class hides**, because it reads as a
+citation. Exactly one place in the tree defends against it
+(`typed_reactive_state_front_end_agrees_with_the_json_walk`), and the reusable part is that it
+pins the expected answer *independently* — a port-vs-port test whose oracle is the other port
+passes when both are broken the same way.
+
 **The `JsNode` → `serde_json::Value` cost is one site, and it is not the lazy cache.**
 `to_value` has 54 call sites; every materialization figure this project has quoted (27,488 →
 12,089 → 3,649) counts only the cached one. Of the bypassing population, 98% is
