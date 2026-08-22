@@ -42,7 +42,7 @@ carrying a key that would absorb the next regression.
 
 ## Matrix known failures (`matrix-known-failures.json`, 388 entries)
 
-Partition of `matrix-known-failures.json` by family: `4 + 172 + 0 + 24 + 0 + 0 + 0 + 180 + 0 + 8 + 0 + 0 + 0`
+Partition of `matrix-known-failures.json` by family: `4 + 172 + 0 + 24 + 0 + 0 + 0 + 180 + 0 + 8 + 0 + 0 + 0 + 0`
 
 ### `binding-position` — 4 entries
 
@@ -253,6 +253,55 @@ separately, which is why this section names the merge-order rule at the top of t
 
 The whole family (5 bindings × 6 hosts × 11 write shapes × 4 targets) now passes. It is the axis that would have caught #3026: `binding-position` varies binding kind
 but bakes one host into each binding's `wrap`, so binding × host has no cell there.
+
+### `compiler-option` — 0 entries
+
+The family that closes #3384's axis: 17 `compilerOptions` variants × 8 components × 4 targets (544 comparisons).
+Everything it lists is a **known defect of another subsystem** that this family is simply the
+first gate to reach; nothing here is an option-handling divergence.
+
+**`css-injected__style-nested` (client, client-dev, server, server-dev) — #3226.** rsvelte's CSS
+minifier appends ` ;` to a declaration that had no trailing semicolon, and doubles the opening
+brace of a rule that nests:
+
+```
+sv  .a.svelte-1lj1c2j {color:red;&:hover {color:blue}}
+rs  .a.svelte-1lj1c2j {{color:red;;&:hover {color:blue ;}}
+```
+
+The rsvelte string is not valid CSS — measured, not asserted: **3 opening braces to 2 closing**,
+against official's balanced 2/2. It is reachable only under `css: 'injected'` (or a custom
+element), because that is the only mode in which the minified string lands in `js.code` — under
+the default `external` it goes to `css.code`, which this gate does not read (gate-coverage 5r) and
+`targets.mjs` never leaves `external`. So #3226 had no gate at all before this family.
+
+Reachability is a separate question from correctness, and worth stating because the answer is not
+"exotic": `@rsvelte/vite-plugin-svelte` sets `css` from one flag —
+`const css = preResolveOptions.emitCss ? 'external' : 'injected'` (`utils/options.js:198`) — so
+`emitCss: false` puts every component in a project on this path.
+
+The component exists for that reason. `state-style` ends its declaration with a `;`, which is the
+one spelling the minifier already agrees on — a `css-injected` row against it is green and means
+nothing about the option. Which is the same trap #3384's own grid fell into on `fragments: 'tree'`
+(#3459): the axis value was reached every time and no source discriminated at it.
+
+**`custom-element__style-nested` (client, client-dev) — #3226 again**, since `inject_styles` is
+`css === 'injected' || is_custom_element`.
+
+**`custom-element__state-style` (client, client-dev) — #3448.** A `$state` that is never written
+stays a signal in rsvelte, so `{n}` compiles to `$.child` + `$.template_effect(… $.set_text …)`
+where official folds it to a single `b.textContent = $.get(n)`. Pre-existing and not
+custom-element-specific — it reproduces on the `<svelte:options customElement="x-a" />` path that
+already worked, with three controls agreeing — so the option is only what makes the cell exist.
+It is #3448 **and nothing else** here, precisely because `state-style` writes the trailing `;`
+that keeps #3226 quiet: an earlier read of this row attributed the whole `custom-element` variant
+to #3448 by counting the variant's total instead of diffing each cell, and one of those cells was
+#3226 alone. Attribute a ratchet entry from its own diff, never from its variant's count.
+
+**Not listed, and worth stating:** `runes-true__legacy-export` is an **error-parity** cell in all
+four targets. Official rejects it with `legacy_export_invalid` and so does rsvelte, so the family
+compares error codes there rather than output. That is a comparison, not a hole; declining to
+generate the combination would report coverage the family does not have.
 
 ## Burn-down
 

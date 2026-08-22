@@ -944,6 +944,11 @@ The rest of that class — `runes`, `namespace`, `accessors`, `customElement`,
 does surface in `js.code` and is reachable. Cost is not the constraint: an option axis compiles
 exactly like a shape axis. **[S]**
 
+**[D]** #3384: the `compiler-option` family now declares 15 of them as an axis, so the
+*reachable* half of this row is closed — see 5r for what the family itself cannot see, which is
+not the same list. The vacuous half stands unchanged: `modernAst` is still expressible and still
+inert here, and `skipCssAst` is still an option of a function this harness never calls.
+
 ### Blind spot 5k — comments are observable HERE and nowhere else, and only inside `<script>`
 
 This gate compares oxfmt-normalized `js.code` **as text** (`run.mjs:260-262`, verdict
@@ -1143,6 +1148,92 @@ What `write-host` still does not vary, so it is not read as more than it is: one
 arrow through one prop name, and the write is always a member expression — a bare
 `p = p + 1` reassignment is `binding-position`'s `assignment.right` row and is not repeated
 here. **[S]**
+
+### Blind spot 5r — the `compiler-option` family compiles each case ONCE, and reads only `js.code`
+
+The family added for #3384 crosses 17 `compilerOptions` variants with 8 components, and the
+`baseline: {}` row is load-bearing rather than decorative: a cell's verdict is a *difference
+between two compilations*, so the un-perturbed one has to be one of them. Two of the twelve
+components in #3384's throwaway grid diverged with no options set at all, and without a baseline
+row those two read as a divergence under every option — **38 of that run's 85 keys were that one
+artefact**. This is `derived-key-needs-its-own-control` in the option axis.
+
+Five things it structurally cannot observe, and four of them cost a real defect.
+
+**A per-process rule.** `run.mjs` compiles each case exactly once per target, so a rule about the
+*second* compile has no second compile to run. #3380 is that shape: upstream routes six options
+through `warn_once`, a module-level `Set` that is never reset, and rsvelte warned on every compile
+for `accessors` / `immutable` — a Vite build of 500 components printed the deprecation 500 times.
+Adding `accessors` as an axis here does not measure it; the first compile agrees. A gate whose
+unit is one compile cannot hold a rule about the second one, and that is why #3380 is pinned by a
+test that compiles the same source three times
+(`rsvelte_capi`'s / the NAPI's `warn_once` flags are process-global, so the *unit* has to be a
+process, not a compile). **[D]**
+
+The corollary is a property of this gate worth stating, because it looks like flakiness and is
+not: **once both sides warn once per process, the `accessors` and `immutable` rows agree only
+because the two compilers latch on the same cell.** `run.mjs` calls official and rsvelte inside
+one loop iteration, in one Node process, so the first `accessors` case trips both latches
+together and every later case is silent on both. A harness that compiled all of official first
+and then all of rsvelte would agree just as well; one that ran each case in a fresh process would
+make every cell warn on both sides — also agreeing. The arrangement that would *not* agree is a
+gate that batches one side and reuses a process for the other, and nothing in the row's name says
+which of those it is. It is also what made the defect legible before the fix: in the pre-fix
+measurement `accessors` diverged in exactly **51 of 52** cells, the single agreeing cell being the
+first one compiled.
+
+**`css.code`.** The comparison reads `js.code`, the warning `code` multiset and the error `code`
+(5b). So `css: 'injected'` is observable only because the CSS lands *inside* `js.code`, and the
+`css-external` row compares the JS of a component whose CSS went to the other field — a row that
+is green about the option and silent about its output. That asymmetry is what has left #3226
+ungated: `targets.mjs` never leaves `external`, so the minified string has never been compared by
+anything. It is compared here, and it is wrong in two ways at once — a declaration with no
+trailing `;` gets one appended with a leading space, and a nested rule doubles its opening brace,
+so `.a {color:red;&:hover {color:blue}}` comes out `.a {{color:red;;&:hover {color:blue ;}}`,
+which is not valid CSS. Under `external` none of that is observable at all. **[D]**
+
+**A function-valued option.** Upstream lets `css`, `customElement`, `runes`, `warningFilter` and
+`cssHash` take a callback (`validate-options.js` `parametric()` / `fun()`). The generator's
+variants are plain values, and a function has to cross the NAPI boundary this gate drives — so a
+family of scalar option *values* is blind to the whole callback half of the axis by construction.
+What that blindness cost is #3396: through the raw binding `runes` and `warningFilter` were
+**silently ignored** (a successful compile with the wrong result), while `css`, `customElement`
+and `cssHash` already threw. They are rejected uniformly now, and the wrapper
+(`@rsvelte/vite-plugin-svelte-native`) and the wasm entry both resolve them — but none of those
+three layers is what this gate compiles, so the axis stays unmeasured here. **[D]**
+
+**The absence of an option.** `run.mjs` seeds `filename` from the case id, so "the option was not
+supplied" is only reachable by an explicit `undefined` in the case's `options` — which one row
+(`no-filename`) does, and no other option does. #3383 lived there: with no `filename`, upstream
+substitutes `'(unknown)'` and every consumer reads the *defaulted* value, so the component came
+out `_unknown_` and the dev `[$.FILENAME]` assignment was still emitted, while rsvelte named it
+`Component` and dropped the assignment its own `add_locations` call then read. Every harness in
+the repo supplies a filename; absence is a configuration no gate constructs. **[D]**
+
+**The component paired with an option, which is this family's version of "reaching an entry
+point is not discriminating".** The component axis is one shape per option, so an option crossed
+with a component it cannot act on is a clean cell that means clean about nothing (a
+`namespace: 'mathml'` row against a file with no MathML). #3384's own first run recorded
+`fragments: 'tree'` among the options that "came back clean" — and it is not clean: rsvelte's
+`objectify` collects with `filter_map`, so the `null` upstream returns for an anchor comment is
+**dropped** instead of printing as an array hole, and every later slot of the positionally-walked
+tree shifts down one (#3459). Its twelve components simply had no `{@render}` / `{@html}` /
+component tag / `{#await}` in them. This family's `props-and-slot` row does, which is the only
+reason the cell discriminates; nothing about declaring `fragments-tree` as a variant made it so.
+
+The same trap fired a second time in the throwaway grid built to check for the first one, which
+is why the count to state is not the one that is easy to state. That grid's
+`warningFilter: (w) => !w.code.startsWith('a11y')` row reached its axis value in **48 of 48**
+cells and diverged in **0** — not because rsvelte honours the callback (through the raw binding it
+ignored it entirely, #3396) but because not one of the grid's twelve components emits a warning,
+so an ignored filter and an applied one both yield an empty list. One `<img src="a.png" />`
+component took it to 4. Cells that *reach* an axis value are trivially countable and are evidence
+of nothing; cells where the two candidate rules *disagree* are the number a row's name is claiming.
+**[D]**
+
+One further limit worth stating so a green is not over-read: options are varied one at a time
+apart from `preserve-both`, so an interaction between two options is unenumerated — the same
+caution 5g records for its own single-axis rows. **[S]**
 
 **Closing 5b/5c:** the matrix costs ~25 s of CPU on ~10,200 comparisons (wall clock on a box
 running other agents' builds is unusable — a paired A/B inverted once). `constant-fold` is the

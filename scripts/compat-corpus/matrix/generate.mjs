@@ -6,6 +6,8 @@
  */
 
 import {
+	COMPILER_OPTIONS,
+	COMPILER_OPTION_COMPONENTS,
 	BINDINGS,
 	POSITIONS,
 	COMMENT_KINDS,
@@ -532,6 +534,25 @@ function writeHostCases() {
 	return cases;
 }
 
+/**
+ * One case per (option variant × component). The runner already merges
+ * `testCase.options` over the target's, so the family needs no runner change —
+ * only a case that carries them.
+ */
+function compilerOptionCases() {
+	const cases = [];
+	for (const [optionName, options] of Object.entries(COMPILER_OPTIONS)) {
+		for (const [componentName, source] of Object.entries(COMPILER_OPTION_COMPONENTS)) {
+			cases.push({
+				id: `compiler-option/${optionName}__${componentName}.svelte`,
+				source,
+				options,
+			});
+		}
+	}
+	return cases;
+}
+
 export const FAMILIES = {
 	'binding-position': bindingPositionCases,
 	'async-derived': asyncDerivedCases,
@@ -550,6 +571,7 @@ export const FAMILIES = {
 	'private-field': privateFieldCases,
 	'opaque-keyword': opaqueKeywordCases,
 	'write-host': writeHostCases,
+	'compiler-option': compilerOptionCases,
 };
 
 export function generate(families = Object.keys(FAMILIES)) {

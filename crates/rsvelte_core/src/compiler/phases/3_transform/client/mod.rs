@@ -2025,10 +2025,8 @@ pub(crate) fn transform_client(
 
     // In dev mode, add ComponentName[$.FILENAME] = 'filename.svelte'
     // Reference: transform-client.js line 544-551
-    if options.dev
-        && let Some(ref filename) = options.filename
-    {
-        let fname = filename.replace('\\', "/");
+    if options.dev {
+        let fname = options.filename_or_unknown().replace('\\', "/");
         let relative_filename = if let Some(ref root_dir) = options.root_dir {
             let rd = root_dir.replace('\\', "/");
             if fname.starts_with(&rd) {

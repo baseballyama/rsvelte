@@ -833,6 +833,14 @@ impl napi::bindgen_prelude::ToNapiValue for LenientScalar {
     }
 }
 
+// `runes` and `warningFilter` are pure in `{ filename }` / in the warning, so a
+// JS caller can evaluate them itself — which `@rsvelte/vite-plugin-svelte-native`
+// does. Silently dropping them produced a successful compile with the wrong
+// result, which is the one outcome worse than rejecting the option.
+const RESOLVE_IN_JS: &str = "a function-valued `{}` cannot be evaluated at this entry point; \
+     resolve it in JavaScript (the `compile` wrapper in @rsvelte/vite-plugin-svelte-native does) \
+     or pass a plain value";
+
 fn invalid_option(detail: impl std::fmt::Display) -> napi::Error {
     napi::Error::from_reason(format!("Invalid compiler option: {detail}"))
 }
@@ -1026,6 +1034,10 @@ pub struct NapiCompileOptions {
     /// it silently hands the caller a different scope class than it asked for.
     /// `compileWithCssHash` is the entry that honours it.
     pub css_hash: Option<LenientScalar>,
+    /// Upstream's `warningFilter` callback. Declared only to be *rejected*: an
+    /// unknown field is dropped in silence, and a build configured to be
+    /// warning-clean would then not be.
+    pub warning_filter: Option<LenientScalar>,
     /// Pre-computed deterministic hash for the test harness (the JS
     /// `cssHash` callback can't be called from Rust).
     pub css_hash_override: Option<String>,
@@ -1087,20 +1099,32 @@ impl NapiCompileOptions {
             opts.name = Some(coerce_string("name", v)?);
         }
         if let Some(v) = &self.custom_element {
+            if matches!(v, LenientScalar::Function) {
+                return Err(invalid_option(RESOLVE_IN_JS.replace("{}", "customElement")));
+            }
             opts.custom_element = coerce_bool("customElement", v)?;
         }
         if let Some(v) = &self.accessors {
             opts.accessors = coerce_bool("accessors", v)?;
-            opts.legacy_options.accessors = true;
+            // Upstream reaches this one through `deprecate()`, which is `warn_once`
+            // like the removed options below — not once per compile.
+            static WARNED: std::sync::atomic::AtomicBool =
+                std::sync::atomic::AtomicBool::new(false);
+            opts.legacy_options.accessors = warn_once(&WARNED);
         }
         if let Some(v) = &self.namespace {
             opts.namespace = coerce_namespace(v)?;
         }
         if let Some(v) = &self.immutable {
             opts.immutable = coerce_bool("immutable", v)?;
-            opts.legacy_options.immutable = true;
+            static WARNED: std::sync::atomic::AtomicBool =
+                std::sync::atomic::AtomicBool::new(false);
+            opts.legacy_options.immutable = warn_once(&WARNED);
         }
         if let Some(v) = &self.css {
+            if matches!(v, LenientScalar::Function) {
+                return Err(invalid_option(RESOLVE_IN_JS.replace("{}", "css")));
+            }
             opts.css = coerce_css(v)?;
         }
         if let Some(v) = &self.preserve_comments {
@@ -1110,6 +1134,12 @@ impl NapiCompileOptions {
             opts.preserve_whitespace = coerce_bool("preserveWhitespace", v)?;
         }
         if let Some(v) = &self.runes {
+            // Upstream's `parametric` keeps the function and calls it with
+            // `{ filename }`; this boundary cannot, and auto-detecting instead
+            // compiles a file the caller asked to be runes as legacy.
+            if matches!(v, LenientScalar::Function) {
+                return Err(invalid_option(RESOLVE_IN_JS.replace("{}", "runes")));
+            }
             opts.runes = coerce_runes(v);
         }
         if let Some(v) = &self.disclose_version {
@@ -1145,6 +1175,14 @@ impl NapiCompileOptions {
         }
         if let Some(v) = &self.compatibility {
             opts.compatibility.component_api = coerce_compatibility(v)?;
+        }
+        if let Some(v) = &self.warning_filter {
+            return Err(match v {
+                LenientScalar::Function => {
+                    invalid_option(RESOLVE_IN_JS.replace("{}", "warningFilter"))
+                }
+                _ => invalid_option("warningFilter should be a function, if specified"),
+            });
         }
         if let Some(v) = &self.css_hash {
             return Err(match v {
@@ -1189,11 +1227,22 @@ pub struct NapiModuleCompileOptions {
     pub filename: Option<LenientScalar>,
     pub root_dir: Option<LenientScalar>,
     pub experimental: Option<LenientScalar>,
+    /// `warningFilter` is one of upstream's `common_options`, so `compileModule`
+    /// takes it as well; rejected here for the same reason as on a component.
+    pub warning_filter: Option<LenientScalar>,
 }
 
 impl NapiModuleCompileOptions {
     fn into_module_compile_options(self) -> napi::Result<ModuleCompileOptions> {
         let mut opts = ModuleCompileOptions::default();
+        if let Some(v) = &self.warning_filter {
+            return Err(match v {
+                LenientScalar::Function => {
+                    invalid_option(RESOLVE_IN_JS.replace("{}", "warningFilter"))
+                }
+                _ => invalid_option("warningFilter should be a function, if specified"),
+            });
+        }
         if let Some(v) = &self.dev {
             opts.dev = coerce_bool("dev", v)?;
         }

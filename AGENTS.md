@@ -450,6 +450,38 @@ so `p.a++` set neither `needs_context` (no `$.push`/`$.pop`) nor a reference to 
 any family whose rows share a wrapper: **is the thing I varied crossed with the thing I held
 fixed, or merely adjacent to it?**
 
+**The `compiler-option` family is the first gate in the repo that varies `compilerOptions`, and
+that axis had been constant everywhere.** `scripts/compat-corpus/targets.mjs` moves `generate` and
+`dev` and holds every other field fixed, and every other harness — the output gate, the warning and
+error gates, the parse gate, the other matrix families, the mutation fuzz, svelte2tsx, fmt — draws
+from there or from an equivalent hardcoded pair. So "which compiler options is rsvelte compatible
+under" was unmeasured, against a tree the collected corpus scored at 0 failures for
+`client`/`server`. #3384's throwaway grid returned **127 diverging cells** on its first run, and the
+four defects filed from it are the shape to remember: `accessors`/`immutable` warning on every
+compile where upstream warns once per **process** (#3380), `customElement: true` ignored outright
+(#3382), a missing `filename` producing `Component` instead of `_unknown_` and dropping the dev
+`[$.FILENAME]` assignment that `add_locations` then reads (#3383), and the five options upstream
+lets take a **function**, of which the raw NAPI silently ignored two (#3396). None of these needs
+an exotic input: `compilerOptions` in `svelte.config.js` is forwarded to `compile()` by the Vite
+plugin.
+
+Two things this family taught that generalize. **The `baseline: {}` row is load-bearing**: a
+cell's verdict is a difference between two compilations, so the un-perturbed one has to be one of
+them — two of #3384's twelve components diverged with no options set at all, and 38 of its 85
+keys were that one artefact leaking into every option row. And **declaring an option as a variant
+is not measuring it**: the same run scored `fragments: 'tree'` clean while rsvelte drops every
+anchor comment instead of leaving an array hole, shifting every later slot of the tree the runtime
+walks positionally (#3459) — none of its twelve components contained a `{@render}`, `{@html}`,
+component tag or `{#await}` for the option to act on. Reaching an entry point is not being able to
+discriminate at it, one axis over from #3005, and it is why the component paired with each option
+is chosen rather than generic. **The trap then fired a second time in the throwaway grid built to
+check for the first one**, which is the part worth carrying: that grid's `warningFilter` row
+reached its axis value in 48 of 48 cells and diverged in 0 — not because rsvelte honoured the
+callback (it ignored it) but because no component emitted a warning; one `<img src="a.png" />`
+took it to 4. The reach column read 100% on the two blind rows and on the working one, so it
+separates nothing. **Count the cells where the two candidate rules disagree, never the cells that
+reached the axis value.**
+
 Normalization is deliberately identical to `verify.mjs`, so a divergence this gate reports is one
 the corpus gate would also report. `--update-baseline` refuses to run under `--no-fmt` or a
 `--families` subset (both would FALSE-SHRINK the ratchet).

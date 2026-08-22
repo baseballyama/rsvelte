@@ -35,13 +35,21 @@ fn main() {
         }
     };
 
+    let filename = if args.iter().any(|a| a == "--no-filename") {
+        None
+    } else {
+        Some(path.clone())
+    };
+    let custom_element = args.iter().any(|a| a == "--custom-element");
+
     match compile(
         &source,
         CompileOptions {
             generate,
             dev,
             runes,
-            filename: Some(path.clone()),
+            filename,
+            custom_element,
             ..Default::default()
         },
     ) {
