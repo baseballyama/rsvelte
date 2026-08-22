@@ -47,6 +47,9 @@ pub struct TemplateInfo<'a> {
     /// Slot names for the legacy `$$slots` declaration, collected only when used.
     pub dollar_slot_names: Option<Box<IndexSet<String>>>,
     pub uses_runes: bool,
+    /// A top-level `await` in a template expression — upstream's ungated
+    /// `isRunes` half (see `TemplateRunesDetector::has_template_await`).
+    pub uses_template_await: bool,
 }
 
 impl TemplateInfo<'_> {
@@ -139,6 +142,7 @@ pub fn collect_template_info<'a>(
         &ast.arena,
     );
     info.uses_runes = detector.uses_runes();
+    info.uses_template_await = detector.has_template_await();
     info
 }
 

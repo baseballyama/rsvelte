@@ -490,8 +490,11 @@ pub fn svelte2tsx(
         validate_meta_element_placement(&ast, source)?;
     }
 
-    // Step 2: Determine component name from filename
-    let component_name = derive_component_name(&options.filename);
+    // Step 2: Determine component name from filename. Upstream guards with
+    // `fileName && classNameFromFilename(...)`, so no filename means no class
+    // name at all and the export falls back to `$$Component`.
+    let component_name =
+        (!options.filename.is_empty()).then(|| derive_component_name(&options.filename));
 
     // Step 3: Detect runes mode (preliminary check from svelte:options)
     let explicit_runes = options.runes.unwrap_or_else(|| detect_runes_mode(&ast));
@@ -501,6 +504,7 @@ pub fn svelte2tsx(
 
     // Step 5: Initialize tracking structures
     let mut exported_names = ExportedNames::new();
+    exported_names.set_svelte5_plus(matches!(options.version, SvelteVersion::V5));
     let mut events = ComponentEvents::new();
     let module_script_span =
         ast.module
@@ -526,7 +530,7 @@ pub fn svelte2tsx(
     );
 
     if explicit_runes {
-        exported_names.set_uses_runes(true);
+        exported_names.set_template_runes(true);
     }
 
     // Step 6: Process module script (<script context="module">)
@@ -623,7 +627,7 @@ pub fn svelte2tsx(
     // Step 7.6: Process <svelte:options> tag as a createElement call
     // The parser stores svelte:options in ast.options (not in fragment.nodes),
     // so we need to handle it separately.
-    emit_svelte_options_element(&ast, source, &mut str);
+    emit_svelte_options_element(&ast, source, &options.typings_namespace, &mut str);
 
     // Step 8: Blank out <style> tag (CSS is not relevant for TSX type checking)
     blank_style_tags(&ast, source, &mut str);
@@ -678,7 +682,9 @@ pub fn svelte2tsx(
         &exported_names.instance_value_names,
     );
     let has_slot_elements = !template_info.slots.is_empty();
-    if template_info.uses_runes {
+    if template_info.uses_template_await {
+        exported_names.set_template_runes(true);
+    } else if template_info.uses_runes {
         exported_names.set_uses_runes(true);
     }
 
@@ -843,7 +849,7 @@ pub fn svelte2tsx(
             ast: &ast,
             source,
             options: &options,
-            component_name: &component_name,
+            component_name: component_name.as_deref(),
             template_info: &template_info,
             exported_names: &exported_names,
             events: &mut events,

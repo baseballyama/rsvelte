@@ -239,6 +239,7 @@ impl ProjectionOptions {
                     workspace_path: rewrite.workspace_path,
                 }
             }),
+            ..Svelte2TsxOptions::default()
         }
     }
 }

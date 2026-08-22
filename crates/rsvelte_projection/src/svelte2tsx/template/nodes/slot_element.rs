@@ -65,6 +65,7 @@ pub fn handle_slot_element(
         source,
         named_slot.is_some(),
         saved_slot.is_some(),
+        options.preserves_bind_prefix(),
     );
     // `__sveltets_createSlot("name"` keeps the source range of a static slot
     // name; a defaulted (absent) name is a literal and keeps none.
@@ -82,6 +83,7 @@ pub fn handle_slot_element(
             in_component_slot: saved_slot.is_some(),
             tag_name: &el.name,
             is_slot_tag: true,
+            preserve_bind: options.preserves_bind_prefix(),
         },
     );
     let slot_props_obj = if slot_props.is_empty() && spacing.in_attr_object == 0 {
@@ -279,6 +281,7 @@ pub fn build_slot_props_string(
     source: &str,
     drop_slot_attr: bool,
     in_component_slot: bool,
+    preserve_bind: bool,
 ) -> String {
     let mut parts: Vec<String> = Vec::new();
 
@@ -301,7 +304,7 @@ pub fn build_slot_props_string(
                 if bind.name == "this" {
                     continue;
                 }
-                parts.push(format_bind_directive(bind, source));
+                parts.push(format_bind_directive(bind, source, preserve_bind));
             }
             Attribute::LetDirective(let_dir) if !in_component_slot => {
                 // Outside a component's children a `let:` is just a deprecated

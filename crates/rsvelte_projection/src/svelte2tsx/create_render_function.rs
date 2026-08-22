@@ -38,7 +38,11 @@ pub fn create_render_function(
 ) {
     let is_dts_mode = matches!(options.mode, Svelte2TsxMode::Dts);
     let header_str = if is_dts_mode {
-        "import { SvelteComponentTyped } from \"svelte\"\n\n"
+        if options.no_svelte_component_typed {
+            "import { SvelteComponent } from \"svelte\"\n\n"
+        } else {
+            "import { SvelteComponentTyped } from \"svelte\"\n\n"
+        }
     } else {
         "///<reference types=\"svelte\" />\n"
     };

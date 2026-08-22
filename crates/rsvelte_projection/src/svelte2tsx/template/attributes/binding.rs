@@ -11,9 +11,35 @@ use crate::svelte2tsx::template::utils::expr::{
 };
 
 /// Structured-bake variant of [`format_bind_directive`].
-pub fn format_bind_directive_segments(bind: &BindDirective, source: &str) -> Vec<Seg> {
+///
+/// `preserve_bind` mirrors upstream Binding.ts's `preserveBind && element
+/// instanceof Element`: only the `svelteHTML` typings keep the `bind:` prefix
+/// in the emitted property name; any other typings namespace drops it (and a
+/// shorthand `bind:value` then emits the bare expression, with no key).
+pub fn format_bind_directive_segments(
+    bind: &BindDirective,
+    source: &str,
+    preserve_bind: bool,
+) -> Vec<Seg> {
     let mut out = Vec::new();
-    segs_push_fmt(&mut out, format_args!("\"bind:{}\":", bind.name));
+    if !preserve_bind {
+        let expr_range = get_expression_range(&bind.expression);
+        let get_set = get_set_binding_ranges(&bind.expression, source);
+        let is_shorthand = get_set.is_none()
+            && expr_range.is_some_and(|(s, _)| {
+                s == bind.start + u32::try_from("bind:".len()).expect("literal length fits in u32")
+            });
+        if let Some((s, e)) = expr_range
+            && is_shorthand
+        {
+            segs_push_src(&mut out, s, e);
+            segs_push_lit(&mut out, ",");
+            return out;
+        }
+        segs_push_fmt(&mut out, format_args!("{}:", bind.name));
+    } else {
+        segs_push_fmt(&mut out, format_args!("\"bind:{}\":", bind.name));
+    }
     if let Some(((gs, ge), (ss, se))) = get_set_binding_ranges(&bind.expression, source) {
         // Svelte 5 function binding on an element: `bind:value={getFn, setFn}`
         // → `"bind:value":__sveltets_2_get_set_binding(getFn, setFn),`
@@ -38,7 +64,10 @@ pub fn format_bind_directive_segments(bind: &BindDirective, source: &str) -> Vec
 /// Format a bind directive: `bind:name={expr}` → `"bind:name":expr,`. A Svelte
 /// 5 function binding `bind:name={getFn, setFn}` becomes
 /// `"bind:name":__sveltets_2_get_set_binding(getFn, setFn),`.
-pub fn format_bind_directive(bind: &BindDirective, source: &str) -> String {
+pub fn format_bind_directive(bind: &BindDirective, source: &str, preserve_bind: bool) -> String {
+    if !preserve_bind {
+        return format_component_bind_directive(bind, source).unwrap_or_default();
+    }
     if let Some(((gs, ge), (ss, se))) = get_set_binding_ranges(&bind.expression, source) {
         return format!(
             "\"bind:{}\":__sveltets_2_get_set_binding({},{}),",

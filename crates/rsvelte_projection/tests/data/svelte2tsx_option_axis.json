@@ -1,0 +1,520 @@
+{
+	"cases": [
+		{
+			"id": "mode-dts/legacy",
+			"options": {
+				"mode": "dts",
+				"namespace": "html",
+				"version": "5",
+				"filename": "legacy.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\texport let p = 1;\n\tlet n = 0;\n\t$: doubled = p * 2;\n</script>\n\n<b on:click={() => n++}>{n}{doubled}</b>\n",
+			"expected": "import { SvelteComponentTyped } from \"svelte\"\n\n;function $$render() {\n\n\t let p = 1;\n\tlet n = 0;\n\tlet  doubled = __sveltets_2_invalidate(() => p * 2);\n;\nasync () => {\n\n { svelteHTML.createElement(\"b\", {  \"on:click\":() => n++,});n;doubled; }\n};\nreturn { props: {p: p} as {p?: typeof p}, exports: {}, bindings: \"\", slots: {}, events: {} }}\ninterface $$__sveltets_2_IsomorphicComponent<Props extends Record<string, any> = any, Events extends Record<string, any> = any, Slots extends Record<string, any> = any, Exports = {}, Bindings = string> {\n    new (options: import('svelte').ComponentConstructorOptions<Props>): import('svelte').SvelteComponent<Props, Events, Slots> & { $$bindings?: Bindings } & Exports;\n    (internal: unknown, props: Props & {$$events?: Events, $$slots?: Slots}): Exports & { $set?: any, $on?: any };\n    z_$$bindings?: Bindings;\n}\n\ndeclare function $$__sveltets_2_isomorphic_component<\n    Props extends Record<string, any>, Events extends Record<string, any>, Slots extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string\n>(klass: {props: Props, events: Events, slots: Slots, exports?: Exports, bindings?: Bindings }): $$__sveltets_2_IsomorphicComponent<Props, Events, Slots, Exports, Bindings>;\nconst Legacy = $$__sveltets_2_isomorphic_component(__sveltets_2_with_any_event($$render()));\n/*Ωignore_startΩ*/type Legacy = InstanceType<typeof Legacy>;\n/*Ωignore_endΩ*/export default Legacy;"
+		},
+		{
+			"id": "mode-dts/runes",
+			"options": {
+				"mode": "dts",
+				"namespace": "html",
+				"version": "5",
+				"filename": "runes.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\tlet { p = 1 }: { p?: number } = $props();\n\tlet n = $state(0);\n</script>\n\n<b onclick={() => n++}>{n}{p}</b>\n",
+			"expected": "import { SvelteComponentTyped } from \"svelte\"\n\n;\n;type $$ComponentProps =  { p?: number };function $$render() {\n\n\tlet { p = 1 }:/*Ωignore_startΩ*/$$ComponentProps/*Ωignore_endΩ*/ = $props();\n\tlet n = $state(0);\n;\nasync () => {\n\n { svelteHTML.createElement(\"b\", { \"onclick\":() => n++,});n;p; }\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Runes = __sveltets_2_fn_component($$render());\ntype Runes = ReturnType<typeof Runes>;\nexport default Runes;"
+		},
+		{
+			"id": "mode-dts/exports",
+			"options": {
+				"mode": "dts",
+				"namespace": "html",
+				"version": "5",
+				"filename": "exports.svelte",
+				"isTsFile": true
+			},
+			"source": "<!-- @component A documented component. -->\n<script lang=\"ts\">\n\texport let a: number;\n\texport const b = 2;\n\texport function c() {\n\t\treturn a;\n\t}\n</script>\n\n<p>{a}{b}</p>\n",
+			"expected": "import { SvelteComponentTyped } from \"svelte\"\n\n;function $$render() {\n\n\t let a: number/*Ωignore_startΩ*/;a = __sveltets_2_any(a);/*Ωignore_endΩ*/;\n\t const b = 2;\n\t function c() {\n\t\treturn a;\n\t}\n;\nasync () => {\n\n\n { svelteHTML.createElement(\"p\", {});a;b; }\n};\nreturn { props: {a: a , b: b , c: c} as {a: number, b?: typeof b, c?: typeof c}, exports: {} as any as { b: typeof b,c: typeof c }, bindings: \"\", slots: {}, events: {} }}\ninterface $$__sveltets_2_IsomorphicComponent<Props extends Record<string, any> = any, Events extends Record<string, any> = any, Slots extends Record<string, any> = any, Exports = {}, Bindings = string> {\n    new (options: import('svelte').ComponentConstructorOptions<Props>): import('svelte').SvelteComponent<Props, Events, Slots> & { $$bindings?: Bindings } & Exports;\n    (internal: unknown, props: Props & {$$events?: Events, $$slots?: Slots}): Exports & { $set?: any, $on?: any };\n    z_$$bindings?: Bindings;\n}\n\ndeclare function $$__sveltets_2_isomorphic_component<\n    Props extends Record<string, any>, Events extends Record<string, any>, Slots extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string\n>(klass: {props: Props, events: Events, slots: Slots, exports?: Exports, bindings?: Bindings }): $$__sveltets_2_IsomorphicComponent<Props, Events, Slots, Exports, Bindings>;\n/** A documented component. */\nconst Exports = $$__sveltets_2_isomorphic_component(__sveltets_2_with_any_event($$render()));\n/*Ωignore_startΩ*/type Exports = InstanceType<typeof Exports>;\n/*Ωignore_endΩ*/export default Exports;"
+		},
+		{
+			"id": "mode-dts/directives",
+			"options": {
+				"mode": "dts",
+				"namespace": "html",
+				"version": "5",
+				"filename": "directives.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\timport { fade } from 'svelte/transition';\n\texport let value = '';\n\texport let el: HTMLElement | null = null;\n\texport let tag = 'div';\n\tlet w = 0;\n\tfunction action(node: HTMLElement) {\n\t\treturn { destroy() {} };\n\t}\n</script>\n\n<svelte:window bind:innerWidth={w} />\n<input bind:value use:action transition:fade class:on={w > 0} />\n<svelte:element this={tag} bind:this={el}>{w}</svelte:element>\n",
+			"expected": "import { SvelteComponentTyped } from \"svelte\"\n\n;\nimport { fade } from 'svelte/transition';\nfunction $$render() {\n\n\t\n\t let value = '';\n\t let el: HTMLElement | null = null/*Ωignore_startΩ*/;el = __sveltets_2_any(el);/*Ωignore_endΩ*/;\n\t let tag = 'div';\n\tlet w = 0;\n\tfunction action(node: HTMLElement) {\n\t\treturn { destroy() {} };\n\t}\n;\nasync () => {\n\n { svelteHTML.createElement(\"svelte:window\", {  \"bind:innerWidth\":w,});/*Ωignore_startΩ*/() => w = __sveltets_2_any(null);/*Ωignore_endΩ*/}\n {const $$action_0 = __sveltets_2_ensureAction(action(svelteHTML.mapElementTag('input')));{ svelteHTML.createElement(\"input\", __sveltets_2_union($$action_0), {     \"bind:value\":value,});/*Ωignore_startΩ*/() => value = __sveltets_2_any(null);/*Ωignore_endΩ*/__sveltets_2_ensureTransition(fade(svelteHTML.mapElementTag('input')));w > 0;}}\n { const $$_svelteelement0 = svelteHTML.createElement(tag, {  });el = $$_svelteelement0;w; }\n};\nreturn { props: {value: value , el: el , tag: tag} as {value?: typeof value, el?: HTMLElement | null, tag?: typeof tag}, exports: {}, bindings: \"\", slots: {}, events: {} }}\ninterface $$__sveltets_2_IsomorphicComponent<Props extends Record<string, any> = any, Events extends Record<string, any> = any, Slots extends Record<string, any> = any, Exports = {}, Bindings = string> {\n    new (options: import('svelte').ComponentConstructorOptions<Props>): import('svelte').SvelteComponent<Props, Events, Slots> & { $$bindings?: Bindings } & Exports;\n    (internal: unknown, props: Props & {$$events?: Events, $$slots?: Slots}): Exports & { $set?: any, $on?: any };\n    z_$$bindings?: Bindings;\n}\n\ndeclare function $$__sveltets_2_isomorphic_component<\n    Props extends Record<string, any>, Events extends Record<string, any>, Slots extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string\n>(klass: {props: Props, events: Events, slots: Slots, exports?: Exports, bindings?: Bindings }): $$__sveltets_2_IsomorphicComponent<Props, Events, Slots, Exports, Bindings>;\nconst Directives = $$__sveltets_2_isomorphic_component(__sveltets_2_with_any_event($$render()));\n/*Ωignore_startΩ*/type Directives = InstanceType<typeof Directives>;\n/*Ωignore_endΩ*/export default Directives;"
+		},
+		{
+			"id": "mode-dts/jsdoc",
+			"options": {
+				"mode": "dts",
+				"namespace": "html",
+				"version": "5",
+				"filename": "jsdoc.svelte",
+				"isTsFile": false
+			},
+			"source": "<script>\n\texport let p = 1;\n\tlet n = 0;\n</script>\n\n<b on:click={() => n++}>{n}{p}</b>\n",
+			"expected": "import { SvelteComponentTyped } from \"svelte\"\n\n;function $$render() {\n\n\t let p = 1;\n\tlet n = 0;\n;\nasync () => {\n\n { svelteHTML.createElement(\"b\", {  \"on:click\":() => n++,});n;p; }\n};\nreturn { props: {p: p}, exports: {}, bindings: \"\", slots: {}, events: {} }}\ninterface $$__sveltets_2_IsomorphicComponent<Props extends Record<string, any> = any, Events extends Record<string, any> = any, Slots extends Record<string, any> = any, Exports = {}, Bindings = string> {\n    new (options: import('svelte').ComponentConstructorOptions<Props>): import('svelte').SvelteComponent<Props, Events, Slots> & { $$bindings?: Bindings } & Exports;\n    (internal: unknown, props: Props & {$$events?: Events, $$slots?: Slots}): Exports & { $set?: any, $on?: any };\n    z_$$bindings?: Bindings;\n}\n\ndeclare function $$__sveltets_2_isomorphic_component<\n    Props extends Record<string, any>, Events extends Record<string, any>, Slots extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string\n>(klass: {props: Props, events: Events, slots: Slots, exports?: Exports, bindings?: Bindings }): $$__sveltets_2_IsomorphicComponent<Props, Events, Slots, Exports, Bindings>;\nconst Jsdoc = $$__sveltets_2_isomorphic_component(__sveltets_2_partial(['p'], __sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type Jsdoc = InstanceType<typeof Jsdoc>;\n/*Ωignore_endΩ*/export default Jsdoc;"
+		},
+		{
+			"id": "mode-dts/slots",
+			"options": {
+				"mode": "dts",
+				"namespace": "html",
+				"version": "5",
+				"filename": "slots.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\texport let name: string;\n</script>\n\n<slot {name} />\n<slot name=\"footer\" />\n",
+			"expected": "import { SvelteComponentTyped } from \"svelte\"\n\n;function $$render() {\n\n\t let name: string/*Ωignore_startΩ*/;name = __sveltets_2_any(name);/*Ωignore_endΩ*/;\n;\nasync () => {\n\n { __sveltets_createSlot(\"name\", { });}\n { __sveltets_createSlot(\"footer\", {  });}\n};\nreturn { props: {name: name} as {name: string}, exports: {}, bindings: \"\", slots: {'undefined': {}, 'footer': {}}, events: {} }}\ninterface $$__sveltets_2_IsomorphicComponent<Props extends Record<string, any> = any, Events extends Record<string, any> = any, Slots extends Record<string, any> = any, Exports = {}, Bindings = string> {\n    new (options: import('svelte').ComponentConstructorOptions<Props>): import('svelte').SvelteComponent<Props, Events, Slots> & { $$bindings?: Bindings } & Exports;\n    (internal: unknown, props: Props & {$$events?: Events, $$slots?: Slots}): Exports & { $set?: any, $on?: any };\n    z_$$bindings?: Bindings;\n}\ntype $$__sveltets_2_PropsWithChildren<Props, Slots> = Props &\n    (Slots extends { default: any }\n        ? Props extends Record<string, never>\n        ? any\n        : { children?: any }\n        : {});\n        declare function $$__sveltets_2_isomorphic_component_slots<\n            Props extends Record<string, any>, Events extends Record<string, any>, Slots extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string\n        >(klass: {props: Props, events: Events, slots: Slots, exports?: Exports, bindings?: Bindings }): $$__sveltets_2_IsomorphicComponent<$$__sveltets_2_PropsWithChildren<Props, Slots>, Events, Slots, Exports, Bindings>;\nconst Slots = $$__sveltets_2_isomorphic_component_slots(__sveltets_2_with_any_event($$render()));\n/*Ωignore_startΩ*/type Slots = InstanceType<typeof Slots>;\n/*Ωignore_endΩ*/export default Slots;"
+		},
+		{
+			"id": "dts-no-svelte-component-typed/legacy",
+			"options": {
+				"mode": "dts",
+				"namespace": "html",
+				"version": "5",
+				"noSvelteComponentTyped": true,
+				"filename": "legacy.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\texport let p = 1;\n\tlet n = 0;\n\t$: doubled = p * 2;\n</script>\n\n<b on:click={() => n++}>{n}{doubled}</b>\n",
+			"expected": "import { SvelteComponent } from \"svelte\"\n\n;function $$render() {\n\n\t let p = 1;\n\tlet n = 0;\n\tlet  doubled = __sveltets_2_invalidate(() => p * 2);\n;\nasync () => {\n\n { svelteHTML.createElement(\"b\", {  \"on:click\":() => n++,});n;doubled; }\n};\nreturn { props: {p: p} as {p?: typeof p}, exports: {}, bindings: \"\", slots: {}, events: {} }}\ninterface $$__sveltets_2_IsomorphicComponent<Props extends Record<string, any> = any, Events extends Record<string, any> = any, Slots extends Record<string, any> = any, Exports = {}, Bindings = string> {\n    new (options: import('svelte').ComponentConstructorOptions<Props>): import('svelte').SvelteComponent<Props, Events, Slots> & { $$bindings?: Bindings } & Exports;\n    (internal: unknown, props: Props & {$$events?: Events, $$slots?: Slots}): Exports & { $set?: any, $on?: any };\n    z_$$bindings?: Bindings;\n}\n\ndeclare function $$__sveltets_2_isomorphic_component<\n    Props extends Record<string, any>, Events extends Record<string, any>, Slots extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string\n>(klass: {props: Props, events: Events, slots: Slots, exports?: Exports, bindings?: Bindings }): $$__sveltets_2_IsomorphicComponent<Props, Events, Slots, Exports, Bindings>;\nconst Legacy = $$__sveltets_2_isomorphic_component(__sveltets_2_with_any_event($$render()));\n/*Ωignore_startΩ*/type Legacy = InstanceType<typeof Legacy>;\n/*Ωignore_endΩ*/export default Legacy;"
+		},
+		{
+			"id": "dts-no-svelte-component-typed/runes",
+			"options": {
+				"mode": "dts",
+				"namespace": "html",
+				"version": "5",
+				"noSvelteComponentTyped": true,
+				"filename": "runes.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\tlet { p = 1 }: { p?: number } = $props();\n\tlet n = $state(0);\n</script>\n\n<b onclick={() => n++}>{n}{p}</b>\n",
+			"expected": "import { SvelteComponent } from \"svelte\"\n\n;\n;type $$ComponentProps =  { p?: number };function $$render() {\n\n\tlet { p = 1 }:/*Ωignore_startΩ*/$$ComponentProps/*Ωignore_endΩ*/ = $props();\n\tlet n = $state(0);\n;\nasync () => {\n\n { svelteHTML.createElement(\"b\", { \"onclick\":() => n++,});n;p; }\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Runes = __sveltets_2_fn_component($$render());\ntype Runes = ReturnType<typeof Runes>;\nexport default Runes;"
+		},
+		{
+			"id": "dts-no-svelte-component-typed/exports",
+			"options": {
+				"mode": "dts",
+				"namespace": "html",
+				"version": "5",
+				"noSvelteComponentTyped": true,
+				"filename": "exports.svelte",
+				"isTsFile": true
+			},
+			"source": "<!-- @component A documented component. -->\n<script lang=\"ts\">\n\texport let a: number;\n\texport const b = 2;\n\texport function c() {\n\t\treturn a;\n\t}\n</script>\n\n<p>{a}{b}</p>\n",
+			"expected": "import { SvelteComponent } from \"svelte\"\n\n;function $$render() {\n\n\t let a: number/*Ωignore_startΩ*/;a = __sveltets_2_any(a);/*Ωignore_endΩ*/;\n\t const b = 2;\n\t function c() {\n\t\treturn a;\n\t}\n;\nasync () => {\n\n\n { svelteHTML.createElement(\"p\", {});a;b; }\n};\nreturn { props: {a: a , b: b , c: c} as {a: number, b?: typeof b, c?: typeof c}, exports: {} as any as { b: typeof b,c: typeof c }, bindings: \"\", slots: {}, events: {} }}\ninterface $$__sveltets_2_IsomorphicComponent<Props extends Record<string, any> = any, Events extends Record<string, any> = any, Slots extends Record<string, any> = any, Exports = {}, Bindings = string> {\n    new (options: import('svelte').ComponentConstructorOptions<Props>): import('svelte').SvelteComponent<Props, Events, Slots> & { $$bindings?: Bindings } & Exports;\n    (internal: unknown, props: Props & {$$events?: Events, $$slots?: Slots}): Exports & { $set?: any, $on?: any };\n    z_$$bindings?: Bindings;\n}\n\ndeclare function $$__sveltets_2_isomorphic_component<\n    Props extends Record<string, any>, Events extends Record<string, any>, Slots extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string\n>(klass: {props: Props, events: Events, slots: Slots, exports?: Exports, bindings?: Bindings }): $$__sveltets_2_IsomorphicComponent<Props, Events, Slots, Exports, Bindings>;\n/** A documented component. */\nconst Exports = $$__sveltets_2_isomorphic_component(__sveltets_2_with_any_event($$render()));\n/*Ωignore_startΩ*/type Exports = InstanceType<typeof Exports>;\n/*Ωignore_endΩ*/export default Exports;"
+		},
+		{
+			"id": "dts-no-svelte-component-typed/directives",
+			"options": {
+				"mode": "dts",
+				"namespace": "html",
+				"version": "5",
+				"noSvelteComponentTyped": true,
+				"filename": "directives.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\timport { fade } from 'svelte/transition';\n\texport let value = '';\n\texport let el: HTMLElement | null = null;\n\texport let tag = 'div';\n\tlet w = 0;\n\tfunction action(node: HTMLElement) {\n\t\treturn { destroy() {} };\n\t}\n</script>\n\n<svelte:window bind:innerWidth={w} />\n<input bind:value use:action transition:fade class:on={w > 0} />\n<svelte:element this={tag} bind:this={el}>{w}</svelte:element>\n",
+			"expected": "import { SvelteComponent } from \"svelte\"\n\n;\nimport { fade } from 'svelte/transition';\nfunction $$render() {\n\n\t\n\t let value = '';\n\t let el: HTMLElement | null = null/*Ωignore_startΩ*/;el = __sveltets_2_any(el);/*Ωignore_endΩ*/;\n\t let tag = 'div';\n\tlet w = 0;\n\tfunction action(node: HTMLElement) {\n\t\treturn { destroy() {} };\n\t}\n;\nasync () => {\n\n { svelteHTML.createElement(\"svelte:window\", {  \"bind:innerWidth\":w,});/*Ωignore_startΩ*/() => w = __sveltets_2_any(null);/*Ωignore_endΩ*/}\n {const $$action_0 = __sveltets_2_ensureAction(action(svelteHTML.mapElementTag('input')));{ svelteHTML.createElement(\"input\", __sveltets_2_union($$action_0), {     \"bind:value\":value,});/*Ωignore_startΩ*/() => value = __sveltets_2_any(null);/*Ωignore_endΩ*/__sveltets_2_ensureTransition(fade(svelteHTML.mapElementTag('input')));w > 0;}}\n { const $$_svelteelement0 = svelteHTML.createElement(tag, {  });el = $$_svelteelement0;w; }\n};\nreturn { props: {value: value , el: el , tag: tag} as {value?: typeof value, el?: HTMLElement | null, tag?: typeof tag}, exports: {}, bindings: \"\", slots: {}, events: {} }}\ninterface $$__sveltets_2_IsomorphicComponent<Props extends Record<string, any> = any, Events extends Record<string, any> = any, Slots extends Record<string, any> = any, Exports = {}, Bindings = string> {\n    new (options: import('svelte').ComponentConstructorOptions<Props>): import('svelte').SvelteComponent<Props, Events, Slots> & { $$bindings?: Bindings } & Exports;\n    (internal: unknown, props: Props & {$$events?: Events, $$slots?: Slots}): Exports & { $set?: any, $on?: any };\n    z_$$bindings?: Bindings;\n}\n\ndeclare function $$__sveltets_2_isomorphic_component<\n    Props extends Record<string, any>, Events extends Record<string, any>, Slots extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string\n>(klass: {props: Props, events: Events, slots: Slots, exports?: Exports, bindings?: Bindings }): $$__sveltets_2_IsomorphicComponent<Props, Events, Slots, Exports, Bindings>;\nconst Directives = $$__sveltets_2_isomorphic_component(__sveltets_2_with_any_event($$render()));\n/*Ωignore_startΩ*/type Directives = InstanceType<typeof Directives>;\n/*Ωignore_endΩ*/export default Directives;"
+		},
+		{
+			"id": "dts-no-svelte-component-typed/jsdoc",
+			"options": {
+				"mode": "dts",
+				"namespace": "html",
+				"version": "5",
+				"noSvelteComponentTyped": true,
+				"filename": "jsdoc.svelte",
+				"isTsFile": false
+			},
+			"source": "<script>\n\texport let p = 1;\n\tlet n = 0;\n</script>\n\n<b on:click={() => n++}>{n}{p}</b>\n",
+			"expected": "import { SvelteComponent } from \"svelte\"\n\n;function $$render() {\n\n\t let p = 1;\n\tlet n = 0;\n;\nasync () => {\n\n { svelteHTML.createElement(\"b\", {  \"on:click\":() => n++,});n;p; }\n};\nreturn { props: {p: p}, exports: {}, bindings: \"\", slots: {}, events: {} }}\ninterface $$__sveltets_2_IsomorphicComponent<Props extends Record<string, any> = any, Events extends Record<string, any> = any, Slots extends Record<string, any> = any, Exports = {}, Bindings = string> {\n    new (options: import('svelte').ComponentConstructorOptions<Props>): import('svelte').SvelteComponent<Props, Events, Slots> & { $$bindings?: Bindings } & Exports;\n    (internal: unknown, props: Props & {$$events?: Events, $$slots?: Slots}): Exports & { $set?: any, $on?: any };\n    z_$$bindings?: Bindings;\n}\n\ndeclare function $$__sveltets_2_isomorphic_component<\n    Props extends Record<string, any>, Events extends Record<string, any>, Slots extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string\n>(klass: {props: Props, events: Events, slots: Slots, exports?: Exports, bindings?: Bindings }): $$__sveltets_2_IsomorphicComponent<Props, Events, Slots, Exports, Bindings>;\nconst Jsdoc = $$__sveltets_2_isomorphic_component(__sveltets_2_partial(['p'], __sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type Jsdoc = InstanceType<typeof Jsdoc>;\n/*Ωignore_endΩ*/export default Jsdoc;"
+		},
+		{
+			"id": "dts-no-svelte-component-typed/slots",
+			"options": {
+				"mode": "dts",
+				"namespace": "html",
+				"version": "5",
+				"noSvelteComponentTyped": true,
+				"filename": "slots.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\texport let name: string;\n</script>\n\n<slot {name} />\n<slot name=\"footer\" />\n",
+			"expected": "import { SvelteComponent } from \"svelte\"\n\n;function $$render() {\n\n\t let name: string/*Ωignore_startΩ*/;name = __sveltets_2_any(name);/*Ωignore_endΩ*/;\n;\nasync () => {\n\n { __sveltets_createSlot(\"name\", { });}\n { __sveltets_createSlot(\"footer\", {  });}\n};\nreturn { props: {name: name} as {name: string}, exports: {}, bindings: \"\", slots: {'undefined': {}, 'footer': {}}, events: {} }}\ninterface $$__sveltets_2_IsomorphicComponent<Props extends Record<string, any> = any, Events extends Record<string, any> = any, Slots extends Record<string, any> = any, Exports = {}, Bindings = string> {\n    new (options: import('svelte').ComponentConstructorOptions<Props>): import('svelte').SvelteComponent<Props, Events, Slots> & { $$bindings?: Bindings } & Exports;\n    (internal: unknown, props: Props & {$$events?: Events, $$slots?: Slots}): Exports & { $set?: any, $on?: any };\n    z_$$bindings?: Bindings;\n}\ntype $$__sveltets_2_PropsWithChildren<Props, Slots> = Props &\n    (Slots extends { default: any }\n        ? Props extends Record<string, never>\n        ? any\n        : { children?: any }\n        : {});\n        declare function $$__sveltets_2_isomorphic_component_slots<\n            Props extends Record<string, any>, Events extends Record<string, any>, Slots extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string\n        >(klass: {props: Props, events: Events, slots: Slots, exports?: Exports, bindings?: Bindings }): $$__sveltets_2_IsomorphicComponent<$$__sveltets_2_PropsWithChildren<Props, Slots>, Events, Slots, Exports, Bindings>;\nconst Slots = $$__sveltets_2_isomorphic_component_slots(__sveltets_2_with_any_event($$render()));\n/*Ωignore_startΩ*/type Slots = InstanceType<typeof Slots>;\n/*Ωignore_endΩ*/export default Slots;"
+		},
+		{
+			"id": "typings-namespace/legacy",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "5",
+				"typingsNamespace": "myts",
+				"filename": "legacy.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\texport let p = 1;\n\tlet n = 0;\n\t$: doubled = p * 2;\n</script>\n\n<b on:click={() => n++}>{n}{doubled}</b>\n",
+			"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n\t let p = 1;\n\tlet n = 0;\n\tlet  doubled = __sveltets_2_invalidate(() => p * 2);\n;\nasync () => {\n\n { myts.createElement(\"b\", {  \"on:click\":() => n++,});n;doubled; }\n};\nreturn { props: {p: p} as {p?: typeof p}, exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst Legacy__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_with_any_event($$render()));\n/*Ωignore_startΩ*/type Legacy__SvelteComponent_ = InstanceType<typeof Legacy__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Legacy__SvelteComponent_;"
+		},
+		{
+			"id": "typings-namespace/runes",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "5",
+				"typingsNamespace": "myts",
+				"filename": "runes.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\tlet { p = 1 }: { p?: number } = $props();\n\tlet n = $state(0);\n</script>\n\n<b onclick={() => n++}>{n}{p}</b>\n",
+			"expected": "///<reference types=\"svelte\" />\n;\n;type $$ComponentProps =  { p?: number };function $$render() {\n\n\tlet { p = 1 }:/*Ωignore_startΩ*/$$ComponentProps/*Ωignore_endΩ*/ = $props();\n\tlet n = $state(0);\n;\nasync () => {\n\n { myts.createElement(\"b\", { \"onclick\":() => n++,});n;p; }\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Runes__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Runes__SvelteComponent_ = ReturnType<typeof Runes__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Runes__SvelteComponent_;"
+		},
+		{
+			"id": "typings-namespace/exports",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "5",
+				"typingsNamespace": "myts",
+				"filename": "exports.svelte",
+				"isTsFile": true
+			},
+			"source": "<!-- @component A documented component. -->\n<script lang=\"ts\">\n\texport let a: number;\n\texport const b = 2;\n\texport function c() {\n\t\treturn a;\n\t}\n</script>\n\n<p>{a}{b}</p>\n",
+			"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n\t let a: number/*Ωignore_startΩ*/;a = __sveltets_2_any(a);/*Ωignore_endΩ*/;\n\t const b = 2;\n\t function c() {\n\t\treturn a;\n\t}\n;\nasync () => {\n\n\n { myts.createElement(\"p\", {});a;b; }\n};\nreturn { props: {a: a , b: b , c: c} as {a: number, b?: typeof b, c?: typeof c}, exports: {} as any as { b: typeof b,c: typeof c }, bindings: \"\", slots: {}, events: {} }}\n/** A documented component. */\nconst Exports__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_with_any_event($$render()));\n/*Ωignore_startΩ*/type Exports__SvelteComponent_ = InstanceType<typeof Exports__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Exports__SvelteComponent_;"
+		},
+		{
+			"id": "typings-namespace/directives",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "5",
+				"typingsNamespace": "myts",
+				"filename": "directives.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\timport { fade } from 'svelte/transition';\n\texport let value = '';\n\texport let el: HTMLElement | null = null;\n\texport let tag = 'div';\n\tlet w = 0;\n\tfunction action(node: HTMLElement) {\n\t\treturn { destroy() {} };\n\t}\n</script>\n\n<svelte:window bind:innerWidth={w} />\n<input bind:value use:action transition:fade class:on={w > 0} />\n<svelte:element this={tag} bind:this={el}>{w}</svelte:element>\n",
+			"expected": "///<reference types=\"svelte\" />\n;\nimport { fade } from 'svelte/transition';\nfunction $$render() {\n\n\t\n\t let value = '';\n\t let el: HTMLElement | null = null/*Ωignore_startΩ*/;el = __sveltets_2_any(el);/*Ωignore_endΩ*/;\n\t let tag = 'div';\n\tlet w = 0;\n\tfunction action(node: HTMLElement) {\n\t\treturn { destroy() {} };\n\t}\n;\nasync () => {\n\n { myts.createElement(\"svelte:window\", {   innerWidth:w,});/*Ωignore_startΩ*/() => w = __sveltets_2_any(null);/*Ωignore_endΩ*/}\n {const $$action_0 = __sveltets_2_ensureAction(action(myts.mapElementTag('input')));{ myts.createElement(\"input\", __sveltets_2_union($$action_0), {     value,});/*Ωignore_startΩ*/() => value = __sveltets_2_any(null);/*Ωignore_endΩ*/__sveltets_2_ensureTransition(fade(myts.mapElementTag('input')));w > 0;}}\n { const $$_svelteelement0 = myts.createElement(tag, {  });el = $$_svelteelement0;w; }\n};\nreturn { props: {value: value , el: el , tag: tag} as {value?: typeof value, el?: HTMLElement | null, tag?: typeof tag}, exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst Directives__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_with_any_event($$render()));\n/*Ωignore_startΩ*/type Directives__SvelteComponent_ = InstanceType<typeof Directives__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Directives__SvelteComponent_;"
+		},
+		{
+			"id": "typings-namespace/jsdoc",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "5",
+				"typingsNamespace": "myts",
+				"filename": "jsdoc.svelte",
+				"isTsFile": false
+			},
+			"source": "<script>\n\texport let p = 1;\n\tlet n = 0;\n</script>\n\n<b on:click={() => n++}>{n}{p}</b>\n",
+			"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n\t let p = 1;\n\tlet n = 0;\n;\nasync () => {\n\n { myts.createElement(\"b\", {  \"on:click\":() => n++,});n;p; }\n};\nreturn { props: {p: p}, exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst Jsdoc__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(['p'], __sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type Jsdoc__SvelteComponent_ = InstanceType<typeof Jsdoc__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Jsdoc__SvelteComponent_;"
+		},
+		{
+			"id": "typings-namespace/slots",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "5",
+				"typingsNamespace": "myts",
+				"filename": "slots.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\texport let name: string;\n</script>\n\n<slot {name} />\n<slot name=\"footer\" />\n",
+			"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n\t let name: string/*Ωignore_startΩ*/;name = __sveltets_2_any(name);/*Ωignore_endΩ*/;\n\n/*Ωignore_startΩ*/;const __sveltets_createSlot = __sveltets_2_createCreateSlot();/*Ωignore_endΩ*/;\nasync () => {\n\n { __sveltets_createSlot(\"name\", { });}\n { __sveltets_createSlot(\"footer\", {  });}\n};\nreturn { props: {name: name} as {name: string}, exports: {}, bindings: \"\", slots: {'undefined': {}, 'footer': {}}, events: {} }}\nconst Slots__SvelteComponent_ = __sveltets_2_isomorphic_component_slots(__sveltets_2_with_any_event($$render()));\n/*Ωignore_startΩ*/type Slots__SvelteComponent_ = InstanceType<typeof Slots__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Slots__SvelteComponent_;"
+		},
+		{
+			"id": "emit-jsdoc/legacy",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "5",
+				"emitJsDoc": true,
+				"filename": "legacy.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\texport let p = 1;\n\tlet n = 0;\n\t$: doubled = p * 2;\n</script>\n\n<b on:click={() => n++}>{n}{doubled}</b>\n",
+			"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n\t let p = 1;\n\tlet n = 0;\n\tlet  doubled = __sveltets_2_invalidate(() => p * 2);\n;\nasync () => {\n\n { svelteHTML.createElement(\"b\", {  \"on:click\":() => n++,});n;doubled; }\n};\nreturn { props: {p: p} as {p?: typeof p}, exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst Legacy__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_with_any_event($$render()));\n/*Ωignore_startΩ*/type Legacy__SvelteComponent_ = InstanceType<typeof Legacy__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Legacy__SvelteComponent_;"
+		},
+		{
+			"id": "emit-jsdoc/runes",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "5",
+				"emitJsDoc": true,
+				"filename": "runes.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\tlet { p = 1 }: { p?: number } = $props();\n\tlet n = $state(0);\n</script>\n\n<b onclick={() => n++}>{n}{p}</b>\n",
+			"expected": "///<reference types=\"svelte\" />\n;\n;type $$ComponentProps =  { p?: number };function $$render() {\n\n\tlet { p = 1 }:/*Ωignore_startΩ*/$$ComponentProps/*Ωignore_endΩ*/ = $props();\n\tlet n = $state(0);\n;\nasync () => {\n\n { svelteHTML.createElement(\"b\", { \"onclick\":() => n++,});n;p; }\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst Runes__SvelteComponent_ = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type Runes__SvelteComponent_ = ReturnType<typeof Runes__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Runes__SvelteComponent_;"
+		},
+		{
+			"id": "emit-jsdoc/exports",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "5",
+				"emitJsDoc": true,
+				"filename": "exports.svelte",
+				"isTsFile": true
+			},
+			"source": "<!-- @component A documented component. -->\n<script lang=\"ts\">\n\texport let a: number;\n\texport const b = 2;\n\texport function c() {\n\t\treturn a;\n\t}\n</script>\n\n<p>{a}{b}</p>\n",
+			"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n\t let a: number/*Ωignore_startΩ*/;a = __sveltets_2_any(a);/*Ωignore_endΩ*/;\n\t const b = 2;\n\t function c() {\n\t\treturn a;\n\t}\n;\nasync () => {\n\n\n { svelteHTML.createElement(\"p\", {});a;b; }\n};\nreturn { props: {a: a , b: b , c: c} as {a: number, b?: typeof b, c?: typeof c}, exports: {} as any as { b: typeof b,c: typeof c }, bindings: \"\", slots: {}, events: {} }}\n/** A documented component. */\nconst Exports__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_with_any_event($$render()));\n/*Ωignore_startΩ*/type Exports__SvelteComponent_ = InstanceType<typeof Exports__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Exports__SvelteComponent_;"
+		},
+		{
+			"id": "emit-jsdoc/directives",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "5",
+				"emitJsDoc": true,
+				"filename": "directives.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\timport { fade } from 'svelte/transition';\n\texport let value = '';\n\texport let el: HTMLElement | null = null;\n\texport let tag = 'div';\n\tlet w = 0;\n\tfunction action(node: HTMLElement) {\n\t\treturn { destroy() {} };\n\t}\n</script>\n\n<svelte:window bind:innerWidth={w} />\n<input bind:value use:action transition:fade class:on={w > 0} />\n<svelte:element this={tag} bind:this={el}>{w}</svelte:element>\n",
+			"expected": "///<reference types=\"svelte\" />\n;\nimport { fade } from 'svelte/transition';\nfunction $$render() {\n\n\t\n\t let value = '';\n\t let el: HTMLElement | null = null/*Ωignore_startΩ*/;el = __sveltets_2_any(el);/*Ωignore_endΩ*/;\n\t let tag = 'div';\n\tlet w = 0;\n\tfunction action(node: HTMLElement) {\n\t\treturn { destroy() {} };\n\t}\n;\nasync () => {\n\n { svelteHTML.createElement(\"svelte:window\", {  \"bind:innerWidth\":w,});/*Ωignore_startΩ*/() => w = __sveltets_2_any(null);/*Ωignore_endΩ*/}\n {const $$action_0 = __sveltets_2_ensureAction(action(svelteHTML.mapElementTag('input')));{ svelteHTML.createElement(\"input\", __sveltets_2_union($$action_0), {     \"bind:value\":value,});/*Ωignore_startΩ*/() => value = __sveltets_2_any(null);/*Ωignore_endΩ*/__sveltets_2_ensureTransition(fade(svelteHTML.mapElementTag('input')));w > 0;}}\n { const $$_svelteelement0 = svelteHTML.createElement(tag, {  });el = $$_svelteelement0;w; }\n};\nreturn { props: {value: value , el: el , tag: tag} as {value?: typeof value, el?: HTMLElement | null, tag?: typeof tag}, exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst Directives__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_with_any_event($$render()));\n/*Ωignore_startΩ*/type Directives__SvelteComponent_ = InstanceType<typeof Directives__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Directives__SvelteComponent_;"
+		},
+		{
+			"id": "emit-jsdoc/jsdoc",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "5",
+				"emitJsDoc": true,
+				"filename": "jsdoc.svelte",
+				"isTsFile": false
+			},
+			"source": "<script>\n\texport let p = 1;\n\tlet n = 0;\n</script>\n\n<b on:click={() => n++}>{n}{p}</b>\n",
+			"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n\t let p = 1;\n\tlet n = 0;\n;\nasync () => {\n\n { svelteHTML.createElement(\"b\", {  \"on:click\":() => n++,});n;p; }\n};\nreturn { props: {p: p}, exports: {}, bindings: \"\", slots: {}, events: {} }}\nexport const Jsdoc__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(['p'], __sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*//** @typedef {InstanceType<typeof Jsdoc__SvelteComponent_>} Jsdoc__SvelteComponent_ */\n/*Ωignore_endΩ*/export default Jsdoc__SvelteComponent_;"
+		},
+		{
+			"id": "emit-jsdoc/slots",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "5",
+				"emitJsDoc": true,
+				"filename": "slots.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\texport let name: string;\n</script>\n\n<slot {name} />\n<slot name=\"footer\" />\n",
+			"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n\t let name: string/*Ωignore_startΩ*/;name = __sveltets_2_any(name);/*Ωignore_endΩ*/;\n\n/*Ωignore_startΩ*/;const __sveltets_createSlot = __sveltets_2_createCreateSlot();/*Ωignore_endΩ*/;\nasync () => {\n\n { __sveltets_createSlot(\"name\", { });}\n { __sveltets_createSlot(\"footer\", {  });}\n};\nreturn { props: {name: name} as {name: string}, exports: {}, bindings: \"\", slots: {'undefined': {}, 'footer': {}}, events: {} }}\nconst Slots__SvelteComponent_ = __sveltets_2_isomorphic_component_slots(__sveltets_2_with_any_event($$render()));\n/*Ωignore_startΩ*/type Slots__SvelteComponent_ = InstanceType<typeof Slots__SvelteComponent_>;\n/*Ωignore_endΩ*/export default Slots__SvelteComponent_;"
+		},
+		{
+			"id": "no-filename/legacy",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "5",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\texport let p = 1;\n\tlet n = 0;\n\t$: doubled = p * 2;\n</script>\n\n<b on:click={() => n++}>{n}{doubled}</b>\n",
+			"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n\t let p = 1;\n\tlet n = 0;\n\tlet  doubled = __sveltets_2_invalidate(() => p * 2);\n;\nasync () => {\n\n { svelteHTML.createElement(\"b\", {  \"on:click\":() => n++,});n;doubled; }\n};\nreturn { props: {p: p} as {p?: typeof p}, exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst $$Component = __sveltets_2_isomorphic_component(__sveltets_2_with_any_event($$render()));\n/*Ωignore_startΩ*/type $$Component = InstanceType<typeof $$Component>;\n/*Ωignore_endΩ*/export default $$Component;"
+		},
+		{
+			"id": "no-filename/runes",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "5",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\tlet { p = 1 }: { p?: number } = $props();\n\tlet n = $state(0);\n</script>\n\n<b onclick={() => n++}>{n}{p}</b>\n",
+			"expected": "///<reference types=\"svelte\" />\n;\n;type $$ComponentProps =  { p?: number };function $$render() {\n\n\tlet { p = 1 }:/*Ωignore_startΩ*/$$ComponentProps/*Ωignore_endΩ*/ = $props();\n\tlet n = $state(0);\n;\nasync () => {\n\n { svelteHTML.createElement(\"b\", { \"onclick\":() => n++,});n;p; }\n};\nreturn { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets_$$bindings(''), slots: {}, events: {} }}\nconst $$Component = __sveltets_2_fn_component($$render());\n/*Ωignore_startΩ*/type $$Component = ReturnType<typeof $$Component>;\n/*Ωignore_endΩ*/export default $$Component;"
+		},
+		{
+			"id": "no-filename/exports",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "5",
+				"isTsFile": true
+			},
+			"source": "<!-- @component A documented component. -->\n<script lang=\"ts\">\n\texport let a: number;\n\texport const b = 2;\n\texport function c() {\n\t\treturn a;\n\t}\n</script>\n\n<p>{a}{b}</p>\n",
+			"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n\t let a: number/*Ωignore_startΩ*/;a = __sveltets_2_any(a);/*Ωignore_endΩ*/;\n\t const b = 2;\n\t function c() {\n\t\treturn a;\n\t}\n;\nasync () => {\n\n\n { svelteHTML.createElement(\"p\", {});a;b; }\n};\nreturn { props: {a: a , b: b , c: c} as {a: number, b?: typeof b, c?: typeof c}, exports: {} as any as { b: typeof b,c: typeof c }, bindings: \"\", slots: {}, events: {} }}\n/** A documented component. */\nconst $$Component = __sveltets_2_isomorphic_component(__sveltets_2_with_any_event($$render()));\n/*Ωignore_startΩ*/type $$Component = InstanceType<typeof $$Component>;\n/*Ωignore_endΩ*/export default $$Component;"
+		},
+		{
+			"id": "no-filename/directives",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "5",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\timport { fade } from 'svelte/transition';\n\texport let value = '';\n\texport let el: HTMLElement | null = null;\n\texport let tag = 'div';\n\tlet w = 0;\n\tfunction action(node: HTMLElement) {\n\t\treturn { destroy() {} };\n\t}\n</script>\n\n<svelte:window bind:innerWidth={w} />\n<input bind:value use:action transition:fade class:on={w > 0} />\n<svelte:element this={tag} bind:this={el}>{w}</svelte:element>\n",
+			"expected": "///<reference types=\"svelte\" />\n;\nimport { fade } from 'svelte/transition';\nfunction $$render() {\n\n\t\n\t let value = '';\n\t let el: HTMLElement | null = null/*Ωignore_startΩ*/;el = __sveltets_2_any(el);/*Ωignore_endΩ*/;\n\t let tag = 'div';\n\tlet w = 0;\n\tfunction action(node: HTMLElement) {\n\t\treturn { destroy() {} };\n\t}\n;\nasync () => {\n\n { svelteHTML.createElement(\"svelte:window\", {  \"bind:innerWidth\":w,});/*Ωignore_startΩ*/() => w = __sveltets_2_any(null);/*Ωignore_endΩ*/}\n {const $$action_0 = __sveltets_2_ensureAction(action(svelteHTML.mapElementTag('input')));{ svelteHTML.createElement(\"input\", __sveltets_2_union($$action_0), {     \"bind:value\":value,});/*Ωignore_startΩ*/() => value = __sveltets_2_any(null);/*Ωignore_endΩ*/__sveltets_2_ensureTransition(fade(svelteHTML.mapElementTag('input')));w > 0;}}\n { const $$_svelteelement0 = svelteHTML.createElement(tag, {  });el = $$_svelteelement0;w; }\n};\nreturn { props: {value: value , el: el , tag: tag} as {value?: typeof value, el?: HTMLElement | null, tag?: typeof tag}, exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst $$Component = __sveltets_2_isomorphic_component(__sveltets_2_with_any_event($$render()));\n/*Ωignore_startΩ*/type $$Component = InstanceType<typeof $$Component>;\n/*Ωignore_endΩ*/export default $$Component;"
+		},
+		{
+			"id": "no-filename/jsdoc",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "5",
+				"isTsFile": false
+			},
+			"source": "<script>\n\texport let p = 1;\n\tlet n = 0;\n</script>\n\n<b on:click={() => n++}>{n}{p}</b>\n",
+			"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n\t let p = 1;\n\tlet n = 0;\n;\nasync () => {\n\n { svelteHTML.createElement(\"b\", {  \"on:click\":() => n++,});n;p; }\n};\nreturn { props: {p: p}, exports: {}, bindings: \"\", slots: {}, events: {} }}\nconst $$Component = __sveltets_2_isomorphic_component(__sveltets_2_partial(['p'], __sveltets_2_with_any_event($$render())));\n/*Ωignore_startΩ*/type $$Component = InstanceType<typeof $$Component>;\n/*Ωignore_endΩ*/export default $$Component;"
+		},
+		{
+			"id": "no-filename/slots",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "5",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\texport let name: string;\n</script>\n\n<slot {name} />\n<slot name=\"footer\" />\n",
+			"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n\t let name: string/*Ωignore_startΩ*/;name = __sveltets_2_any(name);/*Ωignore_endΩ*/;\n\n/*Ωignore_startΩ*/;const __sveltets_createSlot = __sveltets_2_createCreateSlot();/*Ωignore_endΩ*/;\nasync () => {\n\n { __sveltets_createSlot(\"name\", { });}\n { __sveltets_createSlot(\"footer\", {  });}\n};\nreturn { props: {name: name} as {name: string}, exports: {}, bindings: \"\", slots: {'undefined': {}, 'footer': {}}, events: {} }}\nconst $$Component = __sveltets_2_isomorphic_component_slots(__sveltets_2_with_any_event($$render()));\n/*Ωignore_startΩ*/type $$Component = InstanceType<typeof $$Component>;\n/*Ωignore_endΩ*/export default $$Component;"
+		},
+		{
+			"id": "version-4/legacy",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "4",
+				"filename": "legacy.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\texport let p = 1;\n\tlet n = 0;\n\t$: doubled = p * 2;\n</script>\n\n<b on:click={() => n++}>{n}{doubled}</b>\n",
+			"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n\t let p = 1;\n\tlet n = 0;\n\tlet  doubled = __sveltets_2_invalidate(() => p * 2);\n;\nasync () => {\n\n { svelteHTML.createElement(\"b\", {  \"on:click\":() => n++,});n;doubled; }\n};\nreturn { props: {p: p} as {p?: typeof p}, slots: {}, events: {} }}\n\nexport default class Legacy__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_with_any_event($$render())) {\n}"
+		},
+		{
+			"id": "version-4/runes",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "4",
+				"filename": "runes.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\tlet { p = 1 }: { p?: number } = $props();\n\tlet n = $state(0);\n</script>\n\n<b onclick={() => n++}>{n}{p}</b>\n",
+			"expected": "///<reference types=\"svelte\" />\n;\n;type $$ComponentProps =  { p?: number };function $$render() {\n\n\tlet { p = 1 }:/*Ωignore_startΩ*/$$ComponentProps/*Ωignore_endΩ*/ = $props();\n\tlet n = $state(0);\n;\nasync () => {\n\n { svelteHTML.createElement(\"b\", { \"onclick\":() => n++,});n;p; }\n};\nreturn { props: {} as Record<string, never>, slots: {}, events: {} }}\n\nexport default class Runes__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_with_any_event($$render())) {\n}"
+		},
+		{
+			"id": "version-4/exports",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "4",
+				"filename": "exports.svelte",
+				"isTsFile": true
+			},
+			"source": "<!-- @component A documented component. -->\n<script lang=\"ts\">\n\texport let a: number;\n\texport const b = 2;\n\texport function c() {\n\t\treturn a;\n\t}\n</script>\n\n<p>{a}{b}</p>\n",
+			"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n\t let a: number/*Ωignore_startΩ*/;a = __sveltets_2_any(a);/*Ωignore_endΩ*/;\n\t const b = 2;\n\t function c() {\n\t\treturn a;\n\t}\n;\nasync () => {\n\n\n { svelteHTML.createElement(\"p\", {});a;b; }\n};\nreturn { props: {a: a , b: b , c: c} as {a: number, b?: typeof b, c?: typeof c}, slots: {}, events: {} }}\n\n/** A documented component. */\nexport default class Exports__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_with_any_event($$render())) {\n    get b() { return __sveltets_2_nonNullable(this.$$prop_def.b) }\n    get c() { return __sveltets_2_nonNullable(this.$$prop_def.c) }\n}"
+		},
+		{
+			"id": "version-4/directives",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "4",
+				"filename": "directives.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\timport { fade } from 'svelte/transition';\n\texport let value = '';\n\texport let el: HTMLElement | null = null;\n\texport let tag = 'div';\n\tlet w = 0;\n\tfunction action(node: HTMLElement) {\n\t\treturn { destroy() {} };\n\t}\n</script>\n\n<svelte:window bind:innerWidth={w} />\n<input bind:value use:action transition:fade class:on={w > 0} />\n<svelte:element this={tag} bind:this={el}>{w}</svelte:element>\n",
+			"expected": "///<reference types=\"svelte\" />\n;\nimport { fade } from 'svelte/transition';\nfunction $$render() {\n\n\t\n\t let value = '';\n\t let el: HTMLElement | null = null/*Ωignore_startΩ*/;el = __sveltets_2_any(el);/*Ωignore_endΩ*/;\n\t let tag = 'div';\n\tlet w = 0;\n\tfunction action(node: HTMLElement) {\n\t\treturn { destroy() {} };\n\t}\n;\nasync () => {\n\n { svelteHTML.createElement(\"svelte:window\", {  \"bind:innerWidth\":w,});/*Ωignore_startΩ*/() => w = __sveltets_2_any(null);/*Ωignore_endΩ*/}\n {const $$action_0 = __sveltets_2_ensureAction(action(svelteHTML.mapElementTag('input')));{ svelteHTML.createElement(\"input\", __sveltets_2_union($$action_0), {     \"bind:value\":value,});/*Ωignore_startΩ*/() => value = __sveltets_2_any(null);/*Ωignore_endΩ*/__sveltets_2_ensureTransition(fade(svelteHTML.mapElementTag('input')));w > 0;}}\n { const $$_svelteelement0 = svelteHTML.createElement(tag, {  });el = $$_svelteelement0;w; }\n};\nreturn { props: {value: value , el: el , tag: tag} as {value?: typeof value, el?: HTMLElement | null, tag?: typeof tag}, slots: {}, events: {} }}\n\nexport default class Directives__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_with_any_event($$render())) {\n}"
+		},
+		{
+			"id": "version-4/jsdoc",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "4",
+				"filename": "jsdoc.svelte",
+				"isTsFile": false
+			},
+			"source": "<script>\n\texport let p = 1;\n\tlet n = 0;\n</script>\n\n<b on:click={() => n++}>{n}{p}</b>\n",
+			"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n\t let p = 1;\n\tlet n = 0;\n;\nasync () => {\n\n { svelteHTML.createElement(\"b\", {  \"on:click\":() => n++,});n;p; }\n};\nreturn { props: {p: p}, slots: {}, events: {} }}\n\nexport default class Jsdoc__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(['p'], __sveltets_2_with_any_event($$render()))) {\n}"
+		},
+		{
+			"id": "version-4/slots",
+			"options": {
+				"mode": "ts",
+				"namespace": "html",
+				"version": "4",
+				"filename": "slots.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\texport let name: string;\n</script>\n\n<slot {name} />\n<slot name=\"footer\" />\n",
+			"expected": "///<reference types=\"svelte\" />\n;function $$render() {\n\n\t let name: string/*Ωignore_startΩ*/;name = __sveltets_2_any(name);/*Ωignore_endΩ*/;\n\n/*Ωignore_startΩ*/;const __sveltets_createSlot = __sveltets_2_createCreateSlot();/*Ωignore_endΩ*/;\nasync () => {\n\n { __sveltets_createSlot(\"name\", { });}\n { __sveltets_createSlot(\"footer\", {  });}\n};\nreturn { props: {name: name} as {name: string}, slots: {'undefined': {}, 'footer': {}}, events: {} }}\n\nexport default class Slots__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_with_any_event($$render())) {\n}"
+		},
+		{
+			"id": "dts-version-4/legacy",
+			"options": {
+				"mode": "dts",
+				"namespace": "html",
+				"version": "4",
+				"filename": "legacy.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\texport let p = 1;\n\tlet n = 0;\n\t$: doubled = p * 2;\n</script>\n\n<b on:click={() => n++}>{n}{doubled}</b>\n",
+			"expected": "import { SvelteComponentTyped } from \"svelte\"\n\n;function $$render() {\n\n\t let p = 1;\n\tlet n = 0;\n\tlet  doubled = __sveltets_2_invalidate(() => p * 2);\n;\nasync () => {\n\n { svelteHTML.createElement(\"b\", {  \"on:click\":() => n++,});n;doubled; }\n};\nreturn { props: {p: p} as {p?: typeof p}, slots: {}, events: {} }}\nconst __propDef = __sveltets_2_with_any_event($$render());\nexport type LegacyProps = typeof __propDef.props;\nexport type LegacyEvents = typeof __propDef.events;\nexport type LegacySlots = typeof __propDef.slots;\n\nexport default class Legacy extends SvelteComponentTyped<LegacyProps, LegacyEvents, LegacySlots> {\n}"
+		},
+		{
+			"id": "dts-version-4/runes",
+			"options": {
+				"mode": "dts",
+				"namespace": "html",
+				"version": "4",
+				"filename": "runes.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\tlet { p = 1 }: { p?: number } = $props();\n\tlet n = $state(0);\n</script>\n\n<b onclick={() => n++}>{n}{p}</b>\n",
+			"expected": "import { SvelteComponentTyped } from \"svelte\"\n\n;\n;type $$ComponentProps =  { p?: number };function $$render() {\n\n\tlet { p = 1 }:/*Ωignore_startΩ*/$$ComponentProps/*Ωignore_endΩ*/ = $props();\n\tlet n = $state(0);\n;\nasync () => {\n\n { svelteHTML.createElement(\"b\", { \"onclick\":() => n++,});n;p; }\n};\nreturn { props: {} as Record<string, never>, slots: {}, events: {} }}\nconst __propDef = __sveltets_2_with_any_event($$render());\nexport type RunesProps = typeof __propDef.props;\nexport type RunesEvents = typeof __propDef.events;\nexport type RunesSlots = typeof __propDef.slots;\n\nexport default class Runes extends SvelteComponentTyped<RunesProps, RunesEvents, RunesSlots> {\n}"
+		},
+		{
+			"id": "dts-version-4/exports",
+			"options": {
+				"mode": "dts",
+				"namespace": "html",
+				"version": "4",
+				"filename": "exports.svelte",
+				"isTsFile": true
+			},
+			"source": "<!-- @component A documented component. -->\n<script lang=\"ts\">\n\texport let a: number;\n\texport const b = 2;\n\texport function c() {\n\t\treturn a;\n\t}\n</script>\n\n<p>{a}{b}</p>\n",
+			"expected": "import { SvelteComponentTyped } from \"svelte\"\n\n;function $$render() {\n\n\t let a: number/*Ωignore_startΩ*/;a = __sveltets_2_any(a);/*Ωignore_endΩ*/;\n\t const b = 2;\n\t function c() {\n\t\treturn a;\n\t}\n;\nasync () => {\n\n\n { svelteHTML.createElement(\"p\", {});a;b; }\n};\nreturn { props: {a: a , b: b , c: c} as {a: number, b?: typeof b, c?: typeof c}, slots: {}, events: {} }}\nconst __propDef = __sveltets_2_with_any_event($$render());\nexport type ExportsProps = typeof __propDef.props;\nexport type ExportsEvents = typeof __propDef.events;\nexport type ExportsSlots = typeof __propDef.slots;\n\n/** A documented component. */\nexport default class Exports extends SvelteComponentTyped<ExportsProps, ExportsEvents, ExportsSlots> {\n    get b() { return __sveltets_2_nonNullable(this.$$prop_def.b) }\n    get c() { return __sveltets_2_nonNullable(this.$$prop_def.c) }\n}"
+		},
+		{
+			"id": "dts-version-4/directives",
+			"options": {
+				"mode": "dts",
+				"namespace": "html",
+				"version": "4",
+				"filename": "directives.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\timport { fade } from 'svelte/transition';\n\texport let value = '';\n\texport let el: HTMLElement | null = null;\n\texport let tag = 'div';\n\tlet w = 0;\n\tfunction action(node: HTMLElement) {\n\t\treturn { destroy() {} };\n\t}\n</script>\n\n<svelte:window bind:innerWidth={w} />\n<input bind:value use:action transition:fade class:on={w > 0} />\n<svelte:element this={tag} bind:this={el}>{w}</svelte:element>\n",
+			"expected": "import { SvelteComponentTyped } from \"svelte\"\n\n;\nimport { fade } from 'svelte/transition';\nfunction $$render() {\n\n\t\n\t let value = '';\n\t let el: HTMLElement | null = null/*Ωignore_startΩ*/;el = __sveltets_2_any(el);/*Ωignore_endΩ*/;\n\t let tag = 'div';\n\tlet w = 0;\n\tfunction action(node: HTMLElement) {\n\t\treturn { destroy() {} };\n\t}\n;\nasync () => {\n\n { svelteHTML.createElement(\"svelte:window\", {  \"bind:innerWidth\":w,});/*Ωignore_startΩ*/() => w = __sveltets_2_any(null);/*Ωignore_endΩ*/}\n {const $$action_0 = __sveltets_2_ensureAction(action(svelteHTML.mapElementTag('input')));{ svelteHTML.createElement(\"input\", __sveltets_2_union($$action_0), {     \"bind:value\":value,});/*Ωignore_startΩ*/() => value = __sveltets_2_any(null);/*Ωignore_endΩ*/__sveltets_2_ensureTransition(fade(svelteHTML.mapElementTag('input')));w > 0;}}\n { const $$_svelteelement0 = svelteHTML.createElement(tag, {  });el = $$_svelteelement0;w; }\n};\nreturn { props: {value: value , el: el , tag: tag} as {value?: typeof value, el?: HTMLElement | null, tag?: typeof tag}, slots: {}, events: {} }}\nconst __propDef = __sveltets_2_with_any_event($$render());\nexport type DirectivesProps = typeof __propDef.props;\nexport type DirectivesEvents = typeof __propDef.events;\nexport type DirectivesSlots = typeof __propDef.slots;\n\nexport default class Directives extends SvelteComponentTyped<DirectivesProps, DirectivesEvents, DirectivesSlots> {\n}"
+		},
+		{
+			"id": "dts-version-4/jsdoc",
+			"options": {
+				"mode": "dts",
+				"namespace": "html",
+				"version": "4",
+				"filename": "jsdoc.svelte",
+				"isTsFile": false
+			},
+			"source": "<script>\n\texport let p = 1;\n\tlet n = 0;\n</script>\n\n<b on:click={() => n++}>{n}{p}</b>\n",
+			"expected": "import { SvelteComponentTyped } from \"svelte\"\n\n;function $$render() {\n\n\t let p = 1;\n\tlet n = 0;\n;\nasync () => {\n\n { svelteHTML.createElement(\"b\", {  \"on:click\":() => n++,});n;p; }\n};\nreturn { props: {p: p}, slots: {}, events: {} }}\nconst __propDef = __sveltets_2_partial(['p'], __sveltets_2_with_any_event($$render()));\n/** @typedef {typeof __propDef.props}  JsdocProps */\n/** @typedef {typeof __propDef.events}  JsdocEvents */\n/** @typedef {typeof __propDef.slots}  JsdocSlots */\n\nexport default class Jsdoc extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(['p'], __sveltets_2_with_any_event($$render()))) {\n}"
+		},
+		{
+			"id": "dts-version-4/slots",
+			"options": {
+				"mode": "dts",
+				"namespace": "html",
+				"version": "4",
+				"filename": "slots.svelte",
+				"isTsFile": true
+			},
+			"source": "<script lang=\"ts\">\n\texport let name: string;\n</script>\n\n<slot {name} />\n<slot name=\"footer\" />\n",
+			"expected": "import { SvelteComponentTyped } from \"svelte\"\n\n;function $$render() {\n\n\t let name: string/*Ωignore_startΩ*/;name = __sveltets_2_any(name);/*Ωignore_endΩ*/;\n;\nasync () => {\n\n { __sveltets_createSlot(\"name\", { });}\n { __sveltets_createSlot(\"footer\", {  });}\n};\nreturn { props: {name: name} as {name: string}, slots: {'undefined': {}, 'footer': {}}, events: {} }}\nconst __propDef = __sveltets_2_with_any_event($$render());\nexport type SlotsProps = typeof __propDef.props;\nexport type SlotsEvents = typeof __propDef.events;\nexport type SlotsSlots = typeof __propDef.slots;\n\nexport default class Slots extends SvelteComponentTyped<SlotsProps, SlotsEvents, SlotsSlots> {\n}"
+		}
+	]
+}

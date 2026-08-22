@@ -269,6 +269,7 @@ pub fn handle_component(
             in_component_slot: named_slot_close,
             tag_name: &comp.name,
             is_slot_tag: false,
+            preserve_bind: options.preserves_bind_prefix(),
         },
     );
     if spacing.in_attr_object > 0 {
@@ -612,6 +613,7 @@ pub fn handle_svelte_component(
         source,
         &counter.element_opener_comments,
         named_slot_close,
+        &options.typings_namespace,
     );
 
     // Add extra whitespace to match JS svelte2tsx position-preserving behavior
@@ -628,6 +630,7 @@ pub fn handle_svelte_component(
             in_component_slot: named_slot_close,
             tag_name: &comp.name,
             is_slot_tag: false,
+            preserve_bind: options.preserves_bind_prefix(),
         },
     );
     if scomp_spacing.in_attr_object > 0 {
@@ -973,6 +976,7 @@ pub fn handle_svelte_self(
             in_component_slot: named_slot_close,
             tag_name: &el.name,
             is_slot_tag: false,
+            preserve_bind: options.preserves_bind_prefix(),
         },
     );
     let props_inner = if prop_parts.is_empty() {

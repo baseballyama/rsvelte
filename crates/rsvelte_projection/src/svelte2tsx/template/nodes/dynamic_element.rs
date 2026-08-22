@@ -80,7 +80,7 @@ pub fn handle_svelte_dynamic_element(
     // In a named-slot context the `slot` attribute is consumed by the wrapper
     // block, so build the attributes without it.
     let attrs_str = if named_slot.is_some() {
-        build_named_slot_element_attrs(&el.attributes, source)
+        build_named_slot_element_attrs(&el.attributes, source, &options.typings_namespace)
     } else {
         build_attributes_string(
             &el.attributes,
@@ -88,6 +88,7 @@ pub fn handle_svelte_dynamic_element(
             &counter.element_opener_comments,
             saved_slot.is_some(),
             options.namespace.preserves_attribute_case(),
+            options.preserves_bind_prefix(),
         )
     };
 
@@ -111,6 +112,7 @@ pub fn handle_svelte_dynamic_element(
             in_component_slot: saved_slot.is_some(),
             tag_name: &el.name,
             is_slot_tag: false,
+            preserve_bind: options.preserves_bind_prefix(),
         },
     );
     // The slot-def block sits inside the opening tag's leading whitespace, so it
@@ -172,8 +174,12 @@ fn render_dynamic_element(
     str: &mut MagicString<'_>,
     counter: &mut Counter,
 ) {
-    let (directive_prefix, directive_suffix, action_count) =
-        build_directive_prefix_suffix(&el.attributes, input.source, &el.name);
+    let (directive_prefix, directive_suffix, action_count) = build_directive_prefix_suffix(
+        &el.attributes,
+        input.source,
+        &el.name,
+        &input.options.typings_namespace,
+    );
     let actions_arg = dynamic_action_arguments(action_count);
     let inner_close = if directive_prefix.is_empty() { "" } else { "}" };
     let attrs = format!("{}{}", " ".repeat(input.attribute_padding), input.attrs);
@@ -201,8 +207,8 @@ fn render_dynamic_element(
         &bind_suffix,
     );
     let create = format!(
-        " {element_var_decl}svelteHTML.createElement({}{actions_arg}, {{{attrs}}});{suffix}",
-        input.tag_text,
+        " {element_var_decl}{}.createElement({}{actions_arg}, {{{attrs}}});{suffix}",
+        input.options.typings_namespace, input.tag_text,
     );
     let inner_open = if directive_prefix.is_empty() { "" } else { "{" };
     if dynamic_element_is_self_closing(el, input.source) {

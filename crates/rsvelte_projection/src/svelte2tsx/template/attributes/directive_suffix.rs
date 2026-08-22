@@ -32,6 +32,7 @@ pub fn build_element_directive_suffix_segments(
     parent_tag: &str,
     use_ts_syntax: bool,
     tag: &str,
+    ns: &str,
 ) -> Vec<Seg> {
     let mut out: Vec<Seg> = Vec::new();
     for attr in attributes {
@@ -54,7 +55,7 @@ pub fn build_element_directive_suffix_segments(
                 });
                 segs_push_lit(
                     &mut out,
-                    &format_transition_directive_v4(&t.name, expr, tag),
+                    &format_transition_directive_v4(&t.name, expr, tag, ns),
                 );
             }
             Attribute::AnimateDirective(a) => {
@@ -66,7 +67,10 @@ pub fn build_element_directive_suffix_segments(
                         get_expression_text(e, source)
                     }
                 });
-                segs_push_lit(&mut out, &format_animate_directive_v4(&a.name, expr, tag));
+                segs_push_lit(
+                    &mut out,
+                    &format_animate_directive_v4(&a.name, expr, tag, ns),
+                );
             }
             Attribute::BindDirective(bind) => {
                 let s =
@@ -97,6 +101,7 @@ pub fn build_directive_prefix_suffix(
     attributes: &[Attribute],
     source: &str,
     tag: &str,
+    ns: &str,
 ) -> (String, String, usize) {
     let mut prefix = String::new();
     let mut suffix = String::new();
@@ -120,14 +125,14 @@ pub fn build_directive_prefix_suffix(
                 if let Some(expr_text) = expr {
                     let _ = write!(
                         prefix,
-                        "const {} = __sveltets_2_ensureAction({}(svelteHTML.mapElementTag('{}'),({})));",
-                        id, use_dir.name, tag, expr_text
+                        "const {} = __sveltets_2_ensureAction({}({}.mapElementTag('{}'),({})));",
+                        id, use_dir.name, ns, tag, expr_text
                     );
                 } else {
                     let _ = write!(
                         prefix,
-                        "const {} = __sveltets_2_ensureAction({}(svelteHTML.mapElementTag('{}')));",
-                        id, use_dir.name, tag
+                        "const {} = __sveltets_2_ensureAction({}({}.mapElementTag('{}')));",
+                        id, use_dir.name, ns, tag
                     );
                 }
             }
@@ -142,7 +147,7 @@ pub fn build_directive_prefix_suffix(
                         get_expression_text(e, source)
                     }
                 });
-                suffix.push_str(&format_transition_directive_v4(&t.name, expr, tag));
+                suffix.push_str(&format_transition_directive_v4(&t.name, expr, tag, ns));
             }
             Attribute::AnimateDirective(a) => {
                 // Preserve trailing TS postfix on param expression.
@@ -154,7 +159,7 @@ pub fn build_directive_prefix_suffix(
                         get_expression_text(e, source)
                     }
                 });
-                suffix.push_str(&format_animate_directive_v4(&a.name, expr, tag));
+                suffix.push_str(&format_animate_directive_v4(&a.name, expr, tag, ns));
             }
             _ => {}
         }
