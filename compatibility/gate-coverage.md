@@ -1151,7 +1151,7 @@ here. **[S]**
 
 ### Blind spot 5r — the `compiler-option` family compiles each case ONCE, and reads only `js.code`
 
-The family added for #3384 crosses 15 `compilerOptions` variants with 7 components, and the
+The family added for #3384 crosses 17 `compilerOptions` variants with 8 components, and the
 `baseline: {}` row is load-bearing rather than decorative: a cell's verdict is a *difference
 between two compilations*, so the un-perturbed one has to be one of them. Two of the twelve
 components in #3384's throwaway grid diverged with no options set at all, and without a baseline
@@ -1172,8 +1172,12 @@ process, not a compile). **[D]**
 **`css.code`.** The comparison reads `js.code`, the warning `code` multiset and the error `code`
 (5b). So `css: 'injected'` is observable only because the CSS lands *inside* `js.code`, and the
 `css-external` row compares the JS of a component whose CSS went to the other field — a row that
-is green about the option and silent about its output. #3226 (` ;}` where official emits `}` in
-the injected string) is visible here for that reason and would not be under `external`. **[S]**
+is green about the option and silent about its output. That asymmetry is what has left #3226
+ungated: `targets.mjs` never leaves `external`, so the minified string has never been compared by
+anything. It is compared here, and it is wrong in two ways at once — a declaration with no
+trailing `;` gets one appended with a leading space, and a nested rule doubles its opening brace,
+so `.a {color:red;&:hover {color:blue}}` comes out `.a {{color:red;;&:hover {color:blue ;}}`,
+which is not valid CSS. Under `external` none of that is observable at all. **[D]**
 
 **A function-valued option.** Upstream lets `css`, `customElement`, `runes`, `warningFilter` and
 `cssHash` take a callback (`validate-options.js` `parametric()` / `fun()`). The generator's
@@ -1189,11 +1193,20 @@ out `_unknown_` and the dev `[$.FILENAME]` assignment was still emitted, while r
 `Component` and dropped the assignment its own `add_locations` call then read. Every harness in
 the repo supplies a filename; absence is a configuration no gate constructs. **[D]**
 
-Two further limits worth stating so a green is not over-read. The component axis is one shape per
-option — an option crossed with a component it cannot act on is a clean cell that means clean
-about nothing (a `namespace: 'mathml'` row against a file with no MathML) — so the family
-measures *that* pairing, not the option's whole surface. And options are varied one at a time
-apart from `preserve-both`: an interaction between two options is unenumerated, which is the same
+**The component paired with an option, which is this family's version of "reaching an entry
+point is not discriminating".** The component axis is one shape per option, so an option crossed
+with a component it cannot act on is a clean cell that means clean about nothing (a
+`namespace: 'mathml'` row against a file with no MathML). #3384's own first run recorded
+`fragments: 'tree'` among the options that "came back clean" — and it is not clean: rsvelte's
+`objectify` collects with `filter_map`, so the `null` upstream returns for an anchor comment is
+**dropped** instead of printing as an array hole, and every later slot of the positionally-walked
+tree shifts down one (#3459). Its twelve components simply had no `{@render}` / `{@html}` /
+component tag / `{#await}` in them. This family's `props-and-slot` row does, which is the only
+reason the cell discriminates; nothing about declaring `fragments-tree` as a variant made it so.
+**[D]**
+
+One further limit worth stating so a green is not over-read: options are varied one at a time
+apart from `preserve-both`, so an interaction between two options is unenumerated — the same
 caution 5g records for its own single-axis rows. **[S]**
 
 **Closing 5b/5c:** the matrix costs ~25 s of CPU on ~10,200 comparisons (wall clock on a box

@@ -216,13 +216,13 @@ impl Template {
             );
         }
 
-        let elements: Vec<JsExpr> = self
-            .nodes
-            .iter()
-            .filter_map(|n| objectify(arena, n))
-            .collect();
+        // A data-less comment is an anchor: upstream's `objectify` returns
+        // `null` for it and `b.array` prints a hole, so dropping it would shift
+        // every later slot of the tree the runtime walks positionally.
+        let elements: Vec<Option<JsExpr>> =
+            self.nodes.iter().map(|n| objectify(arena, n)).collect();
 
-        b::array(elements)
+        b::array_with_holes(elements)
     }
 }
 
@@ -309,7 +309,7 @@ fn objectify(arena: &JsArena, item: &Node) -> Option<JsExpr> {
             .filter(|data| !data.is_empty())
             .map(|data| b::array(vec![b::string(format!("// {}", data))])),
         Node::Element(element) => {
-            let mut element_array = vec![b::string(element.name.clone())];
+            let mut element_array = vec![Some(b::string(element.name.clone()))];
 
             let mut attributes_props = Vec::new();
             for (key, value) in &element.attributes {
@@ -326,36 +326,39 @@ fn objectify(arena: &JsArena, item: &Node) -> Option<JsExpr> {
             let attributes = b::object(attributes_props);
 
             if has_attributes || !element.children.is_empty() {
-                element_array.push(if has_attributes {
+                element_array.push(Some(if has_attributes {
                     attributes
                 } else {
                     b::null()
-                });
+                }));
             }
 
             if !element.children.is_empty() {
-                let children: Vec<JsExpr> = element
+                let children: Vec<Option<JsExpr>> = element
                     .children
                     .iter()
-                    .filter_map(|n| objectify(arena, n))
+                    .map(|n| objectify(arena, n))
                     .collect();
 
                 // Special case — strip leading newline from `<pre>` and `<textarea>`
-                if (element.name == "pre" || element.name == "textarea") && !children.is_empty()
-                    && let Some(first) = children.first()
-                        && let JsExpr::Literal(lit) = first
-                            && let crate::compiler::phases::phase3_transform::js_ast::nodes::JsLiteral::String(s) = lit {
-                                let new_value = REGEX_LEADING_NEWLINE.replace(s, "").to_string();
-                                let mut modified_children = children.clone();
-                                modified_children[0] = b::string(new_value);
-                                element_array.extend(modified_children);
-                                return Some(b::array(element_array));
-                            }
+                if (element.name == "pre" || element.name == "textarea")
+                    && let Some(Some(JsExpr::Literal(
+                        crate::compiler::phases::phase3_transform::js_ast::nodes::JsLiteral::String(
+                            s,
+                        ),
+                    ))) = children.first()
+                {
+                    let new_value = REGEX_LEADING_NEWLINE.replace(s, "").to_string();
+                    let mut modified_children = children.clone();
+                    modified_children[0] = Some(b::string(new_value));
+                    element_array.extend(modified_children);
+                    return Some(b::array_with_holes(element_array));
+                }
 
                 element_array.extend(children);
             }
 
-            Some(b::array(element_array))
+            Some(b::array_with_holes(element_array))
         }
     }
 }

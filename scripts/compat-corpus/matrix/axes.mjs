@@ -1899,9 +1899,9 @@ export const WRITE_PREAMBLE = `<script>
  *
  * `baseline` is not decoration and must stay first: a cell's verdict is a
  * difference between two compilations, so the un-perturbed one has to be one of
- * them. Two of the components below diverge with no options set at all, and
- * without the baseline row those two read as a divergence under every option —
- * 38 of that first run's 85 keys were that one artefact.
+ * them. Two of the twelve components in that throwaway grid diverged with no
+ * options set at all, and without a baseline row those two read as a divergence
+ * under every option — 38 of its 85 keys were that one artefact.
  *
  * `no-filename` spells the absence as an explicit `undefined`, because the
  * runner always seeds `filename` from the case id and `Object.assign` is what
@@ -1911,10 +1911,12 @@ export const WRITE_PREAMBLE = `<script>
 export const COMPILER_OPTIONS = {
 	baseline: {},
 	'runes-true': { runes: true },
+	'runes-false': { runes: false },
 	accessors: { accessors: true },
 	immutable: { immutable: true },
 	'custom-element': { customElement: true },
 	'css-external': { css: 'external' },
+	'css-injected': { css: 'injected' },
 	'namespace-svg': { namespace: 'svg' },
 	'namespace-mathml': { namespace: 'mathml' },
 	'preserve-comments': { preserveComments: true },
@@ -1927,10 +1929,16 @@ export const COMPILER_OPTIONS = {
 };
 
 /**
- * Axis — the component the option acts on. An option crossed with a component it
- * cannot affect measures nothing: a `namespace: 'mathml'` row against a file with
- * no MathML in it is a clean cell that means clean about nothing. One shape per
- * option, crossed with every option so a shape stays comparable across them.
+ * Axis — the component the option acts on. An option crossed with a source it
+ * cannot act on is a clean cell that means clean about nothing (a
+ * `namespace: 'mathml'` row against a file with no MathML), so each shape here is
+ * chosen for a specific option and then crossed with every option, which keeps a
+ * shape comparable across them.
+ *
+ * `props-and-slot` carries a `{@render}` for a reason that only showed up once
+ * the family ran: an anchor is what `fragments: 'tree'` has to represent as an
+ * array hole, and #3384's own grid scored that option clean because none of its
+ * twelve components had one (#3459).
  */
 export const COMPILER_OPTION_COMPONENTS = {
 	'state-style': `<script>
@@ -1970,5 +1978,20 @@ export const COMPILER_OPTION_COMPONENTS = {
 </script>
 
 <b>{value}{@render children?.()}</b>
+`,
+	// `state-style` ends its declaration with a `;`, which is the spelling the
+	// minifier already agrees on — so it says nothing about `css: 'injected'`.
+	// This one omits it and nests, which is what the injected string is actually
+	// built from (#3226).
+	'style-nested': `<b class="a">y</b>
+
+<style>
+	.a {
+		color: red;
+		&:hover {
+			color: blue
+		}
+	}
+</style>
 `,
 };
