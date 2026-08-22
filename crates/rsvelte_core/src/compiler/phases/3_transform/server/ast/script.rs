@@ -427,7 +427,13 @@ fn place_on_region(
     } else {
         stmt.start
     };
-    let base = register_comment_region(registry, src, all, prev_end, region_end)?;
+    let Some(base) = register_comment_region(registry, src, all, prev_end, region_end) else {
+        // Upstream keeps every source node's `loc`, so a location-less body it
+        // prints before a later comment re-syncs esrap's cursor instead of
+        // killing it. A statement that owns no comment still has to hold that
+        // position for the template expressions printed after it.
+        return place_on_position(registry, src, prev_end, stmt, verbatim);
+    };
     Some(match verbatim {
         Some(v) => comments::Place::Shift(base + reparse_origin(src, v.start, v.end) - prev_end),
         None => comments::Place::At(base + stmt.start - prev_end),

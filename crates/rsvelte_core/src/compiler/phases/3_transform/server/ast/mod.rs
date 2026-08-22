@@ -228,6 +228,14 @@ pub struct ServerTransformState<'a> {
     /// Comments trailing direct block-bodied legacy `$:` statements. Their final
     /// anchor is decided after the reordered script body is assembled.
     pub pending_reactive_comments: Vec<PendingReactiveComment>,
+    /// Comments from a template expression the transform dropped (a constant
+    /// fold). Upstream keeps ONE esrap cursor over the file, so they flush at
+    /// the next located node instead of disappearing with the expression.
+    pub pending_template_comments: Option<PendingTemplateComments>,
+    /// Upstream copies the instance script's `loc` onto the component block
+    /// (`component_block.loc = instance.loc`); with no `<script>` there is none
+    /// to copy, and esrap's `reset_comment_index` then discards the whole list.
+    pub has_instance_script: bool,
     /// Set when [`Self::reparse_program`] rejected text this compiler generated.
     /// The instance body cannot be reconstructed after that, so assembly aborts
     /// instead of shipping a component whose `<script>` silently did nothing.
@@ -263,6 +271,16 @@ pub struct PendingReactiveComment {
     suffix: String,
     comments: Vec<Comment>,
     replay_at_tail: bool,
+}
+
+/// Comments carried out of a template expression the transform dropped, kept
+/// with the source offset the replay buffer must be cut from so the line and
+/// column geometry esrap places them by is the source's own.
+pub struct PendingTemplateComments {
+    /// Absolute source offset the buffer slice starts at.
+    start: u32,
+    /// Comments with absolute source spans.
+    comments: Vec<Comment>,
 }
 
 /// The precomputed inputs to the SSR constant-folding evaluator
@@ -327,6 +345,8 @@ impl<'a> ServerTransformState<'a> {
             current_scope_index: analysis.root.instance_scope_index,
             comments: comments::ChunkRegistry::default(),
             pending_reactive_comments: Vec::new(),
+            pending_template_comments: None,
+            has_instance_script: false,
             reparse_failure: std::cell::RefCell::new(None),
         }
     }
@@ -356,6 +376,128 @@ impl<'a> ServerTransformState<'a> {
             comments,
             replay_at_tail: false,
         });
+    }
+
+    /// JS comments written inside the template-expression region
+    /// `[start, end)`, with absolute source spans. `None` when the region holds
+    /// none, or when it does not re-parse as an expression.
+    fn template_region_comments(&self, start: u32, end: u32) -> Option<Vec<Comment>> {
+        let (s, e) = (start as usize, end as usize);
+        if e <= s || e > self.source.len() {
+            return None;
+        }
+        let slice = &self.source[s..e];
+        if !slice.contains("//") && !slice.contains("/*") {
+            return None;
+        }
+        let allocator = Allocator::default();
+        let wrapped = format!("({slice})");
+        let ret = oxc_parser::Parser::new(
+            &allocator,
+            &wrapped,
+            oxc_span::SourceType::mjs().with_typescript(true),
+        )
+        .parse();
+        if !ret.diagnostics.is_empty() || ret.program.comments.is_empty() {
+            return None;
+        }
+        Some(
+            ret.program
+                .comments
+                .iter()
+                .map(|comment| {
+                    let mut comment = *comment;
+                    // The `(` wrapper shifts every offset by one.
+                    comment.span = oxc_span::Span::new(
+                        comment.span.start + start - 1,
+                        comment.span.end + start - 1,
+                    );
+                    comment
+                })
+                .collect(),
+        )
+    }
+
+    /// The transform dropped this template expression, so whatever it carried
+    /// waits for the next located node the printer reaches.
+    pub fn defer_template_expression_comments(&mut self, region: (u32, u32)) {
+        let Some(comments) = self.template_region_comments(region.0, region.1) else {
+            return;
+        };
+        match &mut self.pending_template_comments {
+            Some(pending) => pending.comments.extend(comments),
+            None => {
+                self.pending_template_comments = Some(PendingTemplateComments {
+                    start: region.0,
+                    comments,
+                });
+            }
+        }
+    }
+
+    /// Register the comments written inside a template expression's braces —
+    /// plus any left over from an expression that folded away — and stamp
+    /// `expr` at the offset the source puts the expression at, so esrap's
+    /// cursor flushes them exactly where upstream's does.
+    pub fn place_template_expression_comments(
+        &mut self,
+        region: (u32, u32),
+        expr_span: (u32, u32),
+        expr: &mut OxcExpression<'a>,
+    ) {
+        let (expr_start, expr_end) = expr_span;
+        let own = self.template_region_comments(region.0, region.1);
+        let pending = self.pending_template_comments.take();
+        if own.is_none() && pending.is_none() {
+            return;
+        }
+        // The buffer is a verbatim source slice, so the line/column distances
+        // esrap measures between a comment and its anchor are the source's.
+        let start = pending.as_ref().map_or(region.0, |p| p.start);
+        let end = region.1.max(expr_end);
+        let (s, e) = (start as usize, end as usize);
+        if e <= s || e > self.source.len() || expr_start < start {
+            return;
+        }
+        let mut comments: Vec<Comment> = pending.map(|p| p.comments).unwrap_or_default();
+        comments.extend(own.into_iter().flatten());
+        // The whole expression is stamped at ONE address, so only a comment
+        // outside it lands where upstream puts it; an interior one would be
+        // pushed past the node it was written inside.
+        comments.retain(|comment| {
+            comment.span.start >= start
+                && comment.span.end <= end
+                && (comment.span.end <= expr_start || comment.span.start >= expr_end)
+        });
+        if comments.is_empty() {
+            return;
+        }
+        for comment in &mut comments {
+            comment.span =
+                oxc_span::Span::new(comment.span.start - start, comment.span.end - start);
+        }
+        let text = &self.source[s..e];
+        if let Some(base) = self.comments.register_expression(text, &comments) {
+            let mut place = comments::Place::At(base + (expr_start - start));
+            place.visit_expression(expr);
+        }
+    }
+
+    /// [`Self::visit_expr`] for an `{ … }` tag, carrying whatever comments were
+    /// written inside the braces.
+    pub fn visit_expression_tag(
+        &mut self,
+        tag: &crate::ast::template::ExpressionTag,
+    ) -> OxcExpression<'a> {
+        let mut visited = self.visit_expr(&tag.expression);
+        if let (Some(start), Some(end)) = (tag.expression.start(), tag.expression.end()) {
+            self.place_template_expression_comments(
+                (tag.start + 1, tag.end - 1),
+                (start, end),
+                &mut visited,
+            );
+        }
+        visited
     }
 
     pub fn mark_deferred_reactive_comment_landed(&mut self, index: usize) {
@@ -1107,6 +1249,7 @@ pub fn server_component_ast<'a>(
     allocator: &'a Allocator,
 ) -> Result<String, String> {
     let mut state = ServerTransformState::new(analysis, options, source, &ast.arena, allocator);
+    state.has_instance_script = ast.instance.is_some();
 
     // Precompute the SSR constant-folding inputs (`constant_vars` /
     // `use_async` / `top_level_blocker_map`) via the standalone
@@ -1378,7 +1521,9 @@ pub fn server_component_ast<'a>(
         // ($$renderer) => { <block_body> }
         let inner_params = b.params(vec![b.id_pat("$$renderer")], None);
         let mut inner_body = b.body(block_body);
-        comments::mark_component_body(&mut inner_body);
+        if state.has_instance_script {
+            comments::mark_component_body(&mut inner_body);
+        }
         let arrow = b.arrow(inner_params, inner_body, false, false);
         // 2nd arg: `dev && component_name` → the bare identifier in dev, omitted
         // (no 2nd arg) otherwise.
@@ -1505,7 +1650,7 @@ pub fn server_component_ast<'a>(
         b.params(vec![b.id_pat("$$renderer")], None)
     };
     let mut fn_body = b.body(final_body);
-    if !should_inject_context {
+    if !should_inject_context && state.has_instance_script {
         comments::mark_component_body(&mut fn_body);
     }
     let component_fn = b.function_declaration(component_name, params, fn_body, false);
