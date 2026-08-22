@@ -183,7 +183,13 @@ impl NapiParseOptions {
 )]
 #[napi(js_name = "parse", catch_unwind)]
 pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Result<String> {
-    use rsvelte_core::compiler::phases::phase1_parse::{ParseOptions, parse as rust_parse};
+    use rsvelte_core::compiler::phases::phase1_parse::{
+        ParseOptions, parse as rust_parse, remove_bom,
+    };
+
+    // Upstream strips it before the parser (and before the locator), so every
+    // position below has to be relative to the trimmed source too.
+    let source = remove_bom(&source);
 
     if options
         .as_ref()
@@ -210,13 +216,13 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
         capture_comments: true,
         ..ParseOptions::default()
     };
-    match rust_parse(&source, &rsvelte_core::Allocator::default(), parse_options) {
+    match rust_parse(source, &rsvelte_core::Allocator::default(), parse_options) {
         Ok(ast) => {
             // Spans are UTF-16 code-unit offsets to match svelte/compiler
             // (#793). ASCII source needs no remap — keep the fast path.
             let remap = |mut value: serde_json::Value| {
                 if !source.is_ascii() {
-                    let conv = rsvelte_core::compiler::legacy::Utf8ToUtf16::new(&source);
+                    let conv = rsvelte_core::compiler::legacy::Utf8ToUtf16::new(source);
                     rsvelte_core::compiler::legacy::convert_positions_to_utf16(&mut value, &conv);
                 }
                 serde_json::to_string(&value)
@@ -236,9 +242,11 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
                     )
                 })
             } else {
-                // `convert_to_legacy` consumes the AST and installs the
-                // serialize arena itself.
-                remap(rsvelte_core::convert_to_legacy(&source, ast))
+                // `convert_to_legacy` consumes the AST, installs the serialize
+                // arena itself, and runs the UTF-16 conversion on its own output
+                // — remapping it again converts every position twice.
+                serde_json::to_string(&rsvelte_core::convert_to_legacy(source, ast))
+                    .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")))
             }
         }
         Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
@@ -264,8 +272,11 @@ pub fn napi_parse_envelope(
     source: String,
     options: Option<NapiParseOptions>,
 ) -> napi::Result<Buffer> {
-    use rsvelte_core::compiler::phases::phase1_parse::{ParseOptions, parse as rust_parse};
+    use rsvelte_core::compiler::phases::phase1_parse::{
+        ParseOptions, parse as rust_parse, remove_bom,
+    };
 
+    let source = remove_bom(&source);
     let parse_options = ParseOptions {
         skip_expression_loc: NapiParseOptions::flag(
             options
@@ -280,7 +291,7 @@ pub fn napi_parse_envelope(
         options.as_ref().and_then(|o| o.skip_css_ast.as_ref()),
         "skipCssAst",
     )?;
-    let ast = rust_parse(&source, &rsvelte_core::Allocator::default(), parse_options)
+    let ast = rust_parse(source, &rsvelte_core::Allocator::default(), parse_options)
         .map_err(|e| napi::Error::from_reason(format!("{e:?}")))?;
     // napi-rs's `Vec<u8> → Buffer` conversion is already zero-copy
     // (V8 adopts the `Vec`'s allocation); a bumpalo-backed variant
@@ -289,7 +300,7 @@ pub fn napi_parse_envelope(
     // `Vec::reserve` calls for envelopes that fit in a single growth
     // step.
     let buf = rsvelte_bindings_support::napi_raw_parse::encode_root_to_vec_with_flags(
-        &ast, &source, skip_loc, skip_css,
+        &ast, source, skip_loc, skip_css,
     );
     Ok(buf.into())
 }

@@ -3123,7 +3123,7 @@ parsed by the official compiler and by rsvelte's NAPI `parse`, under `{ modern: 
 the default (legacy) shape, diffed as JSON after a `JSON.parse(JSON.stringify(...))` round-trip on
 both sides. A divergence is keyed by *class* — the JSON path with array indices collapsed plus how
 it differs — so one ratchet entry is one (file, mode, field-class). Shrink-only, two-sided,
-`compatibility/parse-ast-known-failures.json` (2329 entries, justified per cause in the paired
+`compatibility/parse-ast-known-failures.json` (1365 entries, justified per cause in the paired
 `.md`).
 
 **Why it exists.** `parse()` is a public, documented export of `svelte/compiler`, and until this
@@ -3181,6 +3181,54 @@ It loads `.corpus-cache/rsvelte.node` if present, else the platform package's `r
 exits **2** when neither exists. Unlike `verify.mjs` it does **not** call
 `unattributedBindingReason`, so a binding built before the change under test loads and every entry
 it produces describes that older tree.
+
+---
+
+## 40. Leading BOM — `scripts/dev/test-parse-bom.mjs`
+
+**Unit.** One (source, mode) pair, run twice: the source alone and the source prefixed with
+U+FEFF, each compared between official's `parse()` and rsvelte's NAPI `parse` after a JSON
+round-trip on both sides. Ten sources × two AST modes. Hard gate, no ratchet.
+
+**Why it exists.** Upstream calls `remove_bom` at all four public entry points
+(`compiler/index.js` lines 24, 70, 118, 132), so a BOM never reaches the parser and every position
+upstream reports is relative to the trimmed text. rsvelte kept it, and **no gate could see that**:
+the collected corpus is published code (checked in without a BOM), the generated matrix builds its
+sources in JS string literals, and the pattern corpus is written by hand. "Does this file start
+with a BOM" was a **constant 0 across all ~39 gates** — the "what did the checkout provide that
+the sources did not" shape, inverted: here the sources provide something no gate varies.
+
+**[D] The control row is what earns the pairing.** The without-BOM row is not padding: a BOM row
+that matches proves nothing if the same source diverges anyway. On this gate's first run the
+control caught a defect its subject could not — `<p>日本語 {a}</p>` in legacy mode reported
+`html.end` 8 where official says 14, because the NAPI legacy path ran
+`convert_positions_to_utf16` on a value `convert_to_legacy` had already converted. **That one fix
+removed 964 entries from the parse-AST ratchet** (2329 → 1365), none of which had anything to do
+with a BOM.
+
+### 40a — `compile` and `compileModule` are not in the population — [S]
+
+The gate drives `parse` only. The compile half of the same upstream call is #3277 / PR #3374,
+covered by `crates/rsvelte_core/tests/leading_bom_3277.rs`; `parseCss` is exposed by neither.
+
+### 40b — one BOM, at offset 0 — [S]
+
+U+FEFF anywhere else is legal content and upstream keeps it; the gate never places one there, so a
+scanner that strips *every* U+FEFF rather than one leading one passes here. `rsvelte_lint`'s
+`prefer-class-directive` already had a U+FEFF whitespace divergence of exactly that kind, and it
+is on a different gate.
+
+### 40c — ten hand-written sources — [S]
+
+The axis is varied; the *source* population is a list in the file, not a corpus. A BOM interacting
+with a construct nobody listed (a `{#snippet}`, `<svelte:options>`, a preprocessor comment) is not
+measured. Ten × two is small enough to read, which is the trade.
+
+### 40d — it compares `parse` output, not the compiler's — [S]
+
+A BOM that survived into `compile()`'s *output* would be reported by the corpus gate only if a
+corpus source carried one, which none does. The gate above and this one bound different things,
+and neither covers the wasm `parse_svelte` (fixed in the same change, compared by nothing).
 
 ---
 

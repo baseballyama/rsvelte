@@ -297,6 +297,17 @@ where
         .collect()
 }
 
+/// Drop a leading byte order mark. Upstream's `compiler/index.js` calls this at
+/// every public entry (`compile`, `compileModule`, `parse`, `parseCss`) before
+/// anything sees the source, so every position it reports is relative to the
+/// trimmed text. Deliberately *not* called inside [`parse`]: the formatter and
+/// the linter parse a string they also slice, and stripping under them would
+/// shift every span they hold by three bytes.
+#[must_use]
+pub fn remove_bom(source: &str) -> &str {
+    source.strip_prefix('\u{feff}').unwrap_or(source)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

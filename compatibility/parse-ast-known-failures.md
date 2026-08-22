@@ -1,6 +1,6 @@
 # `parse()` AST parity — known failures
 
-`parse-ast-known-failures.json` holds 2329 entries — the shrink-only ratchet for
+`parse-ast-known-failures.json` holds 1365 entries — the shrink-only ratchet for
 `scripts/compat-corpus/parse-ast-verify.mjs`, which diffs official's `parse()` output against
 rsvelte's NAPI `parse()` over every `.svelte` file in `compatibility/pattern-corpus/`, under
 `{ modern: true }` and under the default (legacy) shape.
@@ -18,16 +18,18 @@ The three defects the first hand-run of that probe found — #3385 (`modern` / `
 #3386 (`Root.end` stops at the last non-whitespace byte) and #3387 (comments never reach
 statements) — are **fixed in the same PR that adds this gate**, so they are not in the counts
 below. The gate's own first finding, #3489 (`loc.character` on exactly the wrong nodes, 392
-entries), was fixed next and is likewise gone from them.
+entries), was fixed next and is likewise gone from them — as is #3488, whose gate's *control*
+row caught a double UTF-16 conversion on the legacy `parse()` path that accounted for another 964
+entries.
 
-**The unit is not the entry.** 1282 (file, mode) pairs are compared; **395** of them diverge in
-at least one class, and those 395 produce the 2329 class instances. A single root cause can
+**The unit is not the entry.** 1282 (file, mode) pairs are compared; **378** of them diverge in
+at least one class, and those 378 produce the 1365 class instances. A single root cause can
 therefore hold hundreds of entries, which is why the partition below is by cause rather than by
 count of files.
 
-Partition of `parse-ast-known-failures.json` by cause: `1395 + 681 + 201 + 24 + 13 + 10 + 5`
+Partition of `parse-ast-known-failures.json` by cause: `725 + 422 + 169 + 24 + 13 + 10 + 2`
 
-## 1. Template nodes — 1395
+## 1. Template nodes — 725
 
 Everything under `.fragment` (modern) or `.html` (legacy) that is not a `loc.*.character`
 difference. The identified sub-causes, largest first:
@@ -43,7 +45,7 @@ difference. The identified sub-causes, largest first:
 - node `start` / `end` drift inside `{#if}` / `{#each}` bodies, and the expression spans within
   them.
 
-## 2. Script nodes — 681
+## 2. Script nodes — 422
 
 Everything under `.instance` / `.module` other than a `body:length` (cluster 5) or a
 `loc.*.character` (cluster 3). It is dominated by two shapes:
@@ -55,7 +57,7 @@ Everything under `.instance` / `.module` other than a `body:length` (cluster 5) 
   on a `function` statement, a missing `returnType`. The linter and svelte2tsx read the same
   serialized program, so these are not parse-only.
 
-## 3. CSS — 201
+## 3. CSS — 169
 
 `.css` subtree shape: `prelude.children[].children[].args` and `selectors` on `:is()` / `:where()`
 argument lists, a `type` that differs on the same node, and `.css.comments[].position`. The CSS
@@ -83,14 +85,15 @@ in phase 1 upstream that rsvelte raises in phase 2, so anything that parses with
 a valid tree. There are **no** `<rejected-by:rsvelte>` entries: the gate has never seen rsvelte
 reject a source official accepts.
 
-## 7. Root-level comments — 5
+## 7. Root-level comments — 2
 
 `._comments` / `.comments` array length and span differences left after #3387, on files where a
 comment sits in a position neither walk reaches.
 
 ---
 
-**Mode split:** 1663 of the 2329 entries are `legacy`, 666 are `modern`. The legacy shape is what
-`parse()` returns **by default**, and it is the more divergent of the two — the reverse of what
-the effort so far assumed, because `convert_to_legacy` is only exercised by 81 upstream fixtures
-while the modern AST is what every internal consumer reads.
+**Mode split:** 699 of the 1365 entries are `legacy`, 666 are `modern`. The legacy shape is what `parse()`
+returns **by default**. It led the modern shape by more than 2:1 until #3488's fix; almost all of
+that lead was one defect (positions converted to UTF-16 twice on non-ASCII sources), and the two
+shapes are now level. A large per-mode imbalance is worth treating as one cause until it is
+enumerated, not as evidence that a whole conversion is weaker.
