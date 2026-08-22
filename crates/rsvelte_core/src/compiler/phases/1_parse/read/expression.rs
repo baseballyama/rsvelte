@@ -6767,6 +6767,11 @@ pub struct ProgramParseParams<'source, 'context> {
     pub line_offsets: &'context [usize],
     /// Set to true if the script contains TypeScript.
     pub is_typescript: bool,
+    /// Whether this is a component `<script>` rather than a standalone module.
+    /// Upstream passes the same flag to `acorn.parse`, which uses it to clear
+    /// `undefinedExports` — an exported name may be declared elsewhere in the
+    /// component, so only a module raises `Export 'x' is not defined`.
+    pub is_script: bool,
     /// HTML comments that appeared before the script tag.
     pub leading_comments: &'context [String],
     /// Positions for loc calculation (Svelte uses locator(start) for
@@ -7047,6 +7052,7 @@ fn convert_parsed_program<'ast>(
         offset,
         line_offsets,
         is_typescript,
+        is_script,
         leading_comments,
         script_tag_start,
         script_tag_end,
@@ -7069,15 +7075,27 @@ fn convert_parsed_program<'ast>(
                 crate::error::ParseError::svelte("js_parse_error", message, (pos, pos))
             });
 
-        if parse_error.is_none()
-            && let Some((at, message)) = acorn_only_violation(program, content, is_typescript)
-        {
-            let pos = at as usize + offset;
-            parse_error = Some(crate::error::ParseError::svelte(
-                "js_parse_error",
-                message,
-                (pos, pos),
-            ));
+        if parse_error.is_none() {
+            // An early error needs the enclosing scope, so it comes from a
+            // `SemanticBuilder` run rather than from the walk; acorn checks both
+            // while parsing and stops at whichever comes first. This is the only
+            // caller that may run it — the per-expression paths above parse a
+            // fragment with no enclosing class or loop.
+            let earliest = [
+                acorn_only_violation(program, content, is_typescript),
+                super::early_errors::find_early_error(program, content, is_script),
+            ]
+            .into_iter()
+            .flatten()
+            .min_by_key(|(at, _)| *at);
+            if let Some((at, message)) = earliest {
+                let pos = at as usize + offset;
+                parse_error = Some(crate::error::ParseError::svelte(
+                    "js_parse_error",
+                    message,
+                    (pos, pos),
+                ));
+            }
         }
 
         // Calculate actual positions within the document
