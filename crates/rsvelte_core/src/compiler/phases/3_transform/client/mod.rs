@@ -4452,20 +4452,15 @@ fn transform_module_script_runes_with_target(
                     );
                     continue;
                 }
-                // Remove leading whitespace on the same line
-                let mut start = pos;
-                while start > 0 && matches!(result.as_bytes()[start - 1], b' ' | b'\t') {
-                    start -= 1;
-                }
-                // Consume optional trailing semicolon then newline
+                // Statement position: upstream substitutes an `EmptyStatement`
+                // for the call and keeps the statement's own `;`, which esrap
+                // prints as `;;` where the call stood — at whatever nesting it
+                // had. Deleting the line instead loses both.
                 let mut end = pos + total_call_len;
                 while end < result.len() && result.as_bytes()[end] == b';' {
                     end += 1;
                 }
-                if end < result.len() && result.as_bytes()[end] == b'\n' {
-                    end += 1;
-                }
-                result = format!("{}{}", &result[..start], &result[end..]);
+                result = format!("{};;{}", &result[..pos], &result[end..]);
             } else {
                 break;
             }
