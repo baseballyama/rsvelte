@@ -23,6 +23,7 @@ mod effect_rune_ast;
 pub(crate) mod expression_utils;
 mod formatting;
 mod inspect_rune_ast;
+mod inspect_trace_ast;
 mod instance_dev_tail_ast;
 mod legacy_state_member_mutate_ast;
 mod local_assign_ast;
@@ -267,6 +268,17 @@ pub fn transform_client_module(
             },
         ));
     }
+
+    // `$inspect.trace()`'s default label carries `locate_node(fn)`, a position
+    // in the source the user wrote, so the rune is lowered before any other
+    // rewrite moves its enclosing function.
+    let trace_lowered = inspect_trace_ast::transform_module_inspect_trace(
+        source,
+        options.dev,
+        analysis.filename.ends_with(".ts"),
+        options.filename.as_deref(),
+    );
+    let source = trace_lowered.as_deref().unwrap_or(source);
 
     // Drop the comments upstream's synthesized accessors swallow before any
     // rewrite, so the scan still sees the source's own class bodies.
@@ -4395,26 +4407,27 @@ fn transform_module_script_runes_with_target(
         }
     }
 
-    // In non-dev mode, remove $inspect.trace(...) statements from module scripts.
-    // Mirrors the same logic in rune_transforms.rs for instance scripts.
+    // The AST lowering above answers for a `.svelte.(js|ts)` module's *client*
+    // output; every other target still reaches this function with the rune
+    // intact, so the non-dev removal stays. `find_code` rather than a plain
+    // byte search: the same bytes inside a string literal are not the rune.
     if !dev {
-        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect.trace(") {
+        while let Some(pos) = find_code(result.as_bytes(), b"$inspect.trace(") {
             let trace_start = pos + b"$inspect.trace(".len();
-            if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
-                let mut end = trace_start + content_end + 1;
-                while end < result.len()
-                    && matches!(result.as_bytes()[end], b';' | b' ' | b'\t' | b'\n' | b'\r')
-                {
-                    end += 1;
-                }
-                let mut start = pos;
-                while start > 0 && matches!(result.as_bytes()[start - 1], b' ' | b'\t') {
-                    start -= 1;
-                }
-                result = format!("{}{}", &result[..start], &result[end..]);
-            } else {
+            let Some(content_end) = find_matching_paren(&result[trace_start..]) else {
                 break;
+            };
+            let mut end = trace_start + content_end + 1;
+            while end < result.len()
+                && matches!(result.as_bytes()[end], b';' | b' ' | b'\t' | b'\n' | b'\r')
+            {
+                end += 1;
             }
+            let mut start = pos;
+            while start > 0 && matches!(result.as_bytes()[start - 1], b' ' | b'\t') {
+                start -= 1;
+            }
+            result = format!("{}{}", &result[..start], &result[end..]);
         }
     }
 

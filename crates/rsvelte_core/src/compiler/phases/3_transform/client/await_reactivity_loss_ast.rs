@@ -134,6 +134,13 @@ fn is_async_derived_call(expr: &Expression<'_>) -> bool {
     is_internal_call(expr, "async_derived")
 }
 
+/// `$inspect.trace()`'s wrapper. Upstream's `BlockStatement` visitor builds
+/// `b.await(call)` *after* visiting the body, so the `await` it synthesizes
+/// never reaches the `AwaitExpression` visitor.
+fn is_trace_call(expr: &Expression<'_>) -> bool {
+    is_internal_call(expr, "trace")
+}
+
 pub(super) fn is_save_call(expr: &Expression<'_>) -> bool {
     is_internal_call(expr, "save")
 }
@@ -407,6 +414,7 @@ impl<'a, 'src> Visit<'a> for AwaitCollector<'src> {
         if is_track_reactivity_loss_call(&expr.argument)
             || is_async_derived_call(&expr.argument)
             || is_save_call(&expr.argument)
+            || is_trace_call(&expr.argument)
             || is_destructuring_iife_call(&expr.argument)
             || self.ignored.contains(expr.span.start)
         {
