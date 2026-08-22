@@ -4,11 +4,11 @@
 </script>
 
 {#snippet outer(label)}
+	<b>{label}</b>
 	{#snippet inner(label)}
 		<i>{label}</i>
 	{/snippet}
 	{@render inner(label + '!')}
-	{@render inner(label)}
 {/snippet}
 
 {#each items as item (item.id)}
