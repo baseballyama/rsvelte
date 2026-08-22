@@ -5097,13 +5097,23 @@ fn starts_with_else_keyword(line: &str) -> bool {
     })
 }
 
+/// A top-level `$:` label, which is what the legacy pipeline rewrites.
+fn is_legacy_reactive_label(statement: &oxc_ast::ast::Statement<'_>) -> bool {
+    matches!(
+        statement,
+        oxc_ast::ast::Statement::LabeledStatement(labeled) if labeled.label.name == "$"
+    )
+}
+
 /// Makes an AST statement boundary visible to the legacy per-line pipeline.
 ///
-/// The pipeline historically treated each physical line as one statement. That
-/// lets an `export let` rewrite consume a following declaration on the same
-/// line. We use the parser's top-level statement spans rather than scanning
-/// for semicolons, whose grammar is precisely what this path must not infer.
-fn separate_same_line_legacy_export_declarations<'a>(
+/// The pipeline treats each physical line as one statement, and it reads a line
+/// as `\n`-delimited text. So two top-level statements reach it as one whenever
+/// they share a line — and also when the only thing between them is a CR or a
+/// U+2028 / U+2029, which end a line in ECMAScript but not in `str::lines`. We
+/// use the parser's top-level statement spans rather than scanning for
+/// semicolons, whose grammar is precisely what this path must not infer.
+fn separate_same_line_top_level_statements<'a>(
     script: &'a str,
     is_typescript: bool,
 ) -> Cow<'a, str> {
@@ -5111,7 +5121,9 @@ fn separate_same_line_legacy_export_declarations<'a>(
     use oxc_parser::Parser;
     use oxc_span::{GetSpan as _, SourceType};
 
-    if !script.contains("export let ") && !script.contains("export var ") {
+    let has_export = script.contains("export let ") || script.contains("export var ");
+    let has_label = memmem::find(script.as_bytes(), b"$:").is_some();
+    if !has_export && !has_label {
         return Cow::Borrowed(script);
     }
 
@@ -5132,8 +5144,11 @@ fn separate_same_line_legacy_export_declarations<'a>(
         let next = pair[1].span();
         let previous_text = &script[previous.start as usize..previous.end as usize];
         let gap = &script[previous.end as usize..next.start as usize];
-        if (previous_text.trim_start().starts_with("export let ")
-            || previous_text.trim_start().starts_with("export var "))
+        let export_declaration = previous_text.trim_start().starts_with("export let ")
+            || previous_text.trim_start().starts_with("export var ");
+        if (export_declaration
+            || is_legacy_reactive_label(&pair[0])
+            || is_legacy_reactive_label(&pair[1]))
             && !gap.contains('\n')
             && gap.chars().all(char::is_whitespace)
         {
@@ -5639,8 +5654,12 @@ fn transform_instance_script_for_visitors(
     if script.is_empty() {
         return String::new();
     }
-    let separated_script =
-        separate_same_line_legacy_export_declarations(script, analysis.is_typescript);
+    let separated_script = separate_same_line_top_level_statements(script, analysis.is_typescript);
+    // A cut moves every byte after it, so the spans and the projection that were
+    // built for the caller's text no longer describe this one.
+    let separated = matches!(separated_script, Cow::Owned(_));
+    let retained_program = retained_program.filter(|_| !separated);
+    let source_projection = source_projection.filter(|_| !separated);
     let script = separated_script.as_ref();
     let original_script = script;
 
