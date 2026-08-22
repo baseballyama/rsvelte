@@ -1536,14 +1536,15 @@ impl<'a> Parser<'a> {
         let adjusted_end = expr_end - (expr_content.len() - trimmed_content.trim_end_ws().len());
         // For await blocks, we parse the expression with a known end position
         // to avoid find_matching_bracket finding the block's closing }
+        let head = trimmed_content.trim_ws();
         let expression = if let Some(lazy) =
-            self.defer_expression(trimmed_content.trim_ws(), adjusted_start, LazyKind::Lenient)
+            self.defer_expression(head, adjusted_start, LazyKind::HeadBrace)
         {
             lazy
         } else {
-            super::super::expression::parse_expression_with_end(
+            match super::super::expression::parse_expression_with_end(
                 &self.arena,
-                trimmed_content.trim_ws(),
+                head,
                 adjusted_start,
                 adjusted_end,
                 self.expression_line_offsets(),
@@ -1552,16 +1553,20 @@ impl<'a> Parser<'a> {
                 false,
                 '{',
                 self.ts,
-            )
-            .unwrap_or_else(|(_, pos)| {
-                // Return an invalid identifier on parse error (empty name)
-                super::super::expression::create_identifier_with_character(
-                    "",
-                    pos,
-                    adjusted_end,
-                    self.expression_line_offsets(),
-                )
-            })
+            ) {
+                Ok(expr) => expr,
+                Err((_, pos)) if self.options.loose => {
+                    super::super::expression::create_identifier_with_character(
+                        "",
+                        pos,
+                        adjusted_end,
+                        self.expression_line_offsets(),
+                    )
+                }
+                Err((msg, _)) => {
+                    return Err(super::super::resolve_lazy::template_expression_error("}", msg, head, adjusted_start, self.ts));
+                }
+            }
         };
 
         // Parse 'then' value if present
@@ -2009,7 +2014,7 @@ impl<'a> Parser<'a> {
                 // not reject it here at parse time (svelte2tsx, which only parses,
                 // would otherwise diverge from official by erroring).
                 let trimmed = expr_content.trim_ws();
-                let expression = self.parse_js_expression_lenient(trimmed, expr_start);
+                let expression = self.parse_js_expression_head_strict(trimmed, expr_start, true)?;
 
                 // Upstream rejects anything but a call (optionally chained) here:
                 // `new foo()` and `foo` are parse errors, `foo?.()` is not.
@@ -2144,7 +2149,7 @@ impl<'a> Parser<'a> {
                         + 1
                         + (trimmed[eq_idx + 1..].len()
                             - trimmed[eq_idx + 1..].trim_start_ws().len());
-                    let init_expr = self.parse_js_expression(init_str, init_offset);
+                    let init_expr = self.parse_js_expression_head_strict(init_str, init_offset, false)?;
 
                     // Reject a sequence-expression initializer, mirroring
                     // upstream: `{@const a = (b, c)}` is allowed but
@@ -2365,18 +2370,7 @@ impl<'a> Parser<'a> {
             '{',
             self.ts,
         )
-        .map_err(|(msg, _)| {
-            // Recover the precise failure position from OXC's labeled span,
-            // mirroring upstream Svelte's `js_parse_error(err.pos, ...)` —
-            // a *point* error at the byte where acorn stopped consuming
-            // input. svelte2tsx's `expected.error.json` fixtures rely on
-            // this character-accurate location.
-            let abs_pos = super::super::read::expression::check_js_parse_error_with_pos(trimmed, self.ts)
-                .map_or(trimmed_offset, |(_, content_pos)| {
-                    trimmed_offset + content_pos
-                });
-            crate::error::ParseError::svelte("js_parse_error", msg, (abs_pos, abs_pos))
-        })
+        .map_err(|(msg, _)| super::super::resolve_lazy::template_expression_error("}", msg, trimmed, trimmed_offset, self.ts))
     }
 
     /// Parse a JavaScript expression and return as Expression.
@@ -2416,9 +2410,59 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// Parse an expression upstream reads with `read_expression`, propagating a
+    /// parse failure the way `read_expression` + `eat('}')` does. Loose (editor)
+    /// mode keeps the placeholder so a half-typed expression still yields a tree.
+    /// `defer` is false for `{@const}`, which reads the parsed initializer
+    /// during the parse itself and so cannot hold an unresolved `Lazy`.
+    pub fn parse_js_expression_head_strict(
+        &self,
+        content: &str,
+        offset: usize,
+        defer: bool,
+    ) -> crate::error::ParseResult<Expression<'a>> {
+        let leading_ws = content.len() - content.trim_start_ws().len();
+        let trimmed = content.trim_ws();
+        let trimmed_offset = offset + leading_ws;
+        if trimmed.is_empty() {
+            return Ok(self.parse_js_expression_internal(content, offset, false, '{'));
+        }
+        if defer
+            && let Some(lazy) = self.defer_expression(trimmed, trimmed_offset, LazyKind::HeadBrace)
+        {
+            return Ok(lazy);
+        }
+        match super::super::expression::parse_expression(
+            &self.arena,
+            trimmed,
+            trimmed_offset,
+            self.expression_line_offsets(),
+            self.source,
+            self.options.loose,
+            false,
+            '{',
+            self.ts,
+        ) {
+            Ok(expr) => Ok(expr),
+            Err((_, pos)) if self.options.loose => Ok(
+                super::super::read::expression::create_empty_identifier(
+                    "",
+                    pos,
+                    pos + trimmed.len(),
+                ),
+            ),
+            Err((msg, _)) => Err(super::super::resolve_lazy::template_expression_error(
+                "}",
+                msg,
+                trimmed,
+                trimmed_offset,
+                self.ts,
+            )),
+        }
+    }
+
     /// Parse an expression whose parse failures are swallowed into an empty
-    /// identifier: `{@render …}` (its invalid-call check is an analysis-phase
-    /// error) and the `{#await …}` head.
+    /// identifier.
     pub fn parse_js_expression_lenient(&self, content: &str, offset: usize) -> Expression<'a> {
         let leading_ws = content.len() - content.trim_start_ws().len();
         let trimmed = content.trim_ws();
@@ -2455,15 +2499,7 @@ impl<'a> Parser<'a> {
             '{',
             self.ts,
         )
-        .map_err(|(msg, _)| {
-            // Recover the precise failure position from OXC's labeled span,
-            // mirroring upstream Svelte's `js_parse_error(err.pos, ...)`.
-            let abs_pos = super::super::read::expression::check_js_parse_error_with_pos(trimmed, self.ts)
-                .map_or(trimmed_offset, |(_, content_pos)| {
-                    trimmed_offset + content_pos
-                });
-            crate::error::ParseError::svelte("js_parse_error", msg, (abs_pos, abs_pos))
-        })
+        .map_err(|(msg, _)| super::super::resolve_lazy::template_expression_error("}", msg, trimmed, trimmed_offset, self.ts))
     }
 
     /// Parse a block / directive head expression that, in strict (non-loose)
@@ -2522,25 +2558,12 @@ impl<'a> Parser<'a> {
                         trimmed_offset + trimmed.len(),
                     ));
                 }
-                // Strict mode: classify the failure the way upstream does. A
-                // complete leading expression followed by leftover input is an
-                // `expected_token` (missing `close_char`); anything else is a
-                // `js_parse_error` at the point acorn/OXC stopped.
-                if let Some(pos) = super::super::read::expression::trailing_token_offset(trimmed, self.ts) {
-                    return Err(crate::error::ParseError::expected_token(
-                        &close_char.to_string(),
-                        trimmed_offset + pos,
-                    ));
-                }
-                let abs_pos =
-                    super::super::read::expression::check_js_parse_error_with_pos(trimmed, self.ts)
-                        .map_or(trimmed_offset + trimmed.len(), |(_, pos)| {
-                            trimmed_offset + pos
-                        });
-                Err(crate::error::ParseError::svelte(
-                    "js_parse_error",
+                Err(super::super::resolve_lazy::template_expression_error(
+                    &close_char.to_string(),
                     msg,
-                    (abs_pos, abs_pos),
+                    trimmed,
+                    trimmed_offset,
+                    self.ts,
                 ))
             }
         }
