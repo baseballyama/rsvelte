@@ -14,9 +14,16 @@ impl ExportBindingOptions {
     const IS_PROP: u8 = 1 << 1;
     const IS_LET: u8 = 1 << 2;
     const IS_NAMED_EXPORT: u8 = 1 << 3;
+    const IS_REQUIRED: u8 = 1 << 4;
 
     pub(super) const fn new() -> Self {
         Self(0)
+    }
+    pub(super) const fn with_required_if(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.0 |= Self::IS_REQUIRED;
+        }
+        self
     }
     pub(super) const fn with_default(mut self) -> Self {
         self.0 |= Self::HAS_DEFAULT;
@@ -55,7 +62,8 @@ pub(super) fn extract_names_from_binding_pattern_full(
                     .with_default_if(options.contains(ExportBindingOptions::HAS_DEFAULT))
                     .with_prop_if(options.contains(ExportBindingOptions::IS_PROP))
                     .with_let_if(options.contains(ExportBindingOptions::IS_LET))
-                    .with_named_export_if(options.contains(ExportBindingOptions::IS_NAMED_EXPORT)),
+                    .with_named_export_if(options.contains(ExportBindingOptions::IS_NAMED_EXPORT))
+                    .with_required_if(options.contains(ExportBindingOptions::IS_REQUIRED)),
             );
         }
         oxc::BindingPattern::ObjectPattern(obj_pat) => {
