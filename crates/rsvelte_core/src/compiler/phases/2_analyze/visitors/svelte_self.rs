@@ -56,10 +56,11 @@ pub fn visit<'a, 'b: 'a>(
                 }
             }
             Attribute::OnDirective(on) => {
-                if on
-                    .modifiers
-                    .iter()
-                    .any(|modifier| modifier.as_str() != "once")
+                if on.modifiers.len() > 1
+                    || on
+                        .modifiers
+                        .iter()
+                        .any(|modifier| modifier.as_str() != "once")
                 {
                     return Err(
                         errors::event_handler_invalid_component_modifier().at(on.start, on.end)

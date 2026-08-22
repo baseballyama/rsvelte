@@ -952,6 +952,7 @@ pub struct ClassDirective<'a> {
     pub name: CompactString,
     pub name_loc: Option<SourceLocation>,
     pub expression: Expression<'a>,
+    pub modifiers: SmallVec<[CompactString; 2]>,
     /// Internal metadata, populated during Phase 2 analysis. Skipped during
     /// (de)serialisation so snapshot output is unchanged.
     pub metadata: ClassDirectiveMetadata,
@@ -972,6 +973,7 @@ impl serde::Serialize for ClassDirective<'_> {
             map.serialize_entry("name_loc", name_loc)?;
         }
         map.serialize_entry("expression", &self.expression)?;
+        map.serialize_entry("modifiers", &self.modifiers)?;
         map.end()
     }
 }
@@ -1090,6 +1092,7 @@ pub struct AnimateDirective<'a> {
     pub name: CompactString,
     pub name_loc: Option<SourceLocation>,
     pub expression: Option<Expression<'a>>,
+    pub modifiers: SmallVec<[CompactString; 2]>,
     pub metadata: Option<DirectiveMetadata<'a>>,
 }
 
@@ -1110,6 +1113,7 @@ impl serde::Serialize for AnimateDirective<'_> {
         if let Some(ref expression) = self.expression {
             map.serialize_entry("expression", expression)?;
         }
+        map.serialize_entry("modifiers", &self.modifiers)?;
         if let Some(ref metadata) = self.metadata {
             map.serialize_entry("metadata", metadata)?;
         }
@@ -1125,6 +1129,7 @@ pub struct UseDirective<'a> {
     pub name: CompactString,
     pub name_loc: Option<SourceLocation>,
     pub expression: Option<Expression<'a>>,
+    pub modifiers: SmallVec<[CompactString; 2]>,
 }
 
 impl serde::Serialize for UseDirective<'_> {
@@ -1144,6 +1149,7 @@ impl serde::Serialize for UseDirective<'_> {
         if let Some(ref expression) = self.expression {
             map.serialize_entry("expression", expression)?;
         }
+        map.serialize_entry("modifiers", &self.modifiers)?;
         map.end()
     }
 }
@@ -1156,6 +1162,7 @@ pub struct LetDirective<'a> {
     pub name: CompactString,
     pub name_loc: Option<SourceLocation>,
     pub expression: Option<Expression<'a>>,
+    pub modifiers: SmallVec<[CompactString; 2]>,
 }
 
 impl serde::Serialize for LetDirective<'_> {
@@ -1175,6 +1182,7 @@ impl serde::Serialize for LetDirective<'_> {
         if let Some(ref expression) = self.expression {
             map.serialize_entry("expression", expression)?;
         }
+        map.serialize_entry("modifiers", &self.modifiers)?;
         map.end()
     }
 }

@@ -74,6 +74,9 @@ pub fn visit(
                 }
                 super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;
             }
+            Attribute::StyleDirective(style) => {
+                super::style_directive::visit(style, context)?;
+            }
             _ => {}
         }
     }

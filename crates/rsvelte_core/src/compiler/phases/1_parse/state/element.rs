@@ -1702,7 +1702,7 @@ impl<'a> Parser<'a> {
         name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
-        let action_name = &full_name[4..]; // Skip "use:"
+        let (action_name, modifiers) = Self::extract_name_and_modifiers(&full_name[4..]);
 
         // Check for empty directive name
         if action_name.is_empty() {
@@ -1773,6 +1773,7 @@ impl<'a> Parser<'a> {
                 name: CompactString::from(action_name),
                 name_loc,
                 expression,
+                modifiers,
             },
         )))
     }
@@ -1786,7 +1787,7 @@ impl<'a> Parser<'a> {
         name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
-        let class_name = &full_name[6..]; // Skip "class:"
+        let (class_name, modifiers) = Self::extract_name_and_modifiers(&full_name[6..]);
 
         // Check for empty directive name
         if class_name.is_empty() {
@@ -1850,6 +1851,7 @@ impl<'a> Parser<'a> {
                 name: CompactString::from(class_name),
                 name_loc,
                 expression,
+                modifiers,
                 metadata: Default::default(),
             },
         )))
@@ -2157,7 +2159,7 @@ impl<'a> Parser<'a> {
         name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
-        let animate_name = &full_name[8..]; // Skip "animate:"
+        let (animate_name, modifiers) = Self::extract_name_and_modifiers(&full_name[8..]);
 
         let had_value = self.eat_optional("=");
         let expression = if had_value {
@@ -2202,6 +2204,7 @@ impl<'a> Parser<'a> {
                 name: CompactString::from(animate_name),
                 name_loc,
                 expression,
+                modifiers,
                 metadata: None, // Populated during Phase 2 analysis
             },
         )))
@@ -2215,7 +2218,7 @@ impl<'a> Parser<'a> {
         name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
-        let let_name = &full_name[4..]; // Skip "let:"
+        let (let_name, modifiers) = Self::extract_name_and_modifiers(&full_name[4..]);
 
         let had_value = self.eat_optional("=");
         let expression = if had_value {
@@ -2258,6 +2261,7 @@ impl<'a> Parser<'a> {
                 name: CompactString::from(let_name),
                 name_loc,
                 expression,
+                modifiers,
             },
         )))
     }

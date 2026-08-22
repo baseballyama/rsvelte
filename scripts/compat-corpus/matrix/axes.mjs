@@ -1284,6 +1284,69 @@ export const DIRECTIVE_MODES = {
 };
 
 /**
+ * Axis H2 — the MODIFIER spelling on a directive, crossed with the same host
+ * axis (`DIRECTIVE_HOSTS`) and mode axis (`DIRECTIVE_MODES`) as `DIRECTIVE_KINDS`.
+ *
+ * A separate axis rather than more `DIRECTIVE_KINDS` rows, because that axis
+ * bakes ONE spelling into each directive kind: kind and modifier are confounded
+ * there, so the product has no cell for "this directive, that modifier list" —
+ * the `write-host` shape one family over. Every directive name is `name|mod|mod`
+ * split at `|` by ONE upstream line, and each directive then declares which
+ * modifiers it accepts; that is two decisions per (directive, host) pair and the
+ * kinds axis samples one point of it.
+ *
+ * What the product found: `use:`, `class:`, `animate:` and `let:` — the four
+ * directives whose accepted modifier list is EMPTY — never split at all, so the
+ * modifier stayed inside the emitted name (`action|once?.($$node)`, a class
+ * literally named `active|once`); an unknown `style:` modifier was rejected on a
+ * regular element and accepted on `<svelte:body|window|document>`; and a
+ * REPEATED `once` on a component handler passed a check written as membership
+ * where upstream compares the whole list.
+ *
+ * The repeated rows are the discriminating ones and they are why single-modifier
+ * spellings are not enough: `once`, `important` and `local` each pass a
+ * membership test twice over, so `|once|once`, `|important|important` and
+ * `|local|local` are the only cells that separate `list === ['x']` from
+ * `list.every(m => m === 'x')`. The empty-modifier rows (`use:action|`) and the
+ * empty-name rows (`use:|once`) are the boundary of the same split.
+ */
+export const DIRECTIVE_MODIFIERS = {
+	// The four empty-modifier-list directives: upstream drops whatever is there.
+	'use-modifier': 'use:action|once',
+	'use-two-modifiers': 'use:action|a|b',
+	'use-empty-modifier': 'use:action|',
+	'use-empty-name': 'use:|once',
+	'use-modifier-argument': 'use:action|once={1}',
+	'class-modifier': 'class:on|once={flag}',
+	'class-modifier-shorthand': 'class:on|once',
+	'class-empty-name': 'class:|once',
+	'animate-modifier': 'animate:flip|local',
+	'let-modifier': 'let:x|foo',
+	// `style:` accepts exactly `['important']`.
+	'style-important': 'style:color|important={color}',
+	'style-important-shorthand': 'style:color|important',
+	'style-unknown-modifier': 'style:color|nope={color}',
+	'style-unknown-modifier-shorthand': 'style:color|nope',
+	'style-repeated-important': 'style:color|important|important={color}',
+	'style-empty-modifier': 'style:color|={color}',
+	// `transition:`/`in:`/`out:` accept `local` and `global`, at most one each.
+	'transition-local': 'transition:fade|local',
+	'transition-unknown-modifier': 'transition:fade|nope',
+	'transition-repeated-local': 'transition:fade|local|local',
+	'in-unknown-modifier': 'in:fade|nope',
+	'out-unknown-modifier': 'out:fade|nope',
+	// `on:` accepts a fixed list on an element and only `['once']` on a component.
+	'on-once': 'on:click|once={handler}',
+	'on-repeated-once': 'on:click|once|once={handler}',
+	'on-capture': 'on:click|capture={handler}',
+	'on-repeated-capture': 'on:click|capture|capture={handler}',
+	'on-once-capture': 'on:click|once|capture={handler}',
+	'on-unknown-modifier': 'on:click|nope={handler}',
+	'on-empty-modifier': 'on:click|={handler}',
+	'bind-unknown-modifier': 'bind:value|nope={text}',
+};
+
+/**
  * Axis J — the shape of a `bind:` expression, crossed with axis K, the element
  * kind it is bound on.
  *
