@@ -4439,6 +4439,19 @@ fn transform_module_script_runes_with_target(
                 } else {
                     inspect_start + content_end + 1 - pos
                 };
+                // In an operand slot upstream's `EmptyStatement` prints as a bare
+                // `;`, which no parser accepts; keep the slot filled with the
+                // value `$inspect` evaluates to, rather than deleting the line
+                // and leaving the initializer dangling
+                // (`upstream_issues/3213-svelte-inspect-in-a-value-position.md`).
+                if rune_transforms::operand_expected_before(&result[..pos]) {
+                    result = format!(
+                        "{}undefined{}",
+                        &result[..pos],
+                        &result[pos + total_call_len..]
+                    );
+                    continue;
+                }
                 // Remove leading whitespace on the same line
                 let mut start = pos;
                 while start > 0 && matches!(result.as_bytes()[start - 1], b' ' | b'\t') {
