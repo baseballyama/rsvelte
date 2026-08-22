@@ -7165,6 +7165,7 @@ fn transform_complex_selector(
                         // Handle universal selector
                         if sel_type == "TypeSelector"
                             && sel.get("name").and_then(|n| n.as_str()) == Some("*")
+                            && sel.get("namespace").is_none()
                         {
                             if needs_scoping {
                                 // Replace * with the scoping selector
@@ -7798,8 +7799,11 @@ fn transform_is_not_complex_selector(
 
                     for (idx, sel) in selectors.iter().enumerate() {
                         let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                        // A namespaced `*` (`svg|*`) keeps its text: only a bare
+                        // universal selector is REPLACED by the scoping modifier.
                         let is_universal = sel_type == "TypeSelector"
-                            && sel.get("name").and_then(|n| n.as_str()) == Some("*");
+                            && sel.get("name").and_then(|n| n.as_str()) == Some("*")
+                            && sel.get("namespace").is_none();
 
                         // If this is a universal selector (*) that will be replaced by :where(),
                         // don't output the * - just output the :where() directly

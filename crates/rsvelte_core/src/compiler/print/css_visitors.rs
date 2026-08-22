@@ -8,6 +8,60 @@
 
 use super::Context;
 use serde_json::Value;
+use std::fmt::Write;
+
+/// Re-escape a CSS identifier so that it prints as valid CSS. `parse` decodes
+/// escape sequences when it builds the AST, so anything illegal in a bare
+/// identifier — a leading digit, `-` before a digit, whitespace, controls — has
+/// to be written back as a hex escape.
+fn escape_identifier(name: &str) -> String {
+    let chars: Vec<char> = name.chars().collect();
+    let mut escaped = String::new();
+    let mut i = 0;
+
+    while i < chars.len() {
+        let c = chars[i];
+
+        if c == '\\' {
+            match chars.get(i + 1) {
+                // A literal backslash must itself be escaped: a backslash followed
+                // by a hex digit (or by nothing) would read back as a hex escape.
+                None => {
+                    escaped.push_str("\\5c ");
+                    i += 1;
+                }
+                Some(next) if next.is_ascii_hexdigit() => {
+                    escaped.push_str("\\5c ");
+                    i += 1;
+                }
+                Some(next) => {
+                    escaped.push('\\');
+                    escaped.push(*next);
+                    i += 2;
+                }
+            }
+            continue;
+        }
+
+        let code = c as u32;
+        let leading_digit = i == 0 && c.is_ascii_digit();
+        let leading_hyphen_digit =
+            i == 0 && c == '-' && chars.get(1).is_some_and(char::is_ascii_digit);
+
+        if leading_digit
+            || leading_hyphen_digit
+            || !(c.is_ascii_alphanumeric() || c == '_' || c == '-' || code >= 160)
+        {
+            let _ = write!(escaped, "\\{code:x} ");
+        } else {
+            escaped.push(c);
+        }
+
+        i += 1;
+    }
+
+    escaped
+}
 
 /// Visit a CSS node and generate appropriate code.
 ///
@@ -67,16 +121,27 @@ fn visit_atrule(context: &mut Context, node: &Value) {
                 && s < e
                 && e <= source.len()
             {
-                // Extract and reformat the @font-face block from source
-                let raw = &source[s..e];
-                let reformatted = reformat_font_face(raw);
-                context.write(&reformatted);
+                // The CSS parser reads `@font-face` declarations as selectors, so its
+                // block is recovered from the source rather than from the AST.
+                let declarations = font_face_declarations(&source[s..e]);
+                context.write("@font-face {");
+                context.indent();
+                for declaration in &declarations {
+                    context.newline();
+                    context.write(declaration);
+                    context.write(";");
+                }
+                context.dedent();
+                if !declarations.is_empty() {
+                    context.newline();
+                }
+                context.write("}");
                 return;
             }
         }
 
         context.write("@");
-        context.write(name);
+        context.write(&escape_identifier(name));
 
         if let Some(prelude) = node.get("prelude").and_then(|p| p.as_str())
             && !prelude.is_empty()
@@ -98,39 +163,22 @@ fn visit_atrule(context: &mut Context, node: &Value) {
     }
 }
 
-/// Reformat a @font-face block from raw source text.
-fn reformat_font_face(raw: &str) -> String {
-    // Parse the raw text: @font-face { declarations }
-    let mut result = String::from("@font-face {");
+/// Recover the declarations of a `@font-face` block from its raw source text.
+fn font_face_declarations(raw: &str) -> Vec<String> {
+    let Some(brace) = raw.find('{') else {
+        return Vec::new();
+    };
+    let inner = &raw[brace + 1..];
+    let Some(close) = inner.rfind('}') else {
+        return Vec::new();
+    };
 
-    // Find the opening brace
-    if let Some(brace_pos) = raw.find('{') {
-        let inner = &raw[brace_pos + 1..];
-        // Find the closing brace
-        if let Some(close_pos) = inner.rfind('}') {
-            let declarations_text = inner[..close_pos].trim();
-
-            if !declarations_text.is_empty() {
-                // Split by semicolons to get declarations
-                for decl in declarations_text.split(';') {
-                    let decl = decl.trim();
-                    if !decl.is_empty() {
-                        result.push_str("\n\t");
-                        result.push_str(decl);
-                        result.push(';');
-                    }
-                }
-            }
-
-            result.push_str("\n}");
-        } else {
-            result.push('}');
-        }
-    } else {
-        result.push('}');
-    }
-
-    result
+    inner[..close]
+        .split(';')
+        .map(str::trim)
+        .filter(|declaration| !declaration.is_empty())
+        .map(str::to_string)
+        .collect()
 }
 
 /// Visit an attribute selector (e.g., [name="value"]).
@@ -144,7 +192,7 @@ fn reformat_font_face(raw: &str) -> String {
 fn visit_attribute_selector(context: &mut Context, node: &Value) {
     if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
         context.write("[");
-        context.write(name);
+        context.write(&escape_identifier(name));
 
         if let Some(matcher) = node.get("matcher").and_then(|m| m.as_str()) {
             context.write(matcher);
@@ -232,7 +280,7 @@ fn visit_block(context: &mut Context, node: &Value) {
 fn visit_class_selector(context: &mut Context, node: &Value) {
     if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
         context.write(".");
-        context.write(name);
+        context.write(&escape_identifier(name));
     }
 }
 
@@ -282,7 +330,7 @@ fn visit_declaration(context: &mut Context, node: &Value) {
 fn visit_id_selector(context: &mut Context, node: &Value) {
     if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
         context.write("#");
-        context.write(name);
+        context.write(&escape_identifier(name));
     }
 }
 
@@ -341,7 +389,7 @@ fn visit_percentage(context: &mut Context, node: &Value) {
 fn visit_pseudo_class_selector(context: &mut Context, node: &Value) {
     if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
         context.write(":");
-        context.write(name);
+        context.write(&escape_identifier(name));
 
         if let Some(args) = node.get("args")
             && !args.is_null()
@@ -378,7 +426,7 @@ fn visit_pseudo_class_selector(context: &mut Context, node: &Value) {
 fn visit_pseudo_element_selector(context: &mut Context, node: &Value) {
     if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
         context.write("::");
-        context.write(name);
+        context.write(&escape_identifier(name));
         if let Some(args) = node.get("args")
             && !args.is_null()
         {
@@ -523,7 +571,19 @@ fn visit_selector_list(context: &mut Context, node: &Value) {
 /// * `node` - The TypeSelector node
 fn visit_type_selector(context: &mut Context, node: &Value) {
     if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
-        context.write(name);
+        if let Some(namespace) = node.get("namespace").and_then(|n| n.as_str()) {
+            if namespace == "*" {
+                context.write(namespace);
+            } else {
+                context.write(&escape_identifier(namespace));
+            }
+            context.write("|");
+        }
+        if name == "*" {
+            context.write(name);
+        } else {
+            context.write(&escape_identifier(name));
+        }
     }
 }
 

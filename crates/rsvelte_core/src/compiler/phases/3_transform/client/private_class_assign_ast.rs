@@ -36,8 +36,8 @@
 //! | `q = expr`    | `$.set(q, expr, true)`                     | `$.set(q, expr)`                    |
 //! | `q += expr`   | `$.set(q, $.get(q) + expr)`                | `$.set(q, $.get(q) + expr)`         |
 //! | (incl. coercive `-= *= /= %= **= &= |= ^= <<= >>= >>>=` — never proxy)                             |
-//! | `q ??= expr`  | `$.set(q, $.get(q) ?? expr, true)`         | `$.set(q, $.get(q) ?? expr)`        |
-//! | (incl. logical `||= &&=`; the built value is a LogicalExpression → always proxies for `$state`)   |
+//! | `q ??= expr`  | `$.get(q) ?? $.set(q, expr, true)`         | `$.get(q) ?? $.set(q, expr)`        |
+//! | (incl. logical `||= &&=`; the setter is only reached on the branch that assigns)                    |
 //! | `q++`         | `$.update(q)`                              | `$.update(q)`                       |
 //! | `q--`         | `$.update(q, -1)`                          | `$.update(q, -1)`                   |
 //! | `++q`         | `$.update_pre(q)`                          | `$.update_pre(q)`                   |
@@ -243,9 +243,8 @@ fn compound_of(operator: AssignmentOperator) -> Option<Compound> {
 /// is_non_coercive_operator(operator) && should_proxy(value, scope)`, where
 /// `value` is the built assignment value. The non-coercive operators are
 /// `= || && ??`; arithmetic / bitwise / shift compounds are coercive and never
-/// proxy. For `=` the value is the RHS, so `should_proxy` traces it; for the
-/// logical ops the value is a `LogicalExpression`, which is never in
-/// `should_proxy`'s no-proxy set and so always proxies for a `$state` field.
+/// proxy. For `=` and for the short-circuiting compounds the value is the RHS,
+/// so `should_proxy` traces it.
 fn needs_proxy(
     kind: Match,
     compound: Option<Compound>,
@@ -255,8 +254,9 @@ fn needs_proxy(
 ) -> bool {
     matches!(kind, Match::State)
         && match compound {
-            None => should_proxy_with_bindings(right, var_proxy, reassigned),
-            Some(Compound::Logical(_)) => true,
+            None | Some(Compound::Logical(_)) => {
+                should_proxy_with_bindings(right, var_proxy, reassigned)
+            }
             Some(Compound::Binary(_)) => false,
         }
 }
@@ -402,6 +402,7 @@ fn single_pass(
             function_depth: 0,
             var_proxy: &binding_info.var_proxy,
             reassigned: &binding_info.reassigned,
+            tight_parents: HashSet::default(),
             replacements: Vec::new(),
         };
         collector.visit_program(program_ref);
@@ -431,6 +432,10 @@ struct PrivateClassAssignCollector<'a> {
     function_depth: u32,
     var_proxy: &'a HashMap<String, bool>,
     reassigned: &'a HashSet<String>,
+    /// Spans of expressions whose parent binds tighter than a logical operator,
+    /// so the logical form a short-circuiting assignment expands into has to be
+    /// parenthesised there. The in-place path gets this from its printer.
+    tight_parents: HashSet<(u32, u32)>,
     replacements: Vec<Edit>,
 }
 
@@ -450,6 +455,13 @@ fn reads_dot_v(qualified: &str, v_read_qualified: &[String], function_depth: u32
     function_depth == 0 && v_read_qualified.iter().any(|q| q.as_str() == qualified)
 }
 
+impl PrivateClassAssignCollector<'_> {
+    fn mark_tight(&mut self, expr: &Expression<'_>) {
+        let span = expr.span();
+        self.tight_parents.insert((span.start, span.end));
+    }
+}
+
 impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
     fn visit_function(&mut self, func: &Function<'ast>, flags: oxc_syntax::scope::ScopeFlags) {
         self.function_depth += 1;
@@ -461,6 +473,63 @@ impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
         self.function_depth += 1;
         walk::walk_arrow_function_expression(self, expr);
         self.function_depth -= 1;
+    }
+
+    fn visit_unary_expression(&mut self, expr: &UnaryExpression<'ast>) {
+        self.mark_tight(&expr.argument);
+        walk::walk_unary_expression(self, expr);
+    }
+
+    fn visit_await_expression(&mut self, expr: &AwaitExpression<'ast>) {
+        self.mark_tight(&expr.argument);
+        walk::walk_await_expression(self, expr);
+    }
+
+    fn visit_binary_expression(&mut self, expr: &BinaryExpression<'ast>) {
+        self.mark_tight(&expr.left);
+        self.mark_tight(&expr.right);
+        walk::walk_binary_expression(self, expr);
+    }
+
+    fn visit_logical_expression(&mut self, expr: &LogicalExpression<'ast>) {
+        self.mark_tight(&expr.left);
+        self.mark_tight(&expr.right);
+        walk::walk_logical_expression(self, expr);
+    }
+
+    fn visit_conditional_expression(&mut self, expr: &ConditionalExpression<'ast>) {
+        self.mark_tight(&expr.test);
+        walk::walk_conditional_expression(self, expr);
+    }
+
+    fn visit_static_member_expression(&mut self, expr: &StaticMemberExpression<'ast>) {
+        self.mark_tight(&expr.object);
+        walk::walk_static_member_expression(self, expr);
+    }
+
+    fn visit_computed_member_expression(&mut self, expr: &ComputedMemberExpression<'ast>) {
+        self.mark_tight(&expr.object);
+        walk::walk_computed_member_expression(self, expr);
+    }
+
+    fn visit_private_field_expression(&mut self, expr: &PrivateFieldExpression<'ast>) {
+        self.mark_tight(&expr.object);
+        walk::walk_private_field_expression(self, expr);
+    }
+
+    fn visit_call_expression(&mut self, expr: &CallExpression<'ast>) {
+        self.mark_tight(&expr.callee);
+        walk::walk_call_expression(self, expr);
+    }
+
+    fn visit_new_expression(&mut self, expr: &NewExpression<'ast>) {
+        self.mark_tight(&expr.callee);
+        walk::walk_new_expression(self, expr);
+    }
+
+    fn visit_tagged_template_expression(&mut self, expr: &TaggedTemplateExpression<'ast>) {
+        self.mark_tight(&expr.tag);
+        walk::walk_tagged_template_expression(self, expr);
     }
 
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'ast>) {
@@ -480,20 +549,45 @@ impl<'a, 'ast> Visit<'ast> for PrivateClassAssignCollector<'a> {
         let rhs_text = &self.source[rhs_span.start as usize..rhs_span.end as usize];
         let needs_proxy = needs_proxy(kind, compound, &expr.right, self.var_proxy, self.reassigned);
 
+        // A short-circuiting compound must not call the setter on the branch that
+        // does not assign, so it expands to a logical expression rather than to a
+        // setter over the built value.
+        let short_circuit = match compound {
+            Some(Compound::Logical(op)) => Some(op),
+            _ => None,
+        };
+
+        let read = || {
+            field_read_text(
+                qualified,
+                reads_dot_v(qualified, self.v_read_qualified, self.function_depth),
+            )
+        };
+
         let value = match compound {
             None => rhs_text.to_string(),
-            Some(op) => {
-                let read = field_read_text(
-                    qualified,
-                    reads_dot_v(qualified, self.v_read_qualified, self.function_depth),
-                );
-                format!("{} {} {}", read, op.as_str(), rhs_text)
-            }
+            Some(_) if short_circuit.is_some() => rhs_text.to_string(),
+            Some(op) => format!("{} {} {}", read(), op.as_str(), rhs_text),
         };
-        let rewrite = if needs_proxy {
+        let set_call = if needs_proxy {
             format!("$.set({}, {}, true)", qualified, value)
         } else {
             format!("$.set({}, {})", qualified, value)
+        };
+
+        let rewrite = match short_circuit {
+            None => set_call,
+            Some(op) => {
+                let logical = format!("{} {} {}", read(), op.as_str(), set_call);
+                if self
+                    .tight_parents
+                    .contains(&(expr.span.start, expr.span.end))
+                {
+                    format!("({})", logical)
+                } else {
+                    logical
+                }
+            }
         };
 
         self.replacements
@@ -728,34 +822,34 @@ mod tests {
 
     #[test]
     fn nullish_assign_state_proxies() {
-        // `??=` is non-coercive and the built value is a LogicalExpression,
-        // so a `$state` field always proxies (`, true`). Regression test for
-        // issue #1438 (`??=` was previously left un-rewritten, producing the
-        // invalid `$.get(this.#promise) ??= run()`).
+        // The setter is only reached on the assigning branch; `run()` is proxyable,
+        // so the `$state` field gets `, true`. Regression test for issue #1438
+        // (`??=` was previously left un-rewritten, producing the invalid
+        // `$.get(this.#promise) ??= run()`).
         let out = method_body("this.#promise ??= run();", &ssv(&["this.#promise"]), &[]).unwrap();
         assert_eq!(
             out,
-            "$.set(this.#promise, $.get(this.#promise) ?? run(), true);"
+            "$.get(this.#promise) ?? $.set(this.#promise, run(), true);"
         );
     }
 
     #[test]
     fn logical_or_assign_state_proxies() {
         let out = method_body("this.#x ||= y;", &ssv(&["this.#x"]), &[]).unwrap();
-        assert_eq!(out, "$.set(this.#x, $.get(this.#x) || y, true);");
+        assert_eq!(out, "$.get(this.#x) || $.set(this.#x, y, true);");
     }
 
     #[test]
     fn logical_and_assign_state_proxies() {
         let out = method_body("this.#x &&= y;", &ssv(&["this.#x"]), &[]).unwrap();
-        assert_eq!(out, "$.set(this.#x, $.get(this.#x) && y, true);");
+        assert_eq!(out, "$.get(this.#x) && $.set(this.#x, y, true);");
     }
 
     #[test]
     fn logical_assign_other_no_proxy() {
         // `$derived`/etc. (other_qualified) never proxy — no `, true`.
         let out = method_body("this.#d ??= y;", &[], &ssv(&["this.#d"])).unwrap();
-        assert_eq!(out, "$.set(this.#d, $.get(this.#d) ?? y);");
+        assert_eq!(out, "$.get(this.#d) ?? $.set(this.#d, y);");
     }
 
     #[test]
@@ -782,7 +876,7 @@ mod tests {
         // `.v` is for `$state` / `$state.raw` only — a `$derived` field keeps
         // `$.get` even at constructor depth.
         let out = ctor_body_derived("this.#d ??= s;", &ssv(&["this.#d"])).unwrap();
-        assert_eq!(out, "$.set(this.#d, $.get(this.#d) ?? s);");
+        assert_eq!(out, "$.get(this.#d) ?? $.set(this.#d, s);");
     }
 
     #[test]
@@ -795,7 +889,7 @@ mod tests {
     #[test]
     fn constructor_logical_reads_dot_v() {
         let out = ctor_body("this.#promise ??= run();", &ssv(&["this.#promise"]), &[]).unwrap();
-        assert_eq!(out, "$.set(this.#promise, this.#promise.v ?? run(), true);");
+        assert_eq!(out, "this.#promise.v ?? $.set(this.#promise, run(), true);");
     }
 
     #[test]
@@ -973,14 +1067,17 @@ impl<'a, 'b> PrivateClassAssignRewriter<'a, 'b> {
             unreachable!("checked above")
         };
 
+        // A short-circuiting compound must not call the setter on the branch that
+        // does not assign, so it expands to a logical expression over the setter.
+        let short_circuit = match compound {
+            Some(Compound::Logical(op)) => Some((op, self.field_read(&pf, dot_v))),
+            _ => None,
+        };
+
         let value = match compound {
-            None => assign.right,
+            None | Some(Compound::Logical(_)) => assign.right,
             Some(Compound::Binary(op)) => {
                 self.b.binary(op, self.field_read(&pf, dot_v), assign.right)
-            }
-            Some(Compound::Logical(op)) => {
-                self.b
-                    .logical(op, self.field_read(&pf, dot_v), assign.right)
             }
         };
 
@@ -988,7 +1085,11 @@ impl<'a, 'b> PrivateClassAssignRewriter<'a, 'b> {
         if needs_proxy {
             args.push(self.b.bool(true));
         }
-        *expr = self.b.call("$.set", args);
+        let set_call = self.b.call("$.set", args);
+        *expr = match short_circuit {
+            None => set_call,
+            Some((op, read)) => self.b.logical(op, read, set_call),
+        };
         self.changed = true;
     }
 
@@ -1207,19 +1308,19 @@ mod shared_decision_tests {
             "this.#a ??= run();",
             &["this.#a"],
             &[],
-            "$.set(this.#a, $.get(this.#a) ?? run(), true);",
+            "$.get(this.#a) ?? $.set(this.#a, run(), true);",
         ),
         (
             "this.#a ||= y;",
             &["this.#a"],
             &[],
-            "$.set(this.#a, $.get(this.#a) || y, true);",
+            "$.get(this.#a) || $.set(this.#a, y, true);",
         ),
         (
             "this.#d &&= y;",
             &[],
             &["this.#d"],
-            "$.set(this.#d, $.get(this.#d) && y);",
+            "$.get(this.#d) && $.set(this.#d, y);",
         ),
         ("this.#a++;", &["this.#a"], &[], "$.update(this.#a);"),
         ("this.#a--;", &["this.#a"], &[], "$.update(this.#a, -1);"),
