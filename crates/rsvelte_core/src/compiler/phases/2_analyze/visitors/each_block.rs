@@ -161,6 +161,24 @@ pub fn visit<'a, 'b: 'a>(
     // Visit the body and fallback
     fragment::analyze(&mut block.body, context)?;
 
+    // 写経 `EachBlock.js`: `context.visit(node.body); if (node.key) context.visit(node.key);`
+    // — the key is visited INSIDE the each scope and BEFORE the fallback, so a
+    // name in it resolves to the each item / index binding (and a write to one
+    // marks that binding mutated, which is what promotes the collection to
+    // state).
+    //
+    // IMPORTANT: use a separate metadata for the key expression, NOT
+    // `block.metadata.expression`. Upstream visits the key without the
+    // expression-metadata context, so its dependencies are NOT added to
+    // `node.metadata.expression.dependencies`; adding them would wrongly set
+    // EACH_ITEM_REACTIVE when the iterable has no external dependencies but the
+    // key does.
+    if let Some(key) = &block.key {
+        let key_node = key.as_node();
+        let mut key_metadata = crate::ast::template::ExpressionMetadata::default();
+        walk_js_expression_node(&key_node, context, &mut key_metadata)?;
+    }
+
     // Fallback is still in the each block's scope (same scope as body), and
     // upstream's `animate:` rule reads the parent's key and BODY child count for
     // a fallback element too — so the frame stays pushed across it.
@@ -180,18 +198,6 @@ pub fn visit<'a, 'b: 'a>(
     // Restore is_direct_child_of_component
     context.is_direct_child_of_component = was_direct_child;
     context.is_direct_child_of_snippet = was_direct_snippet;
-
-    // Visit the key expression if present
-    // IMPORTANT: Use a separate metadata for the key expression, NOT block.metadata.expression.
-    // In the official Svelte compiler, the key is visited without the expression metadata context,
-    // so its dependencies are NOT added to node.metadata.expression.dependencies.
-    // Adding key dependencies to expression metadata would incorrectly set EACH_ITEM_REACTIVE
-    // in cases where the iterable has no external dependencies but the key does.
-    if let Some(key) = &block.key {
-        let key_node = key.as_node();
-        let mut key_metadata = crate::ast::template::ExpressionMetadata::default();
-        walk_js_expression_node(&key_node, context, &mut key_metadata)?;
-    }
 
     // Decrement block depth
     context.block_depth -= 1;

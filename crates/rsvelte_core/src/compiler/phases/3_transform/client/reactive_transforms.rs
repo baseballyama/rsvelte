@@ -1073,7 +1073,62 @@ pub(super) fn extract_locally_declared_vars(body: &str) -> Vec<String> {
             vars.push(m.as_str().to_string());
         }
     }
+    vars.extend(extract_catch_param_names(body));
     vars
+}
+
+/// A `catch` parameter binds its names without a `let`/`const`/`var` keyword,
+/// so the declaration scan above cannot see it; read them off the AST instead.
+fn extract_catch_param_names(body: &str) -> Vec<String> {
+    use oxc_ast::ast::CatchParameter;
+    use oxc_ast_visit::{Visit, walk};
+
+    if memmem::find(body.as_bytes(), b"catch").is_none() {
+        return Vec::new();
+    }
+
+    fn collect_pattern_names(pat: &oxc_ast::ast::BindingPattern, out: &mut Vec<String>) {
+        use oxc_ast::ast::BindingPattern as P;
+        match pat {
+            P::BindingIdentifier(id) => out.push(id.name.to_string()),
+            P::ObjectPattern(obj) => {
+                for prop in obj.properties.iter() {
+                    collect_pattern_names(&prop.value, out);
+                }
+                if let Some(rest) = &obj.rest {
+                    collect_pattern_names(&rest.argument, out);
+                }
+            }
+            P::ArrayPattern(arr) => {
+                for el in arr.elements.iter().flatten() {
+                    collect_pattern_names(el, out);
+                }
+                if let Some(rest) = &arr.rest {
+                    collect_pattern_names(&rest.argument, out);
+                }
+            }
+            P::AssignmentPattern(asgn) => collect_pattern_names(&asgn.left, out),
+        }
+    }
+
+    struct CatchParams {
+        names: Vec<String>,
+    }
+    impl<'a> Visit<'a> for CatchParams {
+        fn visit_catch_parameter(&mut self, param: &CatchParameter<'a>) {
+            collect_pattern_names(&param.pattern, &mut self.names);
+            walk::walk_catch_parameter(self, param);
+        }
+    }
+
+    let allocator = oxc_allocator::Allocator::default();
+    let parsed = oxc_parser::Parser::new(&allocator, body, oxc_span::SourceType::mjs()).parse();
+    if parsed.panicked {
+        return Vec::new();
+    }
+    let mut visitor = CatchParams { names: Vec::new() };
+    visitor.visit_program(&parsed.program);
+    visitor.names
 }
 
 /// Transform simple assignments to state variables into $.set() calls within reactive statements.

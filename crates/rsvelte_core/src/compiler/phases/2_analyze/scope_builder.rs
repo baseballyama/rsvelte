@@ -70,6 +70,11 @@ pub struct ScopeBuilder<'a> {
     /// These become `legacy_reactive` bindings if no existing binding is found.
     /// Reference: scope.js lines 1021, 1323-1328
     possible_implicit_declarations: Vec<String>,
+    /// The rune the CURRENT declarator's initializer calls, if any. Upstream
+    /// sets `binding.initial = declarator.init` for every identifier the
+    /// pattern extracts, so a destructured binding's `init_rune` is the
+    /// declarator's — not `None`.
+    declarator_init_rune: Option<String>,
     /// The scope index of the instance script scope.
     instance_scope_index: usize,
     /// Maps function body start position (from OXC span) to the scope index
@@ -138,6 +143,7 @@ impl<'a> ScopeBuilder<'a> {
             is_typescript,
             validation_errors: Vec::new(),
             possible_implicit_declarations: Vec::new(),
+            declarator_init_rune: None,
             instance_scope_index: 0,
             function_scope_map: FxHashMap::default(),
             current_script_offset: 0,
@@ -704,7 +710,11 @@ impl<'a> ScopeBuilder<'a> {
                 for decl_node in self.arena.get_js_children(declarations) {
                     if let JsNode::VariableDeclarator { id, init, .. } = decl_node {
                         let id_node = self.arena.get_js_node(*id);
+                        self.declarator_init_rune = init
+                            .map(|init_id| self.arena.get_js_node(init_id))
+                            .and_then(|init_node| self.rune_call_callee(init_node));
                         self.process_binding_pattern_typed(id_node, *init, decl_kind);
+                        self.declarator_init_rune = None;
                         // Also track updates in the initializer expression
                         if let Some(init_id) = init {
                             let init_node = self.arena.get_js_node(*init_id);
@@ -1193,6 +1203,8 @@ impl<'a> ScopeBuilder<'a> {
                     if let Some(rune) = self.rune_call_callee(init_node) {
                         self.bindings[idx].init_rune = Some(rune);
                     }
+                } else if let Some(rune) = self.declarator_init_rune.clone() {
+                    self.bindings[idx].init_rune = Some(rune);
                 }
             }
             JsNode::ObjectPattern { properties, .. } => {
@@ -3442,6 +3454,13 @@ impl<'a> ScopeBuilder<'a> {
                 DeclarationKind::Const,
                 None,
             );
+        }
+
+        // 写経 `scope.js`'s `EachBlock`: `if (node.key) visit(node.key, { scope })`
+        // — the key is visited INSIDE the each scope and before the children, so
+        // a write to the item there is recorded as an update of the item binding.
+        if let Some(ref key) = block.key {
+            self.process_template_expression(key);
         }
 
         // Visit body
