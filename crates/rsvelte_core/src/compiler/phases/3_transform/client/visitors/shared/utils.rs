@@ -4522,12 +4522,9 @@ pub(crate) fn is_js_expr_defined(
                 || trimmed == "false"
                 || trimmed.parse::<f64>().is_ok()
         }
-        JsExpr::Sequence(seq) => {
-            // A sequence expression evaluates to its last element
-            seq.expressions
-                .last()
-                .is_some_and(|e| is_js_expr_defined(e, arena, context))
-        }
+        // Upstream's `scope.evaluate` has no `SequenceExpression` case, so it
+        // falls to `default` and adds UNKNOWN — never `is_defined`, whatever
+        // the last element evaluates to.
         _ => false,
     }
 }
