@@ -42,6 +42,11 @@ struct CssContext<'a> {
     /// Used to determine unused status of compound selectors containing &.
     /// Uses RefCell for interior mutability so we can push/pop while passing &CssContext.
     parent_preludes: std::cell::RefCell<Vec<&'a Value>>,
+    /// Start offsets of the `:is()` / `:where()` / `:has()` arguments that were
+    /// found unreachable — upstream's `metadata.used` on an argument
+    /// `ComplexSelector`. `None` until the marking walk has run; the printer then
+    /// reads the same decision the warning did, instead of recomputing it.
+    unused_branches: std::cell::RefCell<Option<FxHashSet<u32>>>,
     /// Whether we're in dev mode (affects empty rule handling)
     dev: bool,
     /// Whether to minify the output (for injected CSS in SSR)
@@ -87,6 +92,7 @@ pub fn collect_css_unused_warnings(
         has_opaque_sibling_boundaries: analysis.css.has_opaque_elements,
         dom_structure: &analysis.css.dom_structure,
         parent_preludes: std::cell::RefCell::new(Vec::new()),
+        unused_branches: std::cell::RefCell::new(None),
         dev: false,
         minify: false,
     };
@@ -161,6 +167,33 @@ fn substitute_is_branch(
     synth
 }
 
+/// Record an argument `ComplexSelector` as unreachable, keyed by its start
+/// offset — upstream's `metadata.used = false` on that node.
+fn mark_branch_unused(inner_complex: &Value, ctx: &CssContext) {
+    let Some(start) = inner_complex.get("start").and_then(|s| s.as_u64()) else {
+        return;
+    };
+    ctx.unused_branches
+        .borrow_mut()
+        .get_or_insert_with(FxHashSet::default)
+        .insert(start as u32);
+}
+
+/// Run the unused walk purely for its marking side effect, so the printer and
+/// the warnings answer "is this argument used?" from one computation.
+fn mark_unused_functional_branches<'a>(
+    nodes: &'a [Value],
+    css_source: &str,
+    css_start: usize,
+    ctx: &CssContext<'a>,
+) {
+    ctx.unused_branches
+        .borrow_mut()
+        .get_or_insert_with(FxHashSet::default);
+    let mut discarded = Vec::new();
+    collect_unused_warnings_from_nodes(nodes, css_source, css_start, ctx, &mut discarded, false);
+}
+
 fn collect_is_where_unused_warnings(
     complex_selector: &Value,
     css_source: &str,
@@ -184,11 +217,27 @@ fn collect_is_where_unused_warnings(
             let sel_name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
 
             if sel_type == "PseudoClassSelector"
-                && (sel_name == "is" || sel_name == "where")
+                && (sel_name == "is" || sel_name == "where" || sel_name == "has")
                 && let Some(args) = sel.get("args")
                 && !args.is_null()
                 && let Some(children) = args.get("children").and_then(|c| c.as_array())
             {
+                // A `:has()` argument is matched against the subject's subtree, not
+                // substituted into the enclosing chain, and upstream's `css-warn.js`
+                // never recurses into it — so it is marked but never reported.
+                if sel_name == "has" {
+                    let flags =
+                        has_pseudo_unused_under_every_host(rel_selectors, ri, selectors, sel, ctx);
+                    for (bi, inner_complex) in children.iter().enumerate() {
+                        let unused = flags.as_ref().is_some_and(|f| f.get(bi) == Some(&true))
+                            || is_functional_branch_unused(inner_complex, None, ctx);
+                        if unused {
+                            mark_branch_unused(inner_complex, ctx);
+                        }
+                    }
+                    continue;
+                }
+
                 for inner_complex in children {
                     // Skip multi-part selectors (with combinators like `html *`).
                     // These could reference elements outside the component and
@@ -221,16 +270,29 @@ fn collect_is_where_unused_warnings(
                         .and_then(|s| s.as_array());
 
                     let unused = match branch_selectors {
-                        Some(bs) => {
-                            let synth = substitute_is_branch(complex_selector, ri, si, bs);
-                            is_complex_selector_unused(&synth, ctx)
-                        }
+                        // A branch that resolves its own `&` is matched from
+                        // the document root, not below the parent: upstream's
+                        // `get_relative_selectors` prepends the parent only
+                        // when no `&` is present.
+                        Some(bs) => match branch_alternatives(bs, ctx) {
+                            Some(alternatives) => without_parent_preludes(ctx, || {
+                                alternatives.iter().all(|bs| {
+                                    let synth = substitute_is_branch(complex_selector, ri, si, bs);
+                                    is_complex_selector_unused(&synth, ctx)
+                                })
+                            }),
+                            None => {
+                                let synth = substitute_is_branch(complex_selector, ri, si, bs);
+                                is_complex_selector_unused(&synth, ctx)
+                            }
+                        },
                         // Empty branch (e.g. `:is()`) — fall back to the
                         // isolated check.
                         None => is_complex_selector_unused(inner_complex, ctx),
                     };
 
                     if unused {
+                        mark_branch_unused(inner_complex, ctx);
                         let start = inner_complex
                             .get("start")
                             .and_then(|s| s.as_u64())
@@ -446,6 +508,7 @@ fn render_stylesheet_internal(
         has_opaque_sibling_boundaries: analysis.css.has_opaque_elements,
         dom_structure: &analysis.css.dom_structure,
         parent_preludes: std::cell::RefCell::new(Vec::new()),
+        unused_branches: std::cell::RefCell::new(None),
         dev: options.dev,
         minify,
     };
@@ -489,6 +552,8 @@ fn render_stylesheet_internal(
                 &reparsed
             }
         };
+
+        mark_unused_functional_branches(children, css_content, css_start, &ctx);
 
         // Collect keyframe names for animation value replacement
         let keyframes = collect_keyframe_names(children);
@@ -4356,151 +4421,370 @@ fn decode_css_escape(name: &str) -> String {
 /// can match within the subject element's subtree.
 /// For example, `x:has(> z)` is unused if no `x` element has a direct child `z`.
 fn is_has_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
-    if ctx.dom_structure.elements.is_empty() {
-        return false;
-    }
-
-    // Note: We no longer bail out entirely for opaque boundaries.
-    // Instead, individual checks below handle opaque boundaries appropriately.
-    // For descendant/child :has() arguments with opaque boundaries, we're conservative.
-    // For sibling :has() arguments, we use Phase 2 sibling data when available.
-
-    // Find relative selectors that contain :has()
-    for rel in rel_selectors.iter() {
-        if let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) {
-            for sel in selectors {
-                if sel.get("type").and_then(|t| t.as_str()) != Some("PseudoClassSelector") {
-                    continue;
-                }
-                if sel.get("name").and_then(|n| n.as_str()) != Some("has") {
-                    continue;
-                }
-                let Some(args) = sel.get("args") else {
-                    continue;
-                };
-                let Some(has_children) = args.get("children").and_then(|c| c.as_array()) else {
-                    continue;
-                };
-
-                // If any :has() argument contains a NestingSelector (&), we can't resolve it
-                // through the DOM structure since & refers to the parent CSS rule, not an HTML element.
-                // Be conservative and treat such selectors as potentially used.
-                let has_nesting_in_args = has_children.iter().any(|complex| {
-                    if let Some(rels) = complex.get("children").and_then(|c| c.as_array()) {
-                        rels.iter().any(|rel| {
-                            if let Some(sels) = rel.get("selectors").and_then(|s| s.as_array()) {
-                                sels.iter().any(|s| {
-                                    s.get("type").and_then(|t| t.as_str())
-                                        == Some("NestingSelector")
-                                })
-                            } else {
-                                false
-                            }
-                        })
-                    } else {
-                        false
-                    }
-                });
-                if has_nesting_in_args {
-                    continue; // Can't determine unused status, skip
-                }
-
-                // Get the subject element info (selectors in this relative selector EXCLUDING :has)
-                let subject_info = extract_selector_info_from_selectors(selectors);
-
-                // Check if the subject is :root or :global(.foo) (no tag/class/id from DOM elements)
-                let subject_is_root = selectors.iter().any(|s| {
-                    s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                        && s.get("name").and_then(|n| n.as_str()) == Some("root")
-                });
-                let subject_is_global = selectors.iter().any(|s| {
-                    s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                        && s.get("name").and_then(|n| n.as_str()) == Some("global")
-                        && s.get("args").is_some()
-                });
-
-                // For :root:has() or :global(.foo):has(), the subject is the document root
-                // or an external element. Check if :has() arguments exist anywhere
-                // in the template using simple element existence checks.
-                if subject_is_root || subject_is_global {
-                    let all_has_args_unused = has_children
-                        .iter()
-                        .all(|has_complex| is_has_argument_unused_globally(has_complex, ctx));
-                    if all_has_args_unused && !has_children.is_empty() {
-                        return true;
-                    }
-                    continue;
-                }
-
-                let subject_elements: Vec<usize> = ctx
-                    .dom_structure
-                    .elements
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, el)| {
-                        // If no subject info (e.g., just :has()), match all elements
-                        if subject_info.tag_name.is_none()
-                            && subject_info.classes.is_empty()
-                            && subject_info.id.is_none()
-                            && !subject_info.is_universal
-                        {
-                            return false;
-                        }
-                        selector_matches_element(&subject_info, el)
-                    })
-                    .map(|(i, _)| i)
-                    .collect();
-
-                if subject_elements.is_empty()
-                    && (subject_info.tag_name.is_some()
-                        || !subject_info.classes.is_empty()
-                        || subject_info.id.is_some())
-                {
-                    // Subject element doesn't exist at all - already handled by other checks
-                    continue;
-                }
-
-                // A subject-less `:has(...)` is `*:has(...)`: upstream still
-                // requires the argument to match INSIDE some element's subtree,
-                // so an existence check over the whole component is too weak —
-                // unless the subject may be an element outside this component,
-                // which is upstream's `include_self`.
-                if subject_elements.is_empty()
-                    && subject_info.tag_name.is_none()
-                    && subject_info.classes.is_empty()
-                    && subject_info.id.is_none()
-                    && !subject_info.is_universal
-                {
-                    let all_has_args_unused = if enclosing_rule_is_global_or_root(ctx) {
-                        has_children
-                            .iter()
-                            .all(|has_complex| is_has_argument_unused_globally(has_complex, ctx))
-                    } else {
-                        let every_element: Vec<usize> =
-                            (0..ctx.dom_structure.elements.len()).collect();
-                        has_children.iter().all(|has_complex| {
-                            is_has_argument_unused(has_complex, &every_element, ctx)
-                        })
-                    };
-                    if all_has_args_unused && !has_children.is_empty() {
-                        return true;
-                    }
-                    continue;
-                }
-
-                // Check if ANY :has() argument can match within any subject element's subtree
-                let all_has_args_unused = has_children
-                    .iter()
-                    .all(|has_complex| is_has_argument_unused(has_complex, &subject_elements, ctx));
-
-                if all_has_args_unused && !has_children.is_empty() {
-                    return true;
-                }
+    for (ri, rel) in rel_selectors.iter().enumerate() {
+        let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) else {
+            continue;
+        };
+        for sel in selectors {
+            if !is_has_pseudo(sel) {
+                continue;
+            }
+            if has_pseudo_unused_under_every_host(rel_selectors, ri, selectors, sel, ctx)
+                .is_some_and(|flags| flags.iter().all(|&unused| unused))
+            {
+                return true;
             }
         }
     }
 
     false
+}
+
+/// Per-argument verdicts for one `:has()`, taken under every way the enclosing
+/// rule's `&` can resolve — an argument is unused only when no resolution keeps
+/// it reachable. `None` when nothing may be concluded.
+fn has_pseudo_unused_under_every_host(
+    rel_selectors: &[Value],
+    ri: usize,
+    selectors: &[Value],
+    sel: &Value,
+    ctx: &CssContext,
+) -> Option<Vec<bool>> {
+    let mut merged: Option<Vec<bool>> = None;
+    for (chain, offset) in effective_host_chains(rel_selectors, ctx) {
+        let flags = has_argument_unused_flags(&chain, offset + ri, selectors, sel, ctx)?;
+        merged = Some(match merged {
+            None => flags,
+            Some(prev) => prev
+                .iter()
+                .zip(flags.iter())
+                .map(|(a, b)| *a && *b)
+                .collect(),
+        });
+    }
+    merged
+}
+
+/// The relative-selector chains this rule really matches against, and where
+/// `rel_selectors` starts inside each. A nested rule with no explicit `&` is
+/// `parent <selector>` — upstream's `get_relative_selectors` prepends exactly
+/// that, and [`build_parent_chains`] is this file's port of it — so the `:has()`
+/// subject has to satisfy the parent chain too. One entry per parent
+/// alternative; the bare selector when the rule is not nested or resolves its
+/// own `&`.
+fn effective_host_chains(rel_selectors: &[Value], ctx: &CssContext) -> Vec<(Vec<Value>, usize)> {
+    let bare = || vec![(rel_selectors.to_vec(), 0usize)];
+
+    if rel_selectors.iter().any(relative_selector_has_nesting) {
+        return bare();
+    }
+    let parent_preludes = ctx.parent_preludes.borrow();
+    if parent_preludes.is_empty() {
+        return bare();
+    }
+    let Some(chains) = build_parent_chains(&parent_preludes, parent_preludes.len()) else {
+        return bare();
+    };
+
+    chains
+        .into_iter()
+        .map(|mut chain| {
+            let offset = chain.len();
+            for (i, rel) in rel_selectors.iter().enumerate() {
+                chain.push(if i == 0 {
+                    with_descendant_head(rel)
+                } else {
+                    rel.clone()
+                });
+            }
+            (chain, offset)
+        })
+        .collect()
+}
+
+/// What a `&` stands for inside an argument list: the subject compound of each
+/// alternative the enclosing rules resolve to. Reuses [`build_parent_chains`],
+/// this file's port of upstream's `get_relative_selectors`, so there is one
+/// answer to "what is the parent" rather than a second one here.
+///
+/// Only the chain's **last** compound is taken. A multi-part parent (`.x .y`)
+/// therefore contributes `.y` alone, dropping the `.x` ancestor requirement —
+/// which weakens the test, so a branch can only come out *less* unused, never
+/// more.
+fn nesting_substitute_alternatives(ctx: &CssContext) -> Option<Vec<Vec<Value>>> {
+    let parent_preludes = ctx.parent_preludes.borrow();
+    if parent_preludes.is_empty() {
+        return None;
+    }
+    let chains = build_parent_chains(&parent_preludes, parent_preludes.len())?;
+    let alternatives: Vec<Vec<Value>> = chains
+        .iter()
+        .filter_map(|chain| {
+            chain
+                .last()?
+                .get("selectors")
+                .and_then(|s| s.as_array())
+                .cloned()
+        })
+        .collect();
+    (!alternatives.is_empty()).then_some(alternatives)
+}
+
+/// Whether any relative selector of `complex` carries a top-level `&`.
+fn relative_selectors_carry_nesting(complex: &Value) -> bool {
+    complex
+        .get("children")
+        .and_then(|c| c.as_array())
+        .is_some_and(|rels| {
+            rels.iter().any(|rel| {
+                rel.get("selectors")
+                    .and_then(|s| s.as_array())
+                    .is_some_and(|sels| {
+                        sels.iter().any(|s| {
+                            s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector")
+                        })
+                    })
+            })
+        })
+}
+
+/// The forms one `:is()` / `:where()` argument compound takes once its `&` is
+/// resolved — one per way the enclosing rules resolve it. `None` when the
+/// compound carries no `&`, or when no parent can resolve it, in which case the
+/// compound is used as written.
+fn branch_alternatives(branch: &[Value], ctx: &CssContext) -> Option<Vec<Vec<Value>>> {
+    if !branch
+        .iter()
+        .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
+    {
+        return None;
+    }
+    let alternatives: Vec<Vec<Value>> = nesting_substitute_alternatives(ctx)?
+        .iter()
+        .filter_map(|sub| replace_nesting_in_selectors(branch, sub))
+        .collect();
+    // An empty list would make the `all()` below vacuously true.
+    (!alternatives.is_empty()).then_some(alternatives)
+}
+
+/// Evaluate `f` as if the rule were not nested — the counterpart of resolving
+/// `&` by substitution, since the substituted selector already carries the
+/// parent and must not also be required to sit below it.
+fn without_parent_preludes<T>(ctx: &CssContext, f: impl FnOnce() -> T) -> T {
+    let saved = ctx.parent_preludes.replace(Vec::new());
+    let out = f();
+    ctx.parent_preludes.replace(saved);
+    out
+}
+
+/// Rewrite one argument-list compound, replacing its `&` with `substitute`.
+/// `None` when the compound has no `&` to replace.
+fn replace_nesting_in_selectors(selectors: &[Value], substitute: &[Value]) -> Option<Vec<Value>> {
+    if !selectors
+        .iter()
+        .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"))
+    {
+        return None;
+    }
+    let mut out = Vec::with_capacity(selectors.len() + substitute.len());
+    for sel in selectors {
+        if sel.get("type").and_then(|t| t.as_str()) == Some("NestingSelector") {
+            out.extend(substitute.iter().cloned());
+        } else {
+            out.push(sel.clone());
+        }
+    }
+    Some(out)
+}
+
+/// Rewrite an argument `ComplexSelector` so each `&` becomes `substitute`.
+fn replace_nesting_in_complex(complex: &Value, substitute: &[Value]) -> Option<Value> {
+    let rels = complex.get("children")?.as_array()?;
+    let mut children = Vec::with_capacity(rels.len());
+    let mut replaced = false;
+    for rel in rels {
+        let selectors = rel.get("selectors").and_then(|s| s.as_array());
+        match selectors.and_then(|s| replace_nesting_in_selectors(s, substitute)) {
+            Some(new_selectors) => {
+                replaced = true;
+                let mut cloned = rel.clone();
+                if let Value::Object(map) = &mut cloned {
+                    map.insert("selectors".to_string(), Value::Array(new_selectors));
+                }
+                children.push(cloned);
+            }
+            None => children.push(rel.clone()),
+        }
+    }
+    if !replaced {
+        return None;
+    }
+    let mut out = complex.clone();
+    if let Value::Object(map) = &mut out {
+        map.insert("children".to_string(), Value::Array(children));
+    }
+    Some(out)
+}
+
+/// Whether a `&` appears anywhere in this compound, a pseudo-class's argument
+/// list included — upstream finds it with a `walk`, which descends into `args`.
+fn relative_selector_has_nesting(rel: &Value) -> bool {
+    rel.get("selectors")
+        .and_then(|s| s.as_array())
+        .is_some_and(|sels| sels.iter().any(simple_selector_has_nesting))
+}
+
+fn simple_selector_has_nesting(sel: &Value) -> bool {
+    match sel.get("type").and_then(|t| t.as_str()) {
+        Some("NestingSelector") => true,
+        Some("PseudoClassSelector") => sel
+            .get("args")
+            .and_then(|a| a.get("children"))
+            .and_then(|c| c.as_array())
+            .is_some_and(|complexes| {
+                complexes.iter().any(|complex| {
+                    complex
+                        .get("children")
+                        .and_then(|c| c.as_array())
+                        .is_some_and(|rels| rels.iter().any(relative_selector_has_nesting))
+                })
+            }),
+        _ => false,
+    }
+}
+
+fn is_has_pseudo(sel: &Value) -> bool {
+    sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+        && sel.get("name").and_then(|n| n.as_str()) == Some("has")
+}
+
+/// Whether each argument of one `:has()` can match inside the subtree of an
+/// element the enclosing compound could apply to — upstream marks exactly those
+/// arguments' `metadata.used`. `None` when the subject cannot be resolved, in
+/// which case nothing may be concluded about any argument.
+///
+/// `ri` is the index of the `:has()`'s relative selector in `rel_selectors`, so
+/// the candidates can be narrowed by the combinators that precede it: `.a :has(.b)`
+/// asks for a `.b` under an element that is itself under an `.a`, not for a `.b`
+/// anywhere.
+fn has_argument_unused_flags(
+    rel_selectors: &[Value],
+    ri: usize,
+    selectors: &[Value],
+    sel: &Value,
+    ctx: &CssContext,
+) -> Option<Vec<bool>> {
+    if ctx.dom_structure.elements.is_empty() {
+        return None;
+    }
+
+    let has_children = sel
+        .get("args")?
+        .get("children")
+        .and_then(|c| c.as_array())
+        .filter(|c| !c.is_empty())?;
+
+    // `&` inside the argument refers to the parent CSS rule, not to an element.
+    // Resolve it against the enclosing preludes; if it cannot be resolved,
+    // nothing may be concluded about this `:has()`.
+    let resolved;
+    let has_children: &[Value] = if has_children.iter().any(relative_selectors_carry_nesting) {
+        let alternatives = nesting_substitute_alternatives(ctx)?;
+        // One alternative only: with several, an argument would have to be
+        // unreachable under all of them, which this per-argument shape cannot
+        // express — so decline rather than guess.
+        let [substitute] = alternatives.as_slice() else {
+            return None;
+        };
+        resolved = has_children
+            .iter()
+            .map(|complex| {
+                replace_nesting_in_complex(complex, substitute).unwrap_or_else(|| complex.clone())
+            })
+            .collect::<Vec<_>>();
+        &resolved
+    } else {
+        has_children
+    };
+
+    // The subject is the compound the `:has()` sits in, `:has()` itself excluded.
+    let subject_info = extract_selector_info_from_selectors(selectors);
+
+    let subject_is_root = selectors.iter().any(|s| {
+        s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+            && s.get("name").and_then(|n| n.as_str()) == Some("root")
+    });
+    let subject_is_global = selectors.iter().any(|s| {
+        s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+            && s.get("name").and_then(|n| n.as_str()) == Some("global")
+            && s.get("args").is_some()
+    });
+
+    // For `:root:has()` / `:global(.foo):has()` the subject is the document root
+    // or an element outside the component, so the argument is only required to
+    // exist somewhere.
+    if subject_is_root || subject_is_global {
+        return Some(
+            has_children
+                .iter()
+                .map(|has_complex| is_has_argument_unused_globally(has_complex, ctx))
+                .collect(),
+        );
+    }
+
+    let subject_less = subject_info.tag_name.is_none()
+        && subject_info.classes.is_empty()
+        && subject_info.id.is_none()
+        && !subject_info.is_universal;
+
+    if subject_less {
+        // A subject-less `:has(...)` is `*:has(...)`: upstream still requires the
+        // argument to match INSIDE some element's subtree, so an existence check
+        // over the whole component is too weak — unless the subject may be an
+        // element outside this component, which is upstream's `include_self`.
+        if enclosing_rule_is_global_or_root(ctx) {
+            return Some(
+                has_children
+                    .iter()
+                    .map(|has_complex| is_has_argument_unused_globally(has_complex, ctx))
+                    .collect(),
+            );
+        }
+        let candidates: Vec<usize> = (0..ctx.dom_structure.elements.len())
+            .filter(|&i| structural_ancestors_satisfy_links(rel_selectors, ri, i, ctx))
+            .collect();
+        return Some(
+            has_children
+                .iter()
+                .map(|has_complex| is_has_argument_unused(has_complex, &candidates, ctx))
+                .collect(),
+        );
+    }
+
+    let subject_elements: Vec<usize> = ctx
+        .dom_structure
+        .elements
+        .iter()
+        .enumerate()
+        .filter(|(i, el)| {
+            selector_matches_element(&subject_info, el)
+                && structural_ancestors_satisfy_links(rel_selectors, ri, *i, ctx)
+        })
+        .map(|(i, _)| i)
+        .collect();
+
+    if subject_elements.is_empty() {
+        // The subject itself never applies; that verdict belongs to the ordinary
+        // compound checks, not to this one.
+        return None;
+    }
+
+    Some(
+        has_children
+            .iter()
+            .map(|has_complex| is_has_argument_unused(has_complex, &subject_elements, ctx))
+            .collect(),
+    )
 }
 
 /// Upstream `include_self`: the subject of a `:has(...)` may be an element
@@ -4667,6 +4951,26 @@ fn is_has_argument_unused(
         }
     }
 
+    // A `:has()` nested inside the argument has its own subject set — the
+    // elements this argument could match — so it has to be resolved against
+    // those. `selector_info_has_constraints` sees no tag/class/id in
+    // `:has(:has(.b))` and would otherwise call the argument a possible match.
+    if rel_selectors.len() == 1
+        && let Some(nested) = nested_has_arguments(first)
+    {
+        let Some(candidates) =
+            elements_matching_relative(first, &first_info, subject_elements, ctx)
+        else {
+            return false;
+        };
+        if candidates.is_empty() {
+            return true;
+        }
+        return nested
+            .iter()
+            .all(|arg| is_has_argument_unused(arg, &candidates, ctx));
+    }
+
     // Arguments without any concrete constraint (e.g. `:has(:focus-visible)`)
     // can match any element; the official matcher skips plain pseudo-classes and
     // treats the selector as a possible match.
@@ -4766,6 +5070,87 @@ fn is_has_argument_unused(
         }
         _ => false, // Unknown combinator, be conservative
     }
+}
+
+/// The argument list of a `:has()` sitting inside one compound, when there is
+/// exactly one — several would each constrain the same element and this shape
+/// cannot express the conjunction.
+fn nested_has_arguments(rel: &Value) -> Option<&Vec<Value>> {
+    let selectors = rel.get("selectors")?.as_array()?;
+    let mut found = None;
+    for sel in selectors {
+        if !is_has_pseudo(sel) {
+            continue;
+        }
+        if found.is_some() {
+            return None;
+        }
+        found = sel
+            .get("args")
+            .and_then(|a| a.get("children"))
+            .and_then(|c| c.as_array())
+            .filter(|c| !c.is_empty());
+        found?;
+    }
+    found
+}
+
+/// The elements one relative selector of a `:has()` argument can match, given
+/// the subjects it is measured from. `None` when the answer cannot be trusted
+/// (an unhandled combinator, or content this component does not see).
+fn elements_matching_relative(
+    rel: &Value,
+    info: &SelectorInfo,
+    subject_elements: &[usize],
+    ctx: &CssContext,
+) -> Option<Vec<usize>> {
+    let combinator = rel
+        .get("combinator")
+        .and_then(|c| c.get("name"))
+        .and_then(|n| n.as_str())
+        .unwrap_or(" ");
+    // `selector_matches_element` answers "matches nothing" for a compound with
+    // no tag/class/id, but here that compound is the bare `:has()` whose
+    // argument is checked separately — every reachable element is a candidate.
+    let universal = SelectorInfo {
+        tag_name: None,
+        classes: Vec::new(),
+        id: None,
+        is_universal: true,
+        is_groups: Vec::new(),
+    };
+    let info = if selector_info_has_constraints(info) || !info.is_groups.is_empty() {
+        info
+    } else {
+        &universal
+    };
+    let mut matched = Vec::new();
+    match combinator {
+        ">" => {
+            if ctx.has_opaque_sibling_boundaries {
+                return None;
+            }
+            for &subject_idx in subject_elements {
+                for &child_idx in &ctx.dom_structure.elements[subject_idx].children_idx {
+                    if let Some(child) = ctx.dom_structure.elements.get(child_idx)
+                        && selector_matches_element(info, child)
+                    {
+                        matched.push(child_idx);
+                    }
+                }
+            }
+        }
+        " " => {
+            if ctx.has_opaque_sibling_boundaries {
+                return None;
+            }
+            for &subject_idx in subject_elements {
+                collect_matching_descendants(subject_idx, info, ctx, &mut matched);
+            }
+        }
+        _ => return None,
+    }
+    Some(matched)
 }
 
 /// Check if a multi-part :has() argument (like > h > i) is unused
@@ -5344,58 +5729,67 @@ fn test_attribute_value(
     }
 }
 
-/// Check if a selector inside :is()/:not()/:has() is definitely unused.
-/// This is more conservative than is_complex_selector_unused - we only
-/// return true if the selector is a simple class/id selector that definitely
-/// doesn't exist in the template.
-fn is_is_inner_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
-    // Get the relative selectors
-    if let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array()) {
-        // Only check single relative selectors (simple selectors)
-        // Complex selectors with combinators are harder to analyze
-        if rel_selectors.len() != 1 {
-            return false;
-        }
+/// Where a functional pseudo-class sits inside the complex selector that
+/// encloses it, so one of its arguments can be checked for reachability with the
+/// surrounding combinators rather than in isolation.
+#[derive(Clone, Copy)]
+struct BranchHost<'a> {
+    complex: &'a Value,
+    ri: usize,
+    si: usize,
+}
 
-        if let Some(rel) = rel_selectors.first()
-            && let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array())
-        {
-            // Check if all simple selectors in this relative selector are unused
-            // Be conservative - only mark as unused if we're sure
-            for sel in selectors {
-                let sel_type = sel.get("type").and_then(|t| t.as_str());
-                match sel_type {
-                    Some("ClassSelector") => {
-                        if ctx.has_dynamic_classes {
-                            return false;
-                        }
-                        if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
-                            let decoded = decode_css_escape(name);
-                            if !ctx.used_classes.contains(&decoded) {
-                                return true;
-                            }
-                        }
-                    }
-                    Some("IdSelector") => {
-                        if ctx.has_dynamic_ids {
-                            return false;
-                        }
-                        if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
-                            let decoded = decode_css_escape(name);
-                            if !ctx.used_ids.contains(&decoded) {
-                                return true;
-                            }
-                        }
-                    }
-                    // Type selectors, pseudo selectors, etc. - be conservative
-                    _ => {
-                        return false;
-                    }
-                }
-            }
-        }
+/// Whether one argument of an `:is()` / `:where()` / `:has()` is unused, which is
+/// what upstream records as the argument `ComplexSelector`'s `metadata.used`.
+///
+/// A multi-part argument (`:is(a b)`) is assumed to match: it can reach outside
+/// the component, which upstream's matcher cannot rule out either.
+fn is_functional_branch_unused(
+    complex: &Value,
+    host: Option<BranchHost>,
+    ctx: &CssContext,
+) -> bool {
+    let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array()) else {
+        return false;
+    };
+    if rel_selectors.len() != 1 {
+        return false;
     }
-    false
+    let Some(rel) = rel_selectors.first() else {
+        return false;
+    };
+    // A leading combinator (`:has(> .b)`) is relative to the subject, not to the
+    // enclosing chain, so neither check below models it.
+    if rel.get("combinator").is_some_and(|c| !c.is_null()) {
+        return false;
+    }
+
+    match host {
+        Some(host) => {
+            let Some(branch) = rel.get("selectors").and_then(|s| s.as_array()) else {
+                return false;
+            };
+            let synth = substitute_is_branch(host.complex, host.ri, host.si, branch);
+            is_complex_selector_unused(&synth, ctx)
+        }
+        None => is_complex_selector_unused(complex, ctx),
+    }
+}
+
+/// Check if a selector inside `:is()`/`:where()`/`:has()` is definitely unused,
+/// judged on its own (no enclosing-chain context).
+fn is_is_inner_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
+    is_functional_branch_unused(complex, None, ctx)
+}
+
+/// Read the marking walk's verdict for one argument. Falls back to the isolated
+/// check only when the walk has not run (the printer always runs it first).
+fn branch_is_marked_unused(complex: &Value, ctx: &CssContext) -> bool {
+    match (&*ctx.unused_branches.borrow(), complex.get("start")) {
+        (Some(marked), Some(start)) => start.as_u64().is_some_and(|s| marked.contains(&(s as u32))),
+        (Some(_), None) => false,
+        (None, _) => is_is_inner_selector_unused(complex, ctx),
+    }
 }
 
 /// Transform a CSS rule while preserving whitespace from source
@@ -7472,8 +7866,10 @@ fn format_simple_selector_with_scope(
                     // should use :where() for scoping.
                     let inner = transform_is_not_args(
                         args,
+                        sel,
                         selector,
                         css_source,
+                        css_start,
                         name,
                         ctx,
                         use_direct_class,
@@ -7556,76 +7952,190 @@ fn format_simple_selector_with_scope(
 ///
 /// Note: For :not(), we never mark inner selectors as unused because :not(X) means
 /// "everything that is NOT X", which is always potentially matching something.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "mirrors the upstream visitor's state"
+)]
 fn transform_is_not_args(
     args: &Value,
+    pseudo: &Value,
     selector: &str,
     css_source: &str,
+    css_start: Option<usize>,
     pseudo_name: &str,
     ctx: Option<&CssContext>,
     use_direct_class: bool,
     outer_specificity_bumped: bool,
 ) -> String {
-    let mut result = String::new();
-
     // args should be a SelectorList
-    if let Some(children) = args.get("children").and_then(|c| c.as_array()) {
-        let mut selectors = Vec::new();
-
-        for complex_selector in children.iter() {
-            // For :not(), never mark inner selectors as unused
-            // :not(X) means "everything except X", so even if X doesn't exist,
-            // the selector still matches all elements
-            let is_unused = if pseudo_name == "not" {
-                false
-            } else {
-                // Check if this selector is unused (only if we have context)
-                // Use the conservative check for inner selectors - only mark as unused
-                // if it's a simple class/id that definitely doesn't exist
-                ctx.map(|c| is_is_inner_selector_unused(complex_selector, c))
-                    .unwrap_or(false)
-            };
-
-            if is_unused {
-                selectors.push((true, get_selector_text(complex_selector)));
-            } else {
-                selectors.push((
-                    false,
-                    transform_is_not_complex_selector(
-                        complex_selector,
-                        selector,
-                        css_source,
-                        pseudo_name,
-                        ctx,
-                        use_direct_class,
-                        outer_specificity_bumped,
-                    ),
-                ));
-            }
-        }
-
-        for (i, (is_unused, selector)) in selectors.iter().enumerate() {
-            if i > 0 {
-                result.push(' ');
-            }
-            if *is_unused {
-                result.push_str("/* (unused) ");
-                result.push_str(selector);
-                if i + 1 < selectors.len() {
-                    result.push(',');
-                }
-                result.push_str("*/");
-            } else {
-                result.push_str(selector);
-                if i + 1 < selectors.len() && !selectors[i + 1].0 {
-                    result.push(',');
-                }
-            }
-        }
-    } else {
-        // Fallback to raw text
-        result = get_selector_text(args);
+    let Some(children) = args.get("children").and_then(|c| c.as_array()) else {
+        return get_selector_text(args);
+    };
+    if children.is_empty() {
+        return get_selector_text(args);
     }
 
+    let mut used = Vec::with_capacity(children.len());
+    let mut texts = Vec::with_capacity(children.len());
+
+    for complex_selector in children.iter() {
+        // :not(X) means "everything except X", so even when X matches nothing the
+        // selector still applies; upstream marks every `:not` argument used.
+        let is_unused = if pseudo_name == "not" {
+            false
+        } else {
+            ctx.is_some_and(|c| branch_is_marked_unused(complex_selector, c))
+        };
+
+        used.push(!is_unused);
+        texts.push(if is_unused {
+            css_start
+                .map(|cs| get_complex_selector_text(complex_selector, css_source, cs))
+                .unwrap_or_else(|| get_selector_text(complex_selector))
+        } else {
+            transform_is_not_complex_selector(
+                complex_selector,
+                selector,
+                css_source,
+                pseudo_name,
+                ctx,
+                use_direct_class,
+                outer_specificity_bumped,
+            )
+        });
+    }
+
+    match arg_list_source_spans(pseudo, children, css_source, css_start) {
+        Some(spans) => splice_arg_list(css_source, &spans, &used, &texts),
+        None => join_arg_list(&used, &texts),
+    }
+}
+
+/// Source byte offsets of an argument list: `(open_paren + 1, close_paren)` plus
+/// one `(start, end)` per argument. `None` when the recorded spans do not line up
+/// with `css_source`, in which case the caller rebuilds the list from the AST.
+fn arg_list_source_spans(
+    pseudo: &Value,
+    children: &[Value],
+    css_source: &str,
+    css_start: Option<usize>,
+) -> Option<(usize, usize, Vec<(usize, usize)>)> {
+    let css_start = css_start?;
+    let rel = |v: &Value, key: &str| -> Option<usize> {
+        let abs = v.get(key).and_then(serde_json::Value::as_u64)? as usize;
+        abs.checked_sub(css_start)
+    };
+
+    let p_start = rel(pseudo, "start")?;
+    let p_end = rel(pseudo, "end")?;
+    if p_end > css_source.len() || p_start >= p_end {
+        return None;
+    }
+    if !css_source.is_char_boundary(p_start) || !css_source.is_char_boundary(p_end) {
+        return None;
+    }
+    let open = css_source[p_start..p_end].find('(')? + p_start;
+    let close = p_end - 1;
+    if css_source.as_bytes().get(close) != Some(&b')') || open + 1 > close {
+        return None;
+    }
+
+    let mut spans = Vec::with_capacity(children.len());
+    let mut cursor = open + 1;
+    for child in children {
+        let start = rel(child, "start")?;
+        let end = rel(child, "end")?;
+        if start < cursor || end < start || end > close {
+            return None;
+        }
+        if !css_source.is_char_boundary(start) || !css_source.is_char_boundary(end) {
+            return None;
+        }
+        spans.push((start, end));
+        cursor = end;
+    }
+
+    Some((open + 1, close, spans))
+}
+
+/// Port of upstream's `SelectorList` visitor (`3-transform/css/index.js`), which
+/// edits a copy of the source rather than rebuilding the list — so whatever the
+/// source had between arguments (comments included) survives.
+fn splice_arg_list(
+    css_source: &str,
+    spans: &(usize, usize, Vec<(usize, usize)>),
+    used: &[bool],
+    texts: &[String],
+) -> String {
+    let (region_start, region_end, children) = spans;
+    let mut out = String::new();
+    out.push_str(&css_source[*region_start..children[0].0]);
+
+    let mut pruning = false;
+    let mut has_previous_used = false;
+
+    for i in 0..children.len() {
+        if i > 0 {
+            let gap = &css_source[children[i - 1].1..children[i].0];
+            if used[i] == pruning {
+                if pruning {
+                    // Upstream scans back from the argument's start for the `,`
+                    // and closes the comment on the side the previous run needs.
+                    let comma = gap
+                        .rfind(',')
+                        .map_or(0, |c| c + usize::from(!has_previous_used));
+                    out.push_str(&gap[..comma]);
+                    out.push_str("*/");
+                    out.push_str(&gap[comma..]);
+                } else {
+                    // `overwrite(last, selector.start, ' /* (unused) ')`
+                    out.push_str(" /* (unused) ");
+                }
+            } else {
+                out.push_str(gap);
+            }
+        } else if !used[0] {
+            out.push_str("/* (unused) ");
+        }
+
+        if used[i] == pruning {
+            pruning = !pruning;
+        }
+        out.push_str(&texts[i]);
+        if !pruning && used[i] {
+            has_previous_used = true;
+        }
+    }
+
+    if pruning {
+        out.push_str("*/");
+    }
+    out.push_str(&css_source[children[children.len() - 1].1..*region_end]);
+    out
+}
+
+/// Rebuild an argument list from the AST, for the rare case where the recorded
+/// spans cannot be resolved against `css_source`.
+fn join_arg_list(used: &[bool], texts: &[String]) -> String {
+    let mut result = String::new();
+    for i in 0..texts.len() {
+        if i > 0 {
+            result.push(' ');
+        }
+        if used[i] {
+            result.push_str(&texts[i]);
+            if i + 1 < texts.len() && used[i + 1] {
+                result.push(',');
+            }
+        } else {
+            result.push_str("/* (unused) ");
+            result.push_str(&texts[i]);
+            if i + 1 < texts.len() {
+                result.push(',');
+            }
+            result.push_str("*/");
+        }
+    }
     result
 }
 

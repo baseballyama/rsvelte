@@ -161,6 +161,123 @@ fn record_first_error(
     }
 }
 
+/// Length of the leading JS-whitespace run of `text`.
+fn leading_ws_len(text: &str) -> usize {
+    text.len() - text.trim_start_ws().len()
+}
+
+/// Port of upstream's sticky `REGEX_NTH_OF` (`1-parse/read/style.js`):
+/// `(even|odd|\+?(\d+|\d*n(\s*[+-]\s*\d+)?)|-\d*n(\s*\+\s*\d+))((?=\s*[,)])|\s+of\s+)`
+///
+/// `text` must start at the candidate token. The caller has already stripped the
+/// enclosing parentheses and split on top-level commas, so end-of-text stands in
+/// for the `,`/`)` the lookahead requires. Returns the whole match length (the
+/// `Nth` node's text, `of` separator included).
+fn match_nth_of(text: &str) -> Option<usize> {
+    for anb in nth_anb_candidates(text) {
+        if let Some(total) = nth_of_tail(text, anb) {
+            return Some(total);
+        }
+    }
+    None
+}
+
+/// End offsets for the An+B part, in the alternation/backtracking order a JS
+/// regex would try them.
+fn nth_anb_candidates(text: &str) -> Vec<usize> {
+    let b = text.as_bytes();
+    let mut out = Vec::new();
+
+    if text.starts_with("even") {
+        out.push(4);
+    }
+    if text.starts_with("odd") {
+        out.push(3);
+    }
+
+    // `\+?(\d+|\d*n(\s*[+-]\s*\d+)?)`
+    let p = usize::from(b.first() == Some(&b'+'));
+    let mut d = p;
+    while d < b.len() && b[d].is_ascii_digit() {
+        d += 1;
+    }
+    // `\d+` is greedy and backtracks one digit at a time.
+    let mut k = d;
+    while k > p {
+        out.push(k);
+        k -= 1;
+    }
+    push_nth_n_form(text, p, false, &mut out);
+
+    // `-\d*n(\s*\+\s*\d+)`
+    if b.first() == Some(&b'-') {
+        push_nth_n_form(text, 1, true, &mut out);
+    }
+
+    out
+}
+
+/// `\d*n(\s*[+-]\s*\d+)?` (or, when `plus_only`, a required `(\s*\+\s*\d+)`)
+/// starting at `p`.
+fn push_nth_n_form(text: &str, p: usize, plus_only: bool, out: &mut Vec<usize>) {
+    let b = text.as_bytes();
+    let mut d = p;
+    while d < b.len() && b[d].is_ascii_digit() {
+        d += 1;
+    }
+    if b.get(d) != Some(&b'n') {
+        return;
+    }
+    let q = d + 1;
+
+    // The trailing group is greedy, so it is attempted before the empty match.
+    let mut i = q + leading_ws_len(&text[q..]);
+    let sign_ok = match b.get(i) {
+        Some(&b'+') => true,
+        Some(&b'-') => !plus_only,
+        _ => false,
+    };
+    if sign_ok {
+        i += 1;
+        i += leading_ws_len(&text[i..]);
+        let digits_start = i;
+        while i < b.len() && b[i].is_ascii_digit() {
+            i += 1;
+        }
+        let mut k = i;
+        while k > digits_start {
+            out.push(k);
+            k -= 1;
+        }
+    }
+
+    if !plus_only {
+        out.push(q);
+    }
+}
+
+/// `((?=\s*[,)])|\s+of\s+)` at `anb`. Returns the total match length.
+fn nth_of_tail(text: &str, anb: usize) -> Option<usize> {
+    let rest = &text[anb..];
+    let after_ws = rest.trim_start_ws();
+    if after_ws.is_empty() || after_ws.starts_with(',') || after_ws.starts_with(')') {
+        return Some(anb);
+    }
+
+    // `\s+of\s+`
+    let ws = leading_ws_len(rest);
+    if ws == 0 {
+        return None;
+    }
+    let after = &rest[ws..];
+    let after = after.strip_prefix("of")?;
+    let trailing_ws = leading_ws_len(after);
+    if trailing_ws == 0 {
+        return None;
+    }
+    Some(anb + ws + 2 + trailing_ws)
+}
+
 /// A comment where a compound selector should begin. Upstream's `read_selector`
 /// tolerates one only immediately before `,`, `{` or `)`; anywhere else the loop
 /// falls through to `read_identifier`, which rejects the `/`.
@@ -2235,12 +2352,6 @@ impl<'a> SelectorParser<'a> {
 
             self.advance(); // consume ')'
 
-            // Check if this is an nth-* pseudo-class that uses special An+B syntax
-            let is_nth_pseudo = matches!(
-                name.as_str(),
-                "nth-child" | "nth-last-child" | "nth-of-type" | "nth-last-of-type"
-            );
-
             // The arguments are the only recursive part of selector parsing, so
             // this is where the nesting bound applies. The parenthesised text is
             // already consumed above, so bailing out costs only the args AST.
@@ -2254,162 +2365,6 @@ impl<'a> SelectorParser<'a> {
                     ),
                 );
                 None
-            } else if is_nth_pseudo {
-                // For nth-* pseudo-classes, parse the An+B syntax and optional 'of S' selector
-                let trimmed = content.trim_ws();
-                let leading_ws = content.len() - content.trim_start_ws().len();
-                let nth_start = args_start + leading_ws;
-
-                // Check for 'of ' keyword to split An+B from selector
-                let (nth_value, selector_part, nth_end_pos) = if let Some(of_pos) =
-                    memmem::find(trimmed.as_bytes(), b" of ")
-                {
-                    // Split at ' of ' - include the ' of ' in the Nth value
-                    let nth_val = &trimmed[..of_pos + 4]; // Include ' of '
-                    let sel_part = &trimmed[of_pos + 4..];
-                    let end_pos = nth_start + of_pos + 4;
-                    (nth_val, Some((sel_part, end_pos)), end_pos)
-                } else {
-                    // Check if it's a valid An+B expression or just a selector
-                    // An+B patterns: contains n, digits, +/-, or is even/odd
-                    let is_nth_pattern = trimmed == "even"
-                        || trimmed == "odd"
-                        || trimmed.contains('n')
-                        || trimmed.chars().any(|c| c.is_ascii_digit())
-                        || trimmed.starts_with('+')
-                        || trimmed.starts_with('-');
-
-                    if is_nth_pattern {
-                        let trailing_ws = content.len() - content.trim_end_ws().len();
-                        let end_pos = self.offset + content_end - trailing_ws;
-                        (trimmed, None, end_pos)
-                    } else {
-                        // Not an An+B pattern, treat as regular selector
-                        // Fall through to the non-nth parsing below
-                        let mut trimmed_inner = content.trim_ws();
-                        let mut leading_skip = content.len() - content.trim_start_ws().len();
-
-                        loop {
-                            if trimmed_inner.starts_with("/*") {
-                                if let Some(end_pos) = memmem::find(trimmed_inner.as_bytes(), b"*/")
-                                {
-                                    leading_skip += end_pos + 2;
-                                    trimmed_inner = &trimmed_inner[end_pos + 2..];
-                                    let ws_skip =
-                                        trimmed_inner.len() - trimmed_inner.trim_start_ws().len();
-                                    leading_skip += ws_skip;
-                                    trimmed_inner = trimmed_inner.trim_start_ws();
-                                } else {
-                                    break;
-                                }
-                            } else {
-                                break;
-                            }
-                        }
-
-                        let trailing_ws = content.len() - content.trim_end_ws().len();
-                        let trimmed_start = args_start + leading_skip;
-                        let trimmed_end = self.offset + content_end - trailing_ws;
-
-                        // Parse as regular selector list and set as args for the PseudoClassSelector
-                        let args = self.parse_args_selector_list(
-                            trimmed_inner,
-                            trimmed_start,
-                            trimmed_end,
-                        );
-                        let end = self.offset + self.index;
-
-                        let mut obj = Map::new();
-                        obj.insert(
-                            "type".to_string(),
-                            Value::String("PseudoClassSelector".to_string()),
-                        );
-                        obj.insert("name".to_string(), Value::String(name));
-                        obj.insert("args".to_string(), args);
-                        obj.insert("start".to_string(), Value::Number((start as i64).into()));
-                        obj.insert("end".to_string(), Value::Number((end as i64).into()));
-
-                        return Some(Value::Object(obj));
-                    }
-                };
-
-                // Build the selectors array
-                let mut selectors = Vec::new();
-
-                // Add Nth object
-                let mut nth_obj = Map::new();
-                nth_obj.insert("type".to_string(), Value::String("Nth".to_string()));
-                nth_obj.insert("value".to_string(), Value::String(nth_value.to_string()));
-                nth_obj.insert(
-                    "start".to_string(),
-                    Value::Number((nth_start as i64).into()),
-                );
-                nth_obj.insert(
-                    "end".to_string(),
-                    Value::Number((nth_end_pos as i64).into()),
-                );
-                selectors.push(Value::Object(nth_obj));
-
-                // Parse selector part if present
-                if let Some((sel_text, sel_start)) = selector_part {
-                    let mut sel_parser = self.nested(sel_text, sel_start);
-                    let mut parsed = Vec::new();
-                    sel_parser.parse_selectors(&mut parsed);
-                    self.absorb_nesting_error(&sel_parser);
-                    selectors.extend(parsed);
-                }
-
-                // Get the actual end position
-                let trailing_ws = content.len() - content.trim_end_ws().len();
-                let actual_end = self.offset + content_end - trailing_ws;
-
-                // Wrap in RelativeSelector
-                let mut rel_sel = Map::new();
-                rel_sel.insert(
-                    "type".to_string(),
-                    Value::String("RelativeSelector".to_string()),
-                );
-                rel_sel.insert("combinator".to_string(), Value::Null);
-                rel_sel.insert("selectors".to_string(), Value::Array(selectors));
-                rel_sel.insert(
-                    "start".to_string(),
-                    Value::Number((nth_start as i64).into()),
-                );
-                rel_sel.insert("end".to_string(), Value::Number((actual_end as i64).into()));
-
-                // Wrap in ComplexSelector
-                let mut complex_sel = Map::new();
-                complex_sel.insert(
-                    "type".to_string(),
-                    Value::String("ComplexSelector".to_string()),
-                );
-                complex_sel.insert(
-                    "start".to_string(),
-                    Value::Number((nth_start as i64).into()),
-                );
-                complex_sel.insert("end".to_string(), Value::Number((actual_end as i64).into()));
-                complex_sel.insert(
-                    "children".to_string(),
-                    Value::Array(vec![Value::Object(rel_sel)]),
-                );
-
-                // Wrap in SelectorList
-                let mut sel_list = Map::new();
-                sel_list.insert(
-                    "type".to_string(),
-                    Value::String("SelectorList".to_string()),
-                );
-                sel_list.insert(
-                    "start".to_string(),
-                    Value::Number((nth_start as i64).into()),
-                );
-                sel_list.insert("end".to_string(), Value::Number((actual_end as i64).into()));
-                sel_list.insert(
-                    "children".to_string(),
-                    Value::Array(vec![Value::Object(complex_sel)]),
-                );
-
-                Some(Value::Object(sel_list))
             } else {
                 // Calculate trimmed content positions (strip whitespace and leading comments)
                 let mut trimmed = content.trim_ws();
@@ -2579,6 +2534,13 @@ impl<'a> SelectorParser<'a> {
             }
         }
 
+        // Upstream gates the `An+B` branch on `inside_pseudo_class` alone, not on
+        // the pseudo-class name, and every caller of this function is a
+        // pseudo-class/-element argument list.
+        if let Some(nth_len) = match_nth_of(current) {
+            return self.build_nth_complex_selector(current, current_offset, nth_len);
+        }
+
         // Strip trailing whitespace and comments
         let mut end_current = current;
         loop {
@@ -2612,6 +2574,85 @@ impl<'a> SelectorParser<'a> {
         obj.insert("start".to_string(), Value::Number((start as i64).into()));
         obj.insert("end".to_string(), Value::Number((end as i64).into()));
         obj.insert("children".to_string(), Value::Array(relative_selectors));
+
+        Value::Object(obj)
+    }
+
+    /// Build the `ComplexSelector` for an argument list that starts with an
+    /// `An+B` token. `text[..nth_len]` is the `Nth` node; anything after it is
+    /// the `of S` selector, which shares the `Nth`'s relative selector.
+    fn build_nth_complex_selector(&self, text: &str, offset: usize, nth_len: usize) -> Value {
+        let nth_end = offset + nth_len;
+
+        let mut nth_obj = Map::new();
+        nth_obj.insert("type".to_string(), Value::String("Nth".to_string()));
+        nth_obj.insert(
+            "value".to_string(),
+            Value::String(text[..nth_len].to_string()),
+        );
+        nth_obj.insert("start".to_string(), Value::Number((offset as i64).into()));
+        nth_obj.insert("end".to_string(), Value::Number((nth_end as i64).into()));
+
+        let rest_raw = &text[nth_len..];
+        let rest_offset = nth_end + leading_ws_len(rest_raw);
+        let mut rest = rest_raw.trim_ws();
+        loop {
+            rest = rest.trim_end_ws();
+            match rest
+                .strip_suffix("*/")
+                .and_then(|head| memchr::memmem::rfind(head.as_bytes(), b"/*"))
+            {
+                Some(pos) => rest = &rest[..pos],
+                None => break,
+            }
+        }
+
+        let mut children = if rest.is_empty() {
+            Vec::new()
+        } else {
+            self.parse_relative_selectors_from_text(rest, rest_offset)
+        };
+
+        let end = if rest.is_empty() {
+            nth_end
+        } else {
+            rest_offset + rest.len()
+        };
+
+        match children.first_mut() {
+            Some(first) => {
+                if let Some(o) = first.as_object_mut() {
+                    o.insert("start".to_string(), Value::Number((offset as i64).into()));
+                    if let Some(sels) = o.get_mut("selectors").and_then(|s| s.as_array_mut()) {
+                        sels.insert(0, Value::Object(nth_obj));
+                    }
+                }
+            }
+            None => {
+                let mut rel_sel = Map::new();
+                rel_sel.insert(
+                    "type".to_string(),
+                    Value::String("RelativeSelector".to_string()),
+                );
+                rel_sel.insert("combinator".to_string(), Value::Null);
+                rel_sel.insert(
+                    "selectors".to_string(),
+                    Value::Array(vec![Value::Object(nth_obj)]),
+                );
+                rel_sel.insert("start".to_string(), Value::Number((offset as i64).into()));
+                rel_sel.insert("end".to_string(), Value::Number((end as i64).into()));
+                children.push(Value::Object(rel_sel));
+            }
+        }
+
+        let mut obj = Map::new();
+        obj.insert(
+            "type".to_string(),
+            Value::String("ComplexSelector".to_string()),
+        );
+        obj.insert("start".to_string(), Value::Number((offset as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+        obj.insert("children".to_string(), Value::Array(children));
 
         Value::Object(obj)
     }
@@ -2789,6 +2830,20 @@ impl<'a> SelectorParser<'a> {
                     self.create_relative_selector(selector_text, selector_offset, last_combinator);
                 result.push(rel_selector);
             }
+        }
+
+        // Upstream reads a combinator and then requires a compound after it;
+        // hitting the argument list's `)` instead is `css_selector_invalid`.
+        if last_combinator.is_some() && text[current_start..].trim_ws().is_empty() {
+            let pos = base_offset + text.len();
+            record_first_error(
+                &self.error,
+                crate::error::ParseError::svelte(
+                    "css_selector_invalid",
+                    "Invalid selector",
+                    (pos, pos),
+                ),
+            );
         }
 
         // If no selectors were found, create one for the whole text
@@ -3127,6 +3182,25 @@ impl<'a> SelectorParser<'a> {
     /// - `\c` where c is any non-hex character - represents the literal character c
     fn read_identifier(&mut self) -> String {
         let start = self.index;
+
+        // Upstream's `REGEX_LEADING_HYPHEN_OR_DIGIT` (`-?\d`): an identifier may
+        // not start with a digit, nor with a hyphen followed by one.
+        let head = &self.source[start..];
+        if head
+            .strip_prefix('-')
+            .unwrap_or(head)
+            .starts_with(|c: char| c.is_ascii_digit())
+        {
+            let pos = self.offset + start;
+            record_first_error(
+                &self.error,
+                crate::error::ParseError::svelte(
+                    "css_expected_identifier",
+                    "Expected a valid CSS identifier",
+                    (pos, pos),
+                ),
+            );
+        }
 
         while !self.is_eof() {
             let c = self.current_char();
