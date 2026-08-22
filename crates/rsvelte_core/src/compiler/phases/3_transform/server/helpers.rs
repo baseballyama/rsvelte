@@ -1315,6 +1315,13 @@ pub(crate) fn extract_rune_inner(value: &str, prefix: &str) -> Option<String> {
     None
 }
 
+/// Every compound assignment operator. A write through any of them makes the
+/// declaration's initializer stop being the declaration's value.
+const COMPOUND_ASSIGN_OPS: [&str; 17] = [
+    "+=", "-=", "*=", "/=", "%=", "**=", "<<=", ">>>=", ">>=", "&&=", "||=", "??=", "&=", "|=",
+    "^=", "++", "--",
+];
+
 pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMap<String, String> {
     let mut constants = FxHashMap::default();
     let mut let_vars: Vec<String> = Vec::new();
@@ -1382,6 +1389,11 @@ pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMa
         }
     }
 
+    // Drop reassigned `let`s BEFORE the second pass: a `const` resolved from one
+    // would otherwise keep the stale initializer, and nothing removes it later
+    // because the `const` itself is never reassigned.
+    drop_reassigned(&mut constants, &mut let_vars, full_source);
+
     // Second pass: try to evaluate expressions using the constants we've gathered
     for (name, expr, is_const) in &unresolved {
         if let Some(value) = try_evaluate_with_constants(expr, &constants) {
@@ -1392,7 +1404,24 @@ pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMa
         }
     }
 
-    for var_name in &let_vars {
+    drop_reassigned(&mut constants, &mut let_vars, full_source);
+
+    constants
+}
+
+/// Remove from `constants` every name in `let_vars` that the source binds with
+/// `bind:` or writes after its declaration. Drains `let_vars`.
+///
+/// Object and array mutation is safe here only because a non-literal initializer
+/// never becomes a constant in the first place — lifting that restriction without
+/// tracking mutation would widen this bug rather than narrow it.
+fn drop_reassigned(
+    constants: &mut FxHashMap<String, String>,
+    let_vars: &mut Vec<String>,
+    full_source: &str,
+) {
+    for var_name in let_vars.drain(..) {
+        let var_name = &var_name;
         let bind_pattern = format!("bind:{}", var_name);
         if full_source.contains(&bind_pattern) {
             constants.remove(var_name);
@@ -1432,20 +1461,13 @@ pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMa
                             || before_trimmed.ends_with(" const")
                     };
 
-                    if !is_decl {
-                        if (rest.starts_with('=')
+                    if !is_decl
+                        && ((rest.starts_with('=')
                             && !rest.starts_with("==")
                             && !rest.starts_with("=>"))
-                            || rest.starts_with("+=")
-                            || rest.starts_with("-=")
-                            || rest.starts_with("*=")
-                            || rest.starts_with("/=")
-                        {
-                            return true;
-                        }
-                        if rest.starts_with("++") || rest.starts_with("--") {
-                            return true;
-                        }
+                            || COMPOUND_ASSIGN_OPS.iter().any(|op| rest.starts_with(op)))
+                    {
+                        return true;
                     }
                 }
 
@@ -1464,8 +1486,6 @@ pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMa
             constants.remove(var_name);
         }
     }
-
-    constants
 }
 
 /// Split a variable declaration's declarator list by top-level commas.
