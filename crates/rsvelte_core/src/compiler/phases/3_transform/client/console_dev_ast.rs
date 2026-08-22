@@ -101,7 +101,7 @@ pub(super) fn transform_console_calls_dev_fragment(
         |_| Some(()),
     )
     .is_some();
-    (!parsed).then(|| super::props_transforms::transform_console_calls_dev(source))
+    (!parsed).then(|| super::props_transforms::transform_console_calls_dev(source, is_ts, analysis))
 }
 
 /// Collect leaf `console.METHOD(args)` wraps (calls whose arguments
