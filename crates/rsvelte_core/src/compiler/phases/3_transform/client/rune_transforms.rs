@@ -279,7 +279,11 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
                         // plus the `;` already in `after`.
                         "/* $$inspect_removed$$ */;"
                     } else {
-                        ""
+                        // An operand slot. Upstream drops the same `EmptyStatement` in,
+                        // which prints as a bare `;` no parser accepts, so we fill the
+                        // slot with the value the removed call evaluates to. See
+                        // `compatibility/deliberate-divergences.md`.
+                        "undefined"
                     };
                     // Remove just the $inspect(...) part but keep other code on the line
                     result = Cow::Owned(format!(

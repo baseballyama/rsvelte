@@ -316,6 +316,24 @@ struct NestedInspectResidue<'a, 'b> {
 }
 
 impl<'a, 'b> VisitMut<'a> for NestedInspectResidue<'a, 'b> {
+    /// A `$inspect(…)` in a VALUE position — a declarator initializer, an array
+    /// element — where the statement hook below never sees it. Upstream's
+    /// `VariableDeclaration` allow-list omits `$inspect().with` entirely and
+    /// mishandles `$inspect`, so official's own output here is a `SyntaxError`
+    /// or an unrelated value; see
+    /// `upstream_issues/3441-svelte-inspect-with-in-a-declarator.md`. rsvelte
+    /// emits what the rune evaluates to instead of leaving the call in place,
+    /// which would throw `ReferenceError: $inspect is not defined`.
+    fn visit_expression(&mut self, expr: &mut OxcExpression<'a>) {
+        if inspect_kind(expr, self.rune_store_subs).is_some()
+            && let Some(value) = inspect_value_expr(expr, self.src, self.origin, self.state)
+        {
+            *expr = value;
+            return;
+        }
+        oxc_ast_visit::walk_mut::walk_expression(self, expr);
+    }
+
     /// The non-dev residue is TWO statements, so the substitution has to happen
     /// on the list rather than on a single-statement hook.
     fn visit_statements(&mut self, stmts: &mut oxc_allocator::Vec<'a, Statement<'a>>) {
@@ -385,13 +403,48 @@ fn inspect_residue<'a>(
             state.b.empty_kept(stmt_start + 1),
         ]);
     }
-    // Pull the verbatim argument / `.with` callback source straight from the
-    // call spans — preserving operators/whitespace exactly like the text
-    // oracle's slice-based extraction.
+    let (args_src, with_fn_src) = inspect_call_srcs(expr, &kind, src);
+    Some(
+        build_dev_inspect(&kind, &args_src, with_fn_src.as_deref(), state)
+            .into_iter()
+            .collect(),
+    )
+}
+
+/// The VALUE a removed `$inspect(…)` / `$inspect(…).with(…)` in an OPERAND slot
+/// evaluates to, for a call whose spans are local to `origin`. In dev that is
+/// the same lowering [`build_dev_inspect`] emits, unwrapped back to an
+/// expression; outside dev the rune produces nothing, so the slot takes
+/// `undefined`.
+fn inspect_value_expr<'a>(
+    expr: &OxcExpression<'_>,
+    src: &str,
+    origin: u32,
+    state: &ServerTransformState<'a>,
+) -> Option<OxcExpression<'a>> {
+    let kind = inspect_kind(expr, rune_names_are_store_subs(state.analysis))?;
+    if !state.options.dev {
+        return Some(state.b.id("undefined"));
+    }
+    let (args_src, with_fn_src) = inspect_call_srcs(expr, &kind, src.get(origin as usize..)?);
+    match build_dev_inspect(&kind, &args_src, with_fn_src.as_deref(), state)? {
+        Statement::ExpressionStatement(es) => Some(es.unbox().expression),
+        _ => None,
+    }
+}
+
+/// Pull the verbatim argument / `.with` callback source straight from the call
+/// spans — preserving operators/whitespace exactly like the text oracle's
+/// slice-based extraction.
+fn inspect_call_srcs(
+    expr: &OxcExpression<'_>,
+    kind: &InspectKind,
+    src: &str,
+) -> (String, Option<String>) {
     let OxcExpression::CallExpression(call) = expr else {
         unreachable!("inspect_kind matched a CallExpression");
     };
-    let (args_src, with_fn_src) = match kind {
+    match kind {
         InspectKind::Plain => (call_args_src(call, src), None),
         InspectKind::With => {
             // For `<inner>.with(fn)`, the args belong to the INNER `$inspect(...)`
@@ -410,12 +463,7 @@ fn inspect_residue<'a>(
                 .map(|e| src[e.span().start as usize..e.span().end as usize].to_string());
             (inner_args, fn_src)
         }
-    };
-    Some(
-        build_dev_inspect(&kind, &args_src, with_fn_src.as_deref(), state)
-            .into_iter()
-            .collect(),
-    )
+    }
 }
 
 /// Build the dev-mode lowering of a `$inspect(...)` / `$inspect(...).with(...)`
