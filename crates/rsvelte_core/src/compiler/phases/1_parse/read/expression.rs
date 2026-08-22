@@ -1553,47 +1553,40 @@ pub fn parse_destructuring_pattern<'a>(
 ) -> Option<Expression<'a>> {
     // The component's mode only. Trying the other one accepts a TypeScript
     // annotation in a component that never declared `lang="ts"`.
-    for use_typescript in [ts] {
-        let result = with_oxc_allocator(|allocator| {
-            let source_type = if use_typescript {
-                SourceType::ts()
-            } else {
-                SourceType::mjs()
-            };
+    let source_type = if ts {
+        SourceType::ts()
+    } else {
+        SourceType::mjs()
+    };
 
-            let mut wrapped = String::with_capacity(content.len() + 12);
-            wrapped.push_str("let ");
-            wrapped.push_str(content);
-            wrapped.push_str(" = null");
-            let parser = OxcParser::new(allocator, &wrapped, source_type);
-            let result = parser.parse();
+    with_oxc_allocator(|allocator| {
+        let mut wrapped = String::with_capacity(content.len() + 12);
+        wrapped.push_str("let ");
+        wrapped.push_str(content);
+        wrapped.push_str(" = null");
+        let parser = OxcParser::new(allocator, &wrapped, source_type);
+        let result = parser.parse();
 
-            if !result.diagnostics.is_empty() {
-                return None;
-            }
-
-            if let Some(oxc_ast::ast::Statement::VariableDeclaration(var_decl)) =
-                result.program.body.first()
-                && let Some(declarator) = var_decl.declarations.first()
-            {
-                let adjusted_offset = offset.wrapping_sub(4);
-                let pattern_node = convert_binding_pattern_for_param_as_node(
-                    arena,
-                    &declarator.id,
-                    adjusted_offset,
-                    line_offsets,
-                );
-                return Some(Expression::from_node(pattern_node));
-            }
-
-            None
-        });
-        if result.is_some() {
-            return result;
+        if !result.diagnostics.is_empty() {
+            return None;
         }
-    }
 
-    None
+        if let Some(oxc_ast::ast::Statement::VariableDeclaration(var_decl)) =
+            result.program.body.first()
+            && let Some(declarator) = var_decl.declarations.first()
+        {
+            let adjusted_offset = offset.wrapping_sub(4);
+            let pattern_node = convert_binding_pattern_for_param_as_node(
+                arena,
+                &declarator.id,
+                adjusted_offset,
+                line_offsets,
+            );
+            return Some(Expression::from_node(pattern_node));
+        }
+
+        None
+    })
 }
 
 /// Parse a JavaScript expression with a known end position.
