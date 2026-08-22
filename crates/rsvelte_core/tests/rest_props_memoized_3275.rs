@@ -109,3 +109,30 @@ fn a_plain_prop_attribute_is_unaffected() {
         "a plain prop attribute must not gain a wrapper:\n{out}"
     );
 }
+
+#[test]
+fn a_pure_callee_over_rest_props_is_still_memoized() {
+    // `String` is a bare global, so upstream's `is_pure` says the callee is pure:
+    // the only thing that can set `has_call` here is `dependencies.size > 0`, and
+    // that set is only populated once the ARGUMENTS have been visited. This row
+    // is what separates the two orderings — `JSON.stringify` above passes either
+    // way because a member callee already fails `!is_pure`.
+    let out = client("<div title={String($$restProps)}></div>");
+    assert!(
+        out.contains("$.template_effect(($0) => $.set_attribute(div, 'title', $0), [")
+            && out.contains("$.deep_read_state($$restProps)")
+            && out.contains("$.untrack(() => String($$restProps))"),
+        "a pure callee over `$$restProps` must still reach the dependency-array form:\n{out}"
+    );
+}
+
+#[test]
+fn a_pure_callee_over_sanitized_props_is_still_memoized() {
+    let out = client("<div title={String($$props)}></div>");
+    assert!(
+        out.contains("$.template_effect(($0) => $.set_attribute(div, 'title', $0), [")
+            && out.contains("$.deep_read_state($$sanitized_props)")
+            && out.contains("$.untrack(() => String($$sanitized_props))"),
+        "the same holds for the `$$props` binding:\n{out}"
+    );
+}
