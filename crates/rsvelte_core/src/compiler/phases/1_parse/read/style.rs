@@ -325,14 +325,17 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // Consume </style followed by optional whitespace and >
         if self.match_str("</style") {
             self.advance_by(7); // consume '</style'
-            // Skip whitespace before >
-            while !self.is_eof() && self.current_char() != '>' {
+            // Upstream reads `/\s*>/y`, so the run is consumed only when a `>`
+            // really follows: `</style x>` leaves ` x>` as template text.
+            let after_name = self.index;
+            while !self.is_eof() && is_js_whitespace(self.current_char()) {
                 self.advance();
             }
-            self.eat_optional(">"); // consume '>'
+            if !self.eat_optional(">") {
+                self.index = after_name;
+            }
         } else if self.is_eof() {
             // Style tag was not closed - check if there was invalid '<' in content
             if let Some(lt_pos) = first_invalid_lt {

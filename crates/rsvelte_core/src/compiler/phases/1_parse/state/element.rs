@@ -382,15 +382,18 @@ impl<'a> Parser<'a> {
                 let closing_name = &self.source[cn_start..cn_end];
                 if closing_name == name.as_str() {
                     found_closing_tag = true;
-                    // For raw text elements, the closing tag might have garbage before >
-                    // (e.g., </textarea\n\n\n</textarea\n\n>)
-                    // Scan forward to find the actual >
                     if is_raw_text_element {
+                        // `/<\/textarea(\s[^>]*)?>/i`: once whitespace follows the
+                        // name, everything up to the `>` belongs to the closer.
                         while !self.is_eof() && self.current_char() != '>' {
                             self.advance();
                         }
+                        self.eat_optional(">");
+                    } else {
+                        // Upstream `parser.eat('>', true)` — a closing tag carries
+                        // nothing but whitespace between the name and the `>`.
+                        self.expect(">")?;
                     }
-                    self.eat_optional(">"); // consume '>'
 
                     // Upstream clears `last_auto_closed_tag` once a closing tag
                     // pops the stack below the depth recorded when the tag was
@@ -485,6 +488,7 @@ impl<'a> Parser<'a> {
                 // `block_invalid_continuation_placement` before reaching here.)
                 found_closing_tag = true;
             } else if let Some(reason) = self.should_implicitly_close() {
+                self.implicit_close_at = Some(self.index);
                 // Element was implicitly closed by the next element (sibling).
                 // Emit element_implicitly_closed warning.
                 // Corresponds to element.js L203-205:
@@ -972,12 +976,9 @@ impl<'a> Parser<'a> {
                 "article",
                 "aside",
                 "blockquote",
-                "details",
                 "div",
                 "dl",
                 "fieldset",
-                "figcaption",
-                "figure",
                 "footer",
                 "form",
                 "h1",
@@ -1012,6 +1013,12 @@ impl<'a> Parser<'a> {
 
         // Check if the next tag would implicitly close the current element
         if !self.match_byte(b'<') || self.match_str("</") || self.match_str("<!") {
+            return None;
+        }
+
+        // Upstream pops exactly one level per new tag, so a tag that has already
+        // closed an element must not walk further up the ancestor chain.
+        if self.implicit_close_at == Some(self.index) {
             return None;
         }
 
