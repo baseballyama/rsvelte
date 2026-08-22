@@ -10,10 +10,11 @@
 //! with the extra token silently dropped, or reported the JS failure as a
 //! later-phase semantic error.
 //!
-//! Every expectation below was read off the official compiler
-//! (`submodules/svelte/packages/svelte/src/compiler/index.js`, Svelte 5.56.10)
-//! on the same source, for `client` and `server` alike — all 148 probe inputs
-//! agree across both targets, so this is one parse rule and not a target gap.
+//! Every one of the 35 expectations below was re-derived by running the pinned
+//! oracle — `submodules/svelte/packages/svelte/src/compiler/index.js` at
+//! `20b341f10048`, which reports `VERSION === '5.56.9'` — on the same source,
+//! and all 35 reproduce. That is the tree every gate reads; `node_modules/svelte`
+//! resolves to 5.56.10 and is a different oracle.
 
 use rsvelte_core::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
