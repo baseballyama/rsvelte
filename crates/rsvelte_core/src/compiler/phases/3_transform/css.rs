@@ -7163,9 +7163,7 @@ fn transform_complex_selector(
                         let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
                         // Handle universal selector
-                        if sel_type == "TypeSelector"
-                            && sel.get("name").and_then(|n| n.as_str()) == Some("*")
-                        {
+                        if sel_type == "TypeSelector" && is_bare_universal(sel) {
                             if needs_scoping {
                                 // Replace * with the scoping selector
                                 let modifier = get_modifier(selector, &local_specificity_bumped);
@@ -7382,6 +7380,15 @@ fn append_modifier(target: &mut String, modifier: &str) {
 }
 
 /// Format a simple selector
+/// Whether a `TypeSelector` is the bare universal selector `*`.
+///
+/// A namespaced universal — `svg|*`, `*|*` — is not: the scoping class is
+/// appended to it rather than replacing it, or the `svg|` prefix would be lost.
+fn is_bare_universal(sel: &Value) -> bool {
+    sel.get("name").and_then(|n| n.as_str()) == Some("*")
+        && sel.get("namespace").is_none_or(Value::is_null)
+}
+
 fn format_simple_selector(sel: &Value) -> String {
     format_simple_selector_with_scope(sel, "", "", None, 0, None, false, false)
 }
@@ -7798,8 +7805,7 @@ fn transform_is_not_complex_selector(
 
                     for (idx, sel) in selectors.iter().enumerate() {
                         let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
-                        let is_universal = sel_type == "TypeSelector"
-                            && sel.get("name").and_then(|n| n.as_str()) == Some("*");
+                        let is_universal = sel_type == "TypeSelector" && is_bare_universal(sel);
 
                         // If this is a universal selector (*) that will be replaced by :where(),
                         // don't output the * - just output the :where() directly
