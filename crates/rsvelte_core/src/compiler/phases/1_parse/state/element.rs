@@ -1108,7 +1108,10 @@ impl<'a> Parser<'a> {
             {
                 break;
             }
-            if b == b'{'
+            // Upstream abandons an opening tag on a block token only in loose
+            // mode; strict mode lets `read_attribute` raise the shorthand error.
+            if self.options.loose
+                && b == b'{'
                 && self.index + 1 < self.bytes.len()
                 && (self.bytes[self.index + 1] == b'/' || self.bytes[self.index + 1] == b'#')
             {
@@ -1317,7 +1320,7 @@ impl<'a> Parser<'a> {
                     return Err(crate::error::ParseError::svelte(
                         "attribute_empty_shorthand",
                         "Attribute shorthand cannot be empty",
-                        (expr_start, expr_start),
+                        (start, start),
                     ));
                 }
 
@@ -1385,6 +1388,17 @@ impl<'a> Parser<'a> {
             if !self.options.loose
                 && let Some(bad) = shorthand_first_invalid_offset(&name)
             {
+                // Upstream reads an identifier first, so nothing identifier-like
+                // at the front means it read an *empty* one — the shorthand
+                // error, at the `{`. Only once it has one does the missing `}`
+                // become the complaint.
+                if bad == 0 {
+                    return Err(crate::error::ParseError::svelte(
+                        "attribute_empty_shorthand",
+                        "Attribute shorthand cannot be empty",
+                        (start, start),
+                    ));
+                }
                 let leading_ws = expr_content.len() - expr_content.trim_start_ws().len();
                 return Err(crate::error::ParseError::expected_token(
                     "}",
