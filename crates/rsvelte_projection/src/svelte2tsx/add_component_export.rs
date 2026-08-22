@@ -9,7 +9,7 @@ use super::interfaces::{Svelte2TsxOptions, SvelteVersion};
 use super::magic_string::MagicString;
 use super::nodes::component_documentation::extract_component_documentation;
 use super::nodes::component_events::build_events_str;
-use super::nodes::generics::{compact_generic_params, split_generic_param_names};
+use super::nodes::generics::parse_generics_attr;
 use super::nodes::slot::build_slots_str;
 use super::script::{ComponentEvents, ExportedNames};
 use super::template;
@@ -199,8 +199,12 @@ pub fn add_component_export(
         ""
     };
 
-    // Determine if this component has generics (either from generics= attribute or $$Generic)
-    let has_generics = !exported_names.dollar_generics.is_empty() || generics_attribute.is_some();
+    // Upstream keys the component export on `Generics.has()`, i.e. the attribute
+    // parsed as a type parameter list — not on the attribute merely being there.
+    let attribute_generics = generics_attribute
+        .map(parse_generics_attr)
+        .unwrap_or_default();
+    let has_generics = !exported_names.dollar_generics.is_empty() || attribute_generics.has();
 
     // Build generics strings for component export
     let (generics_params, generics_names) = if !exported_names.dollar_generics.is_empty() {
@@ -220,12 +224,11 @@ pub fn add_component_export(
             .map(|(name, _)| name.clone())
             .collect();
         (params.join(","), names.join(","))
-    } else if let Some(g) = generics_attribute {
-        // Create compact params string (strip leading spaces from each param)
-        let params_str = compact_generic_params(g);
-        // Split generic params at top-level commas (not inside angle brackets)
-        let names = split_generic_param_names(g);
-        (params_str, names.join(","))
+    } else if attribute_generics.has() {
+        (
+            attribute_generics.definitions_str(),
+            attribute_generics.references_str(),
+        )
     } else {
         (String::new(), String::new())
     };
