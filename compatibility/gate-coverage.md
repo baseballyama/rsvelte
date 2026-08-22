@@ -97,7 +97,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 11 | Lint output parity | set of `rule\tline:col\tmessage` | `.svelte.(js\|ts)` ungated on **both** sides; autofixes never compared | [D] |
 | 12 | svelte-check Layer 1 (fixtures) | multiset of `SEVERITY file:line code` | column, message, `source`, file-walk counts, every flag but `--tsconfig` | [D] |
 | 13 | svelte-check Layer 2 (e2e) | same key, 3 units in 2 repos | same fields; whether the oracle finds anything at all | [U] |
-| 14 | Compiler source-map gate | 23 anchors + budgets + parity vs official | segments rsvelte **adds**; `sources`/`names`; `dev: true` | [S] |
+| 14 | Compiler source-map gate | 23 anchors + budgets + parity vs official | segments rsvelte **adds**; `sources`/`names`; `dev: true`; a **uniform shift** of every original line | [D] |
 | 15 | `ast_gate_preconditions` | "rsvelte's own output parses" | compile **failures** are skipped — errors make it greener | [S] |
 | 16 | Validator fixture suite | per-fixture ordered `(code, message, start, end)` warnings + error code/message/span; message text against a generated oracle | only 5 `_config.js` keys are read, and `options.json` not at all — a sample runs under options upstream never used | [S] |
 | 17 | svelte2tsx fixture suite | per-fixture TSX text | text after the `export default class` cut is dropped from both sides | [S] |
@@ -1699,6 +1699,45 @@ CSS maps; the whole surface is one anchor on one sample (`:138`).
 MEASURED" branch (`:959-967`) fires only for pairs that have a budget entry. **[S]** A change
 that breaks byte-identity for one unratcheted pair while fixing another keeps the count at 57
 and reports nothing; the dropped pair silently stops being measured.
+
+### Blind spot 14f — a uniform shift of every original line passes every check
+
+The 29 samples all use `\n` line endings, and no check compares rsvelte's original line
+*numbering rule* to official's. **[D]** #3412 proposed widening
+`rsvelte_esrap::printer::line_starts` to the full ECMAScript LineTerminator set. That function is
+the source-map original-coordinate table as well as the comment-placement one, by **two**
+routes: the coordinate readers take `map_line_starts.unwrap_or(&self.line_starts)`
+(`esrap/src/printer.rs:757`, `:810`, `:889`), and `print_with_map` never sets `map_line_starts`, so
+there `line_starts` *is* the coordinate table — while `print_split` does set it, from the very same
+`printer::line_starts` (`esrap/src/lib.rs:191`), with `3_transform/client/mod.rs:2554` passing the
+**component source** as `map_source`. Both routes are therefore in range; enumerating only the
+`print_split` one understates it. The change moves the original line of everything after a lone
+`\r`, U+2028 or U+2029. Applying
+only that function's body to an otherwise unchanged tree and running this gate: **3 passed, 1
+ignored — green.**
+
+The discriminating measurement is a decode of `mappings`, collecting the distinct original lines
+any segment points at, for
+`<script>\nlet aaa = 1;{T}let bbb = 2;\n</script>\n<p>{aaa}{bbb}</p>`:
+
+| `{T}` | official | rsvelte | rsvelte with the widened table |
+|---|---|---|---|
+| `\n` | 1,2,3,4,5 | 1,2,3,4,5 | 1,2,3,4,5 |
+| `\r\n` | 1,2,3,4,5 | 1,2,3,4,5 | 1,2,3,4,5 |
+| `\r` | 1,2,3,4 | 1,2,3,4 | **1,2,3,4,5** |
+| U+2028 | 1,2,3,4 | 1,2,3,4 | **1,2,3,4,5** |
+| U+2029 | 1,2,3,4 | 1,2,3,4 | **1,2,3,4,5** |
+
+Two rows agree on all three columns, so the table is a control rather than an assertion: official
+counts **only `\n`** for original positions, even though esrap's *comment* placement reads acorn
+`loc`, which advances on all four. The reason this gate cannot see it is structural rather than
+sampling: `parity()` compares rsvelte's segment to official's at the same **generated** position
+(`:537-548`), and a shift that moves both sides' notion of an original line identically for every
+sample containing no exotic terminator leaves every anchor, budget and parity check satisfied —
+while `map-parity` itself never runs on a sample that *does* contain one, because none exists.
+
+Recorded because the next person to touch a coordinate table will read this gate as the negative
+control for that change. It is not.
 
 Related open work: #1781 (client maps are chunk-granular; 16% point outside the source range).
 
