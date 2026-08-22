@@ -538,6 +538,31 @@ deterministic round-trip `didChange` script that restores the source byte for by
 key is comparable to its phase-1 twin and a divergence is a state-transition difference alone. The
 phase is in the ratchet key, because an opened-phase entry would otherwise suppress the post-edit
 divergence in the same `(unit, method)`.
+**The real-world half of this gate is nightly, not per-PR, and the reason is arithmetic rather
+than taste.** Its 16 shards cost ~65 minutes each — ~950 job-minutes, which measured as **86% of
+everything this account's Actions runners did**. A GitHub Free personal account runs 20 concurrent
+jobs, so the whole repository's ceiling was ~26 pushes a day against a measured ~60 pull-request
+pushes plus ~10 merges: the queue never drained, and **of the last 100 Corpus Compat runs only 13
+reached a verdict** — 17 cancelled, 55 still queued when they were counted. A gate that consumes
+the capacity of every other gate and then reports on 13% of commits is not stricter than a nightly
+one, it is weaker. `lsp-corpus` and `lsp-current-merge` therefore run on `schedule` and
+`workflow_dispatch` only; `push: main` is excluded on the same arithmetic (~10 merges/day would
+return a third of total capacity to this one job). To get a verdict before merging — which the
+two-sided ratchet needs, since the PR that fixes entries must re-baseline in the same PR —
+dispatch Corpus Compat against the branch. The fixture and pinned-upstream suites
+(`lsp-fixtures-current`, ~8 min) still run on every PR. **Sizing a gate by its strictness on paper
+and never by what it displaces is how this one ended up measuring almost nothing.**
+
+The rest of Corpus Compat is gated per job by `scripts/ci/corpus-compat-job-filter.mjs`, which
+derives each job's blast radius from `cargo metadata --no-deps` rather than a transcribed path
+table: a change confined to `crates/<c>` runs only the jobs whose build targets transitively
+depend on `<c>`, and **every** non-crate path (ratchets, scripts, submodules, lockfiles) enables
+everything. The asymmetry is deliberate — under-approximating costs a skipped gate, which reads
+exactly like a passing one (#2405), and over-approximating costs runner minutes. Measured against
+the 77 open PRs, 50 touch `crates/rsvelte_core` and so narrow nothing; the filter's real
+population is the crates in no gate closure at all (`rsvelte_lint_types`, which is its own Cargo
+workspace, plus `rsvelte_bench`, `rsvelte_capi`, `rsvelte_fmt_wasm`, `rsvelte_lint_bindings`).
+
 Upstream ships **no** end-to-end protocol test, so the harness is built from scratch, and a baseline
 update needs the complete 17-artifact union (`CORPUS_SHARDS` + the fixture unit) at one
 project/language-tools/corpus revision — a
