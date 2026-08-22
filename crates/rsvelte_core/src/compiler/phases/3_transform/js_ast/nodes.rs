@@ -431,6 +431,31 @@ pub enum JsExpr {
     /// Used for source map generation. The codegen emits the inner expression
     /// and records start/end mappings.
     Spanned(ExprId, u32, u32),
+    /// An expression whose COMMENT-space coordinates are the original source's.
+    /// Upstream prints the whole client output against one comment cursor over
+    /// the `.svelte` file, so where a template comment lands is decided by the
+    /// source line and column of the nodes around it. Boxed: the payload is
+    /// only built for the rare comment-bearing region, and `JsExpr`'s size is
+    /// paid by every node.
+    SourceAnchored(Box<JsSourceAnchor>),
+}
+
+/// One node's claim on a region of the original source, carried into the
+/// comment buffer so esrap measures the distances the source really has.
+#[derive(Debug, Clone)]
+pub struct JsSourceAnchor {
+    pub inner: ExprId,
+    /// Absolute source offset [`Self::region`] is cut from.
+    pub region_start: u32,
+    /// The verbatim source slice appended to the comment buffer. Every anchor
+    /// on the same region repeats it; only the first one is written.
+    pub region: CompactString,
+    /// Comments inside the region, absolute source spans, in source order.
+    /// `true` = a line comment.
+    pub comments: Vec<(u32, u32, bool)>,
+    /// Absolute source span this node claims as its location.
+    pub at: u32,
+    pub at_end: u32,
 }
 
 /// Literal value.

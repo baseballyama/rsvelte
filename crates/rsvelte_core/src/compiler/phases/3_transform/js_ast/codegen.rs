@@ -963,6 +963,11 @@ impl<'a> JsCodegen<'a> {
                 self.emit_expression(self.arena.get_expr(*inner_id));
                 self.record_span_start(*end, *end);
             }
+            // The comment coordinates only reach the oxc printer; the text
+            // fallback has no comment channel to place them in.
+            JsExpr::SourceAnchored(anchor) => {
+                self.emit_expression(self.arena.get_expr(anchor.inner));
+            }
         }
     }
 

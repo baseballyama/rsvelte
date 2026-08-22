@@ -29,6 +29,8 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
 };
 use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
 use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
+use crate::ast::template::{AttributeValuePart, ExpressionTag};
+use crate::compiler::phases::phase3_transform::client::source_anchor::CommentRegion;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::{
     JsExpr, JsLiteral, JsPattern, JsStatement,
@@ -739,14 +741,42 @@ pub fn visit_regular_element(
                     });
                     context.state.memoizer = local_memoizer;
 
+                    // Upstream's comment cursor sees the `.svelte` source, so a
+                    // comment written in this attribute's braces lands relative
+                    // to the tag NAME's position and this value's own.
+                    // `<` + the tag name: `name_loc` is not populated unless a
+                    // source map was asked for, and only the name's LINE matters.
+                    let name_start = node.start + 1;
+                    let name_end = name_start + node.name.len() as u32;
+                    let region = expression_tag_of(&attr.value).and_then(|tag| {
+                        CommentRegion::of(&context.state, tag, name_start)
+                            .map(|region| (region, tag))
+                    });
+                    let anchors = region.as_ref().map(|(region, _)| ElementAnchors {
+                        region,
+                        name_start,
+                        name_end,
+                    });
+                    let value = match &region {
+                        Some((region, tag)) => {
+                            match (tag.expression.start(), tag.expression.end()) {
+                                (Some(start), Some(end)) => {
+                                    region.anchor(&context.arena, result.value, start, end)
+                                }
+                                _ => result.value,
+                            }
+                        }
+                        None => result.value,
+                    };
                     let update = build_element_attribute_update(
                         &context.arena,
                         node,
                         &extract_node_id(&context.state.node),
                         &name,
-                        result.value,
+                        value,
                         &attributes,
                         context.state.options.dev,
+                        anchors.as_ref(),
                     );
 
                     // Route to update (template_effect) when the expression has state.
@@ -1901,6 +1931,28 @@ fn extract_node_id(expr: &JsExpr) -> String {
 
 /// Build element attribute update expression.
 /// The `name` parameter should already be normalized via `get_attribute_name()`.
+/// The element identifier upstream stamps with the tag NAME's location
+/// (`fragment.js`: `b.id(scope.generate(name), element.name_loc)`), which is why
+/// a comment on the same source line as the tag name is flushed as this
+/// argument's trailing comment instead of before the value.
+fn node_id_expr(
+    arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
+    node_id: &str,
+    anchors: Option<&ElementAnchors<'_>>,
+) -> JsExpr {
+    match anchors {
+        Some(a) => a.region.anchor(arena, b::id(node_id), a.name_start, a.name_end),
+        None => b::id(node_id),
+    }
+}
+
+/// The comment region an attribute's value shares with its element's tag name.
+struct ElementAnchors<'r> {
+    region: &'r crate::compiler::phases::phase3_transform::client::source_anchor::CommentRegion,
+    name_start: u32,
+    name_end: u32,
+}
+
 fn build_element_attribute_update(
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
 
@@ -1910,6 +1962,7 @@ fn build_element_attribute_update(
     value: JsExpr,
     attributes: &[&Attribute],
     dev: bool,
+    anchors: Option<&ElementAnchors<'_>>,
 ) -> JsExpr {
     // Special case: muted (Firefox needs property assignment)
     if name == "muted" {
@@ -1993,7 +2046,7 @@ fn build_element_attribute_update(
         "$.set_attribute"
     };
 
-    let mut args = vec![b::id(node_id), b::string(name), value];
+    let mut args = vec![node_id_expr(arena, node_id, anchors), b::string(name), value];
     if dev
         && element
             .metadata
@@ -2401,5 +2454,18 @@ mod tests {
         assert!(is_dom_property("innerHTML"));
         assert!(!is_dom_property("class"));
         assert!(!is_dom_property("id"));
+    }
+}
+
+
+/// The single `{ … }` an attribute's value consists of, in either spelling.
+fn expression_tag_of<'a>(value: &'a AttributeValue<'a>) -> Option<&'a ExpressionTag<'a>> {
+    match value {
+        AttributeValue::Expression(tag) => Some(tag),
+        AttributeValue::Sequence(parts) if parts.len() == 1 => match &parts[0] {
+            AttributeValuePart::ExpressionTag(tag) => Some(tag),
+            AttributeValuePart::Text(_) => None,
+        },
+        _ => None,
     }
 }

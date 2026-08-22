@@ -563,6 +563,7 @@ fn has_await_expression_arena(arena: &JsArena, expr: &JsExpr) -> bool {
         // Span wrapper carries an inner expression for source maps — recurse so
         // wrapping an awaiting expression doesn't hide the await. H-069.
         JsExpr::Spanned(inner, _, _) => has_await_expression_arena(arena, arena.get_expr(*inner)),
+        JsExpr::SourceAnchored(a) => has_await_expression_arena(arena, arena.get_expr(a.inner)),
         // Genuine leaves with no sub-expression to traverse. Class bodies are
         // function-boundary / non-async scopes, so they can't surface a
         // top-level await. The match is exhaustive (no `_`) so a future

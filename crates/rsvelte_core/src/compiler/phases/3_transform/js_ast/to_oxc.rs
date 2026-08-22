@@ -412,6 +412,10 @@ struct Synth {
     last_region_source: Option<u32>,
     last_region_ends_with_removed_inspect_comment: bool,
     saw_comments: bool,
+    /// Source offset of the region a [`JsSourceAnchor`] most recently opened,
+    /// so the anchors sharing it reuse one copy of the slice.
+    open_source_region: Option<u32>,
+    open_source_base: u32,
     /// Upper bound on every span produced outside a chunk region.
     max_span: u32,
 }
@@ -436,6 +440,8 @@ impl Synth {
             last_region_source: None,
             last_region_ends_with_removed_inspect_comment: false,
             saw_comments: false,
+            open_source_region: None,
+            open_source_base: 0,
             max_span: 0,
         }
     }
@@ -598,6 +604,77 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         // trailing comment.
         synth.source.push('\n');
         Span::new(at, at)
+    }
+
+    /// Append `anchor`'s source slice to the comment buffer (once per region)
+    /// and return the buffer offset the anchored node claims. The slice is
+    /// verbatim, so the line and column distances esrap measures between a
+    /// comment and its anchor are the ones the `.svelte` source really has —
+    /// which is what upstream measures, its whole client output sharing one
+    /// cursor over that file. `None` on the probe pass, or when the region
+    /// carries nothing to place.
+    fn open_source_region(&self, anchor: &JsSourceAnchor) -> Option<Span> {
+        if anchor.at < anchor.region_start || anchor.at_end < anchor.at {
+            return None;
+        }
+        let offset = anchor.at - anchor.region_start;
+        let offset_end = anchor.at_end - anchor.region_start;
+        if offset_end as usize > anchor.region.len() {
+            return None;
+        }
+        if !anchor.comments.is_empty() {
+            self.synth.borrow_mut().saw_comments = true;
+        }
+        let mut synth = self.synth.borrow_mut();
+        if !synth.enabled {
+            return None;
+        }
+        if synth.open_source_region != Some(anchor.region_start) {
+            let base = synth.cursor();
+            synth.source.push_str(&anchor.region);
+            synth.source.push('\n');
+            let region_start = anchor.region_start;
+            synth.comments.extend(anchor.comments.iter().map(
+                |&(start, end, line)| -> Comment {
+                    let start = base + (start - region_start);
+                    let end = base + (end - region_start);
+                    let kind = if line {
+                        CommentKind::Line
+                    } else if anchor.region[(start - base) as usize..(end - base) as usize]
+                        .contains('\n')
+                    {
+                        CommentKind::MultiLineBlock
+                    } else {
+                        CommentKind::SingleLineBlock
+                    };
+                    let mut comment = Comment::new(start, end, kind);
+                    comment.attached_to = end;
+                    comment
+                },
+            ));
+            synth.open_source_region = Some(anchor.region_start);
+            synth.open_source_base = base;
+        }
+        Some(Span::new(
+            synth.open_source_base + offset,
+            synth.open_source_base + offset_end,
+        ))
+    }
+
+    /// Append a retained island's own source to the comment buffer, so the
+    /// statements cloned out of it carry buffer locations instead of `.svelte`
+    /// offsets. Returns the shift to apply to their (already absolute) spans.
+    fn open_island_region(&self, island: &AstIsland<'_>) -> Option<u32> {
+        let mut synth = self.synth.borrow_mut();
+        if !synth.enabled {
+            return None;
+        }
+        let text = island.program.source();
+        let base = synth.cursor();
+        synth.source.push_str(text);
+        synth.source.push('\n');
+        synth.open_source_region = None;
+        base.checked_sub(island.source_offset)
     }
 
     fn trailing_comment_anchor(&self, source_offset: Option<u32>) -> Span {
@@ -1447,6 +1524,13 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             // semantically what the official compiler emits, so the round-trip is
             // byte-identical after esrap normalization).
             JsExpr::Raw(code) => self.parse_raw_expression(code),
+            JsExpr::SourceAnchored(anchor) => {
+                let mut e = self.expr_id(anchor.inner)?;
+                if let Some(span) = self.open_source_region(anchor) {
+                    *e.span_mut() = span;
+                }
+                Some(e)
+            }
         }
     }
 
@@ -1650,6 +1734,11 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                 let program = island
                     .program
                     .clone_program_into_at(self.ab.allocator(), island.source_offset);
+                // Upstream keeps every retained node's `loc`, so a body it prints
+                // re-syncs the comment cursor; an island's spans index the
+                // `.svelte` source instead, which reads as "no location" and
+                // KILLS the cursor before anything later can flush.
+                let shift = self.open_island_region(island);
                 Some(
                     program
                         .body
@@ -1661,6 +1750,12 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
                                 .binary_search(&index)
                                 .ok()
                                 .map(|_| statement)
+                        })
+                        .map(|mut statement| {
+                            if let Some(shift) = shift {
+                                ShiftSpans(shift).visit_statement(&mut statement);
+                            }
+                            statement
                         })
                         .collect(),
                 )
