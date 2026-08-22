@@ -43,6 +43,11 @@ pub struct ScopeRoot {
     /// with the other links of the chain), so the alternates live in their own
     /// map under the enclosing block's unique start.
     pub if_alternate_scope_map: FxHashMap<u32, usize>,
+    /// The scope upstream's root `Fragment` owns. Upstream builds it with
+    /// `create_fragment()` (non-transparent), so template declarations at the
+    /// top level live one non-porous level below the instance script rather
+    /// than inside it.
+    pub root_fragment_scope_index: usize,
     /// Scope indices created for `{#snippet …}` bodies. Snippet bodies become
     /// separate functions in the generated output, so template declarations
     /// (`{@const}` / `{const}` / `{let}`) made inside one snippet are NOT
@@ -82,6 +87,7 @@ impl ScopeRoot {
             each_block_collection_infos: Vec::new(),
             template_scope_map: FxHashMap::default(),
             if_alternate_scope_map: FxHashMap::default(),
+            root_fragment_scope_index: 0,
             snippet_scope_indices: FxHashSet::default(),
             conflicts: FxHashSet::default(),
             bindings_by_name: FxHashMap::default(),
