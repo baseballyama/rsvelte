@@ -19,6 +19,14 @@ It answers three questions per gate:
    - **[U] unmeasured** — no evidence was gathered. A row marked `[U]` is a *question*, not a
      finding.
 
+**One question this file does not ask** has its own inventory in
+[`two-ports-inventory.md`](two-ports-inventory.md): *how many times does rsvelte answer
+one upstream decision, and does anything compare its own answers to each other?* Every
+gate below compares rsvelte to upstream; none compares rsvelte to itself, so a second port
+of one upstream function is exercised only on whatever inputs a real file happens to
+supply. That is indexed by decision rather than by gate, which is why it is a separate
+file — but the two share an evidence vocabulary, and a row there is a gap here.
+
 **Do not fill a row with a plausible guess.** An unsupported blind-spot claim is worse than a
 blank, because the next person reads the row as surveyed and never looks again. If you have
 neither a discriminating case nor a code citation, write `[U]`.
