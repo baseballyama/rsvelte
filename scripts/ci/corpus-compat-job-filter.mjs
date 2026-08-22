@@ -17,7 +17,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, existsSync, readFileSync } from 'node:fs';
-import { dirname, relative, resolve, sep } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -106,26 +106,29 @@ export function closure(workspace, targets) {
  * The package a changed path belongs to, or `null` when the path is not a
  * crate source file at all (so it must enable every job).
  *
- * `undefined` means "a crate directory this workspace does not build" — a crate
- * in its own Cargo workspace, such as `crates/rsvelte_lint_types`, which no
- * corpus-compat binary can link. That is only safe while nothing here depends
- * on it, which `referenced` checks.
+ * `undefined` means "provably inert": a crate directory that declares its own
+ * `[workspace]`, such as `crates/rsvelte_lint_types`, which no corpus-compat
+ * binary can link. Anything else unrecognized returns `null` and enables
+ * everything — a directory name is not a package name, so failing to match one
+ * says nothing about whether some member depends on it.
  *
  * @param {Workspace} workspace
  * @param {string} file
+ * @param {string} [root]
  * @returns {string | null | undefined}
  */
-export function packageOf(workspace, file) {
+export function packageOf(workspace, file, root = ROOT) {
 	if (!file.startsWith('crates/')) return null;
 	const segments = file.split('/');
 	if (segments.length < 3) return null;
 	const dir = `${segments[0]}/${segments[1]}`;
 	const pkg = workspace.dirToPackage.get(dir);
 	if (pkg) return pkg;
-	// An unknown directory that some member still declares as a dependency is a
-	// path dependency outside the member list: treat it as affecting everything.
-	if (workspace.referenced.has(segments[1])) return null;
-	return undefined;
+	const manifest = join(root, dir, 'Cargo.toml');
+	if (!existsSync(manifest)) return null;
+	return /^\s*\[workspace\]/m.test(readFileSync(manifest, 'utf8'))
+		? undefined
+		: null;
 }
 
 /**
@@ -133,7 +136,7 @@ export function packageOf(workspace, file) {
  * @param {string[]} changedFiles
  * @returns {Record<string, boolean>} job id -> whether it must run
  */
-export function decide(workspace, changedFiles) {
+export function decide(workspace, changedFiles, root = ROOT) {
 	const closures = new Map(
 		Object.entries(JOB_TARGETS).map(([job, targets]) => [
 			job,
@@ -144,8 +147,19 @@ export function decide(workspace, changedFiles) {
 	const enabled = Object.fromEntries(
 		Object.keys(JOB_TARGETS).map((job) => [job, changedFiles.length === 0]),
 	);
+	// The PR that shrinks the LSP ratchet is the one that most needs the
+	// full-population verdict, and the event-name guard on `lsp-corpus` would
+	// otherwise let it merge having never been measured. This output re-admits
+	// exactly that PR. It costs 950 job-minutes when it fires and fires on 0 of
+	// the 77 open PRs, because nothing else touches these two paths.
+	enabled['lsp-ratchet'] = changedFiles.some(
+		(file) =>
+			file.startsWith('scripts/compat-lsp/') ||
+			(file.startsWith('compatibility/lsp-known-failures') &&
+				file.endsWith('.json')),
+	);
 	for (const file of changedFiles) {
-		const pkg = packageOf(workspace, file);
+		const pkg = packageOf(workspace, file, root);
 		if (pkg === undefined) continue; // provably inert for every job
 		for (const job of Object.keys(JOB_TARGETS)) {
 			if (pkg === null || /** @type {Set<string>} */ (closures.get(job)).has(pkg))

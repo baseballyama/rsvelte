@@ -28,6 +28,11 @@ function pkg(name, deps) {
 	};
 }
 
+// `decide` also returns `lsp-ratchet`, which is not a job gate but the signal
+// that re-admits one; the "every job" assertions below are about gates only.
+const jobGates = (enabled) =>
+	Object.keys(JOB_TARGETS).map((job) => enabled[job]);
+
 const FAKE = parseWorkspace(
 	{
 		packages: [
@@ -63,7 +68,7 @@ const tests = {
 	'a shared crate enables every job'() {
 		const enabled = decide(FAKE, ['crates/rsvelte_core/src/lib.rs']);
 		assert.equal(
-			Object.values(enabled).every(Boolean),
+			jobGates(enabled).every(Boolean),
 			true,
 			'rsvelte_core is in every closure',
 		);
@@ -79,7 +84,7 @@ const tests = {
 	'a crate no target links disables every job'() {
 		const enabled = decide(FAKE, ['crates/rsvelte_bench/src/main.rs']);
 		assert.equal(
-			Object.values(enabled).some(Boolean),
+			jobGates(enabled).some(Boolean),
 			false,
 			'rsvelte_bench is in no closure',
 		);
@@ -96,7 +101,7 @@ const tests = {
 		]) {
 			const enabled = decide(FAKE, [file]);
 			assert.equal(
-				Object.values(enabled).every(Boolean),
+				jobGates(enabled).every(Boolean),
 				true,
 				`${file} must not narrow the job set`,
 			);
@@ -105,7 +110,7 @@ const tests = {
 
 	'an empty change set enables every job'() {
 		// Schedule and workflow_dispatch runs have no diff to read.
-		assert.equal(Object.values(decide(FAKE, [])).every(Boolean), true);
+		assert.equal(jobGates(decide(FAKE, [])).every(Boolean), true);
 	},
 
 	'an unknown crate directory that a member depends on stays enabled'() {
@@ -160,7 +165,7 @@ const tests = {
 			);
 		for (const job of gated)
 			assert.equal(
-				Object.hasOwn(JOB_TARGETS, job),
+				Object.hasOwn(JOB_TARGETS, job) || job === 'lsp-ratchet',
 				true,
 				`the workflow gates on ${job}, which the filter never emits`,
 			);
@@ -188,6 +193,63 @@ const tests = {
 				`${job} must stay reachable by hand from a branch`,
 			);
 		}
+	},
+
+	'a PR that shrinks the LSP ratchet is re-admitted to the full gate'() {
+		// The two-sided ratchet requires the PR that fixes entries to re-baseline
+		// in the same PR, so the one PR that most needs the full-population verdict
+		// is exactly the one the schedule/dispatch guard would silently exempt.
+		for (const file of [
+			'compatibility/lsp-known-failures.json',
+			'scripts/compat-lsp/verify.mjs',
+		])
+			assert.equal(
+				decide(FAKE, [file])['lsp-ratchet'],
+				true,
+				`${file} must re-admit the full LSP gate`,
+			);
+		// …and only that PR: the hatch costs 950 job-minutes when it fires.
+		for (const file of [
+			'crates/rsvelte_core/src/lib.rs',
+			'compatibility/known-failures.client.json',
+			'pnpm-lock.yaml',
+		])
+			assert.equal(
+				decide(FAKE, [file])['lsp-ratchet'],
+				false,
+				`${file} must not re-admit the full LSP gate`,
+			);
+
+		const workflow = readFileSync(
+			join(ROOT, '.github/workflows/corpus-compat.yml'),
+			'utf8',
+		);
+		for (const job of ['lsp-corpus', 'lsp-current-merge']) {
+			const block = workflow.slice(workflow.indexOf(`\n  ${job}:\n`));
+			const head = block.slice(0, block.indexOf('\n    steps:'));
+			assert.match(
+				head,
+				/needs\.changes\.outputs\.lsp-ratchet == 'true'/,
+				`${job} must run for a ratchet-shrinking PR`,
+			);
+		}
+	},
+
+	'a job gate treats an unknown filter answer as "run it"'() {
+		// The filter is deliberately one-sided — it says yes wherever it cannot
+		// prove no — and `== 'true'` in the workflow pointed the other way, so a
+		// filter step that failed to emit would skip every gate silently (#2405).
+		const workflow = readFileSync(
+			join(ROOT, '.github/workflows/corpus-compat.yml'),
+			'utf8',
+		);
+		assert.equal(
+			/needs\.changes\.outputs\.[a-z0-9-]+ == 'true'/.test(
+				workflow.replace(/needs\.changes\.outputs\.lsp-ratchet == 'true'/g, ''),
+			),
+			false,
+			"job gates must read != 'false', not == 'true'",
+		);
 	},
 
 	'the workflow still schedules the full population'() {

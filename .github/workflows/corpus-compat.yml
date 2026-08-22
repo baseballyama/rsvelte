@@ -187,6 +187,7 @@ jobs:
       shape-matrix: ${{ steps.filter.outputs.shape-matrix }}
       lsp-fixtures-current: ${{ steps.filter.outputs.lsp-fixtures-current }}
       lsp-corpus: ${{ steps.filter.outputs.lsp-corpus }}
+      lsp-ratchet: ${{ steps.filter.outputs.lsp-ratchet }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -214,7 +215,7 @@ jobs:
   corpus:
     name: Compiler parity
     needs: [changes]
-    if: needs.changes.outputs.corpus == 'true'
+    if: needs.changes.outputs.corpus != 'false'
     runs-on: ubuntu-latest
     # Full compilation can consume the former hour before verification begins.
     timeout-minutes: 120
@@ -379,7 +380,7 @@ jobs:
   fmt-parity:
     name: Formatter parity
     needs: [changes]
-    if: needs.changes.outputs.fmt-parity == 'true'
+    if: needs.changes.outputs.fmt-parity != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -447,7 +448,7 @@ jobs:
   scss-parity:
     name: SCSS parity (grass vs dart-sass)
     needs: [changes]
-    if: needs.changes.outputs.scss-parity == 'true'
+    if: needs.changes.outputs.scss-parity != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -479,7 +480,7 @@ jobs:
   lint-parity:
     name: Lint parity (eslint-plugin-svelte)
     needs: [changes]
-    if: needs.changes.outputs.lint-parity == 'true'
+    if: needs.changes.outputs.lint-parity != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -581,7 +582,7 @@ jobs:
   check-parity:
     name: svelte-check parity (official svelte-check vs ${{ matrix.backend }})
     needs: [changes]
-    if: needs.changes.outputs.check-parity == 'true'
+    if: needs.changes.outputs.check-parity != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -645,7 +646,7 @@ jobs:
   check-e2e-parity:
     name: svelte-check e2e parity (real projects)
     needs: [changes]
-    if: needs.changes.outputs.check-e2e-parity == 'true'
+    if: needs.changes.outputs.check-e2e-parity != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -720,7 +721,7 @@ jobs:
   shape-matrix:
     name: Shape matrix parity (generated inputs)
     needs: [changes]
-    if: needs.changes.outputs.shape-matrix == 'true'
+    if: needs.changes.outputs.shape-matrix != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -798,7 +799,7 @@ jobs:
   lsp-fixtures-current:
     name: LSP fixture parity current
     needs: [changes]
-    if: needs.changes.outputs.lsp-fixtures-current == 'true'
+    if: needs.changes.outputs.lsp-fixtures-current != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -867,8 +868,9 @@ jobs:
     name: LSP real-world parity (stable shard ${{ matrix.shard }}/16)
     needs: [changes]
     if: >-
-      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
-      && needs.changes.outputs.lsp-corpus == 'true'
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+       || needs.changes.outputs.lsp-ratchet == 'true')
+      && needs.changes.outputs.lsp-corpus != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 180
     strategy:
@@ -937,7 +939,8 @@ jobs:
     # only run where `lsp-corpus` does. A partial run cannot shrink the ratchet.
     if: >-
       always()
-      && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+      && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+       || needs.changes.outputs.lsp-ratchet == 'true')
       && needs.lsp-corpus.result == 'success'
     needs: [changes, lsp-fixtures-current, lsp-corpus]
     runs-on: ubuntu-latest
