@@ -57,8 +57,7 @@ use props_rune::{
 };
 use reactive::handle_reactive_statement;
 use runes::{
-    detect_rune_in_class_body, detect_rune_in_expr, detect_rune_in_nested_body, detect_runes_call,
-    detect_runes_expr_stmt, scope_with_params,
+    detect_rune_in_class_body, detect_rune_in_function, detect_runes_call, detect_runes_expr_stmt,
 };
 use script_facts::ScriptFacts;
 use stores::{
@@ -240,37 +239,16 @@ pub fn process_instance_script(
                         }
                     }
                 }
-                oxc::Statement::FunctionDeclaration(func) => {
-                    // Detect rune calls nested inside the function body.
-                    // The official svelte2tsx `checkGlobalsForRunes` walks the
-                    // entire TypeScript AST (including function bodies) and flags
-                    // any undeclared `$state`/`$derived`/`$effect` reference.
-                    // Mirror that here by recursively scanning the body.
-                    // Reference: ExportedNames.ts `checkGlobalsForRunes`.
-                    if let Some(ref body) = func.body {
-                        // Add the function's params to the scope so a rune name
-                        // shadowed by a param (`function bar($derived){ … }`) is
-                        // treated as that param, not a rune.
-                        let scope = scope_with_params(&declared_names, &func.params);
-                        if detect_rune_in_nested_body(&body.statements, &scope) {
-                            exported_names.set_uses_runes(true);
-                        }
-                    }
+                // Official's `checkGlobalsForRunes` walks the whole AST, so a rune
+                // anywhere inside a function counts.
+                // Reference: ExportedNames.ts `checkGlobalsForRunes`.
+                oxc::Statement::FunctionDeclaration(func)
+                    if detect_rune_in_function(func, &declared_names) =>
+                {
+                    exported_names.set_uses_runes(true);
                 }
-                // Detect rune calls nested inside class method bodies.
                 oxc::Statement::ClassDeclaration(class)
-                    if class.body.body.iter().any(|member| match member {
-                        oxc::ClassElement::MethodDefinition(method) => {
-                            method.value.body.as_ref().is_some_and(|body| {
-                                detect_rune_in_nested_body(&body.statements, &declared_names)
-                            })
-                        }
-                        oxc::ClassElement::PropertyDefinition(prop) => prop
-                            .value
-                            .as_ref()
-                            .is_some_and(|e| detect_rune_in_expr(e, &declared_names)),
-                        _ => false,
-                    }) =>
+                    if detect_rune_in_class_body(class, &declared_names) =>
                 {
                     exported_names.set_uses_runes(true);
                 }
@@ -321,15 +299,12 @@ pub fn process_instance_script(
                                     }
                                 }
                             }
-                            oxc::Declaration::FunctionDeclaration(func) => {
-                                // Runes inside an exported function body still
-                                // put the component in runes mode.
-                                if let Some(ref body) = func.body {
-                                    let scope = scope_with_params(&declared_names, &func.params);
-                                    if detect_rune_in_nested_body(&body.statements, &scope) {
-                                        exported_names.set_uses_runes(true);
-                                    }
-                                }
+                            // Runes inside an exported function body still put the
+                            // component in runes mode.
+                            oxc::Declaration::FunctionDeclaration(func)
+                                if detect_rune_in_function(func, &declared_names) =>
+                            {
+                                exported_names.set_uses_runes(true);
                             }
                             // `export class C { x = $state(0) }` → runes mode.
                             oxc::Declaration::ClassDeclaration(class)

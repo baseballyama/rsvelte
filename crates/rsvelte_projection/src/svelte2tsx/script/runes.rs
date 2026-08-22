@@ -177,10 +177,7 @@ pub(super) fn detect_runes_expr_stmt(
 ///
 /// Reference: ExportedNames.ts `checkGlobalsForRunes` + `ImplicitStoreValues.getGlobals()`
 ///   `this.hasRunesGlobals = isSvelte5Plus && globals.some(g => runes.includes(g))`
-pub(super) fn detect_rune_in_nested_body(
-    stmts: &[oxc::Statement],
-    declared_names: &HashSet<String>,
-) -> bool {
+fn detect_rune_in_nested_body(stmts: &[oxc::Statement], declared_names: &HashSet<String>) -> bool {
     for stmt in stmts {
         if detect_rune_in_stmt(stmt, declared_names) {
             return true;
@@ -274,10 +271,7 @@ fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSet<String>) 
                 .is_some_and(|e| detect_rune_in_expr(e, declared_names))
                 || detect_rune_in_nested_body(&c.consequent, declared_names)
         }),
-        oxc::Statement::FunctionDeclaration(func) => func.body.as_ref().is_some_and(|body| {
-            let scope = scope_with_params(declared_names, &func.params);
-            detect_rune_in_nested_body(&body.statements, &scope)
-        }),
+        oxc::Statement::FunctionDeclaration(func) => detect_rune_in_function(func, declared_names),
         // A `class` nested in a function/block body — its method bodies and
         // field initializers can still reference rune globals (e.g.
         // `function bar() { class Foo { foo = $state(0) } }`). Mirror the
@@ -287,23 +281,133 @@ fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSet<String>) 
     }
 }
 
-/// Scan a class body's method bodies and property initializers for rune globals.
+/// The one class scan. A `class` statement, an `export class` and a class
+/// *expression* must answer "does this class reference a rune global" the same
+/// way, so every entry point calls this and none re-implements it.
 pub(super) fn detect_rune_in_class_body(
     class: &oxc::Class,
     declared_names: &HashSet<String>,
 ) -> bool {
+    if class
+        .heritage
+        .as_ref()
+        .is_some_and(|h| detect_rune_in_expr(&h.expression, declared_names))
+    {
+        return true;
+    }
     class.body.body.iter().any(|member| match member {
-        oxc::ClassElement::MethodDefinition(method) => method
-            .value
+        oxc::ClassElement::MethodDefinition(method) => {
+            detect_rune_in_property_key(&method.key, declared_names)
+                || detect_rune_in_function(&method.value, declared_names)
+        }
+        oxc::ClassElement::PropertyDefinition(prop) => {
+            detect_rune_in_property_key(&prop.key, declared_names)
+                || prop
+                    .value
+                    .as_ref()
+                    .is_some_and(|e| detect_rune_in_expr(e, declared_names))
+        }
+        oxc::ClassElement::AccessorProperty(prop) => {
+            detect_rune_in_property_key(&prop.key, declared_names)
+                || prop
+                    .value
+                    .as_ref()
+                    .is_some_and(|e| detect_rune_in_expr(e, declared_names))
+        }
+        oxc::ClassElement::StaticBlock(block) => {
+            detect_rune_in_nested_body(&block.body, declared_names)
+        }
+        oxc::ClassElement::TSIndexSignature(_) => false,
+    })
+}
+
+/// A non-computed key is an identifier or a literal and can hold no call, so
+/// this only ever fires on a computed key such as `class K { [$state(0)] = 1 }`.
+fn detect_rune_in_property_key(key: &oxc::PropertyKey, declared_names: &HashSet<String>) -> bool {
+    key.as_expression()
+        .is_some_and(|e| detect_rune_in_expr(e, declared_names))
+}
+
+/// The one function scan: parameter defaults and the body, both under a scope
+/// that already holds the parameter names, so `f($state) { $state(0) }` resolves
+/// to the parameter and is not a rune. Shared by every function form.
+pub(super) fn detect_rune_in_function(
+    func: &oxc::Function,
+    declared_names: &HashSet<String>,
+) -> bool {
+    let scope = scope_with_params(declared_names, &func.params);
+    detect_rune_in_params(&func.params, &scope)
+        || func
             .body
             .as_ref()
-            .is_some_and(|body| detect_rune_in_nested_body(&body.statements, declared_names)),
-        oxc::ClassElement::PropertyDefinition(prop) => prop
-            .value
+            .is_some_and(|body| detect_rune_in_nested_body(&body.statements, &scope))
+}
+
+/// As [`detect_rune_in_function`], for an arrow. An expression-bodied arrow
+/// (`() => $state(0)`) carries the rune in its body expression, not in a
+/// statement list.
+pub(super) fn detect_rune_in_arrow(
+    arrow: &oxc::ArrowFunctionExpression,
+    declared_names: &HashSet<String>,
+) -> bool {
+    let scope = scope_with_params(declared_names, &arrow.params);
+    if detect_rune_in_params(&arrow.params, &scope) {
+        return true;
+    }
+    match &arrow.body {
+        oxc::ArrowFunctionBody::FunctionBody(block) => {
+            detect_rune_in_nested_body(&block.statements, &scope)
+        }
+        other => other
+            .as_expression()
+            .is_some_and(|e| detect_rune_in_expr(e, &scope)),
+    }
+}
+
+/// Walk the default value of every parameter: `f(p = $state(0))` is a rune
+/// reference the body walk never sees. A top-level default is
+/// `FormalParameter::initializer`; only a default *inside* a destructuring
+/// pattern is an `AssignmentPattern`, so both have to be read.
+fn detect_rune_in_params(params: &oxc::FormalParameters, scope: &HashSet<String>) -> bool {
+    params.items.iter().any(|p| {
+        p.initializer
             .as_ref()
-            .is_some_and(|e| detect_rune_in_expr(e, declared_names)),
-        _ => false,
-    })
+            .is_some_and(|e| detect_rune_in_expr(e, scope))
+            || detect_rune_in_binding_pattern(&p.pattern, scope)
+    }) || params
+        .rest
+        .as_ref()
+        .is_some_and(|r| detect_rune_in_binding_pattern(&r.rest.argument, scope))
+}
+
+/// Recurse through a binding pattern looking for a rune in a default value.
+fn detect_rune_in_binding_pattern(pattern: &oxc::BindingPattern, scope: &HashSet<String>) -> bool {
+    match pattern {
+        oxc::BindingPattern::BindingIdentifier(_) => false,
+        oxc::BindingPattern::AssignmentPattern(assign) => {
+            detect_rune_in_expr(&assign.right, scope)
+                || detect_rune_in_binding_pattern(&assign.left, scope)
+        }
+        oxc::BindingPattern::ObjectPattern(obj) => {
+            obj.properties
+                .iter()
+                .any(|p| detect_rune_in_binding_pattern(&p.value, scope))
+                || obj
+                    .rest
+                    .as_ref()
+                    .is_some_and(|r| detect_rune_in_binding_pattern(&r.argument, scope))
+        }
+        oxc::BindingPattern::ArrayPattern(arr) => {
+            arr.elements
+                .iter()
+                .flatten()
+                .any(|p| detect_rune_in_binding_pattern(p, scope))
+                || arr
+                    .rest
+                    .as_ref()
+                    .is_some_and(|r| detect_rune_in_binding_pattern(&r.argument, scope))
+        }
+    }
 }
 
 /// Recursively detect an undeclared `$state`/`$derived`/`$effect` reference
@@ -312,10 +416,7 @@ pub(super) fn detect_rune_in_class_body(
 /// `$effect` shadowed by a parameter (e.g. `function bar($derived) { $derived(x) }`)
 /// is treated as a store-sub / call of the param, not a rune. Mirrors official's
 /// scope-aware global resolution.
-pub(super) fn scope_with_params(
-    base: &HashSet<String>,
-    params: &oxc::FormalParameters,
-) -> HashSet<String> {
+fn scope_with_params(base: &HashSet<String>, params: &oxc::FormalParameters) -> HashSet<String> {
     let mut s = base.clone();
     let mut tmp: Vec<String> = Vec::new();
     for p in &params.items {
@@ -345,31 +446,10 @@ pub(super) fn detect_rune_in_expr(
                 || detect_rune_in_arguments(&call.arguments, declared_names)
         }
         oxc::Expression::ArrowFunctionExpression(arrow) => {
-            let scope = scope_with_params(declared_names, &arrow.params);
-            arrow
-                .body
-                .as_function_body()
-                .is_some_and(|block| detect_rune_in_nested_body(&block.statements, &scope))
+            detect_rune_in_arrow(arrow, declared_names)
         }
-        oxc::Expression::FunctionExpression(func) => func.body.as_ref().is_some_and(|body| {
-            let scope = scope_with_params(declared_names, &func.params);
-            detect_rune_in_nested_body(&body.statements, &scope)
-        }),
-        oxc::Expression::ClassExpression(class) => {
-            class.body.body.iter().any(|member| match member {
-                oxc::ClassElement::MethodDefinition(method) => {
-                    method.value.body.as_ref().is_some_and(|body| {
-                        let scope = scope_with_params(declared_names, &method.value.params);
-                        detect_rune_in_nested_body(&body.statements, &scope)
-                    })
-                }
-                oxc::ClassElement::PropertyDefinition(prop) => prop
-                    .value
-                    .as_ref()
-                    .is_some_and(|e| detect_rune_in_expr(e, declared_names)),
-                _ => false,
-            })
-        }
+        oxc::Expression::FunctionExpression(func) => detect_rune_in_function(func, declared_names),
+        oxc::Expression::ClassExpression(class) => detect_rune_in_class_body(class, declared_names),
         oxc::Expression::AssignmentExpression(assign) => {
             detect_rune_in_expr(&assign.right, declared_names)
         }
