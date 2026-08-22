@@ -1087,12 +1087,36 @@ fn extract_catch_param_names(body: &str) -> Vec<String> {
         return Vec::new();
     }
 
+    fn collect_pattern_names(pat: &oxc_ast::ast::BindingPattern, out: &mut Vec<String>) {
+        use oxc_ast::ast::BindingPattern as P;
+        match pat {
+            P::BindingIdentifier(id) => out.push(id.name.to_string()),
+            P::ObjectPattern(obj) => {
+                for prop in obj.properties.iter() {
+                    collect_pattern_names(&prop.value, out);
+                }
+                if let Some(rest) = &obj.rest {
+                    collect_pattern_names(&rest.argument, out);
+                }
+            }
+            P::ArrayPattern(arr) => {
+                for el in arr.elements.iter().flatten() {
+                    collect_pattern_names(el, out);
+                }
+                if let Some(rest) = &arr.rest {
+                    collect_pattern_names(&rest.argument, out);
+                }
+            }
+            P::AssignmentPattern(asgn) => collect_pattern_names(&asgn.left, out),
+        }
+    }
+
     struct CatchParams {
         names: Vec<String>,
     }
     impl<'a> Visit<'a> for CatchParams {
         fn visit_catch_parameter(&mut self, param: &CatchParameter<'a>) {
-            super::collect_binding_pattern_names(&param.pattern, &mut self.names);
+            collect_pattern_names(&param.pattern, &mut self.names);
             walk::walk_catch_parameter(self, param);
         }
     }
