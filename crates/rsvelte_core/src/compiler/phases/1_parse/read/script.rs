@@ -19,7 +19,7 @@ use crate::ast::template::{
 };
 use crate::error::ParseResult;
 
-use super::super::parser::Parser;
+use super::super::parser::{Parser, is_js_whitespace};
 
 /// Ensure a Script's content has been fully parsed from raw_content.
 /// This performs the deferred OXC parse. Call this before accessing script.content in analysis.
@@ -132,6 +132,16 @@ impl<'a> Parser<'a> {
         })]
     }
 
+    /// Whether `/\s*>/` matches at `i` — upstream's closing-`<script>` regex
+    /// tail, which junk before the `>` fails.
+    fn script_closer_at(&self, i: usize) -> bool {
+        let mut i = i;
+        while self.is_js_whitespace_at(i) {
+            i += self.source[i..].chars().next().map_or(1, |c| c.len_utf8());
+        }
+        self.bytes.get(i) == Some(&b'>')
+    }
+
     /// Parse a `<script>` tag and store it in instance_script or module_script.
     ///
     /// `self_closing` is only ever `true` in lenient (lint) mode, where a
@@ -151,7 +161,9 @@ impl<'a> Parser<'a> {
             loop {
                 if let Some(offset) = SCRIPT_END_FINDER.find(&self.bytes[self.index..]) {
                     self.index += offset;
-                    if self.is_valid_closing_tag("</script") {
+                    // Upstream stops on `/<\/script\s*>/`: junk before the `>`
+                    // does not close the script, it runs to EOF instead.
+                    if self.script_closer_at(self.index + 8) {
                         break;
                     }
                     // Not a valid closing tag (e.g., </scripting), skip past it
@@ -171,8 +183,7 @@ impl<'a> Parser<'a> {
             // Nothing to consume — the self-closing `/>` was already eaten.
         } else if self.match_str("</script") {
             self.advance_by(8); // consume '</script'
-            // Skip whitespace before >
-            while !self.is_eof() && self.current_char() != '>' {
+            while !self.is_eof() && is_js_whitespace(self.current_char()) {
                 self.advance();
             }
             self.eat_optional(">"); // consume '>'
@@ -182,10 +193,13 @@ impl<'a> Parser<'a> {
             // If it's empty/only whitespace at EOF, it's unexpected_eof
             let has_html_content = script_content.contains('<') || script_content.contains('{');
             if has_html_content {
+                // Upstream reports at `template.length`, and its template is
+                // right-trimmed.
+                let at = self.content_end;
                 return Err(crate::error::ParseError::svelte(
                     "element_unclosed",
                     "`<script>` was left open",
-                    (self.index, self.index),
+                    (at, at),
                 ));
             } else {
                 return Err(crate::error::ParseError::svelte(
