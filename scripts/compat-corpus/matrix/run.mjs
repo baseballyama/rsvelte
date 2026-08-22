@@ -228,14 +228,18 @@ for (const testCase of cases) {
 			// one line down: an entry keyed on `error-code-mismatch` alone covers
 			// every future pairing on that case, including a regression from a
 			// ported diagnostic to a lucky parse error.
-			const verdict = `error-code-mismatch:${expectedError.code ?? '(none)'}-vs-${actualError.code ?? '(none)'}`;
-			counts['error-code-mismatch'] += 1;
-			failures.push({
-				id: testCase.id,
-				target: target.key,
-				verdict,
-				detail: `official ${expectedError.code ?? '(none)'}, rsvelte ${actualError.code ?? '(none)'}: ${actualError.message}`,
-			});
+			if (expectedError.code !== actualError.code) {
+				const verdict = `error-code-mismatch:${expectedError.code ?? '(none)'}-vs-${actualError.code ?? '(none)'}`;
+				counts['error-code-mismatch'] += 1;
+				failures.push({
+					id: testCase.id,
+					target: target.key,
+					verdict,
+					detail: `official ${expectedError.code ?? '(none)'}, rsvelte ${actualError.code ?? '(none)'}: ${actualError.message}`,
+				});
+				continue;
+			}
+			counts['error-parity'] += 1;
 			continue;
 		}
 		if (expectedError || actualError) {
