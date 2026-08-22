@@ -337,6 +337,51 @@ fn is_ident_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_' || c == '$'
 }
 
+/// Byte ranges of every comment in `bytes`, ascending and disjoint.
+///
+/// A scanner walking BACKWARDS cannot classify a `*/` or a `//` on its own —
+/// the same bytes sit inside strings and regex literals — so the ranges come
+/// from one forward pass and the backwards walk consults them.
+pub(crate) fn comment_ranges(bytes: &[u8]) -> Vec<(usize, usize)> {
+    let mut ranges = Vec::new();
+    let mut i = 0usize;
+    let mut prev: Option<u8> = None;
+    while i < bytes.len() {
+        if let Some((next, is_comment)) = skip_opaque(bytes, i, prev) {
+            if is_comment {
+                ranges.push((i, next));
+            } else {
+                prev = Some(b'x');
+            }
+            i = next;
+            continue;
+        }
+        if !bytes[i].is_ascii_whitespace() {
+            prev = Some(bytes[i]);
+        }
+        i += 1;
+    }
+    ranges
+}
+
+/// Walk left from `pos` over whitespace and comments, with `comments` from
+/// [`comment_ranges`] over the same `bytes`.
+pub(crate) fn skip_ws_and_comments_back(
+    bytes: &[u8],
+    comments: &[(usize, usize)],
+    mut pos: usize,
+) -> usize {
+    loop {
+        while pos > 0 && bytes[pos - 1].is_ascii_whitespace() {
+            pos -= 1;
+        }
+        match comments[..comments.partition_point(|(_, end)| *end <= pos)].last() {
+            Some(&(start, end)) if end == pos => pos = start,
+            _ => return pos,
+        }
+    }
+}
+
 /// The first occurrence of `needle` in `bytes` that is code — outside every
 /// string, template literal, regex literal and comment.
 ///

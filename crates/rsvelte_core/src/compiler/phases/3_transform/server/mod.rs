@@ -761,6 +761,8 @@ fn collect_derived_names(source: &str) -> rustc_hash::FxHashSet<String> {
     let mut names: FxHashSet<String> = FxHashSet::default();
     let patterns: &[&[u8]] = &[b"$.derived(", b"$.derived_safe_equal(", b"$.async_derived("];
     let bytes = source.as_bytes();
+    let comments =
+        crate::compiler::phases::phase3_transform::shared::js_scan::comment_ranges(bytes);
     for pat in patterns {
         let finder = memmem::Finder::new(*pat);
         for pos in finder.find_iter(bytes) {
@@ -770,9 +772,7 @@ fn collect_derived_names(source: &str) -> rustc_hash::FxHashSet<String> {
             // `$.tag`, but be permissive in case future builds do.
             let mut left = pos;
             if *pat == b"$.async_derived(" {
-                while left > 0 && bytes[left - 1].is_ascii_whitespace() {
-                    left -= 1;
-                }
+                left = crate::compiler::phases::phase3_transform::shared::js_scan::skip_ws_and_comments_back(bytes, &comments, left);
                 if left >= 5 && &bytes[left - 5..left] == b"await" {
                     left -= 5;
                 }
@@ -784,16 +784,12 @@ fn collect_derived_names(source: &str) -> rustc_hash::FxHashSet<String> {
                 left -= TAG.len();
             }
             // Skip whitespace + `=`.
-            while left > 0 && bytes[left - 1].is_ascii_whitespace() {
-                left -= 1;
-            }
+            left = crate::compiler::phases::phase3_transform::shared::js_scan::skip_ws_and_comments_back(bytes, &comments, left);
             if left == 0 || bytes[left - 1] != b'=' {
                 continue;
             }
             left -= 1;
-            while left > 0 && bytes[left - 1].is_ascii_whitespace() {
-                left -= 1;
-            }
+            left = crate::compiler::phases::phase3_transform::shared::js_scan::skip_ws_and_comments_back(bytes, &comments, left);
             // Read identifier backwards.
             let id_end = left;
             while left > 0 {
@@ -811,9 +807,7 @@ fn collect_derived_names(source: &str) -> rustc_hash::FxHashSet<String> {
             // whitespace separator). Otherwise this is a reassignment or
             // a class field, which we don't track here.
             let mut kw_end = left;
-            while kw_end > 0 && bytes[kw_end - 1].is_ascii_whitespace() {
-                kw_end -= 1;
-            }
+            kw_end = crate::compiler::phases::phase3_transform::shared::js_scan::skip_ws_and_comments_back(bytes, &comments, kw_end);
             let keyword_decl = (kw_end >= 3
                 && (&bytes[kw_end - 3..kw_end] == b"let" || &bytes[kw_end - 3..kw_end] == b"var"))
                 || (kw_end >= 5 && &bytes[kw_end - 5..kw_end] == b"const");
