@@ -1957,8 +1957,7 @@ impl<'a> Parser<'a> {
 
                 while !self.is_eof() {
                     let c = self.current_char();
-                    // End of unquoted value (but NOT / alone)
-                    if is_js_whitespace(c) || c == '>' {
+                    if ends_unquoted_attribute_value(self.source, self.index) {
                         break;
                     }
                     // Expression start
@@ -2341,30 +2340,8 @@ impl<'a> Parser<'a> {
                 if cur_byte == q {
                     break;
                 }
-            } else {
-                // Unquoted value ends at whitespace or >
-                if cur_byte == b'>'
-                    || cur_byte == b' '
-                    || cur_byte == b'\t'
-                    || cur_byte == b'\n'
-                    || cur_byte == b'\r'
-                {
-                    break;
-                }
-                // Stop at /> (self-closing tag marker)
-                if cur_byte == b'/'
-                    && self.index + 1 < self.bytes.len()
-                    && self.bytes[self.index + 1] == b'>'
-                {
-                    break;
-                }
-                // Non-ASCII whitespace check
-                if cur_byte >= 0x80 {
-                    let c = self.source[self.index..].chars().next().unwrap_or('\0');
-                    if is_js_whitespace(c) {
-                        break;
-                    }
-                }
+            } else if ends_unquoted_attribute_value(self.source, self.index) {
+                break;
             }
 
             // Check for expression
@@ -2487,34 +2464,21 @@ impl<'a> Parser<'a> {
                     self.index += offset;
                     entity_before_stop = Some(seen);
                 } else {
-                    // Unquoted: scan for '{', whitespace, '>', or '/>'
+                    // Unquoted: `{` opens an expression, and everything else
+                    // ends where upstream's terminator set says it does.
                     while self.index < self.bytes.len() {
                         let b = self.bytes[self.index];
-                        if b == b'{'
-                            || b == b'>'
-                            || b == b' '
-                            || b == b'\t'
-                            || b == b'\n'
-                            || b == b'\r'
-                        {
+                        if b == b'{' || ends_unquoted_attribute_value(self.source, self.index) {
                             break;
                         }
-                        if b == b'/'
-                            && self.index + 1 < self.bytes.len()
-                            && self.bytes[self.index + 1] == b'>'
-                        {
-                            break;
-                        }
-                        if b < 0x80 {
-                            self.index += 1;
+                        self.index += if b < 0x80 {
+                            1
                         } else {
-                            // Non-ASCII: check for Unicode whitespace
-                            let c = self.source[self.index..].chars().next().unwrap_or('\0');
-                            if is_js_whitespace(c) {
-                                break;
-                            }
-                            self.index += c.len_utf8();
-                        }
+                            self.source[self.index..]
+                                .chars()
+                                .next()
+                                .map_or(1, char::len_utf8)
+                        };
                     }
                 }
                 let text_end = self.index;
@@ -2840,6 +2804,27 @@ fn is_identifier_continue(c: char) -> bool {
 /// Check if a character is valid in a component name (after the first char).
 fn is_component_name_char(c: char) -> bool {
     is_identifier_continue(c) || c == '.'
+}
+
+/// Upstream's `regex_invalid_unquoted_attribute_value`, `/(\/>|[\s"'=<>`])/y` —
+/// the HTML "attribute value (unquoted) state" terminators plus the `/>`
+/// self-closing marker. A lone `/` is part of the value.
+fn ends_unquoted_attribute_value(source: &str, index: usize) -> bool {
+    let bytes = source.as_bytes();
+    let Some(&byte) = bytes.get(index) else {
+        return true;
+    };
+    if matches!(byte, b'"' | b'\'' | b'=' | b'<' | b'>' | b'`') {
+        return true;
+    }
+    if byte == b'/' {
+        return bytes.get(index + 1) == Some(&b'>');
+    }
+    if byte.is_ascii() {
+        super::super::parser::is_js_whitespace_byte(byte)
+    } else {
+        source[index..].chars().next().is_some_and(is_js_whitespace)
+    }
 }
 
 /// Returns the byte offset within `name` of the first character that prevents
