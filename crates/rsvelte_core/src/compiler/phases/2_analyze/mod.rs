@@ -1384,14 +1384,14 @@ fn collect_legacy_reactive_statement_metadata(
         }
 
         let body_node = arena.get_js_node(*body);
-        let mut assignments = Vec::new();
-        let mut cycle_dependencies = Vec::new();
-        cycle_collect_assignments_and_deps(
-            body_node,
-            arena,
-            &mut assignments,
-            &mut cycle_dependencies,
-        );
+        let mut facts = CycleFacts::default();
+        cycle_collect_assignments_and_deps(body_node, arena, &mut facts);
+        let CycleFacts {
+            mut assignments,
+            shadowed_assignments,
+            dependencies: mut cycle_dependencies,
+            ..
+        } = facts;
 
         let instance_scope_idx = analysis.root.instance_scope_index;
         let is_instance_binding = |name: &str| {
@@ -1401,7 +1401,8 @@ fn collect_legacy_reactive_statement_metadata(
                 .is_some()
                 || analysis.root.scope.declarations.contains_key(name)
         };
-        assignments.retain(|name| is_instance_binding(name));
+        assignments
+            .retain(|name| is_instance_binding(name) || shadowed_assignments.contains(name));
         cycle_dependencies.retain(|name| is_instance_binding(name));
         cycle_dependencies.retain(|dep| !assignments.contains(dep));
 
@@ -1472,64 +1473,166 @@ fn cycle_extract_pattern_ids(node: &JsNode, arena: &ParseArena, out: &mut Vec<St
     }
 }
 
+
+/// Scope-resolved facts about one reactive `$:` statement, as
+/// `order_reactive_statements` consumes them.
+#[derive(Default)]
+struct CycleFacts {
+    /// Names declared INSIDE the statement, innermost last — upstream resolves
+    /// every name through the scope chain, so a `catch` parameter, a block
+    /// `let`, or a function parameter shadows the instance binding of the same
+    /// name.
+    locals: Vec<String>,
+    assignments: Vec<String>,
+    /// Assignment targets that resolved to one of `locals`. Upstream keys the
+    /// graph on `binding.node.name` whatever scope the binding lives in, so
+    /// these are edges too and must survive the instance-binding filter.
+    shadowed_assignments: Vec<String>,
+    dependencies: Vec<String>,
+}
+
+impl CycleFacts {
+    fn is_local(&self, name: &str) -> bool {
+        self.locals.iter().any(|l| l == name)
+    }
+
+    fn push_dependency(&mut self, name: &str) {
+        if !self.is_local(name) && !self.dependencies.iter().any(|s| s == name) {
+            self.dependencies.push(name.to_string());
+        }
+    }
+
+    fn push_assignment_targets(&mut self, node: &JsNode, arena: &ParseArena) {
+        let mut names = Vec::new();
+        cycle_extract_pattern_ids(node, arena, &mut names);
+        for name in names {
+            if self.is_local(&name) && !self.shadowed_assignments.contains(&name) {
+                self.shadowed_assignments.push(name.clone());
+            }
+            if !self.assignments.contains(&name) {
+                self.assignments.push(name);
+            }
+        }
+    }
+}
+
 /// Walk a reactive `$:` statement body of any shape, routing assignment /
 /// update targets into `assignments` and every other read identifier into
 /// `dependencies`. Recurses like a generic identifier collector for the read
 /// case, but recognises `AssignmentExpression` / `UpdateExpression` so targets
-/// nested in
-/// block / if / for / sequence bodies (`$: { a = b + 1; }`) are recorded as
-/// assignments rather than dependencies — otherwise such statements collect an
-/// empty assignment set and get dropped from the cycle graph entirely.
-fn cycle_collect_assignments_and_deps(
-    node: &JsNode,
-    arena: &ParseArena,
-    assignments: &mut Vec<String>,
-    dependencies: &mut Vec<String>,
-) {
+/// nested in block / if / for / sequence bodies (`$: { a = b + 1; }`) are
+/// recorded as assignments rather than dependencies — otherwise such statements
+/// collect an empty assignment set and get dropped from the cycle graph
+/// entirely.
+///
+/// A function body is walked rather than skipped: upstream's `scope.reference`
+/// propagates out of a function scope for every name the function does not
+/// itself declare, so `$: a = (() => b)()` really does depend on `b`.
+fn cycle_collect_assignments_and_deps(node: &JsNode, arena: &ParseArena, facts: &mut CycleFacts) {
     match node {
-        JsNode::Identifier { name, .. } => {
-            if !dependencies.iter().any(|s| s == name.as_str()) {
-                dependencies.push(name.to_string());
-            }
-        }
+        JsNode::Identifier { name, .. } => facts.push_dependency(name.as_str()),
         JsNode::AssignmentExpression { left, right, .. } => {
             // LHS targets are assignments; the RHS (and any nested
             // assignments within it) is walked for dependencies.
-            cycle_extract_pattern_ids(arena.get_js_node(*left), arena, assignments);
-            cycle_collect_assignments_and_deps(
-                arena.get_js_node(*right),
-                arena,
-                assignments,
-                dependencies,
-            );
+            facts.push_assignment_targets(arena.get_js_node(*left), arena);
+            cycle_collect_assignments_and_deps(arena.get_js_node(*right), arena, facts);
         }
         // `x++` / `--x` assigns its argument.
         JsNode::UpdateExpression { argument, .. } => {
-            cycle_extract_pattern_ids(arena.get_js_node(*argument), arena, assignments);
+            facts.push_assignment_targets(arena.get_js_node(*argument), arena);
         }
-        // Function bodies create their own scope.
-        JsNode::FunctionExpression { .. }
-        | JsNode::ArrowFunctionExpression { .. }
-        | JsNode::FunctionDeclaration { .. } => {}
+        JsNode::ArrowFunctionExpression { params, body, .. } => {
+            cycle_walk_function(*params, Some(*body), arena, facts);
+        }
+        JsNode::FunctionExpression { params, body, .. }
+        | JsNode::FunctionDeclaration { params, body, .. } => {
+            cycle_walk_function(*params, *body, arena, facts);
+        }
+        // A `catch` parameter is a declaration, not a reference, and it shadows
+        // the instance binding of the same name inside the handler.
+        JsNode::CatchClause { param, body, .. } => {
+            let mark = facts.locals.len();
+            if let Some(param) = param {
+                extract_param_names(arena.get_js_node(*param), arena, &mut facts.locals);
+            }
+            cycle_collect_assignments_and_deps(arena.get_js_node(*body), arena, facts);
+            facts.locals.truncate(mark);
+        }
+        JsNode::BlockStatement { body, .. } => {
+            let mark = facts.locals.len();
+            for stmt in arena.get_js_children(*body) {
+                collect_block_local_decls(stmt, arena, &mut facts.locals);
+            }
+            for stmt in arena.get_js_children(*body) {
+                cycle_collect_assignments_and_deps(stmt, arena, facts);
+            }
+            facts.locals.truncate(mark);
+        }
+        JsNode::ForStatement {
+            init,
+            test,
+            update,
+            body,
+            ..
+        } => {
+            let mark = facts.locals.len();
+            if let Some(init) = init {
+                collect_block_local_decls(arena.get_js_node(*init), arena, &mut facts.locals);
+                cycle_collect_assignments_and_deps(arena.get_js_node(*init), arena, facts);
+            }
+            for part in [test, update] {
+                if let Some(part) = part {
+                    cycle_collect_assignments_and_deps(arena.get_js_node(*part), arena, facts);
+                }
+            }
+            cycle_collect_assignments_and_deps(arena.get_js_node(*body), arena, facts);
+            facts.locals.truncate(mark);
+        }
+        JsNode::ForOfStatement {
+            left, right, body, ..
+        }
+        | JsNode::ForInStatement {
+            left, right, body, ..
+        } => {
+            cycle_collect_assignments_and_deps(arena.get_js_node(*right), arena, facts);
+            let mark = facts.locals.len();
+            collect_block_local_decls(arena.get_js_node(*left), arena, &mut facts.locals);
+            cycle_collect_assignments_and_deps(arena.get_js_node(*left), arena, facts);
+            cycle_collect_assignments_and_deps(arena.get_js_node(*body), arena, facts);
+            facts.locals.truncate(mark);
+        }
+        // The declared names are declarations, not references; only the
+        // initializers are read.
+        JsNode::VariableDeclaration { declarations, .. } => {
+            for decl in arena.get_js_children(*declarations) {
+                if let JsNode::VariableDeclarator {
+                    init: Some(init), ..
+                } = decl
+                {
+                    cycle_collect_assignments_and_deps(arena.get_js_node(*init), arena, facts);
+                }
+            }
+        }
+        JsNode::ClassDeclaration {
+            super_class, body, ..
+        }
+        | JsNode::ClassExpression {
+            super_class, body, ..
+        } => {
+            if let Some(super_class) = super_class {
+                cycle_collect_assignments_and_deps(arena.get_js_node(*super_class), arena, facts);
+            }
+            cycle_collect_assignments_and_deps(arena.get_js_node(*body), arena, facts);
+        }
         JsNode::MemberExpression {
             object,
             property,
             computed,
             ..
         } => {
-            cycle_collect_assignments_and_deps(
-                arena.get_js_node(*object),
-                arena,
-                assignments,
-                dependencies,
-            );
+            cycle_collect_assignments_and_deps(arena.get_js_node(*object), arena, facts);
             if *computed {
-                cycle_collect_assignments_and_deps(
-                    arena.get_js_node(*property),
-                    arena,
-                    assignments,
-                    dependencies,
-                );
+                cycle_collect_assignments_and_deps(arena.get_js_node(*property), arena, facts);
             }
         }
         JsNode::Property {
@@ -1539,19 +1642,9 @@ fn cycle_collect_assignments_and_deps(
             ..
         } => {
             if *computed {
-                cycle_collect_assignments_and_deps(
-                    arena.get_js_node(*key),
-                    arena,
-                    assignments,
-                    dependencies,
-                );
+                cycle_collect_assignments_and_deps(arena.get_js_node(*key), arena, facts);
             }
-            cycle_collect_assignments_and_deps(
-                arena.get_js_node(*value),
-                arena,
-                assignments,
-                dependencies,
-            );
+            cycle_collect_assignments_and_deps(arena.get_js_node(*value), arena, facts);
         }
         // The annotation blob follows `properties` / `elements` in the JSON
         // field order, so its identifiers must be seen after theirs.
@@ -1561,14 +1654,14 @@ fn cycle_collect_assignments_and_deps(
             ..
         } => {
             for prop in arena.get_js_children(*properties) {
-                cycle_collect_assignments_and_deps(prop, arena, assignments, dependencies);
+                cycle_collect_assignments_and_deps(prop, arena, facts);
             }
             if let Some(ta) = type_annotation {
-                for_each_blob_identifier(ta, &mut |name, _| {
-                    if !dependencies.iter().any(|s| s == name) {
-                        dependencies.push(name.to_string());
-                    }
-                });
+                let mut names = Vec::new();
+                for_each_blob_identifier(ta, &mut |name, _| names.push(name.to_string()));
+                for name in names {
+                    facts.push_dependency(&name);
+                }
             }
         }
         JsNode::ArrayPattern {
@@ -1577,38 +1670,51 @@ fn cycle_collect_assignments_and_deps(
             ..
         } => {
             for elem in elements.iter().flatten() {
-                cycle_collect_assignments_and_deps(elem, arena, assignments, dependencies);
+                cycle_collect_assignments_and_deps(elem, arena, facts);
             }
             if let Some(ta) = type_annotation {
-                for_each_blob_identifier(ta, &mut |name, _| {
-                    if !dependencies.iter().any(|s| s == name) {
-                        dependencies.push(name.to_string());
-                    }
-                });
+                let mut names = Vec::new();
+                for_each_blob_identifier(ta, &mut |name, _| names.push(name.to_string()));
+                for name in names {
+                    facts.push_dependency(&name);
+                }
             }
         }
         // `for_each_js_child` skips `label` (it is not a rune reference); this
         // walker counted it as a dependency, so keep reading it here.
         JsNode::LabeledStatement { label, body, .. } => {
-            cycle_collect_assignments_and_deps(
-                arena.get_js_node(*label),
-                arena,
-                assignments,
-                dependencies,
-            );
-            cycle_collect_assignments_and_deps(
-                arena.get_js_node(*body),
-                arena,
-                assignments,
-                dependencies,
-            );
+            cycle_collect_assignments_and_deps(arena.get_js_node(*label), arena, facts);
+            cycle_collect_assignments_and_deps(arena.get_js_node(*body), arena, facts);
         }
         _ => {
             for_each_js_child(node, arena, &mut |child| {
-                cycle_collect_assignments_and_deps(child, arena, assignments, dependencies);
+                cycle_collect_assignments_and_deps(child, arena, facts);
             });
         }
     }
+}
+
+/// Parameters shadow inside the body; their default-value expressions are
+/// evaluated before the shadowing takes effect.
+fn cycle_walk_function(
+    params: crate::ast::arena::IdRange,
+    body: Option<crate::ast::arena::JsNodeId>,
+    arena: &ParseArena,
+    facts: &mut CycleFacts,
+) {
+    for param in arena.get_js_children(params) {
+        collect_param_evaluations(param, arena, &mut |evaluated| {
+            cycle_collect_assignments_and_deps(evaluated, arena, facts);
+        });
+    }
+    let mark = facts.locals.len();
+    for param in arena.get_js_children(params) {
+        extract_param_names(param, arena, &mut facts.locals);
+    }
+    if let Some(body) = body {
+        cycle_collect_assignments_and_deps(arena.get_js_node(body), arena, facts);
+    }
+    facts.locals.truncate(mark);
 }
 
 /// Process legacy mode exports.
@@ -2332,6 +2438,25 @@ fn collect_reactive_refs(
             path.pop();
             locals.truncate(locals_mark);
         }
+        // A `catch` parameter is a declaration, not a reference; it shadows the
+        // instance binding of the same name inside the handler.
+        JsNode::CatchClause { param, body, .. } => {
+            let locals_mark = locals.len();
+            if let Some(param) = param {
+                extract_param_names(arena.get_js_node(*param), arena, locals);
+            }
+            path.push(reactive_path_entry(node, arena));
+            collect_reactive_refs(
+                arena.get_js_node(*body),
+                arena,
+                path,
+                locals,
+                order,
+                included,
+            );
+            path.pop();
+            locals.truncate(locals_mark);
+        }
         JsNode::BlockStatement { body, .. } => {
             let locals_mark = locals.len();
             let stmts = arena.get_js_children(*body);
@@ -2488,14 +2613,22 @@ fn collect_reactive_refs(
 }
 
 /// Add `let/const/var` (and `for`-binding) identifiers from a statement to
-/// `locals` so they shadow outer reactive bindings within their block.
+/// `locals` so they shadow outer reactive bindings within their block. A
+/// `function` / `class` declaration binds its name in the same block scope.
 fn collect_block_local_decls(node: &JsNode, arena: &ParseArena, locals: &mut Vec<String>) {
-    if let JsNode::VariableDeclaration { declarations, .. } = node {
-        for d in arena.get_js_children(*declarations) {
-            if let JsNode::VariableDeclarator { id, .. } = d {
-                extract_param_names(arena.get_js_node(*id), arena, locals);
+    match node {
+        JsNode::VariableDeclaration { declarations, .. } => {
+            for d in arena.get_js_children(*declarations) {
+                if let JsNode::VariableDeclarator { id, .. } = d {
+                    extract_param_names(arena.get_js_node(*id), arena, locals);
+                }
             }
         }
+        JsNode::FunctionDeclaration { id: Some(id), .. }
+        | JsNode::ClassDeclaration { id: Some(id), .. } => {
+            extract_param_names(arena.get_js_node(*id), arena, locals);
+        }
+        _ => {}
     }
 }
 
@@ -6323,6 +6456,52 @@ $: { b++; console.log(a); }
         assert_eq!(second.source_ordinal, 1);
         assert_eq!(second.assignments, ["b"]);
         assert_eq!(second.dependencies, ["b", "console", "a"]);
+    }
+
+    /// A name declared INSIDE a `$:` statement shadows the instance binding it
+    /// collides with, so it is neither a dependency nor an assignment of the
+    /// outer name. Compared against the official compiler, which resolves both
+    /// sets through `scope.get(name)`.
+    #[test]
+    fn reactive_cycle_graph_resolves_names_through_the_statement_scope() {
+        let try_analyze = |source: &str| -> Result<ComponentAnalysis, AnalysisError> {
+            let mut ast = parse(
+                source,
+                &oxc_allocator::Allocator::default(),
+                ParseOptions {
+                    defer_script_parse: true,
+                    ..ParseOptions::default()
+                },
+            )
+            .unwrap();
+            // SAFETY: `ast` outlives the guard and analysis call.
+            let _guard = unsafe { SerializeArenaGuard::new(&ast.arena as *const _) };
+            analyze_component(&mut ast, source, &CompileOptions::default())
+        };
+
+        // Official compiles all four: the inner `e` is a different binding.
+        for shadow in [
+            "$: try { d = a; } catch (e) { d = 0; }",
+            "$: { let e = a; d = e; }",
+            "$: { function e() { return a; } d = e(); }",
+            "$: { for (const e of [a]) d = e; }",
+        ] {
+            let source =
+                format!("<script>\nexport let a = 1;\nlet d = 0;\nlet e = 0;\n{shadow}\n$: e = d + 1;\n</script>\n<b>{{d}}{{e}}</b>");
+            assert!(
+                try_analyze(&source).is_ok(),
+                "expected no cycle for `{shadow}`"
+            );
+        }
+
+        // A read inside a function body still propagates out of the function
+        // scope, so this IS a cycle — as it is upstream.
+        let cyclic = "<script>\nlet a = 0;\nlet b = 0;\n$: a = (() => b)();\n$: b = a + 1;\n</script>\n<b>{a}{b}</b>";
+        let err = try_analyze(cyclic).expect_err("expected a reactive_declaration_cycle");
+        assert!(
+            matches!(&err, AnalysisError::ValidationWithCode { code, .. } if code == "reactive_declaration_cycle"),
+            "got {err:?}"
+        );
     }
 
     #[test]
