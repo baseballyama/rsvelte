@@ -506,16 +506,11 @@ fn lazy_parse_error(
         // a missing close token; anything else is a point `js_parse_error`.
         LazyKind::HeadBrace | LazyKind::HeadParen => {
             let close = if kind == LazyKind::HeadParen {
-                ")"
+                ')'
             } else {
-                "}"
+                '}'
             };
-            if let Some(pos) = super::read::expression::trailing_token_offset(content) {
-                return Some(crate::error::ParseError::expected_token(close, start + pos));
-            }
-            let abs_pos = super::read::expression::check_js_parse_error_with_pos(content)
-                .map_or(start + content.len(), |(_, pos)| start + pos);
-            crate::error::ParseError::svelte("js_parse_error", msg, (abs_pos, abs_pos))
+            super::read::expression::close_token_or_parse_error(msg, content, start, close)
         }
     })
 }
