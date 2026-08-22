@@ -1600,7 +1600,7 @@ See https://svelte.dev/docs/svelte/v5-migration-guide#Components-are-no-longer-c
     // `hoisted[0]` when `use_async`) must stay ahead of it, so insert AFTER
     // any leading `import 'svelte/internal/flags/async';`.
     if options.dev {
-        let filename = options.filename.as_deref().unwrap_or("");
+        let filename = options.filename_or_unknown();
         // `b.member(id, '$.FILENAME', computed=true)` → `<Name>[$.FILENAME]`,
         // where the computed key `$.FILENAME` is itself the member expression
         // `$.FILENAME` (namespace `$` dot-access `FILENAME`).

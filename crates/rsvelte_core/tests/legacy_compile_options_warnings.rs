@@ -70,18 +70,18 @@ fn deprecated_options_are_reported_when_present_even_if_false() {
     );
 }
 
+/// Upstream's `deprecate()` fires on the option being **supplied** — `accessors:
+/// false` warns too — and exactly once per process. Both facts belong to the
+/// entry point that parsed the option (`rsvelte_napi` / `rsvelte_capi` hold the
+/// `warn_once` flags), so the behavioural field alone must not re-derive the
+/// diagnostic: doing so warned on every compile of a `{ accessors: true }` build
+/// (#3380), and no `legacy_options` flag could have suppressed it.
 #[test]
-fn direct_rust_true_deprecated_options_are_reported() {
+fn the_behavioural_field_alone_does_not_report_the_deprecation() {
     let mut options = base();
     options.accessors = true;
     options.immutable = true;
-    assert_eq!(
-        codes(options),
-        vec![
-            "options_deprecated_accessors",
-            "options_deprecated_immutable"
-        ]
-    );
+    assert_eq!(codes(options), Vec::<String>::new());
 }
 
 #[test]

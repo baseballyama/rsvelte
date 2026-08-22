@@ -326,6 +326,22 @@ impl Default for CompileOptions {
     }
 }
 
+/// The filename upstream's `validate-options.js` substitutes when the option is
+/// absent (`filename: string('(unknown)')`). It is not a placeholder for "we do
+/// not know": every consumer downstream reads the *defaulted* value, so the
+/// component name comes out `_unknown_` and the dev `[$.FILENAME]` assignment is
+/// still emitted.
+pub const UNKNOWN_FILENAME: &str = "(unknown)";
+
+impl CompileOptions {
+    /// The `filename` every consumer sees — the supplied one, or upstream's
+    /// [`UNKNOWN_FILENAME`] default.
+    #[must_use]
+    pub fn filename_or_unknown(&self) -> &str {
+        self.filename.as_deref().unwrap_or(UNKNOWN_FILENAME)
+    }
+}
+
 impl std::fmt::Debug for CompileOptions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CompileOptions")
@@ -749,7 +765,12 @@ pub(crate) fn finalize_compile_result(
             phases::phase2_analyze::warnings::options_renamed_ssr_dom(),
         ));
     }
-    if options.legacy_options.accessors || options.accessors {
+    // Presence, not value: upstream's `deprecate()` fires on the option being
+    // SUPPLIED (`accessors: false` warns too) and exactly once per process, so
+    // the entry point that parsed the option owns the decision. Reading
+    // `options.accessors` here would re-derive it from the behavioural field and
+    // warn on every compile.
+    if options.legacy_options.accessors {
         option_warnings.push(phases::phase3_transform::TransformWarning {
             code: "options_deprecated_accessors".to_string(),
             message: "The `accessors` option has been deprecated. It will have no effect in runes mode\nhttps://svelte.dev/e/options_deprecated_accessors".to_string(),
@@ -757,7 +778,7 @@ pub(crate) fn finalize_compile_result(
             end: None,
         });
     }
-    if options.legacy_options.immutable || options.immutable {
+    if options.legacy_options.immutable {
         option_warnings.push(legacy_option_warning(
             phases::phase2_analyze::warnings::options_deprecated_immutable(),
         ));

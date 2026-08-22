@@ -1091,14 +1091,20 @@ impl NapiCompileOptions {
         }
         if let Some(v) = &self.accessors {
             opts.accessors = coerce_bool("accessors", v)?;
-            opts.legacy_options.accessors = true;
+            // Upstream reaches this one through `deprecate()`, which is `warn_once`
+            // like the removed options below — not once per compile.
+            static WARNED: std::sync::atomic::AtomicBool =
+                std::sync::atomic::AtomicBool::new(false);
+            opts.legacy_options.accessors = warn_once(&WARNED);
         }
         if let Some(v) = &self.namespace {
             opts.namespace = coerce_namespace(v)?;
         }
         if let Some(v) = &self.immutable {
             opts.immutable = coerce_bool("immutable", v)?;
-            opts.legacy_options.immutable = true;
+            static WARNED: std::sync::atomic::AtomicBool =
+                std::sync::atomic::AtomicBool::new(false);
+            opts.legacy_options.immutable = warn_once(&WARNED);
         }
         if let Some(v) = &self.css {
             opts.css = coerce_css(v)?;

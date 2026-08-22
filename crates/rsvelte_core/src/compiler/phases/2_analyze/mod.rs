@@ -231,6 +231,14 @@ pub(crate) fn analyze_prepared_component_with_retained(
         // element properties. Reference: analyze/index.js lines 536-540:
         // accessors: is_custom_element || (runes ? false : !!options.accessors) || ...
         analysis.accessors = true;
+    } else if options.custom_element {
+        // `custom_element = options.customElementOptions ?? options.customElement(…)`
+        // (analyze/index.js), so the compile option on its own is upstream's
+        // BOOLEAN form: no tag — the user calls `customElements.define` — no
+        // props, no `extend`, and the default open shadow root.
+        analysis.custom_element = Some(types::CustomElementConfig::default());
+        analysis.inject_styles = true;
+        analysis.accessors = true;
     }
 
     // Extract script content for Phase 3 (avoids re-parsing)
