@@ -50,8 +50,12 @@ pub fn visit<'a, 'b: 'a>(
         context.scope = boundary_scope;
     }
 
-    // Analyze children
-    fragment::analyze(&mut boundary.fragment, context)?;
+    // Reference: SnippetBlock.js L28 — `is_top_level` is `path.length === 1`, so a
+    // boundary counts as a parent for both snippet hoisting and `<svelte:*>` placement.
+    context.element_depth += 1;
+    let result = fragment::analyze(&mut boundary.fragment, context);
+    context.element_depth -= 1;
+    result?;
 
     // Restore scope
     context.scope = scope_before_boundary;

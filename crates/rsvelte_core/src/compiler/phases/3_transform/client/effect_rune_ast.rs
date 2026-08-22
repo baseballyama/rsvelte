@@ -109,14 +109,14 @@ impl<'a> Visit<'a> for EffectRuneCollector {
                         "$.effect_tracking".to_string(),
                     )),
                     "pending" => {
-                        // Whole-call swap: `$effect.pending()` →
-                        // `$.eager(() => $.pending())`, matching upstream exactly
-                        // (`$.eager` receives a thunk that calls `$.pending()`).
-                        // The original takes no args; any are discarded.
+                        // Whole-call swap. Upstream builds
+                        // `b.thunk(b.call('$.pending'))`, and `thunk` unthunks a
+                        // zero-argument call of an identifier, so the argument is
+                        // the bare reference. Any args here are discarded.
                         self.replacements.push((
                             call.span.start,
                             call.span.end,
-                            "$.eager(() => $.pending())".to_string(),
+                            "$.eager($.pending)".to_string(),
                         ));
                     }
                     _ => {}
@@ -158,7 +158,7 @@ mod tests {
     #[test]
     fn rewrites_effect_pending() {
         let out = apply_effect_rune_transforms_ast("let p = $effect.pending();", false).unwrap();
-        assert_eq!(out, "let p = $.eager(() => $.pending());");
+        assert_eq!(out, "let p = $.eager($.pending);");
     }
 
     #[test]

@@ -20,6 +20,7 @@ use oxc_span::GetSpan;
 use rustc_hash::FxHashSet;
 
 use super::ast_rewrite::Edit;
+use super::visitors::shared::utils::{is_global_constant, is_known_defined_global_call};
 
 /// Cheap byte probe: no `=` means no assignment to instrument.
 pub(super) fn source_has_assignment(source: &str) -> bool {
@@ -34,6 +35,17 @@ fn non_coercive(operator: AssignmentOperator) -> Option<&'static str> {
         AssignmentOperator::LogicalOr => Some("||="),
         AssignmentOperator::LogicalAnd => Some("&&="),
         AssignmentOperator::LogicalNullish => Some("??="),
+        _ => None,
+    }
+}
+
+/// Dotted name of an identifier / non-computed member chain, or `None`.
+fn oxc_keypath(expr: &Expression<'_>) -> Option<String> {
+    match expr.without_parentheses() {
+        Expression::Identifier(id) => Some(id.name.to_string()),
+        Expression::StaticMemberExpression(m) => {
+            Some(format!("{}.{}", oxc_keypath(&m.object)?, m.property.name))
+        }
         _ => None,
     }
 }
@@ -53,6 +65,16 @@ fn is_known_primitive(expr: &Expression<'_>) -> bool {
         | Expression::UnaryExpression(_)
         | Expression::BinaryExpression(_) => true,
         Expression::Identifier(id) => id.name == "undefined",
+        // A call to one of the `globals` upstream knows yields NUMBER/STRING,
+        // and a function value is not UNKNOWN either.
+        Expression::CallExpression(call) => {
+            !call.arguments.iter().any(oxc_ast::ast::Argument::is_spread)
+                && oxc_keypath(&call.callee).is_some_and(|k| is_known_defined_global_call(&k))
+        }
+        Expression::StaticMemberExpression(_) => {
+            oxc_keypath(expr.without_parentheses()).is_some_and(|k| is_global_constant(&k))
+        }
+        Expression::ArrowFunctionExpression(_) | Expression::FunctionExpression(_) => true,
         // `Evaluation` unions the branch value sets, so a branching expression
         // is primitive exactly when every branch it can yield is.
         Expression::ConditionalExpression(cond) => {

@@ -962,6 +962,17 @@ fn walk_template_node_for_browser_globals(
             let expr_json = tag.expression.as_json();
             check_expr_for_browser_globals(expr_json, ctx);
         }
+        // `{@html …}` / `{@const …}` / `{let …}` are top-level locations too:
+        // upstream's `isTopLevelLocation` demotes only functions and snippets.
+        TemplateNode::HtmlTag(tag) if !client_guaranteed => {
+            check_expr_for_browser_globals(tag.expression.as_json(), ctx);
+        }
+        TemplateNode::ConstTag(tag) if !client_guaranteed => {
+            check_expr_for_browser_globals(tag.declaration.as_json(), ctx);
+        }
+        TemplateNode::DeclarationTag(tag) if !client_guaranteed => {
+            check_expr_for_browser_globals(tag.declaration.as_json(), ctx);
+        }
         TemplateNode::RegularElement(el) => {
             walk_fragment_for_browser_globals(
                 &el.fragment,

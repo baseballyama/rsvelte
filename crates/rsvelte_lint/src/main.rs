@@ -14,7 +14,9 @@ use rayon::prelude::*;
 use rsvelte_diagnostics::{Diagnostic, DiagnosticSeverity};
 
 use rsvelte_lint::rule::Severity;
-use rsvelte_lint::{LintConfig, LintFormat, fix_source, lint_file, presets, render};
+use rsvelte_lint::{
+    LintConfig, LintFormat, LintMessage, fix_all, lint_file_messages, presets, render_messages,
+};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -197,20 +199,25 @@ fn main() -> ExitCode {
     // release/dist profiles set `panic = "abort"`, so distribution builds must
     // use `--profile dist-lint` (release + `panic = "unwind"`) for this
     // isolation to hold; under an aborting build a panic still ends the run.
-    let per_file: Vec<Vec<Diagnostic>> = files
+    let per_file: Vec<Vec<LintMessage>> = files
         .par_iter()
         .map(|f| lint_file_safe(f, &config))
         .collect();
-    let all: Vec<Diagnostic> = per_file.into_iter().flatten().collect();
+    let all: Vec<LintMessage> = per_file.into_iter().flatten().collect();
 
-    print!("{}", render(&all, &workspace, files.len(), format, VERSION));
+    print!(
+        "{}",
+        render_messages(&all, &workspace, files.len(), format, VERSION)
+    );
 
     let errors = all
         .iter()
+        .map(|m| &m.diagnostic)
         .filter(|d| d.severity == DiagnosticSeverity::Error)
         .count();
     let warnings = all
         .iter()
+        .map(|m| &m.diagnostic)
         .filter(|d| d.severity == DiagnosticSeverity::Warning)
         .count();
 
@@ -226,12 +233,12 @@ fn main() -> ExitCode {
 /// the whole run; the panic surfaces as a diagnostic instead. Effective only in
 /// an unwinding build (see `--profile dist-lint`); a `panic = "abort"` build
 /// cannot recover here.
-fn lint_file_safe(file: &Path, config: &LintConfig) -> Vec<Diagnostic> {
+fn lint_file_safe(file: &Path, config: &LintConfig) -> Vec<LintMessage> {
     use std::panic::{AssertUnwindSafe, catch_unwind};
-    match catch_unwind(AssertUnwindSafe(|| lint_file(file, config))) {
-        Ok(Ok(diags)) => diags,
-        Ok(Err(e)) => vec![read_error(file, &e)],
-        Err(_) => vec![internal_error(file)],
+    match catch_unwind(AssertUnwindSafe(|| lint_file_messages(file, config))) {
+        Ok(Ok(msgs)) => msgs,
+        Ok(Err(e)) => vec![LintMessage::from(read_error(file, &e))],
+        Err(_) => vec![LintMessage::from(internal_error(file))],
     }
 }
 
@@ -242,7 +249,9 @@ fn fix_one(file: &Path, config: &LintConfig) -> usize {
     let Ok(source) = std::fs::read_to_string(file) else {
         return 0;
     };
-    let Ok(res) = catch_unwind(AssertUnwindSafe(|| fix_source(&source, config))) else {
+    let Ok(res) = catch_unwind(AssertUnwindSafe(|| {
+        fix_all(&source, config, &file.to_string_lossy())
+    })) else {
         return 0;
     };
     if res.applied > 0 && res.output != source {

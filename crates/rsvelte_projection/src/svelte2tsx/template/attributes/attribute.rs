@@ -14,6 +14,16 @@ fn source_offset(value: usize) -> u32 {
     u32::try_from(value).expect("template source offsets are represented as u32")
 }
 
+/// `popover` is enumerated rather than boolean, so upstream projects the
+/// valueless form as the empty string it actually carries.
+fn valueless_value(source_name: &str) -> &'static str {
+    if source_name == "popover" {
+        "\"\""
+    } else {
+        "true"
+    }
+}
+
 /// Format a regular attribute: `name="value"` → `"name":value,`.
 ///
 /// Shorthand attributes like `{propB}` (where name equals expression text)
@@ -58,7 +68,7 @@ pub fn format_attribute_node(node: &AttributeNode, source: &str, is_element: boo
             } else if is_css_prop {
                 format!("...__sveltets_2_cssProp({{\"{name}\":\"\"}}),")
             } else {
-                format!("\"{name}\":true,")
+                format!("\"{name}\":{},", valueless_value(&node.name))
             }
         }
         AttributeValue::Expression(expr) => {
@@ -470,7 +480,10 @@ pub fn append_attribute_node_segments(
                     format_args!("...__sveltets_2_cssProp({{\"{name}\":\"\"}}),"),
                 );
             } else {
-                segs_push_fmt(out, format_args!("\"{name}\":true,"));
+                segs_push_fmt(
+                    out,
+                    format_args!("\"{name}\":{},", valueless_value(&node.name)),
+                );
             }
         }
         AttributeValue::Expression(expr) => {

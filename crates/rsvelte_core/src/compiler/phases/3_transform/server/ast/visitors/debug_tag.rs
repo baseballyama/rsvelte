@@ -12,9 +12,8 @@
 //! returns the bare `statements` when there are no blockers (the common,
 //! sync case), so for a blocker-free `{@debug a, b}` the two statements land
 //! directly on the template — flushed as opaque [`TemplateEntry::Stmt`]s by
-//! `build_template`. This matches the text-based `transform_server` oracle,
-//! which emits `console.log({ ... }); debugger;` (and a lone `debugger;` for
-//! `{@debug}` with no identifiers).
+//! `build_template`. A `{@debug}` with no identifiers still logs: upstream
+//! always emits `console.log({ ... }); debugger;`, with an empty object.
 //!
 //! ## Async path (写经 `DebugTag.js` blockers)
 //!
@@ -32,9 +31,9 @@ use crate::ast::template::DebugTag;
 use crate::compiler::phases::phase3_transform::server::ast::ServerTransformState;
 use oxc_ast::ast::ObjectPropertyKind;
 
-/// Visit a `{@debug a, b, ...}` tag, pushing `console.log({ a, b })` (omitted
-/// when there are no identifiers) followed by `debugger;` (sync, blocker-free
-/// path).
+/// Visit a `{@debug a, b, ...}` tag, pushing `console.log({ a, b })` (an empty
+/// object when there are no identifiers) followed by `debugger;` (sync,
+/// blocker-free path).
 pub fn visit_debug_tag<'a>(node: &DebugTag, state: &mut ServerTransformState<'a>) {
     let b = state.b;
 
@@ -46,7 +45,7 @@ pub fn visit_debug_tag<'a>(node: &DebugTag, state: &mut ServerTransformState<'a>
 
     let mut statements: Vec<oxc_ast::ast::Statement<'a>> = Vec::new();
 
-    if !node.identifiers.is_empty() {
+    {
         let mut props: Vec<ObjectPropertyKind<'a>> = Vec::with_capacity(node.identifiers.len());
         for ident in &node.identifiers {
             // Key: the identifier's source name (so the object key matches the

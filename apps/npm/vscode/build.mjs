@@ -4,6 +4,10 @@
 // server is shipped as a separate ESM `server.mjs` (+ vendored wasm) that the
 // client spawns over stdio, so we just copy the language-server's built `dist`
 // next to the extension bundle.
+//
+// `RSVELTE_VSIX_TRIPLE` selects which staged native server this build embeds —
+// one per platform-specific VSIX. Unset builds the universal fallback, which
+// carries no native binary at all and starts `dist/server.mjs` instead.
 
 import { build } from "esbuild";
 import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
@@ -42,8 +46,17 @@ cpSync(join(serverDist, "vendor"), join(distDir, "vendor"), {
   recursive: true,
 });
 
-if (existsSync(nativeDir)) {
-  cpSync(nativeDir, join(distDir, "bin"), { recursive: true });
+const triple = process.env.RSVELTE_VSIX_TRIPLE?.trim();
+if (triple) {
+  const source = join(nativeDir, triple);
+  if (!existsSync(source)) {
+    throw new Error(
+      `RSVELTE_VSIX_TRIPLE=${triple} but ${source} is missing — run \`pnpm run stage-vscode-language-server\` first.`,
+    );
+  }
+  cpSync(source, join(distDir, "bin", triple), { recursive: true });
 }
 
-console.log("[build] extension bundled to dist/extension.js (+ native/JS servers)");
+console.log(
+  `[build] extension bundled to dist/extension.js (native server: ${triple ?? "none — universal"})`,
+);

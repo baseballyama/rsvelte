@@ -486,11 +486,13 @@ fn lazy_parse_error(
             });
             match trailing {
                 Some(offset) => crate::error::ParseError::expected_token("}", start + offset),
-                None => crate::error::ParseError::svelte(
-                    "js_parse_error",
-                    msg,
-                    (start, start + content.len()),
-                ),
+                // Upstream rethrows acorn's `err.pos` as a point error, so the
+                // span is where it stopped consuming, not the whole expression.
+                None => {
+                    let at = super::read::expression::check_js_parse_error_with_pos(content)
+                        .map_or(start + content.len(), |(_, pos)| start + pos);
+                    crate::error::ParseError::svelte("js_parse_error", msg, (at, at))
+                }
             }
         }
         // `parse_js_expression_attribute`: a point error at the byte where OXC

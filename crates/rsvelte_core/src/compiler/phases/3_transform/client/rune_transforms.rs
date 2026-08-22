@@ -25,6 +25,7 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     _analysis: &ComponentAnalysis,
     store_sub_vars: &[String],
     _read_only_props: &[(String, String)],
+    pre_class_script: &str,
 ) -> Cow<'a, str> {
     // Quick pre-check: if no rune-like pattern (`$` followed by letter) appears, skip
     if !line.contains('$') {
@@ -39,6 +40,7 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     let state_is_store_sub = store_sub_vars.iter().any(|s| s == "$state");
     let effect_is_store_sub = store_sub_vars.iter().any(|s| s == "$effect");
     let derived_is_store_sub = store_sub_vars.iter().any(|s| s == "$derived");
+    let inspect_is_store_sub = store_sub_vars.iter().any(|s| s == "$inspect");
 
     // Lazily check if rune names appear as function parameters in this statement.
     // is_function_parameter_in_statement is expensive (scans the entire line), so
@@ -183,7 +185,7 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     // text trimming around the call site (leading tabs/spaces on the
     // same line, trailing `;`/newlines) that's statement-shaped rather
     // than expression-shaped and is awkward to express at the AST level.
-    if !dev {
+    if !dev && !inspect_is_store_sub {
         while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect.trace(") {
             let trace_start = pos + 15; // after "$inspect.trace("
             if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
@@ -218,7 +220,10 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     // emits the `/* $$async_hole:... */` async-mode marker or just
     // strips the call) is statement-shaped rather than expression-shaped
     // and is awkward to do at the AST level.
-    if !dev && let Some(pos) = memmem::find(result.as_bytes(), b"$inspect(") {
+    if !dev
+        && !inspect_is_store_sub
+        && let Some(pos) = memmem::find(result.as_bytes(), b"$inspect(")
+    {
         {
             // In non-dev mode, remove the entire $inspect(...) call
             // Find matching closing paren
@@ -256,7 +261,9 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
                 } else {
                     let trailing_comment = after.strip_prefix(';').unwrap_or(after).trim_start();
                     let marker = if before.is_empty() && trailing_comment.starts_with("/*") {
-                        "/* $$inspect_removed$$ */"
+                        // The trailing `;` of the removed call is one of the
+                        // `;;` upstream prints for the empty-as-expression.
+                        "/* $$inspect_removed$$ */;"
                     } else {
                         ""
                     };
@@ -303,7 +310,10 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
             result = Cow::Owned(rewritten);
         }
         if let Some(rewritten) =
-            super::tag_class_field_ast::wrap_state_derived_with_tag_class_fields_ast(&result)
+            super::tag_class_field_ast::wrap_state_derived_with_tag_class_fields_ast_from(
+                &result,
+                pre_class_script,
+            )
         {
             result = Cow::Owned(rewritten);
         }
@@ -349,7 +359,10 @@ pub(super) fn wrap_state_derived_with_tag(input: &str) -> String {
                 .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '$')
                 .collect();
 
-            if var_name.is_empty() {
+            // `$$`-prefixed names are the compiler's own temps (`$$d`,
+            // `$$array`); upstream labels a binding the user wrote, never one it
+            // generated.
+            if var_name.is_empty() || var_name.starts_with("$$") {
                 search_from = abs_kw_pos + keyword.len();
                 continue;
             }
@@ -444,7 +457,7 @@ pub(super) fn wrap_state_derived_with_tag(input: &str) -> String {
                 .unwrap_or(0);
             let var_name = &before_eq[name_start..name_end];
 
-            if var_name.is_empty() {
+            if var_name.is_empty() || var_name.starts_with("$$") {
                 search_from = abs_pat_pos + pattern.len();
                 continue;
             }
@@ -928,10 +941,19 @@ pub(super) fn process_derived_object_pattern(
             let value_pattern = prop[colon_pos + 1..].trim();
             let prop_access = derived_prop_access(base_expr, member_base, key);
             if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
-                let (nested_pattern, _default_val) = split_nested_pattern_default(value_pattern);
+                // The pattern's default must survive into the helper's base
+                // (`sizes: [x] = []` → `$.to_array($.fallback(o.sizes, () => [],
+                // true))`) — the second pass builds the same effective access for
+                // the element declarations.
+                let (nested_pattern, default_val) = split_nested_pattern_default(value_pattern);
+                let effective_access = if let Some(dv) = default_val {
+                    build_fallback_string(&prop_access, dv)
+                } else {
+                    prop_access
+                };
                 collect_array_helpers_only(
                     nested_pattern,
-                    &prop_access,
+                    &effective_access,
                     declarations,
                     insert_label,
                     array_temp_prefix,

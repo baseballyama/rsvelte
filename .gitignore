@@ -183,3 +183,5 @@ compatibility/lsp-current-*.json
 # Built by scripts/compat-corpus/scss-verify.mjs so both SCSS backends can resolve
 # a corpus package that imports itself by its published specifier.
 compatibility/scss-node-modules-shim/
+compatibility/.lint-adversarial-config.json
+compatibility/.lint-adversarial-rules.json

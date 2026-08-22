@@ -17,7 +17,7 @@
 
 use rsvelte_core::ast::template::{
     Attribute, Component, RegularElement, SlotElement, SvelteComponentElement,
-    SvelteDynamicElement, SvelteElement,
+    SvelteDynamicElement, SvelteElement, TitleElement,
 };
 
 use crate::context::LintContext;
@@ -25,6 +25,8 @@ use crate::diagnostic::{Fix, TextEdit};
 use crate::rule::{
     Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity, SpecialElement,
 };
+use crate::rules::js_whitespace::skip_js_ws_backward;
+use crate::rules::this_attr::oracle_this_attr_span;
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/html-closing-bracket-spacing",
@@ -85,30 +87,21 @@ const fn attr_end(a: &Attribute) -> u32 {
 /// The trailing `(\s*)/?>` of a tag whose closing `>` ends at `tag_end`
 /// (exclusive). Returns `(spaces_start, spaces_len, has_newline)`, where the
 /// whitespace run before the `/?>` is `[spaces_start, spaces_start +
-/// spaces_len)` and `has_newline` is set when that run contains a line break.
-fn trailing_match(src: &[u8], tag_end: u32) -> (u32, u32, bool) {
+/// spaces_len)` and `has_newline` is set when that run contains `\n` (upstream
+/// `containsNewline` checks only `\n`).
+fn trailing_match(src: &str, tag_end: u32) -> (u32, u32, bool) {
+    let bytes = src.as_bytes();
     // `>` is at tag_end - 1.
     let mut pos = tag_end as usize; // points just after `>`
     pos -= 1; // the `>`
     // optional `/`
-    if pos > 0 && src[pos - 1] == b'/' {
+    if pos > 0 && bytes[pos - 1] == b'/' {
         pos -= 1;
     }
-    // collect preceding whitespace
+    // Preceding whitespace run — JS `\s`, so `\x0b`, NBSP, U+FEFF etc. count.
     let spaces_end = pos; // exclusive end of whitespace run (== start of `/?>`)
-    let mut spaces_start = spaces_end;
-    let mut has_newline = false;
-    while spaces_start > 0 {
-        let b = src[spaces_start - 1];
-        if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' || b == 0x0c {
-            if b == b'\n' || b == b'\r' {
-                has_newline = true;
-            }
-            spaces_start -= 1;
-        } else {
-            break;
-        }
-    }
+    let spaces_start = skip_js_ws_backward(src, 0, source_offset(spaces_end)) as usize;
+    let has_newline = src[spaces_start..spaces_end].contains('\n');
     let spaces_len = source_offset(spaces_end - spaces_start);
     (source_offset(spaces_start), spaces_len, has_newline)
 }
@@ -121,7 +114,7 @@ impl HtmlClosingBracketSpacing {
         if mode == Mode::Ignore {
             return;
         }
-        let src = ctx.source().as_bytes();
+        let src = ctx.source();
         let (spaces_start, spaces_len, has_newline) = trailing_match(src, tag_end);
         if has_newline {
             return;
@@ -161,13 +154,17 @@ impl HtmlClosingBracketSpacing {
 }
 
 impl HtmlClosingBracketSpacing {
-    /// Shared implementation for any element-like node.
+    /// Shared implementation for any element-like node. `this_end` is the end
+    /// of the reconstructed `this={…}` attribute on `<svelte:component>` /
+    /// `<svelte:element>` — the bracket scan must start past it so a `>` inside
+    /// the `this` expression is never taken as the tag bracket.
     fn check_element_like(
         ctx: &mut LintContext,
         el_start: u32,
         el_end: u32,
         el_name_len: usize,
         attributes: &[Attribute],
+        this_end: Option<u32>,
     ) {
         let src = ctx.source().as_bytes();
 
@@ -177,7 +174,10 @@ impl HtmlClosingBracketSpacing {
         // only whitespace, an optional `/`, and the `>` remain, so a raw scan is
         // safe (no `>` inside attribute values can fool us).
         let name_end = el_start + 1 + source_offset(el_name_len);
-        let scan_from = attributes.last().map_or(name_end, attr_end);
+        let scan_from = attributes
+            .last()
+            .map_or(name_end, attr_end)
+            .max(this_end.unwrap_or(0));
         let mut i = scan_from as usize;
         let mut start_gt: Option<u32> = None;
         while i < src.len() {
@@ -221,15 +221,27 @@ impl Rule for HtmlClosingBracketSpacing {
             el.end,
             el.name.as_str().len(),
             &el.attributes,
+            None,
         );
     }
 
     fn check_component(&self, ctx: &mut LintContext, c: &Component) {
-        Self::check_element_like(ctx, c.start, c.end, c.name.as_str().len(), &c.attributes);
+        Self::check_element_like(
+            ctx,
+            c.start,
+            c.end,
+            c.name.as_str().len(),
+            &c.attributes,
+            None,
+        );
     }
 
     fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
-        Self::check_element_like(ctx, el.start, el.end, "slot".len(), &el.attributes);
+        Self::check_element_like(ctx, el.start, el.end, "slot".len(), &el.attributes, None);
+    }
+
+    fn check_title(&self, ctx: &mut LintContext, el: &TitleElement) {
+        Self::check_element_like(ctx, el.start, el.end, "title".len(), &el.attributes, None);
     }
 
     fn check_svelte_element(&self, ctx: &mut LintContext, el: &SvelteElement) {
@@ -239,30 +251,35 @@ impl Rule for HtmlClosingBracketSpacing {
             el.end,
             el.name.as_str().len(),
             &el.attributes,
+            None,
         );
     }
 
     fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
+        let this_end = oracle_this_attr_span(ctx.source(), el.start).map(|(_, end)| end);
         Self::check_element_like(
             ctx,
             el.start,
             el.end,
             "svelte:component".len(),
             &el.attributes,
+            this_end,
         );
     }
 
     fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
+        let this_end = oracle_this_attr_span(ctx.source(), el.start).map(|(_, end)| end);
         Self::check_element_like(
             ctx,
             el.start,
             el.end,
             "svelte:element".len(),
             &el.attributes,
+            this_end,
         );
     }
 
     fn check_special_element(&self, ctx: &mut LintContext, el: &SpecialElement<'_>) {
-        Self::check_element_like(ctx, el.start, el.end, el.name.len(), &el.attributes);
+        Self::check_element_like(ctx, el.start, el.end, el.name.len(), &el.attributes, None);
     }
 }

@@ -7,11 +7,12 @@
 //!
 //! Port of the eslint-plugin-svelte rule.
 //!
-//! A template-walk rule (`check_element`): only HTML elements are inspected,
-//! mirroring upstream's `node.kind === 'html'` guard (components and
-//! `svelte:*` specials are separate AST nodes and never reach `check_element`).
+//! A template-walk rule: only HTML elements are inspected, mirroring upstream's
+//! `node.kind === 'html'` guard. `<slot>` and `<title>` are HTML elements to
+//! svelte-eslint-parser but dedicated nodes here; components and `svelte:*`
+//! specials are excluded.
 
-use rsvelte_core::ast::template::{Attribute, RegularElement};
+use rsvelte_core::ast::template::{Attribute, RegularElement, SlotElement, TitleElement};
 use serde_json::Value;
 
 use crate::context::LintContext;
@@ -38,19 +39,15 @@ static META: RuleMeta = RuleMeta {
 #[derive(Default)]
 pub struct NoInlineStyles;
 
-impl Rule for NoInlineStyles {
-    fn meta(&self) -> &'static RuleMeta {
-        &META
-    }
-
-    fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
+impl NoInlineStyles {
+    fn check_attributes(&self, ctx: &mut LintContext, attributes: &[Attribute]) {
         let allow_transitions = ctx
             .option0()
             .and_then(|o| o.get("allowTransitions"))
             .and_then(Value::as_bool)
             .unwrap_or(true);
 
-        for attr in &el.attributes {
+        for attr in attributes {
             match attr {
                 Attribute::StyleDirective(d) => {
                     ctx.report(d.start, d.end, "Found disallowed style directive.");
@@ -72,5 +69,24 @@ impl Rule for NoInlineStyles {
                 _ => {}
             }
         }
+    }
+}
+
+impl Rule for NoInlineStyles {
+    fn meta(&self) -> &'static RuleMeta {
+        &META
+    }
+
+    fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
+        self.check_attributes(ctx, &el.attributes);
+    }
+
+    // `<slot>` and `<title>` are `SvelteHTMLElement` (kind `html`) to svelte-eslint-parser.
+    fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
+        self.check_attributes(ctx, &el.attributes);
+    }
+
+    fn check_title(&self, ctx: &mut LintContext, el: &TitleElement) {
+        self.check_attributes(ctx, &el.attributes);
     }
 }

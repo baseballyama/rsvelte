@@ -27,6 +27,7 @@ mod instance_dev_tail_ast;
 mod legacy_state_member_mutate_ast;
 mod local_assign_ast;
 mod module_derived_ast;
+mod module_destructure_ast;
 mod module_dev_tail_ast;
 mod module_state_runes_ast;
 mod private_class_assign_ast;
@@ -49,6 +50,7 @@ mod scan_index;
 mod scope_analysis;
 mod state_assigns_combined_ast;
 mod state_call_ast;
+mod state_eager_ast;
 mod state_member_mutate_ast;
 mod state_pipeline_ast;
 mod state_raw_frozen_ast;
@@ -320,7 +322,8 @@ pub fn transform_client_module(
 
     let has_effect_rune =
         class_transformed.contains("$effect") || class_transformed.contains("$inspect");
-    let transformed = transform_module_script_runes(&class_transformed, analysis, options.dev);
+    let transformed =
+        transform_module_script_runes(&class_transformed, source, analysis, options.dev);
 
     // The transformed source includes everything (imports + body).
     // We need to split imports from body to avoid duplicate svelte import.
@@ -391,6 +394,29 @@ pub(crate) fn print_module_program(
         .map_err(TransformError::CodeGen)
 }
 
+/// Expand a destructured `$state` / `$state.raw` / `$state.snapshot` declarator
+/// in a module script, for the server path only: it lowers those calls to their
+/// bare initializer before the shared module transform runs, so the rune is gone
+/// by the time [`transform_module_script_runes`] could act on it.
+pub(crate) fn expand_module_rune_destructuring_for_server(
+    source: &str,
+    analysis: &ComponentAnalysis,
+) -> Option<String> {
+    let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
+    module_destructure_ast::transform_module_rune_destructuring_ast(
+        source,
+        is_ts,
+        &module_destructure_ast::ModuleDestructureConfig {
+            state_vars: &[],
+            non_reactive_vars: &[],
+            proxy_vars: &[],
+            dev: false,
+            server: true,
+            state_only: true,
+        },
+    )
+}
+
 /// Transform module source code for module compilation (shared between client and server).
 /// Applies class field transforms and rune transforms, returns the transformed source.
 pub(crate) fn transform_module_source_for_module(
@@ -400,7 +426,7 @@ pub(crate) fn transform_module_source_for_module(
     server: bool,
 ) -> String {
     let class_transformed = transform_module_class_fields_client(source);
-    transform_module_script_runes_with_target(&class_transformed, analysis, dev, server)
+    transform_module_script_runes_with_target(&class_transformed, source, analysis, dev, server)
 }
 
 /// Extract imports from a string, returning (imports, rest).
@@ -1159,7 +1185,7 @@ pub(crate) fn transform_client(
             if matches!(binding.kind, BindingKind::LegacyReactive) {
                 let args = if analysis.immutable {
                     vec![
-                        b::id("undefined"),
+                        b::undefined(&context.arena),
                         b::literal(super::js_ast::nodes::JsLiteral::Boolean(true)),
                     ]
                 } else {
@@ -1412,7 +1438,35 @@ pub(crate) fn transform_client(
             let binding = binding_by_name.get(name.as_str()).copied();
 
             if let Some(binding) = binding {
+                // Upstream reads the binding through `build_getter`, which is the
+                // identity when the binding has no read transform. A `$state` that
+                // is never reassigned is lowered to a plain `const`, so it has
+                // none — and then the `state` arm below is never reached, because
+                // the identifier branch has already returned.
+                let read_is_signal = match binding.kind {
+                    BindingKind::State | BindingKind::RawState => {
+                        !analysis.immutable || binding.reassigned || analysis.accessors
+                    }
+                    _ => true,
+                };
                 let is_identifier_expr = true; // build_getter returns identifier for simple refs
+                let returned_early = !read_is_signal
+                    && (matches!(
+                        binding.declaration_kind,
+                        crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Let
+                            | crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Var
+                    ) || !options.dev);
+                let read_expr = || {
+                    if read_is_signal {
+                        b::call(
+                            &context.arena,
+                            b::member_path(&context.arena, "$.get"),
+                            vec![b::id(name)],
+                        )
+                    } else {
+                        b::id(name)
+                    }
+                };
 
                 if is_identifier_expr {
                     if matches!(
@@ -1506,7 +1560,7 @@ pub(crate) fn transform_client(
                             ));
                         }
                     }
-                    BindingKind::State => {
+                    BindingKind::State if !returned_early => {
                         // Remove previously added members for this alias
                         while exports_members.last().is_some_and(|m| match m {
                             JsObjectMember::Property(p) => match &p.key {
@@ -1522,11 +1576,7 @@ pub(crate) fn transform_client(
                             alias,
                             vec![JsStatement::Return(
                                 super::js_ast::nodes::JsReturnStatement {
-                                    argument: Some(context.arena.alloc_expr(b::call(
-                                        &context.arena,
-                                        b::member_path(&context.arena, "$.get"),
-                                        vec![b::id(name)],
-                                    ))),
+                                    argument: Some(context.arena.alloc_expr(read_expr())),
                                 },
                             )],
                         ));
@@ -1551,7 +1601,7 @@ pub(crate) fn transform_client(
                             )],
                         ));
                     }
-                    BindingKind::RawState => {
+                    BindingKind::RawState if !returned_early => {
                         // Remove previously added members for this alias
                         while exports_members.last().is_some_and(|m| match m {
                             JsObjectMember::Property(p) => match &p.key {
@@ -1567,11 +1617,7 @@ pub(crate) fn transform_client(
                             alias,
                             vec![JsStatement::Return(
                                 super::js_ast::nodes::JsReturnStatement {
-                                    argument: Some(context.arena.alloc_expr(b::call(
-                                        &context.arena,
-                                        b::member_path(&context.arena, "$.get"),
-                                        vec![b::id(name)],
-                                    ))),
+                                    argument: Some(context.arena.alloc_expr(read_expr())),
                                 },
                             )],
                         ));
@@ -2116,7 +2162,8 @@ pub(crate) fn transform_client(
         let class_transformed = transform_module_class_fields_client(&non_imports);
         let has_effect_rune =
             class_transformed.contains("$effect") || class_transformed.contains("$inspect");
-        let transformed = transform_module_script_runes(&class_transformed, analysis, options.dev);
+        let transformed =
+            transform_module_script_runes(&class_transformed, &non_imports, analysis, options.dev);
         // Drop module-level comments esrap's no-`loc` top-level Program omits
         // (leading JSDoc before a kept `export const`, per-field JSDoc that
         // `strip_typescript` re-emits from a removed `export type`/`interface`).
@@ -2241,13 +2288,21 @@ pub(crate) fn transform_client(
         //   if (import.meta.hot) {
         //     Component = $.hmr(Component);
         //     import.meta.hot.accept((module) => {
+        //       $.cleanup_styles('<hash>');   // only when the component has CSS
         //       Component[$.HMR].update(module.default);
         //     });
         //   }
+        // The `cleanup_styles` call removes the previous version's injected
+        // stylesheet, so rules do not accumulate across hot updates.
+        let cleanup_styles = if analysis.css.hash.is_empty() {
+            String::new()
+        } else {
+            format!("\t\t$.cleanup_styles('{}');\n", analysis.css.hash)
+        };
         body.push(JsStatement::Raw(
             format!(
-                "if (import.meta.hot) {{\n\t{} = $.hmr({});\n\n\timport.meta.hot.accept((module) => {{\n\t\t{}[$.HMR].update(module.default);\n\t}});\n}}",
-                analysis.name, analysis.name, analysis.name
+                "if (import.meta.hot) {{\n\t{name} = $.hmr({name});\n\n\timport.meta.hot.accept((module) => {{\n{cleanup_styles}\t\t{name}[$.HMR].update(module.default);\n\t}});\n}}",
+                name = analysis.name,
             ).into(),
         ));
 
@@ -2439,14 +2494,35 @@ pub(crate) fn transform_client(
 
         // If tag name is provided, call customElements.define
         if let Some(ref tag) = ce.tag {
-            body.push(b::stmt(
+            let define = b::stmt(
                 &context.arena,
                 b::call(
                     &context.arena,
                     b::member_path(&context.arena, "customElements.define"),
                     vec![b::string(tag.clone()), create_ce],
                 ),
-            ));
+            );
+            if options.hmr {
+                // `customElements.define` throws on an already-defined name, so a
+                // second hot update of the same module would otherwise abort.
+                body.push(b::if_stmt(
+                    &context.arena,
+                    b::binary_str(
+                        &context.arena,
+                        "==",
+                        b::call(
+                            &context.arena,
+                            b::member_path(&context.arena, "customElements.get"),
+                            vec![b::string(tag.clone())],
+                        ),
+                        b::null(),
+                    ),
+                    define,
+                    None,
+                ));
+            } else {
+                body.push(define);
+            }
         } else {
             body.push(b::stmt(&context.arena, create_ce));
         }
@@ -4267,14 +4343,18 @@ fn is_non_proxy_node_type(nt: &str) -> bool {
 
 pub(crate) fn transform_module_script_runes(
     script: &str,
+    pre_class_script: &str,
     analysis: &ComponentAnalysis,
     dev: bool,
 ) -> String {
-    transform_module_script_runes_with_target(script, analysis, dev, false)
+    transform_module_script_runes_with_target(script, pre_class_script, analysis, dev, false)
 }
 
+/// `pre_class_script` is the script before the class-field lowering — the dev
+/// `$.tag` label needs the name the user wrote, which the lowering erases.
 fn transform_module_script_runes_with_target(
     script: &str,
+    pre_class_script: &str,
     analysis: &ComponentAnalysis,
     dev: bool,
     server: bool,
@@ -4476,6 +4556,27 @@ fn transform_module_script_runes_with_target(
             && !reactive_module_state_vars.contains(&binding.name)
         {
             reactive_module_state_vars.push(binding.name.clone());
+        }
+    }
+
+    // Expand a destructured rune declarator before the call lowering below sees
+    // it: `let { a } = $state(1)` is one `tmp` plus one declarator per bound
+    // leaf, not a pattern around the lowered call.
+    {
+        let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
+        if let Some(rewritten) = module_destructure_ast::transform_module_rune_destructuring_ast(
+            &result,
+            is_ts,
+            &module_destructure_ast::ModuleDestructureConfig {
+                state_vars: &reactive_module_state_vars,
+                non_reactive_vars: &module_non_reactive_vars,
+                proxy_vars: &module_proxy_vars,
+                dev,
+                server,
+                state_only: false,
+            },
+        ) {
+            result = rewritten;
         }
     }
 
@@ -4831,7 +4932,10 @@ fn transform_module_script_runes_with_target(
     // that batch's `tag_declarator` collector intentionally skips.
     if dev {
         if let Some(rewritten) =
-            tag_class_field_ast::wrap_state_derived_with_tag_class_fields_ast(&result)
+            tag_class_field_ast::wrap_state_derived_with_tag_class_fields_ast_from(
+                &result,
+                pre_class_script,
+            )
         {
             result = rewritten;
         }
@@ -5517,6 +5621,15 @@ fn transform_instance_script_for_visitors(
             PN_FILE_TOUCHED.with(|c| c.set(true));
         }
         std::borrow::Cow::Owned(out)
+    };
+
+    // The dev-mode `$.tag` label needs the spelling the user wrote: the lowering
+    // below turns a public `x = $state()` into the same `#x` + accessor pair a
+    // hand-written private field produces, and the two are then indistinguishable.
+    let pre_class_script: String = if dev {
+        script.to_string()
+    } else {
+        String::new()
     };
 
     // Transform class fields only if the script contains class definitions with runes
@@ -6694,6 +6807,7 @@ fn transform_instance_script_for_visitors(
                 analysis,
                 store_sub_vars,
                 read_only_props,
+                &pre_class_script,
             ))
             .map(Cow::Owned)
             .unwrap_or(t)
@@ -7193,10 +7307,15 @@ fn transform_instance_script_for_visitors(
         // `$props.id()` / `$.props_id()` (whitespace-tolerant) rather than the
         // literal `= $props.id()` substring, so `let id=$props.id()` (no spaces)
         // is also skipped instead of surviving alongside the generated const. H-060.
+        // An `export const` declarator is skipped too: upstream drops it in
+        // `VariableDeclaration` whichever way the declaration is reached, and the
+        // name still resolves — `$$exports` reads the hoisted `const`. Keeping it
+        // emitted `const x` twice in one scope, which is not parseable JS.
+        let declaration_head = trimmed.strip_prefix("export ").unwrap_or(trimmed);
         if at_statement_boundary
-            && (trimmed.starts_with("let ")
-                || trimmed.starts_with("const ")
-                || trimmed.starts_with("var "))
+            && (declaration_head.starts_with("let ")
+                || declaration_head.starts_with("const ")
+                || declaration_head.starts_with("var "))
             && trimmed
                 .find('=')
                 .map(|eq| trimmed[eq + 1..].trim().trim_end_matches(';').trim())

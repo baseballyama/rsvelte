@@ -8,12 +8,17 @@
 //! applied by the oracle, the rule itself always fires).
 //!
 //! Upstream fires on a `SvelteSnippetBlock` whose parent is an element/component
-//! (`SvelteElement` in the upstream parser), whose id name is `"children"` and
-//! which has zero params. In rsvelte a snippet is a direct child node of the
-//! parent fragment and there is no parent pointer, so we detect from the parent
-//! side: both `check_component` and `check_element` scan their fragment's nodes.
+//! (`SvelteElement` in the upstream parser — which covers plain elements,
+//! components, `<slot>` and every `<svelte:…>` form), whose id name is
+//! `"children"` and which has zero params. In rsvelte a snippet is a direct
+//! child node of the parent fragment and there is no parent pointer, so we
+//! detect from the parent side: every element hook scans its fragment's nodes.
+//! `<title>` is the one parent kind rsvelte's visitor has no rule hook for.
 
-use rsvelte_core::ast::template::{Component, RegularElement, SnippetBlock, TemplateNode};
+use rsvelte_core::ast::template::{
+    Component, RegularElement, SlotElement, SnippetBlock, SvelteComponentElement,
+    SvelteDynamicElement, SvelteElement, TemplateNode,
+};
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
@@ -22,7 +27,7 @@ static META: RuleMeta = RuleMeta {
     name: "svelte/no-useless-children-snippet",
     category: RuleCategory::Style,
     fixable: Fixable::No,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: false,
@@ -47,13 +52,11 @@ impl NoUselessChildrenSnippet {
             if let TemplateNode::SnippetBlock(block) = node
                 && is_useless_children_snippet(block)
             {
-                // Report at the `{` of `{#snippet}` (`block.start`); span to the
-                // end of the snippet id so the diagnostic column lands on the
-                // opening brace, matching upstream.
-                let end = block.expression.end().unwrap_or(block.start);
+                // Upstream reports the whole `SvelteSnippetBlock`, `{/snippet}`
+                // included.
                 ctx.report(
                     block.start,
-                    end.max(block.start),
+                    block.end.max(block.start),
                     "Found an unnecessary children snippet.",
                 );
             }
@@ -72,6 +75,22 @@ impl Rule for NoUselessChildrenSnippet {
 
     fn check_component(&self, ctx: &mut LintContext, c: &Component) {
         Self::check_nodes(ctx, &c.fragment.nodes);
+    }
+
+    fn check_svelte_element(&self, ctx: &mut LintContext, el: &SvelteElement) {
+        Self::check_nodes(ctx, &el.fragment.nodes);
+    }
+
+    fn check_svelte_component(&self, ctx: &mut LintContext, el: &SvelteComponentElement) {
+        Self::check_nodes(ctx, &el.fragment.nodes);
+    }
+
+    fn check_svelte_dynamic_element(&self, ctx: &mut LintContext, el: &SvelteDynamicElement) {
+        Self::check_nodes(ctx, &el.fragment.nodes);
+    }
+
+    fn check_slot(&self, ctx: &mut LintContext, el: &SlotElement) {
+        Self::check_nodes(ctx, &el.fragment.nodes);
     }
 }
 

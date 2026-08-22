@@ -59,11 +59,28 @@ pub fn visit<'a, 'b: 'a>(
         context.emit_warning(warning);
     }
 
+    // Reference: SnippetBlock.js L19 — a rest parameter is rejected here, not in
+    // the parser, so `parse()` still accepts one for the formatter and the LSP.
+    for parameter in &block.parameters {
+        let Expression::Typed(expression) = parameter else {
+            panic!("Expression::Lazy must be resolved before analysis");
+        };
+        if let crate::ast::typed_expr::JsNode::RestElement { start, end, .. } = &expression.node {
+            return Err(AnalysisError::validation_at(
+                "snippet_invalid_rest_parameter",
+                "Snippets do not support rest parameters; use an array instead",
+                *start,
+                *end,
+            ));
+        }
+    }
+
     // Note: snippet_shadowing_prop validation is done in component.rs since the path
     // is not properly maintained during visitor traversal.
 
     // Increment block depth for child analysis
     context.block_depth += 1;
+    context.svelte_self_parent_depth += 1;
 
     // Push fragment owner type for const_tag placement validation
     let snippet_name = super::shared::snippets::get_snippet_name(block).unwrap_or_default();
@@ -122,6 +139,7 @@ pub fn visit<'a, 'b: 'a>(
 
     // Decrement block depth
     context.block_depth -= 1;
+    context.svelte_self_parent_depth -= 1;
 
     // Determine if the snippet can be hoisted to module level.
     // A snippet can be hoisted if:
@@ -168,6 +186,67 @@ pub fn visit<'a, 'b: 'a>(
     }
 
     Ok(())
+}
+
+/// Fixed-point pass over the ROOT fragment's snippets: a snippet blocked ONLY
+/// by references to sibling root snippets becomes hoistable when those
+/// siblings are — upstream's `can_hoist_snippet` recursion with a `visited`
+/// set makes MUTUALLY recursive snippets hoistable, while the in-order walk
+/// above can only see snippets declared earlier. Optimistically assume every
+/// still-unhoisted root snippet is hoistable, then evict any that fails under
+/// that assumption until the set is stable (the greatest fixed point, matching
+/// the cycle-tolerant `visited` semantics).
+pub fn promote_mutual_snippet_hoists<'a, 'b: 'a>(
+    nodes: &mut [TemplateNode<'b>],
+    context: &mut VisitorContext<'a>,
+) {
+    let mut candidates: Vec<(usize, String)> = Vec::new();
+    for (i, node) in nodes.iter().enumerate() {
+        if let TemplateNode::SnippetBlock(b) = node
+            && !b.metadata.can_hoist
+            && let Some(name) = super::shared::snippets::get_snippet_name(b)
+        {
+            candidates.push((i, name));
+        }
+    }
+    if candidates.is_empty() {
+        return;
+    }
+    for (_, name) in &candidates {
+        context
+            .analysis
+            .template
+            .hoisted_snippets
+            .insert(name.clone());
+    }
+    loop {
+        let failed = candidates.iter().position(|(i, _)| {
+            let TemplateNode::SnippetBlock(b) = &nodes[*i] else {
+                return false;
+            };
+            !can_hoist_snippet(b, context)
+        });
+        match failed {
+            Some(k) => {
+                let (_, name) = candidates.remove(k);
+                context.analysis.template.hoisted_snippets.remove(&name);
+            }
+            None => break,
+        }
+    }
+    for (i, name) in candidates {
+        if let TemplateNode::SnippetBlock(b) = &mut nodes[i] {
+            b.metadata.can_hoist = true;
+        }
+        if let Some(binding_idx) = context.analysis.root.find_binding_any_scope(&name) {
+            context
+                .analysis
+                .root
+                .scope
+                .declarations
+                .insert(name, binding_idx);
+        }
+    }
 }
 
 fn visit_parameter_expressions(
@@ -553,6 +632,14 @@ fn check_hoistable(
         let declaration = match node {
             TemplateNode::ConstTag(tag) => &tag.declaration,
             TemplateNode::DeclarationTag(tag) => &tag.declaration,
+            // A nested snippet binds its name in this same fragment, so
+            // rendering it is a local reference, not an instance-level one.
+            TemplateNode::SnippetBlock(b) => {
+                if let Some(name) = super::shared::snippets::get_snippet_name(b) {
+                    local_params.insert(name);
+                }
+                continue;
+            }
             _ => continue,
         };
         let json = declaration.as_json();
@@ -606,14 +693,42 @@ fn check_hoistable(
                         return false;
                     }
                 }
-                if !check_hoistable(&comp.fragment.nodes, param_names, context) {
+                let inner = with_let_names(&comp.attributes, param_names);
+                if !check_hoistable(&comp.fragment.nodes, &inner, context) {
                     return false;
                 }
             }
 
-            // `<svelte:element>` (runtime tag) and `<svelte:self>` (recursive)
-            // conservatively prevent hoisting (not exercised by the in-scope fixtures).
-            TemplateNode::SvelteElement(_) | TemplateNode::SvelteSelf(_) => return false,
+            // Upstream decides hoisting from the snippet scope's REFERENCES, and
+            // neither of these contributes one of its own: `<svelte:element>`
+            // reaches instance state only through its `this` expression, and
+            // `<svelte:self>` names the module's own component.
+            TemplateNode::SvelteElement(el) => {
+                if !expr_only_uses_params(&el.tag, param_names, context) {
+                    return false;
+                }
+                for attr in &el.attributes {
+                    if !check_attribute_hoistable(attr, param_names, context) {
+                        return false;
+                    }
+                }
+                let inner = with_let_names(&el.attributes, param_names);
+                if !check_hoistable(&el.fragment.nodes, &inner, context) {
+                    return false;
+                }
+            }
+
+            TemplateNode::SvelteSelf(el) => {
+                for attr in &el.attributes {
+                    if !check_attribute_hoistable(attr, param_names, context) {
+                        return false;
+                    }
+                }
+                let inner = with_let_names(&el.attributes, param_names);
+                if !check_hoistable(&el.fragment.nodes, &inner, context) {
+                    return false;
+                }
+            }
 
             // Components - check attributes/props for instance-level references
             TemplateNode::Component(comp) => {
@@ -631,7 +746,8 @@ fn check_hoistable(
                     }
                 }
                 // Check children
-                if !check_hoistable(&comp.fragment.nodes, param_names, context) {
+                let inner = with_let_names(&comp.attributes, param_names);
+                if !check_hoistable(&comp.fragment.nodes, &inner, context) {
                     return false;
                 }
             }
@@ -732,8 +848,18 @@ fn check_hoistable(
                 return false;
             }
 
-            // Nested snippet - has its own scope, don't check internals
-            TemplateNode::SnippetBlock(_) => {}
+            // A nested snippet resolves its own parameters, but a reference it
+            // makes to anything outside still propagates to this snippet's
+            // scope and blocks hoisting.
+            TemplateNode::SnippetBlock(b) => {
+                let mut inner_params = param_names.clone();
+                inner_params.extend(b.parameters.iter().flat_map(extract_all_param_names));
+                if !check_hoistable(&b.body.nodes, &inner_params, context)
+                    || !check_params_hoistable(&b.parameters, &inner_params, context)
+                {
+                    return false;
+                }
+            }
 
             // Regular elements - check attributes and children
             TemplateNode::RegularElement(elem) => {
@@ -742,7 +868,8 @@ fn check_hoistable(
                         return false;
                     }
                 }
-                if !check_hoistable(&elem.fragment.nodes, param_names, context) {
+                let inner = with_let_names(&elem.attributes, param_names);
+                if !check_hoistable(&elem.fragment.nodes, &inner, context) {
                     return false;
                 }
             }
@@ -826,7 +953,8 @@ fn check_hoistable(
                         return false;
                     }
                 }
-                if !check_hoistable(&elem.fragment.nodes, param_names, context) {
+                let inner = with_let_names(&elem.attributes, param_names);
+                if !check_hoistable(&elem.fragment.nodes, &inner, context) {
                     return false;
                 }
             }
@@ -909,6 +1037,32 @@ fn check_svelte_directive_hoistable(
 ///
 /// The match is exhaustive on purpose: a silent `_ => true` arm is what let
 /// `{@attach …}` expressions escape the free-variable walk (issue #1982).
+/// The names a node's `let:` directives declare for its own children. Upstream
+/// resolves them through the scope chain, where they sit at or below the
+/// snippet's own depth and so never block hoisting.
+fn with_let_names(
+    attributes: &[crate::ast::template::Attribute],
+    param_names: &FxHashSet<String>,
+) -> FxHashSet<String> {
+    let mut out = param_names.clone();
+    for attr in attributes {
+        if let crate::ast::template::Attribute::LetDirective(d) = attr {
+            match d.expression.as_ref() {
+                Some(expr) => {
+                    for n in extract_pattern_names_for_expr(expr).unwrap_or_default() {
+                        out.insert(n);
+                    }
+                }
+                // `let:v` with no value binds the directive's own name.
+                None => {
+                    out.insert(d.name.to_string());
+                }
+            }
+        }
+    }
+    out
+}
+
 fn check_attribute_hoistable(
     attr: &crate::ast::template::Attribute,
     param_names: &FxHashSet<String>,

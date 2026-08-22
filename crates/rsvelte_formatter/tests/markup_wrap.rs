@@ -427,3 +427,20 @@ fn pre_with_attr_child_breaks_the_child_not_its_own_attrs() {
         "pre must break its code child, not its own attrs:\n{out}"
     );
 }
+
+#[test]
+fn leading_regex_expression_tag_still_wraps_at_width() {
+    // The JS printer legally strips the parens off `{(/^x/y).test(a)}`,
+    // emitting a `{/…}` tag the strict Svelte parser reads as a block close.
+    // The collapse re-parse must still see the tree, or the width pass
+    // silently skips the element and it stays one 83-column line (#3047).
+    use rsvelte_formatter::{FormatOptions, format};
+    let src = "<p>{(/^x/y).test(input) ? \"sticky\" : input.replace(/(\\d)(?=(\\d{3})+$)/g, \"$1,\")}</p>\n";
+    let mut options = FormatOptions::default();
+    options.js.line_width = 80.try_into().unwrap();
+    let out = format(src, &options).expect("format ok");
+    assert_eq!(
+        out,
+        "<p>\n  {/^x/y.test(input) ? \"sticky\" : input.replace(/(\\d)(?=(\\d{3})+$)/g, \"$1,\")}\n</p>\n"
+    );
+}

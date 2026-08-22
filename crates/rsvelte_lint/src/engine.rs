@@ -87,12 +87,20 @@ pub(crate) fn run_native_rules_on_root(
     scope_resolver: Option<&ScopeResolver>,
 ) -> Vec<LintDiagnostic> {
     let rules = all_rules();
+    let sveltekit = crate::sveltekit::available(path);
+    let runes = Some(crate::runes_mode::component_runes_mode(root, source));
     let enabled: Vec<EnabledRule> = rules
         .iter()
         .filter_map(|r| {
             let meta = r.meta();
             let severity = config.severity_for(meta);
             if severity == Severity::Off {
+                return None;
+            }
+            if !sveltekit && crate::sveltekit::is_sveltekit_only(meta.name) {
+                return None;
+            }
+            if runes_gate_excludes(meta, runes) {
                 return None;
             }
             Some(EnabledRule {
@@ -164,17 +172,38 @@ fn has_extension(filename: &str, extensions: &[&str]) -> bool {
 
 type EnabledScriptRule<'a> = (&'a dyn ScriptRule, &'static RuleMeta, Severity);
 
+/// Whether `meta`'s runes gate excludes this component. Shared by the native and
+/// the script pass so the two enforcement sites cannot drift apart.
+fn runes_gate_excludes(meta: &RuleMeta, runes: Option<bool>) -> bool {
+    runes.is_some_and(|r| (r && meta.conditions.legacy_only) || (!r && meta.conditions.runes_only))
+}
+
 /// The enabled (non-`Off`) script rules for `config`.
+///
+/// `runes` mirrors upstream's tri-state `svelteParseContext.runes`: `None` is
+/// its `'undetermined'`, which satisfies both a `runes: [false, …]` and a
+/// `runes: [true, …]` condition, so neither side is filtered. Both Svelte
+/// source kinds resolve to a definite value, so `None` only ever means "not
+/// determined yet".
 fn enabled_script_rules<'a>(
     rules: &'a [Box<dyn ScriptRule>],
     config: &LintConfig,
+    path: Option<&Path>,
+    runes: Option<bool>,
 ) -> Vec<EnabledScriptRule<'a>> {
+    let sveltekit = crate::sveltekit::available(path);
     rules
         .iter()
         .filter_map(|r| {
             let meta = r.meta();
             let severity = config.severity_for(meta);
-            (severity != Severity::Off).then_some((r.as_ref(), meta, severity))
+            if severity == Severity::Off
+                || (!sveltekit && crate::sveltekit::is_sveltekit_only(meta.name))
+                || runes_gate_excludes(meta, runes)
+            {
+                return None;
+            }
+            Some((r.as_ref(), meta, severity))
         })
         .collect()
 }
@@ -288,9 +317,10 @@ pub fn run_script_rules_with_path(
     config: &LintConfig,
     path: Option<&Path>,
 ) -> Vec<LintDiagnostic> {
+    // `None` is the most permissive gate, so an empty set here is empty under
+    // every runes mode — enough to skip the parse the real gate needs.
     let rules = all_script_rules();
-    let enabled = enabled_script_rules(&rules, config);
-    if enabled.is_empty() {
+    if enabled_script_rules(&rules, config, path, None).is_empty() {
         return Vec::new();
     }
     let Ok(root) = parse(
@@ -317,7 +347,8 @@ pub(crate) fn run_script_rules_on_root(
     scope_resolver: Option<&ScopeResolver>,
 ) -> Vec<LintDiagnostic> {
     let rules = all_script_rules();
-    let enabled = enabled_script_rules(&rules, config);
+    let runes = crate::runes_mode::component_runes_mode(root, source);
+    let enabled = enabled_script_rules(&rules, config, path, Some(runes));
     if enabled.is_empty() {
         return Vec::new();
     }
@@ -363,9 +394,12 @@ pub fn run_script_rules_module(
     filename: &str,
     is_ts: bool,
     config: &LintConfig,
+    path: Option<&Path>,
 ) -> Vec<LintDiagnostic> {
     let rules = all_script_rules();
-    let enabled = enabled_script_rules(&rules, config);
+    // A `.svelte.(js|ts)` module is runes mode by definition, which is what
+    // disables upstream's legacy-only rules there.
+    let enabled = enabled_script_rules(&rules, config, path, Some(true));
     if enabled.is_empty() {
         return Vec::new();
     }
@@ -384,7 +418,7 @@ pub fn run_script_rules_module(
         filename,
         config,
         &enabled,
-        None,
+        path,
         resolver.as_ref(),
     )
 }

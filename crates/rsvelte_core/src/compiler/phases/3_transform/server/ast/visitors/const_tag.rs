@@ -101,6 +101,15 @@ fn visit_const_tag_sync<'a>(node: &ConstTag, state: &mut ServerTransformState<'a
                 state.analysis,
                 state.analysis.root.instance_scope_index,
             );
+            // Re-parsing the source slice bypasses `visit_expr`, so the runes
+            // it lowers have to be lowered here too or they reach the output
+            // verbatim and throw at render.
+            super::super::script::lower_effect_value_runes_expr(
+                &mut init_expr,
+                state.b,
+                state.options.dev,
+                state.source,
+            );
             Some(init_expr)
         }
         None => None,

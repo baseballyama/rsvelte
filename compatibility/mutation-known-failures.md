@@ -8,7 +8,7 @@ Re-baseline with `pnpm run corpus:mutate:update`.
 what the normalizer absorbs, so these verdicts are only comparable across runs on the same
 version — which is why the gate prints the version it used. Re-deriving this baseline from
 0.61.0 to 0.62.0 moved the gated bucket from 213 to 525; see "Sensitivity to the normalizer".
-The bucket has since been burned down from 525 to **30**, and `unparseable` from 2 to **0**.
+The bucket has since been burned down from 525 to **22**, and `unparseable` from 2 to **0**.
 
 ## Why this gate exists
 
@@ -45,7 +45,7 @@ whitespace and trailing commas away:
 | `comment-mismatch` | **no** | the comment was dropped, duplicated or relocated, or a line broke differently |
 
 The split is the difference between a gate and a backlog dump. The full sweep produces
-many comment-only divergences against **30** code ones — ratcheting per id without the
+many comment-only divergences against **22** code ones — ratcheting per id without the
 split would mean a 13,000-entry file that churns on every submodule bump and buries the class
 that matters. Comment fidelity is already ratcheted per id by Gate 2
 (`matrix-known-failures.md`), on **generated** seeds that do not move when a submodule bumps,
@@ -63,17 +63,17 @@ re-measured under 0.62, so it is in for honest reporting rather than to change a
 the gate prints must be the reason for the verdict, and before this a reviewer could see
 `import 'x'` vs `import "x"` and dismiss a real finding sitting further down the same file.
 
-## Mutation known failures (`mutation-known-failures.json`, 30 entries)
+## Mutation known failures (`mutation-known-failures.json`, 22 entries)
 
 Full sweep: 14,229 seeds, under oxfmt 0.63.0.
 
-The `mutation-known-failures.provenance.json` file records 13 entries, one SHA-256 seed-content
+The `mutation-known-failures.provenance.json` file records 11 entries, one SHA-256 seed-content
 hash for each source represented by the failure ratchet. A full sweep reports a changed
 hash as re-keyed instead of claiming that the old mutation now passes.
 
 | verdict | entries |
 |---|---|
-| `code-mismatch` | 30 |
+| `code-mismatch` | 22 |
 | `unparseable` | **0** |
 | `compiler-crash` | 0 |
 | `error-mismatch` | 0 |
@@ -140,15 +140,15 @@ over.
 
 ### Behavioral residue is zero
 
-The full re-measurement found no behavioral class. The 30 residual differences are cosmetic
+The full re-measurement found no behavioral class. The 22 residual differences are cosmetic
 empty-statement placement or optional-chain parenthesisation. The previous missing `$.get`,
 leaked sentinel, surviving `$props()` and dropped `$.snapshot` classes are all gone.
 
 ### By source repository
 
-`svelte` 11, `svelte.dev` 5, `flowbite-svelte` 4, `layerchart` 4, `powertable` 4, `runed` 2.
+`svelte` 7, `flowbite-svelte` 4, `layerchart` 4, `powertable` 4, `runed` 2, `svelte.dev` 1.
 
-**Two of the 30 are `runed`, and that is the reason this table is worth reading.** `runed` was
+**Two of the 22 are `runed`, and that is the reason this table is worth reading.** `runed` was
 one of two corpus submodules absent from the tree during the first attempt at this
 re-baseline. `collect.mjs` skips a missing source with a warning and exits 0, so the run
 measured 14,035 entries and looked complete — and `--update-baseline` would have deleted both of

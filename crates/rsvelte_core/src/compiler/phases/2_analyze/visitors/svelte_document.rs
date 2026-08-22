@@ -19,15 +19,15 @@ pub fn visit(
     // Check for duplicate
     if context.has_svelte_document {
         return Err(
-            errors::svelte_meta_duplicate("svelte:document").at(document.start, document.end)
+            errors::svelte_meta_duplicate("svelte:document").at(document.start, document.start)
         );
     }
     context.has_svelte_document = true;
 
     // Validate placement (must be at top level)
-    if context.is_inside_element_or_block() {
+    if !context.in_root_fragment {
         return Err(errors::svelte_meta_invalid_placement("svelte:document")
-            .at(document.start, document.end));
+            .at(document.start, document.start));
     }
 
     // svelte:document cannot have children
@@ -38,10 +38,17 @@ pub fn visit(
     }
 
     // Validate attributes - check for invalid ones
+    // The target rule needs the attribute list, which the mutable loop below holds.
+    for attr in &document.attributes {
+        if let Attribute::BindDirective(bind) = attr {
+            bind_directive::validate_binding_target(bind, "svelte:document", &document.attributes)?;
+        }
+    }
+
     for attr in &mut document.attributes {
         match attr {
             Attribute::BindDirective(bind) => {
-                bind_directive::visit_with_svelte_element(bind, "svelte:document", context)?;
+                bind_directive::visit_with_svelte_element(bind, context)?;
             }
             Attribute::OnDirective(on) => {
                 on_directive::visit(on, context)?;
@@ -60,6 +67,11 @@ pub fn visit(
             // Regular-attribute handler expressions drive `needs_context` (see
             // svelte_window for the rationale).
             Attribute::Attribute(a) => {
+                if !super::shared::utils::is_event_attribute(a) {
+                    return Err(
+                        errors::illegal_element_attribute("svelte:document").at(a.start, a.end)
+                    );
+                }
                 super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;
             }
             _ => {}

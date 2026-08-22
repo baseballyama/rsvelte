@@ -1,23 +1,19 @@
 //! `svelte/require-optimized-style-attribute` — require style attributes that
 //! can be optimized into `style:property` directives by the compiler.
 //!
-//! A `style="…"` attribute value is **unoptimized** when:
-//! - It is written in shorthand form (`{style}` — maps to
-//!   `style={style}` at parse time, but the source byte starts with `{`).
-//! - The entire value is a JS expression (`style={expr}`): reported as
-//!   `complex`.
-//! - The value sequence contains a CSS comment (`/* … */`): reported as
-//!   `comment` at the `/*` position.
-//! - A `{…}` interpolation appears in a CSS property-key position (followed by
-//!   `:`): reported as `interpolationKey` at the `{` position.
-//! - A `{…}` interpolation is standalone (not after a `: ` and not followed by
-//!   `:`): reported as `complex` at the `{` position.
-//!
-//! Port of `eslint-plugin-svelte/src/rules/require-optimized-style-attribute.ts`.
-//! Upstream: `meta.type = 'suggestion'`, not `recommended`.
+//! Port of `eslint-plugin-svelte/src/rules/require-optimized-style-attribute.ts`
+//! on the shared `parseStyleAttributeValue` model:
+//! - shorthand `{style}` → `shorthand` at the attribute;
+//! - unparseable value (at-rule / interpolation in a comment) → `complex` at
+//!   the whole attribute;
+//! - declaration with unknown interpolations → `complex` at the declaration;
+//! - declaration with a prop interpolation → `interpolationKey` at the prop;
+//! - top-level comment → `comment` at the comment;
+//! - top-level interpolation (inline node) → `complex` at the mustache.
 
-use rsvelte_core::ast::template::{Attribute, AttributeValue, AttributeValuePart, Text};
+use rsvelte_core::ast::template::{Attribute, AttributeValue};
 
+use super::shared::style_decls::{StyleNode, parse_style_attr};
 use crate::context::LintContext;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
 
@@ -35,25 +31,6 @@ static META: RuleMeta = RuleMeta {
     options_schema: None,
 };
 
-/// Find the byte offset of the first `/*` inside a text node's raw content,
-/// returning `text.start + inner_offset` when found.
-fn find_css_comment(text: &Text) -> Option<u32> {
-    let raw = text.raw.as_ref();
-    // Find `/*` but not inside a string (simple scan; style attribute values
-    // are not expected to contain string literals with `/*`).
-    let bytes = raw.as_bytes();
-    let mut i = 0usize;
-    while i + 1 < bytes.len() {
-        if bytes[i] == b'/' && bytes[i + 1] == b'*' {
-            return Some(
-                text.start + u32::try_from(i).expect("source offsets are represented as u32"),
-            );
-        }
-        i += 1;
-    }
-    None
-}
-
 #[derive(Default)]
 pub struct RequireOptimizedStyleAttribute;
 
@@ -66,11 +43,11 @@ impl Rule for RequireOptimizedStyleAttribute {
         let Attribute::Attribute(node) = attr else {
             return;
         };
-        if node.name != "style" {
+        if node.name.as_str() != "style" {
             return;
         }
 
-        // Shorthand `{style}` — the source at the attribute start is `{`.
+        // Shorthand `{style}` — upstream's `SvelteShorthandAttribute` visitor.
         if ctx.slice(node.start, node.start + 1) == "{" {
             ctx.report(
                 node.start,
@@ -80,107 +57,50 @@ impl Rule for RequireOptimizedStyleAttribute {
             return;
         }
 
+        // Upstream returns before parsing when the value is empty.
         match &node.value {
-            AttributeValue::True(_) => {
-                // Boolean-only (`style` without a value): nothing to check.
-            }
-            AttributeValue::Expression(tag) => {
-                // `style={expr}` — the whole value is a JS expression.
-                ctx.report(
-                    tag.start,
-                    tag.end,
-                    "It cannot be optimized because too complex.",
-                );
-            }
-            AttributeValue::Sequence(parts) => {
-                check_sequence(ctx, parts);
-            }
+            AttributeValue::True(_) => return,
+            AttributeValue::Sequence(parts) if parts.is_empty() => return,
+            _ => {}
         }
-    }
-}
 
-/// Analyse the parts of a quoted style attribute value for unoptimizable
-/// patterns and report each one.
-///
-/// State machine that tracks where we are in the CSS declaration stream:
-///
-/// ```text
-///   BEFORE_COLON  --":"-->  AFTER_COLON
-///       ^                       |
-///       `------";"-------------'
-/// ```
-///
-/// An interpolation `{…}` is:
-/// - in **key position**  when we are in `BEFORE_COLON` and the next text starts
-///   with `:` → `interpolationKey`.
-/// - in **value position** when we are in `AFTER_COLON` → OK (optimizable).
-/// - **standalone** (`BEFORE_COLON` and next text does not start with `:`) → `complex`.
-fn check_sequence(ctx: &mut LintContext, parts: &[AttributeValuePart]) {
-    // We scan text parts to update whether we're before or after the `:` of the
-    // current CSS declaration.  The state is reset to BEFORE_COLON on every `;`.
-    //
-    // `after_colon` = true means we have seen a `:` since the last `;` in the
-    // accumulated text context (or since the start).
-    let mut after_colon = false;
+        let Some(root) = parse_style_attr(&node.value, ctx.source()) else {
+            ctx.report(
+                node.start,
+                node.end,
+                "It cannot be optimized because too complex.",
+            );
+            return;
+        };
 
-    for (i, part) in parts.iter().enumerate() {
-        match part {
-            AttributeValuePart::Text(text) => {
-                // Check for CSS comments `/* … */` in the static text.
-                if let Some(pos) = find_css_comment(text) {
+        for child in &root.nodes {
+            match child {
+                StyleNode::Decl(decl) => {
+                    if !decl.unknown_interpolations.is_empty() {
+                        ctx.report(
+                            decl.start,
+                            decl.end,
+                            "It cannot be optimized because too complex.",
+                        );
+                    } else if !decl.prop_interpolations.is_empty() {
+                        ctx.report(
+                            decl.prop_start,
+                            decl.prop_end,
+                            "It cannot be optimized because property of style declaration contain interpolation.",
+                        );
+                    }
+                }
+                StyleNode::Comment { start, end } => {
                     ctx.report(
-                        pos,
-                        pos + 2,
+                        *start,
+                        *end,
                         "It cannot be optimized because contains comments.",
                     );
                 }
-                // Update the colon/semicolon state from this text segment.
-                // We only care about `:` and `;` outside of parens (CSS function
-                // calls like `translate(…)` contain `,` but not `:` or `;`).
-                // A simple scan is sufficient because we don't allow nested
-                // interpolations in property keys.
-                let raw = text.raw.as_ref();
-                let mut depth = 0i32; // paren depth
-                for ch in raw.chars() {
-                    match ch {
-                        '(' => depth += 1,
-                        ')' => depth -= 1,
-                        ':' if depth == 0 => after_colon = true,
-                        ';' if depth == 0 => after_colon = false,
-                        _ => {}
-                    }
-                }
-            }
-            AttributeValuePart::ExpressionTag(tag) => {
-                // Peek at what text immediately follows this expression.
-                let next_text_trimmed = parts.get(i + 1).and_then(|p| {
-                    if let AttributeValuePart::Text(t) = p {
-                        Some(t.raw.as_ref())
-                    } else {
-                        None
-                    }
-                });
-
-                let next_starts_with_colon =
-                    next_text_trimmed.is_some_and(|s| s.trim_start().starts_with(':'));
-
-                if next_starts_with_colon {
-                    // Key interpolation: `{key}: value`.
+                StyleNode::Inline(inline) => {
                     ctx.report(
-                        tag.start,
-                        tag.end,
-                        "It cannot be optimized because property of style declaration contain interpolation.",
-                    );
-                    // After `{key}:` we are in value position.
-                    after_colon = true;
-                } else if after_colon {
-                    // Value interpolation inside a declaration — optimizable.
-                    // State stays after_colon (unchanged).
-                } else {
-                    // Standalone interpolation — not a recognized CSS value slot.
-                    ctx.report(
-                        tag.start,
-                        tag.end,
+                        inline.start,
+                        inline.end,
                         "It cannot be optimized because too complex.",
                     );
                 }

@@ -71,6 +71,10 @@ import {
 	OPAQUE_CARRIERS,
 	OPAQUE_HOSTS,
 	OPAQUE_ENTRIES,
+	WRITE_BINDINGS,
+	WRITE_HOSTS,
+	WRITE_SHAPES,
+	WRITE_PREAMBLE,
 } from './axes.mjs';
 import { commentMutants } from './mutate.mjs';
 
@@ -504,6 +508,30 @@ function opaqueKeywordCases() {
 	return cases;
 }
 
+function writeHostCases() {
+	const cases = [];
+	for (const [bindingName, binding] of Object.entries(WRITE_BINDINGS)) {
+		for (const [hostName, host] of Object.entries(WRITE_HOSTS)) {
+			for (const [shapeName, shape] of Object.entries(WRITE_SHAPES)) {
+				const cross = shape.includes('%q');
+				const write = shape
+					.replaceAll('%q', () => binding.crossRead)
+					.replaceAll('%s', () => binding.read);
+				const script = host.script ? `\t${host.script.replaceAll('%s', () => write)}\n` : '';
+				const declaration = cross ? binding.crossDeclaration : binding.declaration;
+				const source = WRITE_PREAMBLE.replace('%d', () => declaration)
+					.replace('%h', () => script)
+					.replace('%m', () => host.markup.replaceAll('%s', () => write));
+				cases.push({
+					id: `write-host/${bindingName}__${hostName}__${shapeName}.svelte`,
+					source,
+				});
+			}
+		}
+	}
+	return cases;
+}
+
 export const FAMILIES = {
 	'binding-position': bindingPositionCases,
 	'async-derived': asyncDerivedCases,
@@ -521,6 +549,7 @@ export const FAMILIES = {
 	'removed-statement-comment': removedStatementCommentCases,
 	'private-field': privateFieldCases,
 	'opaque-keyword': opaqueKeywordCases,
+	'write-host': writeHostCases,
 };
 
 export function generate(families = Object.keys(FAMILIES)) {

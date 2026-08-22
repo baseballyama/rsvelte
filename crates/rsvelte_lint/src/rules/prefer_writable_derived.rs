@@ -22,13 +22,15 @@ use serde_json::Value;
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, Suggestion, TextEdit};
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::reactive_stmt::source_is_ts;
+use crate::rules::store_refs::module_tracker;
 use crate::script::{ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/prefer-writable-derived",
     category: RuleCategory::Correctness,
     fixable: Fixable::Suggestion,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: true,
         legacy_only: false,
@@ -80,8 +82,8 @@ fn is_effect_call(node: &Value) -> bool {
 
 /// Result of inspecting the single-assignment callback argument of an `$effect`.
 struct EffectAssignment<'a> {
-    /// The variable being assigned to (LHS identifier name).
-    target: &'a str,
+    /// The LHS identifier node, resolved through scope to its declaration.
+    target: &'a Value,
     /// Byte start of the RHS expression.
     rhs_start: u32,
     /// Byte end of the RHS expression.
@@ -124,7 +126,8 @@ fn single_assignment_info(arg: &Value) -> Option<EffectAssignment<'_>> {
     if node_type(left) != Some("Identifier") {
         return None;
     }
-    let target = left.get("name").and_then(Value::as_str)?;
+    left.get("name").and_then(Value::as_str)?;
+    let target = left;
     let right = expr.get("right")?;
     let rhs_start = node_start(right)?;
     let rhs_end = node_end(right)?;
@@ -137,8 +140,9 @@ fn single_assignment_info(arg: &Value) -> Option<EffectAssignment<'_>> {
 
 /// Information about the `$state` declaration for a variable name.
 struct StateDecl {
-    /// Start of the `VariableDeclarator` node (used for the lint report location).
+    /// Span of the `VariableDeclarator` node — upstream's reported node.
     decl_start: u32,
+    decl_end: u32,
     /// Start of the `$state(…)` init `CallExpression`.
     init_start: u32,
     /// End of the `$state(…)` init `CallExpression`.
@@ -154,43 +158,50 @@ impl ScriptRule for PreferWritableDerived {
     }
 
     fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
-        // name → StateDecl (declarator start + init span).
-        let mut state_decls: HashMap<String, StateDecl> = HashMap::new();
+        let tracker = module_tracker(
+            ctx.source(),
+            program.value(),
+            source_is_ts(ctx.source(), ctx.filename()),
+        );
+        // Declarator span → StateDecl. Upstream resolves the assignment target
+        // to `reference.resolved.defs[0].node`, so keying by name would let a
+        // `$state` declarator inside a helper function answer for an outer
+        // variable that merely shares its name.
+        let mut state_decls: HashMap<(u32, u32), StateDecl> = HashMap::new();
         program.walk(|node, _| {
             if node_type(node) != Some("VariableDeclarator") {
                 return;
             }
-            let Some(id) = node.get("id") else { return };
-            if node_type(id) != Some("Identifier") {
-                return;
-            }
-            let Some(name) = id.get("name").and_then(Value::as_str) else {
-                return;
-            };
+            // Upstream only inspects the declarator's `init`, so a destructuring
+            // pattern (`let [a] = $state([0])`) qualifies as well.
             let Some(init) = node.get("init").filter(|i| !i.is_null()) else {
                 return;
             };
             if !is_state_call(init) {
                 return;
             }
-            let (Some(decl_start), Some(init_start), Some(init_end)) =
-                (node_start(node), node_start(init), node_end(init))
-            else {
+            let (Some(decl_start), Some(decl_end), Some(init_start), Some(init_end)) = (
+                node_start(node),
+                node_end(node),
+                node_start(init),
+                node_end(init),
+            ) else {
                 return;
             };
             state_decls.insert(
-                name.to_string(),
+                (decl_start, decl_end),
                 StateDecl {
                     decl_start,
+                    decl_end,
                     init_start,
                     init_end,
                 },
             );
         });
 
-        // (decl_start, init_start, init_end, rhs_start, rhs_end,
+        // (decl_start, decl_end, init_start, init_end, rhs_start, rhs_end,
         //  effect_start, effect_end)
-        let mut reports: Vec<(u32, u32, u32, u32, u32, u32, u32)> = Vec::new();
+        let mut reports: Vec<(u32, u32, u32, u32, u32, u32, u32, u32)> = Vec::new();
         program.walk(|node, _| {
             if node_type(node) != Some("CallExpression") || !is_effect_call(node) {
                 return;
@@ -203,7 +214,10 @@ impl ScriptRule for PreferWritableDerived {
             let Some(info) = single_assignment_info(&args[0]) else {
                 return;
             };
-            let Some(sd) = state_decls.get(info.target) else {
+            let Some(sd) = tracker
+                .find_variable(info.target)
+                .and_then(|var| state_decls.get(&tracker.decl_node_span(var)))
+            else {
                 return;
             };
             let (Some(effect_start), Some(effect_end)) = (node_start(node), node_end(node)) else {
@@ -211,6 +225,7 @@ impl ScriptRule for PreferWritableDerived {
             };
             reports.push((
                 sd.decl_start,
+                sd.decl_end,
                 sd.init_start,
                 sd.init_end,
                 info.rhs_start,
@@ -223,14 +238,22 @@ impl ScriptRule for PreferWritableDerived {
         // Report each at the `$state` declarator with a suggestion that:
         //   1. Replaces the `$state(…)` init with `$derived(<rightCode>)`.
         //   2. Removes the `$effect(…)` CallExpression (leaving its trailing `;`).
-        for (decl_start, init_start, init_end, rhs_start, rhs_end, effect_start, effect_end) in
-            reports
+        for (
+            decl_start,
+            decl_end,
+            init_start,
+            init_end,
+            rhs_start,
+            rhs_end,
+            effect_start,
+            effect_end,
+        ) in reports
         {
             let right_code = ctx.slice(rhs_start, rhs_end).to_string();
             let new_init = format!("$derived({right_code})");
             ctx.report_with_suggestions(
                 decl_start,
-                decl_start,
+                decl_end,
                 MESSAGE,
                 vec![Suggestion {
                     desc: SUGGEST_DESC.to_string(),
@@ -302,7 +325,7 @@ mod tests {
             ] }
         });
         let info = single_assignment_info(&ok).unwrap();
-        assert_eq!(info.target, "x");
+        assert_eq!(info.target.get("name").unwrap(), "x");
         assert_eq!(info.rhs_start, 10);
         assert_eq!(info.rhs_end, 11);
 

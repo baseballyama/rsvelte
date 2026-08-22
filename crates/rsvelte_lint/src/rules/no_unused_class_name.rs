@@ -17,7 +17,11 @@ use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::consistent_selector_style::unescape_css_identifier;
+use crate::rules::js_whitespace::{is_js_whitespace, js_trim};
+use crate::rules::no_unknown_style_directive_property::Matcher;
 use crate::rules::scss_selector::{SelectorKind, extract_selectors, is_plain_css_lang, scss_lang};
+use crate::rules::start_tag::start_tag_span;
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-unused-class-name",
@@ -38,30 +42,6 @@ static META: RuleMeta = RuleMeta {
 };
 
 // ---------------------------------------------------------------------------
-// Regex helper (mirrors upstream `toRegExp`)
-// ---------------------------------------------------------------------------
-
-/// Match a class name against an allowedClassNames entry. An entry wrapped in
-/// `/…/` is compiled as a regex; any other string is an exact match.
-fn matches_allowed(pattern: &str, class_name: &str) -> bool {
-    if let Some(rest) = pattern.strip_prefix('/')
-        && let Some(slash) = rest.rfind('/')
-    {
-        let pat = &rest[..slash];
-        let flags = &rest[slash + 1..];
-        let mut builder = regex::RegexBuilder::new(pat);
-        if flags.contains('i') {
-            builder.case_insensitive(true);
-        }
-        if let Ok(re) = builder.build() {
-            return re.is_match(class_name);
-        }
-        // Regex compilation failed — fall through to exact match.
-    }
-    pattern == class_name
-}
-
-// ---------------------------------------------------------------------------
 // Template walk: collect (class_name, element_start) pairs
 // ---------------------------------------------------------------------------
 
@@ -74,58 +54,71 @@ struct TemplateClass {
     el_end: u32,
 }
 
+/// Upstream reports on `node.startTag`, not on the whole element.
+fn report_span(
+    src: &str,
+    start: u32,
+    end: u32,
+    name: &str,
+    attributes: &[Attribute],
+) -> (u32, u32) {
+    start_tag_span(src, start, name.len(), attributes, None).unwrap_or((start, end))
+}
+
 /// Recursively walk the fragment and collect all class usages on HTML elements.
-fn collect_template_classes(fragment: &Fragment, out: &mut Vec<TemplateClass>) {
+fn collect_template_classes(fragment: &Fragment, src: &str, out: &mut Vec<TemplateClass>) {
     for node in &fragment.nodes {
-        collect_node_classes(node, out);
+        collect_node_classes(node, src, out);
     }
 }
 
-fn collect_node_classes(node: &TemplateNode, out: &mut Vec<TemplateClass>) {
+fn collect_node_classes(node: &TemplateNode, src: &str, out: &mut Vec<TemplateClass>) {
     match node {
         TemplateNode::RegularElement(el) => {
             // Plain HTML elements: collect class names (upstream `node.kind === 'html'`).
-            collect_attrs_classes(&el.attributes, el.start, el.end, out);
-            collect_template_classes(&el.fragment, out);
+            let (s, e) = report_span(src, el.start, el.end, &el.name, &el.attributes);
+            collect_attrs_classes(&el.attributes, s, e, out);
+            collect_template_classes(&el.fragment, src, out);
         }
         TemplateNode::SlotElement(el) => {
             // `<slot>` is also a plain HTML element — collect class names.
-            collect_attrs_classes(&el.attributes, el.start, el.end, out);
-            collect_template_classes(&el.fragment, out);
+            let (s, e) = report_span(src, el.start, el.end, &el.name, &el.attributes);
+            collect_attrs_classes(&el.attributes, s, e, out);
+            collect_template_classes(&el.fragment, src, out);
         }
         TemplateNode::Component(c) => {
             // Components: upstream gates on `node.kind === 'html'` so Component
             // class attributes are NOT collected (avoid false positives).
-            collect_template_classes(&c.fragment, out);
+            collect_template_classes(&c.fragment, src, out);
         }
         TemplateNode::IfBlock(b) => {
-            collect_template_classes(&b.consequent, out);
+            collect_template_classes(&b.consequent, src, out);
             if let Some(alt) = &b.alternate {
-                collect_template_classes(alt, out);
+                collect_template_classes(alt, src, out);
             }
         }
         TemplateNode::EachBlock(b) => {
-            collect_template_classes(&b.body, out);
+            collect_template_classes(&b.body, src, out);
             if let Some(fb) = &b.fallback {
-                collect_template_classes(fb, out);
+                collect_template_classes(fb, src, out);
             }
         }
         TemplateNode::AwaitBlock(b) => {
             if let Some(f) = &b.pending {
-                collect_template_classes(f, out);
+                collect_template_classes(f, src, out);
             }
             if let Some(f) = &b.then {
-                collect_template_classes(f, out);
+                collect_template_classes(f, src, out);
             }
             if let Some(f) = &b.catch {
-                collect_template_classes(f, out);
+                collect_template_classes(f, src, out);
             }
         }
         TemplateNode::KeyBlock(b) => {
-            collect_template_classes(&b.fragment, out);
+            collect_template_classes(&b.fragment, src, out);
         }
         TemplateNode::SnippetBlock(b) => {
-            collect_template_classes(&b.body, out);
+            collect_template_classes(&b.body, src, out);
         }
         TemplateNode::SvelteHead(el)
         | TemplateNode::SvelteBody(el)
@@ -135,19 +128,22 @@ fn collect_node_classes(node: &TemplateNode, out: &mut Vec<TemplateClass>) {
         | TemplateNode::SvelteOptions(el)
         | TemplateNode::SvelteSelf(el)
         | TemplateNode::SvelteWindow(el) => {
-            collect_template_classes(&el.fragment, out);
+            collect_template_classes(&el.fragment, src, out);
         }
         TemplateNode::SvelteComponent(c) => {
             // `<svelte:component>`: upstream gates on `node.kind === 'html'` so
             // class attrs here are NOT collected (avoid false positives).
-            collect_template_classes(&c.fragment, out);
+            collect_template_classes(&c.fragment, src, out);
         }
         TemplateNode::SvelteElement(e) => {
             // `<svelte:element>` (dynamic): same upstream gate — not collected.
-            collect_template_classes(&e.fragment, out);
+            collect_template_classes(&e.fragment, src, out);
         }
         TemplateNode::TitleElement(t) => {
-            collect_template_classes(&t.fragment, out);
+            // `<title>` is a plain HTML element upstream.
+            let (s, e) = report_span(src, t.start, t.end, &t.name, &t.attributes);
+            collect_attrs_classes(&t.attributes, s, e, out);
+            collect_template_classes(&t.fragment, src, out);
         }
         _ => {}
     }
@@ -182,7 +178,7 @@ fn collect_attrs_classes(
                             if t.data.is_empty() {
                                 continue;
                             }
-                            let trimmed = t.data.trim();
+                            let trimmed = js_trim(&t.data);
                             if trimmed.is_empty() {
                                 out.push(TemplateClass {
                                     name: String::new(),
@@ -190,7 +186,9 @@ fn collect_attrs_classes(
                                     el_end,
                                 });
                             } else {
-                                for name in trimmed.split_whitespace() {
+                                for name in
+                                    trimmed.split(is_js_whitespace).filter(|s| !s.is_empty())
+                                {
                                     out.push(TemplateClass {
                                         name: name.to_string(),
                                         el_start,
@@ -271,7 +269,7 @@ fn collect_css_node_classes(node: &Value, out: &mut Vec<String>) {
         }
         "ClassSelector" => {
             if let Some(name) = node.get("name").and_then(Value::as_str) {
-                out.push(name.to_string());
+                out.push(unescape_css_identifier(name).into_owned());
             }
         }
         "PseudoClassSelector" => {
@@ -290,7 +288,7 @@ fn collect_selector_classes(node: &Value, out: &mut Vec<String>) {
     match ty {
         "ClassSelector" => {
             if let Some(name) = node.get("name").and_then(Value::as_str) {
-                out.push(name.to_string());
+                out.push(unescape_css_identifier(name).into_owned());
             }
         }
         "SelectorList" | "ComplexSelector" => {
@@ -335,7 +333,7 @@ impl Rule for NoUnusedClassName {
 
         // Collect classes used in the template.
         let mut template_classes: Vec<TemplateClass> = Vec::new();
-        collect_template_classes(&root.fragment, &mut template_classes);
+        collect_template_classes(&root.fragment, ctx.source(), &mut template_classes);
 
         if template_classes.is_empty() {
             return;
@@ -371,7 +369,10 @@ impl Rule for NoUnusedClassName {
 
         // Report each template class not found in CSS and not in allowedClassNames.
         for tc in &template_classes {
-            if allowed.iter().any(|p| matches_allowed(p, &tc.name)) {
+            if allowed
+                .iter()
+                .any(|p| Matcher::from_option(p).test(&tc.name))
+            {
                 continue;
             }
             if css_classes.contains(&tc.name) {

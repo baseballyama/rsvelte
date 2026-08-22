@@ -215,7 +215,7 @@ pub fn lint_source_messages(
     };
 
     // 4. Suppression directives (eslint-disable* + svelte-ignore).
-    let suppressions = Suppressions::collect(source);
+    let suppressions = Suppressions::collect_for(source, &file.to_string_lossy());
     diagnostics.retain(|m| match (&m.diagnostic.code, &m.diagnostic.range) {
         (Some(code), Some(range)) => !suppressions.is_suppressed(code, range.start.line),
         _ => true,
@@ -244,7 +244,7 @@ fn module_lint_messages(
     file: &Path,
     line_index: &LineIndex,
 ) -> Vec<LintMessage> {
-    crate::engine::run_script_rules_module(source, filename, ts, config)
+    crate::engine::run_script_rules_module(source, filename, ts, config, Some(file))
         .into_iter()
         .map(|diagnostic| LintMessage::from_lint(diagnostic, file, line_index))
         .collect()
@@ -284,16 +284,16 @@ pub fn lint_source_raw(source: &str, file: &Path, config: &LintConfig) -> Vec<Li
 
     let mut diags = match crate::engine::classify_source(&file.to_string_lossy()) {
         crate::engine::SourceKind::Module { ts } => {
-            crate::engine::run_script_rules_module(source, &filename, ts, config)
+            crate::engine::run_script_rules_module(source, &filename, ts, config, Some(file))
         }
         crate::engine::SourceKind::Svelte => {
             svelte_rule_findings(source, file, &filename, config).0
         }
     };
 
-    let suppressions = Suppressions::collect(source);
-    diags.retain(|d| !suppressions.is_suppressed(&d.rule, line_index.line(d.start)));
-    diags.sort_by_key(|d| (line_index.line(d.start), d.start));
+    let suppressions = Suppressions::collect_for(source, &file.to_string_lossy());
+    diags.retain(|d| !suppressions.is_suppressed(&d.rule, d.report_line(&line_index)));
+    diags.sort_by_key(|d| (d.report_line(&line_index), d.start));
     diags
 }
 
@@ -312,8 +312,19 @@ pub struct FixResult {
 /// earliest and skipping any that overlap it (a second pass picks up the rest).
 #[must_use]
 pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
+    fix_source_at(source, config, "")
+}
+
+/// [`fix_source`] for a named file.
+///
+/// The name selects the rule set the same way linting does: a `.svelte.js` /
+/// `.svelte.ts` module is not a component, and running the component pass over
+/// it yields no findings and therefore no fixes — reporting on those files while
+/// fixing nothing.
+#[must_use]
+pub fn fix_source_at(source: &str, config: &LintConfig, filename: &str) -> FixResult {
     let line_index = LineIndex::new(source);
-    let suppressions = Suppressions::collect(source);
+    let suppressions = Suppressions::collect_for(source, filename);
     let effective = crate::inline_config::apply(source, config);
     let config = &effective;
 
@@ -323,11 +334,24 @@ pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
     // Each fix is kept as a unit (Vec<TextEdit>) to mirror ESLint's per-diagnostic
     // atomic conflict resolution: if the merged range of a fix conflicts with the
     // already-consumed range, the ENTIRE fix is dropped.
-    // Fixes never come from filesystem-aware rules, so no path is threaded here.
-    let mut fixes: Vec<Vec<TextEdit>> = run_native_rules(source, "", config, None)
+    // A filesystem-aware rule can still be *disabled* by the environment, so the
+    // path is threaded even though no fix depends on it.
+    let raw: Vec<LintDiagnostic> = match crate::engine::classify_source(filename) {
+        crate::engine::SourceKind::Module { ts } => crate::engine::run_script_rules_module(
+            source,
+            filename,
+            ts,
+            config,
+            Some(Path::new(filename)),
+        ),
+        crate::engine::SourceKind::Svelte => run_native_rules(source, "", config, None)
+            .into_iter()
+            .chain(run_script_rules(source, "", config))
+            .collect(),
+    };
+    let mut fixes: Vec<Vec<TextEdit>> = raw
         .into_iter()
-        .chain(run_script_rules(source, "", config))
-        .filter(|d| !suppressions.is_suppressed(&d.rule, line_index.line(d.start)))
+        .filter(|d| !suppressions.is_suppressed(&d.rule, d.report_line(&line_index)))
         .filter_map(|d| d.fix)
         .map(|f| f.edits)
         .collect();
@@ -382,6 +406,33 @@ pub fn fix_source(source: &str, config: &LintConfig) -> FixResult {
     FixResult { output, applied }
 }
 
+/// How many times [`fix_all`] re-lints its own output. ESLint's
+/// `Linter.verifyAndFix` uses the same bound.
+const MAX_AUTOFIX_PASSES: usize = 10;
+
+/// Apply autofixes until the source stops changing (at most
+/// `MAX_AUTOFIX_PASSES` passes), the way `eslint --fix` does.
+///
+/// [`fix_source`] is deliberately one pass, because that is what upstream's
+/// `RuleTester` records in its `*-output.svelte` fixtures. A single pass is not
+/// what a user gets from `eslint --fix`, though: two fixes whose ranges conflict
+/// leave the second unapplied, and a fix can expose a shape that is itself
+/// fixable — so one pass under-fixes exactly where a file needs fixing most.
+#[must_use]
+pub fn fix_all(source: &str, config: &LintConfig, filename: &str) -> FixResult {
+    let mut output = source.to_string();
+    let mut applied = 0;
+    for _ in 0..MAX_AUTOFIX_PASSES {
+        let pass = fix_source_at(&output, config, filename);
+        if pass.applied == 0 || pass.output == output {
+            break;
+        }
+        output = pass.output;
+        applied += pass.applied;
+    }
+    FixResult { output, applied }
+}
+
 /// Whether `rule_id` names a rule rsvelte actually implements. Used by
 /// comment-directive's unused-report to avoid flagging a directive that targets
 /// a rule we cannot evaluate (e.g. core `ESLint` `no-undef`) as unused. In
@@ -418,6 +469,24 @@ pub fn lint_file(path: &Path, config: &LintConfig) -> std::io::Result<Vec<Diagno
     Ok(lint_source(&source, path, &options, config))
 }
 
+/// Lint a file on disk, keeping each finding's `fix` / `suggestions` payload.
+///
+/// # Errors
+///
+/// Returns an error when the file cannot be read.
+#[cfg(feature = "native")]
+pub fn lint_file_messages(
+    path: &Path,
+    config: &LintConfig,
+) -> std::io::Result<Vec<crate::diagnostic::LintMessage>> {
+    let source = std::fs::read_to_string(path)?;
+    let options = CompileOptions {
+        filename: Some(path.display().to_string()),
+        ..Default::default()
+    };
+    Ok(lint_source_messages(&source, path, &options, config))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -436,6 +505,28 @@ mod tests {
 
     fn codes(diags: &[Diagnostic]) -> Vec<String> {
         diags.iter().filter_map(|d| d.code.clone()).collect()
+    }
+
+    #[test]
+    fn fix_honours_a_directive_across_a_js_line_separator() {
+        // `html-quotes` reports on ESLint's line table, where U+2028 ends a line.
+        // The fix path must resolve the directive against that same table, or it
+        // rewrites what the report suppressed (and vice versa for U+2029).
+        let cfg = LintConfig::from_json_str(
+            r#"{ "extends": ["none"], "rules": { "svelte/html-quotes": "warn" } }"#,
+        )
+        .unwrap();
+        let next_line =
+            "<!-- eslint-disable-next-line svelte/html-quotes -->\u{2028}<div id=a>t</div>\n";
+        assert_eq!(
+            fix_source_at(next_line, &cfg, "Test.svelte").output,
+            next_line
+        );
+        let disable_line = "<!-- eslint-disable-line svelte/html-quotes --><div id=a>t</div>\u{2029}<div id=b>t</div>\n";
+        assert_eq!(
+            fix_source_at(disable_line, &cfg, "Test.svelte").output,
+            "<!-- eslint-disable-line svelte/html-quotes --><div id=a>t</div>\u{2029}<div id=\"b\">t</div>\n"
+        );
     }
 
     #[test]
@@ -532,10 +623,30 @@ mod tests {
     }
 
     #[test]
-    fn prefer_const_plain_separate_assignment_not_reported() {
+    fn prefer_const_plain_separate_assignment_reported_at_the_write() {
         let cfg = LintConfig::recommended().with_override("svelte/prefer-const", Severity::Error);
-        // A plain (non-destructuring) `let a; a = 1;` is never reported by ESLint.
+        // ESLint's `canBecomeVariableDeclaration` accepts a plain `let a; a = 1;`
+        // whose sole write is a whole statement in the declaration's own scope,
+        // and reports at the write, not at the declaration. `Diagnostic` columns
+        // are 0-based (SARIF's 2:23 is 2:22 here).
         let src = "<script>\nfunction h() { let a; a = 1; use(a); }\n</script>";
+        let diagnostics = lint(src, &cfg);
+        assert_eq!(prefer_const_hits(&diagnostics, "a"), 1);
+        let range = diagnostics
+            .iter()
+            .find(|d| d.code.as_deref() == Some("svelte/prefer-const"))
+            .and_then(|d| d.range.as_ref())
+            .expect("the report carries a range");
+        assert_eq!((range.start.line, range.start.column), (2, 22));
+    }
+
+    #[test]
+    fn prefer_const_plain_separate_assignment_at_script_top_level_not_reported() {
+        let cfg = LintConfig::recommended().with_override("svelte/prefer-const", Severity::Error);
+        // The instance script's top level is a `SvelteScriptElement` body
+        // upstream, not a `Program` body, so the same shape fails
+        // `canBecomeVariableDeclaration` there.
+        let src = "<script>\nlet a;\na = 1;\nuse(a);\n</script>";
         assert_eq!(prefer_const_hits(&lint(src, &cfg), "a"), 0);
     }
 

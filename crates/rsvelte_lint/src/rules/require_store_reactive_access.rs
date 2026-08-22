@@ -22,14 +22,14 @@ use serde_json::Value;
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, TextEdit};
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::rules::store_refs::collect_store_creators;
+use crate::rules::store_refs::{RefTracker, Var, component_tracker, store_creator_calls};
 use crate::script::{node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/require-store-reactive-access",
     category: RuleCategory::Correctness,
     fixable: Fixable::Code,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: false,
@@ -71,52 +71,50 @@ fn nend(node: &Value) -> Option<u32> {
         .and_then(json_offset)
 }
 
-/// Collect store variables: `const|let NAME = writable()/readable()/derived()`.
-fn collect_store_vars(root_json: &Value) -> HashMap<String, bool> {
-    let creators = collect_store_creators(root_json);
+/// Collect store variables — upstream's `createStoreCheckerForES`: every
+/// variable whose declarator is initialised by a `svelte/store` creator call
+/// (aliases / namespace members / template resolved by the shared tracker),
+/// with its `const`-ness.
+fn collect_store_vars(tracker: &RefTracker<'_>) -> HashMap<Var, bool> {
     let mut out = HashMap::new();
-    if creators.is_empty() {
-        return out;
-    }
-    walk_js(root_json, |node, _| {
-        if node_type(node) != Some("VariableDeclaration") {
-            return;
-        }
-        let is_const = node.get("kind").and_then(Value::as_str) == Some("const");
-        let Some(decls) = node.get("declarations").and_then(Value::as_array) else {
-            return;
+    for (call, _name) in store_creator_calls(tracker, &["writable", "readable", "derived"]) {
+        let Some(declarator) = tracker.parent_of(call) else {
+            continue;
         };
-        for d in decls {
-            let id = d.get("id");
-            if id.map(|i| node_type(i)) != Some(Some("Identifier")) {
-                continue;
-            }
-            let Some(name) = id.and_then(|i| i.get("name")).and_then(Value::as_str) else {
-                continue;
-            };
-            let Some(init) = d.get("init").filter(|i| !i.is_null()) else {
-                continue;
-            };
-            if node_type(init) == Some("CallExpression")
-                && let Some(callee) = init.get("callee")
-                && creators.creator_of(callee).is_some()
-            {
-                out.insert(name.to_string(), is_const);
-            }
+        if node_type(declarator) != Some("VariableDeclarator") {
+            continue;
         }
-    });
+        let Some(id) = declarator.get("id") else {
+            continue;
+        };
+        if node_type(id) != Some("Identifier") {
+            continue;
+        }
+        let Some(decl) = tracker.parent_of(declarator) else {
+            continue;
+        };
+        if node_type(decl) != Some("VariableDeclaration") {
+            continue;
+        }
+        let is_const = decl.get("kind").and_then(Value::as_str) == Some("const");
+        if let Some(var) = tracker.find_variable(id) {
+            out.insert(var, is_const);
+        }
+    }
     out
 }
 
-struct Checker<'a> {
-    stores: &'a HashMap<String, bool>,
+struct Checker<'a, 't> {
+    stores: &'a HashMap<Var, bool>,
+    tracker: &'a RefTracker<'t>,
     source: &'a [u8],
     reports: Vec<Report>,
 }
 
-impl Checker<'_> {
-    /// `true` if `node` is a store identifier usable in this position.
-    fn is_store(&self, node: &Value, consistent: bool) -> bool {
+impl Checker<'_, '_> {
+    /// `true` if `node` is a store identifier usable in this position, resolved
+    /// as a reference starting at `start`.
+    fn is_store_at(&self, node: &Value, consistent: bool, start: u32) -> bool {
         if !is_ident(node) {
             return false;
         }
@@ -126,7 +124,10 @@ impl Checker<'_> {
         if name.starts_with('$') {
             return false;
         }
-        match self.stores.get(name) {
+        let Some(var) = self.tracker.find_variable_at(node, start) else {
+            return false;
+        };
+        match self.stores.get(&var) {
             None => false,
             Some(&is_const) => !consistent || is_const,
         }
@@ -136,9 +137,10 @@ impl Checker<'_> {
         self.verify_offset(node, consistent, fixable, 0);
     }
 
-    /// Like `verify` but adds `start_offset` to the reported start (and fix)
-    /// position.  Used for computed property keys where the AST stores the
-    /// identifier start at the `[` bracket rather than at the identifier text.
+    /// Like `verify` but for a node whose serialized start may sit before the
+    /// identifier text. A computed property key starts at its `[`, which is
+    /// neither the position upstream reports nor one the scope tables can
+    /// resolve, so the identifier's own start is recovered first.
     fn verify_offset(
         &mut self,
         node: Option<&Value>,
@@ -149,17 +151,32 @@ impl Checker<'_> {
         let Some(node) = node.filter(|n| !n.is_null()) else {
             return;
         };
-        if !self.is_store(node, consistent) {
+        let Some(raw_start) = nstart(node) else {
+            return;
+        };
+        let s = self.identifier_start(raw_start + start_offset);
+        if !self.is_store_at(node, consistent, s) {
             return;
         }
-        if let (Some(s), Some(e)) = (nstart(node), nend(node)) {
-            let s = s + start_offset;
+        if let Some(e) = nend(node) {
             self.reports.push(Report {
                 start: s,
                 end: e,
                 fix_at: if fixable { Some(s) } else { None },
             });
         }
+    }
+
+    /// Skip a leading `[` and any whitespace after it.
+    fn identifier_start(&self, start: u32) -> u32 {
+        if self.byte_at(start) != Some(b'[') {
+            return start;
+        }
+        let mut at = start + 1;
+        while matches!(self.byte_at(at), Some(b) if b.is_ascii_whitespace()) {
+            at += 1;
+        }
+        at
     }
 
     /// Source byte at `offset`, if any.
@@ -177,7 +194,11 @@ impl Checker<'_> {
         if name.starts_with('$') {
             return;
         }
-        let is_store = match self.stores.get(name) {
+        let is_store = match self
+            .tracker
+            .root_var_by_name(name)
+            .and_then(|v| self.stores.get(&v))
+        {
             None => return,
             Some(&is_const) => !consistent || is_const,
         };
@@ -233,13 +254,15 @@ impl Rule for RequireStoreReactiveAccess {
         if root_json.is_null() {
             return;
         }
-        let stores = collect_store_vars(&root_json);
+        let tracker = component_tracker(ctx.source(), root, &root_json);
+        let stores = collect_store_vars(&tracker);
         if stores.is_empty() {
             return;
         }
         let source = ctx.source().as_bytes();
         let mut checker = Checker {
             stores: &stores,
+            tracker: &tracker,
             source,
             reports: Vec::new(),
         };
@@ -287,7 +310,7 @@ fn is_eq_op(op: Option<&str>) -> bool {
     matches!(op, Some("==" | "!=" | "===" | "!=="))
 }
 
-fn walk_dispatch(root: &Value, checker: &mut Checker) {
+fn walk_dispatch(root: &Value, checker: &mut Checker<'_, '_>) {
     walk_js(root, |node, ancestors| {
         match node_type(node) {
             // ---- JS expression positions ----
@@ -360,11 +383,7 @@ fn walk_dispatch(root: &Value, checker: &mut Checker) {
                     node.get("key").map(node_type) == Some(Some("PrivateIdentifier"));
                 let computed = node.get("computed").and_then(Value::as_bool) == Some(true);
                 if !key_is_private && computed {
-                    // rsvelte's AST sets the Identifier key's `start` to the
-                    // position of the `[` bracket rather than to the identifier
-                    // itself.  Add 1 to skip the bracket so the report column
-                    // matches the oracle (which points at the identifier text).
-                    checker.verify_offset(node.get("key"), false, true, 1);
+                    checker.verify(node.get("key"), false, true);
                 }
             }
             Some("ImportExpression") => {
@@ -372,6 +391,9 @@ fn walk_dispatch(root: &Value, checker: &mut Checker) {
             }
             Some("AwaitExpression") => {
                 checker.verify(node.get("argument"), true, true);
+            }
+            Some("HtmlTag") => {
+                checker.verify(node.get("expression"), false, true);
             }
             node_type if dispatch_template_node(node_type, node, ancestors, checker) => {}
             _ => {}
@@ -383,7 +405,7 @@ fn dispatch_template_node(
     node_kind: Option<&str>,
     node: &Value,
     ancestors: &[&Value],
-    checker: &mut Checker,
+    checker: &mut Checker<'_, '_>,
 ) -> bool {
     match node_kind {
         Some("ExpressionTag") => handle_expression_tag(node, ancestors, checker),
@@ -419,7 +441,7 @@ fn dispatch_template_node(
 
 /// Whether a directive is shorthand (`class:foo` / `bind:value`) — its value
 /// span begins at the directive's `:name` rather than an explicit `={…}`.
-fn directive_is_shorthand(node: &Value, checker: &Checker) -> bool {
+fn directive_is_shorthand(node: &Value, checker: &Checker<'_, '_>) -> bool {
     // Shorthand when the expression identifier coincides with the directive name
     // position (no `={`). Detect by checking there's no `=` before the expression
     // within the directive span.
@@ -436,7 +458,7 @@ fn directive_is_shorthand(node: &Value, checker: &Checker) -> bool {
     true
 }
 
-fn handle_bind_directive(node: &Value, ancestors: &[&Value], checker: &mut Checker) {
+fn handle_bind_directive(node: &Value, ancestors: &[&Value], checker: &mut Checker<'_, '_>) {
     let key = node.get("name").and_then(Value::as_str);
     let el = nearest_element(ancestors);
     if key != Some("this") && element_accepts_store(el) {
@@ -446,7 +468,7 @@ fn handle_bind_directive(node: &Value, ancestors: &[&Value], checker: &mut Check
     checker.verify(node.get("expression"), false, !shorthand);
 }
 
-fn handle_expression_tag(node: &Value, ancestors: &[&Value], checker: &mut Checker) {
+fn handle_expression_tag(node: &Value, ancestors: &[&Value], checker: &mut Checker<'_, '_>) {
     let expr = node.get("expression");
     let parent = ancestors.last().copied();
     let parent_is_attr = parent.map(node_type) == Some(Some("Attribute"));

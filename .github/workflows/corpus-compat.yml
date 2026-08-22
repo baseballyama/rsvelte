@@ -258,6 +258,15 @@ jobs:
       - name: Collect corpus
         run: node scripts/compat-corpus/collect.mjs
 
+      # Asserts a PROPERTY of the transform rather than comparing its output, so
+      # it sees the #3026 class on inputs whose output is byte-perfect: un-seal
+      # `b::getter_call` and 7,888 of 27,566 corpus units violate it while the
+      # output gate still scores 0 divergences. Hard gate, no ratchet.
+      - name: Transform idempotency (client identifier transforms)
+        env:
+          RSVELTE_ASSERT_TRANSFORM_IDEMPOTENT: '1'
+        run: node scripts/compat-corpus/idempotency-verify.mjs
+
       - name: Compile corpus (official svelte + rsvelte, CSR + SSR + CSR dev)
         run: node scripts/compat-corpus/compile.mjs
 
@@ -451,10 +460,67 @@ jobs:
         # use `panic = "abort"`, which would SIGABRT the whole ~12k-file run.
         run: cargo build --profile dist-lint --bin rsvelte-lint
 
+      # eslint-plugin-svelte resolves a `<style lang="scss">` preprocessor from
+      # the LINTED FILE's directory upward, which reaches the repository root and
+      # never the oracle package. Without this the oracle blanks SCSS blocks here
+      # and transpiles them in a developer's checkout, which is a property of the
+      # tree rather than of either linter; `lint-oracle/run.mjs` asserts it.
+      - name: Install root dependencies (preprocessors the oracle resolves)
+        run: pnpm install --frozen-lockfile
+
       # The oracle is the pinned real eslint-plugin-svelte; deps install into an
       # isolated package so the comparison never drifts from what users run.
       - name: Install lint oracle (real eslint-plugin-svelte)
         run: npm --prefix scripts/compat-corpus/lint-oracle install --no-package-lock
+
+      # Before the collected corpus: these patterns are committed, so the step
+      # needs no submodule sources and fails fast on a rule regression that
+      # published code does not happen to contain.
+      - name: Verify adversarial lint parity (ratchet against lint-adversarial-known-failures.json)
+        run: node scripts/compat-corpus/lint-adversarial.mjs
+
+      # The report gate above compares diagnostics; a rule's autofix is a
+      # separate output that no other gate reads.
+      - name: Verify adversarial lint autofix parity (ratchet against lint-adversarial-fix-known-failures.json)
+        run: node scripts/compat-corpus/lint-adversarial-fix.mjs
+
+      # The step above enables one rule per pattern, so it says nothing about
+      # `--fix` on the config users run — all 74 rules editing one file at once.
+      - name: Verify whole-config lint autofix parity (ratchet against lint-adversarial-fix-all-known-failures.json)
+        run: node scripts/compat-corpus/lint-adversarial-fix-all.mjs
+
+      # And a suggestion is neither a report nor a fix, so it is outside both
+      # of the steps above.
+      - name: Verify adversarial lint suggestion parity (ratchet against lint-adversarial-suggest-known-failures.json)
+        run: node scripts/compat-corpus/lint-adversarial-suggest.mjs
+
+      # The start position is compared by the report gate; the END is not, and a
+      # rule can underline the wrong region while agreeing about everything else.
+      - name: Verify adversarial lint end-position parity (ratchet against lint-adversarial-end-known-failures.json)
+        run: node scripts/compat-corpus/lint-adversarial-end.mjs
+
+      # Same sources, different project manifests: the adversarial corpus
+      # declares @sveltejs/kit for its whole tree, so it cannot vary the one
+      # input that decides whether five SvelteKit-gated rules run at all.
+      - name: Verify lint environment parity (ratchet against lint-env-known-failures.json)
+        run: node scripts/compat-corpus/lint-env.mjs
+
+      # Every gate above configures all shared rules to "warn" on both sides, so
+      # the set a user gets with NO config is a constant none of them can vary.
+      - name: Verify lint default-preset curation (ratchet against lint-preset-known-failures.json)
+        run: node scripts/compat-corpus/lint-preset.mjs
+
+      # And the step above reads the two presets' declared TABLES. What a run
+      # emits under them — each finding's severity and the process exit code —
+      # is what this one compares, with no rule configuration on either side.
+      - name: Verify lint default-configuration parity (ratchet against lint-severity-known-failures.json)
+        run: node scripts/compat-corpus/lint-severity.mjs
+
+      # Whether a rule runs at all in a given Svelte mode. A wrong flag is
+      # invisible to every finding-level gate unless the corpus happens to hold a
+      # file in the mode the flag wrongly excludes.
+      - name: Verify lint rule conditions (ratchet against lint-conditions-known-failures.json)
+        run: node scripts/compat-corpus/lint-conditions.mjs
 
       - name: Collect lint corpus
         run: node scripts/compat-corpus/lint-collect.mjs --ci

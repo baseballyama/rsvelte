@@ -175,7 +175,7 @@ pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::An
                 // type-specific `a11y_incorrect_aria_attribute_type` warning
                 // because the attribute presence alone is not a valid value.
                 // (issue #454, H-078)
-                let value = get_static_value(attribute);
+                let value = get_static_text_value(attribute);
                 let is_bare = matches!(
                     attribute,
                     AttributeNode::Attribute(a) if matches!(a.value, AttributeValue::True(_))
@@ -210,7 +210,8 @@ pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::An
                     warnings.push(w::a11y_misplaced_role(node.name).at(attr_start, attr_end));
                 }
 
-                if let Some(value) = get_static_value(attribute) {
+                // A valueless `role` is the boolean `true`, which upstream skips.
+                if let Some(StaticValue::Text(value)) = get_static_value(attribute) {
                     for current_role in value.split(|c: char| c.is_whitespace()) {
                         if current_role.is_empty() {
                             continue;
@@ -356,8 +357,7 @@ pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::An
             // tabindex-no-positive
             if name == "tabindex"
                 && let Some(value) = get_static_value(attribute)
-                && let Ok(num) = value.parse::<i32>()
-                && num > 0
+                && value.to_number() > 0.0
             {
                 warnings.push(w::a11y_positive_tabindex().at(attr_start, attr_end));
             }
@@ -369,7 +369,7 @@ pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::An
     let has_role_attr = attribute_map.contains_key("role");
     let role_static_value = attribute_map
         .get("role")
-        .and_then(|attr| get_static_value(attr));
+        .and_then(|attr| get_static_text_value(attr));
 
     // click-events-have-key-events
     if handlers.contains("click") {
@@ -438,11 +438,9 @@ pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::An
         && !role_static_value.is_some_and(is_interactive_roles)
         && let Some(tab_index) = attribute_map.get("tabindex")
     {
-        let tab_index_value = get_static_value(tab_index);
-        let should_warn = tab_index_value.is_none()  // Dynamic value (like {0})
-            || tab_index_value
-                .and_then(|v| v.parse::<i32>().ok())
-                .is_some_and(|num| num >= 0);
+        let tab_index_value = get_static_text_value(tab_index);
+        let should_warn = tab_index_value.is_none()  // Dynamic value (like {0}) or valueless
+            || tab_index_value.is_some_and(|v| js_str_to_number(v) >= 0.0);
         if should_warn {
             warnings.push(w::a11y_no_noninteractive_tabindex());
         }
@@ -514,11 +512,10 @@ pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::An
 
     match node.name {
         "a" | "button" => {
-            let is_hidden = (attribute_map
-                .get("aria-hidden")
-                .and_then(|a| get_static_value(a))
-                == Some("true"))
-                || attribute_map.contains_key("inert");
+            let is_hidden = static_text_is(attribute_map.get("aria-hidden"), "true")
+                || attribute_map
+                    .get("inert")
+                    .is_some_and(|a| get_static_value(a).is_some());
 
             if !has_spread && !is_hidden && !is_labelled && !has_content(node.fragment) {
                 warnings.push(w::a11y_consider_explicit_label());
@@ -530,7 +527,7 @@ pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::An
                     .or_else(|| attribute_map.get("xlink:href"));
                 if let Some(href_attr) = href {
                     if let AttributeNode::Attribute(a) = href_attr
-                        && let Some(href_value) = get_static_value(href_attr)
+                        && let Some(href_value) = get_static_text_value(href_attr)
                         && (href_value.is_empty()
                             || href_value == "#"
                             || REGEX_JS_PREFIX.is_match(href_value))
@@ -544,12 +541,9 @@ pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::An
                     let id_attribute = attribute_map.get("id").and_then(|a| get_static_value(a));
                     let name_attribute =
                         attribute_map.get("name").and_then(|a| get_static_value(a));
-                    let aria_disabled = attribute_map
-                        .get("aria-disabled")
-                        .and_then(|a| get_static_value(a));
-                    if id_attribute.is_none_or(|v| v.is_empty())
-                        && name_attribute.is_none_or(|v| v.is_empty())
-                        && aria_disabled != Some("true")
+                    if !id_attribute.is_some_and(StaticValue::is_truthy)
+                        && !name_attribute.is_some_and(StaticValue::is_truthy)
+                        && !static_text_is(attribute_map.get("aria-disabled"), "true")
                     {
                         warn_missing_attribute(&mut warnings, node.name, &["href"], None);
                     }
@@ -559,9 +553,8 @@ pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::An
         "input" => {
             let type_value = attribute_map
                 .get("type")
-                .and_then(|t| get_static_value(t))
-                .unwrap_or("text");
-            if type_value == "image" && !has_spread {
+                .and_then(|t| get_static_text_value(t));
+            if type_value == Some("image") && !has_spread {
                 let required_attributes = ["alt", "aria-label", "aria-labelledby"];
                 let has_attribute = required_attributes
                     .iter()
@@ -582,19 +575,27 @@ pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::An
             {
                 let autocomplete_value = get_static_value(autocomplete_attr);
                 if !is_valid_autocomplete(autocomplete_value) {
-                    let display_value = autocomplete_value.unwrap_or("true");
+                    let display_value = match autocomplete_value {
+                        Some(StaticValue::Text(v)) => v,
+                        _ => "true",
+                    };
                     let mark = warnings.len();
-                    warnings.push(w::a11y_autocomplete_valid(display_value, type_value));
+                    warnings.push(w::a11y_autocomplete_valid(
+                        display_value,
+                        type_value.unwrap_or("..."),
+                    ));
                     stamp_attribute(&mut warnings[mark..], a);
                 }
             }
         }
         "img" => {
             if let Some(alt_attribute) = attribute_map.get("alt")
-                && let Some(alt_value) = get_static_value(alt_attribute)
+                && let Some(alt_value) = get_static_text_value(alt_attribute)
             {
-                let aria_hidden = attribute_map.get("aria-hidden");
-                if aria_hidden.is_none()
+                let aria_hidden = attribute_map
+                    .get("aria-hidden")
+                    .and_then(|a| get_static_value(a));
+                if !aria_hidden.is_some_and(StaticValue::is_truthy)
                     && !has_spread
                     && REGEX_REDUNDANT_IMG_ALT.is_match(alt_value)
                 {
@@ -610,10 +611,7 @@ pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::An
             warnings.push(w::a11y_label_has_associated_control());
         }
         "video" => {
-            let aria_hidden_exist = attribute_map
-                .get("aria-hidden")
-                .and_then(|a| get_static_value(a))
-                == Some("true");
+            let aria_hidden_exist = static_text_is(attribute_map.get("aria-hidden"), "true");
 
             if attribute_map.contains_key("muted") || aria_hidden_exist || has_spread {
                 // Skip video caption check if muted, aria-hidden, or has spread
@@ -638,7 +636,7 @@ pub fn check_element(node: &A11yElement, ancestors: &A11yAncestors) -> Vec<w::An
                     .any(|track| {
                         track.attributes.iter().any(|a| {
                             matches!(a, AttributeNode::SpreadAttribute(_))
-                                || matches!(a, AttributeNode::Attribute(attr) if attr.name == "kind" && get_static_value(a) == Some("captions"))
+                                || matches!(a, AttributeNode::Attribute(attr) if attr.name == "kind" && get_static_value(a) == Some(StaticValue::Text("captions")))
                         })
                     });
 
@@ -724,16 +722,17 @@ fn is_hidden_from_screen_reader(
 ) -> bool {
     if tag_name == "input"
         && let Some(type_attr) = attribute_map.get("type")
-        && get_static_value(type_attr) == Some("hidden")
+        && get_static_value(type_attr) == Some(StaticValue::Text("hidden"))
     {
         return true;
     }
 
     if let Some(aria_hidden) = attribute_map.get("aria-hidden") {
-        if let Some(value) = get_static_value(aria_hidden) {
-            return value == "true";
-        }
-        return true; // Dynamic value
+        return match get_static_value(aria_hidden) {
+            None => true, // Dynamic value
+            Some(StaticValue::True) => true,
+            Some(StaticValue::Text(value)) => value == "true",
+        };
     }
 
     false
@@ -741,14 +740,12 @@ fn is_hidden_from_screen_reader(
 
 fn has_disabled_attribute(attribute_map: &FxHashMap<String, &AttributeNode>) -> bool {
     if let Some(disabled) = attribute_map.get("disabled")
-        && get_static_value(disabled).is_some()
+        && get_static_value(disabled).is_some_and(StaticValue::is_truthy)
     {
         return true;
     }
 
-    if let Some(aria_disabled) = attribute_map.get("aria-disabled")
-        && get_static_value(aria_disabled) == Some("true")
-    {
+    if static_text_is(attribute_map.get("aria-disabled"), "true") {
         return true;
     }
 
@@ -779,7 +776,7 @@ fn match_schema_attrs(
         for schema_attr in schema_attrs {
             if let Some(attribute) = attribute_map.get(schema_attr.name) {
                 if let Some(expected_value) = schema_attr.value {
-                    if let Some(actual_value) = get_static_value(attribute) {
+                    if let Some(actual_value) = get_static_text_value(attribute) {
                         if actual_value != expected_value {
                             return false;
                         }
@@ -873,7 +870,8 @@ fn get_implicit_role(
 fn input_implicit_role(attribute_map: &FxHashMap<String, &AttributeNode>) -> Option<&'static str> {
     let type_value = attribute_map
         .get("type")
-        .and_then(|t| get_static_value(t))?;
+        .and_then(|t| get_static_text_value(t))
+        .filter(|t| !t.is_empty())?;
     let has_list = attribute_map.contains_key("list");
     if has_list && COMBOBOX_IF_LIST.contains(&type_value) {
         return Some("combobox");
@@ -886,7 +884,8 @@ fn menuitem_implicit_role(
 ) -> Option<&'static str> {
     let type_value = attribute_map
         .get("type")
-        .and_then(|t| get_static_value(t))?;
+        .and_then(|t| get_static_text_value(t))
+        .filter(|t| !t.is_empty())?;
     MENUITEM_TYPE_TO_IMPLICIT_ROLE.get(type_value).copied()
 }
 
@@ -902,19 +901,92 @@ fn is_abstract_role(role: &str) -> bool {
     ABSTRACT_ROLES.contains(role)
 }
 
-fn get_static_value<'b>(attribute: &'b AttributeNode<'_>) -> Option<&'b str> {
+/// Upstream's `get_static_value` yields `null | true | string`; a valueless
+/// attribute (`<div role>`) is the boolean `true`, which is not the string
+/// `"true"` any check may compare against.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StaticValue<'b> {
+    True,
+    Text(&'b str),
+}
+
+impl StaticValue<'_> {
+    /// JS truthiness, which upstream tests directly on the result.
+    fn is_truthy(self) -> bool {
+        !matches!(self, StaticValue::Text(""))
+    }
+
+    /// JS `Number(value)`: `true` is 1 and a string coerces numerically.
+    fn to_number(self) -> f64 {
+        match self {
+            StaticValue::True => 1.0,
+            StaticValue::Text(s) => js_str_to_number(s),
+        }
+    }
+}
+
+/// JS `Number(string)` coercion — an empty/whitespace string is 0, and the
+/// numeric grammar is wider than Rust's `parse`.
+fn js_str_to_number(s: &str) -> f64 {
+    let t = s.trim_matches(|c: char| c.is_whitespace() || c == '\u{feff}');
+    if t.is_empty() {
+        return 0.0;
+    }
+    if let Some(hex) = t.strip_prefix("0x").or_else(|| t.strip_prefix("0X")) {
+        return i64::from_str_radix(hex, 16)
+            .map(|v| v as f64)
+            .unwrap_or(f64::NAN);
+    }
+    if let Some(oct) = t.strip_prefix("0o").or_else(|| t.strip_prefix("0O")) {
+        return i64::from_str_radix(oct, 8)
+            .map(|v| v as f64)
+            .unwrap_or(f64::NAN);
+    }
+    if let Some(bin) = t.strip_prefix("0b").or_else(|| t.strip_prefix("0B")) {
+        return i64::from_str_radix(bin, 2)
+            .map(|v| v as f64)
+            .unwrap_or(f64::NAN);
+    }
+    match t {
+        "Infinity" | "+Infinity" => return f64::INFINITY,
+        "-Infinity" => return f64::NEG_INFINITY,
+        _ => {}
+    }
+    // Rust accepts `inf`/`nan`/`1_0`; JS does not.
+    if t.bytes()
+        .any(|b| matches!(b, b'i' | b'I' | b'n' | b'N' | b'_'))
+    {
+        return f64::NAN;
+    }
+    t.parse::<f64>().unwrap_or(f64::NAN)
+}
+
+fn get_static_value<'b>(attribute: &'b AttributeNode<'_>) -> Option<StaticValue<'b>> {
     if let AttributeNode::Attribute(attr) = attribute {
         if matches!(attr.value, AttributeValue::True(_)) {
-            return Some("true");
+            return Some(StaticValue::True);
         }
         if let AttributeValue::Sequence(parts) = &attr.value
             && parts.len() == 1
             && let crate::ast::template::AttributeValuePart::Text(text) = &parts[0]
         {
-            return Some(&text.data);
+            return Some(StaticValue::Text(&text.data));
         }
     }
     None
+}
+
+/// Upstream's `get_static_text_value`: the valueless spelling reads as absent.
+fn get_static_text_value<'b>(attribute: &'b AttributeNode<'_>) -> Option<&'b str> {
+    match get_static_value(attribute)? {
+        StaticValue::True => None,
+        StaticValue::Text(s) => Some(s),
+    }
+}
+
+/// `get_static_value(attr) === expected` for a string `expected`.
+fn static_text_is(attribute: Option<&&AttributeNode<'_>>, expected: &str) -> bool {
+    attribute.map(|a| get_static_value(a)) == Some(Some(StaticValue::Text(expected)))
 }
 
 fn has_content(fragment: &Fragment) -> bool {
@@ -1118,10 +1190,7 @@ fn is_semantic_role_element(
         // Check if all required attributes match
         let attrs_match = match attrs {
             Some(required_attrs) => required_attrs.iter().all(|(attr_name, attr_value)| {
-                attribute_map
-                    .get(*attr_name)
-                    .and_then(|a| get_static_value(a))
-                    == Some(attr_value)
+                static_text_is(attribute_map.get(*attr_name), attr_value)
             }),
             None => true,
         };
@@ -1281,15 +1350,12 @@ fn validate_aria_attribute_value(
 
 /// Validate an autocomplete attribute value.
 /// Corresponds to `is_valid_autocomplete` in the official compiler's a11y/index.js.
-fn is_valid_autocomplete(autocomplete: Option<&str>) -> bool {
+fn is_valid_autocomplete(autocomplete: Option<StaticValue<'_>>) -> bool {
     let autocomplete = match autocomplete {
-        None => return true, // dynamic value
-        Some(v) => v,
+        Some(StaticValue::True) => return false,
+        None | Some(StaticValue::Text("")) => return true, // dynamic or falsy value
+        Some(StaticValue::Text(v)) => v,
     };
-
-    if autocomplete == "true" {
-        return false;
-    }
 
     // Empty string is valid (dynamic or intentionally empty)
     if autocomplete.trim().is_empty() {

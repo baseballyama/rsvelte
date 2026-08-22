@@ -13,7 +13,7 @@ static META: RuleMeta = RuleMeta {
     name: "svelte/require-each-key",
     category: RuleCategory::Style,
     fixable: Fixable::No,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: false,
@@ -38,12 +38,10 @@ impl Rule for RequireEachKey {
         if block.key.is_some() || block.context.is_none() {
             return;
         }
-        // Point at the `{#each ...iterable...}` opener rather than the whole
-        // block (which would span every child).
-        let end = block.expression.end().unwrap_or(block.start);
+        // Upstream reports the whole `SvelteEachBlock`, `{/each}` included.
         ctx.report(
             block.start,
-            end.max(block.start),
+            block.end.max(block.start),
             "Each block should have a key",
         );
     }

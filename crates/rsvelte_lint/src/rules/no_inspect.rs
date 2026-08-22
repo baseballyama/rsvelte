@@ -1,36 +1,43 @@
 //! `svelte/no-inspect` — warn against use of the `$inspect` rune.
 //!
-//! Upstream visits every `Identifier` node named `$inspect` and reports it. The
-//! `$inspect` rune is intended for debugging only and should not ship in
-//! production code.
+//! Upstream visits every `Identifier` node named `$inspect` and reports it —
+//! including member properties (`$inspect.trace`, `holder.$inspect`) and
+//! non-computed property keys (`{ $inspect: 1 }`), because they are all
+//! `Identifier` nodes in the ESTree.
 //!
-//! Port of the eslint-plugin-svelte rule. The Svelte-5 / runes version gate is
-//! handled by the test oracle (`_requirements.json`); the rule itself always
-//! fires when it sees `$inspect`.
+//! Port of the eslint-plugin-svelte rule.
 //!
-//! IMPLEMENTATION (script-text scan): a plain `rsvelte_core::parse()` leaves the
-//! script program's arena empty, so `Script::content.as_json()` is unavailable.
-//! Instead we re-parse to recover the instance + module `Script` bounds and scan
-//! each script BODY text with a quote/comment-aware byte walker, mirroring
-//! `no_not_function_handler::build_const_map`. Every whole-word `$inspect`
-//! identifier outside a string/template literal or comment is reported at its
-//! absolute start offset, spanning the 8 bytes of `"$inspect"`.
+//! Dual-registered: the [`ScriptRule`] pass covers `<script>` programs and
+//! standalone `.svelte.(js|ts)` modules; the template [`Rule`] pass covers
+//! `$inspect` in template expressions (event handlers, mustache tags).
 //!
-//! Scope note: `$inspect` appearing in TEMPLATE position (e.g. inside a mustache
-//! expression in markup) is out of scope for this port — script-only scanning is
-//! sufficient for fixture parity. The upstream `$inspect` rune is only valid in
-//! `<script>`.
+//! "Every `Identifier`" reaches further than the serialized program does, so the
+//! script pass tops it up from a direct parse — see `recovered_spans`.
+
+use std::collections::HashSet;
+
+use oxc_allocator::Allocator;
+use oxc_ast::ast::{BindingIdentifier, IdentifierName, IdentifierReference, LabelIdentifier};
+use oxc_ast_visit::Visit;
+use oxc_parser::Parser;
+use oxc_span::SourceType;
+use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::script::{
+    ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type, walk_js,
+};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-inspect",
     category: RuleCategory::Style,
     fixable: Fixable::No,
     default_severity: Severity::Warn,
+    // Upstream gates it on `runes: [true, 'undetermined']`, so a definitely
+    // non-runes component must not be linted.
     conditions: RuleConditions {
-        runes_only: false,
+        runes_only: true,
         legacy_only: false,
     },
     type_aware: false,
@@ -40,184 +47,144 @@ static META: RuleMeta = RuleMeta {
 
 const MESSAGE: &str = "Do not use $inspect directive";
 
-/// The identifier we flag, and its byte length (the reported span width).
-const TOKEN: &str = "$inspect";
+fn is_inspect_ident(node: &Value) -> bool {
+    node_type(node) == Some("Identifier")
+        && node.get("name").and_then(Value::as_str) == Some("$inspect")
+}
+
+/// Collects every `$inspect` identifier span of a re-parsed script.
+#[derive(Default)]
+struct InspectSpans {
+    base: u32,
+    spans: Vec<(u32, u32)>,
+}
+
+impl InspectSpans {
+    fn push(&mut self, name: &str, span: oxc_span::Span) {
+        if name == "$inspect" {
+            self.spans
+                .push((self.base + span.start, self.base + span.end));
+        }
+    }
+}
+
+impl<'a> Visit<'a> for InspectSpans {
+    fn visit_identifier_name(&mut self, it: &IdentifierName<'a>) {
+        self.push(&it.name, it.span);
+    }
+
+    fn visit_identifier_reference(&mut self, it: &IdentifierReference<'a>) {
+        self.push(&it.name, it.span);
+    }
+
+    fn visit_binding_identifier(&mut self, it: &BindingIdentifier<'a>) {
+        self.push(&it.name, it.span);
+    }
+
+    fn visit_label_identifier(&mut self, it: &LabelIdentifier<'a>) {
+        self.push(&it.name, it.span);
+    }
+}
+
+/// `$inspect` occurrences the serialized program cannot carry: the typed script
+/// AST has no `TSTypeAliasDeclaration` node at all, and a `FunctionDeclaration`
+/// statement drops its rest parameter and its return-type annotation — so a
+/// direct parse is the only way to see them. Only positions the program JSON
+/// missed entirely are added, so the multiplicity it already reports (a
+/// shorthand `{ $inspect }` is two ESTree Identifiers at one span) is untouched.
+fn recovered_spans(source: &str, program: &Value, seen: &HashSet<(u32, u32)>) -> Vec<(u32, u32)> {
+    let (Some(base), Some(end)) = (node_start(program), node_end(program)) else {
+        return Vec::new();
+    };
+    if base > end || end as usize > source.len() {
+        return Vec::new();
+    }
+    let body = &source[base as usize..end as usize];
+    if !body.contains("$inspect") {
+        return Vec::new();
+    }
+    let allocator = Allocator::default();
+    // TS is a superset of the script grammar here, but a few JS shapes (`a < b > (c)`)
+    // parse differently, so fall back rather than trust an errored parse.
+    let mut collector = InspectSpans {
+        base,
+        spans: Vec::new(),
+    };
+    for source_type in [SourceType::ts().with_module(true), SourceType::mjs()] {
+        let parsed = Parser::new(&allocator, body, source_type).parse();
+        if parsed.diagnostics.is_empty() {
+            collector.visit_program(&parsed.program);
+            break;
+        }
+    }
+    collector.spans.retain(|span| !seen.contains(span));
+    collector.spans
+}
 
 #[derive(Default)]
 pub struct NoInspect;
 
+impl ScriptRule for NoInspect {
+    fn meta(&self) -> &'static RuleMeta {
+        &META
+    }
+
+    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
+        let mut reports: Vec<(u32, u32)> = Vec::new();
+        program.walk(|node, _| {
+            if is_inspect_ident(node)
+                && let (Some(s), Some(e)) = (node_start(node), node_end(node))
+            {
+                reports.push((s, e));
+            }
+        });
+        let seen: HashSet<(u32, u32)> = reports.iter().copied().collect();
+        reports.extend(recovered_spans(ctx.source(), program.value(), &seen));
+        reports.sort_unstable();
+        for (start, end) in reports {
+            ctx.report(start, end, MESSAGE);
+        }
+    }
+}
+
+/// Template pass: `$inspect` identifiers inside template expressions. Script
+/// programs are covered by `check_program`, so this walks only the fragment.
 impl Rule for NoInspect {
     fn meta(&self) -> &'static RuleMeta {
         &META
     }
 
     fn check_root(&self, ctx: &mut LintContext, _root: &rsvelte_core::ast::template::Root) {
-        let source = ctx.source();
-        for (start, end) in find_inspect_idents(source, ctx.script_spans()) {
+        let fragment = ctx.template_fragment_json();
+        let mut reports: Vec<(u32, u32)> = Vec::new();
+        walk_js(&fragment, |node, _| {
+            if is_inspect_ident(node)
+                && let (Some(s), Some(e)) = (node_start(node), node_end(node))
+            {
+                reports.push((s, e));
+            }
+        });
+        for (start, end) in reports {
             ctx.report(start, end, MESSAGE);
         }
     }
 }
 
-/// Locate every whole-word `$inspect` identifier in the file's `<script>` bodies.
-/// Returns `(start, end)` byte-offset spans (absolute, into `source`).
-fn find_inspect_idents(source: &str, spans: &[(u32, u32)]) -> Vec<(u32, u32)> {
-    let mut out = Vec::new();
-    // Script bounds come from the `Root` the lint pass already parsed — this
-    // used to re-parse the whole source just to read `content_offset`/`end`.
-    for &(content_offset, end) in spans {
-        let (lo, hi) = (content_offset as usize, end as usize);
-        if lo > hi || hi > source.len() {
-            continue;
-        }
-        // Slice the script body and stop before any closing `</script>` tag.
-        let body_end = source[lo..hi]
-            .rfind("</script")
-            .map_or(hi, |close| lo + close);
-        let body = &source[lo..body_end];
-        for local in scan_body(body) {
-            let start = u32::try_from(lo + local).expect("source offsets are represented as u32");
-            out.push((
-                start,
-                start + u32::try_from(TOKEN.len()).expect("token widths are represented as u32"),
-            ));
-        }
-    }
-    out
-}
-
-/// Scan a script body for whole-word `$inspect` tokens, returning their local
-/// byte offsets. Strings, template literals and comments are skipped.
-fn scan_body(s: &str) -> Vec<usize> {
-    let bytes = s.as_bytes();
-    let n = bytes.len();
-    let token = TOKEN.as_bytes();
-    let tlen = token.len();
-    let mut out = Vec::new();
-    let mut i = 0;
-    while i < n {
-        let c = bytes[i];
-        match c {
-            b'"' | b'\'' | b'`' => {
-                i = skip_string(bytes, i);
-                continue;
-            }
-            b'/' if i + 1 < n && bytes[i + 1] == b'/' => {
-                while i < n && bytes[i] != b'\n' {
-                    i += 1;
-                }
-                continue;
-            }
-            b'/' if i + 1 < n && bytes[i + 1] == b'*' => {
-                i += 2;
-                while i + 1 < n && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
-                    i += 1;
-                }
-                i = (i + 2).min(n);
-                continue;
-            }
-            _ => {}
-        }
-        if is_word_start(c) {
-            let start = i;
-            while i < n && is_word_char(bytes[i]) {
-                i += 1;
-            }
-            // Whole-word match: the run [start, i) must equal the token exactly.
-            // (The byte before `start` is necessarily a non-word char because the
-            // run started there; the byte after `i` is also non-word by the loop.)
-            if i - start == tlen && &bytes[start..i] == token {
-                out.push(start);
-            }
-            continue;
-        }
-        i += 1;
-    }
-    out
-}
-
-const fn is_word_start(b: u8) -> bool {
-    b.is_ascii_alphabetic() || b == b'_' || b == b'$'
-}
-
-const fn is_word_char(b: u8) -> bool {
-    b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
-}
-
-/// Skip a string/template literal beginning at the opening quote `bytes[i]`,
-/// returning the index just past the closing (unescaped) quote.
-fn skip_string(bytes: &[u8], mut i: usize) -> usize {
-    let n = bytes.len();
-    let quote = bytes[i];
-    i += 1;
-    while i < n {
-        let c = bytes[i];
-        if c == b'\\' && i + 1 < n {
-            i += 2;
-            continue;
-        }
-        i += 1;
-        if c == quote {
-            break;
-        }
-    }
-    i
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
-    fn scans_top_level_and_nested_inspect() {
-        let body = "\n  $inspect(1);\n  $state(0);\n\n  const a = $inspect(1);\n\n  const _ = () => {\n    $inspect(1);\n  }\n";
-        let hits = scan_body(body);
-        assert_eq!(hits.len(), 3);
-        // Each hit must be exactly the token "$inspect".
-        for h in &hits {
-            assert_eq!(&body[*h..*h + TOKEN.len()], "$inspect");
-        }
-    }
-
-    #[test]
-    fn ignores_state_rune() {
-        let body = "const _ = $state(1);";
-        assert!(scan_body(body).is_empty());
-    }
-
-    #[test]
-    fn skips_strings_and_comments() {
-        let body = "const s = '$inspect'; // $inspect\n/* $inspect */ const t = `$inspect`;";
-        assert!(scan_body(body).is_empty());
-    }
-
-    #[test]
-    fn requires_whole_word() {
-        // A longer identifier containing the token is not a match.
-        let body = "$inspectFoo(); foo$inspect();";
-        assert!(scan_body(body).is_empty());
-    }
-
-    #[test]
-    fn reports_at_token_start() {
-        let body = "  $inspect(1);";
-        let hits = scan_body(body);
-        assert_eq!(hits, vec![2]);
-    }
-
-    #[test]
-    fn full_file_absolute_offsets() {
-        let src = "<script>\n  $inspect(1);\n</script>";
-        // `<script>` body spans as the lint pass supplies them.
-        let hits = find_inspect_idents(
-            src,
-            &[(
-                8,
-                u32::try_from(src.len()).expect("source offsets are represented as u32"),
-            )],
-        );
-        assert_eq!(hits.len(), 1);
-        let (start, end) = hits[0];
-        assert_eq!(&src[start as usize..end as usize], "$inspect");
+    fn matches_only_inspect_identifiers() {
+        assert!(is_inspect_ident(
+            &json!({ "type": "Identifier", "name": "$inspect" })
+        ));
+        assert!(!is_inspect_ident(
+            &json!({ "type": "Identifier", "name": "$state" })
+        ));
+        assert!(!is_inspect_ident(
+            &json!({ "type": "Literal", "value": "$inspect" })
+        ));
     }
 }

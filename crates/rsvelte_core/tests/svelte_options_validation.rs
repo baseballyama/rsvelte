@@ -53,15 +53,21 @@ fn h113_single_svelte_options_compiles() {
 
 #[test]
 fn h114_runes_false_disables_runes_mode() {
-    // Using $state in runes={false} mode must error.
-    let err = try_compile(
+    // Official does NOT reject this: in explicit legacy mode a rune-named `$`
+    // reference is a store subscription, so `$.state(` in the output — not an
+    // error — is what re-enabled runes would look like.
+    let code = try_compile(
         r#"<svelte:options runes={false}/><script>let x = $state(1);</script>{x}"#,
         default_opts(),
     )
-    .expect_err("should error");
+    .expect("official compiles this");
     assert!(
-        err.contains("rune_invalid_usage"),
-        "expected `rune_invalid_usage`, got:\n{err}"
+        code.contains("$.store_get(state, '$state', $$stores)"),
+        "expected a `$state` store subscription, got:\n{code}"
+    );
+    assert!(
+        !code.contains("$.state("),
+        "runes={{false}} was undone by auto-detection:\n{code}"
     );
 }
 

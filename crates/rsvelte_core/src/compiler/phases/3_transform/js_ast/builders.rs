@@ -436,7 +436,9 @@ pub fn unthunk(arena: &JsArena, expr: JsExpr) -> JsExpr {
 
     // Callee must be an identifier, or a member expression on the `$` namespace.
     let callee_is_static = match unspanned(arena, arena.get_expr(call.callee)) {
-        JsExpr::Identifier(_) => true,
+        // A read transform's getter callee is opaque so it is not re-read; it is
+        // still a plain identifier for the purpose of dropping the arrow.
+        JsExpr::Identifier(_) | JsExpr::OpaqueIdentifier(_) => true,
         JsExpr::Member(m) => {
             matches!(unspanned(arena, arena.get_expr(m.object)), JsExpr::Identifier(name) if name == "$")
         }
@@ -993,6 +995,20 @@ pub fn call(arena: &JsArena, callee: JsExpr, arguments: Vec<JsExpr>) -> JsExpr {
         arguments,
         optional: false,
     })
+}
+
+/// Create the getter call a read transform produces (`x` -> `x()`).
+///
+/// A source-level `x()` and a transform-produced `x()` are the same shape, so the
+/// callee is marked opaque: without it a second `apply_transforms_to_expression`
+/// pass over an already-transformed subtree reads the binding twice (`x()()`).
+#[inline]
+pub fn getter_call(arena: &JsArena, node: JsExpr) -> JsExpr {
+    let callee = match node {
+        JsExpr::Identifier(ref name) => JsExpr::OpaqueIdentifier(name.clone()),
+        _ => node,
+    };
+    call(arena, callee, vec![])
 }
 
 /// Create a call expression with trailing undefined/false arguments stripped.

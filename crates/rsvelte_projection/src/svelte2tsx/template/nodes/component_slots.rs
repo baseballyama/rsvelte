@@ -30,6 +30,7 @@ use crate::svelte2tsx::template::walk::{process_fragment_inplace, process_node_i
 
 use super::inline_component::{handle_component, handle_svelte_component, handle_svelte_self};
 use super::slot_element::slot_attr_static_name;
+use super::snippet_block::hoist_snippet_blocks;
 use crate::svelte2tsx::template::attributes::action::format_use_directive;
 
 /// True if `attributes` contains a `slot` attribute whose value is anything
@@ -523,6 +524,7 @@ pub fn handle_named_slot_element(
     str.overwrite(el.start, opening_tag_end, &opener);
 
     // This named-slot element is a RegularElement — its children are at depth+1.
+    hoist_snippet_blocks(&el.fragment, source, str);
     process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
 
     // Void elements (`<input slot="x">`) and source-self-closing tags have no
@@ -594,7 +596,14 @@ pub fn handle_named_slot_svelte_fragment(
                 ) || matches!(a, Attribute::LetDirective(_))
             })
             .count();
-        " ".repeat(stripped_count.max(1))
+        // A self-closing tag's ` /` is one more source column the emission
+        // preserves, and it lands inside the braces rather than after them.
+        let width = if has_closing_tag {
+            stripped_count.max(1)
+        } else {
+            stripped_count + 1
+        };
+        " ".repeat(width)
     } else {
         attrs_str
     };
@@ -603,7 +612,7 @@ pub fn handle_named_slot_svelte_fragment(
 
     if !has_closing_tag {
         // Self-closing `<svelte:fragment slot="x" />` — body has no nodes.
-        let combined = format!("{opener} }}}}");
+        let combined = format!("{opener}}}}}");
         str.overwrite(el.start, el.end, &combined);
         return;
     }
@@ -612,6 +621,7 @@ pub fn handle_named_slot_svelte_fragment(
     // `<svelte:fragment slot=…>` emits its own `createElement("svelte:fragment")`,
     // so it is an element nesting level — children (their `$$_<name><depth>`
     // instance vars) are at depth + 1.
+    hoist_snippet_blocks(&el.fragment, source, str);
     process_fragment_inplace(&el.fragment, source, options, str, counter, depth + 1);
     str.overwrite(closing_tag_start, el.end, " }}");
 }

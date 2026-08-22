@@ -22,13 +22,14 @@ use serde_json::Value;
 use crate::context::LintContext;
 use crate::diagnostic::{Fix, Suggestion, TextEdit};
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::reactive_stmt::{is_reactive_statement, placeholder_is_literal};
 use crate::script::{ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-reactive-literals",
     category: RuleCategory::Correctness,
     fixable: Fixable::Suggestion,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: true,
@@ -44,9 +45,12 @@ const SUGGEST_DESC: &str = "Move the literal out of the reactive statement into 
 
 /// Whether the assignment right-hand side is a literal / empty array / empty
 /// object — the three shapes upstream matches.
-fn is_pointless_rhs(right: &Value) -> bool {
+fn is_pointless_rhs(source: &str, right: &Value) -> bool {
     match node_type(right) {
         Some("Literal") => true,
+        // A `BigInt` literal reaches the rule as the serializer's `unknown`
+        // identifier placeholder, so its own `type` cannot answer this.
+        Some("Identifier") => placeholder_is_literal(source, right),
         Some("ArrayExpression") => right
             .get("elements")
             .and_then(Value::as_array)
@@ -71,18 +75,10 @@ impl ScriptRule for NoReactiveLiterals {
         // (labeled-statement start, labeled-statement end, assignment start,
         // assignment end). The suggestion replaces [labeled.start, labeled.end)
         // with `let <assignment-text>`.
+        let source = ctx.source();
         let mut reports: Vec<(u32, u32, u32, u32)> = Vec::new();
-        program.walk(|node, _| {
-            if node_type(node) != Some("LabeledStatement") {
-                return;
-            }
-            // `$:` reactive statement.
-            if node
-                .get("label")
-                .and_then(|l| l.get("name"))
-                .and_then(Value::as_str)
-                != Some("$")
-            {
+        program.walk(|node, ancestors| {
+            if !is_reactive_statement(node, ancestors) {
                 return;
             }
             let Some(body) = node.get("body") else {
@@ -100,7 +96,7 @@ impl ScriptRule for NoReactiveLiterals {
             let Some(right) = expr.get("right") else {
                 return;
             };
-            if !is_pointless_rhs(right) {
+            if !is_pointless_rhs(source, right) {
                 return;
             }
             // Report at the whole reactive statement (the `$:`).
@@ -144,23 +140,29 @@ mod tests {
     #[test]
     fn pointless_rhs_detection() {
         assert!(is_pointless_rhs(
+            "",
             &json!({ "type": "Literal", "value": "foo" })
         ));
         assert!(is_pointless_rhs(
+            "",
             &json!({ "type": "ArrayExpression", "elements": [] })
         ));
         assert!(is_pointless_rhs(
+            "",
             &json!({ "type": "ObjectExpression", "properties": [] })
         ));
         // Non-empty / non-literal shapes are fine.
         assert!(!is_pointless_rhs(
+            "",
             &json!({ "type": "ArrayExpression", "elements": [ { "type": "Literal" } ] })
         ));
         assert!(!is_pointless_rhs(
+            "",
             &json!({ "type": "ObjectExpression", "properties": [ {} ] })
         ));
-        assert!(!is_pointless_rhs(&json!({ "type": "TemplateLiteral" })));
+        assert!(!is_pointless_rhs("", &json!({ "type": "TemplateLiteral" })));
         assert!(!is_pointless_rhs(
+            "",
             &json!({ "type": "Identifier", "name": "x" })
         ));
     }

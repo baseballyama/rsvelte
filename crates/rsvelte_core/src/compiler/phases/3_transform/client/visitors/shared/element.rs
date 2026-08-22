@@ -913,7 +913,11 @@ pub fn build_set_class(
                 if s.is_empty() {
                     class_value = b::string(css_hash);
                 } else {
-                    class_value = b::string(format!("{} {}", s, css_hash));
+                    class_value = b::string(format!(
+                        "{} {}",
+                        crate::compiler::phases::phase3_transform::shared::template::escape_attr(s),
+                        css_hash
+                    ));
                 }
             }
             // A quote-preserving string literal (`class={"draggable"}`) is just as
@@ -929,7 +933,13 @@ pub fn build_set_class(
                 if value.is_empty() {
                     class_value = b::string(css_hash);
                 } else {
-                    class_value = b::string(format!("{} {}", value, css_hash));
+                    class_value = b::string(format!(
+                        "{} {}",
+                        crate::compiler::phases::phase3_transform::shared::template::escape_attr(
+                            value
+                        ),
+                        css_hash
+                    ));
                 }
             }
             _ => {
@@ -1036,12 +1046,39 @@ pub fn build_set_style(
         // Also check for async blockers - variables that depend on async promises should be
         // treated as having state so they end up in template_effect with proper promise deps
         for directive in style_directives {
-            let expr = &get_directive_expression(directive);
-            if super::utils::expression_has_reactive_state(expr, context)
-                || super::utils::expression_has_call(expr, context)
-            {
-                has_state = true;
-                break;
+            // Upstream analyzes a SHORTHAND directive by binding KIND alone
+            // (`binding.kind !== 'normal'`, StyleDirective.js) — it never
+            // evaluates the value, so an unmutated `$state` stays reactive
+            // here even though the explicit `style:x={x}` form would fold it
+            // as a known constant via `scope.evaluate`.
+            if matches!(&directive.value, AttributeValue::True(_)) {
+                let name = directive.name.as_str();
+                let shadowed = context.state.each_binding_context.iter().any(|c| {
+                    c.item_name == name || (!c.index_name.is_empty() && c.index_name == name)
+                });
+                let non_normal_binding = context
+                    .state
+                    .scope_root
+                    .binding_at_reference(name, directive.start)
+                    .or_else(|| context.state.get_binding(name))
+                    .is_some_and(|b| {
+                        !matches!(
+                            b.kind,
+                            crate::compiler::phases::phase2_analyze::scope::BindingKind::Normal
+                        )
+                    });
+                if shadowed || non_normal_binding {
+                    has_state = true;
+                    break;
+                }
+            } else {
+                let expr = &get_directive_expression(directive);
+                if super::utils::expression_has_reactive_state(expr, context)
+                    || super::utils::expression_has_call(expr, context)
+                {
+                    has_state = true;
+                    break;
+                }
             }
             // Check for async blockers: convert directive expression to JS and check blockers
             let js_expr = if matches!(&directive.value, AttributeValue::True(true)) {

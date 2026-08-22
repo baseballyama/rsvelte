@@ -852,126 +852,234 @@ fn process_let_directive(
         // Destructured case: let:x={{y, z}} or let:x={[a, b]}
         // Generates: const derived_name = $.derived(() => { let {y, z} = $$slotProps.x; return {y, z}; })
         // And tracks binding names for transform registration
-        if let Some(expr) = &let_dir.expression {
-            {
-                let expr_type = expr.node_type().unwrap_or("");
+        if let Some(_expr) = &let_dir.expression
+            && let Some((derived_name, binding_names, const_stmt)) =
+                build_destructured_let_directive(let_dir, context)
+        {
+            // Track derived_name (no read_source, it's the source itself)
+            let_names.push((derived_name.clone(), None));
+            // Track each binding name with read_source pointing to the derived variable
+            for binding_name in &binding_names {
+                let_names.push((binding_name.to_string(), Some(derived_name.clone())));
+            }
+            lets.push(const_stmt);
+        }
+    }
+}
 
-                // Extract binding names from the expression
-                let mut binding_names: Vec<compact_str::CompactString> = Vec::new();
-                let node = expr.as_node();
-                match &*node {
-                    crate::ast::typed_expr::JsNode::ObjectExpression { properties, .. } => {
-                        for prop in context.state.parse_arena.get_js_children(*properties) {
-                            if let Some(key_id) = prop.key() {
-                                let key = context.state.parse_arena.get_js_node(key_id);
-                                if let Some(name) = key.name() {
-                                    binding_names.push(name.into());
-                                }
-                            }
-                        }
-                    }
-                    crate::ast::typed_expr::JsNode::ArrayExpression { elements, .. } => {
-                        for elem in elements.iter().flatten() {
-                            if let Some(name) = elem.name() {
-                                binding_names.push(name.into());
-                            }
-                        }
-                    }
-                    _ => {
-                        // Raw/other fallback
-                        let val = expr.as_json();
-                        if let serde_json::Value::Object(obj) = val {
-                            if expr_type == "ObjectExpression"
-                                && let Some(serde_json::Value::Array(props)) = obj.get("properties")
-                            {
-                                for prop in props {
-                                    if let Some(name) = prop
-                                        .get("key")
-                                        .and_then(|k| k.get("name"))
-                                        .and_then(|n| n.as_str())
-                                    {
-                                        binding_names.push(name.into());
-                                    }
-                                }
-                            } else if expr_type == "ArrayExpression"
-                                && let Some(serde_json::Value::Array(elements)) =
-                                    obj.get("elements")
-                            {
-                                for elem in elements {
-                                    if let Some(name) = elem.get("name").and_then(|n| n.as_str()) {
-                                        binding_names.push(name.into());
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+/// Build the `const <derived> = $.derived(() => { let <pattern> = $$slotProps.<name>;
+/// return { <bindings> }; })` statement for a DESTRUCTURED `let:` directive, and
+/// the binding names it introduces. Shared by the component path
+/// (`process_let_directive`) and the slotted-element path
+/// (`process_element_let_directives` in `regular_element.rs`).
+pub(in crate::compiler::phases::phase3_transform::client) fn build_destructured_let_directive(
+    let_dir: &LetDirective,
+    context: &mut ComponentContext,
+) -> Option<(String, Vec<compact_str::CompactString>, JsStatement)> {
+    let prop_name = &let_dir.name;
+    let expr = let_dir.expression.as_ref()?;
 
-                if !binding_names.is_empty() {
-                    // Generate unique name for the derived variable
-                    let derived_name = context.state.memoizer.generate_id(prop_name);
+    // Extract binding names 写经 upstream
+    // `extract_identifiers_from_destructuring`: recurse into object
+    // property VALUES (so `{ a: x }` binds `x`, nested patterns bind
+    // their leaves) and object REST arguments; an array-pattern rest
+    // (`SpreadElement`) and a default (`AssignmentExpression`) hit
+    // upstream's switch default and bind NOTHING — their reads stay
+    // raw in the slot body, exactly like official's output.
+    let expr_json = expr.as_json();
+    let mut binding_names: Vec<compact_str::CompactString> = Vec::new();
+    extract_let_binding_names(expr_json, &mut binding_names);
 
-                    // Track derived_name (no read_source, it's the source itself)
-                    let_names.push((derived_name.clone(), None));
-                    // Track each binding name with read_source pointing to the derived variable
-                    for binding_name in &binding_names {
-                        let_names.push((binding_name.to_string(), Some(derived_name.to_string())));
-                    }
+    // Generate unique name for the derived variable
+    let derived_name = context.state.memoizer.generate_id(prop_name);
 
-                    // Build the destructuring pattern
-                    let destructuring_pat = if expr_type == "ObjectExpression" {
-                        b::object_pattern(
-                            binding_names
-                                .iter()
-                                .map(|n| JsObjectPatternProperty::Property {
-                                    key: JsPropertyKey::Identifier(n.clone()),
-                                    value: b::id_pattern(n.clone()),
-                                    computed: false,
-                                    shorthand: true,
-                                })
-                                .collect(),
-                        )
+    // Build the destructuring pattern VERBATIM from the directive
+    // expression (rest elements, defaults, renames and nesting
+    // survive) — upstream emits `b.object_pattern(node.expression
+    // .properties)` / `b.array_pattern(node.expression.elements)`
+    // unvisited.
+    let destructuring_pat = expression_to_let_pattern(expr_json, context);
+
+    // Build the return object: { a, b }
+    let return_obj_expr = b::object(
+        binding_names
+            .iter()
+            .map(|n| b::prop(&context.arena, n.clone(), b::id(n.clone())))
+            .collect(),
+    );
+
+    // Note: destructured case always uses $.derived (not $.derived_safe_equal)
+    let inner_let = b::var_decl_pattern(
+        &context.arena,
+        JsVariableKind::Let,
+        destructuring_pat,
+        Some(b::member(
+            &context.arena,
+            b::id("$$slotProps"),
+            prop_name.to_string(),
+        )),
+    );
+    let inner_return = b::return_value(&context.arena, return_obj_expr);
+    let const_stmt = b::const_decl(
+        &context.arena,
+        &derived_name,
+        b::call(
+            &context.arena,
+            b::member_path(&context.arena, "$.derived"),
+            vec![b::arrow_block(vec![], vec![inner_let, inner_return])],
+        ),
+    );
+    Some((derived_name, binding_names, const_stmt))
+}
+
+/// 写经 upstream `extract_identifiers_from_destructuring`: the names a `let:`
+/// destructuring expression binds. Object property values and object rest
+/// arguments recurse; array rest (`SpreadElement`) and defaults
+/// (`AssignmentExpression`) deliberately bind nothing.
+fn extract_let_binding_names(json: &serde_json::Value, out: &mut Vec<compact_str::CompactString>) {
+    let Some(obj) = json.as_object() else { return };
+    match obj.get("type").and_then(|t| t.as_str()) {
+        Some("Identifier") => {
+            if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
+                out.push(name.into());
+            }
+        }
+        Some("ObjectExpression") => {
+            if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
+                for prop in props {
+                    let target = if prop.get("type").and_then(|t| t.as_str()) == Some("Property") {
+                        prop.get("value")
                     } else {
-                        b::array_pattern(
-                            binding_names
-                                .iter()
-                                .map(|n| Some(b::id_pattern(n.clone())))
-                                .collect(),
-                        )
+                        prop.get("argument")
                     };
-
-                    // Build the return object: { a, b }
-                    let return_obj_expr = b::object(
-                        binding_names
-                            .iter()
-                            .map(|n| b::prop(&context.arena, n.clone(), b::id(n.clone())))
-                            .collect(),
-                    );
-
-                    // Note: destructured case always uses $.derived (not $.derived_safe_equal)
-                    let inner_let = b::var_decl_pattern(
-                        &context.arena,
-                        JsVariableKind::Let,
-                        destructuring_pat,
-                        Some(b::member(
-                            &context.arena,
-                            b::id("$$slotProps"),
-                            prop_name.to_string(),
-                        )),
-                    );
-                    let inner_return = b::return_value(&context.arena, return_obj_expr);
-                    lets.push(b::const_decl(
-                        &context.arena,
-                        &derived_name,
-                        b::call(
-                            &context.arena,
-                            b::member_path(&context.arena, "$.derived"),
-                            vec![b::arrow_block(vec![], vec![inner_let, inner_return])],
-                        ),
-                    ));
+                    if let Some(target) = target {
+                        extract_let_binding_names(target, out);
+                    }
                 }
             }
         }
+        Some("ArrayExpression") => {
+            if let Some(elements) = obj.get("elements").and_then(|e| e.as_array()) {
+                for el in elements {
+                    if !el.is_null() {
+                        extract_let_binding_names(el, out);
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Convert a `let:` directive's destructuring EXPRESSION into the equivalent
+/// pattern, byte-preserving: defaults and computed keys are re-emitted from
+/// their source spans (upstream leaves the pattern unvisited).
+fn expression_to_let_pattern(
+    json: &serde_json::Value,
+    context: &mut ComponentContext,
+) -> JsPattern {
+    let source_slice = |o: &serde_json::Map<String, serde_json::Value>| -> Option<String> {
+        let s = o.get("start").and_then(|v| v.as_u64())? as usize;
+        let e = o.get("end").and_then(|v| v.as_u64())? as usize;
+        context.state.analysis.source.get(s..e).map(str::to_string)
+    };
+    let Some(obj) = json.as_object() else {
+        return b::id_pattern("$$unknown");
+    };
+    match obj.get("type").and_then(|t| t.as_str()) {
+        Some("Identifier") => b::id_pattern(
+            obj.get("name")
+                .and_then(|n| n.as_str())
+                .unwrap_or("$$unknown"),
+        ),
+        // A nested default (`{ a: { b } = {} }`) parses its left as a PATTERN node,
+        // so the pattern spellings alias the expression ones here.
+        Some("ObjectExpression") | Some("ObjectPattern") => {
+            let mut properties = Vec::new();
+            if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
+                for prop in props {
+                    let Some(p) = prop.as_object() else { continue };
+                    if p.get("type").and_then(|t| t.as_str()) != Some("Property") {
+                        if let Some(arg) = p.get("argument") {
+                            properties.push(JsObjectPatternProperty::Rest(Box::new(
+                                expression_to_let_pattern(arg, context),
+                            )));
+                        }
+                        continue;
+                    }
+                    let computed = p.get("computed").and_then(|c| c.as_bool()).unwrap_or(false);
+                    let shorthand = p
+                        .get("shorthand")
+                        .and_then(|s| s.as_bool())
+                        .unwrap_or(false);
+                    let Some(key_obj) = p.get("key").and_then(|k| k.as_object()) else {
+                        continue;
+                    };
+                    let key = if computed {
+                        let raw = source_slice(key_obj).unwrap_or_default();
+                        JsPropertyKey::Computed(context.arena.alloc_expr(b::raw(raw)))
+                    } else if let Some(name) = key_obj.get("name").and_then(|n| n.as_str()) {
+                        JsPropertyKey::Identifier(name.into())
+                    } else {
+                        let raw = source_slice(key_obj).unwrap_or_default();
+                        let cooked = key_obj
+                            .get("value")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .into();
+                        JsPropertyKey::Literal(JsLiteral::RawString {
+                            value: cooked,
+                            raw: raw.into(),
+                        })
+                    };
+                    let value = p
+                        .get("value")
+                        .map(|v| expression_to_let_pattern(v, context))
+                        .unwrap_or_else(|| b::id_pattern("$$unknown"));
+                    properties.push(JsObjectPatternProperty::Property {
+                        key,
+                        value,
+                        computed,
+                        shorthand,
+                    });
+                }
+            }
+            b::object_pattern(properties)
+        }
+        Some("ArrayExpression") | Some("ArrayPattern") => {
+            let mut elements = Vec::new();
+            if let Some(els) = obj.get("elements").and_then(|e| e.as_array()) {
+                for el in els {
+                    if el.is_null() {
+                        elements.push(None);
+                    } else {
+                        elements.push(Some(expression_to_let_pattern(el, context)));
+                    }
+                }
+            }
+            b::array_pattern(elements)
+        }
+        Some("SpreadElement") | Some("RestElement") => JsPattern::Rest(Box::new(
+            obj.get("argument")
+                .map(|a| expression_to_let_pattern(a, context))
+                .unwrap_or_else(|| b::id_pattern("$$unknown")),
+        )),
+        Some("AssignmentExpression") | Some("AssignmentPattern") => {
+            let left = obj
+                .get("left")
+                .map(|l| expression_to_let_pattern(l, context))
+                .unwrap_or_else(|| b::id_pattern("$$unknown"));
+            let right_raw = obj
+                .get("right")
+                .and_then(|r| r.as_object())
+                .and_then(source_slice)
+                .unwrap_or_else(|| "undefined".to_string());
+            JsPattern::Assignment(JsAssignmentPattern {
+                left: Box::new(left),
+                right: context.arena.alloc_expr(b::raw(right_raw)),
+            })
+        }
+        _ => b::id_pattern("$$unknown"),
     }
 }
 
@@ -2431,6 +2539,7 @@ fn visit_slot_children(
         context.state.analysis,
         context.state.preserve_whitespace,
         context.state.options.preserve_comments,
+        context.state.options.hmr,
     );
 
     // If no trimmed nodes and no hoisted nodes, return empty

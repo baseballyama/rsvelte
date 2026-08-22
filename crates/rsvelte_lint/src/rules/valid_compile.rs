@@ -121,7 +121,7 @@ pub fn valid_compile_diagnostics(
         // `kind === 'error'`: a hard compile error is reported even with
         // `ignoreWarnings` (upstream only short-circuits the `warn` kind).
         Err(e) => {
-            let (code, message, range) = crate::validator::compile_error_parts(&e);
+            let (code, message, range) = crate::validator::compile_error_parts(&e, source);
             if ALWAYS_IGNORED.contains(&code.as_str()) {
                 return Vec::new();
             }

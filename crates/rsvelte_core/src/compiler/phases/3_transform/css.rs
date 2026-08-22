@@ -625,7 +625,7 @@ fn generate_css_sourcemap(
     }
 
     Some(generate_sourcemap_json(
-        &file_name,
+        Some(&file_name),
         &source_name,
         include_sourcemap_content.then_some(source),
         &mappings_str,
@@ -1810,10 +1810,7 @@ fn is_parent_chain_unused(ctx: &CssContext) -> bool {
 /// *some* element, which keeps the rule alive when `.grand` exists elsewhere in
 /// the component.
 fn is_nested_selector_unused_against_ancestors(rel_selectors: &[Value], ctx: &CssContext) -> bool {
-    if ctx.has_dynamic_elements
-        || ctx.dom_structure.elements.is_empty()
-        || !structural_ancestry_is_lexical(ctx)
-    {
+    if ctx.dom_structure.elements.is_empty() || !structural_ancestry_is_lexical(ctx) {
         return false;
     }
     let parent_preludes = ctx.parent_preludes.borrow();
@@ -2590,6 +2587,16 @@ fn visit_possible_siblings(
     }
 }
 
+/// Whether Phase 2's sibling walk stopped short of this element's real siblings.
+/// It reports that per element; the component-wide "has an opaque block anywhere"
+/// flag does not, and a `{#if}` / `{#each}` / `{#await}` / `{#key}` branch is not
+/// a stop at all — an inexhaustive branch demotes a sibling to "probable".
+fn siblings_may_be_incomplete(
+    el: &crate::compiler::phases::phase2_analyze::types::CssDomElement,
+) -> bool {
+    el.sibling_walk_incomplete || el.prev_is_opaque_boundary || el.prev_has_opaque_boundary
+}
+
 fn is_sibling_combinator_no_match_impl(rel_selectors: &[Value], ctx: &CssContext) -> bool {
     if rel_selectors.len() < 2 || ctx.dom_structure.elements.is_empty() {
         return false;
@@ -2892,6 +2899,7 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
                 // Phase 2 may not have complete sibling data for this element
                 // (e.g., it's inside a snippet that breaks sibling walking)
                 if ctx.has_opaque_sibling_boundaries
+                    && siblings_may_be_incomplete(el)
                     && el.possible_prev_adjacent.is_empty()
                     && el.possible_prev_general.is_empty()
                     && el.possible_next_adjacent.is_empty()
@@ -2920,6 +2928,7 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
                     }
                     // Check for incomplete siblings
                     if ctx.has_opaque_sibling_boundaries
+                        && siblings_may_be_incomplete(el)
                         && el.possible_prev_adjacent.is_empty()
                         && el.possible_prev_general.is_empty()
                         && el.possible_next_adjacent.is_empty()
@@ -3856,7 +3865,7 @@ fn is_structural_descendant_chain_unused(rel_selectors: &[Value], ctx: &CssConte
     if rel_selectors.len() < 2 || ctx.dom_structure.elements.is_empty() {
         return false;
     }
-    if ctx.has_dynamic_elements || !structural_ancestry_is_lexical(ctx) {
+    if !structural_ancestry_is_lexical(ctx) {
         return false;
     }
     for rel in rel_selectors.iter().skip(1) {
@@ -3894,8 +3903,10 @@ fn is_structural_descendant_chain_unused(rel_selectors: &[Value], ctx: &CssConte
 /// is already decided by [`is_simple_selector_unused`], whose per-name
 /// deoptimizations this walker deliberately does not reproduce.
 fn is_structural_compound_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
+    // No `has_dynamic_elements` bail: upstream lets a `<svelte:element>` off only the
+    // type-selector test, and `structural_element_matches_compound` already does that
+    // per element — a component-wide bail would forgive its classes and ids as well.
     if rel_selectors.len() != 1
-        || ctx.has_dynamic_elements
         || ctx.dom_structure.elements.is_empty()
         || !structural_ancestry_is_lexical(ctx)
     {
@@ -3993,11 +4004,9 @@ fn structural_ancestors_satisfy_links(
 
 fn structural_simple_selector_is_evaluable(sel: &Value) -> bool {
     match sel.get("type").and_then(|t| t.as_str()) {
-        // Escape sequences (`#\31 `) are compared un-decoded — bail on them.
-        Some("TypeSelector") | Some("ClassSelector") | Some("IdSelector") => sel
-            .get("name")
-            .and_then(|n| n.as_str())
-            .is_some_and(|n| !n.contains('\\')),
+        Some("TypeSelector") | Some("ClassSelector") | Some("IdSelector") => {
+            sel.get("name").and_then(|n| n.as_str()).is_some()
+        }
         Some("AttributeSelector") => {
             // Only the parsed shape (separate name/matcher/value); the legacy
             // raw shape stuffs the whole content into `name`.
@@ -4037,7 +4046,12 @@ fn structural_simple_selector_is_evaluable(sel: &Value) -> bool {
                         })
                     })
                 }),
-                _ => false,
+                // `:has(...)` can reject on its own and this walker cannot look
+                // downwards; upstream `break`s out of the switch for every other
+                // pseudo-class, so it constrains nothing and must not stop the
+                // rest of the chain from being evaluated.
+                "has" => false,
+                _ => true,
             }
         }
         Some("PseudoElementSelector") => true,
@@ -4053,7 +4067,15 @@ fn structural_element_matches_compound(
         return false;
     };
     sels.iter().all(|sel| {
-        let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+        let raw = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+        // A template's class/id/tag carries the character an escape stands for.
+        let decoded;
+        let name = if raw.contains('\\') {
+            decoded = decode_css_escape(raw);
+            decoded.as_str()
+        } else {
+            raw
+        };
         match sel.get("type").and_then(|t| t.as_str()) {
             Some("TypeSelector") => {
                 name == "*" || el.is_dynamic_tag || el.tag_name.eq_ignore_ascii_case(name)
@@ -5102,7 +5124,16 @@ fn is_attribute_selector_unused_parsed(
             return false;
         }
         if attr_name.eq_ignore_ascii_case("class") && element.has_class_directive {
-            return false;
+            // Upstream's `attribute_matches` bails out on the directive for every
+            // operator except `~=`, where a directive matches only its own name.
+            if operator != "~=" {
+                return false;
+            }
+            if let Some(expected) = expected_value.as_deref()
+                && element.class_directive_names.contains(expected)
+            {
+                return false;
+            }
         }
         if attr_name.eq_ignore_ascii_case("style") && element.has_style_directive {
             return false;
@@ -5187,7 +5218,14 @@ fn is_attribute_selector_unused(raw: &str, ctx: &CssContext) -> bool {
 
         // Check class directives for [class] selector
         if attr_name.eq_ignore_ascii_case("class") && element.has_class_directive {
-            return false;
+            if operator != "~=" {
+                return false;
+            }
+            if let Some(expected) = expected_value.as_deref()
+                && element.class_directive_names.contains(expected)
+            {
+                return false;
+            }
         }
 
         // Check style directives for [style] selector
@@ -7365,18 +7403,14 @@ fn format_simple_selector_with_scope(
     let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
     match sel_type {
-        "TypeSelector" => sel
-            .get("name")
-            .and_then(|n| n.as_str())
-            .unwrap_or("")
-            .to_string(),
-        "ClassSelector" | "IdSelector" => {
-            // For class and ID selectors, use the original source to preserve
-            // Unicode escape sequences and their terminating whitespace
-            let prefix = if sel_type == "ClassSelector" {
-                "."
-            } else {
-                "#"
+        "TypeSelector" | "ClassSelector" | "IdSelector" => {
+            // Read these back from the source: it preserves Unicode escape sequences
+            // with their terminating whitespace, and the `ns|` prefix that `name`
+            // drops because matching is done on the local name alone.
+            let prefix = match sel_type {
+                "ClassSelector" => ".",
+                "IdSelector" => "#",
+                _ => "",
             };
 
             // Try to extract from original source first (preserves escape sequences)

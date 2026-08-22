@@ -16,13 +16,14 @@ use serde_json::Value;
 
 use crate::context::LintContext;
 use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::kit_routes;
 use crate::script::{ProgramView, ScriptKind, ScriptRule, node_end, node_start, node_type};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/valid-prop-names-in-kit-pages",
     category: RuleCategory::Correctness,
     fixable: Fixable::No,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: false,
@@ -34,41 +35,21 @@ static META: RuleMeta = RuleMeta {
 
 const MESSAGE: &str = "disallow invalid props in SvelteKit route components.";
 
+const PAGE_PROP_NAMES: [&str; 4] = ["data", "form", "params", "snapshot"];
+const LAYOUT_PROP_NAMES: [&str; 5] = ["data", "form", "params", "snapshot", "children"];
+const ERROR_PROP_NAMES: [&str; 1] = ["error"];
+/// The Svelte 3/4 `export let` branch keeps its own list, and upstream applies
+/// it regardless of the project's Svelte version.
+const LEGACY_PAGE_PROP_NAMES: [&str; 5] = ["data", "form", "params", "snapshot", "errors"];
+
 /// Allowed `$props()` destructuring keys for each `SvelteKit` route file type
-/// (Svelte 5 only).
-///
-/// Returns `None` if the file is not a recognized `SvelteKit` route file, or
-/// if it is not located under a `src/routes` directory segment (matching
-/// upstream's `svelteKitFileType` path gate).
+/// (Svelte 5 only). `None` when the file is not a route file of this project
+/// (see [`kit_routes::route_file_type`]).
 fn allowed_prop_names(ctx: &LintContext) -> Option<&'static [&'static str]> {
-    let filename = ctx.filename();
-    // Check filename first — fast exit for non-kit files.
-    let allowed: &[&str] = if filename == "+page.svelte" {
-        &["data", "form", "params", "snapshot"]
-    } else if filename == "+layout.svelte" {
-        &["data", "form", "params", "snapshot", "children"]
-    } else if filename == "+error.svelte" {
-        &["error"]
-    } else {
-        return None;
-    };
-    // Require file to be under a `src/routes` directory segment, mirroring
-    // upstream's `filePath.startsWith(path.join(projectRootDir, "src/routes"))`.
-    // When the path has no parent directory (bare filename, e.g. in tests or
-    // wasm), fall back to the filename-only gate to preserve oracle-test behavior.
-    if let Some(path) = ctx.path() {
-        if path.parent().is_none_or(|p| p == std::path::Path::new("")) {
-            return Some(allowed);
-        }
-        let path_str = path.to_string_lossy();
-        if path_str.contains("/src/routes/") || path_str.starts_with("src/routes/") {
-            Some(allowed)
-        } else {
-            None
-        }
-    } else {
-        // No filesystem path (wasm / in-memory): fall back to filename-only gate.
-        Some(allowed)
+    match kit_routes::route_file_type(ctx)? {
+        "+layout.svelte" => Some(&LAYOUT_PROP_NAMES),
+        "+error.svelte" => Some(&ERROR_PROP_NAMES),
+        _ => Some(&PAGE_PROP_NAMES),
     }
 }
 
@@ -87,6 +68,44 @@ fn is_props_declarator(node: &Value) -> bool {
             callee.get("name").and_then(Value::as_str)
         })
         .is_some_and(|name| name == "$props")
+}
+
+/// `checkProp` — flag every `ObjectPattern` key outside `expected`. A
+/// non-pattern `id` is ignored.
+fn check_prop(id: &Value, expected: &[&str], reports: &mut Vec<(u32, u32)>) {
+    if node_type(id) != Some("ObjectPattern") {
+        return;
+    }
+    let Some(properties) = id.get("properties").and_then(Value::as_array) else {
+        return;
+    };
+    for prop in properties {
+        if node_type(prop) != Some("Property") {
+            continue;
+        }
+        let Some(key) = prop
+            .get("key")
+            .filter(|k| node_type(k) == Some("Identifier"))
+        else {
+            continue;
+        };
+        let Some(name) = key.get("name").and_then(Value::as_str) else {
+            continue;
+        };
+        if !expected.contains(&name)
+            && let (Some(s), Some(e)) = (node_start(key), node_end(key))
+        {
+            reports.push((s, e));
+        }
+    }
+}
+
+/// `ExportNamedDeclaration > VariableDeclaration > VariableDeclarator`.
+fn is_exported_declarator(ancestors: &[&Value]) -> bool {
+    let len = ancestors.len();
+    len >= 2
+        && node_type(ancestors[len - 1]) == Some("VariableDeclaration")
+        && node_type(ancestors[len - 2]) == Some("ExportNamedDeclaration")
 }
 
 #[derive(Default)]
@@ -111,46 +130,35 @@ impl ScriptRule for ValidPropNamesInKitPages {
         // Collect (start, end) of invalid prop-key identifiers.
         let mut reports: Vec<(u32, u32)> = Vec::new();
 
-        program.walk(|node, _ancestors| {
+        program.walk(|node, ancestors| {
             if node_type(node) != Some("VariableDeclarator") {
                 return;
             }
-            if !is_props_declarator(node) {
-                return;
+            // Svelte 3/4: `export let …`. Upstream's selector has no version
+            // guard, so it fires in a Svelte 5 project too.
+            if is_exported_declarator(ancestors) {
+                match node.get("id") {
+                    Some(id) if node_type(id) == Some("Identifier") => {
+                        let name = id.get("name").and_then(Value::as_str).unwrap_or_default();
+                        if !LEGACY_PAGE_PROP_NAMES.contains(&name)
+                            && let (Some(s), Some(e)) = (node_start(node), node_end(node))
+                        {
+                            reports.push((s, e));
+                        }
+                    }
+                    Some(id) => check_prop(id, &LEGACY_PAGE_PROP_NAMES, &mut reports),
+                    None => {}
+                }
             }
-
-            // id must be an ObjectPattern.
-            let Some(id) = node.get("id") else { return };
-            if node_type(id) != Some("ObjectPattern") {
-                return;
-            }
-
-            let Some(properties) = id.get("properties").and_then(Value::as_array) else {
-                return;
-            };
-
-            for prop in properties {
-                // Only ordinary (non-rest) Property nodes with an Identifier key.
-                if node_type(prop) != Some("Property") {
-                    continue;
-                }
-                let Some(key) = prop.get("key") else { continue };
-                if node_type(key) != Some("Identifier") {
-                    continue;
-                }
-                let Some(name) = key.get("name").and_then(Value::as_str) else {
-                    continue;
-                };
-                if allowed.contains(&name) {
-                    continue;
-                }
-                // Flag at the key identifier.
-                if let (Some(s), Some(e)) = (node_start(key), node_end(key)) {
-                    reports.push((s, e));
-                }
+            // Svelte 5: `let { … } = $props()`.
+            if is_props_declarator(node)
+                && let Some(id) = node.get("id")
+            {
+                check_prop(id, allowed, &mut reports);
             }
         });
 
+        reports.sort_unstable();
         for (start, end) in reports {
             ctx.report(start, end, MESSAGE);
         }

@@ -35,7 +35,7 @@ pub static META: RuleMeta = RuleMeta {
     fixable: Fixable::No,
     default_severity: Severity::Off,
     conditions: RuleConditions {
-        runes_only: false,
+        runes_only: true,
         legacy_only: false,
     },
     type_aware: true,

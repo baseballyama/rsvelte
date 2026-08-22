@@ -279,6 +279,9 @@ pub(crate) fn split_class_members_onto_lines(class_body: &str) -> std::borrow::C
     let mut line_start = 0usize;
     let mut prev_non_ws: Option<u8> = None;
     let mut i = 0usize;
+    // A `(`/`[` region is scanned rather than skipped, because a class body can
+    // sit inside one — `new (class { … })()`. Nothing in it terminates a member.
+    let mut group_depth = 0i32;
 
     while i < bytes.len() {
         let b = bytes[i];
@@ -330,50 +333,62 @@ pub(crate) fn split_class_members_onto_lines(class_body: &str) -> std::borrow::C
                 prev_non_ws = Some(b'/');
                 continue;
             }
-            b'(' | b'[' | b'{' => {
+            b'(' | b'[' => {
+                group_depth += 1;
+                prev_non_ws = Some(b);
+                i += 1;
+            }
+            b')' | b']' => {
+                group_depth = (group_depth - 1).max(0);
+                prev_non_ws = Some(b);
+                i += 1;
+            }
+            b'{' => {
                 let close = find_matching_bracket(class_body, i + 1, b as char);
                 let end = close.map_or(bytes.len(), |e| e + 1);
                 // Only a `}` closing a member body ends a member; `)` / `]` do not.
-                if b == b'{' {
+                if group_depth == 0 {
                     boundary = Some(end);
-                    // A nested class body needs the same one-member-per-line
-                    // shape, and its braces must not share a line with members
-                    // either — the outer scan reads them as plain source lines.
-                    // A constructor body is scanned line by line as well.
-                    if let Some(inner_end) = close.filter(|&e| e > i + 1)
-                        && (brace_opens_class_body(&class_body[..i])
-                            || brace_opens_constructor_body(&class_body[..i]))
+                }
+                // A nested class body needs the same one-member-per-line
+                // shape, and its braces must not share a line with members
+                // either — the outer scan reads them as plain source lines.
+                // A constructor body is scanned line by line as well.
+                if let Some(inner_end) = close.filter(|&e| e > i + 1)
+                    && (brace_opens_class_body(&class_body[..i])
+                        || brace_opens_constructor_body(&class_body[..i]))
+                {
+                    let inner_start = i + 1;
+                    let inner = &class_body[inner_start..inner_end];
+                    let indent = leading_indent(class_body, line_start);
+                    let mut rebuilt = String::new();
+                    if !rest_of_line_is_blank(inner, 0) {
+                        rebuilt.push('\n');
+                        rebuilt.push_str(indent);
+                        rebuilt.push('\t');
+                    }
+                    rebuilt.push_str(&split_class_members_onto_lines(inner));
+                    if !inner
+                        .rsplit('\n')
+                        .next()
+                        .is_none_or(|l| l.trim().is_empty())
                     {
-                        let inner_start = i + 1;
-                        let inner = &class_body[inner_start..inner_end];
-                        let indent = leading_indent(class_body, line_start);
-                        let mut rebuilt = String::new();
-                        if !rest_of_line_is_blank(inner, 0) {
-                            rebuilt.push('\n');
-                            rebuilt.push_str(indent);
-                            rebuilt.push('\t');
-                        }
-                        rebuilt.push_str(&split_class_members_onto_lines(inner));
-                        if !inner
-                            .rsplit('\n')
-                            .next()
-                            .is_none_or(|l| l.trim().is_empty())
-                        {
-                            rebuilt.push('\n');
-                            rebuilt.push_str(indent);
-                        }
-                        if rebuilt != inner {
-                            out.push_str(&class_body[copied..inner_start]);
-                            out.push_str(&rebuilt);
-                            copied = inner_end;
-                        }
+                        rebuilt.push('\n');
+                        rebuilt.push_str(indent);
+                    }
+                    if rebuilt != inner {
+                        out.push_str(&class_body[copied..inner_start]);
+                        out.push_str(&rebuilt);
+                        copied = inner_end;
                     }
                 }
                 prev_non_ws = Some(bytes[end.saturating_sub(1)]);
                 i = end;
             }
             b';' => {
-                boundary = Some(i + 1);
+                if group_depth == 0 {
+                    boundary = Some(i + 1);
+                }
                 prev_non_ws = Some(b';');
                 i += 1;
             }
@@ -401,6 +416,88 @@ pub(crate) fn split_class_members_onto_lines(class_body: &str) -> std::borrow::C
     }
     out.push_str(&class_body[copied..]);
     std::borrow::Cow::Owned(out)
+}
+
+/// The offset of the `class` keyword in a top-level `export default class …`,
+/// read from code bytes only so the words cannot come from a comment or string.
+fn export_default_class_keyword(bytes: &[u8]) -> Option<usize> {
+    // The three keywords must be consecutive identifier runs.
+    const WORDS: [&[u8]; 3] = [b"export", b"default", b"class"];
+    let mut matched = 0usize;
+    let mut run_start: Option<usize> = None;
+    let mut prev_end = 0usize;
+    for (i, byte) in js_scan::code_bytes(bytes) {
+        if let Some(start) = run_start
+            && (i != prev_end || !js_scan::is_ident_byte(byte))
+        {
+            run_start = None;
+            let word = &bytes[start..prev_end];
+            if word == WORDS[matched] {
+                matched += 1;
+                if matched == WORDS.len() {
+                    return Some(start);
+                }
+            } else {
+                matched = 0;
+            }
+        }
+        prev_end = i + 1;
+        if js_scan::is_ident_byte(byte) {
+            if run_start.is_none() {
+                run_start = Some(i);
+            }
+        } else if !byte.is_ascii_whitespace() {
+            matched = 0;
+        }
+    }
+    if let Some(start) = run_start
+        && matched + 1 == WORDS.len()
+        && &bytes[start..prev_end] == WORDS[matched]
+    {
+        return Some(start);
+    }
+    None
+}
+
+/// Terminate a module's `export default class … }` with the `;` upstream prints:
+/// esrap emits the default export's class through its expression path, so the
+/// statement ends in `};` even for a plain class with no runes.
+pub(crate) fn terminate_export_default_class(code: &str) -> Option<String> {
+    let bytes = code.as_bytes();
+    let keyword = export_default_class_keyword(bytes)?;
+    let header = find_class_header(&code[keyword..])?;
+    let brace = keyword + header.body_brace;
+    let mut depth = 0i32;
+    let mut close = None;
+    for (i, byte) in js_scan::code_bytes_from(bytes, brace) {
+        match byte {
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    close = Some(i);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    let close = close?;
+    // A `;` the source already wrote lands as its own statement; upstream folds
+    // it into the class's terminator instead of printing an empty statement.
+    let next_code = js_scan::code_bytes_from(bytes, close + 1)
+        .find(|(_, b)| !b.is_ascii_whitespace())
+        .filter(|(_, b)| *b == b';')
+        .map(|(i, _)| i);
+    if next_code == Some(close + 1) {
+        return None;
+    }
+    let tail = next_code.map_or(close + 1, |i| i + 1);
+    let mut out = String::with_capacity(code.len() + 1);
+    out.push_str(&code[..=close]);
+    out.push(';');
+    out.push_str(&code[tail..]);
+    Some(out)
 }
 
 #[cfg(test)]

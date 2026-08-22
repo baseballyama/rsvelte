@@ -100,6 +100,14 @@ pub fn analyze<'a, 'b: 'a>(
     // Check for cyclical dependencies between ConstTag nodes
     check_const_tag_cycles(&fragment.nodes)?;
 
+    // Every container reaches its children through here, so this is the one
+    // place that can answer upstream's `parent.type !== 'Root'` without a list
+    // of container types to keep in step.
+    let saved_root = std::mem::replace(
+        &mut context.in_root_fragment,
+        std::mem::take(&mut context.next_fragment_is_root),
+    );
+
     let runes = context.analysis.runes;
 
     // Pre-compute ignore info for each node in a single O(n) forward pass.
@@ -160,6 +168,7 @@ pub fn analyze<'a, 'b: 'a>(
             context.pop_ignore();
         }
     }
+    context.in_root_fragment = saved_root;
     Ok(())
 }
 

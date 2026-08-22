@@ -26,8 +26,9 @@ impl DiagnosticSeverity {
     }
 }
 
-/// One-based source position (line, column). Mirrors the JS reference's
-/// LSP-shaped diagnostics.
+/// Source position with a **one-based line and a zero-based column**, mirroring
+/// the JS reference's LSP-shaped diagnostics. Any user-facing writer must add 1
+/// to `column`; only the LSP shape consumes it as stored.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Position {
     pub line: u32,

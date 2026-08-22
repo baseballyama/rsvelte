@@ -116,7 +116,20 @@ pub fn visit<'a, 'b: 'a>(
     }
 
     // Analyze children
-    fragment::analyze(&mut self_.fragment, context)?;
+    // Enter the template scope the scope builder created for this node, the way
+    // the plain-component visitor does. Without it a `{@render}` cannot see a
+    // `{#snippet}` declared as its sibling here, so the tag reads as dynamic.
+    let saved_scope = context.scope;
+    if let Some(&node_scope) = context.analysis.root.template_scope_map.get(&self_.start) {
+        context.scope = node_scope;
+    }
+    context
+        .fragment_owner_stack
+        .push(super::FragmentOwnerType::SvelteSelf);
+    let result = fragment::analyze(&mut self_.fragment, context);
+    context.fragment_owner_stack.pop();
+    context.scope = saved_scope;
+    result?;
 
     Ok(())
 }

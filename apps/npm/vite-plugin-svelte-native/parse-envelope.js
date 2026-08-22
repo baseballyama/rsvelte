@@ -173,6 +173,7 @@ const LV_NUMBER_I64 = 3;
 const LV_NUMBER_F64 = 4;
 const LV_STRING = 5;
 const LV_REGEX = 6;
+const LV_BIGINT = 7;
 
 // Element tag -> serialised `type` string. The decoder uses this
 // table for the shared element shape (RegularElement, Component, …).
@@ -660,6 +661,10 @@ function readLiteralValue(ctx) {
 			return readStr(ctx);
 		case LV_REGEX:
 			return {}; // Literal.regex value is serialised as an empty object upstream.
+		case LV_BIGINT:
+			// Sentinel consumed by readJsLiteral (value becomes a BigInt and the
+			// digits land on the node's `bigint` property, acorn-style).
+			return { bigint: readStr(ctx) };
 		default:
 			throw new EnvelopeError(`parse envelope: bad LiteralValue tag 0x${tag.toString(16)}`);
 	}
@@ -728,6 +733,13 @@ function readJsLiteral(ctx, start, end) {
 	const regex = readRegex(ctx);
 	const node = { type: 'Literal', start, end };
 	if (loc !== null) node.loc = loc;
+	if (value !== null && typeof value === 'object' && typeof value.bigint === 'string') {
+		node.value = BigInt(value.bigint);
+		node.raw = raw;
+		node.bigint = value.bigint;
+		if (regex !== null) node.regex = regex;
+		return node;
+	}
 	node.value = value;
 	node.raw = raw;
 	if (regex !== null) node.regex = regex;

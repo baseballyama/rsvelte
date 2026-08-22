@@ -39,7 +39,9 @@ impl Rule for NoNestedStyleTag {
     }
 
     fn check_element(&self, ctx: &mut LintContext, el: &RegularElement) {
-        if el.name.eq_ignore_ascii_case("style") {
+        // Upstream matches `node.name.name !== 'style'` exactly, so `<sTyLe>`
+        // is an ordinary element.
+        if el.name == "style" {
             ctx.report(el.start, el.end, MESSAGE);
         }
     }

@@ -227,6 +227,16 @@ impl<'a> Parser<'a> {
             ));
         }
 
+        // Same reason as the duplicate check above: with no node in the fragment the
+        // analyzer's placement rule never runs, so it has to fire here.
+        if self.is_inside_element() {
+            return Err(ParseError::svelte(
+                "svelte_meta_invalid_placement",
+                "`<svelte:options>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+                (start, start),
+            ));
+        }
+
         // Store the options
         self.svelte_options = Some(SvelteOptions {
             start: start as u32,

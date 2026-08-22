@@ -173,6 +173,26 @@ pub fn decode_html_entities(s: &str, is_attribute_value: bool) -> String {
                 };
                 if let Some(decoded) = decoded {
                     result.push_str(&decoded);
+                } else if !is_numeric
+                    && let Some((matched_len, decoded)) =
+                        find_longest_named_entity_prefix(entity_without_semi)
+                {
+                    // Unknown full name, but a legacy (semicolon-less) entity is a
+                    // prefix — upstream's ordered alternation matches it there
+                    // (`&notanentity;` → `¬anentity;`). The attribute-value rule
+                    // still applies: no decode when the next character is `=` or
+                    // alphanumeric (there always is one here — the unmatched rest).
+                    let next_byte = bytes.get(entity_start + matched_len).copied();
+                    let should_skip = is_attribute_value
+                        && next_byte
+                            .map(|b| b == b'=' || b.is_ascii_alphanumeric())
+                            .unwrap_or(false);
+                    if should_skip {
+                        result.push_str(&s[start..i]);
+                    } else {
+                        result.push_str(&decoded);
+                        i = entity_start + matched_len;
+                    }
                 } else {
                     // Unknown entity with semicolon, output as-is
                     result.push_str(&s[start..i]);
@@ -366,10 +386,11 @@ mod tests {
 
     #[test]
     fn test_decode_html_entities_unknown() {
-        assert_eq!(
-            decode_html_entities("&notanentity;", false),
-            "&notanentity;"
-        );
+        // `&not` is a semicolon-less legacy entity, so its prefix decodes even
+        // when the full name up to `;` is unknown (upstream's ordered
+        // alternation matches the longest legacy prefix).
+        assert_eq!(decode_html_entities("&notanentity;", false), "¬anentity;");
+        assert_eq!(decode_html_entities("&xyzzy;", false), "&xyzzy;");
         assert_eq!(decode_html_entities("&foo", false), "&foo");
     }
 

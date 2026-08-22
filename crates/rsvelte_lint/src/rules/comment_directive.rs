@@ -25,13 +25,11 @@
 //! after the directive), which in turn marks the directive used — exactly the
 //! upstream emit-all-then-filter flow.
 //!
-//! ### Known divergences
-//! - Template comments are located by scanning the source for `<!-- … -->`
-//!   rather than walking `SvelteHTMLComment` AST nodes, so a literal `<!--`
-//!   inside a `<script>`/`<style>` string would be misread as a directive
-//!   comment (vanishingly rare).
-//! - `<script>` start tags are likewise located by source scan to reproduce
-//!   upstream's per-script "enable all" boundary.
+//! Directives come from the genuine template comments of
+//! [`crate::directive_regions`], and the per-script "enable all" boundary from
+//! its genuine `<script …>` start tags — upstream's two visitors are
+//! `SvelteHTMLComment` and `SvelteScriptElement`, so text that only looks like
+//! either contributes nothing.
 
 use std::collections::HashSet;
 
@@ -49,7 +47,7 @@ pub static META: RuleMeta = RuleMeta {
     name: "svelte/comment-directive",
     category: RuleCategory::Correctness,
     fixable: Fixable::No,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: false,
@@ -300,8 +298,10 @@ fn is_enable(m: &Msg, blocks: &[BlockDir], lines: &[LineDir], used: &mut HashSet
     true
 }
 
-/// Scan `source` for `<!-- … -->` directive comments, populating the directive
-/// and candidate lists.
+/// Parse the `<!-- … -->` template comments of `source` into directives and
+/// candidate unused-reports. The comments come from the shared region scan, so
+/// text that only looks like a comment (an attribute value, a mustache, a JS or
+/// CSS string) is skipped — upstream's only source is `SvelteHTMLComment` nodes.
 fn parse_directives(
     source: &str,
     li: &LineIndex,
@@ -309,35 +309,21 @@ fn parse_directives(
     lines: &mut Vec<LineDir>,
     candidates: &mut Vec<Candidate>,
 ) {
-    let bytes = source.as_bytes();
-    let mut i = 0;
-    while i + 4 <= bytes.len() {
-        if &bytes[i..i + 4] != b"<!--" {
-            i += 1;
-            continue;
-        }
-        // Find the closing `-->`.
-        let inner_start = i + 4;
-        let Some(rel) = find_subslice(&bytes[inner_start..], b"-->") else {
-            break; // unterminated comment — nothing more to scan
-        };
-        let inner_end = inner_start + rel; // byte index of the `-->`
-        let comment_end = inner_end + 3; // byte after `-->`
-        let value = &source[inner_start..inner_end];
-
+    let (regions, _) = crate::directive_regions::scan(source, false);
+    for region in regions.iter().filter(|r| r.html) {
+        let inner_start = region.start as usize;
+        let inner_end = region.end as usize;
         parse_one_comment(
             source,
             li,
-            i,
-            comment_end,
+            inner_start - 4,
+            (inner_end + 3).min(source.len()),
             inner_start,
-            value,
+            &source[inner_start..inner_end],
             blocks,
             lines,
             candidates,
         );
-
-        i = comment_end;
     }
 }
 
@@ -628,62 +614,19 @@ const fn is_separator(c: u8) -> bool {
     is_ws(c) || c == b','
 }
 
-/// Find the first occurrence of `needle` in `hay`, returning its start index.
-fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
-    if needle.is_empty() || hay.len() < needle.len() {
-        return None;
-    }
-    (0..=hay.len() - needle.len()).find(|&k| &hay[k..k + needle.len()] == needle)
-}
-
 /// Add a synthetic "enable all" boundary at the end of each `<script …>` start
-/// tag, matching upstream's per-`SvelteScriptElement` `enableBlock`.
+/// tag, matching upstream's per-`SvelteScriptElement` `enableBlock`. The tags
+/// come from the shared region scan, so a `<script>` written inside a comment,
+/// an attribute value or a `<style>` block is not one.
 fn add_script_enable_boundaries(source: &str, li: &LineIndex, blocks: &mut Vec<BlockDir>) {
-    let bytes = source.as_bytes();
-    let mut index = 0;
-    while index + 7 <= bytes.len() {
-        if &bytes[index..index + 7] != b"<script" {
-            index += 1;
-            continue;
-        }
-        // Require a tag boundary after `<script` (ws, `>`, or `/`).
-        let next = bytes.get(index + 7).copied();
-        if !matches!(next, Some(character) if is_ws(character) || character == b'>' || character == b'/')
-        {
-            index += 7;
-            continue;
-        }
-        // Find the `>` ending the start tag, skipping quoted attribute values.
-        let mut tag_index = index + 7;
-        let mut quote: Option<u8> = None;
-        let mut end = None;
-        while tag_index < bytes.len() {
-            let character = bytes[tag_index];
-            match quote {
-                Some(quote_character) => {
-                    if character == quote_character {
-                        quote = None;
-                    }
-                }
-                None => {
-                    if character == b'"' || character == b'\'' {
-                        quote = Some(character);
-                    } else if character == b'>' {
-                        end = Some(tag_index + 1);
-                        break;
-                    }
-                }
-            }
-            tag_index += 1;
-        }
-        let Some(tag_end) = end else { break };
+    let (_, script_tags) = crate::directive_regions::scan(source, false);
+    for (el_start, tag_end) in script_tags {
         blocks.push(BlockDir {
-            loc: li.position(source_offset(tag_end)),
+            loc: li.position(tag_end),
             target: None,
             kind: BlockKind::Enable,
-            key: li.position(source_offset(index)),
+            key: li.position(el_start),
         });
-        index = tag_end;
     }
 }
 

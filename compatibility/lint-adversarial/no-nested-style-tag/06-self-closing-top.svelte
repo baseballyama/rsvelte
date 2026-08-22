@@ -1,0 +1,2 @@
+<div>content</div>
+<style />

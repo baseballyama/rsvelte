@@ -566,10 +566,19 @@ fn visit_children_typed(node: &JsNode, context: &mut VisitorContext) -> Result<(
 
         // CatchClause: param (Option<JsNodeId>), body (JsNodeId)
         JsNode::CatchClause { param, body, .. } => {
+            // The clause's own scope holds the parameter, so `catch (x)` must
+            // shadow an outer `x` for both the binding and the body.
+            let saved_scope = context.scope;
+            if let Some(start) = node.start()
+                && let Some(&scope_idx) = context.analysis.root.function_scope_map.get(&start)
+            {
+                context.scope = scope_idx;
+            }
             if let Some(p) = param {
                 walk_js_node_typed(arena.get_js_node(*p), context)?;
             }
             walk_js_node_typed(arena.get_js_node(*body), context)?;
+            context.scope = saved_scope;
             Ok(())
         }
 

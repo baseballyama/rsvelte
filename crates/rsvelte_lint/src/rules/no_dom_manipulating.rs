@@ -2,30 +2,32 @@
 //! that Svelte owns (one captured via `bind:this`). Mutating it behind Svelte's
 //! back desyncs the runtime's view of the DOM.
 //!
-//! Port of the eslint-plugin-svelte rule.
-//!
-//! Runs over the `<script>` `ESTree` program via the [`ScriptRule`] hook, but also
-//! re-parses the template to find the DOM variables: an identifier captured by
-//! `bind:this` on an HTML element (`RegularElement`) or `<svelte:element>`
-//! (`SvelteElement`) — not on components — that resolves to a module/instance
-//! binding. The script is then scanned for `domVar.method(...)` (a DOM-mutating
-//! method) or `domVar.prop = …` (a DOM-mutating property), reported at the
-//! member expression. Optional chaining (`el?.remove()`, `(el?.remove)()`) is
-//! unwrapped via `ChainExpression`, mirroring upstream.
+//! Port of the eslint-plugin-svelte rule. A DOM variable is a top-level binding
+//! captured by `bind:this` on an HTML element (`RegularElement`) or
+//! `<svelte:element>` — not on components. Every *reference* of that variable
+//! (resolved through the shared tracker: both scripts and template-expression
+//! handlers, shadows excluded) is checked for `domVar.method(...)` (a
+//! DOM-mutating method) or `domVar.prop = …` (a DOM-mutating property),
+//! reported at the member expression. `getPropertyName` semantics mean a
+//! literal computed access (`el['remove']()`) matches; a variable key does not.
+//! Optional chaining is unwrapped via `ChainExpression`, mirroring upstream.
 
 use std::collections::HashSet;
 
 use serde_json::Value;
 
+use rsvelte_core::ast::template::Root;
+
 use crate::context::LintContext;
-use crate::rule::{Fixable, RuleCategory, RuleConditions, RuleMeta, Severity};
-use crate::script::{ProgramView, ScriptKind, ScriptRule, node_type, walk_js};
+use crate::rule::{Fixable, Rule, RuleCategory, RuleConditions, RuleMeta, Severity};
+use crate::rules::store_refs::{RefTracker, component_tracker, member_property_name};
+use crate::script::{ProgramView, ScriptKind, ScriptRule, node_start, node_type, walk_js};
 
 static META: RuleMeta = RuleMeta {
     name: "svelte/no-dom-manipulating",
     category: RuleCategory::Correctness,
     fixable: Fixable::No,
-    default_severity: Severity::Warn,
+    default_severity: Severity::Error,
     conditions: RuleConditions {
         runes_only: false,
         legacy_only: false,
@@ -63,123 +65,66 @@ const DOM_PROPERTIES: &[&str] = &[
     "outerText",
 ];
 
-/// Names declared at the top level of the script program — `let`/`const`/`var`,
-/// functions, classes, imports, and their `export`ed forms. Used to ensure a
-/// `bind:this` target is a module/instance variable, not a block-scoped one
-/// (e.g. an `{#each}` context or a `for` loop variable).
-fn collect_toplevel_decls(program: &Value, out: &mut HashSet<String>) {
-    let Some(body) = program.get("body").and_then(Value::as_array) else {
+fn span(node: &Value) -> Option<(u32, u32)> {
+    Some((
+        node_start(node)?,
+        node.get("end")
+            .and_then(Value::as_u64)
+            .and_then(|e| u32::try_from(e).ok())?,
+    ))
+}
+
+/// Check one reference of a DOM variable — upstream's `verifyIdentifier`.
+fn verify_reference(tracker: &RefTracker<'_>, ident: &Value, reports: &mut Vec<(u32, u32)>) {
+    let Some(member) = tracker.parent_of(ident) else {
         return;
     };
-    for stmt in body {
-        let decl = if node_type(stmt) == Some("ExportNamedDeclaration") {
-            stmt.get("declaration").unwrap_or(&Value::Null)
-        } else {
-            stmt
-        };
-        match node_type(decl) {
-            Some("VariableDeclaration") => {
-                if let Some(declarators) = decl.get("declarations").and_then(Value::as_array) {
-                    for d in declarators {
-                        collect_pattern_idents(d.get("id"), out);
-                    }
-                }
-            }
-            Some("FunctionDeclaration" | "ClassDeclaration") => {
-                if let Some(n) = decl
-                    .get("id")
-                    .and_then(|i| i.get("name"))
-                    .and_then(Value::as_str)
-                {
-                    out.insert(n.to_string());
-                }
-            }
-            Some("ImportDeclaration") => {
-                if let Some(specs) = decl.get("specifiers").and_then(Value::as_array) {
-                    for s in specs {
-                        if let Some(n) = s
-                            .get("local")
-                            .and_then(|l| l.get("name"))
-                            .and_then(Value::as_str)
-                        {
-                            out.insert(n.to_string());
-                        }
-                    }
-                }
-            }
-            _ => {}
-        }
+    if node_type(member) != Some("MemberExpression")
+        || member
+            .get("object")
+            .and_then(node_start)
+            .zip(node_start(ident))
+            .is_none_or(|(a, b)| a != b)
+    {
+        return;
     }
-}
-
-/// Collect bound identifier names from a declarator `id` pattern.
-fn collect_pattern_idents(id: Option<&Value>, out: &mut HashSet<String>) {
-    let Some(id) = id else { return };
-    match node_type(id) {
-        Some("Identifier") => {
-            if let Some(n) = id.get("name").and_then(Value::as_str) {
-                out.insert(n.to_string());
-            }
-        }
-        Some("ObjectPattern") => {
-            if let Some(props) = id.get("properties").and_then(Value::as_array) {
-                for p in props {
-                    match node_type(p) {
-                        Some("Property") => collect_pattern_idents(p.get("value"), out),
-                        Some("RestElement") => collect_pattern_idents(p.get("argument"), out),
-                        _ => {}
-                    }
-                }
-            }
-        }
-        Some("ArrayPattern") => {
-            if let Some(els) = id.get("elements").and_then(Value::as_array) {
-                for e in els.iter().filter(|e| !e.is_null()) {
-                    collect_pattern_idents(Some(e), out);
-                }
-            }
-        }
-        Some("AssignmentPattern") => collect_pattern_idents(id.get("left"), out),
-        Some("RestElement") => collect_pattern_idents(id.get("argument"), out),
-        _ => {}
+    let Some(name) = member_property_name(member) else {
+        return;
+    };
+    // Walk up past ChainExpression wrappers to the call / assignment.
+    let mut target = member;
+    let mut parent = tracker.parent_of(target);
+    while let Some(p) = parent
+        && node_type(p) == Some("ChainExpression")
+    {
+        target = p;
+        parent = tracker.parent_of(p);
     }
-}
-
-/// Identifiers captured by `bind:this` on an HTML element / `<svelte:element>`
-/// that resolve to a top-level binding.
-fn collect_dom_vars(ctx: &LintContext, binding_names: &HashSet<String>) -> HashSet<String> {
-    let mut out = HashSet::new();
-    let frag = ctx.template_fragment_json();
-    walk_js(&frag, |node, ancestors| {
-        if node_type(node) != Some("BindDirective")
-            || node.get("name").and_then(Value::as_str) != Some("this")
-        {
-            return;
+    let Some(parent) = parent else {
+        return;
+    };
+    let manipulates = match node_type(parent) {
+        Some("CallExpression") => {
+            parent
+                .get("callee")
+                .and_then(node_start)
+                .zip(node_start(target))
+                .is_some_and(|(a, b)| a == b)
+                && DOM_METHODS.contains(&name.as_str())
         }
-        let expr = node.get("expression");
-        if expr.and_then(|e| e.get("type")).and_then(Value::as_str) != Some("Identifier") {
-            return;
+        Some("AssignmentExpression") => {
+            parent
+                .get("left")
+                .and_then(node_start)
+                .zip(node_start(target))
+                .is_some_and(|(a, b)| a == b)
+                && DOM_PROPERTIES.contains(&name.as_str())
         }
-        let Some(name) = expr.and_then(|e| e.get("name")).and_then(Value::as_str) else {
-            return;
-        };
-        if !binding_names.contains(name) {
-            return;
-        }
-        // The owning element is the nearest typed ancestor.
-        let owner = ancestors.last().and_then(|p| node_type(p));
-        if owner == Some("RegularElement") || owner == Some("SvelteElement") {
-            out.insert(name.to_string());
-        }
-    });
-    out
-}
-
-fn pos(node: &Value) -> Option<(u64, u64)> {
-    Some((
-        node.get("start").and_then(Value::as_u64)?,
-        node.get("end").and_then(Value::as_u64)?,
-    ))
+        _ => false,
+    };
+    if manipulates && let Some(sp) = span(member) {
+        reports.push(sp);
+    }
 }
 
 #[derive(Default)]
@@ -190,73 +135,63 @@ impl ScriptRule for NoDomManipulating {
         &META
     }
 
-    fn check_program(&self, ctx: &mut LintContext, program: &ProgramView<'_>, _kind: ScriptKind) {
-        let mut toplevel: HashSet<String> = HashSet::new();
-        collect_toplevel_decls(program, &mut toplevel);
-        let dom_vars = collect_dom_vars(ctx, &toplevel);
-        if dom_vars.is_empty() {
+    fn check_program(&self, _ctx: &mut LintContext, _program: &ProgramView<'_>, _kind: ScriptKind) {
+        // A standalone module has no template, hence no `bind:this` — the
+        // whole rule lives in `check_root`.
+    }
+}
+
+impl Rule for NoDomManipulating {
+    fn meta(&self) -> &'static RuleMeta {
+        &META
+    }
+
+    fn check_root(&self, ctx: &mut LintContext, root: &Root) {
+        let root_json = ctx.root_json(root);
+        if root_json.is_null() {
             return;
         }
-        let methods: HashSet<&str> = DOM_METHODS.iter().copied().collect();
-        let properties: HashSet<&str> = DOM_PROPERTIES.iter().copied().collect();
+        let Some(fragment) = root_json.get("fragment") else {
+            return;
+        };
+        let tracker = component_tracker(ctx.source(), root, &root_json);
 
-        let mut reports: Vec<(u32, u32)> = Vec::new();
-        program.walk(|node, ancestors| {
-            if node_type(node) != Some("MemberExpression") {
-                return;
-            }
-            // `domVar.<name>` with a non-computed identifier property.
-            if node.get("computed").and_then(Value::as_bool) == Some(true) {
-                return;
-            }
-            let object_is_dom = node
-                .get("object")
-                .filter(|o| node_type(o) == Some("Identifier"))
-                .and_then(|o| o.get("name"))
-                .and_then(Value::as_str)
-                .is_some_and(|n| dom_vars.contains(n));
-            if !object_is_dom {
-                return;
-            }
-            let Some(name) = node
-                .get("property")
-                .filter(|p| node_type(p) == Some("Identifier"))
-                .and_then(|p| p.get("name"))
-                .and_then(Value::as_str)
-            else {
-                return;
-            };
-
-            // Walk up past ChainExpression wrappers to the call / assignment.
-            let mut target_pos = pos(node);
-            let mut idx = ancestors.len();
-            while idx > 0 && node_type(ancestors[idx - 1]) == Some("ChainExpression") {
-                target_pos = pos(ancestors[idx - 1]);
-                idx -= 1;
-            }
-            if idx == 0 {
-                return;
-            }
-            let parent = ancestors[idx - 1];
-            let manipulates = match node_type(parent) {
-                Some("CallExpression") => {
-                    pos(parent.get("callee").unwrap_or(&Value::Null)) == target_pos
-                        && methods.contains(name)
-                }
-                Some("AssignmentExpression") => {
-                    pos(parent.get("left").unwrap_or(&Value::Null)) == target_pos
-                        && properties.contains(name)
-                }
-                _ => false,
-            };
-            if manipulates
-                && let Some((s, e)) = pos(node)
-                && let (Ok(s), Ok(e)) = (u32::try_from(s), u32::try_from(e))
+        // `bind:this={ident}` on an HTML element / `<svelte:element>`, resolved
+        // to a top-level variable (upstream: scope type module/global).
+        let mut dom_vars = Vec::new();
+        let mut seen = HashSet::new();
+        walk_js(fragment, |node, ancestors| {
+            if node_type(node) != Some("BindDirective")
+                || node.get("name").and_then(Value::as_str) != Some("this")
             {
-                reports.push((s, e));
+                return;
+            }
+            let Some(expr) = node.get("expression") else {
+                return;
+            };
+            if node_type(expr) != Some("Identifier") {
+                return;
+            }
+            let owner = ancestors.last().and_then(|p| node_type(p));
+            if owner != Some("RegularElement") && owner != Some("SvelteElement") {
+                return;
+            }
+            if let Some(var) = tracker.find_variable(expr)
+                && tracker.is_root(var)
+                && seen.insert(var)
+            {
+                dom_vars.push(var);
             }
         });
 
+        let mut reports: Vec<(u32, u32)> = Vec::new();
+        for var in dom_vars {
+            for ident in tracker.read_references(var) {
+                verify_reference(&tracker, ident, &mut reports);
+            }
+        }
+        reports.sort_unstable();
+        reports.dedup();
         for (start, end) in reports {
             ctx.report(start, end, MESSAGE);
         }

@@ -869,8 +869,12 @@ pub(super) fn strip_async_noop_placeholders(s: &str) -> String {
     for line in s.lines() {
         let trimmed = line.trim();
 
-        // Filter out $$async_noop lines
-        if memmem::find(trimmed.as_bytes(), b"$$async_noop").is_some() {
+        // Filter out $$async_noop placeholder lines (shape-checked: a user
+        // string literal CONTAINING the marker text must survive, #3032).
+        if crate::compiler::phases::phase3_transform::shared::async_body::is_placeholder_stmt(
+            trimmed,
+            "$$async_noop",
+        ) {
             continue;
         }
 
@@ -888,7 +892,10 @@ pub(super) fn strip_async_noop_placeholders(s: &str) -> String {
         // When there's no top-level await, $$async_hole markers (from $inspect()
         // removed in non-dev mode) should become two empty statements (;;) to match
         // the official compiler behavior.
-        if memmem::find(trimmed.as_bytes(), b"$$async_hole").is_some() {
+        if crate::compiler::phases::phase3_transform::shared::async_body::is_placeholder_stmt(
+            trimmed,
+            "$$async_hole",
+        ) {
             // Check if prev content needs a semicolon
             let prev_trimmed = result.trim_end();
             if !prev_trimmed.ends_with(';')
