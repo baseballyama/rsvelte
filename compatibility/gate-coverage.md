@@ -1144,6 +1144,37 @@ arrow through one prop name, and the write is always a member expression — a b
 `p = p + 1` reassignment is `binding-position`'s `assignment.right` row and is not repeated
 here. **[S]**
 
+### Blind spot 5r — `class-modifier` fixes the class HEADER, and the header is what two of its rules read
+
+Family `class-modifier` (33 members × 7 hosts) was added for #3100 / #3203: OXC accepts every
+TypeScript-only class-member modifier — and the stage-3 `accessor` — in a plain script, upstream
+parses one with **stock acorn**, and rsvelte switched only `SourceType`. The whole population is
+invalid input, so it is the `invalid-bind` / `param-default` shape: a collected corpus cannot
+hold it, because published code compiles. Its `ok-` rows are the over-rejection half, and they
+are not decoration — `accessor = 1`, `accessor\na = 1`, `static readonly = 1`, `private() {}` and
+`get private() {}` each spell a modifier keyword where it is an ordinary name, so a check keyed on
+the keyword's text fails them while a check keyed on the parsed member does not.
+
+What it fixes is the **class header**: every case declares `class C { … }` — not `abstract`, no
+`extends`. Two of the rules it exercises read exactly that. acorn-typescript rejects an
+`abstract` member outside an `abstract class` and an `override` member in a class with no
+superclass (`parseClassElement`, guarded by `inAbstractClass` / `constructorAllowsSuper`), so the
+family reaches the rejecting side of both and **cannot reach the accepting side of either** —
+`abstract class C { abstract a }` and `class C extends B { override m() {} }` have no cell.
+Those, and the per-class save/restore that makes a nested class judged on its own header, are
+covered by `ts_class_modifiers_3100_3203.rs` instead. **[S]**
+
+The header is also why the family cannot carry #3082 at all. `run.mjs` fails the run outright
+when the **official** output does not parse, and official leaves `abstract` on a class *property*
+— so an `abstract class` cell would convert a recorded divergence into a hard failure. That one
+is prose plus a test (`compatibility/deliberate-divergences.md`), and this is the second family
+whose motivating shape is unrepresentable in the gate rather than merely unlisted.
+
+Its 36 listed entries are one cause and it is upstream's: OXC's modifier table and
+acorn-typescript's disagree about `accessor` + `static` / `declare`, so on the three `lang="ts"`
+hosts both compilers reject and only the code differs. **[D]** — measured, and reported in
+`upstream_issues/3203-acorn-typescript-accessor-modifier-table.md`.
+
 **Closing 5b/5c:** the matrix costs ~25 s of CPU on ~10,200 comparisons (wall clock on a box
 running other agents' builds is unusable — a paired A/B inverted once). `constant-fold` is the
 first instalment of 5c's "second expression axis against `EXPRESSION_SLOTS`"; the directive

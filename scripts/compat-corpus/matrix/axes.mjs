@@ -1886,3 +1886,115 @@ export const WRITE_PREAMBLE = `<script>
 
 %m
 `;
+
+/**
+ * Axis M1 — one class member, spelled with the modifiers under test.
+ *
+ * The subject is what a PLAIN `<script>` is allowed to contain. Upstream parses
+ * one with stock acorn and a `lang="ts"` one with `@sveltejs/acorn-typescript`
+ * (`1-parse/acorn.js:9-10`); rsvelte parses both with OXC and only switches
+ * `SourceType`, which leaves every TypeScript-only class modifier — and the
+ * stage-3 `accessor`, which OXC implements and the pinned acorn does not —
+ * accepted in a JS script that official rejects (#3100, #3203).
+ *
+ * The rows are not "one per modifier": acorn stops at the token FOLLOWING the
+ * first modifier it cannot read, so `private static a` and `static private a`
+ * report at different places and `private get a()` at a third. Those orderings
+ * are the axis, not decoration.
+ *
+ * The `ok-` rows are the controls, and they carry the whole weight of the
+ * over-rejection direction: `accessor = 1` is a field NAMED accessor,
+ * `accessor\na = 1` is two fields (the proposal forbids a line break there),
+ * and `static readonly = 1` / `private() {}` / `get private() {}` each spell a
+ * modifier keyword in a position where it is an ordinary name. A check that
+ * keys on the keyword's text rather than on the parsed member fails these.
+ */
+export const CLASS_MODIFIER_MEMBERS = {
+	accessor: 'accessor a = 1;',
+	'accessor-static': 'static accessor a = 1;',
+	'accessor-first': 'accessor static a = 1;',
+	'accessor-hash': 'accessor #a = 1;',
+	'accessor-computed': 'accessor [1] = 1;',
+	'accessor-declare': 'declare accessor a;',
+	private: 'private a = 1;',
+	public: 'public a = 1;',
+	protected: 'protected a = 1;',
+	readonly: 'readonly a = 1;',
+	declare: 'declare a;',
+	abstract: 'abstract a;',
+	'private-method': 'private m() {}',
+	'override-method': 'override m() {}',
+	'override-static': 'static override m() {}',
+	'private-getter': 'private get a() {\n\t\t\treturn 1;\n\t\t}',
+	'private-static': 'private static a = 1;',
+	'static-private': 'static private a = 1;',
+	'public-static-readonly': 'public static readonly a = 1;',
+	'private-computed': "private ['a'] = 1;",
+	'private-hash': 'private #a = 1;',
+	'private-generator': 'private *g() {}',
+	'private-async': 'private async m() {}',
+	'private-comment': 'private /* c */ a = 1;',
+	'ok-plain': 'a = 1;',
+	'ok-static': 'static a = 1;',
+	'ok-hash': '#a = 1;',
+	'ok-static-block': 'static {\n\t\t\tthis.a = 1;\n\t\t}',
+	'ok-named-accessor': 'accessor = 1;',
+	'ok-accessor-newline': 'accessor\n\t\ta = 1;',
+	'ok-named-private-method': 'private() {}',
+	'ok-getter-named-private': 'get private() {\n\t\t\treturn 1;\n\t\t}',
+	'ok-static-named-readonly': 'static readonly = 1;',
+};
+
+/**
+ * Axis M2 — the script the class is declared in.
+ *
+ * `js-*` is the population the defect lives in and `ts-*` the control: a
+ * `lang="ts"` script measured 0 divergences over 360 cells while the plain one
+ * carried every single one, so a family without both halves cannot say whether
+ * a fix narrowed the JS grammar or broke TypeScript support.
+ *
+ * `js-with-ts-module` is the interaction the other two cannot express: upstream
+ * derives ONE document-wide `parser.ts` from the first `<script lang>` in the
+ * file (`1-parse/index.js:101-108`) and hands it to every script, so a plain
+ * instance script in a component whose module script is TypeScript is parsed by
+ * acorn-typescript. `module-ts` is its mirror image — `analyze_module` calls
+ * `parse(source, comments, false, false)` unconditionally, so a `.svelte.ts`
+ * extension enables nothing.
+ */
+export const CLASS_MODIFIER_HOSTS = {
+	'js-instance': {
+		ext: '.svelte',
+		wrap: (member) =>
+			`<script>\n\tclass C {\n\t\t${member}\n\t}\n\tconst s = C;\n</script>\n\n<p>{s ? 'ok' : ''}</p>\n`,
+	},
+	'js-module': {
+		ext: '.svelte',
+		wrap: (member) =>
+			`<script module>\n\tclass C {\n\t\t${member}\n\t}\n\texport const s = C;\n</script>\n\n<p>{s ? 'ok' : ''}</p>\n`,
+	},
+	'js-with-ts-module': {
+		ext: '.svelte',
+		wrap: (member) =>
+			`<script module lang="ts">\n\texport const t: number = 1;\n</script>\n\n<script>\n\tclass C {\n\t\t${member}\n\t}\n\tconst s = C;\n</script>\n\n<p>{s && t ? 'ok' : ''}</p>\n`,
+	},
+	'ts-instance': {
+		ext: '.svelte',
+		wrap: (member) =>
+			`<script lang="ts">\n\tclass C {\n\t\t${member}\n\t}\n\tconst s = C;\n</script>\n\n<p>{s ? 'ok' : ''}</p>\n`,
+	},
+	'ts-module': {
+		ext: '.svelte',
+		wrap: (member) =>
+			`<script module lang="ts">\n\tclass C {\n\t\t${member}\n\t}\n\texport const s = C;\n</script>\n\n<p>{s ? 'ok' : ''}</p>\n`,
+	},
+	'module-js': {
+		ext: '.svelte.js',
+		kind: 'module',
+		wrap: (member) => `class C {\n\t${member}\n}\n\nexport const s = C;\n`,
+	},
+	'module-ts': {
+		ext: '.svelte.ts',
+		kind: 'module',
+		wrap: (member) => `class C {\n\t${member}\n}\n\nexport const s = C;\n`,
+	},
+};

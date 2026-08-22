@@ -307,8 +307,9 @@ string-literal escape × template expression slot, `await`/`yield` in a formal p
 × function form × entry point, `{#each}` collection expression × item use, the token a `/`
 follows × host, a name's slot in a binding pattern × statement context, directive kind ×
 element kind × mode, `bind:` setter shape × element kind, a raw-scanned keyword × the opaque
-region carrying it × host × entry point, and a reactive binding × the host the write to it sits
-in × the shape of that write — expanded into ~20,000 comparisons
+region carrying it × host × entry point, a reactive binding × the host the write to it sits
+in × the shape of that write, and a class-member modifier × the script it is declared in —
+expanded into ~20,000 comparisons
 in well under a minute of CPU, needing
 only `submodules/svelte` plus the NAPI binding, so it gates every PR.
 
@@ -449,6 +450,26 @@ so `p.a++` set neither `needs_context` (no `$.push`/`$.pop`) nor a reference to 
 `export_let_unused`), and a `$bindable()` prop member update rsvelte never wraps (#3048). Ask of
 any family whose rows share a wrapper: **is the thing I varied crossed with the thing I held
 fixed, or merely adjacent to it?**
+
+**The `class-modifier` family exists because upstream answers "what may a plain `<script>`
+contain" with a different PARSER, and rsvelte answered it with a flag.** `lang="ts"` selects
+`acorn.Parser.extend(tsPlugin())` upstream and `SourceType::ts()` here — but OXC's JS grammar is
+not acorn's, so every TypeScript-only class modifier and the stage-3 `accessor` compiled in a
+plain script that official rejects (#3100, #3203). That is the same over-acceptance shape as
+`param-default`, and no collected corpus can hold it: published code compiles. Three things it
+cost us. **The reported position is not the member's key** — acorn reads modifiers left to right,
+takes the first word it cannot read as the name, and throws on what cannot follow a name, so
+`private static a` reports at `static` and `private get a()` at `get`; a fix that reports at the
+key is right on 19 of 22 rows and wrong on the interesting ones. **The over-rejection half needs
+its own rows**: `accessor = 1`, `accessor⏎a = 1`, `static readonly = 1` and `get private() {}`
+each spell a modifier keyword where it is an ordinary name, which is what separates a check keyed
+on the parsed member from one keyed on the keyword's text. And **acorn-typescript is not a
+superset of OXC either** — it enforces two rules in the *parser* that TypeScript leaves to the
+checker (`abstract` outside an `abstract class`, `override` with no superclass), so the same
+family found rsvelte over-accepting on the `lang="ts"` side while it was fixing the JS side.
+Where the two modifier tables simply disagree (`static accessor` is legal TS and
+acorn-typescript refuses it, at a column it passes to a position parameter) the rows stay listed
+rather than ported: both compilers reject, and matching would mean reproducing the bug.
 
 Normalization is deliberately identical to `verify.mjs`, so a divergence this gate reports is one
 the corpus gate would also report. `--update-baseline` refuses to run under `--no-fmt` or a
