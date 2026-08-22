@@ -1160,13 +1160,20 @@ valued `a<b` in rsvelte). Neither half is reachable from a collected corpus: an 
 leaves no trace in published code, and the value shapes occur 0 times in it.
 
 The `unquoted-attribute` family (`generate.mjs`, `UNQUOTED_ATTRIBUTE_VALUES` ×
-`UNQUOTED_ATTRIBUTE_HOSTS`, 75 cases) declares the terminating **character** as the axis, with
+`UNQUOTED_ATTRIBUTE_HOSTS`, 90 cases) declares the terminating **character** as the axis, with
 five control rows (`abc`, `a>b`, `a&b`, `&amp;`, `abc/`) that already worked — so a fix that
 simply ends the value earlier and everywhere fails them rather than passing everything.
 
+The controls only hold that line where the two readers agree, so the host axis carries a sixth
+row that does not share the lexer: a top-level `<script>` / `<style>` is read by
+`read_static_attribute`, whose `regex_attribute_value` (`[^>\s]+`) stops at neither the six
+characters nor `/`. Without `style-top-level`, a fix that ends the value earlier *everywhere*
+passes all 75 of the other cells and turns `<style a=b=c>` into a parse error — which is
+**[D]** what a competing implementation of the same fix did, and what the row caught. **[D]**
+
 What it still does not see: `a{b` is deliberately absent, because `{` opens an expression rather
 than ending the value and where that mustache ends is #3333; and the family compares one
-attribute name (`data-x`) on five hosts, so a *directive* value (`style:` / `class:`) reading its
+attribute name (`data-x`), so a *directive* value (`style:` / `class:`) reading its
 unquoted value through a second scanner is covered by the Rust regression only. **[S]**
 
 ### Blind spot 5s — CLOSED: character references were a spelling axis nobody had crossed with a HOST

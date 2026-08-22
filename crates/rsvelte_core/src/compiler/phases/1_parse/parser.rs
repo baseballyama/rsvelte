@@ -818,10 +818,13 @@ impl<'a> Parser<'a> {
         if b == b'>' {
             return true;
         }
+        if self.in_root_script_or_style {
+            return self.is_js_whitespace_at(i);
+        }
         if b == b'/' {
             return self.bytes.get(i + 1) == Some(&b'>');
         }
-        if !self.in_root_script_or_style && matches!(b, b'"' | b'\'' | b'=' | b'`' | b'<') {
+        if matches!(b, b'"' | b'\'' | b'=' | b'`' | b'<') {
             return true;
         }
         self.is_js_whitespace_at(i)

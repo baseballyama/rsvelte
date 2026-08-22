@@ -1926,10 +1926,17 @@ export const UNQUOTED_ATTRIBUTE_VALUES = {
 };
 
 /**
- * Axis U2 — the start tag carrying the attribute. All five share one lexer, so a
- * divergence that moves with the host is an element-path bug rather than an
+ * Axis U2 — the start tag carrying the attribute. The first five share one lexer,
+ * so a divergence that moves with the host is an element-path bug rather than an
  * attribute-value one; the component and `<svelte:element>` rows are also where
  * an attribute SET difference is visible in the output as a prop object.
+ *
+ * `style-top-level` is the row that does NOT share that lexer: upstream reads a
+ * top-level `<script>` / `<style>`'s attributes with `read_attribute` under
+ * `parse_static`, whose terminator set does not grow the six characters this
+ * family is about — so `<style a=b=c>` compiles where `<div a=b=c>` does not.
+ * Without it, a fix that ends the value earlier *everywhere* passes all 75 cells
+ * and turns a top-level style block into a parse error.
  */
 export const UNQUOTED_ATTRIBUTE_HOSTS = {
 	div: '<div data-x=%s></div>',
@@ -1937,6 +1944,7 @@ export const UNQUOTED_ATTRIBUTE_HOSTS = {
 	'input-self-closing': '<input data-x=%s />',
 	component: '<Comp data-x=%s />',
 	'svelte-element': '<svelte:element this="div" data-x=%s></svelte:element>',
+	'style-top-level': '<style data-x=%s>\n\tp {\n\t\tcolor: red;\n\t}\n</style>',
 };
 
 export const UNQUOTED_ATTRIBUTE_PREAMBLE = `<script>

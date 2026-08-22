@@ -153,4 +153,9 @@ fn top_level_script_attribute_keeps_the_static_terminator_set() {
     // rather than ending it, so the element still closes.
     let code = compile_ok("<style a=b=c>\n\tp {\n\t\tcolor: red;\n\t}\n</style>\n<p>x</p>");
     assert!(code.contains(">x</p>"), "{code}");
+
+    // `[^>\s]+` admits `/` too, so a trailing slash is part of the value and
+    // does not self-close the block — which a top-level script/style cannot do.
+    let code = compile_ok("<style a=b/>\n\tp {\n\t\tcolor: red;\n\t}\n</style>\n<p>x</p>");
+    assert!(code.contains(">x</p>"), "{code}");
 }
