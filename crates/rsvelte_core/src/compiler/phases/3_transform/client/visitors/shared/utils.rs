@@ -3887,8 +3887,13 @@ fn get_literal_value_json(jv: &serde_json::Value, context: &ComponentContext) ->
                 }
 
                 // If there's a transform registered for this identifier (e.g., from let: directive),
-                // it's been overridden in the current scope and should not be folded as a literal
-                if context.state.transform.contains_key(name) {
+                // it's been overridden in the current scope and should not be folded as a literal.
+                // That is a fact about the TEMPLATE EXPRESSION, whose transformed form is
+                // `$.get(name)`; once the walk has descended into a binding's initializer
+                // upstream's `scope.evaluate` resolves the binding itself, transform or not.
+                if INITIAL_EVAL_DEPTH.with(|d| d.get()) == 0
+                    && context.state.transform.contains_key(name)
+                {
                     return None;
                 }
 
@@ -4326,7 +4331,38 @@ fn get_literal_value_complex(
                     return Some(EvalValue::Undefined); // no arg → undefined
                 }
             }
-            None
+
+            // Upstream's `globals` table: a call of a global keypath over known
+            // arguments is itself known (`String(x)`, `Number(x)`, `Math.max(…)`).
+            // The keypath only counts when nothing local shadows its base.
+            let callee_json = obj.get("callee")?;
+            let (base, keypath) = static_keypath_json(callee_json)?;
+            if context.state.get_binding(&base).is_some()
+                || context.state.transform.contains_key(&base)
+                || !crate::compiler::phases::phase3_transform::server::evaluate::is_global_keypath(
+                    &keypath,
+                )
+            {
+                return None;
+            }
+            let args = obj.get("arguments").and_then(|a| a.as_array())?;
+            let mut evaluations = Vec::with_capacity(args.len());
+            for arg in args {
+                if arg.get("type").and_then(|t| t.as_str()) == Some("SpreadElement") {
+                    return None;
+                }
+                evaluations.push(
+                    crate::compiler::phases::phase3_transform::server::evaluate::Evaluation {
+                        values: vec![get_literal_value_json(arg, context)?],
+                    },
+                );
+            }
+            known(
+                crate::compiler::phases::phase3_transform::server::evaluate::eval_global_call(
+                    &keypath,
+                    &evaluations,
+                )?,
+            )
         }
         "BinaryExpression" => {
             let operator = obj.get("operator").and_then(|v| v.as_str())?;
@@ -5260,7 +5296,10 @@ fn identifier_has_reactive_state(
     // EXCEPTION: Derived bindings always have transforms (for $.get() wrapping),
     // but their reactivity depends on whether their dependencies are known constants.
     // For Derived bindings, skip this early return and fall through to the
-    // detailed binding kind check below.
+    // detailed binding kind check below. State/RawState are excepted for the
+    // same reason: upstream decides the READ from `scope.evaluate`, never from
+    // the lowered declaration form, so `accessors` (which `customElement` turns
+    // on) must not make a never-written `$state(1)` read reactive.
     if let Some(transform) = context.state.transform.get(name) {
         use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
@@ -5270,9 +5309,14 @@ fn identifier_has_reactive_state(
         // outer binding instead of the `{@const}`.
         let resolved = by_position.or_else(|| context.state.get_binding(name));
 
-        // Check if this is a Derived binding - if so, skip the early return
-        // and fall through to the detailed binding kind check below.
-        let is_derived = resolved.is_some_and(|b| matches!(b.kind, BindingKind::Derived));
+        // Check if this is a Derived/State binding - if so, skip the early
+        // return and fall through to the detailed binding kind check below.
+        let is_derived = resolved.is_some_and(|b| {
+            matches!(
+                b.kind,
+                BindingKind::Derived | BindingKind::State | BindingKind::RawState
+            )
+        });
         if !is_derived {
             // For Template bindings (@const), check if the initial value is known
             // instead of blindly using transform.is_reactive.
@@ -5388,13 +5432,19 @@ fn identifier_has_reactive_state(
         // NOT when initial_is_defined is false. The latter can be false for
         // `$state(member.expr)` where the arg might evaluate to undefined at
         // runtime, but the binding is still reactive via $.proxy() wrapping.
+        // A `$state()` with no argument compiles to `void 0`, which
+        // `scope.evaluate` reports as a known value, so its read is not reactive
+        // state unless the binding is written. Reading `is_state_source` here
+        // instead makes the answer depend on how the DECLARATION was lowered,
+        // and `accessors` — which `customElement` forces on — sets it for every
+        // `$state`. Only `initial_node_type == None` qualifies, not
+        // `initial_is_defined == false`, which also holds for `$state(m.x)`.
         if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
             && binding.initial_node_type.is_none()
+            && !binding.reassigned
+            && !binding.mutated
         {
-            use crate::compiler::phases::phase3_transform::client::utils::is_state_source;
-            if !is_state_source(binding, context.state.analysis) {
-                return false;
-            }
+            return false;
         }
 
         // For State, RawState, Derived, and Normal bindings:
@@ -6732,8 +6782,35 @@ fn is_initial_value_literal_or_known(initial: &Option<String>) -> bool {
 /// - `is_expression_known_json` checks if the expression can be compile-time evaluated
 ///   (e.g., function calls to local functions are UNKNOWN even if the callee is non-reactive)
 fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentContext) -> bool {
+    // Every entry point here is a BINDING'S INITIALIZER, and upstream's
+    // `scope.evaluate` never consults `has_call` once it recurses into one — so
+    // enter the folder at depth 1, where `get_literal_value_json`'s
+    // template-expression-only `has_call` bail no longer applies.
+    if INITIAL_EVAL_DEPTH.with(|d| d.get()) == 0 {
+        INITIAL_EVAL_DEPTH.with(|d| d.set(1));
+        let known = is_expression_known_json_inner(json_value, context);
+        INITIAL_EVAL_DEPTH.with(|d| d.set(0));
+        return known;
+    }
+    is_expression_known_json_inner(json_value, context)
+}
+
+fn is_expression_known_json_inner(
+    json_value: &serde_json::Value,
+    context: &ComponentContext,
+) -> bool {
     let Some(obj) = json_value.as_object() else {
-        return false;
+        // `binding.initial` keeps a LITERAL initializer as its source text, so a
+        // `$derived(1)` / `$derived.by(() => 1)` argument arrives here as a bare
+        // JSON scalar instead of an estree `Literal` node — and a literal is
+        // known. An array (`[1, 2]`) is upstream's `default` case: unknown.
+        return matches!(
+            json_value,
+            serde_json::Value::Number(_)
+                | serde_json::Value::Bool(_)
+                | serde_json::Value::String(_)
+                | serde_json::Value::Null
+        );
     };
     let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
         return false;
@@ -6785,12 +6862,15 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
                     }
 
                     // For State bindings, check if state source
+                    // `scope.evaluate` follows `binding.initial` and never asks
+                    // how the declaration was lowered, so `accessors` must not
+                    // make a never-written `$state(1)` unknown. `reassigned` /
+                    // `mutated` were already rejected above.
                     if matches!(binding.kind, BindingKind::State | BindingKind::RawState) {
-                        use crate::compiler::phases::phase3_transform::client::utils::is_state_source;
-                        if is_state_source(binding, context.state.analysis) {
-                            return false;
+                        // A bare `$state()` carries no argument: `undefined`.
+                        if binding.initial_node_type.is_none() && binding.initial.is_none() {
+                            return true;
                         }
-                        // Non-state-source with known initial → known
                         return is_initial_value_literal_or_known(&binding.initial);
                     }
 
@@ -6810,10 +6890,13 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
                         return false;
                     }
 
-                    // For Normal bindings: known if never updated with known initial
-                    // Functions are always "known" (they're defined)
+                    // Upstream evaluates a function-valued binding to the
+                    // `FUNCTION` symbol, and a symbol forces `is_known = false`,
+                    // so a `{@const c = fn}` read stays reactive. The direct read
+                    // of `fn` itself is excluded one level up, by
+                    // `identifier_has_reactive_state`'s `!binding.is_function()`.
                     if binding.is_function() {
-                        return true;
+                        return false;
                     }
                     // A non-literal initializer lives in `init_expr_json`, and
                     // upstream's `scope.evaluate` recurses into the init node
