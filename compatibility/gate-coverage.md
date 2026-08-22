@@ -112,6 +112,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 26 | esrap generated-output corpus | parsed JS output × official/rsvelte tree × 4 targets; AST equivalence, comment kind/body sequence, code/map equality, map bounds/order | production synthetic AST spans and whether a mapping points at the corresponding source token | [S] |
 | 27 | LSP differential parity | normalized JSON response field per request against the pinned official server and selected upstream snapshots | **every server notification**; incremental edit and resolve sequences; **inside a corpus `(file, method)`, everything but the divergent-request count** | [S] [D] |
 | 38 | NAPI `cssHash` | the scope class the callback produces, and the callback's own argument list, against **official** | one component shape and one option set; only `css.code` / the class in `js.code`; nothing about the wasm or facade ports of the same option | [S] |
+| 39 | Print fixture suite (`tests/print.rs`) | per-sample printed Svelte text vs upstream's `output.svelte` | it compares the text, not **which code produced it** — a source-text shortcut around the whole AST printer was invisible for 43 of 43 samples | [D] |
 
 Cross-cutting blind spots (**ratchet keys losing in both directions**, path filters, ratchet-doc
 drift, vacuity floors, the **performance**
@@ -3113,6 +3114,70 @@ reported the disagreement.
 Like gate 22 it exits **2** when `apps/npm/vite-plugin-svelte-native-<triple>/rsvelte.node` is
 absent, which CI treats as a failure but a local run can silently skip. A **stale** addon is worse:
 it loads, and every assertion then measures a binary that predates the change under test.
+
+---
+
+## 39. Print fixture suite — `crates/rsvelte_core/tests/print.rs`
+
+**Unit.** Each sample under `submodules/svelte/packages/svelte/tests/print/samples/` is parsed with
+rsvelte's modern parser, printed with `compiler::print`, and the text compared byte-for-byte to
+upstream's committed `output.svelte`. Hard gate, no ratchet: any mismatch fails.
+
+**Why it is worth a row.** It is the only gate that drives `compiler/print` at all — the compiler
+output gates print JS through esrap and never touch this module — so whatever it cannot see about
+the printer, nothing else sees either.
+
+### Blind spot 39a — it compares the printed text, not which code produced it — **[D]**
+
+Printing is a *round trip*, so for input that is already in the printer's own house style the
+output of the real visitors and the output of copying the source are the same bytes. The gate keys
+on the bytes, so it cannot distinguish them.
+
+`print/visitors.rs::visit_css_stylesheet` had a branch that, whenever the stylesheet carried no CSS
+comment, re-emitted the whole `<style>` body from the source text through a brace-depth scanner
+(`extract_and_reformat_css` → `split_css_top_level_blocks` → `reformat_css_block`, 333 lines) and
+returned before reaching `css_visitors::visit_css_node`. **Every one of the 43 samples the suite
+held took that branch and passed**, so the CSS visitors — type, class, id, pseudo, attribute and
+at-rule — were unexecuted by their own gate.
+
+**Discriminating measurement.** Disabling the branch with a one-line `if false &&` and re-running
+the suite changed exactly **1 of 49** samples (`style`, and only the indentation of its
+`@font-face` block, which the surviving source-recovery helper wrote with a hard-coded `\n\t`).
+So 48 of 49 samples were byte-identical whichever code produced them, and the branch was
+observable on one — through a defect in the *fallback*, not through the shortcut itself.
+
+The two samples upstream added in 5.56.10 are the first inputs that separate them, because both
+are deliberately *not* in the printer's house style: `css-escape-sequences` needs `#\31\32\33`
+re-escaped as `#\31 23`, and `css-namespaced-type-selector` needs the selector list re-indented.
+Both failed with the visitors already ported correctly, because the visitors were not reached.
+
+Generalisation: a round-trip gate is blind to a bypass of the code it is meant to exercise
+whenever the input is a fixed point of that code. The population that discriminates is input the
+printer must *change*, and a corpus of well-formatted sources has none of it by construction.
+
+### Blind spot 39b — the CSS names the printer writes come from the AST, and no gate compares that AST to upstream's — **[S]**
+
+`printer output == upstream output` is compared here; `rsvelte AST == upstream AST` is compared by
+the parser fixture suite. Neither compares the CSS *selector* AST against upstream on the samples
+this gate uses, because the parser suite's samples and the print suite's samples are disjoint sets.
+A name field that rsvelte stores differently from upstream (raw source text vs the decoded value —
+which is what rsvelte did until 5.56.10) is therefore observable only where a print sample happens
+to contain the shape, and there was none until `css-escape-sequences`.
+
+### Blind spot 39c — `@font-face` is still recovered from the source [S]
+
+The CSS parser reads `@font-face` declarations as selectors, so `visit_atrule` extracts that block
+from the source rather than from the AST. Its declarations are split on `;` by a plain scan, so a
+`;` inside a `url()` string or a comment inside the block is not modelled. No sample exercises
+either, and the AST it would need does not exist yet — this is a parser gap wearing a printer
+workaround.
+
+### Blind spot 39d — the population is upstream's samples, and nothing else prints [S]
+
+`MIN_PRINT_FIXTURES` floors the count, but the samples are whatever the pinned submodule ships.
+No generated family, no corpus source and no mutation feeds this gate, so a construct upstream has
+no print sample for (a `{#await}` shape, a directive spelling, an at-rule) is printed by nothing
+that checks it. The corpus gates parse the same sources but never print them back.
 
 ---
 
