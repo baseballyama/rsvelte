@@ -2,16 +2,20 @@
 //!
 //! Corresponds to the TypeScript definitions in `public.d.ts` and `private.d.ts`.
 
-use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
-// Re-export the exact `FxHashMap` (and its hasher) that the preprocess attribute
-// maps are built from. With `resolver = "3"`, the same dependency can be compiled
-// separately for distinct dependency graphs, so an integration test that names
-// `rustc_hash::FxHashMap` directly can resolve a *different* `FxBuildHasher`
-// instance than this crate's `AttributeValue` map uses. Tests construct attribute
-// maps through this re-export so the hasher type always unifies with the library's.
-pub use rustc_hash::FxHashMap as PreprocessAttributeMap;
+/// The map a preprocess attribute set is built from. Key order is observable in
+/// JavaScript (`Object.keys`, `JSON.stringify`, and any tag the hook rebuilds),
+/// and upstream's is a plain object filled in source order, so it has to be
+/// insertion-ordered rather than hashed.
+///
+/// Exported so an integration test constructs the same type the library uses —
+/// under `resolver = "3"` the same dependency can be compiled separately for
+/// distinct dependency graphs, and a directly-named hasher would not unify.
+pub type PreprocessAttributeMap<K, V> = indexmap::IndexMap<K, V, rustc_hash::FxBuildHasher>;
+
+/// The attribute map with its key/value types applied.
+pub type AttributeMap = PreprocessAttributeMap<String, AttributeValue>;
 
 /// The result of a preprocessor run.
 ///
@@ -28,7 +32,7 @@ pub struct Processed {
     pub dependencies: Vec<String>,
     /// Only for script/style preprocessors: The updated attributes to set on the tag.
     /// If None, attributes stay unchanged.
-    pub attributes: Option<FxHashMap<String, AttributeValue>>,
+    pub attributes: Option<AttributeMap>,
 }
 
 /// Attribute values can be boolean (for valueless attributes) or strings.
@@ -105,7 +109,7 @@ pub struct PreprocessorOptions {
     /// The script/style tag content
     pub content: String,
     /// The attributes on the script/style tag
-    pub attributes: FxHashMap<String, AttributeValue>,
+    pub attributes: AttributeMap,
     /// The whole Svelte file content
     pub markup: String,
     /// The filename of the Svelte file
