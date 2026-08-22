@@ -1886,3 +1886,89 @@ export const WRITE_PREAMBLE = `<script>
 
 %m
 `;
+
+/**
+ * Axis — a `compilerOptions` field, the one axis no gate varies.
+ *
+ * `scripts/compat-corpus/targets.mjs` moves `generate` and `dev` and holds every
+ * other `CompileOptions` field constant, and every other gate draws its options
+ * from there or from an equivalent hardcoded pair. So "which compiler options is
+ * rsvelte compatible under" was unmeasured until #3384, whose throwaway grid
+ * returned 127 divergences on its first run against a tree the collected corpus
+ * scored at 0.
+ *
+ * `baseline` is not decoration and must stay first: a cell's verdict is a
+ * difference between two compilations, so the un-perturbed one has to be one of
+ * them. Two of the components below diverge with no options set at all, and
+ * without the baseline row those two read as a divergence under every option —
+ * 38 of that first run's 85 keys were that one artefact.
+ *
+ * `no-filename` spells the absence as an explicit `undefined`, because the
+ * runner always seeds `filename` from the case id and `Object.assign` is what
+ * has to unset it. It is the only row that can reach upstream's `'(unknown)'`
+ * default.
+ */
+export const COMPILER_OPTIONS = {
+	baseline: {},
+	'runes-true': { runes: true },
+	accessors: { accessors: true },
+	immutable: { immutable: true },
+	'custom-element': { customElement: true },
+	'css-external': { css: 'external' },
+	'namespace-svg': { namespace: 'svg' },
+	'namespace-mathml': { namespace: 'mathml' },
+	'preserve-comments': { preserveComments: true },
+	'preserve-whitespace': { preserveWhitespace: true },
+	'preserve-both': { preserveComments: true, preserveWhitespace: true },
+	'no-disclose-version': { discloseVersion: false },
+	'fragments-tree': { fragments: 'tree' },
+	name: { name: 'Renamed' },
+	'no-filename': { filename: undefined },
+};
+
+/**
+ * Axis — the component the option acts on. An option crossed with a component it
+ * cannot affect measures nothing: a `namespace: 'mathml'` row against a file with
+ * no MathML in it is a clean cell that means clean about nothing. One shape per
+ * option, crossed with every option so a shape stays comparable across them.
+ */
+export const COMPILER_OPTION_COMPONENTS = {
+	'state-style': `<script>
+	let n = $state(1);
+</script>
+
+<b class="a">{n}</b>
+
+<style>
+	.a {
+		color: red;
+	}
+</style>
+`,
+	'legacy-export': `<script>
+	export let a = 1;
+	$: doubled = a * 2;
+</script>
+
+<b>{doubled}</b>
+`,
+	'mathml-fragment': `<math><mi>x</mi></math>
+`,
+	'svg-fragment': `<svg><circle r="1" /></svg>
+`,
+	'comment-whitespace': `<!-- kept? -->
+<b>   a   b   </b>
+`,
+	'snippet-render': `{#snippet row(x)}
+	<b>{x}</b>
+{/snippet}
+
+{@render row(1)}
+`,
+	'props-and-slot': `<script>
+	let { children, value = 1 } = $props();
+</script>
+
+<b>{value}{@render children?.()}</b>
+`,
+};

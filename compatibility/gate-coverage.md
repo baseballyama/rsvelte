@@ -944,6 +944,11 @@ The rest of that class — `runes`, `namespace`, `accessors`, `customElement`,
 does surface in `js.code` and is reachable. Cost is not the constraint: an option axis compiles
 exactly like a shape axis. **[S]**
 
+**[D]** #3384: the `compiler-option` family now declares 15 of them as an axis, so the
+*reachable* half of this row is closed — see 5r for what the family itself cannot see, which is
+not the same list. The vacuous half stands unchanged: `modernAst` is still expressible and still
+inert here, and `skipCssAst` is still an option of a function this harness never calls.
+
 ### Blind spot 5k — comments are observable HERE and nowhere else, and only inside `<script>`
 
 This gate compares oxfmt-normalized `js.code` **as text** (`run.mjs:260-262`, verdict
@@ -1143,6 +1148,53 @@ What `write-host` still does not vary, so it is not read as more than it is: one
 arrow through one prop name, and the write is always a member expression — a bare
 `p = p + 1` reassignment is `binding-position`'s `assignment.right` row and is not repeated
 here. **[S]**
+
+### Blind spot 5r — the `compiler-option` family compiles each case ONCE, and reads only `js.code`
+
+The family added for #3384 crosses 15 `compilerOptions` variants with 7 components, and the
+`baseline: {}` row is load-bearing rather than decorative: a cell's verdict is a *difference
+between two compilations*, so the un-perturbed one has to be one of them. Two of the twelve
+components in #3384's throwaway grid diverged with no options set at all, and without a baseline
+row those two read as a divergence under every option — **38 of that run's 85 keys were that one
+artefact**. This is `derived-key-needs-its-own-control` in the option axis.
+
+Four things it structurally cannot observe, and three of them cost a real defect.
+
+**A per-process rule.** `run.mjs` compiles each case exactly once per target, so a rule about the
+*second* compile has no second compile to run. #3380 is that shape: upstream routes six options
+through `warn_once`, a module-level `Set` that is never reset, and rsvelte warned on every compile
+for `accessors` / `immutable` — a Vite build of 500 components printed the deprecation 500 times.
+Adding `accessors` as an axis here does not measure it; the first compile agrees. This is 2e one
+gate over, and it is why #3380 is pinned by a test that compiles the same source three times
+(`rsvelte_capi`'s / the NAPI's `warn_once` flags are process-global, so the *unit* has to be a
+process, not a compile). **[D]**
+
+**`css.code`.** The comparison reads `js.code`, the warning `code` multiset and the error `code`
+(5b). So `css: 'injected'` is observable only because the CSS lands *inside* `js.code`, and the
+`css-external` row compares the JS of a component whose CSS went to the other field — a row that
+is green about the option and silent about its output. #3226 (` ;}` where official emits `}` in
+the injected string) is visible here for that reason and would not be under `external`. **[S]**
+
+**A function-valued option.** Upstream lets `css`, `customElement`, `runes`, `warningFilter` and
+`cssHash` take a callback (`validate-options.js` `parametric()` / `fun()`). The generator's
+variants are plain values; a function is expressible in JS but crosses the NAPI boundary, where
+two of the five are silently ignored and three are rejected (#3396). A family of scalar option
+*values* is blind to the whole callback half of the axis by construction. **[S]**
+
+**The absence of an option.** `run.mjs` seeds `filename` from the case id, so "the option was not
+supplied" is only reachable by an explicit `undefined` in the case's `options` — which one row
+(`no-filename`) does, and no other option does. #3383 lived there: with no `filename`, upstream
+substitutes `'(unknown)'` and every consumer reads the *defaulted* value, so the component came
+out `_unknown_` and the dev `[$.FILENAME]` assignment was still emitted, while rsvelte named it
+`Component` and dropped the assignment its own `add_locations` call then read. Every harness in
+the repo supplies a filename; absence is a configuration no gate constructs. **[D]**
+
+Two further limits worth stating so a green is not over-read. The component axis is one shape per
+option — an option crossed with a component it cannot act on is a clean cell that means clean
+about nothing (a `namespace: 'mathml'` row against a file with no MathML) — so the family
+measures *that* pairing, not the option's whole surface. And options are varied one at a time
+apart from `preserve-both`: an interaction between two options is unenumerated, which is the same
+caution 5g records for its own single-axis rows. **[S]**
 
 **Closing 5b/5c:** the matrix costs ~25 s of CPU on ~10,200 comparisons (wall clock on a box
 running other agents' builds is unusable — a paired A/B inverted once). `constant-fold` is the
