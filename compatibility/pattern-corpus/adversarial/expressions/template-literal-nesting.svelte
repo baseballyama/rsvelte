@@ -1,23 +1,9 @@
 <script>
-  let n = $state(1);
-
-  const one = `a${n}b`;
-  const nested = `outer ${`inner ${n} ${`deep ${n}`}`} end`;
-  const withBrace = `${"}"}${"{"}`;
-  const withBacktick = `\``;
-  const multiline = `line1
-line2`;
-
-  function tag(strings, ...values) {
-    return strings.raw.join("|") + values.join(",");
-  }
-
-  const tagged = tag`a${n}b`;
-  const nestedTagged = tag`x${tag`y${n}`}`;
+	let user = $state({ name: 'a', tags: ['x', 'y'] });
+	let greeting = $derived(
+		`Hello ${user.name}, you have ${user.tags.length > 0 ? `${user.tags.map((t) => `#${t}`).join(' ')}` : `no ${'tags'}`}`,
+	);
 </script>
 
-<b>{one}</b>
-<b>{nested}</b>
-<b>{withBrace}{withBacktick}</b>
-<b>{multiline.length}</b>
-<b>{tagged}{nestedTagged}</b>
+<p title={`outer ${`inner ${user.name}`} end`}>{greeting}</p>
+<p>{`\`escaped backtick\` and \${escaped hole}`}</p>

@@ -1,22 +1,21 @@
 <script>
-  import Self from "./component-directive-mix.svelte";
+	import Inner from './const-shadowing.svelte';
 
-  let { depth = 0, value = $bindable(1) } = $props();
-
-  let instance = $state(null);
-  const extra = { title: "t" };
+	let el = $state(null);
+	let n = $state(0);
+	const spread = { 'data-x': 1, onclick: () => n++ };
 </script>
 
-{#if depth === 0}
-  <Self
-    bind:this={instance}
-    bind:value
-    depth={1}
-    {...extra}
-    --custom-prop="red"
-    class="wrapper"
-  />
-  <b>{instance ? 1 : 0}{value}</b>
-{:else}
-  <b>leaf {value}</b>
-{/if}
+<Inner bind:this={el} {...spread} --theme-color="red" onintro={() => n++} />
+<Inner {...spread} bind:this={el} --theme-color={n > 0 ? 'blue' : 'red'} />
+
+<div
+	class="one two three four five six seven eight nine ten eleven twelve thirteen"
+	style:--gap="{n}px"
+	style:color="red"
+	style:display|important="grid"
+	data-multiline="line one
+line two"
+>
+	{n}{el ? 1 : 0}
+</div>
