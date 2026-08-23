@@ -55,3 +55,44 @@ fn directive_name_store_subscribes_for_every_kind_but_style_and_on() {
 fn a_store_used_as_a_style_value_still_subscribes() {
     assert!(subscribes("<div style:color={$store}>x</div>"));
 }
+
+/// A directive NAME subscribes only in its bare form. Official subscribes for
+/// `use:$store` but not for `use:$store.action`, and the same holds for every
+/// kind that subscribes at all — the member form reads a property off a store
+/// it never declares, so a subscription here is one upstream does not write.
+/// This is what `runtime-runes/samples/store-directive/main.svelte` exercises.
+#[test]
+fn a_member_access_in_a_directive_name_does_not_subscribe() {
+    for template in [
+        "<div use:$store.action>x</div>",
+        "<div transition:$store.action>x</div>",
+        "<div in:$store.action>x</div>",
+        "<div out:$store.action>x</div>",
+        "{#each [1] as k (k)}<div animate:$store.action>{k}</div>{/each}",
+        "<div class:$store.action>x</div>",
+        "<div use:$store.a.b>x</div>",
+    ] {
+        assert!(
+            !subscribes(template),
+            "expected NO store subscription for {template:?}"
+        );
+    }
+}
+
+/// The control that keeps the previous test honest: the restriction is on the
+/// NAME position only. A member access read through a directive VALUE, or in a
+/// plain expression, still subscribes — so a fix that simply dropped every
+/// `$store.` occurrence would fail here.
+#[test]
+fn a_member_access_outside_a_directive_name_still_subscribes() {
+    for template in [
+        "<div use:x={$store.action}>x</div>",
+        "<div style:color={$store.c}>x</div>",
+        "<div>{$store.x}</div>",
+    ] {
+        assert!(
+            subscribes(template),
+            "expected a store subscription for {template:?}"
+        );
+    }
+}
