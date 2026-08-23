@@ -3647,7 +3647,9 @@ pub fn build_template_chunk(
 
 /// Collect identifiers from an AST Expression for blocker map checking.
 /// This walks the JSON AST to find all Identifier nodes.
-fn collect_expression_identifiers_for_blockers(expr: &crate::ast::js::Expression) -> Vec<String> {
+pub(crate) fn collect_expression_identifiers_for_blockers(
+    expr: &crate::ast::js::Expression,
+) -> Vec<String> {
     let mut names = Vec::new();
     let val = expr.as_json();
     collect_expr_ids_recursive(val, &mut names);
