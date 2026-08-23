@@ -357,6 +357,27 @@ pub fn transform_client_module(
 /// `server_module` do: a builder-made `Program` with no `loc`, which parks
 /// esrap's comment cursor past the end so only comments inside a located nested
 /// body survive.
+/// Stands in for upstream's `b.empty` while a module's text is still parsed as
+/// JavaScript: `const t = ;;` is what upstream prints and what no parser reads.
+pub(crate) const MODULE_INSPECT_HOLE: &str = "$$inspect_empty";
+
+/// Expand [`MODULE_INSPECT_HOLE`] back to the `;` esrap prints for `b.empty`.
+/// Code positions only — a module may hold the same text in a string literal.
+fn expand_module_inspect_holes(code: String) -> String {
+    if memmem::find(code.as_bytes(), MODULE_INSPECT_HOLE.as_bytes()).is_none() {
+        return code;
+    }
+    let mut out = String::with_capacity(code.len());
+    let mut rest = code.as_str();
+    while let Some(pos) = find_code(rest.as_bytes(), MODULE_INSPECT_HOLE.as_bytes()) {
+        out.push_str(&rest[..pos]);
+        out.push(';');
+        rest = &rest[pos + MODULE_INSPECT_HOLE.len()..];
+    }
+    out.push_str(rest);
+    out
+}
+
 pub(crate) fn print_module_program(
     body: Vec<JsStatement>,
     header: &str,
@@ -387,10 +408,15 @@ pub(crate) fn print_module_program(
             }
         })
     {
-        return Ok(format!("{header}\n{}", rehome_derived_jsdoc(&code)));
+        return Ok(expand_module_inspect_holes(format!(
+            "{header}\n{}",
+            rehome_derived_jsdoc(&code)
+        )));
     }
     generate(&program, &arena)
-        .map(|code| format!("{header}\n{}", rehome_derived_jsdoc(&code)))
+        .map(|code| {
+            expand_module_inspect_holes(format!("{header}\n{}", rehome_derived_jsdoc(&code)))
+        })
         .map_err(TransformError::CodeGen)
 }
 
@@ -4463,20 +4489,15 @@ fn transform_module_script_runes_with_target(
                 } else {
                     inspect_start + content_end + 1 - pos
                 };
-                // Remove leading whitespace on the same line
-                let mut start = pos;
-                while start > 0 && matches!(result.as_bytes()[start - 1], b' ' | b'\t') {
-                    start -= 1;
-                }
-                // Consume optional trailing semicolon then newline
-                let mut end = pos + total_call_len;
-                while end < result.len() && result.as_bytes()[end] == b';' {
-                    end += 1;
-                }
-                if end < result.len() && result.as_bytes()[end] == b'\n' {
-                    end += 1;
-                }
-                result = format!("{}{}", &result[..start], &result[end..]);
+                // Upstream replaces the EXPRESSION with `b.empty`, which esrap
+                // prints as `;`, so the call's slot survives: a statement becomes
+                // `;;` and `const t = $inspect(a)` becomes `const t = ;;`. Deleting
+                // the line instead spliced the next statement onto the assignment.
+                result = format!(
+                    "{}{MODULE_INSPECT_HOLE}{}",
+                    &result[..pos],
+                    &result[pos + total_call_len..]
+                );
             } else {
                 break;
             }

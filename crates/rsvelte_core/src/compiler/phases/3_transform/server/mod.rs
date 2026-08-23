@@ -139,6 +139,15 @@ pub fn transform_server_module(
     )
     .unwrap_or(source_without_effects);
 
+    // The client module transform below runs with `dev: false`, so it would
+    // DROP a `$inspect(…)` the server is supposed to lower. Do the lowering
+    // first; what it leaves behind holds no code-position `$inspect(`.
+    let source_without_effects = if _options.dev {
+        lower_module_dev_inspect(&source_without_effects)
+    } else {
+        source_without_effects
+    };
+
     // Transform rune calls using the same infrastructure as client modules.
     let transformed = super::client::transform_module_source_for_module(
         &source_without_effects,
@@ -397,6 +406,56 @@ fn kept_comments_of_removed_range(source: &str, start: usize, end: usize) -> Str
 ///
 /// Matching is JS-lexical-aware via [`code_match_positions`], so effect-call-shaped
 /// text inside string literals or comments is left untouched (issue #447, H-029).
+/// Dev lowering for a module's `$inspect(…)`, 写经 the server `CallExpression`
+/// visitor: `$inspect(args)` → `console.log('$inspect(', args, ')')` and
+/// `$inspect(args).with(fn)` → `(fn)('init', args)`. It is an EXPRESSION
+/// rewrite, so it reaches every slot and depth the visitor does.
+///
+/// The argument slices are spliced verbatim rather than trimmed, so a trailing
+/// `//` comment inside them keeps the newline that terminates it.
+fn lower_module_dev_inspect(source: &str) -> String {
+    use super::client::find_matching_paren;
+    use super::shared::js_scan::find_code;
+
+    let mut result = source.to_string();
+    while let Some(pos) = find_code(result.as_bytes(), b"$inspect(") {
+        let args_start = pos + b"$inspect(".len();
+        let Some(args_len) = find_matching_paren(&result[args_start..]) else {
+            break;
+        };
+        let args = result[args_start..args_start + args_len].to_string();
+        let after_call = args_start + args_len + 1;
+        let (end, replacement) = if result[after_call..].trim_start().starts_with(".with(") {
+            let with_offset = memmem::find(&result.as_bytes()[after_call..], b".with(").unwrap();
+            let fn_start = after_call + with_offset + b".with(".len();
+            let Some(fn_len) = find_matching_paren(&result[fn_start..]) else {
+                break;
+            };
+            let inspector = &result[fn_start..fn_start + fn_len];
+            let tail = if args.trim().is_empty() {
+                String::new()
+            } else {
+                format!(", {args}")
+            };
+            // The parentheses round the inspector are redundant for a plain
+            // callee and the printer drops them; an arrow needs them.
+            (
+                fn_start + fn_len + 1,
+                format!("({inspector})('init'{tail})"),
+            )
+        } else {
+            let head = if args.trim().is_empty() {
+                String::new()
+            } else {
+                format!("{args}, ")
+            };
+            (after_call, format!("console.log('$inspect(', {head}')')"))
+        };
+        result = format!("{}{}{}", &result[..pos], replacement, &result[end..]);
+    }
+    result
+}
+
 fn strip_effects_from_source(source: &str) -> String {
     use super::client::find_matching_paren;
 
