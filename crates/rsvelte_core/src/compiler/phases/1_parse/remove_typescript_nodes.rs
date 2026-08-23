@@ -263,9 +263,10 @@ pub fn remove_typescript_nodes_typed(
     visit_typed_children(node, arena)
 }
 
-/// Strip a `TSModuleDeclaration` (typed). Mirrors the Value-mutator namespace
-/// logic: error when the body contains non-type nodes, otherwise replace with an
-/// empty statement.
+/// Strip a `TSModuleDeclaration` (typed). Mirrors upstream: visit every body
+/// entry, and error when any of them survived the visit. Upstream compares the
+/// visited entry against the `b.empty` singleton, so an `EmptyStatement` the
+/// source itself wrote is *not* a match — hence the pre-visit node type.
 fn strip_ts_module_declaration_typed(
     node: &mut JsNode,
     arena: &ParseArena,
@@ -282,10 +283,17 @@ fn strip_ts_module_declaration_typed(
             JsNode::BlockStatement { body, .. } => *body,
             _ => IdRange::empty(),
         };
-        let stmts = arena.get_js_children(stmts_range);
-        let has_non_type_nodes = stmts
+        let was_empty_statement: Vec<bool> = arena
+            .get_js_children(stmts_range)
             .iter()
-            .any(|entry| !is_type_only_namespace_member(entry));
+            .map(|entry| entry.node_type() == Some("EmptyStatement"))
+            .collect();
+        recurse_range(stmts_range, arena)?;
+        let has_non_type_nodes = arena
+            .get_js_children(stmts_range)
+            .iter()
+            .zip(&was_empty_statement)
+            .any(|(entry, was_empty)| *was_empty || entry.node_type() != Some("EmptyStatement"));
         if has_non_type_nodes {
             return Err(ParseError::typescript_invalid_feature(
                 "namespaces with non-type nodes",
@@ -299,27 +307,6 @@ fn strip_ts_module_declaration_typed(
 
     *node = typed_empty_statement(node);
     Ok(())
-}
-
-/// Classify a single namespace-body member as "safe to strip" (type-only).
-/// Mirrors the Value mutator's per-entry predicate (lines for `TSModuleDeclaration`).
-fn is_type_only_namespace_member(entry: &JsNode) -> bool {
-    match entry.node_type() {
-        Some("EmptyStatement")
-        | Some("TSInterfaceDeclaration")
-        | Some("TSTypeAliasDeclaration")
-        | Some("TSEnumDeclaration") => true,
-        Some("ExportNamedDeclaration") => {
-            // `export type ...`
-            if let JsNode::ExportNamedDeclaration { export_kind, .. } = entry
-                && export_kind.as_deref() == Some("type")
-            {
-                return true;
-            }
-            false
-        }
-        _ => false,
-    }
 }
 
 /// Strip type-only imports (typed). Whole `import type {...}` → empty; otherwise

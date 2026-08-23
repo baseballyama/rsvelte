@@ -106,6 +106,12 @@ pub struct Printer<'opt, const HAS_COMMENTS: bool = true, const DIRECT: bool = f
     /// without comments.
     line_starts: Vec<u32>,
     comment_source: Option<&'opt str>,
+    /// The text the comment spans index into, consulted only to decide whether
+    /// a line break separates two offsets. `line_starts` cannot answer that: it
+    /// doubles as the source-map coordinate table, so it counts LF alone, while
+    /// esrap reads placement off acorn's `loc.line`, which advances on CR and on
+    /// U+2028 / U+2029 too. `None` falls back to `line_starts`.
+    placement_source: Option<&'opt str>,
     /// Byte offsets of each line start in the buffer source-map positions are
     /// resolved against. Same as `line_starts` unless the caller split the two
     /// coordinate spaces (see [`crate::print_split`]).
@@ -254,7 +260,9 @@ impl<'a> BorrowedCommentDriver<'a> {
             }
             first = false;
             self.write(comment, ctx);
-            if self.has_newline(comment.span.end, to) {
+            if self.has_newline(comment.span.end, to)
+                || matches!(comment.kind, oxc_ast::ast::CommentKind::Line)
+            {
                 ctx.newline();
             } else if pad {
                 ctx.write_ascii(b' ');
@@ -289,7 +297,7 @@ impl<'a> BorrowedCommentDriver<'a> {
         debug_assert!(start <= end);
         self.source
             .get(start as usize..end as usize)
-            .is_some_and(|text| text.as_bytes().contains(&b'\n'))
+            .is_some_and(contains_line_terminator)
     }
 
     fn write<const DIRECT: bool>(
@@ -334,7 +342,19 @@ impl<'a> BorrowedCommentDriver<'a> {
     }
 }
 
+/// Whether `text` holds an ECMAScript `LineTerminator`. esrap asks this by
+/// comparing acorn `loc.line` numbers, which advance on CR and on U+2028 /
+/// U+2029 as well as on LF.
+pub(crate) fn contains_line_terminator(text: &str) -> bool {
+    text.as_bytes().iter().any(|&b| b == b'\n' || b == b'\r')
+        || text.contains(['\u{2028}', '\u{2029}'])
+}
+
 /// Byte offsets at which each source line begins (line 1 starts at 0).
+///
+/// LF only: this table also resolves source-map positions, whose line numbering
+/// is the generated buffer's. Comment *placement* asks a different question —
+/// see [`contains_line_terminator`].
 pub fn line_starts(source: &str) -> Vec<u32> {
     // Sized off an assumed ~32 bytes per line so a long source does not walk the
     // whole doubling sequence.
@@ -662,6 +682,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             comment_index: 0,
             line_starts: Vec::new(),
             comment_source: None,
+            placement_source: None,
             map_line_starts: None,
             loc_base: None,
             loc_map: Vec::new(),
@@ -686,10 +707,18 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             map_line_starts: None,
             line_starts,
             comment_source: None,
+            placement_source: None,
             loc_base: None,
             loc_map: Vec::new(),
             map_nodes: true,
         }
+    }
+
+    /// Decide comment placement by reading `source`, not by comparing lines in
+    /// `line_starts` (which is the source-map coordinate table).
+    pub(crate) const fn with_placement_source(mut self, source: &'opt str) -> Self {
+        self.placement_source = Some(source);
+        self
     }
 
     pub(crate) const fn with_borrowed_comments(
@@ -739,21 +768,26 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
         if start >= end {
             return false;
         }
-        self.comment_source.map_or_else(
+        self.placement_text().map_or_else(
             || self.line_of(start) < self.line_of(end),
             |source| {
                 source
                     .get(start as usize..end as usize)
-                    .is_some_and(|text| text.as_bytes().contains(&b'\n'))
+                    .is_some_and(contains_line_terminator)
             },
         )
     }
 
     fn comment_starts_on_earlier_line(&self, comment: CommentMeta, offset: u32) -> bool {
-        self.comment_source.map_or_else(
+        self.placement_text().map_or_else(
             || comment.start_line < self.line_of(offset),
             |_| self.has_newline_between(comment.start, offset),
         )
+    }
+
+    /// The text placement decisions are read from, if the caller supplied one.
+    fn placement_text(&self) -> Option<&'opt str> {
+        self.comment_source.or(self.placement_source)
     }
 
     /// esrap's `if (node.loc)`: whether a span offset is a real source position
@@ -1054,7 +1088,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             }
             first = false;
             self.write_comment_at(self.comment_index, ctx);
-            if self.has_newline_between(cmt.end, to) {
+            if !cmt.block || self.has_newline_between(cmt.end, to) {
                 ctx.newline();
             } else if pad {
                 ctx.write_ascii(b' ');
@@ -4333,7 +4367,8 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 .as_expression()
                 .map_or_else(|| second.span().start, |e| unparen(e).span().start);
             let force_multiline = self.comment_at(self.comment_index).is_some_and(|c| {
-                c.start < second_start && self.comment_starts_on_earlier_line(c, second_start)
+                c.start < second_start
+                    && (!c.block || self.comment_starts_on_earlier_line(c, second_start))
             });
 
             ctx.write_ascii(b'(');

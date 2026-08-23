@@ -8253,84 +8253,82 @@ fn convert_statement_for_program(
 
         // TypeScript module/namespace declarations - emit so remove_typescript_nodes can detect them
         oxc_ast::ast::Statement::TSExternalModuleDeclaration(module_decl) => {
-            // `declare module`, `declare global`, `declare namespace` etc. are
-            // type-only and must be stripped.
-            if module_decl.declare {
-                let start = offset + module_decl.span.start as usize;
-                let end = offset + module_decl.span.end as usize;
-                return Some(JsNode::EmptyStatement {
-                    start: start as u32,
-                    end: end as u32,
-                    loc: create_typed_loc(start, end, line_offsets),
-                });
-            }
-            let start = offset + module_decl.span.start as usize;
-            let end = offset + module_decl.span.end as usize;
-            let loc = create_typed_loc(start, end, line_offsets);
-
-            // Include body so remove_typescript_nodes can check for non-type nodes
-            let body = module_decl.body.as_ref().map(|block| {
-                let block_body: Vec<JsNode> = block
-                    .body
-                    .iter()
-                    .filter_map(|stmt| {
-                        convert_statement_for_program(arena, stmt, offset, line_offsets)
-                    })
-                    .collect();
-                arena.alloc_js_node(JsNode::BlockStatement {
-                    start: start as u32,
-                    end: end as u32,
-                    loc: loc.clone(),
-                    body: arena.alloc_js_children(block_body),
-                })
-            });
-
-            Some(JsNode::TSModuleDeclaration {
-                start: start as u32,
-                end: end as u32,
-                loc,
-                body,
-            })
+            Some(convert_ts_module_declaration_as_node(
+                arena,
+                module_decl.span,
+                module_decl.body.as_deref(),
+                offset,
+                line_offsets,
+            ))
         }
         oxc_ast::ast::Statement::TSNamespaceDeclaration(module_decl) => {
-            let start = offset + module_decl.span.start as usize;
-            let end = offset + module_decl.span.end as usize;
-            let loc = create_typed_loc(start, end, line_offsets);
-            if module_decl.declare {
-                return Some(JsNode::EmptyStatement {
-                    start: start as u32,
-                    end: end as u32,
-                    loc,
-                });
-            }
-            let body = match &module_decl.body {
-                oxc_ast::ast::TSNamespaceDeclarationBody::TSModuleBlock(block) => {
-                    let block_body = block
-                        .body
-                        .iter()
-                        .filter_map(|stmt| {
-                            convert_statement_for_program(arena, stmt, offset, line_offsets)
-                        })
-                        .collect();
-                    Some(arena.alloc_js_node(JsNode::BlockStatement {
-                        start: start as u32,
-                        end: end as u32,
-                        loc: loc.clone(),
-                        body: arena.alloc_js_children(block_body),
-                    }))
-                }
-                oxc_ast::ast::TSNamespaceDeclarationBody::TSNamespaceDeclaration(_) => None,
-            };
-            Some(JsNode::TSModuleDeclaration {
-                start: start as u32,
-                end: end as u32,
-                loc,
-                body,
-            })
+            Some(convert_ts_module_declaration_as_node(
+                arena,
+                module_decl.span,
+                ts_namespace_block(&module_decl.body),
+                offset,
+                line_offsets,
+            ))
+        }
+        oxc_ast::ast::Statement::TSGlobalDeclaration(module_decl) => {
+            Some(convert_ts_module_declaration_as_node(
+                arena,
+                module_decl.span,
+                Some(&module_decl.body),
+                offset,
+                line_offsets,
+            ))
         }
 
         // Add more statement types as needed
         _ => None,
+    }
+}
+
+/// The `TSModuleBlock` a namespace body carries, or `None` for the dotted form
+/// (`namespace N.M {}`), which nests another declaration instead of a block.
+fn ts_namespace_block<'a>(
+    body: &'a oxc_ast::ast::TSNamespaceDeclarationBody<'a>,
+) -> Option<&'a oxc_ast::ast::TSModuleBlock<'a>> {
+    match body {
+        oxc_ast::ast::TSNamespaceDeclarationBody::TSModuleBlock(block) => Some(block),
+        oxc_ast::ast::TSNamespaceDeclarationBody::TSNamespaceDeclaration(_) => None,
+    }
+}
+
+/// Build the `TSModuleDeclaration` node `remove_typescript_nodes` inspects.
+/// `declare` is deliberately not consulted: upstream's visitor keys only on
+/// whether the module has a body, so `declare module "x" { … }` has to reach it.
+fn convert_ts_module_declaration_as_node(
+    arena: &ParseArena,
+    span: oxc_span::Span,
+    block: Option<&oxc_ast::ast::TSModuleBlock>,
+    offset: usize,
+    line_offsets: &[usize],
+) -> JsNode {
+    let start = offset + span.start as usize;
+    let end = offset + span.end as usize;
+    let loc = create_typed_loc(start, end, line_offsets);
+
+    let body = block.map(|block| {
+        let block_body: Vec<JsNode> = block
+            .body
+            .iter()
+            .filter_map(|stmt| convert_statement_for_program(arena, stmt, offset, line_offsets))
+            .collect();
+        arena.alloc_js_node(JsNode::BlockStatement {
+            start: start as u32,
+            end: end as u32,
+            loc: loc.clone(),
+            body: arena.alloc_js_children(block_body),
+        })
+    });
+
+    JsNode::TSModuleDeclaration {
+        start: start as u32,
+        end: end as u32,
+        loc,
+        body,
     }
 }
 
@@ -8526,6 +8524,32 @@ fn convert_declaration_for_program_as_node(
         {
             convert_class_declaration_as_node(arena, class_decl, offset, line_offsets)
         }
+        // `export namespace N { … }` / `export module M { … }` — upstream walks
+        // through the export into the declaration, so the module node has to
+        // survive the wrapper.
+        Declaration::TSExternalModuleDeclaration(module_decl) => {
+            convert_ts_module_declaration_as_node(
+                arena,
+                module_decl.span,
+                module_decl.body.as_deref(),
+                offset,
+                line_offsets,
+            )
+        }
+        Declaration::TSNamespaceDeclaration(module_decl) => convert_ts_module_declaration_as_node(
+            arena,
+            module_decl.span,
+            ts_namespace_block(&module_decl.body),
+            offset,
+            line_offsets,
+        ),
+        Declaration::TSGlobalDeclaration(module_decl) => convert_ts_module_declaration_as_node(
+            arena,
+            module_decl.span,
+            Some(&module_decl.body),
+            offset,
+            line_offsets,
+        ),
         _ => JsNode::from_value(convert_declaration_for_program(
             arena,
             decl,
@@ -8696,50 +8720,8 @@ fn convert_declaration_for_program(
             push_span_fields(&mut obj, start, end, line_offsets);
             Value::Object(obj)
         }
-        // TypeScript module/namespace declarations
-        oxc_ast::ast::Declaration::TSExternalModuleDeclaration(module_decl) => {
-            // `declare module`, `declare global`, `declare namespace` etc. are
-            // type-only and must be stripped from output. Emit an EmptyStatement
-            // so remove_typescript_nodes can filter it out.
-            if module_decl.declare {
-                let mut empty_obj = Map::new();
-                empty_obj.set_field("type", Value::String("EmptyStatement".to_string()));
-                return Value::Object(empty_obj);
-            }
-            let start = offset + module_decl.span.start as usize;
-            let end = offset + module_decl.span.end as usize;
-            let mut obj = Map::new();
-            obj.set_field("type", Value::String("TSModuleDeclaration".to_string()));
-            push_span_fields(&mut obj, start, end, line_offsets);
-
-            // Include body for non-type node detection
-            if let Some(block) = &module_decl.body {
-                let block_body: Vec<Value> = block
-                    .body
-                    .iter()
-                    .filter_map(|stmt| {
-                        convert_statement_for_program(arena, stmt, offset, line_offsets)
-                    })
-                    .map(|n| n.to_value())
-                    .collect();
-                let mut block_obj = Map::new();
-                block_obj.set_field("body", Value::Array(block_body));
-                obj.set_field("body", Value::Object(block_obj));
-            }
-
-            Value::Object(obj)
-        }
-        oxc_ast::ast::Declaration::TSNamespaceDeclaration(module_decl) => {
-            let mut obj = Map::new();
-            obj.set_field("type", Value::String("EmptyStatement".to_string()));
-            push_span_fields(
-                &mut obj,
-                offset + module_decl.span.start as usize,
-                offset + module_decl.span.end as usize,
-                line_offsets,
-            );
-            Value::Object(obj)
-        }
+        // TypeScript module / namespace declarations are handled by the typed
+        // `convert_ts_module_declaration_as_node` before this function is reached.
         _ => Value::Null,
     }
 }
