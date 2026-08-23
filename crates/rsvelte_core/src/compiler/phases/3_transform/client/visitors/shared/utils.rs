@@ -12,7 +12,7 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 // The `scope.evaluate` port lives with the server transform, but it is the one
 // shared model of a folded JS value; the client fold must agree with it.
 use crate::compiler::phases::phase3_transform::server::evaluate::{
-    EvalValue, eval_binary, eval_unary, to_js_string, to_number,
+    EvalValue, eval_binary, eval_known_global_call, eval_unary, to_js_string,
 };
 
 /// Local scope information for tracking shadowed variables and their init expression types.
@@ -4234,6 +4234,22 @@ thread_local! {
     static INITIAL_EVAL_DEPTH: std::cell::Cell<u8> = const { std::cell::Cell::new(0) };
 }
 
+/// `get_literal_value_json` as `scope.evaluate` reaches it from a BINDING's
+/// initializer, where upstream memoizes nothing and so never consults
+/// `has_call` — only the template expression itself is memoized first.
+fn fold_binding_initializer(
+    jv: &serde_json::Value,
+    context: &ComponentContext,
+) -> Option<EvalValue> {
+    if INITIAL_EVAL_DEPTH.with(|d| d.get()) >= MAX_INITIAL_EVAL_DEPTH {
+        return None;
+    }
+    INITIAL_EVAL_DEPTH.with(|d| d.set(d.get() + 1));
+    let folded = get_literal_value_json(jv, context);
+    INITIAL_EVAL_DEPTH.with(|d| d.set(d.get() - 1));
+    folded
+}
+
 /// Handle complex expression types for get_literal_value that need JSON access.
 fn get_literal_value_complex(
     expr_type: &str,
@@ -4257,88 +4273,73 @@ fn get_literal_value_complex(
             }
         }
         "CallExpression" => {
-            // Handle pure Math functions with constant arguments
-            let callee = obj.get("callee").and_then(|v| v.as_object())?;
-            let callee_type = callee.get("type").and_then(|t| t.as_str())?;
+            let callee = obj.get("callee")?;
+            let callee_obj = callee.as_object()?;
+            let callee_type = callee_obj.get("type").and_then(|t| t.as_str())?;
+
+            let first_argument = || {
+                obj.get("arguments")
+                    .and_then(|a| a.as_array())
+                    .and_then(|a| a.first())
+            };
 
             if callee_type == "MemberExpression" {
-                let obj_node = callee.get("object").and_then(|o| o.as_object())?;
-                let prop_node = callee.get("property").and_then(|p| p.as_object())?;
-
+                let obj_node = callee_obj.get("object").and_then(|o| o.as_object())?;
+                let prop_node = callee_obj.get("property").and_then(|p| p.as_object())?;
                 let obj_type = obj_node.get("type").and_then(|t| t.as_str())?;
-                let obj_name = obj_node.get("name").and_then(|n| n.as_str())?;
-                let prop_name = prop_node.get("name").and_then(|n| n.as_str())?;
+                let obj_name = obj_node.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                let prop_name = prop_node.get("name").and_then(|n| n.as_str()).unwrap_or("");
 
-                if obj_type == "Identifier" && obj_name == "Math" {
-                    let args = obj.get("arguments").and_then(|a| a.as_array())?;
-
-                    // NOTE: a `Math.*(…)` whose argument references a runtime-reactive
-                    // State/RawState binding has already been rejected by the top-level
-                    // `has_call_json` bail in `get_literal_value` (upstream's Phase-2
-                    // adds every binding reference to `expression.dependencies`, so a
-                    // pure-callee call with such an argument still gets `has_call = true`).
-                    // Only genuinely-constant argument folds reach this point.
-
-                    // Evaluate all arguments
-                    let mut arg_values: Vec<f64> = Vec::new();
-                    for arg in args {
-                        let arg_val = get_literal_value_json(arg, context)?;
-                        arg_values.push(to_number(&arg_val)?);
-                    }
-
-                    let result = match prop_name {
-                        "max" if !arg_values.is_empty() => {
-                            arg_values.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
-                        }
-                        "min" if !arg_values.is_empty() => {
-                            arg_values.iter().cloned().fold(f64::INFINITY, f64::min)
-                        }
-                        "floor" if arg_values.len() == 1 => arg_values[0].floor(),
-                        "ceil" if arg_values.len() == 1 => arg_values[0].ceil(),
-                        "round" if arg_values.len() == 1 => arg_values[0].round(),
-                        "abs" if arg_values.len() == 1 => arg_values[0].abs(),
-                        "sqrt" if arg_values.len() == 1 => arg_values[0].sqrt(),
-                        "pow" if arg_values.len() == 2 => arg_values[0].powf(arg_values[1]),
-                        _ => return None,
-                    };
-
-                    return Some(EvalValue::Num(result));
-                }
-
-                // Fix C: $state.raw(arg) — MemberExpression callee with object=$state, property=raw
                 if obj_type == "Identifier"
                     && obj_name == "$state"
                     && prop_name == "raw"
                     && is_rune_callee(obj_name, context)
                 {
-                    let args = obj.get("arguments").and_then(|a| a.as_array());
-                    if let Some(args) = args
-                        && let Some(first_arg) = args.first()
-                    {
-                        return get_literal_value_json(first_arg, context);
-                    }
-                    return Some(EvalValue::Undefined); // no arg → undefined
+                    return match first_argument() {
+                        Some(arg) => get_literal_value_json(arg, context),
+                        None => Some(EvalValue::Undefined),
+                    };
                 }
             }
 
-            // Fix C: $state(arg) / $derived(arg) — Identifier callee
             // Mirrors upstream scope.js lines 465-481: recurse into the single argument.
-            let callee = obj.get("callee").and_then(|v| v.as_object())?;
-            let callee_type = callee.get("type").and_then(|t| t.as_str())?;
             if callee_type == "Identifier" {
-                let rune_name = callee.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                let rune_name = callee_obj
+                    .get("name")
+                    .and_then(|n| n.as_str())
+                    .unwrap_or("");
                 if matches!(rune_name, "$state" | "$derived") && is_rune_callee(rune_name, context)
                 {
-                    let args = obj.get("arguments").and_then(|a| a.as_array());
-                    if let Some(args) = args
-                        && let Some(first_arg) = args.first()
-                    {
-                        return get_literal_value_json(first_arg, context);
-                    }
-                    return Some(EvalValue::Undefined); // no arg → undefined
+                    return match first_argument() {
+                        Some(arg) => get_literal_value_json(arg, context),
+                        None => Some(EvalValue::Undefined),
+                    };
                 }
             }
-            None
+
+            // Upstream's `globals` table: a call to one of its 46 keypaths over
+            // known arguments evaluates to that call's value. The server owns
+            // the table and the JS semantics of each entry, so ask it rather
+            // than keeping a second answer here.
+            let keypath = json_keypath(callee)?;
+            if context
+                .state
+                .get_binding(keypath.split('.').next()?)
+                .is_some()
+            {
+                // A local binding of that name: upstream's `get_global_keypath`
+                // returns null, so it is not the global.
+                return None;
+            }
+            let args = obj.get("arguments").and_then(|a| a.as_array())?;
+            let mut values = Vec::with_capacity(args.len());
+            for arg in args {
+                if arg.get("type").and_then(|t| t.as_str()) == Some("SpreadElement") {
+                    return None;
+                }
+                values.push(get_literal_value_json(arg, context)?);
+            }
+            known(eval_known_global_call(&keypath, &values)?)
         }
         "BinaryExpression" => {
             let operator = obj.get("operator").and_then(|v| v.as_str())?;
@@ -6871,7 +6872,7 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
 
         // Upstream takes the chosen side when the left operand is known, so the
         // result is known whenever the folder can name it.
-        "LogicalExpression" => get_literal_value_json(json_value, context).is_some(),
+        "LogicalExpression" => fold_binding_initializer(json_value, context).is_some(),
 
         "ConditionalExpression" => {
             // Port of upstream scope.js ConditionalExpression case (lines 374-393):
@@ -6890,7 +6891,7 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
                 return false;
             };
             // Try to fold the test to a constant via get_literal_value.
-            match get_literal_value_json(test, context).and_then(|v| v.truthy()) {
+            match fold_binding_initializer(test, context).and_then(|v| v.truthy()) {
                 Some(truthy) => {
                     // Test is a known constant — only the taken branch needs to be known.
                     if truthy {
@@ -6903,8 +6904,8 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
                     // Test is unknown — result is known only if both branches yield the
                     // SAME single compile-time value (mirrors upstream values.size === 1
                     // after adding both branches' values to the set).
-                    let c_val = get_literal_value_json(consequent, context);
-                    let a_val = get_literal_value_json(alternate, context);
+                    let c_val = fold_binding_initializer(consequent, context);
+                    let a_val = fold_binding_initializer(alternate, context);
                     match (c_val, a_val) {
                         (Some(c), Some(a)) => c.same(&a),
                         _ => false,
@@ -6975,7 +6976,7 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
             // Upstream's `globals` table makes a pure global call over known
             // arguments known too (`Math.max(1, 2)`); the folder already knows
             // which, so ask it rather than keeping a second list.
-            get_literal_value_json(json_value, context).is_some()
+            fold_binding_initializer(json_value, context).is_some()
         }
 
         // Arrow/function expressions are NOT "known" in the scope.evaluate sense:
@@ -6987,11 +6988,10 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
         // never reaches here.
         "ArrowFunctionExpression" | "FunctionExpression" => false,
 
-        // Member expressions are generally not known, EXCEPT a non-computed
-        // member of a pure global namespace whose members are compile-time
-        // constants — `Math.PI`, `Math.E`, `Number.MAX_VALUE`, etc. (mirrors the
-        // globals table in upstream `scope.evaluate`). This lets a derived like
-        // `$derived(2 * Math.PI * r)` fold to a known constant (no reactive deps).
+        // A member expression is known only when it is one of the eight
+        // `global_constants` keypaths upstream lists (`Math.PI`, `Math.E`, …);
+        // every other member evaluates to UNKNOWN there, `Number.MAX_VALUE`
+        // and a misspelt `Math.NOPE` included.
         "MemberExpression" => {
             if obj.get("computed").and_then(|c| c.as_bool()) == Some(true) {
                 return false;
@@ -7002,12 +7002,11 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
             if object.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
                 return false;
             }
-            object
-                .get("name")
-                .and_then(|n| n.as_str())
-                .is_some_and(|name| {
-                    matches!(name, "Math" | "Number") && context.state.get_binding(name).is_none()
-                })
+            let Some(root) = object.get("name").and_then(|n| n.as_str()) else {
+                return false;
+            };
+            context.state.get_binding(root).is_none()
+                && json_keypath(json_value).is_some_and(|k| is_global_constant(&k))
         }
 
         // Default: not known
