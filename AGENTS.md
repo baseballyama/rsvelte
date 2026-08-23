@@ -158,6 +158,23 @@ non-literal initializer as **source text** that only the JSON branch re-parses. 
 `{1 || 2}` folds and `const c = 1 || 2; {c}` does not, and the same for `const c = /ab/g` and
 for a `1n` bigint anywhere. Treat that as the next instalment, not as covered.
 
+**And #3027 is not one bug, it is the shape of a class — the inventory is
+[`compatibility/two-ports-inventory.md`](compatibility/two-ports-inventory.md).** Every gate here
+compares rsvelte to *upstream*; **none compares rsvelte to itself**, so a second port of one
+upstream function is only ever exercised on whatever inputs a real file happens to supply. On
+2026-08-22 four instances were reported on one day by four people in four files — #3403, #3427,
+#3472, #3569 — and a sweep from the upstream side then found twelve, of which the ports
+*demonstrably* answer differently in ten. Three are self-documented: `assign_dev_ast.rs:56` says
+"the two must agree or the same source would be wrapped on one path and not the other" and its
+twin lacks three `match` arms; the server's rune table says "mirrors `is_rune` in utils.js" and is
+missing two names the client's is not; `truncate_globals` and `truncate_trailing_globals` both
+claim `css-prune.js`'s `truncate` and return *opposite* results when every relative selector is
+global. **A comment asserting fidelity is where this class hides**, because it reads as a
+citation. Exactly one place in the tree defends against it
+(`typed_reactive_state_front_end_agrees_with_the_json_walk`), and the reusable part is that it
+pins the expected answer *independently* — a port-vs-port test whose oracle is the other port
+passes when both are broken the same way.
+
 **The `JsNode` → `serde_json::Value` cost is one site, and it is not the lazy cache.**
 `to_value` has 54 call sites; every materialization figure this project has quoted (27,488 →
 12,089 → 3,649) counts only the cached one. Of the bypassing population, 98% is
@@ -540,6 +557,48 @@ deterministic round-trip `didChange` script that restores the source byte for by
 key is comparable to its phase-1 twin and a divergence is a state-transition difference alone. The
 phase is in the ratchet key, because an opened-phase entry would otherwise suppress the post-edit
 divergence in the same `(unit, method)`.
+**The real-world half of this gate is scheduled, not per-PR, and the reason is unit cost.** Its 16
+shards average ~59 minutes each, and the three Corpus Compat runs where all 16 finished total
+**950 / 959 / 934 job-minutes** — against ~160 for every other gate on a pull request combined, so
+one run of this job is ~86% of a push's total. (Sample the shards partially and the mean moves a
+lot: shard durations range 42–67 minutes, so a 2-shard sample has read as low as 47. Cite the
+three complete runs, not a partial one.) A GitHub Free personal account runs 20 concurrent jobs
+— 28,800 job-minutes a day — which puts the whole repository's ceiling near 26 pushes a day
+against a measured ~60 pull-request pushes plus ~10 merges. `lsp-corpus` and `lsp-current-merge`
+therefore run on `schedule` and `workflow_dispatch`; `push: main` is excluded on the same
+arithmetic (~10 merges/day would return a third of total capacity to this one job).
+
+**Do not cite a verdict-arrival rate measured during the congestion.** The obvious statistic —
+what fraction of recent runs reached a `conclusion` — was 13/100 when this landed and 3/100 an
+hour later, because the window it is drawn from is a few hours of the very backlog the change
+exists to remove. It moves with the queue, not with the gate. The unit cost above does not.
+
+The gate is still reachable per-branch two ways. `workflow_dispatch` against the branch runs the
+full 17-artifact population, which is what a re-baseline needs; and because the PR that *shrinks*
+the ratchet is the one that most needs the verdict and would otherwise be exempted by the
+event-name guard, the filter emits an `lsp-ratchet` output for a diff touching
+`compatibility/lsp-known-failures*.json` or `scripts/compat-lsp/**`, and that re-admits the job on
+a pull request. It fires on 0 of the 77 open PRs, so the escape hatch costs nothing until it is
+needed. The fixture and pinned-upstream suites still run on every PR — in `ci.yml`'s
+`Language server` job, whose `pull_request:` trigger is unfiltered; `corpus-compat`'s
+`lsp-fixtures-current` ran the identical `verify.mjs` invocation and now runs only where
+`lsp-current-merge` reads its artifact. **Sizing a gate by its strictness on paper and never by
+what it displaces is how this one ended up measuring almost nothing.**
+
+The rest of Corpus Compat is gated per job by `scripts/ci/corpus-compat-job-filter.mjs`, which
+derives each job's blast radius from `cargo metadata --no-deps` rather than a transcribed path
+table: a change confined to `crates/<c>` runs only the jobs whose build targets transitively
+depend on `<c>`, and **every** non-crate path (ratchets, scripts, submodules, lockfiles) enables
+everything. The asymmetry is deliberate — under-approximating costs a skipped gate, which reads
+exactly like a passing one (#2405), and over-approximating costs runner minutes. **The workflow's
+own conditions have to point the same way**: they read `!= 'false'`, so a filter step that fails
+to emit runs everything rather than skipping everything, and a crate directory is treated as inert
+only when its `Cargo.toml` declares its own `[workspace]` — a directory name is not a package
+name, so failing to match one proves nothing. Measured against
+the 77 open PRs, 50 touch `crates/rsvelte_core` and so narrow nothing; the filter's real
+population is the crates in no gate closure at all (`rsvelte_lint_types`, which is its own Cargo
+workspace, plus `rsvelte_bench`, `rsvelte_capi`, `rsvelte_fmt_wasm`, `rsvelte_lint_bindings`).
+
 Upstream ships **no** end-to-end protocol test, so the harness is built from scratch, and a baseline
 update needs the complete 17-artifact union (`CORPUS_SHARDS` + the fixture unit) at one
 project/language-tools/corpus revision — a
