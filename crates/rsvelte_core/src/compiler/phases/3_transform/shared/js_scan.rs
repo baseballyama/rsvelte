@@ -6,6 +6,8 @@
 //! spliced an injected `)` into the comment body (#907, #2253). Every such
 //! scanner steps over opaque runs with `skip_opaque` first.
 
+use crate::compiler::phases::phase1_parse::utils::TrimWs;
+
 /// Iterator over the *code* bytes of `bytes`: every byte that is not inside a
 /// string, template literal, regex literal or comment, as `(byte index, byte)`.
 ///
@@ -106,6 +108,32 @@ const KEYWORDS_BEFORE_REGEX: &[&[u8]] = &[
 
 pub(crate) fn is_ident_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || matches!(b, b'_' | b'$') || b >= 0x80
+}
+
+/// Byte offset just past the standalone keyword `kw` at the start of `s` and
+/// the JS whitespace separating it from whatever follows, or `None` when `s`
+/// does not begin with that keyword.
+///
+/// A literal `"export "` / `"class "` needle bakes in exactly one ASCII space,
+/// which the source is not obliged to honour (#3470); the separator between two
+/// JS tokens is any run of JS whitespace. The predicate must be
+/// JS whitespace and not Unicode `White_Space`, which excludes `U+FEFF`.
+pub(crate) fn after_keyword(s: &str, kw: &str) -> Option<usize> {
+    let rest = s.strip_prefix(kw)?;
+    if rest.starts_with(crate::compiler::utils::is_js_ident_continue) {
+        return None;
+    }
+    Some(s.len() - rest.trim_start_ws().len())
+}
+
+/// `after_keyword` for a keyword sequence: `["export", "let"]` matches
+/// `export let`, `export\tlet`, `export\u{feff}let`.
+pub(crate) fn after_keywords(s: &str, keywords: &[&str]) -> Option<usize> {
+    let mut at = 0;
+    for kw in keywords {
+        at += after_keyword(&s[at..], kw)?;
+    }
+    Some(at)
 }
 
 /// `slash_starts_regex`, but reading the preceding *token* rather than the
@@ -384,8 +412,53 @@ pub(crate) fn find_code(bytes: &[u8], needle: &[u8]) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::{
-        KEYWORDS_BEFORE_REGEX, contains_identifier, find_code, skip_opaque, slash_starts_regex_at,
+        KEYWORDS_BEFORE_REGEX, after_keyword, after_keywords, contains_identifier, find_code,
+        skip_opaque, slash_starts_regex_at,
     };
+
+    #[test]
+    fn a_keyword_separator_is_any_run_of_js_whitespace() {
+        for separator in [
+            " ",
+            "  ",
+            "\t",
+            "\n",
+            "\r\n",
+            "\u{a0}",
+            "\u{feff}",
+            "\u{b}",
+            "\u{c}",
+            "\u{3000}",
+            "\u{2028}",
+            " \u{feff}\t",
+        ] {
+            let source = format!("export{separator}let a = 1;");
+            let at = after_keywords(&source, &["export", "let"])
+                .unwrap_or_else(|| panic!("{source:?} is `export let`"));
+            assert_eq!(&source[at..], "a = 1;", "{source:?}");
+        }
+    }
+
+    /// The boundary test is the keyword's, not the separator's: a longer
+    /// identifier that merely starts with the keyword is not the keyword.
+    #[test]
+    fn a_longer_identifier_is_not_the_keyword() {
+        for source in [
+            "exports.a = 1;",
+            "exported = 1;",
+            "exportlet a = 1;",
+            "export letter = 1;",
+            "export\tletter = 1;",
+        ] {
+            assert_eq!(
+                after_keywords(source, &["export", "let"]),
+                None,
+                "{source:?}"
+            );
+        }
+        assert_eq!(after_keyword("classy Foo {}", "class"), None);
+        assert_eq!(after_keyword("class\u{a0}Foo {}", "class"), Some(7));
+    }
 
     /// Decide the LAST `/` in `src`, with `prev` tracked exactly as `code_bytes`
     /// tracks it — a comment leaves it alone, a literal collapses to a sentinel.

@@ -8,6 +8,9 @@ pub mod html;
 
 // Re-export utilities for use by other parser modules
 // These are library functions that may be used as the parser is extended
+/// The JS whitespace predicate every phase must share; `char::is_whitespace`
+/// disagrees with it on `U+FEFF` and `U+0085`.
+pub(crate) use super::parser::{is_js_whitespace, is_js_whitespace_byte};
 pub use bracket::find_matching_bracket;
 #[allow(
     unused_imports,

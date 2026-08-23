@@ -8,7 +8,9 @@
 
 use memchr::memmem;
 
-use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
+use crate::compiler::phases::phase1_parse::utils::{
+    find_matching_bracket, is_js_whitespace, is_js_whitespace_byte,
+};
 use crate::compiler::phases::phase3_transform::shared::js_scan;
 use crate::compiler::phases::phase3_transform::shared::js_scan::slash_starts_regex_at;
 use crate::compiler::utils::is_js_ident_continue;
@@ -151,10 +153,30 @@ pub(crate) fn find_class_header(source: &str) -> Option<ClassHeader> {
     let mut seen_after_keyword = false;
     let mut nesting = 0i32;
     let mut angle = 0i32;
+    // One past the last byte of a multi-byte JS whitespace character, whose
+    // continuation bytes `is_ident_byte` would otherwise read as identifier.
+    let mut whitespace_until = 0usize;
 
     for (i, byte) in js_scan::code_bytes(bytes) {
+        // `class\u{a0}Foo` separates two tokens exactly as `class Foo` does, and
+        // `\u{b}` is JS whitespace that `is_ascii_whitespace` excludes (#3470).
+        let is_whitespace = if i < whitespace_until {
+            true
+        } else if byte.is_ascii() {
+            is_js_whitespace_byte(byte)
+        } else if !source.is_char_boundary(i) {
+            false
+        } else {
+            match source[i..].chars().next() {
+                Some(c) if is_js_whitespace(c) => {
+                    whitespace_until = i + c.len_utf8();
+                    true
+                }
+                _ => false,
+            }
+        };
         if let Some(start) = run_start
-            && (i != prev_end || !js_scan::is_ident_byte(byte))
+            && (i != prev_end || is_whitespace || !js_scan::is_ident_byte(byte))
         {
             run_start = None;
             if keyword.is_none()
@@ -169,6 +191,9 @@ pub(crate) fn find_class_header(source: &str) -> Option<ClassHeader> {
         }
         prev_end = i + 1;
 
+        if is_whitespace {
+            continue;
+        }
         if js_scan::is_ident_byte(byte) {
             if run_start.is_none() {
                 run_start = Some(i);
@@ -177,9 +202,6 @@ pub(crate) fn find_class_header(source: &str) -> Option<ClassHeader> {
                 seen_after_keyword = true;
             }
             prev_sig = Some(byte);
-            continue;
-        }
-        if byte.is_ascii_whitespace() {
             continue;
         }
         prev_sig = Some(byte);
@@ -575,6 +597,24 @@ mod tests {
                 "class Foo implements Bar {",
             ),
             ("class/*c*/Foo{}", "class/*c*/Foo{"),
+            // Any run of JS whitespace separates the keyword from the name.
+            ("class\tFoo {}", "class\tFoo {"),
+            ("class\n\tFoo {}", "class\n\tFoo {"),
+            ("class  Foo {}", "class  Foo {"),
+            ("class\u{a0}Foo {}", "class\u{a0}Foo {"),
+            ("class\u{feff}Foo {}", "class\u{feff}Foo {"),
+            ("class\u{b}Foo {}", "class\u{b}Foo {"),
+            ("class\u{c}Foo {}", "class\u{c}Foo {"),
+            ("class\u{3000}Foo {}", "class\u{3000}Foo {"),
+            (
+                "class Foo extends\u{a0}Bar {}",
+                "class Foo extends\u{a0}Bar {",
+            ),
+            // A non-ASCII byte that is NOT whitespace stays part of its
+            // identifier: `ωclass` is one name, so the header is the real one
+            // below it and not the tail of that name.
+            ("const \u{3c9}class = 1;\nclass Foo {}", "class Foo {"),
+            ("const caf\u{e9}class = 1;\nclass Bar {}", "class Bar {"),
             // A comment or a string mentioning the keyword is text, not code.
             ("// we avoid class here\nclass Foo {}", "class Foo {"),
             ("const s = 'class name';\nclass Foo {}", "class Foo {"),
