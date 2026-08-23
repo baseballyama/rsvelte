@@ -840,18 +840,11 @@ jobs:
           FMT_CORPUS: ${{ needs.test-fmt-corpus.result }}
           OXC_FORMATTER_PROBE: ${{ needs.oxc-formatter-probe.result }}
           LANGUAGE_SERVER: ${{ needs.language-server.result }}
-        run: |
-          echo "test (shards): $BULK"
-          echo "test-unit: $UNIT"
-          echo "test-runtime: $RUNTIME"
-          echo "test-thread-safety: $THREAD_SAFETY"
-          echo "test-fmt-corpus: $FMT_CORPUS"
-          echo "oxc-formatter-probe: $OXC_FORMATTER_PROBE"
-          echo "language-server: $LANGUAGE_SERVER"
-          if [[ "$BULK" != "success" || "$UNIT" != "success" || "$RUNTIME" != "success" || "$THREAD_SAFETY" != "success" || "$FMT_CORPUS" != "success" || "$OXC_FORMATTER_PROBE" != "success" || "$LANGUAGE_SERVER" != "success" ]]; then
-            echo "::error::One or more test jobs did not succeed."
-            exit 1
-          fi
+        # Same exit codes as before; the script exists so the MESSAGE can say
+        # whether a leg failed or was merely cancelled, which reads identically
+        # in `gh pr checks` and is the difference between "tests are broken" and
+        # "this run produced no verdict".
+        run: node scripts/ci/tests-aggregate-verdict.mjs
 
   compatibility-report:
     name: Compatibility Report
@@ -1224,6 +1217,11 @@ jobs:
       # these are the controls that show it can still fail.
       - name: Run workflow trigger guard tests
         run: node scripts/ci/test-workflow-trigger-guard.mjs
+
+      # The `Tests` aggregator's verdict is a message nothing else reads, so it
+      # can only regress silently.
+      - name: Run Tests aggregator verdict tests
+        run: node scripts/ci/test-tests-aggregate-verdict.mjs
 
       - name: Run differential corpus workflow tests
         run: node scripts/ci/test-differential-corpus-workflow.mjs
