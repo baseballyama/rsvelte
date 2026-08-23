@@ -51,3 +51,23 @@ fn parse_error_is_reported() {
     // now parses as an empty value — but a missing colon still fails.)
     assert!(format_css_source(".a{color", CssDialect::Css, &CssFormatOptions::default()).is_err());
 }
+
+#[test]
+fn unparseable_style_body_is_spliced_without_a_blank_line() {
+    // The style callback's contract is standalone-file shape: base indent 0 and no
+    // surrounding newlines. The body starts at the newline after `<style>`, so a
+    // fallback returning it verbatim makes the caller's `\n{output}` splice emit two.
+    let opts = rsvelte_formatter::FormatOptions::default().with_style_formatter(
+        rsvelte_formatter::native_style_formatter(CssFormatOptions::default()),
+    );
+    // `:is()` takes a selector list, so `2n` is rejected; the CSS parser has no
+    // per-rule recovery, so one bad token discards the whole block's formatting.
+    let src =
+        "<div class=\"a\">x</div>\n\n<style>\n  .a:is(2n) {\n    color: red;\n  }\n</style>\n";
+    let out = rsvelte_formatter::format(src, &opts).expect("format ok");
+    assert!(
+        !out.contains("<style>\n\n"),
+        "fallback inserted a blank line:\n{out}"
+    );
+    assert!(out.contains(".a:is(2n)"), "rule went missing:\n{out}");
+}
