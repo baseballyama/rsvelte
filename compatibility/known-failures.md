@@ -27,11 +27,11 @@ checked-in pattern corpus (#2019) surfaced are gone too: the two SSR
 destructuring ones (#2033, #2034) were fixed by #2036, and the block-local
 snippet render tag (#2031) by #2057.
 
-## Client (`known-failures.client.json`, 542 entries)
+## Client (`known-failures.client.json`, 539 entries)
 
-Partition of `known-failures.client.json` by verdict: `447 + 33 + 20 + 31 + 11`
+Partition of `known-failures.client.json` by verdict: `444 + 33 + 20 + 31 + 11`
 
-- **447 — the generated JS differs** (`js` / `code-differs`).
+- **444 — the generated JS differs** (`js` / `code-differs`).
 - **33 — both compilers reject the entry with a different error code.**
 - **20 — one compiler rejects and the other compiles** (10 under-rejections,
   10 over-rejections; see § *Wave-2 enrolment* below).
@@ -65,11 +65,11 @@ everywhere". Divergences this target keeps on purpose — because reproducing
 upstream's bytes would emit invalid JavaScript — are recorded in
 [`deliberate-divergences.md`](deliberate-divergences.md), each pinned by a test.
 
-## Server (`known-failures.server.json`, 148 entries)
+## Server (`known-failures.server.json`, 143 entries)
 
-Partition of `known-failures.server.json` by verdict: `93 + 33 + 20 + 2`
+Partition of `known-failures.server.json` by verdict: `88 + 33 + 20 + 2`
 
-- **93 — the generated JS differs.**
+- **88 — the generated JS differs.**
 - **33 — both compilers reject with a different error code.**
 - **20 — one compiler rejects and the other compiles.**
 - **2 — rsvelte's output is not JavaScript.**
@@ -92,15 +92,15 @@ quoted key dropped in a destructured `$derived`) and #2034 (`$.to_array` arity
 with a rest element) — were resolved by #2036, which mirrored #2010's client
 destructuring fixes onto the server target.
 
-## Server dev (`known-failures.server-dev.json`, 145 entries)
+## Server dev (`known-failures.server-dev.json`, 140 entries)
 
 The `server-dev` target is the server transform with `dev: true`. It separately
 ratchets server-only development instrumentation: component metadata, element
 locations, dynamic-element validation, snippet validation, and injected CSS.
 
-Partition of `known-failures.server-dev.json` by verdict: `90 + 33 + 20 + 2`
+Partition of `known-failures.server-dev.json` by verdict: `85 + 33 + 20 + 2`
 
-- **90 — the generated JS differs.**
+- **85 — the generated JS differs.**
 - **33 — both compilers reject with a different error code.**
 - **20 — one compiler rejects and the other compiles.**
 - **2 — rsvelte's output is not JavaScript.**
@@ -110,11 +110,11 @@ it. It carries three fewer JS entries than `server` and no CSS entries, which is
 the split doing its job: a divergence visible only with `dev: true` and one
 visible only without are different defects.
 
-## Client dev (`known-failures.client-dev.json`, 578 entries)
+## Client dev (`known-failures.client-dev.json`, 575 entries)
 
-Partition of `known-failures.client-dev.json` by verdict: `486 + 33 + 20 + 28 + 11`
+Partition of `known-failures.client-dev.json` by verdict: `483 + 33 + 20 + 28 + 11`
 
-- **486 — the generated JS differs.**
+- **483 — the generated JS differs.**
 - **33 — both compilers reject with a different error code.**
 - **20 — one compiler rejects and the other compiles.**
 - **28 — the generated CSS differs** (three fewer than `client`).

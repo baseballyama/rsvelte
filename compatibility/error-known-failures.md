@@ -102,8 +102,8 @@ of two unrelated errors say nothing, and the code divergence is an
 `error-message-known-failures.client-dev.json` holds 13 entries;
 `error-message-known-failures.server.json` holds 12 entries; and
 `error-message-known-failures.server-dev.json` holds 12 entries. All four of
-`error-position-known-failures.<target>.json` hold 81 entries, all four of
-`error-end-known-failures.<target>.json` hold 101 entries, and all four of
+`error-position-known-failures.<target>.json` hold 78 entries, all four of
+`error-end-known-failures.<target>.json` hold 98 entries, and all four of
 `error-frame-known-failures.<target>.json` hold 0 entries. The wave-2 enrolment
 (#3130) added 1 message, 16 position and 24 end entries — and **no frame entries
 at all**, which keeps that comparison's population saturated at 0 across a corpus
@@ -199,7 +199,7 @@ code. The canonical shape is `<div a="1" a="2">`, where `attribute_duplicate`
 reports `position: [11, 12]` against upstream's `[11, 16]` — the right start, one
 character of highlight instead of the whole attribute.
 
-Partition of `error-end-known-failures.<target>.json` by shape: `29 + 47 + 25`
+Partition of `error-end-known-failures.<target>.json` by shape: `26 + 47 + 25`
 (client target, classified from the run's own `error.json` records):
 
 - **29 — rsvelte reports no `end` at all.** The same `validation(...)` vs
