@@ -6884,7 +6884,7 @@ pub fn parse_program_retained_with_error<'ast, 'source>(
 /// and rsvelte must too. Each entry was confirmed against `svelte.compile`; the
 /// TS rules acorn-typescript *does* implement (1019, 1028, 1049, 1096, 1174,
 /// 1184, 1257, 1276, 2398, 2452, 2730, …) are deliberately absent.
-const ACORN_UNCHECKED_TS_GRAMMAR_RULES: [&str; 15] = [
+const ACORN_UNCHECKED_TS_GRAMMAR_RULES: [&str; 17] = [
     "1015", // A parameter cannot have a question mark and an initializer
     "1016", // A required parameter cannot follow an optional parameter
     "1021", // An index signature must have a type annotation
@@ -6894,6 +6894,8 @@ const ACORN_UNCHECKED_TS_GRAMMAR_RULES: [&str; 15] = [
     "1093", // Type annotation cannot appear on a constructor declaration
     "1094", // An accessor cannot have type parameters
     "1095", // A 'set' accessor cannot have a return type annotation
+    "1147", // Import declarations in a namespace cannot reference a module
+    "1194", // Export declarations are not permitted in a namespace
     "1221", // Generators are not allowed in an ambient context
     "1222", // An overload signature cannot be declared as a generator
     "1263", // Declarations with initializers cannot also have definite assignment assertions
@@ -7027,6 +7029,7 @@ fn acorn_only_violation(
         check_decorator: bool,
         decorator_at: Option<u32>,
         with_at: Option<u32>,
+        export_declare_global_at: Option<u32>,
         check_ts_modifier: bool,
         content: &'c str,
         ts_modifier_at: Option<u32>,
@@ -7054,6 +7057,16 @@ fn acorn_only_violation(
                 self.with_at = Some(stmt.span.start);
             }
             oxc_ast_visit::walk::walk_with_statement(self, stmt);
+        }
+        // `export declare global { … }`: acorn wants an ambient declaration after
+        // `export declare`, and a global augmentation is not one.
+        fn visit_export_declaration(&mut self, export: &oxc_ast::ast::ExportDeclaration<'a>) {
+            if let oxc_ast::ast::Declaration::TSGlobalDeclaration(global) = &export.declaration
+                && self.export_declare_global_at.is_none()
+            {
+                self.export_declare_global_at = Some(global.span.start);
+            }
+            oxc_ast_visit::walk::walk_export_declaration(self, export);
         }
         fn visit_method_definition(&mut self, def: &oxc_ast::ast::MethodDefinition<'a>) {
             self.record_ts_modifier(
@@ -7090,11 +7103,15 @@ fn acorn_only_violation(
         check_decorator,
         decorator_at: None,
         with_at: None,
+        export_declare_global_at: None,
         check_ts_modifier,
         content,
         ts_modifier_at: None,
     };
-    if check_decorator || check_with || check_ts_modifier {
+    // The TypeScript-only rule below needs a token that is cheap to rule out, so
+    // a plain-JS script keeps the walk it had.
+    let check_ts_acorn = is_typescript && content.contains("global");
+    if check_decorator || check_with || check_ts_modifier || check_ts_acorn {
         finder.visit_program(program);
     }
 
@@ -7106,6 +7123,12 @@ fn acorn_only_violation(
             (
                 at,
                 "'with' in strict mode\nhttps://svelte.dev/e/js_parse_error".to_string(),
+            )
+        }),
+        finder.export_declare_global_at.map(|at| {
+            (
+                at,
+                "'export declare' must be followed by an ambient declaration.".to_string(),
             )
         }),
         await_or_yield_in_params(program, content).map(|(at, message)| (at, message.to_string())),
@@ -8522,7 +8545,31 @@ fn convert_ts_module_declaration_as_node(
         let block_body: Vec<JsNode> = block
             .body
             .iter()
-            .filter_map(|stmt| convert_statement_for_program(arena, stmt, offset, line_offsets))
+            .filter_map(|stmt| {
+                if let Some(node) = convert_statement_for_program(arena, stmt, offset, line_offsets)
+                {
+                    return Some(node);
+                }
+                // The typed program has no variant for these two (issue #3681), so
+                // `convert_statement_for_program` drops them — but upstream's visitor
+                // leaves both in place, which makes the namespace non-type. Only
+                // these two stand in: most of what it drops (a type alias, say) IS
+                // type-only and must keep stripping to empty.
+                if !matches!(
+                    stmt,
+                    oxc_ast::ast::Statement::TSImportEqualsDeclaration(_)
+                        | oxc_ast::ast::Statement::ExportAllDeclaration(_)
+                ) {
+                    return None;
+                }
+                let start = offset + stmt.span().start as usize;
+                let end = offset + stmt.span().end as usize;
+                Some(JsNode::DebuggerStatement {
+                    start: start as u32,
+                    end: end as u32,
+                    loc: create_typed_loc(start, end, line_offsets),
+                })
+            })
             .collect();
         arena.alloc_js_node(JsNode::BlockStatement {
             start: start as u32,
