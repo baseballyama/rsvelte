@@ -790,9 +790,8 @@ impl<'a> Parser<'a> {
                 last_code = Some(i);
             }
         }
-        // Only a comment START counts: `code_bytes` mis-lexes a nested
-        // template (`` `${`"`}` `` ) and would otherwise flag its tail, and
-        // non-comment junk fails the pattern parse on both sides anyway.
+        // Only a comment START counts: non-comment junk fails the pattern parse
+        // on both sides anyway.
         let is_comment_start =
             |i: usize| bytes[i] == b'/' && matches!(bytes.get(i + 1), Some(b'/') | Some(b'*'));
         let first_raw = bytes.iter().position(|b| !b.is_ascii_whitespace());
