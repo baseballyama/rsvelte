@@ -1238,6 +1238,12 @@ jobs:
       # a passing one — so its controls belong with the other trigger guards.
       - name: Run corpus-compat job filter tests
         run: node scripts/ci/test-corpus-compat-job-filter.mjs
+
+      # `update-docs.mjs --check` only runs in the Compatibility Report job,
+      # which needs a release build and a generated report. Comparing a doc to
+      # the submodule needs neither, so the version half runs on every PR.
+      - name: Check the docs state the pinned Svelte version
+        run: node scripts/ci/test-svelte-target-marker.mjs
   prereq-coverage-guard:
     name: Prerequisite coverage guard
     runs-on: ubuntu-latest
