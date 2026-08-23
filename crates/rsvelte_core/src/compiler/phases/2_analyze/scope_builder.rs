@@ -3444,6 +3444,12 @@ impl<'a> ScopeBuilder<'a> {
             );
         }
 
+        // 写経 `scope.js`'s `EachBlock`: the key is visited INSIDE the each scope,
+        // so a write to the item there is recorded as an update of its binding.
+        if let Some(ref key) = block.key {
+            self.process_template_expression(key);
+        }
+
         // Visit body
         self.visit_fragment(&block.body);
 

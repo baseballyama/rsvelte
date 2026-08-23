@@ -1708,7 +1708,7 @@ MEASURED" branch (`:959-967`) fires only for pairs that have a budget entry. **[
 that breaks byte-identity for one unratcheted pair while fixing another keeps the count at 57
 and reports nothing; the dropped pair silently stops being measured.
 
-### Blind spot 14f — a uniform shift of every original line passes every check
+ ### Blind spot 14f — a uniform shift of every original line passes every check
 
 The 29 samples all use `\n` line endings, and no check compares rsvelte's original line
 *numbering rule* to official's. **[D]** #3412 proposed widening
@@ -1744,8 +1744,38 @@ sampling: `parity()` compares rsvelte's segment to official's at the same **gene
 sample containing no exotic terminator leaves every anchor, budget and parity check satisfied —
 while `map-parity` itself never runs on a sample that *does* contain one, because none exists.
 
-Recorded because the next person to touch a coordinate table will read this gate as the negative
-control for that change. It is not.
+ Recorded because the next person to touch a coordinate table will read this gate as the negative
+ control for that change. It is not.
+ 
+ ### Blind spot 14g — a pass that never fires reads exactly like a pass that became redundant
+
+The gate is 29 samples, and it is the only evidence available when deciding whether a
+source-map enrichment pass can be deleted (#3015 step 3). Measured by disabling one client
+pass at a time: `collapsed_declaration` and `rune` cost **0 segments on `main` and 0 after
+#3015's span work**. **[D]** That is a discriminating case in the negative direction — the
+same reading is produced by "these samples contain no `$state`/`$derived`/`$props` lowering
+whose position the pass would have supplied" and by "a span now supplies it", and nothing in
+the gate separates them. Deleting a pass on a 0 therefore needs a population that fires it;
+the passes deleted in #3015 (`default_function_wrapper` 84 → 0, `effect_callback` 8 → 0)
+carry a *movement*, which is the reading a 0 cannot give.
+
+ There is no corpus-wide source-map gate to fall back on: `verify.mjs` compares generated
+ code, and the svelte2tsx map gate (§ 12) covers a different artifact.
+
+### Blind spot 14h — the unit is a segment, so a change that improves the map and breaks the *code* scores green
+
+Every comparison here reads `map.mappings`; nothing in the file looks at the generated JS the
+map describes. **[D]** #3015 kept `JsExpr::Spanned` on a member expression's *object*, which
+measured **+18 client segments and passed all four tests** — while making the client lowering's
+`while let JsExpr::Member` / `if let JsExpr::Identifier` chain walk in
+`client/visitors/shared/component.rs` miss the root binding, so a `bind:` setter emitted
+`bar.baz = $$value` instead of `bar(bar().baz = $$value, true)`. 49 runtime fixtures caught it;
+this gate could not, because a correct segment pointing at wrong code is indistinguishable here
+from a correct segment pointing at right code. Any IR change that both moves positions and
+changes lowering must be run against `tests/runtime.rs`, not this gate alone.
+
+There is no corpus-wide source-map gate to fall back on: `verify.mjs` compares generated
+ code, and the svelte2tsx map gate (§ 12) covers a different artifact.
 
 Related open work: #1781 (client maps are chunk-granular; 16% point outside the source range).
 
@@ -3687,6 +3717,26 @@ selection this document cannot justify. Aggregating them gives **22.8%**, but hu
 **55.8% of that corpus's compile time**, so the aggregate is a statement about how the corpus was
 assembled. (Excluding huly moves it only to 23.3%, so the aggregate is at least not fragile to
 that one repo — but four repos is four repos.)
+
+### The perf gates also compile with a different **option set** than shipping code
+
+The population axis above is *which files*; this is *which `CompileOptions`*. Measured
+2026-08-18: `benchmark_runner` sets `enable_sourcemap: false` (`crates/rsvelte_devtools/src/bin/benchmark_runner.rs:152,162`)
+while `CompileOptions::default()` sets it **true** (`crates/rsvelte_core/src/compiler/mod.rs:322`),
+which is what the NAPI/vite path gets. Everything gated on that flag is therefore compiled by
+shipping users and by no benchmark we run.
+
+**Discriminating case:** #3028 moved the client source map onto spans, which made
+`copied_spans_for_normalized_code` run for every script instead of only a TypeScript one, and
+put a 16-byte field on `JsBlockStatement` — a struct inside every statement and expression, so
+`JsStatement` grew 192 → 208 bytes and `JsExpr` 184 → 200. Requested allocation bytes over
+flowbite-svelte rose **2.47%** against `main`. CodSpeed's report on that same commit: *"Merging
+this PR will not alter performance"*, 11 untouched benchmarks. Not a wrong measurement — a
+measurement of a configuration in which the changed code does not execute.
+
+**What is still unmeasured `[U]`:** the rest of the flag surface. `dev` is covered
+(`--dev` exists), but `hmr`, `css`, `discloseVersion` and the `runes` override are set by
+callers and pinned by the runner, and no one has enumerated which of them gate work.
 
 ## Adding a gate, or a row here
 

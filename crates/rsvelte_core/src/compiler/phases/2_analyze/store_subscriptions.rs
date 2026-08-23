@@ -1548,6 +1548,10 @@ fn collect_dollar_refs_from_attributes(
             Attribute::StyleDirective(style_dir) => {
                 // StyleDirective.value is AttributeValue (not Option)
                 match &style_dir.value {
+                    // Shorthand `style:$store` reads the name as the value.
+                    AttributeValue::True(_) => {
+                        push_dollar_directive_name(&style_dir.name, style_dir.start, refs);
+                    }
                     AttributeValue::Expression(expr_tag) => {
                         collect_dollar_refs_from_expression(&expr_tag.expression, source, refs);
                     }
@@ -1562,37 +1566,22 @@ fn collect_dollar_refs_from_attributes(
                             }
                         }
                     }
-                    _ => {}
                 }
             }
             Attribute::UseDirective(use_dir) => {
-                // Check if the directive name contains a store reference
-                // e.g., use:$store.action should create a subscription for $store
-                if use_dir.name.starts_with('$') {
-                    // Extract the store name (before the first . if present)
-                    let store_name = if let Some(dot_pos) = use_dir.name.find('.') {
-                        &use_dir.name[..dot_pos]
-                    } else {
-                        use_dir.name.as_str()
-                    };
-                    if store_name.len() > 1 {
-                        refs.push(StoreRef {
-                            name: store_name.to_string(),
-                            position: use_dir.start as usize,
-                            in_module: false,
-                        });
-                    }
-                }
+                push_dollar_directive_name(&use_dir.name, use_dir.start, refs);
                 if let Some(ref expr) = use_dir.expression {
                     collect_dollar_refs_from_expression(expr, source, refs);
                 }
             }
             Attribute::TransitionDirective(trans_dir) => {
+                push_dollar_directive_name(&trans_dir.name, trans_dir.start, refs);
                 if let Some(ref expr) = trans_dir.expression {
                     collect_dollar_refs_from_expression(expr, source, refs);
                 }
             }
             Attribute::AnimateDirective(anim_dir) => {
+                push_dollar_directive_name(&anim_dir.name, anim_dir.start, refs);
                 if let Some(ref expr) = anim_dir.expression {
                     collect_dollar_refs_from_expression(expr, source, refs);
                 }
@@ -1604,6 +1593,24 @@ fn collect_dollar_refs_from_attributes(
                 collect_dollar_refs_from_expression(&attach.expression, source, refs);
             }
         }
+    }
+}
+
+/// Record the store a directive's *name* refers to, e.g. `transition:$store`.
+///
+/// Upstream reaches this through one shared `SvelteDirective` scope visitor, so
+/// every directive whose name is an identifier has to register it.
+fn push_dollar_directive_name(name: &str, start: u32, refs: &mut Vec<StoreRef>) {
+    if !name.starts_with('$') {
+        return;
+    }
+    let store_name = name.split('.').next().unwrap_or(name);
+    if store_name.len() > 1 {
+        refs.push(StoreRef {
+            name: store_name.to_string(),
+            position: start as usize,
+            in_module: false,
+        });
     }
 }
 

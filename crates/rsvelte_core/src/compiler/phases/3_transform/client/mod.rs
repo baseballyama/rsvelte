@@ -23,6 +23,7 @@ mod effect_rune_ast;
 pub(crate) mod expression_utils;
 mod formatting;
 mod inspect_rune_ast;
+mod inspect_trace_ast;
 mod instance_dev_tail_ast;
 mod legacy_state_member_mutate_ast;
 mod local_assign_ast;
@@ -268,6 +269,17 @@ pub fn transform_client_module(
         ));
     }
 
+    // `$inspect.trace()`'s default label carries `locate_node(fn)`, a position
+    // in the source the user wrote, so the rune is lowered before any other
+    // rewrite moves its enclosing function.
+    let trace_lowered = inspect_trace_ast::transform_module_inspect_trace(
+        source,
+        options.dev,
+        analysis.filename.ends_with(".ts"),
+        options.filename.as_deref(),
+    );
+    let source = trace_lowered.as_deref().unwrap_or(source);
+
     // Drop the comments upstream's synthesized accessors swallow before any
     // rewrite, so the scan still sees the source's own class bodies.
     let dead_comments_stripped =
@@ -363,7 +375,10 @@ pub(crate) fn print_module_program(
 ) -> Result<String, TransformError> {
     use super::js_ast::codegen::generate;
 
-    let program = super::js_ast::nodes::JsProgram { body };
+    let program = super::js_ast::nodes::JsProgram {
+        body,
+        component_brace_span: None,
+    };
     let arena = super::js_ast::arena::JsArena::new();
     let alloc = oxc_allocator::Allocator::default();
     if let Some(code) =
@@ -1329,6 +1344,7 @@ pub(crate) fn transform_client(
                         content.start,
                         content.source_projection.as_ref(),
                         props_comment_anchor,
+                        options.enable_sourcemap,
                     ));
                     // Store the blocker_map for use during template generation
                     if !async_result.blocker_map.is_empty() {
@@ -1347,6 +1363,7 @@ pub(crate) fn transform_client(
                             content.start,
                             content.source_projection.as_ref(),
                             props_comment_anchor,
+                            options.enable_sourcemap,
                         ));
                     }
                 }
@@ -1394,6 +1411,7 @@ pub(crate) fn transform_client(
                             content.start,
                             content.source_projection.as_ref(),
                             props_comment_anchor,
+                            options.enable_sourcemap,
                         ));
                     }
                 }
@@ -1969,9 +1987,7 @@ pub(crate) fn transform_client(
     let component_fn = JsFunctionDeclaration {
         id: Some(analysis.name.clone().into()),
         params: params.into(),
-        body: JsBlockStatement {
-            body: component_body,
-        },
+        body: JsBlockStatement::with_body(component_body),
         is_async: false,
         is_generator: false,
     };
@@ -2546,7 +2562,13 @@ pub(crate) fn transform_client(
     }
 
     // Create the program
-    let program = JsProgram { body };
+    let program = JsProgram {
+        body,
+        component_brace_span: ast.instance.as_deref().and_then(|script| {
+            (script.start < script.end)
+                .then(|| (analysis.name.clone().into(), script.start, script.end))
+        }),
+    };
     if let Some(sink) = &mut program_sink {
         sink(&program, &context.arena);
     }
@@ -2953,12 +2975,13 @@ fn script_raw_statement(
     original_offset: u32,
     projection: Option<&ScriptProjection>,
     comment_anchor: Option<u32>,
+    enable_sourcemap: bool,
 ) -> JsStatement {
-    let copied_spans = projection
-        .map(|projection| {
-            copied_spans_for_normalized_code(&code, original, original_offset, projection)
-        })
-        .unwrap_or_default();
+    let copied_spans = if enable_sourcemap {
+        copied_spans_for_normalized_code(&code, original, original_offset, projection)
+    } else {
+        Vec::new()
+    };
     if has_effect_rune {
         JsStatement::RawMappedEffect {
             code: code.into(),
@@ -3007,6 +3030,20 @@ fn props_declaration_comments(raw: &str) -> Vec<(u32, CompactString)> {
         .collect()
 }
 
+/// Shortest run a resync candidate must start to beat the nearest-byte rule.
+const MIN_RESYNC_RUN: usize = 4;
+/// Longest run compared when scoring a resync candidate — a cap, so scoring the
+/// window stays linear in the window rather than in the rest of the script.
+const MAX_RESYNC_RUN: usize = 64;
+
+fn common_run(left: &[u8], right: &[u8]) -> usize {
+    left.iter()
+        .zip(right)
+        .take(MAX_RESYNC_RUN)
+        .take_while(|(a, b)| a == b)
+        .count()
+}
+
 /// Align normalized raw output with the stripped script, then project every
 /// unchanged byte back through TypeScript erasure to its component offset.
 /// Formatting may add whitespace or a semicolon, so unmatched bytes are left
@@ -3015,19 +3052,27 @@ fn copied_spans_for_normalized_code(
     code: &str,
     stripped: &str,
     original_offset: u32,
-    projection: &ScriptProjection,
+    projection: Option<&ScriptProjection>,
 ) -> Vec<RawMappedSpan> {
-    let mut source_at_output = vec![None; stripped.len() + 1];
-    for chunk in &projection.copied_chunks {
-        let len =
-            (chunk.output.end - chunk.output.start).min(chunk.source.end - chunk.source.start);
-        for offset in 0..=len {
-            let output = (chunk.output.start + offset) as usize;
-            if output < source_at_output.len() {
-                source_at_output[output] = Some(original_offset + chunk.source.start + offset);
+    // Without TypeScript erasure the stripped script *is* the source slice, so
+    // every byte projects back at its own offset: the per-byte table would hold
+    // `Some(original_offset + i)` at every `i` and the split loop below could
+    // never break a run, which is the whole cost of the general path — and this
+    // path now runs for every script, not only a TypeScript one.
+    let source_at_output = projection.map(|projection| {
+        let mut table: Vec<Option<u32>> = vec![None; stripped.len() + 1];
+        for chunk in &projection.copied_chunks {
+            let len =
+                (chunk.output.end - chunk.output.start).min(chunk.source.end - chunk.source.start);
+            for offset in 0..=len {
+                let output = (chunk.output.start + offset) as usize;
+                if output < table.len() {
+                    table[output] = Some(original_offset + chunk.source.start + offset);
+                }
             }
         }
-    }
+        table
+    });
 
     let mut spans = Vec::new();
     let mut output = 0usize;
@@ -3045,6 +3090,14 @@ fn copied_spans_for_normalized_code(
                 output += 1;
                 input += 1;
             }
+            let Some(source_at_output) = source_at_output.as_deref() else {
+                spans.push(RawMappedSpan {
+                    code: start_output as u32..output as u32,
+                    source: (original_offset + start_input as u32)
+                        ..(original_offset + input as u32),
+                });
+                continue;
+            };
             let mut run_start = start_output;
             for code_offset in start_output..=output {
                 let raw_offset = start_input + code_offset - start_output;
@@ -3089,20 +3142,58 @@ fn copied_spans_for_normalized_code(
         // A generated change (for example `count++` -> `$.update(count)`) must
         // not desynchronise the rest of the script. Resume at the nearest exact
         // byte within a small window; otherwise leave one generated byte bare.
-        let next_input = stripped.as_bytes()[input..]
+        const RESYNC_WINDOW: usize = 256;
+        const NEAR_RESYNC_WINDOW: usize = 32;
+        let code_tail = &code.as_bytes()[output..];
+        let input_tail = &stripped.as_bytes()[input..];
+        let next_input = input_tail
             .iter()
-            .take(256)
+            .take(RESYNC_WINDOW)
             .position(|&byte| byte == output_byte);
-        let next_output = code.as_bytes()[output..]
+        let next_output = code_tail
             .iter()
-            .take(256)
+            .take(RESYNC_WINDOW)
             .position(|&byte| byte == input_byte);
-        match (next_input, next_output) {
-            (Some(left), Some(right)) if left <= right => input += left,
-            (Some(left), None) => input += left,
-            (_, Some(right)) => output += right,
-            (None, None) => output += 1,
+        let (skip_input, skip_output) = match (next_input, next_output) {
+            (Some(left), Some(right)) if left <= right => (left, 0),
+            (Some(left), None) => (left, 0),
+            (_, Some(right)) => (0, right),
+            (None, None) => (0, 1),
+        };
+        // A single equal byte is a weak anchor: `export let x = …` →
+        // `let x = $.prop(…)` re-anchors on the `e` of `let` and misattributes
+        // every token after it. When it buys less than a token's worth of
+        // agreement, take the nearest candidate that does.
+        if common_run(&code_tail[skip_output..], &input_tail[skip_input..]) < MIN_RESYNC_RUN {
+            let mut best: Option<(usize, usize, usize)> = None;
+            let mut consider = |run: usize, skip_input: usize, skip_output: usize| {
+                if run >= MIN_RESYNC_RUN
+                    && best.is_none_or(|(best_run, input, output)| {
+                        let skipped = skip_input + skip_output;
+                        skipped < input + output || (skipped == input + output && run > best_run)
+                    })
+                {
+                    best = Some((run, skip_input, skip_output));
+                }
+            };
+            for (skip, &byte) in input_tail.iter().take(NEAR_RESYNC_WINDOW).enumerate() {
+                if byte == output_byte {
+                    consider(common_run(code_tail, &input_tail[skip..]), skip, 0);
+                }
+            }
+            for (skip, &byte) in code_tail.iter().take(NEAR_RESYNC_WINDOW).enumerate() {
+                if byte == input_byte {
+                    consider(common_run(&code_tail[skip..], input_tail), 0, skip);
+                }
+            }
+            if let Some((_, skip_input, skip_output)) = best {
+                input += skip_input;
+                output += skip_output;
+                continue;
+            }
         }
+        input += skip_input;
+        output += skip_output;
     }
     spans
 }
@@ -4395,26 +4486,27 @@ fn transform_module_script_runes_with_target(
         }
     }
 
-    // In non-dev mode, remove $inspect.trace(...) statements from module scripts.
-    // Mirrors the same logic in rune_transforms.rs for instance scripts.
+    // The AST lowering above answers for a `.svelte.(js|ts)` module's *client*
+    // output; every other target still reaches this function with the rune
+    // intact, so the non-dev removal stays. `find_code` rather than a plain
+    // byte search: the same bytes inside a string literal are not the rune.
     if !dev {
-        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect.trace(") {
+        while let Some(pos) = find_code(result.as_bytes(), b"$inspect.trace(") {
             let trace_start = pos + b"$inspect.trace(".len();
-            if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
-                let mut end = trace_start + content_end + 1;
-                while end < result.len()
-                    && matches!(result.as_bytes()[end], b';' | b' ' | b'\t' | b'\n' | b'\r')
-                {
-                    end += 1;
-                }
-                let mut start = pos;
-                while start > 0 && matches!(result.as_bytes()[start - 1], b' ' | b'\t') {
-                    start -= 1;
-                }
-                result = format!("{}{}", &result[..start], &result[end..]);
-            } else {
+            let Some(content_end) = find_matching_paren(&result[trace_start..]) else {
                 break;
+            };
+            let mut end = trace_start + content_end + 1;
+            while end < result.len()
+                && matches!(result.as_bytes()[end], b';' | b' ' | b'\t' | b'\n' | b'\r')
+            {
+                end += 1;
             }
+            let mut start = pos;
+            while start > 0 && matches!(result.as_bytes()[start - 1], b' ' | b'\t') {
+                start -= 1;
+            }
+            result = format!("{}{}", &result[..start], &result[end..]);
         }
     }
 
@@ -5005,13 +5097,23 @@ fn starts_with_else_keyword(line: &str) -> bool {
     })
 }
 
+/// A top-level `$:` label, which is what the legacy pipeline rewrites.
+fn is_legacy_reactive_label(statement: &oxc_ast::ast::Statement<'_>) -> bool {
+    matches!(
+        statement,
+        oxc_ast::ast::Statement::LabeledStatement(labeled) if labeled.label.name == "$"
+    )
+}
+
 /// Makes an AST statement boundary visible to the legacy per-line pipeline.
 ///
-/// The pipeline historically treated each physical line as one statement. That
-/// lets an `export let` rewrite consume a following declaration on the same
-/// line. We use the parser's top-level statement spans rather than scanning
-/// for semicolons, whose grammar is precisely what this path must not infer.
-fn separate_same_line_legacy_export_declarations<'a>(
+/// The pipeline treats each physical line as one statement, and it reads a line
+/// as `\n`-delimited text. So two top-level statements reach it as one whenever
+/// they share a line — and also when the only thing between them is a CR or a
+/// U+2028 / U+2029, which end a line in ECMAScript but not in `str::lines`. We
+/// use the parser's top-level statement spans rather than scanning for
+/// semicolons, whose grammar is precisely what this path must not infer.
+fn separate_same_line_top_level_statements<'a>(
     script: &'a str,
     is_typescript: bool,
 ) -> Cow<'a, str> {
@@ -5019,7 +5121,9 @@ fn separate_same_line_legacy_export_declarations<'a>(
     use oxc_parser::Parser;
     use oxc_span::{GetSpan as _, SourceType};
 
-    if !script.contains("export let ") && !script.contains("export var ") {
+    let has_export = script.contains("export let ") || script.contains("export var ");
+    let has_label = memmem::find(script.as_bytes(), b"$:").is_some();
+    if !has_export && !has_label {
         return Cow::Borrowed(script);
     }
 
@@ -5040,8 +5144,11 @@ fn separate_same_line_legacy_export_declarations<'a>(
         let next = pair[1].span();
         let previous_text = &script[previous.start as usize..previous.end as usize];
         let gap = &script[previous.end as usize..next.start as usize];
-        if (previous_text.trim_start().starts_with("export let ")
-            || previous_text.trim_start().starts_with("export var "))
+        let export_declaration = previous_text.trim_start().starts_with("export let ")
+            || previous_text.trim_start().starts_with("export var ");
+        if (export_declaration
+            || is_legacy_reactive_label(&pair[0])
+            || is_legacy_reactive_label(&pair[1]))
             && !gap.contains('\n')
             && gap.chars().all(char::is_whitespace)
         {
@@ -5547,8 +5654,12 @@ fn transform_instance_script_for_visitors(
     if script.is_empty() {
         return String::new();
     }
-    let separated_script =
-        separate_same_line_legacy_export_declarations(script, analysis.is_typescript);
+    let separated_script = separate_same_line_top_level_statements(script, analysis.is_typescript);
+    // A cut moves every byte after it, so the spans and the projection that were
+    // built for the caller's text no longer describe this one.
+    let separated = matches!(separated_script, Cow::Owned(_));
+    let retained_program = retained_program.filter(|_| !separated);
+    let source_projection = source_projection.filter(|_| !separated);
     let script = separated_script.as_ref();
     let original_script = script;
 
