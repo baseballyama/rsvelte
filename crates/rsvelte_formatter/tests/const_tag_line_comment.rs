@@ -61,3 +61,27 @@ fn a_slash_slash_inside_a_string_is_not_a_comment() {
         "string content was read as a comment:\n{out}"
     );
 }
+
+#[test]
+fn a_regex_literal_is_not_a_line_comment() {
+    // `/^\//` ends in `//`; a byte scan reads the rest as a comment and breaks a
+    // line that must not break (flowbite-svelte `ComponentsLayout.svelte`).
+    let out = fmt("{#if a}{@const p = s.replace(/^\\//, \"\")}{/if}\n");
+    assert!(
+        out.contains("{@const p = s.replace(/^\\//, \"\")}"),
+        "regex literal was read as a comment:\n{out}"
+    );
+}
+
+#[test]
+fn a_regex_literal_followed_by_a_real_comment_still_breaks() {
+    let out = fmt("{#if a}{@const p = s.replace(/^\\//, \"\") // c\n}{/if}\n");
+    assert!(
+        !out.contains("// c}"),
+        "closing brace inside the comment:\n{out}"
+    );
+    assert!(
+        !out.contains("\");"),
+        "statement semicolon survived:\n{out}"
+    );
+}

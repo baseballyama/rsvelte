@@ -732,42 +732,70 @@ fn expr_has_object_head(expr: &oxc_ast::ast::Expression) -> bool {
 /// Whether printed JS ends inside an unterminated `//` comment. A caller that
 /// appends the tag's own `}` must then break the line, or the `}` is commented out.
 pub(super) fn ends_in_line_comment(printed: &str) -> bool {
-    let bytes = printed.as_bytes();
-    let mut i = 0usize;
-    while i < bytes.len() {
-        match bytes[i] {
-            b'\'' | b'"' | b'`' => {
-                let quote = bytes[i];
-                i += 1;
-                while i < bytes.len() && bytes[i] != quote {
-                    i += if bytes[i] == b'\\' { 2 } else { 1 };
-                }
-                i += 1;
-            }
-            b'/' if bytes.get(i + 1) == Some(&b'/') => {
-                while i < bytes.len() && bytes[i] != b'\n' {
-                    i += 1;
-                }
-                if i >= bytes.len() {
-                    return true;
-                }
-            }
-            b'/' if bytes.get(i + 1) == Some(&b'*') => {
-                i += 2;
-                while i < bytes.len() && !(bytes[i] == b'*' && bytes.get(i + 1) == Some(&b'/')) {
-                    i += 1;
-                }
-                i += 2;
-            }
-            _ => i += 1,
-        }
+    // A byte scan cannot tell the `//` in `replace(/^\//, "")` from a comment
+    // start, so the lexer decides; `const <body>\n;` parses for any declarator.
+    const PREFIX: &str = "const ";
+    let allocator = crate::scratch::acquire();
+    let wrapped = format!("{PREFIX}{printed}\n;");
+    let printed_end = PREFIX.len() + printed.len();
+    let parsed = Parser::new(
+        allocator,
+        &wrapped,
+        SourceType::default().with_typescript(true),
+    )
+    .with_options(formatter_parse_options())
+    .parse();
+    parsed.program.comments.last().is_some_and(|comment| {
+        let end = comment.span.end as usize;
+        comment.is_line()
+            && end <= printed_end
+            && wrapped[end..printed_end]
+                .bytes()
+                .all(|b| b == b' ' || b == b'\t' || b == b'\r')
+    })
+}
+
+/// The parsed answer to [`drop_statement_semicolon`]: the terminator is the last
+/// statement's own `;`, which a byte scan cannot find past a regex literal —
+/// `s.replace(/^\//, "")` ends in `//` and swallows the rest of the line.
+///
+/// `None` when the text does not parse, leaving the byte scan as the fallback
+/// rather than changing behaviour on input the parser rejects.
+fn drop_parsed_statement_semicolon(formatted: &str) -> Option<String> {
+    let allocator = crate::scratch::acquire();
+    let parsed = Parser::new(
+        allocator,
+        formatted,
+        SourceType::default().with_typescript(true),
+    )
+    .with_options(formatter_parse_options())
+    .parse();
+    if !parsed.diagnostics.is_empty() {
+        return None;
     }
-    false
+    let end = parsed.program.body.last()?.span().end as usize;
+    let semi = end.checked_sub(1)?;
+    if formatted.as_bytes().get(semi) != Some(&b';') {
+        return None;
+    }
+    // Only a `;` that something follows is worth removing; a bare trailing one is
+    // stripped by the caller.
+    let rest = &formatted[end..];
+    if rest.trim().is_empty() {
+        return None;
+    }
+    let mut out = String::with_capacity(formatted.len() - 1);
+    out.push_str(&formatted[..semi]);
+    out.push_str(rest);
+    Some(out)
 }
 
 /// Drop the `;` oxc puts after the expression statement when a trailing comment
 /// follows it — `{n; /* x */}` is not an expression, so the tag stops parsing.
 pub(super) fn drop_statement_semicolon(formatted: String) -> String {
+    if let Some(out) = drop_parsed_statement_semicolon(&formatted) {
+        return out;
+    }
     let bytes = formatted.as_bytes();
     let mut last_semi = None;
     let mut i = 0usize;
