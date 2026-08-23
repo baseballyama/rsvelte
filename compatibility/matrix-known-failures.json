@@ -1,8 +1,4 @@
 [
-	"binding-position/derived-local__label.body.svelte [js-mismatch] (server)",
-	"binding-position/derived-local__label.body.svelte [js-mismatch] (server-dev)",
-	"binding-position/store-auto-sub__label.body.svelte [js-mismatch] (server)",
-	"binding-position/store-auto-sub__label.body.svelte [js-mismatch] (server-dev)",
 	"comment-slot/await-block__L03__block-with-brace.svelte [comment-mismatch] (client)",
 	"comment-slot/await-block__L03__block-with-brace.svelte [comment-mismatch] (client-dev)",
 	"comment-slot/await-block__L03__block-with-brace.svelte [comment-mismatch] (server)",
