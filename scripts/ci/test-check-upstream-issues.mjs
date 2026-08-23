@@ -106,6 +106,28 @@ scenario(
   dirty('want a URL or'),
 );
 
+// The one URL shape that must be refused. All six URL-bearing reports on disk
+// carry a link back to this repository, so this is the mistake most available
+// to whoever fills the column in next — and it passes a naive `https://` test.
+scenario(
+  'a link back to this repository is not an upstream filing',
+  FILES,
+  table([
+    '| `3001-svelte-a.md` | sveltejs/svelte | #3001 | https://github.com/baseballyama/rsvelte/issues/3001 |',
+    '| `3002-oxc-b.md` | oxc-project/oxc | #3002 | unrecorded |',
+  ]),
+  dirty('that is this repository'),
+);
+scenario(
+  'a genuine upstream URL is accepted',
+  FILES,
+  table([
+    '| `3001-svelte-a.md` | sveltejs/svelte | #3001 | https://github.com/sveltejs/svelte/issues/9 |',
+    '| `3002-oxc-b.md` | oxc-project/oxc | #3002 | unrecorded |',
+  ]),
+  clean,
+);
+
 scenario(
   'a missing project is reported',
   FILES,

@@ -31,6 +31,11 @@ export const INDEX = 'README.md';
 // `| `file.md` | project | issue | filed |`
 const ROW = /^\|\s*`([^`]+)`\s*\|([^|]*)\|([^|]*)\|([^|]*)\|/;
 const FILED_OK = /^(https:\/\/\S+|unrecorded)$/;
+// A link back to THIS repository is what all six URL-bearing reports actually
+// carry, and pasting one into `filed` would read as an upstream filing while
+// pointing at the issue the report came from. That is the exact confusion the
+// column exists to prevent, so the one URL shape it must refuse is our own.
+const OWN_REPO = /github\.com\/baseballyama\/rsvelte\//;
 
 /** Report files on disk, in sorted order. The index itself is not one. */
 export function reportsOnDisk(dir) {
@@ -87,6 +92,10 @@ export function check(dir) {
     if (!FILED_OK.test(row.filed)) {
       problems.push(
         `${INDEX} row \`${row.file}\` has filed=${JSON.stringify(row.filed)} — want a URL or \`unrecorded\``,
+      );
+    } else if (OWN_REPO.test(row.filed)) {
+      problems.push(
+        `${INDEX} row \`${row.file}\` has filed=${JSON.stringify(row.filed)} — that is this repository, not an upstream tracker`,
       );
     }
   }

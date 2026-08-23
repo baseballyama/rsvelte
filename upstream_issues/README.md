@@ -9,7 +9,10 @@ not there.
 
 ## The `filed` column
 
-It must be either the upstream issue URL or the literal **`unrecorded`**. A blank is rejected.
+It must be either the upstream issue URL or the literal **`unrecorded`**. A blank is rejected, and
+so is a link back to **this** repository — every one of the six URL-bearing reports carries an
+rsvelte back-reference, so that is the mistake most available to whoever fills the column in, and
+it would read as an upstream filing while pointing at the issue the report came from.
 
 `unrecorded` means *this repository does not say whether the report was filed* — not that it was
 not filed. When #3680 measured it, **0 of 27** reports carried an upstream issue URL, so every row
