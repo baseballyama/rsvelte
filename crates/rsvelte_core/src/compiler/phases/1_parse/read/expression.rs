@@ -1221,21 +1221,71 @@ fn is_ascii_ident_start_byte(b: u8) -> bool {
     b.is_ascii_alphabetic() || b == b'_' || b == b'$'
 }
 
-/// Words the fast path may spell but strict mode does not allow as an
-/// identifier, plus the two whose legality depends on how they are used.
-const FAST_PATH_SUSPECT_WORDS: &[&str] = &[
-    "let",
-    "yield",
-    "static",
-    "implements",
-    "interface",
-    "package",
-    "private",
-    "protected",
-    "public",
-    "eval",
-    "arguments",
-];
+/// Every word the fast path would spell as an ordinary identifier and the real
+/// parser would not: the reserved words, the strict-mode ones, and the two
+/// (`eval`, `arguments`) whose legality depends on how they are used.
+///
+/// The set has to be the closed one rather than the shapes anybody has hit.
+/// `import` and `new` head a construct whose node type the fast path cannot
+/// produce (`MetaProperty`, `ImportExpression`), and spelling `import.meta.url`
+/// as a member chain makes its leftmost object an unbound global — which every
+/// `is_pure` port then reads as static; `this` is the same shape one node type
+/// over (`ThisExpression`); and every remaining keyword is a program the real
+/// parser rejects and the fast path silently accepts.
+///
+/// `true` / `false` / `null` are absent on purpose: the fast path builds them as
+/// literals, which is what they are.
+#[inline]
+fn is_fast_path_suspect_word(word: &[u8]) -> bool {
+    matches!(
+        word,
+        b"await"
+            | b"break"
+            | b"case"
+            | b"catch"
+            | b"class"
+            | b"const"
+            | b"continue"
+            | b"debugger"
+            | b"default"
+            | b"delete"
+            | b"do"
+            | b"else"
+            | b"enum"
+            | b"export"
+            | b"extends"
+            | b"finally"
+            | b"for"
+            | b"function"
+            | b"if"
+            | b"import"
+            | b"in"
+            | b"instanceof"
+            | b"new"
+            | b"return"
+            | b"super"
+            | b"switch"
+            | b"this"
+            | b"throw"
+            | b"try"
+            | b"typeof"
+            | b"var"
+            | b"void"
+            | b"while"
+            | b"with"
+            | b"yield"
+            | b"let"
+            | b"static"
+            | b"implements"
+            | b"interface"
+            | b"package"
+            | b"private"
+            | b"protected"
+            | b"public"
+            | b"eval"
+            | b"arguments"
+    )
+}
 
 /// Whether `bytes` could hold something the fast path would accept and acorn
 /// would not — a legacy octal literal, an escape inside a string literal, or one
@@ -1243,6 +1293,10 @@ const FAST_PATH_SUSPECT_WORDS: &[&str] = &[
 /// only costs a real parse.
 fn may_carry_acorn_violation(bytes: &[u8]) -> bool {
     let mut i = 0;
+    // A word after `.` is a PROPERTY name, where every reserved word is legal —
+    // and `props.class` is ordinary Svelte, so exempting it is what keeps the
+    // widened list off the common path.
+    let mut after_dot = false;
     while i < bytes.len() {
         let b = bytes[i];
         if b == b'\\' {
@@ -1254,11 +1308,10 @@ fn may_carry_acorn_violation(bytes: &[u8]) -> bool {
                 i += 1;
             }
             let word = &bytes[start..i];
-            // A member/property name is not a binding, but the fast path does
-            // not distinguish them and a real parse is cheap enough.
-            if FAST_PATH_SUSPECT_WORDS.iter().any(|w| w.as_bytes() == word) {
+            if !after_dot && is_fast_path_suspect_word(word) {
                 return true;
             }
+            after_dot = false;
             continue;
         }
         if b.is_ascii_digit() {
@@ -1269,7 +1322,11 @@ fn may_carry_acorn_violation(bytes: &[u8]) -> bool {
             if bytes[start] == b'0' && bytes.get(start + 1).is_some_and(u8::is_ascii_digit) {
                 return true;
             }
+            after_dot = false;
             continue;
+        }
+        if !b.is_ascii_whitespace() {
+            after_dot = b == b'.';
         }
         i += 1;
     }

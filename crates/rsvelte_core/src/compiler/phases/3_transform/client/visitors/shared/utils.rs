@@ -4996,6 +4996,22 @@ fn analyze_props_json(
         | "BigIntLiteral" | "RegExpLiteral" => {
             // No flags to set for literals
         }
+        "MetaProperty" | "ThisExpression" => {
+            // Leaves upstream: it has no visitor for either, and `is_reference`
+            // rejects both halves of `import.meta`, so nothing here is a read.
+            // A MEMBER of one is still dynamic — that is the `MemberExpression`
+            // arm, whose leftmost object is then not an `Identifier`.
+        }
+        "ImportExpression" => {
+            // Upstream has no visitor either, so `import(x)` is not a call —
+            // only what it is given can be reactive.
+            if let Some(source) = obj.get("source") {
+                analyze_props_json(source, context, props);
+            }
+            if let Some(options) = obj.get("options") {
+                analyze_props_json(options, context, props);
+            }
+        }
         "ArrowFunctionExpression" | "FunctionExpression" => {
             // Function definitions don't affect these flags
         }
@@ -5889,6 +5905,25 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
             // `has_state = true` (and `has_call = true`) — `[...x]` is treated
             // like `[...x.values()]`, whose result is unknown at compile time.
             true
+        }
+        "MetaProperty" | "ThisExpression" => {
+            // Leaves upstream: `is_reference` rejects both halves of
+            // `import.meta`, and `this` is not a reference at all.
+            false
+        }
+        "ImportExpression" => {
+            // Not a call upstream — only its operands can be reactive.
+            if let Some(source) = obj.get("source")
+                && has_reactive_state_json(source, context)
+            {
+                return true;
+            }
+            if let Some(options) = obj.get("options")
+                && has_reactive_state_json(options, context)
+            {
+                return true;
+            }
+            false
         }
         _ => {
             // Unknown expression type - conservatively assume reactive
