@@ -12,7 +12,7 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 // The `scope.evaluate` port lives with the server transform, but it is the one
 // shared model of a folded JS value; the client fold must agree with it.
 use crate::compiler::phases::phase3_transform::server::evaluate::{
-    EvalValue, eval_binary, eval_unary, to_js_string, to_number,
+    EvalValue, eval_binary, eval_unary, to_js_string,
 };
 
 /// Local scope information for tracking shadowed variables and their init expression types.
@@ -4245,88 +4245,42 @@ fn get_literal_value_complex(
             }
         }
         "CallExpression" => {
-            // Handle pure Math functions with constant arguments
-            let callee = obj.get("callee").and_then(|v| v.as_object())?;
-            let callee_type = callee.get("type").and_then(|t| t.as_str())?;
+            let callee = obj.get("callee")?;
+            let args = obj.get("arguments").and_then(|a| a.as_array())?;
+            let (base, keypath) = static_keypath_json(callee)?;
 
-            if callee_type == "MemberExpression" {
-                let obj_node = callee.get("object").and_then(|o| o.as_object())?;
-                let prop_node = callee.get("property").and_then(|p| p.as_object())?;
-
-                let obj_type = obj_node.get("type").and_then(|t| t.as_str())?;
-                let obj_name = obj_node.get("name").and_then(|n| n.as_str())?;
-                let prop_name = prop_node.get("name").and_then(|n| n.as_str())?;
-
-                if obj_type == "Identifier" && obj_name == "Math" {
-                    let args = obj.get("arguments").and_then(|a| a.as_array())?;
-
-                    // NOTE: a `Math.*(…)` whose argument references a runtime-reactive
-                    // State/RawState binding has already been rejected by the top-level
-                    // `has_call_json` bail in `get_literal_value` (upstream's Phase-2
-                    // adds every binding reference to `expression.dependencies`, so a
-                    // pure-callee call with such an argument still gets `has_call = true`).
-                    // Only genuinely-constant argument folds reach this point.
-
-                    // Evaluate all arguments
-                    let mut arg_values: Vec<f64> = Vec::new();
-                    for arg in args {
-                        let arg_val = get_literal_value_json(arg, context)?;
-                        arg_values.push(to_number(&arg_val)?);
-                    }
-
-                    let result = match prop_name {
-                        "max" if !arg_values.is_empty() => {
-                            arg_values.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
-                        }
-                        "min" if !arg_values.is_empty() => {
-                            arg_values.iter().cloned().fold(f64::INFINITY, f64::min)
-                        }
-                        "floor" if arg_values.len() == 1 => arg_values[0].floor(),
-                        "ceil" if arg_values.len() == 1 => arg_values[0].ceil(),
-                        "round" if arg_values.len() == 1 => arg_values[0].round(),
-                        "abs" if arg_values.len() == 1 => arg_values[0].abs(),
-                        "sqrt" if arg_values.len() == 1 => arg_values[0].sqrt(),
-                        "pow" if arg_values.len() == 2 => arg_values[0].powf(arg_values[1]),
-                        _ => return None,
-                    };
-
-                    return Some(EvalValue::Num(result));
-                }
-
-                // Fix C: $state.raw(arg) — MemberExpression callee with object=$state, property=raw
-                if obj_type == "Identifier"
-                    && obj_name == "$state"
-                    && prop_name == "raw"
-                    && is_rune_callee(obj_name, context)
-                {
-                    let args = obj.get("arguments").and_then(|a| a.as_array());
-                    if let Some(args) = args
-                        && let Some(first_arg) = args.first()
-                    {
-                        return get_literal_value_json(first_arg, context);
-                    }
-                    return Some(EvalValue::Undefined); // no arg → undefined
-                }
+            // Mirrors upstream scope.js lines 465-481: a rune call evaluates to
+            // its single argument. `$derived.by` takes a thunk, so it is not one.
+            if matches!(keypath.as_str(), "$state" | "$state.raw" | "$derived")
+                && is_rune_callee(&base, context)
+            {
+                return match args.first() {
+                    Some(first_arg) => get_literal_value_json(first_arg, context),
+                    None => Some(EvalValue::Undefined),
+                };
             }
 
-            // Fix C: $state(arg) / $derived(arg) — Identifier callee
-            // Mirrors upstream scope.js lines 465-481: recurse into the single argument.
-            let callee = obj.get("callee").and_then(|v| v.as_object())?;
-            let callee_type = callee.get("type").and_then(|t| t.as_str())?;
-            if callee_type == "Identifier" {
-                let rune_name = callee.get("name").and_then(|n| n.as_str()).unwrap_or("");
-                if matches!(rune_name, "$state" | "$derived") && is_rune_callee(rune_name, context)
-                {
-                    let args = obj.get("arguments").and_then(|a| a.as_array());
-                    if let Some(args) = args
-                        && let Some(first_arg) = args.first()
-                    {
-                        return get_literal_value_json(first_arg, context);
-                    }
-                    return Some(EvalValue::Undefined); // no arg → undefined
-                }
+            // A shadowed name is not the global (`get_global_keypath`).
+            if context.state.get_binding(&base).is_some() {
+                return None;
             }
-            None
+
+            // NOTE: a global call whose argument references a runtime-reactive
+            // State/RawState binding has already been rejected by the top-level
+            // `has_call_json` bail in `get_literal_value` (upstream's Phase-2
+            // adds every binding reference to `expression.dependencies`, so a
+            // pure-callee call with such an argument still gets `has_call = true`).
+            // Only genuinely-constant argument folds reach this point.
+            let mut arg_values = Vec::with_capacity(args.len());
+            for arg in args {
+                arg_values.push(get_literal_value_json(arg, context)?);
+            }
+            known(
+                crate::compiler::phases::phase3_transform::server::evaluate::eval_known_global_call(
+                    &keypath,
+                    &arg_values,
+                )?,
+            )
         }
         "BinaryExpression" => {
             let operator = obj.get("operator").and_then(|v| v.as_str())?;
@@ -5114,10 +5068,15 @@ fn initial_is_non_reactive(binding: &Binding, context: &ComponentContext) -> boo
             return false;
         }
         d.set(d.get() + 1);
+        // The `has_call` bail in `get_literal_value_json` models upstream
+        // memoizing the TEMPLATE expression before evaluating it; an
+        // initializer is never memoized, so enter at a non-zero depth.
+        INITIAL_EVAL_DEPTH.with(|e| e.set(e.get() + 1));
         // `is_expression_known_json` is the proper compile-time-known check: it
         // returns false for calls / awaits / reactive reads, so a template with
         // an impure or reactive interpolation stays reactive (memoized).
         let known = is_expression_known_json(json, context);
+        INITIAL_EVAL_DEPTH.with(|e| e.set(e.get() - 1));
         d.set(d.get() - 1);
         known
     })

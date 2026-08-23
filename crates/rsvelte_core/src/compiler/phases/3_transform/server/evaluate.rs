@@ -607,6 +607,17 @@ fn eval_global_call(keypath: &str, args: &[Evaluation]) -> Option<EvalValue> {
     })
 }
 
+/// [`eval_global_call`] applied to argument values a caller has already folded.
+///
+/// Upstream keeps ONE `globals` table (`scope.js`), whose entries pair a type
+/// marker with the real JS function; the client's constant folder carried a
+/// second copy holding eight `Math.*` names, so `String('a')` and
+/// `Math.trunc(1.5)` folded on the server and not on the client.
+pub(crate) fn eval_known_global_call(keypath: &str, args: &[EvalValue]) -> Option<EvalValue> {
+    let evaluations: Vec<Evaluation> = args.iter().cloned().map(Evaluation::single).collect();
+    eval_global_call(keypath, &evaluations)
+}
+
 fn is_global_keypath(keypath: &str) -> bool {
     matches!(
         keypath,
