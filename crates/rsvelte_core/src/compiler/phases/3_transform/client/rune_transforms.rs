@@ -220,15 +220,17 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
     // emits the `/* $$async_hole:... */` async-mode marker or just
     // strips the call) is statement-shaped rather than expression-shaped
     // and is awkward to do at the AST level.
-    if !dev
-        && !inspect_is_store_sub
-        && let Some(pos) = find_code(result.as_bytes(), b"$inspect(")
-    {
-        {
+    // The loop matters: a nested body can hold more than one, and a single
+    // pass left the second `$inspect(...)` verbatim in the output.
+    if !dev && !inspect_is_store_sub {
+        while let Some(pos) = find_code(result.as_bytes(), b"$inspect(") {
             // In non-dev mode, remove the entire $inspect(...) call
             // Find matching closing paren
             let inspect_start = pos + 9; // after "$inspect("
-            if let Some(content_end) = find_matching_paren(&result[inspect_start..]) {
+            let Some(content_end) = find_matching_paren(&result[inspect_start..]) else {
+                break;
+            };
+            {
                 // Check for .with() chaining
                 let after_inspect = &result[inspect_start + content_end + 1..];
                 let total_end = if after_inspect.trim_start().starts_with(".with(") {
@@ -264,6 +266,15 @@ pub(super) fn transform_client_runes_with_skip_and_state<'a>(
                         // The trailing `;` of the removed call is one of the
                         // `;;` upstream prints for the empty-as-expression.
                         "/* $$inspect_removed$$ */;"
+                    } else if after.starts_with(';')
+                        && matches!(before.as_bytes().last(), Some(b'{' | b'}' | b';'))
+                    {
+                        // A NESTED statement-position call prints the same `;;`
+                        // a top-level one does: upstream keeps the
+                        // `ExpressionStatement` and replaces its expression with
+                        // `b.empty` at every depth. The call's own `;` is the
+                        // second one.
+                        ";"
                     } else {
                         ""
                     };

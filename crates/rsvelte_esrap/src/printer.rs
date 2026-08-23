@@ -1740,8 +1740,12 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             let mut has_margin = false;
             if let Some((prev_elem, prev_multiline)) = &prev {
                 // The two kept empties of one `;;` hole are a single upstream
-                // statement, so nothing separates them.
-                let joined = prev_elem.is_kept_empty() && elem.is_kept_empty();
+                // statement, so nothing separates them — but two separate holes
+                // are two statements and take a newline. A pair is built at
+                // consecutive starts (`B::empty_kept(s)` / `(s + 1)`).
+                let joined = prev_elem.is_kept_empty()
+                    && elem.is_kept_empty()
+                    && elem.span_start() == prev_elem.span_start().wrapping_add(1);
                 has_margin = !joined && (*prev_multiline || !elem.same_kind(prev_elem));
                 if has_margin {
                     ctx.margin();
