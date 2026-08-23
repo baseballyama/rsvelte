@@ -445,6 +445,69 @@ export const answer = 42;
 }
 
 #[test]
+fn a_script_comment_maps_before_the_template_expression_it_precedes() {
+    let source = r#"<script>
+  // "data" prop contains property "result"
+  let { data } = $props();
+</script>
+{data.result}
+"#;
+    let result = crate::compiler::compile(
+        source,
+        crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert!(
+        result.js.code.contains(
+            "$.set_text(\n\t\ttext,\n\t\t// \"data\" prop contains property \"result\"\n\t\t$$props.data.result\n\t)"
+        ),
+        "{}",
+        result.js.code
+    );
+}
+
+#[test]
+fn a_snippet_shadowing_a_prop_still_reads_the_prop_statically() {
+    // The read transform receives the identifier inside its span wrapper, and a
+    // member property is chosen by variant: `$$props[children]` is what an
+    // unrecognised wrapper prints as, and it is a different program.
+    let source = r#"<script>
+	import Canvas from './Canvas.svelte';
+	let { children, ...restProps } = $props();
+</script>
+
+<Canvas {...restProps}>
+	{#snippet children(props)}
+		{@render children?.(props)}
+	{/snippet}
+</Canvas>
+"#;
+    let result = crate::compiler::compile(
+        source,
+        crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    assert!(
+        result.js.code.contains("$$props.children?.("),
+        "{}",
+        result.js.code
+    );
+    assert!(
+        !result.js.code.contains("$$props[children]"),
+        "{}",
+        result.js.code
+    );
+}
+
+#[test]
 fn retained_instance_program_avoids_state_transform_reparse() {
     AST_STATE_REPARSES.with(|count| count.set(0));
     AST_STATE_RETAINED_USES.with(|count| count.set(0));

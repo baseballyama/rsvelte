@@ -130,18 +130,14 @@ fn for_of_and_for_in_non_declaration_targets() {
     );
 }
 
-/// The four node kinds below are deliberately *not* walked. Erasing them is not
-/// worth attempting, because the official compiler does not erase them either —
-/// a class index signature makes it throw, and `import … = require(…)` /
-/// `export =` / `export as namespace` are passed through verbatim.
+/// The three node kinds below are deliberately *not* walked, because the
+/// official compiler passes `import … = require(…)` / `export =` /
+/// `export as namespace` through verbatim.
 ///
-/// The generic walk reaches everything by default, so leaving them alone now
-/// takes an explicit no-op override. Dropping the `TSIndexSignature` one turns
-/// `class A { [key: string]: unknown; }` into `class A { [key]; }` — a bogus
-/// field the bundler happily accepts — which is what these tests guard. The
-/// other three currently hold no annotation for the walk to delete, so their
-/// overrides are guards rather than live fixes; the tests pin the pass-through
-/// either way.
+/// The generic walk reaches everything by default, so leaving them alone takes
+/// an explicit no-op override. None of the three currently holds an annotation
+/// for the walk to delete, so their overrides are guards rather than live fixes;
+/// the tests pin the pass-through either way.
 ///
 /// Each case pairs the construct with an ordinary annotated declaration, so a
 /// pass also proves the collector really walked the program rather than bailing
@@ -159,9 +155,26 @@ fn assert_left_alone(construct: &str) {
     );
 }
 
+/// A class index signature is the one member the walk must remove WHOLE rather
+/// than leave behind: deleting only its `typeAnnotation` would leave `[key];`,
+/// which is the shape upstream's eraser produces and then crashes esrap on. See
+/// `compatibility/deliberate-divergences.md` and
+/// `crates/rsvelte_core/tests/ts_index_signature_3422.rs`.
 #[test]
-fn class_index_signature_is_left_alone() {
-    assert_left_alone("class A { [key: string]: unknown; }");
+fn class_index_signature_is_erased_whole() {
+    let out = strip_typescript("class A { [key: string]: unknown; }\nconst n: number = 1;\n");
+    assert!(
+        !out.contains("[key"),
+        "the index signature survived in some form:\n{out}"
+    );
+    assert!(
+        out.contains("class A {"),
+        "the class itself was dropped:\n{out}"
+    );
+    assert!(
+        out.contains("const n = 1;"),
+        "the collector never reached the rest of the program:\n{out}"
+    );
 }
 
 #[test]

@@ -1,5 +1,0 @@
----
-"@rsvelte/compiler": patch
----
-
-Sixteen output-parity fixes found by the adversarial pattern-corpus sweep (#3030–#3045): multiline class-field rune arguments keep no trailing comma, `$:` sequence assignments compile per element, async placeholders match as whole statements (a string containing `$$async_hole` no longer deletes its declaration), snippet parameters shadow outer bindings on the server, `$host()` is no longer a store subscription, destructuring defaults survive into each-key functions and nested `$.fallback` chains, class-field `$derived` reads of an outer derived no longer double-invoke, `let:` array patterns with rest keep their `$.derived` destructure, shorthand `style:` reactivity follows the binding kind, the option/select `?? ''` guard uses upstream's criterion, mutually recursive snippets hoist, whitespace between sibling `<svelte:element>`s survives, semicolon-less legacy entities decode, a bare `{@debug}` still logs, bigint and exotic numeric spellings constant-fold like upstream, and three byte-parity gaps (empty `$:`, `void 0`, `$.update` comment shapes) are closed.

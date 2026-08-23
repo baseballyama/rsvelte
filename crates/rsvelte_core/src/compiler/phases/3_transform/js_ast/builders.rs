@@ -1004,11 +1004,25 @@ pub fn call(arena: &JsArena, callee: JsExpr, arguments: Vec<JsExpr>) -> JsExpr {
 /// pass over an already-transformed subtree reads the binding twice (`x()()`).
 #[inline]
 pub fn getter_call(arena: &JsArena, node: JsExpr) -> JsExpr {
-    let callee = match node {
-        JsExpr::Identifier(ref name) => JsExpr::OpaqueIdentifier(name.clone()),
-        _ => node,
+    // The read transform hands the identifier over inside its span wrapper, and
+    // opacity is chosen by variant: the mark has to reach the identifier the
+    // wrapper holds, or the next pass reads the binding again.
+    let opaque = match &node {
+        JsExpr::Identifier(name) => Some(JsExpr::OpaqueIdentifier(name.clone())),
+        JsExpr::Spanned(inner, start, end) => match arena.get_expr(*inner) {
+            JsExpr::Identifier(name) => {
+                let name = name.clone();
+                Some(JsExpr::Spanned(
+                    arena.alloc_expr(JsExpr::OpaqueIdentifier(name)),
+                    *start,
+                    *end,
+                ))
+            }
+            _ => None,
+        },
+        _ => None,
     };
-    call(arena, callee, vec![])
+    call(arena, opaque.unwrap_or(node), vec![])
 }
 
 /// Create a call expression with trailing undefined/false arguments stripped.

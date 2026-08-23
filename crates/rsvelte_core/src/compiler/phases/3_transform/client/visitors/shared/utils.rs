@@ -514,11 +514,33 @@ pub fn apply_transforms_to_expression_with_shadowed(
         };
     }
 
+    // A source span sitting directly on an identifier travels *into* the read
+    // transform, because upstream stamps the location on the identifier node and
+    // builds the read wrapper (`foo()`, `$.get(foo)`) around it unlocated — so a
+    // map segment covers the name, not the whole generated call.
+    let spanned_identifier = expr;
+    let (expr, identifier_span) = match expr {
+        JsExpr::Spanned(inner, start, end)
+            if matches!(context.arena.get_expr(*inner), JsExpr::Identifier(_)) =>
+        {
+            (context.arena.get_expr(*inner), Some((*start, *end)))
+        }
+        other => (other, None),
+    };
+    let respan = |e: JsExpr| match identifier_span {
+        Some((start, end)) => JsExpr::Spanned(context.arena.alloc_expr(e), start, end),
+        None => e,
+    };
+    // An identifier no transform rewrote keeps the wrapper it arrived in, which
+    // costs no arena node: `respan` would allocate a second one holding the same
+    // span over a clone of the same identifier.
+    let unchanged = || spanned_identifier.clone();
+
     match expr {
         JsExpr::Identifier(name) => {
             // Skip transforms for shadowed variables (function parameters, local vars)
             if local_scope.contains(name) {
-                return expr.clone();
+                return unchanged();
             }
             // Track each block index usage for proper callback parameter generation.
             // When the index variable is referenced during body traversal, we need
@@ -570,7 +592,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 // Build collection[$$index] access
                 // Note: We do NOT set each_item_assign_or_mutate here - that's only for
                 // writes (assign/mutate). The read transform just redirects to arr[$$index].
-                return build_reassigned_item_read(each_ctx, &context.arena);
+                return respan(build_reassigned_item_read(each_ctx, &context.arena));
             }
             // Check if there's a transform registered for this identifier
             if let Some(transform) = context.state.transform.get(name.as_str()) {
@@ -578,7 +600,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 // is part of a destructured @const declaration, so reads become
                 // $.get(computed_const).identifier_name
                 if let Some(ref source_var) = transform.read_source {
-                    return b::member(
+                    return respan(b::member(
                         &context.arena,
                         b::svelte_call(
                             &context.arena,
@@ -586,7 +608,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                             vec![JsExpr::Identifier(source_var.clone().into())],
                         ),
                         name.clone(),
-                    );
+                    ));
                 }
                 if let Some(read_fn) = transform.read {
                     // If this transform has a replacement_id, use it instead of the original name.
@@ -596,10 +618,10 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     } else {
                         JsExpr::Identifier(name.clone())
                     };
-                    return read_fn(&context.arena, input_id);
+                    return read_fn(&context.arena, respan(input_id));
                 }
             }
-            expr.clone()
+            unchanged()
         }
 
         JsExpr::Member(member) => {
@@ -818,9 +840,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                             apply_transforms_to_statement_with_shadowed(stmt, context, &new_scope)
                         })
                         .collect();
-                    JsArrowBody::Block(JsBlockStatement {
-                        body: transformed_body,
-                    })
+                    JsArrowBody::Block(JsBlockStatement::with_body(transformed_body))
                 }
             };
 
@@ -852,9 +872,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
             JsExpr::Function(JsFunctionExpression {
                 id: func.id.clone(),
                 params: func.params.clone(),
-                body: JsBlockStatement {
-                    body: transformed_body,
-                },
+                body: JsBlockStatement::with_body(transformed_body),
                 is_async: func.is_async,
                 is_generator: func.is_generator,
             })
@@ -1857,8 +1875,8 @@ fn apply_transforms_to_class_member(
                 value: JsFunctionExpression {
                     id: method.value.id.clone(),
                     params: method.value.params.clone(),
-                    body: JsBlockStatement {
-                        body: method
+                    body: JsBlockStatement::with_body(
+                        method
                             .value
                             .body
                             .body
@@ -1871,7 +1889,7 @@ fn apply_transforms_to_class_member(
                                 )
                             })
                             .collect(),
-                    },
+                    ),
                     is_async: method.value.is_async,
                     is_generator: method.value.is_generator,
                 },
@@ -1897,13 +1915,13 @@ fn apply_transforms_to_class_member(
         JsClassMember::StaticBlock(block) => {
             let mut block_scope = local_scope.clone();
             register_block_local_vars(&block.body, &context.arena, &mut block_scope);
-            JsClassMember::StaticBlock(JsBlockStatement {
-                body: block
+            JsClassMember::StaticBlock(JsBlockStatement::with_body(
+                block
                     .body
                     .iter()
                     .map(|s| apply_transforms_to_statement_with_shadowed(s, context, &block_scope))
                     .collect(),
-            })
+            ))
         }
     }
 }
@@ -1984,9 +2002,7 @@ fn apply_transforms_to_statement_with_shadowed(
                 .iter()
                 .map(|s| apply_transforms_to_statement_with_shadowed(s, context, &block_scope))
                 .collect();
-            JsStatement::Block(JsBlockStatement {
-                body: transformed_body,
-            })
+            JsStatement::Block(JsBlockStatement::with_body(transformed_body))
         }
 
         JsStatement::For(for_stmt) => {
@@ -2144,9 +2160,9 @@ fn apply_transforms_to_statement_with_shadowed(
         ),
 
         JsStatement::Try(try_stmt) => {
-            let transformed_block = JsBlockStatement {
-                body: try_stmt.block.body.iter().map(transform_stmt).collect(),
-            };
+            let transformed_block = JsBlockStatement::with_body(
+                try_stmt.block.body.iter().map(transform_stmt).collect(),
+            );
             let transformed_handler = try_stmt.handler.as_ref().map(|handler| {
                 // The catch parameter shadows outer transforms
                 let mut catch_scope = local_scope.clone();
@@ -2155,8 +2171,8 @@ fn apply_transforms_to_statement_with_shadowed(
                 }
                 JsCatchClause {
                     param: handler.param.clone(),
-                    body: JsBlockStatement {
-                        body: handler
+                    body: JsBlockStatement::with_body(
+                        handler
                             .body
                             .body
                             .iter()
@@ -2168,16 +2184,12 @@ fn apply_transforms_to_statement_with_shadowed(
                                 )
                             })
                             .collect(),
-                    },
+                    ),
                 }
             });
-            let transformed_finalizer =
-                try_stmt
-                    .finalizer
-                    .as_ref()
-                    .map(|finalizer| JsBlockStatement {
-                        body: finalizer.body.iter().map(transform_stmt).collect(),
-                    });
+            let transformed_finalizer = try_stmt.finalizer.as_ref().map(|finalizer| {
+                JsBlockStatement::with_body(finalizer.body.iter().map(transform_stmt).collect())
+            });
             JsStatement::Try(JsTryStatement {
                 block: transformed_block,
                 handler: transformed_handler,
@@ -2239,14 +2251,14 @@ fn apply_transforms_to_statement_with_shadowed(
                 func_scope.vars.insert(id.to_string(), None);
             }
             register_block_local_vars(&func_decl.body.body, &context.arena, &mut func_scope);
-            let transformed_body = JsBlockStatement {
-                body: func_decl
+            let transformed_body = JsBlockStatement::with_body(
+                func_decl
                     .body
                     .body
                     .iter()
                     .map(|s| apply_transforms_to_statement_with_shadowed(s, context, &func_scope))
                     .collect(),
-            };
+            );
             JsStatement::FunctionDeclaration(JsFunctionDeclaration {
                 id: func_decl.id.clone(),
                 params: func_decl.params.clone(),

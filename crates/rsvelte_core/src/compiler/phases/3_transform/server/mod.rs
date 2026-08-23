@@ -175,18 +175,11 @@ pub fn transform_server_module(
             .unwrap_or(transformed)
     };
 
-    // Split imports from body
-    let (script_imports, script_rest) = super::client::extract_imports_str(&transformed);
-
-    for import_line in &script_imports {
-        let trimmed = import_line.trim();
-        if memmem::find(trimmed.as_bytes(), b"svelte/internal/").is_none() {
-            body.push(JsStatement::Raw(trimmed.into()));
-        }
-    }
-
-    if let Some(rest) = script_rest {
-        let rest_trimmed = rest.trim();
+    // Upstream `server_module` concatenates the generated `$` import with the
+    // module body untouched, so an `import` keeps its place among the other
+    // statements — hoisting it would change module evaluation order.
+    {
+        let rest_trimmed = transformed.trim();
         if !rest_trimmed.is_empty() {
             body.push(JsStatement::Raw(rest_trimmed.into()));
         }
