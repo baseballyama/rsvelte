@@ -1193,22 +1193,23 @@ fn build_style_attribute_value_with_memoization(
             let has_call = expr_props.has_call;
             let has_state = expr_props.has_state;
             let has_member = expr_props.has_member;
+            let has_await = expr_props.has_await;
 
             // Build the expression with transforms applied
             let mut metadata = ExpressionMetadata::default();
             metadata.set_has_state(has_state);
             metadata.set_has_call(has_call);
             metadata.set_has_member_expression(has_member);
+            metadata.set_has_await(has_await);
             let built = build_expression(context, &converted, &metadata);
 
             // Memoize if has call
             let value = context.state.memoizer.add_memoized(
-                built, has_call, false, // has_await
-                false, // memoize_if_state
+                built, has_call, has_await, false, // memoize_if_state
                 has_state,
             );
 
-            (value, has_state || has_call)
+            (value, has_state || has_call || has_await)
         }
 
         AttributeValue::Sequence(parts) if parts.len() == 1 => {
@@ -1222,22 +1223,24 @@ fn build_style_attribute_value_with_memoization(
                     let has_call = expr_props.has_call;
                     let expr_has_state = expr_props.has_state;
                     let has_member = expr_props.has_member;
+                    let has_await = expr_props.has_await;
 
                     let mut metadata = ExpressionMetadata::default();
                     metadata.set_has_state(expr_has_state);
                     metadata.set_has_call(has_call);
                     metadata.set_has_member_expression(has_member);
+                    metadata.set_has_await(has_await);
                     let built = build_expression(context, &converted, &metadata);
 
                     let value = context.state.memoizer.add_memoized(
                         built,
                         has_call,
-                        false, // has_await
+                        has_await,
                         false, // memoize_if_state
                         expr_has_state,
                     );
 
-                    (value, expr_has_state || has_call)
+                    (value, expr_has_state || has_call || has_await)
                 }
             }
         }
@@ -1287,18 +1290,20 @@ fn build_style_attribute_value_with_memoization(
                         let has_call = expr_props.has_call;
                         let expr_has_state = expr_props.has_state;
                         let has_member = expr_props.has_member;
+                        let has_await = expr_props.has_await;
 
                         let mut metadata = ExpressionMetadata::default();
                         metadata.set_has_state(expr_has_state);
                         metadata.set_has_call(has_call);
                         metadata.set_has_member_expression(has_member);
+                        metadata.set_has_await(has_await);
                         let built = build_expression(context, &converted, &metadata);
 
                         // Memoize the expression if it has a function call
                         let value = context.state.memoizer.add_memoized(
                             built,
                             has_call,
-                            false, // has_await
+                            has_await,
                             false, // memoize_if_state
                             expr_has_state,
                         );
@@ -1333,7 +1338,7 @@ fn build_style_attribute_value_with_memoization(
                         };
                         expressions.push(final_value);
 
-                        if has_call || expr_has_state {
+                        if has_call || expr_has_state || has_await {
                             has_state = true;
                         }
                     }
