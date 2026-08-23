@@ -3123,7 +3123,7 @@ parsed by the official compiler and by rsvelte's NAPI `parse`, under `{ modern: 
 the default (legacy) shape, diffed as JSON after a `JSON.parse(JSON.stringify(...))` round-trip on
 both sides. A divergence is keyed by *class* — the JSON path with array indices collapsed plus how
 it differs — so one ratchet entry is one (file, mode, field-class). Shrink-only, two-sided,
-`compatibility/parse-ast-known-failures.json` (2721 entries, justified per cause in the paired
+`compatibility/parse-ast-known-failures.json` (2329 entries, justified per cause in the paired
 `.md`).
 
 **Why it exists.** `parse()` is a public, documented export of `svelte/compiler`, and until this
@@ -3133,7 +3133,7 @@ consume rsvelte's AST but never diff it against official's. The three defects fi
 #3385, #3386, #3387 — are each the kind a first run of this gate reports, and all three had shipped.
 
 **[D] The population it does not have is the strongest evidence about it.** Over the collected
-corpus's `svelte` + `svelte.dev` sources, **605 of 1893** compared (file, `modern`) pairs diverge —
+corpus's `svelte` + `svelte.dev` sources, **414 of 1893** compared (file, `modern`) pairs diverge —
 a population this gate never touches. `--corpus` reaches it and is *refused* a baseline rewrite,
 because a ratchet written from it cannot be reproduced on a checkout with fewer submodules.
 

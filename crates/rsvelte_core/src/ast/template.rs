@@ -71,17 +71,84 @@ pub struct Root<'a> {
 
 /// A JavaScript-style comment captured during parsing.
 ///
-/// Mirrors Svelte 5's `AST.JSComment`. The `loc` field always carries
-/// `{line, column, character}` (the test runner strips `character` before
-/// comparing against acorn-style fixtures via `normalize_json`).
-#[derive(Debug, Clone, Serialize)]
+/// Mirrors Svelte 5's `AST.JSComment`. `Root.comments` is a mixed array: a
+/// comment inside a start tag is built by the Svelte parser and a comment in a
+/// `<script>` by the JS parser, and only the first kind carries `character`.
+#[derive(Debug, Clone)]
 pub struct JsComment {
-    #[serde(rename = "type")]
     pub kind: JsCommentKind,
     pub start: u32,
     pub end: u32,
     pub value: CompactString,
     pub loc: super::span::SourceLocation,
+    /// Upstream builds an in-tag comment's `loc` from `locate-character`, whose
+    /// `Location` carries `character`; a script comment's comes from acorn's
+    /// `locations: true`, which does not.
+    pub loc_has_character: bool,
+}
+
+impl Serialize for JsComment {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(Some(5))?;
+        map.serialize_entry("type", &self.kind)?;
+        map.serialize_entry("start", &self.start)?;
+        map.serialize_entry("end", &self.end)?;
+        map.serialize_entry("value", &self.value)?;
+        map.serialize_entry(
+            "loc",
+            &LocView {
+                loc: &self.loc,
+                character: self.loc_has_character,
+            },
+        )?;
+        map.end()
+    }
+}
+
+struct LocView<'a> {
+    loc: &'a super::span::SourceLocation,
+    character: bool,
+}
+
+impl Serialize for LocView<'_> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(Some(2))?;
+        map.serialize_entry(
+            "start",
+            &PointView {
+                point: self.loc.start,
+                character: self.character,
+            },
+        )?;
+        map.serialize_entry(
+            "end",
+            &PointView {
+                point: self.loc.end,
+                character: self.character,
+            },
+        )?;
+        map.end()
+    }
+}
+
+struct PointView {
+    point: super::span::LineColumn,
+    character: bool,
+}
+
+impl Serialize for PointView {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(Some(if self.character { 3 } else { 2 }))?;
+        map.serialize_entry("line", &self.point.line)?;
+        map.serialize_entry("column", &self.point.column)?;
+        if self.character {
+            map.serialize_entry("character", &self.point.character)?;
+        }
+        map.end()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
