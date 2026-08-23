@@ -1950,6 +1950,14 @@ export const KEYWORD_CONSTRUCTS = {
 		body: 'export%svar a = 1;',
 		markup: '<b>{a}</b>',
 	},
+	// Two declarations sharing a physical line: the legacy per-line walk has to
+	// be told where the first one ends before either can be rewritten, and that
+	// pre-pass has a needle of its own.
+	'export-let-same-line': {
+		module: true,
+		body: 'export%slet a = 1; export%slet b = 2;',
+		markup: '<b>{a}{b}</b>',
+	},
 	'export-const': {
 		module: true,
 		body: 'export%sconst a = 1;',
