@@ -1088,9 +1088,7 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             }
             first = false;
             self.write_comment_at(self.comment_index, ctx);
-            if !cmt.block {
-                ctx.newline();
-            } else if self.has_newline_between(cmt.end, to) {
+            if !cmt.block || self.has_newline_between(cmt.end, to) {
                 ctx.newline();
             } else if pad {
                 ctx.write_ascii(b' ');
