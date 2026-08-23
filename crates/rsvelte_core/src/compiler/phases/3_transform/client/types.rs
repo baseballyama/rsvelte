@@ -1568,8 +1568,6 @@ pub struct TransformOptions {
     pub experimental_async: bool,
 
     /// Whether HMR (Hot Module Replacement) is enabled.
-    /// When true, components need fragment wrappers even in standalone mode
-    /// because $.hmr() uses block/branch effects that need stable anchor nodes.
     pub hmr: bool,
 }
 

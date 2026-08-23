@@ -28,6 +28,7 @@ import { execFileSync } from 'node:child_process';
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { decide } from './vscode-publish-decision.mjs';
 import { VSCODE_TARGETS } from './vscode-targets.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -53,17 +54,6 @@ const OVSX = 'ovsx@0.10.12';
 const UNIVERSAL = 'universal';
 /** Every (version, targetPlatform) pair a complete publish produces. */
 const PLATFORMS = [UNIVERSAL, ...VSCODE_TARGETS.map(({ target: t }) => t)];
-
-/** Numeric semver compare for simple `x.y.z` versions (no pre-release). */
-function cmp(a, b) {
-  const pa = a.split('.').map(Number);
-  const pb = b.split('.').map(Number);
-  for (let i = 0; i < 3; i++) {
-    const d = (pa[i] || 0) - (pb[i] || 0);
-    if (d !== 0) return d;
-  }
-  return 0;
-}
 
 /**
  * Marketplace state: the newest LIVE version, and which platforms of `target`
@@ -126,26 +116,26 @@ const mp = await marketplaceState();
 const ovsx = await openvsxState();
 const ovsxPublished = ovsx?.latest ?? null;
 
-// A live Marketplace version newer than ours means the release already moved
-// on; otherwise every platform `target` is missing is still to be published.
-// A failed query (`null`) publishes nothing rather than guessing.
-const missingMp =
-  mp === null || (mp.latest && cmp(target, mp.latest) < 0)
-    ? []
-    : PLATFORMS.filter((p) => !mp.live.has(p));
-const needMp = force || missingMp.length > 0;
-// Only consider Open VSX when a token is available to publish there.
-const needOvsx =
-  hasOvsx &&
-  (force ||
-    (ovsx !== null &&
-      (ovsxPublished === null || cmp(target, ovsxPublished) > 0)));
+const { missingMp, needMp, needOvsx, mpReason } = decide({
+  target,
+  mp,
+  ovsx,
+  hasOvsx,
+  force,
+  platforms: PLATFORMS,
+});
 const shouldPublish = needMp || needOvsx;
+
+const MP_STATE = {
+  'query-failed': '(query failed)',
+  'name-reserved': '(none, but the name is reserved)',
+  superseded: '(newer release is live)',
+};
 
 console.log(`extension:            ${id}`);
 console.log(`target version:       ${target} (follows @rsvelte/language-server)`);
 console.log(
-  `marketplace version:  ${mp === null ? '(query failed)' : (mp.latest ?? '(none)')}` +
+  `marketplace version:  ${MP_STATE[mpReason] ?? mp?.latest ?? '(none)'}` +
     `  → publish: ${needMp}`,
 );
 console.log(
@@ -254,8 +244,15 @@ if (needMp) {
     }
     console.log(`✓ published ${platform} to VS Code Marketplace`);
   }
-} else if (mp === null) {
+} else if (mpReason === 'query-failed') {
   console.log('Marketplace state unknown (query failed) — skipping.');
+} else if (mpReason === 'name-reserved') {
+  console.log(
+    `::warning::${id} is unlisted on the Marketplace while its name stays ` +
+      'reserved, so no publish can succeed. Restore it at ' +
+      `https://marketplace.visualstudio.com/manage/publishers/${extPkg.publisher} ` +
+      'or rename it in apps/npm/vscode/package.json.',
+  );
 } else {
   console.log('Marketplace already up to date — skipping.');
 }

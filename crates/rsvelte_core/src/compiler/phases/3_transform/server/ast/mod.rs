@@ -636,6 +636,7 @@ impl<'a> ServerTransformState<'a> {
     pub fn is_standalone_fragment<'t, N: AsRef<TemplateNode<'t>>>(
         nodes: &[N],
         preserve_whitespace: bool,
+        hmr: bool,
     ) -> bool {
         use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
         let meaningful: Vec<&TemplateNode> = nodes
@@ -668,7 +669,11 @@ impl<'a> ServerTransformState<'a> {
         match meaningful[0] {
             TemplateNode::RenderTag(tag) => !tag.metadata.dynamic,
             TemplateNode::Component(comp) => {
-                !comp.metadata.dynamic
+                // Upstream gates only this arm on `state.options.hmr`
+                // (`3-transform/utils.js`), so under HMR a component keeps its
+                // trailing `<!---->` anchor while a `{@render}` still loses it.
+                !hmr
+                    && !comp.metadata.dynamic
                     && !comp.attributes.iter().any(|attr| {
                         matches!(attr, crate::ast::template::Attribute::Attribute(a) if a.name.starts_with("--"))
                     })
@@ -1184,6 +1189,7 @@ pub fn server_component_ast<'a>(
     state.is_standalone = ServerTransformState::is_standalone_fragment(
         &ast.fragment.nodes,
         state.preserve_whitespace,
+        state.options.hmr,
     );
     // Root fragment: parent is the Fragment node itself, so it IS an
     // `is_text_first` parent (upstream `clean_nodes`/`Fragment`).

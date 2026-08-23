@@ -533,6 +533,13 @@ fn tabs_to_spaces_column(line: &str, column: usize) -> usize {
     taken + leading_tabs.min(taken)
 }
 
+/// Drop a leading byte order mark, which would otherwise be template content.
+/// Upstream `compiler/index.js` does this at every public entry point, so every
+/// position downstream is relative to the trimmed source.
+pub(crate) fn remove_bom(source: &str) -> &str {
+    source.strip_prefix('\u{feff}').unwrap_or(source)
+}
+
 /// Parse phase shared by [`compile`] and [`compile_both`]: the fixed component
 /// parse options plus [`phase1_parse::parse`](phases::phase1_parse::parse).
 ///
@@ -931,6 +938,7 @@ pub fn compile_module(
     source: &str,
     options: ModuleCompileOptions,
 ) -> Result<CompileResult, CompileError> {
+    let source = remove_bom(source);
     // Parse JS source into an AST using the same infrastructure as component scripts.
     // Upstream `compileModule` → `analyze_module` always parses with
     // `typescript: false` (2-analyze/index.js `parse(source, comments, false,

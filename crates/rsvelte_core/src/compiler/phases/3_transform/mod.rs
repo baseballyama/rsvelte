@@ -591,15 +591,9 @@ pub(crate) fn transform_component_with_scripts<'source>(
             let filename = options.filename.as_deref();
             let source_name = get_source_name(filename, output_filename, "input.svelte");
 
-            // Determine the output file basename for the "file" field
-            let file_name = output_filename
-                .map(|f| {
-                    f.split(['/', '\\'])
-                        .next_back()
-                        .unwrap_or("input.svelte.js")
-                        .to_string()
-                })
-                .unwrap_or_else(|| "input.svelte.js".to_string());
+            // Upstream's JS map comes out of esrap's `print()`, which sets no
+            // `file` key; only the CSS map names its output file.
+            let file_name: Option<&str> = None;
 
             let mut mappings_str = encode_vlq_mappings(&js_mappings);
 
@@ -695,7 +689,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
                         // Only one source referenced - use single-source format
                         let content = multi_contents.first().map(|s| s.as_str()).unwrap_or(source);
                         Some(generate_sourcemap_json(
-                            &file_name,
+                            file_name,
                             &multi_sources[0],
                             include_sourcemap_content.then_some(content),
                             &mappings_str,
@@ -707,7 +701,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
                         let contents_refs: Vec<&str> =
                             multi_contents.iter().map(|s| s.as_str()).collect();
                         Some(js_ast::codegen::generate_sourcemap_json_multi(
-                            &file_name,
+                            file_name,
                             &sources_refs,
                             &contents_refs,
                             &mappings_str,
@@ -727,7 +721,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
                         .map(String::as_str)
                         .unwrap_or(&source_name);
                     Some(generate_sourcemap_json(
-                        &file_name,
+                        file_name,
                         preprocessed_source,
                         include_sourcemap_content.then_some(content),
                         &mappings_str,
@@ -736,7 +730,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
                 }
             } else {
                 Some(generate_sourcemap_json(
-                    &file_name,
+                    file_name,
                     &source_name,
                     include_sourcemap_content.then_some(source),
                     &mappings_str,
@@ -750,14 +744,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
             let filename = options.filename.as_deref();
             if output_filename.is_some() || filename.is_some() {
                 let source_name = get_source_name(filename, output_filename, "input.svelte");
-                let file_name = output_filename
-                    .map(|f| {
-                        f.split(['/', '\\'])
-                            .next_back()
-                            .unwrap_or("input.svelte.js")
-                            .to_string()
-                    })
-                    .unwrap_or_else(|| "input.svelte.js".to_string());
+                let file_name: Option<&str> = None;
 
                 // Generate line-level identity mappings (each generated line maps to line 0, col 0)
                 let line_count = js.chars().filter(|&c| c == '\n').count();
@@ -774,7 +761,7 @@ pub(crate) fn transform_component_with_scripts<'source>(
                 }
                 let mappings_str = encode_vlq_mappings(&trivial_mappings);
                 Some(generate_sourcemap_json(
-                    &file_name,
+                    file_name,
                     &source_name,
                     include_sourcemap_content.then_some(source),
                     &mappings_str,
@@ -892,7 +879,7 @@ pub(crate) fn remap_css_sourcemap(
 
     let names_refs: Vec<&str> = names.iter().map(|s| s.as_str()).collect();
     generate_sourcemap_json(
-        file_name,
+        Some(file_name),
         &source_name,
         Some(if original_content.is_empty() {
             ""

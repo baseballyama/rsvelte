@@ -233,23 +233,6 @@ pub(crate) fn analyze_prepared_component_with_retained(
         analysis.accessors = true;
     }
 
-    // Check for options_missing_custom_element warning
-    // If svelte:options has customElement but the compile options don't have customElement: true
-    if let Some(ref svelte_options) = ast.options
-        && svelte_options.custom_element.is_some()
-        && !options.custom_element
-    {
-        let mut warning = warnings::options_missing_custom_element();
-        if let Some(attr) = svelte_options
-            .attributes
-            .iter()
-            .find(|attr| attr.name.as_str() == "customElement")
-        {
-            warning = warning.at(attr.start, attr.end);
-        }
-        analysis.warnings.push(warning);
-    }
-
     // Extract script content for Phase 3 (avoids re-parsing)
     analysis.extract_scripts(ast, source, retained_scripts);
 
@@ -373,19 +356,29 @@ pub(crate) fn analyze_prepared_component_with_retained(
         }
     }
 
+    // `<svelte:options>` diagnostics run once over the attribute list, so they
+    // come out in source order and each carries its own attribute's span.
+    // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js L685-698
+    if let Some(ref svelte_options) = ast.options {
+        for attribute in &svelte_options.attributes {
+            let warning = match attribute.name.as_str() {
+                "accessors" if analysis.runes => warnings::options_deprecated_accessors(),
+                "customElement" if !options.custom_element => {
+                    warnings::options_missing_custom_element()
+                }
+                "immutable" if analysis.runes => warnings::options_deprecated_immutable(),
+                _ => continue,
+            };
+            analysis
+                .warnings
+                .push(warning.at(attribute.start, attribute.end));
+        }
+    }
+
     // In runes mode, immutable is always true and accessors is always false
     // (unless it's a custom element). This overrides any options passed by the user.
     // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js
     if analysis.runes {
-        // `<svelte:options immutable>` is deprecated in runes mode (it has no
-        // effect there). Mirror upstream's analyze-phase warning, which fires
-        // when the `immutable` option attribute is present and runes is on
-        // (2-analyze/index.js). M-061.
-        if ast.options.as_ref().is_some_and(|o| o.immutable.is_some()) {
-            analysis
-                .warnings
-                .push(warnings::options_deprecated_immutable());
-        }
         analysis.immutable = true;
         if analysis.custom_element.is_none() {
             analysis.accessors = false;

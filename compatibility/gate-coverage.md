@@ -19,6 +19,14 @@ It answers three questions per gate:
    - **[U] unmeasured** — no evidence was gathered. A row marked `[U]` is a *question*, not a
      finding.
 
+**One question this file does not ask** has its own inventory in
+[`two-ports-inventory.md`](two-ports-inventory.md): *how many times does rsvelte answer
+one upstream decision, and does anything compare its own answers to each other?* Every
+gate below compares rsvelte to upstream; none compares rsvelte to itself, so a second port
+of one upstream function is exercised only on whatever inputs a real file happens to
+supply. That is indexed by decision rather than by gate, which is why it is a separate
+file — but the two share an evidence vocabulary, and a row there is a gap here.
+
 **Do not fill a row with a plausible guess.** An unsupported blind-spot claim is worse than a
 blank, because the next person reads the row as surveyed and never looks again. If you have
 neither a discriminating case nor a code citation, write `[U]`.
@@ -97,7 +105,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 11 | Lint output parity | set of `rule\tline:col\tmessage` | `.svelte.(js\|ts)` ungated on **both** sides; autofixes never compared | [D] |
 | 12 | svelte-check Layer 1 (fixtures) | multiset of `SEVERITY file:line code` | column, message, `source`, file-walk counts, every flag but `--tsconfig` | [D] |
 | 13 | svelte-check Layer 2 (e2e) | same key, 3 units in 2 repos | same fields; whether the oracle finds anything at all | [U] |
-| 14 | Compiler source-map gate | 23 anchors + budgets + parity vs official | segments rsvelte **adds**; `sources`/`names`; `dev: true` | [S] |
+| 14 | Compiler source-map gate | 23 anchors + budgets + parity vs official | segments rsvelte **adds**; `sources`/`names`; `dev: true`; a **uniform shift** of every original line | [D] |
 | 15 | `ast_gate_preconditions` | "rsvelte's own output parses" | compile **failures** are skipped — errors make it greener | [S] |
 | 16 | Validator fixture suite | per-fixture ordered `(code, message, start, end)` warnings + error code/message/span; message text against a generated oracle | only 5 `_config.js` keys are read, and `options.json` not at all — a sample runs under options upstream never used | [S] |
 | 17 | svelte2tsx fixture suite | per-fixture TSX text | text after the `export default class` cut is dropped from both sides | [S] |
@@ -111,6 +119,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 25 | Differential output-preservation corpus hash | per `.svelte` source × client/server/client-dev/server-dev hash from base-core vs merge-ref-core | changes outside `crates/rsvelte_core`; every PR without the maintainer-applied `output-preserving` label | [S] |
 | 26 | esrap generated-output corpus | parsed JS output × official/rsvelte tree × 4 targets; AST equivalence, comment kind/body sequence, code/map equality, map bounds/order | production synthetic AST spans and whether a mapping points at the corresponding source token | [S] |
 | 27 | LSP differential parity | normalized JSON response field per request against the pinned official server and selected upstream snapshots | **every server notification**; incremental edit and resolve sequences; **inside a corpus `(file, method)`, everything but the divergent-request count** | [S] [D] |
+| 38 | NAPI `cssHash` | the scope class the callback produces, and the callback's own argument list, against **official** | one component shape and one option set; only `css.code` / the class in `js.code`; nothing about the wasm or facade ports of the same option | [S] |
 
 Cross-cutting blind spots (**ratchet keys losing in both directions**, path filters, ratchet-doc
 drift, vacuity floors, the **performance**
@@ -526,6 +535,30 @@ corpus does not move this: `<svelte:element>` × an a11y-relevant attribute is a
 and published code writes it almost never. The coverage is
 `crates/rsvelte_core/tests/a11y_svelte_element_2523.rs`, which constructs one case per rule and
 pairs each `!is_dynamic_element` row with the static element that does raise it.
+
+### Blind spot 2e — the unit is one compile, so a per-process rule is unobservable
+
+Every entry is compiled once per target and its warnings compared in isolation. **[D]** A
+warning whose emission depends on *how many times the compiler has already run* therefore has
+no observable here at any corpus size — the divergence **is** the second call.
+
+Measured (#3239): upstream dedupes the compile-**option** deprecations through a module-level
+`warned` Set in `validate-options.js`, so three `compile()` calls with `{ accessors: true }` in
+one fresh process yield `[options_deprecated_accessors]`, `[]`, `[]`. rsvelte emits the warning
+all three times. Two independent reasons this gate is blind to it: the unit above, and the fact
+that **no corpus entry passes either option** — `targets.mjs` fixes the option set, so blind
+spot 1d (the compile-option surface is one point) covers the same hole from the other side.
+
+The divergence is **deliberate**, not a backlog item: reproducing a module-level `warned` Set
+needs process-global mutable state, and under the parallel NAPI driver *which* file receives the
+single warning would be nondeterministic — worse for a user than over-warning, since a warning
+that lands on an arbitrary file is one a build log cannot be diffed against. It is pinned by
+`compile_option_deprecations_repeat_on_every_call` in
+`crates/rsvelte_core/tests/svelte_options_deprecations.rs` so that a later move to
+once-per-process is a decision rather than a drift. Note the asymmetry the issue's title hides:
+only the **option** path dedupes upstream. The `<svelte:options accessors />` *tag* path is
+raised from `2-analyze/index.js` with no `warn_once` at all, so it warns on every compile in
+both compilers — and that half this gate does see.
 
 ---
 
@@ -1675,6 +1708,45 @@ MEASURED" branch (`:959-967`) fires only for pairs that have a budget entry. **[
 that breaks byte-identity for one unratcheted pair while fixing another keeps the count at 57
 and reports nothing; the dropped pair silently stops being measured.
 
+### Blind spot 14f — a uniform shift of every original line passes every check
+
+The 29 samples all use `\n` line endings, and no check compares rsvelte's original line
+*numbering rule* to official's. **[D]** #3412 proposed widening
+`rsvelte_esrap::printer::line_starts` to the full ECMAScript LineTerminator set. That function is
+the source-map original-coordinate table as well as the comment-placement one, by **two**
+routes: the coordinate readers take `map_line_starts.unwrap_or(&self.line_starts)`
+(`esrap/src/printer.rs:757`, `:810`, `:889`), and `print_with_map` never sets `map_line_starts`, so
+there `line_starts` *is* the coordinate table — while `print_split` does set it, from the very same
+`printer::line_starts` (`esrap/src/lib.rs:191`), with `3_transform/client/mod.rs:2554` passing the
+**component source** as `map_source`. Both routes are therefore in range; enumerating only the
+`print_split` one understates it. The change moves the original line of everything after a lone
+`\r`, U+2028 or U+2029. Applying
+only that function's body to an otherwise unchanged tree and running this gate: **3 passed, 1
+ignored — green.**
+
+The discriminating measurement is a decode of `mappings`, collecting the distinct original lines
+any segment points at, for
+`<script>\nlet aaa = 1;{T}let bbb = 2;\n</script>\n<p>{aaa}{bbb}</p>`:
+
+| `{T}` | official | rsvelte | rsvelte with the widened table |
+|---|---|---|---|
+| `\n` | 1,2,3,4,5 | 1,2,3,4,5 | 1,2,3,4,5 |
+| `\r\n` | 1,2,3,4,5 | 1,2,3,4,5 | 1,2,3,4,5 |
+| `\r` | 1,2,3,4 | 1,2,3,4 | **1,2,3,4,5** |
+| U+2028 | 1,2,3,4 | 1,2,3,4 | **1,2,3,4,5** |
+| U+2029 | 1,2,3,4 | 1,2,3,4 | **1,2,3,4,5** |
+
+Two rows agree on all three columns, so the table is a control rather than an assertion: official
+counts **only `\n`** for original positions, even though esrap's *comment* placement reads acorn
+`loc`, which advances on all four. The reason this gate cannot see it is structural rather than
+sampling: `parity()` compares rsvelte's segment to official's at the same **generated** position
+(`:537-548`), and a shift that moves both sides' notion of an original line identically for every
+sample containing no exotic terminator leaves every anchor, budget and parity check satisfied —
+while `map-parity` itself never runs on a sample that *does* contain one, because none exists.
+
+Recorded because the next person to touch a coordinate table will read this gate as the negative
+control for that change. It is not.
+
 Related open work: #1781 (client maps are chunk-granular; 16% point outside the source range).
 
 ---
@@ -2153,7 +2225,7 @@ both directions, so a new field with no case fails and a case naming a deleted f
 symbols only resolve when Node dlopens the addon), there is no `crates/rsvelte_napi/tests/`, and
 before this gate nothing anywhere crossed the JS-object → `CompileOptions` mapping per key.
 Deleting a field, or dropping its arm from `into_compile_options`, failed nothing. Denominator:
-**38 of 40 declared keys** are crossed; the 2 exclusions are listed in the script's `UNCOVERED`
+**39 of 41 declared keys** are crossed; the 2 exclusions are listed in the script's `UNCOVERED`
 map with their reasons, and the reasons are themselves asserted to exist.
 
 ### 22a — it compares rsvelte against rsvelte, never against official [S]
@@ -2170,10 +2242,15 @@ gate in this repo compares rsvelte's option behaviour to the official compiler's
 `napiObjectStructs()` reads the `pub <field>:` lines of the four `#[napi(object)]` option
 structs. An option a real caller passes that the boundary never declares is therefore not a
 failure — it is not even a row. Discriminating case: `warningFilter` and `cssHash` are genuine
-`svelte/compiler` options; the addon declares neither, and the shim resolves them in JS
-(`apps/npm/vite-plugin-svelte-native/index.cjs:57-77`). The denominator prints 40 and never
-mentions them. This is the #2438 shape one level out: that bug was a *declared* field nothing
-read; this blind spot is an *undeclared* option nothing accepts.
+`svelte/compiler` options; the addon declared neither, and the shim resolved them in JS
+(`apps/npm/vite-plugin-svelte-native/index.cjs`). The denominator printed 40 and never mentioned
+them. This is the #2438 shape one level out: that bug was a *declared* field nothing read; this
+blind spot is an *undeclared* option nothing accepts. **#3294 is the shipped instance**: a
+function-valued `cssHash` was dropped at this boundary with no error, so the component got a
+different scope class than the caller asked for, in `css.code` and in every `class` attribute of
+`js.code`. `cssHash` is now declared (and rejected) here, which puts it in the denominator; the
+option's *behaviour* is gate 38. `warningFilter` is still undeclared and still invisible to the
+count.
 
 ### 22c — one entry point per surface, and per-entry-point consistency is not asserted [S]
 
@@ -3027,6 +3104,62 @@ truncated-print skip — is therefore factored into `idempotency_report` and pin
 test (`idempotency_report_tests`), which is where that failure mode is caught. The remaining
 uncovered case is a break in the *re-application* itself (a second pass that silently becomes a
 no-op for the wrong reason); nothing here would see it.
+
+---
+
+## 38. NAPI `cssHash` — `scripts/dev/test-napi-css-hash.mjs`
+
+**Unit.** One component with one scoped selector, compiled through the raw addon for `client` and
+`server` under five callback shapes, compared to the **official** compiler's `css.code` for the
+same callback; plus the callback's own argument list, the rejection the synchronous entries raise,
+and the two degenerate returns (a non-string, and a throw). Hard gate, no ratchet.
+
+**Why it exists.** `cssHash` is the one compile option whose value is a *callback*, and that makes
+it invisible to gate 22 twice over. It was not declared at the boundary, so the exhaustiveness half
+had no row for it (22b); and gate 22's discrimination test is "do the two results differ", which is
+exactly what a *dropped* option fails — but the drop was at the JS-object decode, before any
+comparison, and the option never appeared in the denominator to be tested. #3294 is what that cost:
+`compile()` returned a wrong scope class with no error, and `compileWithCssHash` invoked the
+callback with three positional arguments (`name`, `filename`, `css`) where upstream passes one
+object carrying `hash`, so the documented `({ hash, css }) => …` idiom threw, and every failure on
+that entry was an **uncaught exception** rather than a rejected promise.
+
+**[D] Positive control on the last of those.** napi's `ThreadsafeFunction::call_async` documents
+that a JS throw is routed through `napi_fatal_exception`, which terminates the process;
+`call_async_catch` is the one that returns `Err`. Built with `call_async`, this gate's throwing-
+callback case kills the runner (the `try`/`catch` around the `await` never runs, and the awaited
+promise settles as `oneshot canceled`); with `call_async_catch` it rejects with the callback's own
+message. No other gate distinguishes the two, because `test-vps-shim.mjs` reaches this entry only
+through an adapter that catches the throw in JavaScript first.
+
+### 38a — one component, one option set [S]
+
+Every case compiles the same `<p class="k">` + one rule, with `filename: 'Probe.svelte'` and
+`css: 'external'`. A `cssHash` interaction with `customElement`, `dev`, a preprocessor map, or a
+component with several scoped selectors is not in the population.
+
+### 38b — only `css.code` and the class inside `js.code` are compared [S]
+
+The scope class is extracted from official's `css.code` with a regex and looked for in rsvelte's
+`js.code`; the rest of `js.code`, the maps and the warnings are not compared to official on this
+gate. A `cssHash` that reached the stylesheet and not (say) the server's `$.attr_class` argument
+list would pass, since `includes()` only needs one occurrence.
+
+### 38c — the other two ports of the same option are not here [S]
+
+`cssHash` is implemented three times: the napi bridge, the wasm bridge
+(`crates/rsvelte_lint_bindings/src/compiler_wasm/mod.rs`, exercised only by
+`scripts/dev/test-wasm-compile-options.mjs`, which compares rsvelte to rsvelte), and the
+`rsvelte` facade's `options.rs`, which no gate drives at all. This is the "two ports of one
+function and no gate compares the ports" shape recorded for the constant fold: the wasm port
+already passed the official argument shape while the napi port did not, and nothing would have
+reported the disagreement.
+
+### 38d — it needs a freshly built addon and says nothing when it cannot load one [S]
+
+Like gate 22 it exits **2** when `apps/npm/vite-plugin-svelte-native-<triple>/rsvelte.node` is
+absent, which CI treats as a failure but a local run can silently skip. A **stale** addon is worse:
+it loads, and every assertion then measures a binary that predates the change under test.
 
 ---
 
