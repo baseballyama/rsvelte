@@ -1098,6 +1098,12 @@ jobs:
       - name: Run NAPI cssHash gate
         run: pnpm run test:napi-csshash
 
+      # Separate process for the same reason, and it must be its own step: the
+      # failure this gate exists for kills the process, so a shared one would
+      # take the option gate's result with it.
+      - name: Run NAPI preprocessor parity gate
+        run: pnpm run test:napi-preprocess-parity
+
   vps-sourcemaps:
     name: VPS postprocessing source-map parity
     runs-on: ubuntu-latest

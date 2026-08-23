@@ -1,3 +1,12 @@
+//! A comment trailing the last legacy `$:` statement must not be spliced into the
+//! generated setter.
+//!
+//! The regex body is what made this a scanner problem: `/[//]/` looks like the
+//! start of a line comment, so the statement's end was mis-located and the
+//! comment landed inside `$.legacy_pre_effect(…)`. Upstream drops the comment —
+//! its `$:` becomes a builder-made effect whose block parks esrap's comment
+//! cursor — so the output must simply not carry it, and must still parse.
+
 use oxc_allocator::Allocator;
 use oxc_parser::Parser;
 use oxc_span::SourceType;
@@ -19,8 +28,12 @@ fn trailing_line_comment_stays_outside_the_generated_setter() {
     .code;
 
     assert!(
-        output.contains("// } c\n\t$.legacy_pre_effect"),
-        "the trailing comment was spliced into the generated setter:\n{output}"
+        !output.contains("// } c"),
+        "upstream drops the comment with the statement it trailed:\n{output}"
+    );
+    assert!(
+        output.contains("$.set(k, typeof (/[//]/).exec(String(v())));"),
+        "the reactive statement was mis-scanned:\n{output}"
     );
 
     let allocator = Allocator::default();

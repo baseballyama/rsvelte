@@ -37,7 +37,22 @@ pub fn visit(
         return Err(errors::svelte_meta_invalid_content("svelte:document").at(start, end));
     }
 
-    // Validate attributes - check for invalid ones
+    // Upstream runs this whole loop before `context.next()` descends into any
+    // attribute, so "does this element take arbitrary attributes at all" is
+    // answered ahead of every per-directive rule below.
+    for attr in &document.attributes {
+        let span = match attr {
+            Attribute::SpreadAttribute(spread) => Some((spread.start, spread.end)),
+            Attribute::Attribute(a) if !super::shared::utils::is_event_attribute(a) => {
+                Some((a.start, a.end))
+            }
+            _ => None,
+        };
+        if let Some((start, end)) = span {
+            return Err(errors::illegal_element_attribute("svelte:document").at(start, end));
+        }
+    }
+
     // The target rule needs the attribute list, which the mutable loop below holds.
     for attr in &document.attributes {
         if let Attribute::BindDirective(bind) = attr {
@@ -59,19 +74,9 @@ pub fn visit(
                     errors::let_directive_invalid_placement().at(let_dir.start, let_dir.end)
                 );
             }
-            Attribute::SpreadAttribute(spread) => {
-                // Spread attributes are NOT allowed on svelte:document
-                return Err(errors::illegal_element_attribute("svelte:document")
-                    .at(spread.start, spread.end));
-            }
-            // Regular-attribute handler expressions drive `needs_context` (see
+            // Event-attribute handler expressions drive `needs_context` (see
             // svelte_window for the rationale).
             Attribute::Attribute(a) => {
-                if !super::shared::utils::is_event_attribute(a) {
-                    return Err(
-                        errors::illegal_element_attribute("svelte:document").at(a.start, a.end)
-                    );
-                }
                 super::attribute::visit_attribute_value_expressions(&mut a.value, context)?;
             }
             _ => {}

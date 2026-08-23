@@ -393,6 +393,18 @@ fn trailing_comment_end(src: &str, all: &[Comment], stmt_end: u32) -> u32 {
     }
 }
 
+/// End of the comment run that follows the last statement of an instance script.
+/// No emitted statement is left to flush it, so esrap's cursor keeps it pending
+/// until the first template expression — or, with none, the component body's own
+/// end. Returns `from` when there is nothing left.
+fn script_tail_comment_end(all: &[Comment], from: u32) -> u32 {
+    all.iter()
+        .filter(|comment| comment.span.start >= from)
+        .map(|comment| comment.span.end)
+        .max()
+        .unwrap_or(from)
+}
+
 /// The legacy reactive label itself may contain a block, or directly wrap an
 /// `if` whose branch does. Those retained blocks are the locations that rewind
 /// esrap's comment cursor after the label has been reordered.
@@ -413,6 +425,9 @@ fn reactive_body_has_direct_block(stmt: &Statement<'_>) -> bool {
 /// Resolve a top-level statement's registered region into the [`comments::Place`]
 /// its emitted statement is stamped with. `verbatim` is the source range the
 /// statement was re-parsed from, when it was re-parsed whole.
+/// `include_trailing` is false when the emitted statement carries no location of
+/// its own (a `$:` label), so a comment trailing it on the same line has nothing
+/// to attach to and is left for the script tail instead.
 fn place_on_region(
     registry: &mut comments::ChunkRegistry,
     src: &str,
@@ -420,8 +435,13 @@ fn place_on_region(
     prev_end: u32,
     stmt: Span,
     verbatim: Option<Span>,
+    include_trailing: bool,
 ) -> Option<comments::Place> {
-    let trailing_end = trailing_comment_end(src, all, stmt.end);
+    let trailing_end = if include_trailing {
+        trailing_comment_end(src, all, stmt.end)
+    } else {
+        stmt.end
+    };
     let region_end = if verbatim.is_some() || trailing_end > stmt.end {
         trailing_end
     } else {
@@ -535,6 +555,19 @@ fn transform_script<'a>(
             &stripped
         } else {
             &state.source[start..end]
+        };
+
+    // Every decision below reads this text (directly, or through spans into it),
+    // so the grouping parens around a rune call have to be gone first.
+    let paren_stripped;
+    let src: &str =
+        match crate::compiler::phases::phase3_transform::shared::rune_parens::strip_rune_parens(src)
+        {
+            Some(stripped) => {
+                paren_stripped = stripped;
+                &paren_stripped
+            }
+            None => src,
         };
 
     // Parse with a FRESH allocator purely for CLASSIFICATION. We never move nodes
@@ -849,6 +882,7 @@ fn transform_script<'a>(
             region_start,
             stmt_span,
             verbatim,
+            true,
         );
         if place.is_none() && verbatim.is_some() && !ret.program.comments.is_empty() {
             place = place_on_position(&mut state.comments, src, region_start, stmt_span, verbatim);
@@ -869,6 +903,13 @@ fn transform_script<'a>(
         } else {
             stmt_span.end
         };
+    }
+
+    if is_instance {
+        let tail_end = script_tail_comment_end(&ret.program.comments, region_start);
+        if tail_end > region_start {
+            state.defer_tail_comments(src, &ret.program.comments, region_start, tail_end);
+        }
     }
 
     // Lower `$state` / `$derived` class-field initializers in every emitted
@@ -3096,6 +3137,19 @@ fn transform_script_legacy<'a>(
             &state.source[start..end]
         };
 
+    // Every decision below reads this text (directly, or through spans into it),
+    // so the grouping parens around a rune call have to be gone first.
+    let paren_stripped;
+    let src: &str =
+        match crate::compiler::phases::phase3_transform::shared::rune_parens::strip_rune_parens(src)
+        {
+            Some(stripped) => {
+                paren_stripped = stripped;
+                &paren_stripped
+            }
+            None => src,
+        };
+
     let alloc = oxc_allocator::Allocator::default();
     let owned = alloc.alloc_str(src);
     let ret = oxc_parser::Parser::new(&alloc, owned, oxc_span::SourceType::mjs()).parse();
@@ -3124,9 +3178,15 @@ fn transform_script_legacy<'a>(
     let mut reactive_leading_comment_pending = false;
     let mut deferred_reactive_comment: Option<usize> = None;
 
-    for stmt in ret.program.body.iter() {
+    let body_len = ret.program.body.len();
+    for (stmt_index, stmt) in ret.program.body.iter().enumerate() {
         let stmt_span = stmt.span();
+        let is_last_stmt = stmt_index + 1 == body_len;
         let is_reactive = matches!(stmt, Statement::LabeledStatement(ls) if is_instance && ls.label.name.as_str() == "$");
+        // Upstream rebuilds the `$` label as a loc-less `b.labeled(...)`, so
+        // `body()` never flushes a comment trailing it on the same line; being the
+        // last statement, nothing located is left in the script to take it either.
+        let defer_reactive_tail = is_reactive && is_last_stmt;
         let reactive_leading_comment = is_reactive
             && ret.program.comments.iter().any(|comment| {
                 comment.span.start >= region_start && comment.span.end <= stmt_span.start
@@ -3281,15 +3341,16 @@ fn transform_script_legacy<'a>(
                         });
                         let trailing_end =
                             trailing_comment_end(src, &ret.program.comments, stmt_span.end);
-                        defer_block_reactive_trailing = trailing_end > stmt_span.end
+                        defer_block_reactive_trailing = !defer_reactive_tail
+                            && trailing_end > stmt_span.end
                             && reactive_body_has_direct_block(&ls.body)
                             && !ret.program.comments.iter().any(|comment| {
                                 comment.span.start >= region_start
                                     && comment.span.end <= stmt_span.start
                             });
                         if defer_block_reactive_trailing {
-                            let index = state.pending_reactive_comments.len();
-                            state.defer_reactive_block_comments(
+                            let index = state.pending_tail_comments.len();
+                            state.defer_tail_comments(
                                 src,
                                 &ret.program.comments,
                                 stmt_span.end,
@@ -3395,6 +3456,7 @@ fn transform_script_legacy<'a>(
             region_start,
             stmt_span,
             verbatim,
+            !defer_reactive_tail,
         );
         if place.is_none() && verbatim.is_some() && !ret.program.comments.is_empty() {
             place = place_on_position(&mut state.comments, src, region_start, stmt_span, verbatim);
@@ -3425,7 +3487,7 @@ fn transform_script_legacy<'a>(
                 }
             }
             if let Some(index) = deferred_reactive_comment.take() {
-                state.mark_deferred_reactive_comment_landed(index);
+                state.mark_deferred_tail_comment_landed(index);
             }
         }
         if is_reactive && reactive_leading_comment {
@@ -3434,11 +3496,20 @@ fn transform_script_legacy<'a>(
             reactive_leading_comment_pending = false;
         }
         let trailing_end = trailing_comment_end(src, &ret.program.comments, stmt_span.end);
-        region_start = if verbatim.is_some() || trailing_end > stmt_span.end {
+        region_start = if defer_reactive_tail {
+            stmt_span.end
+        } else if verbatim.is_some() || trailing_end > stmt_span.end {
             trailing_end
         } else {
             stmt_span.end
         };
+    }
+
+    if is_instance {
+        let tail_end = script_tail_comment_end(&ret.program.comments, region_start);
+        if tail_end > region_start {
+            state.defer_tail_comments(src, &ret.program.comments, region_start, tail_end);
+        }
     }
 
     // Topologically reorder the reactive `$:` statements so each runs after the

@@ -1,6 +1,7 @@
 use super::{
     FormatOptions, Fragment, TemplateNode, VisualWidth, child_fragments, current_column,
-    indent_config, is_block_display, is_whitespace_preserving, node_end, node_start, tab_width,
+    indent_config, is_block_display, is_whitespace_preserving, never_hugs, node_end, node_start,
+    tab_width,
 };
 
 /// Recursively visit every expression mustache and member-chain-break any that
@@ -343,7 +344,7 @@ pub(super) fn try_break_block_overflow(
     options: &FormatOptions,
 ) -> Option<(u32, u32, String)> {
     let tw = tab_width(options);
-    if !is_block_display(tag) {
+    if !never_hugs(tag) {
         return None;
     }
 

@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 
 use rsvelte_lint::config::LintConfig;
 use rsvelte_lint::rules::no_unused_props;
-use rsvelte_lint_types::{CorsaTypeBackend, require_tsgo};
+use rsvelte_lint_types::{CorsaTypeSession, lint_components_types, require_tsgo};
 use serde::Deserialize;
 
 /// Lower bound on the fixture count, so a moved/renamed upstream directory
@@ -67,13 +67,20 @@ fn config_for(config_path: &Path) -> LintConfig {
 
 /// Run one fixture through the typed graph path; returns `(line, column1, message)`
 /// tuples (column is 1-based to match the fixtures).
-fn run_fixture(input: &Path, tsgo: &Path) -> Vec<(u32, u32, String)> {
+fn run_fixture(input: &Path, session: &CorsaTypeSession) -> Vec<(u32, u32, String)> {
     let source = std::fs::read_to_string(input).unwrap();
     let stem = input.file_stem().unwrap().to_string_lossy();
     let stem = stem.strip_suffix("-input").unwrap_or(&stem);
 
+    // `invalid/` and `valid/` hold same-named fixtures, so the enclosing
+    // directory has to be part of the temp path: a warm worker serves the
+    // second one from the first one's cached project.
+    let kind = input.parent().and_then(|p| p.file_name()).map_or_else(
+        || "fixture".to_string(),
+        |n| n.to_string_lossy().into_owned(),
+    );
     let dir = std::env::temp_dir().join(format!(
-        "rsvelte-nup-{}-{}",
+        "rsvelte-nup-{}-{kind}-{}",
         std::process::id(),
         stem.replace(['/', '.'], "_")
     ));
@@ -91,7 +98,7 @@ fn run_fixture(input: &Path, tsgo: &Path) -> Vec<(u32, u32, String)> {
     let config_path = input.with_file_name(format!("{stem}-config.json"));
     let cfg = config_for(&config_path);
 
-    let mut backend = CorsaTypeBackend::new(&source, &svelte_path, tsgo).expect("backend");
+    let mut backend = session.backend(&source, &svelte_path).expect("backend");
     let diags = no_unused_props::diagnostics_typed(&source, &svelte_path, &cfg, &mut backend);
     drop(backend);
     let _ = std::fs::remove_dir_all(&dir);
@@ -149,13 +156,14 @@ fn collect_inputs(dir: &Path) -> Vec<PathBuf> {
 fn no_unused_props_typed_oracle() {
     let tsgo = require_tsgo(Path::new(env!("CARGO_MANIFEST_DIR")));
     let root = fixture_root();
+    let session = CorsaTypeSession::new(&tsgo, &std::env::temp_dir()).expect("worker should start");
 
     let mut failures = Vec::new();
     let mut checked = 0;
     for kind in ["invalid", "valid"] {
         for input in collect_inputs(&root.join(kind)) {
             let name = format!("{kind}/{}", input.file_stem().unwrap().to_string_lossy());
-            let actual = run_fixture(&input, &tsgo);
+            let actual = run_fixture(&input, &session);
             let expected = expected_for(&input);
             checked += 1;
             if actual != expected {
@@ -179,4 +187,84 @@ fn no_unused_props_typed_oracle() {
         failures.join("\n")
     );
     eprintln!("no_unused_props_typed_oracle: {checked} fixtures OK");
+}
+
+/// The batch entry point puts every component in ONE program; a component that
+/// silently failed to enter it would answer `any` and report nothing, which is
+/// indistinguishable from "no findings" without comparing to the per-component
+/// path.
+#[test]
+fn batch_program_matches_per_component() {
+    let tsgo = require_tsgo(Path::new(env!("CARGO_MANIFEST_DIR")));
+    let root = fixture_root();
+    let batch_root = std::env::temp_dir().join(format!("rsvelte-nup-batch-{}", std::process::id()));
+    std::fs::create_dir_all(&batch_root).unwrap();
+
+    let mut components = Vec::new();
+    let mut expected = Vec::new();
+    for kind in ["invalid", "valid"] {
+        for input in collect_inputs(&root.join(kind)) {
+            let stem = input.file_stem().unwrap().to_string_lossy();
+            let stem = stem.strip_suffix("-input").unwrap_or(&stem).to_string();
+            // One config per batch, so only default-config fixtures qualify.
+            if input
+                .with_file_name(format!("{stem}-config.json"))
+                .is_file()
+            {
+                continue;
+            }
+            let dir = batch_root.join(format!("{kind}-{stem}"));
+            std::fs::create_dir_all(&dir).unwrap();
+            if let Some(parent) = input.parent() {
+                let shared = parent.join("shared-types.ts");
+                if shared.is_file() {
+                    let _ = std::fs::copy(&shared, dir.join("shared-types.ts"));
+                }
+            }
+            let source = std::fs::read_to_string(&input).unwrap();
+            let svelte_path = dir.join(format!("{stem}.svelte"));
+            std::fs::write(&svelte_path, &source).unwrap();
+            components.push((svelte_path, source));
+            expected.push((format!("{kind}/{stem}"), expected_for(&input)));
+        }
+    }
+    assert!(
+        components.len() >= 20,
+        "batch test ran only {} fixtures — upstream layout changed?",
+        components.len()
+    );
+    // Without a fixture that must report, an all-empty batch would pass.
+    assert!(
+        expected.iter().any(|(_, want)| !want.is_empty()),
+        "batch test selected no fixture with an expected finding"
+    );
+
+    let cfg = config_for(Path::new("this-file-does-not-exist.json"));
+    let results = lint_components_types(&components, &cfg, &tsgo, &batch_root)
+        .expect("batch session should start");
+    let _ = std::fs::remove_dir_all(&batch_root);
+
+    let mut failures = Vec::new();
+    for ((name, want), (_, diags)) in expected.iter().zip(&results) {
+        let mut got: Vec<(u32, u32, String)> = diags
+            .iter()
+            .filter_map(|d| {
+                let r = d.range?;
+                Some((r.start.line, r.start.column + 1, d.message.clone()))
+            })
+            .collect();
+        got.sort();
+        if &got != want {
+            failures.push(format!(
+                "  {name}\n    expected: {want:?}\n    actual:   {got:?}"
+            ));
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "{}/{} batched fixtures diverged from the per-component path:\n{}",
+        failures.len(),
+        results.len(),
+        failures.join("\n")
+    );
 }

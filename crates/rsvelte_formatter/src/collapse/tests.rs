@@ -269,3 +269,54 @@ fn hug_close_tag_width_drives_inner_component_break() {
               /></button";
     assert_eq!(b, expected);
 }
+
+#[test]
+fn never_hugs_covers_svelte_boundary() {
+    // prettier-plugin-svelte's `shouldHugStart` / `shouldHugEnd` bail on a block
+    // element AND, by node type, on `<svelte:boundary>`.
+    assert!(never_hugs("div"));
+    assert!(never_hugs("svelte:boundary"));
+    assert!(!never_hugs("span"));
+    assert!(!never_hugs("svelte:head"));
+    assert!(!never_hugs("svelte:fragment"));
+}
+
+#[test]
+fn flow_block_child_breaks_svelte_boundary_into_the_block_shape() {
+    // #3160: a control-flow block child force-breaks its host even when the
+    // whole element fits. `<svelte:boundary>` never hugs, so it breaks into the
+    // block shape.
+    for src in [
+        "<svelte:boundary>{#if n}<b>x</b>{/if}</svelte:boundary>\n",
+        "<svelte:boundary>{#each [1] as i}<b>{i}</b>{/each}</svelte:boundary>\n",
+        "<svelte:boundary>{#key n}<b>x</b>{/key}</svelte:boundary>\n",
+    ] {
+        let out = crate::format(src, &FormatOptions::default()).unwrap();
+        assert!(
+            out.starts_with("<svelte:boundary>\n  {#") && out.ends_with("</svelte:boundary>\n"),
+            "expected block-shape break for {src:?}:\n{out}"
+        );
+    }
+    // A non-block child that fits stays on one line.
+    let out = crate::format(
+        "<svelte:boundary><b>x</b></svelte:boundary>\n",
+        &FormatOptions::default(),
+    )
+    .unwrap();
+    assert_eq!(out, "<svelte:boundary><b>x</b></svelte:boundary>\n");
+}
+
+#[test]
+fn flow_block_child_breaks_svelte_head_into_the_hug_shape() {
+    // #3160: `<svelte:head>` hugs (it is neither `SvelteBoundary` nor a block
+    // element), so the same forced break leaves the `>` on its own line.
+    let out = crate::format(
+        "<svelte:head>{#if n}<title>t</title>{/if}</svelte:head>\n",
+        &FormatOptions::default(),
+    )
+    .unwrap();
+    assert_eq!(
+        out,
+        "<svelte:head\n  >{#if n}<title>t</title>{/if}</svelte:head\n>\n"
+    );
+}

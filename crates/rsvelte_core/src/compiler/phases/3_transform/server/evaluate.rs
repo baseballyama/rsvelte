@@ -1403,11 +1403,12 @@ impl<'a> EvalCtx<'a> {
                         Err(_) => Evaluation::unknown(),
                     };
                 }
-                // Regex literal: return its string representation (e.g. /[}]/gi)
+                // A regex literal stringifies to its source but is an object, so
+                // it cannot be folded as a `Str` (`typeof` would print `string`).
                 if let Some(regex) = node.get("regex") {
                     let pattern = regex.get("pattern").and_then(|p| p.as_str()).unwrap_or("");
                     let flags = regex.get("flags").and_then(|f| f.as_str()).unwrap_or("");
-                    return Evaluation::single(EvalValue::Str(format!("/{}/{}", pattern, flags)));
+                    return Evaluation::single(EvalValue::Regex(format!("/{}/{}", pattern, flags)));
                 }
                 match node.get("value") {
                     Some(Value::String(s)) => Evaluation::single(EvalValue::Str(s.clone())),
