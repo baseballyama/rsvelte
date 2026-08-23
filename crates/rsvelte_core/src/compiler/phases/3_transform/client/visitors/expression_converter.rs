@@ -5161,12 +5161,13 @@ fn is_known_primitive_json(value: Option<&Value>) -> bool {
                     args.iter()
                         .all(|a| a.get("type").and_then(|t| t.as_str()) != Some("SpreadElement"))
                 });
-            no_spread
-                && value
-                    .get("callee")
-                    .and_then(super::shared::utils::json_keypath)
-                    .as_deref()
-                    .is_some_and(super::shared::utils::is_known_defined_global_call)
+            value
+                .get("callee")
+                .and_then(super::shared::utils::json_keypath)
+                .as_deref()
+                .is_some_and(|keypath| {
+                    super::shared::utils::is_known_defined_global_call(keypath, !no_spread)
+                })
         }
         "MemberExpression" => super::shared::utils::json_keypath(value)
             .as_deref()
@@ -5220,12 +5221,15 @@ fn is_known_primitive_jsnode(node: &JsNode, pa: &ParseArena) -> bool {
         JsNode::CallExpression {
             callee, arguments, ..
         } => {
-            pa.get_js_children(*arguments)
+            let has_spread = pa
+                .get_js_children(*arguments)
                 .iter()
-                .all(|a| !matches!(a, JsNode::SpreadElement { .. }))
-                && jsnode_keypath(pa.get_js_node(*callee), pa)
-                    .as_deref()
-                    .is_some_and(super::shared::utils::is_known_defined_global_call)
+                .any(|a| matches!(a, JsNode::SpreadElement { .. }));
+            jsnode_keypath(pa.get_js_node(*callee), pa)
+                .as_deref()
+                .is_some_and(|keypath| {
+                    super::shared::utils::is_known_defined_global_call(keypath, has_spread)
+                })
         }
         JsNode::MemberExpression { .. } => jsnode_keypath(node, pa)
             .as_deref()

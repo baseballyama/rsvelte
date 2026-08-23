@@ -320,6 +320,71 @@ pub enum MutationKind {
     PropertyMutation,
 }
 
+/// True for the global function keypaths whose results upstream `scope.evaluate`
+/// types as NUMBER or STRING (always defined): every `Math.*`, `Number` /
+/// `Number.*`, `String` / `String.from*`, and `BigInt`. Mirrors the `globals`
+/// table in `2-analyze/scope.js`.
+///
+/// `has_spread_argument` is a parameter rather than a caller-side `&&` because
+/// upstream's guard is part of the same condition (`scope.js:509-512`) and half
+/// the call sites here had forgotten it.
+pub(crate) fn is_known_defined_global_call(keypath: &str, has_spread_argument: bool) -> bool {
+    if has_spread_argument {
+        return false;
+    }
+    // Upstream's `globals` table, name for name: one outside it evaluates to
+    // UNKNOWN, so a near-miss like `Math.nope()` must not read as known.
+    matches!(
+        keypath,
+        "BigInt"
+            | "Number"
+            | "Number.isInteger"
+            | "Number.isFinite"
+            | "Number.isNaN"
+            | "Number.isSafeInteger"
+            | "Number.parseFloat"
+            | "Number.parseInt"
+            | "String"
+            | "String.fromCharCode"
+            | "String.fromCodePoint"
+            | "Math.min"
+            | "Math.max"
+            | "Math.random"
+            | "Math.floor"
+            | "Math.f16round"
+            | "Math.round"
+            | "Math.abs"
+            | "Math.acos"
+            | "Math.asin"
+            | "Math.atan"
+            | "Math.atan2"
+            | "Math.ceil"
+            | "Math.cos"
+            | "Math.sin"
+            | "Math.tan"
+            | "Math.exp"
+            | "Math.log"
+            | "Math.pow"
+            | "Math.sqrt"
+            | "Math.clz32"
+            | "Math.imul"
+            | "Math.sign"
+            | "Math.log10"
+            | "Math.log2"
+            | "Math.log1p"
+            | "Math.expm1"
+            | "Math.cosh"
+            | "Math.sinh"
+            | "Math.tanh"
+            | "Math.acosh"
+            | "Math.asinh"
+            | "Math.atanh"
+            | "Math.trunc"
+            | "Math.fround"
+            | "Math.cbrt"
+    )
+}
+
 /// A variable binding.
 #[derive(Debug, Clone)]
 pub struct Binding {

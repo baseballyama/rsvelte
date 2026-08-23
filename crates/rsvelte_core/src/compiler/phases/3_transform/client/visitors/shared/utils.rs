@@ -4398,62 +4398,15 @@ pub(crate) fn js_expr_keypath(
     }
 }
 
-/// True for the global function keypaths whose results upstream `scope.evaluate`
-/// types as NUMBER or STRING (always defined): every `Math.*`, `Number` /
-/// `Number.*`, `String` / `String.from*`, and `BigInt`. Mirrors the `globals`
-/// table in `2-analyze/scope.js`.
-pub(crate) fn is_known_defined_global_call(keypath: &str) -> bool {
-    // Upstream's `globals` table, name for name: one outside it evaluates to
-    // UNKNOWN, so a near-miss like `Math.nope()` must not read as known.
-    matches!(
-        keypath,
-        "BigInt"
-            | "Number"
-            | "Number.isInteger"
-            | "Number.isFinite"
-            | "Number.isNaN"
-            | "Number.isSafeInteger"
-            | "Number.parseFloat"
-            | "Number.parseInt"
-            | "String"
-            | "String.fromCharCode"
-            | "String.fromCodePoint"
-            | "Math.min"
-            | "Math.max"
-            | "Math.random"
-            | "Math.floor"
-            | "Math.f16round"
-            | "Math.round"
-            | "Math.abs"
-            | "Math.acos"
-            | "Math.asin"
-            | "Math.atan"
-            | "Math.atan2"
-            | "Math.ceil"
-            | "Math.cos"
-            | "Math.sin"
-            | "Math.tan"
-            | "Math.exp"
-            | "Math.log"
-            | "Math.pow"
-            | "Math.sqrt"
-            | "Math.clz32"
-            | "Math.imul"
-            | "Math.sign"
-            | "Math.log10"
-            | "Math.log2"
-            | "Math.log1p"
-            | "Math.expm1"
-            | "Math.cosh"
-            | "Math.sinh"
-            | "Math.tanh"
-            | "Math.acosh"
-            | "Math.asinh"
-            | "Math.atanh"
-            | "Math.trunc"
-            | "Math.fround"
-            | "Math.cbrt"
-    )
+pub(crate) use crate::compiler::phases::phase2_analyze::scope::is_known_defined_global_call;
+/// Does the call carry a `...spread` argument? Upstream's `globals` branch
+/// requires it not to.
+pub(crate) fn js_call_has_spread(
+    call: &crate::compiler::phases::phase3_transform::js_ast::nodes::JsCallExpression,
+) -> bool {
+    call.arguments
+        .iter()
+        .any(|arg| matches!(arg, JsExpr::Spread(_)))
 }
 
 /// Upstream `scope.evaluate`'s `global_constants` table.
@@ -4498,7 +4451,9 @@ pub(crate) fn is_js_expr_defined(
             // global keypath only matches the real globals.)
             js_expr_keypath(arena.get_expr(call.callee), arena)
                 .as_deref()
-                .is_some_and(is_known_defined_global_call)
+                .is_some_and(|keypath| {
+                    is_known_defined_global_call(keypath, js_call_has_spread(call))
+                })
         }
         JsExpr::TemplateLiteral(_) => true, // Always a string
         JsExpr::Binary(_) => true,          // Always produces a result
@@ -4747,7 +4702,17 @@ fn is_expression_defined_json(json_value: &serde_json::Value, context: &Componen
             obj.get("callee")
                 .and_then(json_keypath)
                 .as_deref()
-                .is_some_and(is_known_defined_global_call)
+                .is_some_and(|keypath| {
+                    let has_spread = obj
+                        .get("arguments")
+                        .and_then(|args| args.as_array())
+                        .is_some_and(|args| {
+                            args.iter().any(|arg| {
+                                arg.get("type").and_then(|t| t.as_str()) == Some("SpreadElement")
+                            })
+                        });
+                    is_known_defined_global_call(keypath, has_spread)
+                })
         }
         "MemberExpression" => {
             // Member access could be undefined; can't guarantee defined.
