@@ -174,5 +174,5 @@
 		"svelte": "^5.56.9",
 		"svelte-preprocess-markdown": "^2.7.3"
 	},
-	"packageManager": "pnpm@11.22.0"
+	"packageManager": "pnpm@11.23.0"
 }
