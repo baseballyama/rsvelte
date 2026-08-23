@@ -1152,6 +1152,62 @@ arrow through one prop name, and the write is always a member expression — a b
 `p = p + 1` reassignment is `binding-position`'s `assignment.right` row and is not repeated
 here. **[S]**
 
+### Blind spot 5r — every gate compares rsvelte to ONE pinned oracle, so a defect the oracle shares is invisible everywhere
+
+The whole pipeline's question is "does rsvelte emit what `submodules/svelte` emits". Where the
+pinned compiler is itself wrong, a faithful port scores `match` on every gate here, and the
+divergence appears only at the submodule bump — in the PR least able to absorb it, since a bump
+already moves output everywhere. The parse oracle (5l) is the one comparison that could see it,
+and it **deliberately does not**: `run.mjs:268-270` checks `parseFailure(expected)` first and
+routes an unparseable OFFICIAL output to `oracleRejections`, which aborts the run instead of
+becoming a verdict. That is the right call for a generated corpus — the message is "fix the case
+or widen the oracle" — but it means *upstream emits non-JavaScript* is a run-abort, never a row.
+
+**[D]** #3621. `<my-element bar={await p}>` compiles, under `svelte@5.56.9`, to
+`$.template_effect(() => $.set_custom_element_data(my_element, 'bar', await p))` — `await` in a
+non-async arrow — because
+`build_custom_element_attribute_update_assignment` (`3-transform/client/visitors/RegularElement.js:665`)
+is the one attribute slot that passes no memoize callback to `build_attribute_value`, so the
+default identity `memoize` applies and the slot bypasses `Memoizer` entirely. rsvelte's
+`regular_element.rs:687-716` ports that verbatim, `|expr, _metadata| expr` and all, so the two
+agree byte for byte and **every gate in this file is green on it**: the collected corpus never
+sets `experimental.async` (5j), the matrix had no case in the cell, the runtime fixtures at
+5.56.9 contain no custom element carrying an `await`, and the snapshot suite pins the un-memoized
+call as *expected* output (`dynamic-attributes-casing`). The issue was written against the
+5.56.10 bump branch and reported it as an rsvelte defect; it is one only relative to 5.56.10.
+
+The same measurement found two more slots where the pinned compiler emits `await` inside a
+non-async function — `autofocus={await …}` → `$.autofocus(input, await p)`, and an event
+attribute `onclick={await …}` → `(await p)?.apply(this, $$args)` inside
+`function (...$$args)`. Unlike the custom-element slot, **5.56.10 does not fix either**, so they
+are still shared with the current upstream and still invisible to every gate (#3651).
+
+What closes the general case is not another family: it is running the parse oracle on the
+**official** side as a first-class result — an "upstream emits non-JavaScript" report, distinct
+from both an abort and a ratchet entry — so a shape whose oracle is broken is *recorded* rather
+than either silently agreed with or silently excluded. **Unmeasured:** how many such shapes
+exist. Three are known, all found by hand-authoring inputs around one issue; nothing has swept
+for them.
+
+The `async-attribute-slot` family does two things about this. It cannot make the *shared* defect
+visible today, so it calibrates against the future oracle instead: of the rows that match on the
+pin, **8 move when the same cases are compiled against `svelte@5.56.10`** —
+`custom-element/attribute` × `{call, async-iife, derived-await-read, script-await-read}` ×
+`{client, client-dev}` — two of whose values contain no `await` at all, because the upstream fix
+routes a plain **call** through the memoizer too. The bump PR therefore gets a red row rather
+than a silent carry-over. The four cells whose *client* oracle is not JavaScript are narrowed to
+the server targets by the mechanism 5m describes.
+
+And the neighbourhood it had to cross to say that was not green at all: 200 cases / 792
+comparisons reported **310** divergences on the first run — 96 of them output no JS parser
+accepts — in an area where the collected corpus is structurally silent (5j) and every runtime
+fixture passes. One fix (#3621, the client `style` attribute value, whose memoizer call
+hardcoded `has_await: false`) clears 28; the remaining 282 are three named causes (#3648, #3649,
+#3650), two of which the async axis did not find on its own: an `await` that is not the
+last-evaluated expression is not pickled through `$.save`, and `<svelte:element class:x={f()}>`
+emits an unbound `$0` **with no `await` anywhere in the input**. That last one is the host axis
+paying for itself, the way `write-host`'s did. **[D]**
+
 **Closing 5b/5c:** the matrix costs ~25 s of CPU on ~10,200 comparisons (wall clock on a box
 running other agents' builds is unusable — a paired A/B inverted once). `constant-fold` is the
 first instalment of 5c's "second expression axis against `EXPRESSION_SLOTS`"; the directive
