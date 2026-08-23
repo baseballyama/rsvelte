@@ -2481,7 +2481,7 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "rsvelte"
-version = "0.10.17"
+version = "0.10.18"
 dependencies = [
  "rsvelte_core",
  "rsvelte_projection",
@@ -2536,7 +2536,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_check"
-version = "0.5.19"
+version = "0.5.20"
 dependencies = [
  "clap",
  "notify",
@@ -2558,7 +2558,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_core"
-version = "0.10.17"
+version = "0.10.18"
 dependencies = [
  "bumpalo",
  "chrono",
@@ -2654,7 +2654,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_fmt"
-version = "0.7.11"
+version = "0.7.12"
 dependencies = [
  "anyhow",
  "clap",
@@ -2706,7 +2706,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_language_server"
-version = "0.5.2"
+version = "0.5.3"
 dependencies = [
  "anyhow",
  "crossbeam-channel",
@@ -2729,7 +2729,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_lint"
-version = "0.10.17"
+version = "0.10.18"
 dependencies = [
  "anyhow",
  "bytecount",
@@ -2804,7 +2804,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_projection"
-version = "0.10.17"
+version = "0.10.18"
 dependencies = [
  "indexmap",
  "memchr",

@@ -1,5 +1,14 @@
 # @rsvelte/fmt
 
+## 0.7.12
+
+### Patch Changes
+
+- 65723fd: The formatter's text collapsing now uses the HTML whitespace class (`[\t\n\f\r ]`) instead of Unicode whitespace, so U+2028/U+2029 line separators and U+3000 ideographic spaces in text content survive formatting instead of being collapsed to a space or trimmed away.
+- f161efb: An element whose expression tag begins with a regex after JS formatting (`{(/^x/y).test(a)}` → `{/^x/y.test(a)}`) now wraps at the print width like prettier. The collapse re-parse read the `{/…}` as a block close and silently skipped every width pass on the file; the re-parse now reads a `{/…}` that is not shaped like a block close as the expression tag it is (compile-path parsing is unchanged and still rejects it like official).
+- 4bb8020: A `<textarea>` with multiline (or overflowing) content now breaks its tags the way prettier does — `>` drops one indent level onto its own line when the content starts inline, and the close tag becomes `</textarea\n>` when it ends inline — so no formatter-inserted newline changes the rendered value. Attributes stay on the open line (the per-line attribute breaking is `<pre>` behavior).
+- 743c2e8: Fix two `rsvelte-fmt` outputs that were not the input reformatted. `<svelte:element this={n > 0 ? 'p' : 'span'}>` re-emitted part of the expression as text, because `this={…}` is not in the element's attribute list and the open-tag scan stopped at the `>` inside it; and an expression tag with a trailing comment came out as `{n; /* c */}`, which no longer parses.
+
 ## 0.7.11
 
 ### Patch Changes
