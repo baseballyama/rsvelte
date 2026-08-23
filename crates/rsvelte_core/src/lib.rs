@@ -45,6 +45,10 @@ pub mod measure_stmt_chain;
 pub mod toolchain;
 
 pub use compiler::legacy::convert_to_legacy;
+// JavaScript's `\s`, which is also upstream's `is_whitespace` in
+// `phases/1-parse/index.js`. Exported so a test harness can mirror
+// upstream's own `.replace(/\s+$/, '')` exactly.
+pub use compiler::phases::phase1_parse::parser::is_js_whitespace;
 #[cfg(not(feature = "parallel"))]
 pub use compiler::phases::phase1_parse::{ParseOptions, parse};
 #[cfg(feature = "parallel")]
