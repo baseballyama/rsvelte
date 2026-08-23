@@ -75,6 +75,10 @@ import {
 	WRITE_HOSTS,
 	WRITE_SHAPES,
 	WRITE_PREAMBLE,
+	RESERVED_TAG_NAMES,
+	UNRESERVED_TAG_NAMES,
+	TAG_NAME_HOSTS,
+	TAG_NAME_PREAMBLE,
 } from './axes.mjs';
 import { commentMutants } from './mutate.mjs';
 
@@ -532,6 +536,23 @@ function writeHostCases() {
 	return cases;
 }
 
+function tagNameCases() {
+	const cases = [];
+	const names = [
+		...RESERVED_TAG_NAMES.map((name) => ['reserved', name]),
+		...UNRESERVED_TAG_NAMES.map((name) => ['plain', name]),
+	];
+	for (const [group, tag] of names) {
+		for (const [hostName, host] of Object.entries(TAG_NAME_HOSTS)) {
+			cases.push({
+				id: `tag-name/${group}__${tag}__${hostName}.svelte`,
+				source: TAG_NAME_PREAMBLE.replace('%m', () => host.replaceAll('%t', () => tag)),
+			});
+		}
+	}
+	return cases;
+}
+
 export const FAMILIES = {
 	'binding-position': bindingPositionCases,
 	'async-derived': asyncDerivedCases,
@@ -550,6 +571,7 @@ export const FAMILIES = {
 	'private-field': privateFieldCases,
 	'opaque-keyword': opaqueKeywordCases,
 	'write-host': writeHostCases,
+	'tag-name': tagNameCases,
 };
 
 export function generate(families = Object.keys(FAMILIES)) {
