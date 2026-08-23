@@ -330,19 +330,36 @@ plus a line to `corpus-sources.json`. CI ratchet: `compatibility/known-failures.
 may only shrink, and each remaining failure is justified in `compatibility/known-failures.md`. Every
 ratchet is two-sided: a new failure **and** a listed entry that already passes both fail CI, so the PR
 that fixes entries must re-baseline in the same PR instead of leaving a backlog for a later one. The
-same directory holds four sibling shrink-only ratchets, each with per-entry justification in a paired
+same directory holds five sibling shrink-only ratchets, each with per-entry justification in a paired
 `.md`: the formatter-parity gate (`fmt-known-failures.json` / `fmt-oracle-excluded.json`), the
 svelte2tsx output-parity gate (`svelte2tsx-known-failures.json`), the lint output-parity gate
 (`lint-known-failures.json`, whose *constructed* companion
 `lint-adversarial-known-failures.json` is described under `rsvelte_lint` below), and the
 SCSS-backend gate (`scss-known-failures.json`), which compares
 `rsvelte_preprocess`'s `grass` against dart-sass on every SCSS block and `.scss` file in the corpus —
-30 divergences on a 94-unit compared population, so treat `grass` as a near-substitute, not a drop-in. svelte2tsx additionally gates its **source map** (ratchet
+30 divergences on a 94-unit compared population, so treat `grass` as a near-substitute, not a drop-in,
+and the **public `parse()` AST** gate (`parse-ast-known-failures.json`), which is the one comparison
+here whose subject is not `compile()` output at all — see below. svelte2tsx additionally gates its **source map** (ratchet
 `svelte2tsx-map-known-failures.json`), because the TSX-text gate cannot see the map at all. The two
 maps are segmented too differently to diff (byte, decoded-set and lookup-equality parity all hold for
 ~0% of the corpus), so the gate asserts that rsvelte's map is **structurally well-formed** rather
 than equal to official's — using official only to calibrate the invariants. See
 [scripts/compat-corpus/README.md](scripts/compat-corpus/README.md).
+
+**`parse()` is a second public export, and until #3389 nothing compared it.** The corpus gates
+compare `compile()`; svelte2tsx and lint consume rsvelte's own AST and never diff it against
+official's. `scripts/compat-corpus/parse-ast-verify.mjs` parses every corpus component with both
+compilers on three axes — `{modern:true}`, the default (legacy) shape, and `loose` — and ratchets
+**652 field-level divergence keys**. Three lessons are already in it. The key had to be a *field*
+(`<axis>::<NodeType>.<field>#<kind>`), not a file: one systemic divergence covers every file that
+ends in a newline, and keying on the *set* of divergent JSON paths multiplied independent defects
+into 472 classes over 4,468 files. The `Parser Modern 27/27` / `Parser Legacy 81/81` rows read as
+coverage of this API and are not: they call the **internal** parse, pick the AST mode from the
+fixture directory, and `normalize_json` deletes `loc.*.character` from both sides. And upstream's
+own harness does `input.replace(/\s+$/, '')` before parsing, so every checked-in `output.json`
+records `Root.end` of a *trimmed* input while rsvelte's harness passes the untrimmed file — the
+fixture suite was green on #3386 by **compensation**, two different inputs producing the same
+number, and fixing the compiler turns that row red until the harness mirrors the trim.
 
 The same `verify.mjs` run also gates compiler **warnings** — `(code, line, column)` per entry —
 on ratchets of their own (`warning-known-failures.{client,server,client-dev}.json` and

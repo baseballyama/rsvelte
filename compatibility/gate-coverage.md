@@ -3249,6 +3249,108 @@ it loads, and every assertion then measures a binary that predates the change un
 
 ---
 
+## 39. Public `parse()` AST — `scripts/compat-corpus/parse-ast-verify.mjs`
+
+**Unit.** One `(corpus entry, axis)` pair, over the 14,331 `.svelte` entries of the corpus
+manifest. Axes: `modern` (`parse(src, { modern: true })`), `legacy` (`parse(src)` — the default
+shape), and `loose` (seven inline sources). Both sides are compared after
+`JSON.parse(JSON.stringify(...))`. Shrink-only ratchet
+`compatibility/parse-ast-known-failures.json`, 652 keys, justified per cluster in the paired
+`.md`. Runs as a step in the `corpus` job (~50s over 28,208 compared pairs).
+
+**Why it exists.** `parse()` is a documented export of `svelte/compiler`, distinct from
+`compile()`, and nothing here compared its return value to official's. It is the
+`result.warnings` hole one export over — invisible *by construction, at any corpus size*, not
+for want of inputs: the pipeline had 14,331 components and never called the function.
+
+**[D] The comparator manufactures nothing.** Running the gate's own `diffKeys` with the
+**official** compiler on both sides of the same population produces **0 keys from 28,178
+self-compared pairs**, so all 652 listed keys are attributable to rsvelte's side rather than to
+the harness. Two failure directions were also driven: deleting `modern::Root#span` from the
+ratchet exits 1 with `NEW divergence (12,324 entries)`, and adding a key that no longer diverges
+exits 1 with `listed key no longer diverges`; restoring the file returns exit 0 and a
+byte-identical tree.
+
+**[D] What the two suites nearest to it could not see.** `Parser Modern 27/27` and
+`Parser Legacy 81/81` compare rsvelte's AST to upstream's checked-in `output.json`, which reads
+as coverage of this API. Three things separate them from this gate, each with a citation:
+
+- They call `rsvelte_core::parse` directly and choose `convert_to_legacy` from the fixture's
+  directory (`parser_fixtures.rs:155-165`), so `parse()`'s own `modern` / `loose` handling —
+  #3385 — is never exercised on either side.
+- `normalize_json` → `remove_character_from_loc` (`parser_fixtures.rs:61-96`) deletes
+  `loc.start.character` / `loc.end.character` from **both** sides before the assert. That field
+  is 6 of this gate's keys and rsvelte gets it wrong in both directions (omits it on an
+  `Identifier`, adds it on a comment).
+- Upstream's own harness does `input.replace(/\s+$/, '')` before parsing
+  (`tests/parser-modern/test.ts:14-17`), so every checked-in `output.json` records `Root.end` of
+  a **trimmed** input. rsvelte's `load_fixture` does not trim, and its `Root.end` stops at the
+  last non-whitespace byte — two different inputs producing the same number. `if-block`'s input
+  is 18 bytes, its `output.json` says `"end": 17`, and both implementations produce 17 for
+  different reasons. The fixture gate is green on #3386 by compensation, not by agreement.
+
+### 39a — the ratchet key is a field, and two entries diverging in the same field are one key — **[S]**
+
+The key is `<axis>::<NodeType>.<field>#<kind>`, so `Identifier#span` is one entry whether thousands of
+components or one exhibit it, and *which* components exhibit it is not in the key. A change that
+fixes the span on all but one component and breaks a new one is green. Entry counts are printed on
+every run and are **not** ratcheted, deliberately: they track corpus size, so on a weekly
+submodule bump a count-bearing ratchet would fail for a reason that is not a regression. The
+alternatives were measured — per entry id is a five-figure file, per divergent-path-set is 472
+classes over 4,468 files — and both are recorded in the script header.
+
+### 39b — a divergence stops the walk, so what is behind it is uncompared — **[S]**
+
+`diffKeys` does not descend past a `type` mismatch (two node types have no fields in common), and
+does not descend into a key that is `#missing` or `#extra`. So the 141 `node-type` keys and the
+75 `estree-fields` keys each hide an entire subtree that has never been compared: fixing one will
+*add* keys as its children become reachable. This is the same one-directional coupling the
+lint gates have between `start` and `end` — expected, not a regression.
+
+### 39c — both-reject is not compared at all — **[S]**
+
+229 entries per axis are rejected by both compilers and scored `both-reject`, with nothing
+compared. rsvelte's NAPI `parse` surfaces `format!("{e:?}")` of the Rust error
+(`crates/rsvelte_napi/src/lib.rs:226`), not a Svelte error `code`, so the two rejections have no
+comparable field. `verify.mjs` ratchets error `code` / `message` / `start` / `end` / `frame` for
+`compile()`; `parse()` has no equivalent, and 458 (entry, axis) pairs sit in that hole. Closing
+it means giving the binding a structured error, not changing this gate's key.
+
+### 39d — `start`, `end` and `loc` are merged into one `#span` key — **[S]**
+
+A node whose `end` is wrong and a node whose `loc.start.column` is wrong produce the same key.
+They are derived from the same offsets, and split by field they were 672 keys for the same
+defects; `loc`'s *presence* is kept separate (`loc-presence`) because "no position at all" is a
+different defect. What is lost: a fix that corrects `end` and leaves `loc` wrong shrinks nothing.
+
+### 39e — the `loose` axis is seven hand-written sources — **[S]**
+
+`LOOSE_SOURCES` is inline in the script. Its population is bounded by what its author thought of;
+the two controls (`valid-control`, which both sides accept, and `stray-closing-tag`, which both
+still reject) fix the two ends, but a recovery shape nobody wrote is not measured. It cannot be
+grown from the corpus: published code compiles, so the population `loose` exists for is not
+collectable.
+
+### 39f — one filename, one `rootDir`, and `parseCss` is not here — **[S]**
+
+Every call passes only `modern` / `loose`. Upstream's `parse()` also accepts `filename` and
+`rootDir` (both documented as unused and slated for removal), and `svelte/compiler` exports
+`parseCss` and `print`, neither of which any gate in this repo drives. `print` is the other half
+of upstream's own parser suite (`test.ts` re-parses `print(ast).code` and asserts a fixpoint);
+that round-trip is not reproduced here.
+
+### 39g — it reads the NAPI binding, and the wasm `parse_svelte` is a second port — **[S]**
+
+`napi_parse` and the wasm `parse_svelte` build their own `ParseOptions` independently, and they
+already disagree: the NAPI one sets `capture_comments: true`
+(`crates/rsvelte_napi/src/lib.rs:195-206`) and the wasm one takes `ParseOptions::default()`
+(`crates/rsvelte_lint_bindings/src/compiler_wasm/mod.rs:87-89`), so the wasm AST carries no node
+comments at all. Only the NAPI port is driven here. This is the "two ports of one function, and
+no gate compares the ports" shape from `two-ports-inventory.md`, and the wasm one is what the
+playground (`apps/playground/src/lib/compiler.ts`) and the published wasm build call.
+
+---
+
 ## Cross-cutting
 
 ### C0. A ratchet key is a lossy encoding, and it loses in two directions
