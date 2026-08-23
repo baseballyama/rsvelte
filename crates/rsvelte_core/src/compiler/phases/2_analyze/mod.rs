@@ -4515,6 +4515,13 @@ fn mark_group_bindings_in_node(
             );
         }
         TemplateNode::SvelteSelf(s) => {
+            for attr in &s.attributes {
+                if let Attribute::BindDirective(bind) = attr
+                    && bind.name == "group"
+                {
+                    register_standalone_bind_group(bind, analysis);
+                }
+            }
             mark_group_bindings_in_fragment(&mut s.fragment, ancestor_stack, assignments, analysis);
         }
         TemplateNode::IfBlock(if_block) => {

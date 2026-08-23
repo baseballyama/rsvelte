@@ -152,6 +152,20 @@ pub(super) fn format_content_expression_with_prefix(
     depth: usize,
     prefix_lead: usize,
 ) -> Result<String, FormatError> {
+    format_content_expression_with_bounds(expr_source, options, depth, prefix_lead, 0)
+}
+
+/// As `format_content_expression_with_prefix`, but also charging `suffix_trail`
+/// columns for content glued to the tag's closing `}`. The oracle measures a
+/// group against the rest of the line, and a run of adjacent mustaches offers no
+/// break opportunity, so the whole run shares one width budget.
+pub(super) fn format_content_expression_with_bounds(
+    expr_source: &str,
+    options: &FormatOptions,
+    depth: usize,
+    prefix_lead: usize,
+    suffix_trail: usize,
+) -> Result<String, FormatError> {
     let indent_width = options.js.indent_width.value() as usize;
     let lead = depth * indent_width;
     let full_width = options.js.line_width.value() as usize;
@@ -171,8 +185,15 @@ pub(super) fn format_content_expression_with_prefix(
         .next()
         .unwrap_or(formatted.as_str())
         .visual_width(tab_width(options));
-    let formatted = if lead + overhead + first_line_width > full_width {
-        let narrowed2 = full_width.saturating_sub(lead + overhead);
+    let formatted = if lead + overhead + suffix_trail + first_line_width > full_width {
+        // The trailing run decides only THAT the tag breaks — in the oracle it
+        // makes the group miss its fit, but the group's contents are then laid
+        // out against their real column, not against a budget the run ate. So
+        // narrow to the tag's own remaining width, and never past the one column
+        // that forces the outermost break.
+        let narrowed2 = full_width
+            .saturating_sub(lead + overhead)
+            .min(first_line_width.saturating_sub(1));
         let lw2 = oxc_formatter_core::LineWidth::try_from(crate::formatter_width(narrowed2.max(1)))
             .unwrap_or(options.js.line_width);
         format_expr_core(expr_source, options, lw2, false)?

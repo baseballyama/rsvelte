@@ -324,7 +324,7 @@ fn reactive_statement_spans(source: &str) -> Vec<ReactiveSpan> {
         after_last_surviving_code = i;
     }
 
-    spans
+    let mut spans: Vec<ReactiveSpan> = spans
         .into_iter()
         .map(|(leading, label, end)| ReactiveSpan {
             leading,
@@ -332,7 +332,17 @@ fn reactive_statement_spans(source: &str) -> Vec<ReactiveSpan> {
             end,
             has_successor: after_last_surviving_code > end,
         })
-        .collect()
+        .collect();
+    // The `$.legacy_pre_effect(…, () => { … })` upstream builds for the last
+    // reactive statement carries a span-less block, and printing it parks esrap's
+    // comment cursor past the end of the list. With no statement left to flush
+    // them first, every comment after that statement dies with it.
+    if let Some(last) = spans.last_mut()
+        && !last.has_successor
+    {
+        last.end = source.len();
+    }
+    spans
 }
 
 /// Whether a statement can begin at `at`, `after_last_code` being the byte just

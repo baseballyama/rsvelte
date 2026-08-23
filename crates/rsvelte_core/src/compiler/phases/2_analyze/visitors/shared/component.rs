@@ -156,15 +156,18 @@ pub fn visit_component<'a, 'b: 'a>(
                 }
                 // Getter/setter bindings (`bind:value={get, set}`) skip the
                 // assignment + identifier validation, mirroring upstream's
-                // early SequenceExpression return in BindDirective.js.
-                if bind.expression.node_type() != Some("SequenceExpression") {
+                // early SequenceExpression return in BindDirective.js — but not
+                // the pair's own checks, which run for every host.
+                if super::super::bind_directive::is_get_set_pair(bind) {
+                    super::super::bind_directive::validate_get_set_pair(bind, context)?;
+                } else {
                     // Validate the binding expression (checks for const/import bindings)
                     let bind_node = bind.expression.as_node();
                     validate_assignment_node((bind.start, bind.end), &bind_node, context, true)?;
                     // `bind:x={y}` must target state or props (bind_invalid_value).
                     // Upstream's BindDirective visitor runs this for component
                     // bindings too (BindDirective.js L193-207).
-                    super::super::bind_directive::validate_bind_value_for_component(bind, context)?;
+                    super::super::bind_directive::validate_bind_value_target(bind, context)?;
                 }
             }
             Attribute::OnDirective(on) => {
@@ -216,8 +219,13 @@ pub fn visit_component<'a, 'b: 'a>(
                 if bind.name == "this" {
                     context.in_bind_this = true;
                 }
-                super::super::script::walk_expression(&bind.expression, context)?;
+                let result = if super::super::bind_directive::is_get_set_pair(bind) {
+                    super::super::bind_directive::walk_get_set_pair(bind, context)
+                } else {
+                    super::super::bind_directive::walk_bind_expression(bind, context)
+                };
                 context.in_bind_this = prev_in_bind_this;
+                result?;
             }
             Attribute::OnDirective(on) => {
                 // Visit the event handler expression if present
@@ -427,36 +435,10 @@ pub fn validate_component(
         )));
     }
 
-    // Check for duplicate attributes
-    let mut seen_names: FxHashSet<String> = FxHashSet::default();
-
-    for attr in &component.attributes {
-        // Only check for duplicates on:
-        // - Attribute and BindDirective (treated the same)
-        // - ClassDirective
-        // - StyleDirective
-        // OnDirective can have multiple handlers for the same event
-        let attr_name = match attr {
-            Attribute::Attribute(a) => Some(format!("Attribute{}", a.name)),
-            Attribute::BindDirective(b) => Some(format!("Attribute{}", b.name)), // bind:x and x are duplicates
-            Attribute::ClassDirective(c) => Some(format!("class:{}", c.name)),
-            Attribute::StyleDirective(s) => Some(format!("style:{}", s.name)),
-            _ => None, // Other directives can have duplicates
-        };
-
-        if let Some(name) = attr_name {
-            if seen_names.contains(&name) {
-                let (start, end) = attr.span();
-                return Err(AnalysisError::validation_at(
-                    "attribute_duplicate",
-                    "Attributes need to be unique",
-                    start,
-                    end,
-                ));
-            }
-            seen_names.insert(name);
-        }
-    }
+    // `attribute_duplicate` is raised once, while reading the attributes
+    // (`1-parse/state/element.js`), and that port exempts every attribute named
+    // `this`. A second copy here did not, so `<C bind:this={x} bind:this={x} />`
+    // was rejected.
 
     // Track component bindings (excluding bind:this which doesn't need the settling loop)
     let has_bindings = component

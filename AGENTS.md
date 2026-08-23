@@ -913,6 +913,46 @@ Wave 4 architecture (decided; tsgo ships an LSP server as of TypeScript 7, so th
 - Ships its own TextMate grammar / language definition and accepts upstream `svelte.*`
   settings, so users replace the official extension rather than running both.
 
+### Where `rsvelte-check` time goes (`RSVELTE_CHECK_TIMING=1`)
+
+`runner::run` prints a walk / compile / overlay / typecheck / post split to stderr under
+`RSVELTE_CHECK_TIMING`. Measured on synthetic 100- and 500-component projects (TS 7.1 `tsc`,
+`skipLibCheck`, idle machine, 3 runs each): **typecheck is 66-89% of the run**, overlay
+materialization 8-29%, walk + post under 2% together.
+
+**The overlay is not the lever, and a diskless overlay is not available anyway.** A batch
+`tsc -p` reads its program from disk, so the LSP's in-memory projection has no counterpart
+here — and even a free overlay caps the whole run at 1.1-1.4x. It does have a shape worth
+knowing: 500 components materialize **2,005 files** (`.svelte.tsx`, `.svelte.tsx.map`, and two
+byte-identical `.d.ts` bridges each), ~310 ms to rewrite.
+
+**`--incremental` is the largest measured lever and it is off by default.** On the
+500-component project a warm run drops from 1693-2147 ms to 254-319 ms — **5.4-6.7x** — because
+the overlay tsconfig already carries `incremental` + `tsBuildInfoFile`, so tsgo reuses its
+program graph instead of re-checking ~2k files. The default stays off on purpose: official
+svelte-check's flag is opt-in too, and its README states the mode "might result in slightly
+different type check outcomes". Flipping it trades goal #3 for speed on a mode upstream itself
+calls lossy.
+
+### Type-aware lint opens one worker, not one per component
+
+`CorsaTypeBackend::new` used to spawn a `tsgo` API worker, write a virtual `.tsx` plus a
+tsconfig, and build a program **per component**. Measured over the 76 upstream
+`no-unused-props` fixtures (one test binary, both arms, ABBA-ordered, 5 pairs): 6.62-11.02 s
+per-spawn against 1.23-2.94 s on one warm `CorsaTypeSession` — **≥4.3x**, a lower bound because
+the Rust side is a debug build in both arms. `lint_components_types` batches a project.
+
+**One program for all components is NOT the win; the warm process is.** 62 fixtures in a single
+program measured 26-39 ms/component against 23-58 ms/component for a project-per-component on
+the same worker — no separable difference. Those fixtures are independent files, so a shared
+program shares no module graph; whether a real project (whose components import each other)
+profits is **unmeasured**.
+
+The refactor also surfaced a harness defect worth remembering: `invalid/` and `valid/` hold
+same-named fixtures while the temp dir was keyed on the stem alone, so the second one was served
+from the first one's cached project. **Reversing the iteration order moved the failures to the
+other directory** — with a cold worker per fixture the collision was invisible.
+
 `rsvelte_lint` (native Svelte linter: validator/a11y wrap + a native port of
 `eslint-plugin-svelte`'s rules, `crates/rsvelte_lint`) ships as its own npm package,
 [`@rsvelte/lint`](apps/npm/lint), fixed-versioned with `@rsvelte/compiler` via Changesets.

@@ -121,17 +121,17 @@ fn instance_inspect_rehomes_its_leading_comment_past_the_sentinels() {
     assert!(out.contains("// leading"), "leading comment lost:\n{out}");
 }
 
-/// The counterweight, and it must keep FAILING to re-home: with nothing after the
-/// effect there is no anchor region, and upstream flushes the comments at the end
-/// of the component body instead. That is a separate defect with its own issue;
-/// what this pins is that the re-home did not resurrect them somewhere arbitrary.
+/// The counterweight: with nothing after the effect there is no anchor region,
+/// so the comments stay pending and upstream flushes them at the end of the
+/// component body — which here is the `$$renderer.component` callback, not the
+/// exported function.
 #[test]
-fn effect_with_no_successor_still_drops_its_comments() {
+fn effect_with_no_successor_lands_at_the_component_body_end() {
     let out = ssr(
         "<script>\n\tlet a = $state(1);\n\n\t// leading\n\t$effect(() => {\n\t\t// interior\n\t\tconsole.log(a);\n\t});\n</script>\n\n<p>{a}</p>\n",
     );
-    assert!(
-        !out.contains("// leading") && !out.contains("// interior"),
-        "unexpected comment placement — upstream puts both after the template push:\n{out}"
+    assert_body(
+        &out,
+        "import * as $ from 'svelte/internal/server';\n\nexport default function A($$renderer, $$props) {\n\t$$renderer.component(($$renderer) => {\n\t\tlet a = 1;\n\n\t\t$$renderer.push(`<p>1</p>`);\n\t\t// leading\n\t\t// interior\n\t});\n}",
     );
 }

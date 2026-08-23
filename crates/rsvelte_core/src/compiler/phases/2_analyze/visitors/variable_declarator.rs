@@ -228,6 +228,11 @@ fn extract_paths_typed_recursive(
 fn extract_literal_string_typed(node: &JsNode) -> Option<String> {
     match node {
         JsNode::Literal { raw, value, .. } => {
+            // A regex has no representation in the `initial` source-text model,
+            // and a `Some` here closes the AST-JSON path that can evaluate it.
+            if matches!(value, crate::ast::typed_expr::LiteralValue::Regex(_)) {
+                return None;
+            }
             if !raw.is_empty() {
                 return Some(raw.to_string());
             }
@@ -796,7 +801,11 @@ fn process_props_object_pattern_typed(
             JsNode::Identifier { name, .. } => Some(name.to_string()),
             JsNode::Literal { value, .. } => match value {
                 crate::ast::typed_expr::LiteralValue::String(s) => Some(s.to_string()),
-                crate::ast::typed_expr::LiteralValue::Number(n) => Some((*n as i64).to_string()),
+                crate::ast::typed_expr::LiteralValue::Number(n) => Some(
+                    crate::compiler::phases::phase3_transform::server::evaluate::js_number_to_string(
+                        *n,
+                    ),
+                ),
                 _ => None,
             },
             _ => None,
@@ -1041,7 +1050,13 @@ fn visit_non_runes_mode_typed(
 fn init_needs_expr_json(init: &JsNode) -> bool {
     match init {
         JsNode::TemplateLiteral { expressions, .. } => !expressions.is_empty(),
+        // A regex is the one literal `Binding::initial` cannot carry, so its
+        // node is what the evaluators have to read.
+        JsNode::Literal { value, .. } => {
+            matches!(value, crate::ast::typed_expr::LiteralValue::Regex(_))
+        }
         JsNode::BinaryExpression { .. }
+        | JsNode::LogicalExpression { .. }
         | JsNode::UnaryExpression { .. }
         | JsNode::ConditionalExpression { .. }
         | JsNode::CallExpression { .. } => true,

@@ -151,6 +151,12 @@ impl<'a> Parser<'a> {
             ));
         }
 
+        // Upstream validates `<svelte:options>` here, once the whole template
+        // has been parsed (`1-parse/index.js` L164-166), so a duplicate or a
+        // misplaced meta tag anywhere in the file outranks an attribute-value
+        // error and an attribute-value error outranks the element's children.
+        self.read_svelte_options()?;
+
         // Determine the end position of script/style tags
         let script_end = self
             .instance_script
