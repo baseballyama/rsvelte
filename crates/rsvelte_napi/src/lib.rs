@@ -360,7 +360,7 @@ fn position_object<'env>(
 pub fn napi_compile(
     env: Env,
     source: String,
-    options: Option<NapiCompileOptions>,
+    options: Option<NapiCompileOptionsArg>,
 ) -> napi::Result<Value> {
     let opts = options_to_compile(Some(&env), options)?;
     let filename = opts.filename.clone();
@@ -386,7 +386,7 @@ pub fn napi_compile(
 pub fn napi_compile_both(
     env: Env,
     source: String,
-    options: Option<NapiCompileOptions>,
+    options: Option<NapiCompileOptionsArg>,
 ) -> napi::Result<Value> {
     let opts = options_to_compile(Some(&env), options)?;
     let filename = opts.filename.clone();
@@ -452,7 +452,7 @@ fn compile_result_to_json(result: rsvelte_core::compiler::CompileResult) -> Valu
 #[napi(js_name = "compileWithCssHash", catch_unwind, ts_return_type = "any")]
 pub async fn napi_compile_with_css_hash(
     source: String,
-    options: Option<NapiCompileOptions>,
+    options: Option<NapiCompileOptionsArg>,
     #[napi(
         ts_arg_type = "(input: { hash: (str: string) => string, css: string, name: string, filename: string }) => string"
     )]
@@ -463,7 +463,7 @@ pub async fn napi_compile_with_css_hash(
     // way the synchronous entries do.
     let mut options = options;
     if let Some(o) = options.as_mut() {
-        o.css_hash = None;
+        o.inner.css_hash = None;
     }
     // An `async` export's arguments must be `Send`; `Env` is not, so this is
     // the one entry whose option failure cannot carry the coded shape.
@@ -893,6 +893,26 @@ fn invalid_option(detail: impl std::fmt::Display) -> OptionError {
     }
 }
 
+/// `validate-options.js`'s `removed()`: an option that still has a name but no
+/// behaviour. Unlike `warn_removed()` (which only warns) this throws.
+fn removed_option(detail: &str) -> OptionError {
+    OptionError {
+        code: Some("options_removed"),
+        message: format!("Invalid compiler option: {detail}\nhttps://svelte.dev/e/options_removed"),
+    }
+}
+
+/// `validate-options.js`'s `object()` reports a key it does not declare, before
+/// running any per-option validator.
+fn unrecognised_option(keypath: &str) -> OptionError {
+    OptionError {
+        code: Some("options_unrecognised"),
+        message: format!(
+            "Unrecognised compiler option {keypath}\nhttps://svelte.dev/e/options_unrecognised"
+        ),
+    }
+}
+
 /// A value upstream accepts that this entry point cannot honour. There is no
 /// upstream code for it because upstream never raises it.
 fn unsupported_option(detail: impl std::fmt::Display) -> OptionError {
@@ -996,6 +1016,9 @@ fn coerce_css(v: &LenientScalar) -> OptionResult<CssMode> {
         LenientScalar::Str(s) => match s.as_str() {
             "external" => Ok(CssMode::External),
             "injected" => Ok(CssMode::Injected),
+            "none" => Err(invalid_option(
+                "css: \"none\" is no longer a valid option. If this was crucial for you, please open an issue on GitHub with your use case.",
+            )),
             _ => Err(invalid_option(
                 "css should be either \"external\" (default, recommended) or \"injected\"",
             )),
@@ -1040,6 +1063,7 @@ fn coerce_experimental(v: &LenientScalar) -> OptionResult<ExperimentalOptions> {
     if !v.is_object() {
         return Err(invalid_option("experimental should be an object"));
     }
+    reject_unrecognised_child(v, "experimental", &["async"])?;
     let mut exp = ExperimentalOptions::default();
     if let Some(a) = v.field("async") {
         exp.r#async = coerce_bool("experimental.async", a)?;
@@ -1051,10 +1075,25 @@ fn coerce_compatibility(v: &LenientScalar) -> OptionResult<rsvelte_core::compile
     if !v.is_object() {
         return Err(invalid_option("compatibility should be an object"));
     }
+    reject_unrecognised_child(v, "compatibility", &["componentApi"])?;
     v.field("componentApi").map_or_else(
         || Ok(rsvelte_core::compiler::ComponentApi::default()),
         coerce_component_api,
     )
+}
+
+/// A nested `object()` validator reports an unknown key under its own keypath,
+/// at the point the parent walks it rather than before every other option.
+fn reject_unrecognised_child(v: &LenientScalar, keypath: &str, known: &[&str]) -> OptionResult<()> {
+    let LenientScalar::Object(fields) = v else {
+        return Ok(());
+    };
+    fields
+        .iter()
+        .find(|(k, _)| !known.contains(&k.as_str()))
+        .map_or(Ok(()), |(k, _)| {
+            Err(unrecognised_option(&format!("{keypath}.{k}")))
+        })
 }
 
 /// Typed mirror of `CompileOptions` for the NAPI boundary.
@@ -1106,7 +1145,66 @@ pub struct NapiCompileOptions {
     /// Svelte-4 `loopGuardTimeout`, kept only to raise
     /// `options_removed_loop_guard_timeout`.
     pub loop_guard_timeout: Option<LenientScalar>,
+    /// Upstream's `warningFilter` callback. Declared so a wrong type is rejected
+    /// the way upstream's `fun()` rejects it, and so the callback form is not
+    /// mistaken for an unrecognised key; the synchronous entries still cannot
+    /// call it, and `@rsvelte/vite-plugin-svelte-native` applies it in JS.
+    pub warning_filter: Option<LenientScalar>,
+    /// The six Svelte-4 options upstream declares only so that using one is an
+    /// error. Presence alone is the signal — `undefined` is absence, `null` is
+    /// not.
+    pub legacy: Option<LenientScalar>,
+    pub format: Option<LenientScalar>,
+    pub tag: Option<LenientScalar>,
+    pub svelte_path: Option<LenientScalar>,
+    pub error_mode: Option<LenientScalar>,
+    pub vars_report: Option<LenientScalar>,
 }
+
+/// The keys upstream's `validate-options.js` declares: `common_options` plus
+/// `component_options`. Anything else is `options_unrecognised`. One list serves
+/// both entry points because `validate_module_options` reuses the same key set,
+/// mapping every component key to a no-op validator. `cssHashOverride` is
+/// rsvelte's own constant-hash hatch and has no upstream counterpart.
+///
+/// This must stay equal to the two option structs' declared fields;
+/// `scripts/dev/test-napi-compile-options.mjs` reconciles it against them.
+const RECOGNISED_COMPILE_OPTIONS: &[&str] = &[
+    "filename",
+    "rootDir",
+    "dev",
+    "generate",
+    "warningFilter",
+    "experimental",
+    "accessors",
+    "css",
+    "cssHash",
+    "cssOutputFilename",
+    "customElement",
+    "discloseVersion",
+    "immutable",
+    "legacy",
+    "compatibility",
+    "loopGuardTimeout",
+    "name",
+    "namespace",
+    "modernAst",
+    "outputFilename",
+    "preserveComments",
+    "fragments",
+    "preserveWhitespace",
+    "runes",
+    "hmr",
+    "sourcemap",
+    "enableSourcemap",
+    "hydratable",
+    "format",
+    "tag",
+    "sveltePath",
+    "errorMode",
+    "varsReport",
+    "cssHashOverride",
+];
 
 // Upstream's `warn_once` keeps its `warned` set for the lifetime of the
 // compiler module, so a removed option is reported once per process no matter
@@ -1125,16 +1223,10 @@ impl NapiCompileOptions {
     )]
     fn into_compile_options(self) -> OptionResult<CompileOptions> {
         let mut opts = CompileOptions::default();
-        if let Some(v) = &self.dev {
-            opts.dev = coerce_bool("dev", v)?;
-        }
-        if let Some(v) = &self.generate {
-            let (mode, renamed) = coerce_generate(v)?;
-            opts.generate = mode;
-            if renamed {
-                opts.legacy_options.generate_dom_ssr = warn_once(&WARNED_RENAMED_SSR_DOM);
-            }
-        }
+        // The arms below run in `validate-options.js`'s key-declaration order,
+        // which is the order its `object()` validator walks them in — with two
+        // bad options the one that surfaces is the earlier key, not an arbitrary
+        // one.
         if let Some(v) = &self.filename {
             opts.filename = Some(coerce_string("filename", v)?);
         }
@@ -1150,33 +1242,80 @@ impl NapiCompileOptions {
         {
             opts.root_dir = Some(cwd);
         }
-        if let Some(v) = &self.name {
-            opts.name = Some(coerce_string("name", v)?);
+        if let Some(v) = &self.dev {
+            opts.dev = coerce_bool("dev", v)?;
         }
-        if let Some(v) = &self.custom_element {
-            // `parametric`, not `boolean`: upstream's message has no
-            // ", if specified" tail here.
-            opts.custom_element = match v {
-                LenientScalar::Bool(b) => *b,
-                _ => return Err(invalid_option("customElement should be true or false")),
-            };
+        if let Some(v) = &self.generate {
+            let (mode, renamed) = coerce_generate(v)?;
+            opts.generate = mode;
+            if renamed {
+                opts.legacy_options.generate_dom_ssr = warn_once(&WARNED_RENAMED_SSR_DOM);
+            }
+        }
+        if let Some(v) = &self.warning_filter {
+            // `fun()`: the type is validated here even though the synchronous
+            // entries cannot invoke the callback.
+            if !matches!(v, LenientScalar::Function) {
+                return Err(invalid_option(
+                    "warningFilter should be a function, if specified",
+                ));
+            }
+        }
+        if let Some(v) = &self.experimental {
+            opts.experimental = coerce_experimental(v)?;
         }
         if let Some(v) = &self.accessors {
             opts.accessors = coerce_bool("accessors", v)?;
             opts.legacy_options.accessors = true;
         }
-        if let Some(v) = &self.namespace {
-            opts.namespace = coerce_namespace(v)?;
+        if let Some(v) = &self.css_hash {
+            return Err(match v {
+                LenientScalar::Function => unsupported_option(
+                    "A function-valued `cssHash` cannot be called from this entry point; use `compileWithCssHash` (or `compileAsync`, which routes to it).",
+                ),
+                _ => invalid_option("cssHash should be a function, if specified"),
+            });
+        }
+        if let Some(v) = &self.css_output_filename {
+            opts.css_output_filename = Some(coerce_string("cssOutputFilename", v)?);
+        }
+        if let Some(v) = &self.disclose_version {
+            opts.disclose_version = coerce_bool("discloseVersion", v)?;
         }
         if let Some(v) = &self.immutable {
             opts.immutable = coerce_bool("immutable", v)?;
             opts.legacy_options.immutable = true;
         }
-        if let Some(v) = &self.css {
-            opts.css = coerce_css(v)?;
+        if self.legacy.is_some() {
+            return Err(removed_option(
+                "The legacy option has been removed. If you are using this because of legacy.componentApi, use compatibility.componentApi instead",
+            ));
+        }
+        if let Some(v) = &self.compatibility {
+            opts.compatibility.component_api = coerce_compatibility(v)?;
+        }
+        if self.loop_guard_timeout.is_some() {
+            static WARNED: std::sync::atomic::AtomicBool =
+                std::sync::atomic::AtomicBool::new(false);
+            opts.legacy_options.loop_guard_timeout = warn_once(&WARNED);
+        }
+        if let Some(v) = &self.name {
+            opts.name = Some(coerce_string("name", v)?);
+        }
+        if let Some(v) = &self.namespace {
+            opts.namespace = coerce_namespace(v)?;
+        }
+        if let Some(v) = &self.modern_ast {
+            opts.modern_ast = coerce_bool("modernAst", v)?;
+        }
+        if let Some(v) = &self.output_filename {
+            opts.output_filename = Some(coerce_string("outputFilename", v)?);
         }
         if let Some(v) = &self.preserve_comments {
             opts.preserve_comments = coerce_bool("preserveComments", v)?;
+        }
+        if let Some(v) = &self.fragments {
+            opts.fragments = coerce_fragments(v)?;
         }
         if let Some(v) = &self.preserve_whitespace {
             opts.preserve_whitespace = coerce_bool("preserveWhitespace", v)?;
@@ -1184,8 +1323,8 @@ impl NapiCompileOptions {
         if let Some(v) = &self.runes {
             opts.runes = coerce_runes(v);
         }
-        if let Some(v) = &self.disclose_version {
-            opts.disclose_version = coerce_bool("discloseVersion", v)?;
+        if let Some(v) = &self.hmr {
+            opts.hmr = coerce_bool("hmr", v)?;
         }
         if let Some(v) = self.sourcemap {
             // Preprocessors pass the map as an object; the test harness
@@ -1200,45 +1339,6 @@ impl NapiCompileOptions {
                 opts.sourcemap = serde_json::to_string(&v).ok();
             }
         }
-        if let Some(v) = &self.output_filename {
-            opts.output_filename = Some(coerce_string("outputFilename", v)?);
-        }
-        if let Some(v) = &self.css_output_filename {
-            opts.css_output_filename = Some(coerce_string("cssOutputFilename", v)?);
-        }
-        if let Some(v) = &self.hmr {
-            opts.hmr = coerce_bool("hmr", v)?;
-        }
-        if let Some(v) = &self.modern_ast {
-            opts.modern_ast = coerce_bool("modernAst", v)?;
-        }
-        if let Some(v) = &self.experimental {
-            opts.experimental = coerce_experimental(v)?;
-        }
-        if let Some(v) = &self.compatibility {
-            opts.compatibility.component_api = coerce_compatibility(v)?;
-        }
-        if let Some(v) = &self.css_hash {
-            return Err(match v {
-                LenientScalar::Function => unsupported_option(
-                    "A function-valued `cssHash` cannot be called from this entry point; use `compileWithCssHash` (or `compileAsync`, which routes to it).",
-                ),
-                _ => invalid_option("cssHash should be a function, if specified"),
-            });
-        }
-        if let Some(hash_override) = self.css_hash_override {
-            opts.css_hash = Some(std::sync::Arc::new(
-                move |_: &rsvelte_core::compiler::CssHashInput| hash_override.clone(),
-            ));
-        }
-        if let Some(v) = &self.fragments {
-            opts.fragments = coerce_fragments(v)?;
-        }
-        if self.loop_guard_timeout.is_some() {
-            static WARNED: std::sync::atomic::AtomicBool =
-                std::sync::atomic::AtomicBool::new(false);
-            opts.legacy_options.loop_guard_timeout = warn_once(&WARNED);
-        }
         if self.enable_sourcemap.is_some() {
             static WARNED: std::sync::atomic::AtomicBool =
                 std::sync::atomic::AtomicBool::new(false);
@@ -1249,11 +1349,62 @@ impl NapiCompileOptions {
                 std::sync::atomic::AtomicBool::new(false);
             opts.legacy_options.hydratable = warn_once(&WARNED);
         }
+        if self.format.is_some() {
+            return Err(removed_option(
+                "The format option has been removed in Svelte 4, the compiler only outputs ESM now. Remove \"format\" from your compiler options. If you did not set this yourself, bump the version of your bundler plugin (vite-plugin-svelte/rollup-plugin-svelte/svelte-loader)",
+            ));
+        }
+        if self.tag.is_some() {
+            return Err(removed_option(
+                "The tag option has been removed in Svelte 5. Use `<svelte:options customElement=\"tag-name\" />` inside the component instead. If that does not solve your use case, please open an issue on GitHub with details.",
+            ));
+        }
+        if self.svelte_path.is_some() {
+            return Err(removed_option(
+                "The sveltePath option has been removed in Svelte 5. If this option was crucial for you, please open an issue on GitHub with your use case.",
+            ));
+        }
+        if self.error_mode.is_some() {
+            return Err(removed_option(
+                "The errorMode option has been removed. If you are using this through svelte-preprocess with TypeScript, use the https://www.typescriptlang.org/tsconfig#verbatimModuleSyntax setting instead",
+            ));
+        }
+        if self.vars_report.is_some() {
+            return Err(removed_option(
+                "The vars option has been removed. If you are using this through svelte-preprocess with TypeScript, use the https://www.typescriptlang.org/tsconfig#verbatimModuleSyntax setting instead",
+            ));
+        }
+        // `customElement` and `css` are `parametric()`, whose normalizer runs on
+        // the first CALL rather than during validation — so upstream reports
+        // them only after every plain validator has passed, and `customElement`
+        // (read during analysis) before `css`.
+        if let Some(v) = &self.custom_element {
+            // `parametric`, not `boolean`: upstream's message has no
+            // ", if specified" tail here.
+            opts.custom_element = match v {
+                LenientScalar::Bool(b) => *b,
+                _ => return Err(invalid_option("customElement should be true or false")),
+            };
+        }
+        if let Some(v) = &self.css {
+            opts.css = coerce_css(v)?;
+        }
+        // rsvelte-only, and never a failure: it has no upstream position.
+        if let Some(hash_override) = self.css_hash_override {
+            opts.css_hash = Some(std::sync::Arc::new(
+                move |_: &rsvelte_core::compiler::CssHashInput| hash_override.clone(),
+            ));
+        }
         Ok(opts)
     }
 }
 
 /// Typed mirror of `ModuleCompileOptions`.
+///
+/// Upstream's `validate_module_options` is `common_options` plus every
+/// *component* key mapped to a no-op, so a component-only key is accepted and
+/// ignored here rather than validated — that is why this declares fewer fields
+/// than `RECOGNISED_COMPILE_OPTIONS` lists.
 #[napi(object)]
 pub struct NapiModuleCompileOptions {
     pub dev: Option<LenientScalar>,
@@ -1261,11 +1412,20 @@ pub struct NapiModuleCompileOptions {
     pub filename: Option<LenientScalar>,
     pub root_dir: Option<LenientScalar>,
     pub experimental: Option<LenientScalar>,
+    /// A `common_options` key, so — unlike the component options — its type is
+    /// validated on this entry point too.
+    pub warning_filter: Option<LenientScalar>,
 }
 
 impl NapiModuleCompileOptions {
     fn into_module_compile_options(self) -> OptionResult<ModuleCompileOptions> {
         let mut opts = ModuleCompileOptions::default();
+        if let Some(v) = &self.filename {
+            opts.filename = Some(coerce_string("filename", v)?);
+        }
+        if let Some(v) = &self.root_dir {
+            opts.root_dir = Some(coerce_string("rootDir", v)?);
+        }
         if let Some(v) = &self.dev {
             opts.dev = coerce_bool("dev", v)?;
         }
@@ -1276,11 +1436,12 @@ impl NapiModuleCompileOptions {
                 opts.legacy_options.generate_dom_ssr = warn_once(&WARNED_RENAMED_SSR_DOM);
             }
         }
-        if let Some(v) = &self.filename {
-            opts.filename = Some(coerce_string("filename", v)?);
-        }
-        if let Some(v) = &self.root_dir {
-            opts.root_dir = Some(coerce_string("rootDir", v)?);
+        if let Some(v) = &self.warning_filter
+            && !matches!(v, LenientScalar::Function)
+        {
+            return Err(invalid_option(
+                "warningFilter should be a function, if specified",
+            ));
         }
         if let Some(v) = &self.experimental {
             opts.experimental = coerce_experimental(v)?;
@@ -1289,32 +1450,132 @@ impl NapiModuleCompileOptions {
     }
 }
 
-/// Compatibility wrapper: convert an Option<NapiCompileOptions> (the
+/// The one thing `#[napi(object)]` structurally cannot see: the keys it does
+/// *not* declare. Its generated decoder reads declared fields by name and never
+/// enumerates the object, so an unrecognised key reaches the compiler as
+/// silence. These wrappers decode the key list alongside the fields, letting the
+/// conversion raise `options_unrecognised` first — the position upstream's
+/// `object()` validator reports it from.
+pub struct NapiCompileOptionsArg {
+    inner: NapiCompileOptions,
+    unrecognised: Option<String>,
+}
+
+/// The module entry's counterpart. Its recognised set is the same one: upstream
+/// declares every component key on the module validator as a no-op.
+pub struct NapiModuleCompileOptionsArg {
+    inner: NapiModuleCompileOptions,
+    unrecognised: Option<String>,
+}
+
+/// Upstream's `object()` walks `for (const key in input)`, so an inherited
+/// enumerable key counts and a key whose value is `undefined` still counts.
+/// `napi_get_property_names` — what `Object::keys` calls — enumerates the same
+/// set, so `{ nonsense: undefined }` is rejected on both sides.
+unsafe fn first_unrecognised_key(
+    env: napi::sys::napi_env,
+    napi_val: napi::sys::napi_value,
+) -> napi::Result<Option<String>> {
+    let mut val_type = 0;
+    // SAFETY: `env`/`napi_val` are valid handles from Node-API; `napi_typeof`
+    // only reads them and writes the type tag.
+    let status = unsafe { napi::sys::napi_typeof(env, napi_val, &raw mut val_type) };
+    if status != napi::sys::Status::napi_ok {
+        return Err(napi::Error::from_status(napi::Status::from(status)));
+    }
+    if val_type != napi::sys::ValueType::napi_object {
+        return Ok(None);
+    }
+    // SAFETY: confirmed object; properties are read through the safe `Object` API.
+    let obj = napi::bindgen_prelude::Object::from_raw(env, napi_val);
+    Ok(napi::bindgen_prelude::Object::keys(&obj)?
+        .into_iter()
+        .find(|key| !RECOGNISED_COMPILE_OPTIONS.contains(&key.as_str())))
+}
+
+macro_rules! option_arg_wrapper {
+    ($wrapper:ty, $inner:ty, $name:literal) => {
+        impl napi::bindgen_prelude::TypeName for $wrapper {
+            fn type_name() -> &'static str {
+                $name
+            }
+            fn value_type() -> napi::ValueType {
+                napi::ValueType::Object
+            }
+        }
+
+        impl napi::bindgen_prelude::ValidateNapiValue for $wrapper {}
+
+        impl napi::bindgen_prelude::FromNapiValue for $wrapper {
+            unsafe fn from_napi_value(
+                env: napi::sys::napi_env,
+                napi_val: napi::sys::napi_value,
+            ) -> napi::Result<Self> {
+                // SAFETY: valid handles from Node-API, forwarded to the key scan.
+                let unrecognised = unsafe { first_unrecognised_key(env, napi_val)? };
+                // SAFETY: the same valid handles, forwarded to the field decoder
+                // `#[napi(object)]` derived for the inner struct.
+                let inner = unsafe { <$inner>::from_napi_value(env, napi_val)? };
+                Ok(Self {
+                    inner,
+                    unrecognised,
+                })
+            }
+        }
+
+        impl napi::bindgen_prelude::ToNapiValue for $wrapper {
+            unsafe fn to_napi_value(
+                env: napi::sys::napi_env,
+                val: Self,
+            ) -> napi::Result<napi::sys::napi_value> {
+                // SAFETY: `env` is the valid env Node-API passed in; the derived
+                // impl does the work. Input-only in practice — this exists so
+                // `#[napi(object)]` structs holding the type satisfy the bound.
+                unsafe { <$inner>::to_napi_value(env, val.inner) }
+            }
+        }
+    };
+}
+
+option_arg_wrapper!(NapiCompileOptionsArg, NapiCompileOptions, "CompileOptions");
+option_arg_wrapper!(
+    NapiModuleCompileOptionsArg,
+    NapiModuleCompileOptions,
+    "ModuleCompileOptions"
+);
+
+/// Compatibility wrapper: convert an Option<NapiCompileOptionsArg> (the
 /// typed surface) into `CompileOptions`. `None` and `Some(empty)`
 /// both produce the defaults.
 fn options_to_compile(
     env: Option<&Env>,
-    opts: Option<NapiCompileOptions>,
+    opts: Option<NapiCompileOptionsArg>,
 ) -> napi::Result<CompileOptions> {
     let Some(opts) = opts else {
         return Ok(CompileOptions::default());
     };
     // Upstream seeds `state.filename` from the raw option before validating, so
     // the option error carries it even when a *later* option is what failed.
-    let filename = raw_filename(opts.filename.as_ref());
-    opts.into_compile_options()
+    let filename = raw_filename(opts.inner.filename.as_ref());
+    opts.unrecognised
+        .as_deref()
+        .map_or(Ok(()), |key| Err(unrecognised_option(key)))
+        .and_then(|()| opts.inner.into_compile_options())
         .map_err(|e| e.into_napi(env, filename.as_deref()))
 }
 
 fn options_to_module_compile(
     env: Option<&Env>,
-    opts: Option<NapiModuleCompileOptions>,
+    opts: Option<NapiModuleCompileOptionsArg>,
 ) -> napi::Result<ModuleCompileOptions> {
     let Some(opts) = opts else {
         return Ok(ModuleCompileOptions::default());
     };
-    let filename = raw_filename(opts.filename.as_ref());
-    opts.into_module_compile_options()
+    let filename = raw_filename(opts.inner.filename.as_ref());
+    opts.unrecognised
+        .as_deref()
+        .map_or(Ok(()), |key| Err(unrecognised_option(key)))
+        .and_then(|()| opts.inner.into_module_compile_options())
         .map_err(|e| e.into_napi(env, filename.as_deref()))
 }
 
@@ -1338,7 +1599,7 @@ fn raw_filename(v: Option<&LenientScalar>) -> Option<String> {
 pub fn napi_compile_module(
     env: Env,
     source: String,
-    options: Option<NapiModuleCompileOptions>,
+    options: Option<NapiModuleCompileOptionsArg>,
 ) -> napi::Result<Value> {
     let opts = options_to_module_compile(Some(&env), options)?;
     let filename = opts.filename.clone();
@@ -1973,7 +2234,7 @@ pub struct CompileBuffersResult {
 pub fn napi_compile_buffers(
     env: Env,
     source: String,
-    options: Option<NapiCompileOptions>,
+    options: Option<NapiCompileOptionsArg>,
 ) -> napi::Result<CompileBuffersResult> {
     let opts = options_to_compile(Some(&env), options)?;
     reject_modern_ast_for_binary_result(&opts, "compileBuffers")?;
@@ -2012,7 +2273,7 @@ pub fn napi_compile_buffers(
 pub fn napi_compile_module_buffers(
     env: Env,
     source: String,
-    options: Option<NapiModuleCompileOptions>,
+    options: Option<NapiModuleCompileOptionsArg>,
 ) -> napi::Result<CompileBuffersResult> {
     let opts = options_to_module_compile(Some(&env), options)?;
 
@@ -2104,7 +2365,7 @@ fn reject_modern_ast_for_binary_result(options: &CompileOptions, api: &str) -> n
 pub fn napi_compile_envelope(
     env: Env,
     source: String,
-    options: Option<NapiCompileOptions>,
+    options: Option<NapiCompileOptionsArg>,
 ) -> napi::Result<Buffer> {
     let opts = options_to_compile(Some(&env), options)?;
     let filename = opts.filename.clone();
@@ -2124,7 +2385,7 @@ pub fn napi_compile_envelope(
 pub fn napi_compile_envelope_external_sources(
     env: Env,
     source: String,
-    options: Option<NapiCompileOptions>,
+    options: Option<NapiCompileOptionsArg>,
 ) -> napi::Result<Buffer> {
     let opts = options_to_compile(Some(&env), options)?;
     let filename = opts.filename.clone();
@@ -2266,7 +2527,7 @@ fn create_zero_copy_envelope(
 pub fn napi_compile_envelope_zero_copy(
     env: Env,
     source: String,
-    options: Option<NapiCompileOptions>,
+    options: Option<NapiCompileOptionsArg>,
 ) -> napi::Result<JsBuffer> {
     let opts = options_to_compile(Some(&env), options)?;
     reject_modern_ast_for_binary_result(&opts, "compileEnvelopeZeroCopy")?;
@@ -2290,7 +2551,7 @@ pub fn napi_compile_envelope_zero_copy(
 pub fn napi_compile_module_envelope_zero_copy(
     env: Env,
     source: String,
-    options: Option<NapiModuleCompileOptions>,
+    options: Option<NapiModuleCompileOptionsArg>,
 ) -> napi::Result<JsBuffer> {
     let opts = options_to_module_compile(Some(&env), options)?;
     let result = match rust_compile_module(&source, opts) {
@@ -2322,7 +2583,7 @@ pub fn napi_compile_module_envelope_zero_copy(
 pub fn napi_compile_module_envelope(
     env: Env,
     source: String,
-    options: Option<NapiModuleCompileOptions>,
+    options: Option<NapiModuleCompileOptionsArg>,
 ) -> napi::Result<Buffer> {
     let opts = options_to_module_compile(Some(&env), options)?;
     match rust_compile_module(&source, opts) {
@@ -2367,7 +2628,7 @@ pub fn napi_compile_module_envelope(
 #[napi(object)]
 pub struct CompileBatchInput {
     pub source: String,
-    pub options: Option<NapiCompileOptions>,
+    pub options: Option<NapiCompileOptionsArg>,
 }
 
 /// Compile multiple Svelte components in parallel via rayon, packing
@@ -2541,7 +2802,7 @@ impl Task for CompileEnvelopeTask {
 pub fn napi_compile_envelope_async(
     env: Env,
     source: String,
-    options: Option<NapiCompileOptions>,
+    options: Option<NapiCompileOptionsArg>,
 ) -> napi::Result<AsyncTask<CompileEnvelopeTask>> {
     let options = options_to_compile(Some(&env), options)?;
     reject_modern_ast_for_binary_result(&options, "compileEnvelopeAsync")?;
@@ -2566,7 +2827,7 @@ pub fn napi_compile_envelope_async(
 pub fn napi_compile_envelope_external_sources_async(
     env: Env,
     source: String,
-    options: Option<NapiCompileOptions>,
+    options: Option<NapiCompileOptionsArg>,
 ) -> napi::Result<AsyncTask<CompileEnvelopeTask>> {
     let options = options_to_compile(Some(&env), options)?;
     reject_modern_ast_for_binary_result(&options, "compileEnvelopeExternalSourcesAsync")?;

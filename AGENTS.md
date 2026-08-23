@@ -730,10 +730,38 @@ control on a string you know is there.
 | `grep X file` finds nothing that is there | `grep` is a shell function wrapping `ugrep --ignore-files`, which skips gitignored paths | `command grep` |
 | `Binary file … matches`, no lines printed | one NUL byte anywhere in the file (not non-ASCII — UTF-8 is fine) | `command grep -a`, or `git grep` |
 | `git show rev:file \| grep X` finds nothing | the wrapper's `-I` discards binary-looking **stdin** | `git grep X rev -- file` |
-| later matches missing | `\| head -N` truncates with no error | state the denominator, or drop the cap |
+| later matches missing | `\| head -N` (or `\| tail -N`) truncates with no error | state the denominator, or drop the cap — see the section below, this is the narrow case of a general hazard |
 
-Related: in `cmd \| head`, `$?` is `head`'s status, not `cmd`'s. Never read a
-verdict through a pipe.
+### A truncating or discarding stage turns a failure into a green
+
+`grep` is one instance; the class is **any stage between a command and your
+eyes that can drop the part carrying the verdict**. It never reports that it
+dropped it, so the output is not "wrong", it is *indistinguishable from success*
+— which is why re-reading it more carefully cannot help. Three of these were hit
+on one day, by three different people, each already knowing the rule:
+
+| What was read | What it actually showed | Why it read as a pass |
+|---|---|---|
+| `cargo test 2>&1 \| tail -25` | `[exited with code 0]` for a run that **failed to compile** (`no field 'errors'`; it is `diagnostics`) | the compile error scrolled past the window, and `$?` came from `tail` |
+| `cargo clippy 2>&1 \| tail -40` | dependency crates and `Finished` — the target crate's own line was outside the window | a clippy run that is clean and one that never reached your file print the *same nothing* |
+| `pgrep -c … \|\| echo 0` | `0` | the `\|\|` arm fabricated a datum that reads exactly like a measurement |
+
+Rules, in the order they are cheap:
+
+1. **Never read a verdict through a truncating stage.** Run the command bare, or
+   put the filter *after* capturing the status (`PIPESTATUS[0]`, or write to a
+   file and grep the file). `2>/dev/null` and `|| echo <literal>` are the same
+   hazard wearing different clothes: the first throws away the half that carries
+   the failure, the second manufactures the answer.
+2. **When "pass" is spelled as silence, the run needs a positive control.**
+   Introduce the defect the check exists to catch, confirm the check goes red,
+   remove it, and confirm the tree is byte-identical again (`git diff` empty).
+   Only then does the quiet run mean anything. This is the same argument as the
+   negative-grep control above, one level up: an empty result is evidence only
+   once you have shown the instrument can produce a non-empty one.
+3. **State the denominator.** "No warnings" is a claim about a population; say
+   which one (`-p <crate> --lib --tests`), because the reader cannot tell from
+   the output whether your file was in it.
 
 ### Working with Subagents
 
