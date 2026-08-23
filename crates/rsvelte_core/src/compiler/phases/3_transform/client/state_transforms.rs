@@ -1180,6 +1180,95 @@ pub(super) fn is_inside_string_literal(code: &str, pos: usize) -> bool {
     in_string
 }
 
+/// Check if a position is inside a regex literal.
+///
+/// A regex's source is text: `/\$s/` names a store nowhere, and rewriting the
+/// `$s` inside it to `$s()` changes what the regex matches. This is the third
+/// opaque kind beside the string and comment `is_inside_string_literal`
+/// answers, and it is separate because telling `/re/` from a division needs the
+/// previous significant code byte, which that scan does not track.
+pub(super) fn is_inside_regex_literal(code: &str, pos: usize) -> bool {
+    let bytes = code.as_bytes();
+    let mut i = 0usize;
+    let mut prev: Option<u8> = None;
+    // `${ … }` re-enters code, so a template is a stack of frames rather than
+    // one opaque run: a regex can sit inside an interpolation.
+    // `None` is an open template's quasi, `Some(depth)` an open `${ … }`.
+    let mut frames: Vec<Option<usize>> = Vec::new();
+    while i < bytes.len() && i <= pos {
+        if matches!(frames.last(), Some(None)) {
+            match bytes[i] {
+                b'\\' => i += 2,
+                b'`' => {
+                    frames.pop();
+                    prev = Some(b'`');
+                    i += 1;
+                }
+                b'$' if bytes.get(i + 1) == Some(&b'{') => {
+                    frames.push(Some(0));
+                    prev = None;
+                    i += 2;
+                }
+                _ => i += 1,
+            }
+            continue;
+        }
+        match bytes[i] {
+            b'`' => {
+                frames.push(None);
+                i += 1;
+                continue;
+            }
+            b'{' => {
+                if let Some(Some(depth)) = frames.last_mut() {
+                    *depth += 1;
+                }
+                prev = Some(b'{');
+                i += 1;
+                continue;
+            }
+            b'}' => {
+                if let Some(Some(depth)) = frames.last_mut() {
+                    if *depth == 0 {
+                        frames.pop();
+                        prev = Some(b'`');
+                        i += 1;
+                        continue;
+                    }
+                    *depth -= 1;
+                }
+                prev = Some(b'}');
+                i += 1;
+                continue;
+            }
+            _ => {}
+        }
+        let starts_regex = bytes[i] == b'/'
+            && !matches!(bytes.get(i + 1), Some(b'/') | Some(b'*'))
+            && crate::compiler::phases::phase3_transform::shared::js_scan::slash_starts_regex_at(
+                bytes, i, prev,
+            );
+        match skip_opaque(bytes, i, prev) {
+            Some((next, was_comment)) => {
+                if starts_regex && pos < next {
+                    return true;
+                }
+                if !was_comment && next > 0 {
+                    prev = Some(bytes[next - 1]);
+                }
+                i = next.max(i + 1);
+            }
+            None => {
+                if !bytes[i].is_ascii_whitespace() {
+                    prev = Some(bytes[i]);
+                }
+                i += 1;
+            }
+        }
+    }
+    false
+}
+
 // ---------------------------------------------------------------------------
 // State/prop assignments and legacy transforms (lines 11933-13491 of mod.rs)
 // ---------------------------------------------------------------------------
