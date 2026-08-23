@@ -340,6 +340,7 @@ impl std::fmt::Debug for PreparedComponent<'_> {
 
 impl<'source> PreparedComponent<'source> {
     pub(crate) fn new(source: &'source str, options: CompileOptions) -> Result<Self, CompileError> {
+        let source = crate::compiler::remove_bom(source);
         let mut ast = Box::new(crate::compiler::parse_component(
             source,
             options.modern_ast,
