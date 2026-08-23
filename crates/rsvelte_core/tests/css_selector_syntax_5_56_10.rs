@@ -189,3 +189,51 @@ fn nth_of_accepts_a_selector_list() {
         "both complex selectors must survive"
     );
 }
+
+/// The three above assert on the AST, because the printer copies unscoped CSS
+/// straight out of the source. The compiled stylesheet is a different path: it
+/// rebuilds every selector it scopes, and each of these was lost in that rebuild
+/// while the AST stayed correct — so they need their own assertions.
+///
+/// Every expectation here is the official 5.56.10 compiler's output for the same
+/// input, not a transcription of what rsvelte happens to emit.
+#[test]
+fn a_scoped_pseudo_class_keeps_its_source_spelling() {
+    // A selector list after `of` — rebuilding it from the AST concatenated the
+    // children and produced `of.a.b`, because only the source carries the comma.
+    let out =
+        css("<style>\n\tli:nth-child(2n of.a, .b) { color: red; }\n</style><li class=\"a\"></li>");
+    assert!(
+        out.contains(":nth-child(2n of.a, .b)"),
+        "the selector list after `of` must survive scoping, got:\n{out}"
+    );
+    assert!(
+        !out.contains("of.a.b"),
+        "the separator must not be dropped, got:\n{out}"
+    );
+
+    // An escape in the name — the parser decodes `\31 st-child` to `1st-child`,
+    // which is a different selector when printed back undecorated.
+    let out = css("<style>\n\t:\\31 st-child { color: red; }\n</style><div></div>");
+    assert!(
+        out.contains(":\\31 st-child"),
+        "the escape must survive scoping, got:\n{out}"
+    );
+}
+
+/// The scoping hash is a contract, not an internal detail: it is written into
+/// both the stylesheet and the markup, so any drift from upstream's digest makes
+/// every scoped rule miss. Upstream hashes UTF-16 code units (`charCodeAt`), so
+/// an astral character contributes two surrogates — iterating Rust `char`s
+/// diverges on exactly those inputs and nowhere else.
+#[test]
+fn the_scope_hash_counts_utf16_code_units() {
+    use rsvelte_core::compiler::phases::phase3_transform::css::generate_raw_hash;
+
+    // Values taken from the official compiler.
+    assert_eq!(generate_raw_hash(".a🙂b { color: green; }"), "5fvur2");
+
+    // The control: a BMP-only string hashes the same either way, so a test that
+    // used one could not tell the two implementations apart.
+    assert_eq!(generate_raw_hash(".ab { color: green; }"), "u92ct");
+}
