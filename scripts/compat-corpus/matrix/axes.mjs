@@ -1886,3 +1886,144 @@ export const WRITE_PREAMBLE = `<script>
 
 %m
 `;
+
+/**
+ * Axis K1 — the separator between two adjacent JS tokens.
+ *
+ * Phase 3 locates keywords with literal needles (`memmem::find(b"class ")`,
+ * `starts_with("export let ")`), and every one of those spellings bakes in
+ * exactly ONE ASCII space. The source is not obliged to honour it: any run of
+ * ECMAScript `WhiteSpace + LineTerminator` separates two tokens, so a second
+ * space, a tab, a line break or a non-ASCII whitespace character makes the
+ * construct invisible to the transform. #3470 is the loud half — an unstripped
+ * `export` lands inside the component function and no JS parser accepts the
+ * output — and `class\tK` the quiet one, where the class-field runes are never
+ * lowered and `$state` survives as a free identifier at run time.
+ *
+ * The separator set is not "some whitespace": each member falsifies a DIFFERENT
+ * plausible predicate. `\t` and `\n` fail a literal `" "`; U+000B additionally
+ * fails Rust's `is_ascii_whitespace`, which excludes the vertical tab; U+00A0
+ * and U+3000 fail every byte-oriented test, because their UTF-8 lead byte
+ * reads as an identifier byte; and U+FEFF fails `char::is_whitespace` and
+ * `regex`'s `\s` as well, both of which follow Unicode `White_Space`, which
+ * excludes it while JS does not. A fix that switches one site to a Unicode-aware
+ * test passes five of these and still fails the BOM.
+ *
+ * `space` is the control row: it is the spelling every needle already matches,
+ * so a change that stops recognising the construct at all fails it rather than
+ * turning the family green.
+ */
+export const KEYWORD_SEPARATORS = {
+	space: ' ',
+	'two-spaces': '  ',
+	tab: '\t',
+	newline: '\n\t',
+	'vertical-tab': '\u000b',
+	'form-feed': '\u000c',
+	nbsp: '\u00a0',
+	bom: '\ufeff',
+	ideographic: '\u3000',
+};
+
+/**
+ * Axis K2 — the construct whose keyword the separator follows.
+ *
+ * Derived from the needles rather than invented: these are the source-level
+ * keyword spellings `memmem::find` / `starts_with` / `strip_prefix` are called
+ * with under `phases/3_transform` (`"export let"`, `"export "`, `"class "`,
+ * `"function "`, `" from "`). `export-let` and `class-declaration` are the two
+ * #3470 reports; the rest are the other members of the same grep, and they are
+ * here because a needle that only gates an early bail-out is harmless while one
+ * that returns an OFFSET is not — indistinguishable from the grep alone, so the
+ * family carries both and lets the comparison sort them.
+ *
+ * `module` marks the constructs that are also valid input to `compileModule`.
+ */
+export const KEYWORD_CONSTRUCTS = {
+	'export-let': {
+		module: true,
+		body: 'export%slet a = 1;',
+		markup: '<b>{a}</b>',
+	},
+	'export-var': {
+		module: true,
+		body: 'export%svar a = 1;',
+		markup: '<b>{a}</b>',
+	},
+	'export-const': {
+		module: true,
+		body: 'export%sconst a = 1;',
+		markup: '<b>{a}</b>',
+	},
+	'export-function': {
+		module: true,
+		body: 'export%sfunction f() {\n\treturn 1;\n}',
+		markup: '<b>{f()}</b>',
+	},
+	'export-async-function': {
+		module: true,
+		body: 'export%sasync function f() {\n\treturn 1;\n}',
+		markup: '<b>{typeof f}</b>',
+	},
+	'export-class': {
+		module: true,
+		body: 'export%sclass K {\n\tv = $state(1);\n}\n\nconst k = new K();',
+		markup: '<b>{k.v}</b>',
+	},
+	'class-declaration': {
+		module: true,
+		body: 'class%sK {\n\tv = $state(1);\n}\n\nexport const k = new K();',
+		markup: '<b>{k.v}</b>',
+	},
+	'class-extends': {
+		module: true,
+		body: 'class B {}\n\nclass K extends%sB {\n\tv = $state(1);\n}\n\nexport const k = new K();',
+		markup: '<b>{k.v}</b>',
+	},
+	'function-declaration': {
+		module: true,
+		body: 'function%sf() {\n\treturn 1;\n}\n\nexport const n = f();',
+		markup: '<b>{n}</b>',
+	},
+	'async-function': {
+		module: true,
+		body: 'async%sfunction f() {\n\treturn 1;\n}\n\nexport const n = f();',
+		markup: '<b>{n}</b>',
+	},
+	'new-expression': {
+		module: true,
+		body: 'class K {\n\tv = $state(1);\n}\n\nexport const k = new%sK();',
+		markup: '<b>{k.v}</b>',
+	},
+	'import-from': {
+		module: false,
+		body: "import C%sfrom './C.svelte';",
+		markup: '<C />',
+	},
+	'reactive-label': {
+		module: false,
+		body: 'let a = 1;\n$:%sb = a * 2;',
+		markup: '<b>{b}</b>',
+	},
+};
+
+/**
+ * Axis K3 — the entry point. Mirrors `OPAQUE_ENTRIES`: the instance script and
+ * `compileModule` are different transforms over the same source text, and a fix
+ * complete on one has repeatedly been absent on the other (#2547).
+ */
+export const KEYWORD_SEPARATOR_ENTRIES = {
+	instance: {
+		ext: '.svelte',
+		wrap: (construct, body) =>
+			`<script>\n${body
+				.split('\n')
+				.map((line) => (line ? `\t${line}` : line))
+				.join('\n')}\n</script>\n\n${construct.markup}\n`,
+	},
+	module: {
+		ext: '.svelte.js',
+		kind: 'module',
+		wrap: (_construct, body) => `${body}\n`,
+	},
+};

@@ -75,6 +75,9 @@ import {
 	WRITE_HOSTS,
 	WRITE_SHAPES,
 	WRITE_PREAMBLE,
+	KEYWORD_SEPARATORS,
+	KEYWORD_CONSTRUCTS,
+	KEYWORD_SEPARATOR_ENTRIES,
 } from './axes.mjs';
 import { commentMutants } from './mutate.mjs';
 
@@ -532,6 +535,24 @@ function writeHostCases() {
 	return cases;
 }
 
+function keywordSeparatorCases() {
+	const cases = [];
+	for (const [constructName, construct] of Object.entries(KEYWORD_CONSTRUCTS)) {
+		for (const [separatorName, separator] of Object.entries(KEYWORD_SEPARATORS)) {
+			const body = construct.body.replaceAll('%s', () => separator);
+			for (const [entryName, entry] of Object.entries(KEYWORD_SEPARATOR_ENTRIES)) {
+				if (entry.kind === 'module' && !construct.module) continue;
+				cases.push({
+					id: `keyword-separator/${constructName}__${separatorName}__${entryName}${entry.ext}`,
+					source: entry.wrap(construct, body),
+					...(entry.kind ? { kind: entry.kind } : {}),
+				});
+			}
+		}
+	}
+	return cases;
+}
+
 export const FAMILIES = {
 	'binding-position': bindingPositionCases,
 	'async-derived': asyncDerivedCases,
@@ -550,6 +571,7 @@ export const FAMILIES = {
 	'private-field': privateFieldCases,
 	'opaque-keyword': opaqueKeywordCases,
 	'write-host': writeHostCases,
+	'keyword-separator': keywordSeparatorCases,
 };
 
 export function generate(families = Object.keys(FAMILIES)) {
