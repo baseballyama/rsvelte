@@ -6,7 +6,7 @@
   "dependencies": {
     "eslint": "9.39.5",
     "eslint-plugin-svelte": "3.23.0",
-    "svelte": "5.56.9",
+    "svelte": "5.56.10",
     "svelte-eslint-parser": "1.8.1",
     "typescript": "6.0.3",
     "@typescript-eslint/parser": "8.67.0"
