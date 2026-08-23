@@ -191,7 +191,7 @@ pub(super) fn detect_rune_in_nested_body(
 
 /// Walk a single statement (and any nested sub-statements / expressions)
 /// looking for an undeclared `$state`/`$derived`/`$effect` reference.
-fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSet<String>) -> bool {
+pub(super) fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSet<String>) -> bool {
     match stmt {
         oxc::Statement::ExpressionStatement(es) => {
             detect_rune_in_expr(&es.expression, declared_names)
@@ -225,6 +225,10 @@ fn detect_rune_in_stmt(stmt: &oxc::Statement, declared_names: &HashSet<String>) 
         oxc::Statement::WhileStatement(while_stmt) => {
             detect_rune_in_expr(&while_stmt.test, declared_names)
                 || detect_rune_in_stmt(&while_stmt.body, declared_names)
+        }
+        oxc::Statement::DoWhileStatement(do_stmt) => {
+            detect_rune_in_expr(&do_stmt.test, declared_names)
+                || detect_rune_in_stmt(&do_stmt.body, declared_names)
         }
         oxc::Statement::ForStatement(for_stmt) => {
             for_stmt.init.as_ref().is_some_and(|init| match init {
@@ -302,6 +306,9 @@ pub(super) fn detect_rune_in_class_body(
             .value
             .as_ref()
             .is_some_and(|e| detect_rune_in_expr(e, declared_names)),
+        oxc::ClassElement::StaticBlock(block) => {
+            detect_rune_in_nested_body(&block.body, declared_names)
+        }
         _ => false,
     })
 }
