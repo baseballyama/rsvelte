@@ -1260,6 +1260,15 @@ jobs:
       # the submodule needs neither, so the version half runs on every PR.
       - name: Check the docs state the pinned Svelte version
         run: node scripts/ci/test-svelte-target-marker.mjs
+
+      # svelte is the oracle every differential gate compares against, so a
+      # range makes the installed version a function of the install date rather
+      # than of the commit.
+      - name: Check svelte is pinned exactly
+        run: node scripts/ci/check-svelte-dependency-pin.mjs
+
+      - name: Run svelte pin guard tests
+        run: node scripts/ci/test-check-svelte-dependency-pin.mjs
   prereq-coverage-guard:
     name: Prerequisite coverage guard
     runs-on: ubuntu-latest
