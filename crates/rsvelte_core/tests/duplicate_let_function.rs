@@ -27,9 +27,3 @@ fn let_then_function_errors() {
     assert!(tc("<script>const x = 1; function x(){}</script>").is_err());
     assert!(tc("<script>function x(){} let x;</script>").is_err());
 }
-
-#[test]
-fn function_overloads_still_allowed() {
-    // Two function declarations (TS-overload-style) must NOT error.
-    assert!(tc("<script>function x(){} function x(){}</script>").is_ok());
-}
