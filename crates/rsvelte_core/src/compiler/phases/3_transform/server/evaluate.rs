@@ -490,20 +490,38 @@ fn eval_global_call(keypath: &str, args: &[Evaluation]) -> Option<EvalValue> {
             .map(|e| e.known_value().and_then(to_number))
             .collect()
     };
-    let num1 = || -> Option<f64> {
-        if args.len() == 1 {
-            args[0].known_value().and_then(to_number)
-        } else {
-            None
+    // A JS function reads a missing argument as `undefined`, i.e. `NaN`, and
+    // ignores a surplus one — but upstream computes only when EVERY argument is
+    // known (`scope.js:517`), including the ones the function never looks at.
+    let all_known = args.iter().all(|e| e.is_known());
+    let num_at = |i: usize| -> Option<f64> {
+        if !all_known {
+            return None;
+        }
+        match args.get(i) {
+            None => Some(f64::NAN),
+            Some(e) => e.known_value().and_then(to_number),
+        }
+    };
+    let num1 = || num_at(0);
+    let str_at = |i: usize| -> Option<String> {
+        if !all_known {
+            return None;
+        }
+        match args.get(i) {
+            None => Some("undefined".to_string()),
+            Some(e) => e.known_value().and_then(to_js_string),
         }
     };
 
     let result = match keypath {
-        "BigInt" | "Math.random" | "Math.f16round" => None,
-        "Math.min" => nums().map(|v| v.iter().copied().fold(f64::INFINITY, f64::min)),
-        "Math.max" => nums().map(|v| v.iter().copied().fold(f64::NEG_INFINITY, f64::max)),
+        "BigInt" | "Math.random" => None,
+        "Math.f16round" => num1().map(f16_round),
+        // Rust's `f64::min` / `f64::max` IGNORE a NaN operand; JS propagates it.
+        "Math.min" => nums().map(|v| v.iter().copied().fold(f64::INFINITY, js_min)),
+        "Math.max" => nums().map(|v| v.iter().copied().fold(f64::NEG_INFINITY, js_max)),
         "Math.floor" => num1().map(f64::floor),
-        "Math.round" => num1().map(|n| (n + 0.5).floor()),
+        "Math.round" => num1().map(js_round),
         "Math.abs" => num1().map(f64::abs),
         "Math.ceil" => num1().map(f64::ceil),
         "Math.sqrt" => num1().map(f64::sqrt),
@@ -535,67 +553,76 @@ fn eval_global_call(keypath: &str, args: &[Evaluation]) -> Option<EvalValue> {
         "Math.atanh" => num1().map(f64::atanh),
         "Math.cbrt" => num1().map(f64::cbrt),
         "Math.fround" => num1().map(|n| n as f32 as f64),
-        "Math.atan2" | "Math.pow" | "Math.imul" | "Math.clz32" => {
-            let v = nums()?;
-            match keypath {
-                "Math.atan2" if v.len() == 2 => Some(v[0].atan2(v[1])),
-                "Math.pow" if v.len() == 2 => Some(v[0].powf(v[1])),
-                "Math.imul" if v.len() == 2 => {
-                    Some((to_int32(v[0]).wrapping_mul(to_int32(v[1]))) as f64)
-                }
-                "Math.clz32" if v.len() == 1 => Some(to_uint32(v[0]).leading_zeros() as f64),
-                _ => None,
-            }
-        }
+        "Math.atan2" => Some(num_at(0)?.atan2(num_at(1)?)),
+        "Math.pow" => Some(js_pow(num_at(0)?, num_at(1)?)),
+        "Math.imul" => Some(to_int32(num_at(0)?).wrapping_mul(to_int32(num_at(1)?)) as f64),
+        "Math.clz32" => Some(to_uint32(num_at(0)?).leading_zeros() as f64),
         "Number" => {
             if args.is_empty() {
                 Some(0.0)
-            } else if args.len() == 1 {
-                args[0].known_value().and_then(to_number)
             } else {
-                None
+                num_at(0)
             }
         }
-        "Number.parseFloat" => {
-            // Not implemented precisely (prefix parsing) — fall back to marker.
-            None
+        "Number.parseFloat" => str_at(0).map(|s| js_parse_float(&s)),
+        "Number.parseInt" => {
+            let s = str_at(0)?;
+            let radix = num_at(1)?;
+            Some(js_parse_int(&s, radix))
         }
-        "Number.parseInt" => None,
         "Number.isInteger" | "Number.isFinite" | "Number.isNaN" | "Number.isSafeInteger" => {
-            // These return booleans, but upstream's table marks them NUMBER;
-            // compute when single known arg.
-            if args.len() == 1 {
-                if let Some(EvalValue::Num(n)) = args[0].known_value() {
-                    let b = match keypath {
-                        "Number.isInteger" => n.is_finite() && n.fract() == 0.0,
-                        "Number.isFinite" => n.is_finite(),
-                        "Number.isNaN" => n.is_nan(),
-                        _ => n.is_finite() && n.fract() == 0.0 && n.abs() <= 9007199254740991.0,
-                    };
-                    return Some(EvalValue::Bool(b));
-                }
-                // non-number known arg → false for all of these
-                if let Some(v) = args[0].known_value()
-                    && !matches!(v, EvalValue::Num(_))
-                {
-                    return Some(EvalValue::Bool(false));
-                }
+            // These return booleans, but upstream's table marks them NUMBER.
+            // None of them coerces: a missing or non-number argument is `false`.
+            if !all_known {
+                // Falls through to the NUMBER marker, as upstream's `else` does.
+                return Some(EvalValue::NumberMarker);
             }
-            None
+            let b = match args.first().and_then(|e| e.known_value()) {
+                Some(EvalValue::Num(n)) => match keypath {
+                    "Number.isInteger" => n.is_finite() && n.fract() == 0.0,
+                    "Number.isFinite" => n.is_finite(),
+                    "Number.isNaN" => n.is_nan(),
+                    _ => n.is_finite() && n.fract() == 0.0 && n.abs() <= 9007199254740991.0,
+                },
+                Some(_) | None => false,
+            };
+            return Some(EvalValue::Bool(b));
         }
         "String" => {
             if args.is_empty() {
                 return Some(EvalValue::Str(String::new()));
             }
-            if args.len() == 1
-                && let Some(s) = args[0].known_value().and_then(to_js_string)
-            {
-                return Some(EvalValue::Str(s));
-            }
-            return Some(EvalValue::StringMarker);
+            return Some(match str_at(0) {
+                Some(s) => EvalValue::Str(s),
+                None => EvalValue::StringMarker,
+            });
         }
         "String.fromCharCode" | "String.fromCodePoint" => {
-            return Some(EvalValue::StringMarker);
+            let mut out = String::new();
+            for i in 0..args.len() {
+                let Some(n) = num_at(i) else {
+                    return Some(EvalValue::StringMarker);
+                };
+                let scalar = if keypath == "String.fromCharCode" {
+                    to_uint32(n) & 0xffff
+                } else {
+                    // `String.fromCodePoint` THROWS on a non-integer or
+                    // out-of-range argument, and upstream calls it unguarded —
+                    // official fails to COMPILE what rsvelte would fold
+                    // (`upstream_issues/svelte-fromcodepoint-rangeerror.md`).
+                    if n.fract() != 0.0 || !(0.0..=1_114_111.0).contains(&n) {
+                        return Some(EvalValue::StringMarker);
+                    }
+                    n as u32
+                };
+                // A lone surrogate is a valid JS string and not a valid Rust
+                // one, so that one shape keeps the type marker.
+                match char::from_u32(scalar) {
+                    Some(c) => out.push(c),
+                    None => return Some(EvalValue::StringMarker),
+                }
+            }
+            return Some(EvalValue::Str(out));
         }
         _ => return None,
     };
@@ -605,6 +632,206 @@ fn eval_global_call(keypath: &str, args: &[Evaluation]) -> Option<EvalValue> {
         ("String", None) => EvalValue::StringMarker,
         _ => EvalValue::NumberMarker,
     })
+}
+
+fn js_min(a: f64, b: f64) -> f64 {
+    if a.is_nan() || b.is_nan() {
+        f64::NAN
+    } else {
+        a.min(b)
+    }
+}
+
+fn js_max(a: f64, b: f64) -> f64 {
+    if a.is_nan() || b.is_nan() {
+        f64::NAN
+    } else {
+        a.max(b)
+    }
+}
+
+/// `Math.pow`. IEEE `pow` answers `1` for a base of ±1 whatever the exponent;
+/// JS answers `NaN` when the exponent is `NaN`.
+fn js_pow(base: f64, exponent: f64) -> f64 {
+    if exponent.is_nan() {
+        return f64::NAN;
+    }
+    base.powf(exponent)
+}
+
+/// `Math.round` — half UP, not Rust's half-away-from-zero. The doubles just
+/// under `0.5` are the exception the naive `(n + 0.5).floor()` gets wrong:
+/// adding `0.5` rounds them up to exactly `1`.
+fn js_round(n: f64) -> f64 {
+    if !n.is_finite() || n == 0.0 {
+        return n;
+    }
+    if n > 0.0 && n < 0.5 {
+        return 0.0;
+    }
+    if (-0.5..0.0).contains(&n) {
+        return -0.0;
+    }
+    (n + 0.5).floor()
+}
+
+/// `Math.f16round` — the value rounded to the nearest IEEE-754 binary16 and
+/// back. Rust has no stable `f16`, so the significand is rounded by hand:
+/// half-to-even at an ulp of `2^(e-10)`, with `e` clamped at the subnormal
+/// bound of `-14`.
+fn f16_round(n: f64) -> f64 {
+    if !n.is_finite() || n == 0.0 {
+        return n;
+    }
+    let sign = if n < 0.0 { -1.0 } else { 1.0 };
+    let a = n.abs();
+    // Ties-to-even sends the midpoint between the largest binary16 and the
+    // next representable power of two to infinity.
+    if a >= 65520.0 {
+        return sign * f64::INFINITY;
+    }
+    let exponent = (((a.to_bits() >> 52) & 0x7ff) as i32 - 1023).max(-14);
+    let ulp = 2f64.powi(exponent - 10);
+    let scaled = a / ulp;
+    let floor = scaled.floor();
+    let rest = scaled - floor;
+    let rounded = if rest > 0.5 || (rest == 0.5 && (floor as i64) % 2 != 0) {
+        floor + 1.0
+    } else {
+        floor
+    };
+    sign * rounded * ulp
+}
+
+/// `Number.parseFloat`: the longest prefix that is a decimal literal.
+fn js_parse_float(s: &str) -> f64 {
+    let t = s.trim_start_matches(js_whitespace);
+    for name in ["Infinity", "+Infinity", "-Infinity"] {
+        if t.starts_with(name) {
+            return if name.starts_with('-') {
+                f64::NEG_INFINITY
+            } else {
+                f64::INFINITY
+            };
+        }
+    }
+    let b = t.as_bytes();
+    let mut i = 0;
+    if i < b.len() && (b[i] == b'+' || b[i] == b'-') {
+        i += 1;
+    }
+    let digits_start = i;
+    while i < b.len() && b[i].is_ascii_digit() {
+        i += 1;
+    }
+    if i < b.len() && b[i] == b'.' {
+        i += 1;
+        while i < b.len() && b[i].is_ascii_digit() {
+            i += 1;
+        }
+    }
+    if i == digits_start || (i == digits_start + 1 && b[digits_start] == b'.') {
+        return f64::NAN;
+    }
+    // An exponent counts only when it is complete.
+    if i < b.len() && (b[i] == b'e' || b[i] == b'E') {
+        let mut j = i + 1;
+        if j < b.len() && (b[j] == b'+' || b[j] == b'-') {
+            j += 1;
+        }
+        let exp_start = j;
+        while j < b.len() && b[j].is_ascii_digit() {
+            j += 1;
+        }
+        if j > exp_start {
+            i = j;
+        }
+    }
+    t[..i].parse::<f64>().unwrap_or(f64::NAN)
+}
+
+/// `Number.parseInt`: the longest prefix of digits in `radix`, defaulting to
+/// 16 for an `0x` prefix and 10 otherwise.
+fn js_parse_int(s: &str, radix: f64) -> f64 {
+    let t = s.trim_start_matches(js_whitespace);
+    let mut b = t.as_bytes();
+    let mut sign = 1.0;
+    if let Some((first, rest)) = b.split_first()
+        && (*first == b'+' || *first == b'-')
+    {
+        if *first == b'-' {
+            sign = -1.0;
+        }
+        b = rest;
+    }
+    let mut radix = to_int32(radix);
+    if radix != 0 && !(2..=36).contains(&radix) {
+        return f64::NAN;
+    }
+    let strip_hex = radix == 0 || radix == 16;
+    if radix == 0 {
+        radix = 10;
+    }
+    if strip_hex && b.len() >= 2 && b[0] == b'0' && (b[1] | 32) == b'x' {
+        radix = 16;
+        b = &b[2..];
+    }
+    let mut digits = 0;
+    for &c in b {
+        match (c as char).to_digit(36) {
+            Some(d) if d < radix as u32 => digits += 1,
+            _ => break,
+        }
+    }
+    if digits == 0 {
+        return f64::NAN;
+    }
+    let text = &t[t.len() - b.len()..][..digits];
+    // Accumulating in `f64` rounds at every step; V8 converts the whole digit
+    // string once, so `parseInt('9'.repeat(24))` is `1e24` and not `1.0000…3e24`.
+    let value = if radix == 10 {
+        text.parse::<f64>().unwrap_or(f64::NAN)
+    } else {
+        let mut exact = 0u128;
+        let mut overflow = None;
+        for c in text.chars() {
+            let d = c.to_digit(36).unwrap_or(0) as u128;
+            match overflow {
+                None => match exact
+                    .checked_mul(radix as u128)
+                    .and_then(|v| v.checked_add(d))
+                {
+                    Some(v) => exact = v,
+                    None => overflow = Some(exact as f64 * radix as f64 + d as f64),
+                },
+                Some(v) => overflow = Some(v * radix as f64 + d as f64),
+            }
+        }
+        overflow.unwrap_or(exact as f64)
+    };
+    sign * value
+}
+
+/// The `StrWhiteSpace` production, which `parseInt` / `parseFloat` skip. Rust's
+/// `char::is_whitespace` is the `White_Space` property, which admits U+0085.
+fn js_whitespace(c: char) -> bool {
+    matches!(
+        c,
+        '\u{9}'
+            | '\u{a}'
+            | '\u{b}'
+            | '\u{c}'
+            | '\u{d}'
+            | '\u{20}'
+            | '\u{a0}'
+            | '\u{1680}'
+            | '\u{2028}'
+            | '\u{2029}'
+            | '\u{202f}'
+            | '\u{205f}'
+            | '\u{3000}'
+            | '\u{feff}'
+    ) || ('\u{2000}'..='\u{200a}').contains(&c)
 }
 
 /// [`eval_global_call`] applied to argument values a caller has already folded.
