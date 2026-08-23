@@ -144,8 +144,10 @@ pub fn snippet_block(node: &SnippetBlock, context: &mut ComponentContext) {
     // is also a prop). References to `options` inside the snippet body should
     // refer to the parameter, not the prop.
     let saved_shadowed = context.state.shadowed_prop_names.clone();
+    let saved_each_shadowing = context.state.each_shadowing_names.clone();
     for param in &node.parameters {
         for name in extract_param_names(param) {
+            context.state.each_shadowing_names.insert(name.clone(), ());
             context.state.shadowed_prop_names.insert(name);
         }
     }
@@ -159,6 +161,7 @@ pub fn snippet_block(node: &SnippetBlock, context: &mut ComponentContext) {
     context.state.transform_deep_read = saved_transform_deep_read;
     *context.state.blocker_map.borrow_mut() = saved_blocker_map;
     context.state.shadowed_prop_names = saved_shadowed;
+    context.state.each_shadowing_names = saved_each_shadowing;
 
     // Build the full body with declarations and visited body
     let mut full_body = Vec::new();

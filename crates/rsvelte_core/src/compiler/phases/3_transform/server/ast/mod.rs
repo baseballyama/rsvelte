@@ -522,6 +522,32 @@ impl<'a> ServerTransformState<'a> {
             .collect()
     }
 
+    /// `scope.get(name)`: whether the NEAREST declaration of `name` on the
+    /// render position's scope chain is a template `{@const}` / `{const}`.
+    ///
+    /// The `slot_let_shadows` veto is keyed by NAME alone, so it cannot tell a
+    /// read of an each item / snippet parameter from a read of a `{@const}`
+    /// that shadows one in an inner block — and upstream folds the latter,
+    /// because `scope.get` stops at the nearest declaration.
+    pub(super) fn nearest_declaration_is_template_const(&self, name: &str) -> bool {
+        use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+        let root = &self.analysis.root;
+        let mut current = Some(self.current_scope_index);
+        while let Some(idx) = current {
+            let Some(scope) = root.all_scopes.get(idx) else {
+                return false;
+            };
+            if let Some(&binding) = scope.declarations.get(name) {
+                return root
+                    .bindings
+                    .get(binding)
+                    .is_some_and(|b| matches!(b.kind, BindingKind::Template));
+            }
+            current = scope.parent;
+        }
+        false
+    }
+
     /// Collect all the names currently shadowed by enclosing snippet / slot
     /// parameters (flattened from [`Self::shadowed_names`]).
     pub(super) fn collect_shadowed(&self) -> rustc_hash::FxHashSet<String> {

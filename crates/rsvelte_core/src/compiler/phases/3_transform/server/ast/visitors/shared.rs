@@ -701,6 +701,10 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                         .slot_let_shadows
                         .iter()
                         .any(|f| f.contains(src.trim()))
+                    // …unless a `{@const}` on the render position's own scope
+                    // chain shadows it first. The veto is keyed by NAME, and
+                    // `scope.get` stops at the nearest declaration.
+                    && !state.nearest_declaration_is_template_const(src.trim())
                 {
                     let visited = state.visit_expr(expr);
                     let escaped = state.b.call("$.escape", vec![visited]);

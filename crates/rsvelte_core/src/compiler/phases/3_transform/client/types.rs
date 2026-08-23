@@ -1674,6 +1674,12 @@ pub struct ComponentClientTransformState<'a> {
     /// inside a sibling `{#if}`).
     pub transform_deep_read: ImHashMap<String, ()>,
 
+    /// Names a nested template construct (`{@const}`, a snippet parameter) binds
+    /// in the block being visited, shadowing an enclosing `{#each}`'s item or
+    /// index of the same name. The reactivity probe and the index-usage tracker
+    /// both key on the name alone, so the shadow has to be spelled out for them.
+    pub each_shadowing_names: ImHashMap<String, ()>,
+
     /// Delegated events (insertion-ordered to match official compiler's `Set<string>`)
     pub events: indexmap::IndexSet<String>,
 
@@ -2019,6 +2025,7 @@ impl<'a> ComponentClientTransformState<'a> {
             memoizer: Memoizer::with_scope_declarations(scope, scope_root),
             transform: ImHashMap::new(),
             transform_deep_read: ImHashMap::new(),
+            each_shadowing_names: ImHashMap::new(),
             events: indexmap::IndexSet::default(),
             metadata: ComponentMetadata::default(),
             in_constructor: false,
