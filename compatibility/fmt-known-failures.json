@@ -18,5 +18,7 @@
 	"svelte-ux/packages/svelte-ux/src/lib/components/Collapse.svelte",
 	"svelte-ux/packages/svelte-ux/src/routes/+error.svelte",
 	"svelte-ux/packages/svelte-ux/src/routes/docs/components/Gooey/+page.svelte",
-	"svelte/packages/svelte/tests/parser-modern/samples/const-tag-parenthesized-init/input.svelte"
+	"svelte/packages/svelte/tests/parser-modern/samples/const-tag-parenthesized-init/input.svelte",
+	"svelte/packages/svelte/tests/parser-modern/samples/css-nth-of-minified/input.svelte",
+	"svelte/packages/svelte/tests/print/samples/css-escape-sequences/input.svelte"
 ]

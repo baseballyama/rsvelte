@@ -952,7 +952,6 @@ pub(super) fn lower_nested_runes_in_expr<'a>(
         b,
         derived: vec![rustc_hash::FxHashSet::default()],
         in_nested_body: false,
-        in_labeled: false,
         // Template-expression nested bodies (effect-drop pass) never carry a
         // top-level instance `$derived(await …)`; async-derived lowering is N/A.
         use_async: false,
@@ -1103,7 +1102,6 @@ fn lower_nested_runes<'a>(stmt: &mut Statement<'a>, state: &ServerTransformState
         b: state.b,
         derived: vec![rustc_hash::FxHashSet::default()],
         in_nested_body: false,
-        in_labeled: false,
         use_async: state.eval_inputs.use_async,
         rune_store_subs: rune_names_are_store_subs(state.analysis),
     };
@@ -1129,7 +1127,6 @@ fn lower_module_export_runes<'a>(stmt: &mut Statement<'a>, state: &ServerTransfo
         b: state.b,
         derived: vec![rustc_hash::FxHashSet::default()],
         in_nested_body: true,
-        in_labeled: false,
         use_async: state.eval_inputs.use_async,
         rune_store_subs: rune_names_are_store_subs(state.analysis),
     };
@@ -1152,9 +1149,6 @@ struct NestedRuneLower<'a> {
     /// script-level statements already handled by `transform_script` are not
     /// double-processed.
     in_nested_body: bool,
-    /// Upstream's `LabeledStatement` visitor returns without calling `next()`
-    /// in runes mode, so nothing under a label is ever visited — at any depth.
-    in_labeled: bool,
     /// `experimental.async`: enables the `$derived(await X)` →
     /// `await $.async_derived(() => X)` lowering (写经
     /// `VariableDeclaration.js:87-96`). Without it (or without an `await` arg),
@@ -1265,7 +1259,7 @@ impl<'a> NestedRuneLower<'a> {
 
 impl<'a> VisitMut<'a> for NestedRuneLower<'a> {
     fn visit_statement(&mut self, stmt: &mut Statement<'a>) {
-        let active = self.in_nested_body && !self.in_labeled;
+        let active = self.in_nested_body;
         // Remove nested effect / inspect expression statements.
         if active
             && let Statement::ExpressionStatement(es) = stmt
@@ -1292,7 +1286,6 @@ impl<'a> VisitMut<'a> for NestedRuneLower<'a> {
         // A `for` head declaration is not a `Statement`, so it never reaches
         // `visit_statement`; upstream lowers `for (let r = $state(1); …)` too.
         if self.in_nested_body
-            && !self.in_labeled
             && let Some(oxc_ast::ast::ForStatementInit::VariableDeclaration(vd)) = &mut it.init
         {
             self.lower_var_decl_inner(vd, false);
@@ -1300,16 +1293,8 @@ impl<'a> VisitMut<'a> for NestedRuneLower<'a> {
         oxc_ast_visit::walk_mut::walk_for_statement(self, it);
     }
 
-    fn visit_labeled_statement(&mut self, it: &mut oxc_ast::ast::LabeledStatement<'a>) {
-        let prev = self.in_labeled;
-        self.in_labeled = true;
-        oxc_ast_visit::walk_mut::walk_labeled_statement(self, it);
-        self.in_labeled = prev;
-    }
-
     fn visit_expression(&mut self, expr: &mut OxcExpression<'a>) {
         if self.in_nested_body
-            && !self.in_labeled
             && let OxcExpression::Identifier(id) = expr
         {
             let name = id.name.to_string();
