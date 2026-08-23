@@ -94,7 +94,10 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::LazyLock;
 
-use crate::compiler::phases::phase3_transform::shared::js_scan::{find_code, skip_opaque};
+use crate::compiler::phases::phase1_parse::parser::is_js_whitespace;
+use crate::compiler::phases::phase3_transform::shared::js_scan::{
+    find_code, is_ident_byte, skip_opaque,
+};
 use compact_str::CompactString;
 use memchr::memmem;
 // rustc_hash is used by submodules via their own imports
@@ -3413,17 +3416,34 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
     let mut imports = Vec::new();
     let mut rest = Vec::new();
     let mut current_import: Option<Vec<String>> = None;
+    let mut carry = ImportCarry::default();
     let mut scan = ScanState::default();
+    let mut line_start = 0usize;
 
-    for line in script.lines() {
+    for physical_line in script.split_inclusive('\n') {
+        let line = strip_line_terminator(physical_line);
+        let line_end = line_start + physical_line.len();
+        line_start = line_end;
         let line_starts_in_code = scan.in_code();
         let line_starts_in_block_comment = scan.in_block_comment;
         scan.advance(line);
+        // Only consult the next lines when they start in plain code: inside a
+        // block comment or a template literal their bytes are not code.
+        let following = if scan.in_code() {
+            &script[line_end..]
+        } else {
+            ""
+        };
         let scan = line_starts_in_code; // shadow for the decision below
         if let Some(ref mut import_lines) = current_import {
             let trimmed = line.trim();
-            let scanned = scan_import_line(trimmed, line_starts_in_block_comment);
-            if scanned.closes(trimmed.len()) {
+            let scanned = scan_import_line(trimmed, line_starts_in_block_comment, carry);
+            let attributes_follow =
+                scanned.ends_at_specifier(trimmed.len()) && starts_import_attributes(following);
+            carry = scanned.carry;
+            carry.expect_attributes |= attributes_follow;
+            if scanned.closes(trimmed.len()) && !attributes_follow {
+                carry = ImportCarry::default();
                 if let Some(end) = scanned.end()
                     && end < trimmed.len()
                     && !trimmed[end..].trim().is_empty()
@@ -3449,11 +3469,15 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
             let trimmed = line.trim();
             if scan && (trimmed.starts_with("import ") || trimmed.starts_with("import{")) {
                 // Check if this import is complete on one line
-                let scanned = scan_import_line(trimmed, false);
-                if scanned.semicolon.is_some()
-                    || is_complete_side_effect_import(trimmed)
+                let scanned = scan_import_line(trimmed, false, ImportCarry::default());
+                let ends_at_specifier = is_complete_side_effect_import(trimmed)
                     || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
-                        && scanned.last_string_end == Some(trimmed.len()))
+                        && scanned.last_string_end == Some(trimmed.len()));
+                let attributes_follow = ends_at_specifier && starts_import_attributes(following);
+                if !attributes_follow
+                    && (scanned.semicolon.is_some()
+                        || scanned.attributes_end.is_some()
+                        || ends_at_specifier)
                 {
                     // The line begins with a *complete* import statement but may
                     // carry additional imports and/or statements on the same
@@ -3469,6 +3493,8 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
                 } else {
                     // Multi-line import starts here
                     current_import = Some(vec![line.to_string()]);
+                    carry = scanned.carry;
+                    carry.expect_attributes |= attributes_follow;
                 }
             } else {
                 rest.push(line.to_string());
@@ -3493,25 +3519,30 @@ fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<Co
     let mut imports = Vec::new();
     let mut rest: Vec<ExtractedSourcePart> = Vec::new();
     let mut current_import: Option<Vec<String>> = None;
+    let mut carry = ImportCarry::default();
     let mut scan = ScanState::default();
     let mut line_start = 0usize;
 
     for physical_line in script.split_inclusive('\n') {
-        let line = if let Some(line_without_lf) = physical_line.strip_suffix('\n') {
-            line_without_lf
-                .strip_suffix('\r')
-                .unwrap_or(line_without_lf)
-        } else {
-            physical_line
-        };
+        let line = strip_line_terminator(physical_line);
         let line_starts_in_code = scan.in_code();
         let line_starts_in_block_comment = scan.in_block_comment;
         scan.advance(line);
+        let following = if scan.in_code() {
+            &script[line_start + physical_line.len()..]
+        } else {
+            ""
+        };
         let scan = line_starts_in_code;
         if let Some(ref mut import_lines) = current_import {
             let trimmed = line.trim();
-            let scanned = scan_import_line(trimmed, line_starts_in_block_comment);
-            if scanned.closes(trimmed.len()) {
+            let scanned = scan_import_line(trimmed, line_starts_in_block_comment, carry);
+            let attributes_follow =
+                scanned.ends_at_specifier(trimmed.len()) && starts_import_attributes(following);
+            carry = scanned.carry;
+            carry.expect_attributes |= attributes_follow;
+            if scanned.closes(trimmed.len()) && !attributes_follow {
+                carry = ImportCarry::default();
                 if let Some(end) = scanned.end()
                     && end < trimmed.len()
                     && !trimmed[end..].trim().is_empty()
@@ -3544,11 +3575,15 @@ fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<Co
         } else {
             let trimmed = line.trim();
             if scan && (trimmed.starts_with("import ") || trimmed.starts_with("import{")) {
-                let scanned = scan_import_line(trimmed, false);
-                if scanned.semicolon.is_some()
-                    || is_complete_side_effect_import(trimmed)
+                let scanned = scan_import_line(trimmed, false, ImportCarry::default());
+                let ends_at_specifier = is_complete_side_effect_import(trimmed)
                     || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
-                        && scanned.last_string_end == Some(trimmed.len()))
+                        && scanned.last_string_end == Some(trimmed.len()));
+                let attributes_follow = ends_at_specifier && starts_import_attributes(following);
+                if !attributes_follow
+                    && (scanned.semicolon.is_some()
+                        || scanned.attributes_end.is_some()
+                        || ends_at_specifier)
                 {
                     let trimmed_start = line.len() - line.trim_start().len();
                     let (remainder, remainder_offset) =
@@ -3563,6 +3598,8 @@ fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<Co
                     }
                 } else {
                     current_import = Some(vec![line.to_string()]);
+                    carry = scanned.carry;
+                    carry.expect_attributes |= attributes_follow;
                 }
             } else {
                 rest.push(ExtractedSourcePart {
@@ -3686,17 +3723,48 @@ struct ImportLineScan {
     semicolon: Option<usize>,
     /// Just past the last string or template literal that is code.
     last_string_end: Option<usize>,
+    /// Just past the `}` that closes an import-attributes clause.
+    attributes_end: Option<usize>,
+    /// Brace nesting and clause state to carry to the statement's next line.
+    carry: ImportCarry,
+}
+
+/// What an unfinished `import` statement carries from one line to the next.
+#[derive(Default, Clone, Copy)]
+struct ImportCarry {
+    /// Brace nesting depth reached so far within the statement.
+    depth: u32,
+    /// An import-attributes clause is open.
+    in_attributes: bool,
+    /// The next `{` opens the attributes clause even though its `with` keyword
+    /// was read on an earlier line.
+    expect_attributes: bool,
 }
 
 impl ImportLineScan {
-    /// Where the statement ends: the `;` if there is one, else — ASI — the last
-    /// completed string literal, which is the module specifier.
+    /// Where the statement ends: the `;` if there is one, else the attributes
+    /// clause's `}`, else — ASI — the last completed string literal, which is
+    /// the module specifier.
     fn end(&self) -> Option<usize> {
-        self.semicolon.or(self.last_string_end)
+        self.semicolon
+            .or(self.attributes_end)
+            .or(self.last_string_end)
+    }
+
+    /// True when the statement would end — by ASI — at the module specifier that
+    /// finishes this line, so whether it really ends there depends on what
+    /// follows on the next line.
+    fn ends_at_specifier(&self, line_len: usize) -> bool {
+        self.semicolon.is_none()
+            && self.attributes_end.is_none()
+            && self.carry.depth == 0
+            && self.last_string_end == Some(line_len)
     }
 
     fn closes(&self, line_len: usize) -> bool {
-        self.semicolon.is_some() || self.last_string_end == Some(line_len)
+        self.semicolon.is_some()
+            || self.attributes_end.is_some()
+            || self.ends_at_specifier(line_len)
     }
 }
 
@@ -3704,10 +3772,15 @@ impl ImportLineScan {
 ///
 /// A `;` or a closing quote inside a comment is text, and reading it as the
 /// terminator cut the statement mid-specifier-list (#2601).
-/// `in_block_comment` carries that state across the preceding lines.
-fn scan_import_line(s: &str, in_block_comment: bool) -> ImportLineScan {
+/// `in_block_comment` carries that state across the preceding lines, and `carry`
+/// the brace nesting, so a `"…"` ending a line inside a specifier list or an
+/// import-attributes clause is not read as the module specifier.
+fn scan_import_line(s: &str, in_block_comment: bool, carry: ImportCarry) -> ImportLineScan {
     let bytes = s.as_bytes();
-    let mut out = ImportLineScan::default();
+    let mut out = ImportLineScan {
+        carry,
+        ..ImportLineScan::default()
+    };
     let mut i = 0usize;
     if in_block_comment {
         match memmem::find(bytes, b"*/") {
@@ -3728,9 +3801,28 @@ fn scan_import_line(s: &str, in_block_comment: bool) -> ImportLineScan {
             i = next;
             continue;
         }
-        if bytes[i] == b';' {
-            out.semicolon = Some(i + 1);
-            return out;
+        match bytes[i] {
+            b';' => {
+                out.semicolon = Some(i + 1);
+                return out;
+            }
+            b'{' => {
+                if out.carry.depth == 0
+                    && (out.carry.expect_attributes || token_before_is_with(bytes, i))
+                {
+                    out.carry.in_attributes = true;
+                    out.carry.expect_attributes = false;
+                }
+                out.carry.depth += 1;
+            }
+            b'}' => {
+                out.carry.depth = out.carry.depth.saturating_sub(1);
+                if out.carry.depth == 0 && out.carry.in_attributes {
+                    out.carry.in_attributes = false;
+                    out.attributes_end = Some(i + 1);
+                }
+            }
+            _ => {}
         }
         if !bytes[i].is_ascii_whitespace() {
             prev = Some(bytes[i]);
@@ -3740,12 +3832,81 @@ fn scan_import_line(s: &str, in_block_comment: bool) -> ImportLineScan {
     out
 }
 
+/// Is the token immediately before `i` the `with` keyword that opens an
+/// import-attributes clause?
+///
+/// Called on a `{`, so anything else there — a specifier list's brace, or a
+/// `with` that is the tail of a longer identifier — must answer `false`. A
+/// comment before the brace ends on a byte that cannot be part of an
+/// identifier, so it yields an empty run rather than a false match.
+fn token_before_is_with(bytes: &[u8], at: usize) -> bool {
+    let mut end = at;
+    while end > 0 && bytes[end - 1].is_ascii_whitespace() {
+        end -= 1;
+    }
+    let mut start = end;
+    while start > 0 && is_ident_byte(bytes[start - 1]) {
+        start -= 1;
+    }
+    &bytes[start..end] == b"with"
+}
+
+/// Does `s` begin — after whitespace and comments — with the `with { … }`
+/// import-attributes clause that continues an `import` statement?
+///
+/// The clause carries no `[no LineTerminator here]` restriction, so it may start
+/// on any later line; `with` is a reserved word, so in module code nothing else
+/// can begin there. The deprecated `assert` spelling is deliberately not
+/// accepted: both compilers reject it while parsing, so no such source reaches
+/// this pass, and `assert` is a plain identifier that a call on the next line
+/// would collide with.
+fn starts_import_attributes(s: &str) -> bool {
+    let keyword = skip_js_whitespace_and_comments(s, 0);
+    let Some(after_keyword) = s[keyword..].strip_prefix("with") else {
+        return false;
+    };
+    if after_keyword
+        .as_bytes()
+        .first()
+        .is_some_and(|b| is_ident_byte(*b))
+    {
+        return false;
+    }
+    let brace = skip_js_whitespace_and_comments(s, s.len() - after_keyword.len());
+    s.as_bytes().get(brace) == Some(&b'{')
+}
+
+/// Byte index of the first significant character in `s` at or after `from`.
+fn skip_js_whitespace_and_comments(s: &str, from: usize) -> usize {
+    let mut i = from;
+    loop {
+        let trimmed = s[i..].trim_start_matches(is_js_whitespace);
+        i = s.len() - trimmed.len();
+        if !(trimmed.starts_with("//") || trimmed.starts_with("/*")) {
+            return i;
+        }
+        match skip_opaque(s.as_bytes(), i, None) {
+            Some((next, true)) => i = next,
+            _ => return i,
+        }
+    }
+}
+
 /// Find the byte index at which the leading import statement in `s` ends.
 ///
 /// Callers pass a slice that starts at a statement boundary, so no comment can
 /// already be open.
 fn import_statement_end(s: &str) -> Option<usize> {
-    scan_import_line(s, false).end()
+    scan_import_line(s, false, ImportCarry::default()).end()
+}
+
+/// One line of `split_inclusive('\n')` without its line terminator, so the two
+/// `extract_imports` ports see exactly what `str::lines` would give them.
+fn strip_line_terminator(physical_line: &str) -> &str {
+    match physical_line.strip_suffix('\n') {
+        Some(without_lf) => without_lf.strip_suffix('\r').unwrap_or(without_lf),
+        None => physical_line,
+    }
 }
 
 /// Peel every complete leading `import` statement off `s`, pushing each onto

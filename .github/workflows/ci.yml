@@ -1255,6 +1255,12 @@ jobs:
       - name: Run pattern-corpus docs guard tests
         run: node scripts/ci/test-check-pattern-corpus-docs.mjs
 
+      # `update-docs.mjs --check` only runs in the Compatibility Report job,
+      # which needs a release build and a generated report. Comparing a doc to
+      # the submodule needs neither, so the version half runs on every PR.
+      - name: Check the docs state the pinned Svelte version
+        run: node scripts/ci/test-svelte-target-marker.mjs
+
       # svelte is the oracle every differential gate compares against, so a
       # range makes the installed version a function of the install date rather
       # than of the commit.

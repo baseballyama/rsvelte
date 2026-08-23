@@ -1238,6 +1238,51 @@ fn test_extract_imports_no_semicolon_side_effect() {
     assert_eq!(rest, "let count = 1;");
 }
 
+/// An import-attributes clause continues the statement wherever it is written:
+/// ASI cannot end an `import` before a `with`, and the clause's own `}` — not
+/// the module specifier — is then the statement's end.
+#[test]
+fn extract_imports_keeps_an_import_attributes_clause() {
+    // The clause starts on the next line, with and without a terminating `;`.
+    for script in [
+        "import d from \"./d.json\"\n\twith { type: \"json\" };\nlet z = d;\n",
+        "import d from \"./d.json\"\n\twith { type: \"json\" }\nlet z = d\n",
+    ] {
+        let (imports, rest) = extract_imports(script);
+        assert_eq!(imports.len(), 1, "{script:?}");
+        assert!(imports[0].contains("with { type: \"json\" }"), "{script:?}");
+        assert!(rest.starts_with("let z = d"), "{script:?} -> {rest:?}");
+    }
+
+    // Same line, but semicolon-free: the line ends inside the clause, so the
+    // statement's end is the clause's `}` and not the specifier.
+    let (imports, rest) =
+        extract_imports("import d from \"./d.json\" with { type: \"json\" }\nlet z = d\n");
+    assert_eq!(
+        imports,
+        vec!["import d from \"./d.json\" with { type: \"json\" }".to_string()]
+    );
+    assert_eq!(rest, "let z = d");
+
+    // The clause itself spans lines: `"json"` ends a line inside it, which the
+    // ASI rule would otherwise read as a module specifier.
+    let (imports, rest) =
+        extract_imports("import d from \"./d.json\" with {\n\ttype: \"json\"\n};\nlet z = d;\n");
+    assert_eq!(imports.len(), 1);
+    assert_eq!(rest, "let z = d;");
+
+    // Control: `with` is only a clause when a `{` follows it. A call to a
+    // function named `assert`, or the word inside a string, must not extend the
+    // statement over the next line.
+    let (imports, rest) = extract_imports("import d from \"./d.json\"\nwith_it(d)\n");
+    assert_eq!(imports, vec!["import d from \"./d.json\"".to_string()]);
+    assert_eq!(rest, "with_it(d)");
+    let (imports, rest) =
+        extract_imports("import d from \"./d.json\"\nconst s = \"with { a: 'b' }\";\n");
+    assert_eq!(imports, vec!["import d from \"./d.json\"".to_string()]);
+    assert_eq!(rest, "const s = \"with { a: 'b' }\";");
+}
+
 #[test]
 fn projected_import_extraction_preserves_legacy_output() {
     for script in [
@@ -1250,6 +1295,12 @@ fn projected_import_extraction_preserves_legacy_output() {
         "import {\n  first,\n  second\n} from 'pkg'; const value = first + second;",
         "const text = `not an import\\nimport x from 'x'`;\nlet value = 1;",
         "/*\nimport x from 'x';\n*/\nlet value = 1;",
+        // The two ports have to agree about the attributes clause as well —
+        // nothing else in the tree compares them to each other.
+        "import d from './d.json'\n\twith { type: 'json' };\nlet z = d;\n",
+        "import d from './d.json'\r\n\twith { type: 'json' };\r\nlet z = d;\r\n",
+        "import d from './d.json' with {\n\ttype: 'json'\n};\nlet z = d;\n",
+        "import d from './d.json'\nlet z = d\n",
     ] {
         let expected = extract_imports(script);
         let (imports, body, copied_chunks) = extract_imports_with_projection(script);
@@ -2679,4 +2730,162 @@ fn scoped_static_class_keeps_its_hash_when_the_expression_is_spanned() {
         "the CSS hash must not become a separate dynamic argument: {}",
         result.js.code
     );
+}
+
+fn globals_fold_client_code(source: &str) -> String {
+    crate::compiler::compile(
+        source,
+        crate::compiler::CompileOptions {
+            generate: crate::compiler::GenerateMode::Client,
+            filename: Some("globals-fold.svelte".to_string()),
+            ..Default::default()
+        },
+    )
+    .expect("compiles")
+    .js
+    .code
+}
+
+/// Upstream's `globals` table folds a call to a known-pure global over known
+/// arguments, so an element whose only child is such a value keeps the
+/// `textContent` fast path. Every row was read off svelte 5.56.9.
+#[test]
+fn pure_global_call_over_known_arguments_keeps_the_text_content_fast_path() {
+    let with_derived = |expr: &str| {
+        globals_fold_client_code(&format!(
+            "<script>\n\tlet n = $state(1);\n\tconst user = (x) => x;\n\tconst d = $derived({expr});\n</script>\n<b>{{d}}</b>\n"
+        ))
+    };
+
+    for expr in [
+        // `Math.*` names the hand-rolled table did not carry
+        "Math.sign(n)",
+        "Math.trunc(n)",
+        "Math.atan2(n, 2)",
+        "Math.imul(n, 2)",
+        "Math.clz32(n)",
+        "Math.fround(n)",
+        "Math.cbrt(n)",
+        "Math.log2(n)",
+        // names it carried, but which a reference to a binding used to bail on
+        "Math.max(n, 2)",
+        "Math.abs(n)",
+        "Math.round(n)",
+        // the two constructors and a `Number.*` member
+        "String(n)",
+        "Number(n)",
+        "Number.isInteger(n)",
+        "String(\"a\")",
+        // the other `is_expression_known_json` arms that reach the same fold
+        "Math.max(Math.abs(n), 2)",
+        "`${Math.abs(n)}`",
+        "Math.abs(n) || 2",
+        "Math.abs(n) ? 'a' : 'b'",
+        "Math.abs(n) + 1",
+        "-Math.abs(n)",
+    ] {
+        let code = with_derived(expr);
+        assert!(
+            code.contains(".textContent = "),
+            "`{expr}` must keep the textContent fast path: {code}"
+        );
+    }
+
+    // Controls: upstream declines each of these, so rsvelte must too.
+    for expr in [
+        "Boolean(n)",        // not in the globals table
+        "parseInt(n)",       // ditto (bare `parseInt`, not `Number.parseInt`)
+        "JSON.stringify(n)", // ditto
+        "Math.hypot(n, 2)",  // a `Math.` name the table does not list
+        "Math.random()",     // listed, but with no computable fn
+        "BigInt(n)",         // ditto
+        "user(n)",           // a local function
+        "n.toFixed(1)",      // a method on a value
+    ] {
+        let code = with_derived(expr);
+        assert!(
+            !code.contains(".textContent = "),
+            "`{expr}` must NOT get the textContent fast path: {code}"
+        );
+    }
+
+    // A written `$state` argument keeps the whole expression unknown.
+    let reactive = globals_fold_client_code(
+        "<script>\n\tlet n = $state(1);\n\tconst d = $derived(Math.abs(n));\n\tfunction bump() { n += 1; }\n</script>\n<b>{d}</b>\n<button onclick={bump}>+</button>\n",
+    );
+    assert!(
+        !reactive.contains(".textContent = "),
+        "a written `$state` argument must stay reactive: {reactive}"
+    );
+
+    // A local binding of the name is not the global — upstream's
+    // `get_global_keypath` returns null once `scope.get(name)` resolves.
+    for shadow in [
+        "<script>\n\tconst Math = { abs: (x) => x };\n\tlet n = $state(1);\n\tconst d = $derived(Math.abs(n));\n</script>\n<b>{d}</b>\n",
+        "<script>\n\tconst String = (x) => 'nope';\n\tlet n = $state(1);\n\tconst d = $derived(String(n));\n</script>\n<b>{d}</b>\n",
+    ] {
+        let code = globals_fold_client_code(shadow);
+        assert!(
+            !code.contains(".textContent = "),
+            "a shadowed global must not be folded: {code}"
+        );
+    }
+
+    // `arguments.every((arg) => arg.type !== 'SpreadElement')` upstream.
+    let spread = globals_fold_client_code(
+        "<script>\n\tconst a = [1, 2];\n\tconst d = $derived(Math.max(...a));\n</script>\n<b>{d}</b>\n",
+    );
+    assert!(
+        !spread.contains(".textContent = "),
+        "a spread argument must not be folded: {spread}"
+    );
+}
+
+/// The folded VALUE comes from the server's table rather than a second
+/// implementation of it: JS `Math.round` is half-UP (`Math.round(-0.5)` is
+/// `-0`), which Rust's `f64::round` (half away from zero) gets wrong.
+#[test]
+fn client_global_call_fold_uses_the_server_js_semantics() {
+    for (expr, expected) in [
+        ("Math.round(-0.5)", "'0'"),
+        ("Math.round(-1.5)", "'-1'"),
+        ("String('a')", "'a'"),
+        ("Number('12')", "'12'"),
+        ("Math.trunc(4.9)", "'4'"),
+        ("Number.isInteger(4)", "'true'"),
+        ("Math.imul(3, 4)", "'12'"),
+        ("Math.clz32(1)", "'31'"),
+    ] {
+        let code = globals_fold_client_code(&format!("<b>{{{expr}}}</b>\n"));
+        assert!(
+            code.contains(&format!(".textContent = {expected};")),
+            "`{expr}` must fold to {expected}: {code}"
+        );
+    }
+}
+
+/// `global_constants` is eight `Math.*` keypaths; every other member of `Math`
+/// or `Number` evaluates to UNKNOWN upstream.
+#[test]
+fn only_the_listed_global_constants_are_known_members() {
+    let with_derived = |expr: &str| {
+        globals_fold_client_code(&format!(
+            "<script>\n\tconst d = $derived({expr});\n</script>\n<b>{{d}}</b>\n"
+        ))
+    };
+
+    for expr in ["Math.PI", "Math.E", "Math.SQRT2"] {
+        let code = with_derived(expr);
+        assert!(
+            code.contains(".textContent = "),
+            "`{expr}` is a listed global constant: {code}"
+        );
+    }
+    for expr in ["Number.MAX_VALUE", "Math.NOPE", "Number.EPSILON"] {
+        let code = with_derived(expr);
+        assert!(
+            !code.contains(".textContent = "),
+            "`{expr}` is not in `global_constants`: {code}"
+        );
+    }
 }

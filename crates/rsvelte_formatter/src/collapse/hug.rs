@@ -530,7 +530,7 @@ pub(super) fn try_hug_mixed(
         if !raw_trail_ws_only
             && inner_line > line_width
             && !raw.contains('\n')
-            && let Some(body) = build_children_doc(out, fragment)
+            && let Some(body) = build_children_doc(out, fragment, Some(options))
         {
             let base_level = if options.js.indent_style.is_tab() {
                 inner_indent
@@ -565,7 +565,7 @@ pub(super) fn try_hug_mixed(
         // `simple == whole` — already in the hug form but content still overflows.
         // Use the Doc IR to reformat the inner content, allowing component attributes
         // to break.
-        let body_opt = build_children_doc(out, fragment);
+        let body_opt = build_children_doc(out, fragment, Some(options));
         if let Some(body) = body_opt {
             let inner_col = inner_indent.visual_width(tw) + 1; // column after the `>`
             let base_level = if options.js.indent_style.is_tab() {
@@ -649,7 +649,7 @@ pub(super) fn try_hug_mixed(
     // fits (only the outer `>` drops to its own line, e.g. `<text …>…</text`\n`>`)
     // and otherwise moves `>{body}</tag` to its own indented line (e.g. `<title`\n
     // `  >…</title`\n`>`).
-    let body_opt = build_children_doc(out, fragment);
+    let body_opt = build_children_doc(out, fragment, Some(options));
     let body = body_opt?;
     let open_no_bracket = open[..open.len() - 1].to_string();
     let inner = Doc::Group(vec![Doc::Concat(vec![

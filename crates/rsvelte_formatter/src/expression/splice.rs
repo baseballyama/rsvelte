@@ -302,7 +302,19 @@ pub(super) fn push_const_tag(
         return Ok(());
     }
     let formatted = format_const_declaration(slice, options, depth)?;
-    edits.push((tag_start, tag_end, format!("{{@const {formatted}}}")));
+    // The tag owns its `}` (unlike a block header, which splices only the bare
+    // expression), so a body ending in `// c` would comment the `}` out.
+    let close = if super::format_core::ends_in_line_comment(&formatted) {
+        let indent = if options.js.indent_style.is_tab() {
+            "\t".repeat(depth)
+        } else {
+            " ".repeat(depth * options.js.indent_width.value() as usize)
+        };
+        format!("\n{indent}}}")
+    } else {
+        "}".to_string()
+    };
+    edits.push((tag_start, tag_end, format!("{{@const {formatted}{close}")));
     Ok(())
 }
 
