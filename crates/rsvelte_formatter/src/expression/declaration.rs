@@ -55,6 +55,9 @@ pub(super) fn format_const_declaration(
             .print()
             .map_err(|e| FormatError::ScriptParse(format!("{e:?}")))?
             .into_code();
+        // A trailing `// c` moves the `;` off the end, so a bare `strip_suffix`
+        // leaves it in the tag body; the shared scanner finds the real one.
+        let formatted = super::format_core::drop_statement_semicolon(formatted);
         let s = formatted.trim_end();
         let s = s.strip_prefix("const ").unwrap_or(s);
         let s = s.strip_suffix(';').unwrap_or(s);
