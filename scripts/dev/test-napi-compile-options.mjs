@@ -31,7 +31,10 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { compile as officialCompile } from '../../submodules/svelte/packages/svelte/src/compiler/index.js';
+import {
+	compile as officialCompile,
+	compileModule as officialCompileModule,
+} from '../../submodules/svelte/packages/svelte/src/compiler/index.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../..');
@@ -171,6 +174,8 @@ const DECLARED = new Map([
 
 // Keys no input can discriminate, each with the reason. A guess here is worse
 // than a gap: it reads as surveyed.
+const REMOVED_KEY_REASON =
+	'declared only so that using it is an error — upstream `validate-options.js` gives it a `removed()` validator with no behaviour, so there is no compile result for a baseline/variant pair to differ in; the error SHAPE is covered by the `removed-*` rows of INVALID_OPTIONS below and its absence on `compileModule` by MODULE_VALID_OPTIONS';
 const UNCOVERED = new Map([
 	[
 		'compile.cssHash',
@@ -180,7 +185,60 @@ const UNCOVERED = new Map([
 		'compileModule.rootDir',
 		'forwarded to CompileOptions but every consumer of `root_dir` (the `$.FILENAME` / HMR key in the client component transform, and the CSS scope hash) is component-only, so a module compile has nothing to observe',
 	],
+	[
+		'compile.warningFilter',
+		'a callback the synchronous entries cannot invoke: declared so a wrong TYPE is rejected the way upstream `fun()` rejects it, and so the callback form is not mistaken for an unrecognised key. Its type check is covered by the `warningFilter-*` rows of INVALID_OPTIONS and the function form by VALID_OPTIONS; applying it is `@rsvelte/vite-plugin-svelte-native`\'s job and is covered by `test:vps-shim` (see #3396)',
+	],
+	['compileModule.warningFilter', 'as compile.warningFilter — a `common_options` key, so its type is validated on this entry point too'],
+	['compile.legacy', REMOVED_KEY_REASON],
+	['compile.format', REMOVED_KEY_REASON],
+	['compile.tag', REMOVED_KEY_REASON],
+	['compile.sveltePath', REMOVED_KEY_REASON],
+	['compile.errorMode', REMOVED_KEY_REASON],
+	['compile.varsReport', REMOVED_KEY_REASON],
 ]);
+
+// ---------------------------------------------------------------------------
+// 1b. The keys the boundary must NOT reject
+// ---------------------------------------------------------------------------
+//
+// `#[napi(object)]` reads the fields it declares and never enumerates the
+// object, so until an explicit key scan landed there was no key it could see as
+// unrecognised. That scan has a list, and a list can drift from the structs it
+// mirrors in the direction that hurts: a key dropped from it makes the boundary
+// reject an option the compiler still supports. Reconcile both ways.
+
+function recognisedKeyList(src) {
+	const m = src.match(/const RECOGNISED_COMPILE_OPTIONS: &\[&str\] = &\[([\s\S]*?)\n\];/);
+	if (!m) return null;
+	return [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]);
+}
+
+console.log('\n# unrecognised-key scan');
+const recognised = recognisedKeyList(libSource);
+assert('lib.rs still declares RECOGNISED_COMPILE_OPTIONS', recognised != null);
+if (recognised) {
+	const declaredKeys = new Set([
+		...(structs.get('NapiCompileOptions') ?? []),
+		...(structs.get('NapiModuleCompileOptions') ?? []),
+	]);
+	const notDeclared = recognised.filter((k) => !declaredKeys.has(k));
+	assert(
+		'every recognised key is a declared field of one of the option structs',
+		notDeclared.length === 0,
+		notDeclared.join(', ')
+	);
+	const notRecognised = [...declaredKeys].filter((k) => !recognised.includes(k));
+	assert(
+		'every declared option field is in the recognised set (else the boundary rejects a supported key)',
+		notRecognised.length === 0,
+		notRecognised.join(', ')
+	);
+	assert(
+		'the recognised set has no duplicates',
+		new Set(recognised).size === recognised.length
+	);
+}
 
 // ---------------------------------------------------------------------------
 // 2. Per-key discriminating cases
@@ -768,6 +826,43 @@ const INVALID_OPTIONS = [
 	['compatibility-number', { compatibility: 2 }],
 	['componentApi-3', { compatibility: { componentApi: 3 } }],
 	['componentApi-string', { compatibility: { componentApi: '4' } }],
+	// A key `validate-options.js` does not declare. `#[napi(object)]` has no
+	// field for one, so this was silence until the boundary learned to
+	// enumerate the object's own keys (#3535).
+	['unknown-key', { nonsense: 1 }],
+	// Presence, not definedness: upstream walks `for (const key in input)`.
+	['unknown-key-undefined', { nonsense: undefined }],
+	['unknown-key-null', { nonsense: null }],
+	['unknown-key-typo', { preserveComment: true }],
+	// A nested `object()` reports under its own keypath.
+	['unknown-child-experimental', { experimental: { nope: 1 } }],
+	['unknown-child-compatibility', { compatibility: { nope: 1 } }],
+	// `removed()`, not `warn_removed()`: these throw.
+	['removed-legacy', { legacy: {} }],
+	['removed-legacy-null', { legacy: null }],
+	['removed-format', { format: 'esm' }],
+	['removed-tag', { tag: 'x-a' }],
+	['removed-sveltePath', { sveltePath: 'svelte' }],
+	['removed-errorMode', { errorMode: 'warn' }],
+	['removed-varsReport', { varsReport: 'full' }],
+	['warningFilter-string', { warningFilter: 'nope' }],
+	['warningFilter-number', { warningFilter: 3 }],
+	// css: 'none' has its own upstream message, distinct from the generic one.
+	['css-none', { css: 'none' }],
+	// Which of two failures surfaces is upstream's key-declaration order, and
+	// the unrecognised-key loop runs before every validator.
+	['prec-unknown-beats-dev', { nonsense: 1, dev: 'yes' }],
+	['prec-unknown-beats-removed', { nonsense: 1, legacy: {} }],
+	['prec-dev-beats-removed', { legacy: {}, dev: 'yes' }],
+	['prec-removed-beats-namespace', { legacy: {}, namespace: 'nope' }],
+	['prec-name-beats-fragments', { fragments: 'nope', name: 3 }],
+	// `css` and `customElement` are `parametric()`: their normalizer runs on the
+	// first CALL, so upstream reports them only after every plain validator has
+	// passed — and `customElement` before `css`.
+	['prec-varsReport-beats-css', { css: 'none', varsReport: 'x' }],
+	['prec-name-beats-css', { css: 'none', name: 3 }],
+	['prec-name-beats-customElement', { customElement: 'x-a', name: 3 }],
+	['prec-customElement-beats-css', { css: 'none', customElement: 'x-a' }],
 ];
 
 const VALID_OPTIONS = [
@@ -777,6 +872,52 @@ const VALID_OPTIONS = [
 	['generate-server', { generate: 'server' }],
 	['fragments-tree', { fragments: 'tree' }],
 	['componentApi-4', { compatibility: { componentApi: 4 } }],
+	// `removed()` fires on `input !== undefined`, so an explicitly-undefined
+	// removed key is absence. An over-eager `is_some()` would reject this.
+	['removed-legacy-undefined', { legacy: undefined }],
+	['removed-format-undefined', { format: undefined }],
+	// Callback-shaped and map-shaped keys the vite plugin forwards: both must
+	// survive the unrecognised-key scan.
+	['warningFilter-function', { warningFilter: (w) => w.code !== 'nope' }],
+	['sourcemap-object', { sourcemap: INPUT_MAP }],
+	// `warn_removed()` warns; it must not throw.
+	['hydratable', { hydratable: true }],
+	['enableSourcemap', { enableSourcemap: false }],
+	['loopGuardTimeout', { loopGuardTimeout: 100 }],
+];
+
+// The entry point is a second axis, and upstream answers differently on it:
+// `validate_module_options` is `common_options` plus every COMPONENT key mapped
+// to a no-op, so a removed option is an error on `compile` and silence on
+// `compileModule`, while an unrecognised key is an error on both. A grid that
+// only drives `compile` cannot see either half.
+// A module whose compilation cannot itself fail, so a thrown value is the option check.
+const MODULE_OPT_SRC = 'export const x = 1;\n';
+
+const MODULE_INVALID_OPTIONS = [
+	['unknown-key', { nonsense: 1 }],
+	['unknown-key-undefined', { nonsense: undefined }],
+	['unknown-child-experimental', { experimental: { nope: 1 } }],
+	['warningFilter-string', { warningFilter: 'nope' }],
+	['dev-string', { dev: 'yes' }],
+	['prec-unknown-beats-dev', { nonsense: 1, dev: 'yes' }],
+];
+
+const MODULE_VALID_OPTIONS = [
+	['baseline', {}],
+	// Every one of these is a component option, which the module validator
+	// declares as a no-op — accepted here and rejected on `compile`.
+	['removed-legacy', { legacy: {} }],
+	['removed-format', { format: 'esm' }],
+	['removed-tag', { tag: 'x-a' }],
+	['removed-sveltePath', { sveltePath: 'svelte' }],
+	['removed-errorMode', { errorMode: 'warn' }],
+	['removed-varsReport', { varsReport: 'full' }],
+	['namespace-bogus', { namespace: 'nope' }],
+	['css-none', { css: 'none' }],
+	['name-number', { name: 1 }],
+	['unknown-child-compatibility', { compatibility: { nope: 1 } }],
+	['warningFilter-function', { warningFilter: (w) => w.code !== 'nope' }],
 ];
 
 function errorShape(compile, opts) {
@@ -819,6 +960,62 @@ for (const [label, opts] of VALID_OPTIONS) {
 	const rs = errorShape(napi.compile, opts);
 	assert(`valid.${label}: official accepts it`, !sv.threw, sv.message);
 	assert(`valid.${label}: rsvelte accepts it`, !rs.threw, rs.message);
+}
+
+// `cssHashOverride` is rsvelte-only, so it cannot be compared against the oracle
+// — official rejects it as unrecognised, correctly. It still has to survive
+// rsvelte's own key scan, which is the half a shared row would have covered.
+{
+	const rs = errorShape(napi.compile, { cssHashOverride: 's-DEADBEEF' });
+	assert('rsvelte-only.cssHashOverride: the key scan does not reject it', !rs.threw, rs.message);
+	const sv = errorShape(officialCompile, { cssHashOverride: 's-DEADBEEF' });
+	assert(
+		'rsvelte-only.cssHashOverride: official rejects it, which is why it cannot be a shared row',
+		sv.threw && sv.code === 'options_unrecognised',
+		sv.code
+	);
+}
+
+function moduleErrorShape(compileModule, opts) {
+	try {
+		compileModule(MODULE_OPT_SRC, { filename: 'a.svelte.js', ...opts });
+		return { threw: false };
+	} catch (e) {
+		return {
+			threw: true,
+			code: e.code === undefined ? '(absent)' : String(e.code),
+			name: String(e.name),
+			filename: e.filename === undefined ? '(absent)' : String(e.filename),
+			message: String(e.message),
+		};
+	}
+}
+
+console.log('\n# compileModule option-validation error shape');
+for (const [label, opts] of MODULE_INVALID_OPTIONS) {
+	const sv = moduleErrorShape(officialCompileModule, opts);
+	const rs = moduleErrorShape(napi.compileModule, opts);
+	if (!sv.threw) {
+		assert(`module.invalid.${label}: official rejects it`, false, 'the oracle accepted — fix the row');
+		continue;
+	}
+	if (!rs.threw) {
+		assert(`module.invalid.${label}: rsvelte rejects it too`, false, 'rsvelte compiled it');
+		continue;
+	}
+	for (const field of ['code', 'name', 'filename', 'message']) {
+		assert(
+			`module.invalid.${label}: ${field}`,
+			rs[field] === sv[field],
+			`official ${JSON.stringify(sv[field])} vs rsvelte ${JSON.stringify(rs[field])}`
+		);
+	}
+}
+for (const [label, opts] of MODULE_VALID_OPTIONS) {
+	const sv = moduleErrorShape(officialCompileModule, opts);
+	const rs = moduleErrorShape(napi.compileModule, opts);
+	assert(`module.valid.${label}: official accepts it`, !sv.threw, sv.message);
+	assert(`module.valid.${label}: rsvelte accepts it`, !rs.threw, rs.message);
 }
 
 // ---------------------------------------------------------------------------
