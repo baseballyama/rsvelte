@@ -86,6 +86,7 @@ whose oracle is the other implementation is only as good as its independent expe
 | [10](#10-which-line-and-column-is-byte-offset-n-on--d) | Which line and column is byte offset N on? | 4 tables | **[D]** | no |
 | [11](#11-does-this-expression-contain-a-call--s) | Does this expression contain a call? | 4 | **[S]** | #3569 open |
 | [12](#12-selector-unused-and-element-scoped-are-two-engines-over-two-element-models--s) | "Selector unused" vs "element scoped" | 2 engines, 2 element models | **[S]** | no |
+| [13](#13-what-does-a-call-to-one-of-upstreams-globals-keypaths-evaluate-to--d-closed-by-degree-1) | What does a call to one of upstream's `globals` keypaths evaluate to? | 2 tables | **[D]** | closed by #3471 (degree 1) |
 
 ---
 
@@ -326,6 +327,11 @@ whose `is_known` / `is_defined` / `is_primitive` fields are read at a handful of
 AGENTS.md already names three of these as "the next instalment" after #3027. The `<title>` and
 `<option>` ports are not in that list.
 
+The `globals` **table** underneath these predicates was a seventh port until #3471; it is
+row [13](#13-what-does-a-call-to-one-of-upstreams-globals-keypaths-evaluate-to--d-closed-by-degree-1),
+and it is the one instance in this file where the two ports were shown to render different text
+from the same source.
+
 ### 10. Which line and column is byte offset N on? — [D]
 
 **Upstream:** `state.js:57` — one `getLocator(source)` stored on `state.locator` and read
@@ -392,6 +398,46 @@ because it needs both engines instrumented in one run. #3427 is the same shape o
 did produce a number, so it is measurable in principle.
 
 ---
+
+### 13. What does a call to one of upstream's `globals` keypaths evaluate to? — [D], closed by degree 1
+
+**Upstream:** one `globals` table in `phases/scope.js:26` — 46 keypaths, each `[type, fn?]`.
+`scope.evaluate`'s `CallExpression` arm calls `fn(...args)` when every argument is known and adds
+the `NUMBER` / `STRING` marker otherwise. One table, one arm, one set of JS semantics.
+
+**Ports — two, and they disagreed on a value both computed:**
+
+- `3_transform/server/evaluate.rs:487` `eval_global_call` — all 46 keypaths, JS semantics
+  (`Math.round` as `(n + 0.5).floor()`, which is JS's half-**up**), returning a typed `EvalValue`.
+- `client/visitors/shared/utils.rs`, `get_literal_value_complex`'s `CallExpression` arm — a
+  private list of **eight** `Math` names (`max`/`min`/`floor`/`ceil`/`round`/`abs`/`sqrt`/`pow`),
+  no `String`, no `Number`, no `Number.*`, no `String.*`, no shadow guard, no `SpreadElement`
+  guard — and `Math.round` as Rust's `f64::round`, which rounds half **away from zero**.
+
+**The discriminating input is one line**, and it needs no state at all:
+
+```svelte
+<b>{Math.round(-0.5)}</b>
+```
+
+The client inlined `b.textContent = '-1'`; the server inlined `<b>0</b>`; official is `0` on both.
+So a single source rendered a different number depending on which port read it, in output that
+parses cleanly and has no reactivity symptom. `Math.round(-1.5)` is the second instance (`-2` vs
+`-1`). No gate saw it: the corpus compares each target to *upstream* independently, so a
+client-only wrong value is one entry's client column and nothing cross-checks it against the
+server column of the same entry.
+
+**Reachability is not in question here** — unlike several rows above, the input is an ordinary
+template expression and the client fold is on its default path.
+
+The second-order cost was larger than the wrong value: because the client's table was private, it
+was also *small*, so `String(n)`, `Number(n)`, `Math.sign(n)` and 30 more names silently lost the
+`textContent` fast path (#3471, 61 divergent cells of 124 measured).
+
+**Closed at degree 1:** the client's arm was deleted and now calls the server's table through
+`eval_known_global_call`. There is no second answer left to compare, which is why this row is
+recorded rather than tracked. What it does **not** buy: the surrounding predicates in row 9 are
+untouched, and nothing new compares any two of *them*.
 
 ## Adding a row, and closing one
 
