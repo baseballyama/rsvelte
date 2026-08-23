@@ -7162,11 +7162,17 @@ fn transform_complex_selector(
                     for (idx, sel) in selectors.iter().enumerate() {
                         let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
-                        // Handle universal selector
+                        // Upstream walks a compound BACKWARDS and stops at the first
+                        // non-pseudo selector, so a `*` is only ever consumed by the
+                        // modifier when it is that stopping point; anywhere else it is
+                        // never reached and survives verbatim.
                         if sel_type == "TypeSelector"
                             && sel.get("name").and_then(|n| n.as_str()) == Some("*")
                         {
-                            if needs_scoping {
+                            if needs_scoping
+                                && Some(idx) == last_non_pseudo_idx
+                                && !has_nesting_selector
+                            {
                                 // Replace * with the scoping selector
                                 let modifier = get_modifier(selector, &local_specificity_bumped);
                                 append_modifier(&mut selector_parts, &modifier);
