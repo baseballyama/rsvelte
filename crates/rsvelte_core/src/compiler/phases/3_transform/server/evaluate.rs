@@ -560,6 +560,13 @@ fn eval_global_call(keypath: &str, args: &[Evaluation]) -> Option<EvalValue> {
         "Number" => {
             if args.is_empty() {
                 Some(0.0)
+            } else if !all_known {
+                None
+            } else if let Some(EvalValue::BigInt(v)) = args[0].known_value() {
+                // `Number(1n)` is ToNumber on a bigint, which is defined —
+                // unlike the arithmetic operators, which throw on one, so
+                // `to_number` is right to refuse it.
+                Some(*v as f64)
             } else {
                 num_at(0)
             }
