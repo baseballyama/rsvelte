@@ -982,7 +982,9 @@ fn collect_dollar_identifiers_pass(
     // characters precede the reference (M-005). Only the reference-collecting
     // pass reads it, and only a non-ASCII script needs it at all — otherwise a
     // char index already is the byte offset.
-    let char_byte_offsets: Option<Vec<usize>> = if collect_declared || js.is_ascii() {
+    // The regex skip below indexes bytes too, so the table is built for every
+    // non-ASCII script rather than only for the reference-collecting pass.
+    let char_byte_offsets: Option<Vec<usize>> = if js.is_ascii() {
         None
     } else {
         Some(js.char_indices().map(|(b, _)| b).collect())
@@ -1072,6 +1074,18 @@ fn collect_dollar_identifiers_pass(
                 i += 2;
                 continue;
             }
+        }
+
+        // A regex literal is opaque, so `/\$mystore/` names no store. Whether a
+        // `/` opens one is the previous token's question, and js_scan already
+        // answers it — a second implementation here would be free to disagree.
+        if c == '/'
+            && let Some(end) =
+                regex_literal_end(js, chars, char_byte_offsets.as_deref(), i, prev_code)
+        {
+            prev_code = Some(end - 1);
+            i = end;
+            continue;
         }
 
         // Track brace depth for template literal interpolations
@@ -1207,6 +1221,44 @@ fn collect_dollar_identifiers_pass(
         }
         i += 1;
     }
+}
+
+/// Char index just past the regex literal opening at `at`, or `None` when that
+/// `/` is a division, a comment or an unterminated literal.
+fn regex_literal_end(
+    js: &str,
+    chars: &[char],
+    offsets: Option<&[usize]>,
+    at: usize,
+    prev_code: Option<usize>,
+) -> Option<usize> {
+    let to_byte = |ci: usize| match offsets {
+        Some(table) => table.get(ci).copied(),
+        None => Some(ci),
+    };
+    // JS spells no operator outside ASCII, so a non-ASCII code char is an
+    // identifier char — which is what decides division over regex.
+    let prev = match prev_code {
+        Some(p) => Some(match chars.get(p)? {
+            c if c.is_ascii() => *c as u8,
+            _ => b'x',
+        }),
+        None => None,
+    };
+    let start = to_byte(at)?;
+    let (end, was_comment) =
+        crate::compiler::phases::phase3_transform::shared::js_scan::skip_opaque(
+            js.as_bytes(),
+            start,
+            prev,
+        )?;
+    if was_comment {
+        return None;
+    }
+    Some(match offsets {
+        Some(table) => table.partition_point(|&b| b < end),
+        None => end,
+    })
 }
 
 /// Check if a character is a valid JavaScript identifier character.
@@ -1548,6 +1600,10 @@ fn collect_dollar_refs_from_attributes(
             Attribute::StyleDirective(style_dir) => {
                 // StyleDirective.value is AttributeValue (not Option)
                 match &style_dir.value {
+                    // Shorthand `style:$store` reads the name as the value.
+                    AttributeValue::True(_) => {
+                        push_dollar_directive_name(&style_dir.name, style_dir.start, refs);
+                    }
                     AttributeValue::Expression(expr_tag) => {
                         collect_dollar_refs_from_expression(&expr_tag.expression, source, refs);
                     }
@@ -1562,37 +1618,22 @@ fn collect_dollar_refs_from_attributes(
                             }
                         }
                     }
-                    _ => {}
                 }
             }
             Attribute::UseDirective(use_dir) => {
-                // Check if the directive name contains a store reference
-                // e.g., use:$store.action should create a subscription for $store
-                if use_dir.name.starts_with('$') {
-                    // Extract the store name (before the first . if present)
-                    let store_name = if let Some(dot_pos) = use_dir.name.find('.') {
-                        &use_dir.name[..dot_pos]
-                    } else {
-                        use_dir.name.as_str()
-                    };
-                    if store_name.len() > 1 {
-                        refs.push(StoreRef {
-                            name: store_name.to_string(),
-                            position: use_dir.start as usize,
-                            in_module: false,
-                        });
-                    }
-                }
+                push_dollar_directive_name(&use_dir.name, use_dir.start, refs);
                 if let Some(ref expr) = use_dir.expression {
                     collect_dollar_refs_from_expression(expr, source, refs);
                 }
             }
             Attribute::TransitionDirective(trans_dir) => {
+                push_dollar_directive_name(&trans_dir.name, trans_dir.start, refs);
                 if let Some(ref expr) = trans_dir.expression {
                     collect_dollar_refs_from_expression(expr, source, refs);
                 }
             }
             Attribute::AnimateDirective(anim_dir) => {
+                push_dollar_directive_name(&anim_dir.name, anim_dir.start, refs);
                 if let Some(ref expr) = anim_dir.expression {
                     collect_dollar_refs_from_expression(expr, source, refs);
                 }
@@ -1604,6 +1645,24 @@ fn collect_dollar_refs_from_attributes(
                 collect_dollar_refs_from_expression(&attach.expression, source, refs);
             }
         }
+    }
+}
+
+/// Record the store a directive's *name* refers to, e.g. `transition:$store`.
+///
+/// Upstream reaches this through one shared `SvelteDirective` scope visitor, so
+/// every directive whose name is an identifier has to register it.
+fn push_dollar_directive_name(name: &str, start: u32, refs: &mut Vec<StoreRef>) {
+    if !name.starts_with('$') {
+        return;
+    }
+    let store_name = name.split('.').next().unwrap_or(name);
+    if store_name.len() > 1 {
+        refs.push(StoreRef {
+            name: store_name.to_string(),
+            position: start as usize,
+            in_module: false,
+        });
     }
 }
 
