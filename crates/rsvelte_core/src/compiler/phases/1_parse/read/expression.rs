@@ -6956,12 +6956,27 @@ fn acorn_only_violation(
     is_typescript: bool,
 ) -> Option<(u32, String)> {
     use oxc_ast_visit::Visit;
-    struct Scan {
+    struct Scan<'c> {
         check_decorator: bool,
         decorator_at: Option<u32>,
         with_at: Option<u32>,
+        check_ts_modifier: bool,
+        content: &'c str,
+        ts_modifier_at: Option<u32>,
     }
-    impl<'a> Visit<'a> for Scan {
+    impl Scan<'_> {
+        fn record_ts_modifier(&mut self, carries_modifier: bool, span: oxc_span::Span) {
+            if !self.check_ts_modifier || !carries_modifier {
+                return;
+            }
+            if let Some(at) = ts_class_modifier_stop(self.content, span.start)
+                && self.ts_modifier_at.is_none_or(|seen| at < seen)
+            {
+                self.ts_modifier_at = Some(at);
+            }
+        }
+    }
+    impl<'a> Visit<'a> for Scan<'_> {
         fn visit_decorator(&mut self, dec: &oxc_ast::ast::Decorator<'a>) {
             if self.check_decorator && self.decorator_at.is_none() {
                 self.decorator_at = Some(dec.span.start);
@@ -6973,16 +6988,46 @@ fn acorn_only_violation(
             }
             oxc_ast_visit::walk::walk_with_statement(self, stmt);
         }
+        fn visit_method_definition(&mut self, def: &oxc_ast::ast::MethodDefinition<'a>) {
+            self.record_ts_modifier(
+                def.accessibility.is_some()
+                    || def.r#override
+                    || def.r#type == oxc_ast::ast::MethodDefinitionType::TSAbstractMethodDefinition,
+                def.span,
+            );
+            oxc_ast_visit::walk::walk_method_definition(self, def);
+        }
+        fn visit_property_definition(&mut self, def: &oxc_ast::ast::PropertyDefinition<'a>) {
+            self.record_ts_modifier(
+                def.accessibility.is_some()
+                    || def.r#override
+                    || def.readonly
+                    || def.declare
+                    || def.r#type
+                        == oxc_ast::ast::PropertyDefinitionType::TSAbstractPropertyDefinition,
+                def.span,
+            );
+            oxc_ast_visit::walk::walk_property_definition(self, def);
+        }
+        fn visit_accessor_property(&mut self, def: &oxc_ast::ast::AccessorProperty<'a>) {
+            // acorn has no auto-accessor plugin, so `accessor` itself is the violation.
+            self.record_ts_modifier(true, def.span);
+            oxc_ast_visit::walk::walk_accessor_property(self, def);
+        }
     }
 
     let check_decorator = !is_typescript && content.contains('@');
     let check_with = content.contains("with");
+    let check_ts_modifier = !is_typescript && content.contains("class");
     let mut finder = Scan {
         check_decorator,
         decorator_at: None,
         with_at: None,
+        check_ts_modifier,
+        content,
+        ts_modifier_at: None,
     };
-    if check_decorator || check_with {
+    if check_decorator || check_with || check_ts_modifier {
         finder.visit_program(program);
     }
 
@@ -6998,10 +7043,67 @@ fn acorn_only_violation(
         }),
         await_or_yield_in_params(program, content).map(|(at, message)| (at, message.to_string())),
         super::strict_mode::find_violation(program, content, is_typescript),
+        finder
+            .ts_modifier_at
+            .map(|at| (at, "Unexpected token".to_string())),
     ]
     .into_iter()
     .flatten()
     .min_by_key(|(at, _)| *at)
+}
+
+/// TypeScript-only class-member modifiers. OXC parses these in a plain-JS
+/// source too and reports nothing, so every acorn boundary has to ask.
+const TS_ONLY_CLASS_MODIFIERS: [&str; 8] = [
+    "public",
+    "private",
+    "protected",
+    "readonly",
+    "override",
+    "declare",
+    "abstract",
+    "accessor",
+];
+
+/// Where acorn stops on such a member: it reads the modifier as the member's
+/// *name*, so the error lands on the token that could not follow it.
+///
+/// Only reached once OXC has already flagged the member, so the bytes from
+/// `from` are modifier keywords, whitespace and comments — never a string or a
+/// regex literal.
+fn ts_class_modifier_stop(content: &str, from: u32) -> Option<u32> {
+    let mut i = from as usize;
+    let mut seen_modifier = false;
+    loop {
+        loop {
+            i += content[i..]
+                .find(|c: char| !c.is_whitespace())
+                .unwrap_or(content.len() - i);
+            let rest = &content[i..];
+            if let Some(body) = rest.strip_prefix("//") {
+                i += 2 + body.find('\n')?;
+            } else if let Some(body) = rest.strip_prefix("/*") {
+                i += 2 + body.find("*/")? + 2;
+            } else {
+                break;
+            }
+        }
+        if i >= content.len() {
+            return None;
+        }
+        if seen_modifier {
+            return Some(i as u32);
+        }
+        let word = content[i..]
+            .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '$'))
+            .unwrap_or(content.len() - i);
+        if word == 0 {
+            // A decorator's `@`, reported by the decorator arm instead.
+            return None;
+        }
+        seen_modifier = TS_ONLY_CLASS_MODIFIERS.contains(&&content[i..i + word]);
+        i += word;
+    }
 }
 
 /// OXC reports a missing semicolon at the INSERTION POINT — the end of the
