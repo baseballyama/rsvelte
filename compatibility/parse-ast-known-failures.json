@@ -520,7 +520,6 @@
 	"modern::ReturnStatement.leadingComments[]#length": "comment-attachment",
 	"modern::ReturnStatement.trailingComments#missing": "comment-attachment",
 	"modern::ReturnStatement.type#value": "node-type",
-	"modern::Root#span": "root-span",
 	"modern::Root.comments[]#length": "child-count",
 	"modern::Root.options.customElement.props.anArray#missing": "unclustered",
 	"modern::Root.options.customElement.props.camelCase#missing": "unclustered",
