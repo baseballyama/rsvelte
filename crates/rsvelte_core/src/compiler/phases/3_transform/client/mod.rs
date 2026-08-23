@@ -4994,12 +4994,21 @@ fn transform_module_script_runes_with_target(
     // the dev-only collectors exactly as the sequential call sites did.
     {
         let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
+        // `compileModule` only: a component's `<script module>` reaches here with
+        // an already-processed `pre_class_script`, so its positions are not the
+        // source's (#3543).
+        let trace_thunks = if dev && !server && module_entry {
+            inspect_rune_ast::collect_trace_thunks(pre_class_script, is_ts, &analysis.filename)
+        } else {
+            Vec::new()
+        };
         if let Some(rewritten) = module_dev_tail_ast::transform_module_dev_tail_ast(
             &result,
             dev,
             is_ts,
             analysis.runes,
             Some(analysis),
+            &trace_thunks,
         ) {
             result = rewritten;
         }

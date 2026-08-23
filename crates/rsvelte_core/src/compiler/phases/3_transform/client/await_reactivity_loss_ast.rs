@@ -154,6 +154,14 @@ fn is_internal_call(expr: &Expression<'_>, name: &str) -> bool {
         && matches!(&member.object, Expression::Identifier(id) if id.name == "$")
 }
 
+/// The `await $.trace(…)` an async function's `$inspect.trace()` is lowered to.
+/// It is generated after the source's own awaits were instrumented, and
+/// upstream builds it with `b.await` rather than visiting an await of the
+/// user's, so it has no counterpart to instrument.
+fn is_trace_call(expr: &Expression<'_>) -> bool {
+    is_internal_call(expr, "trace")
+}
+
 /// The `await (async ($$value) => { … })(…)` an async destructuring assignment
 /// is lowered to. Upstream destructures after a single instrumented `await`, so
 /// this call — which rsvelte generates *after* the source `await` was already
@@ -407,6 +415,7 @@ impl<'a, 'src> Visit<'a> for AwaitCollector<'src> {
         if is_track_reactivity_loss_call(&expr.argument)
             || is_async_derived_call(&expr.argument)
             || is_save_call(&expr.argument)
+            || is_trace_call(&expr.argument)
             || is_destructuring_iife_call(&expr.argument)
             || self.ignored.contains(expr.span.start)
         {
