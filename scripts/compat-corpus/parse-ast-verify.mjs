@@ -132,6 +132,10 @@ const LOOSE_SOURCES = {
 const CLUSTERS = [
 	[/#official-rejects/, 'accepts-what-official-rejects'],
 	[/#rsvelte-rejects/, 'rejects-what-official-accepts'],
+	// `_comments` is the legacy AST's comment array, so its divergences are
+	// #3387's class, not the root-shape one — it must not sit behind the
+	// root-prefix rule below.
+	[/^legacy::\(root\)\._comments/, 'comment-attachment'],
 	[/^legacy::\(root\)\./, 'ast-mode'],
 	[/^modern::Root#span$/, 'root-span'],
 	[/\.(leadingComments|trailingComments)/, 'comment-attachment'],
