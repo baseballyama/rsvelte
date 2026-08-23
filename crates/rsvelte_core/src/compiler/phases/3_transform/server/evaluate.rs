@@ -214,6 +214,9 @@ fn js_str_to_number(s: &str) -> f64 {
     t.parse::<f64>().unwrap_or(f64::NAN)
 }
 
+/// JS `ToNumber`, which THROWS on a bigint — so a bigint declines here and
+/// every implicit-coercion caller (`Math.*`, unary `+`, `~`) declines with it.
+/// Arithmetic uses `ToNumeric` instead and must not come through this.
 pub(crate) fn to_number(v: &EvalValue) -> Option<f64> {
     match v {
         EvalValue::Num(n) => Some(*n),
@@ -223,6 +226,129 @@ pub(crate) fn to_number(v: &EvalValue) -> Option<f64> {
         EvalValue::Undefined | EvalValue::Regex(_) => Some(f64::NAN),
         _ => None,
     }
+}
+
+/// JS `StringToBigInt`. The outer `None` means the text is a bigint this port
+/// cannot hold in an `i128`; the inner `None` means it is not a bigint at all,
+/// which JS reports as `undefined` — `==` is then false and every relational
+/// comparison is false.
+fn js_str_to_bigint(s: &str) -> Option<Option<i128>> {
+    let t = s.trim();
+    if t.is_empty() {
+        return Some(Some(0));
+    }
+    let (radix, digits) = match t.get(..2) {
+        Some("0x" | "0X") => (16, &t[2..]),
+        Some("0o" | "0O") => (8, &t[2..]),
+        Some("0b" | "0B") => (2, &t[2..]),
+        _ => (10, t),
+    };
+    let body = if radix == 10 {
+        digits.strip_prefix(['+', '-']).unwrap_or(digits)
+    } else {
+        digits
+    };
+    if body.is_empty() || !body.chars().all(|c| c.is_digit(radix)) {
+        return Some(None);
+    }
+    match i128::from_str_radix(digits, radix) {
+        Ok(v) => Some(Some(v)),
+        Err(_) => None,
+    }
+}
+
+/// Compares a bigint with a double the way JS does: mathematically, without
+/// rounding the bigint or truncating the double. `None` for NaN, which leaves
+/// the pair unordered.
+fn cmp_bigint_f64(x: i128, n: f64) -> Option<std::cmp::Ordering> {
+    use std::cmp::Ordering;
+    if n.is_nan() {
+        return None;
+    }
+    // 2^127 — one past `i128::MAX`, and exactly representable as a double.
+    const LIMIT: f64 = 170_141_183_460_469_231_731_687_303_715_884_105_728.0;
+    let floor = n.floor();
+    if floor >= LIMIT {
+        return Some(Ordering::Less);
+    }
+    if floor < -LIMIT {
+        return Some(Ordering::Greater);
+    }
+    Some(match x.cmp(&(floor as i128)) {
+        Ordering::Equal if n > floor => Ordering::Less,
+        other => other,
+    })
+}
+
+/// `<` where at least one operand is a bigint. Outer `None`: cannot evaluate;
+/// inner `None`: unordered, so every relational operator is false.
+fn bigint_less_than(a: &EvalValue, b: &EvalValue) -> Option<Option<bool>> {
+    use std::cmp::Ordering;
+    let ord = match (a, b) {
+        (EvalValue::BigInt(x), EvalValue::BigInt(y)) => Some(x.cmp(y)),
+        (EvalValue::BigInt(x), EvalValue::Str(s)) => js_str_to_bigint(s)?.map(|y| x.cmp(&y)),
+        (EvalValue::Str(s), EvalValue::BigInt(y)) => js_str_to_bigint(s)?.map(|x| x.cmp(y)),
+        (EvalValue::BigInt(x), other) => cmp_bigint_f64(*x, to_number(other)?),
+        (other, EvalValue::BigInt(y)) => {
+            cmp_bigint_f64(*y, to_number(other)?).map(Ordering::reverse)
+        }
+        _ => return None,
+    };
+    Some(ord.map(|o| o == Ordering::Less))
+}
+
+/// BigInt arithmetic. JS throws a `TypeError` the moment the other operand is
+/// not a bigint too, so a mixed expression has no value to fold. `None` from
+/// any arm — an exact result outside `i128`, a division by zero, a negative
+/// exponent — leaves the expression reactive rather than folding it wrong.
+fn bigint_arith(op: &str, a: &EvalValue, b: &EvalValue) -> EvalValue {
+    let (EvalValue::BigInt(x), EvalValue::BigInt(y)) = (a, b) else {
+        return EvalValue::Unknown;
+    };
+    let (x, y) = (*x, *y);
+    let r = match op {
+        "+" => x.checked_add(y),
+        "-" => x.checked_sub(y),
+        "*" => x.checked_mul(y),
+        "/" => x.checked_div(y),
+        "%" => x.checked_rem(y),
+        "**" => u32::try_from(y).ok().and_then(|e| x.checked_pow(e)),
+        "&" => Some(x & y),
+        "|" => Some(x | y),
+        "^" => Some(x ^ y),
+        "<<" => bigint_shift_left(x, y),
+        ">>" => y.checked_neg().and_then(|n| bigint_shift_left(x, n)),
+        _ => None,
+    };
+    r.map(EvalValue::BigInt).unwrap_or(EvalValue::Unknown)
+}
+
+/// A negative shift count shifts the other way — JS defines the two bigint
+/// shifts in terms of each other, so `1n << -1n` is `0n` and `8n >> -1n` is
+/// `16n`.
+fn bigint_shift_left(x: i128, y: i128) -> Option<i128> {
+    if y < 0 {
+        return bigint_shift_right(x, y.checked_neg()?);
+    }
+    if x == 0 {
+        return Some(0);
+    }
+    let n = u32::try_from(y).ok()?;
+    if n >= 127 {
+        return None;
+    }
+    let r = x.checked_shl(n)?;
+    (r >> n == x).then_some(r)
+}
+
+fn bigint_shift_right(x: i128, y: i128) -> Option<i128> {
+    if y < 0 {
+        return bigint_shift_left(x, y.checked_neg()?);
+    }
+    if y >= 127 {
+        return Some(if x < 0 { -1 } else { 0 });
+    }
+    Some(x >> (y as u32))
 }
 
 /// JS number → string (`String(n)`), matching V8's formatting for the
@@ -314,8 +440,20 @@ fn loose_eq(a: &EvalValue, b: &EvalValue) -> Option<bool> {
     }
     Some(match (a, b) {
         (EvalValue::BigInt(x), EvalValue::BigInt(y)) => x == y,
-        // Mixed bigint comparisons have their own coercion table; decline.
-        (EvalValue::BigInt(_), _) | (_, EvalValue::BigInt(_)) => return None,
+        (EvalValue::BigInt(_), EvalValue::Null | EvalValue::Undefined)
+        | (EvalValue::Null | EvalValue::Undefined, EvalValue::BigInt(_)) => false,
+        (EvalValue::BigInt(x), EvalValue::Str(s)) | (EvalValue::Str(s), EvalValue::BigInt(x)) => {
+            js_str_to_bigint(s)? == Some(*x)
+        }
+        (EvalValue::BigInt(x), EvalValue::Num(n)) | (EvalValue::Num(n), EvalValue::BigInt(x)) => {
+            cmp_bigint_f64(*x, *n) == Some(std::cmp::Ordering::Equal)
+        }
+        (EvalValue::BigInt(_), EvalValue::Bool(_)) => {
+            return loose_eq(a, &EvalValue::Num(to_number(b)?));
+        }
+        (EvalValue::Bool(_), EvalValue::BigInt(_)) => {
+            return loose_eq(&EvalValue::Num(to_number(a)?), b);
+        }
         (EvalValue::Str(x), EvalValue::Str(y)) => x == y,
         (EvalValue::Num(x), EvalValue::Num(y)) => x == y,
         (EvalValue::Bool(_), _) => return loose_eq(&EvalValue::Num(to_number(a)?), b),
@@ -337,6 +475,9 @@ fn js_less_than(a: &EvalValue, b: &EvalValue) -> Option<Option<bool>> {
     // Outer None: cannot evaluate; inner None: NaN involved (result false for all).
     if let (EvalValue::Str(x), EvalValue::Str(y)) = (a, b) {
         return Some(Some(x < y));
+    }
+    if matches!(a, EvalValue::BigInt(_)) || matches!(b, EvalValue::BigInt(_)) {
+        return bigint_less_than(a, b);
     }
     let x = to_number(a)?;
     let y = to_number(b)?;
@@ -374,7 +515,12 @@ pub(crate) fn eval_unary(op: &str, a: &EvalValue) -> EvalValue {
             _ => to_number(a).map(|n| EvalValue::Num(-n)),
         },
         "+" => to_number(a).map(EvalValue::Num),
-        "~" => to_number(a).map(|n| EvalValue::Num(!to_int32(n) as f64)),
+        // `~` on a bigint stays a bigint; on anything else it goes through
+        // `ToInt32`, which throws on one.
+        "~" => match a {
+            EvalValue::BigInt(v) => Some(EvalValue::BigInt(!v)),
+            _ => to_number(a).map(|n| EvalValue::Num(!to_int32(n) as f64)),
+        },
         "typeof" => match a {
             EvalValue::Str(_) => Some("string"),
             EvalValue::Num(_) => Some("number"),
@@ -418,6 +564,16 @@ pub(crate) fn eval_binary(op: &str, a: &EvalValue, b: &EvalValue) -> EvalValue {
             None => EvalValue::Unknown,
         },
         ">=" => eval_binary("<=", b, a),
+        // A bigint operand keeps arithmetic in bigint (`ToNumeric`, not
+        // `ToNumber`), and `>>>` has no bigint form at all.
+        "-" | "*" | "/" | "%" | "**" | "&" | "|" | "^" | "<<" | ">>"
+            if matches!(a, EvalValue::BigInt(_)) || matches!(b, EvalValue::BigInt(_)) =>
+        {
+            bigint_arith(op, a, b)
+        }
+        ">>>" if matches!(a, EvalValue::BigInt(_)) || matches!(b, EvalValue::BigInt(_)) => {
+            EvalValue::Unknown
+        }
         "+" => {
             let a_str = matches!(a, EvalValue::Str(_) | EvalValue::Regex(_));
             let b_str = matches!(b, EvalValue::Str(_) | EvalValue::Regex(_));
@@ -426,6 +582,8 @@ pub(crate) fn eval_binary(op: &str, a: &EvalValue, b: &EvalValue) -> EvalValue {
                     (Some(x), Some(y)) => EvalValue::Str(format!("{}{}", x, y)),
                     _ => EvalValue::Unknown,
                 }
+            } else if matches!(a, EvalValue::BigInt(_)) || matches!(b, EvalValue::BigInt(_)) {
+                bigint_arith("+", a, b)
             } else {
                 match (to_number(a), to_number(b)) {
                     (Some(x), Some(y)) => EvalValue::Num(x + y),
@@ -551,7 +709,12 @@ fn eval_global_call(keypath: &str, args: &[Evaluation]) -> Option<EvalValue> {
             if args.is_empty() {
                 Some(0.0)
             } else if args.len() == 1 {
-                args[0].known_value().and_then(to_number)
+                // `Number()` is an explicit conversion, so unlike every
+                // implicit `ToNumber` above it accepts a bigint — and rounds.
+                match args[0].known_value() {
+                    Some(EvalValue::BigInt(v)) => Some(*v as f64),
+                    other => other.and_then(to_number),
+                }
             } else {
                 None
             }

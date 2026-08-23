@@ -196,6 +196,26 @@ non-literal initializer as **source text** that only the JSON branch re-parses. 
 `{1 || 2}` folds and `const c = 1 || 2; {c}` does not, and the same for `const c = /ab/g` and
 for a `1n` bigint anywhere. Treat that as the next instalment, not as covered.
 
+**#3539 is that instalment's first row, and measuring it moved two of the sentence's claims.**
+The bigint half was the *operator table*, not the known-value predicates: `to_number` returns
+`None` for a bigint — correct, because JS `ToNumber` throws on one — and every arithmetic and
+relational arm was gated on it, while arithmetic actually uses **`ToNumeric`**, which keeps a
+bigint a bigint and throws only when the *other* operand is not one. So the fold conflated
+"this coercion throws" with "this value is unknown", and `7n + 2n` fell through with `2n + 1`.
+One table serves both walkers, so fixing it moved a 6,510-cell bigint × operator × 7-host ×
+3-target sweep from 1,539 divergences to 263. The other claim to correct is **"in the client"**:
+the `const c = 1 || 2` miss is on the *server* too, and it is not about bigints or regexes —
+`const c = 0 || 2`, `const c = 1 && 2` and `const c = null ?? 2` all fail identically on all
+three targets. What the sweep's residue actually contains is five distinct clusters, **none of
+them bigint-specific**, all reached through a *binding initializer* rather than a template
+expression: a `LogicalExpression` never folds there; the client never folds a global call
+(`Number('3')`, `String(3)`); `$derived(<any literal>)` misses the `textContent` fast path; the
+dev-mode equality guard fires on an initializer where no `$.equals` lowering happens; and
+`const r = '1' + '1'` **renders `2`** on the server. The last is a wrong value rather than a
+missed fold, and the shape that finds it is a plain string. **Ask of a residue paragraph which
+of its examples were measured and which were inferred from the mechanism** — three of these
+four were only ever the latter.
+
 **And #3027 is not one bug, it is the shape of a class — the inventory is
 [`compatibility/two-ports-inventory.md`](compatibility/two-ports-inventory.md).** Every gate here
 compares rsvelte to *upstream*; **none compares rsvelte to itself**, so a second port of one
