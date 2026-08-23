@@ -1238,6 +1238,15 @@ jobs:
       # a passing one — so its controls belong with the other trigger guards.
       - name: Run corpus-compat job filter tests
         run: node scripts/ci/test-corpus-compat-job-filter.mjs
+
+      # A pattern-corpus repro carries its provenance only in the README, so a
+      # file that drifts out of the table loses the record of which axis it
+      # holds — and nothing noticed in either direction until #3670.
+      - name: Check pattern-corpus is documented
+        run: node scripts/ci/check-pattern-corpus-docs.mjs
+
+      - name: Run pattern-corpus docs guard tests
+        run: node scripts/ci/test-check-pattern-corpus-docs.mjs
   prereq-coverage-guard:
     name: Prerequisite coverage guard
     runs-on: ubuntu-latest
