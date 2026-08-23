@@ -57,18 +57,20 @@ pub(super) fn handle_export_named_decl(
         // For instance scripts: remove the 'export ' keyword (replace with space).
         // For module scripts: keep the 'export' keyword (it's a real module export).
         //
-        // Type-only declarations (`export type X` / `export interface X`) are the
-        // exception: official svelte2tsx keeps their `export` keyword (they're
-        // moved verbatim by `HoistableInterfaces` and re-surface as part of the
-        // component's type API), so stripping it here would both diverge from
-        // upstream and, once the declaration is hoisted above `$$render()`,
-        // leave a dangling space. Skip the strip for those.
-        let is_type_only_decl = matches!(
+        // Upstream removes it for an ALLOW-LIST of node kinds, not for everything
+        // but a couple of type forms: `processInstanceScriptContent` only reaches
+        // `handleVariableStatement` (VariableStatement),
+        // `handleExportFunctionOrClass` (FunctionDeclaration / ClassDeclaration)
+        // and `handleExportDeclaration`. A namespace, enum, module, interface,
+        // type alias or `import =` keeps its `export`, so the list has to be
+        // written the way upstream's dispatch is.
+        let strips_export_keyword = matches!(
             decl,
-            oxc::Declaration::TSTypeAliasDeclaration(_)
-                | oxc::Declaration::TSInterfaceDeclaration(_)
+            oxc::Declaration::VariableDeclaration(_)
+                | oxc::Declaration::FunctionDeclaration(_)
+                | oxc::Declaration::ClassDeclaration(_)
         );
-        if is_instance && !is_type_only_decl && decl_start > node_start {
+        if is_instance && strips_export_keyword && decl_start > node_start {
             str.overwrite(node_start, decl_start, " ");
         }
 
