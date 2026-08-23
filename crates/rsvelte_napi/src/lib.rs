@@ -130,6 +130,13 @@ fn warnings_to_json(warnings: &[rsvelte_core::compiler::Warning]) -> Vec<Value> 
 /// Parse options surfaced to the NAPI bindings.
 #[napi(object)]
 pub struct NapiParseOptions {
+    /// Return the modern AST. Upstream's `parse()` defaults this to `false` in
+    /// Svelte 5, so an omitted `modern` returns the **legacy** AST.
+    pub modern: Option<LenientScalar>,
+    /// Keep parsing past a recoverable error and return an AST anyway. Mirrors
+    /// upstream's `loose`, which an editor integration uses to parse a document
+    /// mid-keystroke.
+    pub loose: Option<LenientScalar>,
     /// Skip emitting nested `loc:{ start, end }` blocks on Expression
     /// sub-trees. The top-level `start`/`end` byte offsets are still
     /// present. Callers that re-parse expression ranges with their own
@@ -153,9 +160,8 @@ impl NapiParseOptions {
     /// rejecting a non-boolean with the same message shape as the compile
     /// options.
     fn flag(field: Option<&LenientScalar>, keypath: &str) -> napi::Result<bool> {
-        // These are rsvelte-only `parse()` flags — upstream's `parse()` validates
-        // nothing — so there is no upstream code to carry and the message alone
-        // is the whole diagnostic.
+        // Upstream's `parse()` validates none of its options, so there is no
+        // upstream diagnostic to carry and the message alone is the whole one.
         field
             .map_or_else(|| Ok(false), |value| coerce_bool(keypath, value))
             .map_err(|e| napi::Error::from_reason(e.message))
@@ -192,7 +198,13 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
         ));
     }
 
+    // Upstream's `parse()` reads exactly these two (`compiler/index.js`):
+    // `loose` goes to the parser, `modern` selects the output shape afterwards,
+    // which is why it is not a `ParseOptions` field here either.
+    let modern =
+        NapiParseOptions::flag(options.as_ref().and_then(|o| o.modern.as_ref()), "modern")?;
     let parse_options = ParseOptions {
+        loose: NapiParseOptions::flag(options.as_ref().and_then(|o| o.loose.as_ref()), "loose")?,
         skip_expression_loc: NapiParseOptions::flag(
             options
                 .as_ref()
@@ -205,7 +217,7 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
         ..ParseOptions::default()
     };
     match rust_parse(&source, &rsvelte_core::Allocator::default(), parse_options) {
-        Ok(ast) => {
+        Ok(ast) if modern => {
             // Serialize within the AST's arena so `JsNodeId`s in the
             // Serialize impls resolve (mirrors `wasm::parse_svelte`).
             rsvelte_core::ast::arena::with_serialize_arena(&ast.arena, || {
@@ -223,6 +235,10 @@ pub fn napi_parse(source: String, options: Option<NapiParseOptions>) -> napi::Re
                     .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}")))
             })
         }
+        // `convert_to_legacy` installs the serialize arena itself and has
+        // already remapped its spans to UTF-16.
+        Ok(ast) => serde_json::to_string(&rsvelte_core::convert_to_legacy(&source, ast))
+            .map_err(|e| napi::Error::from_reason(format!("serialize ast: {e}"))),
         Err(e) => Err(napi::Error::from_reason(format!("{e:?}"))),
     }
 }
