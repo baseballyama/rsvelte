@@ -27,6 +27,7 @@ use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::builders::B;
 use crate::compiler::phases::phase3_transform::jsnode_to_oxc::jsnode_to_oxc_expr;
+use crate::compiler::phases::phase3_transform::server::evaluate::EvalValue;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{Comment, Expression as OxcExpression, Statement};
 use oxc_ast_visit::VisitMut;
@@ -107,7 +108,7 @@ pub struct ServerTransformState<'a> {
     /// once (via the proven legacy `ServerCodeGenerator::new` path) and reused
     /// by `Self::eval_ctx` when folding `{expr}` template chunks / dynamic
     /// attribute values. See `server::evaluate::EvalCtx`.
-    pub eval_inputs: EvalInputs,
+    pub(crate) eval_inputs: EvalInputs,
     /// Monotonic counter for the `$$body` temporary used by element CONTENT
     /// binds (`<textarea>` value, contenteditable `innerHTML`/`innerText`/
     /// `textContent`). The first one is bare `$$body`, subsequent ones append
@@ -242,7 +243,7 @@ pub struct SavedScope {
     /// The entered scope, when the node owned one (`None` = nothing changed).
     entered: Option<usize>,
     /// `constant_vars` entries the entered scope redeclared, to put back.
-    shadowed_constants: Vec<(String, String)>,
+    shadowed_constants: Vec<(String, EvalValue)>,
 }
 
 /// One per-fragment async `{@const}` group — the AST mirror of upstream's
@@ -270,8 +271,8 @@ pub struct PendingReactiveComment {
 /// `ServerCodeGenerator` carries for `scope.evaluate`, so the two pipelines
 /// fold identically.
 #[derive(Default)]
-pub struct EvalInputs {
-    pub constant_vars: rustc_hash::FxHashMap<String, String>,
+pub(crate) struct EvalInputs {
+    pub constant_vars: rustc_hash::FxHashMap<String, EvalValue>,
     pub use_async: bool,
     pub top_level_blocker_map: rustc_hash::FxHashMap<String, usize>,
     /// Lazily-built template-scope index set (see `evaluate_identifier`).

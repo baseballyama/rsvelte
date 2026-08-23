@@ -729,9 +729,13 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                     && is_plain_identifier(src.trim())
                     && let Some(value) = state.eval_inputs.constant_vars.get(src.trim())
                 {
-                    if value != "null" && value != "undefined" {
+                    use crate::compiler::phases::phase3_transform::server::evaluate::{
+                        EvalValue, js_display_string,
+                    };
+                    if !matches!(value, EvalValue::Null | EvalValue::Undefined) {
+                        let rendered = js_display_string(value);
                         let last = quasis.last_mut().unwrap();
-                        last.push_str(&escape_html(value));
+                        last.push_str(&escape_html(&rendered));
                     }
                     continue;
                 }

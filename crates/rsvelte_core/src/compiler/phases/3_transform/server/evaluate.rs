@@ -1066,7 +1066,7 @@ fn parse_literal_text(text: &str) -> Option<EvalValue> {
 /// `ServerTransformState`.
 pub(crate) struct EvalCtx<'c> {
     pub analysis: Option<&'c ComponentAnalysis>,
-    pub constant_vars: &'c FxHashMap<String, String>,
+    pub constant_vars: &'c FxHashMap<String, EvalValue>,
     pub source: &'c str,
     pub use_async: bool,
     pub top_level_blocker_map: &'c FxHashMap<String, usize>,
@@ -1329,20 +1329,8 @@ impl<'a> EvalCtx<'a> {
 
         // No binding in the analysis: fall back to the (scope-managed)
         // constant_vars table, then `undefined`.
-        if let Some(text) = self.constant_vars.get(name) {
-            return match text.as_str() {
-                "null" => Evaluation::single(EvalValue::Null),
-                "undefined" => Evaluation::single(EvalValue::Undefined),
-                "true" => Evaluation::single(EvalValue::Bool(true)),
-                "false" => Evaluation::single(EvalValue::Bool(false)),
-                t => {
-                    if let Ok(n) = t.parse::<f64>() {
-                        Evaluation::single(EvalValue::Num(n))
-                    } else {
-                        Evaluation::single(EvalValue::Str(t.to_string()))
-                    }
-                }
-            };
+        if let Some(value) = self.constant_vars.get(name) {
+            return Evaluation::single(value.clone());
         }
 
         if name == "undefined" {
