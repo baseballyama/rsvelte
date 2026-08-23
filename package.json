@@ -171,7 +171,7 @@
 		"prettier": "^3.9.4",
 		"prettier-plugin-svelte": "^4.1.0",
 		"sass": "1.103.1",
-		"svelte": "^5.56.9",
+		"svelte": "5.56.10",
 		"svelte-preprocess-markdown": "^2.7.3"
 	},
 	"packageManager": "pnpm@11.22.0"

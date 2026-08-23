@@ -1261,6 +1261,15 @@ jobs:
       - name: Check the docs state the pinned Svelte version
         run: node scripts/ci/test-svelte-target-marker.mjs
 
+      # svelte is the oracle every differential gate compares against, so a
+      # range makes the installed version a function of the install date rather
+      # than of the commit.
+      - name: Check svelte is pinned exactly
+        run: node scripts/ci/check-svelte-dependency-pin.mjs
+
+      - name: Run svelte pin guard tests
+        run: node scripts/ci/test-check-svelte-dependency-pin.mjs
+
       # An upstream report that nobody links is a report nobody can tell was
       # ever filed — 0 of 27 recorded a filing and 26 were unindexed (#3680).
       - name: Check upstream_issues is indexed

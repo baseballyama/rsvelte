@@ -915,6 +915,11 @@ manifest is shared — they also flow through the fmt and svelte2tsx gates.
    [`compatibility/pattern-corpus/README.md`](../../compatibility/pattern-corpus/README.md)
    instead — that table is the only provenance record.
 
+   `scripts/ci/check-pattern-corpus-docs.mjs` enforces this in both directions,
+   per section: an `issues/` file needs a row in the `issues/` table, a
+   `matrix/<axis>/` file needs one under that axis's `### ` heading, and an
+   `adversarial/<theme>/` directory needs a row in the themes table.
+
 3. **Land it with the fix.** A repro for a still-open divergence would have to be
    seeded into `known-failures.*`; add it in the fix PR (or right after it
    merges) so it lands green.
