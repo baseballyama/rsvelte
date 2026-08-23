@@ -323,7 +323,7 @@ pub fn transform_client_module(
     let has_effect_rune =
         class_transformed.contains("$effect") || class_transformed.contains("$inspect");
     let transformed =
-        transform_module_script_runes(&class_transformed, source, analysis, options.dev);
+        transform_module_script_runes(&class_transformed, source, analysis, options.dev, true);
 
     // The transformed source includes everything (imports + body).
     // We need to split imports from body to avoid duplicate svelte import.
@@ -452,7 +452,14 @@ pub(crate) fn transform_module_source_for_module(
     server: bool,
 ) -> String {
     let class_transformed = transform_module_class_fields_client(source);
-    transform_module_script_runes_with_target(&class_transformed, source, analysis, dev, server)
+    transform_module_script_runes_with_target(
+        &class_transformed,
+        source,
+        analysis,
+        dev,
+        server,
+        true,
+    )
 }
 
 /// Extract imports from a string, returning (imports, rest).
@@ -2212,8 +2219,13 @@ pub(crate) fn transform_client(
         let class_transformed = transform_module_class_fields_client(&non_imports);
         let has_effect_rune =
             class_transformed.contains("$effect") || class_transformed.contains("$inspect");
-        let transformed =
-            transform_module_script_runes(&class_transformed, &non_imports, analysis, options.dev);
+        let transformed = transform_module_script_runes(
+            &class_transformed,
+            &non_imports,
+            analysis,
+            options.dev,
+            false,
+        );
         // Drop module-level comments esrap's no-`loc` top-level Program omits
         // (leading JSDoc before a kept `export const`, per-field JSDoc that
         // `strip_typescript` re-emits from a removed `export type`/`interface`).
@@ -4396,8 +4408,16 @@ pub(crate) fn transform_module_script_runes(
     pre_class_script: &str,
     analysis: &ComponentAnalysis,
     dev: bool,
+    module_entry: bool,
 ) -> String {
-    transform_module_script_runes_with_target(script, pre_class_script, analysis, dev, false)
+    transform_module_script_runes_with_target(
+        script,
+        pre_class_script,
+        analysis,
+        dev,
+        false,
+        module_entry,
+    )
 }
 
 /// `pre_class_script` is the script before the class-field lowering — the dev
@@ -4408,6 +4428,9 @@ fn transform_module_script_runes_with_target(
     analysis: &ComponentAnalysis,
     dev: bool,
     server: bool,
+    // `compileModule` only: a component's `<script module>` is printed by the
+    // component pipeline, which has no hole expansion, so it keeps deleting.
+    module_entry: bool,
 ) -> String {
     let mut result = script.to_string();
 
@@ -4493,11 +4516,26 @@ fn transform_module_script_runes_with_target(
                 // prints as `;`, so the call's slot survives: a statement becomes
                 // `;;` and `const t = $inspect(a)` becomes `const t = ;;`. Deleting
                 // the line instead spliced the next statement onto the assignment.
-                result = format!(
-                    "{}{MODULE_INSPECT_HOLE}{}",
-                    &result[..pos],
-                    &result[pos + total_call_len..]
-                );
+                if module_entry {
+                    result = format!(
+                        "{}{MODULE_INSPECT_HOLE}{}",
+                        &result[..pos],
+                        &result[pos + total_call_len..]
+                    );
+                } else {
+                    let mut start = pos;
+                    while start > 0 && matches!(result.as_bytes()[start - 1], b' ' | b'\t') {
+                        start -= 1;
+                    }
+                    let mut end = pos + total_call_len;
+                    while end < result.len() && result.as_bytes()[end] == b';' {
+                        end += 1;
+                    }
+                    if end < result.len() && result.as_bytes()[end] == b'\n' {
+                        end += 1;
+                    }
+                    result = format!("{}{}", &result[..start], &result[end..]);
+                }
             } else {
                 break;
             }

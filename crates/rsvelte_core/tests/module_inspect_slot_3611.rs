@@ -145,6 +145,37 @@ fn a_needle_in_a_string_is_not_the_rune() {
     }
 }
 
+/// The hole is a placeholder that only [`print_module_program`] expands, and a
+/// component's `<script module>` goes through the SAME shared transform while
+/// being printed by the component pipeline. The first version of this fix left
+/// `$$inspect_empty;` in 12 cells of real output; the marker is now
+/// `compileModule`-only and `<script module>` keeps deleting until that entry
+/// point grows an expansion (#3543).
+#[test]
+fn a_component_script_module_never_sees_the_placeholder() {
+    let src = "<script module>\n\tlet a = $state(1);\n\t$inspect(a);\n\tconst t = $inspect(a);\n\texport const z = 1;\n</script>\n<b>ok</b>\n";
+    for generate in [GenerateMode::Client, GenerateMode::Server] {
+        for dev in [false, true] {
+            let code = rsvelte_core::compile(
+                src,
+                rsvelte_core::CompileOptions {
+                    filename: Some("X.svelte".to_string()),
+                    generate,
+                    dev,
+                    ..Default::default()
+                },
+            )
+            .expect("compile")
+            .js
+            .code;
+            assert!(
+                !code.contains("$$inspect_empty"),
+                "({generate:?} dev={dev}) in:\n{code}"
+            );
+        }
+    }
+}
+
 /// `$effect.tracking()` / `$effect.pending()` keep their server lowerings — the
 /// new dev pass runs on the same text and must not disturb them.
 #[test]
