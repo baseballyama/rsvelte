@@ -8261,15 +8261,9 @@ fn convert_statement_for_program(
                 line_offsets,
             ))
         }
-        oxc_ast::ast::Statement::TSNamespaceDeclaration(module_decl) => {
-            Some(convert_ts_module_declaration_as_node(
-                arena,
-                module_decl.span,
-                ts_namespace_block(&module_decl.body),
-                offset,
-                line_offsets,
-            ))
-        }
+        oxc_ast::ast::Statement::TSNamespaceDeclaration(module_decl) => Some(
+            convert_ts_namespace_as_node(arena, module_decl, offset, line_offsets),
+        ),
         oxc_ast::ast::Statement::TSGlobalDeclaration(module_decl) => {
             Some(convert_ts_module_declaration_as_node(
                 arena,
@@ -8285,14 +8279,48 @@ fn convert_statement_for_program(
     }
 }
 
-/// The `TSModuleBlock` a namespace body carries, or `None` for the dotted form
-/// (`namespace N.M {}`), which nests another declaration instead of a block.
-fn ts_namespace_block<'a>(
-    body: &'a oxc_ast::ast::TSNamespaceDeclarationBody<'a>,
-) -> Option<&'a oxc_ast::ast::TSModuleBlock<'a>> {
-    match body {
-        oxc_ast::ast::TSNamespaceDeclarationBody::TSModuleBlock(block) => Some(block),
-        oxc_ast::ast::TSNamespaceDeclarationBody::TSNamespaceDeclaration(_) => None,
+/// Build the node for a `namespace N { … }` / `module N { … }`.
+///
+/// A dotted name is the source spelling of `namespace N { namespace M { … } }`,
+/// so it is nested here and the strip reaches the innermost body through the
+/// same recursion. Official crashes on the dotted form instead
+/// (`upstream_issues/3568-svelte-dotted-namespace-crash.md`); this is rsvelte's
+/// deliberate reading, pinned by `tests/ts_export_type_only_declaration.rs`.
+fn convert_ts_namespace_as_node(
+    arena: &ParseArena,
+    module_decl: &oxc_ast::ast::TSNamespaceDeclaration<'_>,
+    offset: usize,
+    line_offsets: &[usize],
+) -> JsNode {
+    match &module_decl.body {
+        oxc_ast::ast::TSNamespaceDeclarationBody::TSModuleBlock(block) => {
+            convert_ts_module_declaration_as_node(
+                arena,
+                module_decl.span,
+                Some(block),
+                offset,
+                line_offsets,
+            )
+        }
+        oxc_ast::ast::TSNamespaceDeclarationBody::TSNamespaceDeclaration(inner) => {
+            let start = offset + module_decl.span.start as usize;
+            let end = offset + module_decl.span.end as usize;
+            let inner_start = offset + inner.span.start as usize;
+            let inner_end = offset + inner.span.end as usize;
+            let inner_node = convert_ts_namespace_as_node(arena, inner, offset, line_offsets);
+            let body = arena.alloc_js_node(JsNode::BlockStatement {
+                start: inner_start as u32,
+                end: inner_end as u32,
+                loc: create_typed_loc(inner_start, inner_end, line_offsets),
+                body: arena.alloc_js_children(vec![inner_node]),
+            });
+            JsNode::TSModuleDeclaration {
+                start: start as u32,
+                end: end as u32,
+                loc: create_typed_loc(start, end, line_offsets),
+                body: Some(body),
+            }
+        }
     }
 }
 
@@ -8536,13 +8564,9 @@ fn convert_declaration_for_program_as_node(
                 line_offsets,
             )
         }
-        Declaration::TSNamespaceDeclaration(module_decl) => convert_ts_module_declaration_as_node(
-            arena,
-            module_decl.span,
-            ts_namespace_block(&module_decl.body),
-            offset,
-            line_offsets,
-        ),
+        Declaration::TSNamespaceDeclaration(module_decl) => {
+            convert_ts_namespace_as_node(arena, module_decl, offset, line_offsets)
+        }
         Declaration::TSGlobalDeclaration(module_decl) => convert_ts_module_declaration_as_node(
             arena,
             module_decl.span,

@@ -238,3 +238,49 @@ failure loud; this change removes its cause.)
   while being empty.
 - **Collected corpus**: a component with a class index signature cannot be built with the official
   compiler, so no published source can carry the shape.
+
+---
+
+## Dotted TypeScript namespace (`namespace N.M { … }`)
+
+**Pinned by** `crates/rsvelte_core/tests/ts_export_type_only_declaration.rs`.
+**Reported upstream** in `upstream_issues/3568-svelte-dotted-namespace-crash.md`.
+
+A namespace whose name is dotted makes the official compiler throw a bare
+`TypeError: node.body.body.map is not a function` — no `code`, no position, no frame — because
+`remove_typescript_nodes.js` assumes a `TSModuleDeclaration`'s `body` is a `TSModuleBlock`, while
+for the dotted spelling it is another `TSModuleDeclaration`. rsvelte compiles it.
+
+### What rsvelte does instead, and why that particular behaviour
+
+`namespace N.M { … }` is the source spelling of `namespace N { namespace M { … } }`, and upstream
+compiles the nested spelling correctly: the type-only body is stripped, and a value in it raises a
+coded `typescript_invalid_feature` positioned on the inner `namespace M { … }`. rsvelte therefore
+treats the dotted form **as its desugaring**, so both halves of upstream's own behaviour on the
+nested form carry over:
+
+| source (instance script or `<script module>`, `lang="ts"`) | official | rsvelte |
+|---|---|---|
+| `namespace N.M { type T = 1; }` | `TypeError` | stripped |
+| `namespace N.M.O { type T = 1; }` | `TypeError` | stripped |
+| `namespace N.M { }` | `TypeError` | stripped |
+| `namespace N.M { let x = 1; }` | `TypeError` | `typescript_invalid_feature` |
+| `namespace N { namespace M { let x = 1; } }` | `typescript_invalid_feature` | same |
+
+Before this entry, the parse conversion dropped the dotted body without looking at it (the nested
+declaration is not a `TSModuleBlock`), so the value case was accepted too — rsvelte was silently
+more permissive than the desugaring it now follows.
+
+The alternative — reproduce the crash — is available and was rejected: a raw exception carries no
+code and no span, so there is nothing for the error ratchets to be equal to, and every consumer
+that embeds the compiler (the language server, `rsvelte-check`, the Vite plugin) would surface an
+uncoded panic instead of a diagnostic.
+
+### Why no gate sees it
+
+- **Output-equality and error gates**: official produces neither output nor a coded error, so the
+  comparison key is empty on one side.
+- **Collected corpus**: a component with a dotted namespace cannot be built with the official
+  compiler at all, so no published source carries the shape.
+- **Output-parseability gate**: rsvelte's output is valid JavaScript either way — the divergence is
+  whether the input is accepted, which that gate does not ask.
