@@ -1976,7 +1976,7 @@ mod preprocess_bridge {
                         "content": opts.content,
                         "filename": opts.filename,
                     });
-                    await_tsfn(&tsfn, arg).await
+                    await_tsfn(&tsfn, arg, Callsite::Markup).await
                 })
             },
         )
@@ -1992,12 +1992,35 @@ mod preprocess_bridge {
                     "markup": opts.markup,
                     "filename": opts.filename,
                 });
-                await_tsfn(&tsfn, arg).await
+                await_tsfn(&tsfn, arg, Callsite::Tag).await
             })
         })
     }
 
-    async fn await_tsfn(tsfn: &Tsfn, arg: Value) -> Result<Option<Processed>, PreprocessError> {
+    /// Upstream reads `processed.code` differently either side of the markup
+    /// boundary, and a result without one therefore diverges: markup treats it
+    /// as no change, a `<script>` / `<style>` result throws.
+    #[derive(Clone, Copy)]
+    enum Callsite {
+        Markup,
+        Tag,
+    }
+
+    /// A JS error carries its own message; `Display` on `napi::Error` prefixes
+    /// the status, which would replace the user's text with `GenericFailure, …`.
+    fn js_reason(error: &napi::Error) -> String {
+        if error.reason.is_empty() {
+            error.status.to_string()
+        } else {
+            error.reason.clone()
+        }
+    }
+
+    async fn await_tsfn(
+        tsfn: &Tsfn,
+        arg: Value,
+        callsite: Callsite,
+    ) -> Result<Option<Processed>, PreprocessError> {
         // The upstream Svelte preprocessor contract allows the callback to
         // return `Processed | Promise<Processed> | undefined | null`,
         // sync or async. `MaybePromise<Option<Value>>` probes `napi_is_promise`
@@ -2006,35 +2029,81 @@ mod preprocess_bridge {
         // `napi_fatal_error`, surfacing as `threadsafe_function.rs:749 Failed
         // to convert return value … Failed to call then method`). The outer
         // `Option` collapses `undefined`/`null` to `None` on both paths.
-        match tsfn.call_async(arg).await {
-            Ok(MaybePromise::Promise(promise)) => match promise.await {
-                Ok(Some(v)) => Ok(Some(v.into_processed())),
-                Ok(None) => Ok(None),
-                Err(e) => Err(PreprocessError::Other(format!("{e}"))),
+        //
+        // `call_async` routes a thrown JS error through `napi_fatal_exception`,
+        // which kills the host process: the caller's `try`/`catch` never runs and
+        // a dev server dies on any preprocessor failure. `call_async_catch`
+        // returns it as `Err` instead.
+        let resolved = match tsfn.call_async_catch(arg).await {
+            Ok(MaybePromise::Promise(promise)) => promise.await,
+            Ok(MaybePromise::Value(value)) => Ok(value),
+            Err(e) => return Err(PreprocessError::JsCallback(js_reason(&e))),
+        };
+        match resolved {
+            Ok(Some(v)) => match v.into_processed() {
+                Ok(processed) => Ok(processed),
+                // These read as V8 messages because they are: upstream reaches
+                // each one by operating on the value it was handed, and matching
+                // it is what makes rsvelte substitutable here.
+                // Upstream's markup path only reads `code` when it rebuilds the
+                // document, so a result without one changes nothing — and on the
+                // tag path the message names which of the two absent values it
+                // was, so they cannot share an arm.
+                Err(slot @ (CodeSlot::Missing | CodeSlot::Null)) => match callsite {
+                    Callsite::Markup => Ok(None),
+                    Callsite::Tag => Err(PreprocessError::JsCallback(format!(
+                        "Cannot read properties of {} (reading 'replace')",
+                        if matches!(slot, CodeSlot::Null) {
+                            "null"
+                        } else {
+                            "undefined"
+                        }
+                    ))),
+                },
+                Err(CodeSlot::NotAString) => Err(PreprocessError::JsCallback(
+                    match callsite {
+                        Callsite::Markup => "source.split is not a function",
+                        Callsite::Tag => "processed.code.replace is not a function",
+                    }
+                    .into(),
+                )),
+                Err(CodeSlot::Text(_)) => unreachable!("Text is the Ok arm"),
             },
-            Ok(MaybePromise::Value(Some(v))) => Ok(Some(v.into_processed())),
-            Ok(MaybePromise::Value(None)) => Ok(None),
-            Err(e) => Err(PreprocessError::Other(format!("{e}"))),
+            Ok(None) => Ok(None),
+            Err(e) => Err(PreprocessError::JsCallback(js_reason(&e))),
         }
     }
 
     /// The JS contract permits source-map objects such as Sass's `SourceMapGenerator`,
     /// whose `toString` is a function. Decode only the fields we consume instead of
     /// asking napi-rs to JSON-serialize the entire user-controlled return object.
+    /// What the preprocessor put in `code`. Upstream reaches its error through
+    /// whichever operation it tries on the value, so the three cases are three
+    /// different messages rather than one "invalid result".
+    pub enum CodeSlot {
+        Missing,
+        Null,
+        NotAString,
+        Text(String),
+    }
+
     pub struct JsProcessed {
-        code: String,
+        code: CodeSlot,
         map: Option<SourceMapInput>,
         dependencies: Vec<String>,
         attributes: Option<FxHashMap<String, RsAttrValue>>,
     }
 
     impl JsProcessed {
-        fn into_processed(self) -> Processed {
-            Processed {
-                code: self.code,
-                map: self.map,
-                dependencies: self.dependencies,
-                attributes: self.attributes,
+        fn into_processed(self) -> Result<Option<Processed>, CodeSlot> {
+            match self.code {
+                CodeSlot::Text(code) => Ok(Some(Processed {
+                    code,
+                    map: self.map,
+                    dependencies: self.dependencies,
+                    attributes: self.attributes,
+                })),
+                other => Err(other),
             }
         }
     }
@@ -2045,9 +2114,18 @@ mod preprocess_bridge {
             napi_val: napi::sys::napi_value,
         ) -> napi::Result<Self> {
             let obj = Object::from_raw(env, napi_val);
-            let code = obj.get::<String>("code")?.ok_or_else(|| {
-                napi::Error::from_reason("preprocessor result is missing string `code`")
-            })?;
+            let code = match obj
+                .get::<napi::bindgen_prelude::Unknown>("code")?
+                .map(|value| value.get_type())
+                .transpose()?
+            {
+                None | Some(napi::ValueType::Undefined) => CodeSlot::Missing,
+                Some(napi::ValueType::Null) => CodeSlot::Null,
+                Some(napi::ValueType::String) => obj
+                    .get::<String>("code")?
+                    .map_or(CodeSlot::Missing, CodeSlot::Text),
+                Some(_) => CodeSlot::NotAString,
+            };
             let map = obj
                 .get::<JsSourceMap>("map")?
                 .and_then(JsSourceMap::into_input);

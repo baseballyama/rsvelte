@@ -31,6 +31,22 @@ pub fn visit(body: &mut SvelteElement, context: &mut VisitorContext) -> Result<(
         return Err(errors::svelte_meta_invalid_content("svelte:body").at(start, end));
     }
 
+    // Upstream runs this whole loop before `context.next()` descends into any
+    // attribute, so "does this element take arbitrary attributes at all" is
+    // answered ahead of every per-directive rule below.
+    for attr in &body.attributes {
+        let span = match attr {
+            Attribute::SpreadAttribute(spread) => Some((spread.start, spread.end)),
+            Attribute::Attribute(a) if !super::shared::utils::is_event_attribute(a) => {
+                Some((a.start, a.end))
+            }
+            _ => None,
+        };
+        if let Some((start, end)) = span {
+            return Err(errors::svelte_body_illegal_attribute().at(start, end));
+        }
+    }
+
     // Event expressions on special elements participate in normal reference analysis.
     // The target rule needs the attribute list, which the mutable loop below holds.
     for attr in &body.attributes {
@@ -50,15 +66,7 @@ pub fn visit(body: &mut SvelteElement, context: &mut VisitorContext) -> Result<(
                     errors::let_directive_invalid_placement().at(let_dir.start, let_dir.end)
                 );
             }
-            Attribute::SpreadAttribute(spread) => {
-                return Err(errors::svelte_body_illegal_attribute().at(spread.start, spread.end));
-            }
             Attribute::Attribute(attribute) => {
-                if !super::shared::utils::is_event_attribute(attribute) {
-                    return Err(
-                        errors::svelte_body_illegal_attribute().at(attribute.start, attribute.end)
-                    );
-                }
                 super::attribute::visit_attribute_value_expressions(&mut attribute.value, context)?;
             }
             _ => {}

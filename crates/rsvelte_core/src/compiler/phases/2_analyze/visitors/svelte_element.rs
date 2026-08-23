@@ -215,6 +215,20 @@ pub fn visit<'a, 'b: 'a>(
                 "svelte:element",
                 &element.attributes,
             )?;
+            // Upstream's `BindDirective` visitor runs the host-independent half
+            // for a `SvelteElement` too — the target-shape / target-kind checks
+            // live below its `parent.type` block, not inside it.
+            if super::bind_directive::is_get_set_pair(bind) {
+                super::bind_directive::validate_get_set_pair(bind, context)?;
+            } else {
+                super::shared::utils::validate_assignment_node(
+                    (bind.start, bind.end),
+                    &bind.expression.as_node(),
+                    context,
+                    true,
+                )?;
+                super::bind_directive::validate_bind_value_target(bind, context)?;
+            }
         }
     }
 
@@ -258,7 +272,11 @@ pub fn visit<'a, 'b: 'a>(
                 super::style_directive::visit(sd, context)?;
             }
             Attribute::BindDirective(bd) => {
-                super::script::walk_expression(&bd.expression, context)?;
+                if super::bind_directive::is_get_set_pair(bd) {
+                    super::bind_directive::walk_get_set_pair(bd, context)?;
+                } else {
+                    super::bind_directive::walk_bind_expression(bd, context)?;
+                }
             }
             Attribute::SpreadAttribute(spread) => {
                 super::spread_attribute::visit(spread, context)?;

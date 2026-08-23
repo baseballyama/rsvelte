@@ -289,6 +289,11 @@ pub fn transform_client_module(
         dead_comments::strip_dead_comments(source, dead_comments::Rules::ACCESSORS);
     let source = dead_comments_stripped.as_deref().unwrap_or(source);
 
+    // Every lowering below decides what a rune call is from this text, so the
+    // grouping parens around one have to be gone before the first of them runs.
+    let paren_stripped = super::shared::rune_parens::strip_rune_parens(source);
+    let source = paren_stripped.as_deref().unwrap_or(source);
+
     // Transform the module source (rune replacements, class fields, etc.)
     let class_transformed = transform_module_class_fields_client(source);
 
@@ -585,12 +590,20 @@ pub(crate) fn transform_client(
                 }
             })
             .flatten();
-        let instance_raw = dead_comments_stripped
+        // Every lowering below decides what a rune call is from this text, so the
+        // grouping parens around one have to be gone before the first of them runs.
+        let paren_stripped = super::shared::rune_parens::strip_rune_parens(
+            dead_comments_stripped
+                .as_deref()
+                .unwrap_or(&instance_script.raw),
+        );
+        let instance_raw = paren_stripped
             .as_deref()
+            .or(dead_comments_stripped.as_deref())
             .unwrap_or(&instance_script.raw);
         let retained_instance = retained_scripts
             .and_then(|scripts| scripts.instance.as_ref())
-            .filter(|_| dead_comments_stripped.is_none());
+            .filter(|_| dead_comments_stripped.is_none() && paren_stripped.is_none());
         let needs_projection = analysis.runes
             && retained_instance.is_some()
             && instance_script.source_projection.is_some();
@@ -2066,6 +2079,9 @@ pub(crate) fn transform_client(
                 .then(|| dead_comments::strip_dead_comments(&raw, dead_comments::Rules::ACCESSORS))
                 .flatten()
                 .unwrap_or(raw);
+            // Every lowering below decides what a rune call is from this text, so
+            // the grouping parens around one have to be gone before the first runs.
+            let raw = super::shared::rune_parens::strip_rune_parens(&raw).unwrap_or(raw);
             let (module_imports, rest) = extract_imports(&raw);
             let retained_comment_stripped = if !analysis.is_typescript {
                 retained_scripts

@@ -1335,7 +1335,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 self.flush_trailing_comments(parent, end, until);
             }
             let length = parent.measure();
-            let multiline = parent.end_scope(scope);
+            // Same width rule as the multi-item branches, whose accumulator
+            // (`-1`, then `+= measure + 1` per item) equals `measure` at n == 1.
+            let multiline = parent.end_scope(scope) || usize_to_i64(length) > 60;
 
             if direct_layout && pad && length == 0 {
                 parent.cancel_optimistic_space();

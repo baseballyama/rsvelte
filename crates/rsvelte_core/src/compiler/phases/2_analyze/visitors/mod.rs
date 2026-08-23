@@ -356,6 +356,15 @@ pub struct VisitorContext<'a> {
     /// Information about the current expression/directive/block value being analyzed.
     /// Set to Some(metadata) when visiting an expression, directive value, or block condition.
     pub expression: Option<*mut crate::ast::template::ExpressionMetadata>,
+    /// While walking a `bind:` expression, the `function_depth` at which an
+    /// `await` suspends. Upstream installs `state.expression` for the whole bind
+    /// expression — and, for a `{get, set}` pair, for the get/set function
+    /// *bodies*, jumping across the function that would otherwise reset it
+    /// (`BindDirective.js` L157-170) — so a deeper function does not suspend.
+    pub bind_await_depth: Option<usize>,
+    /// Set by the `AwaitExpression` visitor when `bind_await_depth` matched, so
+    /// the bind visitor can raise `illegal_await_expression`.
+    pub bind_has_await: bool,
     /// Parent element name (for validation).
     /// Tag name of parent element. None if parent is svelte:element, #snippet, component or root.
     pub parent_element: Option<String>,
@@ -559,6 +568,8 @@ impl<'a> VisitorContext<'a> {
             path: Vec::new(),
             js_path: Vec::new(),
             expression: None,
+            bind_await_depth: None,
+            bind_has_await: false,
             parent_element: None,
             function_depth: 0,
             derived_function_depth: 0,

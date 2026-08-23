@@ -1886,3 +1886,97 @@ export const WRITE_PREAMBLE = `<script>
 
 %m
 `;
+
+/**
+ * Axis family — an async attribute VALUE × the attribute SLOT it sits in × the
+ * ELEMENT hosting the slot. Its subject is which lowering a value reaches, not
+ * what the value is.
+ *
+ * Upstream routes every attribute-ish slot through `Memoizer`, which hoists a
+ * call or an `await` out of the `template_effect` arrow into its `sync`/`async`
+ * argument and passes the top-level-await `blockers` as the fourth — except
+ * `build_custom_element_attribute_update_assignment` (`RegularElement.js`),
+ * which builds its own one-argument `$.template_effect(b.thunk(call))`. The same
+ * value is therefore lowered two different ways depending only on whether the
+ * tag name has a dash. The host axis is what makes that observable: every value
+ * and slot is generated on `<div>` too, where the memoized lowering is the right
+ * answer, so "memoize everywhere" and "memoize nowhere" are distinguishable.
+ *
+ * `experimental.async` is set for the same reason `async-derived` sets it — no
+ * other harness does, so this is a population the collected corpus cannot hold
+ * at any size.
+ *
+ * The four `custom-element` × `attribute` cells whose value carries a literal
+ * `await` are compared on the SERVER targets only: the pinned oracle compiles
+ * them to `await` inside a non-async arrow, which is not JavaScript, so there is
+ * no client oracle to compare against. Their server lowering is unaffected.
+ */
+export const ASYNC_ATTRIBUTE_VALUES = {
+	// Controls. None of these may gain a memoized slot under a correct fix: a
+	// static value needs no effect at all, a bare state read is passed through,
+	// and an `await` already inside an async function is the shape an over-broad
+	// "hoist anything containing await" rule breaks.
+	static: `'v'`,
+	state: 'foo',
+	'async-iife': '(async () => await p)()',
+	// Memoized as a SYNC value — the row that shows the custom-element slot is
+	// not only an `await` problem.
+	call: 'f()',
+	// Memoized as an ASYNC value.
+	await: 'await p',
+	'await-literal': `await 'v'`,
+	'await-in-call': 'String(await p)',
+	'await-plus-state': '(await p) + foo',
+	// No literal `await` in the value, but the binding it reads is written by
+	// one, so the effect must carry a blocker. A rule keyed on the token
+	// `await` inside the attribute passes every row above and fails these two.
+	'derived-await-read': 'd',
+	'script-await-read': 't',
+};
+
+/** Which attribute-ish slot carries the value. `%A` is the host's attribute name. */
+export const ASYNC_ATTRIBUTE_SLOTS = {
+	attribute: '%A={%s}',
+	class: 'class={%s}',
+	style: 'style={%s}',
+	'style-directive': 'style:color={%s}',
+	'class-directive': 'class:x={%s}',
+	spread: `{...{ 'data-x': %s }}`,
+};
+
+/**
+ * The element the slot hangs off. `custom-element` is the subject; the other
+ * three reach the same slot through three different visitors, so a divergence
+ * is attributable to the host rather than to the value.
+ */
+export const ASYNC_ATTRIBUTE_HOSTS = {
+	div: { markup: '<div %s></div>', attr: 'data-x' },
+	'custom-element': { markup: '<my-element %s></my-element>', attr: 'bar' },
+	'svelte-element': {
+		markup: `<svelte:element this={'span'} %s></svelte:element>`,
+		attr: 'data-x',
+	},
+	// A component takes props; `class`/`style`/directives are not its slots.
+	component: { markup: '<Comp %s />', attr: 'x', import: true, slots: ['attribute', 'spread'] },
+};
+
+/**
+ * The declarations every async-attribute case shares. `t` and `d` are the two
+ * blocker sources (a top-level `await` and a `$derived(await …)`); declaring
+ * both in every file keeps the value axis the only thing that varies.
+ */
+export const ASYNC_ATTRIBUTE_PREAMBLE = `<script>
+%i	let foo = $state('foo');
+	const p = Promise.resolve('v');
+	const t = await 'v';
+	const d = $derived(await 'v');
+	function f() {
+		return 'v';
+	}
+	function bump() {
+		foo += '!';
+	}
+</script>
+
+%m
+`;

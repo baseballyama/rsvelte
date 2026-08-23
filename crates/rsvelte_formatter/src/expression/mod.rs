@@ -1,5 +1,6 @@
 use oxc_parser::ParseOptions as OxcParseOptions;
 
+mod await_block;
 mod call_args;
 mod collect;
 mod declaration;
@@ -12,7 +13,8 @@ mod width;
 #[cfg(test)]
 mod tests;
 
-pub use collect::{await_pending_is_empty, collect_template_edits};
+pub(crate) use await_block::plan as plan_await_block;
+pub use collect::collect_template_edits;
 pub use declaration::format_pattern_source;
 pub use directive::{
     format_directive_value, format_directive_value_extra, format_function_binding,

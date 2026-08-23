@@ -45,14 +45,16 @@ pub fn visit<'a, 'b: 'a>(
     for attr in &self_.attributes {
         match attr {
             Attribute::BindDirective(bind) => {
-                if bind.expression.node_type() != Some("SequenceExpression") {
+                if super::bind_directive::is_get_set_pair(bind) {
+                    super::bind_directive::validate_get_set_pair(bind, context)?;
+                } else {
                     validate_assignment_node(
                         (bind.start, bind.end),
                         &bind.expression.as_node(),
                         context,
                         true,
                     )?;
-                    super::bind_directive::validate_bind_value_for_component(bind, context)?;
+                    super::bind_directive::validate_bind_value_target(bind, context)?;
                 }
             }
             Attribute::OnDirective(on) => {
@@ -95,7 +97,11 @@ pub fn visit<'a, 'b: 'a>(
                     context.analysis.uses_component_bindings = true;
                 }
                 // Walk the bind expression to add template references.
-                super::script::walk_expression(&bind.expression, context)?;
+                if super::bind_directive::is_get_set_pair(bind) {
+                    super::bind_directive::walk_get_set_pair(bind, context)?;
+                } else {
+                    super::bind_directive::walk_bind_expression(bind, context)?;
+                }
             }
             Attribute::OnDirective(on) => {
                 // Walk event handler expression if present. Event forwarding

@@ -94,6 +94,13 @@ pub fn transform_server_module(
         source: "svelte/internal/server".into(),
     }));
 
+    // Every lowering below decides what a rune call is from this text, so the
+    // grouping parens around one have to be gone before the first of them runs —
+    // `strip_effects_from_source` would otherwise cut the call out of its own
+    // parens and leave `();` behind.
+    let paren_stripped = super::shared::rune_parens::strip_rune_parens(source);
+    let source = paren_stripped.as_deref().unwrap_or(source);
+
     // For server modules, strip $effect and $effect.root blocks from the source
     // before applying transforms, since effects don't run on the server.
     let source_without_effects = strip_effects_from_source(source);

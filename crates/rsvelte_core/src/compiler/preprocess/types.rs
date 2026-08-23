@@ -228,6 +228,10 @@ pub enum PreprocessError {
     Json(#[from] serde_json::Error),
     #[error("Preprocessor error: {0}")]
     Other(String),
+    /// A JS preprocessor callback threw or rejected. Upstream propagates the
+    /// user's error unchanged, so this variant must not decorate it.
+    #[error("{0}")]
+    JsCallback(String),
 }
 
 impl MappedCode {

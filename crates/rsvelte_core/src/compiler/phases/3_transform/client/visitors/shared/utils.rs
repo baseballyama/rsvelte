@@ -3352,6 +3352,21 @@ pub fn build_render_statement_with_memoizer(
 /// # Returns
 ///
 /// Returns a member expression or identifier.
+/// Upstream lowercases an HTML element/attribute name with JS `toLowerCase`,
+/// which is not limited to ASCII; only the no-op fast path is.
+pub fn html_lowercase(name: &str) -> String {
+    let needs_lowering = if name.is_ascii() {
+        name.bytes().any(|b| b.is_ascii_uppercase())
+    } else {
+        name.chars().any(|c| c.to_lowercase().next() != Some(c))
+    };
+    if needs_lowering {
+        name.to_lowercase()
+    } else {
+        name.to_string()
+    }
+}
+
 pub fn parse_directive_name(
     arena: &crate::compiler::phases::phase3_transform::js_ast::arena::JsArena,
     name: &str,
@@ -4931,6 +4946,19 @@ fn analyze_props_json(
                 }
             }
         }
+        "NewExpression" => {
+            // Upstream's `NewExpression` visitor only calls `context.next()`, so a
+            // `new` contributes no flag of its own — every flag comes from the
+            // callee and the arguments.
+            if let Some(callee) = obj.get("callee") {
+                analyze_props_json(callee, context, props);
+            }
+            if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+                for arg in args {
+                    analyze_props_json(arg, context, props);
+                }
+            }
+        }
         "AwaitExpression" => {
             // has_await: always true
             props.has_await = true;
@@ -6373,6 +6401,23 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
             }
             false
         }
+        "NewExpression" => {
+            // A `new` is not itself a call upstream, but its callee and arguments
+            // are still walked, so `new Foo(bar())` does carry `has_call`.
+            if let Some(callee) = obj.get("callee")
+                && has_call_json(callee, context)
+            {
+                return true;
+            }
+            if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+                for arg in args {
+                    if has_call_json(arg, context) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
         "AssignmentExpression" => {
             if let Some(right) = obj.get("right") {
                 return has_call_json(right, context);
@@ -6406,7 +6451,7 @@ fn has_member_json(json_value: &serde_json::Value) -> bool {
 
     match expr_type {
         "MemberExpression" => true,
-        "CallExpression" => {
+        "CallExpression" | "NewExpression" => {
             if let Some(callee) = obj.get("callee")
                 && has_member_json(callee)
             {
@@ -6558,7 +6603,7 @@ fn has_await_json(json_value: &serde_json::Value) -> bool {
 
     match expr_type {
         "AwaitExpression" => true,
-        "CallExpression" => {
+        "CallExpression" | "NewExpression" => {
             if let Some(callee) = obj.get("callee")
                 && has_await_json(callee)
             {
@@ -6823,11 +6868,11 @@ fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentC
                         return false;
                     }
 
-                    // For Normal bindings: known if never updated with known initial
-                    // Functions are always "known" (they're defined)
-                    if binding.is_function() {
-                        return true;
-                    }
+                    // A function value is never `is_known` to upstream's
+                    // `scope.evaluate` — it recurses into the initializer and a
+                    // function expression falls through to `UNKNOWN`. Reading a
+                    // function is kept out of `has_state` by the separate
+                    // `!binding.is_function()` term, not by this one.
                     // A non-literal initializer lives in `init_expr_json`, and
                     // upstream's `scope.evaluate` recurses into the init node
                     // whatever its shape (`const b = `${a}y`` is known when `a` is).

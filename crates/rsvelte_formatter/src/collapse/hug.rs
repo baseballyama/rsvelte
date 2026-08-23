@@ -3,8 +3,8 @@ use crate::doc::Doc;
 use super::{
     FormatOptions, Fragment, IndentUnit, TemplateNode, VisualWidth, attribute_span,
     build_children_doc, child_fragments, current_column, indent_config, is_block_display,
-    is_component_tag, is_inline_block, is_inline_node, is_whitespace_preserving, node_end,
-    node_start, tab_width, trims_edge_whitespace,
+    is_component_tag, is_inline_block, is_inline_node, is_whitespace_preserving, never_hugs,
+    node_end, node_start, tab_width, trims_edge_whitespace,
 };
 
 /// Pass 1.7: targeted `try_hug_mixed` sweep for elements that have a
@@ -259,7 +259,7 @@ pub(super) fn try_hug_mixed(
     let (indent_unit_hm, indent_width_hm) = indent_config(options);
     // Inline elements hug (prettier's `blockElements` excludes button/input/…),
     // so only true block elements and raw-text elements are ineligible.
-    if is_block_display(tag) || is_whitespace_preserving(tag) {
+    if never_hugs(tag) || is_whitespace_preserving(tag) {
         return None;
     }
     let (s, e) = (start as usize, end as usize);
@@ -530,7 +530,7 @@ pub(super) fn try_hug_mixed(
         if !raw_trail_ws_only
             && inner_line > line_width
             && !raw.contains('\n')
-            && let Some(body) = build_children_doc(out, fragment)
+            && let Some(body) = build_children_doc(out, fragment, Some(options))
         {
             let base_level = if options.js.indent_style.is_tab() {
                 inner_indent
@@ -565,7 +565,7 @@ pub(super) fn try_hug_mixed(
         // `simple == whole` — already in the hug form but content still overflows.
         // Use the Doc IR to reformat the inner content, allowing component attributes
         // to break.
-        let body_opt = build_children_doc(out, fragment);
+        let body_opt = build_children_doc(out, fragment, Some(options));
         if let Some(body) = body_opt {
             let inner_col = inner_indent.visual_width(tw) + 1; // column after the `>`
             let base_level = if options.js.indent_style.is_tab() {
@@ -649,7 +649,7 @@ pub(super) fn try_hug_mixed(
     // fits (only the outer `>` drops to its own line, e.g. `<text …>…</text`\n`>`)
     // and otherwise moves `>{body}</tag` to its own indented line (e.g. `<title`\n
     // `  >…</title`\n`>`).
-    let body_opt = build_children_doc(out, fragment);
+    let body_opt = build_children_doc(out, fragment, Some(options));
     let body = body_opt?;
     let open_no_bracket = open[..open.len() - 1].to_string();
     let inner = Doc::Group(vec![Doc::Concat(vec![

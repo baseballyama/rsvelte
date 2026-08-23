@@ -6793,7 +6793,13 @@ pub fn parse_program_with_error<'a>(
             SourceType::mjs()
         };
         let result = OxcParser::new(allocator, params.content, source_type).parse();
-        convert_parsed_program(arena, &result.program, &result.diagnostics, params)
+        convert_parsed_program(
+            arena,
+            &result.program,
+            &result.diagnostics,
+            &result.irregular_whitespaces,
+            params,
+        )
     })
 }
 
@@ -6807,8 +6813,13 @@ pub fn parse_program_retained_with_error<'ast, 'source>(
 ) {
     let retained =
         crate::ast::oxc_program::RetainedProgram::parse(params.content, params.is_typescript);
-    let (program, parse_error) =
-        convert_parsed_program(arena, retained.program(), retained.diagnostics(), params);
+    let (program, parse_error) = convert_parsed_program(
+        arena,
+        retained.program(),
+        retained.diagnostics(),
+        retained.irregular_whitespaces(),
+        params,
+    );
     (program, parse_error, retained)
 }
 
@@ -7138,10 +7149,29 @@ fn realign_missing_semicolon(content: &str, at: usize, message: &str) -> (usize,
     (i, "Unexpected token".to_string())
 }
 
+/// The first offset oxc classified as irregular whitespace that ECMAScript does
+/// not admit as whitespace at all. oxc's `is_irregular_whitespace` spans
+/// `U+2000..=U+200B` and includes `U+0085`, while `WhiteSpace` is `Zs` plus the
+/// four fixed code points — so `U+200B` and `U+0085` parse here and are
+/// `Unexpected character` for acorn, and so for upstream. Keying on the spans
+/// the parser itself reports is what keeps a string literal or a comment
+/// containing one of them accepted, as upstream accepts it.
+fn first_non_ecmascript_whitespace(content: &str, irregular: &[oxc_span::Span]) -> Option<usize> {
+    irregular
+        .iter()
+        .filter_map(|span| {
+            let at = span.start as usize;
+            let ch = content.get(at..)?.chars().next()?;
+            (!super::super::parser::is_js_whitespace(ch)).then_some(at)
+        })
+        .min()
+}
+
 fn convert_parsed_program<'ast>(
     arena: &ParseArena,
     program: &OxcProgram<'_>,
     diagnostics: &[OxcDiagnostic],
+    irregular_whitespaces: &[oxc_span::Span],
     params: ProgramParseParams<'_, '_>,
 ) -> (Expression<'ast>, Option<crate::error::ParseError>) {
     let ProgramParseParams {
@@ -7157,7 +7187,7 @@ fn convert_parsed_program<'ast>(
         // Mirror upstream acorn's throw-on-error behaviour: capture the first
         // parse error (acorn reports `err.pos` where it stopped consuming
         // input; OXC's first label is the closest equivalent).
-        let mut parse_error = diagnostics
+        let reported_at = diagnostics
             .iter()
             .find(|d| !is_acorn_unchecked_ts_grammar_rule(d))
             .map(|first_error| {
@@ -7166,18 +7196,38 @@ fn convert_parsed_program<'ast>(
                     .first()
                     .map(|label| (label.offset() as usize).min(content.len()))
                     .unwrap_or(0);
-                let (at, message) = realign_missing_semicolon(content, at, &first_error.message);
-                let pos = at + offset;
-                crate::error::ParseError::svelte("js_parse_error", message, (pos, pos))
+                realign_missing_semicolon(content, at, &first_error.message)
             });
+        let mut reported_at = reported_at;
+        let mut parse_error = reported_at.as_ref().map(|(at, message)| {
+            let pos = at + offset;
+            crate::error::ParseError::svelte("js_parse_error", message.clone(), (pos, pos))
+        });
 
         if parse_error.is_none()
             && let Some((at, message)) = acorn_only_violation(program, content, is_typescript)
         {
             let pos = at as usize + offset;
+            reported_at = Some((at as usize, message.clone()));
             parse_error = Some(crate::error::ParseError::svelte(
                 "js_parse_error",
                 message,
+                (pos, pos),
+            ));
+        }
+
+        // acorn stops at the first thing it cannot read, so a character it does
+        // not accept as whitespace outranks any error further along the source.
+        if let Some(at) = first_non_ecmascript_whitespace(content, irregular_whitespaces)
+            && reported_at
+                .as_ref()
+                .is_none_or(|(reported, _)| at < *reported)
+        {
+            let ch = content[at..].chars().next().unwrap_or('\u{fffd}');
+            let pos = at + offset;
+            parse_error = Some(crate::error::ParseError::svelte(
+                "js_parse_error",
+                format!("Unexpected character '{ch}'"),
                 (pos, pos),
             ));
         }

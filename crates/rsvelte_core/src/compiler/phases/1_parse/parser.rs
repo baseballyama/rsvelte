@@ -111,6 +111,10 @@ pub struct Parser<'a> {
     pub(crate) stylesheet: Option<StyleSheet>,
     /// Parsed svelte:options.
     pub(crate) svelte_options: Option<SvelteOptions<'a>>,
+    /// The `<svelte:options>` element as collected, before validation — upstream
+    /// validates it once the whole template has been parsed.
+    pub(crate) svelte_options_raw:
+        Option<crate::compiler::phases::phase1_parse::read::options::SvelteOptionsRaw<'a>>,
     /// Pending comments that could become leading comments for a script.
     pub(crate) pending_leading_comments: Vec<String>,
     /// Whether we're in TypeScript mode.
@@ -274,6 +278,7 @@ impl<'a> Parser<'a> {
             module_script: None,
             stylesheet: None,
             svelte_options: None,
+            svelte_options_raw: None,
             pending_leading_comments: Vec::new(),
             ts,
             script_ts: false,
@@ -321,6 +326,7 @@ impl<'a> Parser<'a> {
         self.module_script = None;
         self.stylesheet = None;
         self.svelte_options = None;
+        self.svelte_options_raw = None;
         self.pending_leading_comments.clear();
         self.meta_tags.clear();
         self.last_auto_closed_tag = None;
@@ -885,23 +891,32 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Read an identifier.
+    /// Read an identifier. Mirrors upstream's `read_identifier`, which uses
+    /// acorn's `isIdentifierStart` / `isIdentifierChar` and so accepts every
+    /// `ID_Continue` character — combining marks and ZWNJ/ZWJ included.
     #[inline]
     pub fn read_identifier(&mut self) -> CompactString {
         let start = self.index;
 
-        // Fast path: ASCII identifier characters (a-z, A-Z, 0-9, _, $)
+        let Some(first) = self.source[start..].chars().next() else {
+            return CompactString::default();
+        };
+        if !oxc_syntax::identifier::is_identifier_start(first) {
+            return CompactString::default();
+        }
+        self.index += first.len_utf8();
+
         while self.index < self.bytes.len() {
             let b = self.bytes[self.index];
-            if b.is_ascii_alphanumeric() || b == b'_' || b == b'$' {
-                self.index += 1;
-            } else if b < 0x80 {
-                // ASCII non-identifier char: done
-                break;
+            if b.is_ascii() {
+                if oxc_syntax::identifier::is_identifier_part_ascii(b as char) {
+                    self.index += 1;
+                } else {
+                    break;
+                }
             } else {
-                // Non-ASCII: check via char
                 let c = self.source[self.index..].chars().next().unwrap_or('\0');
-                if c.is_alphanumeric() {
+                if oxc_syntax::identifier::is_identifier_part_unicode(c) {
                     self.index += c.len_utf8();
                 } else {
                     break;

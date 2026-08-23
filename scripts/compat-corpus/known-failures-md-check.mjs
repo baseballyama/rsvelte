@@ -258,6 +258,12 @@ const PARTITIONS = [
 	{
 		doc: 'matrix-known-failures.md',
 		key: 'matrix-known-failures.json',
+		prefix: 'async-attribute-slot/',
+		label: 'cause',
+	},
+	{
+		doc: 'matrix-known-failures.md',
+		key: 'matrix-known-failures.json',
 		prefix: 'opaque-keyword/',
 		label: 'cause',
 	},

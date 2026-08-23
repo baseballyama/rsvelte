@@ -26,6 +26,7 @@
 //! - Children fragments (recursed into separately by the caller)
 
 mod attribute;
+mod class_value;
 mod close_tag;
 mod directive;
 mod elements;

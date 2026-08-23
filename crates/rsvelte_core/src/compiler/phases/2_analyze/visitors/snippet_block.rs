@@ -504,6 +504,12 @@ fn expression_only_uses_params_node(
             expression_only_uses_params_node(arena.get_js_node(*argument), param_names, context)
         }
 
+        // `a?.b` / `f?.()` — the optional marker wraps the same call/member the
+        // non-optional spelling produces, and upstream sees only the references.
+        JsNode::ChainExpression { expression, .. } => {
+            expression_only_uses_params_node(arena.get_js_node(*expression), param_names, context)
+        }
+
         JsNode::UnaryExpression { argument, .. } | JsNode::UpdateExpression { argument, .. } => {
             expression_only_uses_params_node(arena.get_js_node(*argument), param_names, context)
         }
@@ -1568,6 +1574,15 @@ fn expression_only_uses_params(
             Some("SpreadElement") => {
                 if let Some(arg) = obj.get("argument") {
                     return expression_only_uses_params(arg, param_names, context);
+                }
+                true
+            }
+
+            // `a?.b` / `f?.()` — the optional marker wraps the same call/member
+            // the non-optional spelling produces.
+            Some("ChainExpression") => {
+                if let Some(inner) = obj.get("expression") {
+                    return expression_only_uses_params(inner, param_names, context);
                 }
                 true
             }

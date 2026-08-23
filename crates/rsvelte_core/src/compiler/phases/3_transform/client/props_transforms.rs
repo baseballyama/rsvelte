@@ -1954,6 +1954,42 @@ pub(super) fn calculate_prop_flags(
     flags
 }
 
+/// The `$.prop($$props, <key>, …)` key exactly as upstream prints it. Upstream
+/// passes `b.literal(key.value)`, so a numeric destructuring key stays a
+/// **number** (and carries its value, not its spelling: `0x10` → `16`).
+pub(super) fn prop_key_js_literal(raw_key: &str, prop_name: &str) -> String {
+    if let Some(n) = numeric_key_value(raw_key) {
+        return crate::compiler::phases::phase3_transform::server::evaluate::js_number_to_string(n);
+    }
+    format!("'{}'", prop_name)
+}
+
+/// `Some(value)` when the raw key text is a numeric literal, parsed rather than
+/// pattern-matched so `1e3` / `0x10` / `1_000` carry their value.
+fn numeric_key_value(raw_key: &str) -> Option<f64> {
+    use oxc_allocator::Allocator;
+    use oxc_ast::ast::{Expression, Statement};
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
+
+    let trimmed = raw_key.trim();
+    if !trimmed.starts_with(|c: char| c.is_ascii_digit() || c == '.') {
+        return None;
+    }
+    let alloc = Allocator::default();
+    let parsed = Parser::new(&alloc, trimmed, SourceType::mjs()).parse();
+    if parsed.panicked || !parsed.diagnostics.is_empty() {
+        return None;
+    }
+    let [Statement::ExpressionStatement(stmt)] = parsed.program.body.as_slice() else {
+        return None;
+    };
+    match &stmt.expression {
+        Expression::NumericLiteral(lit) => Some(lit.value),
+        _ => None,
+    }
+}
+
 /// Check if a string is a valid JavaScript identifier.
 pub(super) fn is_identifier_str(s: &str) -> bool {
     let trimmed = s.trim();
@@ -2796,13 +2832,15 @@ pub(super) fn transform_props_destructuring(
     // Track "seen" prop names for $.rest_props() exclusion list.
     // Reference: VariableDeclaration.js lines 45-46
     // Starts with internal prop names that should always be excluded.
+    // Holds each entry's JS literal spelling, because a numeric key is excluded
+    // as a number upstream (`b.literal(key.value)`), not as a string.
     let mut seen: Vec<String> = vec![
-        "$$slots".to_string(),
-        "$$events".to_string(),
-        "$$legacy".to_string(),
+        "'$$slots'".to_string(),
+        "'$$events'".to_string(),
+        "'$$legacy'".to_string(),
     ];
     if analysis.custom_element.is_some() {
-        seen.push("$$host".to_string());
+        seen.push("'$$host'".to_string());
     }
 
     // Comments that bracket a declarator ride the esrap comment cursor
@@ -2873,7 +2911,7 @@ pub(super) fn transform_props_destructuring(
         if let Some(rest_name) = prop_part.strip_prefix("...") {
             let rest_name = rest_name.trim();
             // Generate: rest_name = $.rest_props($$props, ['$$slots', '$$events', '$$legacy', ...seen_props])
-            let seen_literals: Vec<String> = seen.iter().map(|s| format!("'{}'", s)).collect();
+            let seen_literals: Vec<String> = seen.clone();
             let dev_name = if dev {
                 format!(", '{}'", rest_name)
             } else {
@@ -2897,19 +2935,20 @@ pub(super) fn transform_props_destructuring(
             // In destructuring, `disabled: disabledProp = false` means:
             //   prop_name = "disabled" (the actual prop)
             //   local_name = "disabledProp" (the local variable)
-            let (prop_name, local_name) = if let Some(colon_pos) = name_part.find(':') {
-                let pn = name_part[..colon_pos].trim();
+            let (prop_key, local_name) = if let Some(colon_pos) = name_part.find(':') {
+                let raw_key = name_part[..colon_pos].trim();
                 // Strip surrounding quotes from prop name (e.g., 'weird-name': localVar)
-                let pn = pn
+                let pn = raw_key
                     .strip_prefix('\'')
                     .and_then(|s| s.strip_suffix('\''))
-                    .or_else(|| pn.strip_prefix('"').and_then(|s| s.strip_suffix('"')))
-                    .unwrap_or(pn);
+                    .or_else(|| raw_key.strip_prefix('"').and_then(|s| s.strip_suffix('"')))
+                    .unwrap_or(raw_key);
                 let ln = name_part[colon_pos + 1..].trim();
-                (pn, ln)
+                (prop_key_js_literal(raw_key, pn), ln)
             } else {
-                (name_part, name_part)
+                (format!("'{}'", name_part), name_part)
             };
+            let prop_key = prop_key.as_str();
 
             // Strip $bindable() wrapper: $bindable(value) -> value
             // Reference: VariableDeclaration.js - unwrap_bindable()
@@ -2958,12 +2997,12 @@ pub(super) fn transform_props_destructuring(
                         // In legacy mode, all props are sources
                         true
                     };
-                    seen.push(prop_name.to_string());
+                    seen.push(prop_key.to_string());
                     if is_source {
                         let flags = calculate_prop_flags(local_name, analysis, false);
                         declarators.push(format!(
-                            "{} = $.prop($$props, '{}', {})",
-                            local_name, prop_name, flags
+                            "{} = $.prop($$props, {}, {})",
+                            local_name, prop_key, flags
                         ));
                     }
                     return false;
@@ -2974,7 +3013,7 @@ pub(super) fn transform_props_destructuring(
             };
 
             // Add this prop name to the "seen" list for rest_props exclusion
-            seen.push(prop_name.to_string());
+            seen.push(prop_key.to_string());
 
             // Transform default value: apply read-only prop substitutions
             let default_value = {
@@ -3032,8 +3071,8 @@ pub(super) fn transform_props_destructuring(
 
             if is_simple {
                 declarators.push(format!(
-                    "{} = $.prop($$props, '{}', {}, {})",
-                    local_name, prop_name, flags, proxy_wrapped
+                    "{} = $.prop($$props, {}, {}, {})",
+                    local_name, prop_key, flags, proxy_wrapped
                 ));
             } else {
                 // Wrap non-simple values in a thunk: () => value
@@ -3041,29 +3080,30 @@ pub(super) fn transform_props_destructuring(
                 // OXC from parsing `() => {...}` as arrow with block body
                 let lazy_arg = make_lazy_prop_arg(&proxy_wrapped);
                 declarators.push(format!(
-                    "{} = $.prop($$props, '{}', {}, {})",
-                    local_name, prop_name, flags, lazy_arg
+                    "{} = $.prop($$props, {}, {}, {})",
+                    local_name, prop_key, flags, lazy_arg
                 ));
             }
             true
         } else {
             // No default value - handle rename pattern: `originalProp: localVar`
-            let (prop_name, local_name) = if let Some(colon_pos) = prop_part.find(':') {
-                let pn = prop_part[..colon_pos].trim();
+            let (prop_key, local_name) = if let Some(colon_pos) = prop_part.find(':') {
+                let raw_key = prop_part[..colon_pos].trim();
                 // Strip surrounding quotes from prop name
-                let pn = pn
+                let pn = raw_key
                     .strip_prefix('\'')
                     .and_then(|s| s.strip_suffix('\''))
-                    .or_else(|| pn.strip_prefix('"').and_then(|s| s.strip_suffix('"')))
-                    .unwrap_or(pn);
+                    .or_else(|| raw_key.strip_prefix('"').and_then(|s| s.strip_suffix('"')))
+                    .unwrap_or(raw_key);
                 let ln = prop_part[colon_pos + 1..].trim();
-                (pn, ln)
+                (prop_key_js_literal(raw_key, pn), ln)
             } else {
-                (prop_part, prop_part)
+                (format!("'{}'", prop_part), prop_part)
             };
+            let prop_key = prop_key.as_str();
 
             // Add to seen list for rest_props exclusion
-            seen.push(prop_name.to_string());
+            seen.push(prop_key.to_string());
 
             // Only generate $.prop() if this is a source prop or exported
             let is_exported = exported_names.contains(&local_name.to_string());
@@ -3072,8 +3112,8 @@ pub(super) fn transform_props_destructuring(
                 let flags = calculate_prop_flags(local_name, analysis, false);
 
                 declarators.push(format!(
-                    "{} = $.prop($$props, '{}', {})",
-                    local_name, prop_name, flags
+                    "{} = $.prop($$props, {}, {})",
+                    local_name, prop_key, flags
                 ));
             }
             // Read-only props without defaults are accessed directly via $$props.propName

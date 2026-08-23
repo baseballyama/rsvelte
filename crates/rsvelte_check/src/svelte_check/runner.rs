@@ -8,6 +8,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 use rayon::prelude::*;
 
@@ -180,6 +181,48 @@ pub fn absolutize_workspace(path: &Path) -> PathBuf {
     super::overlay::absolutize(path)
 }
 
+/// Per-phase wall-clock split, printed to stderr under `RSVELTE_CHECK_TIMING`.
+///
+/// A single total cannot attribute a movement to walk / compile / overlay /
+/// tsgo, and those four have independent costs and independent fixes.
+struct Phases {
+    enabled: bool,
+    last: Instant,
+    rows: Vec<(&'static str, f64)>,
+}
+
+impl Phases {
+    fn new() -> Self {
+        Self {
+            enabled: std::env::var_os("RSVELTE_CHECK_TIMING").is_some_and(|v| v != "0"),
+            last: Instant::now(),
+            rows: Vec::new(),
+        }
+    }
+
+    fn mark(&mut self, name: &'static str) {
+        if !self.enabled {
+            return;
+        }
+        let now = Instant::now();
+        self.rows
+            .push((name, now.duration_since(self.last).as_secs_f64() * 1000.0));
+        self.last = now;
+    }
+
+    fn report(&self) {
+        if !self.enabled {
+            return;
+        }
+        let total: f64 = self.rows.iter().map(|(_, ms)| ms).sum();
+        for (name, ms) in &self.rows {
+            let share = if total > 0.0 { ms / total * 100.0 } else { 0.0 };
+            eprintln!("[timing] {name:<10} {ms:9.1} ms  {share:5.1}%");
+        }
+        eprintln!("[timing] {:<10} {total:9.1} ms  100.0%", "total");
+    }
+}
+
 /// Run rsvelte's compiler on every `.svelte` file under `options.workspace`
 /// and collect the resulting diagnostics. tsgo / svelte2tsx integration
 /// will plug in here in a follow-up.
@@ -195,6 +238,7 @@ pub fn absolutize_workspace(path: &Path) -> PathBuf {
 /// `absolutize_workspace`, or the two won't agree (#1919).
 #[must_use]
 pub fn run(options: &RunOptions) -> RunResult {
+    let mut phases = Phases::new();
     let workspace = absolutize_workspace(&options.workspace);
     let options = &RunOptions {
         workspace,
@@ -211,12 +255,14 @@ pub fn run(options: &RunOptions) -> RunResult {
     let files = relevant.svelte;
     let kit_files = relevant.kit;
     let files_checked = files.len();
+    phases.mark("walk");
     let diagnostics = compile_files_with_cache(
         &files,
         &options.workspace,
         options.incremental,
         &compiler_opts,
     );
+    phases.mark("compile");
     let mut result = RunResult {
         diagnostics,
         files_checked,
@@ -236,6 +282,7 @@ pub fn run(options: &RunOptions) -> RunResult {
             &compiler_opts,
         ) {
             Ok(layout) => {
+                phases.mark("overlay");
                 if options.type_check {
                     // The overlay restates the project's `paths` with absolute
                     // targets, which denies the compiler its own validation of
@@ -252,6 +299,7 @@ pub fn run(options: &RunOptions) -> RunResult {
                         options.prefer_tsgo,
                         &mut result.diagnostics,
                     );
+                    phases.mark("typecheck");
                 }
                 result.overlay = Some(layout);
             }
@@ -293,6 +341,8 @@ pub fn run(options: &RunOptions) -> RunResult {
     apply_warning_filter(&mut result.diagnostics, options);
 
     apply_filters(&mut result.diagnostics, options);
+    phases.mark("post");
+    phases.report();
 
     result
 }
