@@ -729,9 +729,45 @@ fn expr_has_object_head(expr: &oxc_ast::ast::Expression) -> bool {
     }
 }
 
+/// Whether printed JS ends inside an unterminated `//` comment. A caller that
+/// appends the tag's own `}` must then break the line, or the `}` is commented out.
+pub(super) fn ends_in_line_comment(printed: &str) -> bool {
+    let bytes = printed.as_bytes();
+    let mut i = 0usize;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\'' | b'"' | b'`' => {
+                let quote = bytes[i];
+                i += 1;
+                while i < bytes.len() && bytes[i] != quote {
+                    i += if bytes[i] == b'\\' { 2 } else { 1 };
+                }
+                i += 1;
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'/') => {
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                if i >= bytes.len() {
+                    return true;
+                }
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'*') => {
+                i += 2;
+                while i < bytes.len() && !(bytes[i] == b'*' && bytes.get(i + 1) == Some(&b'/')) {
+                    i += 1;
+                }
+                i += 2;
+            }
+            _ => i += 1,
+        }
+    }
+    false
+}
+
 /// Drop the `;` oxc puts after the expression statement when a trailing comment
 /// follows it — `{n; /* x */}` is not an expression, so the tag stops parsing.
-fn drop_statement_semicolon(formatted: String) -> String {
+pub(super) fn drop_statement_semicolon(formatted: String) -> String {
     let bytes = formatted.as_bytes();
     let mut last_semi = None;
     let mut i = 0usize;
