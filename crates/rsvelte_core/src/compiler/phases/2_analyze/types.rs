@@ -1036,9 +1036,15 @@ mod ts_removals {
             self.remove(it.span);
         }
 
-        // Upstream passes these through verbatim (a class index signature even
-        // makes it throw), so they are left exactly as written.
-        fn visit_ts_index_signature(&mut self, _it: &TSIndexSignature<'a>) {}
+        // A class index signature is type-only and has no runtime form; upstream
+        // leaves it in and then throws while printing it, so there is no oracle
+        // to reproduce. See
+        // `upstream_issues/3422-svelte-class-index-signature-crash.md`.
+        fn visit_ts_index_signature(&mut self, it: &TSIndexSignature<'a>) {
+            self.remove(it.span);
+        }
+
+        // Upstream passes these through verbatim, so they are left as written.
         fn visit_ts_export_assignment(&mut self, _it: &TSExportAssignment<'a>) {}
         fn visit_ts_import_equals_declaration(&mut self, _it: &TSImportEqualsDeclaration<'a>) {}
         fn visit_ts_namespace_export_declaration(

@@ -561,6 +561,52 @@ impl Parity {
     }
 }
 
+/// The `map-parity` count says how many segments diverge; burning the backlog
+/// down needs to know *which*. `SOURCEMAP_PARITY_DETAIL=1` on the measurement
+/// run prints one line per divergence, quoting the generated text at the
+/// segment and the source text it should have pointed at.
+fn snippet(text: &str, line: usize, col: usize, len: usize) -> String {
+    let Some(l) = text.lines().nth(line) else {
+        return "<oob>".into();
+    };
+    let units: Vec<u16> = l.encode_utf16().collect();
+    let end = (col + len).min(units.len());
+    if col >= units.len() {
+        return "<eol>".into();
+    }
+    String::from_utf16_lossy(&units[col..end]).replace('\n', "\\n")
+}
+
+fn explain_parity(key: &str, theirs: &DecodedMap, ours: &DecodedMap, generated: &str, src: &str) {
+    for (line_no, line) in theirs.lines.iter().enumerate() {
+        for segment in line {
+            if segment.len() < 4 {
+                continue;
+            }
+            let mine = ours
+                .lines
+                .get(line_no)
+                .and_then(|l| l.iter().find(|s| s[0] == segment[0] && s.len() >= 4));
+            let gen_text = snippet(generated, line_no, segment[0] as usize, 24);
+            let want = snippet(src, segment[2] as usize, segment[3] as usize, 24);
+            match mine {
+                None => println!(
+                    "  DETAIL {key} MISSING g{line_no}:{} {gen_text:?} -> s{}:{} {want:?}",
+                    segment[0], segment[2], segment[3]
+                ),
+                Some(m) if m[1..4] == segment[1..4] => {}
+                Some(m) => {
+                    let got = snippet(src, m[2] as usize, m[3] as usize, 24);
+                    println!(
+                        "  DETAIL {key} WRONG   g{line_no}:{} {gen_text:?} -> s{}:{} {got:?} want s{}:{} {want:?}",
+                        segment[0], m[2], m[3], segment[2], segment[3]
+                    );
+                }
+            }
+        }
+    }
+}
+
 fn parity(theirs: &DecodedMap, ours: &DecodedMap) -> Parity {
     let mut p = Parity::default();
     for (line_no, line) in theirs.lines.iter().enumerate() {
@@ -793,6 +839,9 @@ fn measure() -> Report {
                 report.identical_code.push(key.clone());
                 match theirs.map.as_deref().and_then(decode_map) {
                     Some(their_map) => {
+                        if std::env::var_os("SOURCEMAP_PARITY_DETAIL").is_some() {
+                            explain_parity(&key, &their_map, &map, &ours.code, &input);
+                        }
                         report.parity.insert(key.clone(), parity(&their_map, &map));
                     }
                     None => report

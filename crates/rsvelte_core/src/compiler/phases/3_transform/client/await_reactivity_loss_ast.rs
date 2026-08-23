@@ -134,6 +134,13 @@ fn is_async_derived_call(expr: &Expression<'_>) -> bool {
     is_internal_call(expr, "async_derived")
 }
 
+/// `$inspect.trace()`'s wrapper. Upstream's `BlockStatement` visitor builds
+/// `b.await(call)` *after* visiting the body, so the `await` it synthesizes
+/// never reaches the `AwaitExpression` visitor.
+fn is_trace_call(expr: &Expression<'_>) -> bool {
+    is_internal_call(expr, "trace")
+}
+
 pub(super) fn is_save_call(expr: &Expression<'_>) -> bool {
     is_internal_call(expr, "save")
 }
@@ -152,14 +159,6 @@ fn is_internal_call(expr: &Expression<'_>, name: &str) -> bool {
     };
     member.property.name == name
         && matches!(&member.object, Expression::Identifier(id) if id.name == "$")
-}
-
-/// The `await $.trace(…)` an async function's `$inspect.trace()` is lowered to.
-/// It is generated after the source's own awaits were instrumented, and
-/// upstream builds it with `b.await` rather than visiting an await of the
-/// user's, so it has no counterpart to instrument.
-fn is_trace_call(expr: &Expression<'_>) -> bool {
-    is_internal_call(expr, "trace")
 }
 
 /// The `await (async ($$value) => { … })(…)` an async destructuring assignment

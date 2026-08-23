@@ -10,11 +10,11 @@ rsvelte_esrap = { path = "../rsvelte_esrap" }
 
 [dev-dependencies]
 criterion = { version = "5.0.0", features = ["html_reports"], package = "codspeed-criterion-compat" }
-oxc_allocator = "0.144"
-oxc_ast = "0.144"
-oxc_codegen = "0.144"
-oxc_parser = "0.144"
-oxc_span = "0.144"
+oxc_allocator = "0.145"
+oxc_ast = "0.145"
+oxc_codegen = "0.145"
+oxc_parser = "0.145"
+oxc_span = "0.145"
 
 [[bench]]
 name = "ci"

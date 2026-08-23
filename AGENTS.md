@@ -40,6 +40,44 @@ kept only as a fallback for comment-bearing / unsupported-node programs. The rem
 processing (client visitors building `Raw` strings, `shared/async_body.rs`) is internal IR
 construction with unchanged output — a maintainability cleanup only.
 
+**The client source map is the one output where that string processing is not free**, because
+a text fragment has no node to stamp a position on: #2954 rebuilt the map by matching generated
+text back against the source in eleven passes, and #3015 replaced the ones a span can carry.
+Three lessons outlive that work. **`has_loc` answers "may this node carry comments", and the
+printer was reading it as "is this a mappable source position"** — under split coordinates
+`loc_base` sits *above* every real source offset, so every `JsExpr::Spanned` in a component
+whose script has a comment was silently dropped from the map; `Printer::map_position` is the
+mapping-only lookup, and formatting decisions must keep `offset_to_line_col` because a
+comment-space line and a source-space line are not comparable. And **a span belongs on the
+identifier, not on the wrapper the lowering builds around it** (upstream's
+`b.call(b.id(name, loc))`): spanning the call makes the segment cover `foo()` where official
+covers `foo`. And **an in-band wrapper variant is only safe where every downstream matcher on
+that position has been enumerated** — leaving `JsExpr::Spanned` on a member expression's
+*object* bought 18 segments and broke 49 runtime fixtures, because the client lowering walks a
+member chain by variant (`while let JsExpr::Member` then `if let JsExpr::Identifier`) and a
+wrapper answers neither, so a `bind:` setter fell through to `bar.baz = $$value` instead of
+`bar(bar().baz = $$value, true)`. **The source-map gate cannot see that class at all**: its
+unit is a segment, not the generated statement, so it scored the change green.
+What still needs a pass — the `$.prop` declaration, hoisted `import` lines,
+element identifier *uses*, component `bind:` accessors — is a `Raw` fragment or a builder call
+that had the span and dropped it, which is why #3015 step 1 (`Raw` eradication) really is the
+prerequisite it claims to be.
+
+**Two further lessons came out of making that branch green.** `loc_base` is the *boundary*
+between the comment buffer and source coordinates, so a source offset must never raise it: a
+`note_span` on the instance script's **end** put the boundary in the middle of the source range,
+every template offset after the script then read as a comment-space position, and the printer
+flushed a script comment inline mid-argument-list where `//` swallowed the rest of the line —
+output no parser accepts, from one file in 13,284. And **a field is priced on the type, not on
+the node that sets it**: the block's brace range was one `Option<(u32,u32)>` on
+`JsBlockStatement`, a struct inside every statement and expression, which grew `JsStatement`
+192 → 208 bytes and `JsExpr` 184 → 200 and cost 77% of a 2.47% allocation-byte regression for a
+range exactly one block per program carries. Neither was visible to CodSpeed, which compiles
+with `enable_sourcemap: false` while the shipping default is `true` (gate-coverage, *the perf
+gates also compile with a different option set*). Per-pass numbers are in
+[docs/phase3-ast-refactor-plan.md](docs/phase3-ast-refactor-plan.md#findings-2026-08-18--the-client-map-is-86-span-carried-and-two-of-the-eleven-passes-delete);
+**a pass measuring 0 there is not evidence it is redundant** (gate-coverage 14f).
+
 **The `.svelte.(js|ts)` module path is not in that "cleanup only" set, and calling it one was
 wrong.** `compileModule` rewrites source text, and its scans decide structure: #2986 located a
 class with `memmem::find(b"class ")` over the whole script, so a comment mentioning `class` made
@@ -158,6 +196,43 @@ non-literal initializer as **source text** that only the JSON branch re-parses. 
 `{1 || 2}` folds and `const c = 1 || 2; {c}` does not, and the same for `const c = /ab/g` and
 for a `1n` bigint anywhere. Treat that as the next instalment, not as covered.
 
+**#3539 is that instalment's first row, and measuring it moved two of the sentence's claims.**
+The bigint half was the *operator table*, not the known-value predicates: `to_number` returns
+`None` for a bigint — correct, because JS `ToNumber` throws on one — and every arithmetic and
+relational arm was gated on it, while arithmetic actually uses **`ToNumeric`**, which keeps a
+bigint a bigint and throws only when the *other* operand is not one. So the fold conflated
+"this coercion throws" with "this value is unknown", and `7n + 2n` fell through with `2n + 1`.
+One table serves both walkers, so fixing it moved a 6,510-cell bigint × operator × 7-host ×
+3-target sweep from 1,539 divergences to 263. The other claim to correct is **"in the client"**:
+the `const c = 1 || 2` miss is on the *server* too, and it is not about bigints or regexes —
+`const c = 0 || 2`, `const c = 1 && 2` and `const c = null ?? 2` all fail identically on all
+three targets. What the sweep's residue actually contains is five distinct clusters, **none of
+them bigint-specific**, all reached through a *binding initializer* rather than a template
+expression: a `LogicalExpression` never folds there; the client never folds a global call
+(`Number('3')`, `String(3)`); `$derived(<any literal>)` misses the `textContent` fast path; the
+dev-mode equality guard fires on an initializer where no `$.equals` lowering happens; and
+`const r = '1' + '1'` **renders `2`** on the server. The last is a wrong value rather than a
+missed fold, and the shape that finds it is a plain string. **Ask of a residue paragraph which
+of its examples were measured and which were inferred from the mechanism** — three of these
+four were only ever the latter.
+
+**And #3027 is not one bug, it is the shape of a class — the inventory is
+[`compatibility/two-ports-inventory.md`](compatibility/two-ports-inventory.md).** Every gate here
+compares rsvelte to *upstream*; **none compares rsvelte to itself**, so a second port of one
+upstream function is only ever exercised on whatever inputs a real file happens to supply. On
+2026-08-22 four instances were reported on one day by four people in four files — #3403, #3427,
+#3472, #3569 — and a sweep from the upstream side then found twelve, of which the ports
+*demonstrably* answer differently in ten. Three are self-documented: `assign_dev_ast.rs:56` says
+"the two must agree or the same source would be wrapped on one path and not the other" and its
+twin lacks three `match` arms; the server's rune table says "mirrors `is_rune` in utils.js" and is
+missing two names the client's is not; `truncate_globals` and `truncate_trailing_globals` both
+claim `css-prune.js`'s `truncate` and return *opposite* results when every relative selector is
+global. **A comment asserting fidelity is where this class hides**, because it reads as a
+citation. Exactly one place in the tree defends against it
+(`typed_reactive_state_front_end_agrees_with_the_json_walk`), and the reusable part is that it
+pins the expected answer *independently* — a port-vs-port test whose oracle is the other port
+passes when both are broken the same way.
+
 **The `JsNode` → `serde_json::Value` cost is one site, and it is not the lazy cache.**
 `to_value` has 54 call sites; every materialization figure this project has quoted (27,488 →
 12,089 → 3,649) counts only the cached one. Of the bypassing population, 98% is
@@ -246,8 +321,10 @@ Every `.svelte` / `.svelte.(js|ts)` source (including markdown code blocks) from
 source repository — sveltejs/svelte, sveltejs/svelte.dev, and the real-world projects bits-ui /
 flowbite-svelte / melt-ui / shadcn-svelte, all pinned as submodules and listed in
 `scripts/compat-corpus/corpus-sources.json` — is compiled with both the official compiler and
-rsvelte for CSR, SSR **and** dev-mode CSR (the three targets declared in
-`scripts/compat-corpus/targets.mjs`). Outputs must be byte-identical after comparison-side normalization
+rsvelte for CSR, SSR, dev-mode CSR **and dev-mode SSR** — read the target list off
+`scripts/compat-corpus/targets.mjs` (`TARGETS`, i.e. every non-`reportOnly` descriptor) rather than
+off this sentence: verifying a new pattern file against three of the four is a green local check and
+a red CI run. Outputs must be byte-identical after comparison-side normalization
 (oxfmt + blank-line stripping — never compiler post-passes). To grow the corpus, add a submodule
 plus a line to `corpus-sources.json`. CI ratchet: `compatibility/known-failures.{client,server,client-dev}.json`
 may only shrink, and each remaining failure is justified in `compatibility/known-failures.md`. Every
@@ -673,10 +750,38 @@ control on a string you know is there.
 | `grep X file` finds nothing that is there | `grep` is a shell function wrapping `ugrep --ignore-files`, which skips gitignored paths | `command grep` |
 | `Binary file … matches`, no lines printed | one NUL byte anywhere in the file (not non-ASCII — UTF-8 is fine) | `command grep -a`, or `git grep` |
 | `git show rev:file \| grep X` finds nothing | the wrapper's `-I` discards binary-looking **stdin** | `git grep X rev -- file` |
-| later matches missing | `\| head -N` truncates with no error | state the denominator, or drop the cap |
+| later matches missing | `\| head -N` (or `\| tail -N`) truncates with no error | state the denominator, or drop the cap — see the section below, this is the narrow case of a general hazard |
 
-Related: in `cmd \| head`, `$?` is `head`'s status, not `cmd`'s. Never read a
-verdict through a pipe.
+### A truncating or discarding stage turns a failure into a green
+
+`grep` is one instance; the class is **any stage between a command and your
+eyes that can drop the part carrying the verdict**. It never reports that it
+dropped it, so the output is not "wrong", it is *indistinguishable from success*
+— which is why re-reading it more carefully cannot help. Three of these were hit
+on one day, by three different people, each already knowing the rule:
+
+| What was read | What it actually showed | Why it read as a pass |
+|---|---|---|
+| `cargo test 2>&1 \| tail -25` | `[exited with code 0]` for a run that **failed to compile** (`no field 'errors'`; it is `diagnostics`) | the compile error scrolled past the window, and `$?` came from `tail` |
+| `cargo clippy 2>&1 \| tail -40` | dependency crates and `Finished` — the target crate's own line was outside the window | a clippy run that is clean and one that never reached your file print the *same nothing* |
+| `pgrep -c … \|\| echo 0` | `0` | the `\|\|` arm fabricated a datum that reads exactly like a measurement |
+
+Rules, in the order they are cheap:
+
+1. **Never read a verdict through a truncating stage.** Run the command bare, or
+   put the filter *after* capturing the status (`PIPESTATUS[0]`, or write to a
+   file and grep the file). `2>/dev/null` and `|| echo <literal>` are the same
+   hazard wearing different clothes: the first throws away the half that carries
+   the failure, the second manufactures the answer.
+2. **When "pass" is spelled as silence, the run needs a positive control.**
+   Introduce the defect the check exists to catch, confirm the check goes red,
+   remove it, and confirm the tree is byte-identical again (`git diff` empty).
+   Only then does the quiet run mean anything. This is the same argument as the
+   negative-grep control above, one level up: an empty result is evidence only
+   once you have shown the instrument can produce a non-empty one.
+3. **State the denominator.** "No warnings" is a claim about a population; say
+   which one (`-p <crate> --lib --tests`), because the reader cannot tell from
+   the output whether your file was in it.
 
 ### Working with Subagents
 
@@ -712,7 +817,7 @@ Use the `Agent` tool for substantial work — feature implementation, multi-file
 
 ## Test Status
 
-Source: `pnpm run compatibility-report` (Svelte **v5.56.8**). Re-run `pnpm run test-and-update`
+<!-- svelte-target-version -->Source: `pnpm run compatibility-report` (Svelte **v5.56.9**).<!-- /svelte-target-version --> Re-run `pnpm run test-and-update`
 to refresh. The runtime skip lists and the fixture-generation compile options are shared
 constants in `crates/rsvelte_core/tests/common/mod.rs`, so the report and the gates
 (`tests/runtime.rs`, `tests/ssr.rs`) always measure the same thing;

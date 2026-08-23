@@ -1,5 +1,11 @@
 # @rsvelte/svelte-check
 
+## 0.5.20
+
+### Patch Changes
+
+- 6025ed9: Rebuild against the adversarial-sweep compiler fixes (#3030–#3061) — these packages embed rsvelte_core and pick the changes up only via their own release.
+
 ## 0.5.19
 
 ### Patch Changes

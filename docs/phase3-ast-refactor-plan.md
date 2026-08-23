@@ -598,3 +598,173 @@ Instrumentation for all of the above (per-site `to_value` attribution split
 cache/direct, object and map-entry counts, reader sets) lives behind the existing
 `measure-json` feature on branch `tools/measure-json-instrumentation`
 (`e4f47227`), deliberately unmerged.
+
+## Findings (2026-08-18 — the client map is 86% span-carried, and two of the eleven passes delete)
+
+#2954 rebuilt the client source map by matching generated text back against the
+source, in eleven passes over `transform_component_with_scripts`. #3015 asks for the
+opposite: stamp the source span on the IR node, let esrap emit the map from it, and
+delete the passes. This section is the measurement.
+
+**The denominator.** `sourcemap_gate_measure` scores 818 official segments across 29
+samples, and **488 of them are client**; the other 330 belong to the server path, which
+has its own passes and is untouched here. Quoting the whole 818 for a client-only change
+understates it by a factor of ~1.7 — the issue's "239/818" is really 239/**488**.
+
+| configuration | `main` | with this change |
+| --- | ---: | ---: |
+| all enrichment passes | 815/818 | 815/818 |
+| every client pass disabled | 567/818 (**client 239/488**, 49.0%) | 749/818 (**client 421/488**, 86.3%) |
+
+### Where the 182 recovered segments came from
+
+| change | client segments |
+| --- | ---: |
+| identity chunk projection for non-TypeScript scripts | +57 |
+| `JsBlockStatement::brace_span` — the component function's braces | +76 |
+| `Synth::reserve_anchor` — those braces under split coordinates | +8 |
+| esrap `map_position` — real source spans map under split coordinates | +10 |
+| the identifier's span travels *into* the read transform | +6 |
+| longest-run resync in the chunk projection | +25 |
+
+**A span wrapper is not free where the consumer matches by variant, and the eighteenth
+segment cost 49 runtime fixtures.** Keeping `JsExpr::Spanned` on a member expression's
+*object* measured +18 and passed the whole source-map gate — and broke `component-binding-*`,
+`binding-input-group-each-*` and 45 more, because the client lowering walks a member chain
+with `while let JsExpr::Member(m) = root` and then asks `if let JsExpr::Identifier(name) =
+root`. A `Spanned` in object position answers neither, so `shared/component.rs`'s
+`member_root_info` came back `None` and a `bind:` setter silently fell through to a plain
+`bar.baz = $$value` instead of `bar(bar().baz = $$value, true)` — output that parses,
+computes a value, and loses the parent notification. The source-map gate cannot see this:
+its unit is a segment, not the generated statement. So `without_outer_source_span` stays on
+the member object, and the general rule is that **a new in-band wrapper variant is safe only
+where every downstream matcher on that position has been enumerated** — the wrapper on the
+identifier itself (`+6` above) is safe precisely because it is unwrapped at the single entry
+point that consumes it.
+
+**`has_loc` answers a comment question, and the printer was using it as a mapping
+question.** Under split coordinates `loc_base` is set *above* every real source offset, so
+`has_loc` is false for all of them — which is correct for "may this node carry comments"
+and exactly backwards for "is this a source position worth a segment". Every
+`JsExpr::Spanned` in a component whose script carries a comment was therefore dropped.
+`Printer::map_position` is the same lookup without the `loc_base` gate, and only the
+mapping sites use it; formatting decisions keep `offset_to_line_col`, because comparing a
+comment-space line against a source-space line is meaningless.
+
+**A brace is mapped from the body span, so a body that lives in comment space needs two
+bytes of its own.** `write_block_brace` maps `{` to `[body_start, body_start+1)` and `}` to
+`[body_end-1, body_end)`; when the body span is a chunk region those bytes belong to the
+chunk and resolve to the chunk's offset. `Synth::reserve_anchor` appends buffer bytes that
+belong to nobody and gives them their own `loc_map` entries. It reserves **two**, because
+`write_node` brackets a mapped node with an anchor at each end.
+
+### Deleting the passes (#3015 step 3), and what each one still carries
+
+Segments lost when exactly one client pass is disabled, everything else on:
+
+| pass | `main` | this change |
+| --- | ---: | ---: |
+| `default_function_wrapper` | 84 | **0 — deleted** |
+| `effect_callback` | 8 | **0 — deleted** |
+| `token` | 80 | 23 |
+| `template_element_runtime` | 25 | 21 |
+| `legacy_prop_read` | 16 | 16 |
+| `inline_script` | 7 | 4 |
+| `bind_value` | 5 | 5 |
+| `component_bind` | 5 | 4 |
+| `verbatim_import` | 4 | 4 |
+| `collapsed_declaration` | 0 | 0 |
+| `rune` | 0 | 0 |
+
+`default_function_wrapper` and `effect_callback` are deleted: both are now produced by a
+span, and the before/after column is the attribution. The other nine stay, and what each
+still carries is a named lowering, not a mystery:
+
+| still carried by a pass | why the position is lost |
+| --- | --- |
+| `let x = $.prop($$props, …)` and its default | the declaration is written by the *script text* rewriter, which records nothing; the chunk projection has to re-derive it by alignment |
+| hoisted verbatim `import` lines | `extract_imports` returns text with no offset, so they are emitted as `JsStatement::Raw` |
+| element/component identifier *uses* (`pre.textContent`, `$.sibling(div, 2)`) | `flush_node` stamps the declaration; `SiblingPrev::Reuse` carries a bare `b::id` |
+| component `bind:` accessor pairs (`get potato()`) | built from `JsExpr::Raw` text |
+| the `(deps, $.untrack(…))` sequence tail | builder-made, with no source anchor |
+
+Every row is a `Raw` fragment or a builder call that had a span available and dropped it —
+i.e. #3015's step 1 really is the prerequisite it claims to be, and this measurement names
+which fragments to eradicate first by how many segments they hold.
+
+**`collapsed_declaration` and `rune` cost 0 on both trees, and that is not evidence they
+are redundant.** They were already contributing nothing before this change, so deleting
+them cannot be attributed to it, and the gate is 29 samples — a pass that never fires in
+those samples is indistinguishable from a pass whose output is now produced elsewhere. Both
+stay, and the distinction is recorded as gate-coverage 14f.
+
+### Two hazards the change created and paid for
+
+*The projection stopped being TypeScript-only, so its consumers stopped being cheap.*
+`RestoreRawMappedSpans::source_offset` was a linear scan of `copied_spans` per AST node and
+`take_chunk_region` pushed one `loc_map` entry per mapped **byte** — both fine when only
+TypeScript scripts had a projection, both quadratic once every script does. They are now a
+binary search and one `LocRange { linear: true }` per copied run, and the projection itself
+is computed only when `enable_sourcemap` is set.
+
+*A resync window that is too wide is worse than the nearest-byte rule it replaces.*
+Scoring resync candidates by longest common run over a 256-byte window fixed
+`export let x = …` → `let x = $.prop(…)` and **broke** the TypeScript sample, which lost 4
+segments the passes had been covering: a slightly longer run a hundred bytes away beat the
+right one next door. The rule that holds is *nearest candidate that starts at least a
+token's worth of agreement, within 32 bytes, and only when the nearest single byte buys
+less than that* — 815/818 with the passes (no regression) and 767/818 without them, better
+than the wide window's 756.
+
+### A third hazard, and it is in the representation, not in a pass
+
+The span-carrying architecture is cheap only if the span rides on something rare. Measured
+with `alloc_count` on flowbite-svelte (1296 files) — a deterministic allocator counter,
+because wall clock on the dev box moved **31% from run order alone** at load average 160,
+which is why the three arms below are byte counts and not milliseconds:
+
+| tree | allocations | requested bytes |
+| --- | ---: | ---: |
+| `main` | 2,120,446 | 578,635,400 |
+| this branch, as first pushed | 2,124,328 | 592,917,695 (**+2.47%**) |
+| after the three changes below | 2,125,314 | 581,451,429 (**+0.49%**) |
+
+Generated JS **and** source maps stay byte-identical across 9,916 components (the four
+real-world corpora, every `.svelte` in `submodules/svelte` + `submodules/svelte.dev`, and the
+1,251 ` ```svelte ` snippets in their docs), so this is a pure representation question.
+
+**`brace_span` on `JsBlockStatement` cost 11.0 MB of the 14.3 — 77% — for a range exactly one
+block per program carries.** That struct sits inside every statement and expression, so the
+field grew `JsStatement` 192 → 208 bytes and `JsExpr` 184 → 200: an 8.3% / 8.7% tax on the
+whole IR. There is no cheaper field, either — `JsBlockStatement` is a bare `Vec` at 24 bytes
+with 8-byte alignment, so *any* added field rounds it to 32. It belongs on `JsProgram`, keyed
+by the component function's name, where there is one of it. **When a new field is only ever
+set on one node, measure what it costs on the type, not on that node.**
+
+The other two are smaller and are the same shape — work whose cost is paid per byte of every
+script now that the projection is no longer TypeScript-only. `copied_spans_for_normalized_code`
+built a `Vec<Option<u32>>` the length of the script and walked it byte by byte; without an
+erasure to project through, that table holds `Some(original_offset + i)` at every `i`, so the
+split loop can never break a run and the whole per-byte pass reduces to one span per matched
+run. And `apply_transforms_to_expression_with_shadowed` rebuilt an identifier no transform had
+rewritten as a *second* `Spanned` arena node holding the same span over a clone of the same
+identifier; it now keeps the wrapper it arrived in.
+
+What is left (+2.82 MB, +0.49%) is the `Spanned` node for identifiers a transform *does*
+rewrite — the feature itself, not overhead around it.
+
+**The benchmark suite cannot see any of this**: `benchmark_runner` hard-codes
+`enable_sourcemap: false` (two sites), while `CompileOptions::default()` sets it **true**, so
+CodSpeed measured a configuration in which the projection does not run and reported
+"will not alter performance" for all 11 benchmarks. That is gate-coverage's population axis,
+not its comparison axis: the numbers it printed were correct about the workload it ran.
+
+**And the byte regression never converted into measurable time, which is the part worth
+remembering.** Re-measured once the box was quiet (load ~10 on 10 cores): three release binaries
+rotated through all 6 orders, 18 samples each, 3,637 real-world components as CSR with
+`enable_sourcemap: true` — `main` 947.6 ms min / 957.7 ms mean, the branch before the fix
+928.2 / 941.9, after it 925.9 / 938.3. The branch is ~2% *faster* than `main`, which is under the
+~5% code-layout floor for separate-binary A/B, so the reading is parity in all three arms. The
+0.4% the fix itself moved is not a claim. **An allocation-byte share is not a CPU share**: the
+reason to fix it is that `JsStatement` and `JsExpr` are the types everything downstream is built
+out of, not that a timer moved.

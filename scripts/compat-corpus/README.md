@@ -915,6 +915,11 @@ manifest is shared — they also flow through the fmt and svelte2tsx gates.
    [`compatibility/pattern-corpus/README.md`](../../compatibility/pattern-corpus/README.md)
    instead — that table is the only provenance record.
 
+   `scripts/ci/check-pattern-corpus-docs.mjs` enforces this in both directions,
+   per section: an `issues/` file needs a row in the `issues/` table, a
+   `matrix/<axis>/` file needs one under that axis's `### ` heading, and an
+   `adversarial/<theme>/` directory needs a row in the themes table.
+
 3. **Land it with the fix.** A repro for a still-open divergence would have to be
    seeded into `known-failures.*`; add it in the fix PR (or right after it
    merges) so it lands green.
@@ -926,7 +931,23 @@ manifest is shared — they also flow through the fmt and svelte2tsx gates.
    node scripts/compat-corpus/compile.mjs --filter pattern/
    node scripts/compat-corpus/verify.mjs
    node scripts/compat-corpus/one.mjs pattern/issues/<file>.svelte   # diff one entry
+   pnpm run corpus:s2t:compile && pnpm run corpus:s2t:verify         # the file is a TSX case too
+   pnpm run corpus:fmt && pnpm run corpus:fmt-verify                 # …and a formatter case
    ```
+
+   Run all three. The paragraph above says the manifest is shared, and that cuts
+   both ways: a file written to exercise the compiler is also an input to gates
+   nobody wrote it for, and it can turn one of those red on its own. That is not
+   only a nuisance — a compiler repro found an unrelated svelte2tsx defect
+   (#3368) precisely because it reached a gate it was not written for.
+
+   Two traps in the checking loop itself. `corpus:collect` copies the **working
+   tree's** pattern corpus into `compatibility/sources`, so a run after a branch
+   switch without re-collecting measures the previous branch's files and reports
+   failures that belong to another PR. And the compiler gate compares every
+   non-`reportOnly` descriptor in `targets.mjs` — four today, including
+   `server-dev` — so a hand-rolled check over three of them passes locally and
+   fails in CI.
 
 No submodule, `.gitmodules`, CI path-filter or auto-update entry is involved —
 `compatibility/**` is already a trigger path for `corpus-compat.yml`.

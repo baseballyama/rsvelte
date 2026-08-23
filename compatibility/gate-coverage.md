@@ -19,6 +19,14 @@ It answers three questions per gate:
    - **[U] unmeasured** — no evidence was gathered. A row marked `[U]` is a *question*, not a
      finding.
 
+**One question this file does not ask** has its own inventory in
+[`two-ports-inventory.md`](two-ports-inventory.md): *how many times does rsvelte answer
+one upstream decision, and does anything compare its own answers to each other?* Every
+gate below compares rsvelte to upstream; none compares rsvelte to itself, so a second port
+of one upstream function is exercised only on whatever inputs a real file happens to
+supply. That is indexed by decision rather than by gate, which is why it is a separate
+file — but the two share an evidence vocabulary, and a row there is a gap here.
+
 **Do not fill a row with a plausible guess.** An unsupported blind-spot claim is worse than a
 blank, because the next person reads the row as surveyed and never looks again. If you have
 neither a discriminating case nor a code citation, write `[U]`.
@@ -97,7 +105,7 @@ samples) — see `AGENTS.md` § "Generated shape matrix" and issue #2281.
 | 11 | Lint output parity | set of `rule\tline:col\tmessage` | `.svelte.(js\|ts)` ungated on **both** sides; autofixes never compared | [D] |
 | 12 | svelte-check Layer 1 (fixtures) | multiset of `SEVERITY file:line code` | column, message, `source`, file-walk counts, every flag but `--tsconfig` | [D] |
 | 13 | svelte-check Layer 2 (e2e) | same key, 3 units in 2 repos | same fields; whether the oracle finds anything at all | [U] |
-| 14 | Compiler source-map gate | 23 anchors + budgets + parity vs official | segments rsvelte **adds**; `sources`/`names`; `dev: true` | [S] |
+| 14 | Compiler source-map gate | 23 anchors + budgets + parity vs official | segments rsvelte **adds**; `sources`/`names`; `dev: true`; a **uniform shift** of every original line | [D] |
 | 15 | `ast_gate_preconditions` | "rsvelte's own output parses" | compile **failures** are skipped — errors make it greener | [S] |
 | 16 | Validator fixture suite | per-fixture ordered `(code, message, start, end)` warnings + error code/message/span; message text against a generated oracle | only 5 `_config.js` keys are read, and `options.json` not at all — a sample runs under options upstream never used | [S] |
 | 17 | svelte2tsx fixture suite | per-fixture TSX text | text after the `export default class` cut is dropped from both sides | [S] |
@@ -1144,7 +1152,62 @@ arrow through one prop name, and the write is always a member expression — a b
 `p = p + 1` reassignment is `binding-position`'s `assignment.right` row and is not repeated
 here. **[S]**
 
-### Blind spot 5r — CLOSED: no family varied the TAG NAME, so a generated identifier could be a keyword
+### Blind spot 5r — every gate compares rsvelte to ONE pinned oracle, so a defect the oracle shares is invisible everywhere
+
+The whole pipeline's question is "does rsvelte emit what `submodules/svelte` emits". Where the
+pinned compiler is itself wrong, a faithful port scores `match` on every gate here, and the
+divergence appears only at the submodule bump — in the PR least able to absorb it, since a bump
+already moves output everywhere. The parse oracle (5l) is the one comparison that could see it,
+and it **deliberately does not**: `run.mjs:268-270` checks `parseFailure(expected)` first and
+routes an unparseable OFFICIAL output to `oracleRejections`, which aborts the run instead of
+becoming a verdict. That is the right call for a generated corpus — the message is "fix the case
+or widen the oracle" — but it means *upstream emits non-JavaScript* is a run-abort, never a row.
+
+**[D]** #3621. `<my-element bar={await p}>` compiles, under `svelte@5.56.9`, to
+`$.template_effect(() => $.set_custom_element_data(my_element, 'bar', await p))` — `await` in a
+non-async arrow — because
+`build_custom_element_attribute_update_assignment` (`3-transform/client/visitors/RegularElement.js:665`)
+is the one attribute slot that passes no memoize callback to `build_attribute_value`, so the
+default identity `memoize` applies and the slot bypasses `Memoizer` entirely. rsvelte's
+`regular_element.rs:687-716` ports that verbatim, `|expr, _metadata| expr` and all, so the two
+agree byte for byte and **every gate in this file is green on it**: the collected corpus never
+sets `experimental.async` (5j), the matrix had no case in the cell, the runtime fixtures at
+5.56.9 contain no custom element carrying an `await`, and the snapshot suite pins the un-memoized
+call as *expected* output (`dynamic-attributes-casing`). The issue was written against the
+5.56.10 bump branch and reported it as an rsvelte defect; it is one only relative to 5.56.10.
+
+The same measurement found two more slots where the pinned compiler emits `await` inside a
+non-async function — `autofocus={await …}` → `$.autofocus(input, await p)`, and an event
+attribute `onclick={await …}` → `(await p)?.apply(this, $$args)` inside
+`function (...$$args)`. Unlike the custom-element slot, **5.56.10 does not fix either**, so they
+are still shared with the current upstream and still invisible to every gate (#3651).
+
+What closes the general case is not another family: it is running the parse oracle on the
+**official** side as a first-class result — an "upstream emits non-JavaScript" report, distinct
+from both an abort and a ratchet entry — so a shape whose oracle is broken is *recorded* rather
+than either silently agreed with or silently excluded. **Unmeasured:** how many such shapes
+exist. Three are known, all found by hand-authoring inputs around one issue; nothing has swept
+for them.
+
+The `async-attribute-slot` family does two things about this. It cannot make the *shared* defect
+visible today, so it calibrates against the future oracle instead: of the rows that match on the
+pin, **8 move when the same cases are compiled against `svelte@5.56.10`** —
+`custom-element/attribute` × `{call, async-iife, derived-await-read, script-await-read}` ×
+`{client, client-dev}` — two of whose values contain no `await` at all, because the upstream fix
+routes a plain **call** through the memoizer too. The bump PR therefore gets a red row rather
+than a silent carry-over. The four cells whose *client* oracle is not JavaScript are narrowed to
+the server targets by the mechanism 5m describes.
+
+And the neighbourhood it had to cross to say that was not green at all: 200 cases / 792
+comparisons reported **310** divergences on the first run — 96 of them output no JS parser
+accepts — in an area where the collected corpus is structurally silent (5j) and every runtime
+fixture passes. One fix (#3621, the client `style` attribute value, whose memoizer call
+hardcoded `has_await: false`) clears 28; the remaining 282 are three named causes (#3648, #3649,
+#3650), two of which the async axis did not find on its own: an `await` that is not the
+last-evaluated expression is not pickled through `$.save`, and `<svelte:element class:x={f()}>`
+emits an unbound `$0` **with no `await` anywhere in the input**. That last one is the host axis
+paying for itself, the way `write-host`'s did. **[D]**
+### Blind spot 5s — CLOSED: no family varied the TAG NAME, so a generated identifier could be a keyword
 
 Every family before this one fixed the element (`<button>`, `<div>`, `<b>`) and varied what was
 *inside* it. A tag name is not decoration: it becomes a generated variable name, and
@@ -1728,6 +1791,75 @@ CSS maps; the whole surface is one anchor on one sample (`:138`).
 MEASURED" branch (`:959-967`) fires only for pairs that have a budget entry. **[S]** A change
 that breaks byte-identity for one unratcheted pair while fixing another keeps the count at 57
 and reports nothing; the dropped pair silently stops being measured.
+
+ ### Blind spot 14f — a uniform shift of every original line passes every check
+
+The 29 samples all use `\n` line endings, and no check compares rsvelte's original line
+*numbering rule* to official's. **[D]** #3412 proposed widening
+`rsvelte_esrap::printer::line_starts` to the full ECMAScript LineTerminator set. That function is
+the source-map original-coordinate table as well as the comment-placement one, by **two**
+routes: the coordinate readers take `map_line_starts.unwrap_or(&self.line_starts)`
+(`esrap/src/printer.rs:757`, `:810`, `:889`), and `print_with_map` never sets `map_line_starts`, so
+there `line_starts` *is* the coordinate table — while `print_split` does set it, from the very same
+`printer::line_starts` (`esrap/src/lib.rs:191`), with `3_transform/client/mod.rs:2554` passing the
+**component source** as `map_source`. Both routes are therefore in range; enumerating only the
+`print_split` one understates it. The change moves the original line of everything after a lone
+`\r`, U+2028 or U+2029. Applying
+only that function's body to an otherwise unchanged tree and running this gate: **3 passed, 1
+ignored — green.**
+
+The discriminating measurement is a decode of `mappings`, collecting the distinct original lines
+any segment points at, for
+`<script>\nlet aaa = 1;{T}let bbb = 2;\n</script>\n<p>{aaa}{bbb}</p>`:
+
+| `{T}` | official | rsvelte | rsvelte with the widened table |
+|---|---|---|---|
+| `\n` | 1,2,3,4,5 | 1,2,3,4,5 | 1,2,3,4,5 |
+| `\r\n` | 1,2,3,4,5 | 1,2,3,4,5 | 1,2,3,4,5 |
+| `\r` | 1,2,3,4 | 1,2,3,4 | **1,2,3,4,5** |
+| U+2028 | 1,2,3,4 | 1,2,3,4 | **1,2,3,4,5** |
+| U+2029 | 1,2,3,4 | 1,2,3,4 | **1,2,3,4,5** |
+
+Two rows agree on all three columns, so the table is a control rather than an assertion: official
+counts **only `\n`** for original positions, even though esrap's *comment* placement reads acorn
+`loc`, which advances on all four. The reason this gate cannot see it is structural rather than
+sampling: `parity()` compares rsvelte's segment to official's at the same **generated** position
+(`:537-548`), and a shift that moves both sides' notion of an original line identically for every
+sample containing no exotic terminator leaves every anchor, budget and parity check satisfied —
+while `map-parity` itself never runs on a sample that *does* contain one, because none exists.
+
+ Recorded because the next person to touch a coordinate table will read this gate as the negative
+ control for that change. It is not.
+ 
+ ### Blind spot 14g — a pass that never fires reads exactly like a pass that became redundant
+
+The gate is 29 samples, and it is the only evidence available when deciding whether a
+source-map enrichment pass can be deleted (#3015 step 3). Measured by disabling one client
+pass at a time: `collapsed_declaration` and `rune` cost **0 segments on `main` and 0 after
+#3015's span work**. **[D]** That is a discriminating case in the negative direction — the
+same reading is produced by "these samples contain no `$state`/`$derived`/`$props` lowering
+whose position the pass would have supplied" and by "a span now supplies it", and nothing in
+the gate separates them. Deleting a pass on a 0 therefore needs a population that fires it;
+the passes deleted in #3015 (`default_function_wrapper` 84 → 0, `effect_callback` 8 → 0)
+carry a *movement*, which is the reading a 0 cannot give.
+
+ There is no corpus-wide source-map gate to fall back on: `verify.mjs` compares generated
+ code, and the svelte2tsx map gate (§ 12) covers a different artifact.
+
+### Blind spot 14h — the unit is a segment, so a change that improves the map and breaks the *code* scores green
+
+Every comparison here reads `map.mappings`; nothing in the file looks at the generated JS the
+map describes. **[D]** #3015 kept `JsExpr::Spanned` on a member expression's *object*, which
+measured **+18 client segments and passed all four tests** — while making the client lowering's
+`while let JsExpr::Member` / `if let JsExpr::Identifier` chain walk in
+`client/visitors/shared/component.rs` miss the root binding, so a `bind:` setter emitted
+`bar.baz = $$value` instead of `bar(bar().baz = $$value, true)`. 49 runtime fixtures caught it;
+this gate could not, because a correct segment pointing at wrong code is indistinguishable here
+from a correct segment pointing at right code. Any IR change that both moves positions and
+changes lowering must be run against `tests/runtime.rs`, not this gate alone.
+
+There is no corpus-wide source-map gate to fall back on: `verify.mjs` compares generated
+ code, and the svelte2tsx map gate (§ 12) covers a different artifact.
 
 Related open work: #1781 (client maps are chunk-granular; 16% point outside the source range).
 
@@ -3669,6 +3801,26 @@ selection this document cannot justify. Aggregating them gives **22.8%**, but hu
 **55.8% of that corpus's compile time**, so the aggregate is a statement about how the corpus was
 assembled. (Excluding huly moves it only to 23.3%, so the aggregate is at least not fragile to
 that one repo — but four repos is four repos.)
+
+### The perf gates also compile with a different **option set** than shipping code
+
+The population axis above is *which files*; this is *which `CompileOptions`*. Measured
+2026-08-18: `benchmark_runner` sets `enable_sourcemap: false` (`crates/rsvelte_devtools/src/bin/benchmark_runner.rs:152,162`)
+while `CompileOptions::default()` sets it **true** (`crates/rsvelte_core/src/compiler/mod.rs:322`),
+which is what the NAPI/vite path gets. Everything gated on that flag is therefore compiled by
+shipping users and by no benchmark we run.
+
+**Discriminating case:** #3028 moved the client source map onto spans, which made
+`copied_spans_for_normalized_code` run for every script instead of only a TypeScript one, and
+put a 16-byte field on `JsBlockStatement` — a struct inside every statement and expression, so
+`JsStatement` grew 192 → 208 bytes and `JsExpr` 184 → 200. Requested allocation bytes over
+flowbite-svelte rose **2.47%** against `main`. CodSpeed's report on that same commit: *"Merging
+this PR will not alter performance"*, 11 untouched benchmarks. Not a wrong measurement — a
+measurement of a configuration in which the changed code does not execute.
+
+**What is still unmeasured `[U]`:** the rest of the flag surface. `dev` is covered
+(`--dev` exists), but `hmr`, `css`, `discloseVersion` and the `runes` override are set by
+callers and pinned by the runner, and no one has enumerated which of them gate work.
 
 ## Adding a gate, or a row here
 

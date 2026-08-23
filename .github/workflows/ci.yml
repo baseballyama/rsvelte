@@ -828,8 +828,17 @@ jobs:
     needs: [test, test-unit, test-runtime, test-thread-safety, test-fmt-corpus, oxc-formatter-probe, language-server]
     if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 1
+    timeout-minutes: 5
     steps:
+      # This job had no checkout while its verdict was inline bash; the script
+      # needs one. Sparse, because `scripts/ci` is all it reads.
+      # This job had no checkout while its verdict was inline bash; the script
+      # needs one. Sparse, because `scripts/ci` is all it reads.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+          sparse-checkout: scripts/ci
+
       - name: Verify all test jobs passed
         shell: bash
         env:
@@ -840,18 +849,11 @@ jobs:
           FMT_CORPUS: ${{ needs.test-fmt-corpus.result }}
           OXC_FORMATTER_PROBE: ${{ needs.oxc-formatter-probe.result }}
           LANGUAGE_SERVER: ${{ needs.language-server.result }}
-        run: |
-          echo "test (shards): $BULK"
-          echo "test-unit: $UNIT"
-          echo "test-runtime: $RUNTIME"
-          echo "test-thread-safety: $THREAD_SAFETY"
-          echo "test-fmt-corpus: $FMT_CORPUS"
-          echo "oxc-formatter-probe: $OXC_FORMATTER_PROBE"
-          echo "language-server: $LANGUAGE_SERVER"
-          if [[ "$BULK" != "success" || "$UNIT" != "success" || "$RUNTIME" != "success" || "$THREAD_SAFETY" != "success" || "$FMT_CORPUS" != "success" || "$OXC_FORMATTER_PROBE" != "success" || "$LANGUAGE_SERVER" != "success" ]]; then
-            echo "::error::One or more test jobs did not succeed."
-            exit 1
-          fi
+        # Same exit codes as before; the script exists so the MESSAGE can say
+        # whether a leg failed or was merely cancelled, which reads identically
+        # in `gh pr checks` and is the difference between "tests are broken" and
+        # "this run produced no verdict".
+        run: node scripts/ci/tests-aggregate-verdict.mjs
 
   compatibility-report:
     name: Compatibility Report
@@ -1225,6 +1227,11 @@ jobs:
       - name: Run workflow trigger guard tests
         run: node scripts/ci/test-workflow-trigger-guard.mjs
 
+      # The `Tests` aggregator's verdict is a message nothing else reads, so it
+      # can only regress silently.
+      - name: Run Tests aggregator verdict tests
+        run: node scripts/ci/test-tests-aggregate-verdict.mjs
+
       - name: Run differential corpus workflow tests
         run: node scripts/ci/test-differential-corpus-workflow.mjs
 
@@ -1238,6 +1245,21 @@ jobs:
       # a passing one — so its controls belong with the other trigger guards.
       - name: Run corpus-compat job filter tests
         run: node scripts/ci/test-corpus-compat-job-filter.mjs
+
+      # A pattern-corpus repro carries its provenance only in the README, so a
+      # file that drifts out of the table loses the record of which axis it
+      # holds — and nothing noticed in either direction until #3670.
+      - name: Check pattern-corpus is documented
+        run: node scripts/ci/check-pattern-corpus-docs.mjs
+
+      - name: Run pattern-corpus docs guard tests
+        run: node scripts/ci/test-check-pattern-corpus-docs.mjs
+
+      # `update-docs.mjs --check` only runs in the Compatibility Report job,
+      # which needs a release build and a generated report. Comparing a doc to
+      # the submodule needs neither, so the version half runs on every PR.
+      - name: Check the docs state the pinned Svelte version
+        run: node scripts/ci/test-svelte-target-marker.mjs
   prereq-coverage-guard:
     name: Prerequisite coverage guard
     runs-on: ubuntu-latest

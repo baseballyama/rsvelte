@@ -20,6 +20,7 @@ mod json;
 mod markup;
 mod options;
 mod prettier_ignore;
+mod private_in_guard;
 mod reindent;
 mod scratch;
 mod script;

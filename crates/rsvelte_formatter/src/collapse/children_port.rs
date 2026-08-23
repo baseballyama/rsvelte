@@ -173,7 +173,13 @@ pub(super) fn node_to_child(
                     .flatten()
                     .map(Child::Other);
             }
-            Some(Child::Other(Doc::Text(span.to_string())))
+            // A tag that fits its own source line still has to break when the
+            // printed line it lands on overflows, and only the enclosing doc
+            // knows that column — so model it as prettier does, a group.
+            Some(Child::Other(
+                content_tag_breakable_doc(out, node, options)
+                    .unwrap_or_else(|| Doc::Text(span.to_string())),
+            ))
         }
         // Flow blocks. `isBlockElement` requires `type === 'RegularElement'`, so
         // these are NOT block children — like a mustache they go through

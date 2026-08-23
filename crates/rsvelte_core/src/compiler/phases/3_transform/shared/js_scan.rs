@@ -140,81 +140,12 @@ pub(crate) fn slash_starts_regex_at(bytes: &[u8], i: usize, prev: Option<u8>) ->
     KEYWORDS_BEFORE_REGEX.contains(&&bytes[start..end])
 }
 
-/// Byte just past the template literal opening at `i`.
-///
-/// A template literal is not delimited like a quoted string: `${ … }` re-enters
-/// **code**, which can open another template, so a scan that stops at the next
-/// backtick leaves the literal at the wrong one — text at even nesting depth
-/// then reads as code. The frame stack keeps that straight without recursing on
-/// nesting depth.
-fn skip_template_literal(bytes: &[u8], i: usize) -> usize {
-    // `None` is an open template's quasi; `Some(depth)` an open `${ … }`.
-    let mut frames: Vec<Option<usize>> = vec![None];
-    let mut prev: Option<u8> = None;
-    let mut j = i + 1;
-    while j < bytes.len() {
-        match frames.last_mut() {
-            None => break,
-            Some(None) => match bytes[j] {
-                b'\\' => j += 2,
-                b'`' => {
-                    frames.pop();
-                    j += 1;
-                }
-                b'$' if bytes.get(j + 1) == Some(&b'{') => {
-                    frames.push(Some(0));
-                    prev = None;
-                    j += 2;
-                }
-                _ => j += 1,
-            },
-            Some(Some(depth)) => match bytes[j] {
-                b'`' => {
-                    frames.push(None);
-                    j += 1;
-                }
-                b'{' => {
-                    *depth += 1;
-                    prev = Some(b'{');
-                    j += 1;
-                }
-                b'}' => {
-                    if *depth == 0 {
-                        frames.pop();
-                    } else {
-                        *depth -= 1;
-                        prev = Some(b'}');
-                    }
-                    j += 1;
-                }
-                _ => match skip_opaque(bytes, j, prev) {
-                    Some((next, was_comment)) => {
-                        if !was_comment {
-                            prev = Some(bytes[next - 1]);
-                        }
-                        j = next;
-                    }
-                    None => {
-                        if !bytes[j].is_ascii_whitespace() {
-                            prev = Some(bytes[j]);
-                        }
-                        j += 1;
-                    }
-                },
-            },
-        }
-        if frames.is_empty() {
-            break;
-        }
-    }
-    j.min(bytes.len())
-}
-
 /// If a string, template literal, regex literal or comment starts at `i`,
 /// return `(byte just past it, was_a_comment)`. `prev` is the last significant
 /// code byte, needed to tell a regex literal from a division.
 pub(crate) fn skip_opaque(bytes: &[u8], i: usize, prev: Option<u8>) -> Option<(usize, bool)> {
     match bytes[i] {
+        b'`' => Some((skip_template(bytes, i), false)),
         quote @ (b'\'' | b'"') => {
             let mut j = i + 1;
             while j < bytes.len() {
@@ -229,7 +160,6 @@ pub(crate) fn skip_opaque(bytes: &[u8], i: usize, prev: Option<u8>) -> Option<(u
             }
             Some((j.min(bytes.len()), false))
         }
-        b'`' => Some((skip_template_literal(bytes, i), false)),
         b'/' if bytes.get(i + 1) == Some(&b'/') => {
             let mut j = i + 2;
             while j < bytes.len() && bytes[j] != b'\n' {
@@ -275,6 +205,82 @@ pub(crate) fn skip_opaque(bytes: &[u8], i: usize, prev: Option<u8>) -> Option<(u
         }
         _ => None,
     }
+}
+
+/// Byte just past the template literal that opens at `i`.
+///
+/// A template is not a quote-delimited run: `${…}` re-enters code and may open
+/// another template, so one "in string" flag reads the literal as closed at
+/// every even nesting depth (#3592). The whole literal is one opaque run — a
+/// bracket or terminator inside a substitution is balanced within it.
+fn skip_template(bytes: &[u8], i: usize) -> usize {
+    let mut open_templates = 1usize;
+    let mut in_text = true;
+    // Brace depth of each open `${…}`, innermost last.
+    let mut substitutions: Vec<usize> = Vec::new();
+    let mut prev: Option<u8> = None;
+    let mut j = i + 1;
+
+    while j < bytes.len() {
+        if in_text {
+            match bytes[j] {
+                b'\\' => j += 2,
+                b'`' => {
+                    j += 1;
+                    open_templates -= 1;
+                    if open_templates == 0 {
+                        return j;
+                    }
+                    in_text = false;
+                    prev = Some(b'x');
+                }
+                b'$' if bytes.get(j + 1) == Some(&b'{') => {
+                    j += 2;
+                    substitutions.push(0);
+                    in_text = false;
+                    prev = None;
+                }
+                _ => j += 1,
+            }
+            continue;
+        }
+        // Taken here rather than through `skip_opaque` so the two never recurse.
+        if bytes[j] == b'`' {
+            open_templates += 1;
+            in_text = true;
+            prev = None;
+            j += 1;
+            continue;
+        }
+        if let Some((next, is_comment)) = skip_opaque(bytes, j, prev) {
+            if !is_comment {
+                prev = Some(b'x');
+            }
+            j = next;
+            continue;
+        }
+        match bytes[j] {
+            b'{' => {
+                if let Some(depth) = substitutions.last_mut() {
+                    *depth += 1;
+                }
+            }
+            b'}' => {
+                if matches!(substitutions.last(), Some(0)) {
+                    substitutions.pop();
+                    in_text = true;
+                } else if let Some(depth) = substitutions.last_mut() {
+                    *depth -= 1;
+                }
+            }
+            _ => {}
+        }
+        if !bytes[j].is_ascii_whitespace() {
+            prev = Some(bytes[j]);
+        }
+        j += 1;
+    }
+    bytes.len()
 }
 
 /// Does `s` end with a `//` comment that no newline has closed?
@@ -579,6 +585,68 @@ mod tests {
     #[test]
     fn find_code_reports_none_when_every_occurrence_is_text() {
         assert!(find_code(b"const c = '$state(';\n", b"$state(").is_none());
+    }
+
+    /// `${…}` re-enters code, so the run a backtick opens is not delimited by
+    /// the next backtick. A flag-based scan is right at odd nesting depth and
+    /// wrong at even, which is the signature #3592 was reported with.
+    #[test]
+    fn a_template_literal_is_opaque_at_every_nesting_depth() {
+        let mut payload = "$state(0)".to_string();
+        for depth in 1..=5 {
+            payload = if depth == 1 {
+                format!("`{payload}`")
+            } else {
+                format!("`a ${{{payload}}} b`")
+            };
+            let src = format!("const t = {payload};\n");
+            let at = src.find('`').unwrap();
+            let (end, is_comment) =
+                skip_opaque(src.as_bytes(), at, Some(b'=')).expect("not opaque");
+            assert!(!is_comment);
+            assert_eq!(
+                &src[at..end],
+                payload,
+                "depth {depth}: the run did not span the whole literal"
+            );
+            assert!(
+                find_code(src.as_bytes(), b"$state(").is_none(),
+                "depth {depth}: template text matched as code"
+            );
+        }
+    }
+
+    /// A backtick the substitution's own opaque runs carry is text too.
+    #[test]
+    fn a_backtick_inside_a_substitution_does_not_close_the_template() {
+        for literal in [
+            "`a ${'`'} b`",
+            "`a ${\"`\"} b`",
+            "`a ${/* ` */ 1} b`",
+            "`a ${1 // `\n} b`",
+            "`a ${/`/.source} b`",
+            "`a ${ {x: `y`} } b`",
+        ] {
+            let src = format!("const t = {literal};\n");
+            let at = src.find('`').unwrap();
+            let (end, _) = skip_opaque(src.as_bytes(), at, Some(b'=')).expect("not opaque");
+            assert_eq!(&src[at..end], literal, "{literal}: wrong run");
+        }
+    }
+
+    /// The other side: a template with no nesting still ends at its backtick,
+    /// and an unterminated one still stops at the end of the input.
+    #[test]
+    fn a_plain_template_literal_is_unchanged() {
+        let src = "const t = `a ${x} b`; const u = 1;\n";
+        let at = src.find('`').unwrap();
+        let (end, _) = skip_opaque(src.as_bytes(), at, Some(b'=')).expect("not opaque");
+        assert_eq!(&src[at..end], "`a ${x} b`");
+        let open = "const t = `a ${`b`}";
+        assert_eq!(
+            skip_opaque(open.as_bytes(), open.find('`').unwrap(), Some(b'=')),
+            Some((open.len(), false))
+        );
     }
 
     #[test]
