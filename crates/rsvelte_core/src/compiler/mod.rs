@@ -536,7 +536,7 @@ fn tabs_to_spaces_column(line: &str, column: usize) -> usize {
 /// Drop a leading byte order mark, which would otherwise be template content.
 /// Upstream `compiler/index.js` does this at every public entry point, so every
 /// position downstream is relative to the trimmed source.
-pub(crate) fn remove_bom(source: &str) -> &str {
+pub fn remove_bom(source: &str) -> &str {
     source.strip_prefix('\u{feff}').unwrap_or(source)
 }
 
@@ -546,18 +546,6 @@ pub(crate) fn remove_bom(source: &str) -> &str {
 /// Returned to the caller so the `Root` is pinned on the caller's stack before
 /// the arena guard is installed — the guard holds a raw pointer to `ast.arena`,
 /// so the `Root` must not move after the guard is created.
-/// Strip a leading UTF-8 BOM, as upstream's `remove_bom` does at every public
-/// entry point. It has to happen before anything reads the source: leave it in
-/// and it is template text (a stray `\u{feff}` in every generated string);
-/// strip it after parsing and every offset is three bytes off.
-///
-/// Public because every consumer that maps a parse offset back into its own copy
-/// of the source has to strip the same three bytes: mixing a stripped offset with
-/// an unstripped `&str` slices inside the BOM.
-pub fn remove_bom(source: &str) -> &str {
-    source.strip_prefix('\u{feff}').unwrap_or(source)
-}
-
 pub(crate) fn parse_component(
     source: &str,
     modern_ast: bool,
