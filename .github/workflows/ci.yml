@@ -1255,6 +1255,12 @@ jobs:
       - name: Run pattern-corpus docs guard tests
         run: node scripts/ci/test-check-pattern-corpus-docs.mjs
 
+      # `update-docs.mjs --check` only runs in the Compatibility Report job,
+      # which needs a release build and a generated report. Comparing a doc to
+      # the submodule needs neither, so the version half runs on every PR.
+      - name: Check the docs state the pinned Svelte version
+        run: node scripts/ci/test-svelte-target-marker.mjs
+
       # An upstream report that nobody links is a report nobody can tell was
       # ever filed — 0 of 27 recorded a filing and 26 were unindexed (#3680).
       - name: Check upstream_issues is indexed
