@@ -337,22 +337,11 @@ pub fn transform_client_module(
     let transformed =
         transform_module_script_runes(&class_transformed, source, analysis, options.dev);
 
-    // The transformed source includes everything (imports + body).
-    // We need to split imports from body to avoid duplicate svelte import.
-    let (script_imports, script_rest) = extract_imports(&transformed);
-
-    // Add non-svelte imports
-    for import_line in &script_imports {
-        let trimmed = import_line.trim();
-        // Skip svelte internal imports since we already added them
-        if memmem::find(trimmed.as_bytes(), b"svelte/internal/").is_none() {
-            body.push(JsStatement::Raw(trimmed.into()));
-        }
-    }
-
-    // Add the rest of the module body
+    // Upstream `client_module` concatenates the generated `$` import with the
+    // module body untouched, so an `import` keeps its place among the other
+    // statements — hoisting it would change module evaluation order.
     {
-        let rest_trimmed = script_rest.trim();
+        let rest_trimmed = transformed.trim();
         if !rest_trimmed.is_empty() {
             body.push(if has_effect_rune {
                 JsStatement::RawEffect(rest_trimmed.into())
@@ -442,18 +431,6 @@ pub(crate) fn transform_module_source_for_module(
 ) -> String {
     let class_transformed = transform_module_class_fields_client(source);
     transform_module_script_runes_with_target(&class_transformed, source, analysis, dev, server)
-}
-
-/// Extract imports from a string, returning (imports, rest).
-/// This is a convenience wrapper for use from the server module.
-pub(crate) fn extract_imports_str(script: &str) -> (Vec<String>, Option<String>) {
-    let (imports, rest) = extract_imports(script);
-    let rest_trimmed = rest.trim();
-    if rest_trimmed.is_empty() {
-        (imports, None)
-    } else {
-        (imports, Some(rest_trimmed.to_string()))
-    }
 }
 
 /// Transform a component analysis into client-side JavaScript.
