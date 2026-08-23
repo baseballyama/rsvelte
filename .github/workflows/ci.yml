@@ -832,8 +832,6 @@ jobs:
     steps:
       # This job had no checkout while its verdict was inline bash; the script
       # needs one. Sparse, because `scripts/ci` is all it reads.
-      # This job had no checkout while its verdict was inline bash; the script
-      # needs one. Sparse, because `scripts/ci` is all it reads.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: false
