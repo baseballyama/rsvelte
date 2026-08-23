@@ -1770,9 +1770,11 @@ impl<'a> Parser<'a> {
             self.expression_line_offsets(),
         );
 
-        // Parse optional type parameters (between < and >)
+        // Parse optional type parameters (between < and >). Upstream gates the
+        // whole scan on TypeScript mode, so a `<` after the name is not a type
+        // parameter list in a component without `lang="ts"`.
         let mut type_params = None;
-        if self.eat_optional("<") {
+        if self.ts && self.eat_optional("<") {
             let type_params_start = self.index;
             let mut depth = 1;
             while !self.is_eof() && depth > 0 {
@@ -1801,6 +1803,15 @@ impl<'a> Parser<'a> {
                     self.advance();
                 }
             }
+            // Upstream reads this with `match_bracket`, which reports
+            // `unexpected_eof` at the end of the input for a list that never closes.
+            if depth > 0 && !self.options.loose {
+                return Err(crate::error::ParseError::svelte(
+                    "unexpected_eof",
+                    "Unexpected end of input",
+                    (self.source.len(), self.source.len()),
+                ));
+            }
             let type_params_content = &self.source[type_params_start..self.index];
             if !type_params_content.trim_ws().is_empty() {
                 type_params = Some(CompactString::from(type_params_content.trim_ws()));
@@ -1808,11 +1819,20 @@ impl<'a> Parser<'a> {
             self.eat_optional(">"); // consume closing >
         }
 
-        // Parse parameters (inside parentheses)
+        // Parse parameters (inside parentheses). Upstream's `eat('(', true,
+        // false)` requires the opener outside loose mode.
         self.skip_whitespace();
         let mut parameters = Vec::new();
 
-        if self.eat_optional("(") {
+        let opened = self.eat_optional("(");
+        if !opened && !self.options.loose {
+            return Err(crate::error::ParseError::svelte(
+                "expected_token",
+                "Expected token (",
+                (self.index, self.index),
+            ));
+        }
+        if opened {
             let params_start = self.index;
 
             // Find matching closing paren, accounting for nested parens and strings

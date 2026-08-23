@@ -153,7 +153,12 @@ impl NapiParseOptions {
     /// rejecting a non-boolean with the same message shape as the compile
     /// options.
     fn flag(field: Option<&LenientScalar>, keypath: &str) -> napi::Result<bool> {
-        field.map_or_else(|| Ok(false), |value| coerce_bool(keypath, value))
+        // These are rsvelte-only `parse()` flags — upstream's `parse()` validates
+        // nothing — so there is no upstream code to carry and the message alone
+        // is the whole diagnostic.
+        field
+            .map_or_else(|| Ok(false), |value| coerce_bool(keypath, value))
+            .map_err(|e| napi::Error::from_reason(e.message))
     }
 }
 
@@ -357,7 +362,7 @@ pub fn napi_compile(
     source: String,
     options: Option<NapiCompileOptions>,
 ) -> napi::Result<Value> {
-    let opts = options_to_compile(options)?;
+    let opts = options_to_compile(Some(&env), options)?;
     let filename = opts.filename.clone();
 
     match rust_compile(&source, opts) {
@@ -383,7 +388,7 @@ pub fn napi_compile_both(
     source: String,
     options: Option<NapiCompileOptions>,
 ) -> napi::Result<Value> {
-    let opts = options_to_compile(options)?;
+    let opts = options_to_compile(Some(&env), options)?;
     let filename = opts.filename.clone();
 
     match rust_compile_both(&source, opts) {
@@ -460,7 +465,9 @@ pub async fn napi_compile_with_css_hash(
     if let Some(o) = options.as_mut() {
         o.css_hash = None;
     }
-    let mut opts = options_to_compile(options)?;
+    // An `async` export's arguments must be `Send`; `Env` is not, so this is
+    // the one entry whose option failure cannot carry the coded shape.
+    let mut opts = options_to_compile(None, options)?;
     let filename = opts.filename.clone();
     let handle: css_hash_bridge::Handle =
         std::sync::Arc::new(std::sync::RwLock::new(Some(css_hash)));
@@ -833,11 +840,71 @@ impl napi::bindgen_prelude::ToNapiValue for LenientScalar {
     }
 }
 
-fn invalid_option(detail: impl std::fmt::Display) -> napi::Error {
-    napi::Error::from_reason(format!("Invalid compiler option: {detail}"))
+/// An option-validation failure carried as data.
+///
+/// `napi::Error`'s `code` is its `Status`, a closed enum with no room for
+/// `options_invalid_value`, so the coded shape has to be an object built from an
+/// `Env` — which option parsing does not have. Keeping the failure as a value
+/// lets the entry point raise it in upstream's `CompileError` shape while every
+/// raising site still goes through one constructor.
+struct OptionError {
+    /// `None` is an rsvelte-only refusal, which upstream has no code for;
+    /// `compile_error_object` writes `null` for the same reason.
+    code: Option<&'static str>,
+    message: String,
 }
 
-fn coerce_bool(keypath: &str, v: &LenientScalar) -> napi::Result<bool> {
+impl OptionError {
+    /// Upstream throws these as a `CompileError` with `message`, `name`, `code`
+    /// and (when supplied) `filename` enumerable, and no span — the diagnostic
+    /// node is `null`, so `start`/`end`/`frame` never exist.
+    ///
+    /// `env` is `None` only where one cannot exist — an `async` export's
+    /// arguments must be `Send`, and `Env` is not — and there the failure keeps
+    /// the message but loses the coded shape.
+    fn into_napi(self, env: Option<&Env>, filename: Option<&str>) -> napi::Error {
+        let Some(env) = env else {
+            return napi::Error::from_reason(self.message);
+        };
+        let build = || -> napi::Result<napi::Error> {
+            let mut obj = env.create_error(napi::Error::from_reason(self.message.clone()))?;
+            obj.set("name", "CompileError")?;
+            match self.code {
+                Some(code) => obj.set("code", code)?,
+                None => obj.set("code", napi::bindgen_prelude::Null)?,
+            }
+            if let Some(filename) = filename {
+                obj.set("filename", filename)?;
+            }
+            Ok(napi::Error::from(obj.to_unknown()))
+        };
+        build().unwrap_or_else(|_| napi::Error::from_reason(self.message))
+    }
+}
+
+/// Every option-validation failure upstream raises through
+/// `validate-options.js`'s `throw_error`, which is `e.options_invalid_value`.
+fn invalid_option(detail: impl std::fmt::Display) -> OptionError {
+    OptionError {
+        code: Some("options_invalid_value"),
+        message: format!(
+            "Invalid compiler option: {detail}\nhttps://svelte.dev/e/options_invalid_value"
+        ),
+    }
+}
+
+/// A value upstream accepts that this entry point cannot honour. There is no
+/// upstream code for it because upstream never raises it.
+fn unsupported_option(detail: impl std::fmt::Display) -> OptionError {
+    OptionError {
+        code: None,
+        message: detail.to_string(),
+    }
+}
+
+type OptionResult<T> = Result<T, OptionError>;
+
+fn coerce_bool(keypath: &str, v: &LenientScalar) -> OptionResult<bool> {
     match v {
         LenientScalar::Bool(b) => Ok(*b),
         _ => Err(invalid_option(format!(
@@ -846,7 +913,7 @@ fn coerce_bool(keypath: &str, v: &LenientScalar) -> napi::Result<bool> {
     }
 }
 
-fn coerce_string(keypath: &str, v: &LenientScalar) -> napi::Result<String> {
+fn coerce_string(keypath: &str, v: &LenientScalar) -> OptionResult<String> {
     match v {
         LenientScalar::Str(s) => Ok(s.clone()),
         _ => Err(invalid_option(format!(
@@ -887,7 +954,7 @@ fn coerce_runes(v: &LenientScalar) -> Option<bool> {
 
 /// Returns the mode plus whether the pre-Svelte-5 `dom`/`ssr` spelling was used
 /// (which upstream reports as `options_renamed_ssr_dom`).
-fn coerce_generate(v: &LenientScalar) -> napi::Result<(GenerateMode, bool)> {
+fn coerce_generate(v: &LenientScalar) -> OptionResult<(GenerateMode, bool)> {
     let msg = "generate must be \"client\", \"server\" or false";
     match v {
         LenientScalar::Bool(false) => Ok((GenerateMode::None, false)),
@@ -908,7 +975,7 @@ fn coerce_generate(v: &LenientScalar) -> napi::Result<(GenerateMode, bool)> {
 static WARNED_RENAMED_SSR_DOM: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
-fn coerce_namespace(v: &LenientScalar) -> napi::Result<Namespace> {
+fn coerce_namespace(v: &LenientScalar) -> OptionResult<Namespace> {
     let msg = "namespace should be one of \"html\", \"mathml\" or \"svg\"";
     match v {
         LenientScalar::Str(s) => match s.as_str() {
@@ -921,7 +988,7 @@ fn coerce_namespace(v: &LenientScalar) -> napi::Result<Namespace> {
     }
 }
 
-fn coerce_css(v: &LenientScalar) -> napi::Result<CssMode> {
+fn coerce_css(v: &LenientScalar) -> OptionResult<CssMode> {
     match v {
         LenientScalar::Bool(_) => Err(invalid_option(
             "The boolean options have been removed from the css option. Use \"external\" instead of false and \"injected\" instead of true",
@@ -939,7 +1006,7 @@ fn coerce_css(v: &LenientScalar) -> napi::Result<CssMode> {
     }
 }
 
-fn coerce_fragments(v: &LenientScalar) -> napi::Result<rsvelte_core::compiler::FragmentMode> {
+fn coerce_fragments(v: &LenientScalar) -> OptionResult<rsvelte_core::compiler::FragmentMode> {
     let msg = "fragments should be either \"html\" or \"tree\"";
     match v {
         LenientScalar::Str(s) => match s.as_str() {
@@ -953,7 +1020,7 @@ fn coerce_fragments(v: &LenientScalar) -> napi::Result<rsvelte_core::compiler::F
 
 // Upstream `list([4, 5], 5)` accepts only the numbers 4 and 5 (the string
 // `"4"` is rejected).
-fn coerce_component_api(v: &LenientScalar) -> napi::Result<rsvelte_core::compiler::ComponentApi> {
+fn coerce_component_api(v: &LenientScalar) -> OptionResult<rsvelte_core::compiler::ComponentApi> {
     match v {
         LenientScalar::Number(n) if n.to_bits() == 4.0_f64.to_bits() => {
             Ok(rsvelte_core::compiler::ComponentApi::V4)
@@ -969,7 +1036,7 @@ fn coerce_component_api(v: &LenientScalar) -> napi::Result<rsvelte_core::compile
 
 // Upstream `experimental: object({ async: boolean(false) })`: a non-object is
 // rejected; a missing/`null`/`undefined` `async` keeps the default.
-fn coerce_experimental(v: &LenientScalar) -> napi::Result<ExperimentalOptions> {
+fn coerce_experimental(v: &LenientScalar) -> OptionResult<ExperimentalOptions> {
     if !v.is_object() {
         return Err(invalid_option("experimental should be an object"));
     }
@@ -980,7 +1047,7 @@ fn coerce_experimental(v: &LenientScalar) -> napi::Result<ExperimentalOptions> {
     Ok(exp)
 }
 
-fn coerce_compatibility(v: &LenientScalar) -> napi::Result<rsvelte_core::compiler::ComponentApi> {
+fn coerce_compatibility(v: &LenientScalar) -> OptionResult<rsvelte_core::compiler::ComponentApi> {
     if !v.is_object() {
         return Err(invalid_option("compatibility should be an object"));
     }
@@ -1056,7 +1123,7 @@ impl NapiCompileOptions {
         clippy::too_many_lines,
         reason = "option conversion stays contiguous to make the JavaScript-to-compiler mapping auditable"
     )]
-    fn into_compile_options(self) -> napi::Result<CompileOptions> {
+    fn into_compile_options(self) -> OptionResult<CompileOptions> {
         let mut opts = CompileOptions::default();
         if let Some(v) = &self.dev {
             opts.dev = coerce_bool("dev", v)?;
@@ -1087,7 +1154,12 @@ impl NapiCompileOptions {
             opts.name = Some(coerce_string("name", v)?);
         }
         if let Some(v) = &self.custom_element {
-            opts.custom_element = coerce_bool("customElement", v)?;
+            // `parametric`, not `boolean`: upstream's message has no
+            // ", if specified" tail here.
+            opts.custom_element = match v {
+                LenientScalar::Bool(b) => *b,
+                _ => return Err(invalid_option("customElement should be true or false")),
+            };
         }
         if let Some(v) = &self.accessors {
             opts.accessors = coerce_bool("accessors", v)?;
@@ -1148,8 +1220,8 @@ impl NapiCompileOptions {
         }
         if let Some(v) = &self.css_hash {
             return Err(match v {
-                LenientScalar::Function => napi::Error::from_reason(
-                    "A function-valued `cssHash` cannot be called from this entry point; use `compileWithCssHash` (or `compileAsync`, which routes to it).".to_string(),
+                LenientScalar::Function => unsupported_option(
+                    "A function-valued `cssHash` cannot be called from this entry point; use `compileWithCssHash` (or `compileAsync`, which routes to it).",
                 ),
                 _ => invalid_option("cssHash should be a function, if specified"),
             });
@@ -1192,7 +1264,7 @@ pub struct NapiModuleCompileOptions {
 }
 
 impl NapiModuleCompileOptions {
-    fn into_module_compile_options(self) -> napi::Result<ModuleCompileOptions> {
+    fn into_module_compile_options(self) -> OptionResult<ModuleCompileOptions> {
         let mut opts = ModuleCompileOptions::default();
         if let Some(v) = &self.dev {
             opts.dev = coerce_bool("dev", v)?;
@@ -1220,20 +1292,37 @@ impl NapiModuleCompileOptions {
 /// Compatibility wrapper: convert an Option<NapiCompileOptions> (the
 /// typed surface) into `CompileOptions`. `None` and `Some(empty)`
 /// both produce the defaults.
-fn options_to_compile(opts: Option<NapiCompileOptions>) -> napi::Result<CompileOptions> {
-    opts.map_or_else(
-        || Ok(CompileOptions::default()),
-        NapiCompileOptions::into_compile_options,
-    )
+fn options_to_compile(
+    env: Option<&Env>,
+    opts: Option<NapiCompileOptions>,
+) -> napi::Result<CompileOptions> {
+    let Some(opts) = opts else {
+        return Ok(CompileOptions::default());
+    };
+    // Upstream seeds `state.filename` from the raw option before validating, so
+    // the option error carries it even when a *later* option is what failed.
+    let filename = raw_filename(opts.filename.as_ref());
+    opts.into_compile_options()
+        .map_err(|e| e.into_napi(env, filename.as_deref()))
 }
 
 fn options_to_module_compile(
+    env: Option<&Env>,
     opts: Option<NapiModuleCompileOptions>,
 ) -> napi::Result<ModuleCompileOptions> {
-    opts.map_or_else(
-        || Ok(ModuleCompileOptions::default()),
-        NapiModuleCompileOptions::into_module_compile_options,
-    )
+    let Some(opts) = opts else {
+        return Ok(ModuleCompileOptions::default());
+    };
+    let filename = raw_filename(opts.filename.as_ref());
+    opts.into_module_compile_options()
+        .map_err(|e| e.into_napi(env, filename.as_deref()))
+}
+
+fn raw_filename(v: Option<&LenientScalar>) -> Option<String> {
+    match v {
+        Some(LenientScalar::Str(s)) => Some(s.clone()),
+        _ => None,
+    }
 }
 
 /// Compile a Svelte module (.svelte.js/.svelte.ts).
@@ -1251,7 +1340,7 @@ pub fn napi_compile_module(
     source: String,
     options: Option<NapiModuleCompileOptions>,
 ) -> napi::Result<Value> {
-    let opts = options_to_module_compile(options)?;
+    let opts = options_to_module_compile(Some(&env), options)?;
     let filename = opts.filename.clone();
     match rust_compile_module(&source, opts) {
         Ok(result) => {
@@ -1495,7 +1584,7 @@ pub fn napi_preprocess(
     let extracted = preprocess_bridge::extract_groups(groups)?;
     let rust_groups = preprocess_bridge::build_groups(extracted);
     let filename = match options.as_ref().and_then(|o| o.filename.as_ref()) {
-        Some(v) => Some(coerce_string("filename", v)?),
+        Some(v) => Some(coerce_string("filename", v).map_err(|e| e.into_napi(Some(&env), None))?),
         None => None,
     };
 
@@ -1882,10 +1971,11 @@ pub struct CompileBuffersResult {
 )]
 #[napi(js_name = "compileBuffers", catch_unwind)]
 pub fn napi_compile_buffers(
+    env: Env,
     source: String,
     options: Option<NapiCompileOptions>,
 ) -> napi::Result<CompileBuffersResult> {
-    let opts = options_to_compile(options)?;
+    let opts = options_to_compile(Some(&env), options)?;
     reject_modern_ast_for_binary_result(&opts, "compileBuffers")?;
     match rust_compile(&source, opts) {
         Ok(result) => Ok(CompileBuffersResult {
@@ -1920,10 +2010,11 @@ pub fn napi_compile_buffers(
 )]
 #[napi(js_name = "compileModuleBuffers", catch_unwind)]
 pub fn napi_compile_module_buffers(
+    env: Env,
     source: String,
     options: Option<NapiModuleCompileOptions>,
 ) -> napi::Result<CompileBuffersResult> {
-    let opts = options_to_module_compile(options)?;
+    let opts = options_to_module_compile(Some(&env), options)?;
 
     match rust_compile_module(&source, opts) {
         Ok(result) => Ok(CompileBuffersResult {
@@ -2015,7 +2106,7 @@ pub fn napi_compile_envelope(
     source: String,
     options: Option<NapiCompileOptions>,
 ) -> napi::Result<Buffer> {
-    let opts = options_to_compile(options)?;
+    let opts = options_to_compile(Some(&env), options)?;
     let filename = opts.filename.clone();
     compile_envelope(env, &source, filename.as_deref(), opts, false)
 }
@@ -2035,7 +2126,7 @@ pub fn napi_compile_envelope_external_sources(
     source: String,
     options: Option<NapiCompileOptions>,
 ) -> napi::Result<Buffer> {
-    let opts = options_to_compile(options)?;
+    let opts = options_to_compile(Some(&env), options)?;
     let filename = opts.filename.clone();
     compile_envelope(env, &source, filename.as_deref(), opts, true)
 }
@@ -2177,7 +2268,7 @@ pub fn napi_compile_envelope_zero_copy(
     source: String,
     options: Option<NapiCompileOptions>,
 ) -> napi::Result<JsBuffer> {
-    let opts = options_to_compile(options)?;
+    let opts = options_to_compile(Some(&env), options)?;
     reject_modern_ast_for_binary_result(&opts, "compileEnvelopeZeroCopy")?;
     let result = match rust_compile(&source, opts) {
         Ok(r) => r,
@@ -2201,7 +2292,7 @@ pub fn napi_compile_module_envelope_zero_copy(
     source: String,
     options: Option<NapiModuleCompileOptions>,
 ) -> napi::Result<JsBuffer> {
-    let opts = options_to_module_compile(options)?;
+    let opts = options_to_module_compile(Some(&env), options)?;
     let result = match rust_compile_module(&source, opts) {
         Ok(r) => r,
         Err(e) => return Err(napi::Error::from_reason(format!("{e:?}"))),
@@ -2229,10 +2320,11 @@ pub fn napi_compile_module_envelope_zero_copy(
 )]
 #[napi(js_name = "compileModuleEnvelope", catch_unwind)]
 pub fn napi_compile_module_envelope(
+    env: Env,
     source: String,
     options: Option<NapiModuleCompileOptions>,
 ) -> napi::Result<Buffer> {
-    let opts = options_to_module_compile(options)?;
+    let opts = options_to_module_compile(Some(&env), options)?;
     match rust_compile_module(&source, opts) {
         Ok(result) => {
             // Adapt the module result into the same `CompileResult` shape
@@ -2287,8 +2379,8 @@ pub struct CompileBatchInput {
 ///
 /// Returns an error when options or envelope encoding are invalid.
 #[napi(js_name = "compileBatch", catch_unwind)]
-pub fn napi_compile_batch(inputs: Vec<CompileBatchInput>) -> napi::Result<Buffer> {
-    compile_batch_envelope(inputs, false)
+pub fn napi_compile_batch(env: Env, inputs: Vec<CompileBatchInput>) -> napi::Result<Buffer> {
+    compile_batch_envelope(&env, inputs, false)
 }
 
 /// Batch-compiles with externalized source-map contents.
@@ -2297,11 +2389,15 @@ pub fn napi_compile_batch(inputs: Vec<CompileBatchInput>) -> napi::Result<Buffer
 ///
 /// Returns an error when options or envelope encoding are invalid.
 #[napi(js_name = "compileBatchExternalSources", catch_unwind)]
-pub fn napi_compile_batch_external_sources(inputs: Vec<CompileBatchInput>) -> napi::Result<Buffer> {
-    compile_batch_envelope(inputs, true)
+pub fn napi_compile_batch_external_sources(
+    env: Env,
+    inputs: Vec<CompileBatchInput>,
+) -> napi::Result<Buffer> {
+    compile_batch_envelope(&env, inputs, true)
 }
 
 fn compile_batch_envelope(
+    env: &Env,
     inputs: Vec<CompileBatchInput>,
     externalize_sourcemap_content: bool,
 ) -> napi::Result<Buffer> {
@@ -2311,7 +2407,7 @@ fn compile_batch_envelope(
     // rayon stage focused on the actual compile.
     let parsed: Vec<(String, rsvelte_core::compiler::CompileOptions)> = inputs
         .into_iter()
-        .map(|item| Ok((item.source, options_to_compile(item.options)?)))
+        .map(|item| Ok((item.source, options_to_compile(Some(env), item.options)?)))
         .collect::<napi::Result<_>>()?;
     for (_, options) in &parsed {
         reject_modern_ast_for_binary_result(options, "compileBatch")?;
@@ -2443,10 +2539,11 @@ impl Task for CompileEnvelopeTask {
 )]
 #[napi(js_name = "compileEnvelopeAsync", catch_unwind)]
 pub fn napi_compile_envelope_async(
+    env: Env,
     source: String,
     options: Option<NapiCompileOptions>,
 ) -> napi::Result<AsyncTask<CompileEnvelopeTask>> {
-    let options = options_to_compile(options)?;
+    let options = options_to_compile(Some(&env), options)?;
     reject_modern_ast_for_binary_result(&options, "compileEnvelopeAsync")?;
     Ok(AsyncTask::new(CompileEnvelopeTask {
         source,
@@ -2467,10 +2564,11 @@ pub fn napi_compile_envelope_async(
 )]
 #[napi(js_name = "compileEnvelopeExternalSourcesAsync", catch_unwind)]
 pub fn napi_compile_envelope_external_sources_async(
+    env: Env,
     source: String,
     options: Option<NapiCompileOptions>,
 ) -> napi::Result<AsyncTask<CompileEnvelopeTask>> {
-    let options = options_to_compile(options)?;
+    let options = options_to_compile(Some(&env), options)?;
     reject_modern_ast_for_binary_result(&options, "compileEnvelopeExternalSourcesAsync")?;
     Ok(AsyncTask::new(CompileEnvelopeTask {
         source,
@@ -2543,9 +2641,10 @@ impl Task for CompileBatchTask {
 /// Returns an error when option conversion fails.
 #[napi(js_name = "compileBatchAsync", catch_unwind)]
 pub fn napi_compile_batch_async(
+    env: Env,
     inputs: Vec<CompileBatchInput>,
 ) -> napi::Result<AsyncTask<CompileBatchTask>> {
-    compile_batch_async_task(inputs, false)
+    compile_batch_async_task(&env, inputs, false)
 }
 
 /// Starts an asynchronous batch compile with externalized source-map contents.
@@ -2555,18 +2654,20 @@ pub fn napi_compile_batch_async(
 /// Returns an error when option conversion fails.
 #[napi(js_name = "compileBatchExternalSourcesAsync", catch_unwind)]
 pub fn napi_compile_batch_external_sources_async(
+    env: Env,
     inputs: Vec<CompileBatchInput>,
 ) -> napi::Result<AsyncTask<CompileBatchTask>> {
-    compile_batch_async_task(inputs, true)
+    compile_batch_async_task(&env, inputs, true)
 }
 
 fn compile_batch_async_task(
+    env: &Env,
     inputs: Vec<CompileBatchInput>,
     externalize_sourcemap_content: bool,
 ) -> napi::Result<AsyncTask<CompileBatchTask>> {
     let parsed: Vec<(String, CompileOptions)> = inputs
         .into_iter()
-        .map(|item| Ok((item.source, options_to_compile(item.options)?)))
+        .map(|item| Ok((item.source, options_to_compile(Some(env), item.options)?)))
         .collect::<napi::Result<_>>()?;
     for (_, options) in &parsed {
         reject_modern_ast_for_binary_result(options, "compileBatchAsync")?;

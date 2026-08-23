@@ -726,6 +726,102 @@ console.log('\n# boundary result fields');
 }
 
 // ---------------------------------------------------------------------------
+// Option-validation FAILURES: the shape of the error, not that it threw
+// ---------------------------------------------------------------------------
+//
+// The cases above assert that a valid option reaches the compiler. This asserts
+// what happens when it does not: upstream raises every option failure through
+// `validate-options.js`'s `throw_error` -> `e.options_invalid_value(null, msg)`,
+// so the thrown value is a `CompileError` carrying `code`, `name`, `filename`
+// and the `https://svelte.dev/e/…` message tail, with no span (the node is
+// `null`). A consumer branching on `err.code` needs all of that; "it threw" does
+// not distinguish an invalid option from any other failure.
+//
+// The accepting rows are not decoration. A population of only-invalid inputs is
+// blind to over-rejection, which is the opposite failure of the same check.
+
+const INVALID_OPTIONS = [
+	['cssHash-string', { cssHash: 'a-string' }],
+	['cssHash-number', { cssHash: 1 }],
+	['namespace-bogus', { namespace: 'foreign' }],
+	['namespace-number', { namespace: 1 }],
+	['css-true', { css: true }],
+	['css-bogus', { css: 'nope' }],
+	['dev-number', { dev: 1 }],
+	['generate-bogus', { generate: 'nope' }],
+	['customElement-string', { customElement: 'my-el' }],
+	['customElement-number', { customElement: 1 }],
+	['accessors-string', { accessors: 'yes' }],
+	['immutable-number', { immutable: 0 }],
+	['preserveComments-string', { preserveComments: 'y' }],
+	['preserveWhitespace-number', { preserveWhitespace: 1 }],
+	['discloseVersion-string', { discloseVersion: 'n' }],
+	['name-number', { name: 1 }],
+	['outputFilename-number', { outputFilename: 1 }],
+	['cssOutputFilename-bool', { cssOutputFilename: true }],
+	['fragments-bogus', { fragments: 'nope' }],
+	['modernAst-string', { modernAst: 'y' }],
+	['hmr-number', { hmr: 1 }],
+	['rootDir-number', { rootDir: 1 }],
+	['experimental-number', { experimental: 1 }],
+	['experimental-async-string', { experimental: { async: 'y' } }],
+	['compatibility-number', { compatibility: 2 }],
+	['componentApi-3', { compatibility: { componentApi: 3 } }],
+	['componentApi-string', { compatibility: { componentApi: '4' } }],
+];
+
+const VALID_OPTIONS = [
+	['baseline', {}],
+	['css-external', { css: 'external' }],
+	['namespace-svg', { namespace: 'svg' }],
+	['generate-server', { generate: 'server' }],
+	['fragments-tree', { fragments: 'tree' }],
+	['componentApi-4', { compatibility: { componentApi: 4 } }],
+];
+
+function errorShape(compile, opts) {
+	try {
+		compile(CSS_SRC, { filename: 'A.svelte', ...opts });
+		return { threw: false };
+	} catch (e) {
+		return {
+			threw: true,
+			code: e.code === undefined ? '(absent)' : String(e.code),
+			name: String(e.name),
+			filename: e.filename === undefined ? '(absent)' : String(e.filename),
+			message: String(e.message),
+		};
+	}
+}
+
+console.log('\n# option-validation error shape');
+for (const [label, opts] of INVALID_OPTIONS) {
+	const sv = errorShape(officialCompile, opts);
+	const rs = errorShape(napi.compile, opts);
+	if (!sv.threw) {
+		assert(`invalid.${label}: official rejects it`, false, 'the oracle accepted — fix the row');
+		continue;
+	}
+	if (!rs.threw) {
+		assert(`invalid.${label}: rsvelte rejects it too`, false, 'rsvelte compiled it');
+		continue;
+	}
+	for (const field of ['code', 'name', 'filename', 'message']) {
+		assert(
+			`invalid.${label}: ${field}`,
+			rs[field] === sv[field],
+			`official ${JSON.stringify(sv[field])} vs rsvelte ${JSON.stringify(rs[field])}`
+		);
+	}
+}
+for (const [label, opts] of VALID_OPTIONS) {
+	const sv = errorShape(officialCompile, opts);
+	const rs = errorShape(napi.compile, opts);
+	assert(`valid.${label}: official accepts it`, !sv.threw, sv.message);
+	assert(`valid.${label}: rsvelte accepts it`, !rs.threw, rs.message);
+}
+
+// ---------------------------------------------------------------------------
 // Reconcile: declared == covered + uncovered, both directions
 // ---------------------------------------------------------------------------
 
