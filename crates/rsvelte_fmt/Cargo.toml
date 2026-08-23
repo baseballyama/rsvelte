@@ -27,15 +27,15 @@ path = "src/bin/fmt_benchmark_runner.rs"
 [dependencies]
 rsvelte_formatter = { path = "../rsvelte_formatter" }
 tailwind_class_order = { path = "../tailwind_class_order" }
-oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "b6f1458dece6bbd7f934d1d26c049d0d0c2bd68c" }
-oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "b6f1458dece6bbd7f934d1d26c049d0d0c2bd68c" }
+oxc_formatter = { git = "https://github.com/oxc-project/oxc", rev = "0db127cc16d28b97d84bac4ebeb302caf1a78c7e" }
+oxc_formatter_core = { git = "https://github.com/oxc-project/oxc", rev = "0db127cc16d28b97d84bac4ebeb302caf1a78c7e" }
 # Static evaluation of `oxfmt.config.ts` / `.mts` (see src/ts_config.rs) — no
 # embedded JS runtime here, so the config is parsed and interpreted directly
 # instead of `import()`-ed like oxfmt's own NAPI build does.
-oxc_allocator = { git = "https://github.com/oxc-project/oxc", rev = "b6f1458dece6bbd7f934d1d26c049d0d0c2bd68c" }
-oxc_ast = { git = "https://github.com/oxc-project/oxc", rev = "b6f1458dece6bbd7f934d1d26c049d0d0c2bd68c" }
-oxc_parser = { git = "https://github.com/oxc-project/oxc", rev = "b6f1458dece6bbd7f934d1d26c049d0d0c2bd68c" }
-oxc_span = { git = "https://github.com/oxc-project/oxc", rev = "b6f1458dece6bbd7f934d1d26c049d0d0c2bd68c" }
+oxc_allocator = { git = "https://github.com/oxc-project/oxc", rev = "0db127cc16d28b97d84bac4ebeb302caf1a78c7e" }
+oxc_ast = { git = "https://github.com/oxc-project/oxc", rev = "0db127cc16d28b97d84bac4ebeb302caf1a78c7e" }
+oxc_parser = { git = "https://github.com/oxc-project/oxc", rev = "0db127cc16d28b97d84bac4ebeb302caf1a78c7e" }
+oxc_span = { git = "https://github.com/oxc-project/oxc", rev = "0db127cc16d28b97d84bac4ebeb302caf1a78c7e" }
 clap = { version = "4.5", features = ["derive"] }
 walkdir = "2.5"
 rayon = "1.10"

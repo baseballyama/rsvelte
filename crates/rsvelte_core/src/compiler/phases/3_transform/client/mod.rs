@@ -23,6 +23,7 @@ mod effect_rune_ast;
 pub(crate) mod expression_utils;
 mod formatting;
 mod inspect_rune_ast;
+mod inspect_trace_ast;
 mod instance_dev_tail_ast;
 mod legacy_state_member_mutate_ast;
 mod local_assign_ast;
@@ -271,6 +272,17 @@ pub fn transform_client_module(
         ));
     }
 
+    // `$inspect.trace()`'s default label carries `locate_node(fn)`, a position
+    // in the source the user wrote, so the rune is lowered before any other
+    // rewrite moves its enclosing function.
+    let trace_lowered = inspect_trace_ast::transform_module_inspect_trace(
+        source,
+        options.dev,
+        analysis.filename.ends_with(".ts"),
+        options.filename.as_deref(),
+    );
+    let source = trace_lowered.as_deref().unwrap_or(source);
+
     // Drop the comments upstream's synthesized accessors swallow before any
     // rewrite, so the scan still sees the source's own class bodies.
     let dead_comments_stripped =
@@ -328,22 +340,11 @@ pub fn transform_client_module(
     let transformed =
         transform_module_script_runes(&class_transformed, source, analysis, options.dev);
 
-    // The transformed source includes everything (imports + body).
-    // We need to split imports from body to avoid duplicate svelte import.
-    let (script_imports, script_rest) = extract_imports(&transformed);
-
-    // Add non-svelte imports
-    for import_line in &script_imports {
-        let trimmed = import_line.trim();
-        // Skip svelte internal imports since we already added them
-        if memmem::find(trimmed.as_bytes(), b"svelte/internal/").is_none() {
-            body.push(JsStatement::Raw(trimmed.into()));
-        }
-    }
-
-    // Add the rest of the module body
+    // Upstream `client_module` concatenates the generated `$` import with the
+    // module body untouched, so an `import` keeps its place among the other
+    // statements — hoisting it would change module evaluation order.
     {
-        let rest_trimmed = script_rest.trim();
+        let rest_trimmed = transformed.trim();
         if !rest_trimmed.is_empty() {
             body.push(if has_effect_rune {
                 JsStatement::RawEffect(rest_trimmed.into())
@@ -433,18 +434,6 @@ pub(crate) fn transform_module_source_for_module(
 ) -> String {
     let class_transformed = transform_module_class_fields_client(source);
     transform_module_script_runes_with_target(&class_transformed, source, analysis, dev, server)
-}
-
-/// Extract imports from a string, returning (imports, rest).
-/// This is a convenience wrapper for use from the server module.
-pub(crate) fn extract_imports_str(script: &str) -> (Vec<String>, Option<String>) {
-    let (imports, rest) = extract_imports(script);
-    let rest_trimmed = rest.trim();
-    if rest_trimmed.is_empty() {
-        (imports, None)
-    } else {
-        (imports, Some(rest_trimmed.to_string()))
-    }
 }
 
 /// Transform a component analysis into client-side JavaScript.
@@ -4635,26 +4624,27 @@ fn transform_module_script_runes_with_target(
         }
     }
 
-    // In non-dev mode, remove $inspect.trace(...) statements from module scripts.
-    // Mirrors the same logic in rune_transforms.rs for instance scripts.
+    // The AST lowering above answers for a `.svelte.(js|ts)` module's *client*
+    // output; every other target still reaches this function with the rune
+    // intact, so the non-dev removal stays. `find_code` rather than a plain
+    // byte search: the same bytes inside a string literal are not the rune.
     if !dev {
-        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect.trace(") {
+        while let Some(pos) = find_code(result.as_bytes(), b"$inspect.trace(") {
             let trace_start = pos + b"$inspect.trace(".len();
-            if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
-                let mut end = trace_start + content_end + 1;
-                while end < result.len()
-                    && matches!(result.as_bytes()[end], b';' | b' ' | b'\t' | b'\n' | b'\r')
-                {
-                    end += 1;
-                }
-                let mut start = pos;
-                while start > 0 && matches!(result.as_bytes()[start - 1], b' ' | b'\t') {
-                    start -= 1;
-                }
-                result = format!("{}{}", &result[..start], &result[end..]);
-            } else {
+            let Some(content_end) = find_matching_paren(&result[trace_start..]) else {
                 break;
+            };
+            let mut end = trace_start + content_end + 1;
+            while end < result.len()
+                && matches!(result.as_bytes()[end], b';' | b' ' | b'\t' | b'\n' | b'\r')
+            {
+                end += 1;
             }
+            let mut start = pos;
+            while start > 0 && matches!(result.as_bytes()[start - 1], b' ' | b'\t') {
+                start -= 1;
+            }
+            result = format!("{}{}", &result[..start], &result[end..]);
         }
     }
 
@@ -5245,13 +5235,23 @@ fn starts_with_else_keyword(line: &str) -> bool {
     })
 }
 
+/// A top-level `$:` label, which is what the legacy pipeline rewrites.
+fn is_legacy_reactive_label(statement: &oxc_ast::ast::Statement<'_>) -> bool {
+    matches!(
+        statement,
+        oxc_ast::ast::Statement::LabeledStatement(labeled) if labeled.label.name == "$"
+    )
+}
+
 /// Makes an AST statement boundary visible to the legacy per-line pipeline.
 ///
-/// The pipeline historically treated each physical line as one statement. That
-/// lets an `export let` rewrite consume a following declaration on the same
-/// line. We use the parser's top-level statement spans rather than scanning
-/// for semicolons, whose grammar is precisely what this path must not infer.
-fn separate_same_line_legacy_export_declarations<'a>(
+/// The pipeline treats each physical line as one statement, and it reads a line
+/// as `\n`-delimited text. So two top-level statements reach it as one whenever
+/// they share a line — and also when the only thing between them is a CR or a
+/// U+2028 / U+2029, which end a line in ECMAScript but not in `str::lines`. We
+/// use the parser's top-level statement spans rather than scanning for
+/// semicolons, whose grammar is precisely what this path must not infer.
+fn separate_same_line_top_level_statements<'a>(
     script: &'a str,
     is_typescript: bool,
 ) -> Cow<'a, str> {
@@ -5259,7 +5259,9 @@ fn separate_same_line_legacy_export_declarations<'a>(
     use oxc_parser::Parser;
     use oxc_span::{GetSpan as _, SourceType};
 
-    if !script.contains("export let ") && !script.contains("export var ") {
+    let has_export = script.contains("export let ") || script.contains("export var ");
+    let has_label = memmem::find(script.as_bytes(), b"$:").is_some();
+    if !has_export && !has_label {
         return Cow::Borrowed(script);
     }
 
@@ -5280,8 +5282,11 @@ fn separate_same_line_legacy_export_declarations<'a>(
         let next = pair[1].span();
         let previous_text = &script[previous.start as usize..previous.end as usize];
         let gap = &script[previous.end as usize..next.start as usize];
-        if (previous_text.trim_start().starts_with("export let ")
-            || previous_text.trim_start().starts_with("export var "))
+        let export_declaration = previous_text.trim_start().starts_with("export let ")
+            || previous_text.trim_start().starts_with("export var ");
+        if (export_declaration
+            || is_legacy_reactive_label(&pair[0])
+            || is_legacy_reactive_label(&pair[1]))
             && !gap.contains('\n')
             && gap.chars().all(char::is_whitespace)
         {
@@ -5787,8 +5792,12 @@ fn transform_instance_script_for_visitors(
     if script.is_empty() {
         return String::new();
     }
-    let separated_script =
-        separate_same_line_legacy_export_declarations(script, analysis.is_typescript);
+    let separated_script = separate_same_line_top_level_statements(script, analysis.is_typescript);
+    // A cut moves every byte after it, so the spans and the projection that were
+    // built for the caller's text no longer describe this one.
+    let separated = matches!(separated_script, Cow::Owned(_));
+    let retained_program = retained_program.filter(|_| !separated);
+    let source_projection = source_projection.filter(|_| !separated);
     let script = separated_script.as_ref();
     let original_script = script;
 
