@@ -260,7 +260,9 @@ impl<'a> BorrowedCommentDriver<'a> {
             }
             first = false;
             self.write(comment, ctx);
-            if self.has_newline(comment.span.end, to) {
+            if self.has_newline(comment.span.end, to)
+                || matches!(comment.kind, oxc_ast::ast::CommentKind::Line)
+            {
                 ctx.newline();
             } else if pad {
                 ctx.write_ascii(b' ');
@@ -1086,7 +1088,9 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
             }
             first = false;
             self.write_comment_at(self.comment_index, ctx);
-            if self.has_newline_between(cmt.end, to) {
+            if !cmt.block {
+                ctx.newline();
+            } else if self.has_newline_between(cmt.end, to) {
                 ctx.newline();
             } else if pad {
                 ctx.write_ascii(b' ');
@@ -4365,7 +4369,8 @@ impl<'opt, const HAS_COMMENTS: bool, const DIRECT: bool> Printer<'opt, HAS_COMME
                 .as_expression()
                 .map_or_else(|| second.span().start, |e| unparen(e).span().start);
             let force_multiline = self.comment_at(self.comment_index).is_some_and(|c| {
-                c.start < second_start && self.comment_starts_on_earlier_line(c, second_start)
+                c.start < second_start
+                    && (!c.block || self.comment_starts_on_earlier_line(c, second_start))
             });
 
             ctx.write_ascii(b'(');
