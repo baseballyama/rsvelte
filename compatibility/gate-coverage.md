@@ -1152,6 +1152,43 @@ arrow through one prop name, and the write is always a member expression — a b
 `p = p + 1` reassignment is `binding-position`'s `assignment.right` row and is not repeated
 here. **[S]**
 
+### Blind spot 5r — `keyword-separator` varies the separator, and holds the *scan* that reads it fixed
+
+Family `keyword-separator` (13 constructs × 9 separators × up to 2 entry points = 234 cases /
+936 comparisons) exists because every phase-3 keyword needle is spelled with exactly one ASCII
+space — `b"class "`, `"export let "`, `starts_with("export function ")` — and the source is
+entitled to write any run of ECMAScript `WhiteSpace + LineTerminator` between two tokens. The
+separator axis is chosen so each member falsifies a **different** plausible predicate rather than
+adding another whitespace character: `\t` and `\n` fail a literal `" "`, `U+000B` additionally
+fails Rust's `is_ascii_whitespace`, `U+00A0` and `U+3000` fail every byte-oriented test because
+their UTF-8 lead byte reads as an identifier byte, and `U+FEFF` fails `char::is_whitespace` and
+`regex`'s `\s` as well — both follow Unicode `White_Space`, which excludes it while JS does not.
+`space` is the control row.
+
+**[D]** #3470: on the pre-fix tree the family reports **220 of 864** comparisons red on the
+216-case version (124 `js-mismatch`, 96 `output-unparseable`) and **0** after, so it discriminates
+rather than merely reaching the entry point — the 5p/5q question asked before the fact for once.
+
+What it does **not** see, and what a green run here therefore does not license:
+
+First, the construct axis is a *sample* of the same grep 5o samples — the one-space literals under
+`phases/3_transform` — and it carries 13 of them. `" from "`, `"function "` in
+`expression_utils` / `store_transforms` / `async_body`, and the server-side `"export "` /
+`"class "` needles are reached only insofar as one of the 13 constructs happens to route through
+them; a pass with a needle of its own and no construct here is unmeasured. **[S]**
+
+Second, and more sharply: the family varies what sits **between** two keywords and holds fixed
+what the scan reading them is *made of*. A comment is the other thing that may sit there, it is
+**not** whitespace (a fix may delete a whitespace run and must not delete a comment), and every
+comment-separator row diverges today — on `server` as well as on the client, which is evidence
+the comment half lives in different scans. Those rows are deliberately absent rather than listed:
+generating them would seed ratchet entries for a defect nobody has fixed. Their status is a
+measurement, not an assumption — 9 grid rows, identical before and after #3470's fix. **[D]**
+
+Third, the entry-point axis is instance-script vs `compileModule`, so a construct that only
+`<script module>` reaches has one row (`class-declaration`'s modscript form lives in the Rust
+grid, not here). **[S]**
+
 **Closing 5b/5c:** the matrix costs ~25 s of CPU on ~10,200 comparisons (wall clock on a box
 running other agents' builds is unusable — a paired A/B inverted once). `constant-fold` is the
 first instalment of 5c's "second expression axis against `EXPRESSION_SLOTS`"; the directive
