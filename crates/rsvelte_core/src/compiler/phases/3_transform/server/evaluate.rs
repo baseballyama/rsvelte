@@ -1221,6 +1221,31 @@ impl<'a> EvalCtx<'a> {
 
         static DEBUG_EVAL: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
         if *DEBUG_EVAL.get_or_init(|| std::env::var_os("DEBUG_EVAL").is_some()) {
+            // Print the UNFILTERED candidates too: an empty `bindings` is the
+            // interesting state, and a loop over it says nothing about why.
+            if let Some(a) = self.analysis {
+                let template_scopes = self
+                    .template_scopes_cache
+                    .get()
+                    .cloned()
+                    .unwrap_or_default();
+                eprintln!(
+                    "[evaluate] name={name} current_scope={:?} instance_scope={} kept={}",
+                    self.current_scope_index,
+                    a.root.instance_scope_index,
+                    bindings.len()
+                );
+                for b in a.root.bindings.iter().filter(|b| b.name == name) {
+                    eprintln!(
+                        "[evaluate]   cand scope={} template_scope={} reachable={} depth={:?} kind={:?}",
+                        b.scope_index,
+                        template_scopes.contains(&b.scope_index),
+                        self.template_binding_is_reachable(b.scope_index),
+                        self.scope_chain_depth(b.scope_index),
+                        b.kind
+                    );
+                }
+            }
             for b in &bindings {
                 eprintln!(
                     "[evaluate] name={} kind={:?} scope={} decl_start={:?} updated={} initial={:?} initial_type={:?}",
