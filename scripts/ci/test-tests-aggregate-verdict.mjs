@@ -100,6 +100,15 @@ check('ci.yml invokes this script and declares every leg it reads', () => {
 	for (const key of KEYS) {
 		assert(new RegExp(`^\\s+${key}:`, 'm').test(yml), `ci.yml declares no ${key} env var`);
 	}
+	// The job carried no checkout while its verdict was inline bash, so the
+	// first run of the script died with MODULE_NOT_FOUND — a red `Tests` that
+	// says nothing about the tests, which is the exact confusion this script
+	// exists to remove.
+	const job = yml.slice(yml.indexOf('\n  tests:'), yml.indexOf('\n  compatibility-report:'));
+	assert(
+		/uses: actions\/checkout@/.test(job),
+		'the `tests` job runs a script from the repo but never checks it out',
+	);
 });
 
 console.log(

@@ -828,8 +828,17 @@ jobs:
     needs: [test, test-unit, test-runtime, test-thread-safety, test-fmt-corpus, oxc-formatter-probe, language-server]
     if: always()
     runs-on: ubuntu-latest
-    timeout-minutes: 1
+    timeout-minutes: 5
     steps:
+      # This job had no checkout while its verdict was inline bash; the script
+      # needs one. Sparse, because `scripts/ci` is all it reads.
+      # This job had no checkout while its verdict was inline bash; the script
+      # needs one. Sparse, because `scripts/ci` is all it reads.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: false
+          sparse-checkout: scripts/ci
+
       - name: Verify all test jobs passed
         shell: bash
         env:
