@@ -1335,12 +1335,12 @@ fn convert_property_key_from_node(
         JsNode::Identifier { name, .. } => JsPropertyKey::Identifier(name.to_string().into()),
         JsNode::Literal { value, raw, .. } => {
             let lit = match value {
-                LiteralValue::String(s) => {
-                    if raw.starts_with('"') {
-                        return JsPropertyKey::Literal(JsLiteral::String(s.to_string().into()));
-                    }
-                    JsLiteral::String(s.to_string().into())
-                }
+                // esrap prints a literal from its `raw`, so the key's quote
+                // spelling is part of the output; `JsLiteral::String` carries none.
+                LiteralValue::String(s) => JsLiteral::RawString {
+                    value: s.to_string().into(),
+                    raw: raw.clone(),
+                },
                 LiteralValue::Number(n) => JsLiteral::Number(*n),
                 LiteralValue::BigInt(d) => JsLiteral::BigInt(if raw.is_empty() {
                     format!("{d}n").into()
