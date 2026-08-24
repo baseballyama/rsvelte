@@ -912,7 +912,8 @@ fn test_attribute(operator: &str, expected: &str, case_insensitive: bool, value:
     };
     match operator {
         "=" => value == expected,
-        "~=" => value.split_whitespace().any(|w| w == expected),
+        // JS `"".split(/\s/)` is `[""]`, so `[a~=""]` matches an empty value.
+        "~=" => value.split(char::is_whitespace).any(|w| w == expected),
         "|=" => format!("{}-", value).starts_with(&format!("{}-", expected)),
         "^=" => value.starts_with(&expected),
         "$=" => value.ends_with(&expected),
@@ -1161,14 +1162,23 @@ fn element_matches_simple_selectors(
                 }
                 if (name == "is" || name == "where") && args.is_some() {
                     let args = args.as_ref().unwrap();
-                    let any_matches = args.iter().any(|cs| {
-                        if let Some(last) = cs.children.last() {
-                            element_matches_simple_selectors(element, &last.selectors)
-                        } else {
-                            false
+                    let matched = args.iter().any(|cs| {
+                        // An argument made only of `:global(...)` truncates to
+                        // nothing, and upstream reads that as "matches anything"
+                        // rather than testing the global's own selectors.
+                        let relative = truncate_globals(&cs.children);
+                        match relative.last() {
+                            None => true,
+                            Some(last) => {
+                                element_matches_simple_selectors(element, &last.selectors)
+                                    // `foo :is(bar baz)` can also mean bar is an
+                                    // ancestor of foo, which this walk cannot
+                                    // check; upstream assumes it matches.
+                                    || cs.children.len() > 1
+                            }
                         }
                     });
-                    if !any_matches {
+                    if !matched {
                         return false;
                     }
                 }

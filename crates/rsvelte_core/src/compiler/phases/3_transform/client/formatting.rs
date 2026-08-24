@@ -324,7 +324,7 @@ fn reactive_statement_spans(source: &str) -> Vec<ReactiveSpan> {
         after_last_surviving_code = i;
     }
 
-    spans
+    let mut spans: Vec<ReactiveSpan> = spans
         .into_iter()
         .map(|(leading, label, end)| ReactiveSpan {
             leading,
@@ -332,7 +332,17 @@ fn reactive_statement_spans(source: &str) -> Vec<ReactiveSpan> {
             end,
             has_successor: after_last_surviving_code > end,
         })
-        .collect()
+        .collect();
+    // The `$.legacy_pre_effect(…, () => { … })` upstream builds for the last
+    // reactive statement carries a span-less block, and printing it parks esrap's
+    // comment cursor past the end of the list. With no statement left to flush
+    // them first, every comment after that statement dies with it.
+    if let Some(last) = spans.last_mut()
+        && !last.has_successor
+    {
+        last.end = source.len();
+    }
+    spans
 }
 
 /// Whether a statement can begin at `at`, `after_last_code` being the byte just
@@ -360,15 +370,21 @@ fn reactive_statement_end(source: &str, scan: &mut JsScan, from: usize) -> usize
     let len = bytes.len();
     let base_depth = scan.depth;
     let mut opened_block = false;
+    // A label's body is one statement, so nothing before its first code token
+    // can end it — `$:` on a line of its own is not an empty statement.
+    let mut body_started = false;
     let mut i = from;
 
     while i < len {
+        let starts_comment = scan.starts_comment(source, i);
         if let Some(next) = scan.step(source, i) {
+            body_started |= !starts_comment;
             i = next;
             continue;
         }
         let c = bytes[i];
         if c == b'\n'
+            && body_started
             && scan.depth == base_depth
             && !opened_block
             && !continues_statement(scan.last_code)
@@ -380,6 +396,7 @@ fn reactive_statement_end(source: &str, scan: &mut JsScan, from: usize) -> usize
             i += 1;
             continue;
         }
+        body_started = true;
         match c {
             b'(' | b'[' => scan.depth += 1,
             b'{' => {
@@ -906,7 +923,9 @@ pub(super) fn strip_async_noop_placeholders(s: &str) -> String {
             {
                 result.push(';');
             }
-            result.push_str(";;");
+            // Marked so `to_oxc` can tell this pair from a `;;` the USER wrote,
+            // which esrap drops.
+            result.push_str("/* $$inspect_removed$$ */;;");
         } else {
             result.push_str(line);
         }
@@ -1259,12 +1278,17 @@ pub(super) enum TemplateStateFrame {
     /// past the end of a line. The byte is the quote character. Everything up
     /// to the closing quote is string *content*, so it must not be indented.
     Quoted(u8),
+    /// We are inside a `/* … */` block comment. A backtick or quote in there is
+    /// text, not a delimiter — without this frame a `` ` `` in a doc comment
+    /// opened a template literal and every line after it stopped being indented.
+    BlockComment,
 }
 
 /// Is the next line's first character inside a string, and therefore content
 /// that must be reproduced byte-for-byte rather than indented? Every re-indenter
 /// in this pipeline asks exactly this, so they ask it here.
 pub(super) fn in_string_content(stack: &[TemplateStateFrame]) -> bool {
+    // A block comment is not content: esrap re-indents a comment's lines too.
     matches!(
         stack.last(),
         Some(TemplateStateFrame::Template) | Some(TemplateStateFrame::Quoted(_))
@@ -1316,6 +1340,17 @@ pub(super) fn update_template_literal_stack(line: &str, stack: &mut Vec<Template
     while i < len {
         let c = bytes[i];
         match stack.last().copied() {
+            Some(TemplateStateFrame::BlockComment) => {
+                match line[i..].find("*/") {
+                    Some(offset) => {
+                        stack.pop();
+                        i += offset + 2;
+                    }
+                    // Unterminated on this line: the frame carries to the next.
+                    None => return,
+                }
+                continue;
+            }
             Some(TemplateStateFrame::Quoted(quote)) => {
                 match scan_quoted(bytes, i, quote) {
                     Quote::Closed(next) => {
@@ -1355,6 +1390,10 @@ pub(super) fn update_template_literal_stack(line: &str, stack: &mut Vec<Template
                         Quote::NotAString => i += 1,
                     }
                     continue;
+                } else if c == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
+                    stack.push(TemplateStateFrame::BlockComment);
+                    i += 2;
+                    continue;
                 } else if c == b'`' {
                     stack.push(TemplateStateFrame::Template);
                     i += 1;
@@ -1392,6 +1431,10 @@ pub(super) fn update_template_literal_stack(line: &str, stack: &mut Vec<Template
                     continue;
                 } else if c == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
                     break;
+                } else if c == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
+                    stack.push(TemplateStateFrame::BlockComment);
+                    i += 2;
+                    continue;
                 } else if c == b'`' {
                     stack.push(TemplateStateFrame::Template);
                     i += 1;
@@ -1734,6 +1777,38 @@ mod quote_frame_tests {
             update_template_literal_stack(line, &mut stack);
         }
         stack
+    }
+
+    /// A fenced code sample in a JSDoc block puts backticks in a comment. Read
+    /// as template-literal delimiters they opened a string that swallowed the
+    /// rest of the comment, so every line after it lost its indentation.
+    #[test]
+    fn a_backtick_in_a_block_comment_is_not_a_template_literal() {
+        let stack = state_after(&["\t/**", "\t * @example", "\t * ```svelte", "\t * <A />"]);
+        assert!(matches!(
+            stack.as_slice(),
+            [TemplateStateFrame::BlockComment]
+        ));
+        assert!(!in_string_content(&stack));
+    }
+
+    #[test]
+    fn a_block_comment_frame_ends_at_its_terminator() {
+        assert!(state_after(&["/* ` */ const a = 1;"]).is_empty());
+    }
+
+    #[test]
+    fn a_backtick_after_a_block_comment_still_opens_a_template() {
+        let stack = state_after(&["/* ` */ const a = `x"]);
+        assert!(matches!(stack.as_slice(), [TemplateStateFrame::Template]));
+        assert!(in_string_content(&stack));
+    }
+
+    /// The reverse direction: a `/*` inside a template literal is text.
+    #[test]
+    fn a_block_comment_opener_inside_a_template_is_text() {
+        let stack = state_after(&["const a = `/* not a comment"]);
+        assert!(matches!(stack.as_slice(), [TemplateStateFrame::Template]));
     }
 
     /// A `'…'` can only reach the next line through a trailing `\`. Every other

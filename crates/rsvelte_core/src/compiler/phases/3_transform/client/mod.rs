@@ -23,6 +23,7 @@ mod effect_rune_ast;
 pub(crate) mod expression_utils;
 mod formatting;
 mod inspect_rune_ast;
+mod inspect_trace_ast;
 mod instance_dev_tail_ast;
 mod legacy_state_member_mutate_ast;
 mod local_assign_ast;
@@ -46,6 +47,7 @@ mod reactive_update_ast;
 mod read_only_props_ast;
 mod rest_prop_member_access_ast;
 mod rune_transforms;
+mod sanitized_props;
 mod scan_index;
 mod scope_analysis;
 mod state_assigns_combined_ast;
@@ -93,7 +95,11 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::LazyLock;
 
-use crate::compiler::phases::phase3_transform::shared::js_scan::{find_code, skip_opaque};
+use crate::compiler::phases::phase1_parse::parser::is_js_whitespace;
+use crate::compiler::phases::phase3_transform::shared::js_scan::{
+    after_keyword, after_keywords, contains_identifier, find_code, find_rune_code, is_ident_byte,
+    skip_opaque,
+};
 use compact_str::CompactString;
 use memchr::memmem;
 // rustc_hash is used by submodules via their own imports
@@ -268,11 +274,27 @@ pub fn transform_client_module(
         ));
     }
 
+    // `$inspect.trace()`'s default label carries `locate_node(fn)`, a position
+    // in the source the user wrote, so the rune is lowered before any other
+    // rewrite moves its enclosing function.
+    let trace_lowered = inspect_trace_ast::transform_module_inspect_trace(
+        source,
+        options.dev,
+        analysis.filename.ends_with(".ts"),
+        options.filename.as_deref(),
+    );
+    let source = trace_lowered.as_deref().unwrap_or(source);
+
     // Drop the comments upstream's synthesized accessors swallow before any
     // rewrite, so the scan still sees the source's own class bodies.
     let dead_comments_stripped =
         dead_comments::strip_dead_comments(source, dead_comments::Rules::ACCESSORS);
     let source = dead_comments_stripped.as_deref().unwrap_or(source);
+
+    // Every lowering below decides what a rune call is from this text, so the
+    // grouping parens around one have to be gone before the first of them runs.
+    let paren_stripped = super::shared::rune_parens::strip_rune_parens(source);
+    let source = paren_stripped.as_deref().unwrap_or(source);
 
     // Transform the module source (rune replacements, class fields, etc.)
     let class_transformed = transform_module_class_fields_client(source);
@@ -323,24 +345,13 @@ pub fn transform_client_module(
     let has_effect_rune =
         class_transformed.contains("$effect") || class_transformed.contains("$inspect");
     let transformed =
-        transform_module_script_runes(&class_transformed, source, analysis, options.dev);
+        transform_module_script_runes(&class_transformed, source, analysis, options.dev, true);
 
-    // The transformed source includes everything (imports + body).
-    // We need to split imports from body to avoid duplicate svelte import.
-    let (script_imports, script_rest) = extract_imports(&transformed);
-
-    // Add non-svelte imports
-    for import_line in &script_imports {
-        let trimmed = import_line.trim();
-        // Skip svelte internal imports since we already added them
-        if memmem::find(trimmed.as_bytes(), b"svelte/internal/").is_none() {
-            body.push(JsStatement::Raw(trimmed.into()));
-        }
-    }
-
-    // Add the rest of the module body
+    // Upstream `client_module` concatenates the generated `$` import with the
+    // module body untouched, so an `import` keeps its place among the other
+    // statements — hoisting it would change module evaluation order.
     {
-        let rest_trimmed = script_rest.trim();
+        let rest_trimmed = transformed.trim();
         if !rest_trimmed.is_empty() {
             body.push(if has_effect_rune {
                 JsStatement::RawEffect(rest_trimmed.into())
@@ -357,20 +368,42 @@ pub fn transform_client_module(
 /// `server_module` do: a builder-made `Program` with no `loc`, which parks
 /// esrap's comment cursor past the end so only comments inside a located nested
 /// body survive.
+/// Stands in for upstream's `b.empty` while a module's text is still parsed as
+/// JavaScript: `const t = ;;` is what upstream prints and what no parser reads.
+pub(crate) const MODULE_INSPECT_HOLE: &str = "$$inspect_empty";
+
+/// Expand [`MODULE_INSPECT_HOLE`] back to the `;` esrap prints for `b.empty`.
+/// Code positions only — a module may hold the same text in a string literal.
+fn expand_module_inspect_holes(code: String) -> String {
+    if memmem::find(code.as_bytes(), MODULE_INSPECT_HOLE.as_bytes()).is_none() {
+        return code;
+    }
+    let mut out = String::with_capacity(code.len());
+    let mut rest = code.as_str();
+    while let Some(pos) = find_code(rest.as_bytes(), MODULE_INSPECT_HOLE.as_bytes()) {
+        out.push_str(&rest[..pos]);
+        out.push(';');
+        rest = &rest[pos + MODULE_INSPECT_HOLE.len()..];
+    }
+    out.push_str(rest);
+    out
+}
+
 pub(crate) fn print_module_program(
     body: Vec<JsStatement>,
     header: &str,
 ) -> Result<String, TransformError> {
     use super::js_ast::codegen::generate;
 
-    let program = super::js_ast::nodes::JsProgram { body };
+    let program = super::js_ast::nodes::JsProgram {
+        body,
+        component_brace_span: None,
+    };
     let arena = super::js_ast::arena::JsArena::new();
     let alloc = oxc_allocator::Allocator::default();
     if let Some(code) =
         super::js_ast::to_oxc::program_to_oxc(&program, &arena, &alloc).map(|converted| {
-            let print_opts = rsvelte_esrap::PrintOptions::default()
-                .with_empty_statements(true)
-                .with_unlocated_program(true);
+            let print_opts = rsvelte_esrap::PrintOptions::default().with_unlocated_program(true);
             match &converted.comment_source {
                 Some(cs) => {
                     rsvelte_esrap::print_split(
@@ -387,10 +420,15 @@ pub(crate) fn print_module_program(
             }
         })
     {
-        return Ok(format!("{header}\n{}", rehome_derived_jsdoc(&code)));
+        return Ok(expand_module_inspect_holes(format!(
+            "{header}\n{}",
+            rehome_derived_jsdoc(&code)
+        )));
     }
     generate(&program, &arena)
-        .map(|code| format!("{header}\n{}", rehome_derived_jsdoc(&code)))
+        .map(|code| {
+            expand_module_inspect_holes(format!("{header}\n{}", rehome_derived_jsdoc(&code)))
+        })
         .map_err(TransformError::CodeGen)
 }
 
@@ -426,19 +464,14 @@ pub(crate) fn transform_module_source_for_module(
     server: bool,
 ) -> String {
     let class_transformed = transform_module_class_fields_client(source);
-    transform_module_script_runes_with_target(&class_transformed, source, analysis, dev, server)
-}
-
-/// Extract imports from a string, returning (imports, rest).
-/// This is a convenience wrapper for use from the server module.
-pub(crate) fn extract_imports_str(script: &str) -> (Vec<String>, Option<String>) {
-    let (imports, rest) = extract_imports(script);
-    let rest_trimmed = rest.trim();
-    if rest_trimmed.is_empty() {
-        (imports, None)
-    } else {
-        (imports, Some(rest_trimmed.to_string()))
-    }
+    transform_module_script_runes_with_target(
+        &class_transformed,
+        source,
+        analysis,
+        dev,
+        server,
+        true,
+    )
 }
 
 /// Transform a component analysis into client-side JavaScript.
@@ -590,12 +623,20 @@ pub(crate) fn transform_client(
                 }
             })
             .flatten();
-        let instance_raw = dead_comments_stripped
+        // Every lowering below decides what a rune call is from this text, so the
+        // grouping parens around one have to be gone before the first of them runs.
+        let paren_stripped = super::shared::rune_parens::strip_rune_parens(
+            dead_comments_stripped
+                .as_deref()
+                .unwrap_or(&instance_script.raw),
+        );
+        let instance_raw = paren_stripped
             .as_deref()
+            .or(dead_comments_stripped.as_deref())
             .unwrap_or(&instance_script.raw);
         let retained_instance = retained_scripts
             .and_then(|scripts| scripts.instance.as_ref())
-            .filter(|_| dead_comments_stripped.is_none());
+            .filter(|_| dead_comments_stripped.is_none() && paren_stripped.is_none());
         let needs_projection = analysis.runes
             && retained_instance.is_some()
             && instance_script.source_projection.is_some();
@@ -1329,6 +1370,7 @@ pub(crate) fn transform_client(
                         content.start,
                         content.source_projection.as_ref(),
                         props_comment_anchor,
+                        options.enable_sourcemap,
                     ));
                     // Store the blocker_map for use during template generation
                     if !async_result.blocker_map.is_empty() {
@@ -1347,6 +1389,7 @@ pub(crate) fn transform_client(
                             content.start,
                             content.source_projection.as_ref(),
                             props_comment_anchor,
+                            options.enable_sourcemap,
                         ));
                     }
                 }
@@ -1394,6 +1437,7 @@ pub(crate) fn transform_client(
                             content.start,
                             content.source_projection.as_ref(),
                             props_comment_anchor,
+                            options.enable_sourcemap,
                         ));
                     }
                 }
@@ -1712,8 +1756,32 @@ pub(crate) fn transform_client(
                     // In runes mode with an initial value, turn `set foo($$value)`
                     // into `set foo($$value = <initial>)`.
                     // Reference: transform-client.js lines 315-323
-                    if analysis.runes && binding.initial.is_some() {
-                        let initial = binding.initial.clone().unwrap();
+                    if analysis.runes
+                        && binding.initial.is_some()
+                        && let Some(initial) = binding
+                            .initial_span
+                            .and_then(|(s, e)| source.get(s as usize..e as usize))
+                            // The slice is raw source, so a type argument or an
+                            // annotation NESTED in the default is still in it —
+                            // upstream prints a node the TS erasure already
+                            // walked.
+                            .map(|text| {
+                                super::server::helpers::strip_ts_from_derived_inner(
+                                    text,
+                                    analysis.is_typescript,
+                                )
+                            })
+                            .or_else(|| {
+                                // `initial` is the literal's raw text only for the
+                                // shapes `extract_literal_string_typed` handles;
+                                // for the rest it is a JSON dump of the node, so
+                                // it can stand in only when a span is missing AND
+                                // the node was a literal.
+                                (binding.initial_node_type.as_deref() == Some("Literal"))
+                                    .then(|| binding.initial.clone())
+                                    .flatten()
+                            })
+                    {
                         exports_members.push(b::setter_with_default(
                             &context.arena,
                             alias,
@@ -1969,9 +2037,7 @@ pub(crate) fn transform_client(
     let component_fn = JsFunctionDeclaration {
         id: Some(analysis.name.clone().into()),
         params: params.into(),
-        body: JsBlockStatement {
-            body: component_body,
-        },
+        body: JsBlockStatement::with_body(component_body),
         is_async: false,
         is_generator: false,
     };
@@ -2070,6 +2136,9 @@ pub(crate) fn transform_client(
                 .then(|| dead_comments::strip_dead_comments(&raw, dead_comments::Rules::ACCESSORS))
                 .flatten()
                 .unwrap_or(raw);
+            // Every lowering below decides what a rune call is from this text, so
+            // the grouping parens around one have to be gone before the first runs.
+            let raw = super::shared::rune_parens::strip_rune_parens(&raw).unwrap_or(raw);
             let (module_imports, rest) = extract_imports(&raw);
             let retained_comment_stripped = if !analysis.is_typescript {
                 retained_scripts
@@ -2162,8 +2231,13 @@ pub(crate) fn transform_client(
         let class_transformed = transform_module_class_fields_client(&non_imports);
         let has_effect_rune =
             class_transformed.contains("$effect") || class_transformed.contains("$inspect");
-        let transformed =
-            transform_module_script_runes(&class_transformed, &non_imports, analysis, options.dev);
+        let transformed = transform_module_script_runes(
+            &class_transformed,
+            &non_imports,
+            analysis,
+            options.dev,
+            false,
+        );
         // Drop module-level comments esrap's no-`loc` top-level Program omits
         // (leading JSDoc before a kept `export const`, per-field JSDoc that
         // `strip_typescript` re-emits from a removed `export type`/`interface`).
@@ -2546,7 +2620,13 @@ pub(crate) fn transform_client(
     }
 
     // Create the program
-    let program = JsProgram { body };
+    let program = JsProgram {
+        body,
+        component_brace_span: ast.instance.as_deref().and_then(|script| {
+            (script.start < script.end)
+                .then(|| (analysis.name.clone().into(), script.start, script.end))
+        }),
+    };
     if let Some(sink) = &mut program_sink {
         sink(&program, &context.arena);
     }
@@ -2568,11 +2648,8 @@ pub(crate) fn transform_client(
                 &ast_islands,
             )
             .map(|converted| {
-                // Keep `;` empty statements: the parsed-`Raw` `;;` are real
-                // EmptyStatement nodes the official compiler output preserves.
-                let print_opts = rsvelte_esrap::PrintOptions::default()
-                    .with_empty_statements(true)
-                    .with_unlocated_program(true);
+                let print_opts =
+                    rsvelte_esrap::PrintOptions::default().with_unlocated_program(true);
                 let oxc_prog = &converted.program;
                 match &converted.comment_source {
                     // The program carries comments, so it prints in the
@@ -2953,12 +3030,13 @@ fn script_raw_statement(
     original_offset: u32,
     projection: Option<&ScriptProjection>,
     comment_anchor: Option<u32>,
+    enable_sourcemap: bool,
 ) -> JsStatement {
-    let copied_spans = projection
-        .map(|projection| {
-            copied_spans_for_normalized_code(&code, original, original_offset, projection)
-        })
-        .unwrap_or_default();
+    let copied_spans = if enable_sourcemap {
+        copied_spans_for_normalized_code(&code, original, original_offset, projection)
+    } else {
+        Vec::new()
+    };
     if has_effect_rune {
         JsStatement::RawMappedEffect {
             code: code.into(),
@@ -3007,6 +3085,20 @@ fn props_declaration_comments(raw: &str) -> Vec<(u32, CompactString)> {
         .collect()
 }
 
+/// Shortest run a resync candidate must start to beat the nearest-byte rule.
+const MIN_RESYNC_RUN: usize = 4;
+/// Longest run compared when scoring a resync candidate — a cap, so scoring the
+/// window stays linear in the window rather than in the rest of the script.
+const MAX_RESYNC_RUN: usize = 64;
+
+fn common_run(left: &[u8], right: &[u8]) -> usize {
+    left.iter()
+        .zip(right)
+        .take(MAX_RESYNC_RUN)
+        .take_while(|(a, b)| a == b)
+        .count()
+}
+
 /// Align normalized raw output with the stripped script, then project every
 /// unchanged byte back through TypeScript erasure to its component offset.
 /// Formatting may add whitespace or a semicolon, so unmatched bytes are left
@@ -3015,19 +3107,27 @@ fn copied_spans_for_normalized_code(
     code: &str,
     stripped: &str,
     original_offset: u32,
-    projection: &ScriptProjection,
+    projection: Option<&ScriptProjection>,
 ) -> Vec<RawMappedSpan> {
-    let mut source_at_output = vec![None; stripped.len() + 1];
-    for chunk in &projection.copied_chunks {
-        let len =
-            (chunk.output.end - chunk.output.start).min(chunk.source.end - chunk.source.start);
-        for offset in 0..=len {
-            let output = (chunk.output.start + offset) as usize;
-            if output < source_at_output.len() {
-                source_at_output[output] = Some(original_offset + chunk.source.start + offset);
+    // Without TypeScript erasure the stripped script *is* the source slice, so
+    // every byte projects back at its own offset: the per-byte table would hold
+    // `Some(original_offset + i)` at every `i` and the split loop below could
+    // never break a run, which is the whole cost of the general path — and this
+    // path now runs for every script, not only a TypeScript one.
+    let source_at_output = projection.map(|projection| {
+        let mut table: Vec<Option<u32>> = vec![None; stripped.len() + 1];
+        for chunk in &projection.copied_chunks {
+            let len =
+                (chunk.output.end - chunk.output.start).min(chunk.source.end - chunk.source.start);
+            for offset in 0..=len {
+                let output = (chunk.output.start + offset) as usize;
+                if output < table.len() {
+                    table[output] = Some(original_offset + chunk.source.start + offset);
+                }
             }
         }
-    }
+        table
+    });
 
     let mut spans = Vec::new();
     let mut output = 0usize;
@@ -3045,6 +3145,14 @@ fn copied_spans_for_normalized_code(
                 output += 1;
                 input += 1;
             }
+            let Some(source_at_output) = source_at_output.as_deref() else {
+                spans.push(RawMappedSpan {
+                    code: start_output as u32..output as u32,
+                    source: (original_offset + start_input as u32)
+                        ..(original_offset + input as u32),
+                });
+                continue;
+            };
             let mut run_start = start_output;
             for code_offset in start_output..=output {
                 let raw_offset = start_input + code_offset - start_output;
@@ -3089,20 +3197,58 @@ fn copied_spans_for_normalized_code(
         // A generated change (for example `count++` -> `$.update(count)`) must
         // not desynchronise the rest of the script. Resume at the nearest exact
         // byte within a small window; otherwise leave one generated byte bare.
-        let next_input = stripped.as_bytes()[input..]
+        const RESYNC_WINDOW: usize = 256;
+        const NEAR_RESYNC_WINDOW: usize = 32;
+        let code_tail = &code.as_bytes()[output..];
+        let input_tail = &stripped.as_bytes()[input..];
+        let next_input = input_tail
             .iter()
-            .take(256)
+            .take(RESYNC_WINDOW)
             .position(|&byte| byte == output_byte);
-        let next_output = code.as_bytes()[output..]
+        let next_output = code_tail
             .iter()
-            .take(256)
+            .take(RESYNC_WINDOW)
             .position(|&byte| byte == input_byte);
-        match (next_input, next_output) {
-            (Some(left), Some(right)) if left <= right => input += left,
-            (Some(left), None) => input += left,
-            (_, Some(right)) => output += right,
-            (None, None) => output += 1,
+        let (skip_input, skip_output) = match (next_input, next_output) {
+            (Some(left), Some(right)) if left <= right => (left, 0),
+            (Some(left), None) => (left, 0),
+            (_, Some(right)) => (0, right),
+            (None, None) => (0, 1),
+        };
+        // A single equal byte is a weak anchor: `export let x = …` →
+        // `let x = $.prop(…)` re-anchors on the `e` of `let` and misattributes
+        // every token after it. When it buys less than a token's worth of
+        // agreement, take the nearest candidate that does.
+        if common_run(&code_tail[skip_output..], &input_tail[skip_input..]) < MIN_RESYNC_RUN {
+            let mut best: Option<(usize, usize, usize)> = None;
+            let mut consider = |run: usize, skip_input: usize, skip_output: usize| {
+                if run >= MIN_RESYNC_RUN
+                    && best.is_none_or(|(best_run, input, output)| {
+                        let skipped = skip_input + skip_output;
+                        skipped < input + output || (skipped == input + output && run > best_run)
+                    })
+                {
+                    best = Some((run, skip_input, skip_output));
+                }
+            };
+            for (skip, &byte) in input_tail.iter().take(NEAR_RESYNC_WINDOW).enumerate() {
+                if byte == output_byte {
+                    consider(common_run(code_tail, &input_tail[skip..]), skip, 0);
+                }
+            }
+            for (skip, &byte) in code_tail.iter().take(NEAR_RESYNC_WINDOW).enumerate() {
+                if byte == input_byte {
+                    consider(common_run(&code_tail[skip..], input_tail), 0, skip);
+                }
+            }
+            if let Some((_, skip_input, skip_output)) = best {
+                input += skip_input;
+                output += skip_output;
+                continue;
+            }
         }
+        input += skip_input;
+        output += skip_output;
     }
     spans
 }
@@ -3345,17 +3491,34 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
     let mut imports = Vec::new();
     let mut rest = Vec::new();
     let mut current_import: Option<Vec<String>> = None;
+    let mut carry = ImportCarry::default();
     let mut scan = ScanState::default();
+    let mut line_start = 0usize;
 
-    for line in script.lines() {
+    for physical_line in script.split_inclusive('\n') {
+        let line = strip_line_terminator(physical_line);
+        let line_end = line_start + physical_line.len();
+        line_start = line_end;
         let line_starts_in_code = scan.in_code();
         let line_starts_in_block_comment = scan.in_block_comment;
         scan.advance(line);
+        // Only consult the next lines when they start in plain code: inside a
+        // block comment or a template literal their bytes are not code.
+        let following = if scan.in_code() {
+            &script[line_end..]
+        } else {
+            ""
+        };
         let scan = line_starts_in_code; // shadow for the decision below
         if let Some(ref mut import_lines) = current_import {
             let trimmed = line.trim();
-            let scanned = scan_import_line(trimmed, line_starts_in_block_comment);
-            if scanned.closes(trimmed.len()) {
+            let scanned = scan_import_line(trimmed, line_starts_in_block_comment, carry);
+            let attributes_follow =
+                scanned.ends_at_specifier(trimmed.len()) && starts_import_attributes(following);
+            carry = scanned.carry;
+            carry.expect_attributes |= attributes_follow;
+            if scanned.closes(trimmed.len()) && !attributes_follow {
+                carry = ImportCarry::default();
                 if let Some(end) = scanned.end()
                     && end < trimmed.len()
                     && !trimmed[end..].trim().is_empty()
@@ -3381,11 +3544,15 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
             let trimmed = line.trim();
             if scan && (trimmed.starts_with("import ") || trimmed.starts_with("import{")) {
                 // Check if this import is complete on one line
-                let scanned = scan_import_line(trimmed, false);
-                if scanned.semicolon.is_some()
-                    || is_complete_side_effect_import(trimmed)
+                let scanned = scan_import_line(trimmed, false, ImportCarry::default());
+                let ends_at_specifier = is_complete_side_effect_import(trimmed)
                     || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
-                        && scanned.last_string_end == Some(trimmed.len()))
+                        && scanned.last_string_end == Some(trimmed.len()));
+                let attributes_follow = ends_at_specifier && starts_import_attributes(following);
+                if !attributes_follow
+                    && (scanned.semicolon.is_some()
+                        || scanned.attributes_end.is_some()
+                        || ends_at_specifier)
                 {
                     // The line begins with a *complete* import statement but may
                     // carry additional imports and/or statements on the same
@@ -3401,6 +3568,8 @@ pub(crate) fn extract_imports(script: &str) -> (Vec<String>, String) {
                 } else {
                     // Multi-line import starts here
                     current_import = Some(vec![line.to_string()]);
+                    carry = scanned.carry;
+                    carry.expect_attributes |= attributes_follow;
                 }
             } else {
                 rest.push(line.to_string());
@@ -3425,25 +3594,30 @@ fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<Co
     let mut imports = Vec::new();
     let mut rest: Vec<ExtractedSourcePart> = Vec::new();
     let mut current_import: Option<Vec<String>> = None;
+    let mut carry = ImportCarry::default();
     let mut scan = ScanState::default();
     let mut line_start = 0usize;
 
     for physical_line in script.split_inclusive('\n') {
-        let line = if let Some(line_without_lf) = physical_line.strip_suffix('\n') {
-            line_without_lf
-                .strip_suffix('\r')
-                .unwrap_or(line_without_lf)
-        } else {
-            physical_line
-        };
+        let line = strip_line_terminator(physical_line);
         let line_starts_in_code = scan.in_code();
         let line_starts_in_block_comment = scan.in_block_comment;
         scan.advance(line);
+        let following = if scan.in_code() {
+            &script[line_start + physical_line.len()..]
+        } else {
+            ""
+        };
         let scan = line_starts_in_code;
         if let Some(ref mut import_lines) = current_import {
             let trimmed = line.trim();
-            let scanned = scan_import_line(trimmed, line_starts_in_block_comment);
-            if scanned.closes(trimmed.len()) {
+            let scanned = scan_import_line(trimmed, line_starts_in_block_comment, carry);
+            let attributes_follow =
+                scanned.ends_at_specifier(trimmed.len()) && starts_import_attributes(following);
+            carry = scanned.carry;
+            carry.expect_attributes |= attributes_follow;
+            if scanned.closes(trimmed.len()) && !attributes_follow {
+                carry = ImportCarry::default();
                 if let Some(end) = scanned.end()
                     && end < trimmed.len()
                     && !trimmed[end..].trim().is_empty()
@@ -3476,11 +3650,15 @@ fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<Co
         } else {
             let trimmed = line.trim();
             if scan && (trimmed.starts_with("import ") || trimmed.starts_with("import{")) {
-                let scanned = scan_import_line(trimmed, false);
-                if scanned.semicolon.is_some()
-                    || is_complete_side_effect_import(trimmed)
+                let scanned = scan_import_line(trimmed, false, ImportCarry::default());
+                let ends_at_specifier = is_complete_side_effect_import(trimmed)
                     || (memmem::find(trimmed.as_bytes(), b" from ").is_some()
-                        && scanned.last_string_end == Some(trimmed.len()))
+                        && scanned.last_string_end == Some(trimmed.len()));
+                let attributes_follow = ends_at_specifier && starts_import_attributes(following);
+                if !attributes_follow
+                    && (scanned.semicolon.is_some()
+                        || scanned.attributes_end.is_some()
+                        || ends_at_specifier)
                 {
                     let trimmed_start = line.len() - line.trim_start().len();
                     let (remainder, remainder_offset) =
@@ -3495,6 +3673,8 @@ fn extract_imports_with_projection(script: &str) -> (Vec<String>, String, Vec<Co
                     }
                 } else {
                     current_import = Some(vec![line.to_string()]);
+                    carry = scanned.carry;
+                    carry.expect_attributes |= attributes_follow;
                 }
             } else {
                 rest.push(ExtractedSourcePart {
@@ -3618,17 +3798,48 @@ struct ImportLineScan {
     semicolon: Option<usize>,
     /// Just past the last string or template literal that is code.
     last_string_end: Option<usize>,
+    /// Just past the `}` that closes an import-attributes clause.
+    attributes_end: Option<usize>,
+    /// Brace nesting and clause state to carry to the statement's next line.
+    carry: ImportCarry,
+}
+
+/// What an unfinished `import` statement carries from one line to the next.
+#[derive(Default, Clone, Copy)]
+struct ImportCarry {
+    /// Brace nesting depth reached so far within the statement.
+    depth: u32,
+    /// An import-attributes clause is open.
+    in_attributes: bool,
+    /// The next `{` opens the attributes clause even though its `with` keyword
+    /// was read on an earlier line.
+    expect_attributes: bool,
 }
 
 impl ImportLineScan {
-    /// Where the statement ends: the `;` if there is one, else — ASI — the last
-    /// completed string literal, which is the module specifier.
+    /// Where the statement ends: the `;` if there is one, else the attributes
+    /// clause's `}`, else — ASI — the last completed string literal, which is
+    /// the module specifier.
     fn end(&self) -> Option<usize> {
-        self.semicolon.or(self.last_string_end)
+        self.semicolon
+            .or(self.attributes_end)
+            .or(self.last_string_end)
+    }
+
+    /// True when the statement would end — by ASI — at the module specifier that
+    /// finishes this line, so whether it really ends there depends on what
+    /// follows on the next line.
+    fn ends_at_specifier(&self, line_len: usize) -> bool {
+        self.semicolon.is_none()
+            && self.attributes_end.is_none()
+            && self.carry.depth == 0
+            && self.last_string_end == Some(line_len)
     }
 
     fn closes(&self, line_len: usize) -> bool {
-        self.semicolon.is_some() || self.last_string_end == Some(line_len)
+        self.semicolon.is_some()
+            || self.attributes_end.is_some()
+            || self.ends_at_specifier(line_len)
     }
 }
 
@@ -3636,10 +3847,15 @@ impl ImportLineScan {
 ///
 /// A `;` or a closing quote inside a comment is text, and reading it as the
 /// terminator cut the statement mid-specifier-list (#2601).
-/// `in_block_comment` carries that state across the preceding lines.
-fn scan_import_line(s: &str, in_block_comment: bool) -> ImportLineScan {
+/// `in_block_comment` carries that state across the preceding lines, and `carry`
+/// the brace nesting, so a `"…"` ending a line inside a specifier list or an
+/// import-attributes clause is not read as the module specifier.
+fn scan_import_line(s: &str, in_block_comment: bool, carry: ImportCarry) -> ImportLineScan {
     let bytes = s.as_bytes();
-    let mut out = ImportLineScan::default();
+    let mut out = ImportLineScan {
+        carry,
+        ..ImportLineScan::default()
+    };
     let mut i = 0usize;
     if in_block_comment {
         match memmem::find(bytes, b"*/") {
@@ -3660,9 +3876,28 @@ fn scan_import_line(s: &str, in_block_comment: bool) -> ImportLineScan {
             i = next;
             continue;
         }
-        if bytes[i] == b';' {
-            out.semicolon = Some(i + 1);
-            return out;
+        match bytes[i] {
+            b';' => {
+                out.semicolon = Some(i + 1);
+                return out;
+            }
+            b'{' => {
+                if out.carry.depth == 0
+                    && (out.carry.expect_attributes || token_before_is_with(bytes, i))
+                {
+                    out.carry.in_attributes = true;
+                    out.carry.expect_attributes = false;
+                }
+                out.carry.depth += 1;
+            }
+            b'}' => {
+                out.carry.depth = out.carry.depth.saturating_sub(1);
+                if out.carry.depth == 0 && out.carry.in_attributes {
+                    out.carry.in_attributes = false;
+                    out.attributes_end = Some(i + 1);
+                }
+            }
+            _ => {}
         }
         if !bytes[i].is_ascii_whitespace() {
             prev = Some(bytes[i]);
@@ -3672,12 +3907,81 @@ fn scan_import_line(s: &str, in_block_comment: bool) -> ImportLineScan {
     out
 }
 
+/// Is the token immediately before `i` the `with` keyword that opens an
+/// import-attributes clause?
+///
+/// Called on a `{`, so anything else there — a specifier list's brace, or a
+/// `with` that is the tail of a longer identifier — must answer `false`. A
+/// comment before the brace ends on a byte that cannot be part of an
+/// identifier, so it yields an empty run rather than a false match.
+fn token_before_is_with(bytes: &[u8], at: usize) -> bool {
+    let mut end = at;
+    while end > 0 && bytes[end - 1].is_ascii_whitespace() {
+        end -= 1;
+    }
+    let mut start = end;
+    while start > 0 && is_ident_byte(bytes[start - 1]) {
+        start -= 1;
+    }
+    &bytes[start..end] == b"with"
+}
+
+/// Does `s` begin — after whitespace and comments — with the `with { … }`
+/// import-attributes clause that continues an `import` statement?
+///
+/// The clause carries no `[no LineTerminator here]` restriction, so it may start
+/// on any later line; `with` is a reserved word, so in module code nothing else
+/// can begin there. The deprecated `assert` spelling is deliberately not
+/// accepted: both compilers reject it while parsing, so no such source reaches
+/// this pass, and `assert` is a plain identifier that a call on the next line
+/// would collide with.
+fn starts_import_attributes(s: &str) -> bool {
+    let keyword = skip_js_whitespace_and_comments(s, 0);
+    let Some(after_keyword) = s[keyword..].strip_prefix("with") else {
+        return false;
+    };
+    if after_keyword
+        .as_bytes()
+        .first()
+        .is_some_and(|b| is_ident_byte(*b))
+    {
+        return false;
+    }
+    let brace = skip_js_whitespace_and_comments(s, s.len() - after_keyword.len());
+    s.as_bytes().get(brace) == Some(&b'{')
+}
+
+/// Byte index of the first significant character in `s` at or after `from`.
+fn skip_js_whitespace_and_comments(s: &str, from: usize) -> usize {
+    let mut i = from;
+    loop {
+        let trimmed = s[i..].trim_start_matches(is_js_whitespace);
+        i = s.len() - trimmed.len();
+        if !(trimmed.starts_with("//") || trimmed.starts_with("/*")) {
+            return i;
+        }
+        match skip_opaque(s.as_bytes(), i, None) {
+            Some((next, true)) => i = next,
+            _ => return i,
+        }
+    }
+}
+
 /// Find the byte index at which the leading import statement in `s` ends.
 ///
 /// Callers pass a slice that starts at a statement boundary, so no comment can
 /// already be open.
 fn import_statement_end(s: &str) -> Option<usize> {
-    scan_import_line(s, false).end()
+    scan_import_line(s, false, ImportCarry::default()).end()
+}
+
+/// One line of `split_inclusive('\n')` without its line terminator, so the two
+/// `extract_imports` ports see exactly what `str::lines` would give them.
+fn strip_line_terminator(physical_line: &str) -> &str {
+    match physical_line.strip_suffix('\n') {
+        Some(without_lf) => without_lf.strip_suffix('\r').unwrap_or(without_lf),
+        None => physical_line,
+    }
 }
 
 /// Peel every complete leading `import` statement off `s`, pushing each onto
@@ -3746,6 +4050,31 @@ fn is_complete_side_effect_import(trimmed: &str) -> bool {
     // be a *complete* side-effect import. Anything else (e.g. `from`, more
     // tokens) means we should not treat the line as complete here.
     after_import[i..].trim().is_empty()
+}
+
+/// True when `text` is a `let`/`const`/`var` declaration whose whole initializer
+/// is `$props.id()` — or an already-lowered `$.props_id()`. The component body
+/// always gets a hoisted `const` for it, so the source's own declaration has to
+/// go or the scope declares the name twice, which no JS parser accepts.
+///
+/// Compared over the statement's **code**: `code_bytes` steps over comments and
+/// string bodies, so trivia anywhere in the declaration cannot defeat the match
+/// and an `=` inside a string cannot be mistaken for the assignment. The
+/// text-level version this replaced was defeated by a comment on either side of
+/// the call and by a line break before it (#3346).
+fn is_props_id_declaration(text: &str) -> bool {
+    let code: Vec<u8> = code_bytes(text.as_bytes()).map(|(_, b)| b).collect();
+    let Ok(code) = std::str::from_utf8(&code) else {
+        return false;
+    };
+    let code = code.trim();
+    let head = code.strip_prefix("export ").unwrap_or(code);
+    if !(head.starts_with("let ") || head.starts_with("const ") || head.starts_with("var ")) {
+        return false;
+    }
+    code.find('=')
+        .map(|eq| code[eq + 1..].trim().trim_end_matches(';').trim())
+        .is_some_and(|rhs| rhs == "$props.id()" || rhs == "$.props_id()")
 }
 
 /// True when `trimmed` begins an `export { ... }` specifier statement,
@@ -4346,20 +4675,46 @@ pub(crate) fn transform_module_script_runes(
     pre_class_script: &str,
     analysis: &ComponentAnalysis,
     dev: bool,
+    module_entry: bool,
 ) -> String {
-    transform_module_script_runes_with_target(script, pre_class_script, analysis, dev, false)
+    transform_module_script_runes_with_target(
+        script,
+        pre_class_script,
+        analysis,
+        dev,
+        false,
+        module_entry,
+    )
 }
 
 /// `pre_class_script` is the script before the class-field lowering — the dev
 /// `$.tag` label needs the name the user wrote, which the lowering erases.
+/// Whether this module declares a rune-spelled name at all — the cheap
+/// precondition for [`rune_shadow::RuneShadows`]: with no such declaration no
+/// call can resolve to one, so nothing needs a scope pass.
+fn module_binds_rune_name(analysis: &ComponentAnalysis) -> bool {
+    analysis
+        .root
+        .bindings
+        .iter()
+        .any(|b| rune_shadow::is_rune_name(&b.name))
+}
+
 fn transform_module_script_runes_with_target(
     script: &str,
     pre_class_script: &str,
     analysis: &ComponentAnalysis,
     dev: bool,
     server: bool,
+    // `compileModule` only: a component's `<script module>` is printed by the
+    // component pipeline, whose text survives to the output as written.
+    module_entry: bool,
 ) -> String {
     let mut result = script.to_string();
+    let mut shadows = rune_shadow::RuneShadows::new(
+        module_binds_rune_name(analysis),
+        analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts"),
+    );
 
     // Strip TypeScript generic parameters from $state<...>() and $derived<...>() calls.
     // These are type-only annotations that have no runtime meaning.
@@ -4395,26 +4750,27 @@ fn transform_module_script_runes_with_target(
         }
     }
 
-    // In non-dev mode, remove $inspect.trace(...) statements from module scripts.
-    // Mirrors the same logic in rune_transforms.rs for instance scripts.
+    // The AST lowering above answers for a `.svelte.(js|ts)` module's *client*
+    // output; every other target still reaches this function with the rune
+    // intact, so the non-dev removal stays. `find_code` rather than a plain
+    // byte search: the same bytes inside a string literal are not the rune.
     if !dev {
-        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect.trace(") {
+        while let Some(pos) = find_rune_code(result.as_bytes(), b"$inspect.trace(") {
             let trace_start = pos + b"$inspect.trace(".len();
-            if let Some(content_end) = find_matching_paren(&result[trace_start..]) {
-                let mut end = trace_start + content_end + 1;
-                while end < result.len()
-                    && matches!(result.as_bytes()[end], b';' | b' ' | b'\t' | b'\n' | b'\r')
-                {
-                    end += 1;
-                }
-                let mut start = pos;
-                while start > 0 && matches!(result.as_bytes()[start - 1], b' ' | b'\t') {
-                    start -= 1;
-                }
-                result = format!("{}{}", &result[..start], &result[end..]);
-            } else {
+            let Some(content_end) = find_matching_paren(&result[trace_start..]) else {
                 break;
+            };
+            let mut end = trace_start + content_end + 1;
+            while end < result.len()
+                && matches!(result.as_bytes()[end], b';' | b' ' | b'\t' | b'\n' | b'\r')
+            {
+                end += 1;
             }
+            let mut start = pos;
+            while start > 0 && matches!(result.as_bytes()[start - 1], b' ' | b'\t') {
+                start -= 1;
+            }
+            result = format!("{}{}", &result[..start], &result[end..]);
         }
     }
 
@@ -4423,7 +4779,7 @@ fn transform_module_script_runes_with_target(
     // return b.empty`. The component-instance path handles this in rune_transforms.rs;
     // module scripts use this dedicated loop.
     if !dev {
-        while let Some(pos) = memmem::find(result.as_bytes(), b"$inspect(") {
+        while let Some(pos) = find_rune_code(result.as_bytes(), b"$inspect(") {
             let inspect_start = pos + b"$inspect(".len();
             if let Some(content_end) = find_matching_paren(&result[inspect_start..]) {
                 let after_call = &result[inspect_start + content_end + 1..];
@@ -4439,20 +4795,37 @@ fn transform_module_script_runes_with_target(
                 } else {
                     inspect_start + content_end + 1 - pos
                 };
-                // Remove leading whitespace on the same line
-                let mut start = pos;
-                while start > 0 && matches!(result.as_bytes()[start - 1], b' ' | b'\t') {
-                    start -= 1;
+                // In an operand slot upstream's `EmptyStatement` prints as a bare
+                // `;`, which no parser accepts; keep the slot filled with the
+                // value `$inspect` evaluates to, rather than deleting the line
+                // and leaving the initializer dangling
+                // (`upstream_issues/3213-svelte-inspect-in-a-value-position.md`).
+                if rune_transforms::operand_expected_before(&result[..pos]) {
+                    result = format!(
+                        "{}undefined{}",
+                        &result[..pos],
+                        &result[pos + total_call_len..]
+                    );
+                    continue;
                 }
-                // Consume optional trailing semicolon then newline
+                // Statement position: upstream substitutes an `EmptyStatement`
+                // for the call and keeps the statement's own `;`, which esrap
+                // prints as `;;` where the call stood — at whatever nesting it
+                // had. Deleting the line instead loses both.
                 let mut end = pos + total_call_len;
                 while end < result.len() && result.as_bytes()[end] == b';' {
                     end += 1;
                 }
-                if end < result.len() && result.as_bytes()[end] == b'\n' {
-                    end += 1;
-                }
-                result = format!("{}{}", &result[..start], &result[end..]);
+                result = if module_entry {
+                    // `compileModule` re-parses this text before printing and a
+                    // re-parse drops an `EmptyStatement`, so there the hole
+                    // travels as a sentinel esrap prints as a statement. Its
+                    // `;` is for the next iteration's position test, which
+                    // reads an identifier as an operand slot.
+                    format!("{}{MODULE_INSPECT_HOLE};{}", &result[..pos], &result[end..])
+                } else {
+                    format!("{};;{}", &result[..pos], &result[end..])
+                };
             } else {
                 break;
             }
@@ -4607,10 +4980,14 @@ fn transform_module_script_runes_with_target(
     // `find_code`, not `memmem::find`: the AST batch above leaves a `$state(`
     // that sits in a string / template / regex / comment untouched, and this
     // fallback would otherwise rewrite that text as if it were a call (#2988).
-    while let Some(pos) = find_code(result.as_bytes(), b"$state(") {
+    while let Some(pos) = find_rune_code(result.as_bytes(), b"$state(") {
         // Make sure this is not $state.something
         if pos + 7 < result.len() && result.as_bytes()[pos + 6] != b'(' {
             break;
+        }
+        if shadows.is_bound(&result, pos) {
+            state_from = pos + 1;
+            continue;
         }
 
         let var_name = extract_var_name_before_rune(&result[..pos]);
@@ -4693,7 +5070,9 @@ fn transform_module_script_runes_with_target(
     // expression positions and can't make that mistake.
     {
         let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
-        if let Some(rewritten) = derived_by_ast::transform_derived_by_ast(&result, is_ts) {
+        if let Some(rewritten) =
+            derived_by_ast::transform_derived_by_ast(&result, is_ts, shadows.enabled())
+        {
             result = rewritten;
         }
     }
@@ -4736,10 +5115,14 @@ fn transform_module_script_runes_with_target(
     // / regex / comment is text. Matching it either rewrote the literal (#2988)
     // or aborted the loop on its unbalanced parens, leaving the real rune call
     // unlowered and the module referencing a global `$derived` (#2987).
-    while let Some(pos) = find_code(result.as_bytes(), b"$derived(") {
+    while let Some(pos) = find_rune_code(result.as_bytes(), b"$derived(") {
         if result[..pos].ends_with('$') {
             // Already transformed to $.derived() - skip
             break;
+        }
+        if shadows.is_bound(&result, pos) {
+            derived_from = pos + 1;
+            continue;
         }
         let derived_start = pos + 9; // after "$derived("
         if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
@@ -4911,12 +5294,21 @@ fn transform_module_script_runes_with_target(
     // the dev-only collectors exactly as the sequential call sites did.
     {
         let is_ts = analysis.filename.ends_with(".ts") || analysis.filename.ends_with(".svelte.ts");
+        // `compileModule` only: a component's `<script module>` reaches here with
+        // an already-processed `pre_class_script`, so its positions are not the
+        // source's (#3543).
+        let trace_thunks = if dev && !server && module_entry {
+            inspect_rune_ast::collect_trace_thunks(pre_class_script, is_ts, &analysis.filename)
+        } else {
+            Vec::new()
+        };
         if let Some(rewritten) = module_dev_tail_ast::transform_module_dev_tail_ast(
             &result,
             dev,
             is_ts,
             analysis.runes,
             Some(analysis),
+            &trace_thunks,
         ) {
             result = rewritten;
         }
@@ -5005,13 +5397,23 @@ fn starts_with_else_keyword(line: &str) -> bool {
     })
 }
 
+/// A top-level `$:` label, which is what the legacy pipeline rewrites.
+fn is_legacy_reactive_label(statement: &oxc_ast::ast::Statement<'_>) -> bool {
+    matches!(
+        statement,
+        oxc_ast::ast::Statement::LabeledStatement(labeled) if labeled.label.name == "$"
+    )
+}
+
 /// Makes an AST statement boundary visible to the legacy per-line pipeline.
 ///
-/// The pipeline historically treated each physical line as one statement. That
-/// lets an `export let` rewrite consume a following declaration on the same
-/// line. We use the parser's top-level statement spans rather than scanning
-/// for semicolons, whose grammar is precisely what this path must not infer.
-fn separate_same_line_legacy_export_declarations<'a>(
+/// The pipeline treats each physical line as one statement, and it reads a line
+/// as `\n`-delimited text. So two top-level statements reach it as one whenever
+/// they share a line — and also when the only thing between them is a CR or a
+/// U+2028 / U+2029, which end a line in ECMAScript but not in `str::lines`. We
+/// use the parser's top-level statement spans rather than scanning for
+/// semicolons, whose grammar is precisely what this path must not infer.
+fn separate_same_line_top_level_statements<'a>(
     script: &'a str,
     is_typescript: bool,
 ) -> Cow<'a, str> {
@@ -5019,7 +5421,9 @@ fn separate_same_line_legacy_export_declarations<'a>(
     use oxc_parser::Parser;
     use oxc_span::{GetSpan as _, SourceType};
 
-    if !script.contains("export let ") && !script.contains("export var ") {
+    let has_export = script.contains("export let ") || script.contains("export var ");
+    let has_label = memmem::find(script.as_bytes(), b"$:").is_some();
+    if !has_export && !has_label {
         return Cow::Borrowed(script);
     }
 
@@ -5040,8 +5444,11 @@ fn separate_same_line_legacy_export_declarations<'a>(
         let next = pair[1].span();
         let previous_text = &script[previous.start as usize..previous.end as usize];
         let gap = &script[previous.end as usize..next.start as usize];
-        if (previous_text.trim_start().starts_with("export let ")
-            || previous_text.trim_start().starts_with("export var "))
+        let export_declaration = previous_text.trim_start().starts_with("export let ")
+            || previous_text.trim_start().starts_with("export var ");
+        if (export_declaration
+            || is_legacy_reactive_label(&pair[0])
+            || is_legacy_reactive_label(&pair[1]))
             && !gap.contains('\n')
             && gap.chars().all(char::is_whitespace)
         {
@@ -5062,6 +5469,109 @@ fn separate_same_line_legacy_export_declarations<'a>(
     }
     separated.push_str(&script[cursor..]);
     Cow::Owned(separated)
+}
+
+/// Move a legacy `$:` label's colon up against its `$`.
+///
+/// JavaScript allows whitespace and comments between a label and its colon, but
+/// every downstream stage of this pipeline locates a reactive statement by the
+/// literal two bytes `$:`, so `$ : x = 1` reaches none of them and is emitted as
+/// an inert labelled statement. The parser decides what is a label; swapping the
+/// gap with the colon rather than deleting it keeps both byte length and line
+/// count, so nothing that indexes into this text moves.
+fn close_reactive_label_gaps<'a>(script: &'a str, is_typescript: bool) -> Cow<'a, str> {
+    use oxc_allocator::Allocator;
+    use oxc_ast::ast::Statement;
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
+
+    // A gapped label is a `$` followed by whitespace or a comment. Non-ASCII is
+    // a candidate because JavaScript's whitespace reaches past it (NBSP, U+2028,
+    // U+FEFF); every other successor byte — `:`, an identifier character, `{`,
+    // `.`, `(` — rules the `$` out without a parse.
+    let bytes = script.as_bytes();
+    let gap_candidate = bytes.iter().enumerate().any(|(i, &b)| {
+        b == b'$'
+            && bytes
+                .get(i + 1)
+                .is_some_and(|&n| n.is_ascii_whitespace() || n == b'\x0b' || n == b'/' || n >= 0x80)
+    });
+    if !gap_candidate {
+        return Cow::Borrowed(script);
+    }
+
+    let allocator = Allocator::default();
+    let source_type = if is_typescript {
+        SourceType::ts()
+    } else {
+        SourceType::mjs()
+    };
+    let parsed = Parser::new(&allocator, script, source_type).parse();
+    if parsed.panicked || !parsed.diagnostics.is_empty() {
+        return Cow::Borrowed(script);
+    }
+
+    // Only a top-level label is a reactive statement upstream
+    // (`2-analyze/visitors/LabeledStatement.js`), so a nested one is left alone.
+    let mut gaps: Vec<(usize, usize)> = Vec::new();
+    for statement in &parsed.program.body {
+        let Statement::LabeledStatement(labeled) = statement else {
+            continue;
+        };
+        if labeled.label.name != "$" {
+            continue;
+        }
+        let gap_start = labeled.label.span.end as usize;
+        if let Some(colon) = label_colon_offset(script, gap_start)
+            && colon > gap_start
+        {
+            gaps.push((gap_start, colon));
+        }
+    }
+
+    if gaps.is_empty() {
+        return Cow::Borrowed(script);
+    }
+
+    let mut out = String::with_capacity(script.len());
+    let mut cursor = 0;
+    for (gap_start, colon) in gaps {
+        out.push_str(&script[cursor..gap_start]);
+        out.push(':');
+        out.push_str(&script[gap_start..colon]);
+        cursor = colon + 1;
+    }
+    out.push_str(&script[cursor..]);
+    Cow::Owned(out)
+}
+
+/// Offset of the `:` that follows a label name at `from`, skipping the
+/// whitespace and comments the grammar allows in between.
+fn label_colon_offset(script: &str, from: usize) -> Option<usize> {
+    let bytes = script.as_bytes();
+    let mut i = from;
+    while i < bytes.len() {
+        match bytes[i] {
+            b':' => return Some(i),
+            b'/' if bytes.get(i + 1) == Some(&b'/') => {
+                i = script[i..].find('\n').map_or(script.len(), |nl| i + nl + 1);
+            }
+            b'/' if bytes.get(i + 1) == Some(&b'*') => {
+                i = script[i + 2..]
+                    .find("*/")
+                    .map_or(script.len(), |end| i + 2 + end + 2);
+            }
+            _ => {
+                let c = script[i..].chars().next()?;
+                // JavaScript's whitespace is `White_Space` plus U+FEFF.
+                if !c.is_whitespace() && c != '\u{feff}' {
+                    return None;
+                }
+                i += c.len_utf8();
+            }
+        }
+    }
+    None
 }
 
 fn might_have_comma_separated_declaration(script: &str) -> bool {
@@ -5547,14 +6057,18 @@ fn transform_instance_script_for_visitors(
     if script.is_empty() {
         return String::new();
     }
-    let separated_script =
-        separate_same_line_legacy_export_declarations(script, analysis.is_typescript);
+    let separated_script = separate_same_line_top_level_statements(script, analysis.is_typescript);
+    // A cut moves every byte after it, so the spans and the projection that were
+    // built for the caller's text no longer describe this one.
+    let separated = matches!(separated_script, Cow::Owned(_));
+    let retained_program = retained_program.filter(|_| !separated);
+    let source_projection = source_projection.filter(|_| !separated);
     let script = separated_script.as_ref();
     let original_script = script;
 
     // Instance imports are removed by the caller before this pipeline.
     let has_dollar = script.contains('$');
-    let has_export = memmem::find(script.as_bytes(), b"export ").is_some();
+    let has_export = contains_identifier(script, "export");
     let has_comma_decl = split_top_level_declarations;
     if !has_dollar
         && !has_export
@@ -5633,7 +6147,7 @@ fn transform_instance_script_for_visitors(
     };
 
     // Transform class fields only if the script contains class definitions with runes
-    let script: std::borrow::Cow<str> = if memmem::find(script.as_bytes(), b"class ").is_some()
+    let script: std::borrow::Cow<str> = if contains_identifier(&script, "class")
         && (memmem::find(script.as_bytes(), b"$state").is_some()
             || memmem::find(script.as_bytes(), b"$derived").is_some())
     {
@@ -5650,7 +6164,7 @@ fn transform_instance_script_for_visitors(
     };
 
     // Split comma-separated variable declarations only if needed
-    let class_transform_can_add_declarations = memmem::find(script.as_bytes(), b"class ").is_some()
+    let class_transform_can_add_declarations = contains_identifier(&script, "class")
         && (memmem::find(script.as_bytes(), b"$state").is_some()
             || memmem::find(script.as_bytes(), b"$derived").is_some());
     let split = if split_top_level_declarations
@@ -6024,18 +6538,16 @@ fn transform_instance_script_for_visitors(
     // Check for legacy mode (export let or export { x })
     // Also detect `export { x }` patterns which create BindableProp bindings
     // The per-line walk can only succeed where the substring exists.
-    let has_legacy_export_let =
-        (memmem::find(script_rest.as_bytes(), b"export let").is_some() && {
-            super::profile::record_st_collect_scan(script_rest.len() as u64);
-            script_rest.lines().any(|line| {
-                let trimmed = line.trim();
-                trimmed.starts_with("export let ") || trimmed.starts_with("export let\t")
-            })
-        }) || analysis
-            .root
-            .bindings
-            .iter()
-            .any(|b| matches!(b.kind, BindingKind::BindableProp));
+    let has_legacy_export_let = (memmem::find(script_rest.as_bytes(), b"export").is_some() && {
+        super::profile::record_st_collect_scan(script_rest.len() as u64);
+        script_rest
+            .lines()
+            .any(|line| after_keywords(line.trim(), &["export", "let"]).is_some())
+    }) || analysis
+        .root
+        .bindings
+        .iter()
+        .any(|b| matches!(b.kind, BindingKind::BindableProp));
 
     // Collect exported names from analysis (needed for prop filtering below)
     let exported_names: Vec<String> = analysis.exports.iter().map(|e| e.name.clone()).collect();
@@ -6602,36 +7114,27 @@ fn transform_instance_script_for_visitors(
                 super::profile::PA_EXPORT_KW_PROBE,
                 statement.len() as u64,
             );
-            let mut s = first_line_trimmed;
+            // The keyword and the declaration it exports need not share a
+            // physical line, so this reads the joined statement.
+            let mut s: &str = statement.trim();
             while s.starts_with("/*") {
                 if let Some(end) = s.find("*/") {
                     s = s[end + 2..].trim_start();
                 } else {
-                    // Unclosed block comment — scan across accumulated lines
-                    let full = statement.as_str();
-                    let mut t: &str = full.trim();
-                    while t.starts_with("/*") {
-                        if let Some(e) = t.find("*/") {
-                            t = t[e + 2..].trim_start();
-                        } else {
-                            t = "";
-                            break;
-                        }
-                    }
-                    s = t;
+                    s = "";
                     break;
                 }
             }
             s
         };
-        if has_legacy_export_let
-            && (effective_export_kw_line.starts_with("export let ")
-                || effective_export_kw_line.starts_with("export var "))
-        {
+        let export_prop_declarator_at =
+            after_keywords(effective_export_kw_line, &["export", "let"])
+                .or_else(|| after_keywords(effective_export_kw_line, &["export", "var"]));
+        if has_legacy_export_let && let Some(declarator_at) = export_prop_declarator_at {
             let _pa =
                 super::profile::pa_guard(super::profile::PA_EXPORT_LET, statement.len() as u64);
             // Check if this is a destructured export let pattern
-            let after_export_let = effective_export_kw_line[11..].trim();
+            let after_export_let = effective_export_kw_line[declarator_at..].trim();
             if after_export_let.starts_with('{') || after_export_let.starts_with('[') {
                 let _pa_sub = super::profile::pa_guard(
                     super::profile::PA_EL_DESTRUCTURED,
@@ -6769,21 +7272,25 @@ fn transform_instance_script_for_visitors(
         let statement = {
             let _pa =
                 super::profile::pa_guard(super::profile::PA_EXPORT_STRIP, statement.len() as u64);
-            if first_line_trimmed.starts_with("export function ")
-                || first_line_trimmed.starts_with("export const ")
-                || first_line_trimmed.starts_with("export class ")
-                || first_line_trimmed.starts_with("export var ")
-                || first_line_trimmed.starts_with("export async function ")
-            {
-                // Remove the "export " prefix from the first line
-                if let Some(pos) = memmem::find(statement.as_bytes(), b"export ") {
-                    let mut s = String::with_capacity(statement.len() - 7);
-                    s.push_str(&statement[..pos]);
-                    s.push_str(&statement[pos + 7..]);
-                    s
-                } else {
-                    statement
-                }
+            // The separator between `export` and what it declares is any run of
+            // JS whitespace, not the single ASCII space a literal needle bakes
+            // in (#3470); an unstripped `export` lands inside the component
+            // function, where no parser accepts it.
+            let head = statement.trim_start();
+            let head_at = statement.len() - head.len();
+            let exported = after_keyword(head, "export").filter(|&at| {
+                let rest = &head[at..];
+                ["function", "const", "class", "var"]
+                    .iter()
+                    .any(|kw| after_keyword(rest, kw).is_some())
+                    || after_keyword(rest, "async")
+                        .is_some_and(|a| after_keyword(&rest[a..], "function").is_some())
+            });
+            if let Some(at) = exported {
+                let mut s = String::with_capacity(statement.len() - at);
+                s.push_str(&statement[..head_at]);
+                s.push_str(&head[at..]);
+                s
             } else {
                 statement
             }
@@ -7002,6 +7509,7 @@ fn transform_instance_script_for_visitors(
                         &t,
                         prop_assignment_transform_vars,
                         &non_bindable_prop_vars,
+                        prop_source_reads_ast::ParseGoal::Statements,
                     )
                     .map(Cow::Owned)
                     .unwrap_or(t)
@@ -7303,24 +7811,12 @@ fn transform_instance_script_for_visitors(
         }
 
         // Skip $props.id() declarations - they will be added as const declarations
-        // in the component body. Match on the initializer being exactly
-        // `$props.id()` / `$.props_id()` (whitespace-tolerant) rather than the
-        // literal `= $props.id()` substring, so `let id=$props.id()` (no spaces)
-        // is also skipped instead of surviving alongside the generated const. H-060.
-        // An `export const` declarator is skipped too: upstream drops it in
-        // `VariableDeclaration` whichever way the declaration is reached, and the
-        // name still resolves — `$$exports` reads the hoisted `const`. Keeping it
-        // emitted `const x` twice in one scope, which is not parseable JS.
-        let declaration_head = trimmed.strip_prefix("export ").unwrap_or(trimmed);
-        if at_statement_boundary
-            && (declaration_head.starts_with("let ")
-                || declaration_head.starts_with("const ")
-                || declaration_head.starts_with("var "))
-            && trimmed
-                .find('=')
-                .map(|eq| trimmed[eq + 1..].trim().trim_end_matches(';').trim())
-                .is_some_and(|rhs| rhs == "$props.id()" || rhs == "$.props_id()")
-        {
+        // in the component body. An `export const` declarator is skipped too:
+        // upstream drops it in `VariableDeclaration` whichever way the declaration
+        // is reached, and the name still resolves — `$$exports` reads the hoisted
+        // `const`. Keeping it emitted `const x` twice in one scope, which is not
+        // parseable JS. H-060.
+        if at_statement_boundary && is_props_id_declaration(trimmed) {
             line_idx += 1;
             continue;
         }
@@ -7464,6 +7960,23 @@ fn transform_instance_script_for_visitors(
                 }
 
                 if !next_continues {
+                    // The same rule as the per-line skip, applied once the whole
+                    // statement is in hand, so an initializer that sits on the
+                    // next line is dropped too. Both sites call the one predicate
+                    // rather than restating it — a second spelling of this test is
+                    // how #3346 got here.
+                    if is_props_id_declaration(&accumulated_lines.join("\n")) {
+                        accumulated_lines.clear();
+                        depth_paren = 0;
+                        depth_bracket = 0;
+                        depth_brace = 0;
+                        depth_in_string = None;
+                        depth_in_block_comment = false;
+                        depth_template_interp_stack.clear();
+                        line_idx += 1;
+                        continue;
+                    }
+
                     // Runes fast-path: skip process_accumulated entirely when no transforms apply
                     if runes_fastpath_eligible {
                         let statement = accumulated_lines.join("\n");

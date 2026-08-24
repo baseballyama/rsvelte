@@ -95,6 +95,10 @@ where
             // wrap pure calls like `<Child prop={encodeURIComponent('x')}>`
             // in `$.derived(...)` (regresses the `purity` snapshot fixture).
             let has_call = expr_tag.metadata.expression.has_call();
+            // `build_expression` reads the same flag upstream does, so a pure
+            // call (`String(1)`) must not be wrapped just because the phase-3
+            // walk saw a `CallExpression`.
+            metadata.set_has_call(has_call);
 
             // Apply transforms via build_expression (handles props: x -> x())
             let transformed = build_expression(context, &expression, &metadata);
@@ -142,6 +146,7 @@ where
                     // compiler) — see the matching comment in the
                     // `AttributeValue::Expression` arm above for why.
                     let has_call = expr_tag.metadata.expression.has_call();
+                    metadata.set_has_call(has_call);
 
                     // Apply transforms via build_expression (handles props: x -> x())
                     let transformed = build_expression(context, &expression, &metadata);
@@ -696,12 +701,13 @@ pub fn build_style_directives_object_with_memoizer(
 
     for directive in style_directives {
         // Track metadata for memoization decision
-        let expr = &get_directive_expression(directive);
-        has_call = has_call || super::utils::expression_has_call(expr, context);
-        has_state = has_state
-            || super::utils::expression_has_reactive_state(expr, context)
-            || super::utils::expression_has_call(expr, context);
-        has_await = has_await || super::utils::expression_has_await(expr);
+        for expr in &get_directive_expressions(directive) {
+            has_call = has_call || super::utils::expression_has_call(expr, context);
+            has_state = has_state
+                || super::utils::expression_has_reactive_state(expr, context)
+                || super::utils::expression_has_call(expr, context);
+            has_await = has_await || super::utils::expression_has_await(expr);
+        }
 
         // Build the expression for this directive
         let expression = if matches!(&directive.value, AttributeValue::True(true)) {
@@ -1072,10 +1078,10 @@ pub fn build_set_style(
                     break;
                 }
             } else {
-                let expr = &get_directive_expression(directive);
-                if super::utils::expression_has_reactive_state(expr, context)
-                    || super::utils::expression_has_call(expr, context)
-                {
+                if get_directive_expressions(directive).iter().any(|expr| {
+                    super::utils::expression_has_reactive_state(expr, context)
+                        || super::utils::expression_has_call(expr, context)
+                }) {
                     has_state = true;
                     break;
                 }
@@ -1193,22 +1199,23 @@ fn build_style_attribute_value_with_memoization(
             let has_call = expr_props.has_call;
             let has_state = expr_props.has_state;
             let has_member = expr_props.has_member;
+            let has_await = expr_props.has_await;
 
             // Build the expression with transforms applied
             let mut metadata = ExpressionMetadata::default();
             metadata.set_has_state(has_state);
             metadata.set_has_call(has_call);
             metadata.set_has_member_expression(has_member);
+            metadata.set_has_await(has_await);
             let built = build_expression(context, &converted, &metadata);
 
             // Memoize if has call
             let value = context.state.memoizer.add_memoized(
-                built, has_call, false, // has_await
-                false, // memoize_if_state
+                built, has_call, has_await, false, // memoize_if_state
                 has_state,
             );
 
-            (value, has_state || has_call)
+            (value, has_state || has_call || has_await)
         }
 
         AttributeValue::Sequence(parts) if parts.len() == 1 => {
@@ -1222,22 +1229,24 @@ fn build_style_attribute_value_with_memoization(
                     let has_call = expr_props.has_call;
                     let expr_has_state = expr_props.has_state;
                     let has_member = expr_props.has_member;
+                    let has_await = expr_props.has_await;
 
                     let mut metadata = ExpressionMetadata::default();
                     metadata.set_has_state(expr_has_state);
                     metadata.set_has_call(has_call);
                     metadata.set_has_member_expression(has_member);
+                    metadata.set_has_await(has_await);
                     let built = build_expression(context, &converted, &metadata);
 
                     let value = context.state.memoizer.add_memoized(
                         built,
                         has_call,
-                        false, // has_await
+                        has_await,
                         false, // memoize_if_state
                         expr_has_state,
                     );
 
-                    (value, expr_has_state || has_call)
+                    (value, expr_has_state || has_call || has_await)
                 }
             }
         }
@@ -1287,18 +1296,20 @@ fn build_style_attribute_value_with_memoization(
                         let has_call = expr_props.has_call;
                         let expr_has_state = expr_props.has_state;
                         let has_member = expr_props.has_member;
+                        let has_await = expr_props.has_await;
 
                         let mut metadata = ExpressionMetadata::default();
                         metadata.set_has_state(expr_has_state);
                         metadata.set_has_call(has_call);
                         metadata.set_has_member_expression(has_member);
+                        metadata.set_has_await(has_await);
                         let built = build_expression(context, &converted, &metadata);
 
                         // Memoize the expression if it has a function call
                         let value = context.state.memoizer.add_memoized(
                             built,
                             has_call,
-                            false, // has_await
+                            has_await,
                             false, // memoize_if_state
                             expr_has_state,
                         );
@@ -1333,7 +1344,7 @@ fn build_style_attribute_value_with_memoization(
                         };
                         expressions.push(final_value);
 
-                        if has_call || expr_has_state {
+                        if has_call || expr_has_state || has_await {
                             has_state = true;
                         }
                     }
@@ -1358,29 +1369,33 @@ fn build_style_attribute_value_with_memoization(
     }
 }
 
-/// Helper to get the expression from a style directive value.
-fn get_directive_expression<'a>(directive: &StyleDirective<'a>) -> crate::ast::js::Expression<'a> {
+/// Helper to get the expressions from a style directive value.
+///
+/// Upstream's phase-2 `StyleDirective` visitor merges the metadata of EVERY
+/// `ExpressionTag` chunk, so a directive is reactive when any chunk is.
+fn get_directive_expressions<'a>(
+    directive: &StyleDirective<'a>,
+) -> Vec<crate::ast::js::Expression<'a>> {
     use crate::ast::js::Expression;
 
     match &directive.value {
-        AttributeValue::Expression(expr_tag) => expr_tag.expression.clone(),
+        AttributeValue::Expression(expr_tag) => vec![expr_tag.expression.clone()],
         AttributeValue::True(_) => {
             // For style:color shorthand, create an identifier expression
-            Expression::from_json(serde_json::json!({
+            vec![Expression::from_json(serde_json::json!({
                 "type": "Identifier",
                 "name": directive.name.to_string()
-            }))
+            }))]
         }
-        AttributeValue::Sequence(parts) => {
-            // For sequence, check if there are any expression tags
-            for part in parts {
-                if let crate::ast::template::AttributeValuePart::ExpressionTag(expr_tag) = part {
-                    return expr_tag.expression.clone();
+        AttributeValue::Sequence(parts) => parts
+            .iter()
+            .filter_map(|part| match part {
+                crate::ast::template::AttributeValuePart::ExpressionTag(expr_tag) => {
+                    Some(expr_tag.expression.clone())
                 }
-            }
-            // Static text - return a literal
-            Expression::from_json(serde_json::Value::Null)
-        }
+                _ => None,
+            })
+            .collect(),
     }
 }
 

@@ -1,99 +1,100 @@
-# `parse()` AST parity — known failures
+# Public `parse()` AST parity ratchet
 
-`parse-ast-known-failures.json` holds 1365 entries — the shrink-only ratchet for
-`scripts/compat-corpus/parse-ast-verify.mjs`, which diffs official's `parse()` output against
-rsvelte's NAPI `parse()` over every `.svelte` file in `compatibility/pattern-corpus/`, under
-`{ modern: true }` and under the default (legacy) shape.
+Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
+Ratchet: `parse-ast-known-failures.json`, currently **651 entries**.
 
-One entry is `<id>::<mode>::<class>`, where the class is the JSON path with array indices
-collapsed plus how the two sides differ (`:value`, `:missing`, `:extra`, `:type`, `:length`).
-The class is in the key on purpose: under a flat per-file key, one listed divergence would
-suppress every other field in that file, which is the failure mode recorded for
-`warning-mismatch` in `matrix-known-failures.md`.
+## The question it asks
 
-**Why the ratchet starts this large.** `parse()` is a public, documented export of
-`svelte/compiler` and **no gate compared its output until this one** (#3389). A four-figure count is what a
-first measurement of an ungated surface looks like; it is not a backlog someone allowed to grow.
-The three defects the first hand-run of that probe found — #3385 (`modern` / `loose` ignored),
-#3386 (`Root.end` stops at the last non-whitespace byte) and #3387 (comments never reach
-statements) — are **fixed in the same PR that adds this gate**, so they are not in the counts
-below. The gate's own first finding, #3489 (`loc.character` on exactly the wrong nodes, 392
-entries), was fixed next and is likewise gone from them — as is #3488, whose gate's *control*
-row caught a double UTF-16 conversion on the legacy `parse()` path that accounted for another 964
-entries.
+`parse()` is a documented export of `svelte/compiler`, separate from `compile()`, and it is what
+svelte2tsx, `eslint-plugin-svelte` and an editor integration read. Until this gate landed
+(#3389) **nothing in the repository compared its return value to official's.** The corpus gates
+compare `compile()` output; the svelte2tsx and lint gates consume rsvelte's own AST and never
+diff it against upstream's.
 
-**The unit is not the entry.** 1282 (file, mode) pairs are compared; **378** of them diverge in
-at least one class, and those 378 produce the 1365 class instances. A single root cause can
-therefore hold hundreds of entries, which is why the partition below is by cause rather than by
-count of files.
+The two suites that come closest are the `Parser Modern` / `Parser Legacy` rows of the
+compatibility report (`crates/rsvelte_core/tests/parser_fixtures.rs`), and they answer a
+narrower question three ways over: they call rsvelte's **internal** `parse` rather than the
+exported entry point, they pick the AST mode from the fixture's directory rather than from an
+option, and `normalize_json` deletes `loc.*.character` from both sides before the assert.
 
-Partition of `parse-ast-known-failures.json` by cause: `725 + 422 + 169 + 24 + 13 + 10 + 2`
+## Unit and key
 
-## 1. Template nodes — 725
+One `(corpus entry, axis)` pair; axes are `modern` (`{ modern: true }`), `legacy` (no options —
+the default shape) and `loose` (seven inline sources). Both sides go through
+`JSON.parse(JSON.stringify(...))` first.
 
-Everything under `.fragment` (modern) or `.html` (legacy) that is not a `loc.*.character`
-difference. The identified sub-causes, largest first:
+The ratchet key is a **field, not a file**: `<axis>::<NodeType>.<field>#<kind>`, where the node
+type is the `type` of the nearest enclosing typed object and the kind is `missing` (absent on
+rsvelte's side), `extra`, `value`, `type`, `length` or `span`. Two other keys were measured
+first and both were worse — per entry id gives a five-figure file that churns on every submodule
+bump, and per *set* of divergent paths multiplies independent defects into 472 classes over
+4,468 files. The script's header carries the numbers.
 
-- **`attributes[].expression.loc:extra` / `attributes[].modifiers:missing`** — rsvelte attaches a
-  `loc` to a directive's expression where official has none, and omits the `modifiers` array
-  official carries on a directive. Both are field-set differences, invisible to every gate that
-  reads compiled text.
-- **legacy `html.start` / `html.end`** — official's legacy `html` fragment spans from offset 0
-  when the component opens with `<svelte:options …>`; rsvelte starts after it. Measured on
-  `pattern/adversarial/elements/svelte-options-namespace.svelte`: official `[0, 185]`, rsvelte
-  `[36, 185]`.
-- node `start` / `end` drift inside `{#if}` / `{#each}` bodies, and the expression spans within
-  them.
+Acceptance divergences are the one exception: "official rejects this document and rsvelte does
+not" is a fact about the document, so those keys carry the entry id. A single shared key could not
+tell two such entries from one, which is the whole shrink the ratchet exists to observe.
 
-## 2. Script nodes — 422
+## Why the baseline is 651 and not 0
 
-Everything under `.instance` / `.module` other than a `body:length` (cluster 5) or a
-`loc.*.character` (cluster 3). It is dominated by two shapes:
+Because the API was never compared. The last run measured **28,208 compared pairs** over 14,102
+corpus components — 5,252 modern-axis entries are byte-identical, 0 legacy-axis entries are, and
+the remainder produce these 651 field-level keys.
 
-- **`body[].body.body[].accessor:extra`** (46) — rsvelte emits an `accessor` field on class
-  elements that official's acorn output does not carry.
-- **ESTree field-set gaps already recorded in AGENTS.md** — `importKind` on an import
-  declaration and its specifiers, a `TSTypeAliasDeclaration` that never converts, `params.rest`
-  on a `function` statement, a missing `returnType`. The linter and svelte2tsx read the same
-  serialized program, so these are not parse-only.
+The modern-axis identical count was **1,075** when this ratchet was first baselined. #3386
+(`Root.end`) accounted for the other 4,177 on its own: it diverged on 12,324 of 14,102 entries, so
+one key was suppressing more than a quarter of the population from ever being byte-identical.
 
-## 3. CSS — 169
+**The comparator manufactures none of them.** Running the same `diffKeys` with the official
+compiler on *both* sides over the same population produces **0 keys from 28,178 self-compared
+pairs**. Every listed key is attributable to rsvelte's side.
 
-`.css` subtree shape: `prelude.children[].children[].args` and `selectors` on `:is()` / `:where()`
-argument lists, a `type` that differs on the same node, and `.css.comments[].position`. The CSS
-AST is compared by no other gate either — `tests/css.rs` compares *compiled* CSS text.
+**One entry in an earlier draft of this file was manufactured, and it is worth recording how.**
+A `1n` literal puts a real `BigInt` in official's `Literal.value`, and `JSON.stringify` throws on
+one. The round-trip sat inside the same `try` as the parse, so 11 corpus entries were recorded as
+`official-rejects` — "rsvelte accepts a document the official parser refuses" — when official had
+parsed all 11 without complaint. The verdict named the loudest thing it could see; the cause was
+one line of the harness. Serialization now sits outside the parse `try`, and a bigint goes through
+a replacer so its value stays comparable instead of being dropped.
 
-## 4. Dropped script statements — 24
+Partition of `parse-ast-known-failures.json` by cluster: `141 + 140 + 132 + 86 + 75 + 35 + 10 + 10 + 9 + 6 + 4 + 3`
 
-`.instance.content.body:length`. rsvelte's `convert_statement_for_program` returns `None` for
-TS-only statements, so the body is short by one and every position after it shifts. The gate stops
-descending into arrays whose lengths differ, so this cause holds **one** entry per (file, mode)
-instead of the ~60 it would otherwise generate. Un-listing it will make those positions comparable
-for the first time, which will **add** rows to clusters 1-2 — the same coupling recorded between
-the error `start` and `end` ratchets.
+| cluster | keys | what it is |
+|---|---|---|
+| `node-type` | 141 | rsvelte labels a node with a different `type` than acorn/acorn-typescript does. Almost all are TypeScript nodes; the walk stops at a `type` mismatch, so each is one key rather than a spray of derived field keys. |
+| `comment-attachment` | 140 | #3387 — comments never reach statements. `Program.trailingComments#extra` (1,470 entries) plus one `<NodeType>.leadingComments#missing` key per statement type that should have carried one. |
+| `span` | 132 | `start` / `end` / `loc` disagree on a node type. Merged into one key per node type on purpose: they are derived from the same offsets, and split by field they were 672 keys for the same defects. |
+| `unclustered` | 86 | keys nobody has classified. The cluster exists so an unclassified key reads as unclassified instead of joining someone else's row. |
+| `estree-fields` | 75 | ESTree fields rsvelte's serializer omits or adds: `importKind` (6,019 entries), `exportKind`, `attributes` on an import/export, `accessor`, `typeAnnotation`, `returnType`, `optional`, `readonly`, `declare`. The lint gates already found three of these from the other side. |
+| `child-count` | 35 | an array of children with a different length. |
+| `accepts-what-official-rejects` | 4 | 2 corpus entries × 2 axes. See below. |
+| `ast-mode` | 10 | #3385 — every `legacy`-axis entry gets the modern AST, so the two roots have almost disjoint key sets. |
+| `css-shape` | 10 | the legacy CSS selector conversion (`Selector` vs `ComplexSelector`, `combinator` / `selectors` / `name`). |
+| `directive-null-fields` | 9 | official keeps `expression: null` / `modifiers: []` on a directive; rsvelte omits the key, so it is absent through the JSON boundary a binding actually uses. |
+| `loc-presence` | 6 | a node that has a `loc` on one side and none on the other — kept apart from `span` because "no position at all" is a different defect from "wrong position". |
+| `rejects-what-official-accepts` | 3 | the three loose sources rsvelte throws on. See below. |
 
-## 5. `<svelte:options customElement>` — 13
+## The two acceptance rows are the interesting ones
 
-`.options.customElement.props.*`: official models `props` as an object with `{ label, count }`
-style metadata, rsvelte as an ESTree `ObjectExpression` with `start` / `end` / `properties`.
+**rsvelte's `parse()` accepts 2 documents official's `parse()` rejects** (2 ids × 2 axes = 4
+keys), and both are one cause: `css-invalid-combinator-selector-4` (`css_selector_invalid`) and
+`invalid-empty-css-declaration` (`css_empty_declaration`) are raised by upstream from `1-parse`
+and by rsvelte from `2-analyze`. That is the class AGENTS.md already records for
+`svelte_meta_invalid_placement` — anything that parses without analyzing sees a valid tree where
+the official toolchain sees a fatal error. It is deliberately **in scope**: a drop-in `parse()`
+that accepts more than official does is a divergence, and listing it here is what makes it
+visible. An earlier draft of this file listed eleven more, and all eleven were the harness (see
+above).
 
-## 6. Acceptance — 10
+**rsvelte throws where official recovers** on 3 of the 7 loose sources
+(`unclosed-element`, `unclosed-block`, `empty-expression`), which is #3385's `loose` half. The
+other four are the controls: `valid-control` is identical on both sides, and
+`unclosed-attribute-quote`, `unterminated-script` and `stray-closing-tag` are rejected by both —
+`loose` is not blanket recovery on either side, so a fix that simply stopped throwing would fail
+this gate rather than pass it.
 
-`<rejected-by:official>`: rsvelte's `parse()` accepts ten pattern-corpus sources the official
-`parse()` rejects. This is the over-acceptance class AGENTS.md records — `parse()` raises errors
-in phase 1 upstream that rsvelte raises in phase 2, so anything that parses without analysing sees
-a valid tree. There are **no** `<rejected-by:rsvelte>` entries: the gate has never seen rsvelte
-reject a source official accepts.
+## Shrinking it
 
-## 7. Root-level comments — 2
-
-`._comments` / `.comments` array length and span differences left after #3387, on files where a
-comment sits in a position neither walk reaches.
-
----
-
-**Mode split:** 699 of the 1365 entries are `legacy`, 666 are `modern`. The legacy shape is what `parse()`
-returns **by default**. It led the modern shape by more than 2:1 until #3488's fix; almost all of
-that lead was one defect (positions converted to UTF-16 twice on non-ASCII sources), and the two
-shapes are now level. A large per-mode imbalance is worth treating as one cause until it is
-enumerated, not as evidence that a whole conversion is weaker.
+`node scripts/compat-corpus/parse-ast-verify.mjs --update-baseline`, from a full run only (the
+script refuses below 10,000 compared modern-axis pairs, and refuses under `--filter`). The
+ratchet is two-sided: a key that no longer diverges fails the run, so the PR that fixes keys
+re-baselines in the same PR.

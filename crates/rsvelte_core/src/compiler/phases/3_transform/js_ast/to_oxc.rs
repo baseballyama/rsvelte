@@ -66,6 +66,7 @@ use oxc_syntax::number::{BigintBase, NumberBase};
 use oxc_syntax::operator::{
     AssignmentOperator, BinaryOperator, LogicalOperator, UnaryOperator, UpdateOperator,
 };
+use rsvelte_esrap::LocRange;
 use std::cell::RefCell;
 
 /// A converted program plus the comment coordinate space it needs to be printed
@@ -75,7 +76,7 @@ pub struct Converted<'a> {
     pub program: oxc_ast::ast::Program<'a>,
     pub comment_source: Option<String>,
     pub loc_base: u32,
-    pub loc_map: Vec<(u32, u32, Option<u32>)>,
+    pub loc_map: Vec<LocRange>,
 }
 
 impl<'a> Converted<'a> {
@@ -188,6 +189,10 @@ fn convert_once<'a, 'source>(
         arena,
         islands,
         synth: RefCell::new(Synth::new(loc_base)),
+        component_brace_span: program
+            .component_brace_span
+            .as_ref()
+            .map(|(name, start, end)| (name.as_str(), *start, *end)),
     };
 
     // Collect, flattening multi-statement `Raw` blobs inline. A single None
@@ -243,10 +248,21 @@ struct RestoreRawMappedSpans<'s> {
 
 impl RestoreRawMappedSpans<'_> {
     fn source_offset(&self, offset: u32) -> Option<u32> {
-        self.spans.iter().find_map(|span| {
-            (span.code.start <= offset && offset <= span.code.end)
-                .then(|| span.source.start + offset.saturating_sub(span.code.start))
-        })
+        // `spans` is emitted in increasing `code` order and is one entry per
+        // copied run of a whole script, so this has to be a search, not a scan.
+        let index = self
+            .spans
+            .partition_point(|span| span.code.start <= offset)
+            .checked_sub(1)?;
+        // Two runs may touch at an endpoint, and a scan would have stopped at
+        // the earlier one — its `end` is where the copied text really is.
+        let index = if index > 0 && self.spans[index - 1].code.end >= offset {
+            index - 1
+        } else {
+            index
+        };
+        let span = &self.spans[index];
+        (offset <= span.code.end).then(|| span.source.start + offset - span.code.start)
     }
 }
 
@@ -401,8 +417,9 @@ struct Synth {
     source: String,
     loc_base: u32,
     comments: Vec<Comment>,
-    /// Per-chunk `(start, end, original-source offset)`, for source maps.
-    loc_map: Vec<(u32, u32, Option<u32>)>,
+    /// Comment-space ranges resolving back to original-source offsets, for
+    /// source maps: one per chunk region, plus one per reserved anchor.
+    loc_map: Vec<LocRange>,
     /// Region the chunk just parsed occupies, consumed by the caller that knows
     /// the chunk's original-source offset.
     pending_region: Option<(u32, u32)>,
@@ -476,6 +493,8 @@ struct Cx<'a, 'arena, 'source> {
     arena: &'arena JsArena,
     islands: &'arena [AstIsland<'source>],
     synth: RefCell<Synth>,
+    /// [`JsProgram::component_brace_span`], matched by function name.
+    component_brace_span: Option<(&'arena str, u32, u32)>,
 }
 
 impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
@@ -525,49 +544,49 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         let mut synth = self.synth.borrow_mut();
         let region = synth.pending_region.take()?;
         if copied_spans.is_empty() {
-            synth.loc_map.push((region.0, region.1, source_offset));
+            synth.loc_map.push(LocRange {
+                start: region.0,
+                end: region.1,
+                source: source_offset,
+                linear: false,
+            });
         } else {
-            // The parser's chunk coordinates are retained in comment space. Map
-            // each copied byte separately: TypeScript removal makes the two
-            // coordinate systems discontinuous, so one chunk-wide anchor loses
-            // every token after the first erased annotation.
-            let mut offset = 0;
-            while offset < region.1 - region.0 {
-                let mapped = copied_spans.iter().find_map(|span| {
-                    (span.code.start <= offset && offset < span.code.end)
-                        .then(|| span.source.start + offset.saturating_sub(span.code.start))
-                });
-                let start = offset;
-                offset += 1;
-                while offset < region.1 - region.0 {
-                    let next = copied_spans.iter().find_map(|span| {
-                        (span.code.start <= offset && offset < span.code.end)
-                            .then(|| span.source.start + offset.saturating_sub(span.code.start))
+            // The parser's chunk coordinates are retained in comment space, and
+            // one chunk-wide anchor loses every token after the first rewritten
+            // byte, so each copied run carries its own linear range. Anything
+            // between two runs is generated, and is deliberately unmapped rather
+            // than guessed at.
+            let len = region.1 - region.0;
+            let mut cursor = 0;
+            for span in copied_spans {
+                let start = span.code.start.max(cursor).min(len);
+                let end = span.code.end.min(len);
+                if end <= start {
+                    continue;
+                }
+                if start > cursor {
+                    synth.loc_map.push(LocRange {
+                        start: region.0 + cursor,
+                        end: region.0 + start,
+                        source: None,
+                        linear: false,
                     });
-                    if mapped.is_some_and(|source| next == Some(source + offset - start))
-                        || (mapped.is_none() && next.is_none())
-                    {
-                        offset += 1;
-                    } else {
-                        break;
-                    }
                 }
-                // Keep mapped bytes individually anchored. The printer's map
-                // table deliberately stores an absolute source offset, not a
-                // delta, while an unmapped run can be coalesced safely.
-                if let Some(source) = mapped {
-                    for index in start..offset {
-                        synth.loc_map.push((
-                            region.0 + index,
-                            region.0 + index + 1,
-                            Some(source + index - start),
-                        ));
-                    }
-                } else {
-                    synth
-                        .loc_map
-                        .push((region.0 + start, region.0 + offset, None));
-                }
+                synth.loc_map.push(LocRange {
+                    start: region.0 + start,
+                    end: region.0 + end,
+                    source: Some(span.source.start + (start - span.code.start)),
+                    linear: true,
+                });
+                cursor = end;
+            }
+            if cursor < len {
+                synth.loc_map.push(LocRange {
+                    start: region.0 + cursor,
+                    end: region.1,
+                    source: None,
+                    linear: false,
+                });
             }
         }
         synth.last_region_source = source_offset;
@@ -1051,7 +1070,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             .as_ref()
             .map(|name| BindingIdentifier::new(SPAN, self.str(name), &self.ab));
         let params = self.formal_params(&func.params)?;
-        let (stmts, span) = self.statements(&func.body.body)?;
+        let (stmts, span) = self.block_body(&func.body, func.id.as_deref())?;
         let body = FunctionBody::new(span, ArenaVec::new_in(&self.ab), stmts, &self.ab);
         Some(Function::boxed(
             SPAN,
@@ -1067,6 +1086,38 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             Some(ArenaBox::new_in(body, &self.ab)),
             &self.ab,
         ))
+    }
+
+    /// [`Cx::statements`] for a block that knows where its braces came from.
+    /// The printer reads one span for two questions — where the braces map and
+    /// where the comment cursor resyncs — so the source span is only usable
+    /// when the body consumed no comment region: reviving the cursor at a
+    /// builder-made body is what upstream does not do.
+    ///
+    /// The brace end is deliberately *not* [`Cx::note_span`]d. `loc_base` is the
+    /// boundary between the two coordinate spaces, so a source offset raising it
+    /// puts that boundary in the middle of the source range: every offset after
+    /// the script (a template expression's, say) then reads as a comment-space
+    /// position, and the printer flushes a comment at it.
+    fn block_body(
+        &self,
+        block: &super::nodes::JsBlockStatement,
+        name: Option<&str>,
+    ) -> Option<(ArenaVec<'a, Statement<'a>>, Span)> {
+        let Some((start, end)) = self
+            .component_brace_span
+            .filter(|(component, _, _)| name == Some(*component))
+            .map(|(_, start, end)| (start, end))
+        else {
+            return self.statements(&block.body);
+        };
+        let (stmts, span) = self.statements(&block.body)?;
+        let span = if span.is_empty() {
+            Span::new(start, end)
+        } else {
+            span
+        };
+        Some((stmts, span))
     }
 
     /// Convert a slice of IR statements into an arena `Vec`, bailing on any
@@ -1554,8 +1605,8 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
     /// `pad + text` buffer so its spans land at the chunk's own region of the
     /// unified comment buffer, and its comments are collected there.
     fn parse_chunk(&self, text: &str) -> Option<Vec<Statement<'a>>> {
-        let removed_inspect = text.contains("/* $$inspect_removed$$ */");
-        let text = text.replace("/* $$inspect_removed$$ */", "");
+        let (text, sealed_at) = strip_removed_inspect_markers(text);
+        let removed_inspect = !sealed_at.is_empty();
         let owned = self.ab.allocator().alloc_str(&text);
         let ret = oxc_parser::Parser::new(self.ab.allocator(), owned, oxc_span::SourceType::mjs())
             .parse();
@@ -1567,14 +1618,18 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             // Chunk-local spans stay below `loc_base`, so they read as "no
             // location"; record the bound the second pass has to clear.
             self.note_span(text.len() as u32);
-            return Some(ret.program.body.into_iter().collect());
+            let mut stmts: Vec<Statement<'a>> = ret.program.body.into_iter().collect();
+            seal_removed_inspect_empties(&mut stmts, &text, &sealed_at, 0);
+            return Some(stmts);
         }
         self.synth.borrow_mut().saw_comments = true;
         if !self.synth.borrow().enabled {
             // Probe pass: the comments are dropped here, but the result is
             // discarded — it only tells the driver a second pass is needed.
             self.note_span(text.len() as u32);
-            return Some(ret.program.body.into_iter().collect());
+            let mut stmts: Vec<Statement<'a>> = ret.program.body.into_iter().collect();
+            seal_removed_inspect_empties(&mut stmts, &text, &sealed_at, 0);
+            return Some(stmts);
         }
 
         // `base` is at least `loc_base` (>= 2): this path only runs once
@@ -1601,6 +1656,9 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
         for stmt in &mut stmts {
             shifter.visit_statement(stmt);
         }
+        // The padded re-parse put the chunk one byte in, so its spans sit at
+        // `shift + 1` relative to the stripped text.
+        seal_removed_inspect_empties(&mut stmts, &text, &sealed_at, shift + 1);
         let mut synth = self.synth.borrow_mut();
         synth.source.push_str(&text);
         synth.source.push('\n');
@@ -1881,7 +1939,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             .as_ref()
             .map(|name| BindingIdentifier::new(SPAN, self.str(name), &self.ab));
         let params = self.formal_params(&func.params)?;
-        let (stmts, span) = self.statements(&func.body.body)?;
+        let (stmts, span) = self.block_body(&func.body, func.id.as_deref())?;
         let body = FunctionBody::new(span, ArenaVec::new_in(&self.ab), stmts, &self.ab);
         Some(Function::boxed(
             SPAN,
@@ -2370,7 +2428,7 @@ impl<'a, 'arena, 'source> Cx<'a, 'arena, 'source> {
             .as_ref()
             .map(|name| BindingIdentifier::new(SPAN, self.str(name), &self.ab));
         let params = self.formal_params(&func.params)?;
-        let (stmts, span) = self.statements(&func.body.body)?;
+        let (stmts, span) = self.block_body(&func.body, func.id.as_deref())?;
         let body = FunctionBody::new(span, ArenaVec::new_in(&self.ab), stmts, &self.ab);
         Some(Expression::FunctionExpression(Function::boxed(
             SPAN,
@@ -2537,6 +2595,90 @@ fn unary_op(op: JsUnaryOp) -> UnaryOperator {
         JsUnaryOp::TypeOf => UnaryOperator::Typeof,
         JsUnaryOp::Void => UnaryOperator::Void,
         JsUnaryOp::Delete => UnaryOperator::Delete,
+    }
+}
+
+const REMOVED_INSPECT_MARKER: &str = "/* $$inspect_removed$$ */";
+
+/// Drop the marker the client's non-dev `$inspect` removal leaves behind, and
+/// report where each one stood in the STRIPPED text.
+fn strip_removed_inspect_markers(text: &str) -> (String, Vec<u32>) {
+    if !text.contains(REMOVED_INSPECT_MARKER) {
+        return (text.to_string(), Vec::new());
+    }
+    let mut stripped = String::with_capacity(text.len());
+    let mut at = Vec::new();
+    let mut rest = text;
+    while let Some(i) = rest.find(REMOVED_INSPECT_MARKER) {
+        stripped.push_str(&rest[..i]);
+        at.push(stripped.len() as u32);
+        rest = &rest[i + REMOVED_INSPECT_MARKER.len()..];
+    }
+    stripped.push_str(rest);
+    (stripped, at)
+}
+
+/// Seal the `;` run each stripped marker introduces with [`B::empty_kept`]'s
+/// sentinel span. Those semicolons stand in for upstream's `b.empty`, not for a
+/// source semicolon, so they have to outlive the printer's empty-statement
+/// filter — which is what lets a `;;` the USER wrote be dropped, as esrap's
+/// `body()` drops it.
+fn seal_removed_inspect_empties(stmts: &mut [Statement<'_>], text: &str, at: &[u32], shift: u32) {
+    if at.is_empty() {
+        return;
+    }
+    seal_in_list(stmts, text, at, shift);
+    let mut sealer = SealNestedEmpties { text, at, shift };
+    for stmt in stmts {
+        sealer.visit_statement(stmt);
+    }
+}
+
+/// A removed `$inspect(…)` can sit in any body, and `parse_chunk` only hands
+/// back the chunk's TOP-LEVEL statements.
+struct SealNestedEmpties<'t> {
+    text: &'t str,
+    at: &'t [u32],
+    shift: u32,
+}
+
+impl<'a> VisitMut<'a> for SealNestedEmpties<'_> {
+    fn visit_statements(&mut self, stmts: &mut oxc_allocator::Vec<'a, Statement<'a>>) {
+        seal_in_list(stmts, self.text, self.at, self.shift);
+        oxc_ast_visit::walk_mut::walk_statements(self, stmts);
+    }
+}
+
+fn seal_in_list(stmts: &mut [Statement<'_>], text: &str, at: &[u32], shift: u32) {
+    for &marker in at {
+        let mut sealed = 0;
+        for stmt in stmts.iter_mut() {
+            let Statement::EmptyStatement(empty) = stmt else {
+                if sealed > 0 {
+                    break;
+                }
+                continue;
+            };
+            let start = empty.span.start.saturating_sub(shift);
+            if start < marker {
+                continue;
+            }
+            // Only the run the marker introduces: the earlier text pipeline may
+            // have re-indented it, but nothing else can stand in between.
+            if sealed == 0
+                && !text
+                    .get(marker as usize..start as usize)
+                    .is_some_and(|gap| gap.trim().is_empty())
+            {
+                break;
+            }
+            empty.span.end = u32::MAX;
+            sealed += 1;
+            // Upstream's residue is the expression's `;` plus the statement's.
+            if sealed == 2 {
+                break;
+            }
+        }
     }
 }
 
