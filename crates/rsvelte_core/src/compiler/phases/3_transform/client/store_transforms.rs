@@ -470,18 +470,21 @@ pub(super) fn transform_store_reads_client(line: &str, store_sub_vars: &[String]
                     }
                 };
 
-                // Check if this is inside a string literal. A store-sub name can
+                // Check if this is inside literal text. A store-sub name can
                 // appear mid-string (a log/message argument like
                 // `"… if ($canvas_dim) :"`), not only right after the opening
                 // quote, so scan from the start tracking string + template `${}`
                 // state rather than only inspecting the preceding char. A `$x`
                 // inside a `${ }` interpolation is code and is still transformed.
-                let is_inside_string =
-                    super::state_transforms::is_inside_string_literal(&result, byte_i.get());
+                // A regex body is the third opaque kind, and rewriting `/\$s/`
+                // changes what the user's regex matches.
+                let is_literal_text =
+                    super::state_transforms::is_inside_string_literal(&result, byte_i.get())
+                        || super::state_transforms::is_inside_regex_literal(&result, byte_i.get());
 
                 if before_ok && after_ok {
-                    if is_inside_string {
-                        // Inside a string literal - don't transform
+                    if is_literal_text {
+                        // Inside a string or regex literal - don't transform
                         new_result.push_str(store_sub);
                         i = i + sub_chars;
                         continue;
