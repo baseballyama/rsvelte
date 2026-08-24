@@ -1,7 +1,7 @@
 # Public `parse()` AST parity ratchet
 
 Gate: `scripts/compat-corpus/parse-ast-verify.mjs`.
-Ratchet: `parse-ast-known-failures.json`, currently **652 entries**.
+Ratchet: `parse-ast-known-failures.json`, currently **651 entries**.
 
 ## The question it asks
 
@@ -34,11 +34,15 @@ Acceptance divergences are the one exception: "official rejects this document an
 not" is a fact about the document, so those keys carry the entry id. A single shared key could not
 tell two such entries from one, which is the whole shrink the ratchet exists to observe.
 
-## Why the baseline is 652 and not 0
+## Why the baseline is 651 and not 0
 
-Because the API was never compared. The last run measured **28,208 compared pairs** over 14,331
-corpus components — 1,075 modern-axis entries are byte-identical, 0 legacy-axis entries are, and
-the remainder produce these 652 field-level keys.
+Because the API was never compared. The last run measured **28,208 compared pairs** over 14,102
+corpus components — 5,252 modern-axis entries are byte-identical, 0 legacy-axis entries are, and
+the remainder produce these 651 field-level keys.
+
+The modern-axis identical count was **1,075** when this ratchet was first baselined. #3386
+(`Root.end`) accounted for the other 4,177 on its own: it diverged on 12,324 of 14,102 entries, so
+one key was suppressing more than a quarter of the population from ever being byte-identical.
 
 **The comparator manufactures none of them.** Running the same `diffKeys` with the official
 compiler on *both* sides over the same population produces **0 keys from 28,178 self-compared
@@ -52,7 +56,7 @@ parsed all 11 without complaint. The verdict named the loudest thing it could se
 one line of the harness. Serialization now sits outside the parse `try`, and a bigint goes through
 a replacer so its value stays comparable instead of being dropped.
 
-Partition of `parse-ast-known-failures.json` by cluster: `141 + 140 + 132 + 86 + 75 + 35 + 10 + 10 + 9 + 6 + 4 + 3 + 1`
+Partition of `parse-ast-known-failures.json` by cluster: `141 + 140 + 132 + 86 + 75 + 35 + 10 + 10 + 9 + 6 + 4 + 3`
 
 | cluster | keys | what it is |
 |---|---|---|
@@ -68,7 +72,6 @@ Partition of `parse-ast-known-failures.json` by cluster: `141 + 140 + 132 + 86 +
 | `directive-null-fields` | 9 | official keeps `expression: null` / `modifiers: []` on a directive; rsvelte omits the key, so it is absent through the JSON boundary a binding actually uses. |
 | `loc-presence` | 6 | a node that has a `loc` on one side and none on the other — kept apart from `span` because "no position at all" is a different defect from "wrong position". |
 | `rejects-what-official-accepts` | 3 | the three loose sources rsvelte throws on. See below. |
-| `root-span` | 1 | #3386 — `modern::Root#span`, 12,324 of 14,102 entries. |
 
 ## The two acceptance rows are the interesting ones
 

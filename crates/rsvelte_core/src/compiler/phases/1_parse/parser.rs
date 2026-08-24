@@ -45,7 +45,7 @@ static COMMENT_END_FINDER: std::sync::LazyLock<memchr::memmem::Finder<'static>> 
 /// `1-parse/index.js`, a `\s` regex or `String.prototype.trim*`. Rust's
 /// `char::is_whitespace` is the Unicode `White_Space` property, which has the
 /// same 25 members but excludes `U+FEFF` and includes `U+0085`.
-pub(crate) fn is_js_whitespace(c: char) -> bool {
+pub fn is_js_whitespace(c: char) -> bool {
     matches!(
         c,
         '\u{9}'..='\u{d}'
