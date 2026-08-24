@@ -1222,6 +1222,7 @@ impl<'a> Parser<'a> {
                     end: end as u32,
                     value,
                     loc,
+                    loc_has_character: true,
                 });
             true
         } else if self.match_str("/*") {
@@ -1246,6 +1247,7 @@ impl<'a> Parser<'a> {
                     end: end as u32,
                     value,
                     loc,
+                    loc_has_character: true,
                 });
             true
         } else {
@@ -1375,8 +1377,12 @@ impl<'a> Parser<'a> {
                 })));
             }
 
-            // Create the expression
-            let expression = self.parse_js_expression(expr_content.trim_ws(), expr_start);
+            // Create the expression. Upstream reads the shorthand's name with
+            // `read_identifier`, so its `loc` is a `locate-character` one.
+            let expression = super::super::expression::with_read_identifier_loc(
+                self.parse_js_expression(expr_content.trim_ws(), expr_start),
+                self.expression_line_offsets(),
+            );
 
             // Create the attribute name from the expression (shorthand)
             let name = expr_content.trim_ws().to_string();
@@ -1619,9 +1625,60 @@ impl<'a> Parser<'a> {
         name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
-        let action_name = &full_name[4..]; // Skip "use:"
+        let (action_name, modifiers) = Self::extract_name_and_modifiers(&full_name[4..]);
 
-        let (expression, end_pos) = self.read_directive_expression(name_end)?;
+        let (expression, end_pos) = if self.eat_optional("=") {
+            self.skip_whitespace();
+            // Handle quoted value: ="{expression}" or ="value"
+            if self.eat_optional("\"") || self.eat_optional("'") {
+                let quote = if self.bytes[self.index - 1] == b'"' {
+                    '"'
+                } else {
+                    '\''
+                };
+                // Look for expression inside quotes: "{expr}"
+                if self.eat_optional("{") {
+                    let expr_start = self.index;
+                    self.scan_to_closing_brace();
+                    let expr_end = self.index;
+                    let expr_content = &self.source[expr_start..expr_end];
+                    self.advance(); // consume '}'
+                    // Consume the closing quote
+                    if self.current_char() == quote {
+                        self.advance();
+                    }
+                    (
+                        Some(self.parse_head_expression(expr_content, expr_start, false, '}')?),
+                        self.index,
+                    )
+                } else {
+                    // Plain quoted string - skip until closing quote
+                    while !self.is_eof() && self.current_char() != quote {
+                        self.advance();
+                    }
+                    if self.current_char() == quote {
+                        self.advance();
+                    }
+                    (None, self.index)
+                }
+            } else if self.eat_optional("{") {
+                // Unquoted expression: ={expression}
+                let expr_start = self.index;
+                self.scan_to_closing_brace();
+                let expr_end = self.index;
+                let expr_content = &self.source[expr_start..expr_end];
+                self.advance(); // consume '}'
+                (
+                    Some(self.parse_head_expression(expr_content, expr_start, false, '}')?),
+                    self.index,
+                )
+            } else {
+                (None, self.index)
+            }
+        } else {
+            // No value - use name_end as the end position
+            (None, name_end)
+        };
 
         Ok(Some(crate::ast::Attribute::UseDirective(
             crate::ast::template::UseDirective {
@@ -1630,6 +1687,7 @@ impl<'a> Parser<'a> {
                 name: CompactString::from(action_name),
                 name_loc,
                 expression,
+                modifiers,
             },
         )))
     }
@@ -1643,13 +1701,45 @@ impl<'a> Parser<'a> {
         name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
-        let class_name = &full_name[6..]; // Skip "class:"
+        let (class_name, modifiers) = Self::extract_name_and_modifiers(&full_name[6..]);
 
-        let (expression, end) = self.read_directive_expression(name_end)?;
-        // Shorthand: `class:name` binds to the identifier the name spells.
-        let expression = match expression {
-            Some(expression) => expression,
-            None => super::super::expression::create_identifier_with_character(
+        let had_value = self.eat_optional("=");
+        let expression = if had_value {
+            self.skip_whitespace();
+            // Handle both bare {expr} and quoted "{expr}" / '{expr}'
+            let quote =
+                if !self.is_eof() && (self.current_char() == '"' || self.current_char() == '\'') {
+                    let q = self.current_char();
+                    self.advance(); // consume opening quote
+                    Some(q)
+                } else {
+                    None
+                };
+            if self.eat_optional("{") {
+                let expr_start = self.index;
+                self.scan_to_closing_brace();
+                let expr_end = self.index;
+                let expr_content = &self.source[expr_start..expr_end];
+                self.advance(); // consume '}'
+                if quote.is_some() {
+                    self.advance(); // consume closing quote
+                }
+                self.parse_head_expression(expr_content, expr_start, false, '}')?
+            } else {
+                if quote.is_some() {
+                    self.index -= 1; // revert quote consumption
+                }
+                // Shorthand: class:name means expression is Identifier("name")
+                super::super::expression::create_identifier_with_character(
+                    class_name,
+                    name_start + 6, // start after "class:"
+                    name_end,
+                    self.expression_line_offsets(),
+                )
+            }
+        } else {
+            // Shorthand: class:name without = means expression is Identifier("name")
+            super::super::expression::create_identifier_with_character(
                 class_name,
                 name_start + 6,
                 name_end,
@@ -1663,6 +1753,7 @@ impl<'a> Parser<'a> {
                 name: CompactString::from(class_name),
                 name_loc,
                 expression,
+                modifiers,
                 metadata: Default::default(),
             },
         )))
@@ -1875,7 +1966,52 @@ impl<'a> Parser<'a> {
                 return Ok(None);
             };
 
-        let (expression, end_pos) = self.read_directive_expression(name_end)?;
+        let (expression, end_pos) = if self.eat_optional("=") {
+            self.skip_whitespace();
+            // Handle quoted value: ="{expression}"
+            if self.eat_optional("\"") || self.eat_optional("'") {
+                let quote = if self.bytes[self.index - 1] == b'"' {
+                    '"'
+                } else {
+                    '\''
+                };
+                if self.eat_optional("{") {
+                    let expr_start = self.index;
+                    self.scan_to_closing_brace();
+                    let expr_content = &self.source[expr_start..self.index];
+                    self.advance(); // consume '}'
+                    if self.current_char() == quote {
+                        self.advance();
+                    }
+                    (
+                        Some(self.parse_head_expression(expr_content, expr_start, false, '}')?),
+                        self.index,
+                    )
+                } else {
+                    // Plain quoted - skip
+                    while !self.is_eof() && self.current_char() != quote {
+                        self.advance();
+                    }
+                    if self.current_char() == quote {
+                        self.advance();
+                    }
+                    (None, self.index)
+                }
+            } else if self.eat_optional("{") {
+                let expr_start = self.index;
+                self.scan_to_closing_brace();
+                let expr_content = &self.source[expr_start..self.index];
+                self.advance(); // consume '}'
+                (
+                    Some(self.parse_head_expression(expr_content, expr_start, false, '}')?),
+                    self.index,
+                )
+            } else {
+                (None, self.index)
+            }
+        } else {
+            (None, name_end)
+        };
 
         Ok(Some(crate::ast::Attribute::TransitionDirective(
             crate::ast::template::TransitionDirective {
@@ -1914,7 +2050,7 @@ impl<'a> Parser<'a> {
         name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
-        let animate_name = &full_name[8..]; // Skip "animate:"
+        let (animate_name, modifiers) = Self::extract_name_and_modifiers(&full_name[8..]);
 
         let (expression, end) = self.read_directive_expression(name_end)?;
         Ok(Some(crate::ast::Attribute::AnimateDirective(
@@ -1924,6 +2060,7 @@ impl<'a> Parser<'a> {
                 name: CompactString::from(animate_name),
                 name_loc,
                 expression,
+                modifiers,
                 metadata: None, // Populated during Phase 2 analysis
             },
         )))
@@ -1937,7 +2074,7 @@ impl<'a> Parser<'a> {
         name_loc: Option<SourceLocation>,
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute<'a>>> {
-        let let_name = &full_name[4..]; // Skip "let:"
+        let (let_name, modifiers) = Self::extract_name_and_modifiers(&full_name[4..]);
 
         let (expression, end) = self.read_directive_expression(name_end)?;
         Ok(Some(crate::ast::Attribute::LetDirective(
@@ -1947,6 +2084,7 @@ impl<'a> Parser<'a> {
                 name: CompactString::from(let_name),
                 name_loc,
                 expression,
+                modifiers,
             },
         )))
     }
@@ -1976,65 +2114,6 @@ impl<'a> Parser<'a> {
                 metadata: Default::default(),
             },
         )))
-    }
-
-    /// The one value read every attribute shares. Upstream reads it once in
-    /// `read_attribute`, before it knows or cares which directive kind it has.
-    fn read_directive_value(
-        &mut self,
-        name_end: usize,
-    ) -> ParseResult<(AttributeValue<'a>, usize)> {
-        if !self.eat_optional("=") {
-            if !self.is_eof() && (self.current_char() == '"' || self.current_char() == '\'') {
-                return Err(crate::error::ParseError::svelte(
-                    "expected_token",
-                    "Expected token =\nhttps://svelte.dev/e/expected_token",
-                    (self.index, self.index),
-                ));
-            }
-            return Ok((AttributeValue::True(true), name_end));
-        }
-        self.skip_whitespace();
-        let value = self.parse_attribute_value()?;
-        Ok((value, self.index))
-    }
-
-    /// Every directive but `style:` then demands that the value be a single
-    /// expression, so text — or an expression with anything beside it — is
-    /// `directive_invalid_value` at the value's first part. `style:` is exempt
-    /// because upstream returns the `StyleDirective` before this test.
-    fn read_directive_expression(
-        &mut self,
-        name_end: usize,
-    ) -> ParseResult<(Option<Expression<'a>>, usize)> {
-        let (value, end) = self.read_directive_value(name_end)?;
-        let expression = match value {
-            AttributeValue::True(_) => None,
-            AttributeValue::Expression(tag) => Some(tag.expression),
-            AttributeValue::Sequence(mut parts) => {
-                let single_expression =
-                    parts.len() == 1 && matches!(parts[0], AttributeValuePart::ExpressionTag(_));
-                if !single_expression {
-                    let at = match parts.first() {
-                        Some(AttributeValuePart::Text(text)) => text.start as usize,
-                        Some(AttributeValuePart::ExpressionTag(tag)) => tag.start as usize,
-                        // An empty pair of quotes: upstream's `read_attribute_value`
-                        // returns a zero-width `Text` just past the opening quote.
-                        None => end.saturating_sub(1),
-                    };
-                    return Err(crate::error::ParseError::svelte(
-                        "directive_invalid_value",
-                        "Directive value must be a JavaScript expression enclosed in curly braces\nhttps://svelte.dev/e/directive_invalid_value",
-                        (at, at),
-                    ));
-                }
-                match parts.remove(0) {
-                    AttributeValuePart::ExpressionTag(tag) => Some(tag.expression),
-                    AttributeValuePart::Text(_) => unreachable!("checked just above"),
-                }
-            }
-        };
-        Ok((expression, end))
     }
 
     /// Run the value-reading half of upstream's `read_attribute` for its errors
@@ -2393,9 +2472,11 @@ impl<'a> Parser<'a> {
                         start: text_start as u32,
                         end: self.index as u32,
                         raw: Cow::Borrowed(text_content),
-                        // `textarea` is escapable raw text, so its content still
-                        // decodes character references.
-                        data: Cow::Owned(decode_html_entities(text_content, false)),
+                        // `textarea` content goes through upstream's `read_sequence`,
+                        // which decodes with `is_attribute_value = true` — so a
+                        // semicolon-less legacy name stays literal unless a word
+                        // boundary follows it.
+                        data: Cow::Owned(decode_html_entities(text_content, true)),
                     }));
                 }
 
@@ -2416,7 +2497,7 @@ impl<'a> Parser<'a> {
                 start: text_start as u32,
                 end: self.index as u32,
                 raw: text_content.to_string().into(),
-                data: Cow::Owned(decode_html_entities(text_content, false)),
+                data: Cow::Owned(decode_html_entities(text_content, true)),
             }));
         }
 

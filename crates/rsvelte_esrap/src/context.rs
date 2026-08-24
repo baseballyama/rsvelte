@@ -232,6 +232,7 @@ impl<const DIRECT: bool> Context<DIRECT> {
             self.pending |= PENDING_SPACE;
         } else {
             self.buffer.event(EventKind::Space);
+            self.space_bytes += 1;
         }
     }
 
@@ -371,7 +372,7 @@ impl<const DIRECT: bool> Context<DIRECT> {
         self.buffer.text.truncate(if DIRECT {
             scope.text_len
         } else {
-            self.measure_base
+            self.visible_base
         });
         self.buffer.events.truncate(scope.event_len);
         self.buffer.layouts.truncate(scope.layout_len);
@@ -401,6 +402,7 @@ impl<const DIRECT: bool> Context<DIRECT> {
             let start = mark.offset;
             self.buffer.text.push(' ');
             self.layout_bytes += 1;
+            self.space_bytes += 1;
             self.buffer.layouts.push(LayoutSpan {
                 start,
                 raw_len: 1,
@@ -432,12 +434,20 @@ impl<const DIRECT: bool> Context<DIRECT> {
         );
     }
 
-    /// `true` when nothing with visible content has been written.
+    /// `true` when nothing with visible content has been written. A separator
+    /// space is not content (esrap's `has_content` answers `false` for it), so
+    /// this excludes every layout byte.
     pub const fn empty(&self) -> bool {
+        self.visible_len() == self.visible_base
+    }
+
+    /// Length counted by [`measure`](Self::measure), before the scope base is
+    /// subtracted.
+    const fn measured_len(&self) -> usize {
         if DIRECT {
-            self.buffer.text.len() - self.layout_bytes == self.measure_base
+            self.buffer.text.len() - self.layout_bytes + self.space_bytes
         } else {
-            self.buffer.text.len() == self.measure_base
+            self.buffer.text.len() + self.space_bytes
         }
     }
 
@@ -457,6 +467,13 @@ impl<const DIRECT: bool> Context<DIRECT> {
             self.buffer.text.len() - self.measure_base
         };
         bytes - (self.wide_excess - self.measure_wide_base)
+    }
+
+    /// Total length of the literal strings in this context, ignoring newline and
+    /// indentation sentinels — esrap's `measure`, used to decide if a layout fits
+    /// on a line.
+    pub const fn measure(&self) -> usize {
+        self.measured_len() - self.measure_base
     }
 
     /// Consume the context, yielding its flat output buffer (for the top-level
@@ -600,6 +617,7 @@ impl<const DIRECT: bool> Context<DIRECT> {
         } else if self.pending & (PENDING_SPACE | PENDING_OPTIMISTIC_SPACE) != 0 {
             self.buffer.text.push(' ');
             self.layout_bytes += 1;
+            self.space_bytes += 1;
             self.buffer.layouts.push(LayoutSpan {
                 start,
                 raw_len: 1,
@@ -700,14 +718,17 @@ mod tests {
         finish_direct(buffer, &indent, dirty).0
     }
 
+    /// esrap reserves its non-string `space` command for the one `else` case;
+    /// every separator space is `context.write(' ')`, which `measure` counts.
+    /// Newlines and indentation are the sentinels it skips.
     #[test]
-    fn measure_counts_only_strings() {
+    fn measure_counts_separator_spaces_but_not_newlines() {
         let mut ctx = Context::new();
         ctx.write_ascii_bytes(b"abc");
         ctx.space();
         ctx.newline();
         ctx.write_ascii_bytes(b"de");
-        assert_eq!(ctx.measure(), 5);
+        assert_eq!(ctx.measure(), 6);
     }
 
     #[test]

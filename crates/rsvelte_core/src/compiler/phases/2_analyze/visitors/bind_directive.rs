@@ -46,15 +46,13 @@ pub fn validate_binding_target(
 ) -> Result<(), AnalysisError> {
     validate_binding_for_element(directive, element_name, attributes)
 }
-/// Common validation logic for bind directives.
-fn visit_common(
+/// Everything upstream's `BindDirective` visitor does below its `parent_type`
+/// block — the half that is host-agnostic, so every host that accepts `bind:`
+/// runs all of it or none of it.
+pub(super) fn validate_expression_shape(
     directive: &BindDirective,
-    context: &mut VisitorContext,
+    context: &VisitorContext,
 ) -> Result<(), AnalysisError> {
-    // On an element the `BindDirective` node stays on upstream's visitor path,
-    // so it grants the exemption itself.
-    super::shared::attribute::record_assign_exempt_expression(context, &directive.expression, true);
-
     // Handle getter/setter syntax (SequenceExpression)
     if is_get_set_pair(directive) {
         validate_get_set_pair(directive, context)?;
@@ -78,6 +76,60 @@ fn visit_common(
     }
 
     // Get the leftmost identifier (the binding target)
+    let binding_name = bind_target_name(directive, context)?;
+    let binding = context
+        .analysis
+        .root
+        .get_binding(&binding_name, context.scope)
+        .map(|idx| &context.analysis.root.bindings[idx]);
+
+    // For Identifier (not MemberExpression), validate the binding kind
+    validate_bind_value_identifier(directive, binding)?;
+
+    // Handle bind:group special logic
+    if directive.name == "group"
+        && let Some(binding) = binding
+        && matches!(
+            binding.kind,
+            crate::compiler::phases::phase2_analyze::BindingKind::SnippetParam
+        )
+    {
+        return Err(
+            errors::bind_group_invalid_snippet_parameter().at(directive.start, directive.end)
+        );
+    }
+
+    Ok(())
+}
+
+/// Common validation logic for bind directives.
+fn visit_common(
+    directive: &BindDirective,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    // On an element the `BindDirective` node stays on upstream's visitor path,
+    // so it grants the exemption itself.
+    super::shared::attribute::record_assign_exempt_expression(context, &directive.expression, true);
+
+    validate_expression_shape(directive, context)?;
+
+    if directive.expression.node_type() == Some("SequenceExpression") {
+        // Visit getter and setter expressions to track assignments and dependencies
+        // This is important for cases like:
+        //   bind:checked={()=>check, (v)=>{ check = v }}
+        // where the setter contains an assignment that marks `check` as reassigned
+        let node = directive.expression.as_node();
+        let expressions = node.expressions();
+        let arena = context.parse_arena;
+        for expr in arena.get_js_children(expressions) {
+            // Walk the expression to track mutations (e.g., assignments in setters).
+            // Use typed dispatch to skip the `to_value()` materialization.
+            super::script::walk_js_node_typed(expr, context)?;
+        }
+
+        return Ok(());
+    }
+
     let binding_name_owned = bind_target_name(directive, context)?;
     let binding_name: &str = &binding_name_owned;
 
@@ -108,34 +160,10 @@ fn visit_common(
         }
     }
 
-    // Re-borrow binding after mutable operations are done
+    // Re-borrow binding after mutable operations are done.
+    // Binding group name registration (populating analysis.binding_groups) is done in
+    // mod.rs's mark_each_block_group_bindings, which runs after template analysis.
     let binding = binding_idx.map(|idx| &context.analysis.root.bindings[idx]);
-
-    // TODO: Set node.metadata.binding = binding
-
-    // For Identifier (not MemberExpression), validate the binding kind
-    validate_bind_value_identifier(directive, binding)?;
-
-    // Handle bind:group special logic
-    if directive.name == "group"
-        && let Some(binding) = binding
-    {
-        // Check if binding is a snippet parameter
-        if matches!(
-            binding.kind,
-            crate::compiler::phases::phase2_analyze::BindingKind::SnippetParam
-        ) {
-            return Err(
-                errors::bind_group_invalid_snippet_parameter().at(directive.start, directive.end)
-            );
-        }
-
-        // Note: Binding group name registration (populating analysis.binding_groups) is done
-        // in mod.rs's mark_each_block_group_bindings, which runs after template analysis.
-        // That function uses the full keypath + EachBlock position as keys to correctly
-        // differentiate between multiple bind:group directives that happen to share the
-        // same variable name (e.g., two {#each x as selected} blocks with bind:group={selected}).
-    }
 
     // Check for each block binding with rest
     // Corresponds to BindDirective.js L271-273:
