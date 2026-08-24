@@ -44,12 +44,15 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { linkDependencies } from './corpus-sandbox.mjs';
+import { MIN_FULL_CORPUS_ENTRIES } from '../compat-corpus/artifacts.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
 const CORPUS_SCRIPTS = path.join(ROOT, 'scripts/compat-corpus');
 
-const ENTRIES = 12500; // must exceed artifacts.mjs MIN_FULL_CORPUS_ENTRIES
+// Derived, never a literal: the floor is a measurement of the corpus and moves
+// when it grows, and a hardcoded size silently drops below it.
+const ENTRIES = MIN_FULL_CORPUS_ENTRIES + 500;
 const GOOD = 'export default 1;\n';
 // Rejected by acorn for the same reason 24 of the 30 real cases were: an
 // argument list that never closes.
@@ -157,7 +160,7 @@ console.log('\nbaseline: an all-parseable corpus is green');
 	seedRatchets();
 	const r = run();
 	check('exit 0', r.status === 0, `status ${r.status}\n${r.stdout.slice(-800)}${r.stderr}`);
-	check('reports the parsed population', /parsed 12500\/12500 rsvelte\/official module/.test(r.stdout), r.stdout.slice(-400));
+	check('reports the parsed population', new RegExp(`parsed ${ENTRIES}/${ENTRIES} rsvelte/official module`).test(r.stdout), r.stdout.slice(-400));
 }
 
 // Unparseable output is necessarily byte-different from official's, so every
@@ -231,7 +234,7 @@ console.log('\nlisting the pair skips it on BOTH sides — the exclusion is not 
 	seedRatchets({ [ORACLE_EXCLUDED]: ['e11 [client]'] });
 	const r = run();
 	check('exit 0', r.status === 0, `status ${r.status}\n${r.stderr.slice(-800)}`);
-	check('the pair is not counted as parsed', /parsed 12499\/12499/.test(r.stdout), r.stdout.slice(-400));
+	check('the pair is not counted as parsed', new RegExp(`parsed ${ENTRIES - 1}/${ENTRIES - 1}`).test(r.stdout), r.stdout.slice(-400));
 	restore();
 }
 
@@ -252,7 +255,10 @@ console.log('\na collapsed population fails instead of going green');
 	// because a run whose artifacts are simply absent is refused by verify's
 	// coverage precondition before any gate gets to speak.
 	const rejected = [];
-	for (let i = 0; i < 2000; i++) {
+	// Past verify.mjs's 90% parse-population floor, as a share rather than a
+	// count: a literal stops crossing the floor the moment the corpus grows.
+	const COLLAPSED = Math.ceil(ENTRIES * 0.16);
+	for (let i = 0; i < COLLAPSED; i++) {
 		const dir = path.join(CORPUS, 'actual', `e${i}`);
 		fs.rmSync(path.join(dir, 'client.js'), { force: true });
 		fs.writeFileSync(

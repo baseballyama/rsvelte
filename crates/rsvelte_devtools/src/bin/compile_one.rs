@@ -37,22 +37,8 @@ fn main() {
         }
     };
 
-    // `.svelte.js` / `.svelte.ts` go through `compileModule`, which is a
-    // different pipeline from a component's — the same source can diverge in
-    // one and not the other.
-    let compiled = if path.ends_with(".svelte") {
-        compile(
-            &source,
-            CompileOptions {
-                generate,
-                dev,
-                runes,
-                filename: Some(path.clone()),
-                ..Default::default()
-            },
-        )
-    } else {
-        compile_module(
+    if args.iter().any(|a| a == "--module") {
+        match compile_module(
             &source,
             ModuleCompileOptions {
                 generate,
@@ -60,10 +46,26 @@ fn main() {
                 filename: Some(path.clone()),
                 ..Default::default()
             },
-        )
-    };
+        ) {
+            Ok(result) => print!("{}", result.js.code),
+            Err(err) => {
+                eprintln!("{err:?}");
+                std::process::exit(2);
+            }
+        }
+        return;
+    }
 
-    match compiled {
+    match compile(
+        &source,
+        CompileOptions {
+            generate,
+            dev,
+            runes,
+            filename: Some(path.clone()),
+            ..Default::default()
+        },
+    ) {
         Ok(result) => print!("{}", result.js.code),
         Err(err) => {
             eprintln!("{err:?}");

@@ -57,18 +57,20 @@ pub(super) fn handle_export_named_decl(
         // For instance scripts: remove the 'export ' keyword (replace with space).
         // For module scripts: keep the 'export' keyword (it's a real module export).
         //
-        // Type-only declarations (`export type X` / `export interface X`) are the
-        // exception: official svelte2tsx keeps their `export` keyword (they're
-        // moved verbatim by `HoistableInterfaces` and re-surface as part of the
-        // component's type API), so stripping it here would both diverge from
-        // upstream and, once the declaration is hoisted above `$$render()`,
-        // leave a dangling space. Skip the strip for those.
-        let is_type_only_decl = matches!(
+        // Upstream only ever removes it from the three node kinds its walk has a
+        // handler for — `handleVariableStatement`, plus `handleExportFunctionOrClass`
+        // for a function and a class. Every other exported declaration
+        // (`export type` / `export interface` / `export namespace` / `export enum` /
+        // `export import x =`) keeps its `export` keyword, so mirror the allow-list
+        // rather than enumerating exceptions: a kind nobody thought of must default
+        // to "left alone", which is what upstream does.
+        let strips_export_keyword = matches!(
             decl,
-            oxc::Declaration::TSTypeAliasDeclaration(_)
-                | oxc::Declaration::TSInterfaceDeclaration(_)
+            oxc::Declaration::VariableDeclaration(_)
+                | oxc::Declaration::FunctionDeclaration(_)
+                | oxc::Declaration::ClassDeclaration(_)
         );
-        if is_instance && !is_type_only_decl && decl_start > node_start {
+        if is_instance && strips_export_keyword && decl_start > node_start {
             str.overwrite(node_start, decl_start, " ");
         }
 
@@ -109,7 +111,11 @@ pub(super) fn handle_export_named_decl(
                                 ExportBindingOptions::new()
                             }
                             .with_prop_if(is_prop)
-                            .with_let_if(is_let),
+                            .with_let_if(is_let)
+                            // Official `handleExportedVariableDeclarationList`:
+                            // `required = !node.initializer`, independent of
+                            // `let`/`const`/`var`.
+                            .with_required_if(!has_default),
                         );
                         // Update the type annotation on the exported name
                         if let Some(ref ta_text) = type_annotation_text
@@ -363,6 +369,14 @@ pub(super) fn handle_export_named_decl(
                     .with_default_if(has_init)
                     .with_prop_if(is_prop)
                     .with_let_if(is_let)
+                    // Official `addExport` passes `required = false` for the
+                    // named export itself, then preserves `required` from a
+                    // matching possible export. Thus `let x: T; export
+                    // { x as y }` stays required, while the collision path
+                    // above for `export let x: T; export { x as y }` is
+                    // optional (exported declarations are not possible
+                    // exports).
+                    .with_required_if(possible.is_some_and(|p| !p.has_init()))
                     .with_named_export_if(true),
             );
             // The JSDoc lives on the `let x` declaration (or, for a renamed
