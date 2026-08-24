@@ -8,6 +8,5 @@
 	"svelte/documentation/docs/02-runes/07-$inspect.md/2.svelte": "6474daddf2f38349d9d3c1a67dc20e3d62bf4acc59dcaf54f466786cab3a395a",
 	"svelte/packages/svelte/tests/runtime-runes/samples/inspect-multiple/main.svelte": "d7099100fb1e08f5a37a8a7839f10a039528c8902c82aea7f4ee4a3c08117bdd",
 	"svelte/packages/svelte/tests/runtime-runes/samples/inspect-with-untracked/main.svelte": "c4b58ef8bfead0591e47d48e23c17bf8c3a9cd84e43fcfd3696fa463ca2fb09e",
-	"svelte/packages/svelte/tests/validator/samples/runes-conflicting-store-in-module/input.svelte.js": "729e19c86c907954d917a3a01826dbf7ea019ef3d4043ddcf7deee3b24fa8487",
 	"svelte/packages/svelte/tests/validator/samples/unreferenced-variables/input.svelte": "3771bd95c200e34b46cd1a535949f5cecd9dcb07171bb612bd48f8d1febf67b8"
 }

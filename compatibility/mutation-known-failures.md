@@ -63,22 +63,22 @@ re-measured under 0.62, so it is in for honest reporting rather than to change a
 the gate prints must be the reason for the verdict, and before this a reviewer could see
 `import 'x'` vs `import "x"` and dismiss a real finding sitting further down the same file.
 
-## Mutation known failures (`mutation-known-failures.json`, 22 entries)
+## Mutation known failures (`mutation-known-failures.json`, 21 entries)
 
-Full sweep: 14,229 seeds, under oxfmt 0.63.0.
+Full sweep: 14,846 seeds, under oxfmt 0.64.0.
 
-The `mutation-known-failures.provenance.json` file records 11 entries, one SHA-256 seed-content
+The `mutation-known-failures.provenance.json` file records 10 entries, one SHA-256 seed-content
 hash for each source represented by the failure ratchet. A full sweep reports a changed
 hash as re-keyed instead of claiming that the old mutation now passes.
 
 | verdict | entries |
 |---|---|
-| `code-mismatch` | 22 |
+| `code-mismatch` | 21 |
 | `unparseable` | **0** |
 | `compiler-crash` | 0 |
 | `error-mismatch` | 0 |
 
-By target: `client` 12, `client-dev` 6, `server` 6, `server-dev` 6.
+By target: `client` 11, `client-dev` 6, `server` 6, `server-dev` 6.
 
 ### `unparseable` is now 0 — [#2546](https://github.com/baseballyama/rsvelte/issues/2546) closed
 
