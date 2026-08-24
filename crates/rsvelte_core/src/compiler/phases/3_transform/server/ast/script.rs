@@ -84,9 +84,11 @@ pub(super) enum DeclRune {
 /// Detect a rune on a declarator-init oxc expression by callee / member name.
 /// Mirrors upstream `get_rune`: the rune is the CALLEE of a call expression
 /// (`$props.id()` → `$props.id`), so every rune here is matched on a
-/// `CallExpression`.
+/// `CallExpression`. Upstream parses with acorn, which builds no
+/// `ParenthesizedExpression` at all, so `let v = ($state(1))` reaches `get_rune`
+/// as the bare call and the parens never survive into the output (#3248).
 pub(super) fn detect_decl_rune(init: &OxcExpression) -> Option<DeclRune> {
-    let OxcExpression::CallExpression(call) = init else {
+    let OxcExpression::CallExpression(call) = init.without_parentheses() else {
         return None;
     };
     match &call.callee {
@@ -124,6 +126,15 @@ pub(super) fn detect_decl_rune(init: &OxcExpression) -> Option<DeclRune> {
     }
 }
 
+/// The owned counterpart of `Expression::without_parentheses`, for the lowerings
+/// that move the rune call out of its slot before reading it.
+pub(super) fn take_without_parens<'a>(mut e: OxcExpression<'a>) -> OxcExpression<'a> {
+    while let OxcExpression::ParenthesizedExpression(paren) = e {
+        e = paren.unbox().expression;
+    }
+    e
+}
+
 /// The `$`-prefixed callee name of a rune-shaped call (`$state(…)` → `$state`,
 /// `$state.raw(…)` → `$state`, `$props()` → `$props`), or `None` if `init` is not
 /// a `$…`-callee call. Used to detect the store-rune conflict: when this exact
@@ -134,7 +145,7 @@ pub(super) fn detect_decl_rune(init: &OxcExpression) -> Option<DeclRune> {
 /// the PREFIXED name (not the base) is essential: `let props = $props()` binds
 /// `props` but has no `$props` store subscription, so it stays the rune.
 pub(super) fn rune_callee_name<'a>(init: &OxcExpression<'a>) -> Option<&'a str> {
-    let OxcExpression::CallExpression(call) = init else {
+    let OxcExpression::CallExpression(call) = init.without_parentheses() else {
         return None;
     };
     let name = match &call.callee {
@@ -198,7 +209,7 @@ fn is_removed_effect_stmt(expr: &OxcExpression, rune_store_subs: bool) -> bool {
     if rune_store_subs {
         return false;
     }
-    let OxcExpression::CallExpression(call) = expr else {
+    let OxcExpression::CallExpression(call) = expr.without_parentheses() else {
         return false;
     };
     match &call.callee {
@@ -248,7 +259,7 @@ fn inspect_kind(expr: &OxcExpression, rune_store_subs: bool) -> Option<InspectKi
     if rune_store_subs {
         return None;
     }
-    let OxcExpression::CallExpression(call) = expr else {
+    let OxcExpression::CallExpression(call) = expr.without_parentheses() else {
         return None;
     };
     match &call.callee {
@@ -348,6 +359,192 @@ fn lower_nested_dev_inspect<'a>(stmt: &mut Statement<'a>, state: &ServerTransfor
         rune_store_subs: rune_names_are_store_subs(state.analysis),
     };
     v.visit_statement(stmt);
+}
+
+/// Give every `$inspect(…)` / `$inspect(…).with(…)` statement BELOW `stmt` the
+/// residue upstream leaves — the dev `console.log(…)` call, or the non-dev `;;`
+/// pair. Upstream reaches these from a tree-wide `CallExpression` visitor, so
+/// the answer cannot depend on nesting depth; rsvelte's own answer lived only in
+/// the top-level arm of [`transform_script`], and everything below it was
+/// deleted outright by [`ClassFieldRuneLower`] — in dev too, which silently drops
+/// the logging call.
+///
+/// `origin` is where `stmt`'s source text starts in `src`. A verbatim statement
+/// is re-parsed from its own slice, so its spans are LOCAL to that slice and an
+/// argument's source text is `src[origin + span]`.
+fn lower_nested_inspect<'a>(
+    stmt: &mut Statement<'a>,
+    src: &str,
+    origin: u32,
+    state: &ServerTransformState<'a>,
+) {
+    let mut v = NestedInspectResidue {
+        b: state.b,
+        rune_store_subs: rune_names_are_store_subs(state.analysis),
+        src,
+        origin,
+        state,
+    };
+    v.visit_statement(stmt);
+}
+
+struct NestedInspectResidue<'a, 'b> {
+    b: B<'a>,
+    rune_store_subs: bool,
+    src: &'b str,
+    origin: u32,
+    state: &'b ServerTransformState<'a>,
+}
+
+impl<'a, 'b> VisitMut<'a> for NestedInspectResidue<'a, 'b> {
+    /// A `$inspect(…)` in a VALUE position — a declarator initializer, an array
+    /// element — where the statement hook below never sees it. Upstream's
+    /// `VariableDeclaration` allow-list omits `$inspect().with` entirely and
+    /// mishandles `$inspect`, so official's own output here is a `SyntaxError`
+    /// or an unrelated value; see
+    /// `upstream_issues/3441-svelte-inspect-with-in-a-declarator.md`. rsvelte
+    /// emits what the rune evaluates to instead of leaving the call in place,
+    /// which would throw `ReferenceError: $inspect is not defined`.
+    fn visit_expression(&mut self, expr: &mut OxcExpression<'a>) {
+        if inspect_kind(expr, self.rune_store_subs).is_some()
+            && let Some(value) = inspect_value_expr(expr, self.src, self.origin, self.state)
+        {
+            *expr = value;
+            return;
+        }
+        oxc_ast_visit::walk_mut::walk_expression(self, expr);
+    }
+
+    /// The non-dev residue is TWO statements, so the substitution has to happen
+    /// on the list rather than on a single-statement hook.
+    fn visit_statements(&mut self, stmts: &mut oxc_allocator::Vec<'a, Statement<'a>>) {
+        if stmts.iter().any(|stmt| self.is_inspect_stmt(stmt)) {
+            let mut rebuilt = oxc_allocator::ArenaVec::new_in(&self.b.ab());
+            for stmt in stmts.drain(..) {
+                match self.residue(&stmt) {
+                    Some(residue) => rebuilt.extend(residue),
+                    None => rebuilt.push(stmt),
+                }
+            }
+            *stmts = rebuilt;
+        }
+        oxc_ast_visit::walk_mut::walk_statements(self, stmts);
+    }
+}
+
+impl<'a, 'b> NestedInspectResidue<'a, 'b> {
+    fn is_inspect_stmt(&self, stmt: &Statement<'a>) -> bool {
+        matches!(stmt, Statement::ExpressionStatement(es)
+            if inspect_kind(&es.expression, self.rune_store_subs).is_some())
+    }
+
+    fn residue(&self, stmt: &Statement<'a>) -> Option<Vec<Statement<'a>>> {
+        let Statement::ExpressionStatement(es) = stmt else {
+            return None;
+        };
+        inspect_residue_local(
+            &es.expression,
+            es.span.start,
+            self.src,
+            self.origin,
+            self.state,
+        )
+    }
+}
+
+/// [`inspect_residue`] for a statement whose spans are local to `origin`.
+fn inspect_residue_local<'a>(
+    expr: &OxcExpression<'_>,
+    stmt_start: u32,
+    src: &str,
+    origin: u32,
+    state: &ServerTransformState<'a>,
+) -> Option<Vec<Statement<'a>>> {
+    inspect_residue(expr, stmt_start, src.get(origin as usize..)?, state)
+}
+
+/// The statements a removed `$inspect(…)` / `$inspect(…).with(…)` expression
+/// statement leaves behind for one call whose spans index into `src` — the dev
+/// `console.log(…)` lowering, or the non-dev `;;` pair upstream prints for an
+/// `ExpressionStatement` whose expression became `b.empty`.
+fn inspect_residue<'a>(
+    expr: &OxcExpression<'_>,
+    stmt_start: u32,
+    src: &str,
+    state: &ServerTransformState<'a>,
+) -> Option<Vec<Statement<'a>>> {
+    let rune_store_subs = rune_names_are_store_subs(state.analysis);
+    let kind = inspect_kind(expr, rune_store_subs)?;
+    if !state.options.dev {
+        // Upstream's `CallExpression` visitor returns `b.empty` as the *new
+        // expression* of a surviving `ExpressionStatement`, which esrap prints
+        // as the expression's `;` plus the statement's own `;`.
+        return Some(vec![
+            state.b.empty_kept(stmt_start),
+            state.b.empty_kept(stmt_start + 1),
+        ]);
+    }
+    let (args_src, with_fn_src) = inspect_call_srcs(expr, &kind, src);
+    Some(
+        build_dev_inspect(&kind, &args_src, with_fn_src.as_deref(), state)
+            .into_iter()
+            .collect(),
+    )
+}
+
+/// The VALUE a removed `$inspect(…)` / `$inspect(…).with(…)` in an OPERAND slot
+/// evaluates to, for a call whose spans are local to `origin`. In dev that is
+/// the same lowering [`build_dev_inspect`] emits, unwrapped back to an
+/// expression; outside dev the rune produces nothing, so the slot takes
+/// `undefined`.
+fn inspect_value_expr<'a>(
+    expr: &OxcExpression<'_>,
+    src: &str,
+    origin: u32,
+    state: &ServerTransformState<'a>,
+) -> Option<OxcExpression<'a>> {
+    let kind = inspect_kind(expr, rune_names_are_store_subs(state.analysis))?;
+    if !state.options.dev {
+        return Some(state.b.id("undefined"));
+    }
+    let (args_src, with_fn_src) = inspect_call_srcs(expr, &kind, src.get(origin as usize..)?);
+    match build_dev_inspect(&kind, &args_src, with_fn_src.as_deref(), state)? {
+        Statement::ExpressionStatement(es) => Some(es.unbox().expression),
+        _ => None,
+    }
+}
+
+/// Pull the verbatim argument / `.with` callback source straight from the call
+/// spans — preserving operators/whitespace exactly like the text oracle's
+/// slice-based extraction.
+fn inspect_call_srcs(
+    expr: &OxcExpression<'_>,
+    kind: &InspectKind,
+    src: &str,
+) -> (String, Option<String>) {
+    let OxcExpression::CallExpression(call) = expr else {
+        unreachable!("inspect_kind matched a CallExpression");
+    };
+    match kind {
+        InspectKind::Plain => (call_args_src(call, src), None),
+        InspectKind::With => {
+            // For `<inner>.with(fn)`, the args belong to the INNER `$inspect(...)`
+            // call, and `fn` is this outer call's first argument.
+            let inner_args = match &call.callee {
+                OxcExpression::StaticMemberExpression(m) => match &m.object {
+                    OxcExpression::CallExpression(inner) => call_args_src(inner, src),
+                    _ => String::new(),
+                },
+                _ => String::new(),
+            };
+            let fn_src = call
+                .arguments
+                .first()
+                .and_then(|a| a.as_expression())
+                .map(|e| src[e.span().start as usize..e.span().end as usize].to_string());
+            (inner_args, fn_src)
+        }
+    }
 }
 
 /// Build the dev-mode lowering of a `$inspect(...)` / `$inspect(...).with(...)`
@@ -591,6 +788,31 @@ fn count_export_keyword(all: &[Comment], exp_start: u32, decl_start: u32) {
 /// Parse + lower a single RUNES-mode script into transformed top-level
 /// statements. `import_sink` receives instance-script imports to hoist (`None`
 /// for module).
+/// Phase 1 already accepted the script, so a rejection by the classification
+/// parse means the TypeScript eraser produced text that is not JavaScript.
+/// Returning an empty body there would ship a component whose `<script>`
+/// silently did nothing — output that still parses, so no gate can see it.
+fn record_classification_failure(
+    state: &ServerTransformState<'_>,
+    is_instance: bool,
+    diagnostics: &[oxc_diagnostics::OxcDiagnostic],
+) {
+    let mut slot = state.reparse_failure.borrow_mut();
+    if slot.is_some() {
+        return;
+    }
+    *slot = Some(format!(
+        "server {} script classification parse rejected the erased source ({} diagnostics): {}",
+        if is_instance { "instance" } else { "module" },
+        diagnostics.len(),
+        diagnostics
+            .iter()
+            .map(|d| d.message.to_string())
+            .collect::<Vec<_>>()
+            .join("; ")
+    ));
+}
+
 fn transform_script<'a>(
     script: &Script,
     state: &mut ServerTransformState<'a>,
@@ -650,6 +872,7 @@ fn transform_script<'a>(
     let owned = alloc.alloc_str(src);
     let ret = oxc_parser::Parser::new(&alloc, owned, oxc_span::SourceType::mjs()).parse();
     if !ret.diagnostics.is_empty() {
+        record_classification_failure(state, is_instance, &ret.diagnostics);
         return Vec::new();
     }
 
@@ -846,15 +1069,19 @@ fn transform_script<'a>(
                         // are removed by the `ExpressionStatement` visitor itself
                         // returning `b.empty` — a *bare* `EmptyStatement` that esrap
                         // elides (prints nothing), so those keep being dropped.
-                        if inspect_kind(&es.expression, rune_store_subs).is_some() {
-                            out.push(state.b.empty_kept(es.span.start));
-                            out.push(state.b.empty_kept(es.span.start + 1));
+                        if let Some(residue) =
+                            inspect_residue(&es.expression, es.span.start, src, state)
+                        {
+                            out.extend(residue);
                         }
                         break 'emit;
                     }
                     let slice = &src[es.span.start as usize..es.span.end as usize];
                     if let Some(mut rehomed) = state.reparse_statement(slice) {
                         verbatim = Some(es.span);
+                        // A re-parsed statement's spans are local to `slice`, which is
+                        // its own verbatim source.
+                        lower_nested_inspect(&mut rehomed, slice, 0, state);
                         // Read-wrap the whole statement: derived / store reads (`d` →
                         // `d()`, `$x` → `$.store_get(...)`), derived / store WRITES &
                         // UPDATES (`count++` → `$.update_derived(count)`), and private
@@ -875,6 +1102,7 @@ fn transform_script<'a>(
                     let slice = &src[span.start as usize..span.end as usize];
                     if let Some(mut rehomed) = state.reparse_statement(slice) {
                         verbatim = Some(span);
+                        lower_nested_inspect(&mut rehomed, slice, 0, state);
                         // Same whole-statement read-wrap for every other re-homed
                         // verbatim instance statement (function declarations, `if` /
                         // `for` / blocks, class declarations — the private-derived
@@ -1315,7 +1543,7 @@ impl<'a> NestedRuneLower<'a> {
                 _ => None,
             };
             // Pull the first call argument expression out of the init call.
-            let arg: Option<OxcExpression<'a>> = match d.init.take() {
+            let arg: Option<OxcExpression<'a>> = match d.init.take().map(take_without_parens) {
                 Some(OxcExpression::CallExpression(call)) => {
                     let mut call = call.unbox();
                     call.arguments
@@ -1510,7 +1738,9 @@ impl<'a> ClassFieldRuneLower<'a> {
         // Take the `$state(...)` / `$derived(...)` call out and move its first
         // argument expression out directly (the rehomed call already lives in the
         // state allocator — no re-parse).
-        if let Some(OxcExpression::CallExpression(call)) = prop.value.take() {
+        if let Some(OxcExpression::CallExpression(call)) =
+            prop.value.take().map(take_without_parens)
+        {
             let mut call = call.unbox();
             // The emitted statement was already read-wrapped whole (the emit
             // loop / declarator paths wrap before this lowering runs), so the
@@ -1548,7 +1778,7 @@ impl<'a> ClassFieldRuneLower<'a> {
     ) -> Option<(DeclRune, OxcExpression<'a>)> {
         let rune = detect_decl_rune(rhs)?;
         let b = self.b;
-        let taken = std::mem::replace(rhs, b.void0());
+        let taken = take_without_parens(std::mem::replace(rhs, b.void0()));
         let OxcExpression::CallExpression(call) = taken else {
             return None;
         };
@@ -1824,10 +2054,11 @@ impl<'a> VisitMut<'a> for ClassFieldRuneLower<'a> {
     /// private identifiers in source order, mirroring the analyze-phase
     /// `ClassBody` deconfliction.
     /// Drop `$effect` / `$effect.pre` / `$effect.root` / `$inspect.trace`
-    /// expression statements anywhere in the class subtree (e.g. inside a
-    /// constructor or method body), mirroring upstream's global server
-    /// `ExpressionStatement` visitor (`return b.empty`). `ClassFieldRuneLower`
-    /// only runs over class statements, so this scope is the class subtree.
+    /// expression statements anywhere below an emitted statement, mirroring
+    /// upstream's global server `ExpressionStatement` visitor (`return b.empty`).
+    /// A `$inspect(…)` that [`lower_nested_inspect`] already replaced is gone by
+    /// the time this runs; one it could not reach is dropped here rather than
+    /// surviving into the output as an undefined call.
     fn visit_statements(&mut self, stmts: &mut oxc_allocator::Vec<'a, Statement<'a>>) {
         if stmts.iter().any(|stmt| {
             matches!(stmt, Statement::ExpressionStatement(es)
@@ -2066,6 +2297,8 @@ fn reparse_var_decl_whole<'a>(
     }
     let slice = src.get(vd.span.start as usize..vd.span.end as usize)?;
     let mut stmt = state.reparse_statement(slice)?;
+    // Spans are local to `slice`, which is this declaration's own source.
+    lower_nested_inspect(&mut stmt, slice, 0, state);
     let Statement::VariableDeclaration(out_vd) = &mut stmt else {
         return None;
     };
@@ -2241,8 +2474,8 @@ fn lower_variable_declaration<'a>(
             }
             Some(rune) => {
                 // Lower the init from the rune; keep the binding pattern verbatim.
-                let new_init =
-                    lower_decl_init(&rune, d.init.as_ref(), src, state, carry, &mut poisoned);
+                let init = d.init.as_ref().map(OxcExpression::without_parentheses);
+                let new_init = lower_decl_init(&rune, init, src, state, carry, &mut poisoned);
                 let pat_span = d.id.span();
                 let pat_slice = &src[pat_span.start as usize..pat_span.end as usize];
                 let Some(mut pat) = state.reparse_pattern(pat_slice) else {
@@ -2280,15 +2513,7 @@ fn lower_variable_declaration<'a>(
                     // `$.derived(() => <access>)` leaf per path and one
                     // `$$derived_array = $.derived(() => $.to_array(...))` per
                     // array sub-pattern (写经 `VariableDeclaration.js:97-156`).
-                    create_derived_declarators(
-                        &rune,
-                        d.init.as_ref(),
-                        src,
-                        pat,
-                        new_init,
-                        state,
-                        &mut decls,
-                    );
+                    create_derived_declarators(&rune, init, src, pat, new_init, state, &mut decls);
                 } else {
                     decls.push((pat, new_init));
                 }
@@ -3238,6 +3463,7 @@ fn transform_script_legacy<'a>(
     let owned = alloc.alloc_str(src);
     let ret = oxc_parser::Parser::new(&alloc, owned, oxc_span::SourceType::mjs()).parse();
     if !ret.diagnostics.is_empty() {
+        record_classification_failure(state, is_instance, &ret.diagnostics);
         return Vec::new();
     }
 
@@ -3281,6 +3507,12 @@ fn transform_script_legacy<'a>(
         // Set by every branch that re-parses the statement WHOLE from a source
         // range, to that range.
         let mut verbatim: Option<Span> = None;
+        // Set by a branch that REBUILDS the statement but whose upstream
+        // counterpart keeps the source node (and therefore its `loc`) — the
+        // prop lowering of `let x` / `export let x`, where upstream only
+        // rewrites the declarator's init. Such a statement is still a comment
+        // flush point, which matters once a `$:` statement is reordered past it.
+        let mut rebuilt_but_located = false;
         let mut defer_block_reactive_trailing = false;
 
         'emit: {
@@ -3345,6 +3577,7 @@ fn transform_script_legacy<'a>(
                                 &mut verbatim,
                             );
                             if verbatim.is_none() {
+                                rebuilt_but_located = true;
                                 count_non_reparse(&ret.program.comments, vd.span);
                             }
                             out.extend(lowered);
@@ -3386,6 +3619,7 @@ fn transform_script_legacy<'a>(
                         &mut verbatim,
                     );
                     if verbatim.is_none() {
+                        rebuilt_but_located = true;
                         count_non_reparse(&ret.program.comments, vd.span);
                     }
                     out.extend(lowered);
@@ -3417,9 +3651,21 @@ fn transform_script_legacy<'a>(
                             state.analysis.root.instance_scope_index,
                             &mut array_counter,
                         );
+                        // Upstream's hoisted `let x;` reuses the `$: x = …`
+                        // TARGET identifier, so the declarator keeps that source
+                        // `loc` while the declaration around it has none — and
+                        // the hoist is printed FIRST, which makes it the flush
+                        // point for every comment written before that target.
+                        let decl_anchor =
+                            if decl_names.is_empty() || ret.program.comments.is_empty() {
+                                None
+                            } else {
+                                state.comments.register_anchor()
+                            };
                         reactive.push(ReactiveEntry {
                             stmt: rehomed,
                             decl_names,
+                            decl_anchor,
                             assigns,
                             deps,
                         });
@@ -3542,7 +3788,10 @@ fn transform_script_legacy<'a>(
             verbatim,
             !defer_reactive_tail,
         );
-        if place.is_none() && verbatim.is_some() && !ret.program.comments.is_empty() {
+        if place.is_none()
+            && (verbatim.is_some() || rebuilt_but_located)
+            && !ret.program.comments.is_empty()
+        {
             place = place_on_position(&mut state.comments, src, region_start, stmt_span, verbatim);
         }
         if place.is_none() && reactive_leading_comment_pending && !into_sink && anchor.is_some() {
@@ -3604,11 +3853,11 @@ fn transform_script_legacy<'a>(
     // not source order (写经 the `for (const [node] of analysis.reactive_statements)`
     // loop that drives `legacy_reactive_declarations`).
     let reactive = topo_sort_reactive(reactive);
-    let mut reactive_decl_names: Vec<String> = Vec::new();
+    let mut reactive_decl_names: Vec<(String, Option<u32>)> = Vec::new();
     for entry in &reactive {
         for name in &entry.decl_names {
-            if !reactive_decl_names.contains(name) {
-                reactive_decl_names.push(name.clone());
+            if !reactive_decl_names.iter().any(|(seen, _)| seen == name) {
+                reactive_decl_names.push((name.clone(), entry.decl_anchor));
             }
         }
     }
@@ -3620,12 +3869,22 @@ fn transform_script_legacy<'a>(
         // hoist stays combined.
         let pairs: Vec<_> = reactive_decl_names
             .iter()
-            .map(|n| (b.id_pat(n), None))
+            .map(|(n, _)| (b.id_pat(n), None))
             .collect();
-        out.insert(
-            0,
-            b.var_decl_from_pairs(VariableDeclarationKind::Let, pairs),
-        );
+        let mut decl = b.var_decl_from_pairs(VariableDeclarationKind::Let, pairs);
+        if let Statement::VariableDeclaration(vd) = &mut decl {
+            for (declarator, (_, anchor)) in vd.declarations.iter_mut().zip(&reactive_decl_names) {
+                if let Some(anchor) = *anchor {
+                    let at = Span::new(anchor, anchor);
+                    declarator.span = at;
+                    if let oxc_ast::ast::BindingPattern::BindingIdentifier(id) = &mut declarator.id
+                    {
+                        id.span = at;
+                    }
+                }
+            }
+        }
+        out.insert(0, decl);
     }
     out.extend(reactive.into_iter().map(|e| e.stmt));
     out
@@ -3638,6 +3897,10 @@ struct ReactiveEntry<'a> {
     stmt: Statement<'a>,
     /// legacy_reactive var names assigned to by this statement (hoisted-decl).
     decl_names: Vec<String>,
+    /// Comment-buffer position the hoisted declarators of `decl_names` are
+    /// anchored at, standing in for the source `loc` of the `$:` assignment
+    /// target upstream carries onto them.
+    decl_anchor: Option<u32>,
     /// Instance-scope binding indices this statement assigns to.
     assigns: Vec<usize>,
     /// Instance-scope binding indices this statement depends on (reads), with
@@ -3721,29 +3984,7 @@ fn topo_sort_reactive(entries: Vec<ReactiveEntry>) -> Vec<ReactiveEntry> {
 /// target binding to `reactive_statement.assignments` while walking the whole
 /// body). Member-expression targets (`obj.x = …`) declare no binding.
 fn reactive_assignment_indices(body: &Statement, state: &ServerTransformState) -> Vec<usize> {
-    use oxc_ast_visit::Visit;
-    struct AssignCollector<'o> {
-        out: &'o mut Vec<String>,
-    }
-    impl<'a, 'o> oxc_ast_visit::Visit<'a> for AssignCollector<'o> {
-        fn visit_assignment_expression(&mut self, it: &oxc_ast::ast::AssignmentExpression<'a>) {
-            collect_assignment_target_idents(&it.left, self.out);
-            // Recurse so a nested assignment in the RHS is also captured.
-            oxc_ast_visit::walk::walk_assignment_expression(self, it);
-        }
-        fn visit_update_expression(&mut self, it: &oxc_ast::ast::UpdateExpression<'a>) {
-            if let oxc_ast::ast::SimpleAssignmentTarget::AssignmentTargetIdentifier(id) =
-                &it.argument
-            {
-                self.out.push(id.name.to_string());
-            }
-            oxc_ast_visit::walk::walk_update_expression(self, it);
-        }
-    }
-    let mut names: Vec<String> = Vec::new();
-    let mut c = AssignCollector { out: &mut names };
-    c.visit_statement(body);
-    names_to_instance_binding_indices(&names, state)
+    names_to_instance_binding_indices(&ReactiveScopedCollector::run(body).assigns, state)
 }
 
 /// Instance-scope binding indices READ anywhere inside a reactive `$:` body
@@ -3755,11 +3996,206 @@ fn reactive_dependency_indices(
     state: &ServerTransformState,
     assigns: &[usize],
 ) -> Vec<usize> {
-    let mut names: Vec<String> = Vec::new();
-    collect_read_identifiers_in_statement(body, &mut names);
-    let mut out = names_to_instance_binding_indices(&names, state);
+    let mut out =
+        names_to_instance_binding_indices(&ReactiveScopedCollector::run(body).reads, state);
     out.retain(|idx| !assigns.contains(idx));
     out
+}
+
+/// Assignment targets and read references of one reactive `$:` body, resolved
+/// through the statement's own scope chain. Upstream reads them off
+/// `Scope`/`Binding` objects (`scope.get(name)`), so a name declared INSIDE the
+/// statement — a `catch` parameter, a block `let`, a function parameter, a
+/// `function`/`class` declaration — shadows the instance binding it collides
+/// with and must not become an ordering edge.
+#[derive(Default)]
+struct ReactiveScopedCollector {
+    locals: Vec<String>,
+    assigns: Vec<String>,
+    reads: Vec<String>,
+}
+
+impl ReactiveScopedCollector {
+    fn run(body: &Statement) -> Self {
+        use oxc_ast_visit::Visit;
+        let mut collector = Self::default();
+        collector.visit_statement(body);
+        collector
+    }
+
+    fn is_local(&self, name: &str) -> bool {
+        self.locals.iter().any(|l| l == name)
+    }
+
+    fn push_read(&mut self, name: &str) {
+        if !self.is_local(name) && !self.reads.iter().any(|n| n == name) {
+            self.reads.push(name.to_string());
+        }
+    }
+
+    fn push_assign(&mut self, name: &str) {
+        if !self.is_local(name) && !self.assigns.iter().any(|n| n == name) {
+            self.assigns.push(name.to_string());
+        }
+    }
+
+    fn declare_pattern(&mut self, pat: &oxc_ast::ast::BindingPattern) {
+        let mut names = Vec::new();
+        collect_binding_pattern_idents(pat, &mut names);
+        self.locals.extend(names);
+    }
+
+    /// `let` / `const` / `var` / `function` / `class` declared directly in a
+    /// block bind their names for the whole block.
+    fn hoist_block_declarations(&mut self, body: &[Statement]) {
+        for stmt in body {
+            match stmt {
+                Statement::VariableDeclaration(vd) => {
+                    for d in vd.declarations.iter() {
+                        self.declare_pattern(&d.id);
+                    }
+                }
+                Statement::FunctionDeclaration(f) => {
+                    if let Some(id) = &f.id {
+                        self.locals.push(id.name.to_string());
+                    }
+                }
+                Statement::ClassDeclaration(c) => {
+                    if let Some(id) = &c.id {
+                        self.locals.push(id.name.to_string());
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+impl<'a> oxc_ast_visit::Visit<'a> for ReactiveScopedCollector {
+    fn visit_identifier_reference(&mut self, it: &oxc_ast::ast::IdentifierReference<'a>) {
+        self.push_read(it.name.as_str());
+    }
+
+    fn visit_assignment_expression(&mut self, it: &oxc_ast::ast::AssignmentExpression<'a>) {
+        let mut names = Vec::new();
+        collect_assignment_target_idents(&it.left, &mut names);
+        for name in names {
+            self.push_assign(&name);
+        }
+        // Recurse so a nested assignment in the RHS is also captured.
+        oxc_ast_visit::walk::walk_assignment_expression(self, it);
+    }
+
+    fn visit_update_expression(&mut self, it: &oxc_ast::ast::UpdateExpression<'a>) {
+        if let oxc_ast::ast::SimpleAssignmentTarget::AssignmentTargetIdentifier(id) = &it.argument {
+            self.push_assign(id.name.as_str());
+        }
+        oxc_ast_visit::walk::walk_update_expression(self, it);
+    }
+
+    fn visit_block_statement(&mut self, it: &oxc_ast::ast::BlockStatement<'a>) {
+        let mark = self.locals.len();
+        self.hoist_block_declarations(&it.body);
+        oxc_ast_visit::walk::walk_block_statement(self, it);
+        self.locals.truncate(mark);
+    }
+
+    /// The cases share ONE block scope; the discriminant is outside it.
+    fn visit_switch_statement(&mut self, it: &oxc_ast::ast::SwitchStatement<'a>) {
+        self.visit_expression(&it.discriminant);
+        let mark = self.locals.len();
+        for case in it.cases.iter() {
+            self.hoist_block_declarations(&case.consequent);
+        }
+        for case in it.cases.iter() {
+            self.visit_switch_case(case);
+        }
+        self.locals.truncate(mark);
+    }
+
+    fn visit_catch_clause(&mut self, it: &oxc_ast::ast::CatchClause<'a>) {
+        let mark = self.locals.len();
+        if let Some(param) = &it.param {
+            self.declare_pattern(&param.pattern);
+        }
+        oxc_ast_visit::walk::walk_catch_clause(self, it);
+        self.locals.truncate(mark);
+    }
+
+    fn visit_function(
+        &mut self,
+        it: &oxc_ast::ast::Function<'a>,
+        flags: oxc_syntax::scope::ScopeFlags,
+    ) {
+        let mark = self.locals.len();
+        for param in it.params.items.iter() {
+            self.declare_pattern(&param.pattern);
+        }
+        if let Some(rest) = &it.params.rest {
+            self.declare_pattern(&rest.rest.argument);
+        }
+        oxc_ast_visit::walk::walk_function(self, it, flags);
+        self.locals.truncate(mark);
+    }
+
+    fn visit_arrow_function_expression(&mut self, it: &oxc_ast::ast::ArrowFunctionExpression<'a>) {
+        let mark = self.locals.len();
+        for param in it.params.items.iter() {
+            self.declare_pattern(&param.pattern);
+        }
+        if let Some(rest) = &it.params.rest {
+            self.declare_pattern(&rest.rest.argument);
+        }
+        oxc_ast_visit::walk::walk_arrow_function_expression(self, it);
+        self.locals.truncate(mark);
+    }
+
+    fn visit_for_statement(&mut self, it: &oxc_ast::ast::ForStatement<'a>) {
+        let mark = self.locals.len();
+        if let Some(oxc_ast::ast::ForStatementInit::VariableDeclaration(vd)) = &it.init {
+            for d in vd.declarations.iter() {
+                self.declare_pattern(&d.id);
+            }
+        }
+        oxc_ast_visit::walk::walk_for_statement(self, it);
+        self.locals.truncate(mark);
+    }
+
+    fn visit_for_in_statement(&mut self, it: &oxc_ast::ast::ForInStatement<'a>) {
+        // `right` is evaluated outside the loop binding's scope.
+        self.visit_expression(&it.right);
+        let mark = self.locals.len();
+        if let oxc_ast::ast::ForStatementLeft::VariableDeclaration(vd) = &it.left {
+            for d in vd.declarations.iter() {
+                self.declare_pattern(&d.id);
+            }
+        }
+        self.visit_for_statement_left(&it.left);
+        self.visit_statement(&it.body);
+        self.locals.truncate(mark);
+    }
+
+    fn visit_for_of_statement(&mut self, it: &oxc_ast::ast::ForOfStatement<'a>) {
+        self.visit_expression(&it.right);
+        let mark = self.locals.len();
+        if let oxc_ast::ast::ForStatementLeft::VariableDeclaration(vd) = &it.left {
+            for d in vd.declarations.iter() {
+                self.declare_pattern(&d.id);
+            }
+        }
+        self.visit_for_statement_left(&it.left);
+        self.visit_statement(&it.body);
+        self.locals.truncate(mark);
+    }
+
+    fn visit_class(&mut self, it: &oxc_ast::ast::Class<'a>) {
+        let mark = self.locals.len();
+        if let Some(id) = &it.id {
+            self.locals.push(id.name.to_string());
+        }
+        oxc_ast_visit::walk::walk_class(self, it);
+        self.locals.truncate(mark);
+    }
 }
 
 /// Resolve a list of identifier names to deduped instance-scope binding indices.
@@ -3776,27 +4212,6 @@ fn names_to_instance_binding_indices(names: &[String], state: &ServerTransformSt
         }
     }
     out
-}
-
-/// Collect every identifier-reference name READ inside a statement (RHS of
-/// assignments, test/loop conditions, call args, nested block bodies, …). Used
-/// to compute reactive-statement dependencies. Static member `.property` names,
-/// object-literal keys, and binding declarations are NOT references.
-fn collect_read_identifiers_in_statement(stmt: &Statement, out: &mut Vec<String>) {
-    use oxc_ast_visit::Visit;
-    struct IdentCollector<'o> {
-        out: &'o mut Vec<String>,
-    }
-    impl<'a, 'o> oxc_ast_visit::Visit<'a> for IdentCollector<'o> {
-        fn visit_identifier_reference(&mut self, it: &oxc_ast::ast::IdentifierReference<'a>) {
-            let name = it.name.to_string();
-            if !self.out.contains(&name) {
-                self.out.push(name);
-            }
-        }
-    }
-    let mut c = IdentCollector { out };
-    c.visit_statement(stmt);
 }
 
 /// Lower a legacy `VariableDeclaration`. `is_export` marks `export let …`

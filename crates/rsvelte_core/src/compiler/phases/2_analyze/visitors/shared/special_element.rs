@@ -46,6 +46,32 @@ pub fn validate_special_element_placement(
     Ok(())
 }
 
+/// Reject every attribute `<svelte:window>` / `<svelte:document>` / `<svelte:body>`
+/// cannot carry, in one pass over the whole list.
+///
+/// Upstream runs this loop to completion before `context.next()` reaches any
+/// individual directive, so "this element takes no arbitrary attributes" always
+/// wins over "this `bind:` has no valid target".
+pub fn reject_illegal_attributes(
+    attributes: &[crate::ast::template::Attribute],
+    error: impl Fn(u32, u32) -> AnalysisError,
+) -> Result<(), AnalysisError> {
+    for attr in attributes {
+        match attr {
+            crate::ast::template::Attribute::SpreadAttribute(spread) => {
+                return Err(error(spread.start, spread.end));
+            }
+            crate::ast::template::Attribute::Attribute(a)
+                if !super::utils::is_event_attribute(a) =>
+            {
+                return Err(error(a.start, a.end));
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
 /// Disallow children for specific special elements.
 ///
 /// Corresponds to `disallow_children` in special-element.js.

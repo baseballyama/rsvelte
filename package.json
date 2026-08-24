@@ -99,6 +99,8 @@
 		"corpus:parse-ast": "node scripts/compat-corpus/parse-ast-verify.mjs",
 		"corpus:parse-ast:update": "node scripts/compat-corpus/parse-ast-verify.mjs --update-baseline",
 		"corpus:matrix": "node scripts/compat-corpus/matrix/run.mjs",
+		"corpus:parse-ast": "node scripts/compat-corpus/parse-ast-verify.mjs",
+		"corpus:parse-ast:update": "node scripts/compat-corpus/parse-ast-verify.mjs --update-baseline",
 		"corpus:matrix:update": "node scripts/compat-corpus/matrix/run.mjs --update-baseline",
 		"corpus:idempotency": "RSVELTE_ASSERT_TRANSFORM_IDEMPOTENT=1 node scripts/compat-corpus/idempotency-verify.mjs",
 		"corpus:mutate": "node scripts/compat-corpus/mutate-corpus.mjs",
