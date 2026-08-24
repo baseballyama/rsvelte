@@ -4,14 +4,15 @@ Ratchet for `scripts/compat-corpus/mutate-corpus.mjs` (#2281 Gate 3). Shrink-onl
 under `--full` (a sampled run cannot prove an entry is stale, so it checks regressions only).
 Re-baseline with `pnpm run corpus:mutate:update`.
 
-**Every current number below was measured under oxfmt 0.63.0.** The code/comment split is *defined* by
+**Every current number below was measured under oxfmt 0.64.0.** The code/comment split is *defined* by
 what the normalizer absorbs, so these verdicts are only comparable across runs on the same
 version — which is why the gate prints the version it used. Re-deriving this baseline from
 0.61.0 to 0.62.0 moved the gated bucket from 213 to 525; see "Sensitivity to the normalizer".
 The bucket was burned down from 525 to **30**, and `unparseable` from 2 to **0**, on the
 14,229-seed corpus. The wave-2 enrolment (#3130) took the seed set to 33,406 and the ratchet to
-**168** — `code-mismatch` 160 and `unparseable` **8**. Those are not a regression: every one of
-the new entries is a pre-existing defect in a repository the corpus did not previously hold,
+**168** — `code-mismatch` 160 and `unparseable` **8**. Subsequent fixes reduced that ratchet to
+**165** — `code-mismatch` 159 and `unparseable` **6**. The enrolled entries were not regressions:
+every one is a pre-existing defect in a repository the corpus did not previously hold,
 and the 30 that predate the enrolment all still diverge.
 
 **Six of those entries arrived from shrinking a different ratchet, and that coupling is worth
@@ -67,7 +68,7 @@ whitespace and trailing commas away:
 | `comment-mismatch` | **no** | the comment was dropped, duplicated or relocated, or a line broke differently |
 
 The split is the difference between a gate and a backlog dump. The full sweep produces
-many comment-only divergences (**41,802** on the current sweep) against **168** gated ones — ratcheting per id without the
+many comment-only divergences (**35,992** on the current sweep) against **165** gated ones — ratcheting per id without the
 split would mean a 13,000-entry file that churns on every submodule bump and buries the class
 that matters. Comment fidelity is already ratcheted per id by Gate 2
 (`matrix-known-failures.md`), on **generated** seeds that do not move when a submodule bumps,
@@ -85,41 +86,40 @@ re-measured under 0.62, so it is in for honest reporting rather than to change a
 the gate prints must be the reason for the verdict, and before this a reviewer could see
 `import 'x'` vs `import "x"` and dismiss a real finding sitting further down the same file.
 
-## Mutation known failures (`mutation-known-failures.json`, 167 entries)
+## Mutation known failures (`mutation-known-failures.json`, 165 entries)
 
-Full sweep: 34,007 manifest entries, 601 already-diverging unmutated (excluded), **33,406
-eligible seeds** → 30,254 mutants → 121,016 comparisons, under oxfmt 0.63.0. 3,152 seeds are
+Full sweep: 34,072 manifest entries, 585 already-diverging unmutated (excluded), **33,487
+eligible seeds** → 30,323 mutants → 121,292 comparisons, under oxfmt 0.64.0. 3,164 seeds are
 skipped (no mutable `<script>` line boundary).
 
-The `mutation-known-failures.provenance.json` file records 62 entries, one SHA-256 seed-content
+The `mutation-known-failures.provenance.json` file records 61 entries, one SHA-256 seed-content
 hash for each source represented by the failure ratchet. A full sweep reports a changed
 hash as re-keyed instead of claiming that the old mutation now passes.
 
 | verdict | entries |
 |---|---|
 | `code-mismatch` | 159 |
-| `unparseable` | **8** |
+| `unparseable` | **6** |
 | `compiler-crash` | 0 |
 | `error-mismatch` | 0 |
 
-By target: `client` 60, `client-dev` 55, `server` 26, `server-dev` 26.
+By target: `client` 59, `client-dev` 54, `server` 26, `server-dev` 26.
 
-### `unparseable` went back to 8 with the enrolment, and that is the entry to burn down first
+### `unparseable` went back to 6 with the enrolment, and that is the entry to burn down first
 
-The eight are four units × two targets, and they are **not** a re-opening of #2546 (below): that
-cluster was `const h;` from one rewrite, and each of these is a different scan. All four are one
+The six are three units × two targets, and they are **not** a re-opening of #2546 (below): that
+cluster was `const h;` from one rewrite, and each of these is a different scan. All three are one
 family — a `//` comment that ends up on the same line as the code that followed it, so the rest
 of the line is swallowed:
 
 | unit | target | acorn | what got eaten |
 |---|---|---|---|
-| `cobalt/web/src/routes/about/[page]/+page` | `client`, `client-dev` | `Unexpected token (16:27)` | `() => // svelte-ignore … data().component` — the arrow body |
 | `huly/…/create-doc/steps/TemplateStep` | `client`, `client-dev` | `Unexpected token (66:2)` | `// svelte-ignore ….then((res) => {` — a chained `.then` |
 | `ha-fusion/src/lib/Sidebar/History` | `client`, `client-dev` | `Unexpected token (130:4)` | `// } c.catch((error) => {` — a chained `.catch` |
 | `svelte-put/packages/toc/src/toc.svelte.js` | `server`, `server-dev` | `Unexpected token (13:6)` | a class field split into `id =;` and its initializer — the `.svelte.(js\|ts)` path `AGENTS.md` records as unaudited |
 
-Three of the four put a comment where a **continuation** was expected, which is the same
-"where does this construct end" question as #2253, one line lower. The fourth is a different
+Two of the three put a comment where a **continuation** was expected, which is the same
+"where does this construct end" question as #2253, one line lower. The third is a different
 pipeline. `unparseable` is listed here rather than fixed only because the enrolment PR's job was
 to enrol; the rule that a compiler may never emit non-JavaScript has not been relaxed.
 
@@ -146,25 +146,25 @@ operator inserts comments and only comments. See `gate-coverage.md` row 20a.
 ### The delimiter is one mechanism, no longer the dominant one
 
 Each comment kind is chosen with equal probability, so the per-kind mutant counts are uniform
-(1,460–1,556) and the rates are directly comparable. The gate prints this table itself, so it
+(3,730–3,861) and the rates are directly comparable. The gate prints this table itself, so it
 cannot drift from the ratchet it describes:
 
 | comment kind | findings | mutants | per 1,000 |
 |---|---|---|---|
-| `block-with-paren` (`/* ) c */`) | 30 | 3,746 | 8.0 |
-| `line-with-semi` (`// ; c`) | 29 | 3,815 | 7.6 |
-| `line-with-brace` (`// } c`) | 25 | 3,853 | 6.5 |
-| `line-with-paren` (`// ) c`) | 24 | 3,820 | 6.3 |
-| `line` (`// c`) | 20 | 3,772 | 5.3 |
-| `block` (`/* c */`) | 18 | 3,719 | 4.8 |
-| `svelte-ignore` | 14 | 3,762 | 3.7 |
-| `block-with-brace` (`/* } c */`) | 8 | 3,767 | 2.1 |
+| `block-with-paren` (`/* ) c */`) | 30 | 3,754 | 8.0 |
+| `line-with-semi` (`// ; c`) | 29 | 3,822 | 7.6 |
+| `line-with-brace` (`// } c`) | 24 | 3,861 | 6.2 |
+| `line-with-paren` (`// ) c`) | 24 | 3,829 | 6.3 |
+| `line` (`// c`) | 20 | 3,780 | 5.3 |
+| `block` (`/* c */`) | 18 | 3,730 | 4.8 |
+| `svelte-ignore` | 12 | 3,773 | 3.2 |
+| `block-with-brace` (`/* } c */`) | 8 | 3,774 | 2.1 |
 
-**Delimiter-carrying kinds: 5.7 per 1,000. Plain comments: 5.1. Ratio 1.13×.**
+**Delimiter-carrying kinds: 5.6 per 1,000. Plain comments: 5.1. Ratio 1.10×.**
 
 The ratio has been measured at 2.81× (oxfmt 0.61), 1.30× (0.62), 1.66× (0.62, after the
 invalid-JS burndown), 1.38× after the inspect empty-statement fix, **0.92×** on the enrolled
-corpus, and **1.13×** after the rebase onto `main` — which moved it back across 1.0 with no
+corpus, **1.13×** after the rebase onto `main`, and **1.10×** after the latest fixes — the rebase moved it back across 1.0 with no
 change to this gate at all, only to which seeds are eligible and which divergences `main`
 had already fixed. That is the sharpest available demonstration of the next sentence. It is not a stable property of the compiler: the earlier moves were the normalizer
 changing what it absorbs and delimiter-signature fixes removing findings from the numerator by
@@ -174,9 +174,9 @@ value, and this is the first one that would have supported the opposite conclusi
 
 **The claim this table used to carry is now falsified, and by a change of inputs alone.** At
 14,229 seeds the two plain kinds were at 0 findings each, and the doc concluded that "every
-surviving code divergence in this bucket involves a delimiter-carrying comment". On 33,406
-seeds `line` is at 20 and `svelte-ignore` at 14 — and `svelte-ignore` carries no delimiter at
-all yet accounts for two of the four `unparseable` units. A plain comment that lands on a line
+surviving code divergence in this bucket involves a delimiter-carrying comment". On 33,487
+seeds `line` is at 20 and `svelte-ignore` at 12 — and `svelte-ignore` carries no delimiter at
+all yet accounts for one of the three `unparseable` units. A plain comment that lands on a line
 where a *continuation* was expected breaks the same scans a delimiter does; the delimiter was
 never the mechanism, only the cheapest way to reach it.
 
@@ -221,10 +221,10 @@ reappearing on new seeds is evidence about *coverage*, not about the fix.
 
 `huly` 88, `carbon-components-svelte` 18, `open-webui` 16, `svelte` 7, `flowbite-svelte` 4,
 `layerchart` 4, `networking-toolbox` 4, `powertable` 4, `svelte-lexical` 4, `svelte-spa-router` 4,
-`cnblocks` 2, `cobalt` 2, `ha-fusion` 2, `runed` 2, `svelte-put` 2, `threlte` 2, `trakt-web` 2,
+`cnblocks` 2, `ha-fusion` 2, `runed` 2, `svelte-put` 2, `threlte` 2, `trakt-web` 2,
 `svelte.dev` 1.
 
-**`huly` alone is 52% of the ratchet**, on a corpus where it is one repository of 103. That is
+**`huly` alone is 53% of the ratchet**, on a corpus where it is one repository of 103. That is
 the concentration the old six-repository list could not show, and it is worth reading as a
 statement about the *seed distribution* rather than about huly: it is a large Svelte-4-era
 application, so it carries far more of the legacy `$:` / chained-promise shapes these scans

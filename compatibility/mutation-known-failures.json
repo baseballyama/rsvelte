@@ -19,8 +19,6 @@
 	"carbon-components-svelte/src/icons/Switcher__m0__block-with-paren.svelte [code-mismatch] (client-dev)",
 	"cnblocks/src/lib/svgs/vercel__m0__line-with-paren.svelte [code-mismatch] (client)",
 	"cnblocks/src/lib/svgs/vercel__m0__line-with-paren.svelte [code-mismatch] (client-dev)",
-	"cobalt/web/src/routes/about/[page]/+page__m0__svelte-ignore.svelte [unparseable] (client)",
-	"cobalt/web/src/routes/about/[page]/+page__m0__svelte-ignore.svelte [unparseable] (client-dev)",
 	"flowbite-svelte/src/routes/blocks/utils/ExampleWrapper__m0__block-with-paren.svelte [code-mismatch] (client)",
 	"flowbite-svelte/src/routes/blocks/utils/ExampleWrapper__m0__block-with-paren.svelte [code-mismatch] (client-dev)",
 	"flowbite-svelte/src/routes/blocks/utils/ExampleWrapper__m0__block-with-paren.svelte [code-mismatch] (server)",

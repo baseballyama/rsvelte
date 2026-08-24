@@ -9,7 +9,6 @@
 	"carbon-components-svelte/src/icons/LowSeverity.svelte": "de4fd3b81959c4e77e3836d0dbf2d4fd84300e24d0bc6b299569d99bd4945de6",
 	"carbon-components-svelte/src/icons/Switcher.svelte": "6adcf013f3a1fe78558cb5cfbed2fc6d380b5c2c20eb287a39538b4af41d6f37",
 	"cnblocks/src/lib/svgs/vercel.svelte": "178cd7b0cc3260b2949f2ef0678a5b4846c4f022fb0e23a68ba7aa1fdb670ccb",
-	"cobalt/web/src/routes/about/[page]/+page.svelte": "0b0717c7a5b1c8d414f7e0de06f554c88e00a9a30d4a57b0b50584053044b588",
 	"flowbite-svelte/src/routes/blocks/utils/ExampleWrapper.svelte": "13b0a86569d5ccd18bc5bdfe91792e9736109b9a42c072dfcf03b3576ec8d642",
 	"ha-fusion/src/lib/Sidebar/History.svelte": "901680135b9c9e7d95f2fa8f9cc2d0849b9aa9a9da0ac3c865ebf12bf508b4d3",
 	"huly/packages/presentation/src/components/AttributeBarEditor.svelte": "48212bf51161c3380cd442be1822eb8c2689c0f3e69ff550903bd66cc82319a3",
