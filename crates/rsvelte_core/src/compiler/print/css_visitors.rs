@@ -68,10 +68,21 @@ fn visit_atrule(context: &mut Context, node: &Value) {
                 && s < e
                 && e <= source.len()
             {
-                // Extract and reformat the @font-face block from source
-                let raw = &source[s..e];
-                let reformatted = reformat_font_face(raw);
-                context.write(&reformatted);
+                // The CSS parser reads `@font-face` declarations as selectors, so its
+                // block is recovered from the source rather than from the AST.
+                let declarations = font_face_declarations(&source[s..e]);
+                context.write("@font-face {");
+                context.indent();
+                for declaration in &declarations {
+                    context.newline();
+                    context.write(declaration);
+                    context.write(";");
+                }
+                context.dedent();
+                if !declarations.is_empty() {
+                    context.newline();
+                }
+                context.write("}");
                 return;
             }
         }
@@ -99,39 +110,22 @@ fn visit_atrule(context: &mut Context, node: &Value) {
     }
 }
 
-/// Reformat a @font-face block from raw source text.
-fn reformat_font_face(raw: &str) -> String {
-    // Parse the raw text: @font-face { declarations }
-    let mut result = String::from("@font-face {");
+/// Recover the declarations of a `@font-face` block from its raw source text.
+fn font_face_declarations(raw: &str) -> Vec<String> {
+    let Some(brace) = raw.find('{') else {
+        return Vec::new();
+    };
+    let inner = &raw[brace + 1..];
+    let Some(close) = inner.rfind('}') else {
+        return Vec::new();
+    };
 
-    // Find the opening brace
-    if let Some(brace_pos) = raw.find('{') {
-        let inner = &raw[brace_pos + 1..];
-        // Find the closing brace
-        if let Some(close_pos) = inner.rfind('}') {
-            let declarations_text = inner[..close_pos].trim();
-
-            if !declarations_text.is_empty() {
-                // Split by semicolons to get declarations
-                for decl in declarations_text.split(';') {
-                    let decl = decl.trim();
-                    if !decl.is_empty() {
-                        result.push_str("\n\t");
-                        result.push_str(decl);
-                        result.push(';');
-                    }
-                }
-            }
-
-            result.push_str("\n}");
-        } else {
-            result.push('}');
-        }
-    } else {
-        result.push('}');
-    }
-
-    result
+    inner[..close]
+        .split(';')
+        .map(str::trim)
+        .filter(|declaration| !declaration.is_empty())
+        .map(str::to_string)
+        .collect()
 }
 
 /// Re-escape a CSS identifier so that it prints as valid CSS.

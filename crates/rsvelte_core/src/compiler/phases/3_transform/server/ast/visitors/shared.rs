@@ -378,7 +378,7 @@ fn process_children_scoped<'a, N: AsRef<TemplateNode<'a>>>(
                     let stmt = build_async_expression_push(state, visited, &[], true);
                     state.template.push(TemplateEntry::Stmt(stmt));
                 } else {
-                    sequence.push(SeqNode::Expr(&tag.expression, (tag.start + 1, tag.end - 1)));
+                    sequence.push(SeqNode::Expr(&tag.expression, tag.start, tag.end));
                 }
             }
             other => {
@@ -647,10 +647,8 @@ fn expression_tag_const_blockers(expr: &Expression, state: &ServerTransformState
 enum SeqNode<'n> {
     Text(&'n str),
     Comment(&'n str),
-    /// The expression plus the `{ … }` region it was written in, so a comment
-    /// interior to that region can be placed (or carried forward when the
-    /// expression folds away).
-    Expr(&'n Expression<'n>, (u32, u32)),
+    /// The tag's expression, with the `{ … }` span comments can live in.
+    Expr(&'n Expression<'n>, u32, u32),
 }
 
 /// Whether `src` is a single bare JS identifier (`foo`, `$bar`, `_x9`) — used to
@@ -718,7 +716,8 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                 let last = quasis.last_mut().unwrap();
                 let _ = write!(last, "<!--{data}-->");
             }
-            SeqNode::Expr(expr, region) => {
+            SeqNode::Expr(expr, tag_start, tag_end) => {
+                let (tag_start, tag_end) = (*tag_start, *tag_end);
                 // A `let:`-scoped SLOT variable read (`<Nested let:count>{count}
                 // </Nested>`) must NOT constant-fold to the same-named COMPONENT
                 // binding's value (`let count = 42`). Upstream resolves `count` to
@@ -740,13 +739,12 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                     && !state.nearest_declaration_is_template_const(src.trim())
                 {
                     let mut visited = state.visit_expr(expr);
-                    if let (Some(start), Some(end)) = (expr.start(), expr.end()) {
-                        state.place_template_expression_comments(
-                            *region,
-                            (start, end),
-                            &mut visited,
-                        );
-                    }
+                    state.place_template_expression_comments(
+                        tag_start,
+                        tag_end,
+                        expr,
+                        &mut visited,
+                    );
                     let escaped = state.b.call("$.escape", vec![visited]);
                     exprs.push(escaped);
                     quasis.push(String::new());
@@ -777,7 +775,7 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                         let last = quasis.last_mut().unwrap();
                         last.push_str(&escape_html(&rendered));
                     }
-                    state.defer_template_expression_comments(*region);
+                    state.carry_template_expression_comments(tag_start, tag_end);
                     continue;
                 }
                 // SSR constant-folding (`scope.evaluate`): upstream's
@@ -795,7 +793,7 @@ fn flush_sequence<'a>(sequence: &[SeqNode<'_>], state: &mut ServerTransformState
                         let last = quasis.last_mut().unwrap();
                         last.push_str(&escape_html(&content));
                     }
-                    state.defer_template_expression_comments(*region);
+                    state.carry_template_expression_comments(tag_start, tag_end);
                     continue;
                 }
 

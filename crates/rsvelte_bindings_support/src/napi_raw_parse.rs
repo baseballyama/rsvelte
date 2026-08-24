@@ -69,7 +69,7 @@ pub const MAGIC: u32 = 0x3156_5052; // "RPV1" little-endian
 // reorder, `typeParameters` on function-like nodes, Identifier `optional`);
 // v4 adds the object-method `typeParameters`-after-`body` flag byte.
 // Keep in lockstep with `parse-envelope.js`'s `VERSION`.
-pub const VERSION: u32 = 4;
+pub const VERSION: u32 = 5;
 pub const HEADER_LEN: usize = 24;
 
 // Header `flags` word (offset 20):
@@ -1101,6 +1101,9 @@ fn write_js_comment<W: Writer>(w: &mut W, c: &JsComment) {
     };
     write_u8(w, kind);
     write_str(w, c.value.as_str());
+    // Only an in-tag comment's `loc` carries `character`; a script comment's
+    // comes from the JS parser, which does not produce one.
+    write_u8(w, u8::from(c.loc_has_character));
     write_source_location(w, &c.loc);
 }
 
