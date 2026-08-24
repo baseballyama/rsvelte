@@ -1233,6 +1233,11 @@ jobs:
 
       - name: Run compatibility report workflow tests
         run: node scripts/ci/test-compatibility-report-workflow.mjs
+
+      # The Corpus Compat job filter can skip a gate, and a skipped gate reads as
+      # a passing one — so its controls belong with the other trigger guards.
+      - name: Run corpus-compat job filter tests
+        run: node scripts/ci/test-corpus-compat-job-filter.mjs
   prereq-coverage-guard:
     name: Prerequisite coverage guard
     runs-on: ubuntu-latest

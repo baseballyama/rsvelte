@@ -170,7 +170,7 @@
 		"oxfmt": "^0.63.0",
 		"prettier": "^3.9.4",
 		"prettier-plugin-svelte": "^4.1.0",
-		"sass": "1.102.0",
+		"sass": "1.103.1",
 		"svelte": "^5.56.9",
 		"svelte-preprocess-markdown": "^2.7.3"
 	},
