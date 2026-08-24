@@ -300,6 +300,106 @@ fn record_selector_comment_error(
 // ============================================================================
 
 impl<'a> Parser<'a> {
+    /// Advance `self.index` to the `</style` that closes the current block,
+    /// mirroring the CSS tokenisation upstream's readers perform: a `</style`
+    /// inside a CSS string, a `/* */` or `<!-- -->` comment, or an unquoted
+    /// `url(...)` is content, not a closing tag.
+    ///
+    /// Returns the first `<` that could not start a closing tag (used for the
+    /// `css_expected_identifier` diagnostic) and whether the scan ran out of
+    /// input inside a `url(`.
+    ///
+    /// `tokenise` is off for a non-CSS `lang` block in lenient (lint) mode: a
+    /// SCSS `// don't` would otherwise open a string that never closes.
+    fn scan_to_style_close(&mut self, tokenise: bool) -> (Option<usize>, bool) {
+        let content_start = self.index;
+        let bytes = self.bytes;
+        let len = bytes.len();
+        let mut first_invalid_lt: Option<usize> = None;
+        let mut quote: Option<u8> = None;
+        let mut in_url = false;
+        let mut escaped = false;
+        // Upstream tests `</style` only between rules, so a `<` inside a block or
+        // a parenthesised value is CSS text: `.a { color: red; </style> }` is a
+        // `css_empty_declaration` and `calc(</style>)` a declaration value.
+        let mut brace_depth = 0usize;
+        let mut paren_depth = 0usize;
+        let mut i = self.index;
+
+        if !tokenise {
+            while let Some(offset) = memchr::memchr(b'<', &bytes[i..]) {
+                i += offset;
+                self.index = i;
+                if self.is_valid_closing_tag("</style") {
+                    return (first_invalid_lt, false);
+                }
+                if first_invalid_lt.is_none() {
+                    first_invalid_lt = Some(i);
+                }
+                i += 1;
+            }
+            self.index = len;
+            return (first_invalid_lt, false);
+        }
+
+        while i < len {
+            let ch = bytes[i];
+            // Mirrors the branch order of upstream's `read_value`.
+            if escaped {
+                escaped = false;
+            } else if ch == b'\\' {
+                escaped = true;
+            } else if Some(ch) == quote {
+                quote = None;
+            } else if ch == b')' {
+                in_url = false;
+                if quote.is_none() {
+                    paren_depth = paren_depth.saturating_sub(1);
+                }
+            } else if quote.is_none() && (ch == b'"' || ch == b'\'') {
+                quote = Some(ch);
+            } else if ch == b'(' && i >= content_start + 3 && &bytes[i - 3..i] == b"url" {
+                in_url = true;
+                paren_depth += 1;
+            } else if quote.is_none() && !in_url {
+                if ch == b'(' {
+                    paren_depth += 1;
+                } else if ch == b'{' {
+                    brace_depth += 1;
+                } else if ch == b'}' {
+                    brace_depth = brace_depth.saturating_sub(1);
+                } else if ch == b'/' && bytes.get(i + 1) == Some(&b'*') {
+                    // An unterminated comment keeps the old behaviour: fall
+                    // through so the CSS parse reports it.
+                    if let Some(off) = memchr::memmem::find(&bytes[i + 2..], b"*/") {
+                        i += 2 + off + 2;
+                        continue;
+                    }
+                } else if ch == b'<' {
+                    if bytes[i..].starts_with(b"<!--")
+                        && let Some(off) = memchr::memmem::find(&bytes[i + 4..], b"-->")
+                    {
+                        i += 4 + off + 3;
+                        continue;
+                    }
+                    if brace_depth == 0 && paren_depth == 0 {
+                        self.index = i;
+                        if self.is_valid_closing_tag("</style") {
+                            return (first_invalid_lt, false);
+                        }
+                        if first_invalid_lt.is_none() {
+                            first_invalid_lt = Some(i);
+                        }
+                    }
+                }
+            }
+            i += 1;
+        }
+
+        self.index = len;
+        (first_invalid_lt, in_url)
+    }
+
     /// Parse a `<style>` tag and store it in stylesheet.
     pub fn parse_style_tag(
         &mut self,
@@ -359,26 +459,12 @@ impl<'a> Parser<'a> {
 
         let content_start = self.index;
 
-        // Use SIMD-accelerated search for </style and check for invalid '<' along the way
-        let mut first_invalid_lt: Option<usize> = None;
-        loop {
-            // Search for next '<' using memchr
-            if let Some(offset) = memchr::memchr(b'<', &self.bytes[self.index..]) {
-                let lt_pos = self.index + offset;
-                self.index = lt_pos;
-                if self.is_valid_closing_tag("</style") {
-                    break;
-                }
-                // Track first invalid '<' that is not part of </style
-                if first_invalid_lt.is_none() {
-                    first_invalid_lt = Some(lt_pos);
-                }
-                self.index = lt_pos + 1;
-            } else {
-                self.index = self.bytes.len();
-                break;
-            }
-        }
+        // Upstream never scans the block as raw text: `read_body` only tests
+        // `parser.match('</style')` at a rule boundary, so a `</style` inside a
+        // CSS string, comment or `url()` is swallowed by `read_value` /
+        // `read_comment` / `allow_comment_or_whitespace`. Mirror that
+        // tokenisation instead of a plain byte search.
+        let (first_invalid_lt, unterminated_url) = self.scan_to_style_close(!lenient_non_css);
 
         let content_end = self.index;
         let style_content = &self.source[content_start..content_end];
@@ -431,7 +517,7 @@ impl<'a> Parser<'a> {
                 }
                 i += 1;
             }
-            if in_string {
+            if in_string || unterminated_url {
                 // Upstream's CSS reader always reports EOF at `parser.template.length`,
                 // and its template is the source with trailing whitespace trimmed.
                 return Err(crate::error::ParseError::svelte(
@@ -442,14 +528,17 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // Consume </style followed by optional whitespace and >
         if self.match_str("</style") {
             self.advance_by(7); // consume '</style'
-            // Skip whitespace before >
-            while !self.is_eof() && self.current_char() != '>' {
+            // Upstream reads `/\s*>/y`, so the run is consumed only when a `>`
+            // really follows: `</style x>` leaves ` x>` as template text.
+            let after_name = self.index;
+            while !self.is_eof() && is_js_whitespace(self.current_char()) {
                 self.advance();
             }
-            self.eat_optional(">"); // consume '>'
+            if !self.eat_optional(">") {
+                self.index = after_name;
+            }
         } else if self.is_eof() {
             // Style tag was not closed - check if there was invalid '<' in content
             if let Some(lt_pos) = first_invalid_lt {
@@ -459,11 +548,11 @@ impl<'a> Parser<'a> {
                     (lt_pos, lt_pos),
                 ));
             }
-            // Style tag was not closed
-            return Err(crate::error::ParseError::svelte(
-                "expected_token",
-                "Expected token </style",
-                (self.index, self.index),
+            // Style tag was not closed. Upstream's `eat('</style', true)` runs
+            // against the right-trimmed template, so the point is its end.
+            return Err(crate::error::ParseError::expected_token(
+                "</style",
+                self.content_end,
             ));
         }
 
@@ -748,6 +837,7 @@ impl<'a> CssParser<'a> {
             if self.is_eof() || self.current_char() == '}' {
                 break;
             }
+            let index_before = self.index;
 
             // Skip comments so they don't get folded into the next child's
             // span (they're preserved via source gap copying in the printer).
@@ -774,6 +864,11 @@ impl<'a> CssParser<'a> {
                 children.push(decl);
             } else {
                 // Couldn't make progress — bail to avoid infinite loop.
+                self.advance();
+            }
+            // `parse_rule` consumes nothing when the selector is empty (a block
+            // item starting at `{`), which upstream rejects outright.
+            if self.index == index_before {
                 self.advance();
             }
             self.skip_whitespace();
@@ -1524,8 +1619,13 @@ impl<'a> CssParser<'a> {
             // Check if this looks like a nested rule (selector followed by {)
             // Look ahead to see if { comes before : or ;
             if self.is_nested_rule() {
+                let index_before = self.index;
                 if let Some(rule) = self.parse_rule() {
                     declarations.push(rule);
+                } else if self.index == index_before {
+                    // Empty selector (`{` at a block-item position): `parse_rule`
+                    // records the error and consumes nothing.
+                    self.advance();
                 }
                 self.skip_whitespace();
                 continue;
@@ -1961,54 +2061,172 @@ impl<'a> CssParser<'a> {
         }
     }
 
-    /// Read a CSS identifier, handling CSS escape sequences.
+    /// Read a CSS identifier, decoding CSS escape sequences.
     fn read_identifier(&mut self) -> String {
-        let start = self.index;
+        read_css_identifier(self.source, &mut self.index)
+    }
+}
 
-        while !self.is_eof() {
-            let c = self.current_char();
+/// Put `nth` at the head of the first complex selector in `list` and stretch
+/// that selector's span back to `nth_start`, where the `<an+b>` token began.
+///
+/// Returns `false` when the list has no complex selector to attach to, so the
+/// caller can fall back to synthesizing one.
+fn prepend_nth(list: &mut Value, nth: Value, nth_start: usize) -> bool {
+    let start = Value::Number((nth_start as i64).into());
 
-            if c == '\\' {
-                // CSS escape sequence
-                self.advance(); // consume '\'
+    let Some(list_obj) = list.as_object_mut() else {
+        return false;
+    };
+    let Some(complex) = list_obj
+        .get_mut("children")
+        .and_then(Value::as_array_mut)
+        .and_then(|children| children.first_mut())
+        .and_then(Value::as_object_mut)
+    else {
+        return false;
+    };
+    let Some(relative) = complex
+        .get_mut("children")
+        .and_then(Value::as_array_mut)
+        .and_then(|children| children.first_mut())
+        .and_then(Value::as_object_mut)
+    else {
+        return false;
+    };
+    let Some(selectors) = relative.get_mut("selectors").and_then(Value::as_array_mut) else {
+        return false;
+    };
 
-                if self.is_eof() {
-                    break;
-                }
+    selectors.insert(0, nth);
+    relative.insert("start".to_string(), start.clone());
+    complex.insert("start".to_string(), start.clone());
+    list_obj.insert("start".to_string(), start);
+    true
+}
 
-                let next = self.current_char();
+/// Find the `of` separator inside an `nth-*` argument, mirroring the tail of
+/// upstream's `REGEX_NTH_OF`: `\s+of(\s+|(?=[.#[*:&]))`.
+///
+/// Returns the byte offset in `arg` where the `Nth` value ends and the `of`
+/// selector begins — the same position for both, since upstream's greedy `\s+`
+/// puts any whitespace after `of` inside the value.
+///
+/// `of` must be *preceded* by whitespace, or it would be part of the `<an+b>`
+/// dimension token (`2nof` is a single token). It does not need to be
+/// *followed* by whitespace: a `.`, `#`, `[`, `*`, `:` or `&` already ends the
+/// identifier, and minifiers rely on that to drop the space.
+fn find_nth_of(arg: &str) -> Option<usize> {
+    let bytes = arg.as_bytes();
+    let mut i = 0;
 
-                if next.is_ascii_hexdigit() {
-                    // Read 1-6 hex digits
-                    let mut hex_count = 0;
-                    while !self.is_eof() && hex_count < 6 {
-                        let hc = self.current_char();
-                        if !hc.is_ascii_hexdigit() {
-                            break;
-                        }
-                        self.advance();
-                        hex_count += 1;
-                    }
-                    // After hex digits, optionally consume one whitespace
-                    if !self.is_eof() {
-                        let after = self.current_char();
-                        if after == ' ' || after == '\t' || after == '\n' || after == '\r' {
-                            self.advance();
-                        }
-                    }
-                } else {
-                    // Escape of a single non-hex character
-                    self.advance();
-                }
-            } else if c.is_alphanumeric() || c == '-' || c == '_' {
-                self.advance();
-            } else {
-                break;
+    while let Some(rel) = memmem::find(&bytes[i..], b"of") {
+        let at = i + rel;
+
+        if at > 0 && bytes[at - 1].is_ascii_whitespace() {
+            let after = at + 2;
+            let rest = &arg[after..];
+            let ws_len = rest.len() - rest.trim_start_ws().len();
+
+            if ws_len > 0 {
+                return Some(after + ws_len);
+            }
+            if matches!(
+                bytes.get(after),
+                Some(b'.' | b'#' | b'[' | b'*' | b':' | b'&')
+            ) {
+                return Some(after);
             }
         }
 
-        self.source[start..self.index].to_string()
+        i = at + 2;
     }
+
+    None
+}
+
+/// Read a CSS identifier starting at `*index` in `source`, decoding escape
+/// sequences exactly the way the official `read_identifier` does.
+///
+/// The AST stores the *decoded* name — `\31 23` is the identifier `123` — and
+/// the printer re-escapes it on the way out (`escape_identifier`). Returning the
+/// raw source slice instead would double-escape every name that contains an
+/// escape sequence.
+///
+/// Two cases, mirroring upstream's `REGEX_UNICODE_SEQUENCE`:
+/// - `\` + 1-6 hex digits + an optional `\r\n` or single whitespace character
+///   decodes to that code point. A decoded backslash is re-emitted as `\\` so
+///   that the name still says "one literal backslash" rather than starting a
+///   fresh escape.
+/// - `\` + any other single character is kept verbatim (`\.` stays `\.`).
+fn read_css_identifier(source: &str, index: &mut usize) -> String {
+    let mut identifier = String::new();
+
+    while *index < source.len() {
+        let rest = &source[*index..];
+        let Some(c) = rest.chars().next() else { break };
+
+        if c == '\\' {
+            let after = &rest[1..];
+            // Hex digits are ASCII, so the char count is also the byte length.
+            let hex_len = after
+                .chars()
+                .take(6)
+                .take_while(char::is_ascii_hexdigit)
+                .count();
+
+            if hex_len > 0 {
+                let code = u32::from_str_radix(&after[..hex_len], 16).unwrap_or(0);
+                let mut consumed = 1 + hex_len;
+
+                // One optional whitespace terminator, with `\r\n` counting as one.
+                let tail = &after[hex_len..];
+                if tail.starts_with("\r\n") {
+                    consumed += 2;
+                } else if let Some(w) = tail.chars().next()
+                    && w.is_whitespace()
+                {
+                    consumed += w.len_utf8();
+                }
+
+                match char::from_u32(code) {
+                    Some('\\') => identifier.push_str("\\\\"),
+                    Some(ch) => identifier.push(ch),
+                    // Surrogates and out-of-range code points are not characters;
+                    // CSS replaces them with U+FFFD.
+                    None => identifier.push('\u{FFFD}'),
+                }
+
+                *index += consumed;
+                continue;
+            }
+
+            match after.chars().next() {
+                Some(n) => {
+                    identifier.push('\\');
+                    identifier.push(n);
+                    *index += 1 + n.len_utf8();
+                }
+                None => {
+                    // Trailing backslash at EOF — keep it; the printer escapes it.
+                    identifier.push('\\');
+                    *index += 1;
+                }
+            }
+            continue;
+        }
+
+        // Upstream's valid-character set: `[a-zA-Z0-9_-]` plus every code point
+        // >= 160 (CSS treats those as identifier characters, e.g. `×`).
+        if (c as u32) >= 160 || c.is_ascii_alphanumeric() || c == '_' || c == '-' {
+            identifier.push(c);
+            *index += c.len_utf8();
+        } else {
+            break;
+        }
+    }
+
+    identifier
 }
 
 // ============================================================================
@@ -2112,13 +2330,22 @@ impl<'a> SelectorParser<'a> {
                 // Universal selector
                 let start = self.offset + self.index;
                 self.advance();
-                // `*|el` — `*` is the namespace, so the local name wins.
+                // `*|el` / `*|*` — `*` is the namespace and is kept, so the
+                // printer can put it back and the scoping pass can tell a bare
+                // `*` (which it rewrites in place) from a namespaced one.
                 let mut name = "*".to_string();
+                let mut namespace: Option<String> = None;
                 if self.current_char() == '|' {
                     self.advance();
-                    match self.read_namespaced_local_name() {
-                        Some(local) => name = local,
-                        None => break,
+                    namespace = Some(name);
+                    if self.current_char() == '*' {
+                        self.advance();
+                        name = "*".to_string();
+                    } else {
+                        match self.read_namespaced_local_name() {
+                            Some(local) => name = local,
+                            None => break,
+                        }
                     }
                 }
                 let end = self.offset + self.index;
@@ -2129,6 +2356,9 @@ impl<'a> SelectorParser<'a> {
                     Value::String("TypeSelector".to_string()),
                 );
                 obj.insert("name".to_string(), Value::String(name));
+                if let Some(ns) = namespace {
+                    obj.insert("namespace".to_string(), Value::String(ns));
+                }
                 obj.insert("start".to_string(), Value::Number((start as i64).into()));
                 obj.insert("end".to_string(), Value::Number((end as i64).into()));
                 selectors.push(Value::Object(obj));
@@ -2365,6 +2595,172 @@ impl<'a> SelectorParser<'a> {
                     ),
                 );
                 None
+            } else if is_nth_pseudo {
+                // For nth-* pseudo-classes, parse the An+B syntax and optional 'of S' selector
+                let trimmed = content.trim_ws();
+                let leading_ws = content.len() - content.trim_start_ws().len();
+                let nth_start = args_start + leading_ws;
+
+                // Check for 'of ' keyword to split An+B from selector
+                let (nth_value, selector_part, nth_end_pos) = if let Some(split) =
+                    find_nth_of(trimmed)
+                {
+                    // Everything up to and including the `of` (plus the
+                    // whitespace after it, if any) is the Nth value.
+                    let nth_val = &trimmed[..split];
+                    let sel_part = &trimmed[split..];
+                    let end_pos = nth_start + split;
+                    (nth_val, Some((sel_part, end_pos)), end_pos)
+                } else {
+                    // Check if it's a valid An+B expression or just a selector
+                    // An+B patterns: contains n, digits, +/-, or is even/odd
+                    let is_nth_pattern = trimmed == "even"
+                        || trimmed == "odd"
+                        || trimmed.contains('n')
+                        || trimmed.chars().any(|c| c.is_ascii_digit())
+                        || trimmed.starts_with('+')
+                        || trimmed.starts_with('-');
+
+                    if is_nth_pattern {
+                        let trailing_ws = content.len() - content.trim_end_ws().len();
+                        let end_pos = self.offset + content_end - trailing_ws;
+                        (trimmed, None, end_pos)
+                    } else {
+                        // Not an An+B pattern, treat as regular selector
+                        // Fall through to the non-nth parsing below
+                        let mut trimmed_inner = content.trim_ws();
+                        let mut leading_skip = content.len() - content.trim_start_ws().len();
+
+                        loop {
+                            if trimmed_inner.starts_with("/*") {
+                                if let Some(end_pos) = memmem::find(trimmed_inner.as_bytes(), b"*/")
+                                {
+                                    leading_skip += end_pos + 2;
+                                    trimmed_inner = &trimmed_inner[end_pos + 2..];
+                                    let ws_skip =
+                                        trimmed_inner.len() - trimmed_inner.trim_start_ws().len();
+                                    leading_skip += ws_skip;
+                                    trimmed_inner = trimmed_inner.trim_start_ws();
+                                } else {
+                                    break;
+                                }
+                            } else {
+                                break;
+                            }
+                        }
+
+                        let trailing_ws = content.len() - content.trim_end_ws().len();
+                        let trimmed_start = args_start + leading_skip;
+                        let trimmed_end = self.offset + content_end - trailing_ws;
+
+                        // Parse as regular selector list and set as args for the PseudoClassSelector
+                        let args = self.parse_args_selector_list(
+                            trimmed_inner,
+                            trimmed_start,
+                            trimmed_end,
+                        );
+                        let end = self.offset + self.index;
+
+                        let mut obj = Map::new();
+                        obj.insert(
+                            "type".to_string(),
+                            Value::String("PseudoClassSelector".to_string()),
+                        );
+                        obj.insert("name".to_string(), Value::String(name));
+                        obj.insert("args".to_string(), args);
+                        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+                        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+
+                        return Some(Value::Object(obj));
+                    }
+                };
+
+                // Build the Nth node
+                let mut nth_obj = Map::new();
+                nth_obj.insert("type".to_string(), Value::String("Nth".to_string()));
+                nth_obj.insert("value".to_string(), Value::String(nth_value.to_string()));
+                nth_obj.insert(
+                    "start".to_string(),
+                    Value::Number((nth_start as i64).into()),
+                );
+                nth_obj.insert(
+                    "end".to_string(),
+                    Value::Number((nth_end_pos as i64).into()),
+                );
+
+                // Get the actual end position
+                let trailing_ws = content.len() - content.trim_end_ws().len();
+                let actual_end = self.offset + content_end - trailing_ws;
+
+                // What follows `of` is an ordinary selector list, not a single
+                // selector: `:nth-child(2n of .a, .b)` has two complex
+                // selectors, and only the first one carries the `Nth`.
+                let of_list = selector_part.and_then(|(sel_text, sel_start)| {
+                    let mut list = self.parse_args_selector_list(sel_text, sel_start, actual_end);
+                    prepend_nth(&mut list, Value::Object(nth_obj.clone()), nth_start)
+                        .then_some(list)
+                });
+
+                let mut selectors = vec![Value::Object(nth_obj)];
+
+                // Only reached when there is nothing after `of` to attach to.
+                if of_list.is_none()
+                    && let Some((sel_text, sel_start)) = selector_part
+                {
+                    let mut sel_parser = self.nested(sel_text, sel_start);
+                    let mut parsed = Vec::new();
+                    sel_parser.parse_selectors(&mut parsed);
+                    self.absorb_nesting_error(&sel_parser);
+                    selectors.extend(parsed);
+                }
+
+                // Wrap in RelativeSelector
+                let mut rel_sel = Map::new();
+                rel_sel.insert(
+                    "type".to_string(),
+                    Value::String("RelativeSelector".to_string()),
+                );
+                rel_sel.insert("combinator".to_string(), Value::Null);
+                rel_sel.insert("selectors".to_string(), Value::Array(selectors));
+                rel_sel.insert(
+                    "start".to_string(),
+                    Value::Number((nth_start as i64).into()),
+                );
+                rel_sel.insert("end".to_string(), Value::Number((actual_end as i64).into()));
+
+                // Wrap in ComplexSelector
+                let mut complex_sel = Map::new();
+                complex_sel.insert(
+                    "type".to_string(),
+                    Value::String("ComplexSelector".to_string()),
+                );
+                complex_sel.insert(
+                    "start".to_string(),
+                    Value::Number((nth_start as i64).into()),
+                );
+                complex_sel.insert("end".to_string(), Value::Number((actual_end as i64).into()));
+                complex_sel.insert(
+                    "children".to_string(),
+                    Value::Array(vec![Value::Object(rel_sel)]),
+                );
+
+                // Wrap in SelectorList
+                let mut sel_list = Map::new();
+                sel_list.insert(
+                    "type".to_string(),
+                    Value::String("SelectorList".to_string()),
+                );
+                sel_list.insert(
+                    "start".to_string(),
+                    Value::Number((nth_start as i64).into()),
+                );
+                sel_list.insert("end".to_string(), Value::Number((actual_end as i64).into()));
+                sel_list.insert(
+                    "children".to_string(),
+                    Value::Array(vec![Value::Object(complex_sel)]),
+                );
+
+                Some(of_list.unwrap_or(Value::Object(sel_list)))
             } else {
                 // Calculate trimmed content positions (strip whitespace and leading comments)
                 let mut trimmed = content.trim_ws();
@@ -3084,10 +3480,17 @@ impl<'a> SelectorParser<'a> {
             return None;
         }
 
-        // `ns|el` — the namespace is dropped and the local name is the selector.
+        // `ns|el` / `ns|*` — the namespace is kept alongside the local name.
+        let mut namespace: Option<String> = None;
         if self.current_char() == '|' {
             self.advance();
-            name = self.read_namespaced_local_name()?;
+            namespace = Some(name);
+            if self.current_char() == '*' {
+                self.advance();
+                name = "*".to_string();
+            } else {
+                name = self.read_namespaced_local_name()?;
+            }
         }
 
         let end = self.offset + self.index;
@@ -3098,6 +3501,9 @@ impl<'a> SelectorParser<'a> {
             Value::String("TypeSelector".to_string()),
         );
         obj.insert("name".to_string(), Value::String(name));
+        if let Some(ns) = namespace {
+            obj.insert("namespace".to_string(), Value::String(ns));
+        }
         obj.insert("start".to_string(), Value::Number((start as i64).into()));
         obj.insert("end".to_string(), Value::Number((end as i64).into()));
 
@@ -3174,82 +3580,8 @@ impl<'a> SelectorParser<'a> {
         }
     }
 
-    /// Read a CSS identifier, handling CSS escape sequences.
-    ///
-    /// CSS escape sequences:
-    /// - `\XXXXXX` where X are hex digits (1-6 digits) - represents a unicode code point
-    /// - After hex digits, an optional single whitespace (space/tab/newline) terminates the escape
-    /// - `\c` where c is any non-hex character - represents the literal character c
+    /// Read a CSS identifier, decoding CSS escape sequences.
     fn read_identifier(&mut self) -> String {
-        let start = self.index;
-
-        // Upstream's `REGEX_LEADING_HYPHEN_OR_DIGIT` (`-?\d`): an identifier may
-        // not start with a digit, nor with a hyphen followed by one.
-        let head = &self.source[start..];
-        if head
-            .strip_prefix('-')
-            .unwrap_or(head)
-            .starts_with(|c: char| c.is_ascii_digit())
-        {
-            let pos = self.offset + start;
-            record_first_error(
-                &self.error,
-                crate::error::ParseError::svelte(
-                    "css_expected_identifier",
-                    "Expected a valid CSS identifier",
-                    (pos, pos),
-                ),
-            );
-        }
-
-        while !self.is_eof() {
-            let c = self.current_char();
-
-            if c == '\\' {
-                // CSS escape sequence
-                self.advance(); // consume '\'
-
-                if self.is_eof() {
-                    break;
-                }
-
-                let next = self.current_char();
-
-                if next.is_ascii_hexdigit() {
-                    // Read 1-6 hex digits
-                    let mut hex_count = 0;
-                    while !self.is_eof() && hex_count < 6 {
-                        let hc = self.current_char();
-                        if !hc.is_ascii_hexdigit() {
-                            break;
-                        }
-                        self.advance();
-                        hex_count += 1;
-                    }
-                    // After hex digits, optionally consume one whitespace character
-                    // but this whitespace is part of the escape and should be preserved
-                    if !self.is_eof() {
-                        let after = self.current_char();
-                        if after == ' ' || after == '\t' || after == '\n' || after == '\r' {
-                            self.advance();
-                        }
-                    }
-                } else {
-                    // Escape of a single non-hex character (e.g., \. means literal .)
-                    self.advance();
-                }
-            } else if c.is_alphanumeric() || c == '-' || c == '_' || (c as u32) >= 160 {
-                // Mirror the official `read_identifier` valid-character set:
-                // `[a-zA-Z0-9_-]` plus every code point >= 160 (CSS treats those
-                // as identifier characters, e.g. `×` is a valid type-selector
-                // name). Without the `>= 160` branch a non-alphanumeric code
-                // point >= 160 yields an empty identifier and spins the caller.
-                self.advance();
-            } else {
-                break;
-            }
-        }
-
-        self.source[start..self.index].to_string()
+        read_css_identifier(self.source, &mut self.index)
     }
 }

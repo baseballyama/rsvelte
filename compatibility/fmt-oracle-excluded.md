@@ -6,7 +6,7 @@ entirely (neither matched nor failed). Each entry carries a `"class"`
 (`oracle-bug` | `invalid-input` | `migrate` | `engine-divergence`) and a
 `"reason"`; this file records the class-level rationale.
 
-**Current baseline: `fmt-oracle-excluded.json`, 28 entries.**
+**Current baseline: `fmt-oracle-excluded.json`, 26 entries.**
 
 `fmt-verify.mjs` warns if an excluded id is no longer in the parity set (can be
 deleted) and notices if an excluded id now matches byte-for-byte (the oracle bug
@@ -82,12 +82,6 @@ Svelte-5 compiler formats differently. — `migrate/samples/slot-non-identifier/
 `migrate/samples/slot-usages/output.svelte`.
 
 ## engine-divergence — oxc vs prettier JS layout, both valid
-
-- **`let:` value read as an expression** — a default inside a `let:` destructuring pattern
-  comes back parenthesised (`[(head = "none")]`, `meta: ({ n } = {})`). Svelte accepts
-  both spellings; rsvelte-fmt parses the value as a binding pattern, where the parens are
-  a syntax error (#3125). — `let-directive-destructuring`,
-  `3123-let-directive-pattern-defaults`.
 
 Not oracle bugs and not rsvelte bugs: rsvelte formats embedded JS with the
 `oxc_formatter` crate (a deliberate design choice for the 100x-perf / oxc
