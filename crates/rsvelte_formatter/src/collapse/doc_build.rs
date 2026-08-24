@@ -220,8 +220,16 @@ pub(super) fn build_attrs_concat(
 /// place (the preceding text fill's trailing `line` stays flat) or move to a
 /// fresh line (a `hardline`). The first child's leading and last child's trailing
 /// whitespace are dropped (the element wrapper owns that newline).
-pub(super) fn build_children_doc(out: &str, fragment: &Fragment) -> Option<crate::doc::Doc> {
-    build_children_doc_nodes(out, &fragment.nodes, false, false, None)
+///
+/// `options` is what lets a content tag be modelled as a breakable group rather
+/// than an atom; without it the hug's `>` … `</tag` columns are measured against
+/// a tag that can never absorb them.
+pub(super) fn build_children_doc(
+    out: &str,
+    fragment: &Fragment,
+    options: Option<&FormatOptions>,
+) -> Option<crate::doc::Doc> {
+    build_children_doc_nodes(out, &fragment.nodes, false, false, options)
 }
 
 /// Build a breakable `group([RawExpr{flat, broken}])` for a content-level tag
@@ -964,7 +972,7 @@ pub(super) fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::
                     // the element is inside a multi-element run and overflows.
                     // Fall back to a flat text atom when the content has no fill
                     // break points (e.g. a pure text "resolve" that fits inline).
-                    let inner_content_doc = build_children_doc(out, &e.fragment).map_or_else(
+                    let inner_content_doc = build_children_doc(out, &e.fragment, None).map_or_else(
                         || Doc::Group(vec![Doc::Text(format!(">{content}</{tag}"))]),
                         |body| {
                             Doc::Group(vec![Doc::Concat(vec![
@@ -1048,7 +1056,7 @@ pub(super) fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::
                     }
                 });
                 let inner_body_doc = if has_attr_element && body_text_safe {
-                    build_children_doc(out, &e.fragment).and_then(|body| {
+                    build_children_doc(out, &e.fragment, None).and_then(|body| {
                         // Flat-match guard: only switch to the recursive doc when it
                         // prints identically to the opaque text (modulo boundary
                         // whitespace that `build_children_doc_nodes` trims from the
@@ -1130,7 +1138,7 @@ pub(super) fn element_doc(out: &str, node: &TemplateNode) -> Option<crate::doc::
             // attributes when the enclosing group breaks.  Flat-match guard for
             // 0-regression: only switch when the body prints flat-identically to
             // `content` (modulo boundary trimming by build_children_doc_nodes).
-            let inner_body_doc = build_children_doc(out, &e.fragment).and_then(|body| {
+            let inner_body_doc = build_children_doc(out, &e.fragment, None).and_then(|body| {
                 let flat_body = crate::doc::print(&body, 1_000_000, IndentUnit::new("  ", 2), 0, 0);
                 if flat_body.trim() == content.trim() {
                     let recursive_content = Doc::Concat(vec![

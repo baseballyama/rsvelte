@@ -352,15 +352,12 @@ async fn process_tag(
                     deps.extend_from_slice(&processed.dependencies);
                 }
 
-                // Check if anything changed. An attribute-only change (same code,
-                // no map, but returned `attributes`) must still be treated as a
-                // real diff so the tag is re-emitted with the new attributes —
-                // otherwise the original tag with stale attributes is returned
-                // (H-139).
-                if processed.map.is_none()
-                    && processed.code == content
-                    && processed.attributes.is_none()
-                {
+                // Upstream discards the whole result here, `attributes`
+                // included, so an attribute-only change never takes effect.
+                // Re-emitting the tag for it replaces the attribute list
+                // wholesale and drops `module` / `lang`, which changes what the
+                // component compiles to.
+                if processed.map.is_none() && processed.code == content {
                     return Ok(MappedCode::from_source(&slice_source(
                         tag_with_content.to_string(),
                         tag_offset,

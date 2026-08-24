@@ -111,7 +111,10 @@ pub fn visit_await_block<'a>(node: &AwaitBlock<'a>, state: &mut ServerTransformS
     if let Some(v) = &node.value {
         super::snippet_block::collect_param_pattern_names(v, &mut shadow);
     }
-    state.shadowed_names.push(shadow);
+    // `slot_let_shadows` as well: the awaited value is a runtime value, so a
+    // body read must not constant-fold to a same-named instance literal.
+    state.shadowed_names.push(shadow.clone());
+    state.slot_let_shadows.push(shadow);
     // The `then` fragment's scope is recorded under `block.start + 1` (an await
     // block owns three fragment scopes under one start offset).
     let then_block = match &node.then {
@@ -123,6 +126,7 @@ pub fn visit_await_block<'a>(node: &AwaitBlock<'a>, state: &mut ServerTransformS
         }
         None => state.b.block(vec![]),
     };
+    state.slot_let_shadows.pop();
     state.shadowed_names.pop();
     let then_params = match &node.value {
         Some(v) => vec![value_pattern(v, state)],

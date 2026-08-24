@@ -94,6 +94,13 @@ pub fn transform_server_module(
         source: "svelte/internal/server".into(),
     }));
 
+    // Every lowering below decides what a rune call is from this text, so the
+    // grouping parens around one have to be gone before the first of them runs —
+    // `strip_effects_from_source` would otherwise cut the call out of its own
+    // parens and leave `();` behind.
+    let paren_stripped = super::shared::rune_parens::strip_rune_parens(source);
+    let source = paren_stripped.as_deref().unwrap_or(source);
+
     // For server modules, strip $effect and $effect.root blocks from the source
     // before applying transforms, since effects don't run on the server.
     let source_without_effects = strip_effects_from_source(source);
@@ -175,18 +182,11 @@ pub fn transform_server_module(
             .unwrap_or(transformed)
     };
 
-    // Split imports from body
-    let (script_imports, script_rest) = super::client::extract_imports_str(&transformed);
-
-    for import_line in &script_imports {
-        let trimmed = import_line.trim();
-        if memmem::find(trimmed.as_bytes(), b"svelte/internal/").is_none() {
-            body.push(JsStatement::Raw(trimmed.into()));
-        }
-    }
-
-    if let Some(rest) = script_rest {
-        let rest_trimmed = rest.trim();
+    // Upstream `server_module` concatenates the generated `$` import with the
+    // module body untouched, so an `import` keeps its place among the other
+    // statements — hoisting it would change module evaluation order.
+    {
+        let rest_trimmed = transformed.trim();
         if !rest_trimmed.is_empty() {
             body.push(JsStatement::Raw(rest_trimmed.into()));
         }
