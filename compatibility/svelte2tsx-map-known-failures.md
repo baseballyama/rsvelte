@@ -5,7 +5,16 @@ invariants in `scripts/compat-corpus/sourcemap.mjs`) checks the `mappings` strin
 rsvelte's svelte2tsx port returns for every component corpus entry. The ratchet
 may only shrink.
 
-**Current baseline: `svelte2tsx-map-known-failures.json`, 0 entries** — every rsvelte map is well-formed.
+**Current baseline: `svelte2tsx-map-known-failures.json`, 3 entries.**
+
+All three are `map-missing` — rsvelte's svelte2tsx returned no map at all for
+the entry, which the wave-2 enrolment (#3130) surfaced: `chatgpt-web/src/lib/Home.svelte`,
+`immich/web/src/lib/components/asset-viewer/VideoNativeViewer.svelte` and
+`svelte-commerce/src/lib/components/nav/mega-menu.svelte`. The first of those is
+also an `error-mismatch` in the TSX ratchet (rsvelte rejects a file official
+compiles), so no map is the *consequence* there rather than a separate defect;
+the other two compile and still produce none. `map-invalid` remains **0** — no
+map rsvelte does emit violates an invariant.
 
 ## Why this gate is structural rather than a diff against official
 
