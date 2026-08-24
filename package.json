@@ -163,7 +163,7 @@
 		"lsp:update": "node scripts/compat-lsp/merge-current.mjs .lsp-current --update-baseline",
 		"lsp:merge": "node scripts/compat-lsp/merge-current.mjs",
 		"changeset": "changeset",
-		"version-packages": "changeset version && pnpm run sync-version && node scripts/ci/check-lint-types-lock.mjs --allow-unresolved",
+		"version-packages": "changeset version && pnpm run sync-version && pnpm run fix:lint-types-lock",
 		"release": "pnpm run sync-version && pnpm run build:wasm && pnpm run finalize-pkg && pnpm run publish-platform-binaries && pnpm run build:language-server && changeset publish",
 		"corpus:scss": "node scripts/compat-corpus/scss-verify.mjs"
 	},

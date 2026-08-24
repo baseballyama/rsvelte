@@ -23,8 +23,9 @@
 // `git submodule update --init submodules/corsa-bind`. If resolution still
 // cannot happen (no network, no cargo), that is reported as a distinct,
 // non-passing outcome — never printed or exit-coded like a real pass — unless
-// the caller opted in with `--allow-unresolved` (used by `version-packages`,
-// which must not hard-fail on infra flakiness; see that script for why).
+// the caller opted in with `--allow-unresolved`. `version-packages` instead
+// runs this script with `--fix`, which syncs and re-resolves the lock while
+// still tolerating submodule checkout failures after the text-pin repair.
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
