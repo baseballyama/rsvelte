@@ -724,6 +724,8 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
             let conv_object = {
                 {
+                    // Downstream matchers walk a member chain by variant, so a span
+                    // wrapper in object position hides the root identifier from them.
                     let __tmp = without_outer_source_span(
                         convert_js_node(pa.get_js_node(*object), context),
                         context,
@@ -1155,13 +1157,11 @@ fn convert_js_node(node: &JsNode, context: &mut ComponentContext) -> JsExpr {
 
             // Check if the argument is a simple identifier with an update transform
             if let Some(name_str) = get_jsnode_identifier_name(arg_node)
-                && let Some(update_fn) = context
-                    .state
-                    .transform
-                    .get(&name_str)
-                    .and_then(|t| t.update)
+                && let Some(update_transform) = context.state.transform.get(&name_str)
+                && let Some(update_fn) = update_transform.update
             {
                 return update_fn(
+                    update_transform,
                     &context.arena,
                     update_op,
                     JsExpr::Identifier(name_str.into()),
@@ -3690,7 +3690,7 @@ fn convert_block_statement(
     // Restore the shadow set to its state before this block was entered.
     context.state.shadowed_prop_names = saved_shadowed;
 
-    JsBlockStatement { body }
+    JsBlockStatement::with_body(body)
 }
 
 /// Add the top-level variable-declaration names from a JSON statement value to
@@ -3990,7 +3990,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                 .get("block")
                 .and_then(|b| b.as_object())
                 .map(|b| convert_block_statement(b, context))
-                .unwrap_or_else(|| JsBlockStatement { body: Vec::new() });
+                .unwrap_or_else(JsBlockStatement::new);
             let handler = obj.get("handler").and_then(|h| {
                 let h_obj = h.as_object()?;
                 // Route the catch parameter through the full pattern converter so
@@ -4004,7 +4004,7 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                     .get("body")
                     .and_then(|b| b.as_object())
                     .map(|b| convert_block_statement(b, context))
-                    .unwrap_or_else(|| JsBlockStatement { body: Vec::new() });
+                    .unwrap_or_else(JsBlockStatement::new);
                 Some(JsCatchClause { param, body })
             });
             let finalizer = obj
@@ -4657,23 +4657,16 @@ pub(crate) fn is_svelte_ignored_before_offset(start: usize, code: &str, source: 
         // Look backwards from the start position, searching within a reasonable window
         // We look at up to 500 chars before the node to find preceding comments
         let search_start_byte = start.saturating_sub(500);
-        // Ensure we're at a valid char boundary
-        let search_start = if source.is_char_boundary(search_start_byte) {
-            search_start_byte
-        } else {
-            source[..search_start_byte]
-                .char_indices()
-                .next_back()
-                .map_or(0, |(i, _)| i)
+        // Both ends have to be floored to a character start: slicing to a
+        // non-boundary is what this guards, so the guard cannot slice either.
+        let floor = |mut index: usize| {
+            while index > 0 && !source.is_char_boundary(index) {
+                index -= 1;
+            }
+            index
         };
-        let start = if source.is_char_boundary(start) {
-            start
-        } else {
-            source[..start]
-                .char_indices()
-                .next_back()
-                .map_or(0, |(i, _)| i)
-        };
+        let search_start = floor(search_start_byte);
+        let start = floor(start);
         let before = &source[search_start..start];
 
         // Check for JS-style svelte-ignore comments: // svelte-ignore <code>
@@ -5002,7 +4995,13 @@ fn try_transform_assignment(
             && is_non_coercive_operator(operator)
             && should_proxy_rhs.unwrap_or(true);
 
-        let result = assign_fn(&context.arena, b::id(&root_name), value, needs_proxy);
+        let result = assign_fn(
+            transform,
+            &context.arena,
+            b::id(&root_name),
+            value,
+            needs_proxy,
+        );
         let result = apply_store_ref_transform(result, &root_name, context);
         return Some(result);
     }
@@ -5045,7 +5044,7 @@ fn try_transform_assignment(
 
         let mutation_expr = b::assign_op(&context.arena, operator, visited_left, visited_right);
 
-        let result = mutate_fn(&context.arena, b::id(&root_name), mutation_expr);
+        let result = mutate_fn(transform, &context.arena, b::id(&root_name), mutation_expr);
         let result = apply_store_ref_transform(result, &root_name, context);
         // If the mutated prop carries `legacy_indirect_bindings` (a legacy
         // `<select bind:value={prop…}>` whose subtree references other scope
@@ -5901,7 +5900,7 @@ fn try_build_single_assignment(
 
     // Check if there's a transform for this identifier and copy the function pointers
     // we need before any mutable borrows
-    let transform = context.state.transform.get(&root_name)?;
+    let transform = context.state.transform.get(&root_name)?.clone();
     let assign_fn = transform.assign;
     let mutate_fn = transform.mutate;
     let replacement_id = transform.replacement_id.clone();
@@ -5913,6 +5912,7 @@ fn try_build_single_assignment(
         if let Some(assign_fn) = assign_fn {
             // For destructure assignments, we don't need proxy (always using "=" operator)
             return Some(assign_fn(
+                &transform,
                 &context.arena,
                 b::id(&root_name),
                 path.expression.clone(),
@@ -5930,7 +5930,12 @@ fn try_build_single_assignment(
             } else {
                 b::id(&root_name)
             };
-            return Some(mutate_fn(&context.arena, node_id, mutation_expr));
+            return Some(mutate_fn(
+                &transform,
+                &context.arena,
+                node_id,
+                mutation_expr,
+            ));
         }
     }
 
@@ -6308,7 +6313,7 @@ fn convert_block_statement_from_jsnode(
     // Restore the shadow set to its state before this block was entered.
     context.state.shadowed_prop_names = saved_shadowed;
 
-    JsBlockStatement { body }
+    JsBlockStatement::with_body(body)
 }
 
 /// Add the top-level variable-declaration names from a JsNode statement to
@@ -6550,9 +6555,11 @@ fn convert_update_expression(
     // apply the update transform directly to avoid invalid JS like $.get(x)++ or x()++.
     if let Some(arg_val) = argument_value
         && let Some(name) = extract_identifier_name_from_json(arg_val)
-        && let Some(update_fn) = context.state.transform.get(&name).and_then(|t| t.update)
+        && let Some(update_transform) = context.state.transform.get(&name)
+        && let Some(update_fn) = update_transform.update
     {
         return update_fn(
+            update_transform,
             &context.arena,
             operator,
             JsExpr::Identifier(name.into()),
@@ -6684,7 +6691,13 @@ fn try_transform_update(
         && name == root_name
         && let Some(update_fn) = transform.update
     {
-        let result = update_fn(&context.arena, operator, argument.clone(), prefix);
+        let result = update_fn(
+            transform,
+            &context.arena,
+            operator,
+            argument.clone(),
+            prefix,
+        );
         // For store subscriptions, apply the underlying store's read transform
         // to replace bare `store` with `$$props.store` for non-source props.
         let result = apply_store_ref_transform(result, name, context);
@@ -6721,7 +6734,7 @@ fn try_transform_update(
                 prefix,
             });
 
-            let result = mutate_fn(&context.arena, b::id(&root_name), update_expr);
+            let result = mutate_fn(transform, &context.arena, b::id(&root_name), update_expr);
             let result = apply_store_ref_transform(result, &root_name, context);
             return Some(result);
         }
